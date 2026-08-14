@@ -424,6 +424,26 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
+/* =========================
+   DRIVER / DISPATCH CHAT
+========================= */
+
+const driverChatRoutes =
+require("./routes/driverChatRoutes");
+
+app.use(
+  "/api/driver-chat",
+  driverChatRoutes
+);
+
+console.log(
+  "✅ driverChatRoutes mounted on /api/driver-chat"
+);
+
+/* =========================
+   LIVE DRIVER ROUTES
+========================= */
+
 const liveDriverRoutes =
 require("./routes/liveDriverRoutes");
 
