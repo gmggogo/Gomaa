@@ -1801,7 +1801,11 @@ async function returnSingleTripToDriver(
 
   const ok =
     window.confirm(
-      `Return trip ${getTripNumber(t)} to the driver?\n\nCurrent status: ${status}\n\nThe trip will leave Final Confirmation and become active again for the assigned driver.`
+      `Return trip ${getTripNumber(t)} to the driver?
+
+Current status: ${status}
+
+No final confirmation will be applied. The trip will become active again for the assigned driver.`
     );
 
   if(!ok){
@@ -1859,6 +1863,14 @@ async function confirmSingleTrip(key){
     findLiveTripByKey(key);
 
   if(!t){
+    return;
+  }
+
+  const ok = window.confirm(
+    `Confirm trip ${getTripNumber(t)}?\n\nThis will approve the final status and finalize any applicable payment.`
+  );
+
+  if(!ok){
     return;
   }
 
@@ -2051,6 +2063,14 @@ async function confirmSharedTrip(key){
     findLiveSharedRootByKey(key);
 
   if(!root){
+    return;
+  }
+
+  const ok = window.confirm(
+    `Confirm shared trip ${getTripNumber(root)}?\n\nThis will approve the final shared statuses.`
+  );
+
+  if(!ok){
     return;
   }
 
@@ -2704,6 +2724,7 @@ function renderTripRow(item){
                 class="btn-action btn-edit"
                 type="button"
                 onclick="beginEditSingle('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 Edit
               </button>
@@ -2712,6 +2733,9 @@ function renderTripRow(item){
                 class="btn-action btn-return-driver"
                 type="button"
                 onclick="returnSingleTripToDriver('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
+                aria-disabled="${confirmed ? "true" : "false"}"
+                title="${confirmed ? "Trip already confirmed" : "Return trip to driver"}"
               >
                 Return To Driver
               </button>
@@ -2720,6 +2744,7 @@ function renderTripRow(item){
                 class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
                 type="button"
                 onclick="confirmSingleTrip('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 ${
                   confirmed
@@ -2937,6 +2962,7 @@ function renderSharedRow(item){
                 class="btn-action btn-edit"
                 type="button"
                 onclick="beginEditShared('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 Edit
               </button>
@@ -2945,6 +2971,7 @@ function renderSharedRow(item){
                 class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
                 type="button"
                 onclick="confirmSharedTrip('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 ${
                   confirmed
@@ -3019,6 +3046,28 @@ Object.assign(
     handleSharedPassengerStatusChange
   }
 );
+
+
+/* ===============================
+   DISABLED FINAL ACTIONS STYLE
+================================ */
+(function ensureFinalActionDisabledStyle(){
+  if(document.getElementById("finalActionDisabledStyle")) return;
+
+  const style = document.createElement("style");
+  style.id = "finalActionDisabledStyle";
+  style.textContent = `
+    .btn-action:disabled{
+      opacity:.45 !important;
+      cursor:not-allowed !important;
+      filter:grayscale(.35);
+      box-shadow:none !important;
+      pointer-events:none;
+    }
+  `;
+
+  document.head.appendChild(style);
+})();
 
 /* ===============================
    INIT
