@@ -1567,6 +1567,225 @@ body{
   .notification-btn{border-radius:11px;}
 }
 
+
+/* =====================================================
+   SUNBEAM TRIPS — HEADER + EMPTY STATE
+   MODERN + CLASSIC
+   Visual-only override. Trip logic unchanged.
+===================================================== */
+
+.header{
+  padding:max(12px,env(safe-area-inset-top)) 14px 13px;
+  background:
+    radial-gradient(circle at 18% 0%,rgba(42,91,151,.16),transparent 35%),
+    linear-gradient(180deg,#071c3b 0%,#04162f 100%);
+  border-bottom:3px solid #d7a51d;
+  box-shadow:
+    0 5px 0 rgba(87,56,0,.34),
+    0 10px 20px rgba(0,0,0,.20);
+}
+
+.stats{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin-top:0;
+}
+
+.stat{
+  position:relative;
+  min-width:0;
+  min-height:76px;
+  padding:9px 4px;
+  border-radius:17px;
+  background:
+    radial-gradient(circle at 20% 8%,rgba(56,112,184,.14),transparent 40%),
+    linear-gradient(160deg,#0b315e 0%,#061d3c 58%,#03152f 100%);
+  border-top:2px solid rgba(255,226,122,.92);
+  border-left:2px solid rgba(237,183,42,.88);
+  border-right:2px solid rgba(126,82,0,.92);
+  border-bottom:4px solid #694500;
+  box-shadow:
+    0 5px 0 rgba(55,35,0,.48),
+    0 9px 15px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.stat::after{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border-radius:12px;
+  border:1px solid rgba(255,210,38,.30);
+  pointer-events:none;
+}
+
+.stat span{
+  position:relative;
+  z-index:1;
+  color:#c2cad7;
+  font-size:7.5px;
+  line-height:1.15;
+  font-weight:900;
+  letter-spacing:.55px;
+  text-align:center;
+  text-transform:uppercase;
+}
+
+.stat strong{
+  position:relative;
+  z-index:1;
+  margin-top:5px;
+  font-size:21px;
+  line-height:1;
+  font-weight:900;
+  text-shadow:0 1px 0 rgba(0,0,0,.55);
+}
+
+.stat.today strong{color:#fff;}
+.stat.completed strong{color:#42ed7b;}
+.stat.noshow strong{color:#ffd226;}
+.stat.cancelled strong{color:#ff5a5a;}
+
+.trip-alert{
+  position:relative;
+  margin-top:12px;
+  min-height:52px;
+  padding:10px 14px;
+  border-radius:19px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  color:#fff;
+  background:
+    linear-gradient(180deg,#0b315d 0%,#04172f 100%);
+  border-top:2px solid #ffe27a;
+  border-left:2px solid #edb72a;
+  border-right:2px solid #9e6800;
+  border-bottom:4px solid #6f4900;
+  box-shadow:
+    0 5px 0 rgba(57,36,0,.46),
+    0 10px 16px rgba(0,0,0,.17),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+}
+
+.trip-alert::after{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border-radius:14px;
+  border:1px solid rgba(255,210,38,.34);
+  pointer-events:none;
+}
+
+.trip-alert .light{
+  position:relative;
+  z-index:1;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#22c55e;
+  box-shadow:0 0 12px rgba(34,197,94,.75);
+}
+
+.trip-alert span{
+  position:relative;
+  z-index:1;
+}
+
+.trip-alert.done{
+  color:#e6ebf2;
+  background:
+    linear-gradient(180deg,#17375d 0%,#0a2345 100%);
+  border-top-color:#ffe27a;
+  border-left-color:#edb72a;
+  border-right-color:#9e6800;
+  border-bottom-color:#6f4900;
+}
+
+.trip-alert.done .light{
+  background:#7f91aa;
+  box-shadow:none;
+}
+
+.empty{
+  position:relative;
+  margin-top:28px;
+  padding:34px 22px;
+  border-radius:25px;
+  text-align:center;
+  color:#dce4ef;
+  line-height:1.55;
+  background:
+    radial-gradient(circle at 20% 8%,rgba(60,121,199,.15),transparent 38%),
+    linear-gradient(160deg,#12365f 0%,#09264a 48%,#04172f 100%);
+  border-top:3px solid #ffe27a;
+  border-left:3px solid #edb72a;
+  border-right:3px solid #9e6800;
+  border-bottom:5px solid #6f4900;
+  box-shadow:
+    0 7px 0 rgba(57,36,0,.48),
+    0 14px 22px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.empty::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:18px;
+  border:1.5px solid rgba(255,210,38,.42);
+  pointer-events:none;
+}
+
+.empty strong,
+.empty b{
+  color:#fff;
+  font-size:21px;
+  font-weight:900;
+}
+
+@media(max-width:390px){
+  .header{
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  .stats{
+    gap:6px;
+  }
+
+  .stat{
+    min-height:70px;
+    border-radius:15px;
+  }
+
+  .stat span{
+    font-size:6.5px;
+    letter-spacing:.35px;
+  }
+
+  .stat strong{
+    font-size:19px;
+  }
+
+  .trip-alert{
+    min-height:48px;
+    border-radius:17px;
+    font-size:9.5px;
+  }
+
+  .empty{
+    margin-top:24px;
+    padding:30px 18px;
+    border-radius:22px;
+  }
+}
+
 </style>
 <link rel="stylesheet" href="driver.css">
 </head>
