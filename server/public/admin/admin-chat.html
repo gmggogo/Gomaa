@@ -45,6 +45,77 @@
       padding:18px;
     }
 
+    .admin-chat-header{
+      width:100%;
+      min-height:92px;
+
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+
+      padding:18px 22px;
+
+      border-radius:26px;
+
+      background:
+        linear-gradient(
+          180deg,
+          #031329 0%,
+          #061b38 100%
+        );
+
+      border-bottom:4px solid var(--gold);
+
+      box-shadow:
+        0 8px 0 rgba(91,59,0,.30),
+        0 14px 24px rgba(0,0,0,.18);
+    }
+
+    .admin-chat-title{
+      min-width:0;
+    }
+
+    .admin-chat-title h1{
+      margin:0;
+
+      color:var(--gold);
+
+      font-size:28px;
+      line-height:1;
+      font-weight:900;
+    }
+
+    .admin-chat-title p{
+      margin:7px 0 0;
+
+      color:#dbe3ef;
+
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .admin-chat-logo{
+      width:110px;
+      height:58px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      overflow:hidden;
+    }
+
+    .admin-chat-logo img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+
+      border:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
+    }
+
     .admin-chat-layout{
       width:100%;
 
@@ -577,364 +648,161 @@
 
 <body>
 
-<header class="admin-header">
+  <main class="admin-chat-page">
 
-<!-- ================= TOP BAR ================= -->
+    <header class="admin-chat-header">
 
-<div class="top-bar">
+      <div class="admin-chat-title">
+        <h1>Dispatch Chat</h1>
+        <p>Driver ↔ Dispatch Messaging</p>
+      </div>
 
-  <!-- MOBILE MENU BUTTON -->
+      <div class="admin-chat-logo">
+        <img
+          class="logo app-logo"
+          alt="Company Logo"
+        />
+      </div>
 
-  <button
-    type="button"
-    class="mobile-menu-btn"
-    id="mobileMenuBtn"
-    aria-label="Open Menu">
-    ☰
-  </button>
-
-  <!-- LEFT -->
-
-  <div class="top-left">
-
-    <img
-      class="logo app-logo main-logo"
-      alt="Company Logo">
-
-  </div>
-
-  <!-- CENTER -->
-
-  <div class="top-center">
+    </header>
 
     <div
-      class="company"
-      id="dynamicCompanyName">
+      class="admin-chat-error"
+      id="adminChatError"
+    ></div>
 
-      Loading...
+    <section class="admin-chat-layout">
 
-    </div>
+      <aside class="driver-list-card">
 
-    <div class="welcome-box">
+        <div class="panel-heading">
 
-      <span id="weatherIcon"></span>
+          <div>
+            <div class="panel-heading-title">
+              Drivers
+            </div>
 
-      <span id="welcomeMessage"></span>
-
-    </div>
-
-  </div>
-
-  <!-- RIGHT -->
-
-  <div class="top-right">
-
-    <span id="azTime"></span>
-
-    <button
-      class="logout-btn"
-      onclick="logout()">
-
-      Logout
-
-    </button>
-
-  </div>
-
-</div>
-
-<!-- ================= DESKTOP NAV ================= -->
-
-<div class="admin-nav-wrapper">
-
-<nav
-  class="admin-nav"
-  id="adminDesktopNav">
-
-<a href="dashboard.html" class="nav-btn">
-Dashboard
-</a>
-
-<a href="trips-hub.html" class="nav-btn">
-Trips Hub
-</a>
-
-<a href="trips.html" class="nav-btn">
-Trips
-</a>
-
-<a href="dispatch.html" class="nav-btn">
-Dispatch
-</a>
-
-<a href="dispatch-final-confirmation.html" class="nav-btn">
-Dispatch Final Confirmation
-</a>
-
-<a href="dispatch-review.html" class="nav-btn">
-Dispatch Review
-</a>
-
-<a href="driver-schedule.html" class="nav-btn">
-Driver Schedule
-</a>
-
-<a href="maps.html" class="nav-btn">
-Drivers Map
-</a>
-
-<a href="users.html" class="nav-btn">
-Add User
-</a>
-
-<a href="summary.html" class="nav-btn">
-Summary
-</a>
-
-<a href="payments.html" class="nav-btn">
-Payments
-</a>
-
-<a href="settings.html" class="nav-btn">
-Settings
-</a>
-
-<a href="refunds.html" class="nav-btn">
-Refunds
-</a>
-
-<a href="admin-billing.html" class="nav-btn">
-Admin Billing
-</a>
-
-<a href="system-design.html" class="nav-btn">
-System Design
-</a>
-
-<a href="service-management.html" class="nav-btn">
-Service Management
-</a>
-
-<a href="facility-pricing-override.html" class="nav-btn">
-Facility Pricing Override
-</a>
-
-<a href="smart-dispatch-engine.html" class="nav-btn">
-Smart Dispatch
-</a>
-
-<a href="admin-chat.html" class="nav-btn active">
-Chat
-</a>
-
-</nav>
-
-<div class="gh-powered">
-
-Powered by GH Mobility
-
-</div>
-
-</div>
-
-<!-- ================= MOBILE SIDE MENU ================= -->
-
-<div
-  class="mobile-menu-overlay"
-  id="mobileMenuOverlay">
-</div>
-
-<aside
-  class="mobile-side-menu"
-  id="mobileSideMenu">
-
-  <div class="mobile-side-head">
-
-    <img
-      class="mobile-side-logo app-logo"
-      alt="Company Logo">
-
-    <div class="mobile-side-title">
-
-      <div id="mobileCompanyName">
-        Company
-      </div>
-
-      <small>
-        Admin Panel
-      </small>
-
-    </div>
-
-    <button
-      type="button"
-      class="mobile-close-btn"
-      id="mobileCloseBtn">
-      ×
-    </button>
-
-  </div>
-
-  <nav
-    class="mobile-side-nav"
-    id="mobileSideNav">
-  </nav>
-
-  <button
-    type="button"
-    class="mobile-logout-btn"
-    onclick="logout()">
-    🚪 Logout
-  </button>
-
-  <div class="mobile-powered">
-    GH Mobility
-  </div>
-
-</aside>
-
-</header>
-
-<main class="admin-chat-page">
-
-  <div
-    class="admin-chat-error"
-    id="adminChatError"
-  ></div>
-
-  <section class="admin-chat-layout">
-
-    <aside class="driver-list-card">
-
-      <div class="panel-heading">
-
-        <div>
-          <div class="panel-heading-title">
-            Drivers
-          </div>
-
-          <div class="panel-heading-sub">
-            Select a driver
-          </div>
-        </div>
-
-      </div>
-
-      <div class="driver-search-wrap">
-
-        <input
-          class="driver-search"
-          id="driverSearch"
-          type="search"
-          placeholder="Search drivers..."
-          autocomplete="off"
-        />
-
-      </div>
-
-      <div
-        class="driver-list"
-        id="driverList"
-      ></div>
-
-    </aside>
-
-    <section class="conversation-card">
-
-      <div class="conversation-top">
-
-        <div class="conversation-driver">
-
-          <div
-            class="conversation-driver-name"
-            id="selectedDriverName"
-          >
-            Select a driver
-          </div>
-
-          <div
-            class="conversation-driver-status"
-            id="selectedDriverStatus"
-          >
-            No conversation selected
+            <div class="panel-heading-sub">
+              Select a driver
+            </div>
           </div>
 
         </div>
 
-        <div class="dispatch-badge">
-          DISPATCH
+        <div class="driver-search-wrap">
+
+          <input
+            class="driver-search"
+            id="driverSearch"
+            type="search"
+            placeholder="Search drivers..."
+            autocomplete="off"
+          />
+
         </div>
-
-      </div>
-
-      <div
-        class="admin-messages"
-        id="adminMessages"
-      >
 
         <div
-          class="admin-empty"
-          id="adminEmpty"
-        >
-          <div class="admin-empty-title">
-            Select a Driver
+          class="driver-list"
+          id="driverList"
+        ></div>
+
+      </aside>
+
+      <section class="conversation-card">
+
+        <div class="conversation-top">
+
+          <div class="conversation-driver">
+
+            <div
+              class="conversation-driver-name"
+              id="selectedDriverName"
+            >
+              Select a driver
+            </div>
+
+            <div
+              class="conversation-driver-status"
+              id="selectedDriverStatus"
+            >
+              No conversation selected
+            </div>
+
           </div>
 
-          <div class="admin-empty-text">
-            Choose a driver from the left to open the dispatch conversation.
+          <div class="dispatch-badge">
+            DISPATCH
           </div>
+
         </div>
 
-      </div>
-
-      <form
-        class="admin-composer"
-        id="adminChatForm"
-      >
-
-        <textarea
-          class="admin-message-input"
-          id="adminMessageInput"
-          rows="1"
-          maxlength="2000"
-          placeholder="Message driver..."
-          disabled
-        ></textarea>
-
-        <button
-          class="admin-send-button"
-          id="adminSendButton"
-          type="submit"
-          disabled
+        <div
+          class="admin-messages"
+          id="adminMessages"
         >
-          ➤
-        </button>
 
-      </form>
+          <div
+            class="admin-empty"
+            id="adminEmpty"
+          >
+            <div class="admin-empty-title">
+              Select a Driver
+            </div>
+
+            <div class="admin-empty-text">
+              Choose a driver from the left to open the dispatch conversation.
+            </div>
+          </div>
+
+        </div>
+
+        <form
+          class="admin-composer"
+          id="adminChatForm"
+        >
+
+          <textarea
+            class="admin-message-input"
+            id="adminMessageInput"
+            rows="1"
+            maxlength="2000"
+            placeholder="Message driver..."
+            disabled
+          ></textarea>
+
+          <button
+            class="admin-send-button"
+            id="adminSendButton"
+            type="submit"
+            disabled
+          >
+            ➤
+          </button>
+
+        </form>
+
+      </section>
 
     </section>
 
-  </section>
+  </main>
 
-</main>
+  <script src="/core/branding.js"></script>
 
-<script src="/core/branding.js"></script>
+  <script>
+    window.addEventListener(
+      "DOMContentLoaded",
+      async () => {
 
-<script>
-  window.addEventListener(
-    "DOMContentLoaded",
-    async () => {
+        if(window.Branding){
+          await window.Branding.load();
+        }
 
-      if(window.Branding){
-        await window.Branding.load();
       }
+    );
+  </script>
 
-    }
-  );
-</script>
-
-<script src="admin.js"></script>
-<script src="admin-chat.js" defer></script>
+  <script src="admin-chat.js" defer></script>
 
 </body>
 </html>
