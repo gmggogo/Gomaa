@@ -52,6 +52,7 @@
 
     .driver-header{
       width:100%;
+
       display:grid;
       grid-template-columns:auto minmax(0,1fr) 74px;
       align-items:center;
@@ -62,11 +63,12 @@
         18px
         16px;
 
-      background:linear-gradient(
-        180deg,
-        #031329 0%,
-        #061b38 100%
-      );
+      background:
+        linear-gradient(
+          180deg,
+          #031329 0%,
+          #061b38 100%
+        );
 
       border-bottom:4px solid var(--gold);
       border-radius:0 0 34px 34px;
@@ -87,11 +89,12 @@
       border-radius:50%;
       border:3px solid var(--gold);
 
-      background:radial-gradient(
-        circle at 50% 35%,
-        #183f70,
-        #04162f 72%
-      );
+      background:
+        radial-gradient(
+          circle at 50% 35%,
+          #183f70,
+          #04162f 72%
+        );
     }
 
     .driver-avatar svg{
@@ -105,7 +108,7 @@
     }
 
     .driver-name{
-      color:#fff;
+      color:var(--gold) !important;
       font-size:19px;
       line-height:1;
       font-weight:900;
@@ -113,6 +116,10 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+
+      text-shadow:
+        0 2px 0 rgba(80,52,0,.55),
+        0 3px 5px rgba(0,0,0,.18);
     }
 
     .driver-role{
@@ -131,17 +138,24 @@
       justify-content:center;
 
       overflow:hidden;
-      border:1px solid rgba(255,255,255,.30);
+
+      border:0 !important;
+      outline:0 !important;
+      background:transparent !important;
+      box-shadow:none !important;
     }
 
     .driver-logo-box img{
       display:block;
+
       width:100%;
       height:100%;
+
       object-fit:contain;
 
       background:transparent !important;
       border:0 !important;
+      outline:0 !important;
       box-shadow:none !important;
       filter:none !important;
     }
@@ -152,11 +166,12 @@
 
     .company-name-wrap{
       width:100%;
+
       display:flex;
       justify-content:center;
 
-      margin-top:22px;
-      margin-bottom:22px;
+      margin-top:24px;
+      margin-bottom:24px;
     }
 
     .dashboard-company{
@@ -164,6 +179,7 @@
       padding:0 12px;
 
       color:var(--gold);
+
       text-align:center;
 
       font-size:29px;
@@ -181,7 +197,7 @@
     ========================= */
 
     .status-pill{
-      margin:0 18px 18px;
+      margin:0 18px 20px;
 
       min-height:60px;
       padding:0 20px;
@@ -192,11 +208,12 @@
 
       border-radius:30px;
 
-      background:linear-gradient(
-        180deg,
-        #0b315d 0%,
-        #04172f 100%
-      );
+      background:
+        linear-gradient(
+          180deg,
+          #0b315d 0%,
+          #04172f 100%
+        );
 
       border:2px solid rgba(255,210,38,.84);
 
@@ -241,7 +258,9 @@
     .dashboard-content{
       width:100%;
       max-width:100%;
+
       padding:0 18px 28px;
+
       overflow-x:hidden;
     }
 
@@ -256,13 +275,17 @@
 
     .dashboard-card{
       position:relative;
+
       width:100%;
       max-width:100%;
+
+      min-width:0;
 
       appearance:none;
       -webkit-tap-highlight-color:transparent;
 
       font-family:inherit;
+
       cursor:pointer;
       overflow:hidden;
 
@@ -323,6 +346,8 @@
       grid-column:1 / -1;
 
       min-height:116px;
+
+      margin-top:0 !important;
 
       color:#07172d;
 
@@ -388,6 +413,7 @@
       z-index:2;
 
       display:block;
+
       width:auto;
       height:auto;
 
@@ -413,12 +439,10 @@
     }
 
     /* =========================
-       REVIEW SUMMARY - FIXED
+       REVIEW SUMMARY
     ========================= */
 
     .summary-wrap{
-      display:block;
-
       width:100%;
       max-width:100%;
       min-width:0;
@@ -426,23 +450,20 @@
       margin:12px 0 0 0;
       padding:0;
 
-      overflow:hidden;
-      box-sizing:border-box;
+      overflow:visible;
     }
 
-    #cardSummary.summary-card{
+    #cardSummary{
       position:relative;
 
       display:flex;
       align-items:center;
       justify-content:center;
+      gap:12px;
 
       width:100% !important;
       max-width:100% !important;
       min-width:0 !important;
-
-      height:auto;
-      min-height:88px;
 
       margin:0 !important;
       padding:14px 18px !important;
@@ -452,13 +473,14 @@
 
       transform:none !important;
 
+      min-height:88px;
+
       appearance:none;
       -webkit-tap-highlight-color:transparent;
 
       font-family:inherit;
-      cursor:pointer;
 
-      box-sizing:border-box !important;
+      cursor:pointer;
       overflow:hidden;
 
       color:#fff;
@@ -488,10 +510,10 @@
         0 12px 18px rgba(2,12,30,.22),
         inset 0 1px 0 rgba(255,255,255,.08);
 
-      gap:12px;
+      box-sizing:border-box !important;
     }
 
-    #cardSummary.summary-card::after{
+    #cardSummary::after{
       content:"";
 
       position:absolute;
@@ -538,7 +560,6 @@
       z-index:2;
 
       min-width:0;
-      max-width:100%;
 
       color:#fff;
 
@@ -558,6 +579,7 @@
 
       .driver-header{
         grid-template-columns:auto minmax(0,1fr) 70px;
+
         padding-left:14px;
         padding-right:14px;
       }
@@ -578,11 +600,17 @@
 
       .company-name-wrap{
         margin-top:24px;
-        margin-bottom:22px;
+        margin-bottom:24px;
       }
 
       .dashboard-company{
         font-size:26px;
+      }
+
+      .status-pill{
+        margin-left:12px;
+        margin-right:12px;
+        margin-bottom:20px;
       }
 
       .dashboard-content{
@@ -620,7 +648,7 @@
         font-size:25px;
       }
 
-      #cardSummary.summary-card{
+      #cardSummary{
         min-height:84px;
         padding-left:14px !important;
         padding-right:14px !important;
@@ -706,7 +734,6 @@
 
       <section class="dashboard-grid">
 
-        <!-- TRIPS: NO CAR ICON -->
         <button
           class="dashboard-card"
           id="cardTrips"
@@ -785,7 +812,6 @@
       <div class="summary-wrap">
 
         <button
-          class="summary-card"
           id="cardSummary"
           type="button"
         >

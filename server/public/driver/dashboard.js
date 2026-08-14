@@ -37,21 +37,6 @@
     );
   }
 
-  function ensureSession(){
-
-    const driver = getLoggedDriver();
-
-    if(
-      !driver ||
-      Object.keys(driver).length === 0
-    ){
-      window.location.href = ROUTES.login;
-      return false;
-    }
-
-    return true;
-  }
-
   function loadDriverName(){
 
     const el = $("driverName");
@@ -87,6 +72,21 @@
     localStorage.removeItem("appTimezone");
 
     window.location.href = ROUTES.login;
+  }
+
+  function ensureSession(){
+
+    const driver = getLoggedDriver();
+
+    if(
+      !driver ||
+      Object.keys(driver).length === 0
+    ){
+      window.location.href = ROUTES.login;
+      return false;
+    }
+
+    return true;
   }
 
   function bindClick(id,handler){
@@ -129,15 +129,6 @@
     window.logout = logout;
   }
 
-  function refreshDriver(){
-
-    if(!ensureSession()){
-      return;
-    }
-
-    loadDriverName();
-  }
-
   function init(){
 
     if(!ensureSession()){
@@ -153,7 +144,8 @@
       function(){
 
         if(!document.hidden){
-          refreshDriver();
+          ensureSession();
+          loadDriverName();
         }
 
       }
