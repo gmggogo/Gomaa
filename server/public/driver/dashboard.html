@@ -174,26 +174,30 @@
       margin-bottom:24px;
     }
 
-    .dashboard-company{
-      margin:0;
-      padding:0 10px;
+    .company-name-wrap .dashboard-company.company-name{
+      width:100%;
+      max-width:calc(100vw - 28px);
 
-      color:var(--gold);
-      text-align:center;
+      margin:0 !important;
+      padding:0 6px !important;
 
-      font-size:23px;
-      line-height:1;
-      font-weight:900;
-      letter-spacing:.4px;
+      color:var(--gold) !important;
+      text-align:center !important;
 
-      white-space:nowrap;
-      max-width:94vw;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      font-size:clamp(14px,4.2vw,19px) !important;
+      line-height:1.05 !important;
+      font-weight:900 !important;
+      letter-spacing:0 !important;
+
+      white-space:nowrap !important;
+      overflow:visible !important;
+      text-overflow:clip !important;
+
+      transform:none !important;
 
       text-shadow:
         0 2px 0 #765000,
-        0 4px 7px rgba(0,0,0,.22);
+        0 4px 7px rgba(0,0,0,.22) !important;
     }
 
     /* =========================
@@ -597,9 +601,9 @@
         margin-bottom:24px;
       }
 
-      .dashboard-company{
-        font-size:21px;
-        letter-spacing:.2px;
+      .company-name-wrap .dashboard-company.company-name{
+        font-size:clamp(13px,4vw,17px) !important;
+        letter-spacing:0 !important;
       }
 
       .status-pill{
