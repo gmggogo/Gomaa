@@ -108,8 +108,8 @@
     }
 
     .driver-name{
-      color:var(--gold) !important;
-      font-size:19px;
+      color:#ffffff !important;
+      font-size:18px;
       line-height:1;
       font-weight:900;
 
@@ -118,8 +118,7 @@
       text-overflow:ellipsis;
 
       text-shadow:
-        0 2px 0 rgba(80,52,0,.55),
-        0 3px 5px rgba(0,0,0,.18);
+        0 2px 4px rgba(0,0,0,.55);
     }
 
     .driver-role{
@@ -181,7 +180,7 @@
       margin:0 !important;
       padding:0 6px !important;
 
-      color:var(--gold) !important;
+      color:#e5ad00 !important;
       text-align:center !important;
 
       font-size:clamp(18px,5.2vw,23px) !important;
@@ -420,12 +419,15 @@
       position:relative;
       z-index:2;
 
-      display:block;
+      width:28px;
+      height:28px;
 
-      width:auto;
-      height:auto;
+      display:flex;
+      align-items:center;
+      justify-content:center;
 
-      font-size:27px;
+      color:#ffffff;
+      font-size:0;
       line-height:1;
 
       background:transparent !important;
@@ -588,7 +590,7 @@
       }
 
       .driver-name{
-        font-size:18px;
+        font-size:17px;
       }
 
       .driver-logo-box{
@@ -636,7 +638,13 @@
       }
 
       .history-icon{
-        font-size:25px;
+        width:26px;
+        height:26px;
+      }
+
+      .history-icon svg{
+        width:26px;
+        height:26px;
       }
 
       .dashboard-card-title{
@@ -767,7 +775,13 @@
           <span
             class="history-icon"
             aria-hidden="true"
-          >🕘</span>
+          >
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 3-6.7"/>
+              <path d="M3 4v5h5"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+          </span>
 
           <span class="dashboard-card-title">
             Trip History
