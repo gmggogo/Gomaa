@@ -442,18 +442,8 @@
        REVIEW SUMMARY
     ========================= */
 
-    .summary-wrap{
-      width:100%;
-      max-width:100%;
-      min-width:0;
-
-      margin:12px 0 0 0;
-      padding:0;
-
-      overflow:visible;
-    }
-
     #cardSummary{
+      grid-column:1 / -1;
       position:relative;
 
       display:flex;
@@ -807,10 +797,6 @@
           </span>
         </button>
 
-      </section>
-
-      <div class="summary-wrap">
-
         <button
           id="cardSummary"
           type="button"
@@ -830,7 +816,7 @@
 
         </button>
 
-      </div>
+      </section>
 
     </div>
 
