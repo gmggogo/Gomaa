@@ -449,6 +449,32 @@ function escapeHtml(v){
 }
 
 /* =========================
+   HUMAN DURATION
+========================= */
+
+function formatDuration(hours){
+
+  const totalMinutes =
+    Math.max(
+      0,
+      Math.round(Number(hours || 0) * 60)
+    );
+
+  const hrs = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if(hrs === 0){
+    return `${mins} MIN`;
+  }
+
+  if(mins === 0){
+    return `${hrs} ${hrs === 1 ? "HR" : "HRS"}`;
+  }
+
+  return `${hrs} ${hrs === 1 ? "HR" : "HRS"} ${mins} MIN`;
+}
+
+/* =========================
    WORK HOURS ENGINE
 ========================= */
 
@@ -739,7 +765,7 @@ function render(items){
     <div class="total-hours-box">
 
       <span class="total-hours-number">
-        ${totalHours.toFixed(2)}
+        ${escapeHtml(formatDuration(totalHours))}
       </span>
 
       <span class="total-hours-label">
@@ -816,7 +842,7 @@ function render(items){
                 </div>
 
                 <div class="hours-badge">
-                  ${day.hours.toFixed(2)} HRS
+                  ${escapeHtml(formatDuration(day.hours))}
                 </div>
 
               </div>
