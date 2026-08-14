@@ -11,6 +11,10 @@ function clean(v){
   return String(v ?? "").trim();
 }
 
+function escapeRegex(v){
+  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
 function getDriverId(req){
 
   return clean(
@@ -61,20 +65,60 @@ function getUserModel(){
   }
 }
 
-function liveDriverId(row){
+function getFreshLiveRows(){
 
-  return clean(
-    row?.driverId ||
-    row?.userId ||
-    row?._id ||
-    row?.id ||
-    ""
-  );
+  const liveMap =
+    global.liveDrivers instanceof Map
+      ? global.liveDrivers
+      : new Map();
+
+  const now = Date.now();
+  const maxAge = 1000 * 60 * 5;
+
+  const out = [];
+
+  for(const [mapKey,row] of liveMap.entries()){
+
+    const timeValue =
+      Number(
+        row?.time ||
+        row?.updatedAt ||
+        row?.lastSeen ||
+        0
+      );
+
+    if(
+      timeValue &&
+      now - timeValue > maxAge
+    ){
+      continue;
+    }
+
+    out.push({
+      mapKey:clean(mapKey),
+      driverId:clean(
+        row?.driverId ||
+        row?.userId ||
+        row?._id ||
+        row?.id ||
+        ""
+      ),
+      name:clean(
+        row?.name ||
+        row?.driverName ||
+        ""
+      ),
+      lat:row?.lat ?? null,
+      lng:row?.lng ?? null,
+      time:timeValue || 0
+    });
+  }
+
+  return out;
 }
 
 /* =========================
-   GET DRIVER CHAT MESSAGES
-   GET /api/driver-chat/messages?driverId=...
+   GET MESSAGES
 ========================= */
 
 router.get("/messages", async (req,res) => {
@@ -91,12 +135,8 @@ router.get("/messages", async (req,res) => {
     }
 
     const messages = await DriverChat
-      .find({
-        driverId
-      })
-      .sort({
-        createdAt:1
-      })
+      .find({ driverId })
+      .sort({ createdAt:1 })
       .lean();
 
     return res.json({
@@ -122,7 +162,6 @@ router.get("/messages", async (req,res) => {
 
 /* =========================
    SEND MESSAGE
-   POST /api/driver-chat/messages
 ========================= */
 
 router.post("/messages", async (req,res) => {
@@ -173,10 +212,6 @@ router.post("/messages", async (req,res) => {
       senderName,
       text,
 
-      /*
-        Sender has already "read" their own message.
-        Receiver stays unread until that side opens the conversation.
-      */
       readByDriver:
         senderType === "DRIVER",
 
@@ -206,8 +241,15 @@ router.post("/messages", async (req,res) => {
 });
 
 /* =========================
-   ADMIN: ONLINE DRIVERS
-   GET /api/driver-chat/admin/online-drivers
+   ADMIN ONLINE DRIVERS
+
+   IMPORTANT:
+   Driver location can be stored using:
+   - driverId
+   OR
+   - driver name as fallback
+
+   So this endpoint matches BOTH.
 ========================= */
 
 router.get("/admin/online-drivers", async (req,res) => {
@@ -223,43 +265,99 @@ router.get("/admin/online-drivers", async (req,res) => {
       });
     }
 
-    const now = Date.now();
-    const maxAge = 1000 * 60 * 5;
+    const liveRows =
+      getFreshLiveRows();
 
-    const liveMap =
-      global.liveDrivers instanceof Map
-        ? global.liveDrivers
-        : new Map();
-
-    const liveIds = [];
-
-    for(const row of liveMap.values()){
-
-      const id = liveDriverId(row);
-
-      if(!id){
-        continue;
-      }
-
-      const timeValue =
-        Number(
-          row?.time ||
-          row?.updatedAt ||
-          row?.lastSeen ||
-          0
-        );
-
-      if(
-        timeValue &&
-        now - timeValue > maxAge
-      ){
-        continue;
-      }
-
-      liveIds.push(id);
+    if(!liveRows.length){
+      return res.json({
+        ok:true,
+        drivers:[]
+      });
     }
 
-    if(!liveIds.length){
+    const idSet = new Set();
+    const nameSet = new Set();
+
+    liveRows.forEach(row=>{
+
+      if(row.driverId){
+        idSet.add(row.driverId);
+      }
+
+      if(row.name){
+        nameSet.add(row.name);
+      }
+
+      /*
+        Some older location rows use the Map key
+        as driver name when driverId is missing.
+      */
+      if(
+        !row.driverId &&
+        row.mapKey
+      ){
+        nameSet.add(row.mapKey);
+      }
+
+    });
+
+    const orFilters = [];
+
+    const ids =
+      Array.from(idSet);
+
+    const names =
+      Array.from(nameSet);
+
+    if(ids.length){
+
+      const mongoose =
+        require("mongoose");
+
+      const validIds =
+        ids.filter(id=>
+          mongoose.Types.ObjectId.isValid(id)
+        );
+
+      if(validIds.length){
+        orFilters.push({
+          _id:{
+            $in:validIds
+          }
+        });
+      }
+    }
+
+    if(names.length){
+
+      orFilters.push({
+        name:{
+          $in:names.map(name=>
+            new RegExp(
+              "^" +
+              escapeRegex(name) +
+              "$",
+              "i"
+            )
+          )
+        }
+      });
+
+      orFilters.push({
+        username:{
+          $in:names.map(name=>
+            new RegExp(
+              "^" +
+              escapeRegex(name) +
+              "$",
+              "i"
+            )
+          )
+        }
+      });
+    }
+
+    if(!orFilters.length){
       return res.json({
         ok:true,
         drivers:[]
@@ -268,25 +366,83 @@ router.get("/admin/online-drivers", async (req,res) => {
 
     const drivers = await User
       .find({
-        _id:{
-          $in:liveIds
-        },
         role:"driver",
         active:{
           $ne:false
-        }
+        },
+        $or:orFilters
       })
       .select(
-        "_id name username email phone vehicleNumber active"
+        "_id name fullName username email phone vehicleNumber active"
       )
       .sort({
         name:1
       })
       .lean();
 
+    const liveById = new Map();
+    const liveByName = new Map();
+
+    liveRows.forEach(row=>{
+
+      if(row.driverId){
+        liveById.set(
+          String(row.driverId),
+          row
+        );
+      }
+
+      if(row.name){
+        liveByName.set(
+          row.name.toLowerCase(),
+          row
+        );
+      }
+
+      if(row.mapKey){
+        liveByName.set(
+          row.mapKey.toLowerCase(),
+          row
+        );
+      }
+
+    });
+
+    const result =
+      drivers.map(driver=>{
+
+        const id =
+          String(driver._id);
+
+        const name =
+          clean(
+            driver.name ||
+            driver.fullName ||
+            driver.username
+          );
+
+        const live =
+          liveById.get(id) ||
+          liveByName.get(
+            name.toLowerCase()
+          ) ||
+          null;
+
+        return {
+          ...driver,
+          online:true,
+          liveLat:
+            live?.lat ?? null,
+          liveLng:
+            live?.lng ?? null,
+          liveTime:
+            live?.time || 0
+        };
+      });
+
     return res.json({
       ok:true,
-      drivers
+      drivers:result
     });
 
   }catch(error){
@@ -306,8 +462,7 @@ router.get("/admin/online-drivers", async (req,res) => {
 });
 
 /* =========================
-   ADMIN: UNREAD COUNTERS
-   GET /api/driver-chat/admin/unread
+   ADMIN UNREAD
 ========================= */
 
 router.get("/admin/unread", async (req,res) => {
@@ -332,7 +487,6 @@ router.get("/admin/unread", async (req,res) => {
     ]);
 
     const byDriver = {};
-
     let totalUnread = 0;
 
     rows.forEach(row=>{
@@ -374,9 +528,7 @@ router.get("/admin/unread", async (req,res) => {
 });
 
 /* =========================
-   MARK CHAT READ
-   PATCH /api/driver-chat/read
-   body: { driverId, reader:"DISPATCH" | "DRIVER" }
+   MARK READ
 ========================= */
 
 router.patch("/read", async (req,res) => {
