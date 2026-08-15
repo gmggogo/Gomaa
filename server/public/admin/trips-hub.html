@@ -19,6 +19,10 @@
   --red:#dc2626;
   --orange:#f59e0b;
   --purple:#7c3aed;
+  --pink:#ec4899;
+  --gold1:#f8e7a2;
+  --gold2:#e8c75d;
+  --gold3:#f4dc86;
   --text:#0f172a;
   --muted:#64748b;
   --bg:#f1f5f9;
@@ -47,19 +51,23 @@ body{
   width:100%;
 }
 
-/* PAGE TITLE */
+/* PAGE TITLE — SAME STYLE AS FINAL CONFIRMATION */
 
 .page-head{
-  position:relative;
   display:flex;
   align-items:center;
   justify-content:center;
   min-height:84px;
-  margin-bottom:14px;
+  margin-bottom:12px;
   padding:16px 20px;
   border:1px solid #e0be5a;
   border-radius:18px;
-  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
   box-shadow:0 8px 22px rgba(146,102,14,.13);
   text-align:center;
 }
@@ -69,8 +77,7 @@ body{
   font-size:28px;
   line-height:1.1;
   font-weight:900;
-  color:#9ca3af;
-  text-shadow:0 1px 0 #fff;
+  color:#111827;
 }
 
 .page-sub{
@@ -80,7 +87,7 @@ body{
   color:#64748b;
 }
 
-/* TOOLBAR */
+/* TOOLBAR — UNDER PAGE TITLE */
 
 .toolbar{
   display:flex;
@@ -129,12 +136,14 @@ body{
   width:100%;
 }
 
-/* TOP STATS / SERVICE CARDS */
+/* =========================================================
+   CARD GRIDS
+   ========================================================= */
 
 .stats-grid,
-.service-grid,
 .cards-grid,
 .hub-stats,
+.service-grid,
 .service-cards,
 .service-strip{
   display:grid;
@@ -143,6 +152,8 @@ body{
   margin-bottom:13px;
 }
 
+/* BASE CARD */
+
 .stat-card,
 .service-card,
 .hub-card{
@@ -150,7 +161,7 @@ body{
   overflow:hidden;
   isolation:isolate;
   min-height:105px;
-  border:1px solid rgba(255,255,255,.28);
+  border:1px solid rgba(255,255,255,.30);
   border-radius:15px;
   padding:12px 10px;
   text-align:center;
@@ -174,7 +185,7 @@ body{
   border-radius:50%;
   right:-35px;
   top:-42px;
-  background:rgba(255,255,255,.12);
+  background:rgba(255,255,255,.13);
   z-index:-1;
 }
 
@@ -184,13 +195,12 @@ body{
   content:"";
   position:absolute;
   inset:0;
-  background:
-    linear-gradient(
-      125deg,
-      rgba(255,255,255,.18) 0%,
-      rgba(255,255,255,.04) 38%,
-      rgba(255,255,255,0) 62%
-    );
+  background:linear-gradient(
+    125deg,
+    rgba(255,255,255,.18) 0%,
+    rgba(255,255,255,.04) 38%,
+    rgba(255,255,255,0) 62%
+  );
   pointer-events:none;
   z-index:-1;
 }
@@ -204,103 +214,178 @@ body{
     inset 0 1px 0 rgba(255,255,255,.28);
 }
 
-/*
-  DYNAMIC CARDS:
-  The JS can render any number of cards.
-  We DO NOT change its logic.
-  Colors repeat automatically every 4 cards:
-  1 = Individual blue
-  2 = Facility/Company purple
-  3 = Get Quote green
-  4 = Reserved orange
-*/
+/* =========================================================
+   TOP SUMMARY CARDS
+   ORDER:
+   1 NEW TRIPS  = PINK
+   2 TOTAL      = BLUE
+   3 FACILITY   = PURPLE
+   4 GET QUOTE  = GREEN
+   5 RESERVED   = ORANGE
+   ========================================================= */
 
-.stats-grid > :nth-child(4n+1),
-.service-grid > :nth-child(4n+1),
-.cards-grid > :nth-child(4n+1),
-.hub-stats > :nth-child(4n+1),
-.service-cards > :nth-child(4n+1),
-.service-strip > :nth-child(4n+1){
+.stats-grid > :nth-child(1),
+.cards-grid > :nth-child(1),
+.hub-stats > :nth-child(1){
+  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%);
+}
+
+.stats-grid > :nth-child(2),
+.cards-grid > :nth-child(2),
+.hub-stats > :nth-child(2){
   background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
 }
 
-.stats-grid > :nth-child(4n+2),
-.service-grid > :nth-child(4n+2),
-.cards-grid > :nth-child(4n+2),
-.hub-stats > :nth-child(4n+2),
-.service-cards > :nth-child(4n+2),
-.service-strip > :nth-child(4n+2){
+.stats-grid > :nth-child(3),
+.cards-grid > :nth-child(3),
+.hub-stats > :nth-child(3){
   background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);
 }
 
-.stats-grid > :nth-child(4n+3),
-.service-grid > :nth-child(4n+3),
-.cards-grid > :nth-child(4n+3),
-.hub-stats > :nth-child(4n+3),
-.service-cards > :nth-child(4n+3),
-.service-strip > :nth-child(4n+3){
+.stats-grid > :nth-child(4),
+.cards-grid > :nth-child(4),
+.hub-stats > :nth-child(4){
   background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);
 }
 
-.stats-grid > :nth-child(4n+4),
-.service-grid > :nth-child(4n+4),
-.cards-grid > :nth-child(4n+4),
-.hub-stats > :nth-child(4n+4),
-.service-cards > :nth-child(4n+4),
-.service-strip > :nth-child(4n+4){
+.stats-grid > :nth-child(5),
+.cards-grid > :nth-child(5),
+.hub-stats > :nth-child(5){
   background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
 }
 
-.stat-label,
-.card-label,
-.service-name,
-.stat-value,
-.card-value,
-.service-total,
-.stat-mini,
-.card-mini,
-.service-mini{
-  width:100%;
+/* TOP ROW TEXT */
+
+.stats-grid .stat-label,
+.stats-grid .card-label,
+.stats-grid .service-name,
+.stats-grid .stat-value,
+.stats-grid .card-value,
+.stats-grid .service-total,
+.stats-grid .stat-mini,
+.stats-grid .card-mini,
+.stats-grid .service-mini,
+
+.cards-grid .stat-label,
+.cards-grid .card-label,
+.cards-grid .service-name,
+.cards-grid .stat-value,
+.cards-grid .card-value,
+.cards-grid .service-total,
+.cards-grid .stat-mini,
+.cards-grid .card-mini,
+.cards-grid .service-mini,
+
+.hub-stats .stat-label,
+.hub-stats .card-label,
+.hub-stats .service-name,
+.hub-stats .stat-value,
+.hub-stats .card-value,
+.hub-stats .service-total,
+.hub-stats .stat-mini,
+.hub-stats .card-mini,
+.hub-stats .service-mini{
   color:#fff!important;
-  text-align:center!important;
   text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
+
+/* =========================================================
+   DYNAMIC SERVICE CARDS — ALL LIGHT GOLD
+   Standard / XL / Wheelchair / Shared / Taxi / Limo / etc.
+   Any new dynamic service automatically gets same gold style.
+   ========================================================= */
+
+.service-grid > *,
+.service-cards > *,
+.service-strip > *{
+  background:linear-gradient(
+    135deg,
+    var(--gold1) 0%,
+    var(--gold2) 52%,
+    var(--gold3) 100%
+  )!important;
+  border-color:#d1a92e!important;
+}
+
+.service-grid .stat-label,
+.service-grid .card-label,
+.service-grid .service-name,
+.service-grid .stat-value,
+.service-grid .card-value,
+.service-grid .service-total,
+.service-grid .stat-mini,
+.service-grid .card-mini,
+.service-grid .service-mini,
+
+.service-cards .stat-label,
+.service-cards .card-label,
+.service-cards .service-name,
+.service-cards .stat-value,
+.service-cards .card-value,
+.service-cards .service-total,
+.service-cards .stat-mini,
+.service-cards .card-mini,
+.service-cards .service-mini,
+
+.service-strip .stat-label,
+.service-strip .card-label,
+.service-strip .service-name,
+.service-strip .stat-value,
+.service-strip .card-value,
+.service-strip .service-total,
+.service-strip .stat-mini,
+.service-strip .card-mini,
+.service-strip .service-mini{
+  color:#111827!important;
+  text-shadow:none!important;
+}
+
+/* CARD TEXT */
 
 .stat-label,
 .card-label,
 .service-name{
+  width:100%;
   font-size:12px;
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:.3px;
+  text-align:center;
 }
 
 .stat-value,
 .card-value,
 .service-total{
+  width:100%;
   font-size:30px;
   line-height:1;
   font-weight:900;
   margin:8px 0;
+  text-align:center;
 }
 
 .stat-mini,
 .card-mini,
 .service-mini{
+  width:100%;
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:5px;
   font-size:11px;
   font-weight:900;
+  text-align:center;
 }
 
 .service-card{
   cursor:pointer;
 }
 
+/* ACTIVE CARD — KEEP ITS OWN COLOR */
+
 .service-card.active,
 .service-card.selected,
-.hub-card.active{
+.hub-card.active,
+.stat-card.active{
   border:3px solid #0f172a!important;
   box-shadow:
     0 0 0 3px rgba(255,255,255,.9),
@@ -420,7 +505,7 @@ body{
   padding:10px 14px!important;
 }
 
-/* ROW COLORS */
+/* ROW COLORS — UNCHANGED */
 
 .facility-row td,
 .row-company td{
@@ -449,30 +534,17 @@ body{
 
 /* WIDTHS */
 
-.w-num{
-  min-width:50px;
-}
-
-.w-select{
-  min-width:55px;
-}
-
-.w-trip{
-  min-width:110px;
-}
-
-.w-facility{
-  min-width:130px;
-}
+.w-num{min-width:50px;}
+.w-select{min-width:55px;}
+.w-trip{min-width:110px;}
+.w-facility{min-width:130px;}
 
 .w-client{
   min-width:180px;
   text-align:left!important;
 }
 
-.w-phone{
-  min-width:120px;
-}
+.w-phone{min-width:120px;}
 
 .w-address{
   min-width:240px;
@@ -498,17 +570,9 @@ body{
   word-break:break-word;
 }
 
-.w-date{
-  min-width:105px;
-}
-
-.w-time{
-  min-width:90px;
-}
-
-.w-status{
-  min-width:105px;
-}
+.w-date{min-width:105px;}
+.w-time{min-width:90px;}
+.w-status{min-width:105px;}
 
 .w-view,
 .w-actions{
@@ -712,7 +776,7 @@ body{
   font-weight:900;
 }
 
-/* ================= MOBILE FIX ================= */
+/* MOBILE */
 
 @media(max-width:768px){
 
@@ -863,21 +927,10 @@ body{
     padding:7px 9px!important;
   }
 
-  .w-trip{
-    min-width:85px;
-  }
-
-  .w-facility{
-    min-width:100px;
-  }
-
-  .w-client{
-    min-width:145px;
-  }
-
-  .w-phone{
-    min-width:95px;
-  }
+  .w-trip{min-width:85px;}
+  .w-facility{min-width:100px;}
+  .w-client{min-width:145px;}
+  .w-phone{min-width:95px;}
 
   .w-address{
     min-width:185px;
@@ -894,17 +947,9 @@ body{
     max-width:180px;
   }
 
-  .w-date{
-    min-width:78px;
-  }
-
-  .w-time{
-    min-width:62px;
-  }
-
-  .w-status{
-    min-width:78px;
-  }
+  .w-date{min-width:78px;}
+  .w-time{min-width:62px;}
+  .w-status{min-width:78px;}
 
   .w-view,
   .w-actions{
@@ -1015,6 +1060,7 @@ body{
     </div>
   </div>
 
+  <!-- ADD TRIP IS UNDER THE PAGE TITLE -->
   <div class="toolbar">
     <button id="addManualTripBtn" class="add-btn" type="button">
       + Add Trip
