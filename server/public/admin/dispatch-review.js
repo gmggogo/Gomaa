@@ -1,3 +1,1410 @@
+
+ اول مشكله. رفيو سامري مش مظبوطه تاني حاجه حجم الايقونات كبير تالت   اسم الشركه فوق لازم في المربع اللي فوقه 
+
+Edit
+
+
+هو انتا حمار بقولك كلمه صن بيم نزلها لتحت وسيب اللوجو فوق ايه اللي انتا عامله دا وقولتلك صغر الزراير شويه 
+
+Edit
+
+
+
+Edit
+
+
+Edit
+
+
+كله تمام صح معادا رفيو جيس مش عارف لين مش مظبوطه ايه السبب قولي 
+
+Edit
+
+
+اعرض من الزراير الباقيه. انتا شايف
+
+Edit
+
+
+وليه اللوجو محظوط جوه مربع 
+
+
+ممكن نصغر حجم اسم الشركه شويه عشان خاطر  لو الاسم اتنين او تلاته كلمات يجو جمب بعض
+
+انتا مصغرتش حجم خط اسم الشركه انتا بوظت الدنيا 
+
+صغرت اوي  كبرها شويه لان اسم السواق اكبر من اسم الشركه
+
+
+Edit
+
+
+هبعتلك صفحه تربس هتميل تعملي الخانات اللي فوق والرساله دي وكل بنفس الشكل بتعنا مودرن مع كلاسيك نفس الالوان 
+
+هنعمل الاول كود الملفين دول وبعدين نعمل السيرفر ومتنساش نفس التنسيق 
+
+AA89C475-5306-479C-A475-79DB2B6352B3.jpeg
+IMG_14E630CA-0D1A-4B8E-9CC1-90C9B149A4E0.jpeg
+انتا عملت ايه الشات بقي ظاهر علي طول علي الصفحات و والسواق بيبعت نش بيوصل 
+
+
+Pasted text(20260814-080607).txt
+Document
+
+
+ببعت مفيش حاجه بتوصل وكمان الصفحه مفتوحه في الوش 
+
+تمام فين بقي ايقونه الشات
+
+IMG_8EC52AB8-AEF8-4C8C-B40E-90BC6965895D.jpeg
+IMG_9108812A-0E49-4A17-A284-C414B9EF4103.jpeg
+
+IMG_999DAC7C-BC05-4102-B3E3-3C476B869006.jpeg
+IMG_65D818BC-5BB4-4843-9E76-53139A761C94.jpeg
+انتا عملت ايه الصفحه مظهرتش وكمان كل الصفح اتحركت تحت اوي
+
+
+دلوقتي في مشكلتين  الاولي الكلام نحيه اليمين المفروض يكون نحيه الشمال حجم الشات كبير مكان الكتابه تحت للارسال مستخبي تحت الهايدر المفروض يبقي في اسكرول. المسكله التانيه الكبيره مفيش اي حاجه في الادمن تستلم الرسايل 
+
+حلو اوي انا عايز اعرف حاجه فين بقي في صفحه الادمن الاستلام مفيش 
+
+
+Pasted text(20260814-091849).txt
+Document
+/* =========================
+   ADMIN FLOATING CHAT LOADER
+   Loads once on every admin page
+========================= */
+
+(function loadAdminFloatingChat(){
+
+  if(window.ADMIN_CHAT_LOADER_STARTED){
+    return;
+  }
+
+  window.ADMIN_CHAT_LOADER_STARTED = true;
+
+  function injectChatScript(){
+
+    if(
+      window.SUNBEAM_ADMIN_FLOATING_CHAT ||
+      document.querySelector('script[src="/admin/admin-chat.js"]') ||
+      document.querySelector('script[src="admin-chat.js"]')
+    ){
+      return;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src =
+      "/admin/admin-chat.js";
+
+    script.defer = true;
+
+    script.onerror = function(){
+
+      console.log(
+        "ADMIN CHAT LOAD ERROR"
+      );
+
+    };
+
+    document.body.appendChild(
+      script
+    );
+
+  }
+
+  if(document.readyState === "loading"){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      injectChatScript,
+      {
+        once:true
+      }
+    );
+
+  }else{
+
+    injectChatScript();
+
+  }
+
+})();
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const headerContainer =
+    document.getElementById("adminHeader") ||
+    document.getElementById("headerContainer") ||
+    document.getElementById("header-container");
+
+  if(!headerContainer) return;
+
+  /* =========================
+     LOAD HEADER HTML
+  ========================= */
+
+  try{
+
+    const res =
+      await fetch("header.html");
+
+    const html =
+      await res.text();
+
+    headerContainer.innerHTML =
+      html;
+
+  }catch(err){
+
+    console.log("HEADER LOAD ERROR:",err);
+    return;
+
+  }
+
+  /* =========================
+     DEFAULT LOGO
+  ========================= */
+
+  if(!localStorage.getItem("appLogo")){
+
+    localStorage.setItem(
+      "appLogo",
+      "/assets/logo.png"
+    );
+
+  }
+
+  /* =========================
+     LOAD BRANDING
+  ========================= */
+
+  if(!document.querySelector('script[src="/core/branding.js"]')){
+
+    const brandingScript =
+      document.createElement("script");
+
+    brandingScript.src =
+      "/core/branding.js";
+
+    document.body.appendChild(
+      brandingScript
+    );
+
+  }
+
+  /* =========================
+     LOAD LOGO / BRANDING
+  ========================= */
+
+  setTimeout(async ()=>{
+
+    if(window.Branding){
+
+      try{
+
+        await Branding.load();
+
+        syncMobileLogo();
+
+      }catch(err){
+
+        console.log("BRANDING LOAD ERROR:",err);
+
+      }
+
+    }else{
+
+      syncMobileLogo();
+
+    }
+
+  },200);
+
+  /* =========================
+     DYNAMIC COMPANY NAME
+  ========================= */
+
+  function getCompanyName(){
+
+    return (
+      localStorage.getItem("companyName") ||
+      localStorage.getItem("name") ||
+      "Company"
+    );
+
+  }
+
+  const companyEl =
+    document.getElementById("dynamicCompanyName");
+
+  if(companyEl){
+
+    companyEl.innerText =
+      getCompanyName();
+
+  }
+
+  const mobileCompanyEl =
+    document.getElementById("mobileCompanyName");
+
+  if(mobileCompanyEl){
+
+    mobileCompanyEl.innerText =
+      getCompanyName();
+
+  }
+
+  /* =========================
+     SYNC MOBILE LOGO
+  ========================= */
+
+  function syncMobileLogo(){
+
+    const mainLogo =
+      document.querySelector(".main-logo");
+
+    const mobileLogo =
+      document.querySelector(".mobile-side-logo");
+
+    const savedLogo =
+      localStorage.getItem("appLogo") ||
+      "/assets/logo.png";
+
+    if(mainLogo && !mainLogo.getAttribute("src")){
+
+      mainLogo.src =
+        savedLogo;
+
+    }
+
+    if(mobileLogo){
+
+      mobileLogo.src =
+        mainLogo?.getAttribute("src") ||
+        savedLogo;
+
+    }
+
+  }
+
+  syncMobileLogo();
+
+  /* =========================
+     DYNAMIC TIME
+  ========================= */
+
+  function updateAdminTime(){
+
+    const timezone =
+      window.Branding?.data?.timezone ||
+      localStorage.getItem("systemTimezone") ||
+      localStorage.getItem("appTimezone") ||
+      "America/Phoenix";
+
+    const now =
+      new Date();
+
+    const date =
+      now.toLocaleDateString(
+        "en-US",
+        {
+          timeZone:timezone,
+          weekday:"short",
+          month:"short",
+          day:"numeric",
+          year:"numeric"
+        }
+      );
+
+    const time =
+      now.toLocaleTimeString(
+        "en-US",
+        {
+          timeZone:timezone,
+          hour:"numeric",
+          minute:"2-digit",
+          second:"2-digit",
+          hour12:true
+        }
+      );
+
+    const el =
+      document.getElementById("azTime");
+
+    if(el){
+
+      el.innerHTML =
+        ${date}<br>${time};
+
+    }
+
+  }
+
+  updateAdminTime();
+
+  setInterval(
+    updateAdminTime,
+    1000
+  );
+
+  /* =========================
+     WELCOME MESSAGE
+  ========================= */
+
+  function updateWelcome(){
+
+    const timezone =
+      window.Branding?.data?.timezone ||
+      localStorage.getItem("systemTimezone") ||
+      localStorage.getItem("appTimezone") ||
+      "America/Phoenix";
+
+    const now =
+      new Date();
+
+    const hour =
+      Number(
+        new Intl.DateTimeFormat(
+          "en-US",
+          {
+            hour:"numeric",
+            hour12:false,
+            timeZone:timezone
+          }
+        ).format(now)
+      );
+
+    let message =
+      "Good Evening";
+
+    let icon =
+      "🌙";
+
+    if(hour < 12){
+
+      message =
+        "Good Morning";
+
+      icon =
+        "☀️";
+
+    }else if(hour < 18){
+
+      message =
+        "Good Afternoon";
+
+      icon =
+        "🌤️";
+
+    }
+
+    const welcomeEl =
+      document.getElementById("welcomeMessage");
+
+    const iconEl =
+      document.getElementById("weatherIcon");
+
+    if(welcomeEl){
+
+      welcomeEl.innerText =
+        message;
+
+    }
+
+    if(iconEl){
+
+      iconEl.innerText =
+        icon;
+
+    }
+
+  }
+
+  updateWelcome();
+
+  setInterval(
+    updateWelcome,
+    60000
+  );
+
+  /* =========================
+     ACTIVE NAV
+  ========================= */
+
+  function setActiveNav(){
+
+    const currentPage =
+      window.location.pathname
+      .split("/")
+      .pop();
+
+    document
+      .querySelectorAll(".admin-nav .nav-btn, .mobile-side-nav a")
+      .forEach(link=>{
+
+        const href =
+          link.getAttribute("href") || "";
+
+        if(href === currentPage){
+
+          link.classList.add("active");
+
+        }else{
+
+          link.classList.remove("active");
+
+        }
+
+      });
+
+  }
+
+  /* =========================
+     BUILD MOBILE MENU
+  ========================= */
+
+  function buildMobileMenu(){
+
+    const desktopNav =
+      document.getElementById("adminDesktopNav") ||
+      document.querySelector(".admin-nav");
+
+    const mobileNav =
+      document.getElementById("mobileSideNav");
+
+    if(!desktopNav || !mobileNav) return;
+
+    mobileNav.innerHTML = "";
+
+    const links =
+      desktopNav.querySelectorAll("a.nav-btn");
+
+    links.forEach(link=>{
+
+      const a =
+        document.createElement("a");
+
+      a.href =
+        link.getAttribute("href") || "#";
+
+      a.innerText =
+        link.innerText.trim();
+
+      if(link.classList.contains("active")){
+
+        a.classList.add("active");
+
+      }
+
+      mobileNav.appendChild(a);
+
+    });
+
+    setActiveNav();
+
+  }
+
+  buildMobileMenu();
+
+  /* =========================
+     MOBILE MENU OPEN / CLOSE
+  ========================= */
+
+  const mobileMenuBtn =
+    document.getElementById("mobileMenuBtn");
+
+  const mobileCloseBtn =
+    document.getElementById("mobileCloseBtn");
+
+  const mobileOverlay =
+    document.getElementById("mobileMenuOverlay");
+
+  const mobileSideMenu =
+    document.getElementById("mobileSideMenu");
+
+  function openMobileMenu(){
+
+    if(mobileOverlay){
+
+      mobileOverlay.classList.add("show");
+
+    }
+
+    if(mobileSideMenu){
+
+      mobileSideMenu.classList.add("show");
+
+    }
+
+    document.body.style.overflow =
+      "hidden";
+
+  }
+
+  function closeMobileMenu(){
+
+    if(mobileOverlay){
+
+      mobileOverlay.classList.remove("show");
+
+    }
+
+    if(mobileSideMenu){
+
+      mobileSideMenu.classList.remove("show");
+
+    }
+
+    document.body.style.overflow =
+      "";
+
+  }
+
+  if(mobileMenuBtn){
+
+    mobileMenuBtn.addEventListener("click",e=>{
+
+      e.preventDefault();
+      openMobileMenu();
+
+    });
+
+  }
+
+  if(mobileCloseBtn){
+
+    mobileCloseBtn.addEventListener("click",e=>{
+
+      e.preventDefault();
+      closeMobileMenu();
+
+    });
+
+  }
+
+  if(mobileOverlay){
+
+    mobileOverlay.addEventListener("click",()=>{
+
+      closeMobileMenu();
+
+    });
+
+  }
+
+  document.addEventListener("keydown",e=>{
+
+    if(e.key === "Escape"){
+
+      closeMobileMenu();
+
+    }
+
+  });
+
+  const mobileNav =
+    document.getElementById("mobileSideNav");
+
+  if(mobileNav){
+
+    mobileNav.addEventListener("click",e=>{
+
+      const link =
+        e.target.closest("a");
+
+      if(link){
+
+        closeMobileMenu();
+
+      }
+
+    });
+
+  }
+
+  /* =========================
+     FINAL ACTIVE SYNC
+  ========================= */
+
+  setActiveNav();
+
+});
+
+/* =========================
+   GLOBAL LOGOUT
+========================= */
+
+function logout(){
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("name");
+  localStorage.removeItem("companyName");
+
+  window.location.href =
+    "/login.html";
+
+}
+
+
+Pasted text(20260814-092155).txt
+Document
+
+
+ الرسايل بتتبعت بس مش بتظهر 
+
+هو في شات بس هنخليها تعد بس 
+
+الهايدر اختفي خالص انتا عملت ايه  مش الملف الاخير دا الناف 
+
+الترب هيستوري شكل الايقونه كبير ومتشابه مع الهاور عايزين نخليها ايقونه تانيه
+
+Edit
+
+
+Edit
+
+
+Edit
+
+
+
+Pasted text(20260814-100518).txt
+Document
+
+
+Pasted text(20260814-100755).txt
+Document
+
+ايقونه هيستوري مش عجباني. وكمان  الافضل انك تحط ورقه زي الصوره  
+
+هوريك الموجود دلوقتي وحجم الايقونات مختلف 
+
+Edit
+
+
+Edit
+
+
+كده تمام اوي  هيبقي باقي ايرننج ورفيو سامري
+
+
+62d103c1-4e10-4a30-b425-3df2db9d55cf.js
+JavaScript
+OK
+
+
+Pasted text(20260814-104055).txt
+Document
+
+
+Pasted text(20260814-104303).txt
+Document
+
+
+Pasted text(20260814-104450).txt
+Document
+
+
+
+انتا عطلت ايديت فعلا وكمان في ايديت المفروض في قايمه انا كنت عايزك تضيف فيها زرار رتين تو درايفر بدل ما تخلط الزرار جمب كونفيرم 
+
+IMG_BFFBEAC8-611F-48FB-B121-C7A332222CB5.jpeg
+IMG_02B329AB-6F12-4F1C-8109-563D6B78E9D3.jpeg
+
+
+Pasted text(20260815-001809).txt
+Document
+"use strict";
+
+const Stripe = require("stripe");
+
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+function cents(value){
+  const amount = Number(value);
+  if(!Number.isFinite(amount) || amount < 0){
+    throw new Error("Invalid payment amount");
+  }
+  return Math.round(amount * 100);
+}
+
+function dollars(value){
+  return Number((Number(value || 0) / 100).toFixed(2));
+}
+
+function paymentError(err){
+  const message =
+    err?.raw?.message ||
+    err?.message ||
+    "Payment authorization failed";
+
+  const wrapped = new Error(message);
+  wrapped.code = err?.code || err?.raw?.code || "PAYMENT_FAILED";
+  wrapped.declineCode = err?.decline_code || err?.raw?.decline_code || "";
+  wrapped.paymentFailed = true;
+  return wrapped;
+}
+
+async function ensureStripeCustomer(trip){
+  if(trip.stripeCustomerId){
+    return trip.stripeCustomerId;
+  }
+
+  const customer = await stripe.customers.create({
+    name: String(trip.clientName || "").trim() || undefined,
+    email: String(trip.clientEmail || "").trim() || undefined,
+    phone: String(trip.clientPhone || "").trim() || undefined,
+    metadata: {
+      tripId: String(trip._id),
+      tripNumber: String(trip.tripNumber || "")
+    }
+  });
+
+  trip.stripeCustomerId = customer.id;
+  await trip.save();
+  return customer.id;
+}
+
+async function createTripSetupIntent(trip){
+  const customerId = await ensureStripeCustomer(trip);
+
+  const setupIntent = await stripe.setupIntents.create({
+    customer: customerId,
+    usage: "off_session",
+    payment_method_types: ["card"],
+    metadata: {
+      tripId: String(trip._id),
+      tripNumber: String(trip.tripNumber || "")
+    }
+  });
+
+  trip.setupIntentId = setupIntent.id;
+  trip.paymentStatus = "SETUP_PENDING";
+  await trip.save();
+
+  return setupIntent;
+}
+
+async function confirmSavedPaymentMethod(trip, setupIntentId){
+  const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+
+  if(setupIntent.status !== "succeeded"){
+    throw new Error("Card setup has not completed");
+  }
+
+  if(String(setupIntent.metadata?.tripId || "") !== String(trip._id)){
+    throw new Error("Card setup does not belong to this trip");
+  }
+
+  trip.stripeCustomerId = String(setupIntent.customer || trip.stripeCustomerId || "");
+  trip.stripePaymentMethodId = String(setupIntent.payment_method || "");
+  trip.setupIntentId = setupIntent.id;
+  trip.paymentStatus = "PAYMENT_METHOD_SAVED";
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+  trip.paymentRequiredEmailSentAt = null;
+  await trip.save();
+
+  return trip;
+}
+
+async function authorizeTripAmount(trip, amount, reason = "TRIP_AUTHORIZATION"){
+  const amountCents = cents(amount);
+
+  if(amountCents <= 0){
+    throw new Error("Authorization amount must be greater than zero");
+  }
+
+  if(!trip.stripeCustomerId || !trip.stripePaymentMethodId){
+    throw new Error("Customer payment method is missing");
+  }
+
+  try{
+    const intent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: "usd",
+      customer: trip.stripeCustomerId,
+      payment_method: trip.stripePaymentMethodId,
+      capture_method: "manual",
+      confirm: true,
+      off_session: true,
+      payment_method_types: ["card"],
+      metadata: {
+        tripId: String(trip._id),
+        tripNumber: String(trip.tripNumber || ""),
+        purpose: reason
+      }
+    }, {
+      idempotencyKey: trip-auth-${trip._id}-${amountCents}-${reason}
+    });
+
+    if(intent.status !== "requires_capture"){
+      throw new Error(Unexpected authorization status: ${intent.status});
+    }
+
+    trip.authorizationPaymentIntentId = intent.id;
+    trip.paymentIntentId = intent.id;
+    trip.authorizedAmount = dollars(intent.amount_capturable || intent.amount);
+    trip.paymentStatus = "AUTHORIZED";
+    trip.paymentAuthorizedAt = new Date();
+    trip.authorizationExpiresAt = intent.capture_before
+      ? new Date(intent.capture_before * 1000)
+      : null;
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+    trip.paymentRequiredEmailSentAt = null;
+    await trip.save();
+
+    return intent;
+  }catch(err){
+    trip.paymentStatus = "PAYMENT_REQUIRED";
+    trip.paymentFailureCode = err?.code || err?.raw?.code || "PAYMENT_FAILED";
+    trip.paymentFailureMessage = err?.message || "Authorization failed";
+    await trip.save();
+    throw paymentError(err);
+  }
+}
+
+async function changeAuthorizedAmount(trip, newAmount){
+  const newCents = cents(newAmount);
+  const intentId = trip.authorizationPaymentIntentId || trip.paymentIntentId;
+
+  if(!intentId || trip.paymentStatus !== "AUTHORIZED"){
+    return authorizeTripAmount(trip, newAmount, "ROUTE_CHANGE");
+  }
+
+  const current = await stripe.paymentIntents.retrieve(intentId);
+  if(current.status !== "requires_capture"){
+    throw new Error("The existing authorization is no longer active");
+  }
+
+  const oldCents = Number(current.amount || 0);
+  if(newCents === oldCents){
+    return current;
+  }
+
+  try{
+    let updated;
+
+    if(newCents > oldCents){
+      /*
+        Incremental authorization is not enabled on every Stripe account.
+        Authorize the exact replacement amount first. Only after it succeeds
+        do we release the old hold, so a decline leaves the old route/hold.
+      */
+      updated = await stripe.paymentIntents.create({
+        amount:newCents,
+        currency:"usd",
+        customer:trip.stripeCustomerId,
+        payment_method:trip.stripePaymentMethodId,
+        capture_method:"manual",
+        confirm:true,
+        off_session:true,
+        payment_method_types:["card"],
+        metadata:{
+          tripId:String(trip._id),
+          tripNumber:String(trip.tripNumber || ""),
+          purpose:"ROUTE_CHANGE_REPLACEMENT"
+        }
+      },{
+        idempotencyKey:trip-replacement-auth-${trip._id}-${newCents}
+      });
+
+      if(updated.status !== "requires_capture"){
+        throw new Error(Replacement authorization failed: ${updated.status});
+      }
+
+      await stripe.paymentIntents.cancel(intentId);
+
+      trip.authorizationPaymentIntentId = updated.id;
+      trip.paymentIntentId = updated.id;
+    }else{
+      updated = await stripe.paymentIntents.update(
+        intentId,
+        { amount: newCents },
+        { idempotencyKey: trip-decrement-${trip._id}-${newCents} }
+      );
+    }
+
+    if(updated.status !== "requires_capture"){
+      throw new Error(Authorization update failed: ${updated.status});
+    }
+
+    trip.authorizedAmount = dollars(updated.amount_capturable || updated.amount);
+    trip.paymentStatus = "AUTHORIZED";
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+    await trip.save();
+    return updated;
+  }catch(err){
+    // Do not modify the trip route or the old authorization on failure.
+    trip.paymentFailureCode = err?.code || err?.raw?.code || "AUTH_UPDATE_FAILED";
+    trip.paymentFailureMessage = err?.message || "New trip price was declined";
+    await trip.save();
+    throw paymentError(err);
+  }
+}
+
+async function captureAuthorizedTrip(trip, finalAmount){
+  const intentId = trip.authorizationPaymentIntentId || trip.paymentIntentId;
+  if(!intentId){
+    throw new Error("Trip authorization is missing");
+  }
+
+  const amountCents = cents(finalAmount);
+  try{
+    const intent = await stripe.paymentIntents.capture(intentId, {
+      amount_to_capture: amountCents,
+      metadata: {
+        finalTripAmount: String(amountCents),
+        finalizedAt: new Date().toISOString()
+      }
+    }, {
+      idempotencyKey: trip-capture-${trip._id}-${amountCents}
+    });
+
+    trip.paymentStatus = "PAID";
+    trip.capturedAmount = dollars(intent.amount_received || amountCents);
+    trip.paymentCapturedAt = new Date();
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+    await trip.save();
+    return intent;
+  }catch(err){
+    trip.paymentStatus = "CAPTURE_FAILED";
+    trip.paymentFailureCode = err?.code || err?.raw?.code || "CAPTURE_FAILED";
+    trip.paymentFailureMessage = err?.message || "Final payment capture failed";
+    await trip.save();
+    throw paymentError(err);
+  }
+}
+
+async function captureFeeAndReleaseRest(trip, fee, reason){
+  const amountCents = cents(fee);
+  const intentId = trip.authorizationPaymentIntentId || trip.paymentIntentId;
+
+  if(!intentId){
+    if(amountCents === 0){
+      trip.paymentStatus = "VOIDED";
+      await trip.save();
+      return null;
+    }
+    return authorizeTripAmount(trip, fee, reason)
+      .then(()=>captureAuthorizedTrip(trip, fee));
+  }
+
+  if(amountCents === 0){
+    const intent = await stripe.paymentIntents.cancel(intentId);
+    trip.paymentStatus = "VOIDED";
+    trip.authorizedAmount = 0;
+    await trip.save();
+    return intent;
+  }
+
+  return captureAuthorizedTrip(trip, fee);
+}
+
+async function cancelAuthorization(trip){
+  const intentId = trip.authorizationPaymentIntentId || trip.paymentIntentId;
+  if(!intentId){
+    return null;
+  }
+
+  const intent = await stripe.paymentIntents.retrieve(intentId);
+  if(intent.status === "requires_capture"){
+    await stripe.paymentIntents.cancel(intentId);
+  }
+
+  trip.paymentStatus = "VOIDED";
+  trip.authorizedAmount = 0;
+  await trip.save();
+  return intent;
+}
+
+function hasActiveAuthorization(trip){
+  return trip?.paymentStatus === "AUTHORIZED" &&
+    !!(trip.authorizationPaymentIntentId || trip.paymentIntentId);
+}
+
+module.exports = {
+  stripe,
+  ensureStripeCustomer,
+  createTripSetupIntent,
+  confirmSavedPaymentMethod,
+  authorizeTripAmount,
+  changeAuthorizedAmount,
+  captureAuthorizedTrip,
+  captureFeeAndReleaseRest,
+  cancelAuthorization,
+  hasActiveAuthorization
+};
+
+
+Pasted text(20260815-003227).txt
+Document
+
+
+Pasted text(20260815-030702).txt
+Document
+
+Pasted text (2)(20260815-030716).txt
+Document
+
+Pasted text (3)(3).txt
+Document
+
+
+Pasted text(20260815-030812).txt
+Document
+
+ليه في الرحله الكومبليتد دي مش عايز يعمل كونفير 
+
+
+Pasted text(20260815-042848).txt
+Document
+
+Pasted text (2)(20260815-042910).txt
+Document
+
+Pasted text (3)(4).txt
+Document
+
+
+Pasted text(20260815-043142).txt
+Document
+
+Edit
+
+
+افهم عشان منعكش الجدول سيبه زي ما هو عشان في الوان محدده انا بتكلم علي فوق كل حاجه هتاخد نفس لون  الجدول يعني الجيت كويت بلون والريسرفد بلون زي الجدول. والخانات بتاعت.  الكومبليت والنوت كومبليت تبقي دهبي  وكمان  والجدول سيبه زي ما هو  بس عايز نفس االاوان الزاهيه بتاعت ديسبتش 
+
+Edit
+
+
+اسبلك بص علي الصفحه ومتعمش 
+
+Edit
+
+
+اسم الصفحه البي في اول الصفحه في جدول دهبي  خفيف والكروت كل كارت هياخد لون زي ما اتفقنا والاحصاءيات اللي في اليف التاني تاخد لون موحد الصوره اهي
+
+Edit
+
+
+ليه صفحه الديسبتش فيها الوان حلوه والوان الفاينل كونفيرم مش شبه التانيه ساده
+IMG_265CBF7D-762A-4147-B2FD-2B2258711F01.jpeg
+IMG_A48926F4-DD21-42D8-86B1-C6200996B146.jpeg
+
+انا عايز الاقوي وكمان عايز الكلام في النص وعايز الكروت اللي تحت لونها اهدي  الدهبي طالع قوي اوي اعمل لون مثلا رمادي او حاجه اهدي 
+
+Edit
+
+
+وبعدين في حاجه انا عملت نو شو وكتبت كومنت ومظهرش 
+ماشي 
+
+Edit
+
+
+وتنسق المسافات للمربعات 
+
+IMG_AB3F771B-731A-47F7-B3AC-708C7EC2E886.jpeg
+IMG_80252047-AC41-4423-8CDD-FFA6EF09085F.jpeg
+بص وركز معايا عشان الشغل يطلع صحانتا شايف لون الفردي ولون الشركات ولون الريسيرفد هما دول الالوان المفروض تبقي فوق  بس باللون القوي  انتا فاهم
+
+
+Edit
+
+
+Edit
+
+
+Edit
+
+
+IMG_315255CF-978B-47A0-8269-CB819291FEF7.jpeg
+IMG_84E1DB07-84ED-4169-896D-7132BC035441.jpeg
+جميله اوي بس لون الفاصلتي المفروض بنفسجي او بمبي انا مش متاكد دا لونه ايه هو مش ازرق
+
+Edit
+
+
+Edit
+
+
+
+ هبعتلك الهتميل والجيس وتعمل نفس الالوان كسمك متقعدش تضيع وقتي
+
+IMG_F58806BE-11A6-4F4A-A145-F6431D137892.jpeg
+IMG_84C01CD1-8333-48F9-AA7D-9874B0EBEBC5.jpeg
+هو انتا حمار ليه ولازم نعمل الكود مليون مره  الكروت اللي تحت دهبي ومكتوب فيها اسود  والنيو ترب تاخد لون  جديد مثلا     وردي  وخلي اسم الصفحه بالاسود  نفس الوان الصفحه دي 
+
+Edit
+
+
+هو انتا مريض انتا عارف احنا عايزين تعديلات ايه انتا معملتش اي شيء يا متخلف 
+
+
+Pasted text(20260815-060427).txt
+Document
+
+Pasted text (2)(20260815-060445).txt
+Document
+
+
+انتا بوظت الالوان تاتي ليه وطلعت ترب هوب فوق العنوان وغيرت الالوان 
+ادد ترب فوق ترب هوب ليه بوظت الشغل ليه تاني 
+
+
+Pasted text(20260815-081702).txt
+Document
+
+Pasted text (2)(20260815-081723).txt
+Document
+
+حلو اوي بس ليه الصفحه نازله لتحت كده
+
+IMG_FC809E32-98D7-4EBA-8DF9-0768B51A9EF7.jpeg
+الصفحه دخلت تحت الهايدر
+
+IMG_47E0208F-3802-467F-9A6E-538C734C51E1.jpeg
+IMG_0DA58BDF-0247-4C4A-B61A-A2DA50809AF1.jpeg
+عايزه تنزل لتحت كمان  شويه 
+
+
+Pasted text(20260815-083811).txt
+Document
+
+Pasted text (2)(20260815-083829).txt
+Document
+/* =========================================
+   DISPATCH STORE V4
+========================================= */
+
+const Store = {
+
+  API_DISPATCH : "/api/dispatch",
+  API_SERVICES : "/api/services/admin",
+  API_SYSTEM   : "/api/system-design",
+
+  headers(json = false){
+    const token = localStorage.getItem("token") || "";
+
+    return {
+      ...(json ? {"Content-Type":"application/json"} : {}),
+      ...(token ? {Authorization:Bearer ${token}} : {})
+    };
+  },
+
+  async request(url,options = {}){
+    const res = await fetch(url,{
+      ...options,
+      headers:{
+        ...this.headers(Boolean(options.body)),
+        ...(options.headers || {})
+      }
+    });
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        data.error ||
+        "Dispatch request failed"
+      );
+    }
+
+    return data;
+  },
+
+  async load(){
+    try{
+      const [dispatchData,servicesData,systemData] =
+        await Promise.all([
+          this.request(this.API_DISPATCH),
+          this.request(this.API_SERVICES),
+          this.request(this.API_SYSTEM)
+        ]);
+
+      return {
+        trips:Array.isArray(dispatchData?.trips)
+          ? dispatchData.trips
+          : [],
+
+        drivers:Array.isArray(dispatchData?.drivers)
+          ? dispatchData.drivers
+          : [],
+
+        schedule:dispatchData?.schedule || {},
+
+        services:Array.isArray(servicesData)
+          ? servicesData
+          : servicesData?.services || [],
+
+        timezone:systemData?.timezone || "America/Phoenix"
+      };
+
+    }catch(err){
+      console.log("STORE LOAD ERROR:",err);
+
+      return {
+        trips:[],
+        drivers:[],
+        schedule:{},
+        services:[],
+        timezone:"America/Phoenix"
+      };
+    }
+  },
+
+  async saveDriver(tripId,driverId){
+    try{
+      return await this.request(
+        /api/dispatch/${encodeURIComponent(tripId)}/driver,
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            driverId:driverId || "",
+            assignmentType:"MANUAL"
+          })
+        }
+      );
+
+    }catch(err){
+      return {
+        success:false,
+        message:err.message
+      };
+    }
+  },
+
+  async saveSelection(tripId,selected){
+    /*
+      The row checkbox is local Dispatch-page state. It does not remove the
+      trip from Dispatch because Trip.dispatchSelected controls page entry.
+    */
+    return {
+      success:true,
+      tripId:String(tripId || ""),
+      selected:selected === true,
+      localOnly:true
+    };
+  },
+
+  async autoAssign(ids = []){
+    try{
+      return await this.request(
+        "/api/dispatch/auto-assign",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            ids:Array.isArray(ids) ? ids : []
+          })
+        }
+      );
+
+    }catch(err){
+      return {
+        success:false,
+        message:err.message
+      };
+    }
+  },
+
+  async sendTrips(ids = []){
+    try{
+      return await this.request(
+        "/api/dispatch/send",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            ids:Array.isArray(ids) ? ids : [],
+            selected:true
+          })
+        }
+      );
+
+    }catch(err){
+      return {
+        success:false,
+        message:err.message
+      };
+    }
+  }
+};
+
+window.Store = Store;
+
+OK
+
+تمام يا معلم 👍
+
+
+يلا اعمل  الملفين دول نفس الالوان والتنسيق والعنوان في النص 
+
+أيوه، وصلتني Dispatch Review HTML + JS وهعملهم بنفس النظام اللي ثبتناه في الصفحات التانية. 
+
+ 
+
+
+بس الملفين دول موجودين عندي كـFile Library reference مش كملفات فعلية قابلة للتعديل داخل /mnt/data، والـJS طويل جدًا والواجهة بتقص جزء منه عند الفتح. لو عملت نسخة كاملة دلوقتي هاضطر أخمن الجزء المقطوع وده ممكن يبوظ منطق الـReview.
+
+ارفع الملفين نفسهم هنا في المحادثة كملفات مرة واحدة، وأنا هرجعهم لك كاملين جاهزين بنفس:
+العنوان في النص، صندوق دهبي فاتح، Facility موف، Get Quote أخضر، Reserved برتقالي، كروت الحالات دهبي فاتح بخط أسود، الخدمات الديناميكية دهبي، وصفوف الجدول درجات فاتحة من نفس ألوان المصادر — ومن غير ما ألمس منطق الـReview أو الفلاتر أو الـExport.
+
+
+
+Pasted text(20260815-090236).txt
+Document
+
+Pasted text (2)(20260815-090255).txt
+Document
+
+تمام يا معلم، عملت الملفين على نفس الشكل والألوان اللي ثبتناها. اعتمدت على الـJS والـHTML اللي رفعتهم. 
+
+ 
+
+
+Dispatch Review في النص.
+
+صندوق العنوان دهبي فاتح.
+
+نفس ألوان الكروت القوية.
+
+كروت الخدمات دهبي فاتح والكتابة سودا.
+
+Facility موف، Get Quote أخضر، Reserved برتقالي.
+
+صفوف الجدول نفس ألوان المصدر لكن بدرجات فاتحة.
+
+نفس مسافة الصفحة تحت الهيدر زي Trips.
+
+شلت تكرار تحميل header.js وdispatch-review.js الموجود في الـHTML القديم، وكمان تكرار </body></html>.
+
+ما غيرتش منطق الـReview والـFinal Confirmation.
+
+فحصت JavaScript: Syntax OK.
+
+
+ 
+
+
+
+
+Library
+/
+برنامج صن بيم
+/
+dispatch-review-final-style.js.txt
+
+
 /* ==========================================================================
    DISPATCH REVIEW V4
    Admin / SuperAdmin / Dispatcher
@@ -128,13 +1535,46 @@ const reviewContent = document.getElementById("reviewContent");
       =============================== */
 
       .page-body{
-        padding-top:245px!important;
+        padding-top:165px!important;
       }
 
       @media(max-width:768px){
         .page-body{
-          padding-top:170px!important;
+          padding-top:185px!important;
         }
+      }
+
+      .page-head{
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        min-height:84px!important;
+        margin-bottom:12px!important;
+        padding:16px 20px!important;
+        border:1px solid #e0be5a!important;
+        border-radius:18px!important;
+        background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%)!important;
+        box-shadow:0 8px 22px rgba(146,102,14,.13)!important;
+        text-align:center!important;
+      }
+
+      .page-title{
+        margin:0!important;
+        font-size:28px!important;
+        line-height:1.1!important;
+        font-weight:900!important;
+        color:#111827!important;
+      }
+
+      .page-sub{
+        margin-top:5px!important;
+        font-size:13px!important;
+        font-weight:800!important;
+        color:#64748b!important;
+      }
+
+      .role-badge{
+        display:none!important;
       }
 
       /* ===============================
@@ -195,9 +1635,27 @@ const reviewContent = document.getElementById("reviewContent");
         margin-top:4px!important;
       }
 
-      .stat-card.facility{border-left:6px solid #1d4ed8!important;}
-      .stat-card.reserved{border-left:6px solid #f59e0b!important;}
-      .stat-card.shared{border-left:6px solid #7c3aed!important;}
+      .stat-card{
+        border:none!important;
+        color:#fff!important;
+      }
+
+      .stat-card .stat-number,
+      .stat-card .stat-label{
+        color:#fff!important;
+      }
+
+      .stat-card.total{background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%)!important;}
+      .stat-card.today{background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%)!important;}
+      .stat-card.month{background:linear-gradient(135deg,#0891b2 0%,#22d3ee 100%)!important;}
+      .stat-card.completed{background:linear-gradient(135deg,#11983f 0%,#39c65d 100%)!important;}
+      .stat-card.cancelled{background:linear-gradient(135deg,#ef4444 0%,#dc2626 55%,#b91c1c 100%)!important;}
+      .stat-card.noshow{background:linear-gradient(135deg,#f59e0b 0%,#f97316 100%)!important;}
+      .stat-card.notcompleted{background:linear-gradient(135deg,#64748b 0%,#475569 100%)!important;}
+      .stat-card.facility{background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;}
+      .stat-card.gq{background:linear-gradient(135deg,#16a34a 0%,#4ade80 100%)!important;}
+      .stat-card.reserved{background:linear-gradient(135deg,#f59e0b 0%,#fb923c 100%)!important;}
+      .stat-card.shared{background:linear-gradient(135deg,#7c3aed 0%,#a855f7 100%)!important;}
 
       /* ===============================
          SERVICE CARDS SAME ROW DESKTOP
@@ -219,6 +1677,26 @@ const reviewContent = document.getElementById("reviewContent");
         min-width:0!important;
         padding:8px 9px!important;
         border-radius:10px!important;
+        background:linear-gradient(135deg,#fff8dc 0%,#f7e4a5 52%,#fff2c4 100%)!important;
+        border:1px solid #dfbd58!important;
+        color:#111827!important;
+        box-shadow:0 6px 16px rgba(146,102,14,.12)!important;
+      }
+
+      .service-card:hover{
+        transform:translateY(-2px)!important;
+        border-color:#c99b25!important;
+      }
+
+      .service-card.active-card{
+        border:3px solid #111827!important;
+        background:linear-gradient(135deg,#ffe99a 0%,#f4cf5f 52%,#ffe7a1 100%)!important;
+      }
+
+      .service-card-title,
+      .service-line,
+      .service-line span{
+        color:#111827!important;
       }
 
       .service-card-title{
@@ -333,11 +1811,11 @@ const reviewContent = document.getElementById("reviewContent");
          TABLE CLEAN UI
       =============================== */
 
-      .facility-name{color:#1d4ed8;font-size:13px;font-weight:700;}
-      .row-facility td{background:#eaf4ff!important;}
-      .row-reserved td{background:#fef3c7!important;}
-      .row-getquote td{background:#dcfce7!important;}
-      .shared-row td{background:#ede9fe!important;}
+      .facility-name{color:#5b21b6;font-size:13px;font-weight:700;}
+      .row-facility td{background:linear-gradient(90deg,#f4ecff 0%,#eadcff 100%)!important;}
+      .row-reserved td{background:linear-gradient(90deg,#fff2df 0%,#ffe4bd 100%)!important;}
+      .row-getquote td{background:linear-gradient(90deg,#e9f9ed 0%,#d8f5df 100%)!important;}
+      .shared-row td{box-shadow:inset 4px 0 0 rgba(124,58,237,.42)!important;}
 
       .source-pill{
         display:inline-flex!important;
