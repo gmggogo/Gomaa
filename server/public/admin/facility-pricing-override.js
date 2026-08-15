@@ -269,6 +269,20 @@ function serviceDefaultCopy(s){
         "FULL"
       ),
 
+    initialDurationMinutes:
+      num(
+        s.companyInitialDurationMinutes ??
+        s.initialDurationMinutes ??
+        0
+      ),
+
+    initialPrice:
+      num(
+        s.companyInitialPrice ??
+        s.initialPrice ??
+        0
+      ),
+
     stopFee:
       num(
         s.companyStopFee ??
@@ -937,6 +951,33 @@ function serviceCardHTML(s,idx){
           )
         }
 
+        ${
+          key === "LM"
+            ? `
+                <div class="policy-title">
+                  <div>Limousine Initial Time Package</div>
+                  <span>Initial duration + fixed starting price</span>
+                </div>
+
+                ${intInput(
+                  idx,
+                  "initialDurationMinutes",
+                  "Initial Duration (Minutes)",
+                  s.initialDurationMinutes,
+                  cardLocked || !draftActive
+                )}
+
+                ${numberInput(
+                  idx,
+                  "initialPrice",
+                  "Initial Price",
+                  s.initialPrice,
+                  cardLocked || !draftActive
+                )}
+              `
+            : ""
+        }
+
         ${numberInput(idx,"stopFee","Stop Fee",s.stopFee,cardLocked || !draftActive)}
 
         ${numberInput(idx,"noShowFee","No Show Fee",s.noShowFee,cardLocked || !draftActive)}
@@ -1142,6 +1183,8 @@ function updateServiceField(idx,field,value){
     "noShowFee",
     "cancelFee",
     "hourlyRate",
+    "initialDurationMinutes",
+    "initialPrice",
     "sharedPrice",
     "warningMinutes",
     "addStopCutoffMinutes"
@@ -1247,6 +1290,16 @@ function prepareServicesForSave(){
 
       hourlyBillingMode:
         upper(s.hourlyBillingMode || "FULL"),
+
+      initialDurationMinutes:
+        serviceKey === "LM"
+          ? num(s.initialDurationMinutes)
+          : 0,
+
+      initialPrice:
+        serviceKey === "LM"
+          ? num(s.initialPrice)
+          : 0,
 
       stopFee:
         num(s.stopFee),

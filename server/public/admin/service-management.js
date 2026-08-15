@@ -96,6 +96,88 @@ function isSharedService(service){
   );
 }
 
+function isLimousineService(service){
+
+  if(!service) return false;
+
+  const values = [
+    service.serviceKey,
+    service.key,
+    service.code,
+    service.serviceCode,
+    service.serviceType,
+    service.companySuffix,
+    service.reservedSuffix,
+    service.suffix,
+    service.title,
+    service.name
+  ].map(upper);
+
+  return values.some(v =>
+    v === "LM" ||
+    v === "LIMO" ||
+    v === "LIMOUSINE" ||
+    v.includes("LIMOUSINE")
+  );
+}
+
+function limousineInitialFields(section,service){
+
+  if(!isLimousineService(service)){
+    return "";
+  }
+
+  let duration = 0;
+  let price = 0;
+
+  if(section === "getquote"){
+    duration = service.initialDurationMinutes ?? 60;
+    price = service.initialPrice ?? 0;
+  }
+
+  if(section === "facility"){
+    duration = service.companyInitialDurationMinutes ?? service.initialDurationMinutes ?? 60;
+    price = service.companyInitialPrice ?? service.initialPrice ?? 0;
+  }
+
+  if(section === "reserved"){
+    duration = service.reservedInitialDurationMinutes ?? service.companyInitialDurationMinutes ?? service.initialDurationMinutes ?? 60;
+    price = service.reservedInitialPrice ?? service.companyInitialPrice ?? service.initialPrice ?? 0;
+  }
+
+  return `
+    <div class="policy-title">Limousine Initial Time Package</div>
+
+    ${inputField({
+      section,
+      service,
+      name:"initialduration",
+      label:"Initial Duration (Minutes)",
+      value:Number(duration || 0),
+      type:"number",
+      min:0,
+      step:15
+    })}
+
+    ${inputField({
+      section,
+      service,
+      name:"initialprice",
+      label:"Initial Price",
+      value:Number(price || 0),
+      type:"number",
+      min:0,
+      step:0.01
+    })}
+
+    <div class="add-stop-note">
+      Limousine only: this price covers the Initial Duration.
+      After that duration ends, Hourly Rate starts and Hourly Billing
+      decides whether extra time is charged by Full Hour or Quarter Hour.
+    </div>
+  `;
+}
+
 function statusClass(active){
   return active ? "status-on" : "status-off";
 }
@@ -726,6 +808,8 @@ function getQuoteFields(service){
 
     ${hourlyModeSelect("getquote",service,service.hourlyBillingMode)}
 
+    ${limousineInitialFields("getquote",service)}
+
     ${inputField({
       section:"getquote",
       service,
@@ -861,6 +945,8 @@ function facilityFields(service){
       service.companyHourlyBillingMode || service.hourlyBillingMode
     )}
 
+    ${limousineInitialFields("facility",service)}
+
     ${inputField({
       section:"facility",
       service,
@@ -983,6 +1069,8 @@ function reservedFields(service){
       service.companyHourlyBillingMode ||
       service.hourlyBillingMode
     )}
+
+    ${limousineInitialFields("reserved",service)}
 
     ${inputField({
       section:"reserved",
@@ -1424,6 +1512,16 @@ function buildGetQuotePayload(id){
     hourlyBillingMode:
       getValue("getquote",id,"hourmode"),
 
+    initialDurationMinutes:
+      isLimousineService(service)
+        ? getNumberValue("getquote",id,"initialduration")
+        : Number(service?.initialDurationMinutes || 0),
+
+    initialPrice:
+      isLimousineService(service)
+        ? getNumberValue("getquote",id,"initialprice")
+        : Number(service?.initialPrice || 0),
+
     stopFee:
       getNumberValue("getquote",id,"stop"),
 
@@ -1491,6 +1589,16 @@ function buildFacilityPayload(id){
 
     companyHourlyBillingMode:
       getValue("facility",id,"hourmode"),
+
+    companyInitialDurationMinutes:
+      isLimousineService(service)
+        ? getNumberValue("facility",id,"initialduration")
+        : Number(service?.companyInitialDurationMinutes || 0),
+
+    companyInitialPrice:
+      isLimousineService(service)
+        ? getNumberValue("facility",id,"initialprice")
+        : Number(service?.companyInitialPrice || 0),
 
     companyStopFee:
       getNumberValue("facility",id,"stop"),
@@ -1561,6 +1669,16 @@ function buildReservedPayload(id){
 
     reservedHourlyBillingMode:
       getValue("reserved",id,"hourmode"),
+
+    reservedInitialDurationMinutes:
+      isLimousineService(service)
+        ? getNumberValue("reserved",id,"initialduration")
+        : Number(service?.reservedInitialDurationMinutes || 0),
+
+    reservedInitialPrice:
+      isLimousineService(service)
+        ? getNumberValue("reserved",id,"initialprice")
+        : Number(service?.reservedInitialPrice || 0),
 
     reservedStopFee:
       getNumberValue("reserved",id,"stop"),
