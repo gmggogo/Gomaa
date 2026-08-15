@@ -85,13 +85,30 @@ function upper(v){
 function normalizeCode(v){
 
   const c = upper(v);
+  const compact =
+    c.replace(/[\s_-]+/g,"");
 
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
-  if(c === "TAXI") return "TX";
-  if(c === "XL") return "XL";
+  if(compact === "STANDARD" || compact === "ST") return "ST";
+  if(compact === "WHEELCHAIR" || compact === "WH" || compact === "WC") return "WH";
+  if(compact === "SHARED" || compact === "SH") return "SH";
+
+  /*
+    LIMousine normalization:
+    Keep every name/code used across the system on one canonical key.
+    This prevents the Facility Override card from failing to match
+    Service Management / allowedServices / saved override records.
+  */
+  if(
+    compact === "LM" ||
+    compact === "LIMO" ||
+    compact === "LIMOUSINE" ||
+    compact === "LIMOUSINESERVICE"
+  ){
+    return "LM";
+  }
+
+  if(compact === "TAXI" || compact === "TX") return "TX";
+  if(compact === "XL") return "XL";
 
   return c;
 }
@@ -339,7 +356,10 @@ function getVisibleServicesForFacility(facility){
         s.key ||
         s.code ||
         s.companySuffix ||
-        s.suffix
+        s.suffix ||
+        s.serviceName ||
+        s.title ||
+        s.name
       )
     )
   );
