@@ -1409,65 +1409,24 @@ String(
 pricingData.pricingMode || ""
 ).toUpperCase();
 
-let totalPrice = 0;
+/*
+  IMPORTANT:
+  Server is the single source of truth for pricing.
 
-if(pricingMode === "HOURLY"){
+  GetQuoteEngine already calculates:
+  - Limousine Initial Duration
+  - Limousine Initial Price
+  - Quarter / Full Hour after initial duration
+  - Mile pricing
+  - Shared pricing
 
-const hourlyRate =
+  Do NOT recalculate HOURLY price here in the browser,
+  otherwise Limousine Initial Package will be ignored.
+*/
+const totalPrice =
 Number(
-pricingData.service?.hourlyRate || 0
+  pricingData.total || 0
 );
-
-const billingMode =
-
-String(
-pricingData.service?.hourlyBillingMode || ""
-)
-.toUpperCase();
-
-let hours = 1;
-
-/* =========================
-   QUARTER
-========================= */
-
-if(billingMode === "QUARTER"){
-
-hours =
-
-Math.max(
-1,
-Math.ceil(mins / 15) / 4
-);
-
-}
-
-/* =========================
-   FULL
-========================= */
-
-else{
-
-hours =
-
-Math.max(
-1,
-Math.ceil(mins / 60)
-);
-
-}
-
-totalPrice =
-hours * hourlyRate;
-
-}else{
-
-totalPrice =
-Number(
-pricingData.total || 0
-);
-
-}
 
 distance.innerText =
 miles.toFixed(2) + " mi";
