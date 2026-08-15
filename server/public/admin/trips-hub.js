@@ -57,7 +57,6 @@ if(!container) console.error("Missing #hubContainer");
     .forEach(el=>{
       const txt = String(el.textContent || "").toLowerCase();
       if(
-        txt.includes("trips hub") ||
         txt.includes("clean admin") ||
         txt.includes("dispatch") ||
         txt.includes("reservation inbox")
@@ -206,13 +205,17 @@ if(!container) console.error("Missing #hubContainer");
       otherwise restore the generic white card background after this block.
     */
     .stat-card.total{
-      border-left:6px solid #4f46e5!important;
-      background:#e0e7ff!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      border-left:0!important;
+      background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%)!important;
+      color:#fff!important;
     }
 
     .stat-card.new{
-      border-left:6px solid #e11d48!important;
-      background:#ffe4e6!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      border-left:0!important;
+      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+      color:#fff!important;
     }
 
     /*
@@ -220,19 +223,30 @@ if(!container) console.error("Missing #hubContainer");
       their corresponding rows in the table below.
     */
     .stat-card.facility{
-      border-left:6px solid #1d4ed8!important;
-      background:#dbeafe!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      border-left:0!important;
+      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+      color:#fff!important;
     }
 
     .stat-card.gq{
-      border-left:6px solid #16a34a!important;
-      background:#dcfce7!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      border-left:0!important;
+      background:linear-gradient(135deg,#11983f 0%,#39c65d 100%)!important;
+      color:#fff!important;
     }
 
     .stat-card.reserved{
-      border-left:6px solid #d97706!important;
-      background:#fef3c7!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      border-left:0!important;
+      background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%)!important;
+      color:#fff!important;
     }
+
+    .stat-card{position:relative;overflow:hidden;isolation:isolate;}
+    .stat-card::before{content:"";position:absolute;width:118px;height:118px;border-radius:50%;right:-35px;top:-42px;background:rgba(255,255,255,.12);z-index:-1;}
+    .stat-card::after{content:"";position:absolute;inset:0;background:linear-gradient(125deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 62%);pointer-events:none;z-index:-1;}
+    .stat-card .stat-title,.stat-card .stat-number,.stat-card .mini-head,.stat-card .mini-values{color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.22);}
 
     .stat-title{
       font-size:11px;
@@ -313,8 +327,9 @@ if(!container) console.error("Missing #hubContainer");
     .service-tab.service-tx,
     .service-tab.service-lm,
     .service-tab.service-other{
-      background:#ede9fe!important;
-      border-left:6px solid #7c3aed!important;
+      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      color:#fff!important;
     }
 
     .service-title{
@@ -329,10 +344,11 @@ if(!container) console.error("Missing #hubContainer");
       font-weight:900;
     }
 
-    .service-tab.active .mini-head,
-    .service-tab.active .mini-values{
-      color:#0f172a;
-    }
+    .service-tab .service-title,
+    .service-tab .service-total,
+    .service-tab .mini-head,
+    .service-tab .mini-values{color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.22);}
+    .service-tab.active{border:3px solid #0f172a!important;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;}
 
     .hub-date-filters{
       display:flex;
@@ -497,15 +513,15 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .date-separator td{
-  background:#bfdbfe!important;
-  color:#1e3a8a!important;
+  background:#f3e8ff!important;
+  color:#581c87!important;
   font-weight:900!important;
   text-align:center!important;
   padding:4px 6px!important;
   font-size:11px!important;
   line-height:1.1!important;
-  border-top:2px solid #60a5fa!important;
-  border-bottom:2px solid #60a5fa!important;
+  border-top:2px solid #c084fc!important;
+  border-bottom:2px solid #c084fc!important;
 }
 
     .cell-box{
