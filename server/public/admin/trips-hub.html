@@ -530,31 +530,32 @@ body{
   padding:10px 14px!important;
 }
 
-/* ROW COLORS — UNCHANGED */
+/* ROW COLORS — LIGHT VERSIONS OF THE TOP CARDS */
 
 .facility-row td,
 .row-company td{
-  background:#dbeafe!important;
+  background:linear-gradient(90deg,#f4ecff 0%,#eadcff 100%)!important;
 }
 
 .gq-row td,
 .row-quote td{
-  background:#dcfce7!important;
+  background:linear-gradient(90deg,#e9f9ed 0%,#d8f5df 100%)!important;
 }
 
 .reserved-row td,
 .row-reserved td{
-  background:#fef3c7!important;
-}
-
-.shared-row td,
-.row-shared td{
-  background:#ede9fe!important;
+  background:linear-gradient(90deg,#fff2df 0%,#ffe4bd 100%)!important;
 }
 
 .individual-row td,
 .row-individual td{
-  background:#e8f4ff!important;
+  background:linear-gradient(90deg,#e8f4ff 0%,#d9ecff 100%)!important;
+}
+
+/* Shared keeps the source color and gets only a purple accent */
+.shared-row td,
+.row-shared td{
+  box-shadow:inset 4px 0 0 rgba(124,58,237,.42);
 }
 
 /* WIDTHS */

@@ -628,10 +628,27 @@ if(!container) console.error("Missing #hubContainer");
       resize:vertical;
     }
 
-    .facility-row td{background:#dbeafe;}
-    .gq-row td{background:#dcfce7;}
-    .reserved-row td{background:#fef3c7;}
-    .shared-row td{background:#ede9fe;}
+    /* TABLE ROW COLORS — LIGHT VERSIONS OF THE TOP CARDS */
+    .facility-row td{
+      background:linear-gradient(90deg,#f4ecff 0%,#eadcff 100%)!important;
+    }
+
+    .gq-row td{
+      background:linear-gradient(90deg,#e9f9ed 0%,#d8f5df 100%)!important;
+    }
+
+    .reserved-row td{
+      background:linear-gradient(90deg,#fff2df 0%,#ffe4bd 100%)!important;
+    }
+
+    .individual-row td{
+      background:linear-gradient(90deg,#e8f4ff 0%,#d9ecff 100%)!important;
+    }
+
+    /* Shared is an accent only; source color remains visible */
+    .shared-row td{
+      box-shadow:inset 4px 0 0 rgba(124,58,237,.42);
+    }
 
     .new-trip-row td{
       box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
@@ -2196,14 +2213,25 @@ function cancelEdit(){
 
 function rowClass(item){
   const t = getItemTrip(item);
+  const source = getSourceCode(t);
+
   let cls = "";
 
-  if(item.kind === "shared") cls = "shared-row";
-  else if(getSourceCode(t) === "RV") cls = "reserved-row";
-  else if(getSourceCode(t) === "FA") cls = "facility-row";
-  else cls = "gq-row";
+  if(source === "RV"){
+    cls = "reserved-row";
+  }else if(source === "FA"){
+    cls = "facility-row";
+  }else{
+    cls = "gq-row";
+  }
 
-  if(isNewTrip(t)) cls += " new-trip-row";
+  if(item.kind === "shared"){
+    cls += " shared-row";
+  }
+
+  if(isNewTrip(t)){
+    cls += " new-trip-row";
+  }
 
   return cls + " trip-divider";
 }
