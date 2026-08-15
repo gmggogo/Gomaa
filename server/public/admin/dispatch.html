@@ -18,8 +18,19 @@ body{
   color:#0f172a;
 }
 
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+
 .page-body{
-  padding:165px 20px 35px;
+  padding-top:165px;
+  padding-left:20px;
+  padding-right:20px;
+  padding-bottom:30px;
   background:#f1f5f9;
   min-height:calc(100vh - 80px);
 }
@@ -649,7 +660,12 @@ body{
 }
 
 @media(max-width:768px){
-  .page-body{padding:185px 12px 30px;}
+  .page-body{
+    padding-top:185px;
+    padding-left:10px;
+    padding-right:10px;
+    padding-bottom:30px;
+  }
 
   .page-head{
     min-height:72px;
