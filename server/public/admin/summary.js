@@ -1064,123 +1064,42 @@ function getFacilityNameFromUser(u){
   );
 }
 
-async function loadFacilities(){
+async function loadSummaryBundle(){
 
   try{
 
-    const res = await fetch(USERS_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
-    });
+    /*
+      ONE HTTP REQUEST ONLY.
+      Server returns:
+      - trips
+      - services
+      - facilities
+    */
+    const res =
+      await fetch(
+        API_URL,
+        {
+          headers:
+            token
+              ? {
+                  Authorization:
+                    "Bearer " +
+                    token
+                }
+              : {}
+        }
+      );
 
-    if(!res.ok) throw new Error("Failed users");
-
-    const data = await res.json();
-    const users = extractUsers(data);
-
-    facilities =
-      [...new Set(
-        users
-          .filter(isFacilityUser)
-          .map(getFacilityNameFromUser)
-          .filter(Boolean)
-      )].sort((a,b)=>a.localeCompare(b));
-
-  }catch(err){
-    facilities = [];
-  }
-}
-
-function buildFacilityFallbackFromTrips(){
-
-  const names =
-    allTrips
-      .filter(t => getSourceCode(t) === "FACILITY")
-      .map(getFacilityName)
-      .filter(Boolean);
-
-  facilities =
-    [...new Set([...facilities,...names])]
-    .sort((a,b)=>a.localeCompare(b));
-}
-
-function renderFacilityFilter(){
-
-  if(!facilityFilter) return;
-
-  facilityFilter.innerHTML =
-    `<option value="ALL">All Facilities</option>`;
-
-  facilities.forEach(name=>{
-    facilityFilter.innerHTML += `
-      <option value="${safe(name)}">${safe(name)}</option>
-    `;
-  });
-
-  if(activeSource === "FACILITY"){
-    facilityFilter.style.display = "inline-block";
-  }else{
-    facilityFilter.style.display = "none";
-    activeFacility = "ALL";
-    facilityFilter.value = "ALL";
-  }
-
-  if(activeFacility !== "ALL"){
-    if(facilities.includes(activeFacility)){
-      facilityFilter.value = activeFacility;
-    }else{
-      activeFacility = "ALL";
-      facilityFilter.value = "ALL";
-    }
-  }
-}
-
-/* ===============================
-   LOADERS
-================================ */
-
-async function loadServices(){
-
-  try{
-
-    const res = await fetch(SERVICES_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
-    });
-
-    if(!res.ok) throw new Error("Failed services");
-
-    const data = await res.json();
-
-    services =
-      extractServices(data)
-      .filter(serviceEnabled);
-
-    if(
-      activeService !== "ALL" &&
-      !services.some(s => getServiceCodeFromService(s) === activeService)
-    ){
-      activeService = "ALL";
+    if(!res.ok){
+      throw new Error(
+        "Failed summary bundle"
+      );
     }
 
-  }catch(err){
-    console.log(err);
-    services = [];
-    activeService = "ALL";
-  }
-}
+    const data =
+      await res.json();
 
-async function loadTrips(){
-
-  try{
-
-    const res = await fetch(API_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
-    });
-
-    if(!res.ok) throw new Error("Failed trips");
-
-    const data = await res.json();
-
-    const list =
+    const tripList =
       Array.isArray(data)
         ? data
         : Array.isArray(data?.trips)
@@ -1190,32 +1109,179 @@ async function loadTrips(){
             : [];
 
     allTrips =
-      list.sort((a,b)=>
-        getBookedDateObj(b) - getBookedDateObj(a)
+      tripList.sort(
+        (a,b)=>
+          getBookedDateObj(b) -
+          getBookedDateObj(a)
       );
 
-    allTrips = allTrips.map(t=>{
+    allTrips =
+      allTrips.map(t=>{
 
-      if(!t.company || t.company === "Sunbeam Transportation"){
+        if(
+          !t.company ||
+          t.company ===
+            "Sunbeam Transportation"
+        ){
 
-        const facilityName =
-          t.companyName ||
-          t.facilityName ||
-          t.organizationName ||
-          t.customerCompany ||
-          "";
+          const facilityName =
+            t.companyName ||
+            t.facilityName ||
+            t.organizationName ||
+            t.customerCompany ||
+            "";
 
-        if(facilityName){
-          t.company = facilityName;
+          if(facilityName){
+            t.company =
+              facilityName;
+          }
         }
-      }
 
-      return t;
-    });
+        return t;
+      });
+
+    const serviceList =
+      Array.isArray(data?.services)
+        ? data.services
+        : [];
+
+    services =
+      serviceList
+        .filter(
+          serviceEnabled
+        );
+
+    if(
+      activeService !== "ALL" &&
+      !services.some(
+        s =>
+          getServiceCodeFromService(s) ===
+          activeService
+      )
+    ){
+      activeService =
+        "ALL";
+    }
+
+    facilities =
+      Array.isArray(data?.facilities)
+        ? [
+            ...new Set(
+              data.facilities
+                .map(clean)
+                .filter(Boolean)
+            )
+          ]
+          .sort(
+            (a,b)=>
+              a.localeCompare(b)
+          )
+        : [];
+
+    /*
+      Backward-safe fallback.
+      Uses already loaded trips.
+      ZERO extra HTTP requests.
+    */
+    buildFacilityFallbackFromTrips();
 
   }catch(err){
+
     console.log(err);
+
     allTrips = [];
+    services = [];
+    facilities = [];
+    displayItems = [];
+  }
+}
+
+function buildFacilityFallbackFromTrips(){
+
+  const names =
+    allTrips
+      .filter(
+        t =>
+          getSourceCode(t) ===
+          "FACILITY"
+      )
+      .map(
+        getFacilityName
+      )
+      .filter(Boolean);
+
+  facilities =
+    [
+      ...new Set([
+        ...facilities,
+        ...names
+      ])
+    ]
+    .sort(
+      (a,b)=>
+        a.localeCompare(b)
+    );
+}
+
+function renderFacilityFilter(){
+
+  if(!facilityFilter){
+    return;
+  }
+
+  facilityFilter.innerHTML =
+    `<option value="ALL">All Facilities</option>`;
+
+  facilities.forEach(name=>{
+
+    facilityFilter.innerHTML += `
+      <option value="${safe(name)}">
+        ${safe(name)}
+      </option>
+    `;
+  });
+
+  if(
+    activeSource ===
+    "FACILITY"
+  ){
+
+    facilityFilter.style.display =
+      "inline-block";
+
+  }else{
+
+    facilityFilter.style.display =
+      "none";
+
+    activeFacility =
+      "ALL";
+
+    facilityFilter.value =
+      "ALL";
+  }
+
+  if(
+    activeFacility !== "ALL"
+  ){
+
+    if(
+      facilities.includes(
+        activeFacility
+      )
+    ){
+
+      facilityFilter.value =
+        activeFacility;
+
+    }else{
+
+      activeFacility =
+        "ALL";
+
+      facilityFilter.value =
+        "ALL";
+    }
   }
 }
 
@@ -2543,14 +2609,12 @@ Object.assign(window,{
 
 async function refreshEverything(){
 
-  await Promise.all([
-    loadServices(),
-    loadFacilities()
-  ]);
+  /*
+    ONE HTTP request:
+    /api/admin-summary
+  */
+  await loadSummaryBundle();
 
-  await loadTrips();
-
-  buildFacilityFallbackFromTrips();
   buildDateFilters();
   renderServiceFilter();
   renderFacilityFilter();

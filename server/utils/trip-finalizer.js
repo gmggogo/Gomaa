@@ -1,8 +1,10 @@
 "use strict";
 
 const {
+  authorizeTripAmount,
   captureAuthorizedTrip,
-  captureFeeAndReleaseRest
+  captureFeeAndReleaseRest,
+  hasActiveAuthorization
 } = require("./tripPaymentEngine");
 
 // =========================================
@@ -1092,6 +1094,33 @@ async function settleIndividualTripPayment(
   }
 
   if(normalizedAction === "COMPLETE"){
+
+    if(finalPrice <= 0){
+      throw new Error(
+        "Completed trip final amount must be greater than zero"
+      );
+    }
+
+    /*
+      COMPLETED PAYMENT FIX
+
+      1) If a valid authorization already exists -> capture it.
+      2) If the saved card exists but no active authorization exists
+         -> authorize the exact final amount, then capture it.
+      3) PAID / captured trips already returned above, so there is
+         never a second charge.
+    */
+
+    if(
+      !hasActiveAuthorization(trip)
+    ){
+
+      await authorizeTripAmount(
+        trip,
+        finalPrice,
+        "FINAL_COMPLETED_FARE"
+      );
+    }
 
     await captureAuthorizedTrip(
       trip,

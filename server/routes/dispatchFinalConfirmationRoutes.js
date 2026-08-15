@@ -1000,10 +1000,33 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       A trip that is already financially settled should not be reopened
       automatically because that would require a separate refund/void policy.
     */
-    if(
-      String(trip.paymentStatus || "").toUpperCase() === "PAID" ||
-      Number(trip.capturedAmount || 0) > 0
-    ){
+    const paymentStatus =
+      String(
+        trip.paymentStatus || ""
+      )
+      .trim()
+      .toUpperCase();
+
+    const hasCapturedPayment =
+      paymentStatus === "PAID" ||
+      Number(
+        trip.capturedAmount || 0
+      ) > 0 ||
+      !!trip.paymentCapturedAt;
+
+    /*
+      RETURN TO DRIVER RULE:
+
+      - PAID / actually captured money -> blocked.
+      - AUTHORIZED hold only -> allowed.
+      - PAYMENT_REQUIRED -> allowed.
+      - CAPTURE_FAILED -> allowed.
+      - PAYMENT_METHOD_SAVED -> allowed.
+
+      A failed Completed attempt must never trap the trip in Final Confirmation.
+    */
+    if(hasCapturedPayment){
+
       return res.status(409).json({
         success:false,
         message:
@@ -1049,7 +1072,9 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
             reason ||
             "Returned to driver from Final Confirmation",
 
-          previousFinalStatus,
+          previousFinalStatus:
+            previousStatus,
+
           updatedAt:now
         },
 
