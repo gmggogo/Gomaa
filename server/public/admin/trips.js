@@ -25,6 +25,7 @@ let displayItems = [];
 let activeService = "ALL";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 let editingKey = null;
+let autoSelectRunning = false;
 
 const selectedMap = new WeakMap();
 
@@ -57,40 +58,105 @@ const selectedMap = new WeakMap();
 .stats-grid{
   display:grid!important;
   grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important;
-  gap:8px!important;
-  margin:0 0 10px!important;
+  gap:12px!important;
+  margin:0 0 12px!important;
 }
 
 .stat-card{
-  background:#fff!important;
-  border:1px solid #dbe3ee!important;
-  border-left:6px solid #2563eb!important;
-  border-radius:14px!important;
-  padding:10px 8px!important;
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  min-height:92px!important;
+  border:1px solid rgba(255,255,255,.30)!important;
+  border-left:0!important;
+  border-radius:15px!important;
+  padding:12px 10px!important;
   text-align:center!important;
-  box-shadow:0 5px 14px rgba(15,23,42,.07)!important;
+  box-shadow:
+    0 9px 20px rgba(15,23,42,.17),
+    inset 0 1px 0 rgba(255,255,255,.24)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 
-.stat-card:nth-child(2){border-left-color:#16a34a!important;}
-.stat-card:nth-child(3){border-left-color:#1d4ed8!important;}
-.stat-card:nth-child(4){border-left-color:#22c55e!important;}
-.stat-card:nth-child(5){border-left-color:#f59e0b!important;}
-.stat-card:nth-child(6){border-left-color:#7c3aed!important;}
+.stat-card::before{
+  content:"";
+  position:absolute;
+  width:118px;
+  height:118px;
+  border-radius:50%;
+  right:-35px;
+  top:-42px;
+  background:rgba(255,255,255,.13);
+  z-index:-1;
+}
+
+.stat-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    125deg,
+    rgba(255,255,255,.18) 0%,
+    rgba(255,255,255,.04) 38%,
+    rgba(255,255,255,0) 62%
+  );
+  pointer-events:none;
+  z-index:-1;
+}
+
+/* TOTAL */
+.stat-card:nth-child(1){
+  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%)!important;
+}
+
+/* TODAY */
+.stat-card:nth-child(2){
+  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%)!important;
+}
+
+/* TOMORROW */
+.stat-card:nth-child(3){
+  background:linear-gradient(135deg,#0891b2 0%,#22d3ee 100%)!important;
+}
+
+/* FACILITY */
+.stat-card:nth-child(4){
+  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+}
+
+/* GET QUOTE */
+.stat-card:nth-child(5){
+  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%)!important;
+}
+
+/* RESERVED */
+.stat-card:nth-child(6){
+  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%)!important;
+}
 
 .stat-label{
+  width:100%!important;
   font-size:11px!important;
   font-weight:900!important;
-  color:#64748b!important;
+  color:#fff!important;
   letter-spacing:.3px!important;
   text-transform:uppercase!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22)!important;
 }
 
 .stat-value{
-  font-size:24px!important;
-  line-height:1.1!important;
+  width:100%!important;
+  font-size:26px!important;
+  line-height:1.05!important;
   font-weight:900!important;
-  color:#0f172a!important;
-  margin-top:3px!important;
+  color:#fff!important;
+  margin-top:5px!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22)!important;
 }
 
 /* ===============================
@@ -100,31 +166,51 @@ const selectedMap = new WeakMap();
 .service-strip{
   display:grid!important;
   grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;
-  gap:7px!important;
+  gap:8px!important;
   overflow:visible!important;
   padding-bottom:0!important;
-  margin-bottom:10px!important;
+  margin-bottom:11px!important;
 }
 
 .service-card{
-  background:#fff!important;
-  border:1px solid #dbe3ee!important;
-  color:#0f172a!important;
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
+  border:1px solid #d1a92e!important;
+  color:#111827!important;
   border-radius:13px!important;
   padding:8px 7px!important;
   cursor:pointer!important;
   font-weight:900!important;
-  box-shadow:0 4px 12px rgba(15,23,42,.06)!important;
+  box-shadow:
+    0 7px 16px rgba(15,23,42,.12),
+    inset 0 1px 0 rgba(255,255,255,.28)!important;
   text-align:center!important;
   min-height:78px!important;
   min-width:0!important;
 }
 
+.service-card::before{
+  content:"";
+  position:absolute;
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  right:-35px;
+  top:-38px;
+  background:rgba(255,255,255,.16);
+  z-index:-1;
+}
+
 .service-card.active{
-  background:#2563eb!important;
-  color:#fff!important;
-  border-color:#2563eb!important;
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
+  color:#111827!important;
+  border:3px solid #0f172a!important;
   outline:none!important;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.9),
+    0 10px 24px rgba(15,23,42,.18)!important;
 }
 
 .service-name{
@@ -132,6 +218,7 @@ const selectedMap = new WeakMap();
   line-height:1.1!important;
   margin-bottom:4px!important;
   font-weight:900!important;
+  color:#111827!important;
 }
 
 .service-total{
@@ -139,6 +226,7 @@ const selectedMap = new WeakMap();
   line-height:1.05!important;
   font-weight:900!important;
   margin:4px 0!important;
+  color:#111827!important;
 }
 
 .service-mini{
@@ -148,11 +236,11 @@ const selectedMap = new WeakMap();
   margin-top:6px!important;
   font-size:9px!important;
   font-weight:900!important;
-  color:#64748b!important;
+  color:#111827!important;
 }
 
 .service-card.active .service-mini{
-  color:#fff!important;
+  color:#111827!important;
 }
 
 /* ===============================
@@ -862,11 +950,23 @@ function getTripKind(t){
 }
 
 function rowClass(item){
-  if(item.kind === "shared") return "row-shared";
   const k = getTripKind(item.trip);
-  if(k === "RV") return "row-rv";
-  if(k === "FA") return "row-facility";
-  return "row-gq";
+
+  let cls = "";
+
+  if(k === "RV"){
+    cls = "row-rv";
+  }else if(k === "FA"){
+    cls = "row-facility";
+  }else{
+    cls = "row-gq";
+  }
+
+  if(item.kind === "shared"){
+    cls += " row-shared";
+  }
+
+  return cls;
 }
 
 function getTripNumber(t){
@@ -1538,6 +1638,75 @@ function attachAutocomplete(input){
 }
 
 /* ===============================
+   AUTO SELECT NEW DISPATCH TRIPS
+================================ */
+
+/*
+  Every eligible trip that enters this Trips page is automatically
+  selected for the next Dispatch step, regardless of source:
+  Facility / Get Quote / Reserved.
+
+  This uses the existing dispatch selection endpoint, so the check
+  is persisted on the server and is not only visual.
+*/
+async function autoSelectIncomingTrips(){
+
+  if(autoSelectRunning){
+    return;
+  }
+
+  autoSelectRunning = true;
+
+  try{
+    const eligibleItems = buildDisplayItems(baseTrips());
+
+    const pending = eligibleItems.filter(item=>
+      !itemSelected(item)
+    );
+
+    if(!pending.length){
+      return;
+    }
+
+    const CONCURRENCY = 5;
+    let cursor = 0;
+
+    async function worker(){
+
+      while(cursor < pending.length){
+
+        const item = pending[cursor++];
+
+        try{
+          await setItemSelected(item,true);
+        }catch(err){
+          console.error(
+            "AUTO DISPATCH SELECT FAILED:",
+            item?.key,
+            err
+          );
+        }
+      }
+    }
+
+    await Promise.all(
+      Array.from(
+        {
+          length:Math.min(
+            CONCURRENCY,
+            pending.length
+          )
+        },
+        ()=>worker()
+      )
+    );
+
+  }finally{
+    autoSelectRunning = false;
+  }
+}
+
+/* ===============================
    LOAD
 ================================ */
 
@@ -1559,6 +1728,12 @@ async function loadTrips(){
   }catch(err){
     trips = [];
   }
+
+  /*
+    Auto-select every eligible trip before drawing the page.
+    The endpoint already persists dispatchSelected.
+  */
+  await autoSelectIncomingTrips();
 
   renderAll();
 }

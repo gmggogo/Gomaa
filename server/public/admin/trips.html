@@ -28,6 +28,42 @@ body{
   z-index:1000;
 }
 
+/* PAGE TITLE — SAME STYLE AS TRIPS HUB / FINAL */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
 /* PAGE */
 
 .page-body{
@@ -57,39 +93,74 @@ body{
 .stats-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
-  gap:8px;
+  gap:12px;
 }
 
 .stat-card{
-  background:#fff;
-  border:1px solid #dbe3ee;
-  border-left:6px solid #2563eb;
-  border-radius:14px;
-  padding:10px 8px;
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  min-height:92px;
+  border:1px solid rgba(255,255,255,.30);
+  border-radius:15px;
+  padding:12px 10px;
   text-align:center;
-  box-shadow:0 5px 14px rgba(15,23,42,.07);
+  box-shadow:
+    0 9px 20px rgba(15,23,42,.17),
+    inset 0 1px 0 rgba(255,255,255,.24);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
 }
 
-.stat-card:nth-child(2){border-left-color:#16a34a;}
-.stat-card:nth-child(3){border-left-color:#1d4ed8;}
-.stat-card:nth-child(4){border-left-color:#22c55e;}
-.stat-card:nth-child(5){border-left-color:#f59e0b;}
-.stat-card:nth-child(6){border-left-color:#7c3aed;}
+.stat-card::before{
+  content:"";
+  position:absolute;
+  width:118px;
+  height:118px;
+  border-radius:50%;
+  right:-35px;
+  top:-42px;
+  background:rgba(255,255,255,.13);
+  z-index:-1;
+}
+
+.stat-card:nth-child(1){
+  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
+}
+.stat-card:nth-child(2){
+  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%);
+}
+.stat-card:nth-child(3){
+  background:linear-gradient(135deg,#0891b2 0%,#22d3ee 100%);
+}
+.stat-card:nth-child(4){
+  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);
+}
+.stat-card:nth-child(5){
+  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);
+}
+.stat-card:nth-child(6){
+  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
+}
 
 .stat-label{
   font-size:11px;
   font-weight:900;
-  color:#64748b;
+  color:#fff;
   letter-spacing:.3px;
   text-transform:uppercase;
+  text-align:center;
 }
 
 .stat-value{
-  font-size:24px;
-  line-height:1.1;
+  font-size:26px;
+  line-height:1.05;
   font-weight:900;
-  color:#0f172a;
-  margin-top:3px;
+  color:#fff;
+  margin-top:5px;
+  text-align:center;
 }
 
 /* SERVICE CARDS */
@@ -97,33 +168,39 @@ body{
 .service-strip{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-  gap:7px;
+  gap:8px;
   overflow:visible;
   padding-bottom:0;
 }
 
 .service-card{
-  background:#fff;
-  border:1px solid #dbe3ee;
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%);
+  border:1px solid #d1a92e;
   border-radius:13px;
   padding:8px 7px;
   cursor:pointer;
   text-align:center;
   min-height:78px;
-  box-shadow:0 4px 12px rgba(15,23,42,.06);
+  box-shadow:0 7px 16px rgba(15,23,42,.12);
   transition:.15s ease;
+  color:#111827;
 }
 
 .service-card:hover{
   transform:translateY(-1px);
-  box-shadow:0 7px 16px rgba(15,23,42,.10);
+  box-shadow:0 9px 18px rgba(15,23,42,.15);
 }
 
 .service-card.active{
   outline:none;
-  background:#2563eb;
-  border-color:#2563eb;
-  color:#fff;
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%);
+  border:3px solid #0f172a;
+  color:#111827;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.9),
+    0 10px 24px rgba(15,23,42,.18);
 }
 
 .service-name{
@@ -131,6 +208,7 @@ body{
   line-height:1.1;
   font-weight:900;
   margin-bottom:4px;
+  color:#111827;
 }
 
 .service-total{
@@ -138,6 +216,7 @@ body{
   line-height:1.05;
   font-weight:900;
   margin:4px 0;
+  color:#111827;
 }
 
 .service-mini{
@@ -146,11 +225,11 @@ body{
   gap:4px;
   font-size:9px;
   font-weight:900;
-  color:#64748b;
+  color:#111827;
 }
 
 .service-card.active .service-mini{
-  color:#fff;
+  color:#111827;
 }
 
 /* SELECTION BAR */
@@ -377,31 +456,31 @@ body{
   letter-spacing:.3px;
 }
 
-/* ROW COLORS */
+/* ROW COLORS — LIGHT VERSIONS OF TOP SOURCE COLORS */
 
 .row-company td,
 .row-company{
-  background:#dbeafe!important;
+  background:linear-gradient(90deg,#f4ecff 0%,#eadcff 100%)!important;
 }
 
 .row-individual td,
 .row-individual{
-  background:#e8f4ff!important;
+  background:linear-gradient(90deg,#e8f4ff 0%,#d9ecff 100%)!important;
 }
 
 .row-reserved td,
 .row-reserved{
-  background:#fef3c7!important;
+  background:linear-gradient(90deg,#fff2df 0%,#ffe4bd 100%)!important;
 }
 
 .row-quote td,
 .row-quote{
-  background:#dcfce7!important;
+  background:linear-gradient(90deg,#e9f9ed 0%,#d8f5df 100%)!important;
 }
 
 .row-shared td,
 .row-shared{
-  background:#ede9fe!important;
+  box-shadow:inset 4px 0 0 rgba(124,58,237,.42);
 }
 
 .trip-table tbody tr td{
@@ -588,6 +667,20 @@ body{
 }
 
 @media(max-width:768px){
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+
   .page-body{
     padding-top:360px;
     padding-left:10px;
@@ -668,6 +761,13 @@ body{
 <div id="adminHeader"></div>
 
 <div class="page-body">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Trips</h1>
+      <div class="page-sub">Dispatch selection and trip management</div>
+    </div>
+  </div>
 
   <div class="admin-trips-top">
 
