@@ -37,8 +37,8 @@ const SMART_DEFAULTS = {
   strategy:"SMART",
 
   requireActiveDriver:true,
-  requireScheduleMatch:false,
-requireServiceMatch:false,
+  requireScheduleMatch:true,
+  requireServiceMatch:true,
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
@@ -284,11 +284,23 @@ function getTripKind(t){
 }
 
 function rowClass(t){
-  if(isSharedTrip(t)) return "row-shared";
   const k = getTripKind(t);
-  if(k === "FA") return "row-facility";
-  if(k === "RV") return "row-rv";
-  return "row-gq";
+
+  let cls = "";
+
+  if(k === "FA"){
+    cls = "row-facility";
+  }else if(k === "RV"){
+    cls = "row-rv";
+  }else{
+    cls = "row-gq";
+  }
+
+  if(isSharedTrip(t)){
+    cls += " row-shared";
+  }
+
+  return cls;
 }
 
 function getTripNumber(t){
@@ -629,7 +641,7 @@ function driverTripCount(driverId){
 function getTodayActiveDrivers(){
   return allDrivers.filter(d=>{
     const id = String(d._id || "");
-    return id && isDriverActiveForDate(id,todayKey());
+    return id && isManualDriverActiveForDate(id,todayKey());
   });
 }
 
