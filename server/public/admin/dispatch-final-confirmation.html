@@ -35,12 +35,12 @@ body{
 }
 
 .page-head{
-  background:#fff;
-  border:1px solid var(--border);
+  background:linear-gradient(135deg,#fff7d6 0%,#ffe9a6 100%);
+  border:1px solid #e5bd47;
   border-radius:18px;
   padding:18px 20px;
   margin-bottom:16px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  box-shadow:0 8px 22px rgba(180,130,20,.14);
   display:flex;
   justify-content:space-between;
   gap:14px;
@@ -82,11 +82,10 @@ body{
 
 .filter-card,
 .stat-card{
-  background:#fff;
-  border:1px solid var(--border);
+  border:1px solid transparent;
   border-radius:14px;
   padding:13px;
-  box-shadow:0 6px 16px rgba(15,23,42,.07);
+  box-shadow:0 7px 18px rgba(15,23,42,.14);
   transition:.18s ease;
 }
 
@@ -104,29 +103,52 @@ body{
 
 .filter-card.active,
 .stat-card.active{
-  border:2px solid var(--blue)!important;
-  background:#f0f7ff!important;
+  border:3px solid #0f172a!important;
+  box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;
 }
 
-.filter-card.all{border-left:6px solid #2563eb;}
-.filter-card.facility{border-left:6px solid #1d4ed8;}
-.filter-card.gq{border-left:6px solid #22c55e;}
-.filter-card.rv{border-left:6px solid #f59e0b;}
+/* FIRST ROW: vivid source colors, matching the source identity */
+.filter-card.all{
+  background:linear-gradient(135deg,#2563eb 0%,#0ea5e9 100%);
+}
+.filter-card.facility{
+  background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);
+}
+.filter-card.gq{
+  background:linear-gradient(135deg,#16a34a 0%,#22c55e 100%);
+}
+.filter-card.rv{
+  background:linear-gradient(135deg,#f59e0b 0%,#f97316 100%);
+}
 
-.stat-card.completed{border-left:6px solid var(--green);}
-.stat-card.cancelled{border-left:6px solid var(--red);}
-.stat-card.noshow{border-left:6px solid var(--orange);}
-.stat-card.notcompleted{border-left:6px solid #94a3b8;}
-.stat-card.notconfirmed{border-left:6px solid #ef4444;}
+/* SECOND ROW: one unified vivid gold color */
+.stat-card.completed,
+.stat-card.cancelled,
+.stat-card.noshow,
+.stat-card.notcompleted,
+.stat-card.notconfirmed{
+  background:linear-gradient(135deg,#d79b00 0%,#f6c62f 100%);
+}
+
+/* White text on all colored cards */
+.filter-card .card-number,
+.filter-card .card-label,
+.filter-card .card-sub,
+.stat-card .card-number,
+.stat-card .card-label,
+.stat-card .card-sub{
+  color:#fff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.18);
+}
 
 .stat-card.alert{
   animation:pulseWarn 1.4s infinite;
 }
 
 @keyframes pulseWarn{
-  0%{box-shadow:0 0 0 0 rgba(239,68,68,.35);}
-  70%{box-shadow:0 0 0 10px rgba(239,68,68,0);}
-  100%{box-shadow:0 0 0 0 rgba(239,68,68,0);}
+  0%{box-shadow:0 0 0 0 rgba(215,155,0,.38);}
+  70%{box-shadow:0 0 0 10px rgba(215,155,0,0);}
+  100%{box-shadow:0 0 0 0 rgba(215,155,0,0);}
 }
 
 .card-number{
@@ -202,7 +224,7 @@ body{
 
 .review-table{
   width:100%!important;
-  min-width:1560px!important;
+  min-width:1740px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -233,6 +255,13 @@ body{
 .col-company{width:105px!important;}
 .col-date{width:82px!important;}
 .col-time{width:58px!important;}
+.col-driver-comment{
+  width:180px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10.5px!important;
+}
 .col-status{width:120px!important;}
 .col-actions{width:170px!important;}
 .col-eye{width:34px!important;}
@@ -615,7 +644,7 @@ body{
   }
 
   .review-table{
-    min-width:1560px!important;
+    min-width:1740px!important;
   }
 
   .review-table th,

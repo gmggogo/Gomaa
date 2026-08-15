@@ -204,6 +204,45 @@ function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
 
+
+/*
+  DRIVER COMMENT ONLY
+  Driver Map saves the written reason here:
+    Cancel  -> cancelReason
+    No Show -> noShowReason
+
+  This does NOT replace the normal client/trip Notes.
+*/
+function getDriverComment(t,p=null){
+
+  const status =
+    p?.status ||
+    t?.status ||
+    "";
+
+  if(isNoShowStatus(status)){
+    return normalizeText(
+      p?.noShowReason ||
+      t?.noShowReason ||
+      ""
+    );
+  }
+
+  if(isCancelledStatus(status)){
+    return normalizeText(
+      p?.cancelReason ||
+      t?.cancelReason ||
+      ""
+    );
+  }
+
+  return "";
+}
+
+function driverCommentDisplay(t,p=null){
+  return getDriverComment(t,p) || "--";
+}
+
 function cellBox(items){
   const arr = Array.isArray(items) ? items : [items];
 
@@ -860,6 +899,7 @@ function searchableText(item){
     first.tripDate,
     first.tripTime,
     first.status,
+    getDriverComment(first),
     JSON.stringify(passengers)
   ]
     .join(" ")
@@ -2572,6 +2612,7 @@ function render(){
         <th class="wide-address">Dropoff</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
+        <th class="col-driver-comment">Driver Comment</th>
         <th class="col-status">Status</th>
         <th class="col-actions">Actions</th>
         <th class="col-eye">👁️</th>
@@ -2603,7 +2644,7 @@ function render(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="12">Trip Date: ${safe(day)}</td>`;
+        `<td colspan="13">Trip Date: ${safe(day)}</td>`;
 
       tbody.appendChild(
         dateRow
@@ -2722,6 +2763,14 @@ function renderTripRow(item){
 
     <td class="col-time">
       ${safe(t.tripTime || "-")}
+    </td>
+
+    <td class="col-driver-comment">
+      ${cellBox(
+        safe(
+          driverCommentDisplay(t)
+        )
+      )}
     </td>
 
     <td class="col-status">
@@ -2870,6 +2919,19 @@ function renderSharedRow(item){
       )
     );
 
+  const driverComments =
+    cellBox(
+      passengers.map(
+        (p,i)=>
+          `${i+1}. ${safe(
+            driverCommentDisplay(
+              first,
+              p
+            )
+          )}`
+      )
+    );
+
   const statusBox =
     isEditing
       ? cellBox(
@@ -2959,6 +3021,10 @@ function renderSharedRow(item){
         first.tripTime ||
         "-"
       )}
+    </td>
+
+    <td class="col-driver-comment">
+      ${driverComments}
     </td>
 
     <td class="col-status">
