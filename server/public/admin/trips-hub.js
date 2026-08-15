@@ -31,6 +31,11 @@ let filterYear = "";
 let filterMonth = "";
 let filterDay = "";
 
+let sharedGroupsCache = [];
+let sharedGroupByKey = new Map();
+let baseItemsCache = [];
+let filteredTripsCache = [];
+
 const selectedItems = new Set();
 const markedNotCompleted = new Set();
 const markingNotCompleted = new Set();
@@ -90,13 +95,7 @@ if(!container) console.error("Missing #hubContainer");
       `;
     }
 
-    const pageHead = page.querySelector(".page-head");
-
-    if(pageHead){
-      pageHead.insertAdjacentElement("afterend",wrap);
-    }else{
-      page.insertBefore(wrap,page.firstChild);
-    }
+    page.insertBefore(wrap,page.firstChild);
   }
 
   let sticky = document.getElementById("hubStickyTop");
@@ -220,7 +219,7 @@ if(!container) console.error("Missing #hubContainer");
     .stat-card.new{
       border:1px solid rgba(255,255,255,.28)!important;
       border-left:0!important;
-      background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%)!important;
+      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
       color:#fff!important;
     }
 
@@ -333,9 +332,9 @@ if(!container) console.error("Missing #hubContainer");
     .service-tab.service-tx,
     .service-tab.service-lm,
     .service-tab.service-other{
-      background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
-      border:1px solid #d1a92e!important;
-      color:#111827!important;
+      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+      border:1px solid rgba(255,255,255,.28)!important;
+      color:#fff!important;
     }
 
     .service-title{
@@ -353,15 +352,8 @@ if(!container) console.error("Missing #hubContainer");
     .service-tab .service-title,
     .service-tab .service-total,
     .service-tab .mini-head,
-    .service-tab .mini-values{
-      color:#111827!important;
-      text-shadow:none!important;
-    }
-    .service-tab.active{
-      border:3px solid #0f172a!important;
-      color:#111827!important;
-      box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;
-    }
+    .service-tab .mini-values{color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.22);}
+    .service-tab.active{border:3px solid #0f172a!important;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;}
 
     .hub-date-filters{
       display:flex;
@@ -1396,17 +1388,60 @@ function getRealPassengersFromGroup(group){
   }));
 }
 
-function getSharedGroups(list=hubTrips){
-  const map = {};
+function rebuildSharedGroupsCache(list=hubTrips){
+  const map = new Map();
 
-  list.filter(isSharedTrip).forEach(t=>{
+  list.forEach(t=>{
+    if(!isSharedTrip(t)) return;
+
     const key = getSharedKey(t);
-    if(!map[key]) map[key] = [];
-    map[key].push(t);
+
+    if(!map.has(key)){
+      map.set(key,[]);
+    }
+
+    map.get(key).push(t);
   });
 
-  return Object.values(map).map(group=>
-    group.sort((a,b)=>Number(a.passengerIndex || 0)-Number(b.passengerIndex || 0))
+  sharedGroupByKey = new Map();
+
+  sharedGroupsCache = [...map.entries()].map(([key,group])=>{
+    group.sort((a,b)=>
+      Number(a.passengerIndex || 0) -
+      Number(b.passengerIndex || 0)
+    );
+
+    sharedGroupByKey.set(key,group);
+    return group;
+  });
+
+  return sharedGroupsCache;
+}
+
+function getSharedGroups(list=hubTrips){
+  if(list === hubTrips){
+    return sharedGroupsCache;
+  }
+
+  const map = new Map();
+
+  list.forEach(t=>{
+    if(!isSharedTrip(t)) return;
+
+    const key = getSharedKey(t);
+
+    if(!map.has(key)){
+      map.set(key,[]);
+    }
+
+    map.get(key).push(t);
+  });
+
+  return [...map.values()].map(group=>
+    group.sort((a,b)=>
+      Number(a.passengerIndex || 0) -
+      Number(b.passengerIndex || 0)
+    )
   );
 }
 
@@ -1529,9 +1564,21 @@ async function loadHubTrips(){
       ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
       : [];
 
-    await autoMarkNotCompleted(hubTrips);
+    rebuildSharedGroupsCache(hubTrips);
+
     buildDateFilters();
     applyFilters();
+
+    autoMarkNotCompleted(hubTrips)
+      .then(changed=>{
+        if(changed > 0 && !editingKey){
+          buildDateFilters();
+          applyFilters();
+        }
+      })
+      .catch(err=>{
+        console.log("Background Not Completed update failed",err);
+      });
 
   }catch(err){
     console.log(err);
@@ -1546,15 +1593,39 @@ async function loadHubTrips(){
 function buildDisplayItems(trips){
   const items = [];
   const usedShared = new Set();
+  const localSharedMap = new Map();
+
+  trips.forEach(t=>{
+    if(!isSharedTrip(t)) return;
+
+    const key = getSharedKey(t);
+
+    if(!localSharedMap.has(key)){
+      localSharedMap.set(key,[]);
+    }
+
+    localSharedMap.get(key).push(t);
+  });
+
+  localSharedMap.forEach(group=>{
+    group.sort((a,b)=>
+      Number(a.passengerIndex || 0) -
+      Number(b.passengerIndex || 0)
+    );
+  });
 
   trips.forEach(t=>{
     if(isSharedTrip(t)){
       const key = getSharedKey(t);
+
       if(usedShared.has(key)) return;
 
       usedShared.add(key);
 
-      const group = getSharedGroups(trips).find(g=>getSharedKey(g[0]) === key) || [t];
+      const group =
+        localSharedMap.get(key) ||
+        sharedGroupByKey.get(key) ||
+        [t];
 
       if(!isSharedVisibleInHub(group)) return;
 
@@ -1659,19 +1730,31 @@ function searchableText(item){
 }
 
 function applyFilters(){
-  let trips = getBaseTripsForFilters();
+  filteredTripsCache = getBaseTripsForFilters();
+  baseItemsCache = buildDisplayItems(filteredTripsCache);
+
+  let items = baseItemsCache;
 
   if(activeService !== "ALL"){
-    trips = trips.filter(t=>tripMatchesService(t,activeService));
+    items = items.filter(item=>
+      tripMatchesService(
+        getItemTrip(item),
+        activeService
+      )
+    );
   }
 
-  displayItems = buildDisplayItems(trips);
-
-  const q = searchInput ? searchInput.value.toLowerCase().trim() : "";
+  const q = searchInput
+    ? searchInput.value.toLowerCase().trim()
+    : "";
 
   if(q){
-    displayItems = displayItems.filter(item=>searchableText(item).includes(q));
+    items = items.filter(item=>
+      searchableText(item).includes(q)
+    );
   }
+
+  displayItems = items;
 
   renderStats();
   renderServiceTabs();
@@ -1744,7 +1827,7 @@ function renderStats(){
   const wrap = document.getElementById("hubStats");
   if(!wrap) return;
 
-  const allItems = buildDisplayItems(getBaseTripsForFilters());
+  const allItems = baseItemsCache;
 
   const total = countItems(allItems);
   const newTrips = countItems(allItems.filter(item=>isNewTrip(getItemTrip(item))));
@@ -1762,11 +1845,14 @@ function renderStats(){
 }
 
 function countItemsByService(code){
-  const baseItems = buildDisplayItems(getBaseTripsForFilters());
-
   const selected = code === "ALL"
-    ? baseItems
-    : baseItems.filter(item=>tripMatchesService(getItemTrip(item),code));
+    ? baseItemsCache
+    : baseItemsCache.filter(item=>
+        tripMatchesService(
+          getItemTrip(item),
+          code
+        )
+      );
 
   return countItems(selected);
 }
