@@ -913,7 +913,18 @@ async function loadServices(){
         override.services.map(s=>{
 
           const serviceKey =
-            String(s.serviceKey || "").trim().toUpperCase();
+            normalizeServiceCode(
+              s.serviceKey ||
+              s.serviceCode ||
+              s.serviceType ||
+              s.serviceSuffix ||
+              s.companySuffix ||
+              s.suffix ||
+              s.serviceName ||
+              s.title ||
+              s.name ||
+              ""
+            );
 
           const serviceName =
             s.serviceName ||
@@ -922,9 +933,12 @@ async function loadServices(){
             serviceKey;
 
           const serviceSuffix =
-            s.serviceSuffix ||
-            s.companySuffix ||
-            s.suffix ||
+            normalizeServiceCode(
+              s.serviceSuffix ||
+              s.companySuffix ||
+              s.suffix ||
+              serviceKey
+            ) ||
             serviceKey;
 
           return {
@@ -1065,33 +1079,140 @@ async function loadServices(){
     COMPANY_SERVICES = [];
   }
 }
+
+function normalizeServiceCode(value){
+
+  const c =
+    normalizeText(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  const compact =
+    c.replace(/\s+/g,"");
+
+  if(!compact){
+    return "";
+  }
+
+  if(
+    compact === "ST" ||
+    compact === "STANDARD" ||
+    compact.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  if(
+    compact === "WH" ||
+    compact === "WC" ||
+    compact === "WHEELCHAIR" ||
+    compact.includes("WHEELCHAIR")
+  ){
+    return "WH";
+  }
+
+  if(
+    compact === "SH" ||
+    compact === "SHARED" ||
+    compact.includes("SHARED")
+  ){
+    return "SH";
+  }
+
+  if(
+    compact === "LM" ||
+    compact === "LIMO" ||
+    compact === "LIMOUSINE" ||
+    compact === "LIMOUSINESERVICE" ||
+    compact === "LIMOSERVICE" ||
+    compact === "LIMOUSINETRANSPORTATION" ||
+    compact.includes("LIMOUSINE") ||
+    compact.startsWith("LIMO")
+  ){
+    return "LM";
+  }
+
+  if(
+    compact === "TX" ||
+    compact === "TAXI" ||
+    compact.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  if(
+    compact === "XL" ||
+    compact === "XLSERVICE" ||
+    compact.startsWith("XL")
+  ){
+    return "XL";
+  }
+
+  return c;
+}
+
 function getServiceCodeFromTrip(trip){
-  const direct = normalizeText(
-    trip.serviceKey ||
-    trip.serviceCode ||
-    trip.serviceType ||
-    trip.serviceSuffix ||
-    trip.vehicle ||
-    ""
-  ).toUpperCase();
 
-  if(direct) return direct;
+  const candidates = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceSuffix,
+    trip?.vehicleType,
+    trip?.vehicle,
+    trip?.serviceName
+  ];
 
-  const parts = String(trip.tripNumber || "").split("-");
-  return normalizeText(parts[parts.length - 1] || "").toUpperCase();
+  for(const value of candidates){
+
+    if(!normalizeText(value)){
+      continue;
+    }
+
+    const code =
+      normalizeServiceCode(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(code)
+    ){
+      return code;
+    }
+  }
+
+  const parts =
+    String(
+      trip?.tripNumber || ""
+    ).split("-");
+
+  return normalizeServiceCode(
+    parts[parts.length - 1] || ""
+  );
 }
 
 function isSharedService(service){
   if(!service) return false;
 
+  const values = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.companySuffix,
+    service?.serviceSuffix,
+    service?.suffix,
+    service?.title,
+    service?.name,
+    service?.serviceName
+  ];
+
   return (
     service.companyShared === true ||
     service.shared === true ||
-    String(service.type || "").toUpperCase() === "SHARED" ||
-    String(service.serviceType || "").toUpperCase() === "SHARED" ||
-    String(service.title || service.name || "").toUpperCase() === "SHARED" ||
-    String(service.serviceKey || "").toUpperCase() === "SHARED" ||
-    String(service.companySuffix || service.suffix || "").toUpperCase() === "SH"
+    values.some(value =>
+      normalizeServiceCode(value) === "SH"
+    )
   );
 }
 
@@ -1136,25 +1257,21 @@ function getServiceByTrip(trip){
 
   return COMPANY_SERVICES.find(s=>{
 
-    const key =
-      normalizeText(s.serviceKey).toUpperCase();
+    const values = [
+      s?.serviceKey,
+      s?.serviceCode,
+      s?.code,
+      s?.companySuffix,
+      s?.serviceSuffix,
+      s?.suffix,
+      s?.serviceType,
+      s?.serviceName,
+      s?.title,
+      s?.name
+    ];
 
-    const suffix =
-      normalizeText(s.companySuffix || s.suffix).toUpperCase();
-
-    const serviceCode =
-      normalizeText(s.serviceCode || s.code).toUpperCase();
-
-    const title =
-      normalizeText(s.title || s.name).toUpperCase();
-
-    return (
-      key === code ||
-      suffix === code ||
-      serviceCode === code ||
-      title === code ||
-      (code === "WH" && key === "WHEELCHAIR") ||
-      (code === "WC" && key === "WHEELCHAIR")
+    return values.some(value =>
+      normalizeServiceCode(value) === code
     );
 
   }) || null;
