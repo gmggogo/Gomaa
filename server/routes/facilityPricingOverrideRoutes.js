@@ -44,36 +44,168 @@ function escapeRegex(v){
   return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
 }
 
-function normalizeCode(v){
-  const c = upper(v);
+/* =========================
+   NORMALIZE SERVICE CODE
+========================= */
 
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
-  if(c === "TAXI") return "TX";
-  if(c === "XL") return "XL";
+function normalizeCode(v){
+
+  const original =
+    upper(v);
+
+  if(!original){
+    return "";
+  }
+
+  const c =
+    original
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  /* STANDARD */
+
+  if(
+    c === "ST" ||
+    c === "STANDARD" ||
+    c === "STANDARD SERVICE" ||
+    c.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  /* WHEELCHAIR */
+
+  if(
+    c === "WH" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  /* SHARED */
+
+  if(
+    c === "SH" ||
+    c === "SHARED" ||
+    c === "SHARE" ||
+    c.includes("SHARED")
+  ){
+    return "SH";
+  }
+
+  /* LIMOUSINE */
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  /* TAXI */
+
+  if(
+    c === "TX" ||
+    c === "TAXI" ||
+    c === "TAXI SERVICE" ||
+    c.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  /* XL */
+
+  if(
+    c === "XL" ||
+    c === "XL SERVICE" ||
+    c.startsWith("XL ")
+  ){
+    return "XL";
+  }
 
   return c;
 }
 
+/* =========================
+   GET SERVICE CODE
+========================= */
+
 function getServiceCode(s){
-  return normalizeCode(
-    s?.serviceKey ||
-    s?.key ||
-    s?.code ||
-    s?.serviceCode ||
-    s?.serviceType ||
-    s?.companySuffix ||
-    s?.suffix ||
-    s?.serviceSuffix ||
-    s?.title ||
-    s?.name ||
-    ""
-  );
+
+  const candidates = [
+    s?.serviceKey,
+    s?.key,
+    s?.code,
+    s?.serviceCode,
+    s?.serviceType,
+    s?.companySuffix,
+    s?.suffix,
+    s?.serviceSuffix,
+    s?.title,
+    s?.name,
+    s?.serviceName
+  ];
+
+  /*
+    First look for a known system service.
+
+    Important:
+    Do not just use the first existing field,
+    because Limousine may have a long title
+    while its real code is LM in another field.
+  */
+
+  for(const value of candidates){
+
+    if(!clean(value)){
+      continue;
+    }
+
+    const code =
+      normalizeCode(value);
+
+    if(
+      code === "ST" ||
+      code === "WH" ||
+      code === "SH" ||
+      code === "LM" ||
+      code === "TX" ||
+      code === "XL"
+    ){
+      return code;
+    }
+  }
+
+  /*
+    Custom service fallback
+  */
+
+  for(const value of candidates){
+
+    if(clean(value)){
+      return normalizeCode(value);
+    }
+  }
+
+  return "";
 }
 
+/* =========================
+   SERVICE NAME
+========================= */
+
 function getServiceName(s){
+
   return (
     s?.title ||
     s?.name ||
@@ -83,6 +215,10 @@ function getServiceName(s){
   );
 }
 
+/* =========================
+   SERVICE ENABLED
+========================= */
+
 function serviceEnabled(s){
 
   return (
@@ -91,7 +227,12 @@ function serviceEnabled(s){
   );
 }
 
+/* =========================
+   FACILITY NAME
+========================= */
+
 function getFacilityName(u){
+
   return clean(
     u?.facilityName ||
     u?.organizationName ||
@@ -104,11 +245,18 @@ function getFacilityName(u){
   );
 }
 
+/* =========================
+   FACILITY USER
+========================= */
+
 function isFacilityUser(u){
 
   const r =
-    clean(u?.role || u?.type || "")
-      .toLowerCase();
+    clean(
+      u?.role ||
+      u?.type ||
+      ""
+    ).toLowerCase();
 
   return (
     r === "company" ||
@@ -118,13 +266,21 @@ function isFacilityUser(u){
   );
 }
 
+/* =========================
+   SHARED SERVICE
+========================= */
+
 function isSharedService(s){
 
   const key =
     getServiceCode(s);
 
   const title =
-    upper(s?.title || s?.name || s?.serviceName);
+    upper(
+      s?.title ||
+      s?.name ||
+      s?.serviceName
+    );
 
   const pricing =
     upper(
@@ -133,7 +289,7 @@ function isSharedService(s){
     );
 
   const suffix =
-    upper(
+    normalizeCode(
       s?.companySuffix ||
       s?.suffix ||
       s?.serviceSuffix
@@ -143,15 +299,16 @@ function isSharedService(s){
     s?.companyShared === true ||
     s?.shared === true ||
     key === "SH" ||
-    key === "SHARED" ||
     title === "SHARED" ||
+    title.includes("SHARED") ||
     suffix === "SH" ||
     pricing === "SHARED"
   );
 }
 
 /* =========================
-   DEFAULT PRICING FROM SERVICE MANAGEMENT
+   DEFAULT PRICING
+   FROM SERVICE MANAGEMENT
 ========================= */
 
 function serviceDefaultPricing(s){
@@ -163,17 +320,19 @@ function serviceDefaultPricing(s){
     isSharedService(s);
 
   return {
+
     serviceKey,
 
     serviceName:
       getServiceName(s),
 
     serviceSuffix:
-      clean(
+      normalizeCode(
         s?.companySuffix ||
         s?.suffix ||
+        s?.serviceSuffix ||
         serviceKey
-      ),
+      ) || serviceKey,
 
     shared,
 
@@ -291,16 +450,27 @@ function serviceDefaultPricing(s){
 }
 
 /* =========================
-   NORMALIZE INPUT FROM FRONTEND
+   NORMALIZE INPUT
+   FROM FRONTEND
 ========================= */
 
 function normalizeServiceInput(s){
 
   const serviceKey =
-    normalizeCode(s?.serviceKey);
+    normalizeCode(
+      s?.serviceKey ||
+      s?.serviceCode ||
+      s?.serviceType ||
+      s?.serviceSuffix ||
+      s?.suffix ||
+      s?.serviceName
+    );
 
   const pricingMode =
-    upper(s?.pricingMode || "MILE");
+    upper(
+      s?.pricingMode ||
+      "MILE"
+    );
 
   const shared =
     bool(s?.shared) ||
@@ -308,69 +478,101 @@ function normalizeServiceInput(s){
     serviceKey === "SH";
 
   return {
+
     serviceKey,
 
     serviceName:
-      clean(s?.serviceName),
+      clean(
+        s?.serviceName
+      ),
 
     serviceSuffix:
-      clean(
+      normalizeCode(
         s?.serviceSuffix ||
         s?.suffix ||
         serviceKey
-      ),
+      ) || serviceKey,
 
     shared,
 
     pricingMode,
 
     baseFare:
-      num(s?.baseFare),
+      num(
+        s?.baseFare
+      ),
 
     includedMiles:
-      num(s?.includedMiles),
+      num(
+        s?.includedMiles
+      ),
 
     perMile:
-      num(s?.perMile),
+      num(
+        s?.perMile
+      ),
 
     hourlyRate:
-      num(s?.hourlyRate),
+      num(
+        s?.hourlyRate
+      ),
 
     hourlyBillingMode:
-      upper(s?.hourlyBillingMode || "FULL"),
+      upper(
+        s?.hourlyBillingMode ||
+        "FULL"
+      ),
 
     stopFee:
-      num(s?.stopFee),
+      num(
+        s?.stopFee
+      ),
 
     noShowFee:
-      num(s?.noShowFee),
+      num(
+        s?.noShowFee
+      ),
 
     sharedPrice:
-      num(s?.sharedPrice),
+      num(
+        s?.sharedPrice
+      ),
 
     disableCancel:
-      bool(s?.disableCancel),
+      bool(
+        s?.disableCancel
+      ),
 
     warningMinutes:
-      num(s?.warningMinutes),
+      num(
+        s?.warningMinutes
+      ),
 
     cancelFee:
-      num(s?.cancelFee),
+      num(
+        s?.cancelFee
+      ),
 
     addStopEnabled:
       shared
         ? false
-        : bool(s?.addStopEnabled),
+        : bool(
+            s?.addStopEnabled
+          ),
 
     addStopCustomTimeEnabled:
       shared
         ? false
-        : bool(s?.addStopCustomTimeEnabled),
+        : bool(
+            s?.addStopCustomTimeEnabled
+          ),
 
     addStopCutoffMinutes:
       shared
         ? 0
-        : num(s?.addStopCutoffMinutes)
+        : num(
+            s?.addStopCutoffMinutes
+          )
   };
 }
 
@@ -394,10 +596,14 @@ async function findOverrideByIdOrName({
 
   if(
     cleanFacilityId &&
-    mongoose.Types.ObjectId.isValid(cleanFacilityId)
+    mongoose.Types.ObjectId.isValid(
+      cleanFacilityId
+    )
   ){
+
     or.push({
-      facilityId:cleanFacilityId
+      facilityId:
+        cleanFacilityId
     });
   }
 
@@ -405,16 +611,20 @@ async function findOverrideByIdOrName({
 
     const rx =
       new RegExp(
-        "^" + escapeRegex(cleanFacilityName) + "$",
+        "^" +
+        escapeRegex(cleanFacilityName) +
+        "$",
         "i"
       );
 
     or.push({
-      facilityName:rx
+      facilityName:
+        rx
     });
   }
 
   if(or.length === 0){
+
     return null;
   }
 
@@ -423,7 +633,9 @@ async function findOverrideByIdOrName({
   };
 
   if(activeOnly){
-    filter.active = true;
+
+    filter.active =
+      true;
   }
 
   return await FacilityPricingOverride
@@ -444,6 +656,7 @@ router.get("/bootstrap", async (req,res)=>{
   try{
 
     if(!User){
+
       return res.status(500).json({
         success:false,
         message:"User model not loaded"
@@ -451,24 +664,43 @@ router.get("/bootstrap", async (req,res)=>{
     }
 
     if(!Service){
+
       return res.status(500).json({
         success:false,
         message:"Service model not loaded"
       });
     }
 
-    const [users, services, overrides] =
+    const [
+      users,
+      services,
+      overrides
+    ] =
       await Promise.all([
-        User.find({}).lean(),
-        Service.find({}).lean(),
-        FacilityPricingOverride.find({}).lean()
+
+        User
+          .find({})
+          .lean(),
+
+        Service
+          .find({})
+          .lean(),
+
+        FacilityPricingOverride
+          .find({})
+          .lean()
+
       ]);
 
     const facilities =
       users
-        .filter(isFacilityUser)
+        .filter(
+          isFacilityUser
+        )
         .map(u=>({
-          _id:String(u._id),
+
+          _id:
+            String(u._id),
 
           name:
             getFacilityName(u),
@@ -480,31 +712,52 @@ router.get("/bootstrap", async (req,res)=>{
             u.username || "",
 
           allowedServices:
-            Array.isArray(u.allowedServices)
+            Array.isArray(
+              u.allowedServices
+            )
               ? u.allowedServices
                   .map(normalizeCode)
                   .filter(Boolean)
               : []
+
         }))
-        .filter(f=>f.name)
-        .sort((a,b)=>
-          a.name.localeCompare(b.name)
+        .filter(
+          f=>f.name
+        )
+        .sort(
+          (a,b)=>
+            a.name.localeCompare(b.name)
         );
 
     const activeServices =
       services
-        .filter(serviceEnabled)
-        .map(serviceDefaultPricing)
-        .filter(s=>s.serviceKey)
-        .sort((a,b)=>
-          a.serviceKey.localeCompare(b.serviceKey)
+        .filter(
+          serviceEnabled
+        )
+        .map(
+          serviceDefaultPricing
+        )
+        .filter(
+          s=>s.serviceKey
+        )
+        .sort(
+          (a,b)=>
+            a.serviceKey.localeCompare(
+              b.serviceKey
+            )
         );
 
     return res.json({
+
       success:true,
+
       facilities,
-      services:activeServices,
+
+      services:
+        activeServices,
+
       overrides
+
     });
 
   }catch(err){
@@ -515,8 +768,12 @@ router.get("/bootstrap", async (req,res)=>{
     );
 
     return res.status(500).json({
+
       success:false,
-      message:"Failed to load facility pricing data"
+
+      message:
+        "Failed to load facility pricing data"
+
     });
 
   }
@@ -524,8 +781,12 @@ router.get("/bootstrap", async (req,res)=>{
 });
 
 /* =========================
-   RESOLVE ACTIVE FACILITY OVERRIDE
-   IMPORTANT: BEFORE /:facilityId
+   RESOLVE ACTIVE
+   FACILITY OVERRIDE
+
+   IMPORTANT:
+   MUST STAY BEFORE
+   /:facilityId
 ========================= */
 
 router.get("/resolve", async (req,res)=>{
@@ -552,32 +813,58 @@ router.get("/resolve", async (req,res)=>{
 
     const override =
       await findOverrideByIdOrName({
+
         facilityId,
+
         facilityName,
+
         activeOnly:true
+
       });
 
     if(!override){
+
       return res.json({
+
         success:false,
-        message:"No active facility pricing override found",
+
+        message:
+          "No active facility pricing override found",
+
         override:null,
+
         debug:{
           facilityId,
           facilityName
         }
+
       });
     }
 
     return res.json({
+
       success:true,
+
       override,
+
       debug:{
+
         facilityId,
+
         facilityName,
-        matchedFacilityId:String(override.facilityId || ""),
-        matchedFacilityName:override.facilityName || ""
+
+        matchedFacilityId:
+          String(
+            override.facilityId ||
+            ""
+          ),
+
+        matchedFacilityName:
+          override.facilityName ||
+          ""
+
       }
+
     });
 
   }catch(err){
@@ -588,9 +875,14 @@ router.get("/resolve", async (req,res)=>{
     );
 
     return res.status(500).json({
+
       success:false,
-      message:"Failed to resolve facility pricing override",
+
+      message:
+        "Failed to resolve facility pricing override",
+
       override:null
+
     });
 
   }
@@ -598,23 +890,33 @@ router.get("/resolve", async (req,res)=>{
 });
 
 /* =========================
-   GET ONE FACILITY OVERRIDE
+   GET ONE FACILITY
+   OVERRIDE
 ========================= */
 
 router.get("/:facilityId", async (req,res)=>{
 
   try{
 
-    const { facilityId } = req.params;
+    const {
+      facilityId
+    } =
+      req.params;
 
     if(
-      !mongoose.Types.ObjectId.isValid(
-        String(facilityId)
-      )
+      !mongoose.Types.ObjectId
+        .isValid(
+          String(facilityId)
+        )
     ){
+
       return res.status(400).json({
+
         success:false,
-        message:"Invalid facility id"
+
+        message:
+          "Invalid facility id"
+
       });
     }
 
@@ -626,8 +928,11 @@ router.get("/:facilityId", async (req,res)=>{
         .lean();
 
     return res.json({
+
       success:true,
+
       override
+
     });
 
   }catch(err){
@@ -638,8 +943,12 @@ router.get("/:facilityId", async (req,res)=>{
     );
 
     return res.status(500).json({
+
       success:false,
-      message:"Failed to load override"
+
+      message:
+        "Failed to load override"
+
     });
 
   }
@@ -647,87 +956,136 @@ router.get("/:facilityId", async (req,res)=>{
 });
 
 /* =========================
-   SAVE FACILITY OVERRIDE
+   SAVE FACILITY
+   OVERRIDE
 ========================= */
 
 router.patch("/:facilityId", async (req,res)=>{
 
   try{
 
-    const { facilityId } = req.params;
+    const {
+      facilityId
+    } =
+      req.params;
 
     if(
-      !mongoose.Types.ObjectId.isValid(
-        String(facilityId)
-      )
+      !mongoose.Types.ObjectId
+        .isValid(
+          String(facilityId)
+        )
     ){
+
       return res.status(400).json({
+
         success:false,
-        message:"Invalid facility id"
+
+        message:
+          "Invalid facility id"
+
       });
     }
 
     const facilityName =
-      clean(req.body?.facilityName);
+      clean(
+        req.body?.facilityName
+      );
 
     const active =
-      bool(req.body?.active);
+      bool(
+        req.body?.active
+      );
 
     const servicesInput =
-      Array.isArray(req.body?.services)
+      Array.isArray(
+        req.body?.services
+      )
         ? req.body.services
         : [];
 
     if(!facilityName){
+
       return res.status(400).json({
+
         success:false,
-        message:"Facility name is required"
+
+        message:
+          "Facility name is required"
+
       });
     }
 
-    if(active && !servicesInput.length){
+    if(
+      active &&
+      !servicesInput.length
+    ){
+
       return res.status(400).json({
+
         success:false,
-        message:"Active override requires services pricing"
+
+        message:
+          "Active override requires services pricing"
+
       });
     }
 
     const services =
       servicesInput
-        .map(normalizeServiceInput)
-        .filter(s=>s.serviceKey);
+        .map(
+          normalizeServiceInput
+        )
+        .filter(
+          s=>s.serviceKey
+        );
 
     const updatedBy =
-      clean(req.body?.updatedBy) ||
-      clean(req.user?.name) ||
-      clean(req.user?.username) ||
+      clean(
+        req.body?.updatedBy
+      ) ||
+      clean(
+        req.user?.name
+      ) ||
+      clean(
+        req.user?.username
+      ) ||
       "";
 
     const override =
-      await FacilityPricingOverride.findOneAndUpdate(
-        {
-          facilityId
-        },
-        {
-          facilityId,
-          facilityName,
-          active,
-          services,
-          updatedBy
-        },
-        {
-          new:true,
-          upsert:true,
-          runValidators:true
-        }
-      );
+      await FacilityPricingOverride
+        .findOneAndUpdate(
+
+          {
+            facilityId
+          },
+
+          {
+            facilityId,
+            facilityName,
+            active,
+            services,
+            updatedBy
+          },
+
+          {
+            new:true,
+            upsert:true,
+            runValidators:true
+          }
+
+        );
 
     return res.json({
+
       success:true,
-      message:active
-        ? "Facility pricing override activated"
-        : "Facility pricing override disabled",
+
+      message:
+        active
+          ? "Facility pricing override activated"
+          : "Facility pricing override disabled",
+
       override
+
     });
 
   }catch(err){
@@ -738,8 +1096,12 @@ router.patch("/:facilityId", async (req,res)=>{
     );
 
     return res.status(500).json({
+
       success:false,
-      message:"Failed to save facility pricing override"
+
+      message:
+        "Failed to save facility pricing override"
+
     });
 
   }
