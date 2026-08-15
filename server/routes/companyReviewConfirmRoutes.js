@@ -103,20 +103,55 @@ function cleanStatus(value){
 }
 
 function normalizeCode(value){
-  const c = clean(value)
-    .toUpperCase()
-    .replace(/[_-]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
+
+  const c =
+    clean(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
   if(!c) return "";
 
-  if(c === "STANDARD" || c === "ST") return "ST";
-  if(c === "WHEELCHAIR" || c === "WHEEL CHAIR" || c === "WC" || c === "WH") return "WH";
-  if(c === "SHARED" || c === "SH") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE" || c === "LM") return "LM";
-  if(c === "TAXI" || c === "TX") return "TX";
-  if(c === "XL") return "XL";
+  if(c === "ST" || c === "STANDARD" || c.includes("STANDARD")){
+    return "ST";
+  }
+
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(c === "SH" || c === "SHARED" || c.includes("SHARED")){
+    return "SH";
+  }
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(c === "TX" || c === "TAXI" || c.includes("TAXI")){
+    return "TX";
+  }
+
+  if(c === "XL" || c === "XL SERVICE" || c.startsWith("XL ")){
+    return "XL";
+  }
 
   return c;
 }
@@ -1775,21 +1810,41 @@ function buildServiceSearchFilter(idOrKey){
 }
 
 function getOverrideServiceCode(service){
-  return normalizeCode(
-    service?.serviceKey ||
-    service?.serviceCode ||
-    service?.serviceType ||
-    service?.serviceSuffix ||
-    service?.suffix ||
-    service?.companySuffix ||
-    service?.reservedSuffix ||
-    service?.key ||
-    service?.code ||
-    service?.title ||
-    service?.name ||
-    service?.serviceName ||
-    ""
-  );
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.serviceSuffix,
+    service?.suffix,
+    service?.companySuffix,
+    service?.reservedSuffix,
+    service?.key,
+    service?.code,
+    service?.title,
+    service?.name,
+    service?.serviceName
+  ];
+
+  for(const value of candidates){
+
+    if(!clean(value)) continue;
+
+    const code =
+      normalizeCode(value);
+
+    if(["ST","WH","SH","LM","TX","XL"].includes(code)){
+      return code;
+    }
+  }
+
+  for(const value of candidates){
+    if(clean(value)){
+      return normalizeCode(value);
+    }
+  }
+
+  return "";
 }
 
 function isOverrideServiceEnabled(service){
@@ -1850,6 +1905,8 @@ function pricingFromServiceManagement(service){
     sharedPrice:n(service.companySharedPrice ?? service.sharedPrice ?? 0),
     hourlyRate:n(service.companyHourlyRate ?? service.hourlyRate ?? 0),
     hourlyBillingMode:upper(service.companyHourlyBillingMode || service.hourlyBillingMode || "FULL"),
+    initialDurationMinutes:n(service.companyInitialDurationMinutes ?? service.initialDurationMinutes ?? 0),
+    initialPrice:n(service.companyInitialPrice ?? service.initialPrice ?? 0),
     disableCancel:bool(service.companyDisableCancel ?? service.disableCancel ?? false),
     cancelFee:n(service.companyCancelFee ?? service.cancelFee ?? 0),
     warningMinutes:n(service.companyWarningMinutes ?? service.warningMinutes ?? 0),
@@ -1873,6 +1930,8 @@ function pricingFromFacilityOverride(service){
     sharedPrice:n(service.sharedPrice ?? service.companySharedPrice ?? 0),
     hourlyRate:n(service.hourlyRate ?? service.companyHourlyRate ?? 0),
     hourlyBillingMode:upper(service.hourlyBillingMode || service.companyHourlyBillingMode || "FULL"),
+    initialDurationMinutes:n(service.initialDurationMinutes ?? service.companyInitialDurationMinutes ?? 0),
+    initialPrice:n(service.initialPrice ?? service.companyInitialPrice ?? 0),
     disableCancel:bool(service.disableCancel ?? service.companyDisableCancel ?? false),
     cancelFee:n(service.cancelFee ?? service.companyCancelFee ?? 0),
     warningMinutes:n(service.warningMinutes ?? service.companyWarningMinutes ?? 0),
@@ -1963,7 +2022,18 @@ async function resolvePricingService({serviceKey,facilityId,company}){
 }
 
 function calculateCompanySharedPrice({pricing,miles,stops,minutes,passengersCount}){
-  const pricingMode = upper(pricing.pricingMode || "MILE");
+
+  const pricingMode =
+    upper(
+      pricing.pricingMode ||
+      "MILE"
+    );
+
+  const serviceCode =
+    normalizeCode(
+      pricing.serviceKey ||
+      ""
+    );
 
   const baseFare = n(pricing.baseFare);
   const includedMiles = n(pricing.includedMiles);
@@ -1972,40 +2042,141 @@ function calculateCompanySharedPrice({pricing,miles,stops,minutes,passengersCoun
   const sharedPrice = n(pricing.sharedPrice);
   const hourlyRate = n(pricing.hourlyRate);
 
+  const initialDurationMinutes =
+    Math.max(
+      0,
+      n(pricing.initialDurationMinutes)
+    );
+
+  const initialPrice =
+    Math.max(
+      0,
+      n(pricing.initialPrice)
+    );
+
   let total = 0;
 
   if(pricingMode === "HOURLY"){
-    const hourlyBillingMode = upper(pricing.hourlyBillingMode || "FULL");
-    let hours = 1;
 
-    if(hourlyBillingMode === "QUARTER"){
-      hours = Math.max(1,Math.ceil(n(minutes) / 15) / 4);
+    const totalMinutes =
+      Math.max(
+        0,
+        n(minutes)
+      );
+
+    const hourlyBillingMode =
+      upper(
+        pricing.hourlyBillingMode ||
+        "FULL"
+      );
+
+    if(
+      serviceCode === "LM" &&
+      initialDurationMinutes > 0
+    ){
+
+      if(totalMinutes <= initialDurationMinutes){
+        total = initialPrice;
+      }else{
+
+        const extraMinutes =
+          totalMinutes -
+          initialDurationMinutes;
+
+        let extraHours = 0;
+
+        if(hourlyBillingMode === "QUARTER"){
+          extraHours =
+            Math.ceil(extraMinutes / 15) / 4;
+        }else{
+          extraHours =
+            Math.ceil(extraMinutes / 60);
+        }
+
+        total =
+          initialPrice +
+          (extraHours * hourlyRate);
+      }
+
     }else{
-      hours = Math.max(1,Math.ceil(n(minutes) / 60));
-    }
 
-    total = hours * hourlyRate;
+      let hours = 1;
+
+      if(hourlyBillingMode === "QUARTER"){
+        hours =
+          Math.max(
+            1,
+            Math.ceil(totalMinutes / 15) / 4
+          );
+      }else{
+        hours =
+          Math.max(
+            1,
+            Math.ceil(totalMinutes / 60)
+          );
+      }
+
+      total =
+        hours *
+        hourlyRate;
+    }
   }
 
   else if(pricingMode === "SHARED"){
-    const count = Math.max(1,n(passengersCount,1));
+
+    const count =
+      Math.max(
+        1,
+        n(passengersCount,1)
+      );
 
     if(sharedPrice > 0){
-      total = (sharedPrice * count) + (n(stops) * stopFee);
+      total =
+        (sharedPrice * count) +
+        (n(stops) * stopFee);
     }else{
-      const baseTotal = count * baseFare;
-      const includedTotal = count * includedMiles;
-      const extraMiles = Math.max(0,n(miles) - includedTotal);
-      const milesTotal = extraMiles * perMile;
-      const stopsTotal = Math.max(0,count - 1) * stopFee;
 
-      total = baseTotal + milesTotal + stopsTotal;
+      const baseTotal =
+        count * baseFare;
+
+      const includedTotal =
+        count * includedMiles;
+
+      const extraMiles =
+        Math.max(
+          0,
+          n(miles) - includedTotal
+        );
+
+      const milesTotal =
+        extraMiles * perMile;
+
+      const stopsTotal =
+        Math.max(
+          0,
+          count - 1
+        ) * stopFee;
+
+      total =
+        baseTotal +
+        milesTotal +
+        stopsTotal;
     }
   }
 
   else{
-    const extraMiles = Math.max(0,n(miles) - includedMiles);
-    total = baseFare + (extraMiles * perMile) + (n(stops) * stopFee);
+
+    const extraMiles =
+      Math.max(
+        0,
+        n(miles) -
+        includedMiles
+      );
+
+    total =
+      baseFare +
+      (extraMiles * perMile) +
+      (n(stops) * stopFee);
   }
 
   return Number(total.toFixed(2));

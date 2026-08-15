@@ -93,6 +93,23 @@ const serviceSchema = new mongoose.Schema({
     default:"FULL"
   },
 
+  /* =========================
+     LIMOUSINE INITIAL PACKAGE
+     GET QUOTE
+  ========================= */
+
+  initialDurationMinutes:{
+    type:Number,
+    default:0,
+    min:0
+  },
+
+  initialPrice:{
+    type:Number,
+    default:0,
+    min:0
+  },
+
   stopFee:{
     type:Number,
     default:0
@@ -204,6 +221,23 @@ const serviceSchema = new mongoose.Schema({
     default:"FULL"
   },
 
+  /* =========================
+     LIMOUSINE INITIAL PACKAGE
+     FACILITY
+  ========================= */
+
+  companyInitialDurationMinutes:{
+    type:Number,
+    default:0,
+    min:0
+  },
+
+  companyInitialPrice:{
+    type:Number,
+    default:0,
+    min:0
+  },
+
   companyStopFee:{
     type:Number,
     default:0
@@ -313,6 +347,23 @@ const serviceSchema = new mongoose.Schema({
   reservedHourlyBillingMode:{
     type:String,
     default:"FULL"
+  },
+
+  /* =========================
+     LIMOUSINE INITIAL PACKAGE
+     RESERVED
+  ========================= */
+
+  reservedInitialDurationMinutes:{
+    type:Number,
+    default:0,
+    min:0
+  },
+
+  reservedInitialPrice:{
+    type:Number,
+    default:0,
+    min:0
   },
 
   reservedStopFee:{

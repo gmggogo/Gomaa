@@ -378,6 +378,20 @@ function serviceDefaultPricing(s){
         "FULL"
       ),
 
+    initialDurationMinutes:
+      num(
+        s?.companyInitialDurationMinutes ??
+        s?.initialDurationMinutes ??
+        0
+      ),
+
+    initialPrice:
+      num(
+        s?.companyInitialPrice ??
+        s?.initialPrice ??
+        0
+      ),
+
     stopFee:
       num(
         s?.companyStopFee ??
@@ -521,6 +535,16 @@ function normalizeServiceInput(s){
       upper(
         s?.hourlyBillingMode ||
         "FULL"
+      ),
+
+    initialDurationMinutes:
+      num(
+        s?.initialDurationMinutes
+      ),
+
+    initialPrice:
+      num(
+        s?.initialPrice
       ),
 
     stopFee:

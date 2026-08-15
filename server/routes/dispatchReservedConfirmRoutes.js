@@ -98,31 +98,51 @@ function normalizeCode(value){
   const c =
     clean(value)
       .toUpperCase()
-      .replace(/[_-]/g," ")
+      .replace(/[_-]+/g," ")
       .replace(/\s+/g," ")
       .trim();
 
   if(!c) return "";
 
-  if(c === "STANDARD") return "ST";
-  if(c === "ST") return "ST";
+  if(c === "ST" || c === "STANDARD" || c.includes("STANDARD")){
+    return "ST";
+  }
 
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "WHEEL CHAIR") return "WH";
-  if(c === "WC") return "WH";
-  if(c === "WH") return "WH";
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
 
-  if(c === "SHARED") return "SH";
-  if(c === "SH") return "SH";
+  if(c === "SH" || c === "SHARED" || c.includes("SHARED")){
+    return "SH";
+  }
 
-  if(c === "LIMO") return "LM";
-  if(c === "LIMOUSINE") return "LM";
-  if(c === "LM") return "LM";
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
 
-  if(c === "TAXI") return "TX";
-  if(c === "TX") return "TX";
+  if(c === "TX" || c === "TAXI" || c.includes("TAXI")){
+    return "TX";
+  }
 
-  if(c === "XL") return "XL";
+  if(c === "XL" || c === "XL SERVICE" || c.startsWith("XL ")){
+    return "XL";
+  }
 
   return c;
 }
@@ -1152,6 +1172,8 @@ function serviceHasReservedConfiguration(service){
     service.reservedIncludedMiles !== undefined ||
     service.reservedPerMile !== undefined ||
     service.reservedHourlyRate !== undefined ||
+    service.reservedInitialDurationMinutes !== undefined ||
+    service.reservedInitialPrice !== undefined ||
     service.reservedStopFee !== undefined ||
     service.reservedSharedPrice !== undefined
   );
@@ -1178,15 +1200,36 @@ function resolveReservedCodeFromService(service){
     used to select Reserved pricing.
   */
   if(serviceHasReservedConfiguration(service)){
-    return normalizeCode(
-      service?.serviceCode ||
-      service?.serviceKey ||
-      service?.serviceType ||
-      service?.code ||
-      service?.suffix ||
-      service?.serviceSuffix ||
-      ""
-    );
+
+    const candidates = [
+      service?.serviceCode,
+      service?.serviceKey,
+      service?.serviceType,
+      service?.code,
+      service?.suffix,
+      service?.serviceSuffix,
+      service?.title,
+      service?.name,
+      service?.serviceName
+    ];
+
+    for(const value of candidates){
+
+      if(!clean(value)) continue;
+
+      const code =
+        normalizeCode(value);
+
+      if(["ST","WH","XL","LM","TX","SH"].includes(code)){
+        return code;
+      }
+    }
+
+    for(const value of candidates){
+      if(clean(value)){
+        return normalizeCode(value);
+      }
+    }
   }
 
   return "";
@@ -1218,12 +1261,38 @@ async function getReservedServiceForTrip(trip){
 function getReservedPricing(service){
 
   return {
-    pricingMode:clean(service?.reservedPricingMode || "MILE").toUpperCase(),
+    serviceKey:
+      resolveReservedCodeFromService(service),
+
+    pricingMode:
+      clean(
+        service?.reservedPricingMode ||
+        "MILE"
+      ).toUpperCase(),
+
     baseFare:n(service?.reservedBaseFare),
     includedMiles:n(service?.reservedIncludedMiles),
     perMile:n(service?.reservedPerMile),
     hourlyRate:n(service?.reservedHourlyRate),
-    hourlyBillingMode:clean(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
+
+    hourlyBillingMode:
+      clean(
+        service?.reservedHourlyBillingMode ||
+        "FULL"
+      ).toUpperCase(),
+
+    initialDurationMinutes:
+      Math.max(
+        0,
+        n(service?.reservedInitialDurationMinutes)
+      ),
+
+    initialPrice:
+      Math.max(
+        0,
+        n(service?.reservedInitialPrice)
+      ),
+
     stopFee:n(service?.reservedStopFee),
     noShowFee:n(service?.reservedNoShowFee),
     cancelFee:n(service?.reservedCancelFee),
@@ -1235,29 +1304,100 @@ function getReservedPricing(service){
 
 function calculateReservedPrice({pricing,miles,minutes,stops}){
 
-  const mode = clean(pricing.pricingMode || "MILE").toUpperCase();
+  const mode =
+    clean(
+      pricing.pricingMode ||
+      "MILE"
+    ).toUpperCase();
+
+  const serviceCode =
+    normalizeCode(
+      pricing.serviceKey ||
+      ""
+    );
+
   const stopCount = n(stops);
+  const mins = Math.max(0,n(minutes));
+  const hourlyRate = n(pricing.hourlyRate);
+
+  const hourlyBillingMode =
+    clean(
+      pricing.hourlyBillingMode ||
+      "FULL"
+    ).toUpperCase();
+
+  const initialDurationMinutes =
+    Math.max(
+      0,
+      n(pricing.initialDurationMinutes)
+    );
+
+  const initialPrice =
+    Math.max(
+      0,
+      n(pricing.initialPrice)
+    );
+
   let total = 0;
 
   if(mode === "HOURLY"){
 
-    const mins = Math.max(0,n(minutes));
-    let billableHours = 0;
+    if(
+      serviceCode === "LM" &&
+      initialDurationMinutes > 0
+    ){
 
-    if(pricing.hourlyBillingMode === "QUARTER"){
-      billableHours = Math.ceil(mins / 15) * 0.25;
+      if(mins <= initialDurationMinutes){
+        total = initialPrice;
+      }else{
+
+        const extraMinutes =
+          mins - initialDurationMinutes;
+
+        let extraHours = 0;
+
+        if(hourlyBillingMode === "QUARTER"){
+          extraHours =
+            Math.ceil(extraMinutes / 15) * 0.25;
+        }else{
+          extraHours =
+            Math.ceil(extraMinutes / 60);
+        }
+
+        total =
+          initialPrice +
+          (extraHours * hourlyRate);
+      }
+
     }else{
-      billableHours = Math.ceil(mins / 60);
+
+      let billableHours = 0;
+
+      if(hourlyBillingMode === "QUARTER"){
+        billableHours =
+          Math.ceil(mins / 15) * 0.25;
+      }else{
+        billableHours =
+          Math.ceil(mins / 60);
+      }
+
+      total =
+        billableHours *
+        hourlyRate;
     }
 
-    total =
-      (billableHours * n(pricing.hourlyRate)) +
-      (stopCount * n(pricing.stopFee));
+    total +=
+      stopCount *
+      n(pricing.stopFee);
 
   }else{
 
     const extraMiles =
-      Math.max(0,n(miles) - n(pricing.includedMiles));
+      Math.max(
+        0,
+        n(miles) -
+        n(pricing.includedMiles)
+      );
 
     total =
       n(pricing.baseFare) +

@@ -88,6 +88,17 @@ function safeMinutes(v,fallback=0){
   return Math.max(0,Math.min(1440,Math.round(n)));
 }
 
+function safeNumber(v,fallback=0){
+
+  const n = Number(v);
+
+  if(!Number.isFinite(n)){
+    return fallback;
+  }
+
+  return Math.max(0,n);
+}
+
 function normalizeDriverTimerPayload(payload){
 
   const out = { ...payload };
@@ -140,6 +151,78 @@ function normalizeDriverTimerPayload(payload){
   ){
     out.driverStopWaitMinutes =
       safeMinutes(out.driverStopWaitMinutes,5);
+  }
+
+  return out;
+}
+
+/* =========================
+   NORMALIZE PRICING
+   INCLUDING LIMO INITIAL PACKAGE
+========================= */
+
+function normalizePricingPayload(payload){
+
+  const out = { ...payload };
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "initialDurationMinutes"
+    )
+  ){
+    out.initialDurationMinutes =
+      safeMinutes(out.initialDurationMinutes,0);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "initialPrice"
+    )
+  ){
+    out.initialPrice =
+      safeNumber(out.initialPrice,0);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "companyInitialDurationMinutes"
+    )
+  ){
+    out.companyInitialDurationMinutes =
+      safeMinutes(out.companyInitialDurationMinutes,0);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "companyInitialPrice"
+    )
+  ){
+    out.companyInitialPrice =
+      safeNumber(out.companyInitialPrice,0);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "reservedInitialDurationMinutes"
+    )
+  ){
+    out.reservedInitialDurationMinutes =
+      safeMinutes(out.reservedInitialDurationMinutes,0);
+  }
+
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "reservedInitialPrice"
+    )
+  ){
+    out.reservedInitialPrice =
+      safeNumber(out.reservedInitialPrice,0);
   }
 
   return out;
@@ -343,14 +426,19 @@ router.put("/:idOrKey", async (req,res)=>{
       });
     }
 
-    const normalized =
+    const driverNormalized =
       normalizeDriverTimerPayload(
         { ...req.body }
       );
 
+    const pricingNormalized =
+      normalizePricingPayload(
+        driverNormalized
+      );
+
     const payload =
       lockAddStopForShared(
-        normalized,
+        pricingNormalized,
         current
       );
 

@@ -47,14 +47,68 @@ function bool(v){
 
 function normalizeCode(v){
 
-  const c = upper(v);
+  const c =
+    upper(v)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(c === "STANDARD") return "ST";
-  if(c === "WHEELCHAIR") return "WH";
-  if(c === "SHARED") return "SH";
-  if(c === "LIMO" || c === "LIMOUSINE") return "LM";
-  if(c === "TAXI") return "TX";
-  if(c === "XL") return "XL";
+  if(!c) return "";
+
+  if(
+    c === "ST" ||
+    c === "STANDARD" ||
+    c.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  if(
+    c === "WH" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(
+    c === "SH" ||
+    c === "SHARED" ||
+    c.includes("SHARED")
+  ){
+    return "SH";
+  }
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(
+    c === "TX" ||
+    c === "TAXI" ||
+    c.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  if(
+    c === "XL" ||
+    c === "XL SERVICE" ||
+    c.startsWith("XL ")
+  ){
+    return "XL";
+  }
 
   return c;
 }
@@ -125,21 +179,47 @@ function buildServiceSearchFilter(idOrKey){
 
 function getOverrideServiceCode(s){
 
-  return normalizeCode(
-    s?.serviceKey ||
-    s?.serviceCode ||
-    s?.serviceType ||
-    s?.serviceSuffix ||
-    s?.suffix ||
-    s?.companySuffix ||
-    s?.reservedSuffix ||
-    s?.key ||
-    s?.code ||
-    s?.title ||
-    s?.name ||
-    s?.serviceName ||
-    ""
-  );
+  const candidates = [
+    s?.serviceKey,
+    s?.serviceCode,
+    s?.serviceType,
+    s?.serviceSuffix,
+    s?.suffix,
+    s?.companySuffix,
+    s?.reservedSuffix,
+    s?.key,
+    s?.code,
+    s?.title,
+    s?.name,
+    s?.serviceName
+  ];
+
+  for(const value of candidates){
+
+    if(!clean(value)) continue;
+
+    const code =
+      normalizeCode(value);
+
+    if(
+      code === "ST" ||
+      code === "WH" ||
+      code === "SH" ||
+      code === "LM" ||
+      code === "TX" ||
+      code === "XL"
+    ){
+      return code;
+    }
+  }
+
+  for(const value of candidates){
+    if(clean(value)){
+      return normalizeCode(value);
+    }
+  }
+
+  return "";
 }
 
 function isOverrideServiceEnabled(s){
@@ -304,6 +384,20 @@ function pricingFromServiceManagement(service){
         "FULL"
       ),
 
+    initialDurationMinutes:
+      n(
+        service.companyInitialDurationMinutes ??
+        service.initialDurationMinutes ??
+        0
+      ),
+
+    initialPrice:
+      n(
+        service.companyInitialPrice ??
+        service.initialPrice ??
+        0
+      ),
+
     disableCancel:
       bool(
         service.companyDisableCancel ??
@@ -424,6 +518,20 @@ function pricingFromFacilityOverride(service){
         service.hourlyBillingMode ||
         service.companyHourlyBillingMode ||
         "FULL"
+      ),
+
+    initialDurationMinutes:
+      n(
+        service.initialDurationMinutes ??
+        service.companyInitialDurationMinutes ??
+        0
+      ),
+
+    initialPrice:
+      n(
+        service.initialPrice ??
+        service.companyInitialPrice ??
+        0
       ),
 
     disableCancel:
@@ -758,6 +866,29 @@ router.post("/calculate", async (req,res)=>{
     const hourlyRate =
       n(service.hourlyRate);
 
+    const initialDurationMinutes =
+      Math.max(
+        0,
+        n(service.initialDurationMinutes)
+      );
+
+    const initialPrice =
+      Math.max(
+        0,
+        n(service.initialPrice)
+      );
+
+    const resolvedServiceCode =
+      normalizeCode(
+        service.serviceKey ||
+        service.rawService?.serviceKey ||
+        service.rawService?.companySuffix ||
+        service.rawService?.serviceSuffix ||
+        service.rawService?.title ||
+        service.rawService?.name ||
+        serviceKey
+      );
+
     let total = 0;
 
     /* =========================
@@ -766,38 +897,103 @@ router.post("/calculate", async (req,res)=>{
 
     if(pricingMode === "HOURLY"){
 
-      let hours = 1;
-
       const hourlyBillingMode =
         upper(
           service.hourlyBillingMode ||
           "FULL"
         );
 
-      if(hourlyBillingMode === "QUARTER"){
+      const totalMinutes =
+        Math.max(
+          0,
+          n(minutes)
+        );
 
-        hours =
-          Math.max(
-            1,
-            Math.ceil(
-              n(minutes) / 15
-            ) / 4
-          );
+      /*
+        LIMOUSINE INITIAL PACKAGE
+
+        Example:
+        Initial Duration = 90 minutes
+        Initial Price    = $150
+        Hourly Rate      = $100
+
+        Up to 90 minutes = $150.
+        After 90 minutes, extra time is billed
+        by FULL or QUARTER.
+      */
+
+      if(
+        resolvedServiceCode === "LM" &&
+        initialDurationMinutes > 0
+      ){
+
+        if(totalMinutes <= initialDurationMinutes){
+
+          total =
+            initialPrice;
+
+        }else{
+
+          const extraMinutes =
+            totalMinutes -
+            initialDurationMinutes;
+
+          let extraHours = 0;
+
+          if(hourlyBillingMode === "QUARTER"){
+
+            extraHours =
+              Math.ceil(
+                extraMinutes / 15
+              ) / 4;
+
+          }else{
+
+            extraHours =
+              Math.ceil(
+                extraMinutes / 60
+              );
+          }
+
+          total =
+            initialPrice +
+            (extraHours * hourlyRate);
+        }
 
       }else{
 
-        hours =
-          Math.max(
-            1,
-            Math.ceil(
-              n(minutes) / 60
-            )
-          );
-      }
+        /*
+          EXISTING HOURLY RULE
+          Minimum first hour remains unchanged.
+        */
 
-      total =
-        hours *
-        hourlyRate;
+        let hours = 1;
+
+        if(hourlyBillingMode === "QUARTER"){
+
+          hours =
+            Math.max(
+              1,
+              Math.ceil(
+                totalMinutes / 15
+              ) / 4
+            );
+
+        }else{
+
+          hours =
+            Math.max(
+              1,
+              Math.ceil(
+                totalMinutes / 60
+              )
+            );
+        }
+
+        total =
+          hours *
+          hourlyRate;
+      }
     }
 
     /* =========================
@@ -904,6 +1100,8 @@ router.post("/calculate", async (req,res)=>{
         stopFee,
         sharedPrice,
         hourlyRate,
+        initialDurationMinutes,
+        initialPrice,
 
         hourlyBillingMode:
           service.hourlyBillingMode,

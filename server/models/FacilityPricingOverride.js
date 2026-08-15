@@ -206,6 +206,22 @@ const servicePricingSchema = new mongoose.Schema(
       default: "FULL"
     },
 
+    /* =========================
+       LIMOUSINE INITIAL PACKAGE
+    ========================= */
+
+    initialDurationMinutes: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+
+    initialPrice: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+
     stopFee: {
       type: Number,
       default: 0

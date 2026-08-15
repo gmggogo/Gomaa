@@ -17,7 +17,81 @@ function n(value, fallback = 0){
   }
 
   return fallback;
+}
 
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function upper(value){
+  return clean(value).toUpperCase();
+}
+
+function normalizeCode(value){
+
+  const c =
+    upper(value)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!c) return "";
+
+  if(c === "ST" || c === "STANDARD" || c.includes("STANDARD")) return "ST";
+  if(c === "WH" || c === "WC" || c === "WHEELCHAIR" || c === "WHEEL CHAIR" || c.includes("WHEELCHAIR") || c.includes("WHEEL CHAIR")) return "WH";
+  if(c === "SH" || c === "SHARED" || c.includes("SHARED")) return "SH";
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(c === "TX" || c === "TAXI" || c.includes("TAXI")) return "TX";
+  if(c === "XL" || c === "XL SERVICE" || c.startsWith("XL ")) return "XL";
+
+  return c;
+}
+
+function getServiceCode(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.suffix,
+    service?.serviceSuffix,
+    service?.title,
+    service?.name,
+    service?.serviceName
+  ];
+
+  for(const value of candidates){
+
+    if(!clean(value)) continue;
+
+    const code =
+      normalizeCode(value);
+
+    if(["ST","WH","SH","LM","TX","XL"].includes(code)){
+      return code;
+    }
+  }
+
+  for(const value of candidates){
+    if(clean(value)){
+      return normalizeCode(value);
+    }
+  }
+
+  return "";
 }
 
 /* =========================
@@ -42,16 +116,18 @@ router.post("/calculate", async (req,res)=>{
         success:false,
         message:"Missing Service Key"
       });
-
     }
 
+    const requestedCode =
+      normalizeCode(serviceKey);
+
+    const services =
+      await Service.find({}).lean();
+
     const service =
-      await Service.findOne({
-        serviceKey:
-          String(serviceKey)
-          .trim()
-          .toUpperCase()
-      });
+      services.find(item =>
+        getServiceCode(item) === requestedCode
+      );
 
     if(!service){
 
@@ -59,7 +135,6 @@ router.post("/calculate", async (req,res)=>{
         success:false,
         message:"Service Not Found"
       });
-
     }
 
     if(service.enabled === false){
@@ -68,8 +143,10 @@ router.post("/calculate", async (req,res)=>{
         success:false,
         message:"Service Disabled"
       });
-
     }
+
+    const resolvedServiceCode =
+      getServiceCode(service);
 
     const pricingMode =
       String(
@@ -78,23 +155,24 @@ router.post("/calculate", async (req,res)=>{
       .trim()
       .toUpperCase();
 
-    const baseFare =
-      n(service.baseFare);
+    const baseFare = n(service.baseFare);
+    const includedMiles = n(service.includedMiles);
+    const perMile = n(service.perMile);
+    const stopFee = n(service.stopFee);
+    const sharedPrice = n(service.sharedPrice);
+    const hourlyRate = n(service.hourlyRate);
 
-    const includedMiles =
-      n(service.includedMiles);
+    const initialDurationMinutes =
+      Math.max(
+        0,
+        n(service.initialDurationMinutes)
+      );
 
-    const perMile =
-      n(service.perMile);
-
-    const stopFee =
-      n(service.stopFee);
-
-    const sharedPrice =
-      n(service.sharedPrice);
-
-    const hourlyRate =
-      n(service.hourlyRate);
+    const initialPrice =
+      Math.max(
+        0,
+        n(service.initialPrice)
+      );
 
     let total = 0;
 
@@ -104,39 +182,67 @@ router.post("/calculate", async (req,res)=>{
 
     if(pricingMode === "HOURLY"){
 
-      let hours = 1;
+      const totalMinutes =
+        Math.max(
+          0,
+          n(minutes)
+        );
 
       const hourlyBillingMode =
         String(
           service.hourlyBillingMode || ""
         ).toUpperCase();
 
-      if(hourlyBillingMode === "QUARTER"){
+      if(
+        resolvedServiceCode === "LM" &&
+        initialDurationMinutes > 0
+      ){
 
-        hours =
-          Math.max(
-            1,
-            Math.ceil(
-              n(minutes) / 15
-            ) / 4
-          );
+        if(totalMinutes <= initialDurationMinutes){
+          total = initialPrice;
+        }else{
+
+          const extraMinutes =
+            totalMinutes -
+            initialDurationMinutes;
+
+          let extraHours = 0;
+
+          if(hourlyBillingMode === "QUARTER"){
+            extraHours =
+              Math.ceil(extraMinutes / 15) / 4;
+          }else{
+            extraHours =
+              Math.ceil(extraMinutes / 60);
+          }
+
+          total =
+            initialPrice +
+            (extraHours * hourlyRate);
+        }
 
       }else{
 
-        hours =
-          Math.max(
-            1,
-            Math.ceil(
-              n(minutes) / 60
-            )
-          );
+        let hours = 1;
 
+        if(hourlyBillingMode === "QUARTER"){
+          hours =
+            Math.max(
+              1,
+              Math.ceil(totalMinutes / 15) / 4
+            );
+        }else{
+          hours =
+            Math.max(
+              1,
+              Math.ceil(totalMinutes / 60)
+            );
+        }
+
+        total =
+          hours *
+          hourlyRate;
       }
-
-      total =
-        hours *
-        hourlyRate;
-
     }
 
     /* =========================
@@ -189,9 +295,7 @@ router.post("/calculate", async (req,res)=>{
           baseTotal +
           milesTotal +
           stopsTotal;
-
       }
-
     }
 
     /* =========================
@@ -211,12 +315,14 @@ router.post("/calculate", async (req,res)=>{
         baseFare +
         (extraMiles * perMile) +
         (n(stops) * stopFee);
-
     }
 
     return res.json({
 
       success:true,
+
+      serviceKey:
+        resolvedServiceCode,
 
       pricingMode,
 
@@ -225,14 +331,16 @@ router.post("/calculate", async (req,res)=>{
       ),
 
       usedPricing:{
-
         baseFare,
         includedMiles,
         perMile,
         stopFee,
         sharedPrice,
-        hourlyRate
-
+        hourlyRate,
+        initialDurationMinutes,
+        initialPrice,
+        hourlyBillingMode:
+          service.hourlyBillingMode
       },
 
       disableCancel:
@@ -273,9 +381,7 @@ router.post("/calculate", async (req,res)=>{
       success:false,
       message:"Pricing Failed"
     });
-
   }
-
 });
 
 module.exports = router;
