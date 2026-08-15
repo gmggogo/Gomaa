@@ -69,6 +69,12 @@ require("./models/BillingHistory"
 const FacilityPricingOverride =
 require("./models/FacilityPricingOverride");
 
+
+const {
+  resolveTripPricing,
+  resolveTripSource
+} = require("./utils/finalPricingResolver");
+
 /* =========================
    ENV
 ========================= */
@@ -903,6 +909,7 @@ confirmationEmailSent: {
   default: false
 },
 
+
 completedEmailSent: {
   type: Boolean,
   default: false
@@ -1122,6 +1129,41 @@ passengerDurationSeconds: {
   ========================= */
 
   cancelToken: { type: String, default: "" },
+
+  cancelSource: {
+    type: String,
+    default: ""
+  },
+
+  cancelledBy: {
+    type: String,
+    default: ""
+  },
+
+  cancelReason: {
+    type: String,
+    default: ""
+  },
+
+  customerCancelledAt: {
+    type: Date,
+    default: null
+  },
+
+  finalChargeAmount: {
+    type: Number,
+    default: 0
+  },
+
+  finalChargeType: {
+    type: String,
+    default: ""
+  },
+
+  finalPricingSource: {
+    type: String,
+    default: ""
+  },
 
   /* =========================
      💰 REFUND SYSTEM
@@ -1441,13 +1483,8 @@ function normalizeNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-/* =========================
-   CUSTOMER CANCEL LOCK
-   Prevent old email links from changing a trip
-   after final completion / final confirmation / capture.
-========================= */
 
-function customerCancelIsLocked(trip){
+function tripCancelIsLocked(trip){
 
   if(!trip){
     return true;
@@ -1465,36 +1502,19 @@ function customerCancelIsLocked(trip){
       .trim()
       .toUpperCase();
 
-  const completed =
+  return (
     status === "completed" ||
-    status === "complete";
-
-  const noShow =
+    status === "complete" ||
     status === "no show" ||
-    status === "noshow";
-
-  const notCompleted =
+    status === "noshow" ||
     status === "not completed" ||
-    status === "notcompleted";
-
-  const finalConfirmed =
+    status === "notcompleted" ||
     trip.finalStatusConfirmed === true ||
     !!trip.finalStatusConfirmedAt ||
     !!trip.dispatchFinalConfirmedAt ||
-    trip.sharedFinalConfirmed === true ||
-    !!trip.sharedFinalConfirmedAt;
-
-  const paymentCaptured =
     paymentStatus === "PAID" ||
     Number(trip.capturedAmount || 0) > 0 ||
-    !!trip.paymentCapturedAt;
-
-  return (
-    completed ||
-    noShow ||
-    notCompleted ||
-    finalConfirmed ||
-    paymentCaptured
+    !!trip.paymentCapturedAt
   );
 }
 
@@ -5810,10 +5830,32 @@ app.put("/api/trips/:id", async (req, res) => {
         return res.json(noShowTrip);
       }
       if(requestedFinalStatus === "Cancelled"){
+
+        if(!String(existing.cancelSource || "").trim()){
+          existing.cancelSource =
+            String(
+              req.body.cancelSource ||
+              "DISPATCH"
+            ).toUpperCase();
+
+          existing.cancelledBy =
+            String(
+              req.body.cancelledBy ||
+              req.body.updatedBy ||
+              "admin"
+            );
+        }
+
         const cancelledTrip = await finalizeIndividualTrip(existing,"CANCEL",{
-          cancelFee:Number(req.body.cancelFee ?? existing.cancelFee ?? 0),
-          refundAmount:0
+          cancelFee:
+            existing.cancelSource === "CUSTOMER"
+              ? Number(req.body.cancelFee ?? existing.cancelFee ?? 0)
+              : 0,
+          refundAmount:0,
+          cancelSource:existing.cancelSource,
+          cancelledBy:existing.cancelledBy
         });
+
         return res.json(cancelledTrip);
       }
     }
@@ -6783,9 +6825,8 @@ if(!trip.historyAt){
     }
 
     /*
-      No customer No Show email is sent here.
-      The final customer email is sent only after
-      Dispatch Final Confirmation approves the status/payment.
+      GET QUOTE final No Show email is sent only after
+      Dispatch Final Confirmation approves the status and payment.
     */
 
     res.json(trip);
@@ -6926,27 +6967,26 @@ app.post("/api/cancel-trip", async (req, res) => {
 
     }
 
-    /* =========================
-       CLOSED / PAID PROTECTION
-    ========================== */
+    /*
+      The email Cancel Trip flow belongs to GET QUOTE only.
+    */
+    if(resolveTripSource(trip) !== "GQ"){
 
-    if(customerCancelIsLocked(trip)){
+      return res.status(403).json({
+        success:false,
+        message:"This cancellation link is not available for this trip type."
+      });
+
+    }
+
+    if(tripCancelIsLocked(trip)){
 
       return res.status(409).json({
-
         success:false,
-
         locked:true,
-
-        status:
-          trip.status || "",
-
-        paymentStatus:
-          trip.paymentStatus || "",
-
-        message:
-          "This trip is already closed and can no longer be cancelled."
-
+        status:trip.status || "",
+        paymentStatus:trip.paymentStatus || "",
+        message:"This trip is already closed and can no longer be cancelled."
       });
 
     }
@@ -7029,82 +7069,29 @@ app.post("/api/cancel-trip", async (req, res) => {
     let fee = 0;
 
 /* =========================
-   LOAD SERVICE
+   GET QUOTE CANCEL POLICY
+   Service Management / Get Quote only
 ========================= */
-const service =
-  await getServiceByTrip(trip);
 
-/* =========================
-   TRIP TYPE
-========================= */
-const tripType =
-  String(trip.type || "")
-    .toLowerCase()
-    .trim();
-
-/* =========================
-   COMPANY CHECK
-========================= */
-const isCompanyTrip =
-
-trip.company ||
-
-tripType.includes("company") ||
-
-tripType.includes("facility");
-
-/* =========================
-   CANCEL DISABLED
-========================= */
-const cancelDisabled =
-
-  isCompanyTrip
-
-    ? service?.companyDisableCancel === true
-
-    : service?.disableCancel === true;
-
-/* =========================
-   WARNING MINUTES
-========================= */
-const warningMinutes =
-  Number(
-
-    isCompanyTrip
-
-      ? (
-          service?.companyWarningMinutes ||
-          service?.warningMinutes ||
-          120
-        )
-
-      : (
-          service?.warningMinutes ||
-          120
-        )
-
+const pricingResult =
+  await resolveTripPricing(
+    trip
   );
 
-/* =========================
-   CANCEL FEE
-========================= */
+const pricing =
+  pricingResult.pricing || {};
+
+const cancelDisabled =
+  pricing.disableCancel === true;
+
+const warningMinutes =
+  Number(
+    pricing.warningMinutes ?? 120
+  );
 
 const cancelFee =
   Number(
-
-    isCompanyTrip
-
-      ? (
-          service?.companyCancelFee ||
-          service?.cancelFee ||
-          0
-        )
-
-      : (
-          service?.cancelFee ||
-          0
-        )
-
+    pricing.cancelFee ?? 0
   );
 
 /* =========================
@@ -7157,12 +7144,20 @@ const simpleRefundId =
    SAVE BEFORE STRIPE
 ========================= */
 
+trip.cancelSource = "CUSTOMER";
+trip.cancelledBy = "CUSTOMER_EMAIL_LINK";
+trip.cancelReason = "Customer cancelled from Get Quote email link";
+trip.customerCancelledAt = new Date();
+
 await finalizeIndividualTrip(
   trip,
   "CANCEL",
   {
     cancelFee: fee,
-    refundAmount
+    refundAmount,
+    cancelSource:"CUSTOMER",
+    cancelledBy:"CUSTOMER_EMAIL_LINK",
+    cancelReason:"Customer cancelled from Get Quote email link"
   }
 );
 
@@ -7173,6 +7168,15 @@ if(!trip.historyAt){
 trip.simpleRefundId =
   simpleRefundId;
 
+trip.finalChargeType =
+  "CANCELLATION_FEE";
+
+trip.finalChargeAmount =
+  Number(fee || 0);
+
+trip.finalPricingSource =
+  pricingResult.pricingSource || "";
+
 trip.refundStatus =
   refundAmount > 0 && !trip.stripePaymentMethodId
     ? "processing"
@@ -7180,10 +7184,10 @@ trip.refundStatus =
 
 await trip.save();
 
-await sendTripStatusEmail(
-  trip,
-  "CANCELLED"
-);
+/*
+  Do NOT send final cancellation email here.
+  GET QUOTE final email is sent after Dispatch Final Confirmation.
+*/
 
 /* =========================
    STRIPE REFUND
@@ -7330,57 +7334,40 @@ app.post(
 
       }
 
-      /* =========================
-         ALREADY CANCELLED
-      ========================= */
+      if(resolveTripSource(trip) !== "GQ"){
 
-      if(
-        String(trip.status || "")
-          .trim()
-          .toLowerCase() ===
-        "cancelled"
-      ){
-
-        return res.json({
-
+        return res.status(403).json({
           success:false,
-
-          alreadyCancelled:true,
-
-          locked:true,
-
-          status:"Cancelled",
-
-          message:
-            "This trip has already been cancelled."
-
+          message:"This cancellation link is not available for this trip type."
         });
 
       }
 
-      /* =========================
-         CLOSED / PAID PROTECTION
-      ========================= */
-
-      if(customerCancelIsLocked(trip)){
+      if(
+        String(trip.status || "")
+          .trim()
+          .toLowerCase() === "cancelled"
+      ){
 
         return res.json({
-
           success:false,
-
-          expired:true,
-
+          alreadyCancelled:true,
           locked:true,
+          status:"Cancelled",
+          message:"This trip has already been cancelled."
+        });
 
-          status:
-            trip.status || "",
+      }
 
-          paymentStatus:
-            trip.paymentStatus || "",
+      if(tripCancelIsLocked(trip)){
 
-          message:
-            "This trip is already closed and can no longer be cancelled."
-
+        return res.json({
+          success:false,
+          expired:true,
+          locked:true,
+          status:trip.status || "",
+          paymentStatus:trip.paymentStatus || "",
+          message:"This trip is already closed and can no longer be cancelled."
         });
 
       }
@@ -7415,81 +7402,29 @@ app.post(
       let fee = 0;
 
       /* =========================
-         LOAD SERVICE
+         GET QUOTE CANCEL POLICY
+         Service Management / Get Quote only
       ========================= */
 
-      const service =
-        await getServiceByTrip(trip);
+      const pricingResult =
+        await resolveTripPricing(
+          trip
+        );
 
-      const tripType =
-        String(trip.type || "")
-          .toLowerCase()
-          .trim();
-
-      const isCompanyTrip =
-
-  trip.company ||
-
-  tripType.includes("company") ||
-
-  tripType.includes("facility");
-
-      /* =========================
-         CANCEL DISABLED
-      ========================= */
+      const pricing =
+        pricingResult.pricing || {};
 
       const cancelDisabled =
-
-        isCompanyTrip
-
-          ? service?.companyDisableCancel === true
-
-          : service?.disableCancel === true;
-
-      /* =========================
-         WARNING MINUTES
-      ========================= */
+        pricing.disableCancel === true;
 
       const warningMinutes =
         Number(
-
-          isCompanyTrip
-
-            ? (
-                service?.companyWarningMinutes ||
-                service?.warningMinutes ||
-                120
-              )
-
-            : (
-                service?.warningMinutes ||
-                120
-              )
-
+          pricing.warningMinutes ?? 120
         );
-
-      /* =========================
-         CANCEL FEE
-      ========================= */
 
       const cancelFee =
         Number(
-
-          isCompanyTrip
-
-            ? (
-                service?.companyCancelFee ||
-                service?.cancelFee ||
-                trip.cancelFee ||
-                0
-              )
-
-            : (
-                service?.cancelFee ||
-                trip.cancelFee ||
-                0
-              )
-
+          pricing.cancelFee ?? 0
         );
 
       /* =========================
@@ -7673,50 +7608,38 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
         .toLowerCase() ===
       "cancelled"
     ){
-
       return res.json({
         success:true,
         alreadyCancelled:true
       });
-
     }
 
-    if(customerCancelIsLocked(trip)){
-
+    if(tripCancelIsLocked(trip)){
       return res.status(409).json({
-
         success:false,
-
         locked:true,
-
-        status:
-          trip.status || "",
-
-        paymentStatus:
-          trip.paymentStatus || "",
-
-        message:
-          "This trip is already closed and can no longer be cancelled."
-
+        status:trip.status || "",
+        message:"This trip is already closed and cannot be cancelled."
       });
-
     }
 
-    const service =
-      await getServiceByTrip(trip);
+    /*
+      COMPANY / FACILITY cancellation is an operator cancellation.
+      Customer cancellation fee does NOT apply.
+    */
+    trip.cancelSource = "COMPANY";
+    trip.cancelledBy =
+      String(
+        req.body?.cancelledBy ||
+        req.body?.company ||
+        trip.company ||
+        "company"
+      );
 
-const totalCancelFee =
-
-  service?.companyDisableCancel === true ||
-  service?.disableCancel === true
-
-    ? 0
-
-    : Number(
-        service?.companyCancelFee ||
-        service?.cancelFee ||
-        trip.cancelFee ||
-        0
+    trip.cancelReason =
+      String(
+        req.body?.reason ||
+        "Cancelled by company/facility"
       );
 
     if(
@@ -7725,38 +7648,18 @@ const totalCancelFee =
       trip.passengers.length > 0
     ){
 
-      const activePassengers =
-        trip.passengers.filter(p=>{
-
-          const s =
-            String(p.status || "")
-              .toLowerCase()
-              .trim();
-
-          return (
-            !s.includes("cancel") &&
-            !s.includes("no")
-          );
-
-        });
-
-      const count =
-        activePassengers.length ||
-        trip.passengers.length ||
-        1;
-
-     const perPassengerFee =
-  Number(totalCancelFee || 0);
-
       trip.status = "Cancelled";
-      trip.cancelFee = totalCancelFee;
-      trip.finalPrice = totalCancelFee;
-      trip.priceAmount = totalCancelFee;
+      trip.cancelFee = 0;
+      trip.finalPrice = 0;
       trip.refundAmount = 0;
       trip.cancelDateTime = new Date();
       trip.historyAt = trip.historyAt || new Date();
       trip.isFinalized = true;
       trip.finalizedAt = new Date();
+
+      trip.finalChargeAmount = 0;
+      trip.finalChargeType = "OPERATOR_CANCEL_NO_FEE";
+      trip.finalPricingSource = "";
 
       trip.passengers =
         trip.passengers.map(p=>{
@@ -7768,7 +7671,8 @@ const totalCancelFee =
 
           if(
             s.includes("cancel") ||
-            s.includes("no")
+            s.includes("no") ||
+            s.includes("complete")
           ){
             return p;
           }
@@ -7776,36 +7680,38 @@ const totalCancelFee =
           return {
             ...p,
             status:"Cancelled",
-            cancelFee:perPassengerFee,
-            finalPrice:perPassengerFee,
-            priceAmount:perPassengerFee,
+            cancelSource:"COMPANY",
+            cancelledBy:trip.cancelledBy,
+            cancelFee:0,
+            finalPrice:0,
+            priceAmount:0,
+            finalChargeAmount:0,
+            finalChargeType:"OPERATOR_CANCEL_NO_FEE",
             isFinalized:true,
             finalizedAt:new Date()
           };
-
         });
 
-      trip.groupTotal =
-        trip.passengers.reduce((sum,p)=>{
-          return sum + Number(p.finalPrice || 0);
-        },0);
-
+      trip.groupTotal = 0;
       trip.groupStatus = "Cancelled";
 
       await trip.save();
 
       return res.json({
-        success:true
+        success:true,
+        fee:0
       });
-
     }
 
     await finalizeIndividualTrip(
       trip,
       "CANCEL",
       {
-        cancelFee: totalCancelFee,
-        refundAmount: 0
+        cancelFee:0,
+        refundAmount:0,
+        cancelSource:"COMPANY",
+        cancelledBy:trip.cancelledBy,
+        cancelReason:trip.cancelReason
       }
     );
 
@@ -7813,24 +7719,25 @@ const totalCancelFee =
       trip.historyAt ||
       new Date();
 
-    trip.priceAmount = totalCancelFee;
+    trip.finalChargeAmount = 0;
+    trip.finalChargeType =
+      "OPERATOR_CANCEL_NO_FEE";
 
     await trip.save();
 
-    res.json({
-      success:true
+    return res.json({
+      success:true,
+      fee:0
     });
 
   }catch(err){
 
     console.log(err);
 
-    res.status(500).json({
+    return res.status(500).json({
       message:"Cancel failed"
     });
-
   }
-
 });
 
 /* =========================

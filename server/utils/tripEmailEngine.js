@@ -535,6 +535,56 @@ function isCompanyTrip(trip){
 
 }
 
+
+function isReservedTrip(trip){
+
+  const raw = [
+    trip?.type,
+    trip?.source,
+    trip?.bookingSource,
+    trip?.reservationStatus,
+    trip?.tripNumber
+  ].join(" ").toLowerCase();
+
+  return (
+    raw.includes("reserved") ||
+    raw.includes("reservation") ||
+    upper(trip?.tripNumber).startsWith("RV-")
+  );
+}
+
+function isGetQuoteTrip(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  if(isCompanyTrip(trip)){
+    return false;
+  }
+
+  if(isReservedTrip(trip)){
+    return false;
+  }
+
+  const raw = [
+    trip?.type,
+    trip?.source,
+    trip?.bookingSource,
+    trip?.from,
+    trip?.tripNumber
+  ].join(" ").toLowerCase();
+
+  return (
+    raw.includes("quote") ||
+    raw.includes("website") ||
+    raw.includes("public") ||
+    raw.includes("gq") ||
+    lower(trip?.type) === "individual" ||
+    lower(trip?.type) === "quote"
+  );
+}
+
 function isSharedTrip(trip){
 
   if(!trip){
@@ -973,9 +1023,14 @@ async function sendTripStatusEmail(
         trip.clientEmail
       );
 
+    /*
+      IMPORTANT:
+      This email engine belongs to GET QUOTE only.
+      Facility / Company and Reserved trips do not use this email system.
+    */
     if(
       !clientEmail ||
-      isCompanyTrip(trip)
+      !isGetQuoteTrip(trip)
     ){
 
       return null;
@@ -1220,9 +1275,10 @@ async function sendTripStatusEmail(
 
       const chargedAmount =
         Number(
-          trip.capturedAmount ||
-          trip.finalPrice ||
-          trip.priceAmount ||
+          trip.finalChargeAmount ??
+          trip.capturedAmount ??
+          trip.finalPrice ??
+          trip.priceAmount ??
           0
         );
 
@@ -1244,7 +1300,6 @@ async function sendTripStatusEmail(
           margin:0;
           color:#111827;
           font-size:15px;
-          line-height:1.5;
         ">
           <b>Amount Charged:</b>
           $${chargedAmount.toFixed(2)}
@@ -1258,9 +1313,9 @@ async function sendTripStatusEmail(
 
       const chargedAmount =
         Number(
-          trip.capturedAmount ||
-          trip.cancelFee ||
-          trip.finalPrice ||
+          trip.finalChargeAmount ??
+          trip.capturedAmount ??
+          trip.cancelFee ??
           0
         );
 
@@ -1282,7 +1337,6 @@ async function sendTripStatusEmail(
           margin:0;
           color:#111827;
           font-size:15px;
-          line-height:1.5;
         ">
           <b>Cancellation Fee Charged:</b>
           $${chargedAmount.toFixed(2)}
@@ -1296,9 +1350,9 @@ async function sendTripStatusEmail(
 
       const chargedAmount =
         Number(
-          trip.capturedAmount ||
-          trip.noShowFee ||
-          trip.finalPrice ||
+          trip.finalChargeAmount ??
+          trip.capturedAmount ??
+          trip.noShowFee ??
           0
         );
 
@@ -1320,7 +1374,6 @@ async function sendTripStatusEmail(
           margin:0;
           color:#111827;
           font-size:15px;
-          line-height:1.5;
         ">
           <b>No Show Fee Charged:</b>
           $${chargedAmount.toFixed(2)}
@@ -1559,66 +1612,21 @@ async function sendTripStatusEmail(
 
       });
 
-    /*
-      Final customer emails are marked in Mongo after successful SMTP send.
-      Raw collection update is used so the protection works even before
-      these marker fields are added to the Mongoose schema.
-    */
-    const sentMarkerMap = {
-      COMPLETED:{
-        flag:"completedEmailSent",
-        at:"completedEmailSentAt"
-      },
-      NOSHOW:{
-        flag:"noShowEmailSent",
-        at:"noShowEmailSentAt"
-      },
-      CANCELLED:{
-        flag:"cancelledEmailSent",
-        at:"cancelledEmailSentAt"
-      }
-    };
-
-    const sentMarker =
-      sentMarkerMap[type];
+    const finalEmailMarker = {
+      COMPLETED:["completedEmailSent","completedEmailSentAt"],
+      NOSHOW:["noShowEmailSent","noShowEmailSentAt"],
+      CANCELLED:["cancelledEmailSent","cancelledEmailSentAt"]
+    }[type];
 
     if(
-      sentMarker &&
-      trip?._id
+      finalEmailMarker &&
+      typeof trip.save === "function"
     ){
 
-      try{
+      trip[finalEmailMarker[0]] = true;
+      trip[finalEmailMarker[1]] = new Date();
 
-        const model =
-          trip.constructor;
-
-        if(
-          model?.collection
-        ){
-
-          await model.collection.updateOne(
-            {
-              _id:trip._id
-            },
-            {
-              $set:{
-                [sentMarker.flag]:true,
-                [sentMarker.at]:new Date()
-              }
-            }
-          );
-
-          trip[sentMarker.flag] = true;
-          trip[sentMarker.at] = new Date();
-        }
-
-      }catch(markerErr){
-
-        console.log(
-          "FINAL EMAIL MARKER WARNING:",
-          markerErr?.message || markerErr
-        );
-      }
+      await trip.save();
     }
 
     console.log(

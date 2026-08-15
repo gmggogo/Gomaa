@@ -7,6 +7,11 @@ const {
 } = require("../utils/trip-finalizer");
 
 const {
+  resolveTripFinancials,
+  resolveTripSource
+} = require("../utils/finalPricingResolver");
+
+const {
   sendTripStatusEmail
 } = require("../utils/tripEmailEngine");
 
@@ -424,6 +429,18 @@ router.patch("/:id/status", async (req,res)=>{
 
     trip.status = status;
 
+    if(
+      status === "Cancelled" &&
+      !String(trip.cancelSource || "").trim()
+    ){
+      trip.cancelSource = "DISPATCH";
+      trip.cancelledBy = String(
+        req.body?.confirmedBy ||
+        req.body?.updatedBy ||
+        "dispatcher"
+      );
+    }
+
     /*
       Edit changes the pending final status only.
       Stripe is NOT touched here.
@@ -536,11 +553,75 @@ router.patch("/:id/confirm", async (req,res)=>{
     }
 
     /*
-      IMPORTANT:
-      Dispatcher Confirm is now the financial gate.
-      Payment happens BEFORE confirm markers are saved.
-      If Stripe fails, the trip remains Not Confirmed.
+      Dispatcher Confirm is the financial gate.
+
+      Price source:
+      FACILITY -> active Facility Override first, then Facility Service Management
+      GET QUOTE -> Get Quote Service Management
+      RESERVED -> Reserved Service Management
+
+      Cancellation fee:
+      CUSTOMER cancellation only.
+      Company / Dispatch / Driver cancellation = $0 cancellation fee.
     */
+
+    if(
+      trip.status === "Cancelled" &&
+      !String(trip.cancelSource || "").trim()
+    ){
+      trip.cancelSource = "DISPATCH";
+      trip.cancelledBy =
+        confirmedBy ||
+        "dispatcher";
+    }
+
+    const financial =
+      await resolveTripFinancials(
+        trip
+      );
+
+    const charge =
+      financial.finalCharge;
+
+    trip.finalPricingSource =
+      financial.pricingSource;
+
+    trip.finalChargeType =
+      charge.type;
+
+    trip.finalChargeAmount =
+      Number(
+        charge.amount || 0
+      );
+
+    if(trip.status === "No Show"){
+      trip.noShowFee =
+        Number(
+          charge.fee || 0
+        );
+
+      trip.finalPrice =
+        Number(
+          charge.amount || 0
+        );
+    }
+
+    if(trip.status === "Cancelled"){
+      trip.cancelFee =
+        Number(
+          charge.fee || 0
+        );
+
+      trip.finalPrice =
+        Number(
+          charge.amount || 0
+        );
+    }
+
+    if(trip.status === "Not Completed"){
+      trip.finalPrice = 0;
+    }
+
     const action =
       settlementActionFromStatus(
         trip.status
@@ -550,19 +631,20 @@ router.patch("/:id/confirm", async (req,res)=>{
       trip,
       action,
       {
-        finalPrice:Number(
-          trip.finalPrice ||
-          trip.priceAmount ||
-          0
-        ),
-        cancelFee:Number(
-          trip.cancelFee ||
-          0
-        ),
-        noShowFee:Number(
-          trip.noShowFee ||
-          0
-        )
+        finalPrice:
+          trip.status === "Completed"
+            ? Number(charge.amount || 0)
+            : Number(trip.finalPrice || 0),
+
+        cancelFee:
+          trip.status === "Cancelled"
+            ? Number(charge.amount || 0)
+            : 0,
+
+        noShowFee:
+          trip.status === "No Show"
+            ? Number(charge.amount || 0)
+            : 0
       }
     );
 
@@ -582,30 +664,39 @@ router.patch("/:id/confirm", async (req,res)=>{
     await trip.save();
 
     /*
-      Customer final-status email is sent only AFTER:
-      1) financial settlement succeeds
-      2) dispatcher confirmation is saved
+      GET QUOTE ONLY:
+      send final customer email after payment/settlement and final confirmation.
+      Facility and Reserved never use tripEmailEngine.
     */
-    let emailType = "";
+    if(
+      resolveTripSource(trip) === "GQ"
+    ){
 
-    if(trip.status === "Completed"){
-      emailType = "COMPLETED";
-    }else if(trip.status === "No Show"){
-      emailType = "NOSHOW";
-    }else if(trip.status === "Cancelled"){
-      emailType = "CANCELLED";
-    }
+      let emailType = "";
 
-    if(emailType){
-      await sendTripStatusEmail(
-        trip,
-        emailType
-      );
+      if(trip.status === "Completed"){
+        emailType = "COMPLETED";
+      }else if(trip.status === "No Show"){
+        emailType = "NOSHOW";
+      }else if(trip.status === "Cancelled"){
+        emailType = "CANCELLED";
+      }
+
+      if(emailType){
+        await sendTripStatusEmail(
+          trip,
+          emailType
+        );
+      }
     }
 
     return res.json({
       success:true,
       message:"Trip confirmed and payment finalized",
+      finalChargeAmount:
+        Number(trip.finalChargeAmount || 0),
+      finalPricingSource:
+        trip.finalPricingSource || "",
       trip:sanitizeTripForFinalPage(trip)
     });
 
@@ -969,6 +1060,10 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
           finalStatusConfirmedAt:"",
           dispatchFinalConfirmedAt:"",
           finalStatusConfirmedBy:"",
+
+          finalChargeAmount:"",
+          finalChargeType:"",
+          finalPricingSource:"",
 
           sharedFinalConfirmed:"",
           sharedFinalConfirmedAt:"",

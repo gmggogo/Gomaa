@@ -902,6 +902,32 @@ async function finalizeIndividualTrip(
   const refundAmount =
     n(options.refundAmount);
 
+
+  const cancelSource =
+    String(
+      options.cancelSource ||
+      trip.cancelSource ||
+      ""
+    )
+    .trim()
+    .toUpperCase();
+
+  const cancelledBy =
+    String(
+      options.cancelledBy ||
+      trip.cancelledBy ||
+      ""
+    )
+    .trim();
+
+  const cancelReason =
+    String(
+      options.cancelReason ||
+      trip.cancelReason ||
+      ""
+    )
+    .trim();
+
   /*
     DRIVER FINALIZATION DOES NOT CAPTURE MONEY.
 
@@ -970,6 +996,21 @@ async function finalizeIndividualTrip(
 
       trip.cancelDateTime =
         new Date();
+
+      if(cancelSource){
+        trip.cancelSource =
+          cancelSource;
+      }
+
+      if(cancelledBy){
+        trip.cancelledBy =
+          cancelledBy;
+      }
+
+      if(cancelReason){
+        trip.cancelReason =
+          cancelReason;
+      }
 
       trip.isFinalized =
         true;

@@ -751,28 +751,79 @@ function getGroupStatus(group){
 
 function feeFromService(t,type){
 
-  const s = getServiceByTrip(t) || {};
-  const ps = t?.pricingSnapshot || t?.priceSnapshot || {};
+  /*
+    Server /api/admin-summary is the financial source of truth.
+    It already applies:
+    Facility Override ACTIVE -> Facility Service Management fallback,
+    Get Quote -> Get Quote Service Management,
+    Reserved -> Reserved Service Management.
+  */
 
   if(type === "cancel"){
+
+    if(
+      t?.summaryFee !== undefined &&
+      t?.summaryFee !== null &&
+      isCancelledStatus(t?.status)
+    ){
+      return num(t.summaryFee);
+    }
+
+    const s = getServiceByTrip(t) || {};
+    const src = getSourceCode(t);
+
+    if(src === "RV"){
+      return num(
+        s?.reservedCancelFee ??
+        s?.cancelFee ??
+        0
+      );
+    }
+
+    if(src === "FACILITY"){
+      return num(
+        s?.companyCancelFee ??
+        s?.cancelFee ??
+        0
+      );
+    }
+
     return num(
-      t?.cancelFee ??
-      t?.companyCancelFee ??
-      ps?.cancelFee ??
-      ps?.companyCancelFee ??
-      s?.companyCancelFee ??
       s?.cancelFee ??
       0
     );
   }
 
   if(type === "noshow"){
+
+    if(
+      t?.summaryFee !== undefined &&
+      t?.summaryFee !== null &&
+      isNoShowStatus(t?.status)
+    ){
+      return num(t.summaryFee);
+    }
+
+    const s = getServiceByTrip(t) || {};
+    const src = getSourceCode(t);
+
+    if(src === "RV"){
+      return num(
+        s?.reservedNoShowFee ??
+        s?.noShowFee ??
+        0
+      );
+    }
+
+    if(src === "FACILITY"){
+      return num(
+        s?.companyNoShowFee ??
+        s?.noShowFee ??
+        0
+      );
+    }
+
     return num(
-      t?.noShowFee ??
-      t?.companyNoShowFee ??
-      ps?.noShowFee ??
-      ps?.companyNoShowFee ??
-      s?.companyNoShowFee ??
       s?.noShowFee ??
       0
     );
@@ -811,6 +862,13 @@ function getPassengerBasePrice(p,t){
 
 function getPassengerFee(p,t){
 
+  if(
+    p?.summaryFee !== undefined &&
+    p?.summaryFee !== null
+  ){
+    return num(p.summaryFee);
+  }
+
   const status =
     p?.status ||
     t?.status ||
@@ -819,7 +877,6 @@ function getPassengerFee(p,t){
   if(isCancelledStatus(status)){
     return num(
       p?.cancelFee ??
-      p?.companyCancelFee ??
       feeFromService(t,"cancel") ??
       0
     );
@@ -828,7 +885,6 @@ function getPassengerFee(p,t){
   if(isNoShowStatus(status)){
     return num(
       p?.noShowFee ??
-      p?.companyNoShowFee ??
       feeFromService(t,"noshow") ??
       0
     );
@@ -838,6 +894,13 @@ function getPassengerFee(p,t){
 }
 
 function getPassengerMoney(p,t){
+
+  if(
+    p?.summaryFinalAmount !== undefined &&
+    p?.summaryFinalAmount !== null
+  ){
+    return num(p.summaryFinalAmount);
+  }
 
   const status = p?.status || t?.status;
 
@@ -857,6 +920,13 @@ function getPassengerMoney(p,t){
 }
 
 function getTripMoney(t){
+
+  if(
+    t?.summaryFinalAmount !== undefined &&
+    t?.summaryFinalAmount !== null
+  ){
+    return num(t.summaryFinalAmount);
+  }
 
   if(isNotCompletedStatus(t?.status,t)){
     return 0;

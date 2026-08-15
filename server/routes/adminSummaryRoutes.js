@@ -2,10 +2,20 @@
    ADMIN SUMMARY ROUTES
    Closed Trips Only
    Admin / SuperAdmin / Dispatcher
+
+   Financial source priority:
+   - FACILITY: Facility Override ACTIVE first, otherwise Service Management Facility
+   - GET QUOTE: Service Management Get Quote
+   - RESERVED: Service Management Reserved
    ========================================================================== */
 
 const express = require("express");
 const mongoose = require("mongoose");
+
+const {
+  resolveTripFinancials,
+  resolveFinalChargeAmount
+} = require("../utils/finalPricingResolver");
 
 const router = express.Router();
 
@@ -24,7 +34,6 @@ function getTripModel(){
   }
 
   return Trip;
-
 }
 
 /* =========================
@@ -93,7 +102,6 @@ function parseTripDateTime(trip){
   }
 
   return d;
-
 }
 
 function isNotCompleted(status,trip){
@@ -132,7 +140,6 @@ function isNotCompleted(status,trip){
   }
 
   return Date.now() - dt.getTime() >= 10 * 60 * 60 * 1000;
-
 }
 
 function isSharedTrip(trip){
@@ -147,7 +154,6 @@ function isSharedTrip(trip){
       trip.passengers.length > 0
     )
   );
-
 }
 
 function passengerIsClosed(passenger,trip){
@@ -163,7 +169,6 @@ function passengerIsClosed(passenger,trip){
     isNoShow(status) ||
     isNotCompleted(status,trip)
   );
-
 }
 
 function tripIsClosed(trip){
@@ -184,7 +189,6 @@ function tripIsClosed(trip){
         passengerIsClosed(p,trip)
       );
     }
-
   }
 
   return (
@@ -193,7 +197,6 @@ function tripIsClosed(trip){
     isNoShow(trip.status) ||
     isNotCompleted(trip.status,trip)
   );
-
 }
 
 function normalizeTrip(trip){
@@ -220,7 +223,97 @@ function normalizeTrip(trip){
   }
 
   return obj;
+}
 
+/* =========================
+   FINANCIAL ENRICHMENT
+========================= */
+
+async function enrichFinancialSummary(trip){
+
+  const result =
+    await resolveTripFinancials(trip);
+
+  trip.summaryPricingSource =
+    result.pricingSource;
+
+  trip.summarySource =
+    result.source;
+
+  trip.summaryServiceCode =
+    result.serviceCode;
+
+  trip.summaryOverrideActive =
+    result.overrideActive === true;
+
+  trip.summaryResolvedPricing =
+    result.pricing;
+
+  if(isSharedTrip(trip)){
+
+    const passengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+        : [];
+
+    trip.passengers =
+      passengers.map(p=>{
+
+        if(!passengerIsClosed(p,trip)){
+          return p;
+        }
+
+        const charge =
+          resolveFinalChargeAmount({
+            trip,
+            passenger:p,
+            pricingResult:result
+          });
+
+        return {
+          ...p,
+          summaryFee:charge.fee,
+          summaryFinalAmount:charge.amount,
+          summaryChargeType:charge.type,
+          summaryPricingSource:result.pricingSource
+        };
+      });
+
+    trip.summaryFinalAmount =
+      trip.passengers.reduce(
+        (sum,p)=>
+          sum +
+          Number(
+            p.summaryFinalAmount ??
+            0
+          ),
+        0
+      );
+
+    trip.summaryFee =
+      trip.passengers.reduce(
+        (sum,p)=>
+          sum +
+          Number(
+            p.summaryFee ??
+            0
+          ),
+        0
+      );
+
+    return trip;
+  }
+
+  trip.summaryFee =
+    result.finalCharge.fee;
+
+  trip.summaryFinalAmount =
+    result.finalCharge.amount;
+
+  trip.summaryChargeType =
+    result.finalCharge.type;
+
+  return trip;
 }
 
 /* =========================
@@ -249,10 +342,18 @@ router.get("/", async (req,res)=>{
         .map(normalizeTrip)
         .filter(tripIsClosed);
 
+    const enriched = [];
+
+    for(const trip of closedTrips){
+      enriched.push(
+        await enrichFinancialSummary(trip)
+      );
+    }
+
     return res.json({
       success:true,
-      count:closedTrips.length,
-      trips:closedTrips
+      count:enriched.length,
+      trips:enriched
     });
 
   }catch(err){
@@ -267,9 +368,7 @@ router.get("/", async (req,res)=>{
       message:"Failed to load admin summary",
       error:err.message
     });
-
   }
-
 });
 
 module.exports = router;
