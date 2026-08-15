@@ -90,7 +90,13 @@ if(!container) console.error("Missing #hubContainer");
       `;
     }
 
-    page.insertBefore(wrap,page.firstChild);
+    const pageHead = page.querySelector(".page-head");
+
+    if(pageHead){
+      pageHead.insertAdjacentElement("afterend",wrap);
+    }else{
+      page.insertBefore(wrap,page.firstChild);
+    }
   }
 
   let sticky = document.getElementById("hubStickyTop");
@@ -214,7 +220,7 @@ if(!container) console.error("Missing #hubContainer");
     .stat-card.new{
       border:1px solid rgba(255,255,255,.28)!important;
       border-left:0!important;
-      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+      background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%)!important;
       color:#fff!important;
     }
 
@@ -327,9 +333,9 @@ if(!container) console.error("Missing #hubContainer");
     .service-tab.service-tx,
     .service-tab.service-lm,
     .service-tab.service-other{
-      background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
-      border:1px solid rgba(255,255,255,.28)!important;
-      color:#fff!important;
+      background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
+      border:1px solid #d1a92e!important;
+      color:#111827!important;
     }
 
     .service-title{
@@ -347,8 +353,15 @@ if(!container) console.error("Missing #hubContainer");
     .service-tab .service-title,
     .service-tab .service-total,
     .service-tab .mini-head,
-    .service-tab .mini-values{color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.22);}
-    .service-tab.active{border:3px solid #0f172a!important;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;}
+    .service-tab .mini-values{
+      color:#111827!important;
+      text-shadow:none!important;
+    }
+    .service-tab.active{
+      border:3px solid #0f172a!important;
+      color:#111827!important;
+      box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 24px rgba(15,23,42,.18)!important;
+    }
 
     .hub-date-filters{
       display:flex;
