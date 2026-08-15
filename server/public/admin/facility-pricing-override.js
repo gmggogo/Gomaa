@@ -84,33 +84,127 @@ function upper(v){
 
 function normalizeCode(v){
 
-  const c = upper(v);
-  const compact =
-    c.replace(/[\s_-]+/g,"");
+  const c =
+    upper(v)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  if(compact === "STANDARD" || compact === "ST") return "ST";
-  if(compact === "WHEELCHAIR" || compact === "WH" || compact === "WC") return "WH";
-  if(compact === "SHARED" || compact === "SH") return "SH";
+  const compact =
+    c.replace(/\s+/g,"");
+
+  if(!compact){
+    return "";
+  }
+
+  if(
+    compact === "ST" ||
+    compact === "STANDARD" ||
+    compact.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  if(
+    compact === "WH" ||
+    compact === "WC" ||
+    compact === "WHEELCHAIR" ||
+    compact.includes("WHEELCHAIR")
+  ){
+    return "WH";
+  }
+
+  if(
+    compact === "SH" ||
+    compact === "SHARED" ||
+    compact.includes("SHARED")
+  ){
+    return "SH";
+  }
 
   /*
-    LIMousine normalization:
-    Keep every name/code used across the system on one canonical key.
-    This prevents the Facility Override card from failing to match
-    Service Management / allowedServices / saved override records.
+    LIMOUisine canonical code.
+    Accept every common value that may arrive from:
+    Service Management / Facility / Trip / old saved records.
   */
   if(
     compact === "LM" ||
     compact === "LIMO" ||
     compact === "LIMOUSINE" ||
-    compact === "LIMOUSINESERVICE"
+    compact === "LIMOUSINESERVICE" ||
+    compact === "LIMOSERVICE" ||
+    compact === "LIMOUSINETRANSPORTATION" ||
+    compact.includes("LIMOUSINE") ||
+    compact.startsWith("LIMO")
   ){
     return "LM";
   }
 
-  if(compact === "TAXI" || compact === "TX") return "TX";
-  if(compact === "XL") return "XL";
+  if(
+    compact === "TX" ||
+    compact === "TAXI" ||
+    compact.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  if(
+    compact === "XL" ||
+    compact === "XLSERVICE" ||
+    compact.startsWith("XL")
+  ){
+    return "XL";
+  }
 
   return c;
+}
+
+/*
+  Never trust only the first non-empty field.
+  Old records may have a bad serviceKey but a correct title/suffix.
+*/
+function getServiceCode(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.serviceSuffix,
+    service?.companySuffix,
+    service?.reservedSuffix,
+    service?.suffix,
+    service?.key,
+    service?.code,
+    service?.serviceName,
+    service?.title,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    if(!clean(value)){
+      continue;
+    }
+
+    const code =
+      normalizeCode(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(code)
+    ){
+      return code;
+    }
+  }
+
+  for(const value of candidates){
+
+    if(clean(value)){
+      return normalizeCode(value);
+    }
+  }
+
+  return "";
 }
 
 function normalizeSuffix(v,serviceKey){
@@ -196,15 +290,7 @@ function isSharedService(service){
 function serviceDefaultCopy(s){
 
   const serviceKey =
-    normalizeCode(
-      s.serviceKey ||
-      s.key ||
-      s.code ||
-      s.companySuffix ||
-      s.suffix ||
-      s.title ||
-      s.name
-    );
+    getServiceCode(s);
 
   return {
     serviceKey,
@@ -365,16 +451,7 @@ function getVisibleServicesForFacility(facility){
 
   return services.filter(s =>
     allowed.includes(
-      normalizeCode(
-        s.serviceKey ||
-        s.key ||
-        s.code ||
-        s.companySuffix ||
-        s.suffix ||
-        s.serviceName ||
-        s.title ||
-        s.name
-      )
+      getServiceCode(s)
     )
   );
 }
@@ -404,7 +481,7 @@ function buildDraftForFacility(facility){
       const saved =
         Array.isArray(override?.services)
           ? override.services.find(x =>
-              normalizeCode(x.serviceKey) === code
+              getServiceCode(x) === code
             )
           : null;
 
