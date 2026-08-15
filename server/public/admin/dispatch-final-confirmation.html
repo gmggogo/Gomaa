@@ -58,7 +58,7 @@ body{
 
 .page-sub{
   margin-top:5px;
-  color:var(--muted);
+  color:#9ca3af;
   font-size:13px;
   font-weight:800;
   text-align:center;
@@ -189,14 +189,15 @@ body{
   background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
 }
 
-/* SECOND ROW — calm unified silver */
+/* SECOND ROW — light gold with clear black text */
 .stat-card.completed,
 .stat-card.cancelled,
 .stat-card.noshow,
 .stat-card.notcompleted,
 .stat-card.notconfirmed{
-  background:linear-gradient(135deg,#7b8793 0%,#aeb8c1 52%,#6f7c88 100%);
-  border-color:rgba(255,255,255,.32);
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%);
+  border-color:#d1a92e;
+  color:#111827!important;
 }
 
 /* White text on all colored cards */
@@ -236,6 +237,16 @@ body{
 
 .stat-card.alert{
   animation:pulseWarn 1.4s infinite;
+}
+
+
+/* SECOND ROW TEXT — BLACK */
+.stat-card .card-number,
+.stat-card .card-label,
+.stat-card .card-sub{
+  color:#111827!important;
+  text-shadow:none!important;
+  font-weight:900!important;
 }
 
 @keyframes pulseWarn{
