@@ -8,8 +8,10 @@ GET QUOTE EMAIL ONLY
 - CONFIRMED
 - REMINDER
 - ROUTE_UPDATED
+- COMPLETED
 - CANCELLED
 - NOSHOW
+- Final charged amount
 - Cancel Trip button
 - Add Stop button controlled only by:
   getQuoteAddStopEnabled
@@ -989,6 +991,27 @@ async function sendTripStatusEmail(
 
     }
 
+    if(
+      type === "COMPLETED" &&
+      trip.completedEmailSent === true
+    ){
+      return null;
+    }
+
+    if(
+      type === "NOSHOW" &&
+      trip.noShowEmailSent === true
+    ){
+      return null;
+    }
+
+    if(
+      type === "CANCELLED" &&
+      trip.cancelledEmailSent === true
+    ){
+      return null;
+    }
+
     const settings =
       await SystemDesign.findOne({});
 
@@ -1193,7 +1216,53 @@ async function sendTripStatusEmail(
 
       showActions = true;
 
+    }else if(type === "COMPLETED"){
+
+      const chargedAmount =
+        Number(
+          trip.capturedAmount ||
+          trip.finalPrice ||
+          trip.priceAmount ||
+          0
+        );
+
+      subject =
+        "Trip Completed";
+
+      statusBlock = `
+
+        <p style="
+          margin:0 0 12px;
+          color:#166534;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          Your trip has been completed successfully.
+        </p>
+
+        <p style="
+          margin:0;
+          color:#111827;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          <b>Amount Charged:</b>
+          $${chargedAmount.toFixed(2)}
+        </p>
+
+      `;
+
+      showActions = false;
+
     }else if(type === "CANCELLED"){
+
+      const chargedAmount =
+        Number(
+          trip.capturedAmount ||
+          trip.cancelFee ||
+          trip.finalPrice ||
+          0
+        );
 
       subject =
         "Trip Cancelled";
@@ -1201,7 +1270,7 @@ async function sendTripStatusEmail(
       statusBlock = `
 
         <p style="
-          margin:0;
+          margin:0 0 12px;
           color:#991b1b;
           font-size:15px;
           line-height:1.5;
@@ -1209,9 +1278,29 @@ async function sendTripStatusEmail(
           Your trip has been cancelled.
         </p>
 
+        <p style="
+          margin:0;
+          color:#111827;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          <b>Cancellation Fee Charged:</b>
+          $${chargedAmount.toFixed(2)}
+        </p>
+
       `;
 
+      showActions = false;
+
     }else if(type === "NOSHOW"){
+
+      const chargedAmount =
+        Number(
+          trip.capturedAmount ||
+          trip.noShowFee ||
+          trip.finalPrice ||
+          0
+        );
 
       subject =
         "Trip No Show";
@@ -1219,7 +1308,7 @@ async function sendTripStatusEmail(
       statusBlock = `
 
         <p style="
-          margin:0;
+          margin:0 0 12px;
           color:#991b1b;
           font-size:15px;
           line-height:1.5;
@@ -1227,7 +1316,19 @@ async function sendTripStatusEmail(
           This trip was marked as No Show.
         </p>
 
+        <p style="
+          margin:0;
+          color:#111827;
+          font-size:15px;
+          line-height:1.5;
+        ">
+          <b>No Show Fee Charged:</b>
+          $${chargedAmount.toFixed(2)}
+        </p>
+
       `;
+
+      showActions = false;
 
     }else{
 
@@ -1457,6 +1558,68 @@ async function sendTripStatusEmail(
         `
 
       });
+
+    /*
+      Final customer emails are marked in Mongo after successful SMTP send.
+      Raw collection update is used so the protection works even before
+      these marker fields are added to the Mongoose schema.
+    */
+    const sentMarkerMap = {
+      COMPLETED:{
+        flag:"completedEmailSent",
+        at:"completedEmailSentAt"
+      },
+      NOSHOW:{
+        flag:"noShowEmailSent",
+        at:"noShowEmailSentAt"
+      },
+      CANCELLED:{
+        flag:"cancelledEmailSent",
+        at:"cancelledEmailSentAt"
+      }
+    };
+
+    const sentMarker =
+      sentMarkerMap[type];
+
+    if(
+      sentMarker &&
+      trip?._id
+    ){
+
+      try{
+
+        const model =
+          trip.constructor;
+
+        if(
+          model?.collection
+        ){
+
+          await model.collection.updateOne(
+            {
+              _id:trip._id
+            },
+            {
+              $set:{
+                [sentMarker.flag]:true,
+                [sentMarker.at]:new Date()
+              }
+            }
+          );
+
+          trip[sentMarker.flag] = true;
+          trip[sentMarker.at] = new Date();
+        }
+
+      }catch(markerErr){
+
+        console.log(
+          "FINAL EMAIL MARKER WARNING:",
+          markerErr?.message || markerErr
+        );
+      }
+    }
 
     console.log(
       `✅ ${type} email sent:`,

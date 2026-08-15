@@ -6,6 +6,10 @@ const {
   settleIndividualTripPayment
 } = require("../utils/trip-finalizer");
 
+const {
+  sendTripStatusEmail
+} = require("../utils/tripEmailEngine");
+
 const Trip = global.Trip || mongoose.models.Trip;
 
 /* =========================
@@ -577,6 +581,28 @@ router.patch("/:id/confirm", async (req,res)=>{
 
     await trip.save();
 
+    /*
+      Customer final-status email is sent only AFTER:
+      1) financial settlement succeeds
+      2) dispatcher confirmation is saved
+    */
+    let emailType = "";
+
+    if(trip.status === "Completed"){
+      emailType = "COMPLETED";
+    }else if(trip.status === "No Show"){
+      emailType = "NOSHOW";
+    }else if(trip.status === "Cancelled"){
+      emailType = "CANCELLED";
+    }
+
+    if(emailType){
+      await sendTripStatusEmail(
+        trip,
+        emailType
+      );
+    }
+
     return res.json({
       success:true,
       message:"Trip confirmed and payment finalized",
@@ -836,8 +862,6 @@ router.patch("/:id/shared-confirm", async (req,res)=>{
 
 /* =========================
    RETURN SINGLE TRIP TO DRIVER
-   BEFORE CONFIRM ONLY
-   NO PAYMENT CHANGE
 ========================= */
 
 router.patch("/:id/return-to-driver", async (req,res)=>{
@@ -853,7 +877,8 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       });
     }
 
-    const trip = await Trip.findById(id);
+    const trip =
+      await Trip.findById(id);
 
     if(!trip){
       return res.status(404).json({
@@ -865,32 +890,24 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     if(isSharedTrip(trip)){
       return res.status(400).json({
         success:false,
-        message:"Return To Driver currently supports single trips only"
-      });
-    }
-
-    /*
-      Once dispatcher confirms the trip, it is locked.
-      Return To Driver is allowed only BEFORE Confirm.
-    */
-    if(getTripFinalConfirmed(trip)){
-      return res.status(409).json({
-        success:false,
-        message:"Confirmed trip cannot be returned to driver"
+        message:
+          "Return To Driver currently supports single trips only"
       });
     }
 
     if(!isFinalStatus(trip.status)){
       return res.status(400).json({
         success:false,
-        message:"Only a closed trip can be returned to the driver"
+        message:
+          "Only a closed trip can be returned to the driver"
       });
     }
 
     /*
-      Extra payment safety.
-      Return To Driver must never reopen a trip whose payment
-      was already captured/finalized.
+      Safety:
+      under the new flow, money is not captured until Confirm.
+      A trip that is already financially settled should not be reopened
+      automatically because that would require a separate refund/void policy.
     */
     if(
       String(trip.paymentStatus || "").toUpperCase() === "PAID" ||
@@ -898,7 +915,8 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     ){
       return res.status(409).json({
         success:false,
-        message:"This trip already has a captured payment and cannot be returned automatically."
+        message:
+          "This trip already has a captured payment and cannot be returned automatically."
       });
     }
 
@@ -907,78 +925,74 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       String(trip.status || "");
 
     const returnedBy =
-      String(req.body?.returnedBy || "").trim();
+      String(
+        req.body?.returnedBy || ""
+      ).trim();
 
     const reason =
-      String(req.body?.reason || "").trim();
+      String(
+        req.body?.reason || ""
+      ).trim();
 
-    const now = nowDate();
+    const now =
+      nowDate();
 
-    /*
-      Use the Mongoose document we already loaded instead of
-      Trip.collection.updateOne(). This keeps the update on the
-      same Trip document/model and avoids bypassing Mongoose.
-    */
-    trip.status = "InProgress";
-    trip.isFinalized = false;
+    await Trip.collection.updateOne(
+      {
+        _id:new mongoose.Types.ObjectId(
+          String(id)
+        )
+      },
+      {
+        $set:{
+          status:"InProgress",
 
-    trip.returnToDriver = true;
-    trip.returnedToDriverAt = now;
-    trip.returnedToDriverBy =
-      returnedBy || "dispatcher";
-    trip.returnToDriverReason =
-      reason ||
-      "Returned to driver from Final Confirmation";
-    trip.previousFinalStatus = previousStatus;
+          isFinalized:false,
 
-    /*
-      Clear Final Confirmation state so the trip immediately
-      leaves this page and can become active for the driver again.
-    */
-    trip.finalStatusConfirmed = false;
-    trip.finalStatusConfirmedAt = null;
-    trip.dispatchFinalConfirmedAt = null;
-    trip.finalStatusConfirmedBy = null;
+          returnToDriver:true,
+          returnedToDriverAt:now,
+          returnedToDriverBy:
+            returnedBy || "dispatcher",
 
-    trip.sharedFinalConfirmed = false;
-    trip.sharedFinalConfirmedAt = null;
+          returnToDriverReason:
+            reason ||
+            "Returned to driver from Final Confirmation",
 
-    trip.finalPageEnteredAt = null;
-    trip.dispatchFinalPageEnteredAt = null;
-    trip.enteredFinalConfirmationAt = null;
+          previousFinalStatus,
+          updatedAt:now
+        },
 
-    /*
-      Clear old closed-status timestamps when those fields exist
-      in the Trip schema/document.
-    */
-    const clearFields = [
-      "finalizedAt",
-      "completedAt",
-      "completeAt",
-      "cancelledAt",
-      "canceledAt",
-      "noShowAt",
-      "noshowAt",
-      "notCompletedAt",
-      "driverReportedFinalStatus",
-      "finalStatusFromDriver",
-      "driverFinalStatusReported",
-      "reportedByDriver"
-    ];
+        $unset:{
+          finalizedAt:"",
 
-    clearFields.forEach(field=>{
-      if(field in trip){
-        trip.set(field, undefined);
+          finalStatusConfirmed:"",
+          finalStatusConfirmedAt:"",
+          dispatchFinalConfirmedAt:"",
+          finalStatusConfirmedBy:"",
+
+          sharedFinalConfirmed:"",
+          sharedFinalConfirmedAt:"",
+
+          finalPageEnteredAt:"",
+          dispatchFinalPageEnteredAt:"",
+          enteredFinalConfirmationAt:"",
+
+          completedAt:"",
+          completeAt:"",
+          cancelledAt:"",
+          canceledAt:"",
+          noShowAt:"",
+          noshowAt:"",
+          notCompletedAt:"",
+
+          driverReportedFinalStatus:"",
+          finalStatusFromDriver:"",
+          driverFinalStatusReported:"",
+          reportedByDriver:""
+        }
       }
-    });
+    );
 
-    await trip.save();
-
-    /*
-      Restore the existing dispatch assignment.
-      Do not invent/reassign another driver here.
-      The same assigned driver should receive the reopened trip.
-    */
     const DispatchAssignment =
       mongoose.models.DispatchAssignment ||
       global.DispatchAssignment ||
@@ -1014,10 +1028,6 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
 
       }catch(assignmentErr){
 
-        /*
-          The Trip itself is already safely reopened.
-          Log assignment details instead of hiding the real error.
-        */
         console.log(
           "RETURN TO DRIVER ASSIGNMENT UPDATE WARNING:",
           assignmentErr
@@ -1032,10 +1042,13 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
       success:true,
       message:"Trip returned to driver",
       previousStatus,
-      status:reopenedTrip?.status || "InProgress",
-      trip:reopenedTrip
-        ? sanitizeTripForFinalPage(reopenedTrip)
-        : null
+      status:
+        reopenedTrip?.status ||
+        "InProgress",
+      trip:
+        reopenedTrip
+          ? reopenedTrip.toObject()
+          : null
     });
 
   }catch(err){
@@ -1048,7 +1061,6 @@ router.patch("/:id/return-to-driver", async (req,res)=>{
     return res.status(500).json({
       success:false,
       message:
-        err?.message ||
         "Failed to return trip to driver"
     });
   }

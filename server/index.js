@@ -903,6 +903,36 @@ confirmationEmailSent: {
   default: false
 },
 
+completedEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+completedEmailSentAt: {
+  type: Date,
+  default: null
+},
+
+noShowEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+noShowEmailSentAt: {
+  type: Date,
+  default: null
+},
+
+cancelledEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+cancelledEmailSentAt: {
+  type: Date,
+  default: null
+},
+
   // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
 
@@ -1409,6 +1439,63 @@ function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/* =========================
+   CUSTOMER CANCEL LOCK
+   Prevent old email links from changing a trip
+   after final completion / final confirmation / capture.
+========================= */
+
+function customerCancelIsLocked(trip){
+
+  if(!trip){
+    return true;
+  }
+
+  const status =
+    String(trip.status || "")
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
+      .trim()
+      .toLowerCase();
+
+  const paymentStatus =
+    String(trip.paymentStatus || "")
+      .trim()
+      .toUpperCase();
+
+  const completed =
+    status === "completed" ||
+    status === "complete";
+
+  const noShow =
+    status === "no show" ||
+    status === "noshow";
+
+  const notCompleted =
+    status === "not completed" ||
+    status === "notcompleted";
+
+  const finalConfirmed =
+    trip.finalStatusConfirmed === true ||
+    !!trip.finalStatusConfirmedAt ||
+    !!trip.dispatchFinalConfirmedAt ||
+    trip.sharedFinalConfirmed === true ||
+    !!trip.sharedFinalConfirmedAt;
+
+  const paymentCaptured =
+    paymentStatus === "PAID" ||
+    Number(trip.capturedAmount || 0) > 0 ||
+    !!trip.paymentCapturedAt;
+
+  return (
+    completed ||
+    noShow ||
+    notCompleted ||
+    finalConfirmed ||
+    paymentCaptured
+  );
 }
 
 function parseStops(stops) {
@@ -6695,25 +6782,11 @@ if(!trip.historyAt){
 
     }
 
-    /* =========================
-       EMAIL
-    ========================= */
-
-    try {
-
-      await sendTripStatusEmail(
-        trip,
-        "NOSHOW"
-      );
-
-    } catch(emailErr){
-
-      console.log(
-        "NO SHOW EMAIL ERROR:",
-        emailErr
-      );
-
-    }
+    /*
+      No customer No Show email is sent here.
+      The final customer email is sent only after
+      Dispatch Final Confirmation approves the status/payment.
+    */
 
     res.json(trip);
 
@@ -6848,6 +6921,31 @@ app.post("/api/cancel-trip", async (req, res) => {
 
         refundStatus:
         trip.refundStatus || "none"
+
+      });
+
+    }
+
+    /* =========================
+       CLOSED / PAID PROTECTION
+    ========================== */
+
+    if(customerCancelIsLocked(trip)){
+
+      return res.status(409).json({
+
+        success:false,
+
+        locked:true,
+
+        status:
+          trip.status || "",
+
+        paymentStatus:
+          trip.paymentStatus || "",
+
+        message:
+          "This trip is already closed and can no longer be cancelled."
 
       });
 
@@ -7233,6 +7331,61 @@ app.post(
       }
 
       /* =========================
+         ALREADY CANCELLED
+      ========================= */
+
+      if(
+        String(trip.status || "")
+          .trim()
+          .toLowerCase() ===
+        "cancelled"
+      ){
+
+        return res.json({
+
+          success:false,
+
+          alreadyCancelled:true,
+
+          locked:true,
+
+          status:"Cancelled",
+
+          message:
+            "This trip has already been cancelled."
+
+        });
+
+      }
+
+      /* =========================
+         CLOSED / PAID PROTECTION
+      ========================= */
+
+      if(customerCancelIsLocked(trip)){
+
+        return res.json({
+
+          success:false,
+
+          expired:true,
+
+          locked:true,
+
+          status:
+            trip.status || "",
+
+          paymentStatus:
+            trip.paymentStatus || "",
+
+          message:
+            "This trip is already closed and can no longer be cancelled."
+
+        });
+
+      }
+
+      /* =========================
          SYSTEM DESIGN
       ========================= */
 
@@ -7512,6 +7665,41 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
       return res.status(404).json({
         message:"Trip not found"
       });
+    }
+
+    if(
+      String(trip.status || "")
+        .trim()
+        .toLowerCase() ===
+      "cancelled"
+    ){
+
+      return res.json({
+        success:true,
+        alreadyCancelled:true
+      });
+
+    }
+
+    if(customerCancelIsLocked(trip)){
+
+      return res.status(409).json({
+
+        success:false,
+
+        locked:true,
+
+        status:
+          trip.status || "",
+
+        paymentStatus:
+          trip.paymentStatus || "",
+
+        message:
+          "This trip is already closed and can no longer be cancelled."
+
+      });
+
     }
 
     const service =
