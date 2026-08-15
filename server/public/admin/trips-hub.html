@@ -47,6 +47,39 @@ body{
   width:100%;
 }
 
+/* PAGE TITLE */
+
+.page-head{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:14px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#9ca3af;
+  text-shadow:0 1px 0 #fff;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
 /* TOOLBAR */
 
 .toolbar{
@@ -106,46 +139,131 @@ body{
 .service-strip{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:10px;
-  margin-bottom:12px;
+  gap:12px;
+  margin-bottom:13px;
 }
 
 .stat-card,
 .service-card,
 .hub-card{
-  background:#fff;
-  border:1px solid var(--border);
-  border-left:6px solid var(--blue);
-  border-radius:16px;
-  padding:10px 8px;
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
   min-height:105px;
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:15px;
+  padding:12px 10px;
   text-align:center;
-  box-shadow:0 6px 16px rgba(15,23,42,.07);
+  box-shadow:
+    0 9px 20px rgba(15,23,42,.17),
+    inset 0 1px 0 rgba(255,255,255,.24);
+  transition:.18s ease;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
 }
 
-.stat-card:nth-child(2),
-.hub-card:nth-child(2){
-  border-left-color:var(--green);
+.stat-card::before,
+.service-card::before,
+.hub-card::before{
+  content:"";
+  position:absolute;
+  width:118px;
+  height:118px;
+  border-radius:50%;
+  right:-35px;
+  top:-42px;
+  background:rgba(255,255,255,.12);
+  z-index:-1;
 }
 
-.stat-card:nth-child(3),
-.hub-card:nth-child(3){
-  border-left-color:var(--blueDark);
+.stat-card::after,
+.service-card::after,
+.hub-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(
+      125deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.04) 38%,
+      rgba(255,255,255,0) 62%
+    );
+  pointer-events:none;
+  z-index:-1;
 }
 
-.stat-card:nth-child(4),
-.hub-card:nth-child(4){
-  border-left-color:#22c55e;
+.stat-card:hover,
+.service-card:hover,
+.hub-card:hover{
+  transform:translateY(-2px) scale(1.006);
+  box-shadow:
+    0 13px 26px rgba(15,23,42,.21),
+    inset 0 1px 0 rgba(255,255,255,.28);
 }
 
-.stat-card:nth-child(5),
-.hub-card:nth-child(5){
-  border-left-color:var(--orange);
+/*
+  DYNAMIC CARDS:
+  The JS can render any number of cards.
+  We DO NOT change its logic.
+  Colors repeat automatically every 4 cards:
+  1 = Individual blue
+  2 = Facility/Company purple
+  3 = Get Quote green
+  4 = Reserved orange
+*/
+
+.stats-grid > :nth-child(4n+1),
+.service-grid > :nth-child(4n+1),
+.cards-grid > :nth-child(4n+1),
+.hub-stats > :nth-child(4n+1),
+.service-cards > :nth-child(4n+1),
+.service-strip > :nth-child(4n+1){
+  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
 }
 
-.stat-card:nth-child(6),
-.hub-card:nth-child(6){
-  border-left-color:var(--purple);
+.stats-grid > :nth-child(4n+2),
+.service-grid > :nth-child(4n+2),
+.cards-grid > :nth-child(4n+2),
+.hub-stats > :nth-child(4n+2),
+.service-cards > :nth-child(4n+2),
+.service-strip > :nth-child(4n+2){
+  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);
+}
+
+.stats-grid > :nth-child(4n+3),
+.service-grid > :nth-child(4n+3),
+.cards-grid > :nth-child(4n+3),
+.hub-stats > :nth-child(4n+3),
+.service-cards > :nth-child(4n+3),
+.service-strip > :nth-child(4n+3){
+  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);
+}
+
+.stats-grid > :nth-child(4n+4),
+.service-grid > :nth-child(4n+4),
+.cards-grid > :nth-child(4n+4),
+.hub-stats > :nth-child(4n+4),
+.service-cards > :nth-child(4n+4),
+.service-strip > :nth-child(4n+4){
+  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
+}
+
+.stat-label,
+.card-label,
+.service-name,
+.stat-value,
+.card-value,
+.service-total,
+.stat-mini,
+.card-mini,
+.service-mini{
+  width:100%;
+  color:#fff!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 
 .stat-label,
@@ -153,7 +271,6 @@ body{
 .service-name{
   font-size:12px;
   font-weight:900;
-  color:#64748b;
   text-transform:uppercase;
   letter-spacing:.3px;
 }
@@ -164,7 +281,6 @@ body{
   font-size:30px;
   line-height:1;
   font-weight:900;
-  color:#0f172a;
   margin:8px 0;
 }
 
@@ -176,27 +292,19 @@ body{
   gap:5px;
   font-size:11px;
   font-weight:900;
-  color:#64748b;
 }
 
 .service-card{
   cursor:pointer;
-  border-left-color:#cbd5e1;
 }
 
 .service-card.active,
 .service-card.selected,
 .hub-card.active{
-  background:var(--blue);
-  border-color:var(--blue);
-  border-left-color:var(--blue);
-  color:#fff;
-}
-
-.service-card.active *,
-.service-card.selected *,
-.hub-card.active *{
-  color:#fff!important;
+  border:3px solid #0f172a!important;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.9),
+    0 10px 24px rgba(15,23,42,.18)!important;
 }
 
 /* FILTERS / ACTIONS */
@@ -616,6 +724,20 @@ body{
     padding:10px 8px 20px;
   }
 
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+
   .toolbar{
     display:flex;
     flex-direction:column;
@@ -655,9 +777,8 @@ body{
   .hub-card{
     min-height:82px!important;
     border-radius:13px!important;
-    border-left-width:5px;
     padding:7px 5px!important;
-    box-shadow:0 4px 10px rgba(15,23,42,.06);
+    box-shadow:0 4px 10px rgba(15,23,42,.10);
   }
 
   .stat-label,
@@ -886,6 +1007,13 @@ body{
 <div id="adminHeader"></div>
 
 <div class="page-content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Trips Hub</h1>
+      <div class="page-sub">Trip management and service overview</div>
+    </div>
+  </div>
 
   <div class="toolbar">
     <button id="addManualTripBtn" class="add-btn" type="button">
