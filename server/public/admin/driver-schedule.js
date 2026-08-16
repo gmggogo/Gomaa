@@ -3,8 +3,8 @@
 const token = localStorage.getItem("token");
 const role  = localStorage.getItem("role") || "";
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 /* ================= API ================= */
@@ -146,7 +146,12 @@ async function loadSystem(){
 
 async function loadDrivers(){
 
-  const res = await fetch(API_DRIVERS);
+  const res = await fetch(API_DRIVERS,{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
+
   const data = await res.json();
 
   drivers =
@@ -158,7 +163,12 @@ async function loadDrivers(){
 
 async function loadServices(){
 
-  const res = await fetch(API_SERVICES);
+  const res = await fetch(API_SERVICES,{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
+
   const data = await res.json();
 
   const list =
@@ -187,7 +197,12 @@ async function loadServices(){
 
 async function loadSchedule(){
 
-  const res = await fetch(API_SCHEDULE);
+  const res = await fetch(API_SCHEDULE,{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
+
   const data = res.ok ? await res.json() : {};
 
   schedule = {};
@@ -232,7 +247,8 @@ async function save(){
   const res = await fetch(API_SCHEDULE,{
     method:"POST",
     headers:{
-      "Content-Type":"application/json"
+      "Content-Type":"application/json",
+      Authorization:"Bearer " + token
     },
     body:JSON.stringify(clean)
   });

@@ -14,12 +14,12 @@ const role  = localStorage.getItem("role") || "";
 if(
   !token ||
   ![
-    "superadmin",
+    "SUPER_ADMIN",
     "admin",
     "dispatcher"
   ].includes(role)
 ){
-  window.location.href = "/admin/login.html";
+  window.location.href = "/login.html";
   return;
 }
 
@@ -459,7 +459,11 @@ async function loadSettings(){
 
   try{
 
-    const res = await fetch(API_URL);
+    const res = await fetch(API_URL,{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
 
     if(!res.ok){
       throw new Error("Load failed");
@@ -498,7 +502,8 @@ async function saveSettings(){
     const res = await fetch(API_URL,{
       method:"POST",
       headers:{
-        "Content-Type":"application/json"
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
       },
       body:JSON.stringify(data)
     });

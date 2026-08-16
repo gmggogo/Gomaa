@@ -15,8 +15,8 @@ const token = localStorage.getItem("token") || "";
 const role = localStorage.getItem("role") || "";
 const adminName = localStorage.getItem("name") || "";
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
   return;
 }
 
@@ -1150,7 +1150,10 @@ async function fetchDriverLocationFromServer(id){
 
     const res =
       await fetch("/api/admin/live-drivers",{
-        cache:"no-store"
+        cache:"no-store",
+        headers:{
+          Authorization:"Bearer " + token
+        }
       });
 
     if(!res.ok){

@@ -5,10 +5,16 @@
 const token =
   localStorage.getItem("token");
 
-if(!token){
+const role =
+  localStorage.getItem("role") || "";
+
+if(
+  !token ||
+  !["SUPER_ADMIN","admin"].includes(role)
+){
 
   window.location.href =
-    "/admin/login.html";
+    "/login.html";
 
 }
 

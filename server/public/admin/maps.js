@@ -1,3 +1,14 @@
+/* ================= SECURITY ================= */
+
+const token = localStorage.getItem("token");
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+/* =============================== */
+
 // ===============================
 // ADMIN LIVE MAP - CARS + NAMES + SIDEBAR
 // ===============================
@@ -476,7 +487,10 @@ async function loadLiveDrivers(){
   try{
 
     const res = await fetch(LIVE_DRIVERS_API, {
-      cache: "no-store"
+      cache: "no-store",
+      headers:{
+        Authorization:"Bearer " + token
+      }
     });
 
     if(!res.ok){

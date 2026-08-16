@@ -8,6 +8,18 @@
 console.log("SERVICE JS LOADED");
 
 /* =========================
+   SECURITY
+========================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+
+/* =========================
    DOM
 ========================= */
 
@@ -734,7 +746,8 @@ async function saveDriverTimerService(id){
         {
           method:"PUT",
           headers:{
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
           },
           body:JSON.stringify(payload)
         }
@@ -1337,7 +1350,11 @@ async function loadServices(){
   try{
 
     const res =
-      await fetch("/api/services/admin");
+      await fetch("/api/services/admin",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      });
 
     services =
       await res.json();
@@ -1756,7 +1773,8 @@ async function saveSectionService(section,id){
         {
           method:"PUT",
           headers:{
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
           },
           body:JSON.stringify(payload)
         }
@@ -1823,7 +1841,8 @@ async function toggleSectionService(section,id){
         {
           method:"PUT",
           headers:{
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
           },
           body:JSON.stringify(payload)
         }

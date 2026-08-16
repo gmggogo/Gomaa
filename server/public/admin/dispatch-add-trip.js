@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", async function(){
 /* ================= CONFIG ================= */
 
 const API_URL = "/api/trips";
+const TENANT_TRIPS_URL = "/api/tenant-trips";
 const SERVICES_URL = "/api/services/admin";
 const ADD_STOP_ACTIVE_FROM =
   new Date("2026-06-20T05:58:00");
@@ -27,8 +28,8 @@ const ADD_STOP_ACTIVE_FROM =
 const token = localStorage.getItem("token") || "";
 const role  = localStorage.getItem("role") || "";
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
   return;
 }
 
@@ -2210,7 +2211,7 @@ async function confirmTripOnServer(id){
 async function fetchReviewTrips(){
 
   const res =
-    await fetch(API_URL,{
+    await fetch(TENANT_TRIPS_URL,{
       headers:{
         Authorization:"Bearer " + token
       }

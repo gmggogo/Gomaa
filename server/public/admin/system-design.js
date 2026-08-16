@@ -6,6 +6,17 @@
 
 console.log("SYSTEM DESIGN LOADED");
 
+/* =========================
+SECURITY
+========================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["SUPER_ADMIN","admin"].includes(role)){
+  window.location.href = "/login.html";
+}
+
 let systemDesign = {};
 
 /* =========================
@@ -261,7 +272,11 @@ async function loadSystemDesign(){
   try{
 
     const res =
-    await fetch("/api/system-design");
+    await fetch("/api/system-design",{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
 
     const data =
     await res.json();
@@ -307,7 +322,8 @@ async function saveSystemDesign(){
 
         headers:{
           "Content-Type":
-          "application/json"
+          "application/json",
+          Authorization:"Bearer " + token
         },
 
         body:
@@ -865,6 +881,9 @@ formData.append(
       "/api/system-design/upload",
       {
         method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
         body:formData
       }
     );
@@ -1533,6 +1552,9 @@ formData.append(
       "/api/system-design/upload",
       {
         method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
         body:formData
       }
     );

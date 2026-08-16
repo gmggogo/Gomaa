@@ -1,5 +1,16 @@
 (function () {
 
+  /* =========================
+     SECURITY
+  ========================= */
+
+  const token = localStorage.getItem("token") || "";
+  const role  = localStorage.getItem("role") || "";
+
+  if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+    return;
+  }
+
   if(window.SUNBEAM_ADMIN_FLOATING_CHAT){
     return;
   }

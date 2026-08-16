@@ -16,8 +16,8 @@ const adminName =
   role ||
   "admin";
 
-if(!["superadmin","admin"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 /* ===============================

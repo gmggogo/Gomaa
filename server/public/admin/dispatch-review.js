@@ -16,8 +16,8 @@ const USERS_URL = "/api/users";
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
 
-if(!["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 /* ===============================

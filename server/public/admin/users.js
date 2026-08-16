@@ -1,6 +1,17 @@
 let currentRole = "superadmin";
 let editId = null;
 
+/* =========================
+   SECURITY
+========================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["SUPER_ADMIN","admin"].includes(role)){
+  window.location.href = "/login.html";
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   () => {
@@ -61,7 +72,12 @@ async function loadUsers(){
 
     const res =
       await fetch(
-        `/api/users/${currentRole}`
+        `/api/users/${currentRole}`,
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
       );
 
     const users =
@@ -271,7 +287,8 @@ async function addUser(){
 
           headers:{
             "Content-Type":
-              "application/json"
+              "application/json",
+            Authorization:"Bearer " + token
           },
 
           body:JSON.stringify({
@@ -311,7 +328,8 @@ async function addUser(){
 
           headers:{
             "Content-Type":
-              "application/json"
+              "application/json",
+            Authorization:"Bearer " + token
           },
 
           body:JSON.stringify({
@@ -391,7 +409,10 @@ async function toggleUser(id){
     await fetch(
       `/api/users/${id}/toggle`,
       {
-        method:"PATCH"
+        method:"PATCH",
+        headers:{
+          Authorization:"Bearer " + token
+        }
       }
     );
 
@@ -423,7 +444,10 @@ async function deleteUser(id){
     await fetch(
       `/api/users/${id}`,
       {
-        method:"DELETE"
+        method:"DELETE",
+        headers:{
+          Authorization:"Bearer " + token
+        }
       }
     );
 

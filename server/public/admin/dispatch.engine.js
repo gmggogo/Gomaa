@@ -9,8 +9,8 @@
 const token = localStorage.getItem("token") || "";
 const role  = localStorage.getItem("role") || "";
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 /* ================= STATE ================= */
