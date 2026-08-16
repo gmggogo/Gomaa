@@ -613,160 +613,13 @@ mongoose.connect(MONGO_URI)
 /* =========================
    USER MODEL
 ========================= */
-const userSchema = new mongoose.Schema({
-
-  name: { type: String, required: true },
-
-  username: {
-    type: String,
-    unique: true,
-    required: true
-  },
-
-  password: {
-    type: String,
-    required: true
-  },
-
-  role: {
-    type: String,
-    enum: ["admin", "dispatcher", "driver", "company"],
-    required: true
-  },
-
-  active: {
-    type: Boolean,
-    default: true
-  },
-
-  /* OPTIONAL DRIVER / DISPATCH DATA */
-
-  vehicleNumber: {
-    type: String,
-    default: ""
-  },
-
-  address: {
-    type: String,
-    default: ""
-  },
-
-  phone: {
-    type: String,
-    default: ""
-  },
-
-email:{
-  type:String,
-  default:""
-},
-  /* =========================
-     BILLING SYSTEM
-  ========================= */
-
-  billingStatus: {
-    type: String,
-    enum: ["ACTIVE","PAST_DUE","SUSPENDED"],
-    default: "ACTIVE"
-  },
-
-  billingCycle: {
-    type: String,
-    enum: ["MONTHLY","WEEKLY"],
-    default: "MONTHLY"
-  },
-
-  invoiceAmount: {
-    type: Number,
-    default: 0
-  },
-
-  lastPaymentDate: {
-    type: Date,
-    default: null
-  },
-
-  nextBillingDate: {
-    type: Date,
-    default: null
-  },
-billingStartDate: {
-  type: Date,
-  default: null
-},
-
-billingEndDate: {
-  type: Date,
-  default: null
-},
-
-daysLeft: {
-  type: Number,
-  default: 0
-},
-  graceDays: {
-    type: Number,
-    default: 3
-  },
-
-  billingLocked: {
-    type: Boolean,
-    default: false
-  },
-
- billingNotes: {
-  type: String,
-  default: ""
-},
-
-totalTrips: {
-  type: Number,
-  default: 0
-},
-
-individualTrips: {
-  type: Number,
-  default: 0
-},
-
-sharedTrips: {
-  type: Number,
-  default: 0
-},
-
-sharedPassengers: {
-  type: Number,
-  default: 0
-},
-
-completedTrips: {
-  type: Number,
-  default: 0
-},
-
-cancelledTrips: {
-  type: Number,
-  default: 0
-},
-
-noShowTrips: {
-  type: Number,
-  default: 0
-},
-
-revenue: {
-  type: Number,
-  default: 0
-}
-
-}, { timestamps: true });
 
 const User =
-  mongoose.models.User ||
-  mongoose.model(
-    "User",
-    userSchema
-  );
+  require("./models/User");
+
+const Tenant =
+  require("./models/Tenant");
+
 global.User = User;
 
 /* =========================
@@ -3002,52 +2855,190 @@ app.get("/create-admin", async (req, res) => {
 ========================= */
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+
+    const {
+      username,
+      password
+    } = req.body || {};
 
     if (!username || !password) {
-      return res.status(400).json({ message: "Missing credentials" });
+      return res.status(400).json({
+        message: "Missing credentials"
+      });
     }
 
-    const user = await User.findOne({ username });
+    const user =
+      await User.findOne({
+        username:
+          String(username).trim()
+      });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({
+        message: "Invalid credentials"
+      });
     }
 
-console.log("LOGIN USER =", {
-  username: user.username,
-  role: user.role,
-  enabled: user.enabled
-});
+    console.log("LOGIN USER =", {
+      username: user.username,
+      role: user.role,
+      enabled: user.enabled,
+      tenantId: user.tenantId || null
+    });
 
-   if (user.enabled === false) {
-  return res.status(403).json({ message: "User disabled" });
-}
+    if (
+      user.enabled === false ||
+      user.active === false
+    ) {
+      return res.status(403).json({
+        message: "User disabled"
+      });
+    }
 
-    const match = await bcrypt.compare(password, user.password);
+    const match =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
 
     if (!match) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({
+        message: "Invalid credentials"
+      });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
-      JWT_SECRET,
-      { expiresIn: "1d" }
+    /* =========================
+       TENANT CHECK
+
+       PLATFORM_ADMIN does not require
+       a tenant.
+
+       Old users with tenantId = null
+       are temporarily allowed during
+       migration so the current system
+       keeps working.
+    ========================= */
+
+    let tenant = null;
+
+    if (
+      user.role !== "PLATFORM_ADMIN" &&
+      user.tenantId
+    ) {
+
+      tenant =
+        await Tenant.findById(
+          user.tenantId
+        );
+
+      if (!tenant) {
+        return res.status(403).json({
+          message: "Organization not found"
+        });
+      }
+
+      if (tenant.enabled === false) {
+        return res.status(403).json({
+          message: "Organization Disabled"
+        });
+      }
+
+      if (
+        tenant.subscriptionStatus === "SUSPENDED" ||
+        tenant.subscriptionStatus === "CANCELED"
+      ) {
+        return res.status(403).json({
+          message:
+            "Organization subscription inactive"
+        });
+      }
+
+    }
+
+    /* =========================
+       JWT
+    ========================= */
+
+    const token =
+      jwt.sign(
+        {
+          id:
+            user._id,
+
+          role:
+            user.role,
+
+          name:
+            user.name,
+
+          tenantId:
+            user.tenantId
+              ? user.tenantId.toString()
+              : null
+        },
+
+        JWT_SECRET,
+
+        {
+          expiresIn: "1d"
+        }
+      );
+
+    /* =========================
+       RESPONSE
+    ========================= */
+
+    return res.json({
+
+      token,
+
+      user: {
+        id:
+          user._id,
+
+        name:
+          user.name,
+
+        username:
+          user.username,
+
+        role:
+          user.role,
+
+        tenantId:
+          user.tenantId || null
+      },
+
+      tenant:
+        tenant
+          ? {
+              id:
+                tenant._id,
+
+              name:
+                tenant.name,
+
+              slug:
+                tenant.slug,
+
+              subscriptionStatus:
+                tenant.subscriptionStatus
+            }
+          : null
+
+    });
+
+  } catch (err) {
+
+    console.log(
+      "LOGIN ERROR:",
+      err
     );
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        username: user.username,
-        role: user.role
-      }
+    return res.status(500).json({
+      message: "Server error"
     });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
+
   }
 });
 
