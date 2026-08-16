@@ -11,13 +11,14 @@
    ========================================================================== */
 
 const API_URL = "/api/trips";
+const LIST_API_URL = "/api/tenant-trips";
 const SERVICES_URL = "/api/services/admin";
 
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
 
-if(!["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 let hubTrips = [];
@@ -1572,7 +1573,7 @@ async function loadServices(){
 
 async function loadHubTrips(){
   try{
-    const res = await fetch(API_URL,{
+    const res = await fetch(LIST_API_URL,{
       headers: token ? {Authorization:"Bearer " + token} : {}
     });
 

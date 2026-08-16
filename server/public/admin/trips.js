@@ -6,6 +6,7 @@
 ================================ */
 
 const API = "/api/trips";
+const TENANT_TRIPS_API = "/api/tenant-trips";
 const SERVICES_API = "/api/services/admin";
 
 const container = document.getElementById("tripsContainer");
@@ -15,8 +16,8 @@ const serviceCards = document.getElementById("serviceCards");
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 let trips = [];
@@ -1722,7 +1723,7 @@ async function loadServices(){
 
 async function loadTrips(){
   try{
-    const res = await fetch(API,{headers:authHeaders()});
+    const res = await fetch(TENANT_TRIPS_API,{headers:authHeaders()});
     const data = await res.json();
     trips = Array.isArray(data) ? data : [];
   }catch(err){
