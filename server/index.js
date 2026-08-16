@@ -487,6 +487,20 @@ app.use(
 
 
 /* =========================
+   PUBLIC TENANT BOOTSTRAP
+   Homepage branding + allowed services
+========================= */
+
+const publicTenantRoutes =
+  require("./routes/publicTenantRoutes");
+
+app.use(
+  "/api/public/tenant",
+  publicTenantRoutes
+);
+
+
+/* =========================
    PAYMENT SUCCESS
 ========================= */
 
@@ -7991,6 +8005,16 @@ const totalCancelFee =
 /* =========================
    ROOT
 ========================= */
+app.get("/t/:slug", (req, res) => {
+  res.sendFile(
+    path.join(
+      __dirname,
+      "public",
+      "index.html"
+    )
+  );
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });

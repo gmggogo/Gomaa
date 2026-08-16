@@ -12,20 +12,165 @@ window.Branding = {
 
   data:{},
 
+  getTenantSlug(){
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const fromQuery =
+      String(
+        params.get("tenant") ||
+        params.get("tenantSlug") ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    if(fromQuery){
+      return fromQuery;
+    }
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    if(
+      parts[0] === "t" &&
+      parts[1]
+    ){
+      return String(
+        parts[1]
+      )
+      .trim()
+      .toLowerCase();
+    }
+
+    return String(
+      localStorage.getItem(
+        "tenantSlug"
+      ) || ""
+    )
+    .trim()
+    .toLowerCase();
+
+  },
+
+  getAuthToken(){
+
+    return String(
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
+
+  },
+
   async load(){
 
     try{
 
+      const tenantSlug =
+        this.getTenantSlug();
+
+      const token =
+        this.getAuthToken();
+
+      let url =
+        "/api/public/tenant/default";
+
+      let options = {
+        cache:"no-store"
+      };
+
+      /*
+        Public homepage:
+        load by tenant slug.
+
+        Logged-in staff pages:
+        keep using secure /api/system-design
+        with the JWT already stored by staff-login.
+      */
+
+      if(tenantSlug){
+
+        url =
+          "/api/public/tenant/" +
+          encodeURIComponent(
+            tenantSlug
+          );
+
+      }else if(token){
+
+        url =
+          "/api/system-design";
+
+        options.headers = {
+          Authorization:
+            `Bearer ${token}`
+        };
+      }
+
       const res =
-      await fetch(
-        "/api/system-design"
-      );
+        await fetch(
+          url,
+          options
+        );
 
-      const data =
-      await res.json();
+      const payload =
+        await res.json();
 
-      this.data =
-      data || {};
+      if(!res.ok){
+
+        throw new Error(
+          payload?.message ||
+          "Failed To Load Branding"
+        );
+      }
+
+      if(
+        payload &&
+        payload.design
+      ){
+
+        this.data =
+          payload.design || {};
+
+        this.tenant =
+          payload.tenant || null;
+
+        if(payload.tenant?.slug){
+
+          localStorage.setItem(
+            "tenantSlug",
+            payload.tenant.slug
+          );
+        }
+
+        if(payload.tenant?.id){
+
+          localStorage.setItem(
+            "tenantId",
+            String(
+              payload.tenant.id
+            )
+          );
+        }
+
+        if(payload.tenant?.timezone){
+
+          localStorage.setItem(
+            "appTimezone",
+            payload.tenant.timezone
+          );
+        }
+
+      }else{
+
+        this.data =
+          payload || {};
+      }
 
     }catch(err){
 
@@ -44,7 +189,9 @@ window.Branding = {
 
     window.location.pathname === "/" ||
 
-    window.location.pathname.includes("index");
+    window.location.pathname.includes("index") ||
+
+    window.location.pathname.startsWith("/t/");
 
     if(isHomePage){
 
@@ -938,8 +1085,51 @@ activeServices.forEach(service=>{
 
       <a
       href="${
-        service.link ||
-        "getquote/index.html"
+        (()=>{
+
+          const baseLink =
+            service.link ||
+            "getquote/index.html";
+
+          const tenantSlug =
+            Branding.getTenantSlug();
+
+          const serviceKey =
+            String(
+              service.serviceKey ||
+              service.serviceCode ||
+              ""
+            )
+            .trim()
+            .toUpperCase();
+
+          const url =
+            new URL(
+              baseLink,
+              window.location.origin
+            );
+
+          if(tenantSlug){
+            url.searchParams.set(
+              "tenant",
+              tenantSlug
+            );
+          }
+
+          if(serviceKey){
+            url.searchParams.set(
+              "service",
+              serviceKey
+            );
+          }
+
+          return (
+            url.pathname +
+            url.search +
+            url.hash
+          );
+
+        })()
       }"
       class="card-btn">
 

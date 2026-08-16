@@ -20,6 +20,74 @@ router.use(
   requireRole("PLATFORM_ADMIN")
 );
 
+
+/* =========================================
+   TENANT SERVICE CATALOG
+========================================= */
+
+const SERVICE_CATALOG = [
+  { serviceKey:"ST", title:"Standard" },
+  { serviceKey:"WH", title:"Wheelchair" },
+  { serviceKey:"SH", title:"Shared" },
+  { serviceKey:"LM", title:"Limousine" },
+  { serviceKey:"TX", title:"Taxi" },
+  { serviceKey:"XL", title:"XL" }
+];
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function normalizeServiceKey(value){
+
+  const key =
+    clean(value)
+      .toUpperCase()
+      .replace(/\s+/g,"");
+
+  if(key === "STANDARD") return "ST";
+  if(key === "WHEELCHAIR" || key === "WC") return "WH";
+  if(key === "SHARED") return "SH";
+  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
+  if(key === "TAXI") return "TX";
+
+  return key;
+}
+
+function normalizeAllowedServices(values){
+
+  if(!Array.isArray(values)){
+    return [];
+  }
+
+  return [
+    ...new Set(
+      values
+        .map(normalizeServiceKey)
+        .filter(Boolean)
+        .filter(key =>
+          /^[A-Z0-9_-]{1,30}$/.test(key)
+        )
+    )
+  ];
+}
+
+/* =========================================
+   GET PLATFORM SERVICE CATALOG
+========================================= */
+
+router.get(
+  "/service-catalog",
+  async (req,res)=>{
+
+    return res.json({
+      success:true,
+      services:SERVICE_CATALOG
+    });
+
+  }
+);
+
 /* =========================================
    GET ALL TENANTS
 ========================================= */
@@ -59,7 +127,8 @@ router.post("/tenants", async (req, res) => {
       name,
       slug,
       timezone,
-      subscriptionStatus
+      subscriptionStatus,
+      allowedServices
     } = req.body || {};
 
     if (
@@ -139,6 +208,11 @@ router.post("/tenants", async (req, res) => {
             ? String(timezone).trim()
             : "America/Phoenix",
 
+        allowedServices:
+          normalizeAllowedServices(
+            allowedServices
+          ),
+
         branding: {
           companyName:
             cleanName
@@ -166,7 +240,10 @@ router.post("/tenants", async (req, res) => {
           tenant.subscriptionStatus,
 
         timezone:
-          tenant.timezone
+          tenant.timezone,
+
+        allowedServices:
+          tenant.allowedServices || []
       }
     });
 
@@ -281,6 +358,147 @@ router.patch(
   }
 );
 
+
+/* =========================================
+   GET TENANT ALLOWED SERVICES
+========================================= */
+
+router.get(
+  "/tenants/:tenantId/services",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        )
+        .lean();
+
+      if(!tenant){
+
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug
+        },
+
+        serviceCatalog:
+          SERVICE_CATALOG,
+
+        allowedServices:
+          Array.isArray(
+            tenant.allowedServices
+          )
+            ? tenant.allowedServices
+            : []
+      });
+
+    }catch(err){
+
+      console.error(
+        "GET TENANT SERVICES ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:"Server error"
+      });
+
+    }
+
+  }
+);
+
+/* =========================================
+   SAVE TENANT ALLOWED SERVICES
+========================================= */
+
+router.patch(
+  "/tenants/:tenantId/services",
+  async (req,res)=>{
+
+    try{
+
+      if(
+        !Array.isArray(
+          req.body?.allowedServices
+        )
+      ){
+
+        return res.status(400).json({
+          message:
+            "allowedServices array is required"
+        });
+
+      }
+
+      const allowedServices =
+        normalizeAllowedServices(
+          req.body.allowedServices
+        );
+
+      const tenant =
+        await Tenant.findByIdAndUpdate(
+          req.params.tenantId,
+          {
+            $set:{
+              allowedServices
+            }
+          },
+          {
+            new:true,
+            runValidators:true
+          }
+        );
+
+      if(!tenant){
+
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+
+        message:
+          "Tenant services updated",
+
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug,
+          allowedServices:
+            tenant.allowedServices || []
+        }
+      });
+
+    }catch(err){
+
+      console.error(
+        "UPDATE TENANT SERVICES ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:"Server error"
+      });
+
+    }
+
+  }
+);
 
 /* =========================================
    GET SUPER ADMINS FOR ONE TENANT

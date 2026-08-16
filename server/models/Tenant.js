@@ -2,12 +2,6 @@ const mongoose = require("mongoose");
 
 const tenantSchema = new mongoose.Schema(
   {
-    /*
-    =========================================
-    COMPANY / TENANT IDENTITY
-    =========================================
-    */
-
     name: {
       type: String,
       required: true,
@@ -21,12 +15,6 @@ const tenantSchema = new mongoose.Schema(
       lowercase: true,
       trim: true
     },
-
-    /*
-    =========================================
-    TENANT STATUS
-    =========================================
-    */
 
     enabled: {
       type: Boolean,
@@ -44,11 +32,27 @@ const tenantSchema = new mongoose.Schema(
       default: "ACTIVE"
     },
 
-    /*
-    =========================================
-    COMPANY BRANDING
-    =========================================
-    */
+    allowedServices: {
+      type: [String],
+      default: [],
+      set(values) {
+        if(!Array.isArray(values)){
+          return [];
+        }
+
+        return [
+          ...new Set(
+            values
+              .map(value =>
+                String(value || "")
+                  .trim()
+                  .toUpperCase()
+              )
+              .filter(Boolean)
+          )
+        ];
+      }
+    },
 
     branding: {
       companyName: {
@@ -72,12 +76,6 @@ const tenantSchema = new mongoose.Schema(
       }
     },
 
-    /*
-    =========================================
-    SYSTEM SETTINGS
-    =========================================
-    */
-
     timezone: {
       type: String,
       default: "America/Phoenix"
@@ -87,12 +85,6 @@ const tenantSchema = new mongoose.Schema(
     timestamps: true
   }
 );
-
-/*
-=========================================
-INDEXES
-=========================================
-*/
 
 tenantSchema.index({
   enabled: 1
