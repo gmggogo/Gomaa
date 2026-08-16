@@ -1009,11 +1009,8 @@ async function lookupAddressCache(address,stats = null){
   try{
 
     const found =
-      await AddressCache.findOne(
-        req
-          ? tenantFilter(req,{
-              $or:[
-          
+      await AddressCache.findOne({
+        $or:[
           {addressKey:key},
           {key},
           {normalizedAddress:key},
