@@ -38,14 +38,14 @@ async function login(){
       await fetch(
         "/api/auth/login",
         {
-          method: "POST",
+          method:"POST",
 
-          headers: {
+          headers:{
             "Content-Type":
               "application/json"
           },
 
-          body: JSON.stringify({
+          body:JSON.stringify({
             username,
             password
           })
@@ -53,7 +53,8 @@ async function login(){
       );
 
     const data =
-      await res.json();
+      await res.json()
+        .catch(()=>({}));
 
     if(!res.ok){
 
@@ -64,38 +65,169 @@ async function login(){
       return;
     }
 
+    /*
+      Support both response shapes:
+
+      New:
+      {
+        token,
+        user:{
+          id,name,role,tenantId
+        }
+      }
+
+      Compatibility:
+      {
+        token,
+        role,
+        tenantId,
+        name,
+        tenant:{...}
+      }
+    */
+
+    const user =
+      data.user &&
+      typeof data.user === "object"
+        ? data.user
+        : {};
+
+    const authToken =
+      String(
+        data.token ||
+        user.token ||
+        ""
+      ).trim();
+
+    const userRole =
+      String(
+        user.role ||
+        data.role ||
+        ""
+      ).trim();
+
+    const userName =
+      String(
+        user.name ||
+        data.name ||
+        data.username ||
+        username
+      ).trim();
+
+    const tenantId =
+      String(
+        user.tenantId ||
+        data.tenantId ||
+        data.tenant?.id ||
+        data.tenant?._id ||
+        ""
+      ).trim();
+
+    const tenantSlug =
+      String(
+        user.tenantSlug ||
+        data.tenantSlug ||
+        data.tenant?.slug ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    const timezone =
+      String(
+        user.timezone ||
+        data.timezone ||
+        data.tenant?.timezone ||
+        ""
+      ).trim();
+
+    if(!authToken){
+
+      msg.innerText =
+        "Login response missing token";
+
+      return;
+    }
+
+    if(!userRole){
+
+      msg.innerText =
+        "Login response missing role";
+
+      return;
+    }
+
     /* =====================
        SAVE LOGIN
     ===================== */
 
     localStorage.setItem(
       "token",
-      data.token
+      authToken
     );
 
     localStorage.setItem(
       "role",
-      data.user.role
+      userRole
     );
 
     localStorage.setItem(
       "name",
-      data.user.name
+      userName
     );
 
     localStorage.setItem(
       "tenantId",
-      data.user.tenantId || ""
+      tenantId
     );
+
+    /*
+      Clear the previous public tenant first.
+      Then save only the tenant belonging
+      to the authenticated account.
+    */
+
+    localStorage.removeItem(
+      "tenantSlug"
+    );
+
+    if(tenantSlug){
+
+      localStorage.setItem(
+        "tenantSlug",
+        tenantSlug
+      );
+    }
+
+    if(timezone){
+
+      localStorage.setItem(
+        "appTimezone",
+        timezone
+      );
+    }
 
     /* =====================
        REDIRECT BY ROLE
     ===================== */
 
     if(
-      data.user.role ===
+      userRole ===
       "PLATFORM_ADMIN"
     ){
+
+      /*
+        Platform Admin is platform-wide,
+        never tenant branded.
+      */
+
+      localStorage.removeItem(
+        "tenantSlug"
+      );
+
+      localStorage.removeItem(
+        "tenantId"
+      );
 
       window.location.replace(
         "/platform-admin/dashboard.html"
@@ -105,19 +237,9 @@ async function login(){
     }
 
     if(
-      data.user.role ===
-      "SUPER_ADMIN"
-    ){
-
-      window.location.replace(
-        "/admin/dashboard.html"
-      );
-
-      return;
-    }
-
-    if(
-      data.user.role ===
+      userRole ===
+      "SUPER_ADMIN" ||
+      userRole ===
       "admin"
     ){
 
@@ -129,7 +251,7 @@ async function login(){
     }
 
     if(
-      data.user.role ===
+      userRole ===
       "dispatcher"
     ){
 
@@ -143,9 +265,7 @@ async function login(){
     msg.innerText =
       "This account cannot login here";
 
-  }
-
-  catch(err){
+  }catch(err){
 
     console.error(
       "STAFF LOGIN ERROR:",

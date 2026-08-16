@@ -263,23 +263,31 @@ body{
 
 </div>
 
-<!-- BRANDING -->
-
-<script src="/core/branding.js"></script>
+<!-- GENERIC STAFF LOGIN BRANDING -->
 
 <script>
 
-/* =========================
-DEFAULT LOGO
-========================= */
+/*
+  IMPORTANT:
+  The generic staff login must NOT inherit the last public tenant
+  stored in localStorage. Tenant branding is loaded only after
+  successful authentication from the account's own tenant.
+*/
 
-if(!localStorage.getItem("appLogo")){
+function applyGenericStaffLoginBranding(){
 
-  localStorage.setItem(
-    "appLogo",
-    "/assets/logo.png"
-  );
+  const logo =
+    document.querySelector(
+      ".app-logo"
+    );
 
+  if(logo){
+    logo.src =
+      "/assets/logo.png";
+  }
+
+  document.title =
+    "Sunbeam Login";
 }
 
 /* =========================
@@ -296,9 +304,6 @@ function updateStaffClock(){
   if(!el) return;
 
   const timezone =
-
-    window.Branding?.data?.timezone ||
-
     "America/Phoenix";
 
   const now =
@@ -351,40 +356,20 @@ function updateStaffClock(){
 
 }
 
-/* =========================
-START CLOCK
-========================= */
-
-async function startStaffClock(){
-
-  if(window.Branding){
-
-    try{
-
-      await Branding.load();
-
-    }
-
-    catch(err){
-
-      console.log(err);
-
-    }
-
-  }
-
-  updateStaffClock();
-
-  setInterval(
-    updateStaffClock,
-    1000
-  );
-
-}
-
 window.addEventListener(
   "DOMContentLoaded",
-  startStaffClock
+  ()=>{
+
+    applyGenericStaffLoginBranding();
+
+    updateStaffClock();
+
+    setInterval(
+      updateStaffClock,
+      1000
+    );
+
+  }
 );
 
 </script>
