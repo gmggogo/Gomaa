@@ -7991,16 +7991,6 @@ if(diffHours >= 10){
 }, 60000);
  
 /* =========================
-   TEMP PLATFORM ADMIN SETUP
-   REMOVE AFTER FIRST PLATFORM ADMIN
-========================= */
-
-app.use(
-  "/api/setup",
-  require("./routes/createPlatformAdminRoutes")
-);
-
-/* =========================
    PLATFORM ADMIN ROUTES
 ========================= */
 
