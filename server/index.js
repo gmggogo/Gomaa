@@ -640,6 +640,16 @@ const tripSchema = new mongoose.Schema({
 
   tripNumber: { type: String, unique: true, sparse: true },
 
+  /* =========================
+     MULTI-TENANT OWNER
+  ========================= */
+  tenantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Tenant",
+    default: null,
+    index: true
+  },
+
   type: { type: String, default: "company" },
   company: { type: String, default: "" },
 
@@ -1082,6 +1092,7 @@ createdAt: { type: Date, default: Date.now }
    INDEXES
 ========================= */
 tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
+tripSchema.index({ tenantId: 1, createdAt: -1 });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
@@ -1273,6 +1284,91 @@ function normalizeNumber(v) {
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/* =========================
+   TENANT AUTH - STAGE 1
+   Used by secure tenant-only APIs.
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization || ""
+    ).trim();
+
+  if(
+    !header.toLowerCase().startsWith(
+      "bearer "
+    )
+  ){
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      message:"Access Denied"
+    });
+
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        message:"Tenant Required"
+      });
+
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      message:"Invalid Token"
+    });
+
+  }
 }
 
 function parseStops(stops) {
@@ -5179,6 +5275,69 @@ res.status(200).json(trip);
 }
 
 });
+
+/* =========================
+   TENANT TRIPS - SECURE
+   STAGE 1 TEST ENDPOINT
+
+   SUPER_ADMIN / ADMIN / DISPATCHER:
+   only returns trips for their tenantId.
+
+   PLATFORM_ADMIN:
+   can see all trips.
+========================= */
+
+app.get(
+  "/api/tenant-trips",
+  requireTenantApi,
+  async (req,res)=>{
+
+    try{
+
+      const role =
+        String(
+          req.authUser?.role || ""
+        );
+
+      let filter = {};
+
+      if(
+        role !== "PLATFORM_ADMIN"
+      ){
+
+        filter = {
+          tenantId:
+            req.authUser.tenantId
+        };
+
+      }
+
+      const trips =
+        await Trip.find(filter)
+        .sort({
+          createdAt:-1,
+          _id:-1
+        })
+        .lean();
+
+      return res.json(trips);
+
+    }catch(err){
+
+      console.log(
+        "TENANT TRIPS ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          "Error loading tenant trips"
+      });
+
+    }
+
+  }
+);
 
 /* =========================
    GET ALL TRIPS

@@ -425,11 +425,38 @@ async function loadDashboard(){
 
   try{
 
+    const token =
+      localStorage.getItem(
+        "token"
+      ) || "";
+
     const res =
-      await fetch("/api/trips");
+      await fetch(
+        "/api/tenant-trips",
+        {
+          headers:{
+            "Authorization":
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Dashboard load failed"
+      );
+
+    }
 
     const trips =
-      await res.json();
+      Array.isArray(data)
+        ? data
+        : [];
 
     document.getElementById(
       "totalTrips"
