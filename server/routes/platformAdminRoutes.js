@@ -344,4 +344,297 @@ router.patch(
   }
 );
 
+
+/* =========================================
+   GET SUPER ADMINS FOR ONE TENANT
+========================================= */
+
+router.get(
+  "/tenants/:tenantId/super-admins",
+  async (req, res) => {
+
+    try {
+
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        );
+
+      if (!tenant) {
+        return res.status(404).json({
+          message: "Tenant not found"
+        });
+      }
+
+      const admins =
+        await User.find({
+          tenantId:
+            tenant._id,
+
+          role:
+            "SUPER_ADMIN"
+        })
+        .select(
+          "-password"
+        )
+        .sort({
+          createdAt: -1,
+          name: 1
+        })
+        .lean();
+
+      return res.json({
+        tenant: {
+          id:
+            tenant._id,
+
+          name:
+            tenant.name,
+
+          slug:
+            tenant.slug
+        },
+
+        admins
+      });
+
+    } catch (err) {
+
+      console.error(
+        "GET SUPER ADMINS ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+);
+
+/* =========================================
+   CREATE SUPER ADMIN FOR ONE TENANT
+========================================= */
+
+router.post(
+  "/tenants/:tenantId/super-admins",
+  async (req, res) => {
+
+    try {
+
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        );
+
+      if (!tenant) {
+        return res.status(404).json({
+          message: "Tenant not found"
+        });
+      }
+
+      const {
+        name,
+        username,
+        password,
+        email,
+        phone
+      } = req.body || {};
+
+      if (
+        !name ||
+        !username ||
+        !password
+      ) {
+        return res.status(400).json({
+          message:
+            "name, username and password are required"
+        });
+      }
+
+      if (
+        String(password).length < 8
+      ) {
+        return res.status(400).json({
+          message:
+            "Password must be at least 8 characters"
+        });
+      }
+
+      const cleanUsername =
+        String(username).trim();
+
+      const exists =
+        await User.findOne({
+          username:
+            cleanUsername
+        });
+
+      if (exists) {
+        return res.status(409).json({
+          message: "Username already exists"
+        });
+      }
+
+      const hashed =
+        await bcrypt.hash(
+          String(password),
+          10
+        );
+
+      const admin =
+        await User.create({
+          name:
+            String(name).trim(),
+
+          username:
+            cleanUsername,
+
+          password:
+            hashed,
+
+          email:
+            String(email || "").trim(),
+
+          phone:
+            String(phone || "").trim(),
+
+          role:
+            "SUPER_ADMIN",
+
+          tenantId:
+            tenant._id,
+
+          active:
+            true,
+
+          enabled:
+            true
+        });
+
+      return res.status(201).json({
+        message:
+          "Super Admin created",
+
+        admin: {
+          id:
+            admin._id,
+
+          name:
+            admin.name,
+
+          username:
+            admin.username,
+
+          role:
+            admin.role,
+
+          tenantId:
+            admin.tenantId,
+
+          enabled:
+            admin.enabled
+        }
+      });
+
+    } catch (err) {
+
+      console.error(
+        "CREATE SUPER ADMIN ERROR:",
+        err
+      );
+
+      if (err?.code === 11000) {
+        return res.status(409).json({
+          message:
+            "Username already exists"
+        });
+      }
+
+      return res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+);
+
+/* =========================================
+   ENABLE / DISABLE SUPER ADMIN
+========================================= */
+
+router.patch(
+  "/super-admins/:userId/toggle",
+  async (req, res) => {
+
+    try {
+
+      const admin =
+        await User.findOne({
+          _id:
+            req.params.userId,
+
+          role:
+            "SUPER_ADMIN"
+        });
+
+      if (!admin) {
+        return res.status(404).json({
+          message:
+            "Super Admin not found"
+        });
+      }
+
+      admin.enabled =
+        !(admin.enabled !== false);
+
+      admin.active =
+        admin.enabled;
+
+      await admin.save();
+
+      return res.json({
+        message:
+          admin.enabled
+            ? "Super Admin enabled"
+            : "Super Admin disabled",
+
+        user: {
+          id:
+            admin._id,
+
+          name:
+            admin.name,
+
+          username:
+            admin.username,
+
+          tenantId:
+            admin.tenantId,
+
+          enabled:
+            admin.enabled
+        }
+      });
+
+    } catch (err) {
+
+      console.error(
+        "TOGGLE SUPER ADMIN ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+);
+
+
 module.exports = router;

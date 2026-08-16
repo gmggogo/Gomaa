@@ -1,11 +1,37 @@
 const jwt = require("jsonwebtoken");
 
 /* =========================================
+   GET TOKEN
+   Supports:
+   1) Authorization: Bearer <token>
+   2) Cookie token (if cookies are enabled)
+========================================= */
+
+function getToken(req) {
+
+  const authHeader =
+    String(
+      req.headers?.authorization || ""
+    ).trim();
+
+  if (
+    authHeader.toLowerCase().startsWith(
+      "bearer "
+    )
+  ) {
+    return authHeader.slice(7).trim();
+  }
+
+  return req.cookies?.token || null;
+}
+
+/* =========================================
    VERIFY TOKEN
 ========================================= */
 
 function verifyToken(req, res, next) {
-  const token = req.cookies?.token;
+
+  const token = getToken(req);
 
   if (!token) {
     return res.status(401).json({
@@ -14,23 +40,35 @@ function verifyToken(req, res, next) {
   }
 
   try {
-    const verified = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+
+    const verified =
+      jwt.verify(
+        token,
+        process.env.JWT_SECRET
+      );
 
     req.user = {
-      id: verified.id,
-      role: verified.role,
-      tenantId: verified.tenantId || null
+      id:
+        verified.id,
+
+      role:
+        verified.role,
+
+      name:
+        verified.name || "",
+
+      tenantId:
+        verified.tenantId || null
     };
 
     next();
 
   } catch (err) {
+
     return res.status(400).json({
       message: "Invalid Token"
     });
+
   }
 }
 
@@ -39,6 +77,7 @@ function verifyToken(req, res, next) {
 ========================================= */
 
 function requireRole(role) {
+
   return (req, res, next) => {
 
     if (!req.user) {
@@ -62,6 +101,7 @@ function requireRole(role) {
 ========================================= */
 
 function requireAnyRole(...roles) {
+
   return (req, res, next) => {
 
     if (!req.user) {
@@ -92,38 +132,38 @@ function requireTenant(req, res, next) {
     });
   }
 
-  /*
-    PLATFORM_ADMIN is above all tenants
-  */
-  if (req.user.role === "PLATFORM_ADMIN") {
+  if (
+    req.user.role ===
+    "PLATFORM_ADMIN"
+  ) {
     return next();
   }
 
   /*
     TEMPORARY MIGRATION SUPPORT
-
-    Old users may still have:
-    tenantId = null
-
-    We allow them temporarily so the
-    current application does not break.
+    Old users may still have tenantId = null.
   */
+
   if (!req.user.tenantId) {
     req.tenantId = null;
     return next();
   }
 
-  req.tenantId = req.user.tenantId;
+  req.tenantId =
+    req.user.tenantId;
 
   next();
 }
 
 /* =========================================
    STRICT TENANT MODE
-   USE LATER AFTER MIGRATION
 ========================================= */
 
-function requireTenantStrict(req, res, next) {
+function requireTenantStrict(
+  req,
+  res,
+  next
+) {
 
   if (!req.user) {
     return res.status(401).json({
@@ -131,7 +171,10 @@ function requireTenantStrict(req, res, next) {
     });
   }
 
-  if (req.user.role === "PLATFORM_ADMIN") {
+  if (
+    req.user.role ===
+    "PLATFORM_ADMIN"
+  ) {
     return next();
   }
 
@@ -141,7 +184,8 @@ function requireTenantStrict(req, res, next) {
     });
   }
 
-  req.tenantId = req.user.tenantId;
+  req.tenantId =
+    req.user.tenantId;
 
   next();
 }

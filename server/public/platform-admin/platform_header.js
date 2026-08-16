@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   try{
 
     const res =
-      await fetch("header.html");
+      await fetch("/platform-admin/platform_header.html");
 
     if(!res.ok){
       throw new Error(
