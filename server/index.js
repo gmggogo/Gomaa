@@ -4670,8 +4670,30 @@ app.get("/api/drivers", async (req, res) => {
 /* =========================
    CREATE TRIP (FINAL + SHARED)
 ========================= */
-app.post("/api/trips", async (req, res) => {
+app.post("/api/trips", requireTenantApi, async (req, res) => {
   try {
+
+    /* =========================
+       TENANT OWNER
+       NEVER trust tenantId from body.
+       It comes only from the verified JWT.
+    ========================= */
+
+    const tenantId =
+      req.authUser?.role === "PLATFORM_ADMIN"
+        ? (
+            req.body.tenantId ||
+            null
+          )
+        : req.authUser?.tenantId;
+
+    if(!tenantId){
+
+      return res.status(403).json({
+        message:"Tenant Required"
+      });
+
+    }
 
     const type = normalizeTripType(req.body.type);
 
@@ -4890,6 +4912,9 @@ if (isShared) {
       attempts++;
 
       trip = await Trip.create({
+
+        /* TENANT */
+        tenantId,
 
         /* BASIC */
 
@@ -5130,6 +5155,9 @@ while(!trip && attempts < 5){
     attempts++;
 
     trip = await Trip.create({
+
+        /* TENANT */
+        tenantId,
 
       type,
       tripNumber,
