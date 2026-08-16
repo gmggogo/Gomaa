@@ -59,22 +59,16 @@ router.post("/tenants", async (req, res) => {
       name,
       slug,
       timezone,
-
-      adminName,
-      adminUsername,
-      adminPassword
+      subscriptionStatus
     } = req.body || {};
 
     if (
       !name ||
-      !slug ||
-      !adminName ||
-      !adminUsername ||
-      !adminPassword
+      !slug
     ) {
       return res.status(400).json({
         message:
-          "name, slug, adminName, adminUsername and adminPassword are required"
+          "name and slug are required"
       });
     }
 
@@ -88,9 +82,6 @@ router.post("/tenants", async (req, res) => {
         .replace(/[^a-z0-9-]/g, "-")
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
-
-    const cleanAdminUsername =
-      String(adminUsername).trim();
 
     if (!cleanSlug) {
       return res.status(400).json({
@@ -109,130 +100,75 @@ router.post("/tenants", async (req, res) => {
       });
     }
 
-    const existingUser =
-      await User.findOne({
-        username: cleanAdminUsername
-      });
+    const allowedStatus = [
+      "ACTIVE",
+      "TRIAL",
+      "SUSPENDED",
+      "CANCELED"
+    ];
 
-    if (existingUser) {
-      return res.status(409).json({
-        message: "Username already exists"
-      });
-    }
+    const finalStatus =
+      allowedStatus.includes(
+        String(
+          subscriptionStatus ||
+          "ACTIVE"
+        ).toUpperCase()
+      )
+        ? String(
+            subscriptionStatus ||
+            "ACTIVE"
+          ).toUpperCase()
+        : "ACTIVE";
 
-    let tenant = null;
+    const tenant =
+      await Tenant.create({
+        name:
+          cleanName,
 
-    try {
+        slug:
+          cleanSlug,
 
-      tenant =
-        await Tenant.create({
-          name: cleanName,
-          slug: cleanSlug,
+        enabled:
+          true,
 
-          enabled: true,
+        subscriptionStatus:
+          finalStatus,
 
-          subscriptionStatus:
-            "ACTIVE",
+        timezone:
+          timezone
+            ? String(timezone).trim()
+            : "America/Phoenix",
 
-          timezone:
-            timezone
-              ? String(timezone).trim()
-              : "America/Phoenix",
-
-          branding: {
-            companyName: cleanName
-          }
-        });
-
-      const hashedPassword =
-        await bcrypt.hash(
-          String(adminPassword),
-          10
-        );
-
-      const superAdmin =
-        await User.create({
-          name:
-            String(adminName).trim(),
-
-          username:
-            cleanAdminUsername,
-
-          password:
-            hashedPassword,
-
-          role:
-            "SUPER_ADMIN",
-
-          tenantId:
-            tenant._id,
-
-          active:
-            true,
-
-          enabled:
-            true
-        });
-
-      return res.status(201).json({
-        message:
-          "Tenant and Super Admin created",
-
-        tenant: {
-          id:
-            tenant._id,
-
-          name:
-            tenant.name,
-
-          slug:
-            tenant.slug,
-
-          enabled:
-            tenant.enabled,
-
-          subscriptionStatus:
-            tenant.subscriptionStatus,
-
-          timezone:
-            tenant.timezone
-        },
-
-        superAdmin: {
-          id:
-            superAdmin._id,
-
-          name:
-            superAdmin.name,
-
-          username:
-            superAdmin.username,
-
-          role:
-            superAdmin.role,
-
-          tenantId:
-            superAdmin.tenantId
+        branding: {
+          companyName:
+            cleanName
         }
       });
 
-    } catch (createErr) {
+    return res.status(201).json({
+      message:
+        "Company created successfully",
 
-      /*
-        If tenant creation succeeded but
-        Super Admin creation failed, remove
-        the new tenant so we do not leave
-        an orphan tenant.
-      */
+      tenant: {
+        id:
+          tenant._id,
 
-      if (tenant?._id) {
-        await Tenant.deleteOne({
-          _id: tenant._id
-        }).catch(() => {});
+        name:
+          tenant.name,
+
+        slug:
+          tenant.slug,
+
+        enabled:
+          tenant.enabled,
+
+        subscriptionStatus:
+          tenant.subscriptionStatus,
+
+        timezone:
+          tenant.timezone
       }
-
-      throw createErr;
-    }
+    });
 
   } catch (err) {
 
@@ -243,7 +179,8 @@ router.post("/tenants", async (req, res) => {
 
     if (err?.code === 11000) {
       return res.status(409).json({
-        message: "Duplicate tenant or username"
+        message:
+          "Tenant slug already exists"
       });
     }
 
