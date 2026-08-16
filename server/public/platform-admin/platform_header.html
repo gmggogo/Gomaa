@@ -1,0 +1,131 @@
+<header class="platform-header">
+
+<!-- ================= TOP BAR ================= -->
+
+<div class="platform-top-bar">
+
+  <button
+    type="button"
+    class="platform-mobile-menu-btn"
+    id="platformMobileMenuBtn"
+    aria-label="Open Menu">
+    ☰
+  </button>
+
+  <div class="platform-top-left">
+    <img
+      src="/assets/logo.png"
+      class="platform-logo"
+      alt="GH Mobility Logo">
+  </div>
+
+  <div class="platform-top-center">
+
+    <div
+      class="platform-title"
+      id="platformTitle">
+      GH Mobility Platform
+    </div>
+
+    <div class="platform-welcome-box">
+      <span id="platformWeatherIcon"></span>
+      <span id="platformWelcomeMessage"></span>
+    </div>
+
+  </div>
+
+  <div class="platform-top-right">
+
+    <span id="platformTime"></span>
+
+    <button
+      class="platform-logout-btn"
+      onclick="platformLogout()">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= DESKTOP NAV ================= -->
+
+<div class="platform-nav-wrapper">
+
+<nav
+  class="platform-nav"
+  id="platformDesktopNav">
+
+<a href="dashboard.html" class="platform-nav-btn">Dashboard</a>
+<a href="tenants.html" class="platform-nav-btn">Companies</a>
+<a href="super-admins.html" class="platform-nav-btn">Super Admins</a>
+<a href="services.html" class="platform-nav-btn">Services</a>
+<a href="permissions.html" class="platform-nav-btn">Permissions</a>
+<a href="billing.html" class="platform-nav-btn">SaaS Billing</a>
+
+</nav>
+
+<div class="platform-powered">
+Platform Control • GH Mobility
+</div>
+
+</div>
+
+<!-- ================= MOBILE SIDE MENU ================= -->
+
+<div
+  class="platform-mobile-overlay"
+  id="platformMobileOverlay">
+</div>
+
+<aside
+  class="platform-mobile-side-menu"
+  id="platformMobileSideMenu">
+
+  <div class="platform-mobile-side-head">
+
+    <img
+      src="/assets/logo.png"
+      class="platform-mobile-logo"
+      alt="GH Mobility Logo">
+
+    <div class="platform-mobile-side-title">
+
+      <div>
+        GH Mobility
+      </div>
+
+      <small>
+        Platform Admin
+      </small>
+
+    </div>
+
+    <button
+      type="button"
+      class="platform-mobile-close-btn"
+      id="platformMobileCloseBtn">
+      ×
+    </button>
+
+  </div>
+
+  <nav
+    class="platform-mobile-side-nav"
+    id="platformMobileSideNav">
+  </nav>
+
+  <button
+    type="button"
+    class="platform-mobile-logout-btn"
+    onclick="platformLogout()">
+    🚪 Logout
+  </button>
+
+  <div class="platform-mobile-powered">
+    GH Mobility Platform
+  </div>
+
+</aside>
+
+</header>

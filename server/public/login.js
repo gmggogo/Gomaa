@@ -4,119 +4,156 @@
 
 async function login(){
 
-const username =
-document.getElementById(
-"username"
-).value.trim();
+  const username =
+    document.getElementById(
+      "username"
+    ).value.trim();
 
-const password =
-document.getElementById(
-"password"
-).value.trim();
+  const password =
+    document.getElementById(
+      "password"
+    ).value.trim();
 
-const msg =
-document.getElementById(
-"msg"
-);
+  const msg =
+    document.getElementById(
+      "msg"
+    );
 
-msg.innerText="";
+  msg.innerText = "";
 
-if(!username || !password){
+  if(!username || !password){
 
-msg.innerText=
-"Please enter username and password";
+    msg.innerText =
+      "Please enter username and password";
 
-return;
+    return;
+  }
 
-}
+  msg.innerText =
+    "Signing in...";
 
-msg.innerText=
-"Signing in...";
+  try{
 
-try{
+    const res =
+      await fetch(
+        "/api/auth/login",
+        {
+          method: "POST",
 
-const res =
-await fetch(
-"/api/auth/login",
-{
-method:"POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
 
-headers:{
-"Content-Type":
-"application/json"
-},
+          body: JSON.stringify({
+            username,
+            password
+          })
+        }
+      );
 
-body:JSON.stringify({
-username,
-password
-})
-}
-);
+    const data =
+      await res.json();
 
-const data =
-await res.json();
+    if(!res.ok){
 
-if(!res.ok){
+      msg.innerText =
+        data.message ||
+        "Login failed";
 
-msg.innerText=
-data.message ||
-"Login failed";
+      return;
+    }
 
-return;
+    /* =====================
+       SAVE LOGIN
+    ===================== */
 
-}
+    localStorage.setItem(
+      "token",
+      data.token
+    );
 
-/* SAVE LOGIN */
+    localStorage.setItem(
+      "role",
+      data.user.role
+    );
 
-localStorage.setItem(
-"token",
-data.token
-);
+    localStorage.setItem(
+      "name",
+      data.user.name
+    );
 
-localStorage.setItem(
-"role",
-data.user.role
-);
+    localStorage.setItem(
+      "tenantId",
+      data.user.tenantId || ""
+    );
 
-localStorage.setItem(
-"name",
-data.user.name
-);
+    /* =====================
+       REDIRECT BY ROLE
+    ===================== */
 
-/* REDIRECT */
+    if(
+      data.user.role ===
+      "PLATFORM_ADMIN"
+    ){
 
-if(data.user.role==="admin"){
+      window.location.replace(
+        "/platform-admin/dashboard.html"
+      );
 
-window.location.replace(
-"/admin/dashboard.html"
-);
+      return;
+    }
 
-}
+    if(
+      data.user.role ===
+      "SUPER_ADMIN"
+    ){
 
-else if(
-data.user.role==="dispatcher"
-){
+      window.location.replace(
+        "/admin/dashboard.html"
+      );
 
-window.location.replace(
-"/dispatcher/dashboard.html"
-);
+      return;
+    }
 
-}
+    if(
+      data.user.role ===
+      "admin"
+    ){
 
-else{
+      window.location.replace(
+        "/admin/dashboard.html"
+      );
 
-msg.innerText=
-"This account cannot login here";
+      return;
+    }
 
-}
+    if(
+      data.user.role ===
+      "dispatcher"
+    ){
 
-}
+      window.location.replace(
+        "/dispatcher/dashboard.html"
+      );
 
-catch(err){
+      return;
+    }
 
-msg.innerText=
-"Server error";
+    msg.innerText =
+      "This account cannot login here";
 
-}
+  }
+
+  catch(err){
+
+    console.error(
+      "STAFF LOGIN ERROR:",
+      err
+    );
+
+    msg.innerText =
+      "Server error";
+  }
 
 }
