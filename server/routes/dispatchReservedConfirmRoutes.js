@@ -30,11 +30,111 @@
 const express = require("express");
 const router = express.Router();
 const https = require("https");
+const jwt = require("jsonwebtoken");
 
 const tripFinalizer = require("../utils/trip-finalizer");
 const routeMapEngine = require("../utils/routeMapEngine");
 const Service = require("../models/Service");
 const dispatchRoutes = require("./dispatchRoutes");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    return requestedTenantId
+      ? {...extra,tenantId:requestedTenantId}
+      : {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 /* =========================
    OPTIONAL ADDRESS CACHE
@@ -909,8 +1009,11 @@ async function lookupAddressCache(address,stats = null){
   try{
 
     const found =
-      await AddressCache.findOne({
-        $or:[
+      await AddressCache.findOne(
+        req
+          ? tenantFilter(req,{
+              $or:[
+          
           {addressKey:key},
           {key},
           {normalizedAddress:key},
@@ -1235,7 +1338,7 @@ function resolveReservedCodeFromService(service){
   return "";
 }
 
-async function getReservedServiceForTrip(trip){
+async function getReservedServiceForTrip(trip,req){
 
   const code = resolveServiceCodeFromTrip(trip);
 
@@ -1243,7 +1346,7 @@ async function getReservedServiceForTrip(trip){
     throw new Error("Reserved service code missing");
   }
 
-  const services = await Service.find({}).lean();
+  const services = await Service.find(tenantFilter(req)).lean();
 
   const found =
     services.find(service=>
@@ -2454,7 +2557,7 @@ function buildPreparedFromSavedTrip(trip,currentSignature){
    CONFIRM RESERVED TRIP
 ========================= */
 
-router.post("/:tripId", async (req,res)=>{
+router.post("/:tripId", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -2468,7 +2571,7 @@ router.post("/:tripId", async (req,res)=>{
       });
     }
 
-    const trip = await Trip.findById(tripId);
+    const trip = await Trip.findOne(tenantFilter(req,{_id:tripId}));
 
     if(!trip){
       return res.status(404).json({
@@ -2529,7 +2632,7 @@ router.post("/:tripId", async (req,res)=>{
     }
 
     const currentSignature = buildCurrentRouteSignature(trip);
-    const service = await getReservedServiceForTrip(trip);
+    const service = await getReservedServiceForTrip(trip,req);
     const pricing = getReservedPricing(service);
 
     const requestStats =
@@ -2738,6 +2841,13 @@ router.post("/:tripId", async (req,res)=>{
               : "server-individual-route"
       });
 
+    if(
+      req.authUser?.role !== "PLATFORM_ADMIN"
+    ){
+      updatedTrip.tenantId =
+        req.authUser.tenantId;
+    }
+
     updatedTrip.type = "reserved";
     updatedTrip.reservation = true;
     updatedTrip.source = "RV";
@@ -2849,7 +2959,10 @@ router.post("/:tripId", async (req,res)=>{
       autoAssignment =
         await dispatchRoutes.autoAssignTripById(
           updatedTrip._id,
-          req.user?._id ? String(req.user._id) : "SYSTEM_CONFIRM"
+          req.authUser?.id
+            ? String(req.authUser.id)
+            : "SYSTEM_CONFIRM",
+          req.authUser?.tenantId || null
         );
     }catch(autoAssignError){
       console.log(

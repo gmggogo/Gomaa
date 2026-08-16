@@ -8,9 +8,95 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 const Service = require("../models/Service");
 
 const router = express.Router();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+  const header =
+    String(req.headers?.authorization || "").trim();
+
+  if(!header.toLowerCase().startsWith("bearer ")){
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token = readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(token,JWT_SECRET);
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    return requestedTenantId
+      ? {...extra,tenantId:requestedTenantId}
+      : {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 function getTripModel(){
   const Trip = mongoose.models.Trip || global.Trip;
@@ -65,17 +151,17 @@ function serviceCode(service){
   );
 }
 
-async function resolveReservedPolicy(trip){
+async function resolveReservedPolicy(trip,req){
   const code = tripServiceCode(trip);
   if(!code) throw new Error("Reserved trip service is missing");
 
   let service = null;
   const savedId = clean(trip.serviceId || trip.reservedServiceId);
   if(savedId && mongoose.Types.ObjectId.isValid(savedId)){
-    service = await Service.findById(savedId).lean();
+    service = await Service.findOne(tenantFilter(req,{_id:savedId})).lean();
   }
   if(!service){
-    const all = await Service.find({reservedEnabled:true}).lean();
+    const all = await Service.find(tenantFilter(req,{reservedEnabled:true})).lean();
     service = all.find(item => serviceCode(item) === code) || null;
   }
   if(!service) throw new Error("Reserved service was not found");
@@ -150,25 +236,25 @@ function edits(arr){
   })).filter(item=>item.newAddress) : [];
 }
 
-router.get("/add-stop/ping",(req,res)=>{
+router.get("/add-stop/ping",requireTenantApi,(req,res)=>{
   res.json({success:true,message:"reservedAddStopRoutes connected"});
 });
 
-router.post("/add-stop/:id/confirm",async (req,res)=>{
+router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
   try{
     const id = clean(req.params.id);
     if(!mongoose.Types.ObjectId.isValid(id)){
       return res.status(400).json({success:false,message:"Invalid trip ID"});
     }
     const Trip = getTripModel();
-    const trip = await Trip.findById(id);
+    const trip = await Trip.findOne(tenantFilter(req,{_id:id}));
     if(!trip) return res.status(404).json({success:false,message:"Trip not found"});
     if(tripClosed(trip)) return res.status(400).json({success:false,message:"This trip is closed"});
     if(trip.isShared === true || upper(trip.tripType) === "SHARED" || tripServiceCode(trip) === "SH"){
       return res.status(400).json({success:false,message:"Add Stop is not available for shared trips"});
     }
 
-    const policy = await resolveReservedPolicy(trip);
+    const policy = await resolveReservedPolicy(trip,req);
     enforcePolicy(trip,policy);
     if(activeRequest(trip)){
       return res.status(409).json({success:false,message:"This trip already has an active route change request"});
@@ -221,6 +307,10 @@ router.post("/add-stop/:id/confirm",async (req,res)=>{
       createdAt:new Date(),updatedAt:new Date()
     };
 
+    if(req.authUser.role !== "PLATFORM_ADMIN"){
+      trip.tenantId = req.authUser.tenantId;
+    }
+
     trip.routeChangePending = true;
     trip.routeChangeStatus = "PENDING_REVIEW";
     trip.routeLocked = false;
@@ -244,10 +334,10 @@ router.post("/add-stop/:id/confirm",async (req,res)=>{
   }
 });
 
-router.get("/add-stop/:id/request",async (req,res)=>{
+router.get("/add-stop/:id/request",requireTenantApi,async (req,res)=>{
   try{
     const Trip = getTripModel();
-    const trip = await Trip.findById(req.params.id).lean();
+    const trip = await Trip.findOne(tenantFilter(req,{_id:req.params.id})).lean();
     if(!trip) return res.status(404).json({success:false,message:"Trip not found"});
     return res.json({success:true,tripId:trip._id,tripNumber:trip.tripNumber,addStopRequest:trip.addStopRequest || null});
   }catch(err){
@@ -255,10 +345,10 @@ router.get("/add-stop/:id/request",async (req,res)=>{
   }
 });
 
-router.post("/add-stop/:id/cancel",async (req,res)=>{
+router.post("/add-stop/:id/cancel",requireTenantApi,async (req,res)=>{
   try{
     const Trip = getTripModel();
-    const trip = await Trip.findById(req.params.id);
+    const trip = await Trip.findOne(tenantFilter(req,{_id:req.params.id}));
     if(!trip) return res.status(404).json({success:false,message:"Trip not found"});
     if(!trip.addStopRequest) return res.status(404).json({success:false,message:"No route change request found"});
     trip.addStopRequest.active = false;

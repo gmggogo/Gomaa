@@ -405,6 +405,9 @@ router.post(
 
       const exists =
         await User.findOne({
+          tenantId:
+            tenant._id,
+
           username:
             cleanUsername
         });
@@ -509,10 +512,39 @@ router.patch(
 
     try {
 
+      const tenantId =
+        String(
+          req.body?.tenantId ||
+          req.query?.tenantId ||
+          ""
+        ).trim();
+
+      if (!tenantId) {
+        return res.status(400).json({
+          message:
+            "tenantId is required"
+        });
+      }
+
+      const tenant =
+        await Tenant.findById(
+          tenantId
+        );
+
+      if (!tenant) {
+        return res.status(404).json({
+          message:
+            "Tenant not found"
+        });
+      }
+
       const admin =
         await User.findOne({
           _id:
             req.params.userId,
+
+          tenantId:
+            tenant._id,
 
           role:
             "SUPER_ADMIN"

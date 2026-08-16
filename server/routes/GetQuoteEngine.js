@@ -1,8 +1,135 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
 const Service = require("../models/Service");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+      role:
+        verified.role || "",
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
 
 /* =========================
    NUMBER
@@ -98,7 +225,10 @@ function getServiceCode(service){
    CALCULATE
 ========================= */
 
-router.post("/calculate", async (req,res)=>{
+router.post(
+  "/calculate",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
@@ -122,7 +252,11 @@ router.post("/calculate", async (req,res)=>{
       normalizeCode(serviceKey);
 
     const services =
-      await Service.find({}).lean();
+      await Service
+        .find(
+          tenantFilter(req)
+        )
+        .lean();
 
     const service =
       services.find(item =>

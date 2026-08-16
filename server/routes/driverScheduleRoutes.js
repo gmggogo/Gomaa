@@ -1,8 +1,157 @@
 const express = require("express");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 
 const DriverSchedule =
 require("../models/DriverSchedule");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
+
+function tenantIdForWrite(req){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    return String(
+      req.body?.tenantId ||
+      req.query?.tenantId ||
+      ""
+    ).trim();
+  }
+
+  return String(
+    req.authUser?.tenantId ||
+    ""
+  ).trim();
+}
 
 /* =========================
    DEFAULT DAYS
@@ -26,12 +175,19 @@ function defaultDays(){
    GET ALL SCHEDULE
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get(
+  "/",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
     const items =
-      await DriverSchedule.find({}).lean();
+      await DriverSchedule
+        .find(
+          tenantFilter(req)
+        )
+        .lean();
 
     const result = {};
 
@@ -88,14 +244,42 @@ router.get("/", async (req,res)=>{
    SAVE SCHEDULE
 ========================= */
 
-router.post("/", async (req,res)=>{
+router.post(
+  "/",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
     const payload =
       req.body || {};
 
+    const tenantId =
+      tenantIdForWrite(req);
+
+    if(!tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    /*
+      If PLATFORM_ADMIN sends:
+      {
+        tenantId:"...",
+        driverId1:{...},
+        driverId2:{...}
+      }
+
+      tenantId is metadata, not a driver schedule row.
+    */
     for(const driverId in payload){
+
+      if(driverId === "tenantId"){
+        continue;
+      }
 
       const data =
         payload[driverId] || {};
@@ -103,11 +287,14 @@ router.post("/", async (req,res)=>{
       await DriverSchedule.findOneAndUpdate(
 
         {
+          tenantId,
           driverId
         },
 
         {
           $set:{
+
+            tenantId,
 
             phone:
               data.phone || "",

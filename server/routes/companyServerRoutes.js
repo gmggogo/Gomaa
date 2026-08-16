@@ -1,9 +1,138 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
 const Service = require("../models/Service");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      clean(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      );
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
 
 /* =========================
    HELPERS
@@ -91,255 +220,315 @@ function buildServiceSearchFilter(idOrKey){
    COMPANY SERVICES ONLY
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get(
+  "/",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try{
+    try{
 
-    const services =
-      await Service.find({
-        companyEnabled:true
-      })
-      .sort({
-        createdAt:1
+      const services =
+        await Service.find(
+          tenantFilter(req,{
+            companyEnabled:true
+          })
+        )
+        .sort({
+          createdAt:1
+        });
+
+      return res.json(
+        services
+      );
+
+    }catch(err){
+
+      console.log(
+        "COMPANY SERVICES LOAD ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Failed To Load Company Services"
       });
 
-    return res.json(services);
-
-  }catch(err){
-
-    console.log(
-      "COMPANY SERVICES LOAD ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-      success:false,
-      message:"Failed To Load Company Services"
-    });
+    }
 
   }
-
-});
+);
 
 /* =========================
    COMPANY ADMIN
 ========================= */
 
-router.get("/admin", async (req,res)=>{
+router.get(
+  "/admin",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try{
+    try{
 
-    const services =
-      await Service.find({})
+      const services =
+        await Service.find(
+          tenantFilter(req)
+        )
         .sort({
           createdAt:1
         });
 
-    return res.json(services);
+      return res.json(
+        services
+      );
 
-  }catch(err){
+    }catch(err){
 
-    console.log(
-      "COMPANY SERVICES ADMIN LOAD ERROR:",
-      err
-    );
+      console.log(
+        "COMPANY SERVICES ADMIN LOAD ERROR:",
+        err
+      );
 
-    return res.status(500).json({
-      success:false,
-      message:"Failed To Load Company Services"
-    });
+      return res.status(500).json({
+        success:false,
+        message:"Failed To Load Company Services"
+      });
+
+    }
 
   }
-
-});
+);
 
 /* =========================
    GET ONE SERVICE
 ========================= */
 
-router.get("/:idOrKey", async (req,res)=>{
+router.get(
+  "/:idOrKey",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try{
+    try{
 
-    const idOrKey =
-      clean(req.params.idOrKey);
+      const idOrKey =
+        clean(
+          req.params.idOrKey
+        );
 
-    const service =
-      await Service.findOne(
-        buildServiceSearchFilter(idOrKey)
+      const service =
+        await Service.findOne(
+          tenantFilter(
+            req,
+            buildServiceSearchFilter(
+              idOrKey
+            )
+          )
+        );
+
+      if(!service){
+
+        return res.status(404).json({
+          success:false,
+          message:"Service Not Found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+        service
+      });
+
+    }catch(err){
+
+      console.log(
+        "COMPANY SERVICE GET ERROR:",
+        err
       );
 
-    if(!service){
-
-      return res.status(404).json({
+      return res.status(500).json({
         success:false,
-        message:"Service Not Found"
+        message:"Failed To Load Service"
       });
 
     }
 
-    return res.json({
-      success:true,
-      service
-    });
-
-  }catch(err){
-
-    console.log(
-      "COMPANY SERVICE GET ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-      success:false,
-      message:"Failed To Load Service"
-    });
-
   }
-
-});
+);
 
 /* =========================
    UPDATE COMPANY SERVICE
    Facility section inside Service Management
 ========================= */
 
-router.put("/:idOrKey", async (req,res)=>{
+router.put(
+  "/:idOrKey",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try{
+    try{
 
-    const idOrKey =
-      clean(req.params.idOrKey);
+      const idOrKey =
+        clean(
+          req.params.idOrKey
+        );
 
-    const filter =
-      buildServiceSearchFilter(idOrKey);
+      const filter =
+        tenantFilter(
+          req,
+          buildServiceSearchFilter(
+            idOrKey
+          )
+        );
 
-    const allowedFields = {
+      const allowedFields = {
 
-      /* =========================
-         VISIBILITY
-      ========================= */
+        /* =========================
+           VISIBILITY
+        ========================= */
 
-      companyEnabled:
-        req.body.companyEnabled,
+        companyEnabled:
+          req.body.companyEnabled,
 
-      /* =========================
-         BASIC FACILITY PRICING
-      ========================= */
+        /* =========================
+           BASIC FACILITY PRICING
+        ========================= */
 
-      companyPricingMode:
-        req.body.companyPricingMode,
+        companyPricingMode:
+          req.body.companyPricingMode,
 
-      companyBaseFare:
-        req.body.companyBaseFare,
+        companyBaseFare:
+          req.body.companyBaseFare,
 
-      companyIncludedMiles:
-        req.body.companyIncludedMiles,
+        companyIncludedMiles:
+          req.body.companyIncludedMiles,
 
-      companyPerMile:
-        req.body.companyPerMile,
+        companyPerMile:
+          req.body.companyPerMile,
 
-      companyHourlyRate:
-        req.body.companyHourlyRate,
+        companyHourlyRate:
+          req.body.companyHourlyRate,
 
-      companyHourlyBillingMode:
-        req.body.companyHourlyBillingMode,
+        companyHourlyBillingMode:
+          req.body.companyHourlyBillingMode,
 
-      companyStopFee:
-        req.body.companyStopFee,
+        companyStopFee:
+          req.body.companyStopFee,
 
-      companyNoShowFee:
-        req.body.companyNoShowFee,
+        companyNoShowFee:
+          req.body.companyNoShowFee,
 
-      companyShared:
-        req.body.companyShared,
+        companyShared:
+          req.body.companyShared,
 
-      companySharedPrice:
-        req.body.companySharedPrice,
+        companySharedPrice:
+          req.body.companySharedPrice,
 
-      companySuffix:
-        req.body.companySuffix,
+        companySuffix:
+          req.body.companySuffix,
 
-      /* =========================
-         WARNING / CANCEL
-      ========================= */
+        /* =========================
+           WARNING / CANCEL
+        ========================= */
 
-      companyCancelFee:
-        req.body.companyCancelFee,
+        companyCancelFee:
+          req.body.companyCancelFee,
 
-      companyWarningMinutes:
-        req.body.companyWarningMinutes,
+        companyWarningMinutes:
+          req.body.companyWarningMinutes,
 
-      companyWarningEnabled:
-        req.body.companyWarningEnabled,
+        companyWarningEnabled:
+          req.body.companyWarningEnabled,
 
-      companyDisableCancel:
-        req.body.companyDisableCancel,
+        companyDisableCancel:
+          req.body.companyDisableCancel,
 
-      /* =========================
-         ADD STOP POLICY
-      ========================= */
+        /* =========================
+           ADD STOP POLICY
+        ========================= */
 
-      companyAddStopEnabled:
-        req.body.companyAddStopEnabled,
+        companyAddStopEnabled:
+          req.body.companyAddStopEnabled,
 
-      companyAddStopCustomTimeEnabled:
-        req.body.companyAddStopCustomTimeEnabled,
+        companyAddStopCustomTimeEnabled:
+          req.body.companyAddStopCustomTimeEnabled,
 
-      companyAddStopCutoffMinutes:
-        req.body.companyAddStopCutoffMinutes
-    };
+        companyAddStopCutoffMinutes:
+          req.body.companyAddStopCutoffMinutes
+      };
 
-    Object.keys(allowedFields).forEach(key=>{
+      Object.keys(
+        allowedFields
+      ).forEach(key=>{
 
+        if(
+          allowedFields[key] ===
+          undefined
+        ){
+          delete allowedFields[key];
+        }
+
+      });
+
+      /*
+        Keep tenant ownership on the service.
+        Never trust tenantId from normal tenant body.
+      */
       if(
-        allowedFields[key] === undefined
+        req.authUser.role !==
+        "PLATFORM_ADMIN"
       ){
-        delete allowedFields[key];
+        allowedFields.tenantId =
+          req.authUser.tenantId;
+      }
+      else if(
+        req.body?.tenantId
+      ){
+        allowedFields.tenantId =
+          req.body.tenantId;
       }
 
-    });
+      const updated =
+        await Service.findOneAndUpdate(
+          filter,
+          {
+            $set:
+              allowedFields
+          },
+          {
+            new:true,
+            runValidators:false
+          }
+        );
 
-    const updated =
-      await Service.findOneAndUpdate(
-        filter,
-        {
-          $set:allowedFields
-        },
-        {
-          new:true,
-          runValidators:false
-        }
+      if(!updated){
+
+        return res.status(404).json({
+          success:false,
+          message:"Service Not Found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+        service:updated
+      });
+
+    }catch(err){
+
+      console.log(
+        "COMPANY SERVICE UPDATE ERROR:",
+        err
       );
 
-    if(!updated){
-
-      return res.status(404).json({
+      return res.status(500).json({
         success:false,
-        message:"Service Not Found"
+        message:"Update Failed"
       });
 
     }
 
-    return res.json({
-      success:true,
-      service:updated
-    });
-
-  }catch(err){
-
-    console.log(
-      "COMPANY SERVICE UPDATE ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-      success:false,
-      message:"Update Failed"
-    });
-
   }
-
-});
+);
 
 module.exports = router;

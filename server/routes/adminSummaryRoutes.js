@@ -24,6 +24,7 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 const Service =
   require("../models/Service");
@@ -32,6 +33,133 @@ const FacilityPricingOverride =
   require("../models/FacilityPricingOverride");
 
 const router = express.Router();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
 
 /* =========================
    MODEL
@@ -1272,7 +1400,7 @@ function normalizeTripCompany(trip){
    GET FAST SUMMARY BUNDLE
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get("/", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -1290,7 +1418,7 @@ router.get("/", async (req,res)=>{
     ] =
       await Promise.all([
 
-        Trip.find({})
+        Trip.find(tenantFilter(req))
           .sort({
             tripDate:-1,
             tripTime:-1,
@@ -1299,13 +1427,15 @@ router.get("/", async (req,res)=>{
           })
           .lean(),
 
-        Service.find({})
+        Service.find(tenantFilter(req))
           .lean(),
 
         FacilityPricingOverride
-          .find({
-            active:true
-          })
+          .find(
+            tenantFilter(req,{
+              active:true
+            })
+          )
           .lean()
 
       ]);

@@ -28,9 +28,96 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 const https = require("https");
 
 const router = express.Router();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+  const header =
+    String(req.headers?.authorization || "").trim();
+
+  if(!header.toLowerCase().startsWith("bearer ")){
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token = readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(token,JWT_SECRET);
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      clean(req.query?.tenantId || req.body?.tenantId || "");
+
+    if(requestedTenantId){
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 const routeMapEngine = require("../utils/routeMapEngine");
 const Service = require("../models/Service");
@@ -735,7 +822,7 @@ function httpsGetJson(url){
   });
 }
 
-async function lookupAddressCache(address,stats = null){
+async function lookupAddressCache(address,stats = null,req = null){
   if(!AddressCache){
     return null;
   }
@@ -749,15 +836,27 @@ async function lookupAddressCache(address,stats = null){
   const key = addressKey(fullAddress);
 
   try{
-    const found = await AddressCache.findOne({
-      $or:[
-        {addressKey:key},
-        {key},
-        {normalizedAddress:key},
-        {fullAddress:new RegExp("^" + escapeRegex(fullAddress) + "$","i")},
-        {address:new RegExp("^" + escapeRegex(fullAddress) + "$","i")}
-      ]
-    });
+    const found = await AddressCache.findOne(
+      req
+        ? tenantFilter(req,{
+            $or:[
+              {addressKey:key},
+              {key},
+              {normalizedAddress:key},
+              {fullAddress:new RegExp("^" + escapeRegex(fullAddress) + "$","i")},
+              {address:new RegExp("^" + escapeRegex(fullAddress) + "$","i")}
+            ]
+          })
+        : {
+            $or:[
+              {addressKey:key},
+              {key},
+              {normalizedAddress:key},
+              {fullAddress:new RegExp("^" + escapeRegex(fullAddress) + "$","i")},
+              {address:new RegExp("^" + escapeRegex(fullAddress) + "$","i")}
+            ]
+          }
+    );
 
     if(found && hasValidLatLng(found.lat,found.lng)){
       if(stats){
@@ -783,7 +882,7 @@ async function lookupAddressCache(address,stats = null){
   return null;
 }
 
-async function saveAddressCache(address,coords,source = "company-confirm-geocode"){
+async function saveAddressCache(address,coords,source = "company-confirm-geocode",req = null){
   if(!AddressCache){
     return null;
   }
@@ -798,13 +897,21 @@ async function saveAddressCache(address,coords,source = "company-confirm-geocode
 
   try{
     return await AddressCache.findOneAndUpdate(
-      {
-        $or:[
-          {addressKey:key},
-          {key},
-          {normalizedAddress:key}
-        ]
-      },
+      req
+        ? tenantFilter(req,{
+            $or:[
+              {addressKey:key},
+              {key},
+              {normalizedAddress:key}
+            ]
+          })
+        : {
+            $or:[
+              {addressKey:key},
+              {key},
+              {normalizedAddress:key}
+            ]
+          },
       {
         $set:{
           addressKey:key,
@@ -815,6 +922,9 @@ async function saveAddressCache(address,coords,source = "company-confirm-geocode
           lat:Number(coords.lat),
           lng:Number(coords.lng),
           source,
+          ...(req && req.authUser?.tenantId
+            ? {tenantId:req.authUser.tenantId}
+            : {}),
           updatedAt:new Date(),
           lastUsedAt:new Date()
         },
@@ -837,14 +947,14 @@ async function saveAddressCache(address,coords,source = "company-confirm-geocode
   }
 }
 
-async function geocodeAddress(address,stats = null){
+async function geocodeAddress(address,stats = null,req = null){
   const cleanAddress = normalizePossibleAddress(address);
 
   if(!cleanAddress){
     return null;
   }
 
-  const cached = await lookupAddressCache(cleanAddress,stats);
+  const cached = await lookupAddressCache(cleanAddress,stats,req);
 
   if(cached){
     return cached;
@@ -888,7 +998,7 @@ async function geocodeAddress(address,stats = null){
           geoKey:geoKey(cleanAddress)
         };
 
-        await saveAddressCache(cleanAddress,coords,coords.source);
+        await saveAddressCache(cleanAddress,coords,coords.source,req);
         return coords;
       }
     }catch(err){
@@ -941,7 +1051,7 @@ async function geocodeAddress(address,stats = null){
       geoKey:geoKey(cleanAddress)
     };
 
-    await saveAddressCache(cleanAddress,coords,coords.source);
+    await saveAddressCache(cleanAddress,coords,coords.source,req);
     return coords;
   }
 
@@ -1005,7 +1115,7 @@ function needsFreshGeocode(passenger,type){
   return true;
 }
 
-async function ensurePassengerPointCoordinates(passenger,stats){
+async function ensurePassengerPointCoordinates(passenger,stats,req){
   const out = {...passenger};
 
   const pickupAddress = normalizePossibleAddress(out.pickup);
@@ -1020,7 +1130,7 @@ async function ensurePassengerPointCoordinates(passenger,stats){
   }
 
   if(needsFreshGeocode(out,"pickup")){
-    const coords = await geocodeAddress(pickupAddress,stats);
+    const coords = await geocodeAddress(pickupAddress,stats,req);
 
     if(coords){
       out.pickupLat = coords.lat;
@@ -1033,7 +1143,8 @@ async function ensurePassengerPointCoordinates(passenger,stats){
     await saveAddressCache(
       pickupAddress,
       {lat:out.pickupLat,lng:out.pickupLng},
-      "company-trusted-existing-passenger-pickup"
+      "company-trusted-existing-passenger-pickup",
+      req
     );
 
     out.pickupGeoAddress = pickupAddress;
@@ -1042,7 +1153,7 @@ async function ensurePassengerPointCoordinates(passenger,stats){
   }
 
   if(needsFreshGeocode(out,"dropoff")){
-    const coords = await geocodeAddress(dropoffAddress,stats);
+    const coords = await geocodeAddress(dropoffAddress,stats,req);
 
     if(coords){
       out.dropoffLat = coords.lat;
@@ -1055,7 +1166,8 @@ async function ensurePassengerPointCoordinates(passenger,stats){
     await saveAddressCache(
       dropoffAddress,
       {lat:out.dropoffLat,lng:out.dropoffLng},
-      "company-trusted-existing-passenger-dropoff"
+      "company-trusted-existing-passenger-dropoff",
+      req
     );
 
     out.dropoffGeoAddress = dropoffAddress;
@@ -1078,17 +1190,17 @@ async function ensurePassengerPointCoordinates(passenger,stats){
    COMPANY SHARED GROUP
 ========================= */
 
-async function findSharedGroupTrips(Trip,baseTrip){
+async function findSharedGroupTrips(Trip,baseTrip,req){
   const groupId = clean(baseTrip.groupId);
   const tripNumber = clean(baseTrip.tripNumber);
 
   if(groupId){
-    const list = await Trip.find({groupId}).sort({passengerIndex:1,createdAt:1});
+    const list = await Trip.find(tenantFilter(req,{groupId})).sort({passengerIndex:1,createdAt:1});
     if(list.length) return list;
   }
 
   if(tripNumber){
-    const list = await Trip.find({tripNumber}).sort({passengerIndex:1,createdAt:1});
+    const list = await Trip.find(tenantFilter(req,{tripNumber})).sort({passengerIndex:1,createdAt:1});
     if(list.length) return list;
   }
 
@@ -1255,7 +1367,7 @@ function uniqueTypedRoutePoints(points){
   return out;
 }
 
-async function collectSharedPoints(trip,stats){
+async function collectSharedPoints(trip,stats,req){
   const sourcePassengers = safeArray(trip.passengers)
     .map((passenger,index)=>{
       const pickup = getSharedPickupAddress(trip,passenger,index);
@@ -1289,7 +1401,7 @@ async function collectSharedPoints(trip,stats){
       passenger.passengerId ||
       "";
 
-    const withCoords = await ensurePassengerPointCoordinates(passenger,stats);
+    const withCoords = await ensurePassengerPointCoordinates(passenger,stats,req);
 
     if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
       throw new Error("Missing pickup coordinates for passenger: " + name + " | address: " + withCoords.pickup);
@@ -1510,8 +1622,8 @@ function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
   return routePlan;
 }
 
-async function buildSmartSharedRoute(trip,stats){
-  const points = await collectSharedPoints(trip,stats);
+async function buildSmartSharedRoute(trip,stats,req){
+  const points = await collectSharedPoints(trip,stats,req);
 
   if(
     routeMapEngine &&
@@ -1855,7 +1967,7 @@ function isOverrideServiceEnabled(service){
   return true;
 }
 
-async function resolveFacilityId({facilityId,company}){
+async function resolveFacilityId({facilityId,company,req}){
   if(facilityId && mongoose.Types.ObjectId.isValid(String(facilityId))){
     return String(facilityId);
   }
@@ -1874,18 +1986,20 @@ async function resolveFacilityId({facilityId,company}){
 
   const rx = new RegExp("^" + escapeRegex(companyName) + "$","i");
 
-  const user = await User.findOne({
-    role:{$in:["company","facility"]},
-    $or:[
-      {name:rx},
-      {username:rx},
-      {email:rx},
-      {company:rx},
-      {companyName:rx},
-      {facilityName:rx},
-      {organizationName:rx}
-    ]
-  }).lean();
+  const user = await User.findOne(
+    tenantFilter(req,{
+      role:{$in:["company","facility"]},
+      $or:[
+        {name:rx},
+        {username:rx},
+        {email:rx},
+        {company:rx},
+        {companyName:rx},
+        {facilityName:rx},
+        {organizationName:rx}
+      ]
+    })
+  ).lean();
 
   return user?._id ? String(user._id) : "";
 }
@@ -1942,7 +2056,7 @@ function pricingFromFacilityOverride(service){
   };
 }
 
-async function findActiveFacilityOverride({facilityId,company}){
+async function findActiveFacilityOverride({facilityId,company,req}){
   const or = [];
   const cleanFacilityId = clean(facilityId);
   const companyName = clean(company);
@@ -1960,19 +2074,20 @@ async function findActiveFacilityOverride({facilityId,company}){
     return null;
   }
 
-  return await FacilityPricingOverride.findOne({active:true,$or:or})
+  return await FacilityPricingOverride.findOne(tenantFilter(req,{active:true,$or:or}))
     .sort({updatedAt:-1,createdAt:-1})
     .lean();
 }
 
-async function resolvePricingService({serviceKey,facilityId,company}){
+async function resolvePricingService({serviceKey,facilityId,company,req}){
   const key = normalizeCode(serviceKey);
 
-  const resolvedFacilityId = await resolveFacilityId({facilityId,company});
+  const resolvedFacilityId = await resolveFacilityId({facilityId,company,req});
 
   const override = await findActiveFacilityOverride({
     facilityId:resolvedFacilityId || facilityId,
-    company
+    company,
+    req
   });
 
   if(override){
@@ -1992,7 +2107,7 @@ async function resolvePricingService({serviceKey,facilityId,company}){
     }
   }
 
-  const service = await Service.findOne(buildServiceSearchFilter(serviceKey)).lean();
+  const service = await Service.findOne(tenantFilter(req,buildServiceSearchFilter(serviceKey))).lean();
 
   if(!service){
     return {
@@ -2186,7 +2301,7 @@ function calculateCompanySharedPrice({pricing,miles,stops,minutes,passengersCoun
    ENDPOINT
 ========================= */
 
-router.post("/confirm-shared/:id", async (req,res)=>{
+router.post("/confirm-shared/:id", requireTenantApi, async (req,res)=>{
   try{
     const Trip = getTripModel();
     const id = req.params.id;
@@ -2198,7 +2313,7 @@ router.post("/confirm-shared/:id", async (req,res)=>{
       });
     }
 
-    const baseTrip = await Trip.findById(id);
+    const baseTrip = await Trip.findOne(tenantFilter(req,{_id:id}));
 
     if(!baseTrip){
       return res.status(404).json({
@@ -2214,7 +2329,7 @@ router.post("/confirm-shared/:id", async (req,res)=>{
       });
     }
 
-    const groupTrips = await findSharedGroupTrips(Trip,baseTrip);
+    const groupTrips = await findSharedGroupTrips(Trip,baseTrip,req);
     const firstTrip = groupTrips[0] || baseTrip;
 
     const sourcePassengers = buildPassengersFromGroupDocs(groupTrips);
@@ -2233,7 +2348,7 @@ router.post("/confirm-shared/:id", async (req,res)=>{
       routeData = buildRouteDataFromSavedTrip(firstTrip);
       routeReused = true;
     }else{
-      prepared = await buildSmartSharedRoute(virtualTrip,requestStats);
+      prepared = await buildSmartSharedRoute(virtualTrip,requestStats,req);
 
       if(!safeArray(prepared.routePoints).length || prepared.routePoints.length < 2){
         return res.status(400).json({
@@ -2292,7 +2407,8 @@ router.post("/confirm-shared/:id", async (req,res)=>{
     const resolved = await resolvePricingService({
       serviceKey:"SH",
       facilityId,
-      company
+      company,
+      req
     });
 
     if(!resolved.success){
@@ -2380,6 +2496,11 @@ router.post("/confirm-shared/:id", async (req,res)=>{
     };
 
     const routePayload = {
+      tenantId:
+        req.authUser.role === "PLATFORM_ADMIN"
+          ? (firstTrip.tenantId || req.body?.tenantId || null)
+          : req.authUser.tenantId,
+
       status:"Confirmed",
       dispatchSelected:true,
       reviewOnly:false,

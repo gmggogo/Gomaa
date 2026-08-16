@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 const FacilityPricingOverride =
   require("../models/FacilityPricingOverride");
@@ -13,6 +14,155 @@ const User =
 const Service =
   mongoose.models.Service ||
   require("../models/Service");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+      name:
+        verified.name || "",
+      username:
+        verified.username || "",
+      role:
+        verified.role || "",
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
+
+function tenantIdForWrite(req){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+    return String(
+      req.body?.tenantId ||
+      req.query?.tenantId ||
+      ""
+    ).trim();
+  }
+
+  return String(
+    req.authUser?.tenantId ||
+    ""
+  ).trim();
+}
 
 /* =========================
    HELPERS
@@ -607,7 +757,8 @@ function normalizeServiceInput(s){
 async function findOverrideByIdOrName({
   facilityId,
   facilityName,
-  activeOnly = false
+  activeOnly = false,
+  req
 }){
 
   const or = [];
@@ -663,7 +814,12 @@ async function findOverrideByIdOrName({
   }
 
   return await FacilityPricingOverride
-    .findOne(filter)
+    .findOne(
+      tenantFilter(
+        req,
+        filter
+      )
+    )
     .sort({
       updatedAt:-1,
       createdAt:-1
@@ -675,7 +831,7 @@ async function findOverrideByIdOrName({
    BOOTSTRAP
 ========================= */
 
-router.get("/bootstrap", async (req,res)=>{
+router.get("/bootstrap", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -703,15 +859,21 @@ router.get("/bootstrap", async (req,res)=>{
       await Promise.all([
 
         User
-          .find({})
+          .find(
+            tenantFilter(req)
+          )
           .lean(),
 
         Service
-          .find({})
+          .find(
+            tenantFilter(req)
+          )
           .lean(),
 
         FacilityPricingOverride
-          .find({})
+          .find(
+            tenantFilter(req)
+          )
           .lean()
 
       ]);
@@ -813,7 +975,7 @@ router.get("/bootstrap", async (req,res)=>{
    /:facilityId
 ========================= */
 
-router.get("/resolve", async (req,res)=>{
+router.get("/resolve", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -842,7 +1004,8 @@ router.get("/resolve", async (req,res)=>{
 
         facilityName,
 
-        activeOnly:true
+        activeOnly:true,
+        req
 
       });
 
@@ -918,7 +1081,7 @@ router.get("/resolve", async (req,res)=>{
    OVERRIDE
 ========================= */
 
-router.get("/:facilityId", async (req,res)=>{
+router.get("/:facilityId", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -946,9 +1109,11 @@ router.get("/:facilityId", async (req,res)=>{
 
     const override =
       await FacilityPricingOverride
-        .findOne({
-          facilityId
-        })
+        .findOne(
+          tenantFilter(req,{
+            facilityId
+          })
+        )
         .lean();
 
     return res.json({
@@ -984,7 +1149,7 @@ router.get("/:facilityId", async (req,res)=>{
    OVERRIDE
 ========================= */
 
-router.patch("/:facilityId", async (req,res)=>{
+router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -1006,6 +1171,43 @@ router.patch("/:facilityId", async (req,res)=>{
 
         message:
           "Invalid facility id"
+
+      });
+    }
+
+    const tenantId =
+      tenantIdForWrite(req);
+
+    if(!tenantId){
+
+      return res.status(403).json({
+
+        success:false,
+
+        message:
+          "Tenant Required"
+
+      });
+    }
+
+    const facilityUser =
+      await User.findOne({
+        _id:facilityId,
+        tenantId
+      })
+      .lean();
+
+    if(
+      !facilityUser ||
+      !isFacilityUser(facilityUser)
+    ){
+
+      return res.status(404).json({
+
+        success:false,
+
+        message:
+          "Facility not found"
 
       });
     }
@@ -1065,13 +1267,13 @@ router.patch("/:facilityId", async (req,res)=>{
 
     const updatedBy =
       clean(
+        req.authUser?.name
+      ) ||
+      clean(
+        req.authUser?.username
+      ) ||
+      clean(
         req.body?.updatedBy
-      ) ||
-      clean(
-        req.user?.name
-      ) ||
-      clean(
-        req.user?.username
       ) ||
       "";
 
@@ -1080,10 +1282,12 @@ router.patch("/:facilityId", async (req,res)=>{
         .findOneAndUpdate(
 
           {
+            tenantId,
             facilityId
           },
 
           {
+            tenantId,
             facilityId,
             facilityName,
             active,

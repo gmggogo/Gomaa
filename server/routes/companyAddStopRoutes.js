@@ -7,6 +7,7 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 const Service =
   require("../models/Service");
@@ -15,6 +16,92 @@ const FacilityPricingOverride =
   require("../models/FacilityPricingOverride");
 
 const router = express.Router();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+  const header =
+    String(req.headers?.authorization || "").trim();
+
+  if(!header.toLowerCase().startsWith("bearer ")){
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token = readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(token,JWT_SECRET);
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      clean(req.query?.tenantId || req.body?.tenantId || "");
+
+    if(requestedTenantId){
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 /* =========================
    MODELS
@@ -115,7 +202,7 @@ function serviceMatches(entry, code){
   );
 }
 
-async function resolveCompanyAddStopPolicy(trip){
+async function resolveCompanyAddStopPolicy(trip,req){
   const code = tripServiceCode(trip);
 
   if(!code){
@@ -158,7 +245,7 @@ async function resolveCompanyAddStopPolicy(trip){
   if(overrideOr.length){
     const override =
       await FacilityPricingOverride
-        .findOne({active:true,$or:overrideOr})
+        .findOne(tenantFilter(req,{active:true,$or:overrideOr}))
         .lean();
 
     const entry =
@@ -187,17 +274,19 @@ async function resolveCompanyAddStopPolicy(trip){
     new RegExp("^" + escapeRegex(value) + "$","i")
   );
 
-  const service = await Service.findOne({
-    $or:[
-      {serviceKey:{$in:candidates}},
-      {serviceCode:{$in:candidates}},
-      {serviceType:{$in:candidates}},
-      {suffix:{$in:candidates}},
-      {title:{$in:regexes}},
-      {name:{$in:regexes}},
-      {serviceName:{$in:regexes}}
-    ]
-  }).lean();
+  const service = await Service.findOne(
+    tenantFilter(req,{
+      $or:[
+        {serviceKey:{$in:candidates}},
+        {serviceCode:{$in:candidates}},
+        {serviceType:{$in:candidates}},
+        {suffix:{$in:candidates}},
+        {title:{$in:regexes}},
+        {name:{$in:regexes}},
+        {serviceName:{$in:regexes}}
+      ]
+    })
+  ).lean();
 
   if(!service){
     throw new Error("Company service was not found");
@@ -397,7 +486,7 @@ function normalizeEditedExistingStops(arr){
    POST /api/company/add-stop/:id/confirm
 ========================= */
 
-router.post("/add-stop/:id/confirm", async (req,res)=>{
+router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -412,7 +501,7 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
     }
 
     const trip =
-      await Trip.findById(tripId);
+      await Trip.findOne(tenantFilter(req,{_id:tripId}));
 
     if(!trip){
       return res.status(404).json({
@@ -440,7 +529,7 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
     }
 
     const addStopPolicy =
-      await resolveCompanyAddStopPolicy(trip);
+      await resolveCompanyAddStopPolicy(trip,req);
 
     enforceCompanyAddStopPolicy(
       trip,
@@ -704,7 +793,7 @@ router.post("/add-stop/:id/confirm", async (req,res)=>{
    GET /api/company/add-stop/:id/request
 ========================= */
 
-router.get("/add-stop/:id/request", async (req,res)=>{
+router.get("/add-stop/:id/request", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -719,7 +808,7 @@ router.get("/add-stop/:id/request", async (req,res)=>{
     }
 
     const trip =
-      await Trip.findById(tripId).lean();
+      await Trip.findOne(tenantFilter(req,{_id:tripId})).lean();
 
     if(!trip){
       return res.status(404).json({
@@ -750,7 +839,7 @@ router.get("/add-stop/:id/request", async (req,res)=>{
    POST /api/company/add-stop/:id/cancel
 ========================= */
 
-router.post("/add-stop/:id/cancel", async (req,res)=>{
+router.post("/add-stop/:id/cancel", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -765,7 +854,7 @@ router.post("/add-stop/:id/cancel", async (req,res)=>{
     }
 
     const trip =
-      await Trip.findById(tripId);
+      await Trip.findOne(tenantFilter(req,{_id:tripId}));
 
     if(!trip){
       return res.status(404).json({

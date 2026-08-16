@@ -1,7 +1,94 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+  const header =
+    String(req.headers?.authorization || "").trim();
+
+  if(!header.toLowerCase().startsWith("bearer ")){
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token = readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(token,JWT_SECRET);
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      clean(req.query?.tenantId || req.body?.tenantId || "");
+
+    if(requestedTenantId){
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 const Service =
   require("../models/Service");
@@ -249,7 +336,8 @@ function isOverrideServiceEnabled(s){
 
 async function resolveFacilityId({
   facilityId,
-  company
+  company,
+  req
 }){
 
   if(
@@ -280,20 +368,22 @@ async function resolveFacilityId({
     );
 
   const user =
-    await User.findOne({
-      role:{
-        $in:["company","facility"]
-      },
-      $or:[
-        { name:rx },
-        { username:rx },
-        { email:rx },
-        { company:rx },
-        { companyName:rx },
-        { facilityName:rx },
-        { organizationName:rx }
-      ]
-    }).lean();
+    await User.findOne(
+      tenantFilter(req,{
+        role:{
+          $in:["company","facility"]
+        },
+        $or:[
+          { name:rx },
+          { username:rx },
+          { email:rx },
+          { company:rx },
+          { companyName:rx },
+          { facilityName:rx },
+          { organizationName:rx }
+        ]
+      })
+    ).lean();
 
   return user?._id
     ? String(user._id)
@@ -587,7 +677,8 @@ function pricingFromFacilityOverride(service){
 
 async function findActiveFacilityOverride({
   facilityId,
-  company
+  company,
+  req
 }){
 
   const or = [];
@@ -625,10 +716,12 @@ async function findActiveFacilityOverride({
   }
 
   return await FacilityPricingOverride
-    .findOne({
-      active:true,
-      $or:or
-    })
+    .findOne(
+      tenantFilter(req,{
+        active:true,
+        $or:or
+      })
+    )
     .sort({
       updatedAt:-1,
       createdAt:-1
@@ -645,7 +738,8 @@ async function findActiveFacilityOverride({
 async function resolvePricingService({
   serviceKey,
   facilityId,
-  company
+  company,
+  req
 }){
 
   const key =
@@ -654,7 +748,8 @@ async function resolvePricingService({
   const resolvedFacilityId =
     await resolveFacilityId({
       facilityId,
-      company
+      company,
+      req
     });
 
   /*
@@ -667,7 +762,8 @@ async function resolvePricingService({
     await findActiveFacilityOverride({
       facilityId:
         resolvedFacilityId || facilityId,
-      company
+      company,
+      req
     });
 
   if(override){
@@ -716,7 +812,10 @@ async function resolvePricingService({
 
   const service =
     await Service.findOne(
-      buildServiceSearchFilter(serviceKey)
+      tenantFilter(
+        req,
+        buildServiceSearchFilter(serviceKey)
+      )
     ).lean();
 
   if(!service){
@@ -761,12 +860,14 @@ async function resolvePricingService({
    GET SERVICES
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get("/", requireTenantApi, async (req,res)=>{
 
   try{
 
     const services =
-      await Service.find({})
+      await Service.find(
+        tenantFilter(req)
+      )
         .sort({
           createdAt:1
         });
@@ -788,7 +889,7 @@ router.get("/", async (req,res)=>{
    CALCULATE
 ========================= */
 
-router.post("/calculate", async (req,res)=>{
+router.post("/calculate", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -829,7 +930,8 @@ router.post("/calculate", async (req,res)=>{
       await resolvePricingService({
         serviceKey,
         facilityId,
-        company
+        company,
+        req
       });
 
     if(!resolved.success){
@@ -1168,7 +1270,7 @@ router.post("/calculate", async (req,res)=>{
    UPDATE SERVICE
 ========================= */
 
-router.put("/:idOrKey", async (req,res)=>{
+router.put("/:idOrKey", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -1177,9 +1279,18 @@ router.put("/:idOrKey", async (req,res)=>{
 
     const updated =
       await Service.findOneAndUpdate(
-        buildServiceSearchFilter(idOrKey),
+        tenantFilter(
+          req,
+          buildServiceSearchFilter(idOrKey)
+        ),
         {
-          $set:req.body
+          $set:{
+            ...req.body,
+            tenantId:
+              req.authUser.role === "PLATFORM_ADMIN"
+                ? (req.body?.tenantId || undefined)
+                : req.authUser.tenantId
+          }
         },
         {
           new:true

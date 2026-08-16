@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 const User = require("../models/User");
@@ -8,6 +9,72 @@ const DispatchAssignment = require("../models/DispatchAssignment");
 const SmartDispatchEngine = require("../models/SmartDispatchEngine");
 
 // GH DISPATCH ROUTES — SHARED DRIVER MATCH FIX — 2026-07-23
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+function readBearerToken(req){
+  const header = String(req.headers?.authorization || "").trim();
+  if(!header.toLowerCase().startsWith("bearer ")) return "";
+  return header.slice(7).trim();
+}
+
+function requireTenantApi(req,res,next){
+  const token = readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+    const verified = jwt.verify(token,JWT_SECRET);
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+    const requestedTenantId =
+      String(req.query?.tenantId || req.body?.tenantId || "").trim();
+
+    return requestedTenantId
+      ? {...extra,tenantId:requestedTenantId}
+      : {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 function TripModel(){
   const Trip = global.Trip || mongoose.models.Trip;
@@ -269,7 +336,7 @@ function dispatchCoordinateProblems(trip){
   return problems;
 }
 
-async function prepareTripsForDriver(Trip,ids){
+async function prepareTripsForDriver(Trip,ids,req){
 
   if (
     typeof global.ensureTripCoords !==
@@ -281,9 +348,11 @@ async function prepareTripsForDriver(Trip,ids){
   }
 
   const trips =
-    await Trip.find({
-      _id:{ $in:ids }
-    });
+    await Trip.find(
+      tenantFilter(req,{
+        _id:{ $in:ids }
+      })
+    );
 
   const failed = [];
 
@@ -383,14 +452,25 @@ function scheduleAllows(row,trip,settings){
   return true;
 }
 
-async function buildContext(){
+async function buildContext(req){
   const [drivers,rows,assignments,settings] = await Promise.all([
-    User.find(driverUserFilter()).sort({name:1}).lean(),
-    DriverSchedule.find({}).lean(),
-    DispatchAssignment.find({
-      dispatchStatus:{$in:["ASSIGNED","SENT","ACCEPTED","ON_TRIP"]}
-    }).lean(),
-    SmartDispatchEngine.findOne().lean()
+    User.find(
+      tenantFilter(req,driverUserFilter())
+    ).sort({name:1}).lean(),
+
+    DriverSchedule.find(
+      tenantFilter(req)
+    ).lean(),
+
+    DispatchAssignment.find(
+      tenantFilter(req,{
+        dispatchStatus:{$in:["ASSIGNED","SENT","ACCEPTED","ON_TRIP"]}
+      })
+    ).lean(),
+
+    SmartDispatchEngine.findOne(
+      tenantFilter(req)
+    ).lean()
   ]);
   const schedule = new Map(rows.map(r=>[String(r.driverId),r]));
   return {drivers,schedule,assignments,settings:settings || {}};
@@ -481,23 +561,23 @@ function rankDrivers(trip,ctx){
   );
 }
 
-async function attachTrips(ctx){
+async function attachTrips(ctx,req){
   const Trip = TripModel();
   const tripIds = [...new Set(ctx.assignments.map(a=>String(a.tripId)))];
-  const rows = await Trip.find({_id:{$in:tripIds}}).lean();
+  const rows = await Trip.find(tenantFilter(req,{_id:{$in:tripIds}})).lean();
   const map = new Map(rows.map(t=>[String(t._id),t]));
   ctx.assignments.forEach(a=>{ a.__trip=map.get(String(a.tripId)); });
 }
 
-router.get("/",async(req,res)=>{
+router.get("/",requireTenantApi,async(req,res)=>{
   try{
     const Trip = TripModel();
     const [trips,assignments,drivers,scheduleRows] = await Promise.all([
-      Trip.find({dispatchSelected:true,disabled:false})
+      Trip.find(tenantFilter(req,{dispatchSelected:true,disabled:false}))
         .sort({tripDate:1,tripTime:1,createdAt:1}).lean(),
-      DispatchAssignment.find({}).lean(),
-      User.find(driverUserFilter()).sort({name:1}).lean(),
-      DriverSchedule.find({}).lean()
+      DispatchAssignment.find(tenantFilter(req)).lean(),
+      User.find(tenantFilter(req,driverUserFilter())).sort({name:1}).lean(),
+      DriverSchedule.find(tenantFilter(req)).lean()
     ]);
     const assignmentMap = new Map(
       assignments.map(a=>[String(a.tripId),a])
@@ -534,10 +614,10 @@ router.get("/",async(req,res)=>{
   }
 });
 
-router.post("/auto-assign",async(req,res)=>{
+router.post("/auto-assign",requireTenantApi,async(req,res)=>{
   try{
     const Trip = TripModel();
-    const settings = await SmartDispatchEngine.findOne().lean();
+    const settings = await SmartDispatchEngine.findOne(tenantFilter(req)).lean();
 
     if(settings?.enabled === false){
       return res.status(400).json({
@@ -550,11 +630,11 @@ router.post("/auto-assign",async(req,res)=>{
       ? [...new Set(req.body.ids.map(id).filter(Boolean).map(String))]
       : [];
 
-    const filter = {
+    const filter = tenantFilter(req,{
       dispatchSelected:true,
       disabled:false,
       ...(requested.length ? {_id:{$in:requested}} : {})
-    };
+    });
 
     const trips = await Trip.find(filter)
       .sort({tripDate:1,tripTime:1,createdAt:1})
@@ -569,24 +649,28 @@ router.post("/auto-assign",async(req,res)=>{
       Sent, accepted and active-trip assignments remain locked.
     */
     if(requested.length && tripIds.length){
-      await DispatchAssignment.deleteMany({
-        tripId:{$in:tripIds},
-        dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
-      });
+      await DispatchAssignment.deleteMany(
+        tenantFilter(req,{
+          tripId:{$in:tripIds},
+          dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
+        })
+      );
     }
 
-    const lockedAssignments = await DispatchAssignment.find({
-      tripId:{$in:tripIds},
-      driverId:{$ne:null},
-      dispatchStatus:{$in:["SENT","ACCEPTED","ON_TRIP","COMPLETED"]}
-    }).select("tripId dispatchStatus").lean();
+    const lockedAssignments = await DispatchAssignment.find(
+      tenantFilter(req,{
+        tripId:{$in:tripIds},
+        driverId:{$ne:null},
+        dispatchStatus:{$in:["SENT","ACCEPTED","ON_TRIP","COMPLETED"]}
+      })
+    ).select("tripId dispatchStatus").lean();
 
     const lockedIds = new Set(
       lockedAssignments.map(a=>String(a.tripId))
     );
 
-    const ctx = await buildContext();
-    await attachTrips(ctx);
+    const ctx = await buildContext(req);
+    await attachTrips(ctx,req);
 
     const results = [];
 
@@ -646,8 +730,11 @@ router.post("/auto-assign",async(req,res)=>{
       }
 
       const assignment = await DispatchAssignment.findOneAndUpdate(
-        {tripId:trip._id},
+        tenantFilter(req,{tripId:trip._id}),
         {$set:{
+          tenantId:req.authUser.role === "PLATFORM_ADMIN"
+            ? (trip.tenantId || req.body?.tenantId || null)
+            : req.authUser.tenantId,
           tripId:trip._id,
           driverId:best.driver._id,
           driverName:best.driver.name || best.driver.fullName || "",
@@ -696,7 +783,7 @@ router.post("/auto-assign",async(req,res)=>{
   }
 });
 
-router.patch("/send",async(req,res)=>{
+router.patch("/send",requireTenantApi,async(req,res)=>{
   try{
     if(req.body.selected !== true){
       return res.status(400).json({
@@ -730,7 +817,8 @@ router.patch("/send",async(req,res)=>{
       coordinateFailures =
         await prepareTripsForDriver(
           Trip,
-          ids
+          ids,
+          req
         );
 
       if(coordinateFailures.length){
@@ -748,9 +836,11 @@ router.patch("/send",async(req,res)=>{
       );
     }
 
-    const assignments = await DispatchAssignment.find({
-      tripId:{$in:ids}
-    }).lean();
+    const assignments = await DispatchAssignment.find(
+      tenantFilter(req,{
+        tripId:{$in:ids}
+      })
+    ).lean();
     const assigned = new Set(
       assignments.filter(a=>a.driverId).map(a=>String(a.tripId))
     );
@@ -763,7 +853,7 @@ router.patch("/send",async(req,res)=>{
       });
     }
     await DispatchAssignment.updateMany(
-      {tripId:{$in:ids}},
+      tenantFilter(req,{tripId:{$in:ids}}),
       {$set:{dispatchStatus:"SENT",sentAt:new Date()}}
     );
     res.json({
@@ -782,7 +872,7 @@ router.patch("/send",async(req,res)=>{
    SAVE TRIP DISPATCH SELECT
 ========================= */
 
-router.patch("/:tripId/selection",async(req,res)=>{
+router.patch("/:tripId/selection",requireTenantApi,async(req,res)=>{
   try{
     const tripId=id(req.params.tripId);
 
@@ -803,8 +893,8 @@ router.patch("/:tripId/selection",async(req,res)=>{
     const Trip=TripModel();
     const dispatchSelected=req.body.dispatchSelected;
 
-    const trip=await Trip.findByIdAndUpdate(
-      tripId,
+    const trip=await Trip.findOneAndUpdate(
+      tenantFilter(req,{_id:tripId}),
       {$set:{dispatchSelected}},
       {new:true,runValidators:true}
     ).lean();
@@ -822,10 +912,12 @@ router.patch("/:tripId/selection",async(req,res)=>{
       Sent/accepted/on-trip/completed history is kept intact.
     */
     if(!dispatchSelected){
-      await DispatchAssignment.deleteOne({
-        tripId,
-        dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
-      });
+      await DispatchAssignment.deleteOne(
+        tenantFilter(req,{
+          tripId,
+          dispatchStatus:{$in:["UNASSIGNED","ASSIGNED"]}
+        })
+      );
     }
 
     res.json({
@@ -843,7 +935,7 @@ router.patch("/:tripId/selection",async(req,res)=>{
   }
 });
 
-router.patch("/:tripId/driver",async(req,res)=>{
+router.patch("/:tripId/driver",requireTenantApi,async(req,res)=>{
   try{
     const tripId=id(req.params.tripId);
     const driverId=id(req.body.driverId);
@@ -856,14 +948,17 @@ router.patch("/:tripId/driver",async(req,res)=>{
       whether the trip enters dispatch; it must not block a manual driver
       replacement after SENT. Progress status below is the real safety lock.
     */
-    const trip=await Trip.findOne({
-      _id:tripId,disabled:false
-    }).lean();
+    const trip=await Trip.findOne(
+      tenantFilter(req,{
+        _id:tripId,
+        disabled:false
+      })
+    ).lean();
     if(!trip){
       return res.status(404).json({success:false,message:"Trip not found"});
     }
 
-    const currentAssignment=await DispatchAssignment.findOne({tripId});
+    const currentAssignment=await DispatchAssignment.findOne(tenantFilter(req,{tripId}));
     const progressValues=[
       currentAssignment?.dispatchStatus,
       trip.dispatchStatus,
@@ -888,8 +983,11 @@ router.patch("/:tripId/driver",async(req,res)=>{
 
     if(!driverId){
       const assignment=await DispatchAssignment.findOneAndUpdate(
-        {tripId},
+        tenantFilter(req,{tripId}),
         {$set:{
+          tenantId:req.authUser.role === "PLATFORM_ADMIN"
+            ? (trip.tenantId || req.body?.tenantId || null)
+            : req.authUser.tenantId,
           driverId:null,driverName:"",driverPhone:"",
           vehicleNumber:"",driverAddress:"",
           dispatchStatus:preservedStatus === "SENT" || preservedStatus === "ACCEPTED"
@@ -903,17 +1001,22 @@ router.patch("/:tripId/driver",async(req,res)=>{
       );
       return res.json({success:true,assignment});
     }
-    const driver=await User.findOne({
-      _id:driverId,
-      ...driverUserFilter()
-    }).lean();
+    const driver=await User.findOne(
+      tenantFilter(req,{
+        _id:driverId,
+        ...driverUserFilter()
+      })
+    ).lean();
     if(!driver){
       return res.status(404).json({success:false,message:"Active driver not found"});
     }
-    const row=await DriverSchedule.findOne({driverId}).lean();
+    const row=await DriverSchedule.findOne(tenantFilter(req,{driverId})).lean();
     const assignment=await DispatchAssignment.findOneAndUpdate(
-      {tripId},
+      tenantFilter(req,{tripId}),
       {$set:{
+        tenantId:req.authUser.role === "PLATFORM_ADMIN"
+          ? (trip.tenantId || req.body?.tenantId || null)
+          : req.authUser.tenantId,
         tripId,driverId,
         driverName:driver.name || driver.fullName || "",
         driverPhone:row?.phone || driver.phone || "",
@@ -935,15 +1038,33 @@ router.patch("/:tripId/driver",async(req,res)=>{
   }
 });
 
-router.patch("/:tripId/note",async(req,res)=>{
+router.patch("/:tripId/note",requireTenantApi,async(req,res)=>{
   try{
     const tripId=id(req.params.tripId);
     if(!tripId){
       return res.status(400).json({success:false,message:"Invalid trip id"});
     }
+    const Trip=TripModel();
+
+    const trip=await Trip.findOne(
+      tenantFilter(req,{_id:tripId})
+    ).select("_id tenantId").lean();
+
+    if(!trip){
+      return res.status(404).json({
+        success:false,
+        message:"Trip not found"
+      });
+    }
+
     await DispatchAssignment.findOneAndUpdate(
-      {tripId},
-      {$set:{note:clean(req.body.note)}},
+      tenantFilter(req,{tripId}),
+      {$set:{
+        tenantId:req.authUser.role === "PLATFORM_ADMIN"
+          ? (trip.tenantId || req.body?.tenantId || null)
+          : req.authUser.tenantId,
+        note:clean(req.body.note)
+      }},
       {upsert:true,new:true}
     );
     res.json({success:true});

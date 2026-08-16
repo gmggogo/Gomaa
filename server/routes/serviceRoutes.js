@@ -1,8 +1,137 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
 const Service = require("../models/Service");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
 
 /* =========================
    HELPERS
@@ -272,11 +401,14 @@ function lockAddStopForShared(payload,current){
 }
 
 /* =========================
-   PUBLIC SERVICES
+   SERVICES
    /api/services
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get(
+  "/",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
@@ -299,10 +431,19 @@ router.get("/", async (req,res)=>{
     }
 
     const services =
-      await Service.find(filter)
-      .sort({ createdAt:1 });
+      await Service.find(
+        tenantFilter(
+          req,
+          filter
+        )
+      )
+      .sort({
+        createdAt:1
+      });
 
-    return res.json(services);
+    return res.json(
+      services
+    );
 
   }catch(err){
 
@@ -320,15 +461,24 @@ router.get("/", async (req,res)=>{
    /api/services/admin
 ========================= */
 
-router.get("/admin", async (req,res)=>{
+router.get(
+  "/admin",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
     const services =
-      await Service.find({})
-      .sort({ createdAt:1 });
+      await Service.find(
+        tenantFilter(req)
+      )
+      .sort({
+        createdAt:1
+      });
 
-    return res.json(services);
+    return res.json(
+      services
+    );
 
   }catch(err){
 
@@ -344,19 +494,22 @@ router.get("/admin", async (req,res)=>{
 /* =========================
    DRIVER WAIT CONFIG
    /api/services/driver-config/:idOrKey
-
-   Returns only fields needed by Driver Map.
-   Works for Individual and Shared services.
 ========================= */
 
-router.get("/driver-config/:idOrKey", async (req,res)=>{
+router.get(
+  "/driver-config/:idOrKey",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
     const service =
       await Service.findOne(
-        getDriverConfigFilter(
-          req.params.idOrKey
+        tenantFilter(
+          req,
+          getDriverConfigFilter(
+            req.params.idOrKey
+          )
         )
       )
       .select({
@@ -407,17 +560,25 @@ router.get("/driver-config/:idOrKey", async (req,res)=>{
    /api/services/:idOrKey
 ========================= */
 
-router.put("/:idOrKey", async (req,res)=>{
+router.put(
+  "/:idOrKey",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
     const filter =
-      getServiceFilter(
-        req.params.idOrKey
+      tenantFilter(
+        req,
+        getServiceFilter(
+          req.params.idOrKey
+        )
       );
 
     const current =
-      await Service.findOne(filter);
+      await Service.findOne(
+        filter
+      );
 
     if(!current){
       return res.status(404).json({
@@ -442,10 +603,32 @@ router.put("/:idOrKey", async (req,res)=>{
         current
       );
 
+    /*
+      Never allow a normal tenant to move
+      a Service to another tenant.
+    */
+    if(
+      req.authUser.role !==
+      "PLATFORM_ADMIN"
+    ){
+      delete payload.tenantId;
+
+      payload.tenantId =
+        req.authUser.tenantId;
+    }
+    else if(
+      req.body?.tenantId
+    ){
+      payload.tenantId =
+        req.body.tenantId;
+    }
+
     const updated =
       await Service.findOneAndUpdate(
         filter,
-        { $set:payload },
+        {
+          $set:payload
+        },
         {
           new:true,
           runValidators:true

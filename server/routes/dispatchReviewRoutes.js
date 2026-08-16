@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 
 /* =====================================================
    FILE: server/routes/dispatchReviewRoutes.js
@@ -20,6 +21,110 @@ const mongoose = require("mongoose");
        All Not Completed => Not Completed
        Mixed final statuses => Mixed Closed
 ===================================================== */
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
 
 /* =========================
    MODEL
@@ -346,7 +451,7 @@ function decorateTripForReview(trip){
    Confirmed final trips only
 ========================= */
 
-router.get("/", async (req,res)=>{
+router.get("/", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -354,7 +459,7 @@ router.get("/", async (req,res)=>{
       getTripModel();
 
     const trips =
-      await Trip.find({})
+      await Trip.find(tenantFilter(req))
         .sort({
           tripDate:-1,
           tripTime:-1,
@@ -411,7 +516,7 @@ router.get("/", async (req,res)=>{
    يفضل Confirmed وما يخرجش من Review
 ========================= */
 
-router.patch("/:id/status", async (req,res)=>{
+router.patch("/:id/status", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -439,7 +544,7 @@ router.patch("/:id/status", async (req,res)=>{
     }
 
     const trip =
-      await Trip.findById(id);
+      await Trip.findOne(tenantFilter(req,{_id:id}));
 
     if(!trip){
       return res.status(404).json({
@@ -499,7 +604,7 @@ router.patch("/:id/status", async (req,res)=>{
    يفضل Confirmed وما يخرجش من Review
 ========================= */
 
-router.patch("/:id/shared-status", async (req,res)=>{
+router.patch("/:id/shared-status", requireTenantApi, async (req,res)=>{
 
   try{
 
@@ -529,7 +634,7 @@ router.patch("/:id/shared-status", async (req,res)=>{
     }
 
     const trip =
-      await Trip.findById(id);
+      await Trip.findOne(tenantFilter(req,{_id:id}));
 
     if(!trip){
       return res.status(404).json({

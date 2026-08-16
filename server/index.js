@@ -1371,6 +1371,36 @@ function requireTenantApi(
   }
 }
 
+/* =========================
+   TENANT FILTER HELPERS
+   STAGE 3
+========================= */
+
+function tenantIdForRequest(req){
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+    return null;
+  }
+  return req.authUser?.tenantId || null;
+}
+
+function tenantFilter(req, extra = {}){
+  const tenantId = tenantIdForRequest(req);
+  if(!tenantId){
+    return { ...extra };
+  }
+  return {
+    ...extra,
+    tenantId
+  };
+}
+
+function tenantIdForCreate(req){
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+    return req.body?.tenantId || req.query?.tenantId || null;
+  }
+  return req.authUser?.tenantId || null;
+}
+
 function parseStops(stops) {
   if (!Array.isArray(stops)) return [];
   return stops.map(s => normalizeText(s)).filter(Boolean);
@@ -3142,7 +3172,7 @@ app.post("/api/auth/login", async (req, res) => {
    USERS ROUTES
 ========================= */
 
-app.get("/api/users/:role", async (req, res) => {
+app.get("/api/users/:role", requireTenantApi, async (req, res) => {
 
   try {
 
@@ -3164,9 +3194,9 @@ app.get("/api/users/:role", async (req, res) => {
 
     }
 
-    const users = await User.find({
-      role
-    }).sort({
+    const users = await User.find(
+      tenantFilter(req,{ role })
+    ).sort({
       createdAt: -1,
       name: 1
     });
@@ -3189,7 +3219,7 @@ app.get("/api/users/:role", async (req, res) => {
    CREATE USER
 ========================= */
 
-app.post("/api/users/:role", async (req, res) => {
+app.post("/api/users/:role", requireTenantApi, async (req, res) => {
 
   try {
 
@@ -3250,8 +3280,18 @@ app.post("/api/users/:role", async (req, res) => {
     const hashed =
       await bcrypt.hash(password, 10);
 
+    const createTenantId = tenantIdForCreate(req);
+
+    if(req.authUser?.role !== "PLATFORM_ADMIN" && !createTenantId){
+      return res.status(403).json({
+        message:"Tenant Required"
+      });
+    }
+
     const newUser =
       await User.create({
+
+        tenantId:createTenantId,
 
         name:
           normalizeText(name),
@@ -3296,7 +3336,7 @@ app.post("/api/users/:role", async (req, res) => {
    UPDATE USER
 ========================= */
 
-app.put("/api/users/:id", async (req, res) => {
+app.put("/api/users/:id", requireTenantApi, async (req, res) => {
 
   try {
 
@@ -3343,17 +3383,17 @@ app.put("/api/users/:id", async (req, res) => {
     }
 
     const updated =
-      await User.findByIdAndUpdate(
-
-        req.params.id,
-
+      await User.findOneAndUpdate(
+        tenantFilter(req,{ _id:req.params.id }),
         updateData,
-
-        {
-          new: true
-        }
-
+        { new:true }
       );
+
+    if(!updated){
+      return res.status(404).json({
+        message:"User not found"
+      });
+    }
 
     res.json(updated);
 
@@ -3373,13 +3413,13 @@ app.put("/api/users/:id", async (req, res) => {
    TOGGLE ACTIVE
 ========================= */
 
-app.patch("/api/users/:id/toggle", async (req, res) => {
+app.patch("/api/users/:id/toggle", requireTenantApi, async (req, res) => {
 
   try {
 
     const user =
-      await User.findById(
-        req.params.id
+      await User.findOne(
+        tenantFilter(req,{ _id:req.params.id })
       );
 
     if (!user) {
@@ -3412,13 +3452,20 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
    DELETE USER
 ========================= */
 
-app.delete("/api/users/:id", async (req, res) => {
+app.delete("/api/users/:id", requireTenantApi, async (req, res) => {
 
   try {
 
-    await User.findByIdAndDelete(
-      req.params.id
-    );
+    const deleted =
+      await User.findOneAndDelete(
+        tenantFilter(req,{ _id:req.params.id })
+      );
+
+    if(!deleted){
+      return res.status(404).json({
+        message:"User not found"
+      });
+    }
 
     res.json({
       message: "Deleted"
@@ -3440,13 +3487,13 @@ app.delete("/api/users/:id", async (req, res) => {
    ADMIN BILLING LIST
 ========================= */
 
-app.get("/api/admin/billing", async (req, res) => {
+app.get("/api/admin/billing", requireTenantApi, async (req, res) => {
 
   try {
 
-    const companies = await User.find({
-      role: "company"
-    })
+    const companies = await User.find(
+      tenantFilter(req,{ role:"company" })
+    )
     .sort({ name: 1 })
     .lean();
 
@@ -4653,12 +4700,14 @@ return res.json({
 /* =========================
    GET DRIVERS
 ========================= */
-app.get("/api/drivers", async (req, res) => {
+app.get("/api/drivers", requireTenantApi, async (req, res) => {
   try {
-    const drivers = await User.find({
-      role: "driver",
-      active: true
-    }).sort({ name: 1 });
+    const drivers = await User.find(
+      tenantFilter(req,{
+        role:"driver",
+        active:true
+      })
+    ).sort({ name: 1 });
 
     res.json(drivers);
   } catch (err) {
@@ -5370,9 +5419,11 @@ app.get(
 /* =========================
    GET ALL TRIPS
 ========================= */
-app.get("/api/trips", async (req, res) => {
+app.get("/api/trips", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(
+      tenantFilter(req)
+    ).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
     console.log(err);
@@ -5383,9 +5434,11 @@ app.get("/api/trips", async (req, res) => {
 /* =========================
    GET ALL TRIPS FOR HUB
 ========================= */
-app.get("/api/trips/company", async (req, res) => {
+app.get("/api/trips/company", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(
+      tenantFilter(req)
+    ).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
     console.log(err);
@@ -5396,11 +5449,11 @@ app.get("/api/trips/company", async (req, res) => {
 /* =========================
    GET COMPANY TRIPS ONLY
 ========================= */
-app.get("/api/trips/company/:company", async (req, res) => {
+app.get("/api/trips/company/:company", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find({
-      company: req.params.company
-    }).sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(
+      tenantFilter(req,{ company:req.params.company })
+    ).sort({ createdAt: -1, _id: -1 });
 
     res.json(trips);
   } catch (err) {
@@ -5412,12 +5465,12 @@ app.get("/api/trips/company/:company", async (req, res) => {
 /* =========================
    SUMMARY TRIPS (FINAL REAL)
 ========================= */
-app.get("/api/trips/summary", async (req, res) => {
+app.get("/api/trips/summary", requireTenantApi, async (req, res) => {
   try {
 
     const company = normalizeText(req.query.company || "");
 
-    const filter = {};
+    const filter = tenantFilter(req);
 
     if (company) {
 
@@ -5825,12 +5878,12 @@ else {
 /* =========================
    GET ONE TRIP
 ========================= */
-app.get("/api/trips/:id", async (req, res) => {
+app.get("/api/trips/:id", requireTenantApi, async (req, res) => {
   try {
 
     const trip =
-      await Trip.findById(
-        req.params.id
+      await Trip.findOne(
+        tenantFilter(req,{ _id:req.params.id })
       );
 
     if(!trip){
@@ -5850,8 +5903,8 @@ app.get("/api/trips/:id", async (req, res) => {
     );
 
     const freshTrip =
-      await Trip.findById(
-        req.params.id
+      await Trip.findOne(
+        tenantFilter(req,{ _id:req.params.id })
       );
 
     res.json(
@@ -5873,7 +5926,7 @@ app.get("/api/trips/:id", async (req, res) => {
 /* =========================
    UPDATE TRIP (FINAL CLEAN)
 ========================= */
-app.put("/api/trips/:id", async (req, res) => {
+app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
 
   console.log("=========== UPDATE TRIP ===========");
   console.log("ID =", req.params.id);
@@ -5882,7 +5935,9 @@ app.put("/api/trips/:id", async (req, res) => {
 
   try {
 
-    const existing = await Trip.findById(req.params.id);
+    const existing = await Trip.findOne(
+      tenantFilter(req,{ _id:req.params.id })
+    );
 
     if (!existing) {
       return res.status(404).json({
@@ -6333,8 +6388,8 @@ else if(updateData.status === "Completed"){
     /* =========================
        SAVE
     ========================= */
-    const updated = await Trip.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Trip.findOneAndUpdate(
+      tenantFilter(req,{ _id:req.params.id }),
       updateData,
       { new: true }
     );
@@ -6352,9 +6407,11 @@ else if(updateData.status === "Completed"){
 /* =========================
    DELETE TRIP
 ========================= */
-app.delete("/api/trips/:id", async (req, res) => {
+app.delete("/api/trips/:id", requireTenantApi, async (req, res) => {
   try {
-    const deleted = await Trip.findByIdAndDelete(req.params.id);
+    const deleted = await Trip.findOneAndDelete(
+      tenantFilter(req,{ _id:req.params.id })
+    );
 
     if (!deleted) {
       return res.status(404).json({ message: "Trip not found" });
@@ -7770,11 +7827,11 @@ catch (err) {
 /* =========================
    GET REFUNDS
 ========================= */
-app.get("/api/refunds", async (req, res) => {
+app.get("/api/refunds", requireTenantApi, async (req, res) => {
   try {
-    const refunds = await Trip.find({
-      status: "Cancelled"
-    })
+    const refunds = await Trip.find(
+      tenantFilter(req,{ status:"Cancelled" })
+    )
     .sort({ createdAt: -1 })
     .lean();
 
@@ -7785,12 +7842,14 @@ app.get("/api/refunds", async (req, res) => {
   }
 });
 
-app.post("/api/company/cancel-trip/:id", async (req,res)=>{
+app.post("/api/company/cancel-trip/:id", requireTenantApi, async (req,res)=>{
 
   try{
 
     const trip =
-      await Trip.findById(req.params.id);
+      await Trip.findOne(
+        tenantFilter(req,{ _id:req.params.id })
+      );
 
     if(!trip){
       return res.status(404).json({

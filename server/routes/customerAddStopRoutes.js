@@ -293,7 +293,7 @@ function getServiceCandidates(trip){
 
 }
 
-async function findGetQuoteService(trip){
+async function findGetQuoteService(trip,tenantId){
 
   const candidates =
     getServiceCandidates(trip);
@@ -318,6 +318,8 @@ async function findGetQuoteService(trip){
 
   const service =
     await Service.findOne({
+
+      ...(tenantId ? {tenantId} : {}),
 
       $or:[
 
@@ -594,12 +596,12 @@ function tripIsInProgress(trip){
    SYSTEM TIME
 ========================= */
 
-async function getSystemSettings(){
+async function getSystemSettings(tenantId){
 
   try{
 
     return (
-      await SystemDesign.findOne({}).lean()
+      await SystemDesign.findOne(tenantId ? {tenantId} : {}).lean()
     ) || {};
 
   }catch(err){
@@ -987,15 +989,28 @@ function verifyCustomerAddStopToken(token){
 
   }
 
+  const tenantId =
+    clean(decoded?.tenantId);
+
+  if(!tenantId){
+
+    throw new Error(
+      "Tenant is missing from Add Stop link"
+    );
+
+  }
+
   return {
     decoded,
-    tripId
+    tripId,
+    tenantId
   };
 
 }
 
 function createCustomerAddStopToken(
   tripId,
+  tenantId,
   expiresIn = "30d"
 ){
 
@@ -1013,9 +1028,21 @@ function createCustomerAddStopToken(
 
   }
 
+  const cleanTenantId =
+    clean(tenantId);
+
+  if(!cleanTenantId){
+
+    throw new Error(
+      "Tenant ID is required"
+    );
+
+  }
+
   return jwt.sign(
     {
       tripId:id,
+      tenantId:cleanTenantId,
       purpose:"CUSTOMER_ADD_STOP"
     },
     CUSTOMER_LINK_SECRET,
@@ -2112,7 +2139,8 @@ router.get(
     try{
 
       const {
-        tripId
+        tripId,
+        tenantId
       } =
         verifyCustomerAddStopToken(
           req.params.token
@@ -2120,7 +2148,10 @@ router.get(
 
       const trip =
         await Trip
-          .findById(tripId)
+          .findOne({
+            _id:tripId,
+            tenantId
+          })
           .lean();
 
       if(!trip){
@@ -2172,7 +2203,8 @@ router.get(
 
       const service =
         await findGetQuoteService(
-          trip
+          trip,
+          tenantId
         );
 
       const policy =
@@ -2181,7 +2213,7 @@ router.get(
         );
 
       const settings =
-        await getSystemSettings();
+        await getSystemSettings(tenantId);
 
       enforceAddStopPolicy(
         trip,
@@ -2234,7 +2266,8 @@ router.post(
     try{
 
       const {
-        tripId
+        tripId,
+        tenantId
       } =
         verifyCustomerAddStopToken(
           req.params.token
@@ -2260,9 +2293,10 @@ router.post(
       }
 
       const trip =
-        await Trip.findById(
-          tripId
-        );
+        await Trip.findOne({
+          _id:tripId,
+          tenantId
+        });
 
       if(!trip){
 
@@ -2318,7 +2352,8 @@ router.post(
 
       const service =
         await findGetQuoteService(
-          trip
+          trip,
+          tenantId
         );
 
       const policy =
@@ -2327,7 +2362,7 @@ router.post(
         );
 
       const settings =
-        await getSystemSettings();
+        await getSystemSettings(tenantId);
 
       enforceAddStopPolicy(
         trip,

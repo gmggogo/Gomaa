@@ -1,7 +1,136 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 const DriverChat = require("../models/DriverChat");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res.status(401).json({
+      ok:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        verified.id || null,
+
+      role:
+        verified.role || "",
+
+      tenantId:
+        verified.tenantId || null
+    };
+
+    if(
+      req.authUser.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+
+      return res.status(403).json({
+        ok:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      ok:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(
+  req,
+  extra={}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser.tenantId
+  };
+}
 
 /* =========================
    HELPERS
@@ -77,7 +206,7 @@ function liveDriverId(row){
    GET /api/driver-chat/messages?driverId=...
 ========================= */
 
-router.get("/messages", async (req,res) => {
+router.get("/messages", requireTenantApi, async (req,res) => {
 
   try{
 
@@ -91,9 +220,11 @@ router.get("/messages", async (req,res) => {
     }
 
     const messages = await DriverChat
-      .find({
-        driverId
-      })
+      .find(
+        tenantFilter(req,{
+          driverId
+        })
+      )
       .sort({
         createdAt:1
       })
@@ -125,7 +256,7 @@ router.get("/messages", async (req,res) => {
    POST /api/driver-chat/messages
 ========================= */
 
-router.post("/messages", async (req,res) => {
+router.post("/messages", requireTenantApi, async (req,res) => {
 
   try{
 
@@ -168,6 +299,11 @@ router.post("/messages", async (req,res) => {
     );
 
     const message = await DriverChat.create({
+      tenantId:
+        req.authUser.role === "PLATFORM_ADMIN"
+          ? (req.body?.tenantId || null)
+          : req.authUser.tenantId,
+
       driverId,
       senderType,
       senderName,
@@ -210,7 +346,7 @@ router.post("/messages", async (req,res) => {
    GET /api/driver-chat/admin/online-drivers
 ========================= */
 
-router.get("/admin/online-drivers", async (req,res) => {
+router.get("/admin/online-drivers", requireTenantApi, async (req,res) => {
 
   try{
 
@@ -247,6 +383,14 @@ router.get("/admin/online-drivers", async (req,res) => {
         continue;
       }
 
+      if(
+        req.authUser.role !== "PLATFORM_ADMIN" &&
+        String(row?.tenantId || "") !==
+        String(req.authUser.tenantId || "")
+      ){
+        continue;
+      }
+
       const timeValue =
         Number(
           row?.time ||
@@ -275,10 +419,11 @@ router.get("/admin/online-drivers", async (req,res) => {
     const unreadRows =
       await DriverChat.aggregate([
         {
-          $match:{
-            senderType:"DRIVER",
-            readByDispatch:false
-          }
+          $match:
+            tenantFilter(req,{
+              senderType:"DRIVER",
+              readByDispatch:false
+            })
         },
         {
           $group:{
@@ -328,15 +473,17 @@ router.get("/admin/online-drivers", async (req,res) => {
     const users =
       validObjectIds.length
         ? await User
-            .find({
-              _id:{
-                $in:validObjectIds
-              },
-              role:"driver",
-              active:{
-                $ne:false
-              }
-            })
+            .find(
+              tenantFilter(req,{
+                _id:{
+                  $in:validObjectIds
+                },
+                role:"driver",
+                active:{
+                  $ne:false
+                }
+              })
+            )
             .select(
               "_id name username email phone vehicleNumber active"
             )
@@ -437,7 +584,7 @@ router.get("/admin/online-drivers", async (req,res) => {
    GET /api/driver-chat/admin/unread
 ========================= */
 
-router.get("/admin/unread", async (req,res) => {
+router.get("/admin/unread", requireTenantApi, async (req,res) => {
 
   try{
 
@@ -506,7 +653,7 @@ router.get("/admin/unread", async (req,res) => {
    body: { driverId, reader:"DISPATCH" | "DRIVER" }
 ========================= */
 
-router.patch("/read", async (req,res) => {
+router.patch("/read", requireTenantApi, async (req,res) => {
 
   try{
 
@@ -523,9 +670,10 @@ router.patch("/read", async (req,res) => {
       clean(req.body?.reader)
       .toUpperCase();
 
-    let filter = {
-      driverId
-    };
+    let filter =
+      tenantFilter(req,{
+        driverId
+      });
 
     let update = {};
 
