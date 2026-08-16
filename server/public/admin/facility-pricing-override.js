@@ -27,6 +27,7 @@ if(!token || !["SUPER_ADMIN","admin"].includes(role)){
 let facilities = [];
 let services = [];
 let overrides = [];
+let tenantAllowedServices = [];
 
 let selectedFacilityId = "";
 let draftActive = false;
@@ -440,17 +441,32 @@ function serviceDefaultCopy(s){
 
 function getVisibleServicesForFacility(facility){
 
-  const allowed =
-    Array.isArray(facility?.allowedServices)
-      ? facility.allowedServices.map(normalizeCode).filter(Boolean)
+  const tenantAllowed =
+    Array.isArray(tenantAllowedServices)
+      ? tenantAllowedServices
       : [];
 
-  if(!allowed.length){
-    return services;
+  const facilityAllowed =
+    Array.isArray(facility?.allowedServices)
+      ? facility.allowedServices
+          .map(normalizeCode)
+          .filter(Boolean)
+      : [];
+
+  const effectiveAllowed =
+    facilityAllowed.length
+      ? facilityAllowed.filter(
+          key =>
+            tenantAllowed.includes(key)
+        )
+      : tenantAllowed;
+
+  if(!effectiveAllowed.length){
+    return [];
   }
 
   return services.filter(s =>
-    allowed.includes(
+    effectiveAllowed.includes(
       getServiceCode(s)
     )
   );
@@ -565,6 +581,19 @@ async function loadAll(){
   overrides =
     Array.isArray(data.overrides)
       ? data.overrides
+      : [];
+
+  tenantAllowedServices =
+    Array.isArray(
+      data.tenantAllowedServices
+    )
+      ? [
+          ...new Set(
+            data.tenantAllowedServices
+              .map(normalizeCode)
+              .filter(Boolean)
+          )
+        ]
       : [];
 
   if(!selectedFacilityId && facilities.length){
@@ -740,7 +769,7 @@ function renderMain(){
       ${
         draftServices.length
           ? draftServices.map((s,idx)=>serviceCardHTML(s,idx)).join("")
-          : `<div class="empty">No services available for this facility.</div>`
+          : `<div class="empty">No services are enabled for this facility by Platform Admin.</div>`
       }
     </div>
 
@@ -1315,10 +1344,41 @@ function validateBeforeSave(){
   }
 
   const missing =
-    draftServices.filter(s => !s.serviceKey);
+    draftServices.filter(
+      s => !s.serviceKey
+    );
 
   if(missing.length){
     alert("Some services are missing service key.");
+    return false;
+  }
+
+  const facility =
+    getSelectedFacility();
+
+  const visibleCodes =
+    new Set(
+      getVisibleServicesForFacility(
+        facility
+      )
+      .map(getServiceCode)
+      .filter(Boolean)
+    );
+
+  const invalid =
+    draftServices.filter(
+      service =>
+        !visibleCodes.has(
+          normalizeCode(
+            service.serviceKey
+          )
+        )
+    );
+
+  if(invalid.length){
+    alert(
+      "A service is not enabled for this facility."
+    );
     return false;
   }
 

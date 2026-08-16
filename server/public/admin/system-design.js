@@ -19,6 +19,93 @@ if(!token || !["SUPER_ADMIN","admin"].includes(role)){
 
 let systemDesign = {};
 
+
+let allowedServices = [];
+
+function normalizeServiceKey(value){
+
+  const raw =
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw) return "";
+
+  if(raw === "ST" || raw === "STANDARD" || raw.includes("STANDARD")) return "ST";
+
+  if(
+    raw === "WH" ||
+    raw === "WC" ||
+    raw === "WHEELCHAIR" ||
+    raw === "WHEEL CHAIR" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(raw === "SH" || raw === "SHARED" || raw.includes("SHARED")) return "SH";
+
+  if(
+    raw === "LM" ||
+    raw === "LIMO" ||
+    raw === "LIMOUSINE" ||
+    raw.includes("LIMOUSINE") ||
+    raw.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(raw === "TX" || raw === "TAXI" || raw.includes("TAXI")) return "TX";
+  if(raw === "XL" || raw === "XL SERVICE" || raw.startsWith("XL ")) return "XL";
+
+  return raw.replace(/\s+/g,"");
+}
+
+function serviceCardKey(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.id,
+    service?.key,
+    service?.code,
+    service?.suffix,
+    service?.title,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    const key =
+      normalizeServiceKey(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(key)
+    ){
+      return key;
+    }
+  }
+
+  return "";
+}
+
+function isServiceAllowed(service){
+
+  const key =
+    serviceCardKey(service);
+
+  return (
+    !!key &&
+    allowedServices.includes(key)
+  );
+}
+
 /* =========================
 DEFAULT DATA
 ========================= */
@@ -281,17 +368,73 @@ async function loadSystemDesign(){
     const data =
     await res.json();
 
+    allowedServices =
+      Array.isArray(data.allowedServices)
+        ? [
+            ...new Set(
+              data.allowedServices
+                .map(normalizeServiceKey)
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
+    const savedServices =
+      Array.isArray(data.services)
+        ? data.services
+        : [];
+
+    /*
+      Keep the six default card definitions available locally.
+      Saved tenant card values override matching defaults.
+      This means a service enabled later by Platform Admin
+      immediately has a card editor instead of disappearing.
+    */
+    const mergedServices =
+      defaultSystemDesign.services
+        .map(defaultService=>{
+
+          const key =
+            serviceCardKey(
+              defaultService
+            );
+
+          const saved =
+            savedServices.find(item =>
+              serviceCardKey(item) === key
+            );
+
+          return {
+            ...defaultService,
+            ...(saved || {})
+          };
+        });
+
+    savedServices.forEach(saved=>{
+
+      const key =
+        serviceCardKey(saved);
+
+      const exists =
+        mergedServices.some(item =>
+          serviceCardKey(item) === key
+        );
+
+      if(!exists){
+        mergedServices.push(saved);
+      }
+    });
+
     systemDesign = {
 
       ...defaultSystemDesign,
 
       ...data,
 
+      allowedServices,
+
       services:
-      Array.isArray(data.services)
-      && data.services.length
-      ? data.services
-      : defaultSystemDesign.services
+        mergedServices
 
     };
 
@@ -314,6 +457,7 @@ async function saveSystemDesign(){
 
   try{
 
+    const res =
     await fetch(
       "/api/system-design",
       {
@@ -331,6 +475,16 @@ async function saveSystemDesign(){
 
       }
     );
+
+    const data =
+    await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        "Save Failed"
+      );
+    }
 
   }catch(err){
 
@@ -992,6 +1146,10 @@ function renderCardsEditor(){
 
   services.forEach((service,index)=>{
 
+    if(!isServiceAllowed(service)){
+      return;
+    }
+
     container.innerHTML += `
 
     <div class="service-card">
@@ -1105,6 +1263,29 @@ function renderCardsEditor(){
 
   });
 
+  const visibleCount =
+    services.filter(
+      isServiceAllowed
+    ).length;
+
+  if(!visibleCount){
+
+    container.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        padding:28px;
+        border:1px dashed #cbd5e1;
+        border-radius:18px;
+        background:#f8fafc;
+        color:#64748b;
+        font-weight:800;
+        text-align:center;
+      ">
+        No homepage services have been assigned to this company by Platform Admin.
+      </div>
+    `;
+  }
+
 }
 
 /* =========================
@@ -1113,6 +1294,17 @@ CARD ACTIONS
 
 window.toggleCard =
 function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
 
   systemDesign.services[index].active =
   !systemDesign.services[index].active;
@@ -1125,6 +1317,17 @@ function(index){
 
 window.saveCard =
 async function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
 
   systemDesign.services[index].title =
   document.getElementById(
@@ -1527,6 +1730,17 @@ UPLOAD CARD IMAGE
 window.uploadCardImage =
 async function(input,index){
 
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
   const file =
   input.files[0];
 
@@ -1545,6 +1759,13 @@ formData.append(
 formData.append(
   "key",
   `services.${index}.image`
+);
+
+formData.append(
+  "serviceKey",
+  serviceCardKey(
+    systemDesign.services[index]
+  )
 );
 
     const res =

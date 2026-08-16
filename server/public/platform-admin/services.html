@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Platform Services</title>
+
+<link rel="stylesheet" href="platform_header.css">
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  margin:0;
+  width:100%;
+  min-height:100%;
+}
+
+body{
+  font-family:"Segoe UI",Arial,sans-serif;
+  background:#f3f6fb;
+  color:#0f172a;
+}
+
+/* =========================
+   PLATFORM HEADER
+========================= */
+
+#platformHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+}
+
+/* =========================
+   PAGE
+========================= */
+
+.page{
+  width:min(1500px,calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 70px;
+}
+
+.hero{
+  background:
+    radial-gradient(circle at top right,rgba(245,181,46,.22),transparent 30%),
+    linear-gradient(135deg,#07152d,#10264a);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:26px;
+  padding:28px 30px;
+  box-shadow:0 18px 45px rgba(15,23,42,.16);
+  color:#fff;
+}
+
+.hero-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+.hero h1{
+  margin:0;
+  font-size:34px;
+  line-height:1.1;
+  font-weight:950;
+}
+
+.hero p{
+  max-width:850px;
+  margin:10px 0 0;
+  color:#d6dfed;
+  font-size:14px;
+  font-weight:700;
+  line-height:1.7;
+}
+
+.hero-badge{
+  border:1px solid rgba(245,181,46,.38);
+  background:rgba(245,181,46,.12);
+  color:#ffd66d;
+  padding:10px 15px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+/* =========================
+   TENANT SELECTOR
+========================= */
+
+.tenant-panel{
+  margin-top:22px;
+  background:#fff;
+  border:1px solid #dce4ef;
+  border-radius:22px;
+  box-shadow:0 12px 28px rgba(15,23,42,.07);
+  overflow:hidden;
+}
+
+.tenant-panel-head{
+  background:#0b1933;
+  color:#fff;
+  padding:15px 20px;
+  font-size:14px;
+  font-weight:900;
+}
+
+.tenant-panel-body{
+  padding:20px;
+}
+
+.selector-grid{
+  display:grid;
+  grid-template-columns:minmax(260px,1fr) auto;
+  gap:14px;
+  align-items:end;
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.field label{
+  color:#475569;
+  font-size:12px;
+  font-weight:900;
+}
+
+.field select{
+  width:100%;
+  min-height:52px;
+  border:1px solid #cbd5e1;
+  border-radius:14px;
+  padding:0 14px;
+  background:#fff;
+  color:#0f172a;
+  font-size:14px;
+  font-weight:800;
+  outline:none;
+}
+
+.field select:focus{
+  border-color:#1d4ed8;
+  box-shadow:0 0 0 3px rgba(29,78,216,.1);
+}
+
+.refresh-btn{
+  min-height:52px;
+  border:none;
+  border-radius:14px;
+  padding:0 20px;
+  background:#172554;
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.refresh-btn:hover{
+  background:#1e3a8a;
+}
+
+/* =========================
+   SELECTED COMPANY
+========================= */
+
+.company-summary{
+  margin-top:18px;
+  display:none;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:14px;
+  border:1px solid #dbeafe;
+  background:#eff6ff;
+  padding:15px 17px;
+  border-radius:16px;
+}
+
+.company-summary.show{
+  display:grid;
+}
+
+.company-name{
+  font-size:19px;
+  font-weight:950;
+  color:#0f172a;
+}
+
+.company-meta{
+  margin-top:4px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
+.company-status{
+  padding:8px 12px;
+  border-radius:999px;
+  background:#dcfce7;
+  border:1px solid #bbf7d0;
+  color:#166534;
+  font-size:11px;
+  font-weight:950;
+}
+
+/* =========================
+   SERVICES SECTION
+========================= */
+
+.services-section{
+  margin-top:22px;
+  background:#fff;
+  border:1px solid #dce4ef;
+  border-radius:22px;
+  box-shadow:0 12px 28px rgba(15,23,42,.07);
+  overflow:hidden;
+}
+
+.section-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:18px 20px;
+  border-bottom:1px solid #e2e8f0;
+}
+
+.section-title{
+  font-size:19px;
+  font-weight:950;
+}
+
+.section-sub{
+  margin-top:4px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:750;
+}
+
+.counter{
+  padding:8px 12px;
+  border-radius:999px;
+  background:#fff7d6;
+  color:#8a5b00;
+  border:1px solid #f4d77d;
+  font-size:11px;
+  font-weight:950;
+}
+
+.services-grid{
+  padding:20px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(240px,1fr));
+  gap:16px;
+}
+
+.service-card{
+  position:relative;
+  border:1px solid #dbe3ee;
+  background:#fff;
+  border-radius:20px;
+  padding:18px;
+  transition:.18s ease;
+  cursor:pointer;
+  user-select:none;
+  min-height:154px;
+}
+
+.service-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 25px rgba(15,23,42,.08);
+}
+
+.service-card.enabled{
+  border:2px solid #d5a21c;
+  background:linear-gradient(180deg,#fffdf7,#fff9e6);
+  box-shadow:0 0 0 3px rgba(213,162,28,.09);
+}
+
+.service-card.disabled{
+  opacity:.78;
+}
+
+.service-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.service-code{
+  width:48px;
+  height:48px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#0b1933;
+  color:#ffd25b;
+  font-size:14px;
+  font-weight:950;
+  letter-spacing:.5px;
+}
+
+.service-toggle{
+  width:52px;
+  height:29px;
+  border-radius:999px;
+  background:#cbd5e1;
+  position:relative;
+  transition:.2s;
+  flex:0 0 auto;
+}
+
+.service-toggle::after{
+  content:"";
+  width:23px;
+  height:23px;
+  position:absolute;
+  top:3px;
+  left:3px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);
+  transition:.2s;
+}
+
+.service-card.enabled .service-toggle{
+  background:#16a34a;
+}
+
+.service-card.enabled .service-toggle::after{
+  transform:translateX(23px);
+}
+
+.service-name{
+  margin-top:16px;
+  font-size:18px;
+  font-weight:950;
+}
+
+.service-state{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:850;
+  color:#64748b;
+}
+
+.service-card.enabled .service-state{
+  color:#15803d;
+}
+
+/* =========================
+   ACTIONS
+========================= */
+
+.actions{
+  padding:18px 20px;
+  border-top:1px solid #e2e8f0;
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  flex-wrap:wrap;
+  background:#f8fafc;
+}
+
+.btn{
+  border:none;
+  border-radius:14px;
+  padding:13px 20px;
+  font-size:13px;
+  font-weight:950;
+  cursor:pointer;
+}
+
+.btn-reset{
+  background:#e2e8f0;
+  color:#334155;
+}
+
+.btn-save{
+  background:#d5a21c;
+  color:#07152d;
+  min-width:170px;
+}
+
+.btn-save:hover{
+  filter:brightness(.96);
+}
+
+.btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+/* =========================
+   MESSAGE
+========================= */
+
+.message{
+  display:none;
+  margin:18px 20px 0;
+  padding:13px 15px;
+  border-radius:14px;
+  font-size:13px;
+  font-weight:850;
+}
+
+.message.show{
+  display:block;
+}
+
+.message.success{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #bbf7d0;
+}
+
+.message.error{
+  background:#fee2e2;
+  color:#991b1b;
+  border:1px solid #fecaca;
+}
+
+.message.info{
+  background:#e0f2fe;
+  color:#075985;
+  border:1px solid #bae6fd;
+}
+
+.empty{
+  grid-column:1/-1;
+  padding:35px 20px;
+  text-align:center;
+  color:#64748b;
+  font-weight:850;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:1000px){
+  .services-grid{
+    grid-template-columns:repeat(2,minmax(220px,1fr));
+  }
+}
+
+@media(max-width:680px){
+  .page{
+    width:min(100% - 20px,1500px);
+    padding-top:20px;
+  }
+
+  .hero{
+    border-radius:20px;
+    padding:22px;
+  }
+
+  .hero h1{
+    font-size:27px;
+  }
+
+  .selector-grid{
+    grid-template-columns:1fr;
+  }
+
+  .refresh-btn{
+    width:100%;
+  }
+
+  .company-summary{
+    grid-template-columns:1fr;
+  }
+
+  .services-grid{
+    grid-template-columns:1fr;
+    padding:14px;
+  }
+
+  .actions{
+    flex-direction:column;
+  }
+
+  .btn{
+    width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="platformHeader"></div>
+
+<main class="page">
+
+  <section class="hero">
+    <div class="hero-row">
+      <div>
+        <h1>Tenant Services</h1>
+        <p>
+          Select a company, then choose the services that company is allowed to use.
+          These permissions control Service Management, System Design service cards,
+          Facility Pricing Override, and the public booking experience.
+        </p>
+      </div>
+
+      <div class="hero-badge">
+        PLATFORM ADMIN CONTROL
+      </div>
+    </div>
+  </section>
+
+  <section class="tenant-panel">
+
+    <div class="tenant-panel-head">
+      Select Company
+    </div>
+
+    <div class="tenant-panel-body">
+
+      <div class="selector-grid">
+
+        <div class="field">
+          <label>Company / Tenant</label>
+
+          <select id="tenantSelect">
+            <option value="">Loading companies...</option>
+          </select>
+        </div>
+
+        <button
+          class="refresh-btn"
+          type="button"
+          id="refreshBtn"
+        >
+          Refresh
+        </button>
+
+      </div>
+
+      <div
+        id="companySummary"
+        class="company-summary"
+      >
+        <div>
+          <div
+            id="companyName"
+            class="company-name"
+          ></div>
+
+          <div
+            id="companyMeta"
+            class="company-meta"
+          ></div>
+        </div>
+
+        <div
+          id="companyStatus"
+          class="company-status"
+        >
+          ACTIVE
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+  <section class="services-section">
+
+    <div class="section-head">
+      <div>
+        <div class="section-title">
+          Allowed Services
+        </div>
+
+        <div class="section-sub">
+          Click a service card to enable or disable it for the selected company.
+        </div>
+      </div>
+
+      <div
+        id="selectedCounter"
+        class="counter"
+      >
+        0 Selected
+      </div>
+    </div>
+
+    <div
+      id="message"
+      class="message"
+    ></div>
+
+    <div
+      id="servicesGrid"
+      class="services-grid"
+    >
+      <div class="empty">
+        Select a company to manage its services.
+      </div>
+    </div>
+
+    <div class="actions">
+
+      <button
+        id="resetBtn"
+        class="btn btn-reset"
+        type="button"
+        disabled
+      >
+        Reset Changes
+      </button>
+
+      <button
+        id="saveBtn"
+        class="btn btn-save"
+        type="button"
+        disabled
+      >
+        Save Services
+      </button>
+
+    </div>
+
+  </section>
+
+</main>
+
+<script src="platform_header.js"></script>
+
+<script>
+if(typeof loadPlatformHeader === "function"){
+  loadPlatformHeader("Services");
+}
+</script>
+
+<script src="services.js"></script>
+
+</body>
+</html>

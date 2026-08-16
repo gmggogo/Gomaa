@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const router = express.Router();
 
 const Service = require("../models/Service");
+const Tenant = require("../models/Tenant");
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -131,6 +132,109 @@ function tenantFilter(
     tenantId:
       req.authUser.tenantId
   };
+}
+
+/* =========================
+   TENANT ALLOWED SERVICES
+   Platform Admin is the master switch.
+========================= */
+
+function normalizeServiceCode(value){
+
+  const c =
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ");
+
+  if(!c) return "";
+
+  if(c === "ST" || c === "STANDARD" || c.includes("STANDARD")) return "ST";
+  if(c === "WH" || c === "WC" || c === "WHEELCHAIR" || c === "WHEEL CHAIR" || c.includes("WHEELCHAIR") || c.includes("WHEEL CHAIR")) return "WH";
+  if(c === "SH" || c === "SHARED" || c.includes("SHARED")) return "SH";
+  if(c === "LM" || c === "LIMO" || c === "LIMOUSINE" || c.includes("LIMOUSINE") || c.startsWith("LIMO ")) return "LM";
+  if(c === "TX" || c === "TAXI" || c.includes("TAXI")) return "TX";
+  if(c === "XL" || c === "XL SERVICE" || c.startsWith("XL ")) return "XL";
+
+  return c;
+}
+
+function serviceCode(service){
+
+  const values = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.suffix,
+    service?.companySuffix,
+    service?.reservedSuffix,
+    service?.title,
+    service?.name,
+    service?.serviceName
+  ];
+
+  for(const value of values){
+    const code = normalizeServiceCode(value);
+    if(["ST","WH","SH","LM","TX","XL"].includes(code)){
+      return code;
+    }
+  }
+
+  return normalizeServiceCode(values.find(Boolean));
+}
+
+async function allowedServiceSet(req){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+    return null;
+  }
+
+  const tenantId = String(req.authUser?.tenantId || "").trim();
+
+  if(!tenantId){
+    return new Set();
+  }
+
+  const tenant = await Tenant.findById(tenantId)
+    .select({ allowedServices:1 })
+    .lean();
+
+  if(!tenant){
+    return new Set();
+  }
+
+  const allowed = Array.isArray(tenant.allowedServices)
+    ? tenant.allowedServices
+        .map(normalizeServiceCode)
+        .filter(Boolean)
+    : [];
+
+  return new Set(allowed);
+}
+
+async function filterAllowedServices(req,services){
+
+  const allowed = await allowedServiceSet(req);
+
+  if(allowed === null){
+    return services;
+  }
+
+  return services.filter(service =>
+    allowed.has(serviceCode(service))
+  );
+}
+
+async function ensureServiceAllowed(req,service){
+
+  const allowed = await allowedServiceSet(req);
+
+  if(allowed === null){
+    return true;
+  }
+
+  return allowed.has(serviceCode(service));
 }
 
 /* =========================
@@ -441,8 +545,14 @@ router.get(
         createdAt:1
       });
 
+    const visibleServices =
+      await filterAllowedServices(
+        req,
+        services
+      );
+
     return res.json(
-      services
+      visibleServices
     );
 
   }catch(err){
@@ -476,8 +586,14 @@ router.get(
         createdAt:1
       });
 
+    const visibleServices =
+      await filterAllowedServices(
+        req,
+        services
+      );
+
     return res.json(
-      services
+      visibleServices
     );
 
   }catch(err){

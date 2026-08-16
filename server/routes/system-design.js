@@ -9,6 +9,9 @@ const jwt = require("jsonwebtoken");
 const SystemDesign =
 require("../models/SystemDesign");
 
+const Tenant =
+require("../models/Tenant");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -120,31 +123,282 @@ function tenantIdForRequest(req){
   ).trim();
 }
 
-function tenantFilter(
-  req,
-  extra={}
-){
+function safeTenantFolderName(value){
+
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_-]/g,"_");
+}
+
+/* =========================
+SERVICE PERMISSION HELPERS
+========================= */
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function normalizeServiceKey(value){
+
+  const raw =
+    clean(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw) return "";
+
+  if(raw === "ST" || raw === "STANDARD" || raw.includes("STANDARD")){
+    return "ST";
+  }
+
+  if(
+    raw === "WH" ||
+    raw === "WC" ||
+    raw === "WHEELCHAIR" ||
+    raw === "WHEEL CHAIR" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(raw === "SH" || raw === "SHARED" || raw.includes("SHARED")){
+    return "SH";
+  }
+
+  if(
+    raw === "LM" ||
+    raw === "LIMO" ||
+    raw === "LIMOUSINE" ||
+    raw.includes("LIMOUSINE") ||
+    raw.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(raw === "TX" || raw === "TAXI" || raw.includes("TAXI")){
+    return "TX";
+  }
+
+  if(raw === "XL" || raw === "XL SERVICE" || raw.startsWith("XL ")){
+    return "XL";
+  }
+
+  return raw.replace(/\s+/g,"");
+}
+
+function serviceCardKey(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.id,
+    service?.key,
+    service?.code,
+    service?.suffix,
+    service?.title,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    const key =
+      normalizeServiceKey(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(key)
+    ){
+      return key;
+    }
+  }
+
+  return "";
+}
+
+async function getTenantOrFail(req,res){
 
   const tenantId =
     tenantIdForRequest(req);
 
   if(!tenantId){
 
-    return {
-      ...extra
-    };
+    res.status(400).json({
+      success:false,
+      message:"Tenant Required"
+    });
+
+    return null;
   }
 
-  return {
-    ...extra,
-    tenantId
-  };
+  const tenant =
+    await Tenant.findById(
+      tenantId
+    )
+    .lean();
+
+  if(!tenant){
+
+    res.status(404).json({
+      success:false,
+      message:"Tenant Not Found"
+    });
+
+    return null;
+  }
+
+  return tenant;
 }
 
-function safeTenantFolderName(value){
+function getAllowedServices(tenant){
 
-  return String(value || "")
-    .replace(/[^a-zA-Z0-9_-]/g,"_");
+  return [
+    ...new Set(
+      (
+        Array.isArray(
+          tenant?.allowedServices
+        )
+          ? tenant.allowedServices
+          : []
+      )
+      .map(normalizeServiceKey)
+      .filter(Boolean)
+    )
+  ];
+}
+
+/*
+  Merge only allowed service-card changes.
+
+  The full services array stays stored in SystemDesign so if Platform Admin
+  enables another service later, its previous/default card settings are not lost.
+*/
+function mergeAllowedServiceCards(
+  existingServices,
+  incomingServices,
+  allowedServices
+){
+
+  const existing =
+    Array.isArray(existingServices)
+      ? existingServices.map(item => ({
+          ...(item?.toObject
+            ? item.toObject()
+            : item)
+        }))
+      : [];
+
+  const incoming =
+    Array.isArray(incomingServices)
+      ? incomingServices
+      : [];
+
+  const allowedSet =
+    new Set(
+      allowedServices
+    );
+
+  const byKey =
+    new Map();
+
+  existing.forEach((service,index)=>{
+
+    const key =
+      serviceCardKey(service);
+
+    if(key){
+      byKey.set(
+        key,
+        {
+          ...service,
+          __originalIndex:index
+        }
+      );
+    }
+  });
+
+  incoming.forEach(service=>{
+
+    const key =
+      serviceCardKey(service);
+
+    if(
+      !key ||
+      !allowedSet.has(key)
+    ){
+      return;
+    }
+
+    const previous =
+      byKey.get(key);
+
+    byKey.set(
+      key,
+      {
+        ...(previous || {}),
+        ...service,
+        __originalIndex:
+          previous?.__originalIndex
+      }
+    );
+  });
+
+  /*
+    Keep existing order first.
+  */
+  const result =
+    existing.map(service=>{
+
+      const key =
+        serviceCardKey(service);
+
+      if(
+        key &&
+        byKey.has(key)
+      ){
+        const item = {
+          ...byKey.get(key)
+        };
+
+        delete item.__originalIndex;
+
+        return item;
+      }
+
+      return service;
+    });
+
+  /*
+    If an allowed card exists in client defaults but did not exist in DB yet,
+    append it. This makes newly-created tenant designs safe on first save.
+  */
+  incoming.forEach(service=>{
+
+    const key =
+      serviceCardKey(service);
+
+    if(
+      !key ||
+      !allowedSet.has(key)
+    ){
+      return;
+    }
+
+    const exists =
+      result.some(row =>
+        serviceCardKey(row) === key
+      );
+
+    if(!exists){
+      result.push({
+        ...service
+      });
+    }
+  });
+
+  return result;
 }
 
 /* =========================
@@ -264,21 +518,25 @@ router.get(
 
   try{
 
-    const tenantId =
-      tenantIdForRequest(req);
+    const tenant =
+      await getTenantOrFail(
+        req,
+        res
+      );
 
-    if(!tenantId){
-
-      return res.status(400).json({
-        success:false,
-        message:"tenantId is required"
-      });
+    if(!tenant){
+      return;
     }
 
+    const tenantId =
+      String(
+        tenant._id
+      );
+
     let design =
-    await SystemDesign.findOne({
-      tenantId
-    });
+      await SystemDesign.findOne({
+        tenantId
+      });
 
     if(!design){
 
@@ -288,19 +546,41 @@ router.get(
         tenantId,
 
         companyName:
-        "Sunbeam Transportation"
+          tenant.branding?.companyName ||
+          tenant.name ||
+          "Company",
+
+        timezone:
+          tenant.timezone ||
+          "America/Phoenix"
 
       });
 
     }
 
-    res.json(design);
+    const data =
+      design.toObject
+        ? design.toObject()
+        : design;
+
+    return res.json({
+      ...data,
+
+      /*
+        Frontend uses this only to decide which card editors to render.
+        It is never accepted back as permission authority.
+      */
+      allowedServices:
+        getAllowedServices(
+          tenant
+        )
+    });
 
   }catch(err){
 
     console.log(err);
 
-    res.status(500).json({
+    return res.status(500).json({
 
       message:"Server Error"
 
@@ -321,21 +601,25 @@ router.post(
 
   try{
 
-    const tenantId =
-      tenantIdForRequest(req);
+    const tenant =
+      await getTenantOrFail(
+        req,
+        res
+      );
 
-    if(!tenantId){
-
-      return res.status(400).json({
-        success:false,
-        message:"Tenant Required"
-      });
+    if(!tenant){
+      return;
     }
 
+    const tenantId =
+      String(
+        tenant._id
+      );
+
     let design =
-    await SystemDesign.findOne({
-      tenantId
-    });
+      await SystemDesign.findOne({
+        tenantId
+      });
 
     if(!design){
 
@@ -350,11 +634,28 @@ router.post(
       ...(req.body || {})
     };
 
-    /*
-      Never allow normal tenant request
-      to move SystemDesign to another tenant.
-    */
     delete payload.tenantId;
+    delete payload.allowedServices;
+
+    const allowedServices =
+      getAllowedServices(
+        tenant
+      );
+
+    if(
+      Object.prototype.hasOwnProperty.call(
+        payload,
+        "services"
+      )
+    ){
+
+      payload.services =
+        mergeAllowedServiceCards(
+          design.services || [],
+          payload.services,
+          allowedServices
+        );
+    }
 
     Object.assign(
       design,
@@ -365,9 +666,9 @@ router.post(
       tenantId;
 
     const size =
-    Buffer.byteLength(
-      JSON.stringify(design)
-    );
+      Buffer.byteLength(
+        JSON.stringify(design)
+      );
 
     if(size > 500000){
 
@@ -384,11 +685,19 @@ router.post(
 
     await design.save();
 
-    res.json({
+    return res.json({
 
       success:true,
 
-      design
+      design:{
+        ...(
+          design.toObject
+            ? design.toObject()
+            : design
+        ),
+
+        allowedServices
+      }
 
     });
 
@@ -396,7 +705,7 @@ router.post(
 
     console.log(err);
 
-    res.status(500).json({
+    return res.status(500).json({
 
       message:"Save Failed"
 
@@ -418,21 +727,32 @@ router.post(
 
     try{
 
-      const tenantId =
-        tenantIdForRequest(req);
+      const tenant =
+        await getTenantOrFail(
+          req,
+          res
+        );
 
-      if(!tenantId){
+      if(!tenant){
 
-        return res
-        .status(403)
-        .json({
+        if(
+          req.file?.path &&
+          fs.existsSync(req.file.path)
+        ){
+          try{
+            fs.unlinkSync(
+              req.file.path
+            );
+          }catch{}
+        }
 
-          message:
-          "Tenant Required"
-
-        });
-
+        return;
       }
+
+      const tenantId =
+        String(
+          tenant._id
+        );
 
       if(!req.file){
 
@@ -448,7 +768,9 @@ router.post(
       }
 
       const key =
-      req.body.key;
+        clean(
+          req.body.key
+        );
 
       const tenantFolder =
         safeTenantFolderName(
@@ -456,13 +778,19 @@ router.post(
         );
 
       const image =
-
-      `/uploads/${tenantFolder}/${req.file.filename}`;
+        `/uploads/${tenantFolder}/${req.file.filename}`;
 
       const design =
-      await SystemDesign.findOne({
-        tenantId
-      });
+        await SystemDesign.findOne({
+          tenantId
+        });
+
+      const allowedSet =
+        new Set(
+          getAllowedServices(
+            tenant
+          )
+        );
 
       let oldImage = "";
 
@@ -479,16 +807,17 @@ router.post(
       ){
 
         oldImage =
-        design[key];
+          design[key];
 
       }
 
       /* =========================
       SERVICE CARDS
+      Verify displayed array index still belongs
+      to an allowed service for this tenant.
       ========================= */
 
       if(
-        design &&
         key &&
         key.startsWith(
           "services."
@@ -496,25 +825,86 @@ router.post(
       ){
 
         const parts =
-        key.split(".");
+          key.split(".");
 
         const index =
-        Number(parts[1]);
+          Number(parts[1]);
 
         if(
-          Array.isArray(
-            design.services
-          ) &&
-          design.services[index]
+          !Number.isInteger(index) ||
+          index < 0
         ){
 
-          oldImage =
-          design
-          .services[index]
-          .image;
+          try{
+            fs.unlinkSync(
+              req.file.path
+            );
+          }catch{}
 
+          return res.status(400).json({
+            success:false,
+            message:"Invalid Service Card"
+          });
         }
 
+        /*
+          The client sends the full SystemDesign services array index,
+          even though it renders only allowed cards.
+        */
+        const clientServices =
+          Array.isArray(
+            req.body?.services
+          )
+            ? req.body.services
+            : null;
+
+        let serviceAtIndex =
+          design &&
+          Array.isArray(
+            design.services
+          )
+            ? design.services[index]
+            : null;
+
+        /*
+          On a brand-new tenant the default cards may still exist only
+          in the browser, so accept explicit serviceKey from the form.
+        */
+        const requestServiceKey =
+          normalizeServiceKey(
+            req.body?.serviceKey
+          );
+
+        const cardKey =
+          requestServiceKey ||
+          serviceCardKey(
+            serviceAtIndex
+          );
+
+        if(
+          !cardKey ||
+          !allowedSet.has(cardKey)
+        ){
+
+          try{
+            fs.unlinkSync(
+              req.file.path
+            );
+          }catch{}
+
+          return res.status(403).json({
+            success:false,
+            message:
+              "This service is not enabled for this company"
+          });
+        }
+
+        if(serviceAtIndex){
+
+          oldImage =
+            serviceAtIndex.image;
+
+        }
       }
 
       /* =========================
@@ -593,7 +983,7 @@ router.post(
 
       }
 
-      res.json({
+      return res.json({
 
         success:true,
 
@@ -605,7 +995,7 @@ router.post(
 
       console.log(err);
 
-      res.status(500).json({
+      return res.status(500).json({
 
         message:
         err.message ||
