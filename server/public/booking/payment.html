@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Confirm Booking – Sunbeam</title>
+  <script src="/core/branding.js"></script>
+  <title>Confirm Booking</title>
   <style>
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff}
@@ -32,10 +33,62 @@
   const cancelled = params.get("cancelled") === "1";
   const saved = params.get("saved") === "1";
 
+  const tenantSlug =
+    String(
+      params.get("tenant") ||
+      params.get("tenantSlug") ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(tenantSlug){
+    localStorage.setItem(
+      "tenantSlug",
+      tenantSlug
+    );
+  }
+
   const spinner = document.getElementById("spinner");
   const title = document.getElementById("title");
   const message = document.getElementById("message");
   const retryBtn = document.getElementById("retryBtn");
+
+
+  async function loadTenantBranding(){
+
+    if(
+      !window.Branding ||
+      !tenantSlug
+    ){
+      return;
+    }
+
+    try{
+
+      await Branding.load();
+
+      const companyName =
+        Branding.getCompanyName?.() ||
+        Branding.tenant?.name ||
+        "";
+
+      if(companyName){
+
+        document.title =
+          `Confirm Booking – ${companyName}`;
+
+      }
+
+    }catch(err){
+
+      console.log(
+        "PAYMENT BRANDING ERROR:",
+        err
+      );
+    }
+  }
 
   function error(text){
     spinner.style.display="none";
@@ -61,7 +114,15 @@
 
     const res = await fetch(
       `/api/trip-payment/${encodeURIComponent(tripId)}/checkout-session`,
-      {method:"POST"}
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          tenantSlug
+        })
+      }
     );
 
     const data = await res.json().catch(()=>({}));
@@ -85,6 +146,8 @@
   retryBtn.onclick=()=>{
     openStripe().catch(err=>error(err.message));
   };
+
+  await loadTenantBranding();
 
   if(!tripId){
     error("Missing trip ID");

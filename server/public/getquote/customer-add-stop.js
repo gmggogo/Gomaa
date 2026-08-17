@@ -43,6 +43,16 @@ let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
 let SYSTEM_TIMEZONE = "America/Phoenix";
 
+let CURRENT_TENANT_SLUG =
+  String(
+    params.get("tenant") ||
+    params.get("tenantSlug") ||
+    localStorage.getItem("tenantSlug") ||
+    ""
+  )
+  .trim()
+  .toLowerCase();
+
 let currentTrip = null;
 let googleLoadPromise = null;
 let uid = 0;
@@ -693,7 +703,10 @@ function closePage(){
       return;
     }
 
-    window.location.href = "/";
+    window.location.href =
+      CURRENT_TENANT_SLUG
+        ? `/${encodeURIComponent(CURRENT_TENANT_SLUG)}`
+        : "/";
 
   },150);
 }
@@ -842,13 +855,41 @@ function hasAnyChange(){
 
 /* ================= SYSTEM DESIGN ================= */
 
-async function loadSystemDesign(){
+async function loadSystemDesign(
+  tenantSlug = ""
+){
 
   try{
 
+    const slug =
+      String(
+        tenantSlug ||
+        CURRENT_TENANT_SLUG ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    let url =
+      "/api/public/tenant";
+
+    if(slug){
+
+      url =
+        `/api/public/tenant/${encodeURIComponent(slug)}`;
+
+      CURRENT_TENANT_SLUG =
+        slug;
+
+      localStorage.setItem(
+        "tenantSlug",
+        slug
+      );
+    }
+
     const res =
       await fetch(
-        "/api/system-design",
+        url,
         {
           cache:"no-store"
         }
@@ -859,14 +900,21 @@ async function loadSystemDesign(){
         .json()
         .catch(()=>({}));
 
+    const design =
+      data?.systemDesign ||
+      data?.design ||
+      data ||
+      {};
+
     SYSTEM_REGION =
-      data?.region || "";
+      design?.region || "";
 
     SYSTEM_COUNTRY =
-      data?.country || "";
+      design?.country || "";
 
     SYSTEM_TIMEZONE =
-      data?.timezone ||
+      design?.timezone ||
+      data?.tenant?.timezone ||
       "America/Phoenix";
 
   }catch(err){
@@ -3003,6 +3051,15 @@ async function finalSubmitAddStop(){
 
     const payload = {
 
+      tenantId:
+        freshTrip.tenantId || null,
+
+      tenantSlug:
+        freshTrip.tenantSlug ||
+        freshTrip.tenant?.slug ||
+        CURRENT_TENANT_SLUG ||
+        "",
+
       source:
         "customer-email-add-stop",
 
@@ -3429,10 +3486,22 @@ async function init(){
       );
     }
 
-    await loadSystemDesign();
-
     currentTrip =
       await fetchCustomerTrip();
+
+    CURRENT_TENANT_SLUG =
+      String(
+        currentTrip?.tenantSlug ||
+        currentTrip?.tenant?.slug ||
+        CURRENT_TENANT_SLUG ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    await loadSystemDesign(
+      CURRENT_TENANT_SLUG
+    );
 
     if(isSharedTrip(currentTrip)){
 

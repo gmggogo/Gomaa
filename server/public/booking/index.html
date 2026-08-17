@@ -5,6 +5,8 @@
 <title>Booking – Sunbeam Transportation</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<script src="/core/branding.js"></script>
+
 <style>
 
 *{
@@ -386,6 +388,79 @@ button{
 <script>
 
 /* =========================
+   TENANT CONTEXT
+========================= */
+
+const pageParams =
+new URLSearchParams(
+  window.location.search
+);
+
+function cleanTenantSlug(value){
+
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+
+}
+
+function resolveTenantSlug(){
+
+  const fromQuery =
+  cleanTenantSlug(
+    pageParams.get("tenant") ||
+    pageParams.get("tenantSlug")
+  );
+
+  if(fromQuery){
+    return fromQuery;
+  }
+
+  try{
+
+    const pending =
+    JSON.parse(
+      localStorage.getItem(
+        "pendingTrip"
+      ) || "null"
+    );
+
+    const fromTrip =
+    cleanTenantSlug(
+      pending?.tenantSlug ||
+      pending?.tenant ||
+      ""
+    );
+
+    if(fromTrip){
+      return fromTrip;
+    }
+
+  }catch(err){
+    console.log(err);
+  }
+
+  return cleanTenantSlug(
+    localStorage.getItem(
+      "tenantSlug"
+    ) || ""
+  );
+
+}
+
+const TENANT_SLUG =
+resolveTenantSlug();
+
+if(TENANT_SLUG){
+
+  localStorage.setItem(
+    "tenantSlug",
+    TENANT_SLUG
+  );
+
+}
+
+/* =========================
    LANGUAGE
 ========================= */
 
@@ -480,7 +555,23 @@ if(!tripData){
   alert("Session expired");
 
   location.href =
-  "/getquote/index.html";
+  TENANT_SLUG
+    ? `/getquote/index.html?tenant=${encodeURIComponent(TENANT_SLUG)}`
+    : "/getquote/index.html";
+
+}
+
+if(TENANT_SLUG){
+
+  tripData.tenantSlug =
+  TENANT_SLUG;
+
+  localStorage.setItem(
+    "pendingTrip",
+    JSON.stringify(
+      tripData
+    )
+  );
 
 }
 
@@ -665,7 +756,9 @@ function recalculate(){
   );
 
   location.href =
-  "/getquote/index.html";
+  TENANT_SLUG
+    ? `/getquote/index.html?tenant=${encodeURIComponent(TENANT_SLUG)}&service=${encodeURIComponent(serviceKey)}`
+    : `/getquote/index.html?service=${encodeURIComponent(serviceKey)}`;
 
 }
 
@@ -973,6 +1066,14 @@ Do you want to continue?`
 
     type:"individual",
 
+    tenantId:
+    tripData.tenantId || null,
+
+    tenantSlug:
+    TENANT_SLUG ||
+    tripData.tenantSlug ||
+    "",
+
     pickup:
     tripData.pickup,
 
@@ -1149,7 +1250,9 @@ Do you want to continue?`
 
       location.href =
 
-      `/booking/payment.html?tripId=${trip._id}`;
+      TENANT_SLUG
+      ? `/booking/payment.html?tripId=${trip._id}&tenant=${encodeURIComponent(TENANT_SLUG)}`
+      : `/booking/payment.html?tripId=${trip._id}`;
 
     },1500);
 
@@ -1169,6 +1272,50 @@ Do you want to continue?`
   }
 
 }
+
+
+/* =========================
+   BRANDING
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    try{
+
+      if(
+        window.Branding &&
+        TENANT_SLUG
+      ){
+
+        await Branding.load();
+
+        const companyName =
+        Branding.getCompanyName?.() ||
+        Branding.tenant?.name ||
+        "";
+
+        if(companyName){
+
+          document.title =
+          `Booking – ${companyName}`;
+
+        }
+
+      }
+
+    }catch(err){
+
+      console.log(
+        "BOOKING BRANDING ERROR:",
+        err
+      );
+
+    }
+
+  }
+);
 
 </script>
 

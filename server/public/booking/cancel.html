@@ -227,7 +227,7 @@ button:hover{
   <img
     id="companyLogo"
     class="logo"
-    src="/assets/logo.png"
+    src=""
   >
 
   <h2 id="cancelTitle">
@@ -319,55 +319,80 @@ const token =
 params.get("token");
 
 let currentTrip = null;
+let currentTenantSlug = "";
 
 /* =========================
    BRANDING
 ========================= */
 
-window.addEventListener(
-  "DOMContentLoaded",
-  async ()=>{
+async function applyTenantBranding(
+  tenantSlug = ""
+){
 
-    try{
+  try{
 
-      if(window.Branding){
+    currentTenantSlug =
+      String(
+        tenantSlug ||
+        currentTenantSlug ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
 
-        await Branding.load();
+    if(currentTenantSlug){
 
-        const companyName =
-        Branding.getCompanyName();
-
-        document.title =
-        `Cancel Trip – ${companyName}`;
-
-        document.getElementById(
-          "cancelTitle"
-        ).innerText =
-        "Cancel Trip";
-
-        document.getElementById(
-          "companyName"
-        ).innerText =
-        companyName;
-const logo =
-
-  Branding.data?.mainLogo ||
-
-  "/assets/logo.png";
-
-document.getElementById(
-  "companyLogo"
-).src = logo;
-      }
-
-    }catch(err){
-
-      console.log(err);
+      localStorage.setItem(
+        "tenantSlug",
+        currentTenantSlug
+      );
 
     }
 
+    if(window.Branding){
+
+      await Branding.load();
+
+      const companyName =
+        Branding.getCompanyName?.() ||
+        Branding.tenant?.name ||
+        "Transportation Service";
+
+      document.title =
+        `Cancel Trip – ${companyName}`;
+
+      document.getElementById(
+        "companyName"
+      ).innerText =
+        companyName;
+
+      const logo =
+        Branding.data?.mainLogo ||
+        Branding.data?.driverLogo ||
+        "";
+
+      const logoEl =
+        document.getElementById(
+          "companyLogo"
+        );
+
+      if(logo){
+        logoEl.src = logo;
+        logoEl.style.display = "block";
+      }else{
+        logoEl.style.display = "none";
+      }
+    }
+
+  }catch(err){
+
+    console.log(
+      "CANCEL BRANDING ERROR:",
+      err
+    );
+
   }
-);
+}
 
 /* =========================
    HELPERS
@@ -478,6 +503,20 @@ async function checkTrip(){
     }
 
     currentTrip = data;
+
+    currentTenantSlug =
+      String(
+        data.tenantSlug ||
+        data.tenant?.slug ||
+        params.get("tenant") ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    await applyTenantBranding(
+      currentTenantSlug
+    );
 
     document.getElementById(
       "tripBox"
@@ -628,7 +667,14 @@ async function confirmCancel(){
    START
 ========================= */
 
-checkTrip();
+applyTenantBranding(
+  params.get("tenant") ||
+  params.get("tenantSlug") ||
+  localStorage.getItem("tenantSlug") ||
+  ""
+).finally(
+  checkTrip
+);
 
 </script>
 
