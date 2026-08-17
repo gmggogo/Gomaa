@@ -16,6 +16,24 @@ function dollars(value){
   return Number((Number(value || 0) / 100).toFixed(2));
 }
 
+
+function tenantMetadata(trip){
+
+  return {
+    tenantId:
+      String(
+        trip?.tenantId ||
+        ""
+      ),
+
+    tenantSlug:
+      String(
+        trip?.tenantSlug ||
+        ""
+      )
+  };
+}
+
 function paymentError(err){
   const message =
     err?.raw?.message ||
@@ -40,7 +58,8 @@ async function ensureStripeCustomer(trip){
     phone: String(trip.clientPhone || "").trim() || undefined,
     metadata: {
       tripId: String(trip._id),
-      tripNumber: String(trip.tripNumber || "")
+      tripNumber: String(trip.tripNumber || ""),
+      ...tenantMetadata(trip)
     }
   });
 
@@ -58,7 +77,8 @@ async function createTripSetupIntent(trip){
     payment_method_types: ["card"],
     metadata: {
       tripId: String(trip._id),
-      tripNumber: String(trip.tripNumber || "")
+      tripNumber: String(trip.tripNumber || ""),
+      ...tenantMetadata(trip)
     }
   });
 
@@ -116,7 +136,8 @@ async function authorizeTripAmount(trip, amount, reason = "TRIP_AUTHORIZATION"){
       metadata: {
         tripId: String(trip._id),
         tripNumber: String(trip.tripNumber || ""),
-        purpose: reason
+        purpose: reason,
+        ...tenantMetadata(trip)
       }
     }, {
       idempotencyKey: `trip-auth-${trip._id}-${amountCents}-${reason}`
@@ -188,7 +209,8 @@ async function changeAuthorizedAmount(trip, newAmount){
         metadata:{
           tripId:String(trip._id),
           tripNumber:String(trip.tripNumber || ""),
-          purpose:"ROUTE_CHANGE_REPLACEMENT"
+          purpose:"ROUTE_CHANGE_REPLACEMENT",
+          ...tenantMetadata(trip)
         }
       },{
         idempotencyKey:`trip-replacement-auth-${trip._id}-${newCents}`
@@ -241,7 +263,8 @@ async function captureAuthorizedTrip(trip, finalAmount){
       amount_to_capture: amountCents,
       metadata: {
         finalTripAmount: String(amountCents),
-        finalizedAt: new Date().toISOString()
+        finalizedAt: new Date().toISOString(),
+        ...tenantMetadata(trip)
       }
     }, {
       idempotencyKey: `trip-capture-${trip._id}-${amountCents}`

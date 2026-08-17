@@ -37,6 +37,9 @@ const SystemDesign =
 const Service =
   require("../models/Service");
 
+const Tenant =
+  require("../models/Tenant");
+
 /* =========================
    CONFIG
 ========================= */
@@ -44,7 +47,8 @@ const Service =
 const PUBLIC_BASE_URL =
   String(
     process.env.PUBLIC_BASE_URL ||
-    "https://sunbeam-933q.onrender.com"
+    process.env.RENDER_EXTERNAL_URL ||
+    ""
   )
     .trim()
     .replace(/\/+$/,"");
@@ -133,6 +137,81 @@ function cleanStatus(value){
     .replace(/-/g,"")
     .replace(/_/g,"");
 
+}
+
+
+function getTenantId(trip){
+
+  return clean(
+    trip?.tenantId ||
+    trip?.tenant?._id ||
+    ""
+  );
+}
+
+function getTenantSlug(trip){
+
+  return lower(
+    trip?.tenantSlug ||
+    trip?.tenant?.slug ||
+    ""
+  );
+}
+
+async function getTenantContext(trip){
+
+  const tenantId =
+    getTenantId(trip);
+
+  if(!tenantId){
+    throw new Error(
+      "Trip tenant is missing"
+    );
+  }
+
+  const [
+    tenant,
+    settings
+  ] = await Promise.all([
+
+    Tenant.findById(
+      tenantId
+    ).lean(),
+
+    SystemDesign.findOne({
+      tenantId
+    }).lean()
+
+  ]);
+
+  if(!tenant){
+    throw new Error(
+      "Trip organization not found"
+    );
+  }
+
+  return {
+    tenant,
+    settings:settings || {}
+  };
+}
+
+function tenantPublicHomeUrl(trip){
+
+  const slug =
+    getTenantSlug(trip);
+
+  if(
+    PUBLIC_BASE_URL &&
+    slug
+  ){
+    return (
+      `${PUBLIC_BASE_URL}/` +
+      encodeURIComponent(slug)
+    );
+  }
+
+  return PUBLIC_BASE_URL || "";
 }
 
 /* =========================
@@ -265,6 +344,13 @@ function getServiceCandidates(trip){
 
 async function findGetQuoteService(trip){
 
+  const tenantId =
+    getTenantId(trip);
+
+  if(!tenantId){
+    return null;
+  }
+
   const candidates =
     getServiceCandidates(trip);
 
@@ -285,6 +371,8 @@ async function findGetQuoteService(trip){
     );
 
   return Service.findOne({
+
+    tenantId,
 
     $or:[
 
@@ -812,6 +900,11 @@ function buildCancelLink(trip){
     `/booking/cancel.html?token=` +
     encodeURIComponent(
       cancelToken
+    ) +
+    (
+      getTenantSlug(trip)
+        ? `&tenant=${encodeURIComponent(getTenantSlug(trip))}`
+        : ""
     )
   );
 
@@ -834,7 +927,13 @@ function createCustomerAddStopToken(trip){
         ),
 
       purpose:
-        "CUSTOMER_ADD_STOP"
+        "CUSTOMER_ADD_STOP",
+
+      tenantId:
+        getTenantId(trip),
+
+      tenantSlug:
+        getTenantSlug(trip)
 
     },
     CUSTOMER_LINK_SECRET,
@@ -904,7 +1003,12 @@ async function buildAddStopLink(
   return (
     `${PUBLIC_BASE_URL}` +
     `/getquote/customer-add-stop.html?token=` +
-    encodeURIComponent(token)
+    encodeURIComponent(token) +
+    (
+      getTenantSlug(trip)
+        ? `&tenant=${encodeURIComponent(getTenantSlug(trip))}`
+        : ""
+    )
   );
 
 }
@@ -1067,8 +1171,16 @@ async function sendTripStatusEmail(
       return null;
     }
 
+    const tenantContext =
+      await getTenantContext(
+        trip
+      );
+
+    const tenant =
+      tenantContext.tenant;
+
     const settings =
-      await SystemDesign.findOne({});
+      tenantContext.settings;
 
     const smtpUser =
       settings?.smtpUser ||
@@ -1227,7 +1339,15 @@ async function sendTripStatusEmail(
       const paymentLink =
         PUBLIC_BASE_URL +
         "/booking/payment.html?tripId=" +
-        encodeURIComponent(String(trip._id || ""));
+        encodeURIComponent(String(trip._id || "")) +
+        (
+          getTenantSlug(trip)
+            ? "&tenant=" +
+              encodeURIComponent(
+                getTenantSlug(trip)
+              )
+            : ""
+        );
 
       statusBlock = `
 
@@ -1414,9 +1534,10 @@ async function sendTripStatusEmail(
 
     const companyDisplayName =
       clean(
-        settings?.companyName
+        settings?.companyName ||
+        tenant?.name
       ) ||
-      "Sunbeam Transportation";
+      "Transportation Service";
 
     const stopsHtml =
       buildStopsHtml(

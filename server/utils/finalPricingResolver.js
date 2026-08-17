@@ -48,6 +48,16 @@ function normalizeCode(v){
   return c;
 }
 
+
+function getTenantId(trip){
+
+  return clean(
+    trip?.tenantId ||
+    trip?.tenant?._id ||
+    ""
+  );
+}
+
 function getFacilityName(trip){
 
   return clean(
@@ -166,8 +176,17 @@ async function findServiceForTrip(trip){
   const code =
     getServiceCodeFromTrip(trip);
 
+  const tenantId =
+    getTenantId(trip);
+
+  if(!tenantId){
+    return null;
+  }
+
   const services =
-    await Service.find({}).lean();
+    await Service.find({
+      tenantId
+    }).lean();
 
   return (
     services.find(s =>
@@ -425,8 +444,16 @@ async function findFacilityOverride(trip){
 
   try{
 
+    const tenantId =
+      getTenantId(trip);
+
+    if(!tenantId){
+      return null;
+    }
+
     return await FacilityPricingOverride
       .findOne({
+        tenantId,
         active:true,
         $or:or
       })
@@ -450,8 +477,16 @@ async function findFacilityOverride(trip){
         "i"
       );
 
+    const tenantId =
+      getTenantId(trip);
+
+    if(!tenantId){
+      return null;
+    }
+
     return await FacilityPricingOverride
       .findOne({
+        tenantId,
         active:true,
         $or:[
           {facilityName:rx},
