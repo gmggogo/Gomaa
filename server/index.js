@@ -487,8 +487,8 @@ app.use(
 
 
 /* =========================
-   PUBLIC TENANT BOOTSTRAP
-   Homepage branding + allowed services
+   PUBLIC TENANT WEBSITE
+   Public branding + allowed homepage services
 ========================= */
 
 const publicTenantRoutes =
@@ -8003,9 +8003,119 @@ const totalCancelFee =
 });
 
 /* =========================
-   ROOT
+   PUBLIC TENANT HOMEPAGES
+
+   Main:
+   /
+
+   Company clean URL:
+   /sony
+   /cover-all
+
+   Backward-compatible URL:
+   /t/sony
 ========================= */
-app.get("/t/:slug", (req, res) => {
+
+app.get(
+  "/t/:slug",
+  async (req,res,next)=>{
+
+    try{
+
+      const slug =
+        String(
+          req.params.slug || ""
+        )
+        .trim()
+        .toLowerCase();
+
+      const tenant =
+        await Tenant.findOne({
+          slug,
+          enabled:true,
+          subscriptionStatus:{
+            $in:["ACTIVE","TRIAL"]
+          }
+        })
+        .select({
+          _id:1
+        })
+        .lean();
+
+      if(!tenant){
+        return next();
+      }
+
+      return res.sendFile(
+        path.join(
+          __dirname,
+          "public",
+          "index.html"
+        )
+      );
+
+    }catch(err){
+      return next(err);
+    }
+  }
+);
+
+app.get(
+  "/:tenantSlug",
+  async (req,res,next)=>{
+
+    try{
+
+      const slug =
+        String(
+          req.params.tenantSlug || ""
+        )
+        .trim()
+        .toLowerCase();
+
+      /*
+        Only real slug-looking values can become
+        tenant public homepages.
+      */
+      if(
+        !slug ||
+        !/^[a-z0-9-]+$/.test(slug)
+      ){
+        return next();
+      }
+
+      const tenant =
+        await Tenant.findOne({
+          slug,
+          enabled:true,
+          subscriptionStatus:{
+            $in:["ACTIVE","TRIAL"]
+          }
+        })
+        .select({
+          _id:1
+        })
+        .lean();
+
+      if(!tenant){
+        return next();
+      }
+
+      return res.sendFile(
+        path.join(
+          __dirname,
+          "public",
+          "index.html"
+        )
+      );
+
+    }catch(err){
+      return next(err);
+    }
+  }
+);
+
+app.get("/", (req, res) => {
   res.sendFile(
     path.join(
       __dirname,
@@ -8013,10 +8123,6 @@ app.get("/t/:slug", (req, res) => {
       "index.html"
     )
   );
-});
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 function getSystemNow(){

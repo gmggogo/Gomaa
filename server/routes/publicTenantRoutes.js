@@ -187,6 +187,15 @@ async function findPublicTenantBySlug(slug){
 
 async function resolveDefaultTenant(){
 
+  /*
+    Root "/" must stay the main Sunbeam site.
+
+    Priority:
+    1) DEFAULT_TENANT_SLUG from Render env
+    2) tenant slug "sunbeam"
+    3) first active tenant as a safety fallback
+  */
+
   const envSlug =
     clean(
       process.env.DEFAULT_TENANT_SLUG
@@ -205,22 +214,23 @@ async function resolveDefaultTenant(){
     }
   }
 
-  const tenants =
-    await Tenant.find({
-      enabled:true,
-      subscriptionStatus:{
-        $in:["ACTIVE","TRIAL"]
-      }
-    })
-    .sort({createdAt:1})
-    .limit(2)
-    .lean();
+  const sunbeam =
+    await findPublicTenantBySlug(
+      "sunbeam"
+    );
 
-  if(tenants.length === 1){
-    return tenants[0];
+  if(sunbeam){
+    return sunbeam;
   }
 
-  return null;
+  return await Tenant.findOne({
+    enabled:true,
+    subscriptionStatus:{
+      $in:["ACTIVE","TRIAL"]
+    }
+  })
+  .sort({createdAt:1})
+  .lean();
 }
 
 async function sendTenantBootstrap(

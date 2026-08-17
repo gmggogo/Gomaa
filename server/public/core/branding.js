@@ -37,6 +37,10 @@ window.Branding = {
         .split("/")
         .filter(Boolean);
 
+    /*
+      Old supported format:
+      /t/sony
+    */
     if(
       parts[0] === "t" &&
       parts[1]
@@ -48,13 +52,57 @@ window.Branding = {
       .toLowerCase();
     }
 
-    return String(
-      localStorage.getItem(
-        "tenantSlug"
-      ) || ""
-    )
-    .trim()
-    .toLowerCase();
+    /*
+      New clean public company URL:
+      /sony
+      /cover-all
+
+      Only ONE path segment is treated as a tenant slug.
+      This prevents /admin/..., /driver/..., /booking/...
+      from ever being mistaken for a company.
+    */
+    if(
+      parts.length === 1
+    ){
+
+      const candidate =
+        String(
+          parts[0] || ""
+        )
+        .trim()
+        .toLowerCase();
+
+      const reserved = new Set([
+        "admin",
+        "driver",
+        "booking",
+        "company",
+        "platform-admin",
+        "api",
+        "uploads",
+        "assets",
+        "core",
+        "getquote",
+        "login.html",
+        "index.html"
+      ]);
+
+      if(
+        candidate &&
+        !reserved.has(candidate) &&
+        /^[a-z0-9-]+$/.test(candidate)
+      ){
+        return candidate;
+      }
+    }
+
+    /*
+      IMPORTANT:
+      Root "/" must never inherit the last company
+      visited from localStorage. Otherwise opening Sony
+      once could make the main Sunbeam homepage show Sony.
+    */
+    return "";
 
   },
 
@@ -185,13 +233,24 @@ window.Branding = {
 
     this.applyGlobalBranding();
 
+    const pathParts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    const isCleanTenantHome =
+      pathParts.length === 1 &&
+      !!this.getTenantSlug();
+
     const isHomePage =
 
     window.location.pathname === "/" ||
 
     window.location.pathname.includes("index") ||
 
-    window.location.pathname.startsWith("/t/");
+    window.location.pathname.startsWith("/t/") ||
+
+    isCleanTenantHome;
 
     if(isHomePage){
 
