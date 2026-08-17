@@ -12,6 +12,14 @@ new mongoose.Schema({
     default:""
   },
 
+
+  serviceKey:{
+    type:String,
+    default:"",
+    trim:true,
+    uppercase:true
+  },
+
   active:{
     type:Boolean,
     default:false
@@ -45,6 +53,18 @@ SYSTEM DESIGN
 
 const SystemDesignSchema =
 new mongoose.Schema({
+
+  /* =========================
+  MULTI TENANT
+  One System Design per company
+  ========================= */
+
+  tenantId:{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:"Tenant",
+    default:null,
+    index:true
+  },
 
   /* =========================
   COMPANY
@@ -462,8 +482,35 @@ cancelPolicyText:{
   timestamps:true
 });
 
-module.exports =
-mongoose.model(
-  "SystemDesign",
-  SystemDesignSchema
+/* =========================
+MULTI TENANT INDEX
+Only one SystemDesign document per tenant.
+
+Legacy documents that were saved before tenantId
+was added are ignored by this partial index.
+========================= */
+
+SystemDesignSchema.index(
+  {
+    tenantId:1
+  },
+  {
+    unique:true,
+    name:"system_design_tenant_unique",
+    partialFilterExpression:{
+      tenantId:{
+        $type:"objectId"
+      }
+    }
+  }
 );
+
+const SystemDesign =
+  mongoose.models.SystemDesign ||
+  mongoose.model(
+    "SystemDesign",
+    SystemDesignSchema
+  );
+
+module.exports =
+  SystemDesign;
