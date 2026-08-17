@@ -237,6 +237,241 @@ async function ensureServiceAllowed(req,service){
   return allowed.has(serviceCode(service));
 }
 
+
+/* =========================
+   TENANT SERVICE BOOTSTRAP
+========================= */
+
+function clonePlainService(service){
+
+  if(!service){
+    return null;
+  }
+
+  const raw =
+    service.toObject
+      ? service.toObject()
+      : { ...service };
+
+  delete raw._id;
+  delete raw.__v;
+  delete raw.createdAt;
+  delete raw.updatedAt;
+  delete raw.tenantId;
+
+  return raw;
+}
+
+async function findServiceTemplateByCode(code){
+
+  const normalized =
+    normalizeServiceCode(code);
+
+  if(!normalized){
+    return null;
+  }
+
+  const candidates =
+    await Service.find({})
+      .sort({
+        createdAt:1
+      })
+      .lean();
+
+  return (
+    candidates.find(
+      item =>
+        serviceCode(item) === normalized
+    ) ||
+    null
+  );
+}
+
+function defaultServiceTemplate(code){
+
+  const key =
+    normalizeServiceCode(code);
+
+  const titles = {
+    ST:"Standard",
+    WH:"Wheelchair",
+    SH:"Shared",
+    LM:"Limousine",
+    TX:"Taxi",
+    XL:"XL"
+  };
+
+  const icons = {
+    ST:"🚘",
+    WH:"♿",
+    SH:"👥",
+    LM:"🚙",
+    TX:"🚕",
+    XL:"🚐"
+  };
+
+  const pricingMode =
+    key === "SH"
+      ? "SHARED"
+      : (
+          key === "LM"
+            ? "HOURLY"
+            : "MILE"
+        );
+
+  return {
+    serviceKey:key,
+    serviceCode:key,
+    title:
+      titles[key] ||
+      key,
+    icon:
+      icons[key] ||
+      "🚘",
+
+    enabled:false,
+    companyEnabled:false,
+    reservedEnabled:false,
+
+    pricingMode,
+    companyPricingMode:pricingMode,
+    reservedPricingMode:pricingMode,
+
+    suffix:key,
+    companySuffix:key,
+    reservedSuffix:key,
+
+    shared:
+      key === "SH",
+    companyShared:
+      key === "SH",
+    reservedShared:
+      key === "SH",
+
+    baseFare:0,
+    includedMiles:0,
+    perMile:0,
+    hourlyRate:0,
+    hourlyBillingMode:"FULL",
+    stopFee:0,
+    noShowFee:0,
+    sharedPrice:0,
+
+    companyBaseFare:0,
+    companyIncludedMiles:0,
+    companyPerMile:0,
+    companyHourlyRate:0,
+    companyHourlyBillingMode:"FULL",
+    companyStopFee:0,
+    companyNoShowFee:0,
+    companySharedPrice:0,
+
+    reservedBaseFare:0,
+    reservedIncludedMiles:0,
+    reservedPerMile:0,
+    reservedHourlyRate:0,
+    reservedHourlyBillingMode:"FULL",
+    reservedStopFee:0,
+    reservedNoShowFee:0,
+    reservedSharedPrice:0,
+
+    driverPickupWaitEnabled:true,
+    driverPickupWaitMinutes:10,
+    driverStopWaitEnabled:true,
+    driverStopWaitMinutes:5
+  };
+}
+
+async function ensureTenantServiceDocuments(req){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+    return;
+  }
+
+  const tenantId =
+    String(
+      req.authUser?.tenantId ||
+      ""
+    ).trim();
+
+  if(!tenantId){
+    return;
+  }
+
+  const allowed =
+    await allowedServiceSet(req);
+
+  if(
+    !allowed ||
+    !allowed.size
+  ){
+    return;
+  }
+
+  const existing =
+    await Service.find({
+      tenantId
+    })
+    .lean();
+
+  const existingCodes =
+    new Set(
+      existing
+        .map(serviceCode)
+        .filter(Boolean)
+    );
+
+  for(const code of allowed){
+
+    if(existingCodes.has(code)){
+      continue;
+    }
+
+    const template =
+      await findServiceTemplateByCode(
+        code
+      );
+
+    const payload =
+      template
+        ? clonePlainService(template)
+        : defaultServiceTemplate(code);
+
+    payload.serviceKey =
+      code;
+
+    payload.tenantId =
+      tenantId;
+
+    try{
+
+      await Service.create(
+        payload
+      );
+
+      console.log(
+        "TENANT SERVICE CREATED:",
+        tenantId,
+        code
+      );
+
+    }catch(err){
+
+      if(err?.code !== 11000){
+        console.log(
+          "TENANT SERVICE BOOTSTRAP ERROR:",
+          tenantId,
+          code,
+          err.message
+        );
+      }
+    }
+  }
+}
+
 /* =========================
    HELPERS
 ========================= */
@@ -516,6 +751,10 @@ router.get(
 
   try{
 
+    await ensureTenantServiceDocuments(
+      req
+    );
+
     const isCompany =
       String(req.query.company || "")
       .toLowerCase() === "true";
@@ -577,6 +816,10 @@ router.get(
   async (req,res)=>{
 
   try{
+
+    await ensureTenantServiceDocuments(
+      req
+    );
 
     const services =
       await Service.find(
@@ -646,6 +889,20 @@ router.get(
       });
     }
 
+    const allowed =
+      await ensureServiceAllowed(
+        req,
+        service
+      );
+
+    if(!allowed){
+      return res.status(403).json({
+        success:false,
+        message:
+          "This service is not enabled for this company"
+      });
+    }
+
     return res.json({
       success:true,
       serviceKey:service.serviceKey,
@@ -700,6 +957,20 @@ router.put(
       return res.status(404).json({
         success:false,
         message:"Service Not Found"
+      });
+    }
+
+    const allowed =
+      await ensureServiceAllowed(
+        req,
+        current
+      );
+
+    if(!allowed){
+      return res.status(403).json({
+        success:false,
+        message:
+          "This service is not enabled for this company"
       });
     }
 
