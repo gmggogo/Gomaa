@@ -3,13 +3,25 @@ const mongoose = require("mongoose");
 const serviceSchema = new mongoose.Schema({
 
   /* =========================
+     MULTI TENANT
+  ========================= */
+
+  tenantId:{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:"Tenant",
+    default:null,
+    index:true
+  },
+
+  /* =========================
      BASIC INFO
   ========================= */
 
   serviceKey:{
     type:String,
     required:true,
-    unique:true
+    trim:true,
+    uppercase:true
   },
 
   title:{
@@ -34,7 +46,6 @@ const serviceSchema = new mongoose.Schema({
 
   /* =========================
      DRIVER WAIT TIMERS
-     Applies to this service in Driver Map
   ========================= */
 
   driverPickupWaitEnabled:{
@@ -60,7 +71,7 @@ const serviceSchema = new mongoose.Schema({
   },
 
   /* =========================
-     INDIVIDUAL / GET QUOTE PRICING
+     GET QUOTE PRICING
   ========================= */
 
   pricingMode:{
@@ -93,11 +104,6 @@ const serviceSchema = new mongoose.Schema({
     default:"FULL"
   },
 
-  /* =========================
-     LIMOUSINE INITIAL PACKAGE
-     GET QUOTE
-  ========================= */
-
   initialDurationMinutes:{
     type:Number,
     default:0,
@@ -126,7 +132,7 @@ const serviceSchema = new mongoose.Schema({
   },
 
   /* =========================
-     INDIVIDUAL / GET QUOTE WARNING POLICY
+     GET QUOTE WARNING POLICY
   ========================= */
 
   warningEnabled:{
@@ -220,11 +226,6 @@ const serviceSchema = new mongoose.Schema({
     type:String,
     default:"FULL"
   },
-
-  /* =========================
-     LIMOUSINE INITIAL PACKAGE
-     FACILITY
-  ========================= */
 
   companyInitialDurationMinutes:{
     type:Number,
@@ -349,11 +350,6 @@ const serviceSchema = new mongoose.Schema({
     default:"FULL"
   },
 
-  /* =========================
-     LIMOUSINE INITIAL PACKAGE
-     RESERVED
-  ========================= */
-
   reservedInitialDurationMinutes:{
     type:Number,
     default:0,
@@ -428,8 +424,131 @@ const serviceSchema = new mongoose.Schema({
   timestamps:true
 });
 
-module.exports =
-mongoose.model(
-  "Service",
-  serviceSchema
+/* =========================
+   MULTI TENANT UNIQUE INDEX
+
+   Same service code may exist in many tenants.
+   It must only be unique inside one tenant.
+========================= */
+
+serviceSchema.index(
+  {
+    tenantId:1,
+    serviceKey:1
+  },
+  {
+    unique:true,
+    name:"tenant_serviceKey_unique"
+  }
 );
+
+const Service =
+  mongoose.models.Service ||
+  mongoose.model(
+    "Service",
+    serviceSchema
+  );
+
+/* =========================
+   LEGACY INDEX MIGRATION
+
+   Old schema had:
+   serviceKey: { unique:true }
+
+   MongoDB keeps that old index even after
+   removing unique:true from the schema.
+
+   We remove ONLY the old global serviceKey
+   unique index, then create the tenant-scoped
+   unique index above.
+========================= */
+
+let indexMigrationStarted = false;
+
+async function ensureMultiTenantIndexes(){
+
+  if(indexMigrationStarted){
+    return;
+  }
+
+  indexMigrationStarted = true;
+
+  try{
+
+    const indexes =
+      await Service.collection.indexes();
+
+    for(const index of indexes){
+
+      const keys =
+        Object.keys(
+          index.key || {}
+        );
+
+      const isOldGlobalServiceKeyIndex =
+        index.unique === true &&
+        keys.length === 1 &&
+        keys[0] === "serviceKey";
+
+      if(
+        isOldGlobalServiceKeyIndex &&
+        index.name !== "_id_"
+      ){
+
+        await Service.collection.dropIndex(
+          index.name
+        );
+
+        console.log(
+          "✅ DROPPED LEGACY SERVICE INDEX:",
+          index.name
+        );
+      }
+    }
+
+    await Service.collection.createIndex(
+      {
+        tenantId:1,
+        serviceKey:1
+      },
+      {
+        unique:true,
+        name:"tenant_serviceKey_unique"
+      }
+    );
+
+    console.log(
+      "✅ SERVICE TENANT INDEX READY"
+    );
+
+  }catch(err){
+
+    /*
+      Do not crash the whole server because of
+      index maintenance. Log the exact reason.
+    */
+    console.log(
+      "SERVICE INDEX MIGRATION ERROR:",
+      err.message
+    );
+  }
+}
+
+function startIndexMigration(){
+
+  if(
+    mongoose.connection.readyState === 1
+  ){
+    ensureMultiTenantIndexes();
+    return;
+  }
+
+  mongoose.connection.once(
+    "open",
+    ensureMultiTenantIndexes
+  );
+}
+
+startIndexMigration();
+
+module.exports = Service;

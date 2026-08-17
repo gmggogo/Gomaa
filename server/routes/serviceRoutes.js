@@ -240,9 +240,20 @@ async function ensureServiceAllowed(req,service){
 
 /* =========================
    TENANT SERVICE BOOTSTRAP
+
+   Platform Admin only grants permission through
+   Tenant.allowedServices.
+
+   Each tenant then receives its OWN Service
+   documents. No pricing/settings are copied from
+   another tenant.
+
+   Legacy records without tenantId may be used as
+   templates. If no legacy template exists, a clean
+   zero/default service record is created.
 ========================= */
 
-function clonePlainService(service){
+function plainCopy(service){
 
   if(!service){
     return null;
@@ -262,7 +273,7 @@ function clonePlainService(service){
   return raw;
 }
 
-async function findServiceTemplateByCode(code){
+async function findLegacyTemplateByCode(code){
 
   const normalized =
     normalizeServiceCode(code);
@@ -272,11 +283,16 @@ async function findServiceTemplateByCode(code){
   }
 
   const candidates =
-    await Service.find({})
-      .sort({
-        createdAt:1
-      })
-      .lean();
+    await Service.find({
+      $or:[
+        { tenantId:null },
+        { tenantId:{ $exists:false } }
+      ]
+    })
+    .sort({
+      createdAt:1
+    })
+    .lean();
 
   return (
     candidates.find(
@@ -287,7 +303,7 @@ async function findServiceTemplateByCode(code){
   );
 }
 
-function defaultServiceTemplate(code){
+function cleanDefaultService(code){
 
   const key =
     normalizeServiceCode(code);
@@ -310,7 +326,7 @@ function defaultServiceTemplate(code){
     XL:"🚐"
   };
 
-  const pricingMode =
+  const mode =
     key === "SH"
       ? "SHARED"
       : (
@@ -321,64 +337,89 @@ function defaultServiceTemplate(code){
 
   return {
     serviceKey:key,
-    serviceCode:key,
     title:
       titles[key] ||
       key,
+
     icon:
       icons[key] ||
       "🚘",
 
-    enabled:false,
-    companyEnabled:false,
+    enabled:true,
+    companyEnabled:true,
     reservedEnabled:false,
 
-    pricingMode,
-    companyPricingMode:pricingMode,
-    reservedPricingMode:pricingMode,
+    showPricingCard:true,
 
-    suffix:key,
-    companySuffix:key,
-    reservedSuffix:key,
+    driverPickupWaitEnabled:true,
+    driverPickupWaitMinutes:10,
+    driverStopWaitEnabled:true,
+    driverStopWaitMinutes:5,
 
-    shared:
-      key === "SH",
-    companyShared:
-      key === "SH",
-    reservedShared:
-      key === "SH",
-
+    pricingMode:mode,
     baseFare:0,
     includedMiles:0,
     perMile:0,
     hourlyRate:0,
     hourlyBillingMode:"FULL",
+    initialDurationMinutes:0,
+    initialPrice:0,
     stopFee:0,
     noShowFee:0,
     sharedPrice:0,
 
+    warningEnabled:true,
+    warningMinutes:120,
+    cancelFee:15,
+    disableCancel:false,
+
+    getQuoteAddStopEnabled:false,
+    getQuoteAddStopCustomTimeEnabled:false,
+    getQuoteAddStopCutoffMinutes:0,
+
+    companyShared:
+      key === "SH",
+    companySuffix:key,
+    companyPricingMode:mode,
     companyBaseFare:0,
     companyIncludedMiles:0,
     companyPerMile:0,
     companyHourlyRate:0,
     companyHourlyBillingMode:"FULL",
+    companyInitialDurationMinutes:0,
+    companyInitialPrice:0,
     companyStopFee:0,
     companyNoShowFee:0,
     companySharedPrice:0,
+    companyWarningEnabled:true,
+    companyWarningMinutes:120,
+    companyCancelFee:15,
+    companyDisableCancel:false,
+    companyAddStopEnabled:false,
+    companyAddStopCustomTimeEnabled:false,
+    companyAddStopCutoffMinutes:0,
 
+    reservedShared:
+      key === "SH",
+    reservedSuffix:key,
+    reservedPricingMode:mode,
     reservedBaseFare:0,
     reservedIncludedMiles:0,
     reservedPerMile:0,
     reservedHourlyRate:0,
     reservedHourlyBillingMode:"FULL",
+    reservedInitialDurationMinutes:0,
+    reservedInitialPrice:0,
     reservedStopFee:0,
     reservedNoShowFee:0,
     reservedSharedPrice:0,
-
-    driverPickupWaitEnabled:true,
-    driverPickupWaitMinutes:10,
-    driverStopWaitEnabled:true,
-    driverStopWaitMinutes:5
+    reservedWarningEnabled:true,
+    reservedWarningMinutes:120,
+    reservedCancelFee:15,
+    reservedDisableCancel:false,
+    reservedAddStopEnabled:false,
+    reservedAddStopCustomTimeEnabled:false,
+    reservedAddStopCutoffMinutes:0
   };
 }
 
@@ -430,21 +471,45 @@ async function ensureTenantServiceDocuments(req){
       continue;
     }
 
-    const template =
-      await findServiceTemplateByCode(
+    const legacyTemplate =
+      await findLegacyTemplateByCode(
         code
       );
 
     const payload =
-      template
-        ? clonePlainService(template)
-        : defaultServiceTemplate(code);
+      legacyTemplate
+        ? plainCopy(
+            legacyTemplate
+          )
+        : cleanDefaultService(
+            code
+          );
 
     payload.serviceKey =
       code;
 
     payload.tenantId =
       tenantId;
+
+    /*
+      Canonical suffixes for the new tenant copy.
+      This prevents an old bad ST suffix from
+      leaking into LM / WH / TX / XL.
+    */
+    payload.companySuffix =
+      code;
+
+    payload.reservedSuffix =
+      payload.reservedSuffix &&
+      payload.reservedSuffix !== "RV"
+        ? payload.reservedSuffix
+        : code;
+
+    if(code === "SH"){
+      payload.companyShared = true;
+      payload.reservedShared = true;
+      payload.companyPricingMode = "SHARED";
+    }
 
     try{
 
@@ -453,16 +518,21 @@ async function ensureTenantServiceDocuments(req){
       );
 
       console.log(
-        "TENANT SERVICE CREATED:",
+        "✅ TENANT SERVICE CREATED:",
         tenantId,
         code
       );
 
     }catch(err){
 
+      /*
+        Duplicate means another request created it
+        at the same moment. Any other error matters.
+      */
       if(err?.code !== 11000){
+
         console.log(
-          "TENANT SERVICE BOOTSTRAP ERROR:",
+          "TENANT SERVICE CREATE ERROR:",
           tenantId,
           code,
           err.message
@@ -896,6 +966,7 @@ router.get(
       );
 
     if(!allowed){
+
       return res.status(403).json({
         success:false,
         message:
@@ -967,6 +1038,7 @@ router.put(
       );
 
     if(!allowed){
+
       return res.status(403).json({
         success:false,
         message:
