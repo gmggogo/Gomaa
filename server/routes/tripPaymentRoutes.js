@@ -33,14 +33,27 @@ function clean(value){
   return String(value ?? "").trim();
 }
 
-function tenantFromRequest(req){
+function tenantSlugFromTrip(trip){
 
   return clean(
-    req.body?.tenantId ||
-    req.query?.tenantId ||
-    req.headers?.["x-tenant-id"] ||
+    trip?.tenantSlug ||
     ""
-  );
+  ).toLowerCase();
+}
+
+function tenantQueryString(trip){
+
+  const slug =
+    tenantSlugFromTrip(trip);
+
+  if(slug){
+
+    return (
+      `&tenant=${encodeURIComponent(slug)}`
+    );
+  }
+
+  return "";
 }
 
 function isClosed(trip){
@@ -65,28 +78,24 @@ function tripStartDate(trip){
    No card field is rendered by Sunbeam.
 
    TENANT RULE:
-   Customer payment page must send tenantId.
-   Trip is loaded with _id + tenantId.
+   Public customer does NOT send tenantId.
+   The Trip itself is the source of tenant identity.
 ========================================= */
 
 router.post("/:tripId/checkout-session", async (req,res)=>{
   try{
 
-    const tenantId =
-      tenantFromRequest(req);
-
-    if(!tenantId){
-      return res.status(400).json({
-        success:false,
-        message:"Tenant Required"
-      });
-    }
+    /*
+      IMPORTANT:
+      tripId comes from the booking flow.
+      Tenant identity comes ONLY from the saved Trip.
+      We do not trust tenantId from the public browser.
+    */
 
     const trip =
-      await Trip().findOne({
-        _id:req.params.tripId,
-        tenantId
-      });
+      await Trip().findById(
+        req.params.tripId
+      );
 
     if(!trip){
       return res.status(404).json({
@@ -94,6 +103,28 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
         message:"Trip not found"
       });
     }
+
+    const tenantId =
+      clean(
+        trip.tenantId
+      );
+
+    if(!tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Trip tenant is missing"
+      });
+    }
+
+    const tenantSlug =
+      tenantSlugFromTrip(
+        trip
+      );
+
+    const tenantPart =
+      tenantQueryString(
+        trip
+      );
 
     if(isClosed(trip)){
       return res.status(400).json({
@@ -109,7 +140,7 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
         redirectUrl:
           `${PUBLIC_BASE_URL}/booking/payment.html` +
           `?tripId=${encodeURIComponent(trip._id)}` +
-          `&tenantId=${encodeURIComponent(tenantId)}` +
+          tenantPart +
           `&saved=1`
       });
     }
@@ -120,13 +151,13 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
     const successUrl =
       `${PUBLIC_BASE_URL}/booking/payment.html` +
       `?tripId=${encodeURIComponent(trip._id)}` +
-      `&tenantId=${encodeURIComponent(tenantId)}` +
+      tenantPart +
       `&session_id={CHECKOUT_SESSION_ID}`;
 
     const cancelUrl =
       `${PUBLIC_BASE_URL}/booking/payment.html` +
       `?tripId=${encodeURIComponent(trip._id)}` +
-      `&tenantId=${encodeURIComponent(tenantId)}` +
+      tenantPart +
       `&cancelled=1`;
 
     const session =
@@ -147,6 +178,11 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
         metadata:{
           tenantId:
             String(tenantId),
+
+          tenantSlug:
+            String(
+              tenantSlug || ""
+            ),
 
           tripId:
             String(trip._id),
@@ -179,8 +215,10 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
           cancelUrl
       });
 
-    trip.tenantId =
-      tenantId;
+    /*
+      Keep the tenant already stored on the Trip.
+      Never move a Trip between tenants here.
+    */
 
     trip.paymentStatus =
       "SETUP_PENDING";
