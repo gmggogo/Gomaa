@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Sunbeam Transportation</title>
+<title>Get Quote</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -474,6 +474,57 @@ let lang = "en";
 let selectedService = null;
 let servicesData = [];
 
+let currentTenant = null;
+
+function getTenantSlug(){
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const querySlug =
+    String(
+      params.get("tenant") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(querySlug){
+    return querySlug;
+  }
+
+  return String(
+    localStorage.getItem(
+      "tenantSlug"
+    ) || ""
+  )
+  .trim()
+  .toLowerCase();
+}
+
+function tenantApiPath(action){
+
+  const slug =
+    getTenantSlug();
+
+  if(slug){
+
+    return (
+      "/api/public/tenant/" +
+      encodeURIComponent(slug) +
+      "/" +
+      action
+    );
+  }
+
+  return (
+    "/api/public/tenant/default/" +
+    action
+  );
+}
+
 let map;
 let directionsService;
 let directionsRenderer;
@@ -508,7 +559,7 @@ const words = {
 
 function getServiceImage(serviceKey){
 
-  if(serviceKey === "STANDARD"){
+  if(serviceKey === "ST"){
     return "11.jpeg";
   }
 
@@ -522,11 +573,11 @@ function getServiceImage(serviceKey){
 
 function getServiceEmoji(serviceKey){
 
-  if(serviceKey === "STANDARD") return "🚗";
+  if(serviceKey === "ST") return "🚗";
   if(serviceKey === "XL") return "🚐";
-  if(serviceKey === "TAXI") return "🚕";
-  if(serviceKey === "LIMO") return "🚘";
-  if(serviceKey === "WHEELCHAIR") return "🦽";
+  if(serviceKey === "TX") return "🚕";
+  if(serviceKey === "LM") return "🚘";
+  if(serviceKey === "WH") return "🦽";
 
   return "🚘";
 
@@ -549,15 +600,68 @@ async function loadServices(){
   try{
 
     const res =
-    await fetch("/api/services");
+    await fetch(
+      tenantApiPath(
+        "services"
+      ),
+      {
+        cache:"no-store"
+      }
+    );
 
     const data =
     await res.json();
 
+    if(!res.ok){
+
+      throw new Error(
+        data?.message ||
+        "Failed To Load Services"
+      );
+    }
+
+    currentTenant =
+      data.tenant || null;
+
+    if(currentTenant?.slug){
+
+      localStorage.setItem(
+        "tenantSlug",
+        currentTenant.slug
+      );
+    }
+
+    if(currentTenant?.id){
+
+      localStorage.setItem(
+        "tenantId",
+        String(
+          currentTenant.id
+        )
+      );
+    }
+
+    if(currentTenant?.timezone){
+
+      localStorage.setItem(
+        "systemTimezone",
+        currentTenant.timezone
+      );
+    }
+
+    if(currentTenant?.name){
+
+      document.title =
+        currentTenant.name +
+        " - Get Quote";
+    }
+
     servicesData =
-    Array.isArray(data)
-    ? data
-    : [];
+      Array.isArray(
+        data.services
+      )
+        ? data.services
+        : [];
 
   const activeServices =
 servicesData.filter(service=>{
@@ -566,7 +670,10 @@ servicesData.filter(service=>{
   String(service.serviceKey || "")
   .toUpperCase();
 
-  if(key === "SHARED"){
+  if(
+    key === "SH" ||
+    key === "SHARED"
+  ){
     return false;
   }
 
@@ -752,6 +859,13 @@ container.appendChild(card);
 }catch(err){
 
 console.log(err);
+
+container.innerHTML =
+  `<div class="loading-services">
+    No services available.
+  </div>`;
+
+pricingBox.innerHTML = "";
 
 }
 
@@ -1338,7 +1452,9 @@ try{
 
 const pricingRes =
 await fetch(
-"/api/getquote-core/calculate",
+tenantApiPath(
+  "calculate"
+),
 {
 method:"POST",
 
@@ -1485,6 +1601,18 @@ TRIP DATA
 
 const tripData = {
 
+  tenantId:
+    currentTenant?.id ||
+    localStorage.getItem(
+      "tenantId"
+    ) ||
+    "",
+
+  tenantSlug:
+    currentTenant?.slug ||
+    getTenantSlug() ||
+    "",
+
   pickup: pickupVal,
 
   dropoff: dropVal,
@@ -1627,8 +1755,19 @@ localStorage.setItem(
 REDIRECT
 ========================= */
 
+const tenantSlug =
+  currentTenant?.slug ||
+  getTenantSlug();
+
 window.location.href =
-"/booking/index.html";
+  tenantSlug
+    ? (
+        "/booking/index.html?tenant=" +
+        encodeURIComponent(
+          tenantSlug
+        )
+      )
+    : "/booking/index.html";
 
 }
 
