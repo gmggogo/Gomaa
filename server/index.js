@@ -1381,6 +1381,68 @@ function requireTenantApi(
 
 
 /* =========================
+   TENANT QUERY HELPERS
+========================= */
+
+function tenantFilter(
+  req,
+  extra = {}
+){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    if(requestedTenantId){
+
+      return {
+        ...extra,
+        tenantId:requestedTenantId
+      };
+    }
+
+    return {
+      ...extra
+    };
+  }
+
+  return {
+    ...extra,
+    tenantId:
+      req.authUser?.tenantId
+  };
+}
+
+function tenantIdForCreate(req){
+
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN"
+  ){
+
+    return String(
+      req.body?.tenantId ||
+      req.query?.tenantId ||
+      ""
+    ).trim();
+  }
+
+  return String(
+    req.authUser?.tenantId ||
+    ""
+  ).trim();
+}
+
+
+/* =========================
    OPTIONAL TENANT AUTH
    Used by /api/trips so both:
    - logged-in staff bookings
@@ -2662,11 +2724,27 @@ async function ensureTripCoords(trip) {
 global.ensureTripCoords =
   ensureTripCoords;
 
-async function ensureDriverScheduleCoords(driverId, scheduleRow) {
-  const lat = normalizeNumber(scheduleRow?.lat);
-  const lng = normalizeNumber(scheduleRow?.lng);
+async function ensureDriverScheduleCoords(
+  driverId,
+  scheduleRow,
+  tenantId = ""
+) {
 
-  if (lat !== null && lng !== null) {
+  const lat =
+    normalizeNumber(
+      scheduleRow?.lat
+    );
+
+  const lng =
+    normalizeNumber(
+      scheduleRow?.lng
+    );
+
+  if (
+    lat !== null &&
+    lng !== null
+  ) {
+
     return {
       ...scheduleRow,
       lat,
@@ -2674,25 +2752,62 @@ async function ensureDriverScheduleCoords(driverId, scheduleRow) {
     };
   }
 
-  const address = normalizeText(scheduleRow?.address);
-  if (!address) return scheduleRow;
-
-  const geo = await geocodeAddress(address);
-  if (geo.lat === null || geo.lng === null) return scheduleRow;
-
-  try {
-    await DriverSchedule.findOneAndUpdate(
-      { driverId: String(driverId) },
-      { lat: geo.lat, lng: geo.lng }
+  const address =
+    normalizeText(
+      scheduleRow?.address
     );
-  } catch (err) {
-    console.log("Driver schedule coord save error:", err?.message || err);
+
+  if (!address) {
+    return scheduleRow;
   }
 
- return {
-  ...scheduleRow,
-  lat: geo.lat,
-  lng: geo.lng
+  const geo =
+    await geocodeAddress(
+      address
+    );
+
+  if (
+    geo.lat === null ||
+    geo.lng === null
+  ) {
+    return scheduleRow;
+  }
+
+  try {
+
+    const filter = {
+      driverId:
+        String(driverId)
+    };
+
+    if(tenantId){
+      filter.tenantId =
+        tenantId;
+    }
+
+    await DriverSchedule.findOneAndUpdate(
+      filter,
+      {
+        $set:{
+          lat:geo.lat,
+          lng:geo.lng
+        }
+      }
+    );
+
+  } catch (err) {
+
+    console.log(
+      "Driver schedule coord save error:",
+      err?.message ||
+      err
+    );
+  }
+
+  return {
+    ...scheduleRow,
+    lat:geo.lat,
+    lng:geo.lng
   };
 }
 
@@ -3052,7 +3167,15 @@ async function autoAssignTrips({ trips, drivers, schedule }) {
       days: {}
     };
 
-    const safeSchedule = await ensureDriverScheduleCoords(id, baseSchedule);
+    const safeSchedule =
+      await ensureDriverScheduleCoords(
+        id,
+        baseSchedule,
+        String(
+          driver.tenantId ||
+          ""
+        )
+      );
     schedule[id] = safeSchedule;
 
     driverStates.push(getDriverStateBase(driver, safeSchedule));
@@ -3417,13 +3540,22 @@ app.post("/api/auth/login", async (req, res) => {
 
 /* =========================
    USERS ROUTES
+   TENANT ISOLATED
 ========================= */
 
-app.get("/api/users/:role", async (req, res) => {
+app.get(
+  "/api/users/:role",
+  requireTenantApi,
+  async (req, res) => {
 
   try {
 
-    const role = req.params.role;
+    const role =
+      String(
+        req.params.role || ""
+      )
+      .trim()
+      .toLowerCase();
 
     if (
       ![
@@ -3441,20 +3573,29 @@ app.get("/api/users/:role", async (req, res) => {
 
     }
 
-    const users = await User.find({
-      role
-    }).sort({
-      createdAt: -1,
-      name: 1
-    });
+    const users =
+      await User.find(
+        tenantFilter(
+          req,
+          { role }
+        )
+      )
+      .sort({
+        createdAt: -1,
+        name: 1
+      })
+      .lean();
 
-    res.json(users);
+    return res.json(users);
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "LOAD USERS ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error loading users"
     });
 
@@ -3466,11 +3607,19 @@ app.get("/api/users/:role", async (req, res) => {
    CREATE USER
 ========================= */
 
-app.post("/api/users/:role", async (req, res) => {
+app.post(
+  "/api/users/:role",
+  requireTenantApi,
+  async (req, res) => {
 
   try {
 
-    const role = req.params.role;
+    const role =
+      String(
+        req.params.role || ""
+      )
+      .trim()
+      .toLowerCase();
 
     const {
       name,
@@ -3510,6 +3659,20 @@ app.post("/api/users/:role", async (req, res) => {
 
     }
 
+    const tenantId =
+      tenantIdForCreate(req);
+
+    if(!tenantId){
+
+      return res.status(403).json({
+        message:"Tenant Required"
+      });
+    }
+
+    /*
+      Username stays globally unique because login
+      currently resolves by username only.
+    */
     const exists =
       await User.findOne({
         username:
@@ -3525,10 +3688,15 @@ app.post("/api/users/:role", async (req, res) => {
     }
 
     const hashed =
-      await bcrypt.hash(password, 10);
+      await bcrypt.hash(
+        password,
+        10
+      );
 
     const newUser =
       await User.create({
+
+        tenantId,
 
         name:
           normalizeText(name),
@@ -3555,13 +3723,16 @@ app.post("/api/users/:role", async (req, res) => {
 
       });
 
-    res.json(newUser);
+    return res.json(newUser);
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "CREATE USER ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error creating user"
     });
 
@@ -3573,9 +3744,29 @@ app.post("/api/users/:role", async (req, res) => {
    UPDATE USER
 ========================= */
 
-app.put("/api/users/:id", async (req, res) => {
+app.put(
+  "/api/users/:id",
+  requireTenantApi,
+  async (req, res) => {
 
   try {
+
+    const existingUser =
+      await User.findOne(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
+      );
+
+    if(!existingUser){
+
+      return res.status(404).json({
+        message:"User not found"
+      });
+    }
 
     const {
       name,
@@ -3615,30 +3806,43 @@ app.put("/api/users/:id", async (req, res) => {
     ) {
 
       updateData.password =
-        await bcrypt.hash(password, 10);
+        await bcrypt.hash(
+          password,
+          10
+        );
 
     }
 
     const updated =
-      await User.findByIdAndUpdate(
+      await User.findOneAndUpdate(
 
-        req.params.id,
-
-        updateData,
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        ),
 
         {
-          new: true
+          $set:updateData
+        },
+
+        {
+          new:true
         }
 
       );
 
-    res.json(updated);
+    return res.json(updated);
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "UPDATE USER ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error updating user"
     });
 
@@ -3650,13 +3854,21 @@ app.put("/api/users/:id", async (req, res) => {
    TOGGLE ACTIVE
 ========================= */
 
-app.patch("/api/users/:id/toggle", async (req, res) => {
+app.patch(
+  "/api/users/:id/toggle",
+  requireTenantApi,
+  async (req, res) => {
 
   try {
 
     const user =
-      await User.findById(
-        req.params.id
+      await User.findOne(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
       );
 
     if (!user) {
@@ -3667,17 +3879,26 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
 
     }
 
-    user.enabled = !user.enabled;
+    user.enabled =
+      user.enabled === false
+        ? true
+        : false;
+
+    user.active =
+      user.enabled;
 
     await user.save();
 
-    res.json(user);
+    return res.json(user);
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "TOGGLE USER ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error toggling user"
     });
 
@@ -3689,23 +3910,42 @@ app.patch("/api/users/:id/toggle", async (req, res) => {
    DELETE USER
 ========================= */
 
-app.delete("/api/users/:id", async (req, res) => {
+app.delete(
+  "/api/users/:id",
+  requireTenantApi,
+  async (req, res) => {
 
   try {
 
-    await User.findByIdAndDelete(
-      req.params.id
-    );
+    const deleted =
+      await User.findOneAndDelete(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
+      );
 
-    res.json({
+    if(!deleted){
+
+      return res.status(404).json({
+        message:"User not found"
+      });
+    }
+
+    return res.json({
       message: "Deleted"
     });
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "DELETE USER ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error deleting user"
     });
 
@@ -4930,17 +5170,49 @@ return res.json({
 /* =========================
    GET DRIVERS
 ========================= */
-app.get("/api/drivers", async (req, res) => {
-  try {
-    const drivers = await User.find({
-      role: "driver",
-      active: true
-    }).sort({ name: 1 });
+app.get(
+  "/api/drivers",
+  requireTenantApi,
+  async (req, res) => {
 
-    res.json(drivers);
+  try {
+
+    const drivers =
+      await User.find(
+        tenantFilter(
+          req,
+          {
+            role:"driver",
+            active:{
+              $ne:false
+            },
+            enabled:{
+              $ne:false
+            }
+          }
+        )
+      )
+      .sort({
+        name:1
+      })
+      .lean();
+
+    return res.json(
+      drivers
+    );
+
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading drivers" });
+
+    console.log(
+      "LOAD DRIVERS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message:
+        "Error loading drivers"
+    });
+
   }
 });
 
