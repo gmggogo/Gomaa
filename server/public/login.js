@@ -1,6 +1,103 @@
 /* =====================
    STAFF LOGIN
+   TENANT AWARE
 ===================== */
+
+function cleanTenantSlug(value){
+
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+
+}
+
+function tenantSlugFromPage(){
+
+  /* 1) Explicit query: /admin/login.html?tenant=sony */
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const querySlug =
+    cleanTenantSlug(
+      params.get("tenant") ||
+      params.get("tenantSlug")
+    );
+
+  if(querySlug){
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      querySlug
+    );
+    return querySlug;
+  }
+
+  /* 2) Referrer: user clicked Staff Login from /sony or /cover-all */
+  try{
+
+    if(document.referrer){
+
+      const ref =
+        new URL(
+          document.referrer
+        );
+
+      if(
+        ref.origin ===
+        window.location.origin
+      ){
+
+        const firstPart =
+          cleanTenantSlug(
+            ref.pathname
+              .split("/")
+              .filter(Boolean)[0]
+          );
+
+        const reserved =
+          new Set([
+            "admin",
+            "dispatcher",
+            "driver",
+            "company",
+            "platform-admin",
+            "booking",
+            "api",
+            "core",
+            "assets",
+            "uploads"
+          ]);
+
+        if(
+          firstPart &&
+          !reserved.has(firstPart) &&
+          !firstPart.includes(".")
+        ){
+          sessionStorage.setItem(
+            "loginTenantSlug",
+            firstPart
+          );
+          return firstPart;
+        }
+      }
+    }
+
+  }catch(err){
+    console.log(
+      "TENANT REFERRER ERROR:",
+      err
+    );
+  }
+
+  /* 3) Same-tab fallback */
+  return cleanTenantSlug(
+    sessionStorage.getItem(
+      "loginTenantSlug"
+    )
+  );
+
+}
 
 async function login(){
 
@@ -29,6 +126,9 @@ async function login(){
     return;
   }
 
+  const tenantSlug =
+    tenantSlugFromPage();
+
   msg.innerText =
     "Signing in...";
 
@@ -47,14 +147,14 @@ async function login(){
 
           body:JSON.stringify({
             username,
-            password
+            password,
+            tenantSlug
           })
         }
       );
 
     const data =
-      await res.json()
-        .catch(()=>({}));
+      await res.json();
 
     if(!res.ok){
 
@@ -65,169 +165,35 @@ async function login(){
       return;
     }
 
-    /*
-      Support both response shapes:
-
-      New:
-      {
-        token,
-        user:{
-          id,name,role,tenantId
-        }
-      }
-
-      Compatibility:
-      {
-        token,
-        role,
-        tenantId,
-        name,
-        tenant:{...}
-      }
-    */
-
-    const user =
-      data.user &&
-      typeof data.user === "object"
-        ? data.user
-        : {};
-
-    const authToken =
-      String(
-        data.token ||
-        user.token ||
-        ""
-      ).trim();
-
-    const userRole =
-      String(
-        user.role ||
-        data.role ||
-        ""
-      ).trim();
-
-    const userName =
-      String(
-        user.name ||
-        data.name ||
-        data.username ||
-        username
-      ).trim();
-
-    const tenantId =
-      String(
-        user.tenantId ||
-        data.tenantId ||
-        data.tenant?.id ||
-        data.tenant?._id ||
-        ""
-      ).trim();
-
-    const tenantSlug =
-      String(
-        user.tenantSlug ||
-        data.tenantSlug ||
-        data.tenant?.slug ||
-        ""
-      )
-      .trim()
-      .toLowerCase();
-
-    const timezone =
-      String(
-        user.timezone ||
-        data.timezone ||
-        data.tenant?.timezone ||
-        ""
-      ).trim();
-
-    if(!authToken){
-
-      msg.innerText =
-        "Login response missing token";
-
-      return;
-    }
-
-    if(!userRole){
-
-      msg.innerText =
-        "Login response missing role";
-
-      return;
-    }
-
-    /* =====================
-       SAVE LOGIN
-    ===================== */
-
     localStorage.setItem(
       "token",
-      authToken
+      data.token
     );
 
     localStorage.setItem(
       "role",
-      userRole
+      data.user.role
     );
 
     localStorage.setItem(
       "name",
-      userName
+      data.user.name
     );
 
     localStorage.setItem(
       "tenantId",
-      tenantId
+      data.user.tenantId || ""
     );
 
-    /*
-      Clear the previous public tenant first.
-      Then save only the tenant belonging
-      to the authenticated account.
-    */
-
-    localStorage.removeItem(
-      "tenantSlug"
+    localStorage.setItem(
+      "tenantSlug",
+      data.user.tenantSlug || ""
     );
-
-    if(tenantSlug){
-
-      localStorage.setItem(
-        "tenantSlug",
-        tenantSlug
-      );
-    }
-
-    if(timezone){
-
-      localStorage.setItem(
-        "appTimezone",
-        timezone
-      );
-    }
-
-    /* =====================
-       REDIRECT BY ROLE
-    ===================== */
 
     if(
-      userRole ===
+      data.user.role ===
       "PLATFORM_ADMIN"
     ){
-
-      /*
-        Platform Admin is platform-wide,
-        never tenant branded.
-      */
-
-      localStorage.removeItem(
-        "tenantSlug"
-      );
-
-      localStorage.removeItem(
-        "tenantId"
-      );
 
       window.location.replace(
         "/platform-admin/dashboard.html"
@@ -237,9 +203,9 @@ async function login(){
     }
 
     if(
-      userRole ===
+      data.user.role ===
       "SUPER_ADMIN" ||
-      userRole ===
+      data.user.role ===
       "admin"
     ){
 
@@ -251,7 +217,7 @@ async function login(){
     }
 
     if(
-      userRole ===
+      data.user.role ===
       "dispatcher"
     ){
 
@@ -274,6 +240,7 @@ async function login(){
 
     msg.innerText =
       "Server error";
+
   }
 
 }

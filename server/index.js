@@ -485,19 +485,6 @@ app.use(
   serviceRoutes
 );
 
-/* =========================
-   PUBLIC TENANT ROUTES
-========================= */
-
-const publicTenantRoutes =
-require("./routes/publicTenantRoutes");
-
-app.use(
-  "/api/public/tenant",
-  publicTenantRoutes
-);
-
-
 
 /* =========================
    PAYMENT SUCCESS
@@ -3367,32 +3354,98 @@ app.post("/api/auth/login", async (req, res) => {
 
     const {
       username,
-      password
+      password,
+      tenantSlug
     } = req.body || {};
 
-    if (!username || !password) {
+    const cleanUsername =
+      String(username || "").trim();
+
+    const cleanSlug =
+      cleanTenantSlug(tenantSlug);
+
+    if (!cleanUsername || !password) {
       return res.status(400).json({
         message: "Missing credentials"
       });
     }
 
-    const user =
+    /*
+      PLATFORM ADMIN:
+      May login without a tenant because it belongs to the platform,
+      not to one customer company.
+    */
+    const platformUser =
       await User.findOne({
-        username:
-          String(username).trim()
+        username: cleanUsername,
+        role: "PLATFORM_ADMIN"
       });
 
-    if (!user) {
-      return res.status(400).json({
-        message: "Invalid credentials"
-      });
+    let user = null;
+    let tenant = null;
+
+    if (platformUser) {
+
+      user = platformUser;
+
+    } else {
+
+      /*
+        Every normal staff login MUST identify the tenant page
+        it came from. This prevents a Sony admin from logging
+        into Cover All with the same credentials.
+      */
+      if (!cleanSlug) {
+        return res.status(400).json({
+          message: "Company login link required"
+        });
+      }
+
+      tenant =
+        await Tenant.findOne({
+          slug: cleanSlug
+        });
+
+      if (!tenant) {
+        return res.status(403).json({
+          message: "Organization not found"
+        });
+      }
+
+      if (tenant.enabled === false) {
+        return res.status(403).json({
+          message: "Organization Disabled"
+        });
+      }
+
+      if (
+        tenant.subscriptionStatus === "SUSPENDED" ||
+        tenant.subscriptionStatus === "CANCELED"
+      ) {
+        return res.status(403).json({
+          message: "Organization subscription inactive"
+        });
+      }
+
+      user =
+        await User.findOne({
+          username: cleanUsername,
+          tenantId: tenant._id
+        });
+
+      if (!user) {
+        return res.status(400).json({
+          message: "Invalid credentials for this company"
+        });
+      }
     }
 
     console.log("LOGIN USER =", {
       username: user.username,
       role: user.role,
       enabled: user.enabled,
-      tenantId: user.tenantId || null
+      tenantId: user.tenantId || null,
+      requestedTenantSlug: cleanSlug || null
     });
 
     if (
@@ -3416,125 +3469,64 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
-    /* =========================
-       TENANT CHECK
-
-       PLATFORM_ADMIN does not require
-       a tenant.
-
-       Old users with tenantId = null
-       are temporarily allowed during
-       migration so the current system
-       keeps working.
-    ========================= */
-
-    let tenant = null;
-
+    /*
+      Final tenant ownership check.
+      Never trust only the slug sent by the browser.
+    */
     if (
-      user.role !== "PLATFORM_ADMIN" &&
-      user.tenantId
+      user.role !== "PLATFORM_ADMIN"
     ) {
 
-      tenant =
-        await Tenant.findById(
-          user.tenantId
-        );
-
-      if (!tenant) {
+      if (!user.tenantId) {
         return res.status(403).json({
-          message: "Organization not found"
-        });
-      }
-
-      if (tenant.enabled === false) {
-        return res.status(403).json({
-          message: "Organization Disabled"
+          message: "User is not assigned to a company"
         });
       }
 
       if (
-        tenant.subscriptionStatus === "SUSPENDED" ||
-        tenant.subscriptionStatus === "CANCELED"
+        !tenant ||
+        String(user.tenantId) !==
+        String(tenant._id)
       ) {
         return res.status(403).json({
-          message:
-            "Organization subscription inactive"
+          message: "Access denied for this company"
         });
       }
-
     }
-
-    /* =========================
-       JWT
-    ========================= */
 
     const token =
       jwt.sign(
         {
-          id:
-            user._id,
-
-          role:
-            user.role,
-
-          name:
-            user.name,
-
+          id: user._id,
+          role: user.role,
+          name: user.name,
           tenantId:
             user.tenantId
-              ? user.tenantId.toString()
-              : null
+              ? String(user.tenantId)
+              : null,
+          tenantSlug:
+            tenant?.slug || null
         },
-
         JWT_SECRET,
-
         {
           expiresIn: "1d"
         }
       );
 
-    /* =========================
-       RESPONSE
-    ========================= */
-
     return res.json({
-
       token,
-
       user: {
-        id:
-          user._id,
-
-        name:
-          user.name,
-
-        username:
-          user.username,
-
-        role:
-          user.role,
-
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        role: user.role,
         tenantId:
-          user.tenantId || null
-      },
-
-      tenant:
-        tenant
-          ? {
-              id:
-                tenant._id,
-
-              name:
-                tenant.name,
-
-              slug:
-                tenant.slug,
-
-              subscriptionStatus:
-                tenant.subscriptionStatus
-            }
-          : null
-
+          user.tenantId
+            ? String(user.tenantId)
+            : null,
+        tenantSlug:
+          tenant?.slug || null
+      }
     });
 
   } catch (err) {
@@ -8555,88 +8547,10 @@ const totalCancelFee =
 });
 
 /* =========================
-   PUBLIC TENANT HOMEPAGE
-   Example:
-   /sony
-   /cover-all
-========================= */
-
-app.get(
-  "/:tenantSlug",
-  async (req,res,next)=>{
-
-    try{
-
-      const tenantSlug =
-        cleanTenantSlug(
-          req.params.tenantSlug
-        );
-
-      /*
-        Only a simple tenant slug can use this route.
-        Static files and other paths continue normally.
-      */
-      if(
-        !tenantSlug ||
-        !/^[a-z0-9-]+$/.test(
-          tenantSlug
-        )
-      ){
-        return next();
-      }
-
-      const tenant =
-        await Tenant.findOne({
-          slug:tenantSlug,
-          enabled:true,
-          subscriptionStatus:{
-            $in:["ACTIVE","TRIAL"]
-          }
-        })
-        .select(
-          "_id name slug enabled subscriptionStatus"
-        )
-        .lean();
-
-      if(!tenant){
-        return next();
-      }
-
-      return res.sendFile(
-        path.join(
-          __dirname,
-          "public",
-          "index.html"
-        )
-      );
-
-    }catch(err){
-
-      console.log(
-        "TENANT HOMEPAGE ERROR:",
-        err
-      );
-
-      return next();
-    }
-
-  }
-);
-
-/* =========================
    ROOT
 ========================= */
-
 app.get("/", (req, res) => {
-
-  res.sendFile(
-    path.join(
-      __dirname,
-      "public",
-      "index.html"
-    )
-  );
-
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 function getSystemNow(){
