@@ -485,6 +485,19 @@ app.use(
   serviceRoutes
 );
 
+/* =========================
+   PUBLIC TENANT ROUTES
+========================= */
+
+const publicTenantRoutes =
+require("./routes/publicTenantRoutes");
+
+app.use(
+  "/api/public/tenant",
+  publicTenantRoutes
+);
+
+
 
 /* =========================
    PAYMENT SUCCESS
@@ -8547,10 +8560,83 @@ const totalCancelFee =
 });
 
 /* =========================
+   PUBLIC TENANT HOMEPAGE
+   /sony
+   /cover-all
+========================= */
+
+app.get(
+  "/:tenantSlug",
+  async (req,res,next)=>{
+
+    try{
+
+      const tenantSlug =
+        cleanTenantSlug(
+          req.params.tenantSlug
+        );
+
+      if(
+        !tenantSlug ||
+        !/^[a-z0-9-]+$/.test(
+          tenantSlug
+        )
+      ){
+        return next();
+      }
+
+      const tenant =
+        await Tenant.findOne({
+          slug:tenantSlug,
+          enabled:true,
+          subscriptionStatus:{
+            $in:["ACTIVE","TRIAL"]
+          }
+        })
+        .select(
+          "_id name slug enabled subscriptionStatus"
+        )
+        .lean();
+
+      if(!tenant){
+        return next();
+      }
+
+      return res.sendFile(
+        path.join(
+          __dirname,
+          "public",
+          "index.html"
+        )
+      );
+
+    }catch(err){
+
+      console.log(
+        "TENANT HOMEPAGE ERROR:",
+        err
+      );
+
+      return next();
+    }
+
+  }
+);
+
+/* =========================
    ROOT
 ========================= */
+
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+
+  res.sendFile(
+    path.join(
+      __dirname,
+      "public",
+      "index.html"
+    )
+  );
+
 });
 
 function getSystemNow(){
