@@ -1,9 +1,9 @@
 /* ================= SECURITY ================= */
 
-const token = localStorage.getItem("token") || "";
-const role = String(localStorage.getItem("role") || "").trim().toUpperCase();
+const mapAuthToken = localStorage.getItem("token") || "";
+const mapUserRole = String(localStorage.getItem("role") || "").trim().toUpperCase();
 
-if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)){
+if(!mapAuthToken || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(mapUserRole)){
   window.location.href = "/login.html";
 }
 
@@ -489,7 +489,7 @@ async function loadLiveDrivers(){
     const res = await fetch(LIVE_DRIVERS_API, {
       cache: "no-store",
       headers:{
-        Authorization:"Bearer " + token
+        Authorization:"Bearer " + mapAuthToken
       }
     });
 
