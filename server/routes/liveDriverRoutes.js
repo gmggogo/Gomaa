@@ -77,7 +77,7 @@ function requireTenantApi(
     };
 
     if(
-      req.authUser.role ===
+      String(req.authUser.role || "").trim().toUpperCase() ===
       "PLATFORM_ADMIN"
     ){
       return next();
@@ -108,7 +108,7 @@ function tenantFilter(
 ){
 
   if(
-    req.authUser?.role ===
+    String(req.authUser?.role || "").trim().toUpperCase() ===
     "PLATFORM_ADMIN"
   ){
 
@@ -142,7 +142,7 @@ function tenantFilter(
 function tenantIdForWrite(req){
 
   if(
-    req.authUser?.role ===
+    String(req.authUser?.role || "").trim().toUpperCase() ===
     "PLATFORM_ADMIN"
   ){
 

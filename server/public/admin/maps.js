@@ -1,9 +1,9 @@
 /* ================= SECURITY ================= */
 
-const token = localStorage.getItem("token");
-const role  = localStorage.getItem("role") || "";
+const token = localStorage.getItem("token") || "";
+const role = String(localStorage.getItem("role") || "").trim().toUpperCase();
 
-if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)){
   window.location.href = "/login.html";
 }
 
@@ -494,7 +494,12 @@ async function loadLiveDrivers(){
     });
 
     if(!res.ok){
-      throw new Error("Failed to load live drivers");
+      let message = "Failed to load live drivers";
+      try{
+        const errorData = await res.json();
+        message = errorData.message || message;
+      }catch(e){}
+      throw new Error(`${message} (${res.status})`);
     }
 
     const data = await res.json();
@@ -668,5 +673,14 @@ async function loadLiveDrivers(){
 injectMapStyles();
 ensureSidebar();
 bindSearch();
-loadLiveDrivers();
+
+setTimeout(() => {
+  map.invalidateSize(true);
+  loadLiveDrivers();
+}, 150);
+
+window.addEventListener("resize", () => {
+  map.invalidateSize(false);
+});
+
 setInterval(loadLiveDrivers, 30000);

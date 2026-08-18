@@ -142,10 +142,10 @@ body{
 ========================= */
 
 const token = localStorage.getItem("token") || "";
-const role  = localStorage.getItem("role") || "";
+const role = String(localStorage.getItem("role") || "").trim().toUpperCase();
 
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
+if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)){
+  window.location.href = "/login.html";
 }
 
 /* =========================
