@@ -1,267 +1,219 @@
 /* =====================================================
-   DRIVER LOGIN
+   DRIVER LOGIN - TENANT SAFE
 ===================================================== */
 
-document.addEventListener(
-"DOMContentLoaded",
-()=>{
+document.addEventListener("DOMContentLoaded", () => {
 
-const form =
-document.getElementById(
-"loginForm"
-);
+  const form = document.getElementById("loginForm");
+  const errorBox = document.getElementById("error");
 
-const errorBox =
-document.getElementById(
-"error"
-);
+  if(!form){
+    console.error("loginForm not found");
+    return;
+  }
 
-if(!form){
+  /* =====================================================
+     TENANT FROM COMPANY LOGIN LINK
+     Example:
+     /driver/login.html?tenant=sony
+     /driver/login.html?tenant=cover-all
+  ===================================================== */
 
-console.error(
-"loginForm not found"
-);
+  const params = new URLSearchParams(window.location.search);
 
-return;
+  const tenant = String(
+    params.get("tenant") || ""
+  ).trim();
 
-}
+  if(!tenant){
 
-/* =====================================================
-   SUBMIT
-===================================================== */
+    errorBox.innerText =
+      "Company login link required";
 
-form.addEventListener(
-"submit",
-async (e)=>{
+    form.querySelector('button[type="submit"]').disabled = true;
 
-e.preventDefault();
+    return;
+  }
 
-errorBox.innerText = "";
+  /* Keep tenant available to the rest of Driver App */
+  localStorage.setItem("tenant", tenant);
+  localStorage.setItem("tenantSlug", tenant);
 
-/* =========================
-GET VALUES
-========================= */
+  /* =====================================================
+     SUBMIT
+  ===================================================== */
 
-const username =
-document.getElementById(
-"username"
-).value.trim();
+  form.addEventListener("submit", async (e) => {
 
-const password =
-document.getElementById(
-"password"
-).value.trim();
+    e.preventDefault();
 
-/* =========================
-VALIDATION
-========================= */
+    errorBox.innerText = "";
 
-if(
-!username ||
-!password
-){
+    const username =
+      document.getElementById("username").value.trim();
 
-errorBox.innerText =
-"Enter username and password";
+    const password =
+      document.getElementById("password").value.trim();
 
-return;
+    if(!username || !password){
 
-}
+      errorBox.innerText =
+        "Enter username and password";
 
-try{
+      return;
+    }
 
-/* =========================
-LOGIN REQUEST
-========================= */
+    try{
 
-const res =
-await fetch(
-"/api/auth/login",
-{
+      /* =================================================
+         LOGIN REQUEST
+         IMPORTANT:
+         tenant is sent to server with username/password.
+         The server must validate the driver INSIDE this tenant.
+      ================================================= */
 
-method:"POST",
+      const res = await fetch(
+        "/api/auth/login",
+        {
+          method:"POST",
 
-headers:{
-"Content-Type":
-"application/json"
-},
+          headers:{
+            "Content-Type":"application/json"
+          },
 
-body:JSON.stringify({
+          body:JSON.stringify({
+            username,
+            password,
+            tenant,
+            tenantSlug:tenant
+          })
+        }
+      );
 
-username,
-password
-
-})
-
-});
-
-const data =
-await res.json();
-
-/* =========================
-ERROR
-========================= */
-
-if(!res.ok){
-
-errorBox.innerText =
-
-data.message ||
-
-"Login failed";
-
-return;
-
-}
-
-/* =========================
-USER CHECK
-========================= */
-
-if(!data.user){
-
-errorBox.innerText =
-"User data missing";
-
-return;
-
-}
-
-/* =========================
-ROLE CHECK
-========================= */
-
-if(
-data.user.role !== "driver"
-){
-
-errorBox.innerText =
-"This account is not a driver";
-
-return;
-
-}
-
-/* =========================
-SAVE DRIVER SESSION
-========================= */
-
-localStorage.setItem(
-
-"loggedDriver",
-
-JSON.stringify({
-
-token:data.token,
-
-id:data.user.id,
-
-name:data.user.name,
-
-username:data.user.username,
-
-role:data.user.role,
-
-company:
-data.user.company || "",
-
-driverId:
-data.user.driverId || "",
-
-loginAt:Date.now()
-
-})
-
-);
-
-/* =========================
-GLOBAL SESSION
-========================= */
-
-localStorage.setItem(
-"token",
-data.token
-);
-
-localStorage.setItem(
-"role",
-"driver"
-);
-
-localStorage.setItem(
-"driverName",
-data.user.name || ""
-);
-
-localStorage.setItem(
-"name",
-data.user.name || ""
-);
-
-localStorage.setItem(
-"companyName",
-data.user.company || ""
-);
-
-/* =========================
-OPTIONAL DRIVER DATA
-========================= */
-
-if(data.user.driverId){
-
-  localStorage.setItem(
-    "driverId",
-    data.user.driverId
-  );
-
-}
-
-if(data.user.company){
-
-  localStorage.setItem(
-    "company",
-    data.user.company
-  );
-
-}
-
-/* =========================
-🔥 IMPORTANT
-NO LOCAL TIMEZONE SAVE
-TIMEZONE COMES FROM BRANDING
-ON RENDER SERVER
-========================= */
-
-localStorage.removeItem(
-  "systemTimezone"
-);
-
-localStorage.removeItem(
-  "appTimezone"
-);
-
-/* =========================
-REDIRECT
-========================= */
-
-window.location.href =
-"/driver/dashboard.html";
-
-}
-
-/* =========================
-SERVER ERROR
-========================= */
-
-catch(err){
-
-console.error(err);
-
-errorBox.innerText =
-"Server error";
-
-}
-
-});
+      let data = {};
+
+      try{
+        data = await res.json();
+      }
+      catch(_){}
+
+      if(!res.ok){
+
+        errorBox.innerText =
+          data.message ||
+          "Invalid credentials for this company";
+
+        return;
+      }
+
+      if(!data.user){
+
+        errorBox.innerText =
+          "User data missing";
+
+        return;
+      }
+
+      if(data.user.role !== "driver"){
+
+        errorBox.innerText =
+          "This account is not a driver";
+
+        return;
+      }
+
+      /* =================================================
+         TENANT SAFETY CHECK
+         If server returns tenant/company slug, it MUST
+         match the company link used by the driver.
+      ================================================= */
+
+      const returnedTenant = String(
+        data.user.tenantSlug ||
+        data.user.tenant ||
+        data.user.companySlug ||
+        ""
+      ).trim();
+
+      if(
+        returnedTenant &&
+        returnedTenant.toLowerCase() !== tenant.toLowerCase()
+      ){
+
+        errorBox.innerText =
+          "Invalid credentials for this company";
+
+        return;
+      }
+
+      /* =================================================
+         SAVE DRIVER SESSION
+      ================================================= */
+
+      localStorage.setItem(
+        "loggedDriver",
+        JSON.stringify({
+          token:data.token,
+          id:data.user.id,
+          name:data.user.name,
+          username:data.user.username,
+          role:data.user.role,
+          company:data.user.company || "",
+          tenant:returnedTenant || tenant,
+          tenantSlug:returnedTenant || tenant,
+          driverId:data.user.driverId || "",
+          loginAt:Date.now()
+        })
+      );
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", "driver");
+      localStorage.setItem("driverName", data.user.name || "");
+      localStorage.setItem("name", data.user.name || "");
+      localStorage.setItem("companyName", data.user.company || "");
+
+      localStorage.setItem(
+        "tenant",
+        returnedTenant || tenant
+      );
+
+      localStorage.setItem(
+        "tenantSlug",
+        returnedTenant || tenant
+      );
+
+      if(data.user.driverId){
+        localStorage.setItem(
+          "driverId",
+          data.user.driverId
+        );
+      }
+
+      if(data.user.company){
+        localStorage.setItem(
+          "company",
+          data.user.company
+        );
+      }
+
+      /* Timezone comes from tenant branding */
+      localStorage.removeItem("systemTimezone");
+      localStorage.removeItem("appTimezone");
+
+      /* Preserve tenant in the first redirect too */
+      window.location.href =
+        "/driver/dashboard.html?tenant=" +
+        encodeURIComponent(returnedTenant || tenant);
+
+    }
+    catch(err){
+
+      console.error(err);
+
+      errorBox.innerText =
+        "Server error";
+    }
+
+  });
 
 });

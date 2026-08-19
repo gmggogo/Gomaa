@@ -296,6 +296,24 @@ button{
 
 </div>
 
+<!-- TENANT BOOTSTRAP -->
+<script>
+(function(){
+
+  const params = new URLSearchParams(window.location.search);
+
+  const tenant = String(
+    params.get("tenant") || ""
+  ).trim();
+
+  if(tenant){
+    localStorage.setItem("tenant", tenant);
+    localStorage.setItem("tenantSlug", tenant);
+  }
+
+})();
+</script>
+
 <!-- BRANDING -->
 
 <script src="/core/branding.js"></script>
