@@ -52,6 +52,17 @@
   const INTERVAL_MS = 15000;
   const MOVE_FILTER = 0.0005;
 
+  function getDriverToken(){
+
+    return String(
+      localStorage.getItem("driverToken") ||
+      localStorage.getItem("token") ||
+      driver?.token ||
+      ""
+    ).trim();
+  }
+
+
   /* ===============================
      DRIVER DATA
   =============================== */
@@ -162,7 +173,13 @@
         await fetch(API_URL,{
           method:"POST",
           headers:{
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
+            ...(getDriverToken()
+              ? {
+                  Authorization:`Bearer ${getDriverToken()}`,
+                  "x-access-token":getDriverToken()
+                }
+              : {})
           },
           body:JSON.stringify({
             driverId: DRIVER_ID,

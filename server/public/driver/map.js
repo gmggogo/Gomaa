@@ -154,12 +154,74 @@ function formatTimer(sec){
 
 /* ================= AUTH ================= */
 
+function getDriverToken(){
+
+  try{
+
+    const saved =
+      JSON.parse(
+        localStorage.getItem("loggedDriver") || "{}"
+      );
+
+    return clean(
+      localStorage.getItem("driverToken") ||
+      localStorage.getItem("token") ||
+      saved?.token ||
+      ""
+    );
+
+  }catch{
+
+    return clean(
+      localStorage.getItem("driverToken") ||
+      localStorage.getItem("token")
+    );
+  }
+}
+
+function driverAuthHeaders(extra = {}){
+
+  const token =
+    getDriverToken();
+
+  return {
+    ...extra,
+    ...(token
+      ? {
+          Authorization:`Bearer ${token}`,
+          "x-access-token":token
+        }
+      : {})
+  };
+}
+
+function driverLoginUrl(){
+
+  let saved = {};
+
+  try{
+    saved = JSON.parse(
+      localStorage.getItem("loggedDriver") || "{}"
+    );
+  }catch{}
+
+  const slug =
+    lower(
+      saved?.tenantSlug ||
+      localStorage.getItem("tenantSlug")
+    );
+
+  return slug
+    ? `/driver/login.html?tenant=${encodeURIComponent(slug)}`
+    : "/driver/login.html";
+}
+
 const rawDriver =
   localStorage.getItem("loggedDriver") ||
   localStorage.getItem("user");
 
 if(!rawDriver){
-  window.location.href = "/driver/login.html";
+  window.location.href = driverLoginUrl();
 }
 
 let driver = {};
@@ -167,7 +229,7 @@ let driver = {};
 try{
   driver = JSON.parse(rawDriver);
 }catch(err){
-  window.location.href = "/driver/login.html";
+  window.location.href = driverLoginUrl();
 }
 
 const DRIVER_ID = String(driver._id || driver.id || "");
@@ -270,7 +332,13 @@ let pendingReasonAfterCall = null;
 
 async function syncServerClock(){
   try{
-    const res = await fetch("/api/config", { cache: "no-store" });
+    const res = await fetch(
+      "/api/config",
+      {
+        cache:"no-store",
+        headers:driverAuthHeaders()
+      }
+    );
     const header = res.headers.get("date");
 
     if(header){
@@ -287,7 +355,13 @@ async function syncServerClock(){
 
 async function loadAppConfig(){
   try{
-    const res = await fetch("/api/config", { cache: "no-store" });
+    const res = await fetch(
+      "/api/config",
+      {
+        cache:"no-store",
+        headers:driverAuthHeaders()
+      }
+    );
 
     if(res.ok){
       appConfig = await res.json();
@@ -370,7 +444,13 @@ function applyServiceExecutionSettings(config={}){
 
 async function loadSystemDesign(){
   try{
-    const res = await fetch("/api/system-design", { cache: "no-store" });
+    const res = await fetch(
+      "/api/system-design",
+      {
+        cache:"no-store",
+        headers:driverAuthHeaders()
+      }
+    );
 
     if(res.ok){
       systemDesign = await res.json();
@@ -441,9 +521,13 @@ async function fetchTrip(){
     return null;
   }
 
-  const res = await fetch(`/api/trips/${TRIP_ID}`, {
-    cache: "no-store"
-  });
+  const res = await fetch(
+    `/api/trips/${TRIP_ID}`,
+    {
+      cache:"no-store",
+      headers:driverAuthHeaders()
+    }
+  );
 
   if(!res.ok){
     throw new Error("Trip load failed");
@@ -525,7 +609,10 @@ async function loadTripServiceWaitConfig(){
       const res =
         await fetch(
           `/api/services/driver-config/${encodeURIComponent(candidate)}`,
-          { cache:"no-store" }
+          {
+            cache:"no-store",
+            headers:driverAuthHeaders()
+          }
         );
 
       if(!res.ok){
@@ -580,9 +667,9 @@ async function updateTrip(body){
       `/api/trips/${TRIP_ID}`,
       {
         method:"PUT",
-        headers:{
+        headers:driverAuthHeaders({
           "Content-Type":"application/json"
-        },
+        }),
         body:JSON.stringify(body)
       }
     );
@@ -4562,9 +4649,9 @@ async function sendLocation(lat, lng){
   try{
     await fetch("/api/driver/location", {
       method: "POST",
-      headers: {
+      headers: driverAuthHeaders({
         "Content-Type": "application/json"
-      },
+      }),
       body: JSON.stringify({
         driverId: DRIVER_ID,
         name: DRIVER_NAME,

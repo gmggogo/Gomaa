@@ -162,6 +162,30 @@
       {}
     ) || {};
 
+  function getDriverToken(){
+
+    return clean(
+      localStorage.getItem("driverToken") ||
+      localStorage.getItem("token") ||
+      driver?.token ||
+      ""
+    );
+  }
+
+  function driverLoginUrl(){
+
+    const slug =
+      clean(
+        driver?.tenantSlug ||
+        localStorage.getItem("tenantSlug")
+      ).toLowerCase();
+
+    return slug
+      ? `login.html?tenant=${encodeURIComponent(slug)}`
+      : "login.html";
+  }
+
+
   const DRIVER_ID =
     clean(
       driver?._id ||
@@ -169,7 +193,7 @@
     );
 
   if(!DRIVER_ID){
-    window.location.href = "login.html";
+    window.location.href = driverLoginUrl();
     return;
   }
 
@@ -402,7 +426,17 @@
     const res =
       await fetch(
         url,
-        { cache:"no-store" }
+        {
+          cache:"no-store",
+          headers:{
+            ...(getDriverToken()
+              ? {
+                  Authorization:`Bearer ${getDriverToken()}`,
+                  "x-access-token":getDriverToken()
+                }
+              : {})
+          }
+        }
       );
 
     if(!res.ok){

@@ -55,6 +55,29 @@
     );
   }
 
+  function getTenantSlug(){
+
+    const driver = getLoggedDriver();
+
+    return String(
+      driver?.tenantSlug ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+  }
+
+  function driverLoginUrl(){
+
+    const slug =
+      getTenantSlug();
+
+    return slug
+      ? `login.html?tenant=${encodeURIComponent(slug)}`
+      : "login.html";
+  }
+
   function ensureSession(){
 
     const driver = getLoggedDriver();
@@ -63,7 +86,7 @@
       !driver ||
       Object.keys(driver).length === 0
     ){
-      window.location.href = "login.html";
+      window.location.href = driverLoginUrl();
       return false;
     }
 

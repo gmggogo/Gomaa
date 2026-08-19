@@ -1,11 +1,51 @@
 console.log("driver trips ONE BY ONE");
 
+function safeParse(value,fallback=null){
+  try{
+    return JSON.parse(value);
+  }catch{
+    return fallback;
+  }
+}
+
 const user =
-  JSON.parse(localStorage.getItem("loggedDriver")) ||
-  JSON.parse(localStorage.getItem("user"));
+  safeParse(
+    localStorage.getItem("loggedDriver"),
+    null
+  ) ||
+  safeParse(
+    localStorage.getItem("user"),
+    null
+  );
+
+function getDriverToken(){
+
+  return String(
+    localStorage.getItem("driverToken") ||
+    localStorage.getItem("token") ||
+    user?.token ||
+    ""
+  ).trim();
+}
+
+function driverLoginUrl(){
+
+  const slug =
+    String(
+      user?.tenantSlug ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  return slug
+    ? `login.html?tenant=${encodeURIComponent(slug)}`
+    : "login.html";
+}
 
 if(!user){
-  location.href = "../login.html";
+  location.href = driverLoginUrl();
 }
 
 const driverId = user?._id || user?.id;
@@ -1769,7 +1809,13 @@ async function loadTrips(){
         {
           cache:"no-store",
           headers:{
-            "Cache-Control":"no-cache"
+            "Cache-Control":"no-cache",
+            ...(getDriverToken()
+              ? {
+                  Authorization:`Bearer ${getDriverToken()}`,
+                  "x-access-token":getDriverToken()
+                }
+              : {})
           }
         }
       );

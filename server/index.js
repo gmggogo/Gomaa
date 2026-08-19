@@ -6455,12 +6455,17 @@ else {
 /* =========================
    GET ONE TRIP
 ========================= */
-app.get("/api/trips/:id", async (req, res) => {
+app.get("/api/trips/:id", requireTenantApi, async (req, res) => {
   try {
 
     const trip =
-      await Trip.findById(
-        req.params.id
+      await Trip.findOne(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
       );
 
     if(!trip){
@@ -6480,8 +6485,13 @@ app.get("/api/trips/:id", async (req, res) => {
     );
 
     const freshTrip =
-      await Trip.findById(
-        req.params.id
+      await Trip.findOne(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
       );
 
     res.json(
@@ -6503,7 +6513,7 @@ app.get("/api/trips/:id", async (req, res) => {
 /* =========================
    UPDATE TRIP (FINAL CLEAN)
 ========================= */
-app.put("/api/trips/:id", async (req, res) => {
+app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
 
   console.log("=========== UPDATE TRIP ===========");
   console.log("ID =", req.params.id);
@@ -6512,7 +6522,15 @@ app.put("/api/trips/:id", async (req, res) => {
 
   try {
 
-    const existing = await Trip.findById(req.params.id);
+    const existing =
+      await Trip.findOne(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
+      );
 
     if (!existing) {
       return res.status(404).json({
@@ -6963,11 +6981,17 @@ else if(updateData.status === "Completed"){
     /* =========================
        SAVE
     ========================= */
-    const updated = await Trip.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+    const updated =
+      await Trip.findOneAndUpdate(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        ),
+        updateData,
+        { new:true }
+      );
 
     await ensureTripCoords(updated);
 
@@ -6982,9 +7006,17 @@ else if(updateData.status === "Completed"){
 /* =========================
    DELETE TRIP
 ========================= */
-app.delete("/api/trips/:id", async (req, res) => {
+app.delete("/api/trips/:id", requireTenantApi, async (req, res) => {
   try {
-    const deleted = await Trip.findByIdAndDelete(req.params.id);
+    const deleted =
+      await Trip.findOneAndDelete(
+        tenantFilter(
+          req,
+          {
+            _id:req.params.id
+          }
+        )
+      );
 
     if (!deleted) {
       return res.status(404).json({ message: "Trip not found" });
@@ -7002,7 +7034,7 @@ app.delete("/api/trips/:id", async (req, res) => {
    DRIVER API
 ========================= */
 
-app.get("/api/driver/my-trips/:driverId", async (req, res) => {
+app.get("/api/driver/my-trips/:driverId", requireTenantApi, async (req, res) => {
 
   try {
 
@@ -7015,6 +7047,21 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
         message: "Driver ID required"
       });
 
+    }
+
+    /*
+      DRIVER OWNERSHIP:
+      A driver token may request only its own trips.
+      Admin / dispatcher staff inside the same tenant may still inspect
+      a driver when needed.
+    */
+    if(
+      String(req.authUser?.role || "").toLowerCase() === "driver" &&
+      String(req.authUser?.id || "") !== driverId
+    ){
+      return res.status(403).json({
+        message:"Driver access denied"
+      });
     }
 
     const includeFinal =
@@ -7056,17 +7103,19 @@ app.get("/api/driver/my-trips/:driverId", async (req, res) => {
         .filter(Boolean);
 
     const tripDocs =
-      await Trip.find({
-
-        _id: {
-          $in: tripIds
-        },
-
-        disabled: {
-          $ne: true
-        }
-
-      });
+      await Trip.find(
+        tenantFilter(
+          req,
+          {
+            _id:{
+              $in:tripIds
+            },
+            disabled:{
+              $ne:true
+            }
+          }
+        )
+      );
 
     /*
       Repair missing coordinates BEFORE Driver Trips / Driver Map receives

@@ -18,6 +18,34 @@
     login:"login.html"
   };
 
+  function getTenantSlug(){
+
+    const driver =
+      safeParse(
+        localStorage.getItem("loggedDriver"),
+        {}
+      ) || {};
+
+    return String(
+      driver?.tenantSlug ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+  }
+
+  function driverLoginUrl(){
+
+    const slug =
+      getTenantSlug();
+
+    return slug
+      ? `login.html?tenant=${encodeURIComponent(slug)}`
+      : "login.html";
+  }
+
+
   function $(id){
     return document.getElementById(id);
   }
@@ -62,16 +90,20 @@
 
   function logout(){
 
+    const loginUrl =
+      driverLoginUrl();
+
     localStorage.removeItem("driverToken");
     localStorage.removeItem("loggedDriver");
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("driverName");
     localStorage.removeItem("companyName");
+    localStorage.removeItem("tenantId");
     localStorage.removeItem("systemTimezone");
     localStorage.removeItem("appTimezone");
 
-    window.location.href = ROUTES.login;
+    window.location.href = loginUrl;
   }
 
   function ensureSession(){
@@ -82,7 +114,7 @@
       !driver ||
       Object.keys(driver).length === 0
     ){
-      window.location.href = ROUTES.login;
+      window.location.href = driverLoginUrl();
       return false;
     }
 

@@ -27,8 +27,34 @@ const driverId =
   driver.id ||
   driver._id;
 
+function getDriverToken(){
+
+  return String(
+    localStorage.getItem("driverToken") ||
+    localStorage.getItem("token") ||
+    driver?.token ||
+    ""
+  ).trim();
+}
+
+function driverLoginUrl(){
+
+  const slug =
+    String(
+      driver?.tenantSlug ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  return slug
+    ? `login.html?tenant=${encodeURIComponent(slug)}`
+    : "login.html";
+}
+
 if(!driverId){
-  window.location.href = "login.html";
+  window.location.href = driverLoginUrl();
   return;
 }
 
@@ -621,7 +647,15 @@ async function load(){
       await fetch(
         `/api/driver/my-trips/${encodeURIComponent(driverId)}?includeFinal=true`,
         {
-          cache:"no-store"
+          cache:"no-store",
+          headers:{
+            ...(getDriverToken()
+              ? {
+                  Authorization:`Bearer ${getDriverToken()}`,
+                  "x-access-token":getDriverToken()
+                }
+              : {})
+          }
         }
       );
 
