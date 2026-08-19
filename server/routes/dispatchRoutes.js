@@ -76,6 +76,45 @@ function tenantFilter(req,extra={}){
   };
 }
 
+/*
+  LEGACY ASSIGNMENT MIGRATION
+
+  Old DispatchAssignment rows were created before tenantId existed.
+  Because tripId is globally unique, once the trip itself has been loaded
+  from the current tenant we can safely attach the old assignment to that tenant.
+  This prevents duplicate-key failures during Manual / Auto Assign.
+*/
+async function migrateLegacyAssignmentTenant(trip,tenantId){
+  if(!trip?._id || !tenantId) return;
+
+  await DispatchAssignment.collection.updateMany(
+    {
+      tripId:trip._id,
+      $or:[
+        {tenantId:{$exists:false}},
+        {tenantId:null}
+      ]
+    },
+    {
+      $set:{
+        tenantId:new mongoose.Types.ObjectId(String(tenantId))
+      }
+    }
+  );
+}
+
+function requestTenantId(req,trip=null){
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+    return clean(
+      trip?.tenantId ||
+      req.body?.tenantId ||
+      req.query?.tenantId ||
+      ""
+    );
+  }
+  return clean(req.authUser?.tenantId || "");
+}
+
 function TripModel(){
   const Trip = global.Trip || mongoose.models.Trip;
   if(!Trip) throw new Error("Trip model not loaded");
@@ -453,7 +492,9 @@ function scheduleAllows(row,trip,settings){
 }
 
 async function buildContext(req){
-  const [drivers,rows,assignments,settings] = await Promise.all([
+  const Trip = TripModel();
+
+  const [drivers,rows,settings,tenantTrips] = await Promise.all([
     User.find(
       tenantFilter(req,driverUserFilter())
     ).sort({name:1}).lean(),
@@ -462,18 +503,40 @@ async function buildContext(req){
       tenantFilter(req)
     ).lean(),
 
-    DispatchAssignment.find(
-      tenantFilter(req,{
-        dispatchStatus:{$in:["ASSIGNED","SENT","ACCEPTED","ON_TRIP"]}
-      })
-    ).lean(),
-
     SmartDispatchEngine.findOne(
       tenantFilter(req)
-    ).lean()
+    ).lean(),
+
+    Trip.find(
+      tenantFilter(req,{disabled:false})
+    ).select("_id tenantId tripDate tripTime").lean()
   ]);
+
+  const tenantId = requestTenantId(req,tenantTrips[0] || null);
+
+  if(tenantId){
+    for(const trip of tenantTrips){
+      await migrateLegacyAssignmentTenant(trip,tenantId);
+    }
+  }
+
+  const tripIds = tenantTrips.map(t=>t._id);
+
+  const assignments = tripIds.length
+    ? await DispatchAssignment.find({
+        tripId:{$in:tripIds},
+        dispatchStatus:{$in:["ASSIGNED","SENT","ACCEPTED","ON_TRIP"]}
+      }).lean()
+    : [];
+
   const schedule = new Map(rows.map(r=>[String(r.driverId),r]));
-  return {drivers,schedule,assignments,settings:settings || {}};
+
+  return {
+    drivers,
+    schedule,
+    assignments,
+    settings:settings || {}
+  };
 }
 
 function hasConflict(driverId,trip,ctx){
@@ -572,13 +635,25 @@ async function attachTrips(ctx,req){
 router.get("/",requireTenantApi,async(req,res)=>{
   try{
     const Trip = TripModel();
-    const [trips,assignments,drivers,scheduleRows] = await Promise.all([
+    const [trips,drivers,scheduleRows] = await Promise.all([
       Trip.find(tenantFilter(req,{dispatchSelected:true,disabled:false}))
         .sort({tripDate:1,tripTime:1,createdAt:1}).lean(),
-      DispatchAssignment.find(tenantFilter(req)).lean(),
       User.find(tenantFilter(req,driverUserFilter())).sort({name:1}).lean(),
       DriverSchedule.find(tenantFilter(req)).lean()
     ]);
+
+    const tripIds = trips.map(t=>t._id);
+    const tenantId = requestTenantId(req,trips[0] || null);
+
+    if(tenantId){
+      for(const trip of trips){
+        await migrateLegacyAssignmentTenant(trip,tenantId);
+      }
+    }
+
+    const assignments = tripIds.length
+      ? await DispatchAssignment.find({tripId:{$in:tripIds}}).lean()
+      : [];
     const assignmentMap = new Map(
       assignments.map(a=>[String(a.tripId),a])
     );
@@ -641,6 +716,13 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
       .lean();
 
     const tripIds = trips.map(t=>t._id);
+
+    for(const trip of trips){
+      const tenantId = requestTenantId(req,trip);
+      if(tenantId){
+        await migrateLegacyAssignmentTenant(trip,tenantId);
+      }
+    }
 
     /*
       Explicit IDs mean the administrator intentionally requested a new
@@ -730,7 +812,7 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
       }
 
       const assignment = await DispatchAssignment.findOneAndUpdate(
-        tenantFilter(req,{tripId:trip._id}),
+        {tripId:trip._id},
         {$set:{
           tenantId:req.authUser.role === "PLATFORM_ADMIN"
             ? (trip.tenantId || req.body?.tenantId || null)
@@ -958,7 +1040,14 @@ router.patch("/:tripId/driver",requireTenantApi,async(req,res)=>{
       return res.status(404).json({success:false,message:"Trip not found"});
     }
 
-    const currentAssignment=await DispatchAssignment.findOne(tenantFilter(req,{tripId}));
+    const tenantId = requestTenantId(req,trip);
+    if(!tenantId){
+      return res.status(403).json({success:false,message:"Tenant Required"});
+    }
+
+    await migrateLegacyAssignmentTenant(trip,tenantId);
+
+    const currentAssignment=await DispatchAssignment.findOne({tripId});
     const progressValues=[
       currentAssignment?.dispatchStatus,
       trip.dispatchStatus,
@@ -983,11 +1072,9 @@ router.patch("/:tripId/driver",requireTenantApi,async(req,res)=>{
 
     if(!driverId){
       const assignment=await DispatchAssignment.findOneAndUpdate(
-        tenantFilter(req,{tripId}),
+        {tripId},
         {$set:{
-          tenantId:req.authUser.role === "PLATFORM_ADMIN"
-            ? (trip.tenantId || req.body?.tenantId || null)
-            : req.authUser.tenantId,
+          tenantId,
           driverId:null,driverName:"",driverPhone:"",
           vehicleNumber:"",driverAddress:"",
           dispatchStatus:preservedStatus === "SENT" || preservedStatus === "ACCEPTED"
@@ -1012,11 +1099,9 @@ router.patch("/:tripId/driver",requireTenantApi,async(req,res)=>{
     }
     const row=await DriverSchedule.findOne(tenantFilter(req,{driverId})).lean();
     const assignment=await DispatchAssignment.findOneAndUpdate(
-      tenantFilter(req,{tripId}),
+      {tripId},
       {$set:{
-        tenantId:req.authUser.role === "PLATFORM_ADMIN"
-          ? (trip.tenantId || req.body?.tenantId || null)
-          : req.authUser.tenantId,
+        tenantId,
         tripId,driverId,
         driverName:driver.name || driver.fullName || "",
         driverPhone:row?.phone || driver.phone || "",

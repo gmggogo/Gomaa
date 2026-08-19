@@ -460,13 +460,16 @@ async function loadSettings(){
   try{
 
     const res = await fetch(API_URL,{
+      cache:"no-store",
       headers:{
-        Authorization:"Bearer " + token
+        Authorization:"Bearer " + token,
+        "x-access-token":token
       }
     });
 
     if(!res.ok){
-      throw new Error("Load failed");
+      const fail = await res.json().catch(()=>({}));
+      throw new Error(fail.message || "Load failed");
     }
 
     const data = await res.json();
@@ -503,12 +506,13 @@ async function saveSettings(){
       method:"POST",
       headers:{
         "Content-Type":"application/json",
-        Authorization:"Bearer " + token
+        Authorization:"Bearer " + token,
+        "x-access-token":token
       },
       body:JSON.stringify(data)
     });
 
-    const result = await res.json();
+    const result = await res.json().catch(()=>({}));
 
     if(!res.ok || result.success === false){
       toast(
@@ -518,8 +522,15 @@ async function saveSettings(){
       return;
     }
 
+    const serverSettings =
+      result?.settings &&
+      typeof result.settings === "object"
+        ? result.settings
+        : data;
+
     savedSettings = {
-      ...data
+      ...DEFAULTS,
+      ...serverSettings
     };
 
     dirty = false;
@@ -528,6 +539,8 @@ async function saveSettings(){
 
     setEditMode(false);
 
+    await loadSettings();
+    setEditMode(false);
     toast("Settings saved");
 
   }catch(err){

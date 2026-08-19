@@ -9,263 +9,126 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
 
-/* =========================
-   TENANT AUTH
-========================= */
-
 function readBearerToken(req){
-
-  const header =
-    String(
-      req.headers?.authorization ||
-      ""
-    ).trim();
-
-  if(
-    !header
-      .toLowerCase()
-      .startsWith("bearer ")
-  ){
-    return "";
+  const header = String(req.headers?.authorization || "").trim();
+  if(header.toLowerCase().startsWith("bearer ")){
+    return header.slice(7).trim();
   }
-
-  return header
-    .slice(7)
-    .trim();
+  return String(req.headers?.["x-access-token"] || "").trim();
 }
 
-function requireTenantApi(
-  req,
-  res,
-  next
-){
-
-  const token =
-    readBearerToken(req);
+function requireTenantApi(req,res,next){
+  const token = readBearerToken(req);
 
   if(!token){
-
-    return res.status(401).json({
-      success:false,
-      message:"Access Denied"
-    });
+    return res.status(401).json({success:false,message:"Access Denied"});
   }
 
   try{
-
-    const verified =
-      jwt.verify(
-        token,
-        JWT_SECRET
-      );
+    const verified = jwt.verify(token,JWT_SECRET);
 
     req.authUser = {
-      id:
-        verified.id || null,
-
-      role:
-        verified.role || "",
-
-      tenantId:
-        verified.tenantId || null
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
     };
 
-    if(
-      req.authUser.role ===
-      "PLATFORM_ADMIN"
-    ){
+    if(req.authUser.role === "PLATFORM_ADMIN"){
       return next();
     }
 
     if(!req.authUser.tenantId){
-
-      return res.status(403).json({
-        success:false,
-        message:"Tenant Required"
-      });
+      return res.status(403).json({success:false,message:"Tenant Required"});
     }
 
     next();
-
   }catch(err){
-
-    return res.status(401).json({
-      success:false,
-      message:"Invalid Token"
-    });
+    return res.status(401).json({success:false,message:"Invalid Token"});
   }
 }
 
-function tenantFilter(
-  req,
-  extra={}
-){
-
-  if(
-    req.authUser?.role ===
-    "PLATFORM_ADMIN"
-  ){
-
-    const requestedTenantId =
-      String(
-        req.query?.tenantId ||
-        req.body?.tenantId ||
-        ""
-      ).trim();
-
-    if(requestedTenantId){
-
-      return {
-        ...extra,
-        tenantId:requestedTenantId
-      };
-    }
-
-    return {
-      ...extra
-    };
-  }
-
-  return {
-    ...extra,
-    tenantId:
-      req.authUser.tenantId
-  };
-}
-
-function tenantIdForWrite(req){
-
-  if(
-    req.authUser?.role ===
-    "PLATFORM_ADMIN"
-  ){
-
+function getTenantId(req){
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
     return String(
-      req.body?.tenantId ||
       req.query?.tenantId ||
+      req.body?.tenantId ||
       ""
     ).trim();
   }
-
-  return String(
-    req.authUser?.tenantId ||
-    ""
-  ).trim();
+  return String(req.authUser?.tenantId || "").trim();
 }
 
-/* =========================
-   GET SETTINGS
-========================= */
+const ALLOWED_FIELDS = [
+  "enabled","strategy",
+  "requireActiveDriver","requireScheduleMatch","requireServiceMatch",
+  "maxPickupDistanceMiles","maxDeadheadMiles",
+  "useGoogleDistance","topDriversToCheck",
+  "minBufferMinutes","maxTripsPerDriver","enableTimeConflict",
+  "enableFairDistribution","maxDriverLoadPercent",
+  "autoAssignNewTrips","autoReassignUnassigned","autoAssignSharedTrips",
+  "distanceWeight","travelTimeWeight","loadWeight","conflictWeight"
+];
 
-router.get(
-  "/",
-  requireTenantApi,
-  async(req,res)=>{
-
-  try{
-
-    const tenantId =
-      tenantIdForWrite(req);
-
-    if(
-      req.authUser.role ===
-      "PLATFORM_ADMIN" &&
-      !tenantId
-    ){
-
-      return res.status(400).json({
-        success:false,
-        message:"tenantId is required"
-      });
+function cleanPayload(body={}){
+  const out = {};
+  for(const key of ALLOWED_FIELDS){
+    if(Object.prototype.hasOwnProperty.call(body,key)){
+      out[key] = body[key];
     }
-
-    let settings =
-      await SmartDispatchEngine.findOne(
-        tenantFilter(req)
-      );
-
-    if(!settings){
-
-      settings =
-        await SmartDispatchEngine.create({
-          tenantId
-        });
-
-    }
-
-    return res.json(
-      settings
-    );
-
-  }catch(err){
-
-    console.log(err);
-
-    return res.status(500).json({
-      success:false,
-      message:"Failed To Load Settings"
-    });
-
   }
+  return out;
+}
 
-});
-
-/* =========================
-   SAVE SETTINGS
-========================= */
-
-router.post(
-  "/",
-  requireTenantApi,
-  async(req,res)=>{
-
+router.get("/",requireTenantApi,async(req,res)=>{
   try{
-
-    const tenantId =
-      tenantIdForWrite(req);
+    const tenantId = getTenantId(req);
 
     if(!tenantId){
-
-      return res.status(403).json({
-        success:false,
-        message:"Tenant Required"
-      });
+      return res.status(403).json({success:false,message:"Tenant Required"});
     }
 
-    let settings =
-      await SmartDispatchEngine.findOne({
-        tenantId
-      });
+    let settings = await SmartDispatchEngine.findOne({tenantId});
 
     if(!settings){
-
-      settings =
-        new SmartDispatchEngine({
-          tenantId
-        });
-
+      settings = await SmartDispatchEngine.create({tenantId});
     }
 
-    /*
-      Never allow normal tenant requests
-      to move Smart Dispatch settings
-      to another tenant.
-    */
-    const payload = {
-      ...(req.body || {})
-    };
+    return res.json(settings);
 
-    delete payload.tenantId;
+  }catch(err){
+    console.error("SMART DISPATCH LOAD:",err);
+    return res.status(500).json({
+      success:false,
+      message:err?.message || "Failed To Load Settings"
+    });
+  }
+});
 
-    Object.assign(
-      settings,
-      payload
+router.post("/",requireTenantApi,async(req,res)=>{
+  try{
+    const tenantId = getTenantId(req);
+
+    if(!tenantId){
+      return res.status(403).json({success:false,message:"Tenant Required"});
+    }
+
+    const payload = cleanPayload(req.body || {});
+
+    const settings = await SmartDispatchEngine.findOneAndUpdate(
+      {tenantId},
+      {
+        $set:{
+          ...payload,
+          tenantId
+        }
+      },
+      {
+        new:true,
+        upsert:true,
+        setDefaultsOnInsert:true,
+        runValidators:true
+      }
     );
-
-    settings.tenantId =
-      tenantId;
-
-    await settings.save();
 
     return res.json({
       success:true,
@@ -274,16 +137,12 @@ router.post(
     });
 
   }catch(err){
-
-    console.log(err);
-
+    console.error("SMART DISPATCH SAVE:",err);
     return res.status(500).json({
       success:false,
-      message:"Failed To Save Settings"
+      message:err?.message || "Failed To Save Settings"
     });
-
   }
-
 });
 
 module.exports = router;
