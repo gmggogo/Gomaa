@@ -460,10 +460,8 @@ async function loadSettings(){
   try{
 
     const res = await fetch(API_URL,{
-      cache:"no-store",
       headers:{
-        Authorization:"Bearer " + token,
-        "x-access-token":token
+        Authorization:"Bearer " + token
       }
     });
 
@@ -505,8 +503,7 @@ async function saveSettings(){
       method:"POST",
       headers:{
         "Content-Type":"application/json",
-        Authorization:"Bearer " + token,
-        "x-access-token":token
+        Authorization:"Bearer " + token
       },
       body:JSON.stringify(data)
     });
@@ -521,15 +518,8 @@ async function saveSettings(){
       return;
     }
 
-    const serverSettings =
-      result?.settings &&
-      typeof result.settings === "object"
-        ? result.settings
-        : data;
-
     savedSettings = {
-      ...DEFAULTS,
-      ...serverSettings
+      ...data
     };
 
     dirty = false;

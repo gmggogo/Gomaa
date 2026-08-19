@@ -15,26 +15,9 @@ const JWT_SECRET =
   "dev_secret";
 
 function readBearerToken(req){
-  const header =
-    String(
-      req.headers?.authorization ||
-      ""
-    ).trim();
-
-  if(
-    header
-      .toLowerCase()
-      .startsWith("bearer ")
-  ){
-    return header
-      .slice(7)
-      .trim();
-  }
-
-  return String(
-    req.headers?.["x-access-token"] ||
-    ""
-  ).trim();
+  const header = String(req.headers?.authorization || "").trim();
+  if(!header.toLowerCase().startsWith("bearer ")) return "";
+  return header.slice(7).trim();
 }
 
 function requireTenantApi(req,res,next){
@@ -760,7 +743,7 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
           driverAddress:best.row.address || "",
           services:driverServices(best.row),
           dispatchStatus:"ASSIGNED",
-          assignedBy:req.authUser?.id ? String(req.authUser.id) : "SYSTEM",
+          assignedBy:req.user?._id ? String(req.user._id) : "SYSTEM",
           assignmentType:"AUTO",
           smartScore:best.score,
           smartReason:best.reason,
@@ -1041,7 +1024,7 @@ router.patch("/:tripId/driver",requireTenantApi,async(req,res)=>{
         driverAddress:row?.address || "",
         services:Array.isArray(row?.services) ? row.services : ["ALL"],
         dispatchStatus:preservedStatus,
-        assignedBy:req.authUser?.id ? String(req.authUser.id) : "DISPATCH",
+        assignedBy:req.user?._id ? String(req.user._id) : "DISPATCH",
         assignmentType:"MANUAL",
         smartScore:null,smartReason:"Manual Override",smartDistance:null,
         assignedAt:new Date()
