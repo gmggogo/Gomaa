@@ -13,12 +13,18 @@ const Store = {
 
     return {
       ...(json ? {"Content-Type":"application/json"} : {}),
-      ...(token ? {Authorization:`Bearer ${token}`} : {})
+      ...(token
+        ? {
+            Authorization:`Bearer ${token}`,
+            "x-access-token":token
+          }
+        : {})
     };
   },
 
   async request(url,options = {}){
     const res = await fetch(url,{
+      cache:"no-store",
       ...options,
       headers:{
         ...this.headers(Boolean(options.body)),

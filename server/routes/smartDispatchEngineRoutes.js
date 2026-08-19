@@ -22,16 +22,19 @@ function readBearerToken(req){
     ).trim();
 
   if(
-    !header
+    header
       .toLowerCase()
       .startsWith("bearer ")
   ){
-    return "";
+    return header
+      .slice(7)
+      .trim();
   }
 
-  return header
-    .slice(7)
-    .trim();
+  return String(
+    req.headers?.["x-access-token"] ||
+    ""
+  ).trim();
 }
 
 function requireTenantApi(

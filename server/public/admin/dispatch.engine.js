@@ -42,7 +42,7 @@ const SMART_DEFAULTS = {
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
-  useGoogleDistance:false,
+  useGoogleDistance:true,
   topDriversToCheck:3,
 
   minBufferMinutes:30,
@@ -52,7 +52,7 @@ const SMART_DEFAULTS = {
   enableFairDistribution:true,
   maxDriverLoadPercent:80,
 
-  autoAssignNewTrips:true,
+  autoAssignNewTrips:false,
   autoReassignUnassigned:true,
   autoAssignSharedTrips:true,
 
@@ -649,8 +649,26 @@ function getTodayActiveDrivers(){
 
 async function loadSmartEngine(){
   try{
-    const res = await fetch("/api/smart-dispatch-engine");
-    if(!res.ok) throw new Error("Smart engine load failed");
+    const res = await fetch(
+      "/api/smart-dispatch-engine",
+      {
+        cache:"no-store",
+        headers:{
+          Authorization:`Bearer ${token}`,
+          "x-access-token":token
+        }
+      }
+    );
+
+    if(!res.ok){
+      const errorData =
+        await res.json().catch(()=>({}));
+
+      throw new Error(
+        errorData.message ||
+        "Smart engine load failed"
+      );
+    }
 
     const data = await res.json();
 
@@ -1011,6 +1029,8 @@ async function saveAssignment(trip,driverId,manual=true){
       renderAll();
       return;
     }
+
+    await loadAll();
 
     toast("Driver updated");
 
