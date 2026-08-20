@@ -242,11 +242,49 @@ function isShared(trip){
     tripService(trip) === "SH";
 }
 function point(lat,lng){
+
+  /*
+    IMPORTANT:
+    DriverSchedule stores missing coordinates as null.
+    Number(null) === 0, so the old code converted missing coordinates
+    to (0,0). That made Arizona drivers look thousands of miles away
+    and Smart Dispatch rejected every driver by maxPickupDistanceMiles.
+
+    Missing / empty / zero-zero coordinates must be treated as UNKNOWN.
+    Unknown distance gets the neutral Smart score and does NOT reject
+    an otherwise active/scheduled/service-matching driver.
+  */
+
+  if(
+    lat === null ||
+    lat === undefined ||
+    lng === null ||
+    lng === undefined ||
+    String(lat).trim() === "" ||
+    String(lng).trim() === ""
+  ){
+    return null;
+  }
+
   lat = Number(lat);
   lng = Number(lng);
-  return Number.isFinite(lat) && Number.isFinite(lng)
-    ? {lat,lng}
-    : null;
+
+  if(
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ){
+    return null;
+  }
+
+  /*
+    0,0 is the common database placeholder for "no coordinates",
+    not a real driver location for this dispatch system.
+  */
+  if(lat === 0 && lng === 0){
+    return null;
+  }
+
+  return {lat,lng};
 }
 function pickupPoint(trip){
   if(isShared(trip)){
@@ -553,6 +591,85 @@ function hasConflict(driverId,trip,ctx){
   });
 }
 
+function rejectionReason(trip,ctx){
+
+  const required = tripService(trip);
+
+  const rows = ctx.drivers.map(driver=>({
+    driver,
+    row:ctx.schedule.get(String(driver._id)) || {}
+  }));
+
+  const activeRows = rows.filter(item=>
+    scheduleAllows(item.row,trip,{
+      ...ctx.settings,
+      requireScheduleMatch:false
+    })
+  );
+
+  if(!activeRows.length){
+    return "No active drivers";
+  }
+
+  const serviceRows = activeRows.filter(item=>
+    serviceTier(item.row,trip) !== null
+  );
+
+  if(!serviceRows.length){
+    return `No ${required || "matching"} or ALL driver`;
+  }
+
+  const scheduleRows = serviceRows.filter(item=>
+    scheduleAllows(item.row,trip,ctx.settings)
+  );
+
+  if(!scheduleRows.length){
+    return `No ${required || "matching"} or ALL driver matches schedule`;
+  }
+
+  const maxTrips =
+    Math.max(1,num(ctx.settings.maxTripsPerDriver,20));
+
+  const availableRows = scheduleRows.filter(item=>{
+    const driverId = String(item.driver._id);
+
+    const today = ctx.assignments.filter(a=>
+      String(a.driverId) === driverId &&
+      clean(a.__trip?.tripDate) === clean(trip.tripDate)
+    ).length;
+
+    if(today >= maxTrips) return false;
+    if(hasConflict(driverId,trip,ctx)) return false;
+
+    const distance =
+      miles(
+        point(item.row.lat,item.row.lng),
+        pickupPoint(trip)
+      );
+
+    const maxPickup =
+      Math.max(
+        1,
+        num(ctx.settings.maxPickupDistanceMiles,50)
+      );
+
+    if(
+      distance !== null &&
+      distance > maxPickup
+    ){
+      return false;
+    }
+
+    return true;
+  });
+
+  if(!availableRows.length){
+    return "Drivers blocked by trip limit, time conflict, or pickup distance";
+  }
+
+  return "No eligible driver";
+}
+
 function rankDrivers(trip,ctx){
   const maxTrips = Math.max(1,num(ctx.settings.maxTripsPerDriver,20));
   const maxPickup = Math.max(1,num(ctx.settings.maxPickupDistanceMiles,50));
@@ -810,7 +927,7 @@ async function autoAssignTripById(
         assigned:false,
         tripId:String(trip._id),
         service:tripService(trip),
-        reason:"No eligible driver"
+        reason:rejectionReason(trip,ctx)
       };
     }
 
@@ -1077,7 +1194,7 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
         results.push({
           tripId:trip._id,
           assigned:false,
-          reason:"No eligible driver"
+          reason:rejectionReason(trip,ctx)
         });
         continue;
       }
