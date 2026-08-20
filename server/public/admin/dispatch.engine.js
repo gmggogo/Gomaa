@@ -42,7 +42,7 @@ const SMART_DEFAULTS = {
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
-  useGoogleDistance:true,
+  useGoogleDistance:false,
   topDriversToCheck:3,
 
   minBufferMinutes:30,
@@ -52,7 +52,7 @@ const SMART_DEFAULTS = {
   enableFairDistribution:true,
   maxDriverLoadPercent:80,
 
-  autoAssignNewTrips:false,
+  autoAssignNewTrips:true,
   autoReassignUnassigned:true,
   autoAssignSharedTrips:true,
 
@@ -649,26 +649,8 @@ function getTodayActiveDrivers(){
 
 async function loadSmartEngine(){
   try{
-    const res = await fetch(
-      "/api/smart-dispatch-engine",
-      {
-        cache:"no-store",
-        headers:{
-          Authorization:`Bearer ${token}`,
-          "x-access-token":token
-        }
-      }
-    );
-
-    if(!res.ok){
-      const errorData =
-        await res.json().catch(()=>({}));
-
-      throw new Error(
-        errorData.message ||
-        "Smart engine load failed"
-      );
-    }
+    const res = await fetch("/api/smart-dispatch-engine");
+    if(!res.ok) throw new Error("Smart engine load failed");
 
     const data = await res.json();
 
@@ -1030,8 +1012,6 @@ async function saveAssignment(trip,driverId,manual=true){
       return;
     }
 
-    await loadAll();
-
     toast("Driver updated");
 
   }catch(err){
@@ -1131,6 +1111,93 @@ function sendOne(id){
   }
 
   sendTrips([id]);
+}
+
+
+/* ================= REMOVE DRIVER ================= */
+
+async function removeDriverSelected(){
+
+  const selectedTrips =
+    trips.filter(t=>
+      selectedIds.has(String(t._id)) &&
+      clean(t.driverId)
+    );
+
+  if(!selectedTrips.length){
+    toast("Select assigned trip(s) first");
+    return;
+  }
+
+  const blocked =
+    selectedTrips.filter(isTripInProgress);
+
+  if(blocked.length){
+    toast("Trip in progress cannot remove driver");
+    return;
+  }
+
+  try{
+
+    let removed = 0;
+
+    for(const trip of selectedTrips){
+
+      const res =
+        await Store.saveDriver(
+          trip._id,
+          ""
+        );
+
+      if(!res || res.success === false){
+        throw new Error(
+          res?.message ||
+          `Remove driver failed for ${getTripNumber(trip)}`
+        );
+      }
+
+      trip.driverId = "";
+      trip.driverName = "";
+      trip.vehicle = "";
+      trip.manual = true;
+      trip.manualAssigned = true;
+
+      removed++;
+    }
+
+    await loadAll();
+
+    /*
+      Keep the rows selected after removing the driver.
+      Admin may immediately Auto Assign again or choose a driver manually.
+    */
+    selectedIds = new Set(
+      [...selectedIds].filter(id=>
+        trips.some(t=>String(t._id) === String(id))
+      )
+    );
+
+    renderAll();
+
+    toast(
+      `${removed} driver assignment(s) removed`
+    );
+
+  }catch(err){
+
+    console.log(
+      "REMOVE DRIVER ERROR:",
+      err
+    );
+
+    await loadAll();
+    renderAll();
+
+    toast(
+      err?.message ||
+      "Remove driver failed"
+    );
+  }
 }
 
 /* ================= SELECTION ================= */
@@ -1264,7 +1331,7 @@ function renderStats(){
     const allSelected =
       selectable.length &&
       selectable.every(t=>selectedIds.has(t._id));
-    btn.textContent = allSelected ? "Remove All" : "Select All";
+    btn.textContent = allSelected ? "Remove Selected" : "Select All";
   }
 
   const editBtn = document.getElementById("editBtn");
@@ -1700,11 +1767,98 @@ function bindTabs(){
 /* ================= EVENTS ================= */
 
 function bindActions(){
-  document.getElementById("selectBtn")?.addEventListener("click",toggleSelectAll);
-  document.getElementById("editBtn")?.addEventListener("click",toggleEdit);
-  document.getElementById("autoAssignBtn")?.addEventListener("click",autoAssign);
-  document.getElementById("sendSelectedBtn")?.addEventListener("click",sendSelected);
-  document.getElementById("sendAllBtn")?.addEventListener("click",sendAll);
+
+  const selectBtn =
+    document.getElementById("selectBtn");
+
+  const editBtn =
+    document.getElementById("editBtn");
+
+  const autoAssignBtn =
+    document.getElementById("autoAssignBtn");
+
+  const sendSelectedBtn =
+    document.getElementById("sendSelectedBtn");
+
+  const sendAllBtn =
+    document.getElementById("sendAllBtn");
+
+  selectBtn?.addEventListener(
+    "click",
+    toggleSelectAll
+  );
+
+  editBtn?.addEventListener(
+    "click",
+    toggleEdit
+  );
+
+  autoAssignBtn?.addEventListener(
+    "click",
+    autoAssign
+  );
+
+  sendSelectedBtn?.addEventListener(
+    "click",
+    sendSelected
+  );
+
+  /*
+    Only ONE send button is allowed.
+    Remove the old black "Send All Selected / Send All" button.
+  */
+  if(sendAllBtn){
+    sendAllBtn.remove();
+  }
+
+  /*
+    Add Remove Driver beside Auto Assign / Send Selected.
+    It removes ONLY the driver assignment from checked trips.
+    It does NOT remove the trip from Dispatch.
+  */
+  if(
+    !document.getElementById(
+      "removeDriverBtn"
+    )
+  ){
+
+    const btn =
+      document.createElement(
+        "button"
+      );
+
+    btn.id =
+      "removeDriverBtn";
+
+    btn.type =
+      "button";
+
+    btn.className =
+      "btn red";
+
+    btn.textContent =
+      "Remove Driver";
+
+    btn.addEventListener(
+      "click",
+      removeDriverSelected
+    );
+
+    if(sendSelectedBtn?.parentElement){
+
+      sendSelectedBtn.parentElement.insertBefore(
+        btn,
+        sendSelectedBtn
+      );
+
+    }else if(autoAssignBtn?.parentElement){
+
+      autoAssignBtn.parentElement.appendChild(
+        btn
+      );
+
+    }
+  }
 }
 
 function toast(msg){
@@ -1732,6 +1886,7 @@ window.assignDriver = function(id,driverId){
 
 window.sendOne = sendOne;
 window.autoAssign = autoAssign;
+window.removeDriverSelected = removeDriverSelected;
 window.sendSelected = sendSelected;
 window.sendAll = sendAll;
 window.openTripView = openTripView;
