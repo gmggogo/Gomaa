@@ -3972,33 +3972,84 @@ app.delete(
 });
 
 /* =========================
+   ADMIN BILLING TENANT SECURITY
+========================= */
+
+function isTenantBillingAdmin(req){
+  const role = String(req.authUser?.role || "");
+  return ["SUPER_ADMIN","admin"].includes(role);
+}
+
+function adminBillingCompanyFilter(req,id=null){
+  const filter = {
+    role:"company"
+  };
+
+  if(!req.authUser?.tenantId){
+    return null;
+  }
+
+  filter.tenantId = req.authUser.tenantId;
+
+  if(id){
+    if(!mongoose.Types.ObjectId.isValid(String(id))){
+      return null;
+    }
+    filter._id = id;
+  }
+
+  return filter;
+}
+
+/* =========================
    ADMIN BILLING LIST
 ========================= */
 
-app.get("/api/admin/billing", async (req, res) => {
+app.get(
+  "/api/admin/billing",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try {
+  try{
 
-    const companies = await User.find({
-      role: "company"
-    })
-    .sort({ name: 1 })
-    .lean();
+    if(!isTenantBillingAdmin(req)){
+      return res.status(403).json({
+        message:"Access denied"
+      });
+    }
 
-    const updated = await Promise.all(
-      companies.map(async (company) => {
-        return await updateCompanyBilling(company);
-      })
+    const filter =
+      adminBillingCompanyFilter(req);
+
+    if(!filter){
+      return res.status(403).json({
+        message:"Tenant required"
+      });
+    }
+
+    const companies =
+      await User.find(filter)
+        .sort({name:1})
+        .lean();
+
+    const updated =
+      await Promise.all(
+        companies.map(company =>
+          updateCompanyBilling(company)
+        )
+      );
+
+    return res.json(updated);
+
+  }catch(err){
+
+    console.log(
+      "ADMIN BILLING LIST ERROR:",
+      err
     );
 
-    res.json(updated);
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: "billing error"
+    return res.status(500).json({
+      message:"billing error"
     });
 
   }
@@ -4130,6 +4181,8 @@ async function updateCompanyBilling(company){
 
   const trips =
   await Trip.find({
+
+    tenantId:company.tenantId,
 
     company:{
       $regex:
@@ -4438,8 +4491,12 @@ const invoiceAmount =
     revenue.toFixed(2)
   );
 
-await User.findByIdAndUpdate(
-  company._id,
+await User.findOneAndUpdate(
+  {
+    _id:company._id,
+    tenantId:company.tenantId,
+    role:"company"
+  },
   {
     daysLeft,
     billingStatus,
@@ -4463,7 +4520,11 @@ await User.findByIdAndUpdate(
   }
 );
 
-return await User.findById(company._id).lean();
+return await User.findOne({
+  _id:company._id,
+  tenantId:company.tenantId,
+  role:"company"
+}).lean();
 
 }
 
@@ -4471,30 +4532,43 @@ return await User.findById(company._id).lean();
    LOCK COMPANY
 ========================= */
 
-app.put("/api/admin/billing/:id/lock", async (req,res)=>{
+app.put(
+  "/api/admin/billing/:id/lock",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
-    await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        billingLocked:true,
-        billingStatus:"SUSPENDED"
-      }
-    );
+    if(!isTenantBillingAdmin(req)){
+      return res.status(403).json({message:"Access denied"});
+    }
 
-    res.json({
-      success:true
-    });
+    const filter =
+      adminBillingCompanyFilter(req,req.params.id);
+
+    if(!filter){
+      return res.status(404).json({message:"Company not found"});
+    }
+
+    const company =
+      await User.findOneAndUpdate(
+        filter,
+        {
+          billingLocked:true,
+          billingStatus:"SUSPENDED"
+        },
+        {new:true}
+      );
+
+    if(!company){
+      return res.status(404).json({message:"Company not found"});
+    }
+
+    return res.json({success:true});
 
   }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      message:"lock failed"
-    });
-
+    console.log("ADMIN BILLING LOCK ERROR:",err);
+    return res.status(500).json({message:"lock failed"});
   }
 
 });
@@ -4503,30 +4577,43 @@ app.put("/api/admin/billing/:id/lock", async (req,res)=>{
    UNLOCK COMPANY
 ========================= */
 
-app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
+app.put(
+  "/api/admin/billing/:id/unlock",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
-    await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        billingLocked:false,
-        billingStatus:"ACTIVE"
-      }
-    );
+    if(!isTenantBillingAdmin(req)){
+      return res.status(403).json({message:"Access denied"});
+    }
 
-    res.json({
-      success:true
-    });
+    const filter =
+      adminBillingCompanyFilter(req,req.params.id);
+
+    if(!filter){
+      return res.status(404).json({message:"Company not found"});
+    }
+
+    const company =
+      await User.findOneAndUpdate(
+        filter,
+        {
+          billingLocked:false,
+          billingStatus:"ACTIVE"
+        },
+        {new:true}
+      );
+
+    if(!company){
+      return res.status(404).json({message:"Company not found"});
+    }
+
+    return res.json({success:true});
 
   }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
-      message:"unlock failed"
-    });
-
+    console.log("ADMIN BILLING UNLOCK ERROR:",err);
+    return res.status(500).json({message:"unlock failed"});
   }
 
 });
@@ -4535,119 +4622,76 @@ app.put("/api/admin/billing/:id/unlock", async (req,res)=>{
    MARK BILLING PAID
 ========================= */
 
-app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
+app.put(
+  "/api/admin/billing/:id/mark-paid",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
+    if(!isTenantBillingAdmin(req)){
+      return res.status(403).json({message:"Access denied"});
+    }
+
+    const filter =
+      adminBillingCompanyFilter(req,req.params.id);
+
+    if(!filter){
+      return res.status(404).json({message:"Company not found"});
+    }
+
     const user =
-      await User.findById(req.params.id);
+      await User.findOne(filter);
 
     if(!user){
-
       return res.status(404).json({
         message:"Company not found"
       });
-
     }
 
     const now = new Date();
 
-    let nextBillingDate =
-      new Date(now);
-
-    /* =========================
-       NEXT BILLING DATE
-    ========================= */
+    let nextBillingDate = new Date(now);
 
     if(user.billingCycle === "WEEKLY"){
-
       nextBillingDate.setDate(
         nextBillingDate.getDate() + 7
       );
-
     }else{
-
       nextBillingDate.setMonth(
         nextBillingDate.getMonth() + 1
       );
-
     }
 
-    /* =========================
-       BILLING STATUS
-    ========================= */
-
     user.billingStatus = "ACTIVE";
-
     user.billingLocked = false;
-
-    /* =========================
-       PAYMENT DATES
-    ========================= */
-
     user.lastPaymentDate = now;
+    user.billingStartDate = new Date(now.toISOString());
+    user.billingEndDate = new Date(nextBillingDate.toISOString());
+    user.nextBillingDate = new Date(nextBillingDate.toISOString());
 
-    /* 🔥 بداية دورة جديدة */
-    user.billingStartDate =
-      new Date(
-        now.toISOString()
-      );
-
-    /* 🔥 نهاية الدورة الجديدة */
-    user.billingEndDate =
-      new Date(
-        nextBillingDate.toISOString()
-      );
-
-    user.nextBillingDate =
-      new Date(
-        nextBillingDate.toISOString()
-      );
-
-    /* =========================
-       RESET BILLING
-    ========================= */
-
-    /* 🔥 تصفير الفاتورة */
     user.invoiceAmount = 0;
-
-    /* 🔥 تصفير الإيراد الحالي */
     user.revenue = 0;
-
-    /* 🔥 تصفير الإحصائيات */
     user.totalTrips = 0;
-
     user.individualTrips = 0;
-
     user.sharedTrips = 0;
-
     user.sharedPassengers = 0;
-
     user.completedTrips = 0;
-
     user.cancelledTrips = 0;
-
     user.noShowTrips = 0;
-
-    /* =========================
-       SAVE
-    ========================= */
 
     await user.save();
 
-    res.json({
+    return res.json({
       success:true,
       message:"Billing marked paid"
     });
 
   }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
+    console.log("ADMIN BILLING MARK PAID ERROR:",err);
+    return res.status(500).json({
       message:"mark paid failed"
     });
-
   }
 
 });
@@ -4656,79 +4700,75 @@ app.put("/api/admin/billing/:id/mark-paid", async (req,res)=>{
    GENERATE INVOICE
 ========================= */
 
-app.put("/api/admin/generate-invoice/:id", async (req,res)=>{
+app.put(
+  "/api/admin/generate-invoice/:id",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
+    if(!isTenantBillingAdmin(req)){
+      return res.status(403).json({message:"Access denied"});
+    }
+
+    const filter =
+      adminBillingCompanyFilter(req,req.params.id);
+
+    if(!filter){
+      return res.status(404).json({message:"Company not found"});
+    }
+
     const company =
-      await User.findById(req.params.id);
+      await User.findOne(filter);
 
     if(!company){
-
       return res.status(404).json({
         message:"Company not found"
       });
-
     }
 
     const {
       billingStartDate,
       billingEndDate,
       graceDays
-    } = req.body;
+    } = req.body || {};
 
-    /* 🔥 حفظ الفترة الجديدة */
+    if(!billingStartDate || !billingEndDate){
+      return res.status(400).json({
+        message:"Billing dates required"
+      });
+    }
 
-/* 🔥 ARIZONA SAFE DATES */
+    company.billingStartDate =
+      new Date(billingStartDate + "T12:00:00");
 
-company.billingStartDate =
-  new Date(
-    billingStartDate + "T12:00:00"
-  );
+    company.billingEndDate =
+      new Date(billingEndDate + "T12:00:00");
 
-company.billingEndDate =
-  new Date(
-    billingEndDate + "T12:00:00"
-  );
-
-company.nextBillingDate =
-  new Date(
-    billingEndDate + "T12:00:00"
-  );
-
-    /* 🔥 Grace */
+    company.nextBillingDate =
+      new Date(billingEndDate + "T12:00:00");
 
     company.graceDays =
       Number(graceDays || 3);
 
-    /* 🔥 الفاتورة الحالية */
-
     company.invoiceAmount =
       Number(company.revenue || 0);
 
-    /* 🔥 فتح الشركة */
-
-    company.billingStatus =
-      "ACTIVE";
-
-    company.billingLocked =
-      false;
+    company.billingStatus = "ACTIVE";
+    company.billingLocked = false;
 
     await company.save();
 
-    res.json({
+    return res.json({
       success:true,
       message:"Invoice generated"
     });
 
   }catch(err){
-
-    console.log(err);
-
-    res.status(500).json({
+    console.log("ADMIN GENERATE INVOICE ERROR:",err);
+    return res.status(500).json({
       message:"generate invoice failed"
     });
-
   }
 
 });
