@@ -15,11 +15,6 @@ const Service =
   mongoose.models.Service ||
   require("../models/Service");
 
-
-const Tenant =
-  mongoose.models.Tenant ||
-  require("../models/Tenant");
-
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -167,94 +162,6 @@ function tenantIdForWrite(req){
     req.authUser?.tenantId ||
     ""
   ).trim();
-}
-
-
-/* =========================
-   TENANT SERVICE PERMISSIONS
-========================= */
-
-async function getTenantForRequest(req){
-
-  const tenantId =
-    tenantIdForWrite(req);
-
-  if(!tenantId){
-    return null;
-  }
-
-  return await Tenant.findById(
-    tenantId
-  ).lean();
-}
-
-function normalizeServiceList(values){
-
-  if(!Array.isArray(values)){
-    return [];
-  }
-
-  return [
-    ...new Set(
-      values
-        .map(normalizeCode)
-        .filter(Boolean)
-    )
-  ];
-}
-
-function getTenantAllowedServices(tenant){
-
-  return normalizeServiceList(
-    tenant?.allowedServices
-  );
-}
-
-function getEffectiveFacilityAllowedServices(
-  tenantAllowedServices,
-  facilityAllowedServices
-){
-
-  const tenantAllowed =
-    normalizeServiceList(
-      tenantAllowedServices
-    );
-
-  const facilityAllowed =
-    normalizeServiceList(
-      facilityAllowedServices
-    );
-
-  /*
-    Empty facility list = inherit all services
-    that Platform Admin allowed for the tenant.
-  */
-  if(!facilityAllowed.length){
-    return tenantAllowed;
-  }
-
-  const tenantSet =
-    new Set(
-      tenantAllowed
-    );
-
-  return facilityAllowed.filter(
-    key => tenantSet.has(key)
-  );
-}
-
-function serviceAllowedForTenant(
-  service,
-  tenantAllowedServices
-){
-
-  const code =
-    getServiceCode(service);
-
-  return (
-    !!code &&
-    tenantAllowedServices.includes(code)
-  );
 }
 
 /* =========================
@@ -944,22 +851,6 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       });
     }
 
-    const tenant =
-      await getTenantForRequest(req);
-
-    if(!tenant){
-
-      return res.status(404).json({
-        success:false,
-        message:"Tenant not found"
-      });
-    }
-
-    const tenantAllowedServices =
-      getTenantAllowedServices(
-        tenant
-      );
-
     const [
       users,
       services,
@@ -1007,10 +898,13 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
             u.username || "",
 
           allowedServices:
-            getEffectiveFacilityAllowedServices(
-              tenantAllowedServices,
+            Array.isArray(
               u.allowedServices
             )
+              ? u.allowedServices
+                  .map(normalizeCode)
+                  .filter(Boolean)
+              : []
 
         }))
         .filter(
@@ -1025,13 +919,6 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       services
         .filter(
           serviceEnabled
-        )
-        .filter(
-          service =>
-            serviceAllowedForTenant(
-              service,
-              tenantAllowedServices
-            )
         )
         .map(
           serviceDefaultPricing
@@ -1051,8 +938,6 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       success:true,
 
       facilities,
-
-      tenantAllowedServices,
 
       services:
         activeServices,
@@ -1327,36 +1212,6 @@ router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
       });
     }
 
-    const tenant =
-      await Tenant.findById(
-        tenantId
-      )
-      .lean();
-
-    if(!tenant){
-
-      return res.status(404).json({
-        success:false,
-        message:"Tenant not found"
-      });
-    }
-
-    const tenantAllowedServices =
-      getTenantAllowedServices(
-        tenant
-      );
-
-    const facilityAllowedServices =
-      getEffectiveFacilityAllowedServices(
-        tenantAllowedServices,
-        facilityUser.allowedServices
-      );
-
-    const facilityAllowedSet =
-      new Set(
-        facilityAllowedServices
-      );
-
     const facilityName =
       clean(
         req.body?.facilityName
@@ -1409,32 +1264,6 @@ router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
         .filter(
           s=>s.serviceKey
         );
-
-    const disallowedServices =
-      services.filter(
-        service =>
-          !facilityAllowedSet.has(
-            normalizeCode(
-              service.serviceKey
-            )
-          )
-      );
-
-    if(disallowedServices.length){
-
-      return res.status(403).json({
-        success:false,
-        message:
-          "One or more services are not enabled for this facility",
-        disallowedServices:
-          disallowedServices.map(
-            service =>
-              normalizeCode(
-                service.serviceKey
-              )
-          )
-      });
-    }
 
     const updatedBy =
       clean(

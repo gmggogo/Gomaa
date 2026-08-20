@@ -1,3 +1,46 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
 /* =====================================================
 FILE: add-trip.js
 FINAL COMPLETE VERSION
@@ -7,26 +50,20 @@ Service Code Fixed From Company Suffix
 
 document.addEventListener("DOMContentLoaded", function(){
 
-const token =
-  localStorage.getItem("token");
+const token = getCompanyToken();
 
-const role =
-  localStorage.getItem("role");
+const role = getCompanyRole();
 
-const companyName =
-  localStorage.getItem("name") || "";
+const companyName = getCompanyName();
 
 const companyId =
-  localStorage.getItem("facilityId") ||
-  localStorage.getItem("companyId") ||
-  localStorage.getItem("userId") ||
-  localStorage.getItem("localId") ||
-  localStorage.getItem("_id") ||
-  localStorage.getItem("id") ||
+  localStorage.getItem("companyFacilityId") ||
+  localStorage.getItem("companyUserId") ||
+  localStorage.getItem("companyTenantId") ||
   "";
 
 if(!token || role !== "company"){
-  window.location.replace("company-login.html");
+  window.location.replace(companyLoginUrl());
   return;
 }
 
@@ -838,7 +875,7 @@ function loadEntryInfo(){
 
   const saved =
     JSON.parse(
-      localStorage.getItem("entryInfo") || "{}"
+      localStorage.getItem(companyStorageKey("entryInfo")) || "{}"
     );
 
   entryName.value =
@@ -857,7 +894,7 @@ function loadEntryInfo(){
 function saveEntryInfo(){
 
   localStorage.setItem(
-    "entryInfo",
+    companyStorageKey("entryInfo"),
     JSON.stringify({
       entryName:entryName.value,
       entryPhone:entryPhone.value
@@ -913,7 +950,7 @@ function loadDraft(){
 
   const draft =
     JSON.parse(
-      localStorage.getItem("companyTripDraft") || "{}"
+      localStorage.getItem(companyStorageKey("companyTripDraft")) || "{}"
     );
 
   clientName.value =
@@ -941,7 +978,7 @@ function loadDraft(){
 function saveDraft(){
 
   localStorage.setItem(
-    "companyTripDraft",
+    companyStorageKey("companyTripDraft"),
     JSON.stringify({
       clientName:clientName.value,
       clientPhone:clientPhone.value,
@@ -962,7 +999,7 @@ function loadSharedDraft(){
 
   const draft =
     JSON.parse(
-      localStorage.getItem("companySharedDraft") || "{}"
+      localStorage.getItem(companyStorageKey("companySharedDraft")) || "{}"
     );
 
   passengerCount.value =
@@ -1027,7 +1064,7 @@ function saveSharedDraft(){
   });
 
   localStorage.setItem(
-    "companySharedDraft",
+    companyStorageKey("companySharedDraft"),
     JSON.stringify({
       passengerCount:passengerCount.value,
       passengers,
@@ -1498,7 +1535,7 @@ submitTripBtn.onclick = async function(){
     notes.value = "";
     stopsBox.innerHTML = "";
 
-    localStorage.removeItem("companyTripDraft");
+    localStorage.removeItem(companyStorageKey("companyTripDraft"));
 
   }catch(err){
 
@@ -1630,7 +1667,7 @@ submitSharedBtn.onclick = async function(){
     sharedNotes.value = "";
     passengerCount.value = "";
 
-    localStorage.removeItem("companySharedDraft");
+    localStorage.removeItem(companyStorageKey("companySharedDraft"));
 
   }catch(err){
 

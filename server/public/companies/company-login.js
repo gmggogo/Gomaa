@@ -1,124 +1,100 @@
-document.addEventListener(
-"DOMContentLoaded",
-function(){
+document.addEventListener("DOMContentLoaded",function(){
 
-const form =
-document.getElementById(
-"loginForm"
-);
+const form = document.getElementById("loginForm");
+const errorBox = document.getElementById("errorMessage");
 
-const errorBox =
-document.getElementById(
-"errorMessage"
-);
-
-form.addEventListener(
-"submit",
-async function(e){
-
-e.preventDefault();
-
-const username =
-document.getElementById(
-"username"
-).value.trim();
-
-const password =
-document.getElementById(
-"password"
-).value.trim();
-
-errorBox.innerText = "";
-
-if(!username || !password){
-
-errorBox.innerText =
-"Please enter username and password.";
-
-return;
-
+if(!form){
+  console.error("loginForm not found");
+  return;
 }
 
-try{
-
-const response =
-await fetch(
-"/api/auth/login",
-{
-method:"POST",
-
-headers:{
-"Content-Type":
-"application/json"
-},
-
-body:JSON.stringify({
-username,
-password
-})
-}
-);
-
-const data =
-await response.json();
-
-if(!response.ok){
-
-errorBox.innerText =
-data.message ||
-"Invalid credentials.";
-
-return;
-
+function cleanTenantSlug(v){
+  return String(v || "").trim().toLowerCase();
 }
 
-/* MUST BE COMPANY */
+function resolveTenantSlug(){
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = cleanTenantSlug(
+    params.get("tenant") || params.get("tenantSlug")
+  );
 
-if(data.user.role !== "company"){
+  if(fromUrl){
+    sessionStorage.setItem("companyTenantSlug",fromUrl);
+    localStorage.setItem("companyTenantSlug",fromUrl);
+    return fromUrl;
+  }
 
-errorBox.innerText =
-"This account is not a company account.";
-
-return;
-
+  return cleanTenantSlug(
+    sessionStorage.getItem("companyTenantSlug") ||
+    localStorage.getItem("companyTenantSlug")
+  );
 }
 
-/* SAVE LOGIN */
+const tenantSlug = resolveTenantSlug();
 
-localStorage.setItem(
-"token",
-data.token
-);
+form.addEventListener("submit",async function(e){
 
-localStorage.setItem(
-"role",
-data.user.role
-);
+  e.preventDefault();
 
-localStorage.setItem(
-"name",
-data.user.name
-);
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-/* REDIRECT */
+  errorBox.innerText = "";
 
-window.location.replace(
-"/companies/dashboard.html"
-);
+  if(!username || !password){
+    errorBox.innerText = "Please enter username and password.";
+    return;
+  }
 
-}
+  if(!tenantSlug){
+    errorBox.innerText = "Company login link required.";
+    return;
+  }
 
-catch(err){
+  try{
+    const response = await fetch("/api/auth/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,password,tenantSlug})
+    });
 
-console.error(
-"Login error:",
-err
-);
+    const data = await response.json().catch(()=>({}));
 
-errorBox.innerText =
-"Server error. Please try again.";
+    if(!response.ok){
+      errorBox.innerText = data.message || "Invalid credentials.";
+      return;
+    }
 
-}
+    if(String(data?.user?.role || "").toLowerCase() !== "company"){
+      errorBox.innerText = "This account is not a company account.";
+      return;
+    }
+
+    if(
+      data.user.tenantSlug &&
+      cleanTenantSlug(data.user.tenantSlug) !== tenantSlug
+    ){
+      errorBox.innerText = "This account does not belong to this company.";
+      return;
+    }
+
+    localStorage.setItem("companyToken",data.token);
+    localStorage.setItem("companyRole","company");
+    localStorage.setItem("companyName",data.user.name || "");
+    localStorage.setItem("companyTenantId",data.user.tenantId || "");
+    localStorage.setItem("companyTenantSlug",data.user.tenantSlug || tenantSlug);
+    localStorage.setItem("companyUserId",data.user.id || "");
+    localStorage.setItem(
+      "companyFacilityId",
+      data.user.facilityId || data.user.companyId || data.user.id || ""
+    );
+
+    window.location.replace("/companies/dashboard.html");
+
+  }catch(err){
+    console.error("Login error:",err);
+    errorBox.innerText = "Server error. Please try again.";
+  }
 
 });
 

@@ -1,13 +1,52 @@
-const token = localStorage.getItem("token");
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
 
-const companyName =
-  localStorage.getItem("name") || "";
+const token = getCompanyToken();
 
-if(!token){
+const companyName = getCompanyName();
 
-  window.location.href =
-    "company-login.html";
-
+if(!token || getCompanyRole() !== "company"){
+  window.location.href = companyLoginUrl();
 }
 
 /* =========================
@@ -353,9 +392,13 @@ async function verifyStripePayment(
 
     const res =
       await fetch(
-
-`/api/company/check-payment?session_id=${sessionId}&companyId=${companyId}`
-
+        `/api/company/check-payment?session_id=${encodeURIComponent(sessionId)}&companyId=${encodeURIComponent(companyId)}`,
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
       );
 
     const data =

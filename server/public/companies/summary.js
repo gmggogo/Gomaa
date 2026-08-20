@@ -1,3 +1,53 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
+const COMPANY_TOKEN = getCompanyToken();
+const COMPANY_NAME = getCompanyName();
+
+if(!COMPANY_TOKEN || getCompanyRole() !== "company"){
+  window.location.replace(companyLoginUrl());
+}
+
 // summary.js
 // COMPANY SUMMARY - FULL DYNAMIC VERSION
 
@@ -44,8 +94,7 @@ async function loadServices(){
 
   try{
 
-    const token =
-      localStorage.getItem("token") || "";
+    const token = COMPANY_TOKEN;
 
     const res =
       await fetch("/api/services?company=true",{
@@ -88,11 +137,9 @@ async function loadServices(){
 
 async function loadTrips(){
 
-  const company =
-    localStorage.getItem("name") || "";
+  const company = COMPANY_NAME;
 
-  const token =
-    localStorage.getItem("token") || "";
+  const token = COMPANY_TOKEN;
 
   const res =
     await fetch(

@@ -4733,111 +4733,168 @@ company.nextBillingDate =
 
 });
 
+
+/* =========================
+   COMPANY TENANT OWNER
+========================= */
+
+async function resolveCompanyForTenantRequest(
+  req,
+  requestedName = "",
+  requestedId = ""
+){
+  const role =
+    String(req.authUser?.role || "");
+
+  const tenantId =
+    req.authUser?.tenantId || null;
+
+  /*
+    A COMPANY account can access only its own User record.
+    We use the authenticated user id, never a company name from the browser.
+  */
+  if(role.toLowerCase() === "company"){
+
+    if(!tenantId || !req.authUser?.id){
+      return null;
+    }
+
+    return await User.findOne({
+      _id:req.authUser.id,
+      tenantId,
+      role:"company"
+    });
+  }
+
+  /*
+    Tenant staff may inspect a company inside the SAME tenant.
+  */
+  const filter = {
+    role:"company"
+  };
+
+  if(role !== "PLATFORM_ADMIN"){
+    if(!tenantId){
+      return null;
+    }
+    filter.tenantId = tenantId;
+  }
+
+  if(requestedId && mongoose.Types.ObjectId.isValid(String(requestedId))){
+    filter._id = requestedId;
+  }else if(requestedName){
+    filter.name = {
+      $regex:
+        "^" +
+        String(requestedName)
+          .replace(/[.*+?^${}()|[\]\\]/g,"\\$&") +
+        "$",
+      $options:"i"
+    };
+  }else{
+    return null;
+  }
+
+  return await User.findOne(filter);
+}
+
 /* =========================
    COMPANY BILLING
 ========================= */
 
-app.get("/api/company/billing", async (req,res)=>{
+app.get(
+  "/api/company/billing",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
-    const companyName =
-      String(req.query.company || "").trim();
-
-    if(!companyName){
-
-      return res.status(400).json({
-        message:"Company required"
-      });
-
-    }
-
-    let company =
-      await User.findOne({
-        role:"company",
-        name:{
-          $regex:"^" + companyName + "$",
-          $options:"i"
-        }
-      });
+    const company =
+      await resolveCompanyForTenantRequest(
+        req,
+        String(req.query.company || "").trim(),
+        String(req.query.companyId || "").trim()
+      );
 
     if(!company){
-
       return res.status(404).json({
         message:"Company not found"
       });
-
     }
 
-    company =
+    const updatedCompany =
       await updateCompanyBilling(company);
 
-    res.json({
+    return res.json({
 
-      _id:company._id,
-      name:company.name || "",
+      _id:updatedCompany._id,
+      name:updatedCompany.name || "",
+      tenantId:updatedCompany.tenantId || null,
 
       billingStatus:
-        company.billingStatus || "ACTIVE",
+        updatedCompany.billingStatus || "ACTIVE",
 
       billingCycle:
-        company.billingCycle || "MONTHLY",
+        updatedCompany.billingCycle || "MONTHLY",
 
       invoiceAmount:
-        company.invoiceAmount || 0,
+        updatedCompany.invoiceAmount || 0,
 
       revenue:
-        company.revenue || 0,
+        updatedCompany.revenue || 0,
 
       totalTrips:
-        company.totalTrips || 0,
+        updatedCompany.totalTrips || 0,
 
       individualTrips:
-        company.individualTrips || 0,
+        updatedCompany.individualTrips || 0,
 
       sharedTrips:
-        company.sharedTrips || 0,
+        updatedCompany.sharedTrips || 0,
 
       completedTrips:
-        company.completedTrips || 0,
+        updatedCompany.completedTrips || 0,
 
       cancelledTrips:
-        company.cancelledTrips || 0,
+        updatedCompany.cancelledTrips || 0,
 
       noShowTrips:
-        company.noShowTrips || 0,
+        updatedCompany.noShowTrips || 0,
 
       billingStartDate:
-        company.billingStartDate || null,
+        updatedCompany.billingStartDate || null,
 
       billingEndDate:
-        company.billingEndDate || null,
+        updatedCompany.billingEndDate || null,
 
       nextBillingDate:
-        company.nextBillingDate || null,
+        updatedCompany.nextBillingDate || null,
 
       lastPaymentDate:
-        company.lastPaymentDate || null,
+        updatedCompany.lastPaymentDate || null,
 
       daysLeft:
-        company.daysLeft || 0,
+        updatedCompany.daysLeft || 0,
 
       graceDays:
-        company.graceDays || 0,
+        updatedCompany.graceDays || 0,
 
       billingLocked:
-        company.billingLocked || false,
+        updatedCompany.billingLocked || false,
 
       billingNotes:
-        company.billingNotes || ""
+        updatedCompany.billingNotes || ""
 
     });
 
   }catch(err){
 
-    console.log(err);
+    console.log(
+      "COMPANY BILLING ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message:"billing load failed"
     });
 
@@ -4849,48 +4906,58 @@ app.get("/api/company/billing", async (req,res)=>{
    CREATE ACH PAYMENT
 ========================= */
 
-app.post("/api/company/create-ach-payment", async (req,res)=>{
+app.post(
+  "/api/company/create-ach-payment",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
-    const companyName =
-      String(req.body.company || "").trim();
-
-    if(!companyName){
-
-      return res.status(400).json({
-        message:"Company required"
-      });
-
-    }
-
     const company =
-      await User.findOne({
-        role:"company",
-        name:{
-          $regex:"^" + companyName + "$",
-          $options:"i"
-        }
-      });
+      await resolveCompanyForTenantRequest(
+        req,
+        String(req.body.company || "").trim(),
+        String(req.body.companyId || "").trim()
+      );
 
     if(!company){
-
       return res.status(404).json({
         message:"Company not found"
       });
-
     }
 
     const amount =
       Number(company.invoiceAmount || 0);
 
     if(amount <= 0){
-
       return res.status(400).json({
         message:"Invoice amount invalid"
       });
-
     }
+
+    const tenantSlug =
+      String(
+        req.authUser?.tenantSlug ||
+        req.body?.tenantSlug ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    const successUrl =
+      "https://sunbeam-933q.onrender.com/companies/payment.html" +
+      "?success=1" +
+      "&session_id={CHECKOUT_SESSION_ID}" +
+      "&companyId=" + encodeURIComponent(String(company._id)) +
+      (tenantSlug
+        ? "&tenant=" + encodeURIComponent(tenantSlug)
+        : "");
+
+    const cancelUrl =
+      "https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1" +
+      (tenantSlug
+        ? "&tenant=" + encodeURIComponent(tenantSlug)
+        : "");
 
     const session =
       await stripe.checkout.sessions.create({
@@ -4903,7 +4970,8 @@ app.post("/api/company/create-ach-payment", async (req,res)=>{
         mode:"payment",
 
         metadata:{
-          companyId:company._id.toString()
+          companyId:String(company._id),
+          tenantId:String(company.tenantId || "")
         },
 
         line_items:[{
@@ -4912,29 +4980,30 @@ app.post("/api/company/create-ach-payment", async (req,res)=>{
             product_data:{
               name:`${company.name} Billing Invoice`
             },
-            unit_amount:Math.round(amount * 100)
+            unit_amount:
+              Math.round(amount * 100)
           },
           quantity:1
         }],
 
-        success_url:
-          "https://sunbeam-933q.onrender.com/companies/payment.html?success=1&session_id={CHECKOUT_SESSION_ID}&companyId=" + company._id,
-
-        cancel_url:
-          "https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1"
+        success_url:successUrl,
+        cancel_url:cancelUrl
 
       });
 
-    res.json({
+    return res.json({
       success:true,
       url:session.url
     });
 
   }catch(err){
 
-    console.log(err);
+    console.log(
+      "CREATE COMPANY PAYMENT ERROR:",
+      err
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message:"payment failed"
     });
 
@@ -4942,23 +5011,26 @@ app.post("/api/company/create-ach-payment", async (req,res)=>{
 
 });
 
-
 /* =========================
    VERIFY COMPANY PAYMENT
 ========================= */
 
-app.get("/api/company/check-payment", async (req,res)=>{
+app.get(
+  "/api/company/check-payment",
+  requireTenantApi,
+  async (req,res)=>{
 
   try{
 
-    console.log("CHECK PAYMENT HIT");
-    console.log(req.query);
-
     const sessionId =
-      req.query.session_id;
+      String(
+        req.query.session_id || ""
+      ).trim();
 
     const companyId =
-      req.query.companyId;
+      String(
+        req.query.companyId || ""
+      ).trim();
 
     if(!sessionId || !companyId){
 
@@ -4973,26 +5045,34 @@ app.get("/api/company/check-payment", async (req,res)=>{
         sessionId
       );
 
-    console.log(
-      "PAYMENT STATUS:",
-      session.payment_status
-    );
-
-    if(session.payment_status !== "paid"){
-
+    if(
+      session.payment_status !== "paid"
+    ){
       return res.json({
         paid:false
       });
+    }
 
+    /*
+      Stripe session must belong to the same company id
+      supplied by the redirect.
+    */
+    if(
+      String(session.metadata?.companyId || "") !==
+      companyId
+    ){
+      return res.status(403).json({
+        paid:false,
+        message:"Payment company mismatch"
+      });
     }
 
     const company =
-      await User.findById(companyId);
-
-    console.log(
-      "COMPANY FOUND:",
-      !!company
-    );
+      await resolveCompanyForTenantRequest(
+        req,
+        "",
+        companyId
+      );
 
     if(!company){
 
@@ -5002,18 +5082,24 @@ app.get("/api/company/check-payment", async (req,res)=>{
 
     }
 
-    /* 🔥 منع التكرار */
+    if(
+      session.metadata?.tenantId &&
+      String(session.metadata.tenantId) !==
+      String(company.tenantId || "")
+    ){
+      return res.status(403).json({
+        paid:false,
+        message:"Payment tenant mismatch"
+      });
+    }
 
-    if(session.metadata?.verified === "true"){
-
-      console.log(
-        "ALREADY VERIFIED"
-      );
-
+    /* prevent double verification */
+    if(
+      session.metadata?.verified === "true"
+    ){
       return res.json({
         paid:true
       });
-
     }
 
     const now =
@@ -6000,9 +6086,9 @@ app.get(
 /* =========================
    GET ALL TRIPS
 ========================= */
-app.get("/api/trips", async (req, res) => {
+app.get("/api/trips", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(tenantFilter(req,{})).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
     console.log(err);
@@ -6013,47 +6099,197 @@ app.get("/api/trips", async (req, res) => {
 /* =========================
    GET ALL TRIPS FOR HUB
 ========================= */
-app.get("/api/trips/company", async (req, res) => {
-  try {
-    const trips = await Trip.find().sort({ createdAt: -1, _id: -1 });
-    res.json(trips);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
+app.get(
+  "/api/trips/company",
+  requireTenantApi,
+  async (req,res)=>{
+
+  try{
+
+    const filter =
+      tenantFilter(req,{});
+
+    /*
+      Company users only see trips belonging to their own
+      authenticated company account inside the tenant.
+    */
+    if(
+      String(req.authUser?.role || "")
+        .toLowerCase() === "company"
+    ){
+
+      const company =
+        await resolveCompanyForTenantRequest(
+          req
+        );
+
+      if(!company){
+        return res.status(403).json({
+          message:"Company access denied"
+        });
+      }
+
+      filter.company = {
+        $regex:
+          "^" +
+          String(company.name || "")
+            .replace(/[.*+?^${}()|[\]\\]/g,"\\$&") +
+          "$",
+        $options:"i"
+      };
+    }
+
+    const trips =
+      await Trip.find(filter)
+        .sort({
+          createdAt:-1,
+          _id:-1
+        })
+        .lean();
+
+    return res.json(trips);
+
+  }catch(err){
+
+    console.log(
+      "COMPANY TRIPS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message:"Error loading trips"
+    });
+
   }
+
 });
 
 /* =========================
    GET COMPANY TRIPS ONLY
 ========================= */
-app.get("/api/trips/company/:company", async (req, res) => {
-  try {
-    const trips = await Trip.find({
-      company: req.params.company
-    }).sort({ createdAt: -1, _id: -1 });
+app.get(
+  "/api/trips/company/:company",
+  requireTenantApi,
+  async (req,res)=>{
 
-    res.json(trips);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
+  try{
+
+    let companyName =
+      String(
+        req.params.company || ""
+      ).trim();
+
+    if(
+      String(req.authUser?.role || "")
+        .toLowerCase() === "company"
+    ){
+
+      const company =
+        await resolveCompanyForTenantRequest(
+          req
+        );
+
+      if(!company){
+        return res.status(403).json({
+          message:"Company access denied"
+        });
+      }
+
+      companyName =
+        String(company.name || "").trim();
+    }
+
+    const filter =
+      tenantFilter(
+        req,
+        {
+          company:{
+            $regex:
+              "^" +
+              companyName.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+              ) +
+              "$",
+            $options:"i"
+          }
+        }
+      );
+
+    const trips =
+      await Trip.find(filter)
+        .sort({
+          createdAt:-1,
+          _id:-1
+        })
+        .lean();
+
+    return res.json(trips);
+
+  }catch(err){
+
+    console.log(
+      "NAMED COMPANY TRIPS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      message:"Error loading trips"
+    });
+
   }
+
 });
 
 /* =========================
    SUMMARY TRIPS (FINAL REAL)
 ========================= */
-app.get("/api/trips/summary", async (req, res) => {
-  try {
+app.get(
+  "/api/trips/summary",
+  requireTenantApi,
+  async (req,res)=>{
 
-    const company = normalizeText(req.query.company || "");
+  try{
 
-    const filter = {};
+    let companyName =
+      normalizeText(
+        req.query.company || ""
+      );
 
-    if (company) {
+    if(
+      String(req.authUser?.role || "")
+        .toLowerCase() === "company"
+    ){
+
+      const company =
+        await resolveCompanyForTenantRequest(
+          req
+        );
+
+      if(!company){
+        return res.status(403).json({
+          message:"Company access denied"
+        });
+      }
+
+      companyName =
+        String(company.name || "").trim();
+    }
+
+    const filter =
+      tenantFilter(req,{});
+
+    if(companyName){
 
       filter.company = {
-        $regex: "^" + company.trim() + "$",
-        $options: "i"
+        $regex:
+          "^" +
+          companyName.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+          ) +
+          "$",
+        $options:"i"
       };
 
     }

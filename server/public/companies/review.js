@@ -1,3 +1,46 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
 /* =========================================
 FILE: review.js
 COMPANY REVIEW - ONE FILE
@@ -10,13 +53,13 @@ window.ReviewApp = { container:null };
 
 window.addEventListener("DOMContentLoaded", async () => {
 
-const token = localStorage.getItem("token");
-const role = localStorage.getItem("role");
-const companyName = localStorage.getItem("name") || "";
+const token = getCompanyToken();
+const role = getCompanyRole();
+const companyName = getCompanyName();
 const ADD_STOP_ACTIVE_FROM =
   new Date("2026-06-20T05:58:00");
 if(!token || role !== "company"){
-  window.location.replace("company-login.html");
+  window.location.replace(companyLoginUrl());
   return;
 }
 
@@ -820,11 +863,9 @@ async function loadServices(){
     COMPANY_SERVICES = [];
 
     const facilityId =
-      localStorage.getItem("facilityId") ||
-      localStorage.getItem("companyId") ||
-      localStorage.getItem("userId") ||
-      localStorage.getItem("_id") ||
-      localStorage.getItem("id") ||
+      localStorage.getItem("companyFacilityId") ||
+      localStorage.getItem("companyUserId") ||
+      localStorage.getItem("companyTenantId") ||
       "";
 
     const facilityName =
@@ -1994,46 +2035,22 @@ async function buildSharedRoutePoints(group){
 /* ================= SERVER ================= */
 
 async function fetchTrips(){
-  let list = [];
-
   const url = companyName
     ? "/api/trips/company/" + encodeURIComponent(companyName)
     : "/api/trips/company";
 
   const res = await fetch(url,{
-    headers:{
-      Authorization:"Bearer " + token
-    }
+    cache:"no-store",
+    headers:{Authorization:"Bearer " + token}
   });
 
-  if(res.ok){
-    list = await res.json();
+  const data = await res.json().catch(()=>[]);
+
+  if(!res.ok){
+    throw new Error(data?.message || "Failed loading company trips");
   }
 
-  if((!Array.isArray(list) || list.length === 0) && companyName){
-    const allRes = await fetch("/api/trips/company",{
-      headers:{
-        Authorization:"Bearer " + token
-      }
-    });
-
-    if(allRes.ok){
-      const all = await allRes.json();
-
-      list = Array.isArray(all)
-        ? all.filter(t =>
-            String(t.company || "").trim().toLowerCase() ===
-            String(companyName).trim().toLowerCase()
-          )
-        : [];
-    }
-  }
-
-  if(!Array.isArray(list)){
-    return [];
-  }
-
-  return list;
+  return Array.isArray(data) ? data : [];
 }
 
 async function updateTrip(id,payload){

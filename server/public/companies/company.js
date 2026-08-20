@@ -1,3 +1,46 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Company JS Loaded");
 
@@ -19,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (h < 18) greeting = "Good Afternoon";
     else greeting = "Good Evening";
 
-    greetingEl.innerText = `${greeting} from Sunbeam Transportation`;
+    greetingEl.innerText = `${greeting} from ${getCompanyName() || "GH Mobility"}`;
     clockEl.innerText = now.toLocaleDateString() + " | " + now.toLocaleTimeString();
   }
 
@@ -30,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const editBtn = document.getElementById("editEntry");
 
   if (entryName && facilityPhone && saveBtn && editBtn) {
-    const saved = JSON.parse(localStorage.getItem("entryData"));
+    const saved = JSON.parse(localStorage.getItem(companyStorageKey("entryData")));
     if (saved) {
       entryName.value = saved.name;
       facilityPhone.value = saved.phone;
@@ -43,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      localStorage.setItem("entryData", JSON.stringify({
+      localStorage.setItem(companyStorageKey("entryData"), JSON.stringify({
         name: entryName.value,
         phone: facilityPhone.value
       }));

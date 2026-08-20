@@ -1,3 +1,46 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
 /* =========================================
 FILE: company-add-stop.js
 COMPANY ADD STOP
@@ -11,12 +54,12 @@ Final Submit sends request to server
 
 /* ================= SECURITY ================= */
 
-const token = localStorage.getItem("token") || "";
-const role = localStorage.getItem("role") || "";
-const companyName = localStorage.getItem("name") || "";
+const token = getCompanyToken();
+const role = getCompanyRole();
+const companyName = getCompanyName();
 
 if(!token || role !== "company"){
-  window.location.href = "/companies/company-login.html";
+  window.location.href = companyLoginUrl();
   return;
 }
 
@@ -1151,9 +1194,7 @@ async function fetchDriverLocationFromServer(id){
   try{
 
     const res =
-      await fetch("/api/admin/live-drivers",{
-        cache:"no-store"
-      });
+      await fetch("/api/admin/live-drivers",{cache:"no-store",headers:{Authorization:"Bearer " + token}});
 
     if(!res.ok){
       return null;
