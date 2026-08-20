@@ -287,12 +287,24 @@ function point(lat,lng){
   return {lat,lng};
 }
 function pickupPoint(trip){
+
+  const current =
+    point(
+      trip?.__dispatchPickupLat,
+      trip?.__dispatchPickupLng
+    );
+
+  if(current){
+    return current;
+  }
+
   if(isShared(trip)){
     const passenger = (trip.passengers || []).find(p=>
       point(p.pickupLat,p.pickupLng)
     );
     if(passenger) return point(passenger.pickupLat,passenger.pickupLng);
   }
+
   return point(
     trip.pickupLat ?? trip.pickupLatitude,
     trip.pickupLng ?? trip.pickupLongitude
@@ -591,6 +603,356 @@ function hasConflict(driverId,trip,ctx){
   });
 }
 
+
+/* =========================
+   DRIVER ORIGIN POLICY
+   First trip of the day  -> Driver Schedule address
+   Later trips            -> Previous assigned trip final dropoff
+========================= */
+
+function finalDropoffAddress(trip){
+
+  if(!trip){
+    return "";
+  }
+
+  if(isShared(trip)){
+
+    const plan =
+      Array.isArray(trip.sharedRoutePlan) && trip.sharedRoutePlan.length
+        ? trip.sharedRoutePlan
+        : Array.isArray(trip.routePlan) && trip.routePlan.length
+          ? trip.routePlan
+          : [];
+
+    if(plan.length){
+
+      const ordered =
+        [...plan]
+          .filter(p=>clean(p?.address))
+          .sort((a,b)=>
+            num(a?.order,0) -
+            num(b?.order,0)
+          );
+
+      const last =
+        ordered[ordered.length - 1];
+
+      if(last?.address){
+        return clean(last.address);
+      }
+    }
+
+    const passengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers.filter(p=>{
+            const status =
+              clean(p?.status)
+                .toUpperCase()
+                .replace(/[\s_-]+/g,"");
+
+            return !(
+              status.includes("CANCEL") ||
+              status.includes("NOSHOW")
+            );
+          })
+        : [];
+
+    if(passengers.length){
+
+      const ordered =
+        [...passengers].sort((a,b)=>{
+
+          const aDrop =
+            num(
+              a?.dropoffOrder ??
+              a?.routeOrder,
+              -1
+            );
+
+          const bDrop =
+            num(
+              b?.dropoffOrder ??
+              b?.routeOrder,
+              -1
+            );
+
+          return aDrop - bDrop;
+        });
+
+      const last =
+        ordered[ordered.length - 1];
+
+      if(last?.dropoff){
+        return clean(last.dropoff);
+      }
+    }
+  }
+
+  return clean(
+    trip.dropoff ||
+    trip.dropOff ||
+    trip.destination ||
+    ""
+  );
+}
+
+function finalDropoffPoint(trip){
+
+  if(!trip){
+    return null;
+  }
+
+  if(isShared(trip)){
+
+    const passengers =
+      Array.isArray(trip.passengers)
+        ? trip.passengers.filter(p=>{
+            const status =
+              clean(p?.status)
+                .toUpperCase()
+                .replace(/[\s_-]+/g,"");
+
+            return !(
+              status.includes("CANCEL") ||
+              status.includes("NOSHOW")
+            );
+          })
+        : [];
+
+    if(passengers.length){
+
+      const ordered =
+        [...passengers].sort((a,b)=>{
+
+          const aDrop =
+            num(
+              a?.dropoffOrder ??
+              a?.routeOrder,
+              -1
+            );
+
+          const bDrop =
+            num(
+              b?.dropoffOrder ??
+              b?.routeOrder,
+              -1
+            );
+
+          return aDrop - bDrop;
+        });
+
+      for(let i=ordered.length-1;i>=0;i--){
+
+        const p =
+          point(
+            ordered[i]?.dropoffLat,
+            ordered[i]?.dropoffLng
+          );
+
+        if(p){
+          return p;
+        }
+      }
+    }
+  }
+
+  return point(
+    trip.dropoffLat ??
+    trip.dropoffLatitude,
+    trip.dropoffLng ??
+    trip.dropoffLongitude
+  );
+}
+
+function previousAssignedTrip(
+  driverId,
+  targetTrip,
+  ctx
+){
+
+  const targetDT =
+    tripDateTime(targetTrip);
+
+  if(!targetDT){
+    return null;
+  }
+
+  const sameDayEarlier =
+    ctx.assignments
+      .filter(a=>{
+
+        if(
+          String(a.driverId) !==
+          String(driverId)
+        ){
+          return false;
+        }
+
+        const other =
+          a.__trip;
+
+        if(!other){
+          return false;
+        }
+
+        if(
+          clean(other.tripDate) !==
+          clean(targetTrip.tripDate)
+        ){
+          return false;
+        }
+
+        const otherDT =
+          tripDateTime(other);
+
+        if(!otherDT){
+          return false;
+        }
+
+        return otherDT < targetDT;
+      })
+      .sort((a,b)=>
+        tripDateTime(b.__trip) -
+        tripDateTime(a.__trip)
+      );
+
+  return sameDayEarlier[0]?.__trip || null;
+}
+
+async function prepareDriverOriginsForTrip(
+  trip,
+  ctx
+){
+
+  if(!(ctx.driverOrigins instanceof Map)){
+    ctx.driverOrigins = new Map();
+  }else{
+    ctx.driverOrigins.clear();
+  }
+
+  for(const driver of ctx.drivers){
+
+    const driverId =
+      String(driver._id);
+
+    const row =
+      ctx.schedule.get(driverId) || {};
+
+    const previous =
+      previousAssignedTrip(
+        driverId,
+        trip,
+        ctx
+      );
+
+    /*
+      FIRST TRIP:
+      Driver starts from Driver Schedule address.
+    */
+    if(!previous){
+
+      ctx.driverOrigins.set(
+        driverId,
+        {
+          point:
+            point(
+              row.lat,
+              row.lng
+            ),
+          source:"DRIVER_ADDRESS",
+          address:clean(row.address)
+        }
+      );
+
+      continue;
+    }
+
+    /*
+      NEXT TRIP:
+      Driver starts from final dropoff of the most recent
+      earlier assigned trip, never from home again.
+    */
+    let originPoint =
+      finalDropoffPoint(previous);
+
+    const originAddress =
+      finalDropoffAddress(previous);
+
+    /*
+      Resolve from the CURRENT dropoff address when possible,
+      so stale saved coordinates cannot reverse the distance result.
+    */
+    if(
+      originAddress &&
+      typeof global.resolveDispatchAddressPoint ===
+      "function"
+    ){
+
+      try{
+
+        const resolved =
+          await global.resolveDispatchAddressPoint(
+            originAddress
+          );
+
+        if(resolved){
+          originPoint = resolved;
+        }
+
+      }catch(err){
+
+        console.log(
+          "PREVIOUS DROPOFF COORD WARNING:",
+          driverId,
+          err?.message || err
+        );
+      }
+    }
+
+    ctx.driverOrigins.set(
+      driverId,
+      {
+        point:originPoint,
+        source:"PREVIOUS_DROPOFF",
+        address:originAddress,
+        previousTripId:
+          String(previous._id || ""),
+        previousTripNumber:
+          clean(previous.tripNumber)
+      }
+    );
+  }
+}
+
+function driverOriginForTrip(
+  driverId,
+  row,
+  ctx
+){
+
+  const prepared =
+    ctx.driverOrigins instanceof Map
+      ? ctx.driverOrigins.get(
+          String(driverId)
+        )
+      : null;
+
+  if(prepared){
+    return prepared;
+  }
+
+  return {
+    point:
+      point(
+        row?.lat,
+        row?.lng
+      ),
+    source:"DRIVER_ADDRESS",
+    address:clean(row?.address)
+  };
+}
+
 function rejectionReason(trip,ctx){
 
   const required = tripService(trip);
@@ -641,9 +1003,16 @@ function rejectionReason(trip,ctx){
     if(today >= maxTrips) return false;
     if(hasConflict(driverId,trip,ctx)) return false;
 
+    const origin =
+      driverOriginForTrip(
+        driverId,
+        item.row,
+        ctx
+      );
+
     const distance =
       miles(
-        point(item.row.lat,item.row.lng),
+        origin.point,
         pickupPoint(trip)
       );
 
@@ -692,6 +1061,48 @@ async function prepareDriverScheduleCoords(ctx,tenantId){
   }
 }
 
+async function prepareTripPickupForRanking(trip){
+
+  if(
+    typeof global.resolveDispatchAddressPoint !==
+    "function"
+  ){
+    return;
+  }
+
+  const address =
+    clean(trip?.pickup);
+
+  if(!address){
+    return;
+  }
+
+  try{
+
+    const currentPoint =
+      await global.resolveDispatchAddressPoint(
+        address
+      );
+
+    if(!currentPoint){
+      return;
+    }
+
+    trip.__dispatchPickupLat =
+      currentPoint.lat;
+
+    trip.__dispatchPickupLng =
+      currentPoint.lng;
+
+  }catch(err){
+
+    console.log(
+      "TRIP PICKUP RANKING COORD WARNING:",
+      err?.message || err
+    );
+  }
+}
+
 function rankDrivers(trip,ctx){
   const maxTrips = Math.max(1,num(ctx.settings.maxTripsPerDriver,20));
   const maxPickup = Math.max(1,num(ctx.settings.maxPickupDistanceMiles,50));
@@ -715,7 +1126,19 @@ function rankDrivers(trip,ctx){
     ).length;
     if(today >= maxTrips || hasConflict(driverId,trip,ctx)) return [];
 
-    const distance = miles(point(row.lat,row.lng),pickup);
+    const origin =
+      driverOriginForTrip(
+        driverId,
+        row,
+        ctx
+      );
+
+    const distance =
+      miles(
+        origin.point,
+        pickup
+      );
+
     if(distance !== null && distance > maxPickup) return [];
 
     const distanceScore = distance === null
@@ -750,10 +1173,25 @@ function rankDrivers(trip,ctx){
       serviceTier:tier,
       serviceMatch:tier === 0 ? tripService(trip) : "ALL",
       score:Math.round(score),
-      reason:tier === 0
-        ? `${reason} | Service ${tripService(trip)}`
-        : `${reason} | ALL fallback`,
-      distance:distance === null ? null : Number(distance.toFixed(2))
+      reason:
+        (
+          tier === 0
+            ? `${reason} | Service ${tripService(trip)}`
+            : `${reason} | ALL fallback`
+        ) +
+        (
+          origin.source === "PREVIOUS_DROPOFF"
+            ? ` | From previous dropoff${origin.previousTripNumber ? " " + origin.previousTripNumber : ""}`
+            : " | From driver address"
+        ),
+      distance:
+        distance === null
+          ? null
+          : Number(distance.toFixed(2)),
+      originSource:
+        origin.source,
+      originAddress:
+        origin.address || ""
     }];
   }).sort((a,b)=>
     a.serviceTier-b.serviceTier ||
@@ -944,6 +1382,15 @@ async function autoAssignTripById(
         coordErr?.message || coordErr
       );
     }
+
+    await prepareTripPickupForRanking(
+      trip
+    );
+
+    await prepareDriverOriginsForTrip(
+      trip,
+      ctx
+    );
 
     const best =
       rankDrivers(trip,ctx)[0];
@@ -1220,6 +1667,15 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
         continue;
       }
 
+      await prepareTripPickupForRanking(
+        trip
+      );
+
+      await prepareDriverOriginsForTrip(
+        trip,
+        ctx
+      );
+
       const best = rankDrivers(trip,ctx)[0];
 
       if(!best){
@@ -1265,7 +1721,10 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
         assigned:true,
         driverId:best.driverId,
         driverName:assignment.driverName,
-        score:best.score
+        score:best.score,
+        distance:best.distance,
+        originSource:best.originSource,
+        originAddress:best.originAddress
       });
     }
 
