@@ -2742,87 +2742,51 @@ async function ensureDriverScheduleCoords(
   scheduleRow,
   tenantId = ""
 ) {
+  const address = normalizeText(scheduleRow?.address);
 
-  const lat =
-    normalizeNumber(
-      scheduleRow?.lat
-    );
+  if(!address){
+    return {...scheduleRow,lat:null,lng:null};
+  }
 
-  const lng =
-    normalizeNumber(
-      scheduleRow?.lng
-    );
+  const lat = normalizeNumber(scheduleRow?.lat);
+  const lng = normalizeNumber(scheduleRow?.lng);
 
-  if (
+  if(
     lat !== null &&
-    lng !== null
-  ) {
-
-    return {
-      ...scheduleRow,
-      lat,
-      lng
-    };
+    lng !== null &&
+    !(lat === 0 && lng === 0)
+  ){
+    return {...scheduleRow,lat,lng};
   }
 
-  const address =
-    normalizeText(
-      scheduleRow?.address
-    );
+  const geo = await geocodeAddress(address);
 
-  if (!address) {
-    return scheduleRow;
+  if(geo.lat === null || geo.lng === null){
+    return {...scheduleRow,lat:null,lng:null};
   }
 
-  const geo =
-    await geocodeAddress(
-      address
-    );
-
-  if (
-    geo.lat === null ||
-    geo.lng === null
-  ) {
-    return scheduleRow;
-  }
-
-  try {
-
-    const filter = {
-      driverId:
-        String(driverId)
-    };
-
-    if(tenantId){
-      filter.tenantId =
-        tenantId;
-    }
+  try{
+    const filter = {driverId:String(driverId)};
+    if(tenantId) filter.tenantId = tenantId;
 
     await DriverSchedule.findOneAndUpdate(
       filter,
-      {
-        $set:{
-          lat:geo.lat,
-          lng:geo.lng
-        }
-      }
+      {$set:{address,lat:Number(geo.lat),lng:Number(geo.lng)}}
     );
-
-  } catch (err) {
-
-    console.log(
-      "Driver schedule coord save error:",
-      err?.message ||
-      err
-    );
+  }catch(err){
+    console.log("Driver schedule coord save error:",err?.message || err);
   }
 
   return {
     ...scheduleRow,
-    lat:geo.lat,
-    lng:geo.lng
+    address,
+    lat:Number(geo.lat),
+    lng:Number(geo.lng)
   };
 }
+
+global.ensureDriverScheduleCoords =
+  ensureDriverScheduleCoords;
 
 /* =========================
    COMPANY TRIP NUMBER

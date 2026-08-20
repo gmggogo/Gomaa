@@ -670,6 +670,28 @@ function rejectionReason(trip,ctx){
   return "No eligible driver";
 }
 
+async function prepareDriverScheduleCoords(ctx,tenantId){
+  if(typeof global.ensureDriverScheduleCoords !== "function") return;
+
+  for(const driver of ctx.drivers){
+    const driverId = String(driver._id);
+    const row = ctx.schedule.get(driverId) || {};
+
+    if(!clean(row.address)) continue;
+
+    try{
+      const safeRow = await global.ensureDriverScheduleCoords(
+        driverId,
+        row,
+        tenantId
+      );
+      ctx.schedule.set(driverId,safeRow || row);
+    }catch(err){
+      console.log("DRIVER COORD PREP WARNING:",driverId,err?.message || err);
+    }
+  }
+}
+
 function rankDrivers(trip,ctx){
   const maxTrips = Math.max(1,num(ctx.settings.maxTripsPerDriver,20));
   const maxPickup = Math.max(1,num(ctx.settings.maxPickupDistanceMiles,50));
@@ -897,6 +919,11 @@ async function autoAssignTripById(
     await attachTrips(
       ctx,
       internalReq
+    );
+
+    await prepareDriverScheduleCoords(
+      ctx,
+      tenantId
     );
 
     /*
@@ -1141,6 +1168,11 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
 
     const ctx = await buildContext(req);
     await attachTrips(ctx,req);
+
+    await prepareDriverScheduleCoords(
+      ctx,
+      requestTenantId(req,trips[0] || null)
+    );
 
     const results = [];
 

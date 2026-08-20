@@ -284,6 +284,33 @@ router.post(
       const data =
         payload[driverId] || {};
 
+      const incomingAddress =
+        String(data.address || "").trim();
+
+      const existing =
+        await DriverSchedule.findOne({
+          tenantId,
+          driverId
+        }).lean();
+
+      const oldAddress =
+        String(existing?.address || "").trim();
+
+      const addressChanged =
+        oldAddress.toLowerCase() !==
+        incomingAddress.toLowerCase();
+
+      /* Address changed => old coordinates are invalid. */
+      const nextLat =
+        addressChanged
+          ? null
+          : (data.lat ?? existing?.lat ?? null);
+
+      const nextLng =
+        addressChanged
+          ? null
+          : (data.lng ?? existing?.lng ?? null);
+
       await DriverSchedule.findOneAndUpdate(
 
         {
@@ -300,13 +327,13 @@ router.post(
               data.phone || "",
 
             address:
-              data.address || "",
+              incomingAddress,
 
             lat:
-              data.lat ?? null,
+              nextLat,
 
             lng:
-              data.lng ?? null,
+              nextLng,
 
             vehicleNumber:
               data.vehicleNumber || "",
