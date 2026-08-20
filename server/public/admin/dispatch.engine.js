@@ -1117,6 +1117,7 @@ function syncSelectionControls(){
   renderStats();
 }
 
+
 function askYesNo(title,message){
   return new Promise(resolve=>{
     const overlay = document.getElementById("confirmOverlay");
@@ -1125,7 +1126,7 @@ function askYesNo(title,message){
     const yesBtn = document.getElementById("confirmYesBtn");
     const noBtn = document.getElementById("confirmNoBtn");
 
-    if(!overlay || !yesBtn || !noBtn){
+    if(!overlay || !titleEl || !messageEl || !yesBtn || !noBtn){
       resolve(window.confirm(message));
       return;
     }
@@ -1135,11 +1136,11 @@ function askYesNo(title,message){
     overlay.classList.add("show");
     overlay.setAttribute("aria-hidden","false");
 
-    let finished = false;
+    let done = false;
 
     const close = answer=>{
-      if(finished) return;
-      finished = true;
+      if(done) return;
+      done = true;
       overlay.classList.remove("show");
       overlay.setAttribute("aria-hidden","true");
       yesBtn.onclick = null;
@@ -1164,16 +1165,16 @@ function askYesNo(title,message){
 }
 
 async function removeSelectedDrivers(){
+  if(!selectedIds.size){
+    toast("Select at least one trip");
+    return;
+  }
+
   const selectedTrips = trips.filter(t=>
     selectedIds.has(String(t._id)) &&
     clean(t.driverId) &&
     !isTripInProgress(t)
   );
-
-  if(!selectedIds.size){
-    toast("Select at least one trip");
-    return;
-  }
 
   if(!selectedTrips.length){
     toast("Selected trip(s) have no removable driver");
@@ -1204,7 +1205,7 @@ async function removeSelectedDrivers(){
       const result = await Store.saveDriver(trip._id,"");
 
       if(!result || result.success === false){
-        failed += 1;
+        failed++;
         continue;
       }
 
@@ -1224,7 +1225,7 @@ async function removeSelectedDrivers(){
         trip.dispatchStatus = "UNASSIGNED";
       }
 
-      removed += 1;
+      removed++;
     }
 
     renderAll();
@@ -1750,9 +1751,9 @@ function bindTabs(){
 
 function bindActions(){
   document.getElementById("selectBtn")?.addEventListener("click",toggleSelectAll);
+  document.getElementById("editBtn")?.addEventListener("click",()=>toggleEdit());
   document.getElementById("autoAssignBtn")?.addEventListener("click",()=>autoAssign());
   document.getElementById("sendSelectedBtn")?.addEventListener("click",sendSelected);
-  document.getElementById("editBtn")?.addEventListener("click",()=>toggleEdit());
   document.getElementById("removeDriverBtn")?.addEventListener("click",removeSelectedDrivers);
 }
 
