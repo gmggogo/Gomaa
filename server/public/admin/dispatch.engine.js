@@ -6,15 +6,6 @@
 
 const DISPATCH_BUILD_ID = "20260801-live-schedule-reassign-4";
 
-/* ================= SECURITY ================= */
-
-const token = localStorage.getItem("token") || "";
-const role  = localStorage.getItem("role") || "";
-
-if(!token || !["superadmin","admin","dispatcher"].includes(role)){
-  window.location.href = "/admin/login.html";
-}
-
 /* ================= STATE ================= */
 
 let trips = [];
