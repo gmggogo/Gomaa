@@ -632,6 +632,277 @@ async function attachTrips(ctx,req){
   ctx.assignments.forEach(a=>{ a.__trip=map.get(String(a.tripId)); });
 }
 
+
+/* =========================
+   AUTO ASSIGN ONE NEW TRIP
+   Internal server trigger
+   Tenant-aware
+========================= */
+
+async function autoAssignTripById(
+  tripIdValue,
+  assignedBy = "SYSTEM",
+  tenantIdValue = null
+){
+  try{
+
+    const Trip = TripModel();
+    const validTripId = id(tripIdValue);
+
+    if(!validTripId){
+      return {
+        success:false,
+        assigned:false,
+        reason:"Invalid trip id"
+      };
+    }
+
+    /*
+      First load only the trip id + tenant.
+      The trip itself is the source of truth for tenant isolation.
+    */
+    const baseTrip =
+      await Trip.findOne({
+        _id:validTripId,
+        disabled:false
+      }).lean();
+
+    if(!baseTrip){
+      return {
+        success:true,
+        assigned:false,
+        reason:"Trip not found"
+      };
+    }
+
+    const tenantId =
+      clean(
+        tenantIdValue ||
+        baseTrip.tenantId ||
+        ""
+      );
+
+    if(!tenantId){
+      return {
+        success:true,
+        assigned:false,
+        reason:"Trip tenant is missing"
+      };
+    }
+
+    /*
+      A caller may pass tenantId, but it must match the trip tenant.
+      This prevents cross-company assignment.
+    */
+    if(
+      tenantIdValue &&
+      String(baseTrip.tenantId || "") !== String(tenantIdValue)
+    ){
+      return {
+        success:false,
+        assigned:false,
+        reason:"Tenant mismatch"
+      };
+    }
+
+    const internalReq = {
+      authUser:{
+        id:null,
+        role:"SYSTEM",
+        tenantId
+      },
+      user:null,
+      query:{},
+      body:{}
+    };
+
+    const settings =
+      await SmartDispatchEngine
+        .findOne({tenantId})
+        .lean();
+
+    if(settings?.enabled === false){
+      return {
+        success:true,
+        assigned:false,
+        reason:"Smart Dispatch is disabled"
+      };
+    }
+
+    const trip =
+      await Trip.findOne({
+        _id:validTripId,
+        tenantId,
+        dispatchSelected:true,
+        disabled:false
+      }).lean();
+
+    if(!trip){
+      return {
+        success:true,
+        assigned:false,
+        reason:"Trip is not available in Dispatch"
+      };
+    }
+
+    await migrateLegacyAssignmentTenant(
+      trip,
+      tenantId
+    );
+
+    const existing =
+      await DispatchAssignment.findOne({
+        tripId:trip._id,
+        tenantId,
+        driverId:{$ne:null}
+      }).lean();
+
+    if(existing){
+      return {
+        success:true,
+        assigned:false,
+        skipped:true,
+        reason:"Already assigned",
+        tripId:String(trip._id),
+        driverId:String(existing.driverId),
+        driverName:existing.driverName || ""
+      };
+    }
+
+    /*
+      Keep the same Smart Dispatch ranking used by the normal
+      Auto Assign button: service, schedule, conflicts, load,
+      distance and selected strategy.
+    */
+    const ctx =
+      await buildContext(internalReq);
+
+    await attachTrips(
+      ctx,
+      internalReq
+    );
+
+    /*
+      Prepare coordinates when the global helper exists.
+      A coordinate preparation failure does not crash Dispatch;
+      it simply lets the normal ranking rules decide.
+    */
+    try{
+      if(
+        typeof global.ensureTripCoords ===
+        "function"
+      ){
+        await global.ensureTripCoords(trip);
+      }
+    }catch(coordErr){
+      console.log(
+        "AUTO ASSIGN ONE TRIP COORD WARNING:",
+        coordErr?.message || coordErr
+      );
+    }
+
+    const best =
+      rankDrivers(trip,ctx)[0];
+
+    if(!best){
+      return {
+        success:true,
+        assigned:false,
+        tripId:String(trip._id),
+        service:tripService(trip),
+        reason:"No eligible driver"
+      };
+    }
+
+    const assignment =
+      await DispatchAssignment.findOneAndUpdate(
+        {
+          tripId:trip._id,
+          tenantId
+        },
+        {
+          $set:{
+            tenantId,
+            tripId:trip._id,
+
+            driverId:best.driver._id,
+            driverName:
+              best.driver.name ||
+              best.driver.fullName ||
+              "",
+
+            driverPhone:
+              best.row.phone ||
+              best.driver.phone ||
+              "",
+
+            vehicleNumber:
+              best.row.vehicleNumber ||
+              "",
+
+            driverAddress:
+              best.row.address ||
+              "",
+
+            services:
+              driverServices(best.row),
+
+            dispatchStatus:"ASSIGNED",
+
+            assignedBy:
+              clean(assignedBy) ||
+              "SYSTEM",
+
+            assignmentType:"AUTO",
+
+            smartScore:
+              best.score,
+
+            smartReason:
+              best.reason,
+
+            smartDistance:
+              best.distance,
+
+            assignedAt:
+              new Date()
+          }
+        },
+        {
+          upsert:true,
+          new:true
+        }
+      );
+
+    return {
+      success:true,
+      assigned:true,
+      tripId:String(trip._id),
+      service:tripService(trip),
+      driverId:best.driverId,
+      driverName:assignment.driverName,
+      serviceMatch:best.serviceMatch,
+      score:best.score,
+      reason:best.reason
+    };
+
+  }catch(err){
+
+    console.error(
+      "AUTO ASSIGN TRIP BY ID:",
+      err
+    );
+
+    return {
+      success:false,
+      assigned:false,
+      reason:
+        err?.message ||
+        "Auto assignment failed"
+    };
+  }
+}
+
 router.get("/",requireTenantApi,async(req,res)=>{
   try{
     const Trip = TripModel();
@@ -1002,10 +1273,24 @@ router.patch("/:tripId/selection",requireTenantApi,async(req,res)=>{
       );
     }
 
+    let autoAssignment = null;
+
+    if(dispatchSelected){
+      autoAssignment =
+        await autoAssignTripById(
+          trip._id,
+          req.authUser?.id
+            ? String(req.authUser.id)
+            : "SYSTEM_SELECTION",
+          requestTenantId(req,trip)
+        );
+    }
+
     res.json({
       success:true,
       tripId:String(trip._id),
-      dispatchSelected:trip.dispatchSelected === true
+      dispatchSelected:trip.dispatchSelected === true,
+      autoAssignment
     });
 
   }catch(err){
@@ -1157,5 +1442,8 @@ router.patch("/:tripId/note",requireTenantApi,async(req,res)=>{
     res.status(500).json({success:false,message:"Note save failed"});
   }
 });
+
+router.autoAssignTripById =
+  autoAssignTripById;
 
 module.exports=router;
