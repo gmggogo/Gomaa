@@ -2788,6 +2788,65 @@ async function ensureDriverScheduleCoords(
 global.ensureDriverScheduleCoords =
   ensureDriverScheduleCoords;
 
+
+const dispatchAddressPointCache =
+  global.__dispatchAddressPointCache ||
+  new Map();
+
+global.__dispatchAddressPointCache =
+  dispatchAddressPointCache;
+
+async function resolveDispatchAddressPoint(address){
+
+  const cleanAddress =
+    normalizeText(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  const key =
+    cleanAddress
+      .toLowerCase()
+      .replace(/[.,#]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(dispatchAddressPointCache.has(key)){
+    return dispatchAddressPointCache.get(key);
+  }
+
+  const geo =
+    await geocodeAddress(cleanAddress);
+
+  const lat =
+    normalizeNumber(geo?.lat);
+
+  const lng =
+    normalizeNumber(geo?.lng);
+
+  if(
+    lat === null ||
+    lng === null ||
+    (lat === 0 && lng === 0)
+  ){
+    return null;
+  }
+
+  const p = {
+    lat:Number(lat),
+    lng:Number(lng)
+  };
+
+  dispatchAddressPointCache.set(key,p);
+
+  return p;
+}
+
+global.resolveDispatchAddressPoint =
+  resolveDispatchAddressPoint;
+
+
 /* =========================
    COMPANY TRIP NUMBER
 ========================= */
@@ -6893,6 +6952,73 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
     }
 
     /* =========================
+       ADDRESS CHANGE DETECTION
+
+       Trip Hub / Trips may edit address text without sending new lat/lng.
+       Old googleRoute used to overwrite the new text again below.
+       Detect address changes first and invalidate only stale route data.
+    ========================= */
+
+    function editAddressKey(value){
+      return normalizeText(value)
+        .toLowerCase()
+        .replace(/\s+/g," ")
+        .trim();
+    }
+
+    const incomingPickup =
+      req.body.pickup !== undefined
+        ? normalizeText(req.body.pickup)
+        : normalizeText(existing.pickup);
+
+    const incomingDropoff =
+      req.body.dropoff !== undefined
+        ? normalizeText(req.body.dropoff)
+        : normalizeText(existing.dropoff);
+
+    const incomingStops =
+      Array.isArray(req.body.stops)
+        ? parseStops(req.body.stops)
+        : (
+            Array.isArray(existing.stops)
+              ? existing.stops
+              : []
+          );
+
+    const pickupChanged =
+      req.body.pickup !== undefined &&
+      editAddressKey(incomingPickup) !==
+      editAddressKey(existing.pickup);
+
+    const dropoffChanged =
+      req.body.dropoff !== undefined &&
+      editAddressKey(incomingDropoff) !==
+      editAddressKey(existing.dropoff);
+
+    const oldStopsKey =
+      JSON.stringify(
+        (Array.isArray(existing.stops) ? existing.stops : [])
+          .map(editAddressKey)
+          .filter(Boolean)
+      );
+
+    const newStopsKey =
+      JSON.stringify(
+        incomingStops
+          .map(editAddressKey)
+          .filter(Boolean)
+      );
+
+    const stopsChanged =
+      Array.isArray(req.body.stops) &&
+      oldStopsKey !== newStopsKey;
+
+    const routeAddressChanged =
+      pickupChanged ||
+      dropoffChanged ||
+      stopsChanged;
+
+    /* =========================
        UPDATE DATA
     ========================= */
     const updateData = {
@@ -6917,32 +7043,63 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
         req.body.serviceCode ?? existing.serviceCode,
 
       // LOCATIONS
-      pickup: req.body.pickup ?? existing.pickup,
-      dropoff: req.body.dropoff ?? existing.dropoff,
+      pickup:
+        incomingPickup,
 
-      stops: Array.isArray(req.body.stops)
-        ? parseStops(req.body.stops)
-        : existing.stops,
+      dropoff:
+        incomingDropoff,
 
-      pickupLat: req.body.pickupLat !== undefined
-        ? normalizeNumber(req.body.pickupLat)
-        : existing.pickupLat,
+      stops:
+        incomingStops,
 
-      pickupLng: req.body.pickupLng !== undefined
-        ? normalizeNumber(req.body.pickupLng)
-        : existing.pickupLng,
+      /*
+        If address text changed and frontend did not send fresh coords,
+        NEVER keep coordinates that belonged to the old address.
+      */
+      pickupLat:
+        req.body.pickupLat !== undefined
+          ? normalizeNumber(req.body.pickupLat)
+          : (
+              pickupChanged
+                ? null
+                : existing.pickupLat
+            ),
 
-      dropoffLat: req.body.dropoffLat !== undefined
-        ? normalizeNumber(req.body.dropoffLat)
-        : existing.dropoffLat,
+      pickupLng:
+        req.body.pickupLng !== undefined
+          ? normalizeNumber(req.body.pickupLng)
+          : (
+              pickupChanged
+                ? null
+                : existing.pickupLng
+            ),
 
-      dropoffLng: req.body.dropoffLng !== undefined
-        ? normalizeNumber(req.body.dropoffLng)
-        : existing.dropoffLng,
+      dropoffLat:
+        req.body.dropoffLat !== undefined
+          ? normalizeNumber(req.body.dropoffLat)
+          : (
+              dropoffChanged
+                ? null
+                : existing.dropoffLat
+            ),
 
-      stopCoords: Array.isArray(req.body.stopCoords)
-        ? parseStopCoords(req.body.stopCoords)
-        : existing.stopCoords,
+      dropoffLng:
+        req.body.dropoffLng !== undefined
+          ? normalizeNumber(req.body.dropoffLng)
+          : (
+              dropoffChanged
+                ? null
+                : existing.dropoffLng
+            ),
+
+      stopCoords:
+        Array.isArray(req.body.stopCoords)
+          ? parseStopCoords(req.body.stopCoords)
+          : (
+              stopsChanged
+                ? []
+                : existing.stopCoords
+            ),
 
      // PRICE
 priceAmount:
@@ -6961,25 +7118,65 @@ pricePerPassenger:
     : Number(existing.pricePerPassenger || 0),
 
       // ROUTE
-      miles: req.body.miles ?? existing.miles,
-      distanceMeters: req.body.distanceMeters ?? existing.distanceMeters,
-      durationSeconds: req.body.durationSeconds ?? existing.durationSeconds,
-      estimatedMinutes: req.body.estimatedMinutes ?? existing.estimatedMinutes,
+      miles:
+        routeAddressChanged
+          ? (
+              req.body.miles !== undefined
+                ? req.body.miles
+                : 0
+            )
+          : (req.body.miles ?? existing.miles),
+      distanceMeters:
+        routeAddressChanged
+          ? (
+              req.body.distanceMeters !== undefined
+                ? req.body.distanceMeters
+                : 0
+            )
+          : (req.body.distanceMeters ?? existing.distanceMeters),
+      durationSeconds:
+        routeAddressChanged
+          ? (
+              req.body.durationSeconds !== undefined
+                ? req.body.durationSeconds
+                : 0
+            )
+          : (req.body.durationSeconds ?? existing.durationSeconds),
+      estimatedMinutes:
+        routeAddressChanged
+          ? (
+              req.body.estimatedMinutes !== undefined
+                ? req.body.estimatedMinutes
+                : 0
+            )
+          : (req.body.estimatedMinutes ?? existing.estimatedMinutes),
 
       googleRoute:
   req.body.googleRoute !== undefined
     ? req.body.googleRoute
-    : existing.googleRoute,
+    : (
+        routeAddressChanged
+          ? {}
+          : existing.googleRoute
+      ),
 
 routePoints:
   req.body.routePoints !== undefined
     ? req.body.routePoints
-    : existing.routePoints,
+    : (
+        routeAddressChanged
+          ? []
+          : existing.routePoints
+      ),
 
 optimizedRoute:
   req.body.optimizedRoute !== undefined
     ? req.body.optimizedRoute
-    : existing.optimizedRoute,
+    : (
+        routeAddressChanged
+          ? {}
+          : existing.optimizedRoute
+      ),
 
 routePath:
   Array.isArray(req.body.routePath)
@@ -6987,32 +7184,56 @@ routePath:
         lat:normalizeNumber(p?.lat),
         lng:normalizeNumber(p?.lng)
       })).filter(p=>p.lat !== null && p.lng !== null)
-    : existing.routePath,
+    : (
+        routeAddressChanged
+          ? []
+          : existing.routePath
+      ),
 
 overviewPolyline:
   req.body.overviewPolyline !== undefined
     ? normalizeText(req.body.overviewPolyline)
-    : existing.overviewPolyline,
+    : (
+        routeAddressChanged
+          ? ""
+          : existing.overviewPolyline
+      ),
 
 routeLocked:
   req.body.routeLocked !== undefined
     ? req.body.routeLocked === true
-    : existing.routeLocked,
+    : (
+        routeAddressChanged
+          ? false
+          : existing.routeLocked
+      ),
 
 routeFinalized:
   req.body.routeFinalized !== undefined
     ? req.body.routeFinalized === true
-    : existing.routeFinalized,
+    : (
+        routeAddressChanged
+          ? false
+          : existing.routeFinalized
+      ),
 
 routeSource:
   req.body.routeSource !== undefined
     ? normalizeText(req.body.routeSource)
-    : existing.routeSource,
+    : (
+        routeAddressChanged
+          ? ""
+          : existing.routeSource
+      ),
 
 routeUpdatedAt:
   req.body.routeUpdatedAt !== undefined
     ? req.body.routeUpdatedAt
-    : existing.routeUpdatedAt,
+    : (
+        routeAddressChanged
+          ? null
+          : existing.routeUpdatedAt
+      ),
 
       // SHARED
       passengers: Array.isArray(req.body.passengers)
@@ -7150,11 +7371,29 @@ if(updateData.status === "Confirmed"){
     /* =========================
        ROUTE FIX
     ========================= */
-    if (updateData.googleRoute && Array.isArray(updateData.googleRoute.legs)) {
+
+    /*
+      Never let an OLD googleRoute overwrite a pickup/dropoff that the
+      admin just edited in Trips Hub or Trips.
+
+      Only copy route addresses when the route itself is still valid and
+      no address/stops were edited in this request.
+    */
+    if (
+      !routeAddressChanged &&
+      updateData.googleRoute &&
+      Array.isArray(updateData.googleRoute.legs)
+    ) {
       const legs = updateData.googleRoute.legs;
+
       if (legs.length > 0) {
-        updateData.pickup = legs[0].startAddress || updateData.pickup;
-        updateData.dropoff = legs[legs.length - 1].endAddress || updateData.dropoff;
+        updateData.pickup =
+          legs[0].startAddress ||
+          updateData.pickup;
+
+        updateData.dropoff =
+          legs[legs.length - 1].endAddress ||
+          updateData.dropoff;
       }
     }
 
