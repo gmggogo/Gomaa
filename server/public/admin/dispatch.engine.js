@@ -1305,7 +1305,7 @@ function renderStats(){
     const allSelected =
       selectable.length &&
       selectable.every(t=>selectedIds.has(String(t._id)));
-    btn.textContent = allSelected ? "Remove All" : "Select All";
+    btn.textContent = allSelected ? "Deselect All" : "Select All";
   }
 
   const editBtn = document.getElementById("editBtn");
