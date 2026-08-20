@@ -1,16 +1,18 @@
 /* =====================================================
-   DISPATCH ENGINE V4 - SMART CLEAN BUILD
+   DISPATCH ENGINE V5 - LIVE SCHEDULE RECALCULATION BUILD 4
    Dispatch = تشغيل الانجن + إرسال الرحلات
    Smart Dispatch Page = إعدادات فقط
 ===================================================== */
+
+const DISPATCH_BUILD_ID = "20260801-live-schedule-reassign-4";
 
 /* ================= SECURITY ================= */
 
 const token = localStorage.getItem("token") || "";
 const role  = localStorage.getItem("role") || "";
 
-if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
-  window.location.href = "/login.html";
+if(!token || !["superadmin","admin","dispatcher"].includes(role)){
+  window.location.href = "/admin/login.html";
 }
 
 /* ================= STATE ================= */
@@ -37,8 +39,8 @@ const SMART_DEFAULTS = {
   strategy:"SMART",
 
   requireActiveDriver:true,
-  requireScheduleMatch:true,
-  requireServiceMatch:true,
+  requireScheduleMatch:false,
+requireServiceMatch:false,
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
@@ -81,7 +83,9 @@ const ACTIVE_STATUSES = [
   "dispatched",
   "sent",
   "accepted",
-  "on trip"
+  "on trip",
+  "in progress",
+  "started"
 ];
 /* ================= BASIC HELPERS ================= */
 
@@ -115,7 +119,12 @@ function statusKey(v){
 }
 
 function isClosedTrip(t){
-  return CLOSED_STATUSES.includes(statusKey(t.status));
+  return [
+    t.status,
+    t.dispatchStatus,
+    t.tripStatus,
+    t.driverStatus
+  ].some(value=>CLOSED_STATUSES.includes(statusKey(value)));
 }
 
 function isActiveTrip(t){
@@ -284,23 +293,11 @@ function getTripKind(t){
 }
 
 function rowClass(t){
+  if(isSharedTrip(t)) return "row-shared";
   const k = getTripKind(t);
-
-  let cls = "";
-
-  if(k === "FA"){
-    cls = "row-facility";
-  }else if(k === "RV"){
-    cls = "row-rv";
-  }else{
-    cls = "row-gq";
-  }
-
-  if(isSharedTrip(t)){
-    cls += " row-shared";
-  }
-
-  return cls;
+  if(k === "FA") return "row-facility";
+  if(k === "RV") return "row-rv";
+  return "row-gq";
 }
 
 function getTripNumber(t){
@@ -523,7 +520,10 @@ function normalizeScheduleRow(row){
     lat:row.lat ?? null,
     lng:row.lng ?? null,
     vehicleNumber:row.vehicleNumber || row.vehicle || row.carNumber || "",
-    enabled:row.enabled !== false,
+    enabled:
+      row.enabled !== false &&
+      row.active !== false &&
+      !["INACTIVE","DISABLED"].includes(clean(row.status).toUpperCase()),
     days:{
       sun:false,
       mon:false,
@@ -571,51 +571,18 @@ function getDriverServices(id){
 function isDriverActiveForDate(driverId,dateStr){
   const s = normalizeScheduleRow(getSchedule(driverId));
 
-  if(SMART.requireActiveDriver !== false){
-    if(s.enabled !== true) return false;
-  }
-
-  if(SMART.requireScheduleMatch === false){
-    return true;
-  }
+  // Manual lists and Auto Assign must always use the latest driver schedule.
+  if(s.enabled !== true) return false;
 
   const day = getSystemDayKeyByDate(dateStr);
-  return s.days?.[day] === true;
-}
+  const dayValue = s.days?.[day];
 
-
-function isManualDriverActiveForDate(driverId,dateStr){
-  const driver = allDrivers.find(d=>String(d._id) === String(driverId));
-  if(!driver || driver.enabled === false || driver.disabled === true){
-    return false;
+  if(dayValue === true) return true;
+  if(dayValue && typeof dayValue === "object"){
+    return dayValue.enabled === true || dayValue.active === true;
   }
 
-  const raw = getSchedule(driverId) || {};
-  const status = clean(raw.status).toUpperCase();
-
-  if(
-    raw.enabled === false ||
-    raw.active === false ||
-    status === "INACTIVE" ||
-    status === "DISABLED"
-  ){
-    return false;
-  }
-
-  /*
-    Manual Assign shows every active driver for the trip day.
-    Service ownership, smart score, distance and time conflict are not
-    restrictions for an administrator's manual override.
-  */
-  const day = getSystemDayKeyByDate(dateStr);
-  const days = raw.days || raw.weekly;
-
-  if(days && Object.prototype.hasOwnProperty.call(days,day)){
-    const value = days[day];
-    if(value === false || value?.enabled === false) return false;
-  }
-
-  return true;
+  return false;
 }
 
 function serviceMatchesDriver(driverId,trip){
@@ -641,7 +608,7 @@ function driverTripCount(driverId){
 function getTodayActiveDrivers(){
   return allDrivers.filter(d=>{
     const id = String(d._id || "");
-    return id && isManualDriverActiveForDate(id,todayKey());
+    return id && isDriverActiveForDate(id,todayKey());
   });
 }
 
@@ -877,7 +844,6 @@ async function loadAll(){
 
 async function autoAssign(options={}){
   const silent = options.silent === true;
-  const onlyUnassigned = options.onlyUnassigned === true;
 
   if(autoAssignRunning) return;
 
@@ -886,53 +852,41 @@ async function autoAssign(options={}){
     return;
   }
 
+  const selectedTrips = trips.filter(t=>
+    selectedIds.has(String(t._id)) &&
+    !isSentTrip(t) &&
+    !isTripInProgress(t)
+  );
+
+  const reassignSelected = !silent && selectedTrips.length > 0;
+
+  const sortedTrips = (reassignSelected
+    ? selectedTrips
+    : trips.filter(t=>!clean(t.driverId))
+  )
+    .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
+
+  if(!sortedTrips.length){
+    if(!silent){
+      toast(
+        selectedIds.size
+          ? "Selected trips cannot be reassigned"
+          : "No unassigned trips"
+      );
+    }
+    return;
+  }
+
   autoAssignRunning = true;
 
   try{
     /*
-      Every Auto Assign click reloads the current drivers, schedules,
-      services and assignments before asking the server to calculate again.
+      The page never chooses the driver.
+      Smart Dispatch runs on the server and saves the full result atomically.
     */
-    const keepSelected = new Set(selectedIds);
-    await loadAll();
-    selectedIds = new Set(
-      [...keepSelected].filter(id=>trips.some(t=>t._id === id))
-    );
-
-    let targetTrips;
-
-    if(onlyUnassigned){
-      targetTrips = trips.filter(t=>!clean(t.driverId));
-    }else if(selectedIds.size){
-      targetTrips = trips.filter(t=>
-        selectedIds.has(t._id) &&
-        !isTripInProgress(t) &&
-        !isSentTrip(t)
-      );
-    }else{
-      targetTrips = trips.filter(t=>
-        !clean(t.driverId) &&
-        !isTripInProgress(t) &&
-        !isSentTrip(t)
-      );
-    }
-
-    targetTrips.sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
-
-    if(!targetTrips.length){
-      renderAll();
-      if(!silent){
-        toast(
-          selectedIds.size
-            ? "No selected trips available for Auto Assign"
-            : "No unassigned trips"
-        );
-      }
-      return;
-    }
-
     const result = await Store.autoAssign(
-      targetTrips.map(trip=>trip._id)
+      sortedTrips.map(trip=>trip._id),
+      reassignSelected
     );
 
     if(!result || result.success === false){
@@ -941,16 +895,13 @@ async function autoAssign(options={}){
     }
 
     await loadAll();
-
-    selectedIds = new Set(
-      [...keepSelected].filter(id=>trips.some(t=>t._id === id))
-    );
-
     renderAll();
 
     if(!silent || Number(result.assignedCount || 0) > 0){
       toast(
-        `${Number(result.assignedCount || 0)} trip(s) smart assigned`
+        reassignSelected
+          ? `${Number(result.assignedCount || 0)} selected trip(s) reassigned`
+          : `${Number(result.assignedCount || 0)} trip(s) smart assigned`
       );
     }
 
@@ -972,7 +923,7 @@ async function autoAssignNewTrips(){
     return;
   }
 
-  await autoAssign({silent:true,onlyUnassigned:true});
+  await autoAssign({silent:true});
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -984,10 +935,18 @@ async function saveAssignment(trip,driverId,manual=true){
     return;
   }
 
-  if(driverId && !isManualDriverActiveForDate(driverId,trip.tripDate)){
-    toast("Driver is not active for this trip date");
-    renderAll();
-    return;
+  if(driverId){
+    if(!isDriverActiveForDate(driverId,trip.tripDate)){
+      toast("Driver is not active for this trip date");
+      renderAll();
+      return;
+    }
+
+    if(hasTimeConflict(driverId,trip)){
+      toast("Driver has time conflict");
+      renderAll();
+      return;
+    }
   }
 
   const oldDriver = trip.driverId;
@@ -1027,25 +986,14 @@ async function saveAssignment(trip,driverId,manual=true){
 /* ================= SEND ================= */
 
 async function sendTrips(ids){
-  ids = [...new Set(ids.map(String).filter(Boolean))];
+  ids = ids.filter(Boolean);
 
   if(!ids.length){
-    toast("Select at least one trip before sending");
+    toast("No trips to send");
     return;
   }
 
-  const notSelected = ids.filter(id=>!selectedIds.has(id));
-  if(notSelected.length){
-    toast("Select the trip before sending");
-    return;
-  }
-
-  const selectedTrips = trips.filter(t=>ids.includes(String(t._id)));
-
-  if(selectedTrips.some(isSentTrip)){
-    toast("A sent trip cannot be sent again");
-    return;
-  }
+  const selectedTrips = trips.filter(t=>ids.includes(t._id));
 
   for(const t of selectedTrips){
     if(!clean(t.driverId)){
@@ -1065,6 +1013,7 @@ async function sendTrips(ids){
     selectedTrips.forEach(t=>{
       t.status = "SENT";
       t.dispatchStatus = "SENT";
+      t.dispatchSelected = false;
       t.selected = false;
       selectedIds.delete(t._id);
     });
@@ -1080,224 +1029,257 @@ async function sendTrips(ids){
 
 function sendSelected(){
   const ids = trips
-    .filter(t=>selectedIds.has(t._id) && !isSentTrip(t))
+    .filter(t=>selectedIds.has(String(t._id)) && !isSentTrip(t))
     .map(t=>t._id);
-
   sendTrips(ids);
 }
 
 function sendAll(){
-  /*
-    Safety rule: even this button sends only rows explicitly selected
-    by the administrator. An unselected trip is never sent.
-  */
   const ids = trips
-    .filter(t=>
-      selectedIds.has(t._id) &&
-      clean(t.driverId) &&
-      !isSentTrip(t)
-    )
+    .filter(t=>clean(t.driverId) && !isSentTrip(t))
     .map(t=>t._id);
-
   sendTrips(ids);
 }
 
 function sendOne(id){
-  id = String(id);
-
-  if(!selectedIds.has(id)){
-    toast("Select this trip before sending");
-    return;
-  }
-
-  sendTrips([id]);
-}
-
-
-/* ================= REMOVE DRIVER ================= */
-
-async function removeDriverSelected(){
-
-  const selectedTrips =
-    trips.filter(t=>
-      selectedIds.has(String(t._id)) &&
-      clean(t.driverId)
-    );
-
-  if(!selectedTrips.length){
-    toast("Select assigned trip(s) first");
-    return;
-  }
-
-  const blocked =
-    selectedTrips.filter(isTripInProgress);
-
-  if(blocked.length){
-    toast("Trip in progress cannot remove driver");
-    return;
-  }
-
-  try{
-
-    let removed = 0;
-
-    for(const trip of selectedTrips){
-
-      const res =
-        await Store.saveDriver(
-          trip._id,
-          ""
-        );
-
-      if(!res || res.success === false){
-        throw new Error(
-          res?.message ||
-          `Remove driver failed for ${getTripNumber(trip)}`
-        );
-      }
-
-      trip.driverId = "";
-      trip.driverName = "";
-      trip.vehicle = "";
-      trip.manual = true;
-      trip.manualAssigned = true;
-
-      removed++;
-    }
-
-    await loadAll();
-
-    /*
-      Keep the rows selected after removing the driver.
-      Admin may immediately Auto Assign again or choose a driver manually.
-    */
-    selectedIds = new Set(
-      [...selectedIds].filter(id=>
-        trips.some(t=>String(t._id) === String(id))
-      )
-    );
-
-    renderAll();
-
-    toast(
-      `${removed} driver assignment(s) removed`
-    );
-
-  }catch(err){
-
-    console.log(
-      "REMOVE DRIVER ERROR:",
-      err
-    );
-
-    await loadAll();
-    renderAll();
-
-    toast(
-      err?.message ||
-      "Remove driver failed"
-    );
-  }
+  sendTrips([String(id)]);
 }
 
 /* ================= SELECTION ================= */
 
-async function persistSelection(trip,selected){
-  const result = await Store.saveSelection(trip._id,selected);
-
-  if(!result || result.success === false){
-    throw new Error(result?.message || "Selection save failed");
-  }
-
-  trip.dispatchSelected = selected;
-  trip.selected = selected;
+/*
+  These checkboxes select rows for Dispatch page actions only.
+  They must never update Trip.dispatchSelected: that database field controls
+  whether the trip belongs on this page and is managed from Trip Hub.
+*/
+function getVisibleActionTrips(){
+  return trips.filter(t=>isToday(t) || isTomorrow(t));
 }
 
-async function toggleSelectAll(){
-  if(selectionSaving) return;
+function toggleSelectAll(){
+  const selectable = getVisibleActionTrips();
 
-  /*
-    SENT only blocks a second send. It must stay selectable so dispatch can
-    replace the driver until the trip actually starts.
-  */
-  const selectable = trips.filter(t=>!isTripInProgress(t));
-  const allAreSelected =
-    selectable.length &&
-    selectable.every(t=>selectedIds.has(t._id));
-  const nextSelected = !allAreSelected;
-  const previous = new Set(selectedIds);
-
-  selectionSaving = true;
-
-  if(nextSelected){
-    selectable.forEach(t=>selectedIds.add(t._id));
-  }else{
-    selectable.forEach(t=>selectedIds.delete(t._id));
-  }
-
-  renderAll();
-
-  try{
-    const results = await Promise.all(
-      selectable.map(trip=>persistSelection(trip,nextSelected))
-    );
-
-    if(results.some(result=>result?.success === false)){
-      throw new Error("One or more selections were not saved");
-    }
-
-    toast(nextSelected ? "All trips selected" : "All trips removed");
-  }catch(err){
-    selectedIds = previous;
-    renderAll();
-    toast(err.message || "Selection save failed");
-  }finally{
-    selectionSaving = false;
-  }
-}
-
-async function toggleTrip(id){
-  if(selectionSaving) return;
-
-  id = String(id);
-  const trip = trips.find(t=>String(t._id) === id);
-  if(!trip) return;
-  if(isTripInProgress(trip)){
-    toast("Trip in progress cannot be edited");
+  if(!selectable.length){
+    toast("No visible trips to select");
     return;
   }
 
-  const wasSelected = selectedIds.has(id);
-  const nextSelected = !wasSelected;
+  const allAreSelected =
+    selectable.every(t=>selectedIds.has(String(t._id)));
+  const nextSelected = !allAreSelected;
+
+  selectable.forEach(t=>{
+    const id = String(t._id);
+    if(nextSelected) selectedIds.add(id);
+    else selectedIds.delete(id);
+  });
+
+  syncSelectionControls();
+  toast(nextSelected ? "All trips selected" : "All trips removed");
+}
+
+function toggleTrip(id,checked){
+  id = String(id);
+
+  if(!trips.some(t=>String(t._id) === id)) return;
+
+  const nextSelected =
+    typeof checked === "boolean"
+      ? checked
+      : !selectedIds.has(id);
 
   if(nextSelected) selectedIds.add(id);
   else selectedIds.delete(id);
-  renderAll();
 
-  selectionSaving = true;
+  syncSelectionControls();
+  toast(nextSelected ? "Trip selected" : "Trip removed");
+}
+
+function handleTripSelect(input){
+  if(!input) return;
+
+  const id = String(input.dataset.tripId || "");
+  toggleTrip(id,input.checked === true);
+}
+
+function syncSelectionControls(){
+  document.querySelectorAll(".dispatch-row-select[data-trip-id]").forEach(input=>{
+    const id = String(input.dataset.tripId || "");
+    input.checked = selectedIds.has(id);
+  });
+
+  /*
+    Selection is a local Dispatch-page action. Updating the controls directly
+    prevents a full table redraw from cancelling the user's click.
+  */
+  document.querySelectorAll(".driver-select[data-trip-id]").forEach(select=>{
+    const id = String(select.dataset.tripId || "");
+    const trip = trips.find(item=>String(item._id) === id);
+    select.disabled = !(
+      trip &&
+      editMode &&
+      selectedIds.has(id) &&
+      !isTripInProgress(trip)
+    );
+  });
+
+  renderStats();
+}
+
+function askYesNo(title,message){
+  return new Promise(resolve=>{
+    const overlay = document.getElementById("confirmOverlay");
+    const titleEl = document.getElementById("confirmTitle");
+    const messageEl = document.getElementById("confirmMessage");
+    const yesBtn = document.getElementById("confirmYesBtn");
+    const noBtn = document.getElementById("confirmNoBtn");
+
+    if(!overlay || !yesBtn || !noBtn){
+      resolve(window.confirm(message));
+      return;
+    }
+
+    titleEl.textContent = title || "Confirm";
+    messageEl.textContent = message || "Are you sure?";
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden","false");
+
+    let finished = false;
+
+    const close = answer=>{
+      if(finished) return;
+      finished = true;
+      overlay.classList.remove("show");
+      overlay.setAttribute("aria-hidden","true");
+      yesBtn.onclick = null;
+      noBtn.onclick = null;
+      overlay.onclick = null;
+      document.removeEventListener("keydown",onKey);
+      resolve(answer);
+    };
+
+    const onKey = e=>{
+      if(e.key === "Escape") close(false);
+    };
+
+    yesBtn.onclick = ()=>close(true);
+    noBtn.onclick = ()=>close(false);
+    overlay.onclick = e=>{
+      if(e.target === overlay) close(false);
+    };
+    document.addEventListener("keydown",onKey);
+    yesBtn.focus();
+  });
+}
+
+async function removeSelectedDrivers(){
+  const selectedTrips = trips.filter(t=>
+    selectedIds.has(String(t._id)) &&
+    clean(t.driverId) &&
+    !isTripInProgress(t)
+  );
+
+  if(!selectedIds.size){
+    toast("Select at least one trip");
+    return;
+  }
+
+  if(!selectedTrips.length){
+    toast("Selected trip(s) have no removable driver");
+    return;
+  }
+
+  const blockedCount = trips.filter(t=>
+    selectedIds.has(String(t._id)) &&
+    clean(t.driverId) &&
+    isTripInProgress(t)
+  ).length;
+
+  const confirmed = await askYesNo(
+    "Remove Driver",
+    `Remove the assigned driver from ${selectedTrips.length} selected trip(s)? The trip itself will NOT be deleted.${blockedCount ? ` ${blockedCount} in-progress trip(s) will be skipped.` : ""}`
+  );
+
+  if(!confirmed) return;
+
+  const btn = document.getElementById("removeDriverBtn");
+  if(btn) btn.disabled = true;
+
+  let removed = 0;
+  let failed = 0;
 
   try{
-    await persistSelection(trip,nextSelected);
-    toast(nextSelected ? "Trip selected" : "Trip removed");
-  }catch(err){
-    if(wasSelected) selectedIds.add(id);
-    else selectedIds.delete(id);
+    for(const trip of selectedTrips){
+      const result = await Store.saveDriver(trip._id,"");
+
+      if(!result || result.success === false){
+        failed += 1;
+        continue;
+      }
+
+      trip.driverId = "";
+      trip.driverName = "";
+      trip.driverPhone = "";
+      trip.vehicle = "";
+      trip.vehicleNumber = "";
+      trip.score = null;
+      trip.smartScore = null;
+      trip.smartReason = "";
+      trip.smartDistance = null;
+
+      if(result.assignment?.dispatchStatus){
+        trip.dispatchStatus = result.assignment.dispatchStatus;
+      }else if(!isSentTrip(trip)){
+        trip.dispatchStatus = "UNASSIGNED";
+      }
+
+      removed += 1;
+    }
+
     renderAll();
-    toast(err.message || "Selection save failed");
+
+    if(failed){
+      toast(`${removed} driver(s) removed, ${failed} failed`);
+    }else{
+      toast(`${removed} driver(s) removed`);
+    }
   }finally{
-    selectionSaving = false;
+    if(btn) btn.disabled = false;
   }
 }
 
-function toggleEdit(){
+async function toggleEdit(){
   if(!editMode && !selectedIds.size){
     toast("Select a trip to edit");
     return;
   }
 
+  if(!editMode){
+    const confirmed = await askYesNo(
+      "Edit Selected",
+      `Edit ${selectedIds.size} selected trip(s)?`
+    );
+
+    if(!confirmed) return;
+
+    const keepSelected = new Set(selectedIds);
+    await loadAll();
+    selectedIds = new Set(
+      [...keepSelected].filter(id=>
+        trips.some(t=>String(t._id) === String(id))
+      )
+    );
+
+    if(!selectedIds.size){
+      toast("Selected trips are no longer available");
+      renderAll();
+      return;
+    }
+  }
+
   editMode = !editMode;
   renderAll();
-  toast(editMode ? "Edit mode enabled" : "Edit mode disabled");
+  toast(editMode ? "Latest driver schedule loaded" : "Edit mode disabled");
 }
 
 /* ================= RENDER ================= */
@@ -1327,11 +1309,11 @@ function renderStats(){
 
   const btn = document.getElementById("selectBtn");
   if(btn){
-    const selectable = trips.filter(t=>!isTripInProgress(t));
+    const selectable = getVisibleActionTrips();
     const allSelected =
       selectable.length &&
-      selectable.every(t=>selectedIds.has(t._id));
-    btn.textContent = allSelected ? "Remove Selected" : "Select All";
+      selectable.every(t=>selectedIds.has(String(t._id)));
+    btn.textContent = allSelected ? "Remove All" : "Select All";
   }
 
   const editBtn = document.getElementById("editBtn");
@@ -1340,51 +1322,58 @@ function renderStats(){
   }
 }
 
+function getManualDriversForTrip(trip){
+  return allDrivers
+    .map(normalizeDriver)
+    .filter(driver=>{
+      const driverId = String(driver._id || "");
+      return driverId && isDriverActiveForDate(driverId,trip.tripDate);
+    })
+    .map(driver=>{
+      const driverId = String(driver._id);
+      return {
+        driverId,
+        driverName:driver.name || driver.fullName || "",
+        vehicle:getDriverVehicle(driverId) || "-",
+        services:getDriverServices(driverId),
+        conflict:hasTimeConflict(driverId,trip)
+      };
+    })
+    .sort((a,b)=>
+      clean(a.driverName).localeCompare(clean(b.driverName))
+    );
+}
+
 function driverOptions(t){
   const currentId = clean(t.driverId);
-
-  const available = allDrivers
-    .map(normalizeDriver)
-    .filter(driver=>
-      driver._id &&
-      isManualDriverActiveForDate(driver._id,t.tripDate)
-    )
-    .sort((a,b)=>
-      clean(a.name || a.fullName)
-        .localeCompare(clean(b.name || b.fullName))
-    );
+  const manualDrivers = getManualDriversForTrip(t);
+  const manualById = new Map(
+    manualDrivers.map(item=>[String(item.driverId),item])
+  );
 
   /*
-    Manual Assign intentionally lists every active driver for the trip day.
-    A service mismatch is displayed as information only and never blocks the
-    administrator from choosing that driver.
+    Manual assignment is an admin override. Show every driver active on the
+    trip day, regardless of service ownership. Service matching, score and
+    fallback tiers belong only to Auto Assign.
   */
-  const options = available.map(driver=>{
-    const driverId = String(driver._id);
-    const driverServices = getDriverServices(driverId);
-    const tripService = getTripServiceCode(t);
-    const matches =
-      driverServices.includes("ALL") ||
-      driverServices.includes(tripService);
+  const options = [];
 
-    return {
-      driverId,
-      driverName:driver.name || driver.fullName || "",
-      vehicle:getDriverVehicle(driverId) || "-",
-      services:driverServices.join(", "),
-      matches
-    };
-  });
-
-  if(currentId && !options.some(x=>x.driverId === currentId)){
-    options.unshift({
-      driverId:currentId,
-      driverName:t.driverName || getDriverName(currentId) || "Saved driver",
-      vehicle:t.vehicle || getDriverVehicle(currentId) || "-",
-      services:getDriverServices(currentId).join(", "),
-      matches:true
-    });
+  if(currentId){
+    const savedDriver = manualById.get(currentId);
+    options.push(
+      savedDriver || {
+        driverId:currentId,
+        driverName:t.driverName || getDriverName(currentId) || "Saved driver",
+        vehicle:t.vehicle || getDriverVehicle(currentId) || "-",
+        services:getDriverServices(currentId),
+        conflict:false
+      }
+    );
   }
+
+  manualDrivers.forEach(item=>{
+    if(String(item.driverId) !== currentId) options.push(item);
+  });
 
   const canEdit =
     editMode &&
@@ -1392,15 +1381,15 @@ function driverOptions(t){
     !isTripInProgress(t);
 
   return `
-    <select class="driver-select"
+    <select class="driver-select" data-trip-id="${safe(t._id)}"
       ${canEdit ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
       ${options.map(x=>{
-        const mismatch = x.matches ? "" : " | Service Override";
+        const id = String(x.driverId);
         return `
-          <option value="${safe(x.driverId)}" ${currentId===x.driverId ? "selected" : ""}>
-            ${safe(x.driverName)} - ${safe(x.vehicle)} | ${safe(x.services)}${safe(mismatch)}
+          <option value="${safe(id)}" ${String(t.driverId)===id ? "selected" : ""}>
+            ${safe(x.driverName || "")} - ${safe(x.vehicle || "-")} | ${safe((x.services || ["ALL"]).join(", "))}${x.conflict ? " | TIME CONFLICT" : ""}
           </option>
         `;
       }).join("")}
@@ -1492,10 +1481,11 @@ function renderTripRow(t,index){
       <td>${index}</td>
 
       <td>
-        <input type="checkbox"
-          ${selectedIds.has(t._id) ? "checked" : ""}
-          ${isTripInProgress(t) ? "disabled" : ""}
-          onchange="toggleTrip('${safe(t._id)}')">
+        <input type="checkbox" class="dispatch-row-select"
+          data-trip-id="${safe(t._id)}"
+          ${selectedIds.has(String(t._id)) ? "checked" : ""}
+          onclick="handleTripSelect(this)"
+          aria-label="Select trip ${safe(getTripNumber(t))}">
       </td>
 
       <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
@@ -1628,10 +1618,11 @@ function renderSharedTripRows(t,index){
       <td>${index}</td>
 
       <td>
-      <input type="checkbox"
-        ${selectedIds.has(t._id) ? "checked" : ""}
-        ${isTripInProgress(t) ? "disabled" : ""}
-        onchange="toggleTrip('${safe(t._id)}')">
+      <input type="checkbox" class="dispatch-row-select"
+        data-trip-id="${safe(t._id)}"
+        ${selectedIds.has(String(t._id)) ? "checked" : ""}
+        onclick="handleTripSelect(this)"
+        aria-label="Select trip ${safe(getTripNumber(t))}">
       </td>
 
       <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
@@ -1767,98 +1758,11 @@ function bindTabs(){
 /* ================= EVENTS ================= */
 
 function bindActions(){
-
-  const selectBtn =
-    document.getElementById("selectBtn");
-
-  const editBtn =
-    document.getElementById("editBtn");
-
-  const autoAssignBtn =
-    document.getElementById("autoAssignBtn");
-
-  const sendSelectedBtn =
-    document.getElementById("sendSelectedBtn");
-
-  const sendAllBtn =
-    document.getElementById("sendAllBtn");
-
-  selectBtn?.addEventListener(
-    "click",
-    toggleSelectAll
-  );
-
-  editBtn?.addEventListener(
-    "click",
-    toggleEdit
-  );
-
-  autoAssignBtn?.addEventListener(
-    "click",
-    autoAssign
-  );
-
-  sendSelectedBtn?.addEventListener(
-    "click",
-    sendSelected
-  );
-
-  /*
-    Only ONE send button is allowed.
-    Remove the old black "Send All Selected / Send All" button.
-  */
-  if(sendAllBtn){
-    sendAllBtn.remove();
-  }
-
-  /*
-    Add Remove Driver beside Auto Assign / Send Selected.
-    It removes ONLY the driver assignment from checked trips.
-    It does NOT remove the trip from Dispatch.
-  */
-  if(
-    !document.getElementById(
-      "removeDriverBtn"
-    )
-  ){
-
-    const btn =
-      document.createElement(
-        "button"
-      );
-
-    btn.id =
-      "removeDriverBtn";
-
-    btn.type =
-      "button";
-
-    btn.className =
-      "btn red";
-
-    btn.textContent =
-      "Remove Driver";
-
-    btn.addEventListener(
-      "click",
-      removeDriverSelected
-    );
-
-    if(sendSelectedBtn?.parentElement){
-
-      sendSelectedBtn.parentElement.insertBefore(
-        btn,
-        sendSelectedBtn
-      );
-
-    }else if(autoAssignBtn?.parentElement){
-
-      autoAssignBtn.parentElement.appendChild(
-        btn
-      );
-
-    }
-  }
+  document.getElementById("selectBtn")?.addEventListener("click",toggleSelectAll);
+  document.getElementById("autoAssignBtn")?.addEventListener("click",()=>autoAssign());
+  document.getElementById("sendSelectedBtn")?.addEventListener("click",sendSelected);
+  document.getElementById("editBtn")?.addEventListener("click",()=>toggleEdit());
+  document.getElementById("removeDriverBtn")?.addEventListener("click",removeSelectedDrivers);
 }
 
 function toast(msg){
@@ -1878,6 +1782,7 @@ function toast(msg){
 /* ================= GLOBAL ================= */
 
 window.toggleTrip = toggleTrip;
+window.handleTripSelect = handleTripSelect;
 
 window.assignDriver = function(id,driverId){
   const trip = trips.find(t=>String(t._id) === String(id));
@@ -1886,7 +1791,6 @@ window.assignDriver = function(id,driverId){
 
 window.sendOne = sendOne;
 window.autoAssign = autoAssign;
-window.removeDriverSelected = removeDriverSelected;
 window.sendSelected = sendSelected;
 window.sendAll = sendAll;
 window.openTripView = openTripView;
@@ -1895,13 +1799,15 @@ window.closeTripView = closeTripView;
 /* ================= INIT ================= */
 
 async function refresh(){
-  const keepSelected = new Set(selectedIds);
-
   await loadSmartEngine();
   await loadAll();
 
+  /*
+    Read selectedIds after the asynchronous load. A click made while the
+    request is in flight must not be replaced by an older snapshot.
+  */
   selectedIds = new Set(
-    [...keepSelected].filter(id=>trips.some(t=>t._id === id))
+    [...selectedIds].filter(id=>trips.some(t=>String(t._id) === String(id)))
   );
 
   renderAll();

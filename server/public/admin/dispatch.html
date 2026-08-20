@@ -18,81 +18,33 @@ body{
   color:#0f172a;
 }
 
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:1000;
-}
-
 .page-body{
-  padding-top:165px;
-  padding-left:20px;
-  padding-right:20px;
-  padding-bottom:30px;
+  padding:18px 20px 35px;
   background:#f1f5f9;
   min-height:calc(100vh - 80px);
-}
-
-/* ================= PAGE TITLE ================= */
-
-.page-head{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  min-height:84px;
-  margin-bottom:12px;
-  padding:16px 20px;
-  border:1px solid #e0be5a;
-  border-radius:18px;
-  background:linear-gradient(
-    135deg,
-    #fff8dc 0%,
-    #f8e6ae 48%,
-    #fff4cf 100%
-  );
-  box-shadow:0 8px 22px rgba(146,102,14,.13);
-  text-align:center;
-}
-
-.page-title{
-  margin:0;
-  font-size:28px;
-  line-height:1.1;
-  font-weight:900;
-  color:#111827;
-}
-
-.page-sub{
-  margin-top:5px;
-  font-size:13px;
-  font-weight:800;
-  color:#64748b;
 }
 
 /* ================= TABS ================= */
 
 .dispatch-tabs{
   display:flex;
-  gap:10px;
+  gap:8px;
   margin-bottom:14px;
 }
 
 .tab-btn{
   flex:1;
-  padding:13px;
+  padding:14px;
   border:none;
   background:#1e293b;
   color:#fff;
   font-weight:900;
   cursor:pointer;
-  border-radius:12px;
-  box-shadow:0 5px 12px rgba(15,23,42,.12);
+  border-radius:10px;
 }
 
 .tab-btn.active{
-  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
+  background:#2563eb;
 }
 
 .tab-page{display:none;}
@@ -129,12 +81,12 @@ body{
   background:rgba(255,255,255,.14);
 }
 
-.stat-card.total{background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);}
-.stat-card.assigned{background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);}
-.stat-card.unassigned{background:linear-gradient(135deg,#ef4444 0%,#dc2626 55%,#b91c1c 100%);}
-.stat-card.drivers{background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);}
-.stat-card.today{background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%);}
-.stat-card.tomorrow{background:linear-gradient(135deg,#0891b2 0%,#22d3ee 100%);}
+.stat-card.total{background:linear-gradient(135deg,#2563eb,#1d4ed8);}
+.stat-card.assigned{background:linear-gradient(135deg,#16a34a,#15803d);}
+.stat-card.unassigned{background:linear-gradient(135deg,#ef4444,#b91c1c);}
+.stat-card.drivers{background:linear-gradient(135deg,#8b5cf6,#6d28d9);}
+.stat-card.today{background:linear-gradient(135deg,#06b6d4,#0284c7);}
+.stat-card.tomorrow{background:linear-gradient(135deg,#f59e0b,#ea580c);}
 
 .stat-title{
   font-size:12px;
@@ -185,8 +137,22 @@ body{
 .top-actions{
   margin:12px 0 14px;
   display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.action-group{
+  display:flex;
+  align-items:center;
   gap:10px;
   flex-wrap:wrap;
+}
+
+.action-group.right{
+  margin-left:auto;
+  justify-content:flex-end;
 }
 
 .btn{
@@ -220,16 +186,10 @@ body{
 /* ================= SECTION ================= */
 
 .section-title{
-  margin:16px 0 0;
-  padding:7px 10px;
-  font-size:14px;
+  margin:16px 0 8px;
+  font-size:16px;
   font-weight:900;
-  color:#1e3a8a;
-  text-align:center;
-  background:#bfdbfe;
-  border-top:2px solid #60a5fa;
-  border-bottom:2px solid #60a5fa;
-  border-radius:8px 8px 0 0;
+  color:#0f172a;
 }
 
 /* ================= TABLE ================= */
@@ -239,25 +199,27 @@ body{
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
   background:#fff;
-  border-radius:14px;
-  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  border:1px solid #cbd5e1;
+  border-radius:16px;
+  box-shadow:0 12px 28px rgba(15,23,42,.10);
   margin-bottom:20px;
 }
 
 .dispatch-table{
-  width:100%;
-  min-width:2200px;
-  table-layout:fixed;
+  min-width:2450px;
+  width:max-content;
   border-collapse:collapse;
   background:#fff;
-  border-top:6px solid #000;
 }
 
 .dispatch-table th{
-  background:#1f2937;
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:linear-gradient(180deg,#1d4ed8,#1e40af);
   color:#fff;
-  padding:5px;
-  font-size:11px;
+  padding:8px;
+  font-size:12px;
   text-align:center;
   white-space:nowrap;
   font-weight:900;
@@ -265,12 +227,14 @@ body{
 }
 
 .dispatch-table td{
-  border:1px solid #dbe3ee;
-  padding:5px;
-  font-size:11px;
+  border:4px solid #fff;
+  padding:9px 8px;
+  font-size:12px;
   text-align:center;
   vertical-align:middle;
-  line-height:1.25;
+  line-height:1.4;
+  background:#f8fafc;
+  box-shadow:inset 0 0 0 1px #dbe3ee;
 }
 
 .dispatch-table tbody tr:hover td{
@@ -280,14 +244,18 @@ body{
 /* ================= WIDE COLUMNS ================= */
 
 .wide-client{
+  min-width:180px;
+  max-width:270px;
   text-align:left!important;
-  white-space:normal;
+  white-space:pre-line;
   word-break:break-word;
 }
 
 .wide-phone{
+  min-width:150px;
+  max-width:220px;
   text-align:left!important;
-  white-space:normal;
+  white-space:pre-line;
   word-break:break-word;
 }
 
@@ -301,229 +269,42 @@ body{
 }
 
 .wide-address{
+  min-width:260px;
+  max-width:380px;
   text-align:left!important;
-  white-space:normal;
+  white-space:pre-line;
   word-break:break-word;
-  font-size:10.5px!important;
-}
-
-.wide-stops{
-  text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-  font-size:10.5px!important;
+  font-size:11px!important;
 }
 
 .wide-notes{
+  min-width:230px;
+  max-width:360px;
   text-align:left!important;
-  white-space:normal;
-  word-break:break-word;
-}
-
-/* ================= TRIPS HUB CELLS ================= */
-
-.dispatch-table{
-  table-layout:fixed;
-  min-width:2200px;
-}
-
-.dispatch-table th,
-.dispatch-table td{
-  padding:5px;
-}
-
-.cell-box{
-  width:100%;
-  display:grid;
-  padding:0;
-  background:#fff;
-  border:1px solid #111;
-  border-radius:4px;
-  overflow:hidden;
-}
-
-.cell-item{
-  min-height:22px;
-  padding:4px 5px;
-  font-size:10.5px;
-  font-weight:700;
-  background:#fff;
-  white-space:normal;
-  word-break:break-word;
-  line-height:1.25;
-}
-
-.cell-item + .cell-item{
-  border-top:1px solid #111;
-}
-
-.wide-client .cell-item,
-.wide-phone .cell-item,
-.wide-address .cell-item,
-.wide-stops .cell-item,
-.wide-notes .cell-item{
-  text-align:left;
-}
-
-.dispatch-table th:nth-child(1){width:30px;}
-.dispatch-table th:nth-child(2){width:36px;}
-.dispatch-table th:nth-child(3){width:76px;}
-.dispatch-table th:nth-child(4){width:100px;}
-.dispatch-table th:nth-child(5){width:70px;}
-.dispatch-table th:nth-child(6){width:100px;}
-.dispatch-table th:nth-child(7){width:180px;}
-.dispatch-table th:nth-child(8){width:115px;}
-.dispatch-table th:nth-child(9){width:230px;}
-.dispatch-table th:nth-child(10){width:120px;}
-.dispatch-table th:nth-child(11){width:230px;}
-.dispatch-table th:nth-child(12){width:190px;}
-.dispatch-table th:nth-child(13){width:70px;}
-.dispatch-table th:nth-child(14){width:82px;}
-.dispatch-table th:nth-child(15){width:58px;}
-.dispatch-table th:nth-child(16){width:200px;}
-.dispatch-table th:nth-child(17){width:105px;}
-.dispatch-table th:nth-child(18){width:70px;}
-.dispatch-table th:nth-child(19){width:90px;}
-.dispatch-table th:nth-child(20){width:38px;}
-.dispatch-table th:nth-child(21){width:80px;}
-
-.eye-btn{
-  width:38px;
-  height:34px;
-  border:none;
-  border-radius:9px;
-  background:#e0e7ff;
-  color:#3730a3;
-  cursor:pointer;
-  font-size:18px;
-  box-shadow:inset 0 0 0 1px #c7d2fe;
-}
-
-.eye-btn:hover{
-  background:#c7d2fe;
-  transform:translateY(-1px);
-}
-
-.sent-btn{
-  background:#64748b;
-  color:#fff;
-}
-
-.row-dispatched td{
-  opacity:1;
-}
-
-.row-dispatched .cell-box{
-  background:rgba(241,245,249,.88);
-}
-
-.shared-trip-group td{
-  vertical-align:middle;
-}
-
-.trip-divider td{
-  border-bottom:3px solid #000!important;
-}
-
-/* ================= VIEW MODAL ================= */
-
-.hub-view-overlay{
-  position:fixed;
-  inset:0;
-  z-index:10000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(15,23,42,.62);
-}
-
-.hub-view-box{
-  width:min(720px,100%);
-  max-height:86vh;
-  overflow:hidden;
-  border-radius:16px;
-  background:#fff;
-  box-shadow:0 24px 70px rgba(15,23,42,.35);
-}
-
-.hub-view-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:15px 18px;
-  background:#1d4ed8;
-  color:#fff;
-  font-size:17px;
-  font-weight:900;
-}
-
-.hub-view-close{
-  width:34px;
-  height:34px;
-  border:none;
-  border-radius:9px;
-  background:rgba(255,255,255,.18);
-  color:#fff;
-  cursor:pointer;
-  font-size:23px;
-  line-height:1;
-}
-
-.hub-view-body{
-  max-height:calc(86vh - 65px);
-  overflow-y:auto;
-  padding:16px;
-}
-
-.view-line{
-  display:grid;
-  grid-template-columns:160px minmax(0,1fr);
-  gap:10px;
-  padding:10px 0;
-  border-bottom:1px solid #e2e8f0;
-}
-
-.view-label{
-  font-weight:900;
-  color:#334155;
-}
-
-.view-value{
-  min-width:0;
-  color:#0f172a;
-  overflow-wrap:anywhere;
   white-space:pre-line;
+  word-break:break-word;
+}
+
+.wide-escort{
+  min-width:95px;
+  white-space:pre-line;
+  font-weight:900;
 }
 
 /* ================= COLORS ================= */
 
-/* Facility = light version of the purple Facility card */
-.row-facility td{
-  background:linear-gradient(90deg,#f4ecff 0%,#eadcff 100%)!important;
-}
-
-/* Get Quote = light version of the green Get Quote card */
-.row-gq td{
-  background:linear-gradient(90deg,#e9f9ed 0%,#d8f5df 100%)!important;
-}
-
-/* Reserved = light version of the orange Reserved color */
-.row-rv td{
-  background:linear-gradient(90deg,#fff2df 0%,#ffe4bd 100%)!important;
-}
-
-/* Shared keeps its original source color; purple is only an accent */
-.row-shared td{
-  box-shadow:inset 4px 0 0 rgba(124,58,237,.42);
-}
+.row-facility td{background:#eff6ff;}
+.row-gq td{background:#f0fdf4;}
+.row-rv td{background:#fffbeb;}
+.row-shared td{background:#f5f3ff;}
 
 .row-unassigned td{
   box-shadow:inset 0 0 0 9999px rgba(220,38,38,.04);
 }
 
 .row-dispatched td{
-  opacity:.75;
+  background:#f1f5f9;
+  color:#475569;
 }
 
 /* ================= BADGES ================= */
@@ -551,6 +332,12 @@ body{
   background:#f1f5f9;
   color:#0f172a;
   border:1px solid #cbd5e1;
+}
+
+.status-pill.status-sent{
+  background:#dcfce7;
+  color:#166534;
+  border-color:#86efac;
 }
 
 .driver-pill{
@@ -659,29 +446,63 @@ body{
   transform:translateY(0);
 }
 
+/* ================= CONFIRM YES / NO ================= */
+
+.confirm-overlay{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(15,23,42,.58);
+  z-index:12000;
+}
+
+.confirm-overlay.show{
+  display:flex;
+}
+
+.confirm-box{
+  width:min(440px,100%);
+  background:#fff;
+  border-radius:16px;
+  padding:22px;
+  box-shadow:0 22px 60px rgba(15,23,42,.28);
+  text-align:center;
+}
+
+.confirm-title{
+  font-size:19px;
+  font-weight:900;
+  color:#0f172a;
+  margin-bottom:8px;
+}
+
+.confirm-message{
+  font-size:14px;
+  font-weight:700;
+  color:#475569;
+  line-height:1.5;
+  margin-bottom:18px;
+}
+
+.confirm-actions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+}
+
+.confirm-actions .btn{
+  min-width:110px;
+}
+
 @media(max-width:768px){
-  .page-body{
-    padding-top:185px;
-    padding-left:10px;
-    padding-right:10px;
-    padding-bottom:30px;
-  }
-
-  .page-head{
-    min-height:72px;
-    padding:12px;
-    margin-bottom:10px;
-  }
-
-  .page-title{
-    font-size:22px;
-  }
-
-  .page-sub{
-    font-size:11px;
-  }
+  .page-body{padding:12px;}
   .dispatch-tabs{flex-direction:column;}
-  .top-actions{display:grid;grid-template-columns:1fr 1fr;}
+  .top-actions{display:block;}
+  .action-group{display:grid;grid-template-columns:1fr 1fr;margin-bottom:8px;}
+  .action-group.right{margin-left:0;}
   .dispatch-table{min-width:1750px;}
   .dispatch-table th,
   .dispatch-table td{
@@ -697,13 +518,6 @@ body{
 <div id="adminHeader"></div>
 
 <div class="page-body">
-
-  <div class="page-head">
-    <div>
-      <h1 class="page-title">Dispatch</h1>
-      <div class="page-sub">Driver assignment and trip dispatch</div>
-    </div>
-  </div>
 
   <div class="dispatch-tabs">
     <button id="tabDispatch" class="tab-btn active" type="button">
@@ -750,25 +564,29 @@ body{
     </div>
 
     <div class="top-actions">
-      <button id="selectBtn" class="btn blue" type="button">
-        Select All
-      </button>
+      <div class="action-group left">
+        <button id="selectBtn" class="btn blue" type="button">
+          Select All
+        </button>
 
-      <button id="editBtn" class="btn orange" type="button">
-        Edit Selected
-      </button>
+        <button id="autoAssignBtn" class="btn purple" type="button">
+          Auto Assign
+        </button>
 
-      <button id="autoAssignBtn" class="btn purple" type="button">
-        Auto Assign
-      </button>
+        <button id="sendSelectedBtn" class="btn green" type="button">
+          Send Selected
+        </button>
+      </div>
 
-      <button id="sendSelectedBtn" class="btn green" type="button">
-        Send Selected
-      </button>
+      <div class="action-group right">
+        <button id="editBtn" class="btn orange" type="button">
+          Edit Selected
+        </button>
 
-      <button id="sendAllBtn" class="btn dark" type="button">
-        Send All Selected
-      </button>
+        <button id="removeDriverBtn" class="btn red" type="button">
+          Remove Driver
+        </button>
+      </div>
     </div>
 
     <div class="section-title" id="todayTitle">
@@ -779,26 +597,28 @@ body{
       <table class="dispatch-table" id="todayDispatchTable">
         <thead>
           <tr>
-            <th>#</th>
             <th>Select</th>
+            <th>#</th>
             <th>Trip #</th>
             <th>Service</th>
             <th>Type</th>
             <th>Facility</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
             <th>Client / Passengers</th>
             <th>Phone</th>
+            <th>Email</th>
             <th>Pickup</th>
             <th>Stops</th>
             <th>Dropoff</th>
-            <th>Notes</th>
-            <th>Escort</th>
             <th>Date</th>
             <th>Time</th>
             <th>Driver</th>
             <th>Vehicle</th>
             <th>Score</th>
+            <th>Notes</th>
+            <th>Escort</th>
             <th>Status</th>
-            <th>👁️</th>
             <th>Send</th>
           </tr>
         </thead>
@@ -814,26 +634,28 @@ body{
       <table class="dispatch-table" id="tomorrowDispatchTable">
         <thead>
           <tr>
-            <th>#</th>
             <th>Select</th>
+            <th>#</th>
             <th>Trip #</th>
             <th>Service</th>
             <th>Type</th>
             <th>Facility</th>
+            <th>Entry</th>
+            <th>Entry Phone</th>
             <th>Client / Passengers</th>
             <th>Phone</th>
+            <th>Email</th>
             <th>Pickup</th>
             <th>Stops</th>
             <th>Dropoff</th>
-            <th>Notes</th>
-            <th>Escort</th>
             <th>Date</th>
             <th>Time</th>
             <th>Driver</th>
             <th>Vehicle</th>
             <th>Score</th>
+            <th>Notes</th>
+            <th>Escort</th>
             <th>Status</th>
-            <th>👁️</th>
             <th>Send</th>
           </tr>
         </thead>
@@ -867,6 +689,17 @@ body{
 </div>
 
 <div id="toast"></div>
+
+<div id="confirmOverlay" class="confirm-overlay" aria-hidden="true">
+  <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div id="confirmTitle" class="confirm-title">Confirm</div>
+    <div id="confirmMessage" class="confirm-message"></div>
+    <div class="confirm-actions">
+      <button id="confirmYesBtn" class="btn green" type="button">YES</button>
+      <button id="confirmNoBtn" class="btn gray" type="button">NO</button>
+    </div>
+  </div>
+</div>
 
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js"></script>
