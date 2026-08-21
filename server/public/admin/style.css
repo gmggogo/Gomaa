@@ -2,7 +2,7 @@
 :root{--navy:#071a36;--navy2:#0b2b53;--light:#e8f3ff;--light2:#dcecff;--gold:#f6c515;--red:#d91515;--text:#071a36;--tileW:122px;--tileH:78px}
 .gh-admin-header{position:sticky;top:0;z-index:9999;background:#fff;box-shadow:0 5px 18px #071a3620}
 .gh-topbar{min-height:104px;display:grid;grid-template-columns:minmax(280px,1fr) minmax(420px,1.25fr) minmax(270px,.9fr);align-items:center;gap:26px;padding:14px 28px 12px;background:linear-gradient(90deg,#06152f,#0a2145,#071a36);border-bottom:2px solid var(--gold);color:#fff}
-.gh-brand{display:flex;align-items:center;gap:15px}.gh-logo{width:70px;height:64px;object-fit:contain}.gh-company{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font:800 25px Georgia,serif}.gh-role-small{margin-top:5px;color:#fff;font-size:13px;font-weight:800}
+.gh-brand{display:flex;align-items:center;gap:15px}.gh-logo{width:70px;height:64px;object-fit:contain}.gh-company{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font:800 25px Georgia,serif}.gh-saas-name{margin-top:5px;color:#fff;font-size:13px;font-weight:800}
 .gh-center{text-align:center;color:#fff}.gh-role-title{font-size:22px;font-weight:900}.gh-greeting{margin-top:7px;color:#fff;font-size:16px;font-weight:800}.gh-greeting strong{color:var(--gold);font-size:17px}
 .gh-clock{justify-self:end;min-width:245px;color:#fff;font-size:15px;font-weight:800}.gh-clock>div{min-height:38px;display:flex;align-items:center;gap:10px}.gh-clock>div+div{border-top:1px solid #ffffff55}
 .gh-powered{height:38px;display:flex;align-items:center;padding:0 30px;background:#fff;color:var(--text);font-size:12px;border-bottom:1px solid #d5e3f1}.gh-powered b{margin-left:4px}
@@ -15,7 +15,160 @@
 .gh-mobile-menu-btn,.gh-mobile-overlay,.gh-mobile-drawer{display:none}
 @media(max-width:1500px){:root{--tileW:112px}.gh-nav{justify-content:flex-start;overflow-x:auto}.gh-nav-tile{font-size:11px}}
 @media(max-width:768px){
-.gh-topbar{min-height:72px;grid-template-columns:42px 44px 1fr;gap:8px;padding:8px 10px}.gh-mobile-menu-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:0;border-radius:8px;background:#12355f;color:#fff;font-size:23px}.gh-brand{display:contents}.gh-logo{grid-column:2;width:40px;height:40px}.gh-brand>div{grid-column:3}.gh-company{max-width:100%;font-size:17px}.gh-role-small{font-size:10px}.gh-center,.gh-clock,.gh-powered,.gh-nav-shell{display:none}
+.gh-topbar{min-height:72px;grid-template-columns:42px 44px 1fr;gap:8px;padding:8px 10px}.gh-mobile-menu-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:0;border-radius:8px;background:#12355f;color:#fff;font-size:23px}.gh-brand{display:contents}.gh-logo{grid-column:2;width:40px;height:40px}.gh-brand>div{grid-column:3}.gh-company{max-width:100%;font-size:17px}.gh-saas-name{font-size:10px}.gh-center,.gh-clock,.gh-powered,.gh-nav-shell{display:none}
 .gh-mobile-overlay{display:none;position:fixed;inset:0;background:#0009;z-index:100000}.gh-mobile-overlay.show{display:block}.gh-mobile-drawer{display:flex;position:fixed;top:0;left:-320px;width:302px;max-width:86vw;height:100vh;flex-direction:column;background:linear-gradient(180deg,#071a36,#06152f);z-index:100001;transition:.22s;box-shadow:12px 0 35px #0006}.gh-mobile-drawer.show{left:0}.gh-mobile-head{display:flex;align-items:center;gap:10px;padding:14px 12px;border-bottom:1px solid #ffffff18}.gh-mobile-logo{width:42px;height:42px;object-fit:contain}.gh-mobile-title{flex:1;min-width:0}.gh-mobile-title div{color:#fff;font:800 17px Georgia,serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gh-mobile-title small{color:var(--gold);font-weight:900}.gh-mobile-close{width:34px;height:34px;border:0;border-radius:8px;background:#193a66;color:#fff;font-size:23px}
 .gh-mobile-nav{display:flex;flex-direction:column;gap:5px;padding:10px;overflow-y:auto}.gh-mobile-nav a{min-height:46px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#102f57;color:#fff;text-decoration:none;font-size:13px;font-weight:800}.gh-mobile-nav a.active{background:var(--gold);color:var(--text)}.gh-mobile-group-title{margin-top:7px;padding:8px 9px 4px;color:var(--gold);font-size:11px;font-weight:900;text-transform:uppercase}.gh-mobile-logout{margin:10px;padding:12px;border:0;border-radius:8px;background:var(--red);color:#fff;font-weight:900}.gh-mobile-powered{margin-top:auto;padding:12px;color:#8ca0bb;font-size:9px}
+}
+
+/* =========================================================
+   HEADER REFINEMENT V2
+   Wider buttons + clearer light-blue nav + stronger borders
+========================================================= */
+
+/* SaaS company name beside logo */
+.gh-saas-name{
+  margin-top:5px;
+  color:#ffffff;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.25px;
+  white-space:nowrap;
+}
+
+/* Powered by strip: visible color + classic borders */
+.gh-powered{
+  height:40px;
+  background:linear-gradient(90deg,#fff6cf,#fffaf0 60%,#ffffff);
+  color:#071a36;
+  border-top:1px solid #f1cf54;
+  border-bottom:1px solid #d7b12b;
+  border-left:5px solid #f6c515;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+  font-size:13px;
+  font-weight:700;
+}
+.gh-powered b{
+  color:#9a7200;
+  font-weight:900;
+}
+
+/* Light-blue header clearly separated from navy top */
+.gh-nav-shell{
+  background:linear-gradient(180deg,#d8ebff 0%,#c9e2fb 100%);
+  border-top:1px solid #ffffff;
+  border-bottom:2px solid #a8c8e6;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    0 4px 12px rgba(7,26,54,.10);
+}
+
+/* Wider tiles so button names stay on one line */
+:root{
+  --tileW:148px;
+  --tileH:76px;
+}
+
+.gh-nav{
+  gap:8px;
+  padding:10px 14px 11px;
+}
+
+.gh-nav-tile{
+  width:var(--tileW);
+  min-width:var(--tileW);
+  height:var(--tileH);
+  padding:8px 10px;
+
+  background:linear-gradient(180deg,#f5faff,#e4f1ff);
+  border:2px solid #9dbfe0;
+  border-radius:10px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.95),
+    0 2px 5px rgba(7,26,54,.08);
+
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+}
+
+.gh-nav-tile > span:last-child{
+  white-space:nowrap;
+  overflow:visible;
+  text-overflow:clip;
+}
+
+.gh-nav-tile:hover{
+  border-color:#6f9fca;
+  background:linear-gradient(180deg,#ffffff,#dcecff);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 3px 8px rgba(7,26,54,.12);
+}
+
+.gh-nav-tile.active,
+.gh-nav-group.has-active > .gh-nav-group-btn{
+  border:2px solid #d5a600;
+  background:linear-gradient(180deg,#fff6c7,#ffe17a);
+  box-shadow:
+    inset 0 -3px 0 #c99a00,
+    0 2px 7px rgba(157,117,0,.18);
+}
+
+/* Larger, clearer icons */
+.gh-icon{
+  width:34px;
+  height:34px;
+}
+.gh-icon svg{
+  stroke-width:2.15;
+}
+
+/* Dropdowns also get clearer borders */
+.gh-nav-menu{
+  border:2px solid #9dbfe0;
+  box-shadow:0 16px 34px rgba(7,26,54,.20);
+}
+.gh-nav-menu a{
+  border:1px solid #d3e4f4;
+  background:#f5faff;
+}
+.gh-nav-menu a:hover,
+.gh-nav-menu a.active{
+  border-color:#9bbddd;
+  background:#dcecff;
+}
+
+/* Logout retains a stronger red border */
+.gh-logout-tile{
+  border:2px solid #e04b4b;
+  background:linear-gradient(180deg,#fff5f5,#ffe8e8);
+}
+.gh-logout-tile:hover{
+  border-color:#aa0d0d;
+}
+
+/* Keep desktop labels on one line; scroll only if screen is too narrow */
+@media(max-width:1550px){
+  :root{
+    --tileW:138px;
+  }
+  .gh-nav{
+    justify-content:flex-start;
+    overflow-x:auto;
+  }
+}
+
+
+/* Logo size refinement */
+.gh-logo{
+  width:82px;
+  height:74px;
+}
+
+@media(max-width:768px){
+  .gh-logo{
+    width:44px;
+    height:44px;
+  }
 }
