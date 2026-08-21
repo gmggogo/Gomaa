@@ -172,3 +172,37 @@
     height:44px;
   }
 }
+
+
+/* FINAL CLASSIC EDGE REFINEMENT */
+.gh-nav-tile{
+  border:2px solid #87acd0 !important;
+  border-radius:9px !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.95),
+    inset 0 -2px 0 rgba(74,112,151,.10),
+    0 2px 4px rgba(7,26,54,.13) !important;
+}
+.gh-nav-tile:hover{
+  border-color:#557fa8 !important;
+  box-shadow:
+    inset 0 2px 0 #fff,
+    inset 0 -2px 0 rgba(74,112,151,.14),
+    0 3px 7px rgba(7,26,54,.16) !important;
+}
+.gh-nav-tile.active,
+.gh-nav-group.has-active>.gh-nav-group-btn{
+  border:2px solid #c99700 !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.75),
+    inset 0 -3px 0 #bd9000,
+    0 2px 6px rgba(120,88,0,.18) !important;
+}
+.gh-saas-name{
+  margin-top:5px;
+  color:#f6c515;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.2px;
+  white-space:nowrap;
+}

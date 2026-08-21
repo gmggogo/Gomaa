@@ -43,7 +43,13 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
  const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
- document.getElementById("desktopRoleLabel").textContent=roleLabel;
+ const saasName =
+   localStorage.getItem("saasCompanyName") ||
+   localStorage.getItem("platformCompanyName") ||
+   localStorage.getItem("platformName") ||
+   "GH Mobility";
+ const saasEl=document.getElementById("saasCompanyName");
+ if(saasEl) saasEl.textContent=saasName;
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
  document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
 
