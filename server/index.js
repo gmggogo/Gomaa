@@ -3580,56 +3580,108 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 /* =========================
-   USERS ROUTES
-   TENANT ISOLATED
+   USER MANAGEMENT PERMISSIONS
+   SUPER_ADMIN -> all tenant user types
+   ADMIN       -> dispatcher / driver / company only
+   DISPATCHER  -> no Add User API access
+========================= */
+
+function normalizeActorRole(value){
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+}
+
+function normalizeManagedUserRole(value){
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function canManageUserRole(req,targetRole){
+
+  const actorRole =
+    normalizeActorRole(
+      req.authUser?.role
+    );
+
+  const role =
+    normalizeManagedUserRole(
+      targetRole
+    );
+
+  const superAllowed = [
+    "superadmin",
+    "admin",
+    "dispatcher",
+    "driver",
+    "company"
+  ];
+
+  const adminAllowed = [
+    "dispatcher",
+    "driver",
+    "company"
+  ];
+
+  if(
+    actorRole === "SUPER_ADMIN" ||
+    actorRole === "SUPERADMIN" ||
+    actorRole === "PLATFORM_ADMIN"
+  ){
+    return superAllowed.includes(role);
+  }
+
+  if(actorRole === "ADMIN"){
+    return adminAllowed.includes(role);
+  }
+
+  return false;
+}
+
+function denyUserManagement(res){
+  return res.status(403).json({
+    message:"You do not have permission to manage this user type"
+  });
+}
+
+/* =========================
+   LOAD USERS
 ========================= */
 
 app.get(
   "/api/users/:role",
   requireTenantApi,
-  async (req, res) => {
+  async (req,res)=>{
 
-  try {
+  try{
 
     const role =
-      String(
-        req.params.role || ""
-      )
-      .trim()
-      .toLowerCase();
+      normalizeManagedUserRole(
+        req.params.role
+      );
 
-    if (
-      ![
-        "superadmin",
-        "admin",
-        "dispatcher",
-        "driver",
-        "company"
-      ].includes(role)
-    ) {
-
-      return res.status(400).json({
-        message: "Invalid role"
-      });
-
+    if(!canManageUserRole(req,role)){
+      return denyUserManagement(res);
     }
 
     const users =
       await User.find(
         tenantFilter(
           req,
-          { role }
+          {role}
         )
       )
       .sort({
-        createdAt: -1,
-        name: 1
+        createdAt:-1,
+        name:1
       })
       .lean();
 
     return res.json(users);
 
-  } catch (err) {
+  }catch(err){
 
     console.log(
       "LOAD USERS ERROR:",
@@ -3637,11 +3689,9 @@ app.get(
     );
 
     return res.status(500).json({
-      message: "Error loading users"
+      message:"Error loading users"
     });
-
   }
-
 });
 
 /* =========================
@@ -3651,16 +3701,18 @@ app.get(
 app.post(
   "/api/users/:role",
   requireTenantApi,
-  async (req, res) => {
+  async (req,res)=>{
 
-  try {
+  try{
 
     const role =
-      String(
-        req.params.role || ""
-      )
-      .trim()
-      .toLowerCase();
+      normalizeManagedUserRole(
+        req.params.role
+      );
+
+    if(!canManageUserRole(req,role)){
+      return denyUserManagement(res);
+    }
 
     const {
       name,
@@ -3672,60 +3724,35 @@ app.post(
       phone
     } = req.body || {};
 
-    if (
-      ![
-        "superadmin",
-        "admin",
-        "dispatcher",
-        "driver",
-        "company"
-      ].includes(role)
-    ) {
-
-      return res.status(400).json({
-        message: "Invalid role"
-      });
-
-    }
-
-    if (
+    if(
       !name ||
       !username ||
       !password
-    ) {
-
+    ){
       return res.status(400).json({
-        message: "Missing fields"
+        message:"Missing fields"
       });
-
     }
 
     const tenantId =
       tenantIdForCreate(req);
 
     if(!tenantId){
-
       return res.status(403).json({
         message:"Tenant Required"
       });
     }
 
-    /*
-      Username stays globally unique because login
-      currently resolves by username only.
-    */
     const exists =
       await User.findOne({
         username:
           normalizeText(username)
       });
 
-    if (exists) {
-
+    if(exists){
       return res.status(400).json({
-        message: "Username exists"
+        message:"Username exists"
       });
-
     }
 
     const hashed =
@@ -3736,7 +3763,6 @@ app.post(
 
     const newUser =
       await User.create({
-
         tenantId,
 
         name:
@@ -3761,12 +3787,11 @@ app.post(
 
         phone:
           normalizeText(phone)
-
       });
 
     return res.json(newUser);
 
-  } catch (err) {
+  }catch(err){
 
     console.log(
       "CREATE USER ERROR:",
@@ -3774,11 +3799,9 @@ app.post(
     );
 
     return res.status(500).json({
-      message: "Error creating user"
+      message:"Error creating user"
     });
-
   }
-
 });
 
 /* =========================
@@ -3788,25 +3811,31 @@ app.post(
 app.put(
   "/api/users/:id",
   requireTenantApi,
-  async (req, res) => {
+  async (req,res)=>{
 
-  try {
+  try{
 
     const existingUser =
       await User.findOne(
         tenantFilter(
           req,
-          {
-            _id:req.params.id
-          }
+          {_id:req.params.id}
         )
       );
 
     if(!existingUser){
-
       return res.status(404).json({
         message:"User not found"
       });
+    }
+
+    if(
+      !canManageUserRole(
+        req,
+        existingUser.role
+      )
+    ){
+      return denyUserManagement(res);
     }
 
     const {
@@ -3820,7 +3849,6 @@ app.put(
     } = req.body || {};
 
     const updateData = {
-
       name:
         normalizeText(name),
 
@@ -3838,45 +3866,32 @@ app.put(
 
       phone:
         normalizeText(phone)
-
     };
 
-    if (
+    if(
       password &&
       String(password).trim() !== ""
-    ) {
-
+    ){
       updateData.password =
         await bcrypt.hash(
           password,
           10
         );
-
     }
 
     const updated =
       await User.findOneAndUpdate(
-
         tenantFilter(
           req,
-          {
-            _id:req.params.id
-          }
+          {_id:req.params.id}
         ),
-
-        {
-          $set:updateData
-        },
-
-        {
-          new:true
-        }
-
+        {$set:updateData},
+        {new:true}
       );
 
     return res.json(updated);
 
-  } catch (err) {
+  }catch(err){
 
     console.log(
       "UPDATE USER ERROR:",
@@ -3884,46 +3899,47 @@ app.put(
     );
 
     return res.status(500).json({
-      message: "Error updating user"
+      message:"Error updating user"
     });
-
   }
-
 });
 
 /* =========================
-   TOGGLE ACTIVE
+   TOGGLE USER
 ========================= */
 
 app.patch(
   "/api/users/:id/toggle",
   requireTenantApi,
-  async (req, res) => {
+  async (req,res)=>{
 
-  try {
+  try{
 
     const user =
       await User.findOne(
         tenantFilter(
           req,
-          {
-            _id:req.params.id
-          }
+          {_id:req.params.id}
         )
       );
 
-    if (!user) {
-
+    if(!user){
       return res.status(404).json({
-        message: "User not found"
+        message:"User not found"
       });
+    }
 
+    if(
+      !canManageUserRole(
+        req,
+        user.role
+      )
+    ){
+      return denyUserManagement(res);
     }
 
     user.enabled =
-      user.enabled === false
-        ? true
-        : false;
+      user.enabled === false;
 
     user.active =
       user.enabled;
@@ -3932,7 +3948,7 @@ app.patch(
 
     return res.json(user);
 
-  } catch (err) {
+  }catch(err){
 
     console.log(
       "TOGGLE USER ERROR:",
@@ -3940,11 +3956,9 @@ app.patch(
     );
 
     return res.status(500).json({
-      message: "Error toggling user"
+      message:"Error toggling user"
     });
-
   }
-
 });
 
 /* =========================
@@ -3954,32 +3968,43 @@ app.patch(
 app.delete(
   "/api/users/:id",
   requireTenantApi,
-  async (req, res) => {
+  async (req,res)=>{
 
-  try {
+  try{
 
-    const deleted =
-      await User.findOneAndDelete(
+    const existingUser =
+      await User.findOne(
         tenantFilter(
           req,
-          {
-            _id:req.params.id
-          }
+          {_id:req.params.id}
         )
       );
 
-    if(!deleted){
-
+    if(!existingUser){
       return res.status(404).json({
         message:"User not found"
       });
     }
 
-    return res.json({
-      message: "Deleted"
+    if(
+      !canManageUserRole(
+        req,
+        existingUser.role
+      )
+    ){
+      return denyUserManagement(res);
+    }
+
+    await User.deleteOne({
+      _id:existingUser._id,
+      tenantId:existingUser.tenantId
     });
 
-  } catch (err) {
+    return res.json({
+      message:"Deleted"
+    });
+
+  }catch(err){
 
     console.log(
       "DELETE USER ERROR:",
@@ -3987,11 +4012,9 @@ app.delete(
     );
 
     return res.status(500).json({
-      message: "Error deleting user"
+      message:"Error deleting user"
     });
-
   }
-
 });
 
 /* =========================
@@ -3999,8 +4022,16 @@ app.delete(
 ========================= */
 
 function isTenantBillingAdmin(req){
-  const role = String(req.authUser?.role || "");
-  return ["SUPER_ADMIN","admin"].includes(role);
+  const role =
+    normalizeActorRole(
+      req.authUser?.role
+    );
+
+  return (
+    role === "SUPER_ADMIN" ||
+    role === "SUPERADMIN" ||
+    role === "PLATFORM_ADMIN"
+  );
 }
 
 function adminBillingCompanyFilter(req,id=null){

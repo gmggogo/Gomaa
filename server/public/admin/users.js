@@ -1,23 +1,156 @@
-let currentRole = "superadmin";
+/* =========================================================
+   FILE: server/public/admin/users.js
+   ROLE PERMISSIONS:
+   SUPER_ADMIN -> superadmin / admin / dispatcher / driver / company
+   ADMIN       -> dispatcher / driver / company
+   DISPATCHER  -> no access to Add User
+========================================================= */
+
 let editId = null;
 
 /* =========================
-   SECURITY
+   SECURITY / ROLE
 ========================= */
 
-const token = localStorage.getItem("token") || "";
-const role  = localStorage.getItem("role") || "";
+const token =
+  localStorage.getItem("token") || "";
 
-if(!token || !["SUPER_ADMIN","admin"].includes(role)){
-  window.location.href = "/login.html";
+const loginRole =
+  String(
+    localStorage.getItem("role") || ""
+  )
+  .trim()
+  .toUpperCase()
+  .replace(/[\s-]+/g,"_");
+
+const isSuperAdmin =
+  loginRole === "SUPER_ADMIN" ||
+  loginRole === "SUPERADMIN";
+
+const isAdmin =
+  loginRole === "ADMIN";
+
+if(
+  !token ||
+  (!isSuperAdmin && !isAdmin)
+){
+  window.location.href =
+    "/login.html";
 }
+
+/* =========================
+   ALLOWED USER TYPES
+========================= */
+
+const SUPER_ADMIN_ROLES = [
+  "superadmin",
+  "admin",
+  "dispatcher",
+  "driver",
+  "company"
+];
+
+const ADMIN_ROLES = [
+  "dispatcher",
+  "driver",
+  "company"
+];
+
+const allowedRoles =
+  isSuperAdmin
+    ? SUPER_ADMIN_ROLES
+    : ADMIN_ROLES;
+
+/*
+  Super Admin keeps current behavior starting on Super Admin.
+  Normal Admin starts on Dispatcher because Admin/Super Admin
+  are not available to that role.
+*/
+let currentRole =
+  isSuperAdmin
+    ? "superadmin"
+    : "dispatcher";
+
+/* =========================
+   HELPERS
+========================= */
+
+function roleAllowed(targetRole){
+
+  return allowedRoles.includes(
+    String(targetRole || "")
+      .trim()
+      .toLowerCase()
+  );
+}
+
+function roleTitle(targetRole){
+
+  const labels = {
+    superadmin:"Super Admins",
+    admin:"Admins",
+    dispatcher:"Dispatchers",
+    driver:"Drivers",
+    company:"Companies"
+  };
+
+  return (
+    labels[targetRole] ||
+    targetRole
+  );
+}
+
+async function safeJson(res){
+
+  try{
+    return await res.json();
+  }catch(err){
+    return {};
+  }
+}
+
+function hideForbiddenRoleButtons(){
+
+  const allRoles = [
+    "superadmin",
+    "admin",
+    "dispatcher",
+    "driver",
+    "company"
+  ];
+
+  allRoles.forEach(targetRole=>{
+
+    const btn =
+      document.getElementById(
+        targetRole + "Btn"
+      );
+
+    if(!btn){
+      return;
+    }
+
+    btn.style.display =
+      roleAllowed(targetRole)
+        ? ""
+        : "none";
+  });
+}
+
+/* =========================
+   INIT
+========================= */
 
 document.addEventListener(
   "DOMContentLoaded",
-  () => {
+  ()=>{
 
-    loadUsers();
+    hideForbiddenRoleButtons();
 
+    changeRole(
+      currentRole,
+      true
+    );
   }
 );
 
@@ -25,27 +158,54 @@ document.addEventListener(
    CHANGE ROLE
 ========================= */
 
-function changeRole(role){
+function changeRole(
+  targetRole,
+  initial = false
+){
 
-  currentRole = role;
+  targetRole =
+    String(targetRole || "")
+      .trim()
+      .toLowerCase();
 
-  editId = null;
+  if(!roleAllowed(targetRole)){
 
-  document.getElementById("title")
-    .innerText =
-      role.charAt(0).toUpperCase() +
-      role.slice(1) +
-      "s";
+    alert(
+      "You do not have permission to manage this user type."
+    );
+
+    return;
+  }
+
+  currentRole =
+    targetRole;
+
+  editId =
+    null;
+
+  const title =
+    document.getElementById(
+      "title"
+    );
+
+  if(title){
+    title.innerText =
+      roleTitle(targetRole);
+  }
 
   document
-    .querySelectorAll(".sidebar button")
-    .forEach(btn =>
-      btn.classList.remove("active")
+    .querySelectorAll(
+      ".sidebar button"
+    )
+    .forEach(btn=>
+      btn.classList.remove(
+        "active"
+      )
     );
 
   const activeBtn =
     document.getElementById(
-      role + "Btn"
+      targetRole + "Btn"
     );
 
   if(activeBtn){
@@ -53,13 +213,11 @@ function changeRole(role){
     activeBtn.classList.add(
       "active"
     );
-
   }
 
   clearInputs();
 
   loadUsers();
-
 }
 
 /* =========================
@@ -68,6 +226,10 @@ function changeRole(role){
 
 async function loadUsers(){
 
+  if(!roleAllowed(currentRole)){
+    return;
+  }
+
   try{
 
     const res =
@@ -75,143 +237,123 @@ async function loadUsers(){
         `/api/users/${currentRole}`,
         {
           headers:{
-            Authorization:"Bearer " + token
+            Authorization:
+              "Bearer " + token
           }
         }
       );
 
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Error loading users"
+      );
+    }
+
     const users =
-      await res.json();
+      Array.isArray(data)
+        ? data
+        : [];
 
     const table =
       document.getElementById(
         "table"
       );
 
+    if(!table){
+      return;
+    }
+
     table.innerHTML = "";
 
-    if(
-      !Array.isArray(users) ||
-      !users.length
-    ){
+    if(!users.length){
 
       table.innerHTML = `
-
         <tr>
-
           <td colspan="6">
-
             No users found
-
           </td>
-
         </tr>
-
       `;
 
       return;
-
     }
 
-    users.forEach(user => {
+    users.forEach(user=>{
 
       table.innerHTML += `
-
         <tr>
 
-          <!-- NAME -->
           <td>
-
             ${user.name || "--"}
-
           </td>
 
-          <!-- USERNAME -->
           <td>
-
             ${user.username || "--"}
-
           </td>
 
-          <!-- EMAIL -->
           <td>
-
             ${user.email || "--"}
-
           </td>
 
-          <!-- PHONE -->
           <td>
-
             ${user.phone || "--"}
-
           </td>
 
-          <!-- STATUS -->
           <td>
-
             ${
-              user.active
+              user.active !== false &&
+              user.enabled !== false
                 ? "Active"
                 : "Disabled"
             }
-
           </td>
 
-          <!-- ACTIONS -->
           <td>
-
             <div class="actions">
 
               <button
                 class="btn edit"
-
                 onclick="editUser(
                   '${user._id}',
-                  \`${user.name || ""}\`,
-                  \`${user.username || ""}\`,
-                  \`${user.email || ""}\`,
-                  \`${user.phone || ""}\`
+                  ${JSON.stringify(user.name || "")},
+                  ${JSON.stringify(user.username || "")},
+                  ${JSON.stringify(user.email || "")},
+                  ${JSON.stringify(user.phone || "")}
                 )">
-
                 Edit
-
               </button>
 
               <button
                 class="btn disable"
-
                 onclick="toggleUser(
                   '${user._id}'
                 )">
-
                 ${
-                  user.active
+                  user.active !== false &&
+                  user.enabled !== false
                     ? "Disable"
                     : "Enable"
                 }
-
               </button>
 
               <button
                 class="btn delete"
-
                 onclick="deleteUser(
                   '${user._id}'
                 )">
-
                 Delete
-
               </button>
 
             </div>
-
           </td>
 
         </tr>
-
       `;
-
     });
 
   }catch(err){
@@ -219,11 +361,10 @@ async function loadUsers(){
     console.log(err);
 
     alert(
+      err.message ||
       "Error loading users"
     );
-
   }
-
 }
 
 /* =========================
@@ -232,30 +373,39 @@ async function loadUsers(){
 
 async function addUser(){
 
+  if(!roleAllowed(currentRole)){
+
+    alert(
+      "You do not have permission for this user type."
+    );
+
+    return;
+  }
+
   const name =
     document.getElementById(
       "name"
-    ).value.trim();
+    )?.value.trim() || "";
 
   const username =
     document.getElementById(
       "username"
-    ).value.trim();
+    )?.value.trim() || "";
 
   const email =
     document.getElementById(
       "email"
-    ).value.trim();
+    )?.value.trim() || "";
 
   const phone =
     document.getElementById(
       "phone"
-    ).value.trim();
+    )?.value.trim() || "";
 
   const password =
     document.getElementById(
       "password"
-    ).value.trim();
+    )?.value.trim() || "";
 
   if(
     !name ||
@@ -269,45 +419,42 @@ async function addUser(){
     );
 
     return;
-
   }
 
   try{
 
-    /* =========================
-       UPDATE USER
-    ========================= */
+    let res = null;
+
+    /* UPDATE USER */
 
     if(editId){
 
-      await fetch(
-        `/api/users/${editId}`,
-        {
-          method:"PUT",
+      res =
+        await fetch(
+          `/api/users/${editId}`,
+          {
+            method:"PUT",
 
-          headers:{
-            "Content-Type":
-              "application/json",
-            Authorization:"Bearer " + token
-          },
+            headers:{
+              "Content-Type":
+                "application/json",
 
-          body:JSON.stringify({
+              Authorization:
+                "Bearer " + token
+            },
 
-            name,
-            username,
-            email,
-            phone,
-            password
-
-          })
-        }
-      );
-
+            body:JSON.stringify({
+              name,
+              username,
+              email,
+              phone,
+              password
+            })
+          }
+        );
     }
 
-    /* =========================
-       CREATE USER
-    ========================= */
+    /* CREATE USER */
 
     else{
 
@@ -318,48 +465,57 @@ async function addUser(){
         );
 
         return;
-
       }
 
-      await fetch(
-        `/api/users/${currentRole}`,
-        {
-          method:"POST",
+      res =
+        await fetch(
+          `/api/users/${currentRole}`,
+          {
+            method:"POST",
 
-          headers:{
-            "Content-Type":
-              "application/json",
-            Authorization:"Bearer " + token
-          },
+            headers:{
+              "Content-Type":
+                "application/json",
 
-          body:JSON.stringify({
+              Authorization:
+                "Bearer " + token
+            },
 
-            name,
-            username,
-            email,
-            phone,
-            password
+            body:JSON.stringify({
+              name,
+              username,
+              email,
+              phone,
+              password
+            })
+          }
+        );
+    }
 
-          })
-        }
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Save failed"
       );
-
     }
 
     clearInputs();
 
-    loadUsers();
+    await loadUsers();
 
   }catch(err){
 
     console.log(err);
 
     alert(
+      err.message ||
       "Save failed"
     );
-
   }
-
 }
 
 /* =========================
@@ -395,7 +551,6 @@ function editUser(
   document.getElementById(
     "password"
   ).value = "";
-
 }
 
 /* =========================
@@ -406,24 +561,41 @@ async function toggleUser(id){
 
   try{
 
-    await fetch(
-      `/api/users/${id}/toggle`,
-      {
-        method:"PATCH",
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
+    const res =
+      await fetch(
+        `/api/users/${id}/toggle`,
+        {
+          method:"PATCH",
 
-    loadUsers();
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Update failed"
+      );
+    }
+
+    await loadUsers();
 
   }catch(err){
 
     console.log(err);
 
+    alert(
+      err.message ||
+      "Update failed"
+    );
   }
-
 }
 
 /* =========================
@@ -437,28 +609,47 @@ async function deleteUser(id){
       "Are you sure?"
     );
 
-  if(!ok) return;
+  if(!ok){
+    return;
+  }
 
   try{
 
-    await fetch(
-      `/api/users/${id}`,
-      {
-        method:"DELETE",
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      }
-    );
+    const res =
+      await fetch(
+        `/api/users/${id}`,
+        {
+          method:"DELETE",
 
-    loadUsers();
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Delete failed"
+      );
+    }
+
+    await loadUsers();
 
   }catch(err){
 
     console.log(err);
 
+    alert(
+      err.message ||
+      "Delete failed"
+    );
   }
-
 }
 
 /* =========================
@@ -469,24 +660,19 @@ function clearInputs(){
 
   editId = null;
 
-  document.getElementById(
-    "name"
-  ).value = "";
-
-  document.getElementById(
-    "username"
-  ).value = "";
-
-  document.getElementById(
-    "email"
-  ).value = "";
-
-  document.getElementById(
-    "phone"
-  ).value = "";
-
-  document.getElementById(
+  [
+    "name",
+    "username",
+    "email",
+    "phone",
     "password"
-  ).value = "";
+  ].forEach(id=>{
 
+    const el =
+      document.getElementById(id);
+
+    if(el){
+      el.value = "";
+    }
+  });
 }

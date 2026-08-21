@@ -31,10 +31,9 @@ const core=[
 const admin=[
 {l:"Add User",h:"users.html",i:"plus"},
 {l:"Summary",h:"summary.html",i:"chart"},
-{l:"Refunds",h:"refunds.html",i:"refund"},
-{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}
+{l:"Refunds",h:"refunds.html",i:"refund"}
 ];
-const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"}];
+const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
 const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
