@@ -321,16 +321,90 @@ button{
 <script>
 
 /* =========================
-DEFAULT LOGO
+TENANT BRANDING
 ========================= */
 
-if(!localStorage.getItem("appLogo")){
+async function loadDriverTenantBranding(){
 
-  localStorage.setItem(
-    "appLogo",
-    "/assets/logo.png"
-  );
+  const logo =
+    document.querySelector(
+      ".app-logo"
+    );
 
+  try{
+
+    if(
+      !window.Branding ||
+      typeof Branding.load !== "function"
+    ){
+      throw new Error(
+        "Branding engine unavailable"
+      );
+    }
+
+    /*
+      Branding.load() reads the tenant from:
+      /driver/login.html?tenant=sony
+      and loads THAT tenant's public System Design.
+    */
+    await Branding.load();
+
+    const mainLogo =
+      (
+        typeof Branding.getMainLogo === "function"
+          ? Branding.getMainLogo()
+          : Branding.data?.mainLogo
+      ) ||
+      "/assets/logo.png";
+
+    const companyName =
+      (
+        typeof Branding.getCompanyName === "function"
+          ? Branding.getCompanyName()
+          : Branding.data?.companyName
+      ) ||
+      "";
+
+    if(logo){
+      logo.src =
+        mainLogo;
+    }
+
+    /*
+      Keep the tenant branding cached for the Driver App
+      after successful login / redirect.
+    */
+    if(mainLogo){
+      localStorage.setItem(
+        "appLogo",
+        mainLogo
+      );
+    }
+
+    if(companyName){
+      localStorage.setItem(
+        "companyName",
+        companyName
+      );
+    }
+
+    document.title =
+      companyName
+        ? `${companyName} Driver Login`
+        : "Driver Login";
+
+  }catch(err){
+
+    console.log(
+      "DRIVER LOGIN BRANDING ERROR:",
+      err
+    );
+
+    if(logo){
+      logo.src =
+        "/assets/logo.png";
+    }
+  }
 }
 
 /* =========================
@@ -347,9 +421,7 @@ function updateDriverLoginClock(){
   if(!el) return;
 
   const timezone =
-
     window.Branding?.data?.timezone ||
-
     "America/Phoenix";
 
   const now =
@@ -359,7 +431,7 @@ function updateDriverLoginClock(){
     now.toLocaleDateString(
       "en-US",
       {
-        timeZone: timezone,
+        timeZone:timezone,
         weekday:"short",
         month:"short",
         day:"numeric",
@@ -371,7 +443,7 @@ function updateDriverLoginClock(){
     now.toLocaleTimeString(
       "en-US",
       {
-        timeZone: timezone,
+        timeZone:timezone,
         hour:"numeric",
         minute:"2-digit",
         second:"2-digit",
@@ -379,9 +451,7 @@ function updateDriverLoginClock(){
       }
     );
 
-  el.innerHTML =
-
-    `
+  el.innerHTML = `
     <div style="
       font-size:13px;
       font-weight:700;
@@ -398,44 +468,26 @@ function updateDriverLoginClock(){
     ">
       ${time}
     </div>
-    `;
-
+  `;
 }
 
 /* =========================
-START CLOCK
+START
 ========================= */
-
-async function startDriverClock(){
-
-  if(window.Branding){
-
-    try{
-
-      await Branding.load();
-
-    }
-
-    catch(err){
-
-      console.log(err);
-
-    }
-
-  }
-
-  updateDriverLoginClock();
-
-  setInterval(
-    updateDriverLoginClock,
-    1000
-  );
-
-}
 
 window.addEventListener(
   "DOMContentLoaded",
-  startDriverClock
+  async ()=>{
+
+    await loadDriverTenantBranding();
+
+    updateDriverLoginClock();
+
+    setInterval(
+      updateDriverLoginClock,
+      1000
+    );
+  }
 );
 
 </script>

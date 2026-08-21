@@ -8,9 +8,7 @@
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<title>
-Sunbeam Login
-</title>
+<title>Staff Login</title>
 
 <style>
 
@@ -75,7 +73,9 @@ body{
 
 .logo{
 
-  width:140px;
+  width:155px;
+
+  max-height:125px;
 
   margin-bottom:18px;
 
@@ -93,9 +93,23 @@ body{
 
   letter-spacing:2px;
 
-  margin-bottom:10px;
+  margin-bottom:8px;
 
   font-weight:bold;
+
+}
+
+.company-login-name{
+
+  min-height:18px;
+
+  color:#facc15;
+
+  font-size:13px;
+
+  font-weight:800;
+
+  margin-bottom:10px;
 
 }
 
@@ -201,7 +215,9 @@ body{
 
   .logo{
 
-    width:120px;
+    width:130px;
+
+    max-height:105px;
 
   }
 
@@ -228,66 +244,131 @@ body{
 <div class="login-card">
 
   <img
-  class="logo app-logo"
+  class="logo app-logo main-logo"
+  id="staffTenantLogo"
   alt="Company Logo">
 
   <div class="title">
-
     STAFF LOGIN
+  </div>
 
+  <div
+  id="staffTenantName"
+  class="company-login-name">
   </div>
 
   <div
   id="azTime"
   class="az-time">
-
   </div>
 
   <input
   type="text"
   id="username"
-  placeholder="Username">
+  placeholder="Username"
+  autocomplete="username">
 
   <input
   type="password"
   id="password"
-  placeholder="Password">
+  placeholder="Password"
+  autocomplete="current-password">
 
   <button onclick="login()">
-
     Sign In
-
   </button>
 
   <div id="msg"></div>
 
 </div>
 
-<!-- GENERIC STAFF LOGIN BRANDING -->
+<!--
+  TENANT BRANDING:
+  branding.js reads ?tenant=sony (or ?tenantSlug=sony)
+  and loads the public design for THAT tenant before login.
+-->
+<script src="/core/branding.js"></script>
 
 <script>
 
-/*
-  IMPORTANT:
-  The generic staff login must NOT inherit the last public tenant
-  stored in localStorage. Tenant branding is loaded only after
-  successful authentication from the account's own tenant.
-*/
+/* =========================
+TENANT LOGIN BRANDING
+========================= */
 
-function applyGenericStaffLoginBranding(){
+async function loadStaffTenantBranding(){
 
   const logo =
-    document.querySelector(
-      ".app-logo"
+    document.getElementById(
+      "staffTenantLogo"
     );
 
-  if(logo){
-    logo.src =
-      "/assets/logo.png";
-  }
+  const nameEl =
+    document.getElementById(
+      "staffTenantName"
+    );
 
-  document.title =
-    "Sunbeam Login";
+  try{
+
+    if(
+      !window.Branding ||
+      typeof Branding.load !== "function"
+    ){
+      throw new Error(
+        "Branding engine unavailable"
+      );
+    }
+
+    await Branding.load();
+
+    const companyName =
+      (
+        typeof Branding.getCompanyName === "function"
+          ? Branding.getCompanyName()
+          : Branding.data?.companyName
+      ) || "";
+
+    const mainLogo =
+      (
+        typeof Branding.getMainLogo === "function"
+          ? Branding.getMainLogo()
+          : Branding.data?.mainLogo
+      ) || "/assets/logo.png";
+
+    if(logo){
+      logo.src =
+        mainLogo;
+    }
+
+    if(nameEl){
+      nameEl.textContent =
+        companyName;
+    }
+
+    document.title =
+      companyName
+        ? `${companyName} Staff Login`
+        : "Staff Login";
+
+  }catch(err){
+
+    console.log(
+      "STAFF LOGIN BRANDING ERROR:",
+      err
+    );
+
+    if(logo){
+      logo.src =
+        "/assets/logo.png";
+    }
+
+    if(nameEl){
+      nameEl.textContent =
+        "";
+    }
+
+    document.title =
+      "Staff Login";
+  }
 }
 
 /* =========================
@@ -304,6 +385,10 @@ function updateStaffClock(){
   if(!el) return;
 
   const timezone =
+    window.Branding?.data?.timezone ||
+    localStorage.getItem(
+      "appTimezone"
+    ) ||
     "America/Phoenix";
 
   const now =
@@ -313,7 +398,7 @@ function updateStaffClock(){
     now.toLocaleDateString(
       "en-US",
       {
-        timeZone: timezone,
+        timeZone:timezone,
         weekday:"short",
         month:"short",
         day:"numeric",
@@ -325,7 +410,7 @@ function updateStaffClock(){
     now.toLocaleTimeString(
       "en-US",
       {
-        timeZone: timezone,
+        timeZone:timezone,
         hour:"numeric",
         minute:"2-digit",
         second:"2-digit",
@@ -333,9 +418,7 @@ function updateStaffClock(){
       }
     );
 
-  el.innerHTML =
-
-    `
+  el.innerHTML = `
     <div style="
       font-size:13px;
       font-weight:700;
@@ -352,15 +435,14 @@ function updateStaffClock(){
     ">
       ${time}
     </div>
-    `;
-
+  `;
 }
 
 window.addEventListener(
   "DOMContentLoaded",
-  ()=>{
+  async ()=>{
 
-    applyGenericStaffLoginBranding();
+    await loadStaffTenantBranding();
 
     updateStaffClock();
 
@@ -368,7 +450,6 @@ window.addEventListener(
       updateStaffClock,
       1000
     );
-
   }
 );
 
