@@ -222,7 +222,7 @@ async function login(){
     ){
 
       window.location.replace(
-        "/dispatcher/dashboard.html"
+        "/admin/dashboard.html"
       );
 
       return;
