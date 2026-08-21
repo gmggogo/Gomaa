@@ -148,11 +148,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
      "dynamicCompanyName"
    );
 
- const companySideEl =
-   document.getElementById(
-     "saasCompanyName"
-   );
-
  const mobileCompanyEl =
    document.getElementById(
      "mobileCompanyName"
@@ -165,11 +160,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  if(companyEl){
    companyEl.textContent =
-     tenantCompany;
- }
-
- if(companySideEl){
-   companySideEl.textContent =
      tenantCompany;
  }
 
@@ -262,18 +252,12 @@ document.addEventListener("DOMContentLoaded",async()=>{
        "dynamicCompanyName"
      );
 
-   const b =
-     document.getElementById(
-       "saasCompanyName"
-     );
-
    const c =
      document.getElementById(
        "mobileCompanyName"
      );
 
    if(a) a.textContent = latestCompany;
-   if(b) b.textContent = latestCompany;
    if(c) c.textContent = latestCompany;
 
    document

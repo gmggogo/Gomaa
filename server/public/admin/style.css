@@ -216,3 +216,9 @@
   letter-spacing:.25px;
   white-space:nowrap;
 }
+
+
+/* V8: company name appears once only beside logo */
+.gh-saas-name{
+  display:none !important;
+}
