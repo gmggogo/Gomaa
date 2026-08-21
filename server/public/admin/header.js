@@ -52,14 +52,161 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
  document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
 
- const company=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
- const staff=localStorage.getItem("name")||localStorage.getItem("fullName")||"";
- document.getElementById("dynamicCompanyName").textContent=company;
- document.getElementById("mobileCompanyName").textContent=company;
- document.getElementById("staffDisplayName").textContent=staff;
- const headerTenantEl=document.getElementById("saasCompanyName");
- if(headerTenantEl) headerTenantEl.textContent=company;
- const logo=localStorage.getItem("appLogo")||"/assets/logo.png"; document.querySelectorAll(".app-logo").forEach(x=>x.src=logo);
+ const fallbackCompany =
+   localStorage.getItem("companyName") ||
+   localStorage.getItem("tenantName") ||
+   "";
+
+ const fallbackStaff =
+   localStorage.getItem("name") ||
+   localStorage.getItem("fullName") ||
+   "";
+
+ async function ensureBrandingLoaded(){
+
+   if(!window.Branding){
+
+     await new Promise(resolve=>{
+
+       const existing =
+         document.querySelector(
+           'script[src="/core/branding.js"]'
+         );
+
+       if(existing){
+
+         if(window.Branding){
+           resolve();
+           return;
+         }
+
+         existing.addEventListener(
+           "load",
+           resolve,
+           {once:true}
+         );
+
+         setTimeout(resolve,700);
+         return;
+       }
+
+       const script =
+         document.createElement("script");
+
+       script.src =
+         "/core/branding.js";
+
+       script.onload =
+         resolve;
+
+       script.onerror =
+         resolve;
+
+       document.body.appendChild(
+         script
+       );
+     });
+   }
+
+   if(
+     window.Branding &&
+     typeof window.Branding.load === "function"
+   ){
+
+     try{
+       await window.Branding.load();
+     }catch(err){
+       console.log(
+         "HEADER BRANDING LOAD ERROR:",
+         err
+       );
+     }
+   }
+ }
+
+ await ensureBrandingLoaded();
+
+ const brandingData =
+   window.Branding?.data || {};
+
+ const tenantCompany =
+   brandingData.companyName ||
+   fallbackCompany ||
+   "";
+
+ const tenantMainLogo =
+   brandingData.mainLogo ||
+   (
+     typeof window.Branding?.getMainLogo === "function"
+       ? window.Branding.getMainLogo()
+       : ""
+   ) ||
+   "/assets/logo.png";
+
+ const companyEl =
+   document.getElementById(
+     "dynamicCompanyName"
+   );
+
+ const companySideEl =
+   document.getElementById(
+     "saasCompanyName"
+   );
+
+ const mobileCompanyEl =
+   document.getElementById(
+     "mobileCompanyName"
+   );
+
+ const staffEl =
+   document.getElementById(
+     "staffDisplayName"
+   );
+
+ if(companyEl){
+   companyEl.textContent =
+     tenantCompany;
+ }
+
+ if(companySideEl){
+   companySideEl.textContent =
+     tenantCompany;
+ }
+
+ if(mobileCompanyEl){
+   mobileCompanyEl.textContent =
+     tenantCompany;
+ }
+
+ if(staffEl){
+   staffEl.textContent =
+     fallbackStaff;
+ }
+
+ document
+   .querySelectorAll(
+     ".app-logo"
+   )
+   .forEach(img=>{
+
+     img.src =
+       tenantMainLogo;
+   });
+
+ /* Keep local cache synchronized with System Design */
+ if(tenantCompany){
+   localStorage.setItem(
+     "companyName",
+     tenantCompany
+   );
+ }
+
+ if(tenantMainLogo){
+   localStorage.setItem(
+     "appLogo",
+     tenantMainLogo
+   );
+ }
 
  let nav=[...core]; if(currentRole!=="DISPATCHER")nav.push(...admin); if(currentRole==="SUPER_ADMIN")nav.push(...extra); if(currentRole!=="DISPATCHER")nav.push(settings);
 
@@ -87,6 +234,55 @@ document.addEventListener("DOMContentLoaded",async()=>{
      x.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;mobile.appendChild(a)});
    }else{const a=link(x);a.className="";mobile.appendChild(a)}
  });
+
+
+ /* Re-sync after Branding global application completes */
+ setTimeout(()=>{
+
+   const data =
+     window.Branding?.data || {};
+
+   const latestCompany =
+     data.companyName ||
+     localStorage.getItem("companyName") ||
+     "";
+
+   const latestLogo =
+     data.mainLogo ||
+     (
+       typeof window.Branding?.getMainLogo === "function"
+         ? window.Branding.getMainLogo()
+         : ""
+     ) ||
+     localStorage.getItem("appLogo") ||
+     "/assets/logo.png";
+
+   const a =
+     document.getElementById(
+       "dynamicCompanyName"
+     );
+
+   const b =
+     document.getElementById(
+       "saasCompanyName"
+     );
+
+   const c =
+     document.getElementById(
+       "mobileCompanyName"
+     );
+
+   if(a) a.textContent = latestCompany;
+   if(b) b.textContent = latestCompany;
+   if(c) c.textContent = latestCompany;
+
+   document
+     .querySelectorAll(".app-logo")
+     .forEach(img=>{
+       img.src = latestLogo;
+     });
+
+ },350);
 
  const page=location.pathname.split("/").pop();
  document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));

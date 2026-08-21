@@ -206,3 +206,13 @@
   letter-spacing:.2px;
   white-space:nowrap;
 }
+
+
+/* V7 TENANT BRAND SYNC */
+.gh-saas-name{
+  color:#f6c515;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.25px;
+  white-space:nowrap;
+}
