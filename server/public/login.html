@@ -305,7 +305,81 @@ function cleanTenantSlugForBranding(value){
 
 function tenantSlugForBranding(){
 
-  /* 1) Query: /login.html?tenant=sony */
+  /*
+    IMPORTANT:
+    /login.html is shared by all tenants.
+    We must resolve the CURRENT tenant before Branding.load().
+    Order:
+    1) ?tenant=sony
+    2) opener page (/sony)
+    3) referrer page (/sony)
+    4) current tenant path if applicable
+    5) same-tab session fallback
+  */
+
+  const reserved =
+    new Set([
+      "admin",
+      "dispatcher",
+      "driver",
+      "company",
+      "platform-admin",
+      "booking",
+      "api",
+      "core",
+      "assets",
+      "uploads",
+      "login.html",
+      "login"
+    ]);
+
+  function slugFromPath(pathname){
+
+    const firstPart =
+      cleanTenantSlugForBranding(
+        String(pathname || "")
+          .split("/")
+          .filter(Boolean)[0]
+      );
+
+    if(
+      firstPart &&
+      !reserved.has(firstPart) &&
+      !firstPart.includes(".")
+    ){
+      return firstPart;
+    }
+
+    return "";
+  }
+
+  function saveSlug(slug){
+
+    slug =
+      cleanTenantSlugForBranding(slug);
+
+    if(!slug){
+      return "";
+    }
+
+    /*
+      Replace any stale tenant from another company.
+      This is what was causing Sony login to show Cover All.
+    */
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      slug
+    );
+
+    localStorage.setItem(
+      "tenantSlug",
+      slug
+    );
+
+    return slug;
+  }
+
+  /* 1) Explicit query */
   const params =
     new URLSearchParams(
       window.location.search
@@ -318,21 +392,38 @@ function tenantSlugForBranding(){
     );
 
   if(querySlug){
-
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      querySlug
-    );
-
-    localStorage.setItem(
-      "tenantSlug",
-      querySlug
-    );
-
-    return querySlug;
+    return saveSlug(querySlug);
   }
 
-  /* 2) Referrer: /sony -> Staff Login */
+  /* 2) Page that opened this login window/tab */
+  try{
+
+    if(
+      window.opener &&
+      window.opener.location &&
+      window.opener.location.origin ===
+        window.location.origin
+    ){
+
+      const openerSlug =
+        slugFromPath(
+          window.opener.location.pathname
+        );
+
+      if(openerSlug){
+        return saveSlug(openerSlug);
+      }
+    }
+
+  }catch(err){
+
+    console.log(
+      "LOGIN OPENER TENANT ERROR:",
+      err
+    );
+  }
+
+  /* 3) Referrer */
   try{
 
     if(document.referrer){
@@ -347,44 +438,13 @@ function tenantSlugForBranding(){
         window.location.origin
       ){
 
-        const firstPart =
-          cleanTenantSlugForBranding(
+        const refSlug =
+          slugFromPath(
             ref.pathname
-              .split("/")
-              .filter(Boolean)[0]
           );
 
-        const reserved =
-          new Set([
-            "admin",
-            "dispatcher",
-            "driver",
-            "company",
-            "platform-admin",
-            "booking",
-            "api",
-            "core",
-            "assets",
-            "uploads"
-          ]);
-
-        if(
-          firstPart &&
-          !reserved.has(firstPart) &&
-          !firstPart.includes(".")
-        ){
-
-          sessionStorage.setItem(
-            "loginTenantSlug",
-            firstPart
-          );
-
-          localStorage.setItem(
-            "tenantSlug",
-            firstPart
-          );
-
-          return firstPart;
+        if(refSlug){
+          return saveSlug(refSlug);
         }
       }
     }
@@ -392,18 +452,25 @@ function tenantSlugForBranding(){
   }catch(err){
 
     console.log(
-      "LOGIN BRAND TENANT ERROR:",
+      "LOGIN REFERRER TENANT ERROR:",
       err
     );
   }
 
-  /* 3) Same-tab fallback */
+  /* 4) Current pathname, if login is ever mounted under a tenant */
+  const pathSlug =
+    slugFromPath(
+      window.location.pathname
+    );
+
+  if(pathSlug){
+    return saveSlug(pathSlug);
+  }
+
+  /* 5) Same-tab fallback only */
   return cleanTenantSlugForBranding(
     sessionStorage.getItem(
       "loginTenantSlug"
-    ) ||
-    localStorage.getItem(
-      "tenantSlug"
     )
   );
 }
@@ -414,7 +481,23 @@ function tenantSlugForBranding(){
 
 async function loadStaffTenantBranding(){
 
-  tenantSlugForBranding();
+  const resolvedTenantSlug =
+    tenantSlugForBranding();
+
+  /*
+    Keep Branding's tenant lookup synchronized with Staff Login.
+    A stale Cover All value must never override a newly resolved Sony tenant.
+  */
+  if(resolvedTenantSlug){
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      resolvedTenantSlug
+    );
+    localStorage.setItem(
+      "tenantSlug",
+      resolvedTenantSlug
+    );
+  }
 
   let data = {};
 
@@ -429,6 +512,47 @@ async function loadStaffTenantBranding(){
 
       data =
         Branding.data || {};
+
+      /*
+        If Branding had an old cached tenant, force the exact tenant
+        selected for this Staff Login.
+      */
+      if(
+        resolvedTenantSlug &&
+        cleanTenantSlugForBranding(
+          data.tenantSlug
+        ) !==
+        cleanTenantSlugForBranding(
+          resolvedTenantSlug
+        )
+      ){
+
+        const tenantRes =
+          await fetch(
+            "/api/public/tenant/" +
+            encodeURIComponent(
+              resolvedTenantSlug
+            )
+          );
+
+        if(tenantRes.ok){
+
+          const exactTenant =
+            await tenantRes.json();
+
+          data = {
+            ...data,
+            ...exactTenant,
+            tenantSlug:
+              exactTenant.tenantSlug ||
+              resolvedTenantSlug
+          };
+
+          if(window.Branding){
+            Branding.data = data;
+          }
+        }
+      }
     }
 
   }catch(err){
