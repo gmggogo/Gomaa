@@ -8,7 +8,9 @@
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<title>Staff Login</title>
+<title id="pageTitle">
+Staff Login
+</title>
 
 <style>
 
@@ -73,9 +75,9 @@ body{
 
 .logo{
 
-  width:155px;
+  width:150px;
 
-  max-height:125px;
+  max-height:110px;
 
   margin-bottom:18px;
 
@@ -93,15 +95,20 @@ body{
 
   letter-spacing:2px;
 
-  margin-bottom:8px;
+  margin-bottom:10px;
 
   font-weight:bold;
 
 }
 
-.company-login-name{
+/* COMPANY NAME */
+
+.company-name{
 
   min-height:18px;
+
+  margin-top:-3px;
+  margin-bottom:8px;
 
   color:#facc15;
 
@@ -109,7 +116,7 @@ body{
 
   font-weight:800;
 
-  margin-bottom:10px;
+  letter-spacing:.3px;
 
 }
 
@@ -215,9 +222,9 @@ body{
 
   .logo{
 
-    width:130px;
+    width:135px;
 
-    max-height:105px;
+    max-height:100px;
 
   }
 
@@ -244,8 +251,8 @@ body{
 <div class="login-card">
 
   <img
-  class="logo app-logo main-logo"
   id="staffTenantLogo"
+  class="logo app-logo"
   alt="Company Logo">
 
   <div class="title">
@@ -253,26 +260,24 @@ body{
   </div>
 
   <div
-  id="staffTenantName"
-  class="company-login-name">
+    id="staffTenantName"
+    class="company-name">
   </div>
 
   <div
-  id="azTime"
-  class="az-time">
+    id="azTime"
+    class="az-time">
   </div>
 
   <input
-  type="text"
-  id="username"
-  placeholder="Username"
-  autocomplete="username">
+    type="text"
+    id="username"
+    placeholder="Username">
 
   <input
-  type="password"
-  id="password"
-  placeholder="Password"
-  autocomplete="current-password">
+    type="password"
+    id="password"
+    placeholder="Password">
 
   <button onclick="login()">
     Sign In
@@ -282,20 +287,176 @@ body{
 
 </div>
 
-<!--
-  TENANT BRANDING:
-  branding.js reads ?tenant=sony (or ?tenantSlug=sony)
-  and loads the public design for THAT tenant before login.
--->
 <script src="/core/branding.js"></script>
 
 <script>
 
+/* =========================================================
+   STAFF LOGIN TENANT BRANDING
+   Uses the same tenant resolution as staff login.js
+========================================================= */
+
+function cleanTenantSlugForBranding(value){
+
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function tenantSlugForBranding(){
+
+  /* 1) Query: /login.html?tenant=sony */
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const querySlug =
+    cleanTenantSlugForBranding(
+      params.get("tenant") ||
+      params.get("tenantSlug")
+    );
+
+  if(querySlug){
+
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      querySlug
+    );
+
+    localStorage.setItem(
+      "tenantSlug",
+      querySlug
+    );
+
+    return querySlug;
+  }
+
+  /* 2) Referrer: /sony -> Staff Login */
+  try{
+
+    if(document.referrer){
+
+      const ref =
+        new URL(
+          document.referrer
+        );
+
+      if(
+        ref.origin ===
+        window.location.origin
+      ){
+
+        const firstPart =
+          cleanTenantSlugForBranding(
+            ref.pathname
+              .split("/")
+              .filter(Boolean)[0]
+          );
+
+        const reserved =
+          new Set([
+            "admin",
+            "dispatcher",
+            "driver",
+            "company",
+            "platform-admin",
+            "booking",
+            "api",
+            "core",
+            "assets",
+            "uploads"
+          ]);
+
+        if(
+          firstPart &&
+          !reserved.has(firstPart) &&
+          !firstPart.includes(".")
+        ){
+
+          sessionStorage.setItem(
+            "loginTenantSlug",
+            firstPart
+          );
+
+          localStorage.setItem(
+            "tenantSlug",
+            firstPart
+          );
+
+          return firstPart;
+        }
+      }
+    }
+
+  }catch(err){
+
+    console.log(
+      "LOGIN BRAND TENANT ERROR:",
+      err
+    );
+  }
+
+  /* 3) Same-tab fallback */
+  return cleanTenantSlugForBranding(
+    sessionStorage.getItem(
+      "loginTenantSlug"
+    ) ||
+    localStorage.getItem(
+      "tenantSlug"
+    )
+  );
+}
+
 /* =========================
-TENANT LOGIN BRANDING
+   APPLY TENANT BRANDING
 ========================= */
 
 async function loadStaffTenantBranding(){
+
+  tenantSlugForBranding();
+
+  let data = {};
+
+  try{
+
+    if(
+      window.Branding &&
+      typeof Branding.load === "function"
+    ){
+
+      await Branding.load();
+
+      data =
+        Branding.data || {};
+    }
+
+  }catch(err){
+
+    console.log(
+      "STAFF LOGIN BRANDING ERROR:",
+      err
+    );
+  }
+
+  const companyName =
+    data.companyName ||
+    localStorage.getItem(
+      "companyName"
+    ) ||
+    "";
+
+  const mainLogo =
+    data.mainLogo ||
+    (
+      typeof window.Branding?.getMainLogo === "function"
+        ? window.Branding.getMainLogo()
+        : ""
+    ) ||
+    localStorage.getItem(
+      "appLogo"
+    ) ||
+    "/assets/logo.png";
 
   const logo =
     document.getElementById(
@@ -307,72 +468,37 @@ async function loadStaffTenantBranding(){
       "staffTenantName"
     );
 
-  try{
+  if(logo){
+    logo.src = mainLogo;
+  }
 
-    if(
-      !window.Branding ||
-      typeof Branding.load !== "function"
-    ){
-      throw new Error(
-        "Branding engine unavailable"
-      );
-    }
+  if(nameEl){
+    nameEl.textContent =
+      companyName;
+  }
 
-    await Branding.load();
-
-    const companyName =
-      (
-        typeof Branding.getCompanyName === "function"
-          ? Branding.getCompanyName()
-          : Branding.data?.companyName
-      ) || "";
-
-    const mainLogo =
-      (
-        typeof Branding.getMainLogo === "function"
-          ? Branding.getMainLogo()
-          : Branding.data?.mainLogo
-      ) || "/assets/logo.png";
-
-    if(logo){
-      logo.src =
-        mainLogo;
-    }
-
-    if(nameEl){
-      nameEl.textContent =
-        companyName;
-    }
+  if(companyName){
 
     document.title =
+      companyName + " Staff Login";
+
+    localStorage.setItem(
+      "companyName",
       companyName
-        ? `${companyName} Staff Login`
-        : "Staff Login";
-
-  }catch(err){
-
-    console.log(
-      "STAFF LOGIN BRANDING ERROR:",
-      err
     );
+  }
 
-    if(logo){
-      logo.src =
-        "/assets/logo.png";
-    }
+  if(mainLogo){
 
-    if(nameEl){
-      nameEl.textContent =
-        "";
-    }
-
-    document.title =
-      "Staff Login";
+    localStorage.setItem(
+      "appLogo",
+      mainLogo
+    );
   }
 }
 
 /* =========================
-CLOCK
+   CLOCK
 ========================= */
 
 function updateStaffClock(){
@@ -386,9 +512,6 @@ function updateStaffClock(){
 
   const timezone =
     window.Branding?.data?.timezone ||
-    localStorage.getItem(
-      "appTimezone"
-    ) ||
     "America/Phoenix";
 
   const now =
@@ -438,23 +561,26 @@ function updateStaffClock(){
   `;
 }
 
+async function initStaffLoginBranding(){
+
+  await loadStaffTenantBranding();
+
+  updateStaffClock();
+
+  setInterval(
+    updateStaffClock,
+    1000
+  );
+}
+
 window.addEventListener(
   "DOMContentLoaded",
-  async ()=>{
-
-    await loadStaffTenantBranding();
-
-    updateStaffClock();
-
-    setInterval(
-      updateStaffClock,
-      1000
-    );
-  }
+  initStaffLoginBranding
 );
 
 </script>
 
+<!-- KEEP CURRENT WORKING STAFF LOGIN LOGIC -->
 <script src="login.js"></script>
 
 </body>
