@@ -43,13 +43,12 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
  const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
- const saasName =
-   localStorage.getItem("saasCompanyName") ||
-   localStorage.getItem("platformCompanyName") ||
-   localStorage.getItem("platformName") ||
-   "GH Mobility";
+ const tenantNameForHeader =
+   localStorage.getItem("companyName") ||
+   localStorage.getItem("tenantName") ||
+   "";
  const saasEl=document.getElementById("saasCompanyName");
- if(saasEl) saasEl.textContent=saasName;
+ if(saasEl) saasEl.textContent=tenantNameForHeader;
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
  document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
 
@@ -58,6 +57,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.getElementById("dynamicCompanyName").textContent=company;
  document.getElementById("mobileCompanyName").textContent=company;
  document.getElementById("staffDisplayName").textContent=staff;
+ const headerTenantEl=document.getElementById("saasCompanyName");
+ if(headerTenantEl) headerTenantEl.textContent=company;
  const logo=localStorage.getItem("appLogo")||"/assets/logo.png"; document.querySelectorAll(".app-logo").forEach(x=>x.src=logo);
 
  let nav=[...core]; if(currentRole!=="DISPATCHER")nav.push(...admin); if(currentRole==="SUPER_ADMIN")nav.push(...extra); if(currentRole!=="DISPATCHER")nav.push(settings);
