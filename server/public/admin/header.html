@@ -1,11 +1,41 @@
-<header class="admin-header" id="ghAdminHeader">
-<div class="top-bar">
-<button type="button" class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-<div class="brand-zone"><img class="logo app-logo main-logo" alt="Company Logo"><div class="brand-copy"><div class="company" id="dynamicCompanyName">Company</div><div class="role-chip" id="desktopRoleLabel">Admin</div></div></div>
-<div class="top-status-line"><span id="weatherIcon">☀️</span><span id="welcomeMessage">Good Morning</span>, <strong id="staffDisplayName">User</strong><span class="top-separator"></span><span id="headerDate">--</span><span class="top-separator"></span><span id="headerTime">--</span></div>
-<div class="top-right"><button class="logout-btn" onclick="logout()">↪ Logout</button></div>
-</div>
-<div class="admin-nav-wrapper"><nav class="admin-nav" id="adminDesktopNav"></nav><div class="gh-powered">Powered by GH Mobility</div></div>
-<div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
-<aside class="mobile-side-menu" id="mobileSideMenu"><div class="mobile-side-head"><img class="mobile-side-logo app-logo" alt="Company Logo"><div class="mobile-side-title"><div id="mobileCompanyName">Company</div><small id="mobileRoleLabel">Panel</small></div><button type="button" class="mobile-close-btn" id="mobileCloseBtn">×</button></div><nav class="mobile-side-nav" id="mobileSideNav"></nav><button class="mobile-logout-btn" onclick="logout()">↪ Logout</button><div class="mobile-powered">Powered by GH Mobility</div></aside>
+<header class="gh-admin-header" id="ghAdminHeader">
+  <div class="gh-topbar">
+    <button class="gh-mobile-menu-btn" id="mobileMenuBtn" type="button">☰</button>
+
+    <div class="gh-brand">
+      <img class="gh-logo app-logo" alt="Company Logo">
+      <div>
+        <div class="gh-company" id="dynamicCompanyName"></div>
+        <div class="gh-role-small" id="desktopRoleLabel"></div>
+      </div>
+    </div>
+
+    <div class="gh-center">
+      <div class="gh-role-title" id="roleTitle">Admin — Administrator</div>
+      <div class="gh-greeting"><span id="weatherIcon">☀️</span> <span id="welcomeMessage">Good Morning</span>, <strong id="staffDisplayName"></strong></div>
+    </div>
+
+    <div class="gh-clock">
+      <div>📅 <span id="headerDate">--</span></div>
+      <div>🕘 <span id="headerTime">--</span></div>
+    </div>
+  </div>
+
+  <div class="gh-powered">Powered by <b>GH Mobility</b></div>
+
+  <div class="gh-nav-shell">
+    <nav class="gh-nav" id="adminDesktopNav"></nav>
+  </div>
+
+  <div class="gh-mobile-overlay" id="mobileMenuOverlay"></div>
+  <aside class="gh-mobile-drawer" id="mobileSideMenu">
+    <div class="gh-mobile-head">
+      <img class="gh-mobile-logo app-logo" alt="Company Logo">
+      <div class="gh-mobile-title"><div id="mobileCompanyName"></div><small id="mobileRoleLabel"></small></div>
+      <button id="mobileCloseBtn" class="gh-mobile-close" type="button">×</button>
+    </div>
+    <nav id="mobileSideNav" class="gh-mobile-nav"></nav>
+    <button class="gh-mobile-logout" onclick="logout()">Log Out</button>
+    <div class="gh-mobile-powered">Powered by GH Mobility</div>
+  </aside>
 </header>
