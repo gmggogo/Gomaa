@@ -1,16 +1,27 @@
 // =========================
 // FILE: public/core/branding.js
-// GH MOBILITY BRANDING ENGINE
-// FINAL CLEAN VERSION
+// CENTRAL BRANDING ENGINE
+// TENANT AWARE + WORD ALIGN SAFE
 // =========================
 
-console.log(
-  "BRANDING ENGINE LOADED"
-);
+console.log("BRANDING ENGINE LOADED");
 
 window.Branding = {
 
   data:{},
+  tenant:null,
+
+  /* =========================
+     TENANT
+  ========================= */
+
+  cleanTenantSlug(value){
+
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+
+  },
 
   getTenantSlug(){
 
@@ -20,13 +31,10 @@ window.Branding = {
       );
 
     const fromQuery =
-      String(
+      this.cleanTenantSlug(
         params.get("tenant") ||
-        params.get("tenantSlug") ||
-        ""
-      )
-      .trim()
-      .toLowerCase();
+        params.get("tenantSlug")
+      );
 
     if(fromQuery){
       return fromQuery;
@@ -37,55 +45,41 @@ window.Branding = {
         .split("/")
         .filter(Boolean);
 
-    /*
-      Old supported format:
-      /t/sony
-    */
     if(
       parts[0] === "t" &&
       parts[1]
     ){
-      return String(
+      return this.cleanTenantSlug(
         parts[1]
-      )
-      .trim()
-      .toLowerCase();
+      );
     }
 
-    /*
-      New clean public company URL:
-      /sony
-      /cover-all
-
-      Only ONE path segment is treated as a tenant slug.
-      This prevents /admin/..., /driver/..., /booking/...
-      from ever being mistaken for a company.
-    */
-    if(
-      parts.length === 1
-    ){
+    if(parts.length === 1){
 
       const candidate =
-        String(
-          parts[0] || ""
-        )
-        .trim()
-        .toLowerCase();
+        this.cleanTenantSlug(
+          parts[0]
+        );
 
-      const reserved = new Set([
-        "admin",
-        "driver",
-        "booking",
-        "company",
-        "platform-admin",
-        "api",
-        "uploads",
-        "assets",
-        "core",
-        "getquote",
-        "login.html",
-        "index.html"
-      ]);
+      const reserved =
+        new Set([
+          "",
+          "admin",
+          "dispatcher",
+          "driver",
+          "company",
+          "companies",
+          "platform-admin",
+          "booking",
+          "api",
+          "uploads",
+          "assets",
+          "core",
+          "getquote",
+          "login",
+          "login.html",
+          "index.html"
+        ]);
 
       if(
         candidate &&
@@ -96,12 +90,6 @@ window.Branding = {
       }
     }
 
-    /*
-      IMPORTANT:
-      Root "/" must never inherit the last company
-      visited from localStorage. Otherwise opening Sony
-      once could make the main Sunbeam homepage show Sony.
-    */
     return "";
 
   },
@@ -114,6 +102,10 @@ window.Branding = {
     ).trim();
 
   },
+
+  /* =========================
+     LOAD
+  ========================= */
 
   async load(){
 
@@ -133,14 +125,11 @@ window.Branding = {
       };
 
       /*
-        Public homepage:
-        load by tenant slug.
-
-        Logged-in staff pages:
-        keep using secure /api/system-design
-        with the JWT already stored by staff-login.
+        Public tenant page:
+        /sony
+        /cover-all
+        /login.html?tenant=sony
       */
-
       if(tenantSlug){
 
         url =
@@ -149,7 +138,12 @@ window.Branding = {
             tenantSlug
           );
 
-      }else if(token){
+      }
+      /*
+        Logged-in staff page:
+        branding comes from authenticated tenant.
+      */
+      else if(token){
 
         url =
           "/api/system-design";
@@ -158,6 +152,7 @@ window.Branding = {
           Authorization:
             `Bearer ${token}`
         };
+
       }
 
       const res =
@@ -166,8 +161,14 @@ window.Branding = {
           options
         );
 
-      const payload =
-        await res.json();
+      let payload = {};
+
+      try{
+        payload =
+          await res.json();
+      }catch{
+        payload = {};
+      }
 
       if(!res.ok){
 
@@ -175,6 +176,7 @@ window.Branding = {
           payload?.message ||
           "Failed To Load Branding"
         );
+
       }
 
       if(
@@ -188,85 +190,122 @@ window.Branding = {
         this.tenant =
           payload.tenant || null;
 
-        if(payload.tenant?.slug){
-
-          localStorage.setItem(
-            "tenantSlug",
-            payload.tenant.slug
-          );
-        }
-
-        if(payload.tenant?.id){
-
-          localStorage.setItem(
-            "tenantId",
-            String(
-              payload.tenant.id
-            )
-          );
-        }
-
-        if(payload.tenant?.timezone){
-
-          localStorage.setItem(
-            "appTimezone",
-            payload.tenant.timezone
-          );
-        }
-
       }else{
 
         this.data =
           payload || {};
+
+        this.tenant =
+          payload?.tenant || null;
+
+      }
+
+      const resolvedSlug =
+        this.cleanTenantSlug(
+          this.tenant?.slug ||
+          this.data?.tenantSlug ||
+          tenantSlug
+        );
+
+      if(resolvedSlug){
+
+        localStorage.setItem(
+          "tenantSlug",
+          resolvedSlug
+        );
+
+        sessionStorage.setItem(
+          "loginTenantSlug",
+          resolvedSlug
+        );
+
+      }
+
+      if(this.tenant?.id){
+
+        localStorage.setItem(
+          "tenantId",
+          String(this.tenant.id)
+        );
+
+      }else if(this.tenant?._id){
+
+        localStorage.setItem(
+          "tenantId",
+          String(this.tenant._id)
+        );
+
+      }
+
+      const timezone =
+        this.tenant?.timezone ||
+        this.data?.timezone ||
+        "";
+
+      if(timezone){
+
+        localStorage.setItem(
+          "appTimezone",
+          timezone
+        );
+
       }
 
     }catch(err){
 
       console.log(
-        "BRANDING LOAD ERROR",
+        "Branding Load Error",
         err
       );
 
       this.data = {};
+      this.tenant = null;
 
     }
 
     this.applyGlobalBranding();
 
-    const pathParts =
-      window.location.pathname
-        .split("/")
-        .filter(Boolean);
-
-    const isCleanTenantHome =
-      pathParts.length === 1 &&
-      !!this.getTenantSlug();
-
-    const isHomePage =
-
-    window.location.pathname === "/" ||
-
-    window.location.pathname.includes("index") ||
-
-    window.location.pathname.startsWith("/t/") ||
-
-    isCleanTenantHome;
-
-    if(isHomePage){
-
-      this.applyThemeEngine();
-
-    }
-
     return this.data;
 
   },
+
+  /* =========================
+     SAVE
+  ========================= */
+
+  save(data){
+
+    this.data =
+      data || {};
+
+    localStorage.setItem(
+      "ghSystemDesign",
+      JSON.stringify(this.data)
+    );
+
+    this.applyGlobalBranding();
+
+  },
+
+  /* =========================
+     GETTERS
+  ========================= */
 
   getCompanyName(){
 
     return (
       this.data?.companyName ||
       "Sunbeam Transportation"
+    );
+
+  },
+
+  getTimezone(){
+
+    return (
+      this.data?.timezone ||
+      this.tenant?.timezone ||
+      "America/Phoenix"
     );
 
   },
@@ -300,912 +339,450 @@ window.Branding = {
 
   getServices(){
 
-    const services =
-    this.data?.services || [];
-
-    if(Array.isArray(services)){
-      return services;
-    }
-
-    return [];
+    return Array.isArray(
+      this.data?.services
+    )
+      ? this.data.services
+      : [];
 
   },
+
+  /* =========================
+     TEXT HELPERS
+  ========================= */
+
+  cleanText(value){
+
+    return String(
+      value === undefined ||
+      value === null
+        ? ""
+        : value
+    );
+
+  },
+
+  cleanWordText(value){
+
+    return this.cleanText(value)
+      .replace(/style="[^"]*"/gi,"")
+      .replace(/style='[^']*'/gi,"")
+      .replace(/text-align\s*:\s*(left|right|center|justify)\s*;?/gi,"")
+      .replace(/<div[^>]*>/gi,"")
+      .replace(/<\/div>/gi,"\n")
+      .replace(/<p[^>]*>/gi,"")
+      .replace(/<\/p>/gi,"\n")
+      .replace(/<br\s*\/?>/gi,"\n")
+      .replace(/\n{3,}/g,"\n\n")
+      .trim();
+
+  },
+
+  normalizeWordAlign(align){
+
+    const clean =
+      String(align || "")
+        .toLowerCase()
+        .trim();
+
+    const allowed = [
+      "left",
+      "center",
+      "right",
+      "justify",
+      "justify-left",
+      "justify-center",
+      "justify-right"
+    ];
+
+    return allowed.includes(clean)
+      ? clean
+      : "center";
+
+  },
+
+  detectDirection(text){
+
+    return /[\u0600-\u06FF]/.test(
+      String(text || "")
+    )
+      ? "rtl"
+      : "ltr";
+
+  },
+
+  applyWordElement(el,value,align){
+
+    if(!el) return;
+
+    const text =
+      this.cleanWordText(value);
+
+    const finalAlign =
+      this.normalizeWordAlign(align);
+
+    const dir =
+      this.detectDirection(text);
+
+    el.classList.remove(
+      "gh-align-left",
+      "gh-align-center",
+      "gh-align-right",
+      "gh-align-justify",
+      "gh-align-justify-left",
+      "gh-align-justify-center",
+      "gh-align-justify-right",
+      "gh-dir-ltr",
+      "gh-dir-rtl"
+    );
+
+    el.classList.add(
+      "gh-word-text",
+      "gh-align-" + finalAlign,
+      dir === "rtl"
+        ? "gh-dir-rtl"
+        : "gh-dir-ltr"
+    );
+
+    el.innerText =
+      text;
+
+  },
+
+  /* =========================
+     APPLY GLOBAL
+  ========================= */
 
   applyGlobalBranding(){
 
     document.title =
-    this.getCompanyName();
-
-    document
-    .querySelectorAll(".company-name")
-    .forEach(el=>{
-
-      el.innerText =
       this.getCompanyName();
 
-    });
+    document
+      .querySelectorAll(".company-name")
+      .forEach(el=>{
+
+        el.innerText =
+          this.getCompanyName();
+
+      });
 
     document
-    .querySelectorAll(".main-logo")
-    .forEach(img=>{
+      .querySelectorAll(".main-logo")
+      .forEach(el=>{
 
-      img.src =
-      this.getMainLogo();
+        el.src =
+          this.getMainLogo();
 
-    });
-
-    document
-    .querySelectorAll(".app-logo")
-    .forEach(img=>{
-
-      img.src =
-      this.getMainLogo();
-
-    });
+      });
 
     document
-    .querySelectorAll(".driver-logo")
-    .forEach(img=>{
+      .querySelectorAll(".app-logo")
+      .forEach(el=>{
 
-      img.src =
-      this.getDriverLogo();
+        el.src =
+          this.getMainLogo();
 
-    });
+      });
 
     document
-    .querySelectorAll(".hero-image")
-    .forEach(img=>{
+      .querySelectorAll(".driver-logo")
+      .forEach(el=>{
 
-      img.src =
-      this.getHeroImage();
+        el.src =
+          this.getDriverLogo();
 
-    });
+      });
+
+    document
+      .querySelectorAll(".hero-image")
+      .forEach(el=>{
+
+        el.src =
+          this.getHeroImage();
+
+      });
+
+    this.applyThemeEngine();
 
   },
 
+  /* =========================
+     APPLY THEME ENGINE
+  ========================= */
+
   applyThemeEngine(){
 
-    const data =
-    this.data || {};
+    const d =
+      this.data || {};
 
-    const mobile =
-    window.innerWidth <= 768;
-
-    document.body.style.setProperty(
-      "background",
-      data.bodyBg || "#f1f5f9",
-      "important"
-    );
-
-    document.body.style.setProperty(
-      "color",
-      data.bodyTextColor || "#0f172a",
-      "important"
-    );
-
-    /* ABOUT TITLE */
+    const extraAlign =
+      d.extraBoxAlign ||
+      "justify-center";
 
     document
-    .querySelectorAll(".about h2")
-    .forEach(el=>{
-
-      const size =
-      mobile
-      ? 34
-      : Number(data.aboutTitleSize || 60);
-
-      el.style.setProperty(
-        "color",
-        data.aboutTitleColor || "#145cff",
-        "important"
-      );
-
-      el.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "line-height",
-        mobile ? "1.25" : "1.2",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.aboutTitleAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* ABOUT TEXT */
-
-    document
-    .querySelectorAll(".about p")
-    .forEach(el=>{
-
-      const size =
-      mobile
-      ? 17
-      : Number(data.aboutTextSize || 25);
-
-      el.style.setProperty(
-        "color",
-        data.aboutTextColor || "#334155",
-        "important"
-      );
-
-      el.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "line-height",
-        mobile ? "1.9" : "1.9",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.aboutTextAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* QUOTE SECTION */
-
-    document
-    .querySelectorAll(".quote-header")
-    .forEach(box=>{
-
-      box.style.setProperty(
-        "background",
-        data.quoteBg || "#ffffff",
-        "important"
-      );
-
-      box.style.setProperty(
-        "border",
-        `2px solid ${
-          data.quoteBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "border-radius",
-        `${data.quoteRadius || 28}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "padding",
-        `${mobile ? 30 : (data.quotePadding || 40)}px 16px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "box-shadow",
-        mobile
-        ? "0 4px 10px rgba(0,0,0,.06)"
-        : (
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.08)"
-          : "none"
-        ),
-        "important"
-      );
-
-    });
-
-    /* QUOTE TITLE */
-
-    document
-    .querySelectorAll(".quote-header h2")
-    .forEach(el=>{
-
-      const size =
-      mobile
-      ? 40
-      : Number(data.quoteTitleSize || 70);
-
-      el.style.setProperty(
-        "color",
-        data.quoteTitleColor || "#145cff",
-        "important"
-      );
-
-      el.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "line-height",
-        mobile ? "1.15" : "1.1",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.quoteTitleAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* QUOTE TEXT */
-
-    document
-    .querySelectorAll(".quote-header p")
-    .forEach(el=>{
-
-      const size =
-      mobile
-      ? 17
-      : Number(data.quoteTextSize || 24);
-
-      el.style.setProperty(
-        "color",
-        data.quoteTextColor || "#334155",
-        "important"
-      );
-
-      el.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "line-height",
-        mobile ? "1.8" : "1.8",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.quoteTextAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* EXTRA BOXES */
-
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-      box.style.setProperty(
-        "background",
-        data.extraBoxBg || "#ffffff",
-        "important"
-      );
-
-      box.style.setProperty(
-        "border",
-        `${data.extraBoxBorderSize || 2}px solid ${
-          data.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "border-radius",
-        `${mobile ? 18 : (data.extraBoxRadius || 28)}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "padding",
-        `${mobile ? 16 : (data.extraBoxPadding || 44)}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
-
-      box.style.setProperty(
-        "box-shadow",
-        mobile
-        ? "0 4px 10px rgba(0,0,0,.06)"
-        : (
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.08)"
-          : "none"
-        ),
-        "important"
-      );
-
-    });
-
-    /* EXTRA TITLES */
-
-    document
-    .querySelectorAll(".extra-box h3")
-    .forEach(title=>{
-
-      const size =
-      mobile
-      ? 22
-      : Number(data.extraBoxTitleSize || 42);
-
-      title.style.setProperty(
-        "color",
-        data.extraBoxTitleColor || "#145cff",
-        "important"
-      );
-
-      title.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      title.style.setProperty(
-        "line-height",
-        mobile ? "1.3" : "1.2",
-        "important"
-      );
-
-      title.style.setProperty(
-        "margin-bottom",
-        mobile ? "10px" : "22px",
-        "important"
-      );
-
-      title.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* EXTRA TEXT */
-
-    document
-    .querySelectorAll(".extra-box p")
-    .forEach(text=>{
-
-      const size =
-      mobile
-      ? 15
-      : Number(data.extraBoxTextSize || 22);
-
-      text.style.setProperty(
-        "color",
-        data.extraBoxTextColor || "#334155",
-        "important"
-      );
-
-      text.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
-
-      text.style.setProperty(
-        "line-height",
-        mobile ? "1.75" : "2",
-        "important"
-      );
-
-      text.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
-
-    });
-
-    /* SERVICE CARDS */
-
-    document
-    .querySelectorAll(".card")
-    .forEach(card=>{
-
-      card.style.setProperty(
-        "background",
-        data.extraBoxBg || "#ffffff",
-        "important"
-      );
-
-      card.style.setProperty(
-        "border",
-        `${data.extraBoxBorderSize || 2}px solid ${
-          data.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      card.style.setProperty(
-        "border-radius",
-        `${mobile ? 20 : (data.extraBoxRadius || 28)}px`,
-        "important"
-      );
-
-      card.style.setProperty(
-        "box-shadow",
-        mobile
-        ? "0 4px 10px rgba(0,0,0,.06)"
-        : (
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.10)"
-          : "none"
-        ),
-        "important"
-      );
-
-      if(mobile){
-
-        card.style.setProperty(
-          "transition",
-          "none",
+      .querySelectorAll(".extra-box")
+      .forEach(box=>{
+
+        box.style.setProperty(
+          "background",
+          d.extraBoxBg || "#ffffff",
           "important"
         );
 
-        card.style.setProperty(
-          "transform",
-          "none",
+        box.style.setProperty(
+          "border",
+          `${d.extraBoxBorderSize || 2}px solid ${
+            d.extraBoxBorder || "#dbeafe"
+          }`,
           "important"
         );
 
-      }
-
-    });
-
-    /* CARD TITLES */
-
-    document
-    .querySelectorAll(".card h3")
-    .forEach(el=>{
-
-      el.style.setProperty(
-        "color",
-        data.extraBoxTitleColor || "#1e3a6d",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
-
-      if(mobile){
-
-        el.style.setProperty(
-          "font-size",
-          "24px",
+        box.style.setProperty(
+          "border-radius",
+          `${d.extraBoxRadius || 32}px`,
           "important"
         );
 
-        el.style.setProperty(
-          "line-height",
-          "1.3",
-          "important"
-        );
-
-      }
-
-    });
-
-    /* CARD TEXT */
-
-    document
-    .querySelectorAll(".card p")
-    .forEach(el=>{
-
-      el.style.setProperty(
-        "color",
-        data.extraBoxTextColor || "#6b7280",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.extraBoxAlign || "center",
-        "important"
-      );
-
-      if(mobile){
-
-        el.style.setProperty(
-          "font-size",
-          "15px",
-          "important"
-        );
-
-        el.style.setProperty(
-          "line-height",
-          "1.8",
-          "important"
-        );
-
-        el.style.setProperty(
-          "min-height",
-          "auto",
-          "important"
-        );
-
-      }
-
-    });
-
-    /* CARD BUTTONS */
-
-    document
-    .querySelectorAll(".card-btn")
-    .forEach(btn=>{
-
-      btn.style.setProperty(
-        "background",
-        data.buttonColor || "#2563eb",
-        "important"
-      );
-
-      btn.style.setProperty(
-        "color",
-        data.buttonTextColor || "#ffffff",
-        "important"
-      );
-
-      if(mobile){
-
-        btn.style.setProperty(
-          "font-size",
-          "16px",
-          "important"
-        );
-
-        btn.style.setProperty(
-          "height",
-          "50px",
-          "important"
-        );
-
-      }
-
-    });
-
-    /* CONTACT */
-
-    document
-    .querySelectorAll(
-      ".contact-section, #contactSection, .contact-box"
-    )
-    .forEach(el=>{
-
-      el.style.setProperty(
-        "background",
-        data.contactBg || "#ffffff",
-        "important"
-      );
-
-      el.style.setProperty(
-        "border",
-        `${data.contactBorderSize || 2}px solid ${
-          data.contactBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "border-radius",
-        `${data.contactRadius || 28}px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "padding",
-        `${mobile ? 36 : 20}px 14px`,
-        "important"
-      );
-
-      el.style.setProperty(
-        "display",
-        "flex",
-        "important"
-      );
-
-      el.style.setProperty(
-        "flex-direction",
-        "column",
-        "important"
-      );
-
-      el.style.setProperty(
-        "align-items",
-        data.contactAlign || "center",
-        "important"
-      );
-
-      el.style.setProperty(
-        "justify-content",
-        "flex-start",
-        "important"
-      );
-
-      el.style.setProperty(
-        "gap",
-        mobile ? "8px" : "10px",
-        "important"
-      );
-
-      el.style.setProperty(
-        "box-shadow",
-        mobile
-        ? "0 4px 10px rgba(0,0,0,.06)"
-        : (
-          data.extraBoxShadow
-          ? "0 10px 30px rgba(0,0,0,.08)"
-          : "none"
-        ),
-        "important"
-      );
-
-      el.style.setProperty(
-        "color",
-        data.contactTextColor || "#6b7280",
-        "important"
-      );
-
-      el.style.setProperty(
-        "font-size",
-        mobile ? "15px" : "24px",
-        "important"
-      );
-
-      el.style.setProperty(
-        "line-height",
-        mobile ? "1.8" : "2",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-align",
-        data.contactAlign || "center",
-        "important"
-      );
-
-      el.querySelectorAll("*").forEach(child=>{
-
-        child.style.setProperty(
-          "margin",
-          "0",
+        box.style.setProperty(
+          "box-shadow",
+          d.extraBoxShadow
+            ? "0 8px 22px rgba(15,23,42,.06)"
+            : "none",
           "important"
         );
 
       });
 
-    });
+    document
+      .querySelectorAll(
+        ".extra-box h2, .extra-box h3"
+      )
+      .forEach(title=>{
 
-    /* CONTACT TITLE */
+        title.style.setProperty(
+          "color",
+          d.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
+
+        title.style.setProperty(
+          "font-size",
+          `${d.extraBoxTitleSize || 42}px`,
+          "important"
+        );
+
+        this.applyWordElement(
+          title,
+          title.innerText,
+          extraAlign
+        );
+
+      });
 
     document
-    .querySelectorAll(
-      ".contact-section h2, .contact-section h3, .contact-title, #contactTitleView"
-    )
-    .forEach(el=>{
+      .querySelectorAll(".extra-box p, .extra-box div")
+      .forEach(text=>{
 
-      const size =
-      mobile
-      ? 24
-      : Number(data.contactTitleSize || 30);
+        if(
+          text.classList.contains("extra-box")
+        ) return;
 
-      el.style.setProperty(
-        "color",
-        data.contactTitleColor || "#145cff",
-        "important"
-      );
+        text.style.setProperty(
+          "color",
+          d.extraBoxTextColor || "#6b7280",
+          "important"
+        );
 
-      el.style.setProperty(
-        "font-size",
-        `${size}px`,
-        "important"
-      );
+        text.style.setProperty(
+          "font-size",
+          `${d.extraBoxTextSize || 22}px`,
+          "important"
+        );
 
-      el.style.setProperty(
-        "line-height",
-        "1.3",
-        "important"
-      );
+        this.applyWordElement(
+          text,
+          text.innerText,
+          extraAlign
+        );
 
-      el.style.setProperty(
-        "margin-bottom",
-        mobile ? "10px" : "0",
-        "important"
-      );
-
-    });
+      });
 
   },
 
+  /* =========================
+     RENDER HOMEPAGE CARDS
+  ========================= */
+
   renderHomepageCards(
     containerId,
-    lang="en"
+    lang = "en"
   ){
 
     const container =
-    document.getElementById(
-      containerId
-    );
-
-    if(!container){
-
-      console.log(
-        "SERVICES CONTAINER NOT FOUND"
+      document.getElementById(
+        containerId
       );
 
-      return;
-
-    }
+    if(!container) return;
 
     const services =
-    this.getServices();
+      this.getServices();
 
     container.innerHTML = "";
 
-    const activeServices =
-    services.filter(
-      s => s.active
-    );
+    const fragment =
+      document.createDocumentFragment();
 
-    if(!activeServices.length){
+    const tenantSlug =
+      this.getTenantSlug();
 
-      container.innerHTML = `
-      <div style="
-      width:100%;
-      text-align:center;
-      padding:50px 20px;
-      font-size:24px;
-      color:#64748b;
-      ">
-      ${
+    services.forEach(service=>{
+
+      if(!service || !service.active) return;
+
+      const title =
         lang === "es"
-        ? "No hay servicios activos"
-        : "No Active Services"
-      }
-      </div>
-      `;
-
-      return;
-
-    }
-
-let html = "";
-
-activeServices.forEach(service=>{
-
-  const title =
-  lang === "es"
-  ? (
-    service.titleEs ||
-    service.title ||
-    ""
-  )
-  : (
-    service.title ||
-    ""
-  );
-
-  const desc =
-  lang === "es"
-  ? (
-    service.descriptionEs ||
-    service.description ||
-    ""
-  )
-  : (
-    service.description ||
-    ""
-  );
-
-  const image =
-  service.image ||
-  "/assets/logo.png";
-
-  const buttonText =
-  lang === "es"
-  ? (
-    service.buttonEs ||
-    "Obtener precio"
-  )
-  : (
-    service.button ||
-    "Get Quote"
-  );
-
-  html += `
-
-  <div class="card">
-
-    <img
-    src="${image}"
-    class="card-image"
-    loading="lazy">
-
-    <div class="card-body">
-
-      <h3>${title}</h3>
-
-      <p>${desc}</p>
-
-      <a
-      href="${
-        (()=>{
-
-          const baseLink =
-            service.link ||
-            "getquote/index.html";
-
-          const tenantSlug =
-            Branding.getTenantSlug();
-
-          const serviceKey =
-            String(
-              service.serviceKey ||
-              service.serviceCode ||
+          ? (
+              service.title_es ||
+              service.titleEs ||
+              service.title ||
+              service.title_en ||
               ""
             )
+          : (
+              service.title_en ||
+              service.title ||
+              ""
+            );
+
+      const desc =
+        lang === "es"
+          ? (
+              service.description_es ||
+              service.descriptionEs ||
+              service.description ||
+              service.description_en ||
+              ""
+            )
+          : (
+              service.description_en ||
+              service.description ||
+              ""
+            );
+
+      const card =
+        document.createElement("div");
+
+      card.className =
+        "card";
+
+      const img =
+        document.createElement("img");
+
+      img.src =
+        service.image ||
+        "/assets/logo.png";
+
+      img.className =
+        "card-image";
+
+      img.alt =
+        this.cleanText(title);
+
+      const body =
+        document.createElement("div");
+
+      body.className =
+        "card-body";
+
+      const h3 =
+        document.createElement("h3");
+
+      h3.innerText =
+        this.cleanText(title);
+
+      const p =
+        document.createElement("p");
+
+      p.innerText =
+        this.cleanText(desc);
+
+      const a =
+        document.createElement("a");
+
+      const baseLink =
+        service.link ||
+        "getquote/index.html";
+
+      try{
+
+        const url =
+          new URL(
+            baseLink,
+            window.location.origin
+          );
+
+        if(tenantSlug){
+
+          url.searchParams.set(
+            "tenant",
+            tenantSlug
+          );
+
+        }
+
+        const serviceKey =
+          String(
+            service.serviceKey ||
+            service.serviceCode ||
+            ""
+          )
             .trim()
             .toUpperCase();
 
-          const url =
-            new URL(
-              baseLink,
-              window.location.origin
-            );
+        if(serviceKey){
 
-          if(tenantSlug){
-            url.searchParams.set(
-              "tenant",
-              tenantSlug
-            );
-          }
-
-          if(serviceKey){
-            url.searchParams.set(
-              "service",
-              serviceKey
-            );
-          }
-
-          return (
-            url.pathname +
-            url.search +
-            url.hash
+          url.searchParams.set(
+            "service",
+            serviceKey
           );
 
-        })()
-      }"
-      class="card-btn">
+        }
 
-        ${buttonText}
+        a.href =
+          url.pathname +
+          url.search +
+          url.hash;
 
-      </a>
+      }catch{
 
-    </div>
+        a.href =
+          baseLink;
 
-  </div>
+      }
 
-  `;
+      a.className =
+        "card-btn";
 
-});
+      a.innerText =
+        lang === "es"
+          ? "Obtener precio"
+          : "Get Quote";
 
-container.innerHTML = html;
+      body.appendChild(h3);
+      body.appendChild(p);
+      body.appendChild(a);
 
-}
+      card.appendChild(img);
+      card.appendChild(body);
+
+      fragment.appendChild(card);
+
+    });
+
+    container.appendChild(fragment);
+
+  }
 
 };

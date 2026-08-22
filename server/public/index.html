@@ -745,7 +745,7 @@ footer{
     </a>
 
     <a
-    href="login.html"
+    href="/login.html"
     class="staff-login">
       Staff Login
     </a>
@@ -890,7 +890,133 @@ id="extraSections">
   ©️ Sunbeam Transportation
 </footer>
 
-<script src="/core/branding.js?v=word-align-1"></script>
+<script src="/core/branding.js?v=tenant-word-align-2"></script>
+
+<script>
+/* =========================
+   STAFF LOGIN TENANT LINK
+   Driver Login is untouched.
+========================= */
+
+(function(){
+
+  function cleanTenant(value){
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function tenantFromCurrentPage(){
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    const first =
+      cleanTenant(parts[0]);
+
+    const reserved =
+      new Set([
+        "",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company",
+        "companies",
+        "platform-admin",
+        "booking",
+        "api",
+        "core",
+        "assets",
+        "uploads",
+        "login",
+        "login.html",
+        "index.html"
+      ]);
+
+    if(
+      first &&
+      !reserved.has(first) &&
+      !first.includes(".") &&
+      /^[a-z0-9-]+$/.test(first)
+    ){
+      return first;
+    }
+
+    const brandingSlug =
+      cleanTenant(
+        window.Branding?.tenant?.slug ||
+        window.Branding?.data?.tenantSlug ||
+        window.Branding?.data?.slug ||
+        ""
+      );
+
+    return brandingSlug;
+  }
+
+  function applyStaffLoginTenant(){
+
+    const link =
+      document.querySelector(
+        ".staff-login"
+      );
+
+    if(!link) return;
+
+    const tenantSlug =
+      tenantFromCurrentPage();
+
+    /*
+      Never reuse a stale company for Staff Login.
+    */
+    sessionStorage.removeItem(
+      "loginTenantSlug"
+    );
+
+    if(!tenantSlug){
+
+      link.href =
+        "/login.html";
+
+      return;
+    }
+
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      tenantSlug
+    );
+
+    link.href =
+      "/login.html?tenant=" +
+      encodeURIComponent(
+        tenantSlug
+      );
+
+  }
+
+  window.applyStaffLoginTenant =
+    applyStaffLoginTenant;
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      applyStaffLoginTenant,
+      {once:true}
+    );
+
+  }else{
+
+    applyStaffLoginTenant();
+
+  }
+
+})();
+</script>
 
 <script>
 
@@ -1502,6 +1628,10 @@ window.addEventListener(
   async ()=>{
 
     await Branding.load();
+
+    if(typeof window.applyStaffLoginTenant === "function"){
+      window.applyStaffLoginTenant();
+    }
 
     renderPage();
 
