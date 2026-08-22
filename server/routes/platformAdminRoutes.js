@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -816,6 +817,366 @@ router.patch(
 
       return res.status(500).json({
         message: "Server error"
+      });
+
+    }
+
+  }
+);
+
+
+/* =========================================
+   PERMANENT DELETE TENANT
+   PLATFORM_ADMIN ONLY
+
+   IMPORTANT:
+   - Deletes ONLY documents whose tenantId matches
+     the selected tenant.
+   - Then deletes the Tenant record itself.
+   - PLATFORM_ADMIN protection is already applied
+     globally by router.use() above.
+========================================= */
+
+router.delete(
+  "/tenants/:tenantId",
+  async (req,res)=>{
+
+    try{
+
+      const tenantId =
+        clean(
+          req.params.tenantId
+        );
+
+      const confirmSlug =
+        clean(
+          req.body?.confirmSlug
+        )
+        .toLowerCase();
+
+      if(
+        !mongoose.Types.ObjectId
+          .isValid(tenantId)
+      ){
+        return res.status(400).json({
+          message:"Invalid tenantId"
+        });
+      }
+
+      const tenant =
+        await Tenant.findById(
+          tenantId
+        )
+        .lean();
+
+      if(!tenant){
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+      }
+
+      const tenantSlug =
+        clean(
+          tenant.slug
+        )
+        .toLowerCase();
+
+      if(
+        !confirmSlug ||
+        confirmSlug !== tenantSlug
+      ){
+        return res.status(400).json({
+          message:
+            "Confirmation slug does not match the tenant"
+        });
+      }
+
+      const objectId =
+        new mongoose.Types.ObjectId(
+          tenantId
+        );
+
+      /*
+        Delete tenant-scoped records from every MongoDB
+        collection except the tenants collection itself.
+
+        This protects other tenants because the filter is
+        ALWAYS tenantId = selected tenant only.
+
+        We match both ObjectId and string tenantId because
+        older records may have stored tenantId differently.
+      */
+
+      const db =
+        mongoose.connection.db;
+
+      if(!db){
+        return res.status(500).json({
+          message:"Database connection is not ready"
+        });
+      }
+
+      const collections =
+        await db
+          .listCollections(
+            {},
+            {nameOnly:true}
+          )
+          .toArray();
+
+      const deleted = {};
+
+      for(
+        const item of collections
+      ){
+
+        const collectionName =
+          clean(
+            item?.name
+          );
+
+        if(
+          !collectionName ||
+          collectionName === "tenants"
+        ){
+          continue;
+        }
+
+        const collection =
+          db.collection(
+            collectionName
+          );
+
+        const result =
+          await collection.deleteMany({
+            $or:[
+              {
+                tenantId:
+                  objectId
+              },
+              {
+                tenantId:
+                  tenantId
+              }
+            ]
+          });
+
+        if(
+          Number(
+            result?.deletedCount || 0
+          ) > 0
+        ){
+          deleted[collectionName] =
+            Number(
+              result.deletedCount
+            );
+        }
+      }
+
+      const tenantDelete =
+        await Tenant.deleteOne({
+          _id:objectId
+        });
+
+      if(
+        Number(
+          tenantDelete?.deletedCount || 0
+        ) !== 1
+      ){
+        return res.status(500).json({
+          message:
+            "Tenant data was removed but the tenant record could not be deleted"
+        });
+      }
+
+      console.log(
+        "TENANT PERMANENTLY DELETED:",
+        {
+          tenantId,
+          tenantSlug,
+          deleted
+        }
+      );
+
+      return res.json({
+        success:true,
+
+        message:
+          `Tenant "${tenant.name}" permanently deleted`,
+
+        tenant:{
+          id:tenantId,
+          name:tenant.name,
+          slug:tenant.slug
+        },
+
+        deleted
+      });
+
+    }catch(err){
+
+      console.error(
+        "DELETE TENANT ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          err?.message ||
+          "Server error"
+      });
+
+    }
+
+  }
+);
+
+
+
+/* =========================================
+   PERMANENT DELETE TENANT - POST ENDPOINT
+   Use POST for better browser/proxy compatibility
+========================================= */
+
+router.post(
+  "/tenants/:tenantId/delete",
+  async (req,res)=>{
+
+    try{
+
+      const tenantId =
+        clean(
+          req.params.tenantId
+        );
+
+      const confirmSlug =
+        clean(
+          req.body?.confirmSlug
+        )
+        .toLowerCase();
+
+      if(
+        !mongoose.Types.ObjectId
+          .isValid(tenantId)
+      ){
+        return res.status(400).json({
+          message:"Invalid tenantId"
+        });
+      }
+
+      const tenant =
+        await Tenant.findById(
+          tenantId
+        )
+        .lean();
+
+      if(!tenant){
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+      }
+
+      const tenantSlug =
+        clean(
+          tenant.slug
+        )
+        .toLowerCase();
+
+      if(
+        !confirmSlug ||
+        confirmSlug !== tenantSlug
+      ){
+        return res.status(400).json({
+          message:
+            "Confirmation slug does not match the tenant"
+        });
+      }
+
+      const objectId =
+        new mongoose.Types.ObjectId(
+          tenantId
+        );
+
+      const db =
+        mongoose.connection.db;
+
+      if(!db){
+        return res.status(500).json({
+          message:"Database connection is not ready"
+        });
+      }
+
+      const collections =
+        await db
+          .listCollections(
+            {},
+            {nameOnly:true}
+          )
+          .toArray();
+
+      const deleted = {};
+
+      for(const item of collections){
+
+        const collectionName =
+          clean(item?.name);
+
+        if(
+          !collectionName ||
+          collectionName === "tenants"
+        ){
+          continue;
+        }
+
+        const result =
+          await db
+            .collection(collectionName)
+            .deleteMany({
+              $or:[
+                {tenantId:objectId},
+                {tenantId:tenantId}
+              ]
+            });
+
+        if(
+          Number(result?.deletedCount || 0) > 0
+        ){
+          deleted[collectionName] =
+            Number(result.deletedCount);
+        }
+      }
+
+      await Tenant.deleteOne({
+        _id:objectId
+      });
+
+      console.log(
+        "TENANT PERMANENTLY DELETED:",
+        {
+          tenantId,
+          tenantSlug,
+          deleted
+        }
+      );
+
+      return res.json({
+        success:true,
+        message:
+          `Tenant "${tenant.name}" permanently deleted`,
+        deleted
+      });
+
+    }catch(err){
+
+      console.error(
+        "DELETE TENANT POST ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          err?.message ||
+          "Server error"
       });
 
     }
