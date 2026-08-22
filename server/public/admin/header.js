@@ -281,12 +281,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
 })();
 function logout(){
 
-  /*
-    Save the CURRENT tenant before clearing login data.
-    Example:
-      sony      -> /sony
-      cover-all -> /cover-all
-  */
   const tenantSlug =
     String(
       localStorage.getItem("tenantSlug") ||
@@ -296,48 +290,36 @@ function logout(){
     .trim()
     .toLowerCase();
 
-  /* AUTH DATA */
   [
     "token",
     "role",
     "name",
-    "fullName",
-    "tenantId",
     "companyName",
-    "tenantName",
-    "appLogo"
+    "tenantId"
   ].forEach(
-    key=>localStorage.removeItem(key)
-  );
-
-  /*
-    Clear tenant cache too so another company can never
-    inherit this tenant from storage. The public tenant
-    page will set it again from /sony or /cover-all.
-  */
-  localStorage.removeItem(
-    "tenantSlug"
+    k => localStorage.removeItem(k)
   );
 
   sessionStorage.removeItem(
     "loginTenantSlug"
   );
 
-  if(
-    tenantSlug &&
-    /^[a-z0-9-]+$/.test(tenantSlug)
-  ){
+  if(tenantSlug){
 
-    window.location.replace(
-      "/" +
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      tenantSlug
+    );
+
+    location.href =
+      "/login.html?tenant=" +
       encodeURIComponent(
         tenantSlug
-      )
-    );
+      );
 
     return;
   }
 
-  window.location.replace("/");
-
+  location.href =
+    "/login.html";
 }
