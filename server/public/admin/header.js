@@ -279,4 +279,65 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.getElementById("mobileMenuBtn").onclick=open;document.getElementById("mobileCloseBtn").onclick=close;ov.onclick=close;
 });
 })();
-function logout(){["token","role","name","companyName"].forEach(k=>localStorage.removeItem(k));location.href="/login.html"}
+function logout(){
+
+  /*
+    Save the CURRENT tenant before clearing login data.
+    Example:
+      sony      -> /sony
+      cover-all -> /cover-all
+  */
+  const tenantSlug =
+    String(
+      localStorage.getItem("tenantSlug") ||
+      sessionStorage.getItem("loginTenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  /* AUTH DATA */
+  [
+    "token",
+    "role",
+    "name",
+    "fullName",
+    "tenantId",
+    "companyName",
+    "tenantName",
+    "appLogo"
+  ].forEach(
+    key=>localStorage.removeItem(key)
+  );
+
+  /*
+    Clear tenant cache too so another company can never
+    inherit this tenant from storage. The public tenant
+    page will set it again from /sony or /cover-all.
+  */
+  localStorage.removeItem(
+    "tenantSlug"
+  );
+
+  sessionStorage.removeItem(
+    "loginTenantSlug"
+  );
+
+  if(
+    tenantSlug &&
+    /^[a-z0-9-]+$/.test(tenantSlug)
+  ){
+
+    window.location.replace(
+      "/" +
+      encodeURIComponent(
+        tenantSlug
+      )
+    );
+
+    return;
+  }
+
+  window.location.replace("/");
+
+}
