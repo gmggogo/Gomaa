@@ -90,11 +90,49 @@ window.Branding = {
       }
     }
 
+    /*
+      Company dashboard pages have no ?tenant= in the URL.
+      Use ONLY the authenticated company tenant storage there.
+      This does not affect Staff Login or public tenant pages.
+    */
+    if(
+      parts[0] === "companies"
+    ){
+
+      const companySlug =
+        this.cleanTenantSlug(
+          localStorage.getItem(
+            "companyTenantSlug"
+          ) ||
+          sessionStorage.getItem(
+            "companyTenantSlug"
+          )
+        );
+
+      if(companySlug){
+        return companySlug;
+      }
+    }
+
     return "";
 
   },
 
   getAuthToken(){
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    if(parts[0] === "companies"){
+
+      return String(
+        localStorage.getItem("companyToken") ||
+        ""
+      ).trim();
+
+    }
 
     return String(
       localStorage.getItem("token") ||

@@ -13,21 +13,51 @@ function cleanTenantSlug(v){
 }
 
 function resolveTenantSlug(){
-  const params = new URLSearchParams(window.location.search);
-  const fromUrl = cleanTenantSlug(
-    params.get("tenant") || params.get("tenantSlug")
-  );
 
-  if(fromUrl){
-    sessionStorage.setItem("companyTenantSlug",fromUrl);
-    localStorage.setItem("companyTenantSlug",fromUrl);
-    return fromUrl;
+  /*
+    SECURITY:
+    Company login must come from an explicit tenant URL.
+    Never fall back to an old tenant saved in storage.
+  */
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const fromUrl =
+    cleanTenantSlug(
+      params.get("tenant") ||
+      params.get("tenantSlug")
+    );
+
+  if(!fromUrl){
+    return "";
   }
 
-  return cleanTenantSlug(
-    sessionStorage.getItem("companyTenantSlug") ||
-    localStorage.getItem("companyTenantSlug")
+  /*
+    Replace any stale company tenant with
+    the tenant explicitly selected by the current link.
+  */
+  sessionStorage.removeItem(
+    "companyTenantSlug"
   );
+
+  localStorage.removeItem(
+    "companyTenantSlug"
+  );
+
+  sessionStorage.setItem(
+    "companyTenantSlug",
+    fromUrl
+  );
+
+  localStorage.setItem(
+    "companyTenantSlug",
+    fromUrl
+  );
+
+  return fromUrl;
 }
 
 const tenantSlug = resolveTenantSlug();
@@ -77,6 +107,21 @@ form.addEventListener("submit",async function(e){
       errorBox.innerText = "This account does not belong to this company.";
       return;
     }
+
+    /*
+      Replace any previous company session completely.
+    */
+    [
+      "companyToken",
+      "companyRole",
+      "companyName",
+      "companyTenantId",
+      "companyTenantSlug",
+      "companyUserId",
+      "companyFacilityId"
+    ].forEach(
+      key => localStorage.removeItem(key)
+    );
 
     localStorage.setItem("companyToken",data.token);
     localStorage.setItem("companyRole","company");
