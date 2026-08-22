@@ -1,10 +1,15 @@
+// =========================================
+// FILE: routes/system-design.js
+// CLOUDINARY + MULTI-TENANT IMAGE STORAGE
+// FINAL VERSION
+// =========================================
+
 const express = require("express");
 const router = express.Router();
 
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 const jwt = require("jsonwebtoken");
+const { v2: cloudinary } = require("cloudinary");
 
 const SystemDesign =
 require("../models/SystemDesign");
@@ -15,6 +20,32 @@ require("../models/Tenant");
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
+
+/* =========================
+CLOUDINARY
+========================= */
+
+cloudinary.config({
+  cloud_name:
+    process.env.CLOUDINARY_CLOUD_NAME,
+
+  api_key:
+    process.env.CLOUDINARY_API_KEY,
+
+  api_secret:
+    process.env.CLOUDINARY_API_SECRET,
+
+  secure:true
+});
+
+function cloudinaryReady(){
+
+  return !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+}
 
 /* =========================
 TENANT AUTH
@@ -123,18 +154,21 @@ function tenantIdForRequest(req){
   ).trim();
 }
 
-function safeTenantFolderName(value){
-
-  return String(value || "")
-    .replace(/[^a-zA-Z0-9_-]/g,"_");
-}
-
 /* =========================
-SERVICE PERMISSION HELPERS
+HELPERS
 ========================= */
 
 function clean(value){
   return String(value ?? "").trim();
+}
+
+function slugPart(value){
+
+  return clean(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g,"-")
+    .replace(/^-+|-+$/g,"")
+    .slice(0,80);
 }
 
 function normalizeServiceKey(value){
@@ -345,9 +379,6 @@ function mergeAllowedServiceCards(
     );
   });
 
-  /*
-    Keep existing order first.
-  */
   const result =
     existing.map(service=>{
 
@@ -370,10 +401,6 @@ function mergeAllowedServiceCards(
       return service;
     });
 
-  /*
-    If an allowed card exists in client defaults but did not exist in DB yet,
-    append it. This makes newly-created tenant designs safe on first save.
-  */
   incoming.forEach(service=>{
 
     const key =
@@ -402,107 +429,160 @@ function mergeAllowedServiceCards(
 }
 
 /* =========================
-CREATE UPLOAD ROOT
+CLOUDINARY IMAGE HELPERS
 ========================= */
 
-const uploadRoot =
-path.join(
-  __dirname,
-  "../public/uploads"
-);
+/*
+  One fixed public_id per tenant + image slot.
 
-if(!fs.existsSync(uploadRoot)){
+  Example:
+  gh-mobility/sony/main-logo
+  gh-mobility/sony/driver-logo
+  gh-mobility/sony/hero-image
+  gh-mobility/sony/service-st
 
-  fs.mkdirSync(
-    uploadRoot,
-    { recursive:true }
+  A replacement reuses the same public_id, so old uploads do not accumulate.
+*/
+function tenantCloudFolder(tenant){
+
+  const slug =
+    slugPart(
+      tenant?.slug ||
+      tenant?.tenantSlug ||
+      tenant?.name
+    );
+
+  const fallback =
+    slugPart(
+      tenant?._id
+    );
+
+  return `gh-mobility/${slug || fallback}`;
+}
+
+function publicIdForUpload(
+  tenant,
+  key,
+  serviceKey
+){
+
+  const folder =
+    tenantCloudFolder(
+      tenant
+    );
+
+  if(key === "mainLogo"){
+    return `${folder}/main-logo`;
+  }
+
+  if(key === "driverLogo"){
+    return `${folder}/driver-logo`;
+  }
+
+  if(key === "heroImage"){
+    return `${folder}/hero-image`;
+  }
+
+  if(
+    key &&
+    key.startsWith("services.")
+  ){
+
+    const safeService =
+      slugPart(
+        normalizeServiceKey(
+          serviceKey
+        )
+      );
+
+    if(!safeService){
+      return "";
+    }
+
+    return `${folder}/service-${safeService}`;
+  }
+
+  return "";
+}
+
+async function uploadBufferToCloudinary(
+  buffer,
+  publicId
+){
+
+  return new Promise(
+    (resolve,reject)=>{
+
+      const stream =
+        cloudinary.uploader.upload_stream(
+          {
+            public_id:publicId,
+            resource_type:"image",
+
+            /*
+              Fixed public_id = replacement.
+              No random filenames, no orphan copies.
+            */
+            overwrite:true,
+            invalidate:true,
+
+            /*
+              Let Cloudinary keep original format behavior.
+            */
+            unique_filename:false,
+            use_filename:false
+          },
+          (error,result)=>{
+
+            if(error){
+              reject(error);
+              return;
+            }
+
+            resolve(result);
+          }
+        );
+
+      stream.end(buffer);
+    }
   );
-
 }
 
 /* =========================
-MULTER DISK STORAGE
-TENANT-SCOPED FOLDER
+MULTER MEMORY STORAGE
+NO RENDER DISK
 ========================= */
-
-const storage =
-multer.diskStorage({
-
-  destination:(req,file,cb)=>{
-
-    const tenantId =
-      tenantIdForRequest(req);
-
-    if(!tenantId){
-
-      return cb(
-        new Error("Tenant Required")
-      );
-    }
-
-    const tenantFolder =
-      safeTenantFolderName(
-        tenantId
-      );
-
-    const tenantUploadDir =
-      path.join(
-        uploadRoot,
-        tenantFolder
-      );
-
-    if(
-      !fs.existsSync(
-        tenantUploadDir
-      )
-    ){
-
-      fs.mkdirSync(
-        tenantUploadDir,
-        { recursive:true }
-      );
-    }
-
-    cb(
-      null,
-      tenantUploadDir
-    );
-
-  },
-
-  filename:(req,file,cb)=>{
-
-    const ext =
-      path.extname(
-        file.originalname ||
-        ""
-      );
-
-    const random =
-      Math.random()
-        .toString(36)
-        .slice(2,10);
-
-    cb(
-      null,
-      Date.now() +
-      "-" +
-      random +
-      ext
-    );
-
-  }
-
-});
 
 const upload =
 multer({
 
-  storage,
+  storage:
+    multer.memoryStorage(),
 
   limits:{
     fileSize:
-    2.5 * 1024 * 1024
+      2.5 * 1024 * 1024
+  },
+
+  fileFilter:(req,file,cb)=>{
+
+    const type =
+      String(
+        file.mimetype ||
+        ""
+      ).toLowerCase();
+
+    if(
+      !type.startsWith("image/")
+    ){
+      return cb(
+        new Error(
+          "Only image files are allowed"
+        )
+      );
+    }
+
+    cb(null,true);
   }
 
 });
@@ -566,10 +646,6 @@ router.get(
     return res.json({
       ...data,
 
-      /*
-        Frontend uses this only to decide which card editors to render.
-        It is never accepted back as permission authority.
-      */
       allowedServices:
         getAllowedServices(
           tenant
@@ -581,9 +657,7 @@ router.get(
     console.log(err);
 
     return res.status(500).json({
-
       message:"Server Error"
-
     });
 
   }
@@ -675,10 +749,8 @@ router.post(
       return res
       .status(400)
       .json({
-
         message:
-        "System Design Too Large"
-
+          "System Design Too Large"
       });
 
     }
@@ -706,9 +778,7 @@ router.post(
     console.log(err);
 
     return res.status(500).json({
-
       message:"Save Failed"
-
     });
 
   }
@@ -716,7 +786,7 @@ router.post(
 });
 
 /* =========================
-UPLOAD IMAGE
+UPLOAD IMAGE TO CLOUDINARY
 ========================= */
 
 router.post(
@@ -727,6 +797,15 @@ router.post(
 
     try{
 
+      if(!cloudinaryReady()){
+
+        return res.status(500).json({
+          success:false,
+          message:
+            "Cloudinary environment variables are missing"
+        });
+      }
+
       const tenant =
         await getTenantOrFail(
           req,
@@ -734,18 +813,6 @@ router.post(
         );
 
       if(!tenant){
-
-        if(
-          req.file?.path &&
-          fs.existsSync(req.file.path)
-        ){
-          try{
-            fs.unlinkSync(
-              req.file.path
-            );
-          }catch{}
-        }
-
         return;
       }
 
@@ -754,31 +821,24 @@ router.post(
           tenant._id
         );
 
-      if(!req.file){
+      if(
+        !req.file ||
+        !req.file.buffer
+      ){
 
         return res
         .status(400)
         .json({
-
+          success:false,
           message:
-          "No file uploaded"
-
+            "No file uploaded"
         });
-
       }
 
       const key =
         clean(
           req.body.key
         );
-
-      const tenantFolder =
-        safeTenantFolderName(
-          tenantId
-        );
-
-      const image =
-        `/uploads/${tenantFolder}/${req.file.filename}`;
 
       const design =
         await SystemDesign.findOne({
@@ -792,33 +852,32 @@ router.post(
           )
         );
 
-      let oldImage = "";
+      let finalServiceKey = "";
 
       /* =========================
-      MAIN LOGOS + HERO
+      ALLOWED MAIN IMAGE KEYS
       ========================= */
 
       if(
-        design &&
-        key &&
-        !key.startsWith(
-          "services."
-        )
+        ![
+          "mainLogo",
+          "driverLogo",
+          "heroImage"
+        ].includes(key) &&
+        !key.startsWith("services.")
       ){
 
-        oldImage =
-          design[key];
-
+        return res.status(400).json({
+          success:false,
+          message:"Invalid Image Key"
+        });
       }
 
       /* =========================
-      SERVICE CARDS
-      Verify displayed array index still belongs
-      to an allowed service for this tenant.
+      SERVICE CARD SECURITY
       ========================= */
 
       if(
-        key &&
         key.startsWith(
           "services."
         )
@@ -835,30 +894,13 @@ router.post(
           index < 0
         ){
 
-          try{
-            fs.unlinkSync(
-              req.file.path
-            );
-          }catch{}
-
           return res.status(400).json({
             success:false,
             message:"Invalid Service Card"
           });
         }
 
-        /*
-          The client sends the full SystemDesign services array index,
-          even though it renders only allowed cards.
-        */
-        const clientServices =
-          Array.isArray(
-            req.body?.services
-          )
-            ? req.body.services
-            : null;
-
-        let serviceAtIndex =
+        const serviceAtIndex =
           design &&
           Array.isArray(
             design.services
@@ -866,10 +908,6 @@ router.post(
             ? design.services[index]
             : null;
 
-        /*
-          On a brand-new tenant the default cards may still exist only
-          in the browser, so accept explicit serviceKey from the form.
-        */
         const requestServiceKey =
           normalizeServiceKey(
             req.body?.serviceKey
@@ -886,12 +924,6 @@ router.post(
           !allowedSet.has(cardKey)
         ){
 
-          try{
-            fs.unlinkSync(
-              req.file.path
-            );
-          }catch{}
-
           return res.status(403).json({
             success:false,
             message:
@@ -899,108 +931,75 @@ router.post(
           });
         }
 
-        if(serviceAtIndex){
-
-          oldImage =
-            serviceAtIndex.image;
-
-        }
+        finalServiceKey =
+          cardKey;
       }
 
-      /* =========================
-      DELETE OLD IMAGE
-      ONLY INSIDE SAME TENANT
-      ========================= */
-
-      const tenantPrefix =
-        `/uploads/${tenantFolder}/`;
-
-      if(
-        oldImage &&
-        String(oldImage)
-        .startsWith(
-          tenantPrefix
-        )
-      ){
-
-        const relativeOldImage =
-          String(oldImage)
-            .replace(/^\/+/,"");
-
-        const oldFile =
-        path.join(
-          __dirname,
-          "../public",
-          relativeOldImage
+      const publicId =
+        publicIdForUpload(
+          tenant,
+          key,
+          finalServiceKey
         );
 
-        const tenantUploadDir =
-          path.join(
-            uploadRoot,
-            tenantFolder
-          );
+      if(!publicId){
 
-        const resolvedOldFile =
-          path.resolve(oldFile);
-
-        const resolvedTenantDir =
-          path.resolve(
-            tenantUploadDir
-          ) +
-          path.sep;
-
-        if(
-          resolvedOldFile
-            .startsWith(
-              resolvedTenantDir
-            ) &&
-          fs.existsSync(
-            resolvedOldFile
-          )
-        ){
-
-          try{
-
-            fs.unlinkSync(
-              resolvedOldFile
-            );
-
-            console.log(
-              "OLD TENANT IMAGE DELETED:",
-              resolvedOldFile
-            );
-
-          }catch(err){
-
-            console.log(
-              "DELETE OLD IMAGE ERROR",
-              err
-            );
-
-          }
-
-        }
-
+        return res.status(400).json({
+          success:false,
+          message:"Invalid Image Destination"
+        });
       }
 
+      /*
+        overwrite:true replaces the existing asset at the same public_id.
+        This keeps exactly one current image for each tenant/image slot.
+      */
+      const result =
+        await uploadBufferToCloudinary(
+          req.file.buffer,
+          publicId
+        );
+
+      if(
+        !result ||
+        !result.secure_url
+      ){
+
+        return res.status(500).json({
+          success:false,
+          message:"Cloudinary Upload Failed"
+        });
+      }
+
+      console.log(
+        "CLOUDINARY IMAGE SAVED:",
+        {
+          tenantId,
+          key,
+          publicId
+        }
+      );
+
       return res.json({
-
         success:true,
-
-        image
-
+        image:
+          result.secure_url,
+        publicId:
+          result.public_id
       });
 
     }catch(err){
 
-      console.log(err);
+      console.log(
+        "CLOUDINARY UPLOAD ERROR:",
+        err
+      );
 
       return res.status(500).json({
-
+        success:false,
         message:
-        err.message ||
-        "Upload Failed"
-
+          err.message ||
+          "Upload Failed"
       });
 
     }
