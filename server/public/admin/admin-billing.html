@@ -73,6 +73,100 @@ body{
 
 }
 
+
+/* =========================
+   STRIPE CONNECT
+========================= */
+
+.stripe-panel{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  padding:20px;
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+.stripe-info{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.stripe-title{
+  font-size:18px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.stripe-sub{
+  font-size:13px;
+  color:#64748b;
+}
+
+.stripe-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.stripe-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:0 14px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.stripe-status.pending{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.stripe-status.connected{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.stripe-status.error{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.stripe-btn{
+  border:none;
+  border-radius:12px;
+  min-height:42px;
+  padding:0 16px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.stripe-btn.primary{
+  background:#635bff;
+  color:#fff;
+}
+
+.stripe-btn.dark{
+  background:#111827;
+  color:#fff;
+}
+
+.stripe-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
 /* =========================
    FILTERS
 ========================= */
@@ -454,6 +548,55 @@ body{
 <div id="adminHeader"></div>
 
 <div class="page-body">
+
+  <!-- STRIPE CONNECT -->
+
+  <div class="stripe-panel">
+
+    <div class="stripe-info">
+
+      <div class="stripe-title">
+        Stripe Payment Account
+      </div>
+
+      <div
+        class="stripe-sub"
+        id="stripeAccountText"
+      >
+        Checking Stripe connection...
+      </div>
+
+    </div>
+
+    <div class="stripe-actions">
+
+      <span
+        id="stripeStatus"
+        class="stripe-status pending"
+      >
+        CHECKING
+      </span>
+
+      <button
+        id="connectStripeBtn"
+        class="stripe-btn primary"
+        type="button"
+      >
+        Connect Stripe
+      </button>
+
+      <button
+        id="stripeDashboardBtn"
+        class="stripe-btn dark"
+        type="button"
+        style="display:none;"
+      >
+        Open Stripe Dashboard
+      </button>
+
+    </div>
+
+  </div>
 
   <!-- FILTERS -->
 

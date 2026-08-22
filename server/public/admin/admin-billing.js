@@ -37,6 +37,18 @@ const monthFilter =
 const yearFilter =
   document.getElementById("yearFilter");
 
+const stripeStatus =
+  document.getElementById("stripeStatus");
+
+const stripeAccountText =
+  document.getElementById("stripeAccountText");
+
+const connectStripeBtn =
+  document.getElementById("connectStripeBtn");
+
+const stripeDashboardBtn =
+  document.getElementById("stripeDashboardBtn");
+
 /* =========================
    DATA
 ========================= */
@@ -167,6 +179,340 @@ async function safeJson(res){
     return {};
 
   }
+
+}
+
+
+/* =========================
+   STRIPE CONNECT
+========================= */
+
+function getTenantSlug(){
+
+  return String(
+    localStorage.getItem("tenantSlug") ||
+    sessionStorage.getItem("loginTenantSlug") ||
+    ""
+  )
+  .trim()
+  .toLowerCase();
+
+}
+
+function setStripeUi(
+  type,
+  text,
+  accountId = ""
+){
+
+  if(!stripeStatus) return;
+
+  stripeStatus.className =
+    "stripe-status " + type;
+
+  stripeStatus.innerText =
+    text;
+
+  if(stripeAccountText){
+
+    if(accountId){
+
+      stripeAccountText.innerText =
+        "Connected account: " +
+        accountId;
+
+    }else{
+
+      stripeAccountText.innerText =
+        type === "connected"
+          ? "Stripe is connected and ready to receive payments."
+          : "Connect the organization Stripe account to receive Company Billing and Get Quote payments.";
+
+    }
+
+  }
+
+}
+
+async function loadStripeStatus(){
+
+  if(
+    !stripeStatus ||
+    !connectStripeBtn ||
+    !stripeDashboardBtn
+  ){
+    return;
+  }
+
+  try{
+
+    setStripeUi(
+      "pending",
+      "CHECKING"
+    );
+
+    connectStripeBtn.disabled =
+      true;
+
+    stripeDashboardBtn.disabled =
+      true;
+
+    const res =
+      await fetch(
+        "/api/tenant-stripe/status",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Unable to load Stripe status"
+      );
+
+    }
+
+    const connected =
+      data.connected === true &&
+      data.chargesEnabled === true;
+
+    if(connected){
+
+      setStripeUi(
+        "connected",
+        "CONNECTED",
+        data.stripeAccountId || ""
+      );
+
+      connectStripeBtn.innerText =
+        "Manage Stripe";
+
+      stripeDashboardBtn.style.display =
+        "inline-flex";
+
+    }else{
+
+      setStripeUi(
+        "pending",
+        data.stripeAccountId
+          ? "SETUP REQUIRED"
+          : "NOT CONNECTED",
+        data.stripeAccountId || ""
+      );
+
+      connectStripeBtn.innerText =
+        data.stripeAccountId
+          ? "Continue Stripe Setup"
+          : "Connect Stripe";
+
+      stripeDashboardBtn.style.display =
+        "none";
+
+    }
+
+    connectStripeBtn.disabled =
+      false;
+
+    stripeDashboardBtn.disabled =
+      false;
+
+  }catch(err){
+
+    console.log(
+      "STRIPE STATUS ERROR:",
+      err
+    );
+
+    setStripeUi(
+      "error",
+      "ERROR"
+    );
+
+    connectStripeBtn.disabled =
+      false;
+
+    stripeDashboardBtn.style.display =
+      "none";
+
+  }
+
+}
+
+async function connectStripe(){
+
+  try{
+
+    if(!connectStripeBtn){
+      return;
+    }
+
+    connectStripeBtn.disabled =
+      true;
+
+    connectStripeBtn.innerText =
+      "Opening Stripe...";
+
+    const res =
+      await fetch(
+        "/api/tenant-stripe/connect",
+        {
+          method:"POST",
+
+          headers:{
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              "Bearer " + token
+          },
+
+          body:JSON.stringify({
+            tenantSlug:
+              getTenantSlug()
+          })
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Unable to connect Stripe"
+      );
+
+    }
+
+    if(!data.url){
+
+      throw new Error(
+        "Stripe onboarding link missing"
+      );
+
+    }
+
+    window.location.href =
+      data.url;
+
+  }catch(err){
+
+    console.log(
+      "STRIPE CONNECT ERROR:",
+      err
+    );
+
+    alert(
+      err.message ||
+      "Unable to connect Stripe"
+    );
+
+    connectStripeBtn.disabled =
+      false;
+
+    connectStripeBtn.innerText =
+      "Connect Stripe";
+
+  }
+
+}
+
+async function openStripeDashboard(){
+
+  try{
+
+    if(!stripeDashboardBtn){
+      return;
+    }
+
+    stripeDashboardBtn.disabled =
+      true;
+
+    stripeDashboardBtn.innerText =
+      "Opening...";
+
+    const res =
+      await fetch(
+        "/api/tenant-stripe/dashboard-link",
+        {
+          method:"POST",
+
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await safeJson(res);
+
+    if(!res.ok){
+
+      throw new Error(
+        data.message ||
+        "Unable to open Stripe dashboard"
+      );
+
+    }
+
+    if(!data.url){
+
+      throw new Error(
+        "Stripe dashboard link missing"
+      );
+
+    }
+
+    window.location.href =
+      data.url;
+
+  }catch(err){
+
+    console.log(
+      "STRIPE DASHBOARD ERROR:",
+      err
+    );
+
+    alert(
+      err.message ||
+      "Unable to open Stripe dashboard"
+    );
+
+    stripeDashboardBtn.disabled =
+      false;
+
+    stripeDashboardBtn.innerText =
+      "Open Stripe Dashboard";
+
+  }
+
+}
+
+if(connectStripeBtn){
+
+  connectStripeBtn.addEventListener(
+    "click",
+    connectStripe
+  );
+
+}
+
+if(stripeDashboardBtn){
+
+  stripeDashboardBtn.addEventListener(
+    "click",
+    openStripeDashboard
+  );
 
 }
 
@@ -933,4 +1279,5 @@ yearFilter.addEventListener(
    INIT
 ========================= */
 
+loadStripeStatus();
 loadBilling();
