@@ -1,7 +1,7 @@
 // =========================================
 // FILE: public/admin/system-design.js
 // COMPLETE SYSTEM DESIGN ENGINE
-// FINAL FIXED VERSION
+// TENANT CLEAN DEFAULTS - NO LEGACY SUNBEAM BRANDING
 // =========================================
 
 console.log("SYSTEM DESIGN LOADED");
@@ -112,15 +112,15 @@ DEFAULT DATA
 
 const defaultSystemDesign = {
 
-  companyName:"Sunbeam Transportation",
+  companyName:"",
 
 timezone:"America/Phoenix",
-region:"Arizona",
+region:"",
 
-country:"USA",
-invoiceEmail:"billing@sunbeamtransportation.com",
+country:"",
+invoiceEmail:"",
 
-smtpHost:"smtp.zoho.com",
+smtpHost:"",
 
 smtpPort:"465",
 
@@ -139,10 +139,10 @@ bookingEmailMessage:
 cancelPolicyText:
 "Free cancellation up to 2 hours before trip time.",
 
-mainLogo:"/assets/logo.png",
-  driverLogo:"/assets/logo.png",
+mainLogo:"",
+  driverLogo:"",
 
-  heroImage:"/assets/hero.jpeg",
+  heroImage:"",
 
   /* =========================
   BODY
@@ -263,12 +263,11 @@ CONTACT
 
 contactTitle:"Customer Support",
 
-contactPhone:"619-509-7197",
+contactPhone:"",
 
-contactEmail:
-"admin@sunbeamtransportationllc.com",
+contactEmail:"",
 
-footerText:"©️ Sunbeam Transportation",
+footerText:"",
 
 contactTitleColor:"#145cff",
 
@@ -297,7 +296,7 @@ SERVICES
       active:false,
       title:"Standard",
       description:"Standard transportation service",
-      image:"/assets/business.jpeg",
+      image:"",
       link:"getquote/index.html"
     },
 
@@ -306,7 +305,7 @@ SERVICES
       active:false,
       title:"XL",
       description:"Large vehicle transportation",
-      image:"/assets/business.jpeg",
+      image:"",
       link:"getquote/index.html"
     },
 
@@ -315,7 +314,7 @@ SERVICES
       active:false,
       title:"Taxi",
       description:"Daily city transportation",
-      image:"/assets/business.jpeg",
+      image:"",
       link:"getquote/index.html"
     },
 
@@ -324,7 +323,7 @@ SERVICES
       active:false,
       title:"Limo",
       description:"Luxury transportation service",
-      image:"/assets/business.jpeg",
+      image:"",
       link:"getquote/index.html"
     },
 
@@ -333,7 +332,7 @@ SERVICES
       active:false,
       title:"Wheelchair",
       description:"Wheelchair accessible rides",
-      image:"/assets/nemt.jpeg",
+      image:"",
       link:"getquote/index.html"
     },
 
@@ -342,7 +341,7 @@ SERVICES
       active:false,
       title:"Shared Ride",
       description:"Affordable shared rides",
-      image:"/assets/airport.jpeg",
+      image:"",
       link:"getquote/index.html"
     }
 
@@ -529,10 +528,17 @@ function setImage(id,value){
   const el =
   document.getElementById(id);
 
-  if(el){
+  if(!el) return;
 
-    el.src = value || "";
+  const src =
+    String(value || "").trim();
 
+  if(src){
+    el.src = src;
+    el.style.display = "block";
+  }else{
+    el.removeAttribute("src");
+    el.style.display = "none";
   }
 
 }
@@ -1212,11 +1218,9 @@ function renderCardsEditor(){
   </label>
 
   <img
-    src="${
-      service.image ||
-      "/assets/logo.png"
-    }"
+    ${service.image ? `src="${service.image}"` : ""}
     class="preview-image"
+    ${service.image ? "" : 'style="display:none;"'}
     style="
       width:100%;
       height:180px;
