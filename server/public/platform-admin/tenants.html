@@ -410,6 +410,8 @@ const role =
     "role"
   ) || "";
 
+let platformTenants = [];
+
 if(
   !token ||
   role !== "PLATFORM_ADMIN"
@@ -661,6 +663,11 @@ async function loadTenants(){
         "/api/platform-admin/tenants"
       );
 
+    platformTenants =
+      Array.isArray(tenants)
+        ? tenants
+        : [];
+
     if(
       !Array.isArray(tenants) ||
       !tenants.length
@@ -760,11 +767,7 @@ async function loadTenants(){
               <button
                 class="small-btn delete-btn"
                 id="deleteBtn-${t._id}"
-                onclick="deleteTenant(
-                  '${t._id}',
-                  '${'${escapeJs(t.slug || "")}'}',
-                  '${'${escapeJs(t.name || "")}'}'
-                )"
+                onclick="deleteTenant('${t._id}')"
               >
                 Delete Tenant
               </button>
@@ -822,24 +825,77 @@ async function toggleTenant(
 
 
 async function deleteTenant(
-  tenantId,
-  tenantSlug,
-  tenantName
+  tenantId
 ){
 
+  const tenant =
+    platformTenants.find(
+      item =>
+        String(item?._id || "") ===
+        String(tenantId || "")
+    );
+
+  if(!tenant){
+
+    alert(
+      "Company information could not be found. Refresh the page and try again."
+    );
+
+    return;
+  }
+
+  const tenantName =
+    String(
+      tenant.name || ""
+    ).trim();
+
+  const tenantSlug =
+    String(
+      tenant.slug || ""
+    )
+    .trim()
+    .toLowerCase();
+
   /*
-    PLATFORM ADMIN ONLY:
-    The page itself already requires PLATFORM_ADMIN,
-    and the server endpoint is protected too.
+    FIRST WARNING
+  */
+
+  const firstWarning =
+    window.confirm(
+      "⚠️ PERMANENT DELETE WARNING ⚠️\n\n" +
+      "Company: " + tenantName + "\n" +
+      "Slug: " + tenantSlug + "\n\n" +
+      "Deleting this company will permanently remove ALL data that belongs to this tenant, including:\n\n" +
+      "• Users and passwords\n" +
+      "• Company / facility accounts\n" +
+      "• Drivers\n" +
+      "• Trips and trip history\n" +
+      "• Dispatch records\n" +
+      "• Billing history\n" +
+      "• Driver schedules\n" +
+      "• Pricing / overrides\n" +
+      "• Stripe connection records\n" +
+      "• Other records linked to this tenantId\n\n" +
+      "This action CANNOT be undone.\n\n" +
+      "Do you want to continue?"
+    );
+
+  if(!firstWarning){
+    return;
+  }
+
+  /*
+    SECOND WARNING:
+    User must type the exact tenant slug.
   */
 
   const typed =
     window.prompt(
-      "PERMANENT DELETE\n\n" +
-      "Company: " + tenantName + "\n" +
-      "Slug: " + tenantSlug + "\n\n" +
-      "This permanently deletes the tenant and all data linked to its tenantId, including users, companies, drivers, trips, billing, schedules, dispatch data and payment connection records.\n\n" +
-      "Type the company slug exactly to continue:"
+      "FINAL CONFIRMATION\n\n" +
+      "To permanently delete \"" +
+      tenantName +
+      "\", type this company slug exactly:\n\n" +
+      tenantSlug
     );
 
   if(typed === null){
@@ -850,13 +906,11 @@ async function deleteTenant(
     String(typed)
       .trim()
       .toLowerCase() !==
-    String(tenantSlug)
-      .trim()
-      .toLowerCase()
+    tenantSlug
   ){
 
     alert(
-      "Delete cancelled. Slug did not match."
+      "Delete cancelled.\n\nThe company slug did not match."
     );
 
     return;
@@ -864,11 +918,11 @@ async function deleteTenant(
 
   const finalOk =
     window.confirm(
-      "FINAL WARNING\n\n" +
-      "Delete \"" +
+      "LAST WARNING\n\n" +
+      "You are about to permanently delete:\n\n" +
       tenantName +
-      "\" permanently?\n\n" +
-      "This cannot be undone."
+      "\n\nAll tenant data will be deleted permanently.\n\n" +
+      "Press OK only if you are completely sure."
     );
 
   if(!finalOk){
@@ -902,6 +956,11 @@ async function deleteTenant(
         }
       );
 
+    alert(
+      data.message ||
+      "Tenant permanently deleted."
+    );
+
     showMessage(
       data.message ||
       "Tenant permanently deleted.",
@@ -915,6 +974,19 @@ async function deleteTenant(
     await loadTenants();
 
   }catch(err){
+
+    console.error(
+      "DELETE TENANT ERROR:",
+      err
+    );
+
+    alert(
+      "Delete failed:\n\n" +
+      (
+        err.message ||
+        "Unknown error"
+      )
+    );
 
     showMessage(
       err.message ||
@@ -932,15 +1004,6 @@ async function deleteTenant(
 
 }
 
-function escapeJs(value){
-
-  return String(value ?? "")
-    .replaceAll("\\","\\\\")
-    .replaceAll("'","\\'")
-    .replaceAll("\r"," ")
-    .replaceAll("\n"," ");
-
-}
 
 function openSuperAdmins(
   tenantId
