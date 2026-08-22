@@ -66,6 +66,10 @@ require("./models/DispatchAssignment"
 const BillingHistory =
 require("./models/BillingHistory"
 );
+
+const TenantPaymentAccount =
+require("./models/TenantPaymentAccount"
+);
 const FacilityPricingOverride =
 require("./models/FacilityPricingOverride");
 
@@ -495,6 +499,22 @@ require("./routes/publicTenantRoutes");
 app.use(
   "/api/public/tenant",
   publicTenantRoutes
+);
+
+/* =========================
+   TENANT STRIPE CONNECT
+========================= */
+
+const tenantStripeRoutes =
+require("./routes/tenantStripeRoutes");
+
+app.use(
+  "/api/tenant-stripe",
+  tenantStripeRoutes
+);
+
+console.log(
+  "✅ tenantStripeRoutes mounted on /api/tenant-stripe"
 );
 
 
@@ -5053,6 +5073,36 @@ app.post(
         ? "&tenant=" + encodeURIComponent(tenantSlug)
         : "");
 
+    const tenantPaymentAccount =
+      await TenantPaymentAccount.findOne({
+        tenantId:company.tenantId
+      }).lean();
+
+    if(
+      !tenantPaymentAccount ||
+      !tenantPaymentAccount.stripeAccountId
+    ){
+      return res.status(400).json({
+        message:
+          "Stripe is not connected for this organization"
+      });
+    }
+
+    if(
+      tenantPaymentAccount.connected !== true ||
+      tenantPaymentAccount.chargesEnabled !== true
+    ){
+      return res.status(400).json({
+        message:
+          "Stripe onboarding is not complete for this organization"
+      });
+    }
+
+    const stripeAccountId =
+      String(
+        tenantPaymentAccount.stripeAccountId
+      );
+
     const session =
       await stripe.checkout.sessions.create({
 
@@ -5065,7 +5115,25 @@ app.post(
 
         metadata:{
           companyId:String(company._id),
-          tenantId:String(company.tenantId || "")
+          tenantId:String(company.tenantId || ""),
+          stripeAccountId
+        },
+
+        payment_intent_data:{
+          transfer_data:{
+            destination:
+              stripeAccountId
+          },
+
+          metadata:{
+            companyId:
+              String(company._id),
+
+            tenantId:
+              String(company.tenantId || ""),
+
+            stripeAccountId
+          }
         },
 
         line_items:[{
@@ -5217,6 +5285,119 @@ if(company.billingCycle === "WEEKLY"){
 }
 
 /* =========================
+   SAVE BILLING HISTORY
+========================= */
+
+const paymentIntentId =
+  String(
+    session.payment_intent || ""
+  );
+
+const alreadyInHistory =
+  await BillingHistory.findOne({
+    tenantId:company.tenantId,
+    companyId:company._id,
+    stripeCheckoutSessionId:sessionId
+  }).lean();
+
+if(!alreadyInHistory){
+
+  const historyTripFilter = {
+
+    tenantId:
+      company.tenantId,
+
+    company:{
+      $regex:
+        "^" +
+        String(company.name || "").trim() +
+        "$",
+      $options:"i"
+    },
+
+    billingPaid:{
+      $ne:true
+    }
+  };
+
+  const billableTrips =
+    await Trip.find(
+      historyTripFilter
+    )
+    .select("_id")
+    .lean();
+
+  await BillingHistory.create({
+
+    tenantId:
+      company.tenantId,
+
+    companyId:
+      company._id,
+
+    companyName:
+      company.name || "",
+
+    billingStartDate:
+      company.billingStartDate || null,
+
+    billingEndDate:
+      company.billingEndDate || null,
+
+    totalTrips:
+      Number(company.totalTrips || 0),
+
+    individualTrips:
+      Number(company.individualTrips || 0),
+
+    sharedTrips:
+      Number(company.sharedTrips || 0),
+
+    sharedPassengers:
+      Number(company.sharedPassengers || 0),
+
+    completedTrips:
+      Number(company.completedTrips || 0),
+
+    cancelledTrips:
+      Number(company.cancelledTrips || 0),
+
+    noShowTrips:
+      Number(company.noShowTrips || 0),
+
+    revenue:
+      Number(company.revenue || 0),
+
+    invoiceAmount:
+      Number(company.invoiceAmount || 0),
+
+    paidDate:
+      new Date(),
+
+    paymentMethod:
+      "STRIPE",
+
+    stripeCheckoutSessionId:
+      sessionId,
+
+    stripePaymentIntentId:
+      paymentIntentId,
+
+    stripeAccountId:
+      String(
+        session.metadata?.stripeAccountId ||
+        ""
+      ),
+
+    tripIds:
+      billableTrips.map(
+        row=>row._id
+      )
+  });
+
+}
+
+/* =========================
    RESET BILLING
 ========================= */
 
@@ -5294,6 +5475,10 @@ console.log(
 );
 
 const tripsToMark = {
+
+  tenantId:
+    company.tenantId,
+
   company:{
     $regex:
       "^" +
