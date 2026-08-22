@@ -55,6 +55,20 @@ const stripeDashboardBtn =
 
 let companies = [];
 
+/*
+  STRIPE STATE
+  If OAuth already returned an acct_ id but payments are not ready,
+  do NOT start OAuth again. Open Stripe Dashboard so the tenant can
+  finish the remaining Stripe requirements.
+*/
+let stripeConnectionState = {
+  stripeAccountId:"",
+  connected:false,
+  chargesEnabled:false,
+  payoutsEnabled:false,
+  detailsSubmitted:false
+};
+
 /* =========================
    MONTHS
 ========================= */
@@ -280,38 +294,95 @@ async function loadStripeStatus(){
 
     }
 
-    const connected =
-      data.connected === true &&
-      data.chargesEnabled === true;
+    stripeConnectionState = {
+      stripeAccountId:
+        String(
+          data.stripeAccountId || ""
+        ).trim(),
 
-    if(connected){
+      connected:
+        data.connected === true,
+
+      chargesEnabled:
+        data.chargesEnabled === true,
+
+      payoutsEnabled:
+        data.payoutsEnabled === true,
+
+      detailsSubmitted:
+        data.detailsSubmitted === true
+    };
+
+    const hasLinkedAccount =
+      !!stripeConnectionState
+        .stripeAccountId;
+
+    const paymentsReady =
+      stripeConnectionState.connected === true &&
+      stripeConnectionState.chargesEnabled === true;
+
+    if(paymentsReady){
 
       setStripeUi(
         "connected",
         "CONNECTED",
-        data.stripeAccountId || ""
+        stripeConnectionState.stripeAccountId
       );
 
       connectStripeBtn.innerText =
         "Manage Stripe";
 
+      connectStripeBtn.dataset.action =
+        "dashboard";
+
       stripeDashboardBtn.style.display =
         "inline-flex";
+
+      stripeDashboardBtn.innerText =
+        "Open Stripe Dashboard";
+
+    }else if(hasLinkedAccount){
+
+      /*
+        IMPORTANT:
+        OAuth is already complete because Stripe returned acct_...
+        Starting OAuth again would only return to the account picker
+        and create the loop we were seeing.
+      */
+
+      setStripeUi(
+        "pending",
+        "SETUP REQUIRED",
+        stripeConnectionState.stripeAccountId
+      );
+
+      if(stripeAccountText){
+
+        stripeAccountText.innerText =
+          "Stripe account linked. Complete the remaining Stripe requirements to enable payments.";
+      }
+
+      connectStripeBtn.innerText =
+        "Complete Stripe Setup";
+
+      connectStripeBtn.dataset.action =
+        "dashboard";
+
+      stripeDashboardBtn.style.display =
+        "none";
 
     }else{
 
       setStripeUi(
         "pending",
-        data.stripeAccountId
-          ? "SETUP REQUIRED"
-          : "NOT CONNECTED",
-        data.stripeAccountId || ""
+        "NOT CONNECTED"
       );
 
       connectStripeBtn.innerText =
-        data.stripeAccountId
-          ? "Continue Stripe Setup"
-          : "Connect Stripe";
+        "Connect Stripe";
+
+      connectStripeBtn.dataset.action =
+        "connect";
 
       stripeDashboardBtn.style.display =
         "none";
@@ -338,6 +409,9 @@ async function loadStripeStatus(){
 
     connectStripeBtn.disabled =
       false;
+
+    connectStripeBtn.dataset.action =
+      "connect";
 
     stripeDashboardBtn.style.display =
       "none";
@@ -502,7 +576,22 @@ if(connectStripeBtn){
 
   connectStripeBtn.addEventListener(
     "click",
-    connectStripe
+    async ()=>{
+
+      const action =
+        connectStripeBtn.dataset.action ||
+        "connect";
+
+      if(action === "dashboard"){
+
+        await openStripeDashboard();
+
+        return;
+      }
+
+      await connectStripe();
+
+    }
   );
 
 }
