@@ -1,1372 +1,1035 @@
-/* =========================
-   AUTH
-========================= */
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 
-const token =
-  localStorage.getItem("token");
+const router = express.Router();
 
-const role =
-  localStorage.getItem("role") || "";
+const User = require("../models/User");
+const Tenant = require("../models/Tenant");
 
-if(
-  !token ||
-  !["SUPER_ADMIN","admin"].includes(role)
-){
+const {
+  verifyToken,
+  requireRole
+} = require("../middleware/authmiddleware");
 
-  window.location.href =
-    "/login.html";
+/* =========================================
+   PLATFORM ADMIN SECURITY
+========================================= */
 
-}
+router.use(
+  verifyToken,
+  requireRole("PLATFORM_ADMIN")
+);
 
-/* =========================
-   ELEMENTS
-========================= */
 
-const container =
-  document.getElementById("billingContainer");
+/* =========================================
+   TENANT SERVICE CATALOG
+========================================= */
 
-const searchInput =
-  document.getElementById("searchInput");
-
-const statusFilter =
-  document.getElementById("statusFilter");
-
-const monthFilter =
-  document.getElementById("monthFilter");
-
-const yearFilter =
-  document.getElementById("yearFilter");
-
-const stripeStatus =
-  document.getElementById("stripeStatus");
-
-const stripeAccountText =
-  document.getElementById("stripeAccountText");
-
-const connectStripeBtn =
-  document.getElementById("connectStripeBtn");
-
-const stripeDashboardBtn =
-  document.getElementById("stripeDashboardBtn");
-
-/* =========================
-   DATA
-========================= */
-
-let companies = [];
-
-/*
-  STRIPE STATE
-  If OAuth already returned an acct_ id but payments are not ready,
-  do NOT start OAuth again. Open Stripe Dashboard so the tenant can
-  finish the remaining Stripe requirements.
-*/
-let stripeConnectionState = {
-  stripeAccountId:"",
-  connected:false,
-  chargesEnabled:false,
-  payoutsEnabled:false,
-  detailsSubmitted:false
-};
-
-/* =========================
-   MONTHS
-========================= */
-
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December"
+const SERVICE_CATALOG = [
+  { serviceKey:"ST", title:"Standard" },
+  { serviceKey:"WH", title:"Wheelchair" },
+  { serviceKey:"SH", title:"Shared" },
+  { serviceKey:"LM", title:"Limousine" },
+  { serviceKey:"TX", title:"Taxi" },
+  { serviceKey:"XL", title:"XL" }
 ];
 
-if(monthFilter){
-
-  months.forEach((m,i)=>{
-
-    monthFilter.innerHTML += `
-      <option value="${i + 1}">
-        ${m}
-      </option>
-    `;
-
-  });
-
+function clean(value){
+  return String(value ?? "").trim();
 }
 
-/* =========================
-   HELPERS
-========================= */
+function normalizeServiceKey(value){
 
-function money(value){
+  const key =
+    clean(value)
+      .toUpperCase()
+      .replace(/\s+/g,"");
 
-  return "$" +
-    Number(value || 0)
-      .toFixed(2);
+  if(key === "STANDARD") return "ST";
+  if(key === "WHEELCHAIR" || key === "WC") return "WH";
+  if(key === "SHARED") return "SH";
+  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
+  if(key === "TAXI") return "TX";
 
+  return key;
 }
 
-/* =========================
-   ARIZONA DATE HELPERS
-========================= */
+function normalizeAllowedServices(values){
 
-function getArizonaDate(value){
+  if(!Array.isArray(values)){
+    return [];
+  }
 
-  if(!value) return null;
-
-  return new Date(
-    new Date(value).toLocaleString(
-      "en-US",
-      {
-        timeZone:"America/Phoenix"
-      }
+  return [
+    ...new Set(
+      values
+        .map(normalizeServiceKey)
+        .filter(Boolean)
+        .filter(key =>
+          /^[A-Z0-9_-]{1,30}$/.test(key)
+        )
     )
-  );
-
+  ];
 }
 
-function formatDate(value){
+/* =========================================
+   GET PLATFORM SERVICE CATALOG
+========================================= */
 
-  if(!value) return "--";
+router.get(
+  "/service-catalog",
+  async (req,res)=>{
 
-  const d =
-    getArizonaDate(value);
-
-  if(!d || isNaN(d.getTime())){
-    return "--";
-  }
-
-  return d.toLocaleDateString(
-    "en-US",
-    {
-      year:"numeric",
-      month:"short",
-      day:"numeric",
-      timeZone:"America/Phoenix"
-    }
-  );
-
-}
-
-function toInputDate(value){
-
-  if(!value) return "";
-
-  const d =
-    getArizonaDate(value);
-
-  if(!d || isNaN(d.getTime())){
-    return "";
-  }
-
-  const year =
-    d.getFullYear();
-
-  const month =
-    String(d.getMonth() + 1)
-      .padStart(2,"0");
-
-  const day =
-    String(d.getDate())
-      .padStart(2,"0");
-
-  return `${year}-${month}-${day}`;
-
-}
-
-async function safeJson(res){
-
-  try{
-
-    return await res.json();
-
-  }catch(err){
-
-    return {};
+    return res.json({
+      success:true,
+      services:SERVICE_CATALOG
+    });
 
   }
+);
 
-}
+/* =========================================
+   GET ALL TENANTS
+========================================= */
 
+router.get("/tenants", async (req, res) => {
+  try {
 
-/* =========================
-   STRIPE CONNECT
-========================= */
+    const tenants =
+      await Tenant.find({})
+        .sort({ createdAt: -1 })
+        .lean();
 
-function getTenantSlug(){
+    return res.json(tenants);
 
-  return String(
-    localStorage.getItem("tenantSlug") ||
-    sessionStorage.getItem("loginTenantSlug") ||
-    ""
-  )
-  .trim()
-  .toLowerCase();
+  } catch (err) {
 
-}
-
-function setStripeUi(
-  type,
-  text,
-  accountId = ""
-){
-
-  if(!stripeStatus) return;
-
-  stripeStatus.className =
-    "stripe-status " + type;
-
-  stripeStatus.innerText =
-    text;
-
-  if(stripeAccountText){
-
-    if(accountId){
-
-      stripeAccountText.innerText =
-        "Connected account: " +
-        accountId;
-
-    }else{
-
-      stripeAccountText.innerText =
-        type === "connected"
-          ? "Stripe is connected and ready to receive payments."
-          : "Connect the organization Stripe account to receive Company Billing and Get Quote payments.";
-
-    }
-
-  }
-
-}
-
-async function loadStripeStatus(){
-
-  if(
-    !stripeStatus ||
-    !connectStripeBtn ||
-    !stripeDashboardBtn
-  ){
-    return;
-  }
-
-  try{
-
-    setStripeUi(
-      "pending",
-      "CHECKING"
+    console.error(
+      "PLATFORM TENANTS ERROR:",
+      err
     );
 
-    connectStripeBtn.disabled =
-      true;
+    return res.status(500).json({
+      message: "Server error"
+    });
 
-    stripeDashboardBtn.disabled =
-      true;
+  }
+});
 
-    const res =
-      await fetch(
-        "/api/tenant-stripe/status",
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-      );
+/* =========================================
+   CREATE TENANT + FIRST SUPER ADMIN
+========================================= */
 
-    const data =
-      await safeJson(res);
+router.post("/tenants", async (req, res) => {
+  try {
 
-    if(!res.ok){
+    const {
+      name,
+      slug,
+      timezone,
+      subscriptionStatus,
+      allowedServices
+    } = req.body || {};
 
-      throw new Error(
-        data.message ||
-        "Unable to load Stripe status"
-      );
-
+    if (
+      !name ||
+      !slug
+    ) {
+      return res.status(400).json({
+        message:
+          "name and slug are required"
+      });
     }
 
-    stripeConnectionState = {
-      stripeAccountId:
+    const cleanName =
+      String(name).trim();
+
+    const cleanSlug =
+      String(slug)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+    if (!cleanSlug) {
+      return res.status(400).json({
+        message: "Invalid tenant slug"
+      });
+    }
+
+    const existingTenant =
+      await Tenant.findOne({
+        slug: cleanSlug
+      });
+
+    if (existingTenant) {
+      return res.status(409).json({
+        message: "Tenant slug already exists"
+      });
+    }
+
+    const allowedStatus = [
+      "ACTIVE",
+      "TRIAL",
+      "SUSPENDED",
+      "CANCELED"
+    ];
+
+    const finalStatus =
+      allowedStatus.includes(
         String(
-          data.stripeAccountId || ""
-        ).trim(),
+          subscriptionStatus ||
+          "ACTIVE"
+        ).toUpperCase()
+      )
+        ? String(
+            subscriptionStatus ||
+            "ACTIVE"
+          ).toUpperCase()
+        : "ACTIVE";
 
-      connected:
-        data.connected === true,
+    const tenant =
+      await Tenant.create({
+        name:
+          cleanName,
 
-      chargesEnabled:
-        data.chargesEnabled === true,
+        slug:
+          cleanSlug,
 
-      payoutsEnabled:
-        data.payoutsEnabled === true,
+        enabled:
+          true,
 
-      detailsSubmitted:
-        data.detailsSubmitted === true
-    };
+        subscriptionStatus:
+          finalStatus,
 
-    const hasLinkedAccount =
-      !!stripeConnectionState
-        .stripeAccountId;
+        timezone:
+          timezone
+            ? String(timezone).trim()
+            : "America/Phoenix",
 
-    const paymentsReady =
-      stripeConnectionState.connected === true &&
-      stripeConnectionState.chargesEnabled === true;
+        allowedServices:
+          normalizeAllowedServices(
+            allowedServices
+          ),
 
-    if(paymentsReady){
+        branding: {
+          companyName:
+            cleanName
+        }
+      });
 
-      setStripeUi(
-        "connected",
-        "CONNECTED",
-        stripeConnectionState.stripeAccountId
-      );
+    return res.status(201).json({
+      message:
+        "Company created successfully",
 
-      connectStripeBtn.innerText =
-        "Manage Stripe";
+      tenant: {
+        id:
+          tenant._id,
 
-      connectStripeBtn.dataset.action =
-        "dashboard";
+        name:
+          tenant.name,
 
-      stripeDashboardBtn.style.display =
-        "inline-flex";
+        slug:
+          tenant.slug,
 
-      stripeDashboardBtn.innerText =
-        "Open Stripe Dashboard";
+        enabled:
+          tenant.enabled,
 
-    }else if(hasLinkedAccount){
+        subscriptionStatus:
+          tenant.subscriptionStatus,
 
-      /*
-        IMPORTANT:
-        OAuth is already complete because Stripe returned acct_...
-        Starting OAuth again would only return to the account picker
-        and create the loop we were seeing.
-      */
+        timezone:
+          tenant.timezone,
 
-      setStripeUi(
-        "pending",
-        "SETUP REQUIRED",
-        stripeConnectionState.stripeAccountId
-      );
+        allowedServices:
+          tenant.allowedServices || []
+      }
+    });
 
-      if(stripeAccountText){
+  } catch (err) {
 
-        stripeAccountText.innerText =
-          "Stripe account linked. Complete the remaining Stripe requirements to enable payments.";
+    console.error(
+      "CREATE TENANT ERROR:",
+      err
+    );
+
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        message:
+          "Tenant slug already exists"
+      });
+    }
+
+    return res.status(500).json({
+      message: "Server error"
+    });
+
+  }
+});
+
+/* =========================================
+   UPDATE TENANT STATUS
+========================================= */
+
+router.patch(
+  "/tenants/:tenantId/status",
+  async (req, res) => {
+    try {
+
+      const {
+        enabled,
+        subscriptionStatus
+      } = req.body || {};
+
+      const update = {};
+
+      if (typeof enabled === "boolean") {
+        update.enabled = enabled;
       }
 
-      connectStripeBtn.innerText =
-        "Complete Stripe Setup";
+      if (
+        subscriptionStatus !== undefined
+      ) {
 
-      connectStripeBtn.dataset.action =
-        "dashboard";
+        const allowed = [
+          "ACTIVE",
+          "TRIAL",
+          "SUSPENDED",
+          "CANCELED"
+        ];
 
-      stripeDashboardBtn.style.display =
-        "none";
-
-    }else{
-
-      setStripeUi(
-        "pending",
-        "NOT CONNECTED"
-      );
-
-      connectStripeBtn.innerText =
-        "Connect Stripe";
-
-      connectStripeBtn.dataset.action =
-        "connect";
-
-      stripeDashboardBtn.style.display =
-        "none";
-
-    }
-
-    connectStripeBtn.disabled =
-      false;
-
-    stripeDashboardBtn.disabled =
-      false;
-
-  }catch(err){
-
-    console.log(
-      "STRIPE STATUS ERROR:",
-      err
-    );
-
-    setStripeUi(
-      "error",
-      "ERROR"
-    );
-
-    connectStripeBtn.disabled =
-      false;
-
-    connectStripeBtn.dataset.action =
-      "connect";
-
-    stripeDashboardBtn.style.display =
-      "none";
-
-  }
-
-}
-
-async function connectStripe(){
-
-  try{
-
-    if(!connectStripeBtn){
-      return;
-    }
-
-    connectStripeBtn.disabled =
-      true;
-
-    connectStripeBtn.innerText =
-      "Opening Stripe...";
-
-    const res =
-      await fetch(
-        "/api/tenant-stripe/connect",
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              "Bearer " + token
-          },
-
-          body:JSON.stringify({
-            tenantSlug:
-              getTenantSlug()
-          })
+        if (
+          !allowed.includes(
+            subscriptionStatus
+          )
+        ) {
+          return res.status(400).json({
+            message:
+              "Invalid subscriptionStatus"
+          });
         }
-      );
 
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Unable to connect Stripe"
-      );
-
-    }
-
-    if(!data.url){
-
-      throw new Error(
-        "Stripe onboarding link missing"
-      );
-
-    }
-
-    window.location.href =
-      data.url;
-
-  }catch(err){
-
-    console.log(
-      "STRIPE CONNECT ERROR:",
-      err
-    );
-
-    alert(
-      err.message ||
-      "Unable to connect Stripe"
-    );
-
-    connectStripeBtn.disabled =
-      false;
-
-    connectStripeBtn.innerText =
-      "Connect Stripe";
-
-  }
-
-}
-
-async function openStripeDashboard(){
-
-  try{
-
-    if(!stripeDashboardBtn){
-      return;
-    }
-
-    stripeDashboardBtn.disabled =
-      true;
-
-    stripeDashboardBtn.innerText =
-      "Opening...";
-
-    const res =
-      await fetch(
-        "/api/tenant-stripe/dashboard-link",
-        {
-          method:"POST",
-
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Unable to open Stripe dashboard"
-      );
-
-    }
-
-    if(!data.url){
-
-      throw new Error(
-        "Stripe dashboard link missing"
-      );
-
-    }
-
-    window.location.href =
-      data.url;
-
-  }catch(err){
-
-    console.log(
-      "STRIPE DASHBOARD ERROR:",
-      err
-    );
-
-    alert(
-      err.message ||
-      "Unable to open Stripe dashboard"
-    );
-
-    stripeDashboardBtn.disabled =
-      false;
-
-    stripeDashboardBtn.innerText =
-      "Open Stripe Dashboard";
-
-  }
-
-}
-
-if(connectStripeBtn){
-
-  connectStripeBtn.addEventListener(
-    "click",
-    async ()=>{
-
-      const action =
-        connectStripeBtn.dataset.action ||
-        "connect";
-
-      if(action === "dashboard"){
-
-        await openStripeDashboard();
-
-        return;
+        update.subscriptionStatus =
+          subscriptionStatus;
       }
 
-      await connectStripe();
+      if (
+        Object.keys(update).length === 0
+      ) {
+        return res.status(400).json({
+          message: "Nothing to update"
+        });
+      }
 
-    }
-  );
-
-}
-
-if(stripeDashboardBtn){
-
-  stripeDashboardBtn.addEventListener(
-    "click",
-    openStripeDashboard
-  );
-
-}
-
-/* =========================
-   LOAD BILLING
-========================= */
-
-async function loadBilling(){
-
-  try{
-
-    container.innerHTML = `
-      <div class="empty">
-        Loading billing...
-      </div>
-    `;
-
-    const res =
-      await fetch(
-        "/api/admin/billing",
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
+      const tenant =
+        await Tenant.findByIdAndUpdate(
+          req.params.tenantId,
+          update,
+          {
+            new: true,
+            runValidators: true
           }
-        }
+        );
+
+      if (!tenant) {
+        return res.status(404).json({
+          message: "Tenant not found"
+        });
+      }
+
+      return res.json({
+        message: "Tenant updated",
+        tenant
+      });
+
+    } catch (err) {
+
+      console.error(
+        "UPDATE TENANT ERROR:",
+        err
       );
 
-    const data =
-      await safeJson(res);
+      return res.status(500).json({
+        message: "Server error"
+      });
 
-    if(!res.ok){
+    }
+  }
+);
 
-      throw new Error(
-        data.message ||
-        "Billing load failed"
+
+/* =========================================
+   GET TENANT ALLOWED SERVICES
+========================================= */
+
+router.get(
+  "/tenants/:tenantId/services",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        )
+        .lean();
+
+      if(!tenant){
+
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug
+        },
+
+        serviceCatalog:
+          SERVICE_CATALOG,
+
+        allowedServices:
+          Array.isArray(
+            tenant.allowedServices
+          )
+            ? tenant.allowedServices
+            : []
+      });
+
+    }catch(err){
+
+      console.error(
+        "GET TENANT SERVICES ERROR:",
+        err
       );
+
+      return res.status(500).json({
+        message:"Server error"
+      });
 
     }
 
-    companies =
-      Array.isArray(data)
-        ? data
-        : [];
-
-    render(companies);
-
-  }catch(err){
-
-    console.log(err);
-
-    container.innerHTML = `
-      <div class="empty">
-        Error loading companies
-      </div>
-    `;
-
   }
-
-}
-
-/* =========================
-   RENDER
-========================= */
-
-function render(list){
-
-  if(!list.length){
-
-    container.innerHTML = `
-      <div class="empty">
-        No companies found
-      </div>
-    `;
-
-    return;
-
-  }
-
-  container.innerHTML =
-    list.map(c=>{
-
-      return `
-
-        <div class="company-card">
-
-          <!-- TOP -->
-
-          <div class="company-top">
-
-            <div class="company-box">
-
-              <div class="company-name">
-                ${c.name || "--"}
-              </div>
-
-              <div class="company-small">
-                ${c.email || "--"}
-                <br>
-                ${c.phone || "--"}
-                <br>
-                ${c.username || "--"}
-              </div>
-
-            </div>
-
-            <div>
-
-              ${
-                c.billingLocked
-
-                ? `
-                  <span class="badge locked">
-                    LOCKED
-                  </span>
-                `
-
-                : `
-                  <span class="badge active">
-                    ACTIVE
-                  </span>
-                `
-              }
-
-            </div>
-
-          </div>
-
-          <!-- STATS -->
-
-          <div class="stats-grid">
-
-            <div class="stat-box">
-              <div class="stat-label">
-                Trips
-              </div>
-              <div class="stat-value">
-                ${c.totalTrips || 0}
-              </div>
-            </div>
-
-            <div class="stat-box">
-              <div class="stat-label">
-                Completed
-              </div>
-              <div class="stat-value">
-                ${c.completedTrips || 0}
-              </div>
-            </div>
-
-            <div class="stat-box">
-              <div class="stat-label">
-                Shared
-              </div>
-              <div class="stat-value">
-                ${c.sharedTrips || 0}
-              </div>
-            </div>
-
-            <div class="stat-box">
-              <div class="stat-label">
-                No Show
-              </div>
-              <div class="stat-value">
-                ${c.noShowTrips || 0}
-              </div>
-            </div>
-
-            <div class="stat-box">
-              <div class="stat-label">
-                Revenue
-              </div>
-              <div class="stat-value">
-                ${money(c.revenue)}
-              </div>
-            </div>
-
-            <div class="stat-box">
-              <div class="stat-label">
-                Invoice
-              </div>
-              <div class="stat-value">
-                ${money(c.invoiceAmount)}
-              </div>
-            </div>
-
-          </div>
-
-          <!-- BILLING -->
-
-          <div class="billing-grid">
-
-            <div class="field">
-
-              <label>
-                Billing Start
-              </label>
-
-              <input
-                type="date"
-                class="small-input"
-                id="start-${c._id}"
-                value="${toInputDate(c.billingStartDate)}"
-                disabled
-              >
-
-            </div>
-
-            <div class="field">
-
-              <label>
-                Billing End
-              </label>
-
-              <input
-                type="date"
-                class="small-input"
-                id="end-${c._id}"
-                value="${toInputDate(c.billingEndDate)}"
-                disabled
-              >
-
-            </div>
-
-            <div class="field">
-
-              <label>
-                Grace Days
-              </label>
-
-              <input
-                type="number"
-                class="small-input"
-                id="grace-${c._id}"
-                value="${c.graceDays || 3}"
-                disabled
-              >
-
-            </div>
-
-            <div class="field">
-
-              <label>
-                Last Payment
-              </label>
-
-              <input
-                type="text"
-                class="small-input"
-                value="${formatDate(c.lastPaymentDate)}"
-                disabled
-              >
-
-            </div>
-
-          </div>
-
-          <!-- BUTTONS -->
-
-          <div class="btn-row">
-
-            <button
-              class="btn btn-blue"
-              onclick="editBilling('${c._id}')"
-              id="editBtn-${c._id}"
-            >
-              Edit
-            </button>
-
-            <button
-              class="btn btn-green"
-              onclick="saveBilling('${c._id}')"
-              id="saveBtn-${c._id}"
-              style="display:none;"
-            >
-              Save
-            </button>
-
-            <button
-              class="btn btn-dark"
-              onclick="openInvoice('${c._id}')"
-            >
-              Open Invoice
-            </button>
-
-            <button
-              class="btn btn-yellow"
-              onclick="markPaid('${c._id}')"
-            >
-              Mark Paid
-            </button>
-
-            <button
-              class="btn btn-red"
-              onclick="lockCompany('${c._id}')"
-            >
-              Lock
-            </button>
-
-            <button
-              class="btn btn-green"
-              onclick="unlockCompany('${c._id}')"
-            >
-              Unlock
-            </button>
-
-          </div>
-
-        </div>
-
-      `;
-
-    }).join("");
-
-}
-
-/* =========================
-   EDIT
-========================= */
-
-function editBilling(id){
-
-  document.getElementById(
-    `start-${id}`
-  ).disabled = false;
-
-  document.getElementById(
-    `end-${id}`
-  ).disabled = false;
-
-  document.getElementById(
-    `grace-${id}`
-  ).disabled = false;
-
-  document.getElementById(
-    `editBtn-${id}`
-  ).style.display = "none";
-
-  document.getElementById(
-    `saveBtn-${id}`
-  ).style.display = "inline-flex";
-
-}
-
-/* =========================
-   SAVE
-========================= */
-
-async function saveBilling(id){
-
-  try{
-
-    const start =
-      document.getElementById(
-        `start-${id}`
-      ).value;
-
-    const end =
-      document.getElementById(
-        `end-${id}`
-      ).value;
-
-    const grace =
-      document.getElementById(
-        `grace-${id}`
-      ).value;
-
-    if(!start || !end){
-
-      alert(
-        "Please select dates"
-      );
-
-      return;
-
-    }
-
-    const res =
-      await fetch(
-        `/api/admin/generate-invoice/${id}`,
-        {
-          method:"PUT",
-
-          headers:{
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              "Bearer " + token
+);
+
+/* =========================================
+   SAVE TENANT ALLOWED SERVICES
+========================================= */
+
+router.patch(
+  "/tenants/:tenantId/services",
+  async (req,res)=>{
+
+    try{
+
+      if(
+        !Array.isArray(
+          req.body?.allowedServices
+        )
+      ){
+
+        return res.status(400).json({
+          message:
+            "allowedServices array is required"
+        });
+
+      }
+
+      const allowedServices =
+        normalizeAllowedServices(
+          req.body.allowedServices
+        );
+
+      const tenant =
+        await Tenant.findByIdAndUpdate(
+          req.params.tenantId,
+          {
+            $set:{
+              allowedServices
+            }
           },
-
-          body:JSON.stringify({
-
-            billingStartDate:start,
-
-            billingEndDate:end,
-
-            graceDays:grace
-
-          })
-        }
-      );
-
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Save failed"
-      );
-
-    }
-
-    document.getElementById(
-      `start-${id}`
-    ).disabled = true;
-
-    document.getElementById(
-      `end-${id}`
-    ).disabled = true;
-
-    document.getElementById(
-      `grace-${id}`
-    ).disabled = true;
-
-    document.getElementById(
-      `editBtn-${id}`
-    ).style.display = "inline-flex";
-
-    document.getElementById(
-      `saveBtn-${id}`
-    ).style.display = "none";
-
-    alert("Saved");
-
-    await loadBilling();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Save failed"
-    );
-
-  }
-
-}
-
-/* =========================
-   OPEN INVOICE
-========================= */
-
-function openInvoice(id){
-
-  window.open(
-    `/admin/invoice.html?id=${id}`,
-    "_blank"
-  );
-
-}
-
-/* =========================
-   LOCK
-========================= */
-
-async function lockCompany(id){
-
-  try{
-
-    const res =
-      await fetch(
-        `/api/admin/billing/${id}/lock`,
-        {
-          method:"PUT",
-
-          headers:{
-            Authorization:
-              "Bearer " + token
+          {
+            new:true,
+            runValidators:true
           }
+        );
+
+      if(!tenant){
+
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+
+      }
+
+      return res.json({
+        success:true,
+
+        message:
+          "Tenant services updated",
+
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug,
+          allowedServices:
+            tenant.allowedServices || []
         }
+      });
+
+    }catch(err){
+
+      console.error(
+        "UPDATE TENANT SERVICES ERROR:",
+        err
       );
 
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Lock failed"
-      );
+      return res.status(500).json({
+        message:"Server error"
+      });
 
     }
-
-    await loadBilling();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Lock failed"
-    );
 
   }
+);
 
-}
+/* =========================================
+   GET SUPER ADMINS FOR ONE TENANT
+========================================= */
 
-/* =========================
-   UNLOCK
-========================= */
+router.get(
+  "/tenants/:tenantId/super-admins",
+  async (req, res) => {
 
-async function unlockCompany(id){
+    try {
 
-  try{
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        );
 
-    const res =
-      await fetch(
-        `/api/admin/billing/${id}/unlock`,
-        {
-          method:"PUT",
+      if (!tenant) {
+        return res.status(404).json({
+          message: "Tenant not found"
+        });
+      }
 
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
+      const admins =
+        await User.find({
+          tenantId:
+            tenant._id,
+
+          role:
+            "SUPER_ADMIN"
+        })
+        .select(
+          "-password"
+        )
+        .sort({
+          createdAt: -1,
+          name: 1
+        })
+        .lean();
+
+      return res.json({
+        tenant: {
+          id:
+            tenant._id,
+
+          name:
+            tenant.name,
+
+          slug:
+            tenant.slug
+        },
+
+        admins
+      });
+
+    } catch (err) {
+
+      console.error(
+        "GET SUPER ADMINS ERROR:",
+        err
       );
 
-    const data =
-      await safeJson(res);
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Unlock failed"
-      );
+      return res.status(500).json({
+        message: "Server error"
+      });
 
     }
-
-    await loadBilling();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Unlock failed"
-    );
 
   }
+);
 
-}
+/* =========================================
+   CREATE SUPER ADMIN FOR ONE TENANT
+========================================= */
 
-/* =========================
-   MARK PAID
-========================= */
+router.post(
+  "/tenants/:tenantId/super-admins",
+  async (req, res) => {
 
-async function markPaid(id){
+    try {
 
-  try{
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        );
 
-    const company =
-      companies.find(c => c._id === id);
+      if (!tenant) {
+        return res.status(404).json({
+          message: "Tenant not found"
+        });
+      }
 
-    if(!company){
-      return;
-    }
+      const {
+        name,
+        username,
+        password,
+        email,
+        phone
+      } = req.body || {};
 
-    const ok = confirm(
+      if (
+        !name ||
+        !username ||
+        !password
+      ) {
+        return res.status(400).json({
+          message:
+            "name, username and password are required"
+        });
+      }
 
-      `Mark invoice as PAID?\n\n` +
+      if (
+        String(password).length < 8
+      ) {
+        return res.status(400).json({
+          message:
+            "Password must be at least 8 characters"
+        });
+      }
 
-      `Company: ${company.name}\n` +
+      const cleanUsername =
+        String(username).trim();
 
-      `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
+      const exists =
+        await User.findOne({
+          tenantId:
+            tenant._id,
 
-      `This will:\n\n` +
+          username:
+            cleanUsername
+        });
 
-      `• Reset invoice to $0\n` +
-      `• Unlock company\n` +
-      `• Start new billing cycle\n` +
-      `• Reset current billing stats\n\n` +
+      if (exists) {
+        return res.status(409).json({
+          message: "Username already exists"
+        });
+      }
 
-      `Continue?`
+      const hashed =
+        await bcrypt.hash(
+          String(password),
+          10
+        );
 
-    );
+      const admin =
+        await User.create({
+          name:
+            String(name).trim(),
 
-    if(!ok){
-      return;
-    }
+          username:
+            cleanUsername,
 
-    const res =
-      await fetch(
-        `/api/admin/billing/${id}/mark-paid`,
-        {
-          method:"PUT",
+          password:
+            hashed,
 
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
+          email:
+            String(email || "").trim(),
+
+          phone:
+            String(phone || "").trim(),
+
+          role:
+            "SUPER_ADMIN",
+
+          tenantId:
+            tenant._id,
+
+          active:
+            true,
+
+          enabled:
+            true
+        });
+
+      return res.status(201).json({
+        message:
+          "Super Admin created",
+
+        admin: {
+          id:
+            admin._id,
+
+          name:
+            admin.name,
+
+          username:
+            admin.username,
+
+          role:
+            admin.role,
+
+          tenantId:
+            admin.tenantId,
+
+          enabled:
+            admin.enabled
         }
+      });
+
+    } catch (err) {
+
+      console.error(
+        "CREATE SUPER ADMIN ERROR:",
+        err
       );
 
-    const data =
-      await safeJson(res);
+      if (err?.code === 11000) {
+        return res.status(409).json({
+          message:
+            "Username already exists"
+        });
+      }
 
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Payment failed"
-      );
+      return res.status(500).json({
+        message: "Server error"
+      });
 
     }
-
-    alert(
-      "Invoice marked as PAID successfully"
-    );
-
-    await loadBilling();
-
-  }catch(err){
-
-    console.log(err);
-
-    alert(
-      err.message ||
-      "Payment failed"
-    );
 
   }
+);
 
-}
+/* =========================================
+   ENABLE / DISABLE SUPER ADMIN
+========================================= */
 
-/* =========================
-   FILTERS
-========================= */
+router.patch(
+  "/super-admins/:userId/toggle",
+  async (req, res) => {
 
-function applyFilters(){
+    try {
 
-  let list =
-    [...companies];
+      const tenantId =
+        String(
+          req.body?.tenantId ||
+          req.query?.tenantId ||
+          ""
+        ).trim();
 
-  const search =
-    searchInput.value
-      .toLowerCase()
-      .trim();
+      if (!tenantId) {
+        return res.status(400).json({
+          message:
+            "tenantId is required"
+        });
+      }
 
-  const status =
-    statusFilter.value;
+      const tenant =
+        await Tenant.findById(
+          tenantId
+        );
 
-  const month =
-    monthFilter.value;
+      if (!tenant) {
+        return res.status(404).json({
+          message:
+            "Tenant not found"
+        });
+      }
 
-  const year =
-    yearFilter.value;
+      const admin =
+        await User.findOne({
+          _id:
+            req.params.userId,
 
-  if(search){
+          tenantId:
+            tenant._id,
 
-    list =
-      list.filter(c=>{
+          role:
+            "SUPER_ADMIN"
+        });
 
-        const text = `
-          ${c.name || ""}
-          ${c.email || ""}
-          ${c.phone || ""}
-          ${c.username || ""}
-        `
+      if (!admin) {
+        return res.status(404).json({
+          message:
+            "Super Admin not found"
+        });
+      }
+
+      admin.enabled =
+        !(admin.enabled !== false);
+
+      admin.active =
+        admin.enabled;
+
+      await admin.save();
+
+      return res.json({
+        message:
+          admin.enabled
+            ? "Super Admin enabled"
+            : "Super Admin disabled",
+
+        user: {
+          id:
+            admin._id,
+
+          name:
+            admin.name,
+
+          username:
+            admin.username,
+
+          tenantId:
+            admin.tenantId,
+
+          enabled:
+            admin.enabled
+        }
+      });
+
+    } catch (err) {
+
+      console.error(
+        "TOGGLE SUPER ADMIN ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message: "Server error"
+      });
+
+    }
+
+  }
+);
+
+
+/* =========================================
+   PERMANENT DELETE TENANT
+   PLATFORM_ADMIN ONLY
+
+   IMPORTANT:
+   - Deletes ONLY documents whose tenantId matches
+     the selected tenant.
+   - Then deletes the Tenant record itself.
+   - PLATFORM_ADMIN protection is already applied
+     globally by router.use() above.
+========================================= */
+
+router.delete(
+  "/tenants/:tenantId",
+  async (req,res)=>{
+
+    try{
+
+      const tenantId =
+        clean(
+          req.params.tenantId
+        );
+
+      const confirmSlug =
+        clean(
+          req.body?.confirmSlug
+        )
         .toLowerCase();
 
-        return text.includes(search);
+      if(
+        !mongoose.Types.ObjectId
+          .isValid(tenantId)
+      ){
+        return res.status(400).json({
+          message:"Invalid tenantId"
+        });
+      }
 
-      });
+      const tenant =
+        await Tenant.findById(
+          tenantId
+        )
+        .lean();
 
-  }
+      if(!tenant){
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+      }
 
-  if(status){
+      const tenantSlug =
+        clean(
+          tenant.slug
+        )
+        .toLowerCase();
 
-    list =
-      list.filter(c=>
-        c.billingStatus === status
+      if(
+        !confirmSlug ||
+        confirmSlug !== tenantSlug
+      ){
+        return res.status(400).json({
+          message:
+            "Confirmation slug does not match the tenant"
+        });
+      }
+
+      const objectId =
+        new mongoose.Types.ObjectId(
+          tenantId
+        );
+
+      /*
+        Delete tenant-scoped records from every MongoDB
+        collection except the tenants collection itself.
+
+        This protects other tenants because the filter is
+        ALWAYS tenantId = selected tenant only.
+
+        We match both ObjectId and string tenantId because
+        older records may have stored tenantId differently.
+      */
+
+      const db =
+        mongoose.connection.db;
+
+      if(!db){
+        return res.status(500).json({
+          message:"Database connection is not ready"
+        });
+      }
+
+      const collections =
+        await db
+          .listCollections(
+            {},
+            {nameOnly:true}
+          )
+          .toArray();
+
+      const deleted = {};
+
+      for(
+        const item of collections
+      ){
+
+        const collectionName =
+          clean(
+            item?.name
+          );
+
+        if(
+          !collectionName ||
+          collectionName === "tenants"
+        ){
+          continue;
+        }
+
+        const collection =
+          db.collection(
+            collectionName
+          );
+
+        const result =
+          await collection.deleteMany({
+            $or:[
+              {
+                tenantId:
+                  objectId
+              },
+              {
+                tenantId:
+                  tenantId
+              }
+            ]
+          });
+
+        if(
+          Number(
+            result?.deletedCount || 0
+          ) > 0
+        ){
+          deleted[collectionName] =
+            Number(
+              result.deletedCount
+            );
+        }
+      }
+
+      const tenantDelete =
+        await Tenant.deleteOne({
+          _id:objectId
+        });
+
+      if(
+        Number(
+          tenantDelete?.deletedCount || 0
+        ) !== 1
+      ){
+        return res.status(500).json({
+          message:
+            "Tenant data was removed but the tenant record could not be deleted"
+        });
+      }
+
+      console.log(
+        "TENANT PERMANENTLY DELETED:",
+        {
+          tenantId,
+          tenantSlug,
+          deleted
+        }
       );
 
-  }
+      return res.json({
+        success:true,
 
-  if(month){
+        message:
+          `Tenant "${tenant.name}" permanently deleted`,
 
-    list =
-      list.filter(c=>{
+        tenant:{
+          id:tenantId,
+          name:tenant.name,
+          slug:tenant.slug
+        },
 
-        if(!c.billingStartDate){
-          return false;
-        }
-
-        const d =
-          new Date(c.billingStartDate);
-
-        return (
-          d.getMonth() + 1
-        ) == month;
-
+        deleted
       });
 
-  }
+    }catch(err){
 
-  if(year){
+      console.error(
+        "DELETE TENANT ERROR:",
+        err
+      );
 
-    list =
-      list.filter(c=>{
-
-        if(!c.billingStartDate){
-          return false;
-        }
-
-        const d =
-          new Date(c.billingStartDate);
-
-        return (
-          d.getFullYear()
-        ) == year;
-
+      return res.status(500).json({
+        message:
+          err?.message ||
+          "Server error"
       });
 
+    }
+
   }
-
-  render(list);
-
-}
-
-/* =========================
-   EVENTS
-========================= */
-
-searchInput.addEventListener(
-  "input",
-  applyFilters
 );
 
-statusFilter.addEventListener(
-  "change",
-  applyFilters
-);
 
-monthFilter.addEventListener(
-  "change",
-  applyFilters
-);
-
-yearFilter.addEventListener(
-  "input",
-  applyFilters
-);
-
-/* =========================
-   INIT
-========================= */
-
-loadStripeStatus();
-loadBilling();
+module.exports = router;

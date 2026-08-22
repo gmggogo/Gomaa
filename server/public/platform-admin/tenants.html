@@ -195,6 +195,21 @@ th{
   margin-right:6px;
 }
 
+.delete-btn{
+  border:1px solid #ef4444;
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.delete-btn:hover{
+  background:#fecaca;
+}
+
+.delete-btn:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+
 .empty{
   text-align:center;
   color:#7a8290;
@@ -742,6 +757,18 @@ async function loadTenants(){
                 Super Admins
               </button>
 
+              <button
+                class="small-btn delete-btn"
+                id="deleteBtn-${t._id}"
+                onclick="deleteTenant(
+                  '${t._id}',
+                  '${'${escapeJs(t.slug || "")}'}',
+                  '${'${escapeJs(t.name || "")}'}'
+                )"
+              >
+                Delete Tenant
+              </button>
+
             </td>
 
           </tr>
@@ -791,6 +818,128 @@ async function toggleTenant(
     );
 
   }
+}
+
+
+async function deleteTenant(
+  tenantId,
+  tenantSlug,
+  tenantName
+){
+
+  /*
+    PLATFORM ADMIN ONLY:
+    The page itself already requires PLATFORM_ADMIN,
+    and the server endpoint is protected too.
+  */
+
+  const typed =
+    window.prompt(
+      "PERMANENT DELETE\n\n" +
+      "Company: " + tenantName + "\n" +
+      "Slug: " + tenantSlug + "\n\n" +
+      "This permanently deletes the tenant and all data linked to its tenantId, including users, companies, drivers, trips, billing, schedules, dispatch data and payment connection records.\n\n" +
+      "Type the company slug exactly to continue:"
+    );
+
+  if(typed === null){
+    return;
+  }
+
+  if(
+    String(typed)
+      .trim()
+      .toLowerCase() !==
+    String(tenantSlug)
+      .trim()
+      .toLowerCase()
+  ){
+
+    alert(
+      "Delete cancelled. Slug did not match."
+    );
+
+    return;
+  }
+
+  const finalOk =
+    window.confirm(
+      "FINAL WARNING\n\n" +
+      "Delete \"" +
+      tenantName +
+      "\" permanently?\n\n" +
+      "This cannot be undone."
+    );
+
+  if(!finalOk){
+    return;
+  }
+
+  const btn =
+    document.getElementById(
+      `deleteBtn-${tenantId}`
+    );
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent =
+      "Deleting...";
+  }
+
+  try{
+
+    const data =
+      await api(
+        `/api/platform-admin/tenants/${tenantId}`,
+        {
+          method:"DELETE",
+
+          body:
+            JSON.stringify({
+              confirmSlug:
+                tenantSlug
+            })
+        }
+      );
+
+    showMessage(
+      data.message ||
+      "Tenant permanently deleted.",
+      true
+    );
+
+    sessionStorage.removeItem(
+      "platformSelectedTenantId"
+    );
+
+    await loadTenants();
+
+  }catch(err){
+
+    showMessage(
+      err.message ||
+      "Delete failed",
+      false
+    );
+
+    if(btn){
+      btn.disabled = false;
+      btn.textContent =
+        "Delete Tenant";
+    }
+
+  }
+
+}
+
+function escapeJs(value){
+
+  return String(value ?? "")
+    .replaceAll("\\","\\\\")
+    .replaceAll("'","\\'")
+    .replaceAll("\r"," ")
+    .replaceAll("\n"," ");
+
 }
 
 function openSuperAdmins(
