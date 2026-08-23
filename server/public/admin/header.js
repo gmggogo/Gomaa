@@ -20,7 +20,14 @@ building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9
 };
 const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
-const role=()=>{const r=norm(localStorage.getItem("role"));return (r==="SUPER_ADMIN"||r==="SUPERADMIN")?"SUPER_ADMIN":r==="DISPATCHER"?"DISPATCHER":"ADMIN"};
+const role=()=>{
+  const r=norm(localStorage.getItem("role"));
+
+  if(r==="PLATFORM_ADMIN") return "PLATFORM_ADMIN";
+  if(r==="SUPER_ADMIN"||r==="SUPERADMIN") return "SUPER_ADMIN";
+  if(r==="DISPATCHER") return "DISPATCHER";
+  return "ADMIN";
+};
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
@@ -36,12 +43,23 @@ const admin=[
 const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
 const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
+const platformOnly=[
+  {l:"Payroll & Earnings",h:"payroll.html",i:"money"}
+];
+
 document.addEventListener("DOMContentLoaded",async()=>{
  const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
  const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
 
  const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
- const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
+ const roleLabel=
+   currentRole==="PLATFORM_ADMIN"
+     ? "Platform Admin"
+     : currentRole==="SUPER_ADMIN"
+       ? "Super Admin"
+       : currentRole==="DISPATCHER"
+         ? "Dispatcher"
+         : "Admin";
  const tenantNameForHeader =
    localStorage.getItem("companyName") ||
    localStorage.getItem("tenantName") ||
@@ -49,7 +67,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
  const saasEl=document.getElementById("saasCompanyName");
  if(saasEl) saasEl.textContent=tenantNameForHeader;
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
- document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
+ document.getElementById("roleTitle").textContent=
+   currentRole==="PLATFORM_ADMIN"
+     ? "Platform Admin — Administrator"
+     : currentRole==="DISPATCHER"
+       ? "Dispatcher"
+       : currentRole==="SUPER_ADMIN"
+         ? "Super Admin — Administrator"
+         : "Admin — Administrator";
 
  const fallbackCompany =
    localStorage.getItem("companyName") ||
@@ -197,7 +222,23 @@ document.addEventListener("DOMContentLoaded",async()=>{
    );
  }
 
- let nav=[...core]; if(currentRole!=="DISPATCHER")nav.push(...admin); if(currentRole==="SUPER_ADMIN")nav.push(...extra); if(currentRole!=="DISPATCHER")nav.push(settings);
+ let nav=[...core];
+
+ if(currentRole!=="DISPATCHER"){
+   nav.push(...admin);
+ }
+
+ if(currentRole==="SUPER_ADMIN"){
+   nav.push(...extra);
+ }
+
+ if(currentRole==="PLATFORM_ADMIN"){
+   nav.push(...platformOnly);
+ }
+
+ if(currentRole!=="DISPATCHER"){
+   nav.push(settings);
+ }
 
  const desktop=document.getElementById("adminDesktopNav");
  const mobile=document.getElementById("mobileSideNav");
