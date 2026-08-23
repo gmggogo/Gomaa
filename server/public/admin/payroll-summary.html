@@ -32,33 +32,68 @@ body{
 }
 
 .title{
-  margin:0 0 20px;
+  margin:0 0 18px;
   text-align:center;
   color:#d4a900;
   font-size:36px;
   font-weight:900;
 }
 
+/* =========================
+   FILTER TABS
+========================= */
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.tab-btn{
+  min-width:105px;
+  padding:10px 14px;
+  border:1px solid rgba(212,169,0,.50);
+  border-radius:13px;
+  background:linear-gradient(180deg,#fff,#edf3f9);
+  color:#0f2747;
+  box-shadow:0 4px 12px rgba(15,39,71,.07);
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.tab-btn.active{
+  background:linear-gradient(180deg,#173f70,#0f2747);
+  color:#ffd21f;
+  border-color:#d4a900;
+}
+
+/* =========================
+   TOP CARDS
+========================= */
+
 .cards{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:12px;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
   margin-bottom:16px;
 }
 
 .card{
-  padding:15px 17px;
-  border-radius:16px;
+  padding:13px 14px;
+  border-radius:15px;
   background:#fff;
-  border:1px solid rgba(212,169,0,.28);
-  box-shadow:0 7px 20px rgba(15,39,71,.06);
+  border:1px solid rgba(212,169,0,.25);
+  box-shadow:0 6px 18px rgba(15,39,71,.06);
   text-align:center;
 }
 
 .card span{
   display:block;
   color:#64748b;
-  font-size:11px;
+  font-size:10px;
   font-weight:900;
   text-transform:uppercase;
 }
@@ -67,9 +102,17 @@ body{
   display:block;
   margin-top:5px;
   color:#0f2747;
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
 }
+
+.card.money-card b{
+  color:#14833b;
+}
+
+/* =========================
+   TABLE
+========================= */
 
 .table-card{
   overflow:hidden;
@@ -86,7 +129,7 @@ body{
 
 table{
   width:100%;
-  min-width:850px;
+  min-width:900px;
   border-collapse:collapse;
 }
 
@@ -95,7 +138,8 @@ th{
   background:#0f2747;
   color:#fff;
   text-align:left;
-  font-size:11px;
+  white-space:nowrap;
+  font-size:10px;
   font-weight:900;
   text-transform:uppercase;
 }
@@ -120,14 +164,42 @@ tbody tr:nth-child(even) td{
   margin-top:10px;
   text-align:center;
   color:#64748b;
-  font-size:11px;
+  font-size:10px;
   font-weight:800;
 }
 
+@media(max-width:1000px){
+
+  .cards{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
 @media(max-width:900px){
-  .page{padding:310px 10px 60px}
-  .title{font-size:29px}
-  .cards{grid-template-columns:1fr}
+
+  .page{
+    padding:310px 10px 60px;
+  }
+
+  .title{
+    font-size:29px;
+  }
+
+  .tab-btn{
+    min-width:96px;
+    padding:9px 10px;
+  }
+}
+
+@media(max-width:520px){
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .card b{
+    font-size:17px;
+  }
 }
 </style>
 </head>
@@ -142,19 +214,70 @@ tbody tr:nth-child(even) td{
     Payroll Summary
   </h1>
 
+  <section class="tabs">
+
+    <button
+      class="tab-btn active"
+      data-type="all"
+      type="button">
+      All
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="driver"
+      type="button">
+      Drivers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="dispatcher"
+      type="button">
+      Dispatchers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="admin"
+      type="button">
+      Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="super_admin"
+      type="button">
+      Super Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="employee"
+      type="button">
+      Employees
+    </button>
+
+  </section>
+
   <section class="cards">
 
     <div class="card">
-      <span>Total Hours — Last 24 Months</span>
+      <span>Total Workers</span>
+      <b id="totalWorkers">0</b>
+    </div>
+
+    <div class="card">
+      <span>Total Hours</span>
       <b id="totalHours">0 H 00 MIN</b>
     </div>
 
     <div class="card">
-      <span>Total Driver Trips</span>
+      <span>Driver Trips</span>
       <b id="totalTrips">0</b>
     </div>
 
-    <div class="card">
+    <div class="card money-card">
       <span>Total Payroll</span>
       <b id="totalEarnings">$0.00</b>
     </div>
@@ -162,34 +285,40 @@ tbody tr:nth-child(even) td{
   </section>
 
   <section class="table-card">
+
     <div class="table-wrap">
 
       <table>
+
         <thead>
           <tr>
             <th>From</th>
             <th>To</th>
             <th>Workers</th>
             <th>Total Hours</th>
-            <th>Trips</th>
+            <th>Driver Trips</th>
             <th>Total Payroll</th>
           </tr>
         </thead>
 
         <tbody id="summaryBody">
+
           <tr>
             <td colspan="6">
               Loading...
             </td>
           </tr>
+
         </tbody>
+
       </table>
 
     </div>
+
   </section>
 
-  <div class="note" id="retentionNote">
-    Payroll history is retained for the rolling last 24 months.
+  <div class="note">
+    Payroll Summary keeps the rolling last 24 months for the selected worker group.
   </div>
 
 </main>

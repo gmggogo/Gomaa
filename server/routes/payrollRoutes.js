@@ -2670,11 +2670,14 @@ router.get(
    ADMIN PAYROLL SUMMARY
    LAST 24 ROLLING MONTHS
 
+   Supports:
+   all | driver | dispatcher | admin | super_admin | employee
+
    One row per CLOSED pay period:
    - workers
    - total hours
    - driver trips
-   - total earnings
+   - total payroll
 ========================= */
 
 router.get(
@@ -2695,6 +2698,35 @@ router.get(
         info.today
       );
 
+      const requestedType =
+        clean(
+          req.query.type
+        );
+
+      const validTypes = [
+        "driver",
+        "dispatcher",
+        "admin",
+        "super_admin",
+        "employee"
+      ];
+
+      if(
+        requestedType &&
+        requestedType !== "all" &&
+        !validTypes.includes(
+          requestedType
+        )
+      ){
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid payroll summary type"
+          });
+      }
+
       const cutoff =
         rollingMonthStartKey(
           info.today,
@@ -2707,9 +2739,19 @@ router.get(
       };
 
       if(cutoff){
+
         match.periodEnd = {
           $gte:cutoff
         };
+      }
+
+      if(
+        requestedType &&
+        requestedType !== "all"
+      ){
+
+        match.personType =
+          requestedType;
       }
 
       const rows =
@@ -2724,7 +2766,14 @@ router.get(
       const groups =
         new Map();
 
+      const uniqueWorkers =
+        new Set();
+
       for(const row of rows){
+
+        uniqueWorkers.add(
+          `${row.personType}:${row.personId}`
+        );
 
         const key =
           `${row.periodStart}|${row.periodEnd}`;
@@ -2740,7 +2789,9 @@ router.get(
               to:
                 row.periodEnd,
 
-              workers:0,
+              workersSet:
+                new Set(),
+
               totalHours:0,
               totalTrips:0,
               totalEarnings:0
@@ -2751,7 +2802,9 @@ router.get(
         const group =
           groups.get(key);
 
-        group.workers += 1;
+        group.workersSet.add(
+          `${row.personType}:${row.personId}`
+        );
 
         group.totalHours +=
           Number(
@@ -2759,6 +2812,10 @@ router.get(
             0
           );
 
+        /*
+          Only driver snapshots contain tripCount.
+          Other worker types correctly add zero.
+        */
         group.totalTrips +=
           Number(
             row.tripCount ||
@@ -2779,12 +2836,22 @@ router.get(
           )
           .map(
             row=>({
-              ...row,
+              from:
+                row.from,
+
+              to:
+                row.to,
+
+              workers:
+                row.workersSet.size,
 
               totalHours:
                 hours(
                   row.totalHours
                 ),
+
+              totalTrips:
+                row.totalTrips,
 
               totalEarnings:
                 money(
@@ -2837,6 +2904,10 @@ router.get(
       return res.json({
         success:true,
 
+        type:
+          requestedType ||
+          "all",
+
         timezone:
           info.timezone,
 
@@ -2846,6 +2917,9 @@ router.get(
         retentionMonths:24,
 
         totals:{
+          totalWorkers:
+            uniqueWorkers.size,
+
           totalHours:
             hours(
               totals.totalHours

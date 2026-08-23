@@ -1,6 +1,9 @@
 /* =========================================================
    FILE: public/admin/payroll-summary.js
-   SUPER ADMIN PAYROLL HISTORY — ROLLING 24 MONTHS
+
+   COMPANY PAYROLL SUMMARY
+   ALL WORKER TYPES
+   ROLLING LAST 24 MONTHS
 ========================================================= */
 
 const token =
@@ -28,6 +31,14 @@ if(
   window.location.href =
     "dashboard.html";
 }
+
+let currentType =
+  "all";
+
+
+/* =========================
+   HELPERS
+========================= */
 
 function hoursText(value){
 
@@ -107,23 +118,42 @@ function escapeHtml(value){
     .replaceAll("'","&#039;");
 }
 
-async function load(){
+
+/* =========================
+   LOAD
+========================= */
+
+async function loadSummary(){
 
   const body =
     document.getElementById(
       "summaryBody"
     );
 
+  body.innerHTML = `
+    <tr>
+      <td colspan="6">
+        Loading...
+      </td>
+    </tr>
+  `;
+
   try{
+
+    const query =
+      new URLSearchParams({
+        type:currentType
+      });
 
     const response =
       await fetch(
-        "/api/payroll/admin-summary",
+        `/api/payroll/admin-summary?${query.toString()}`,
         {
           headers:{
             Authorization:
               `Bearer ${token}`
           },
+
           cache:"no-store"
         }
       );
@@ -146,6 +176,16 @@ async function load(){
     const totals =
       data.totals ||
       {};
+
+    document.getElementById(
+      "totalWorkers"
+    ).textContent =
+      String(
+        Number(
+          totals.totalWorkers ||
+          0
+        )
+      );
 
     document.getElementById(
       "totalHours"
@@ -243,4 +283,52 @@ async function load(){
   }
 }
 
-load();
+
+/* =========================
+   TABS
+========================= */
+
+document
+  .querySelectorAll(
+    ".tab-btn"
+  )
+  .forEach(
+    button=>{
+
+      button.addEventListener(
+        "click",
+        ()=>{
+
+          document
+            .querySelectorAll(
+              ".tab-btn"
+            )
+            .forEach(
+              tab=>
+                tab.classList.remove(
+                  "active"
+                )
+            );
+
+          button.classList.add(
+            "active"
+          );
+
+          currentType =
+            String(
+              button.dataset.type ||
+              "all"
+            );
+
+          loadSummary();
+        }
+      );
+    }
+  );
+
+
+/* =========================
+   START
+========================= */
+
+loadSummary();
