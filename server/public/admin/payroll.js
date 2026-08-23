@@ -152,9 +152,23 @@ function escapeHtml(value){
 
 function formatHours(value){
 
-  return Number(
-    value || 0
-  ).toFixed(2);
+  const totalMinutes =
+    Math.round(
+      Number(value || 0) * 60
+    );
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  return (
+    `${hours} H ` +
+    `${String(minutes).padStart(2,"0")} MIN`
+  );
 }
 
 function formatMoney(value){
