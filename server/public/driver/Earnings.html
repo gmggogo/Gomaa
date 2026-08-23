@@ -2,78 +2,145 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Earnings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<link rel="stylesheet" href="driver.css">
 
 <style>
-*{box-sizing:border-box}
+:root{
+  --navy:#061a36;
+  --navy2:#0b315f;
+  --gold:#ffd21f;
+  --text:#ffffff;
+  --muted:#c7d0df;
+  --date:#07172d;
+}
 
-body{
+*{
+  box-sizing:border-box;
+}
+
+html,body{
   margin:0;
-  background:#f1f5f9;
-  font-family:'Segoe UI',sans-serif;
-  color:#0f172a;
+  min-height:100%;
 }
 
-.page{
-  max-width:760px;
-  margin:auto;
-  padding:22px 14px 110px;
+body.earnings-page{
+  color:var(--text);
+  padding-bottom:150px;
 }
 
-.title{
-  font-size:30px;
+.earnings-header{
+  position:sticky;
+  top:0;
+  z-index:20;
+  text-align:center;
+  padding:22px 18px 18px;
+  background:
+    linear-gradient(
+      180deg,
+      #03152d 0%,
+      #061a36 100%
+    );
+  border-bottom:4px solid var(--gold);
+  box-shadow:0 8px 20px rgba(0,0,0,.28);
+}
+
+.earnings-title{
+  margin:0;
+  color:var(--gold);
+  font-size:34px;
+  line-height:1;
   font-weight:900;
-  margin:8px 0 18px;
+  letter-spacing:.8px;
+  text-shadow:0 2px 3px rgba(0,0,0,.45);
+}
+
+.earnings-subtitle{
+  margin-top:9px;
+  color:#eef3fb;
+  font-size:15px;
+  font-weight:700;
+}
+
+.earnings-shell{
+  padding:16px 18px 30px;
 }
 
 .filters{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:9px;
-  margin-bottom:18px;
+  margin-bottom:16px;
 }
 
-.filter-btn{
-  border:none;
-  border-radius:14px;
-  padding:12px 8px;
+.filters button{
+  min-height:52px;
+  border:1px solid rgba(255,210,31,.42);
+  border-radius:16px;
+  background:
+    linear-gradient(
+      180deg,
+      #0c315d,
+      #061b38
+    );
+  color:#fff;
+  font-size:15px;
   font-weight:900;
-  background:#e2e8f0;
-  color:#334155;
-  cursor:pointer;
+  box-shadow:0 6px 12px rgba(0,0,0,.24);
 }
 
-.filter-btn.active{
-  background:#0f2747;
-  color:#fff;
+.filters button.active{
+  color:#06162d;
+  background:
+    linear-gradient(
+      180deg,
+      #ffe467,
+      #ffc400
+    );
+  border-color:#ffe676;
+  box-shadow:
+    0 0 0 2px rgba(255,210,31,.18),
+    0 7px 15px rgba(0,0,0,.30);
 }
 
-.summary{
-  background:#0f2747;
-  color:#fff;
-  border-radius:24px;
-  padding:22px;
-  margin-bottom:18px;
-  box-shadow:0 14px 30px rgba(15,39,71,.18);
+.earnings-summary{
+  padding:20px 22px;
+  margin-bottom:20px;
+  border-radius:25px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768 0%,
+      #061a36 72%
+    );
+  border:2px solid rgba(255,210,31,.72);
+  box-shadow:
+    0 9px 0 rgba(91,61,0,.48),
+    0 15px 24px rgba(0,0,0,.25);
 }
 
 .summary-period{
-  opacity:.75;
+  color:#eef3fb;
   font-size:13px;
-  font-weight:700;
+  font-weight:800;
 }
 
 .summary-total{
+  margin-top:14px;
+  color:var(--gold);
   font-size:42px;
+  line-height:1;
   font-weight:900;
-  margin-top:8px;
 }
 
 .summary-label{
-  opacity:.8;
+  margin-top:8px;
+  color:#e7edf7;
   font-size:13px;
-  font-weight:800;
+  font-weight:900;
+  text-transform:uppercase;
 }
 
 .stats{
@@ -84,75 +151,154 @@ body{
 }
 
 .stat{
-  background:#fff;
-  border-radius:18px;
+  min-height:104px;
   padding:16px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  border-radius:20px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768 0%,
+      #061a36 75%
+    );
+  border:2px solid rgba(255,210,31,.55);
+  box-shadow:
+    0 7px 0 rgba(78,52,0,.40),
+    0 12px 18px rgba(0,0,0,.20);
 }
 
 .stat small{
   display:block;
-  color:#64748b;
-  font-weight:800;
-  margin-bottom:5px;
+  color:#cdd6e4;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
 }
 
 .stat b{
-  font-size:22px;
+  display:block;
+  margin-top:7px;
+  color:#fff;
+  font-size:24px;
+  font-weight:900;
+}
+
+.stat.total-due b,
+.stat.ot b{
+  color:var(--gold);
 }
 
 .day-card{
-  background:#fff;
-  border-radius:18px;
-  padding:16px;
-  margin-bottom:11px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  padding:15px 18px;
+  margin-bottom:14px;
+  border-radius:20px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768 0%,
+      #061a36 75%
+    );
+  border:2px solid rgba(255,210,31,.62);
+  box-shadow:
+    0 7px 0 rgba(78,52,0,.42),
+    0 12px 18px rgba(0,0,0,.20);
   display:flex;
   justify-content:space-between;
-  gap:10px;
+  gap:12px;
   align-items:center;
 }
 
 .day-date{
+  color:#fff;
+  font-size:16px;
   font-weight:900;
 }
 
 .day-hours{
-  font-size:18px;
+  padding:9px 14px;
+  border-radius:999px;
+  background:var(--gold);
+  color:#07172d;
+  font-size:14px;
   font-weight:900;
+  white-space:nowrap;
 }
 
 .running{
-  color:#15803d;
-  font-size:12px;
+  margin-top:5px;
+  color:#72f2a2;
+  font-size:11px;
   font-weight:900;
 }
 
 .empty,
 .error{
-  background:#fff;
-  border-radius:18px;
-  padding:24px;
+  margin-top:20px;
+  padding:26px 18px;
   text-align:center;
-  color:#64748b;
+  border-radius:22px;
+  background:
+    linear-gradient(
+      145deg,
+      #0d3768,
+      #061a36
+    );
+  border:2px solid rgba(255,210,31,.55);
+  color:#fff;
   font-weight:800;
+}
+
+@media(max-width:390px){
+
+  .earnings-title{
+    font-size:29px;
+  }
+
+  .earnings-shell{
+    padding-left:12px;
+    padding-right:12px;
+  }
+
+  .filters button{
+    font-size:13px;
+  }
+
+  .summary-total{
+    font-size:38px;
+  }
+
+  .stat{
+    min-height:98px;
+    padding:14px;
+  }
+
+  .stat b{
+    font-size:21px;
+  }
+
+  .day-hours{
+    padding:8px 11px;
+    font-size:12px;
+  }
 }
 </style>
 </head>
 
-<body>
+<body class="earnings-page">
 
-<main class="page">
+<header class="earnings-header">
+  <h1 class="earnings-title">EARNINGS</h1>
+  <div class="earnings-subtitle">Driver earnings summary</div>
+</header>
 
-  <div class="title">Earnings</div>
+<main class="earnings-shell">
 
-  <div class="filters">
-    <button id="btn-today" class="filter-btn active">Today</button>
-    <button id="btn-week" class="filter-btn">Week</button>
-    <button id="btn-month" class="filter-btn">Month</button>
-  </div>
+  <section class="filters">
+    <button id="btn-today" type="button">TODAY</button>
+    <button id="btn-week" type="button">THIS WEEK</button>
+    <button id="btn-month" type="button">THIS MONTH</button>
+  </section>
 
-  <section class="summary">
+  <section class="earnings-summary">
     <div class="summary-period" id="periodLabel">-</div>
     <div class="summary-total" id="totalDue">$0.00</div>
     <div class="summary-label">Estimated Earnings</div>
@@ -170,7 +316,7 @@ body{
       <b id="regularHours">0.00</b>
     </div>
 
-    <div class="stat">
+    <div class="stat ot">
       <small>Overtime Hours</small>
       <b id="overtimeHours">0.00</b>
     </div>
@@ -185,7 +331,7 @@ body{
       <b id="hourlyRate">$0.00</b>
     </div>
 
-    <div class="stat">
+    <div class="stat ot">
       <small>Overtime Rate</small>
       <b id="overtimeRate">$0.00</b>
     </div>
@@ -196,6 +342,9 @@ body{
 
 </main>
 
+<div id="driverNav"></div>
+
+<script src="driver-nav.js"></script>
 <script src="Earnings.js"></script>
 
 </body>
