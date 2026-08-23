@@ -22,7 +22,6 @@ const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
 const role=()=>{
   const r=norm(localStorage.getItem("role"));
-
   if(r==="PLATFORM_ADMIN") return "PLATFORM_ADMIN";
   if(r==="SUPER_ADMIN"||r==="SUPERADMIN") return "SUPER_ADMIN";
   if(r==="DISPATCHER") return "DISPATCHER";
@@ -42,10 +41,7 @@ const admin=[
 ];
 const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
 const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
-
-const platformOnly=[
-  {l:"Payroll & Earnings",h:"payroll.html",i:"money"}
-];
+const superAdminPayroll={l:"Payroll & Earnings",h:"payroll.html",i:"money"};
 
 document.addEventListener("DOMContentLoaded",async()=>{
  const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
@@ -230,10 +226,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  if(currentRole==="SUPER_ADMIN"){
    nav.push(...extra);
- }
-
- if(currentRole==="PLATFORM_ADMIN"){
-   nav.push(...platformOnly);
+   nav.push(superAdminPayroll);
  }
 
  if(currentRole!=="DISPATCHER"){

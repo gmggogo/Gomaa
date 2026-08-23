@@ -12,39 +12,11 @@
     history:"trip-history.html",
     map:"map.html",
     hours:"work-hours.html",
-    earnings:"earnings.html",
+    earnings:"Earnings.html",
     summary:"summary.html",
     chat:"chat.html",
     login:"login.html"
   };
-
-  function getTenantSlug(){
-
-    const driver =
-      safeParse(
-        localStorage.getItem("loggedDriver"),
-        {}
-      ) || {};
-
-    return String(
-      driver?.tenantSlug ||
-      localStorage.getItem("tenantSlug") ||
-      ""
-    )
-    .trim()
-    .toLowerCase();
-  }
-
-  function driverLoginUrl(){
-
-    const slug =
-      getTenantSlug();
-
-    return slug
-      ? `login.html?tenant=${encodeURIComponent(slug)}`
-      : "login.html";
-  }
-
 
   function $(id){
     return document.getElementById(id);
@@ -90,20 +62,16 @@
 
   function logout(){
 
-    const loginUrl =
-      driverLoginUrl();
-
     localStorage.removeItem("driverToken");
     localStorage.removeItem("loggedDriver");
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("driverName");
     localStorage.removeItem("companyName");
-    localStorage.removeItem("tenantId");
     localStorage.removeItem("systemTimezone");
     localStorage.removeItem("appTimezone");
 
-    window.location.href = loginUrl;
+    window.location.href = ROUTES.login;
   }
 
   function ensureSession(){
@@ -114,7 +82,7 @@
       !driver ||
       Object.keys(driver).length === 0
     ){
-      window.location.href = driverLoginUrl();
+      window.location.href = ROUTES.login;
       return false;
     }
 

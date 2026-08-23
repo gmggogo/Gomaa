@@ -69,12 +69,15 @@ function normalizedRole(value){
 }
 
 function requirePayrollViewer(req,res,next){
-  const role = normalizedRole(req.authUser?.role);
+  const role =
+    normalizedRole(
+      req.authUser?.role
+    );
 
-  if(!["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)){
+  if(role !== "SUPER_ADMIN"){
     return res.status(403).json({
       success:false,
-      message:"Payroll access denied"
+      message:"Super Admin only"
     });
   }
 

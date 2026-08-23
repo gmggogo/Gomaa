@@ -8,17 +8,12 @@ const role =
 
 if(
   !token ||
-  ![
-    "SUPER_ADMIN",
-    "admin",
-    "dispatcher"
-  ].includes(role)
+  role !== "SUPER_ADMIN"
 ){
-  window.location.href = "/login.html";
+  window.location.href = "dashboard.html";
 }
 
-const canEdit =
-  role === "SUPER_ADMIN";
+const canEdit = true;
 
 let currentType = "driver";
 let currentRows = [];
