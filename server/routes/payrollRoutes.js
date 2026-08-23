@@ -6,97 +6,163 @@ const router = express.Router();
 const User = require("../models/User");
 const SystemDesign = require("../models/SystemDesign");
 const DispatchAssignment = require("../models/DispatchAssignment");
+
 const {
   PayrollProfile,
   PayrollEmployee,
   PayrollTimeEntry,
-  PayrollPayment
+  PayrollPeriodSettings,
+  PayrollPeriodHistory
 } = require("../models/Payroll");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================================================
+   PAYROLL ENGINE
+
+   POLICY:
+   - Tenant-scoped.
+   - SUPER_ADMIN controls one company-wide pay period.
+   - No Paid / Unpaid.
+   - No Mark Paid.
+   - Current period rolls automatically.
+   - Time comes from SERVER + tenant timezone stored in SystemDesign.
+   - Driver hours remain automatic from trips.
+   - Closed periods are snapshotted for future Summary.
+========================================================= */
+
 
 /* =========================
-AUTH
+   AUTH
 ========================= */
 
 function readBearerToken(req){
-  const header = String(req.headers?.authorization || "").trim();
-  if(!header.toLowerCase().startsWith("bearer ")) return "";
-  return header.slice(7).trim();
-}
 
-function requirePayrollAuth(req,res,next){
-  const token = readBearerToken(req);
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
 
-  if(!token){
-    return res.status(401).json({
-      success:false,
-      message:"Access Denied"
-    });
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
   }
 
-  try{
-    const verified = jwt.verify(token,JWT_SECRET);
-
-    req.authUser = {
-      id:String(verified.id || ""),
-      role:String(verified.role || ""),
-      tenantId:String(verified.tenantId || "")
-    };
-
-    if(!req.authUser.tenantId){
-      return res.status(403).json({
-        success:false,
-        message:"Tenant Required"
-      });
-    }
-
-    next();
-
-  }catch(err){
-    return res.status(401).json({
-      success:false,
-      message:"Invalid Token"
-    });
-  }
+  return header
+    .slice(7)
+    .trim();
 }
 
 function normalizedRole(value){
+
   return String(value || "")
     .trim()
     .toUpperCase()
     .replace(/[\s-]+/g,"_");
 }
 
-function requirePayrollViewer(req,res,next){
-  const role =
+function requirePayrollAuth(
+  req,
+  res,
+  next
+){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+
+    return res
+      .status(401)
+      .json({
+        success:false,
+        message:"Access Denied"
+      });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:
+        String(
+          verified.id ||
+          ""
+        ),
+
+      role:
+        String(
+          verified.role ||
+          ""
+        ),
+
+      tenantId:
+        String(
+          verified.tenantId ||
+          ""
+        )
+    };
+
+    if(!req.authUser.tenantId){
+
+      return res
+        .status(403)
+        .json({
+          success:false,
+          message:"Tenant Required"
+        });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res
+      .status(401)
+      .json({
+        success:false,
+        message:"Invalid Token"
+      });
+  }
+}
+
+function requireSuperAdmin(
+  req,
+  res,
+  next
+){
+
+  if(
     normalizedRole(
       req.authUser?.role
-    );
+    ) !== "SUPER_ADMIN"
+  ){
 
-  if(role !== "SUPER_ADMIN"){
-    return res.status(403).json({
-      success:false,
-      message:"Super Admin only"
-    });
+    return res
+      .status(403)
+      .json({
+        success:false,
+        message:"Super Admin only"
+      });
   }
 
   next();
 }
 
-function requireSuperAdmin(req,res,next){
-  if(normalizedRole(req.authUser?.role) !== "SUPER_ADMIN"){
-    return res.status(403).json({
-      success:false,
-      message:"Super Admin only"
-    });
-  }
-
-  next();
-}
 
 /* =========================
-HELPERS
+   BASIC HELPERS
 ========================= */
 
 function clean(value){
@@ -104,67 +170,424 @@ function clean(value){
 }
 
 function money(value){
-  return Number(Number(value || 0).toFixed(2));
+  return Number(
+    Number(value || 0)
+      .toFixed(2)
+  );
 }
 
 function hours(value){
-  return Number(Number(value || 0).toFixed(4));
+  return Number(
+    Number(value || 0)
+      .toFixed(4)
+  );
 }
 
 function validDateKey(value){
-  return /^\d{4}-\d{2}-\d{2}$/.test(clean(value));
+
+  return /^\d{4}-\d{2}-\d{2}$/
+    .test(
+      clean(value)
+    );
 }
 
-function parseDateKey(value){
-  const key = clean(value);
-  if(!validDateKey(key)) return null;
+/*
+  Calendar math intentionally uses UTC.
+  These are DATE KEYS, not local timestamps.
+  This prevents Render/server local timezone from shifting the day.
+*/
 
-  const d = new Date(`${key}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
+function keyToUtc(value){
+
+  if(!validDateKey(value)){
+    return null;
+  }
+
+  const [
+    y,
+    m,
+    d
+  ] =
+    value
+      .split("-")
+      .map(Number);
+
+  return new Date(
+    Date.UTC(
+      y,
+      m - 1,
+      d
+    )
+  );
 }
 
-function weekStartKey(dateKey){
-  const d = parseDateKey(dateKey);
-  if(!d) return "";
+function utcToKey(date){
 
-  d.setDate(d.getDate() - d.getDay());
-
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-
-  return `${y}-${m}-${day}`;
+  return [
+    date.getUTCFullYear(),
+    String(
+      date.getUTCMonth() + 1
+    ).padStart(2,"0"),
+    String(
+      date.getUTCDate()
+    ).padStart(2,"0")
+  ].join("-");
 }
+
+function addDaysKey(
+  key,
+  days
+){
+
+  const date =
+    keyToUtc(key);
+
+  if(!date){
+    return "";
+  }
+
+  date.setUTCDate(
+    date.getUTCDate() +
+    Number(days || 0)
+  );
+
+  return utcToKey(date);
+}
+
+function diffDays(
+  from,
+  to
+){
+
+  const a =
+    keyToUtc(from);
+
+  const b =
+    keyToUtc(to);
+
+  if(!a || !b){
+    return 0;
+  }
+
+  return Math.round(
+    (
+      b.getTime() -
+      a.getTime()
+    ) /
+    86400000
+  );
+}
+
+function inclusiveDays(
+  from,
+  to
+){
+
+  return (
+    diffDays(
+      from,
+      to
+    ) + 1
+  );
+}
+
+
+/* =========================
+   TENANT GLOBAL TIME ENGINE
+
+   Source:
+   SystemDesign for THIS tenant.
+
+   The real current instant is generated by the server:
+   new Date()
+
+   The tenant timezone decides the calendar date.
+========================= */
+
+async function tenantTimezone(
+  tenantId
+){
+
+  const design =
+    await SystemDesign
+      .findOne({
+        tenantId
+      })
+      .select(
+        "timezone"
+      )
+      .lean();
+
+  const timezone =
+    clean(
+      design?.timezone
+    ) ||
+    "America/Phoenix";
+
+  /*
+    Validate IANA timezone.
+  */
+  try{
+
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone
+      }
+    ).format(
+      new Date()
+    );
+
+    return timezone;
+
+  }catch(err){
+
+    return "America/Phoenix";
+  }
+}
+
+function dateKeyInTimezone(
+  date,
+  timezone
+){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone,
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(date);
+
+  const map = {};
+
+  for(const part of parts){
+    map[part.type] =
+      part.value;
+  }
+
+  return (
+    `${map.year}-` +
+    `${map.month}-` +
+    `${map.day}`
+  );
+}
+
+function serverTodayKey(
+  timezone
+){
+
+  /*
+    IMPORTANT:
+    This begins with the SERVER'S real current instant.
+    Device time is never used.
+  */
+  return dateKeyInTimezone(
+    new Date(),
+    timezone
+  );
+}
+
+
+/* =========================
+   PAY PERIOD ENGINE
+========================= */
+
+async function getPeriodSettings(
+  tenantId,
+  timezone
+){
+
+  let settings =
+    await PayrollPeriodSettings
+      .findOne({
+        tenantId
+      });
+
+  if(settings){
+    return settings;
+  }
+
+  /*
+    Safe initial default:
+    current Sunday -> Saturday.
+    Super Admin can change it once from the Payroll page.
+  */
+
+  const today =
+    serverTodayKey(
+      timezone
+    );
+
+  const date =
+    keyToUtc(today);
+
+  const start =
+    addDaysKey(
+      today,
+      -date.getUTCDay()
+    );
+
+  settings =
+    await PayrollPeriodSettings
+      .create({
+        tenantId,
+        anchorStart:start,
+        periodLengthDays:7,
+        archiveCursorStart:start
+      });
+
+  return settings;
+}
+
+function resolvePeriod(
+  settings,
+  dateKey
+){
+
+  const anchor =
+    clean(
+      settings.anchorStart
+    );
+
+  const length =
+    Math.max(
+      1,
+      Number(
+        settings.periodLengthDays ||
+        7
+      )
+    );
+
+  const dayOffset =
+    diffDays(
+      anchor,
+      dateKey
+    );
+
+  const periodIndex =
+    Math.floor(
+      dayOffset /
+      length
+    );
+
+  const start =
+    addDaysKey(
+      anchor,
+      periodIndex * length
+    );
+
+  const end =
+    addDaysKey(
+      start,
+      length - 1
+    );
+
+  return {
+    start,
+    end,
+    lengthDays:length,
+    periodIndex
+  };
+}
+
+async function getCurrentPeriod(
+  tenantId
+){
+
+  const timezone =
+    await tenantTimezone(
+      tenantId
+    );
+
+  const settings =
+    await getPeriodSettings(
+      tenantId,
+      timezone
+    );
+
+  const today =
+    serverTodayKey(
+      timezone
+    );
+
+  return {
+    timezone,
+    today,
+    settings,
+    period:
+      resolvePeriod(
+        settings,
+        today
+      )
+  };
+}
+
+
+/* =========================
+   TRIP STATUS HELPERS
+========================= */
 
 function normalizeStatus(value){
+
   return clean(value)
     .toUpperCase()
     .replace(/[\s_-]+/g,"");
 }
 
 function tripStatus(trip){
-  return normalizeStatus(trip?.status) ||
-         normalizeStatus(trip?.dispatchStatus);
+
+  return (
+    normalizeStatus(
+      trip?.status
+    ) ||
+    normalizeStatus(
+      trip?.dispatchStatus
+    )
+  );
 }
 
 function isCancelled(trip){
-  const s = tripStatus(trip);
-  return s === "CANCELLED" || s === "CANCELED";
+
+  const s =
+    tripStatus(trip);
+
+  return (
+    s === "CANCELLED" ||
+    s === "CANCELED"
+  );
 }
 
 function isNotCompleted(trip){
-  return tripStatus(trip) === "NOTCOMPLETED";
+
+  return (
+    tripStatus(trip) ===
+    "NOTCOMPLETED"
+  );
 }
 
 function isCompleted(trip){
-  return tripStatus(trip) === "COMPLETED";
+
+  return (
+    tripStatus(trip) ===
+    "COMPLETED"
+  );
 }
 
 function isNoShow(trip){
-  return tripStatus(trip) === "NOSHOW";
+
+  return (
+    tripStatus(trip) ===
+    "NOSHOW"
+  );
 }
 
 function isActiveTrip(trip){
+
   return [
     "ONTRIP",
     "INPROGRESS",
@@ -175,445 +598,1251 @@ function isActiveTrip(trip){
     "SCHEDULED",
     "CONFIRMED",
     "AUTOASSIGNED"
-  ].includes(tripStatus(trip));
+  ].includes(
+    tripStatus(trip)
+  );
 }
 
 function scheduledDate(trip){
-  const d = clean(trip?.tripDate || trip?.date);
-  const t = clean(trip?.tripTime || trip?.time || "00:00");
 
-  if(!d) return null;
+  const d =
+    clean(
+      trip?.tripDate ||
+      trip?.date
+    );
 
-  const date = new Date(`${d}T${t}`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const t =
+    clean(
+      trip?.tripTime ||
+      trip?.time ||
+      "00:00"
+    );
+
+  if(!d){
+    return null;
+  }
+
+  const date =
+    new Date(
+      `${d}T${t}`
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
 }
 
 function finalMoment(trip){
+
   const candidates = [
     trip?.historyAt,
     trip?.finalizedAt,
     trip?.finalStatusConfirmedAt,
     trip?.sharedFinalConfirmedAt,
     trip?.dispatchFinalConfirmedAt,
-    trip?.cancelDateTime
+    trip?.cancelDateTime,
+    trip?.assignmentCompletedAt
   ];
 
-  for(const value of candidates){
-    if(!value) continue;
+  for(
+    const value
+    of candidates
+  ){
 
-    const d = new Date(value);
+    if(!value){
+      continue;
+    }
 
-    if(!Number.isNaN(d.getTime())){
-      return d;
+    const date =
+      new Date(value);
+
+    if(
+      !Number.isNaN(
+        date.getTime()
+      )
+    ){
+      return date;
     }
   }
 
   return null;
 }
 
-async function tenantTimezone(tenantId){
-  const design = await SystemDesign.findOne({tenantId})
-    .select("timezone")
-    .lean();
-
-  return design?.timezone || "America/Phoenix";
-}
-
-function tenantTodayKey(timezone){
-  const parts = new Intl.DateTimeFormat(
-    "en-CA",
-    {
-      timeZone:timezone,
-      year:"numeric",
-      month:"2-digit",
-      day:"2-digit"
-    }
-  ).formatToParts(new Date());
-
-  const map = {};
-
-  parts.forEach(part=>{
-    map[part.type] = part.value;
-  });
-
-  return `${map.year}-${map.month}-${map.day}`;
-}
 
 /* =========================
-DRIVER HOURS ENGINE
-Same rule as current Driver Work Hours:
-first pickup -> last final time.
-Time between trips counts.
+   DRIVER HOURS ENGINE
+
+   Same business rule:
+   first scheduled pickup -> last final time.
+   Time between trips counts.
 ========================= */
 
-function buildDriverDay(dayTrips,dayKey,todayKey){
-  const now = new Date();
+function buildDriverDay(
+  dayTrips,
+  dayKey,
+  todayKey
+){
 
-  const workable = dayTrips
-    .map(trip=>({
-      trip,
-      scheduled:scheduledDate(trip)
-    }))
-    .filter(item=>
-      item.scheduled &&
-      !isCancelled(item.trip) &&
-      !isNotCompleted(item.trip)
-    )
-    .sort((a,b)=>a.scheduled-b.scheduled);
+  const now =
+    new Date();
 
-  if(!workable.length) return null;
+  const workable =
+    dayTrips
+      .map(
+        trip=>({
+          trip,
+          scheduled:
+            scheduledDate(
+              trip
+            )
+        })
+      )
+      .filter(
+        item=>
+          item.scheduled &&
+          !isCancelled(
+            item.trip
+          ) &&
+          !isNotCompleted(
+            item.trip
+          )
+      )
+      .sort(
+        (a,b)=>
+          a.scheduled -
+          b.scheduled
+      );
 
-  const start = new Date(workable[0].scheduled);
-
-  if(dayKey === todayKey && now < start){
+  if(!workable.length){
     return null;
   }
 
-  const finalTimes = workable
-    .map(item=>{
-      if(isCompleted(item.trip) || isNoShow(item.trip)){
-        return finalMoment(item.trip);
-      }
+  const start =
+    new Date(
+      workable[0]
+        .scheduled
+    );
 
-      return null;
-    })
-    .filter(Boolean);
+  if(
+    dayKey ===
+      todayKey &&
+    now < start
+  ){
+    return null;
+  }
 
-  const hasOpenWork = workable.some(item=>
-    isActiveTrip(item.trip) &&
-    item.scheduled <= now
-  );
+  const finalTimes =
+    workable
+      .map(
+        item=>{
+
+          if(
+            isCompleted(
+              item.trip
+            ) ||
+            isNoShow(
+              item.trip
+            )
+          ){
+            return finalMoment(
+              item.trip
+            );
+          }
+
+          return null;
+        }
+      )
+      .filter(Boolean);
+
+  const hasOpenWork =
+    workable.some(
+      item=>
+        isActiveTrip(
+          item.trip
+        ) &&
+        item.scheduled <=
+          now
+    );
 
   let end = null;
   let running = false;
 
-  if(dayKey === todayKey && hasOpenWork){
+  if(
+    dayKey ===
+      todayKey &&
+    hasOpenWork
+  ){
+
     end = now;
     running = true;
-  }else if(finalTimes.length){
-    end = new Date(
-      Math.max(...finalTimes.map(d=>d.getTime()))
-    );
+
+  }else if(
+    finalTimes.length
+  ){
+
+    end =
+      new Date(
+        Math.max(
+          ...finalTimes
+            .map(
+              date=>
+                date.getTime()
+            )
+        )
+      );
   }
 
-  if(!end || end < start) return null;
+  if(
+    !end ||
+    end < start
+  ){
+    return null;
+  }
 
   return {
     date:dayKey,
     start,
     end,
-    hours:hours((end-start)/3600000),
+    hours:
+      hours(
+        (
+          end -
+          start
+        ) /
+        3600000
+      ),
     running
   };
 }
 
-async function driverDailyHours(tenantId,driverId,from,to){
-  const Trip = global.Trip;
+async function driverDailyHours(
+  tenantId,
+  driverId,
+  from,
+  to,
+  timezone
+){
+
+  const Trip =
+    global.Trip;
 
   if(!Trip){
-    throw new Error("Trip model is not ready");
+
+    throw new Error(
+      "Trip model is not ready"
+    );
   }
 
-  const assignments = await DispatchAssignment.find({
-    driverId:String(driverId)
-  })
-  .select("tripId")
-  .lean();
+  /*
+    Read assignment status too, just like the
+    existing driver trip pipeline.
+  */
 
-  const tripIds = assignments
-    .map(row=>row.tripId)
-    .filter(Boolean);
+  const assignments =
+    await DispatchAssignment
+      .find({
+        driverId:
+          String(
+            driverId
+          )
+      })
+      .select(
+        "tripId driverId dispatchStatus sentAt acceptedAt startedAt completedAt"
+      )
+      .lean();
 
-  if(!tripIds.length) return [];
+  const tripIds =
+    assignments
+      .map(
+        row=>
+          row.tripId
+      )
+      .filter(Boolean);
 
-  const trips = await Trip.find({
-    _id:{$in:tripIds},
-    tenantId,
-    tripDate:{$gte:from,$lte:to},
-    disabled:{$ne:true}
-  })
-  .select(
-    "tripDate tripTime status historyAt finalizedAt finalStatusConfirmedAt sharedFinalConfirmedAt dispatchFinalConfirmedAt cancelDateTime"
-  )
-  .lean();
+  if(!tripIds.length){
+    return [];
+  }
+
+  const assignmentMap =
+    new Map();
+
+  assignments
+    .forEach(
+      row=>{
+
+        assignmentMap.set(
+          String(row.tripId),
+          row
+        );
+      }
+    );
+
+  const trips =
+    await Trip
+      .find({
+        _id:{
+          $in:tripIds
+        },
+
+        tenantId,
+
+        tripDate:{
+          $gte:from,
+          $lte:to
+        },
+
+        disabled:{
+          $ne:true
+        }
+      })
+      .select(
+        "tripDate tripTime status historyAt finalizedAt finalStatusConfirmedAt sharedFinalConfirmedAt dispatchFinalConfirmedAt cancelDateTime"
+      )
+      .lean();
 
   const groups = {};
 
-  trips.forEach(trip=>{
-    const key = clean(trip.tripDate);
-    if(!key) return;
+  trips.forEach(
+    trip=>{
 
-    if(!groups[key]) groups[key] = [];
-    groups[key].push(trip);
-  });
+      const assignment =
+        assignmentMap.get(
+          String(
+            trip._id
+          )
+        ) ||
+        {};
 
-  const timezone = await tenantTimezone(tenantId);
-  const todayKey = tenantTodayKey(timezone);
+      const merged = {
+        ...trip,
 
-  return Object.keys(groups)
+        dispatchStatus:
+          assignment.dispatchStatus ||
+          "",
+
+        assignmentCompletedAt:
+          assignment.completedAt ||
+          null
+      };
+
+      const key =
+        clean(
+          merged.tripDate
+        );
+
+      if(!key){
+        return;
+      }
+
+      if(!groups[key]){
+        groups[key] = [];
+      }
+
+      groups[key]
+        .push(
+          merged
+        );
+    }
+  );
+
+  const todayKey =
+    serverTodayKey(
+      timezone
+    );
+
+  return Object
+    .keys(groups)
     .sort()
-    .map(key=>buildDriverDay(groups[key],key,todayKey))
+    .map(
+      key=>
+        buildDriverDay(
+          groups[key],
+          key,
+          todayKey
+        )
+    )
     .filter(Boolean);
 }
 
-async function manualDailyHours(tenantId,personType,personId,from,to){
-  const rows = await PayrollTimeEntry.find({
-    tenantId,
-    personType,
-    personId:String(personId),
-    workDate:{$gte:from,$lte:to}
-  })
-  .sort({workDate:1})
-  .lean();
+async function manualDailyHours(
+  tenantId,
+  personType,
+  personId,
+  from,
+  to
+){
 
-  return rows.map(row=>({
-    date:row.workDate,
-    hours:hours(row.hours),
-    running:false,
-    note:row.note || ""
-  }));
+  const rows =
+    await PayrollTimeEntry
+      .find({
+        tenantId,
+        personType,
+        personId:
+          String(
+            personId
+          ),
+
+        workDate:{
+          $gte:from,
+          $lte:to
+        }
+      })
+      .sort({
+        workDate:1
+      })
+      .lean();
+
+  return rows
+    .map(
+      row=>({
+        date:
+          row.workDate,
+
+        hours:
+          hours(
+            row.hours
+          ),
+
+        running:false,
+
+        note:
+          row.note ||
+          ""
+      })
+    );
 }
 
+
 /* =========================
-PAY CALCULATION
-Overtime resets every Sunday.
+   PAY CALCULATION
+
+   Overtime resets every Sunday.
 ========================= */
 
-function splitRegularAndOvertime(dailyRows,overtimeAfterHours){
-  const threshold = Math.max(
-    0,
-    Number(overtimeAfterHours ?? 40)
+function weekStartKey(
+  dateKey
+){
+
+  const date =
+    keyToUtc(
+      dateKey
+    );
+
+  if(!date){
+    return "";
+  }
+
+  return addDaysKey(
+    dateKey,
+    -date.getUTCDay()
   );
+}
 
-  const weeks = new Map();
+function splitRegularAndOvertime(
+  dailyRows,
+  overtimeAfterHours
+){
 
-  dailyRows.forEach(row=>{
-    const week = weekStartKey(row.date);
+  const threshold =
+    Math.max(
+      0,
+      Number(
+        overtimeAfterHours ??
+        40
+      )
+    );
 
-    if(!weeks.has(week)){
-      weeks.set(week,[]);
-    }
+  const weeks =
+    new Map();
 
-    weeks.get(week).push(row);
-  });
+  dailyRows
+    .forEach(
+      row=>{
+
+        const week =
+          weekStartKey(
+            row.date
+          );
+
+        if(
+          !weeks.has(
+            week
+          )
+        ){
+          weeks.set(
+            week,
+            []
+          );
+        }
+
+        weeks
+          .get(week)
+          .push(row);
+      }
+    );
 
   let regularHours = 0;
   let overtimeHours = 0;
 
-  for(const rows of weeks.values()){
-    const weekHours = rows.reduce(
-      (sum,row)=>sum+Number(row.hours || 0),
-      0
-    );
+  for(
+    const rows
+    of weeks.values()
+  ){
 
-    regularHours += Math.min(weekHours,threshold);
-    overtimeHours += Math.max(0,weekHours-threshold);
+    const weekHours =
+      rows.reduce(
+        (sum,row)=>
+          sum +
+          Number(
+            row.hours ||
+            0
+          ),
+        0
+      );
+
+    regularHours +=
+      Math.min(
+        weekHours,
+        threshold
+      );
+
+    overtimeHours +=
+      Math.max(
+        0,
+        weekHours -
+        threshold
+      );
   }
 
   return {
-    regularHours:hours(regularHours),
-    overtimeHours:hours(overtimeHours),
-    totalHours:hours(regularHours+overtimeHours)
+    regularHours:
+      hours(
+        regularHours
+      ),
+
+    overtimeHours:
+      hours(
+        overtimeHours
+      ),
+
+    totalHours:
+      hours(
+        regularHours +
+        overtimeHours
+      )
   };
 }
 
-async function getProfile(tenantId,personType,personId){
-  let profile = await PayrollProfile.findOne({
-    tenantId,
-    personType,
-    personId:String(personId)
-  });
+async function getProfile(
+  tenantId,
+  personType,
+  personId
+){
+
+  let profile =
+    await PayrollProfile
+      .findOne({
+        tenantId,
+        personType,
+        personId:
+          String(
+            personId
+          )
+      });
 
   if(!profile){
-    profile = await PayrollProfile.create({
-      tenantId,
-      personType,
-      personId:String(personId),
-      hourlyRate:0,
-      overtimeRate:0,
-      overtimeAfterHours:40
-    });
+
+    profile =
+      await PayrollProfile
+        .create({
+          tenantId,
+          personType,
+          personId:
+            String(
+              personId
+            ),
+
+          hourlyRate:0,
+          overtimeRate:0,
+          overtimeAfterHours:40
+        });
   }
 
   return profile;
 }
 
-async function getPayment(tenantId,personType,personId,from,to){
-  return await PayrollPayment.findOne({
-    tenantId,
-    personType,
-    personId:String(personId),
-    periodStart:from,
-    periodEnd:to
-  }).lean();
-}
+async function calculatePerson(
+  tenantId,
+  personType,
+  person,
+  from,
+  to,
+  timezone
+){
 
-async function calculatePerson(tenantId,personType,person,from,to){
-  const personId = String(person._id);
+  const personId =
+    String(
+      person._id
+    );
 
-  const profile = await getProfile(
-    tenantId,
-    personType,
-    personId
-  );
+  const profile =
+    await getProfile(
+      tenantId,
+      personType,
+      personId
+    );
 
-  const dailyHours = personType === "driver"
-    ? await driverDailyHours(
-        tenantId,
-        personId,
-        from,
-        to
-      )
-    : await manualDailyHours(
-        tenantId,
-        personType,
-        personId,
-        from,
-        to
-      );
+  const dailyHours =
+    personType ===
+      "driver"
 
-  const split = splitRegularAndOvertime(
-    dailyHours,
-    profile.overtimeAfterHours
-  );
+      ? await driverDailyHours(
+          tenantId,
+          personId,
+          from,
+          to,
+          timezone
+        )
 
-  const hourlyRate = money(profile.hourlyRate);
-  const overtimeRate = money(profile.overtimeRate);
+      : await manualDailyHours(
+          tenantId,
+          personType,
+          personId,
+          from,
+          to
+        );
 
-  const regularPay = money(
-    split.regularHours * hourlyRate
-  );
+  const split =
+    splitRegularAndOvertime(
+      dailyHours,
+      profile.overtimeAfterHours
+    );
 
-  const overtimePay = money(
-    split.overtimeHours * overtimeRate
-  );
+  const hourlyRate =
+    money(
+      profile.hourlyRate
+    );
 
-  const totalDue = money(
-    regularPay + overtimePay
-  );
+  const overtimeRate =
+    money(
+      profile.overtimeRate
+    );
 
-  const payment = await getPayment(
-    tenantId,
-    personType,
-    personId,
-    from,
-    to
-  );
+  const regularPay =
+    money(
+      split.regularHours *
+      hourlyRate
+    );
+
+  const overtimePay =
+    money(
+      split.overtimeHours *
+      overtimeRate
+    );
+
+  const totalDue =
+    money(
+      regularPay +
+      overtimePay
+    );
 
   return {
     _id:personId,
-    name:person.name || "",
-    username:person.username || "",
-    email:person.email || "",
-    phone:person.phone || "",
-    jobTitle:person.jobTitle || "",
-    employeeNumber:person.employeeNumber || "",
+
+    name:
+      person.name ||
+      person.username ||
+      "",
+
+    username:
+      person.username ||
+      "",
+
+    email:
+      person.email ||
+      "",
+
+    phone:
+      person.phone ||
+      "",
+
+    jobTitle:
+      person.jobTitle ||
+      "",
+
+    employeeNumber:
+      person.employeeNumber ||
+      "",
+
     active:
       person.active !== false &&
       person.enabled !== false,
+
     personType,
+
     hourlyRate,
     overtimeRate,
-    overtimeAfterHours:Number(
-      profile.overtimeAfterHours ?? 40
-    ),
-    regularHours:split.regularHours,
-    overtimeHours:split.overtimeHours,
-    totalHours:split.totalHours,
+
+    overtimeAfterHours:
+      Number(
+        profile
+          .overtimeAfterHours ??
+        40
+      ),
+
+    regularHours:
+      split.regularHours,
+
+    overtimeHours:
+      split.overtimeHours,
+
+    totalHours:
+      split.totalHours,
+
     regularPay,
     overtimePay,
     totalDue,
-    paymentStatus:payment ? "PAID" : "UNPAID",
-    paidAt:payment?.paidAt || null,
+
     dailyHours
   };
 }
 
+
 /* =========================
-PEOPLE SOURCES
+   PEOPLE SOURCES
 ========================= */
 
-async function loadPeople(tenantId,personType){
-  if(personType === "employee"){
-    return await PayrollEmployee.find({tenantId})
-      .sort({active:-1,name:1})
+async function loadPeople(
+  tenantId,
+  personType
+){
+
+  if(
+    personType ===
+    "employee"
+  ){
+
+    return await PayrollEmployee
+      .find({
+        tenantId
+      })
+      .sort({
+        active:-1,
+        name:1
+      })
       .lean();
   }
 
   const roleMap = {
-    driver:["driver"],
-    dispatcher:["dispatcher"],
-    admin:["admin"],
-    super_admin:["SUPER_ADMIN"]
+    driver:[
+      "driver"
+    ],
+
+    dispatcher:[
+      "dispatcher"
+    ],
+
+    admin:[
+      "admin"
+    ],
+
+    super_admin:[
+      "SUPER_ADMIN"
+    ]
   };
 
-  const roles = roleMap[personType];
-  if(!roles) return [];
+  const roles =
+    roleMap[
+      personType
+    ];
 
-  return await User.find({
-    tenantId,
-    role:{$in:roles}
-  })
-  .select(
-    "_id name username email phone role active enabled"
-  )
-  .sort({name:1})
-  .lean();
+  if(!roles){
+    return [];
+  }
+
+  return await User
+    .find({
+      tenantId,
+      role:{
+        $in:roles
+      }
+    })
+    .select(
+      "_id name username email phone role active enabled"
+    )
+    .sort({
+      name:1
+    })
+    .lean();
 }
 
+
 /* =========================
-LIST
+   AUTOMATIC HISTORY SNAPSHOT
+========================= */
+
+const PERSON_TYPES = [
+  "driver",
+  "dispatcher",
+  "admin",
+  "super_admin",
+  "employee"
+];
+
+async function archiveOnePeriod(
+  tenantId,
+  from,
+  to,
+  timezone
+){
+
+  for(
+    const personType
+    of PERSON_TYPES
+  ){
+
+    const people =
+      await loadPeople(
+        tenantId,
+        personType
+      );
+
+    for(
+      const person
+      of people
+    ){
+
+      const calc =
+        await calculatePerson(
+          tenantId,
+          personType,
+          person,
+          from,
+          to,
+          timezone
+        );
+
+      await PayrollPeriodHistory
+        .findOneAndUpdate(
+          {
+            tenantId,
+            personType,
+            personId:
+              String(
+                person._id
+              ),
+            periodStart:from,
+            periodEnd:to
+          },
+          {
+            $setOnInsert:{
+              personName:
+                calc.name,
+
+              timezone,
+
+              regularHours:
+                calc.regularHours,
+
+              overtimeHours:
+                calc.overtimeHours,
+
+              totalHours:
+                calc.totalHours,
+
+              hourlyRate:
+                calc.hourlyRate,
+
+              overtimeRate:
+                calc.overtimeRate,
+
+              overtimeAfterHours:
+                calc.overtimeAfterHours,
+
+              regularPay:
+                calc.regularPay,
+
+              overtimePay:
+                calc.overtimePay,
+
+              totalDue:
+                calc.totalDue,
+
+              dailyHours:
+                calc.dailyHours,
+
+              closedAt:
+                new Date()
+            }
+          },
+          {
+            upsert:true,
+            new:true,
+            setDefaultsOnInsert:true
+          }
+        );
+    }
+  }
+}
+
+async function ensureClosedPeriods(
+  tenantId
+){
+
+  const info =
+    await getCurrentPeriod(
+      tenantId
+    );
+
+  const {
+    timezone,
+    settings,
+    period
+  } = info;
+
+  let cursor =
+    clean(
+      settings
+        .archiveCursorStart
+    ) ||
+    clean(
+      settings
+        .anchorStart
+    );
+
+  /*
+    If configuration was created in the future,
+    there is nothing to archive yet.
+  */
+  if(
+    !cursor ||
+    cursor >=
+      period.start
+  ){
+
+    if(
+      cursor !==
+      period.start
+    ){
+
+      settings.archiveCursorStart =
+        period.start;
+
+      await settings.save();
+    }
+
+    return info;
+  }
+
+  let guard = 0;
+
+  while(
+    cursor <
+      period.start &&
+    guard < 60
+  ){
+
+    const end =
+      addDaysKey(
+        cursor,
+        Number(
+          settings
+            .periodLengthDays ||
+          7
+        ) - 1
+      );
+
+    if(
+      end >=
+      period.start
+    ){
+      break;
+    }
+
+    await archiveOnePeriod(
+      tenantId,
+      cursor,
+      end,
+      timezone
+    );
+
+    cursor =
+      addDaysKey(
+        end,
+        1
+      );
+
+    guard += 1;
+  }
+
+  settings.archiveCursorStart =
+    period.start;
+
+  await settings.save();
+
+  return info;
+}
+
+
+/* =========================
+   CURRENT PAY PERIOD
 ========================= */
 
 router.get(
-  "/people",
+  "/period",
   requirePayrollAuth,
-  requirePayrollViewer,
   async(req,res)=>{
 
     try{
-      const personType = clean(req.query.type);
-      const from = clean(req.query.from);
-      const to = clean(req.query.to);
 
-      if(![
-        "driver",
-        "dispatcher",
-        "admin",
-        "super_admin",
-        "employee"
-      ].includes(personType)){
-        return res.status(400).json({
-          message:"Invalid payroll type"
+      const info =
+        await ensureClosedPeriods(
+          req.authUser.tenantId
+        );
+
+      return res.json({
+        success:true,
+
+        timezone:
+          info.timezone,
+
+        serverToday:
+          info.today,
+
+        period:{
+          from:
+            info.period.start,
+
+          to:
+            info.period.end,
+
+          lengthDays:
+            info.period.lengthDays
+        }
+      });
+
+    }catch(err){
+
+      console.log(
+        "PAYROLL PERIOD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Pay period load failed"
         });
-      }
+    }
+  }
+);
+
+
+/* =========================
+   SET COMPANY-WIDE PAY PERIOD
+   SUPER ADMIN ONLY
+
+   User selects one example period.
+   System repeats same duration automatically forever.
+========================= */
+
+router.put(
+  "/period",
+  requirePayrollAuth,
+  requireSuperAdmin,
+  async(req,res)=>{
+
+    try{
+
+      const from =
+        clean(
+          req.body?.from
+        );
+
+      const to =
+        clean(
+          req.body?.to
+        );
 
       if(
         !validDateKey(from) ||
         !validDateKey(to) ||
         from > to
       ){
-        return res.status(400).json({
-          message:"Invalid date range"
-        });
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid pay period"
+          });
       }
 
-      const tenantId = req.authUser.tenantId;
-      const people = await loadPeople(
-        tenantId,
-        personType
+      const lengthDays =
+        inclusiveDays(
+          from,
+          to
+        );
+
+      if(
+        lengthDays < 1 ||
+        lengthDays > 366
+      ){
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid pay period length"
+          });
+      }
+
+      const settings =
+        await PayrollPeriodSettings
+          .findOneAndUpdate(
+            {
+              tenantId:
+                req.authUser
+                  .tenantId
+            },
+            {
+              $set:{
+                anchorStart:
+                  from,
+
+                periodLengthDays:
+                  lengthDays,
+
+                archiveCursorStart:
+                  from,
+
+                updatedBy:
+                  req.authUser.id
+              }
+            },
+            {
+              upsert:true,
+              new:true,
+              setDefaultsOnInsert:true
+            }
+          );
+
+      const timezone =
+        await tenantTimezone(
+          req.authUser
+            .tenantId
+        );
+
+      const today =
+        serverTodayKey(
+          timezone
+        );
+
+      const period =
+        resolvePeriod(
+          settings,
+          today
+        );
+
+      return res.json({
+        success:true,
+        timezone,
+        serverToday:today,
+        period:{
+          from:period.start,
+          to:period.end,
+          lengthDays:
+            period.lengthDays
+        }
+      });
+
+    }catch(err){
+
+      console.log(
+        "PAYROLL PERIOD SAVE ERROR:",
+        err
       );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Pay period save failed"
+        });
+    }
+  }
+);
+
+
+/* =========================
+   PEOPLE - CURRENT PERIOD ONLY
+========================= */
+
+router.get(
+  "/people",
+  requirePayrollAuth,
+  requireSuperAdmin,
+  async(req,res)=>{
+
+    try{
+
+      const personType =
+        clean(
+          req.query.type
+        );
+
+      if(
+        !PERSON_TYPES
+          .includes(
+            personType
+          )
+      ){
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid payroll type"
+          });
+      }
+
+      const info =
+        await ensureClosedPeriods(
+          req.authUser.tenantId
+        );
+
+      const from =
+        info.period.start;
+
+      const to =
+        info.period.end;
+
+      const people =
+        await loadPeople(
+          req.authUser.tenantId,
+          personType
+        );
 
       const result = [];
 
-      for(const person of people){
+      for(
+        const person
+        of people
+      ){
+
         result.push(
           await calculatePerson(
-            tenantId,
+            req.authUser
+              .tenantId,
+
             personType,
             person,
             from,
-            to
+            to,
+            info.timezone
           )
         );
       }
@@ -621,26 +1850,38 @@ router.get(
       return res.json({
         success:true,
         type:personType,
+        timezone:
+          info.timezone,
+        serverToday:
+          info.today,
         from,
         to,
-        canEdit:
-          normalizedRole(req.authUser.role) === "SUPER_ADMIN",
+        lengthDays:
+          info.period
+            .lengthDays,
         people:result
       });
 
     }catch(err){
-      console.log("PAYROLL LIST ERROR:",err);
 
-      return res.status(500).json({
-        message:"Payroll load failed"
-      });
+      console.log(
+        "PAYROLL LIST ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Payroll load failed"
+        });
     }
   }
 );
 
+
 /* =========================
-SAVE PAY SETTINGS
-SUPER ADMIN ONLY
+   SAVE PAY SETTINGS
 ========================= */
 
 router.put(
@@ -650,54 +1891,93 @@ router.put(
   async(req,res)=>{
 
     try{
-      const personType = clean(req.params.type);
 
-      if(![
-        "driver",
-        "dispatcher",
-        "admin",
-        "super_admin",
-        "employee"
-      ].includes(personType)){
-        return res.status(400).json({
-          message:"Invalid payroll type"
-        });
+      /*
+        Before changing a rate, close every old period
+        using the old rate.
+      */
+      await ensureClosedPeriods(
+        req.authUser.tenantId
+      );
+
+      const personType =
+        clean(
+          req.params.type
+        );
+
+      if(
+        !PERSON_TYPES
+          .includes(
+            personType
+          )
+      ){
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid payroll type"
+          });
       }
 
-      const hourlyRate = Math.max(
-        0,
-        Number(req.body?.hourlyRate || 0)
-      );
+      const hourlyRate =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.hourlyRate ||
+            0
+          )
+        );
 
-      const overtimeRate = Math.max(
-        0,
-        Number(req.body?.overtimeRate || 0)
-      );
+      const overtimeRate =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.overtimeRate ||
+            0
+          )
+        );
 
-      const overtimeAfterHours = Math.max(
-        0,
-        Number(req.body?.overtimeAfterHours ?? 40)
-      );
+      const overtimeAfterHours =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.overtimeAfterHours ??
+            40
+          )
+        );
 
-      const profile = await PayrollProfile.findOneAndUpdate(
-        {
-          tenantId:req.authUser.tenantId,
-          personType,
-          personId:String(req.params.id)
-        },
-        {
-          $set:{
-            hourlyRate,
-            overtimeRate,
-            overtimeAfterHours
-          }
-        },
-        {
-          new:true,
-          upsert:true,
-          setDefaultsOnInsert:true
-        }
-      );
+      const profile =
+        await PayrollProfile
+          .findOneAndUpdate(
+            {
+              tenantId:
+                req.authUser
+                  .tenantId,
+
+              personType,
+
+              personId:
+                String(
+                  req.params.id
+                )
+            },
+            {
+              $set:{
+                hourlyRate,
+                overtimeRate,
+                overtimeAfterHours
+              }
+            },
+            {
+              new:true,
+              upsert:true,
+              setDefaultsOnInsert:true
+            }
+          );
 
       return res.json({
         success:true,
@@ -705,18 +1985,26 @@ router.put(
       });
 
     }catch(err){
-      console.log("PAYROLL PROFILE ERROR:",err);
 
-      return res.status(500).json({
-        message:"Settings save failed"
-      });
+      console.log(
+        "PAYROLL PROFILE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Settings save failed"
+        });
     }
   }
 );
 
+
 /* =========================
-DAILY HOURS
-Non-drivers only
+   DAILY HOURS
+   NON-DRIVERS ONLY
 ========================= */
 
 router.put(
@@ -726,53 +2014,100 @@ router.put(
   async(req,res)=>{
 
     try{
-      const personType = clean(req.params.type);
 
-      if(![
-        "dispatcher",
-        "admin",
-        "super_admin",
-        "employee"
-      ].includes(personType)){
-        return res.status(400).json({
-          message:"Driver hours are automatic"
-        });
-      }
-
-      const workDate = clean(req.body?.workDate);
-      const workHours = Number(req.body?.hours);
+      const personType =
+        clean(
+          req.params.type
+        );
 
       if(
-        !validDateKey(workDate) ||
-        !Number.isFinite(workHours) ||
+        ![
+          "dispatcher",
+          "admin",
+          "super_admin",
+          "employee"
+        ].includes(
+          personType
+        )
+      ){
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Driver hours are automatic"
+          });
+      }
+
+      const workDate =
+        clean(
+          req.body
+            ?.workDate
+        );
+
+      const workHours =
+        Number(
+          req.body
+            ?.hours
+        );
+
+      if(
+        !validDateKey(
+          workDate
+        ) ||
+        !Number.isFinite(
+          workHours
+        ) ||
         workHours < 0 ||
         workHours > 24
       ){
-        return res.status(400).json({
-          message:"Invalid hours"
-        });
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid hours"
+          });
       }
 
-      const row = await PayrollTimeEntry.findOneAndUpdate(
-        {
-          tenantId:req.authUser.tenantId,
-          personType,
-          personId:String(req.params.id),
-          workDate
-        },
-        {
-          $set:{
-            hours:workHours,
-            note:clean(req.body?.note),
-            enteredBy:req.authUser.id
-          }
-        },
-        {
-          new:true,
-          upsert:true,
-          setDefaultsOnInsert:true
-        }
-      );
+      const row =
+        await PayrollTimeEntry
+          .findOneAndUpdate(
+            {
+              tenantId:
+                req.authUser
+                  .tenantId,
+
+              personType,
+
+              personId:
+                String(
+                  req.params.id
+                ),
+
+              workDate
+            },
+            {
+              $set:{
+                hours:
+                  workHours,
+
+                note:
+                  clean(
+                    req.body
+                      ?.note
+                  ),
+
+                enteredBy:
+                  req.authUser.id
+              }
+            },
+            {
+              new:true,
+              upsert:true,
+              setDefaultsOnInsert:true
+            }
+          );
 
       return res.json({
         success:true,
@@ -780,17 +2115,25 @@ router.put(
       });
 
     }catch(err){
-      console.log("PAYROLL HOURS ERROR:",err);
 
-      return res.status(500).json({
-        message:"Hours save failed"
-      });
+      console.log(
+        "PAYROLL HOURS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Hours save failed"
+        });
     }
   }
 );
 
+
 /* =========================
-EMPLOYEE
+   MANUAL EMPLOYEE
 ========================= */
 
 router.post(
@@ -800,23 +2143,57 @@ router.post(
   async(req,res)=>{
 
     try{
-      const name = clean(req.body?.name);
+
+      const name =
+        clean(
+          req.body?.name
+        );
 
       if(!name){
-        return res.status(400).json({
-          message:"Employee name required"
-        });
+
+        return res
+          .status(400)
+          .json({
+            message:
+              "Employee name required"
+          });
       }
 
-      const employee = await PayrollEmployee.create({
-        tenantId:req.authUser.tenantId,
-        name,
-        employeeNumber:clean(req.body?.employeeNumber),
-        jobTitle:clean(req.body?.jobTitle),
-        phone:clean(req.body?.phone),
-        email:clean(req.body?.email),
-        active:true
-      });
+      const employee =
+        await PayrollEmployee
+          .create({
+            tenantId:
+              req.authUser
+                .tenantId,
+
+            name,
+
+            employeeNumber:
+              clean(
+                req.body
+                  ?.employeeNumber
+              ),
+
+            jobTitle:
+              clean(
+                req.body
+                  ?.jobTitle
+              ),
+
+            phone:
+              clean(
+                req.body
+                  ?.phone
+              ),
+
+            email:
+              clean(
+                req.body
+                  ?.email
+              ),
+
+            active:true
+          });
 
       return res.json({
         success:true,
@@ -824,11 +2201,18 @@ router.post(
       });
 
     }catch(err){
-      console.log("PAYROLL EMPLOYEE CREATE ERROR:",err);
 
-      return res.status(500).json({
-        message:"Employee create failed"
-      });
+      console.log(
+        "PAYROLL EMPLOYEE CREATE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Employee create failed"
+        });
     }
   }
 );
@@ -840,28 +2224,68 @@ router.put(
   async(req,res)=>{
 
     try{
-      const employee = await PayrollEmployee.findOneAndUpdate(
-        {
-          _id:req.params.id,
-          tenantId:req.authUser.tenantId
-        },
-        {
-          $set:{
-            name:clean(req.body?.name),
-            employeeNumber:clean(req.body?.employeeNumber),
-            jobTitle:clean(req.body?.jobTitle),
-            phone:clean(req.body?.phone),
-            email:clean(req.body?.email),
-            active:req.body?.active !== false
-          }
-        },
-        {new:true}
-      );
+
+      const employee =
+        await PayrollEmployee
+          .findOneAndUpdate(
+            {
+              _id:
+                req.params.id,
+
+              tenantId:
+                req.authUser
+                  .tenantId
+            },
+            {
+              $set:{
+                name:
+                  clean(
+                    req.body
+                      ?.name
+                  ),
+
+                employeeNumber:
+                  clean(
+                    req.body
+                      ?.employeeNumber
+                  ),
+
+                jobTitle:
+                  clean(
+                    req.body
+                      ?.jobTitle
+                  ),
+
+                phone:
+                  clean(
+                    req.body
+                      ?.phone
+                  ),
+
+                email:
+                  clean(
+                    req.body
+                      ?.email
+                  ),
+
+                active:
+                  req.body
+                    ?.active !== false
+              }
+            },
+            {
+              new:true
+            }
+          );
 
       if(!employee){
-        return res.status(404).json({
-          message:"Employee not found"
-        });
+
+        return res
+          .status(404)
+          .json({
+            message:
+              "Employee not found"
+          });
       }
 
       return res.json({
@@ -870,113 +2294,27 @@ router.put(
       });
 
     }catch(err){
-      console.log("PAYROLL EMPLOYEE UPDATE ERROR:",err);
 
-      return res.status(500).json({
-        message:"Employee update failed"
-      });
+      console.log(
+        "PAYROLL EMPLOYEE UPDATE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Employee update failed"
+        });
     }
   }
 );
 
-/* =========================
-MARK PAID
-No bank transfer.
-Only records PAID status.
-========================= */
-
-router.post(
-  "/mark-paid/:type/:id",
-  requirePayrollAuth,
-  requireSuperAdmin,
-  async(req,res)=>{
-
-    try{
-      const personType = clean(req.params.type);
-      const from = clean(req.body?.from);
-      const to = clean(req.body?.to);
-
-      if(
-        !validDateKey(from) ||
-        !validDateKey(to) ||
-        from > to
-      ){
-        return res.status(400).json({
-          message:"Invalid date range"
-        });
-      }
-
-      const people = await loadPeople(
-        req.authUser.tenantId,
-        personType
-      );
-
-      const person = people.find(row=>
-        String(row._id) === String(req.params.id)
-      );
-
-      if(!person){
-        return res.status(404).json({
-          message:"Person not found"
-        });
-      }
-
-      const calc = await calculatePerson(
-        req.authUser.tenantId,
-        personType,
-        person,
-        from,
-        to
-      );
-
-      const payment = await PayrollPayment.findOneAndUpdate(
-        {
-          tenantId:req.authUser.tenantId,
-          personType,
-          personId:String(req.params.id),
-          periodStart:from,
-          periodEnd:to
-        },
-        {
-          $setOnInsert:{
-            personName:calc.name,
-            regularHours:calc.regularHours,
-            overtimeHours:calc.overtimeHours,
-            totalHours:calc.totalHours,
-            hourlyRate:calc.hourlyRate,
-            overtimeRate:calc.overtimeRate,
-            regularPay:calc.regularPay,
-            overtimePay:calc.overtimePay,
-            totalDue:calc.totalDue,
-            status:"PAID",
-            paidAt:new Date(),
-            paidBy:req.authUser.id
-          }
-        },
-        {
-          new:true,
-          upsert:true,
-          setDefaultsOnInsert:true
-        }
-      );
-
-      return res.json({
-        success:true,
-        payment
-      });
-
-    }catch(err){
-      console.log("PAYROLL MARK PAID ERROR:",err);
-
-      return res.status(500).json({
-        message:"Mark paid failed"
-      });
-    }
-  }
-);
 
 /* =========================
-DRIVER EARNINGS
+   DRIVER CURRENT EARNINGS
+   NO DATE INPUT FROM DEVICE.
+   SERVER RESOLVES CURRENT PERIOD.
 ========================= */
 
 router.get(
@@ -985,62 +2323,209 @@ router.get(
   async(req,res)=>{
 
     try{
-      if(normalizedRole(req.authUser.role) !== "DRIVER"){
-        return res.status(403).json({
-          message:"Driver only"
-        });
-      }
-
-      const from = clean(req.query.from);
-      const to = clean(req.query.to);
 
       if(
-        !validDateKey(from) ||
-        !validDateKey(to) ||
-        from > to
+        normalizedRole(
+          req.authUser.role
+        ) !== "DRIVER"
       ){
-        return res.status(400).json({
-          message:"Invalid date range"
-        });
+
+        return res
+          .status(403)
+          .json({
+            message:
+              "Driver only"
+          });
       }
 
-      const driver = await User.findOne({
-        _id:req.authUser.id,
-        tenantId:req.authUser.tenantId,
-        role:"driver"
-      })
-      .select(
-        "_id name username email phone role active enabled"
-      )
-      .lean();
+      const info =
+        await ensureClosedPeriods(
+          req.authUser.tenantId
+        );
+
+      const driver =
+        await User
+          .findOne({
+            _id:
+              req.authUser.id,
+
+            tenantId:
+              req.authUser
+                .tenantId,
+
+            role:"driver"
+          })
+          .select(
+            "_id name username email phone role active enabled"
+          )
+          .lean();
 
       if(!driver){
-        return res.status(404).json({
-          message:"Driver not found"
-        });
+
+        return res
+          .status(404)
+          .json({
+            message:
+              "Driver not found"
+          });
       }
 
-      const result = await calculatePerson(
-        req.authUser.tenantId,
-        "driver",
-        driver,
-        from,
-        to
-      );
+      const result =
+        await calculatePerson(
+          req.authUser.tenantId,
+          "driver",
+          driver,
+          info.period.start,
+          info.period.end,
+          info.timezone
+        );
 
       return res.json({
         success:true,
-        from,
-        to,
-        earnings:result
+
+        timezone:
+          info.timezone,
+
+        serverToday:
+          info.today,
+
+        from:
+          info.period.start,
+
+        to:
+          info.period.end,
+
+        lengthDays:
+          info.period
+            .lengthDays,
+
+        earnings:
+          result
       });
 
     }catch(err){
-      console.log("DRIVER EARNINGS ERROR:",err);
 
-      return res.status(500).json({
-        message:"Earnings load failed"
+      console.log(
+        "DRIVER EARNINGS ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Earnings load failed"
+        });
+    }
+  }
+);
+
+
+/* =========================
+   CLOSED PERIOD HISTORY
+   FOR FUTURE SUMMARY PAGE
+========================= */
+
+router.get(
+  "/history",
+  requirePayrollAuth,
+  async(req,res)=>{
+
+    try{
+
+      const role =
+        normalizedRole(
+          req.authUser.role
+        );
+
+      const filter = {
+        tenantId:
+          req.authUser
+            .tenantId
+      };
+
+      if(
+        role === "DRIVER"
+      ){
+
+        filter.personType =
+          "driver";
+
+        filter.personId =
+          String(
+            req.authUser.id
+          );
+
+      }else if(
+        role === "SUPER_ADMIN"
+      ){
+
+        const type =
+          clean(
+            req.query.type
+          );
+
+        if(
+          type &&
+          PERSON_TYPES
+            .includes(type)
+        ){
+          filter.personType =
+            type;
+        }
+
+        const personId =
+          clean(
+            req.query.personId
+          );
+
+        if(personId){
+          filter.personId =
+            personId;
+        }
+
+      }else{
+
+        return res
+          .status(403)
+          .json({
+            message:
+              "Access denied"
+          });
+      }
+
+      await ensureClosedPeriods(
+        req.authUser.tenantId
+      );
+
+      const rows =
+        await PayrollPeriodHistory
+          .find(filter)
+          .sort({
+            periodStart:-1,
+            personName:1
+          })
+          .limit(500)
+          .lean();
+
+      return res.json({
+        success:true,
+        history:rows
       });
+
+    }catch(err){
+
+      console.log(
+        "PAYROLL HISTORY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Payroll history load failed"
+        });
     }
   }
 );

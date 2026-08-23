@@ -1,6 +1,9 @@
 /* =========================================================
    FILE: public/driver/Earnings.js
-   DISPLAY HOURS AS HOURS + MINUTES
+
+   CURRENT COMPANY PAY PERIOD ONLY
+   SERVER + TENANT TIMEZONE
+   NO Paid / Unpaid
 ========================================================= */
 
 const token =
@@ -9,110 +12,30 @@ const token =
     ""
   );
 
-const driverId =
-  String(
-    localStorage.getItem("userId") ||
-    localStorage.getItem("driverId") ||
-    ""
-  );
-
-let currentMode =
-  "today";
 
 /* =========================
    HELPERS
 ========================= */
 
-function authHeaders(){
-  return {
-    Authorization:
-      `Bearer ${token}`
-  };
-}
-
-function dateKey(date){
-
-  const y =
-    date.getFullYear();
-
-  const m =
-    String(
-      date.getMonth() + 1
-    ).padStart(2,"0");
-
-  const d =
-    String(
-      date.getDate()
-    ).padStart(2,"0");
-
-  return `${y}-${m}-${d}`;
-}
-
-function getRange(mode){
-
-  const now =
-    new Date();
-
-  const start =
-    new Date(now);
-
-  const end =
-    new Date(now);
-
-  if(mode === "week"){
-
-    start.setDate(
-      start.getDate() -
-      start.getDay()
-    );
-
-    end.setTime(
-      start.getTime()
-    );
-
-    end.setDate(
-      end.getDate() + 6
-    );
-
-  }else if(
-    mode === "month"
-  ){
-
-    start.setDate(1);
-
-    end.setMonth(
-      end.getMonth() + 1,
-      0
-    );
-  }
-
-  return {
-    from:
-      dateKey(start),
-
-    to:
-      dateKey(end)
-  };
-}
-
-function hoursToText(value){
+function hoursText(value){
 
   const totalMinutes =
     Math.round(
-      Number(value || 0) * 60
+      Number(value || 0) *
+      60
     );
 
-  const hours =
+  const h =
     Math.floor(
       totalMinutes / 60
     );
 
-  const minutes =
+  const m =
     totalMinutes % 60;
 
   return (
-    `${hours} H ` +
-    `${String(minutes).padStart(2,"0")} MIN`
+    `${h} H ` +
+    `${String(m).padStart(2,"0")} MIN`
   );
 }
 
@@ -129,23 +52,49 @@ function money(value){
   );
 }
 
-function formatDateLabel(value){
+function dateLabel(key){
 
-  const d =
-    new Date(
-      `${value}T12:00:00`
-    );
+  if(!key){
+    return "-";
+  }
 
-  return d.toLocaleDateString(
+  const [
+    y,
+    m,
+    d
+  ] =
+    key
+      .split("-")
+      .map(Number);
+
+  return new Date(
+    Date.UTC(
+      y,
+      m - 1,
+      d,
+      12
+    )
+  ).toLocaleDateString(
     "en-US",
     {
-      weekday:"short",
       month:"short",
       day:"numeric",
-      year:"numeric"
+      year:"numeric",
+      timeZone:"UTC"
     }
   );
 }
+
+function escapeHtml(value){
+
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 
 /* =========================
    LOAD
@@ -153,111 +102,113 @@ function formatDateLabel(value){
 
 async function loadEarnings(){
 
-  const range =
-    getRange(
-      currentMode
+  const list =
+    document.getElementById(
+      "list"
     );
-
-  document.getElementById(
-    "periodLabel"
-  ).textContent =
-    `${range.from} → ${range.to}`;
 
   try{
 
-    const query =
-      new URLSearchParams({
-        from:range.from,
-        to:range.to
-      });
-
     const response =
       await fetch(
-        `/api/payroll/me?${query.toString()}`,
+        "/api/payroll/me",
         {
-          headers:
-            authHeaders(),
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          },
+
           cache:"no-store"
         }
       );
 
     const data =
-      await response.json();
+      await response
+        .json();
 
     if(!response.ok){
+
       throw new Error(
         data.message ||
         "Unable to load earnings."
       );
     }
 
+    const e =
+      data.earnings ||
+      {};
+
+    document.getElementById(
+      "periodLabel"
+    ).textContent =
+      `${dateLabel(data.from)} → ${dateLabel(data.to)}`;
+
+    document.getElementById(
+      "timezoneLabel"
+    ).textContent =
+      data.timezone
+        ? `Server time • ${data.timezone}`
+        : "Server time";
+
+    document.getElementById(
+      "periodLength"
+    ).textContent =
+      `${Number(data.lengthDays || 0)} DAYS`;
+
     document.getElementById(
       "totalDue"
     ).textContent =
       money(
-        data.totalDue
+        e.totalDue
       );
 
     document.getElementById(
       "totalHours"
     ).textContent =
-      hoursToText(
-        data.totalHours
+      hoursText(
+        e.totalHours
       );
 
     document.getElementById(
       "regularHours"
     ).textContent =
-      hoursToText(
-        data.regularHours
+      hoursText(
+        e.regularHours
       );
 
     document.getElementById(
       "overtimeHours"
     ).textContent =
-      hoursToText(
-        data.overtimeHours
-      );
-
-    document.getElementById(
-      "paymentStatus"
-    ).textContent =
-      String(
-        data.paymentStatus ||
-        "UNPAID"
+      hoursText(
+        e.overtimeHours
       );
 
     document.getElementById(
       "hourlyRate"
     ).textContent =
       money(
-        data.hourlyRate
+        e.hourlyRate
       );
 
     document.getElementById(
       "overtimeRate"
     ).textContent =
       money(
-        data.overtimeRate
-      );
-
-    const list =
-      document.getElementById(
-        "list"
+        e.overtimeRate
       );
 
     const days =
       Array.isArray(
-        data.dailyHours
+        e.dailyHours
       )
-        ? data.dailyHours
+        ? e.dailyHours
         : [];
 
     if(!days.length){
 
       list.innerHTML = `
         <div class="empty">
-          No work hours for this period.
+          No work hours in the current pay period.
         </div>
       `;
 
@@ -271,11 +222,11 @@ async function loadEarnings(){
             <div class="day-card">
 
               <div class="day-date">
-                ${formatDateLabel(day.date)}
+                ${escapeHtml(dateLabel(day.date))}
               </div>
 
               <div class="day-hours">
-                ${hoursToText(day.hours)}
+                ${hoursText(day.hours)}
               </div>
 
             </div>
@@ -290,71 +241,12 @@ async function loadEarnings(){
       error
     );
 
-    document.getElementById(
-      "list"
-    ).innerHTML = `
+    list.innerHTML = `
       <div class="error">
-        ${error.message}
+        ${escapeHtml(error.message)}
       </div>
     `;
   }
 }
-
-/* =========================
-   TABS
-========================= */
-
-function setMode(mode){
-
-  currentMode =
-    mode;
-
-  document
-    .querySelectorAll(
-      ".filters button"
-    )
-    .forEach(
-      button=>
-        button.classList.remove(
-          "active"
-        )
-    );
-
-  const button =
-    document.getElementById(
-      mode === "today"
-        ? "btn-today"
-        : mode === "week"
-          ? "btn-week"
-          : "btn-month"
-    );
-
-  button?.classList.add(
-    "active"
-  );
-
-  loadEarnings();
-}
-
-document.getElementById(
-  "btn-today"
-)?.addEventListener(
-  "click",
-  ()=>setMode("today")
-);
-
-document.getElementById(
-  "btn-week"
-)?.addEventListener(
-  "click",
-  ()=>setMode("week")
-);
-
-document.getElementById(
-  "btn-month"
-)?.addEventListener(
-  "click",
-  ()=>setMode("month")
-);
 
 loadEarnings();

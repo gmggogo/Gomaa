@@ -1,6 +1,10 @@
 /* =========================================================
    FILE: public/admin/payroll.js
+
    SUPER ADMIN ONLY
+   AUTOMATIC COMPANY-WIDE PAY PERIOD
+   NO PAID / UNPAID
+   NO MARK PAID
 ========================================================= */
 
 const token =
@@ -35,44 +39,12 @@ let currentType =
 let currentRows =
   [];
 
-/* =========================
-   ELEMENTS
-========================= */
+let currentPeriod = {
+  from:"",
+  to:"",
+  timezone:""
+};
 
-const body =
-  document.getElementById(
-    "payrollBody"
-  );
-
-const fromDate =
-  document.getElementById(
-    "fromDate"
-  );
-
-const toDate =
-  document.getElementById(
-    "toDate"
-  );
-
-const loadBtn =
-  document.getElementById(
-    "loadBtn"
-  );
-
-const addEmployeeBtn =
-  document.getElementById(
-    "addEmployeeBtn"
-  );
-
-const hoursModal =
-  document.getElementById(
-    "hoursModal"
-  );
-
-const employeeModal =
-  document.getElementById(
-    "employeeModal"
-  );
 
 /* =========================
    HELPERS
@@ -95,51 +67,6 @@ function authHeaders(
   };
 }
 
-function dateKey(date){
-
-  const y =
-    date.getFullYear();
-
-  const m =
-    String(
-      date.getMonth() + 1
-    ).padStart(2,"0");
-
-  const d =
-    String(
-      date.getDate()
-    ).padStart(2,"0");
-
-  return `${y}-${m}-${d}`;
-}
-
-function setupDefaultPeriod(){
-
-  const now =
-    new Date();
-
-  const start =
-    new Date(now);
-
-  start.setDate(
-    start.getDate() -
-    start.getDay()
-  );
-
-  const end =
-    new Date(start);
-
-  end.setDate(
-    end.getDate() + 6
-  );
-
-  fromDate.value =
-    dateKey(start);
-
-  toDate.value =
-    dateKey(end);
-}
-
 function escapeHtml(value){
 
   return String(value ?? "")
@@ -150,28 +77,29 @@ function escapeHtml(value){
     .replaceAll("'","&#039;");
 }
 
-function formatHours(value){
+function hoursText(value){
 
   const totalMinutes =
     Math.round(
-      Number(value || 0) * 60
+      Number(value || 0) *
+      60
     );
 
-  const hours =
+  const h =
     Math.floor(
       totalMinutes / 60
     );
 
-  const minutes =
+  const m =
     totalMinutes % 60;
 
   return (
-    `${hours} H ` +
-    `${String(minutes).padStart(2,"0")} MIN`
+    `${h} H ` +
+    `${String(m).padStart(2,"0")} MIN`
   );
 }
 
-function formatMoney(value){
+function money(value){
 
   return new Intl.NumberFormat(
     "en-US",
@@ -179,20 +107,46 @@ function formatMoney(value){
       style:"currency",
       currency:"USD"
     }
-  )
-  .format(
+  ).format(
     Number(value || 0)
   );
 }
 
-function validPeriod(){
+function dateLabel(key){
 
-  return (
-    fromDate.value &&
-    toDate.value &&
-    fromDate.value <=
-    toDate.value
-  );
+  if(!key){
+    return "-";
+  }
+
+  const [
+    y,
+    m,
+    d
+  ] =
+    key
+      .split("-")
+      .map(Number);
+
+  const date =
+    new Date(
+      Date.UTC(
+        y,
+        m - 1,
+        d,
+        12
+      )
+    );
+
+  return date
+    .toLocaleDateString(
+      "en-US",
+      {
+        month:"short",
+        day:"numeric",
+        year:"numeric",
+        timeZone:"UTC"
+      }
+    );
 }
 
 async function api(
@@ -227,24 +181,188 @@ async function api(
   return data;
 }
 
+
 /* =========================
-   LOAD
+   PERIOD
+========================= */
+
+async function loadPeriod(){
+
+  const data =
+    await api(
+      "/api/payroll/period",
+      {
+        headers:
+          authHeaders()
+      }
+    );
+
+  currentPeriod = {
+    from:
+      data.period?.from ||
+      "",
+
+    to:
+      data.period?.to ||
+      "",
+
+    timezone:
+      data.timezone ||
+      ""
+  };
+
+  document.getElementById(
+    "currentPeriod"
+  ).textContent =
+    `${dateLabel(currentPeriod.from)} → ${dateLabel(currentPeriod.to)}`;
+
+  document.getElementById(
+    "timezoneText"
+  ).textContent =
+    currentPeriod.timezone
+      ? `Server time • ${currentPeriod.timezone}`
+      : "Server time";
+
+  document.getElementById(
+    "periodFrom"
+  ).value =
+    currentPeriod.from;
+
+  document.getElementById(
+    "periodTo"
+  ).value =
+    currentPeriod.to;
+}
+
+document.getElementById(
+  "editPeriodBtn"
+)
+.addEventListener(
+  "click",
+  ()=>{
+
+    document.getElementById(
+      "periodEdit"
+    ).classList.add(
+      "show"
+    );
+  }
+);
+
+document.getElementById(
+  "cancelPeriodBtn"
+)
+.addEventListener(
+  "click",
+  ()=>{
+
+    document.getElementById(
+      "periodFrom"
+    ).value =
+      currentPeriod.from;
+
+    document.getElementById(
+      "periodTo"
+    ).value =
+      currentPeriod.to;
+
+    document.getElementById(
+      "periodEdit"
+    ).classList.remove(
+      "show"
+    );
+  }
+);
+
+document.getElementById(
+  "savePeriodBtn"
+)
+.addEventListener(
+  "click",
+  async()=>{
+
+    const from =
+      document.getElementById(
+        "periodFrom"
+      ).value;
+
+    const to =
+      document.getElementById(
+        "periodTo"
+      ).value;
+
+    if(
+      !from ||
+      !to ||
+      from > to
+    ){
+
+      alert(
+        "Select a valid pay period."
+      );
+
+      return;
+    }
+
+    const ok =
+      confirm(
+        "Save this company-wide pay period?\n\n" +
+        "The same duration will repeat automatically for every future payroll period."
+      );
+
+    if(!ok){
+      return;
+    }
+
+    try{
+
+      await api(
+        "/api/payroll/period",
+        {
+          method:"PUT",
+          headers:
+            authHeaders(true),
+          body:
+            JSON.stringify({
+              from,
+              to
+            })
+        }
+      );
+
+      document.getElementById(
+        "periodEdit"
+      ).classList.remove(
+        "show"
+      );
+
+      await loadPeriod();
+      await loadPayroll();
+
+    }catch(error){
+
+      alert(
+        error.message
+      );
+    }
+  }
+);
+
+
+/* =========================
+   LOAD PAYROLL
 ========================= */
 
 async function loadPayroll(){
 
-  if(!validPeriod()){
-
-    alert(
-      "Select a valid date range."
+  const body =
+    document.getElementById(
+      "payrollBody"
     );
-
-    return;
-  }
 
   body.innerHTML = `
     <tr>
-      <td colspan="12">
+      <td colspan="11">
         Loading...
       </td>
     </tr>
@@ -254,9 +372,7 @@ async function loadPayroll(){
 
     const query =
       new URLSearchParams({
-        type:currentType,
-        from:fromDate.value,
-        to:toDate.value
+        type:currentType
       });
 
     const data =
@@ -275,6 +391,32 @@ async function loadPayroll(){
         ? data.people
         : [];
 
+    currentPeriod = {
+      from:
+        data.from ||
+        currentPeriod.from,
+
+      to:
+        data.to ||
+        currentPeriod.to,
+
+      timezone:
+        data.timezone ||
+        currentPeriod.timezone
+    };
+
+    document.getElementById(
+      "currentPeriod"
+    ).textContent =
+      `${dateLabel(currentPeriod.from)} → ${dateLabel(currentPeriod.to)}`;
+
+    document.getElementById(
+      "timezoneText"
+    ).textContent =
+      currentPeriod.timezone
+        ? `Server time • ${currentPeriod.timezone}`
+        : "Server time";
+
     render();
 
   }catch(error){
@@ -286,7 +428,7 @@ async function loadPayroll(){
 
     body.innerHTML = `
       <tr>
-        <td colspan="12">
+        <td colspan="11">
           ${escapeHtml(error.message)}
         </td>
       </tr>
@@ -294,18 +436,25 @@ async function loadPayroll(){
   }
 }
 
+
 /* =========================
    RENDER
 ========================= */
 
 function render(){
 
+  const body =
+    document.getElementById(
+      "payrollBody"
+    );
+
   const totalHours =
     currentRows.reduce(
       (sum,row)=>
         sum +
         Number(
-          row.totalHours || 0
+          row.totalHours ||
+          0
         ),
       0
     );
@@ -315,7 +464,8 @@ function render(){
       (sum,row)=>
         sum +
         Number(
-          row.totalDue || 0
+          row.totalDue ||
+          0
         ),
       0
     );
@@ -330,19 +480,22 @@ function render(){
   document.getElementById(
     "allHours"
   ).textContent =
-    formatHours(
+    hoursText(
       totalHours
     );
 
   document.getElementById(
     "allDue"
   ).textContent =
-    formatMoney(
+    money(
       totalDue
     );
 
-  addEmployeeBtn.style.display =
-    currentType === "employee"
+  document.getElementById(
+    "addEmployeeBtn"
+  ).style.display =
+    currentType ===
+      "employee"
       ? "inline-block"
       : "none";
 
@@ -350,7 +503,7 @@ function render(){
 
     body.innerHTML = `
       <tr>
-        <td colspan="12">
+        <td colspan="11">
           No people found.
         </td>
       </tr>
@@ -369,10 +522,6 @@ function render(){
               row._id
             );
 
-          const paid =
-            row.paymentStatus ===
-            "PAID";
-
           const title =
             row.jobTitle
               ? `
@@ -382,8 +531,9 @@ function render(){
               `
               : "";
 
-          const manualHoursButton =
-            currentType !== "driver"
+          const hoursButton =
+            currentType !==
+              "driver"
               ? `
                 <button
                   class="hours-btn"
@@ -403,16 +553,16 @@ function render(){
               </td>
 
               <td>
-                ${formatHours(row.regularHours)}
+                ${hoursText(row.regularHours)}
               </td>
 
               <td>
-                ${formatHours(row.overtimeHours)}
+                ${hoursText(row.overtimeHours)}
               </td>
 
               <td>
                 <b>
-                  ${formatHours(row.totalHours)}
+                  ${hoursText(row.totalHours)}
                 </b>
               </td>
 
@@ -450,39 +600,23 @@ function render(){
               </td>
 
               <td>
-                ${formatMoney(row.regularPay)}
+                ${money(row.regularPay)}
               </td>
 
               <td>
-                ${formatMoney(row.overtimePay)}
+                ${money(row.overtimePay)}
               </td>
 
               <td>
                 <b>
-                  ${formatMoney(row.totalDue)}
+                  ${money(row.totalDue)}
                 </b>
               </td>
 
-              <td
-                class="${
-                  paid
-                    ? "status-paid"
-                    : "status-unpaid"
-                }">
-
-                ${
-                  paid
-                    ? "PAID"
-                    : "UNPAID"
-                }
-
-              </td>
-
               <td>
-
                 <div class="actions">
 
-                  ${manualHoursButton}
+                  ${hoursButton}
 
                   <button
                     class="edit-btn"
@@ -501,20 +635,7 @@ function render(){
                     Save
                   </button>
 
-                  <button
-                    class="paid-btn"
-                    type="button"
-                    onclick="markPaid('${id}')"
-                    ${paid ? "disabled" : ""}>
-                    ${
-                      paid
-                        ? "Paid"
-                        : "Mark Paid"
-                    }
-                  </button>
-
                 </div>
-
               </td>
 
             </tr>
@@ -524,8 +645,9 @@ function render(){
       .join("");
 }
 
+
 /* =========================
-   EDIT
+   EDIT / SAVE RATE
 ========================= */
 
 window.editProfile =
@@ -550,22 +672,22 @@ function(id){
     }
   );
 
-  const editButton =
+  const edit =
     document.getElementById(
       `edit-${id}`
     );
 
-  const saveButton =
+  const save =
     document.getElementById(
       `save-${id}`
     );
 
-  if(editButton){
-    editButton.disabled = true;
+  if(edit){
+    edit.disabled = true;
   }
 
-  if(saveButton){
-    saveButton.disabled = false;
+  if(save){
+    save.disabled = false;
   }
 
   document.getElementById(
@@ -573,47 +695,19 @@ function(id){
   )?.focus();
 };
 
-/* =========================
-   SAVE PROFILE
-========================= */
-
 window.saveProfile =
 async function(id){
 
-  const saveButton =
+  const save =
     document.getElementById(
       `save-${id}`
     );
 
   try{
 
-    if(saveButton){
-      saveButton.disabled = true;
+    if(save){
+      save.disabled = true;
     }
-
-    const hourlyRate =
-      Number(
-        document.getElementById(
-          `rate-${id}`
-        )?.value ||
-        0
-      );
-
-    const overtimeRate =
-      Number(
-        document.getElementById(
-          `ot-rate-${id}`
-        )?.value ||
-        0
-      );
-
-    const overtimeAfterHours =
-      Number(
-        document.getElementById(
-          `ot-after-${id}`
-        )?.value ||
-        0
-      );
 
     await api(
       `/api/payroll/profile/${currentType}/${encodeURIComponent(id)}`,
@@ -623,9 +717,35 @@ async function(id){
           authHeaders(true),
         body:
           JSON.stringify({
-            hourlyRate,
-            overtimeRate,
-            overtimeAfterHours
+            hourlyRate:
+              Number(
+                document
+                  .getElementById(
+                    `rate-${id}`
+                  )
+                  ?.value ||
+                0
+              ),
+
+            overtimeRate:
+              Number(
+                document
+                  .getElementById(
+                    `ot-rate-${id}`
+                  )
+                  ?.value ||
+                0
+              ),
+
+            overtimeAfterHours:
+              Number(
+                document
+                  .getElementById(
+                    `ot-after-${id}`
+                  )
+                  ?.value ||
+                40
+              )
           })
       }
     );
@@ -634,8 +754,8 @@ async function(id){
 
   }catch(error){
 
-    if(saveButton){
-      saveButton.disabled = false;
+    if(save){
+      save.disabled = false;
     }
 
     alert(
@@ -644,66 +764,9 @@ async function(id){
   }
 };
 
-/* =========================
-   MARK PAID
-========================= */
-
-window.markPaid =
-async function(id){
-
-  const row =
-    currentRows.find(
-      item=>
-        String(item._id) ===
-        String(id)
-    );
-
-  if(!row){
-    return;
-  }
-
-  const ok =
-    confirm(
-      `Mark ${row.name} as PAID?\n\n` +
-      `Period: ${fromDate.value} through ${toDate.value}\n` +
-      `Amount: ${formatMoney(row.totalDue)}\n\n` +
-      `This records payment status only. It does not send money.`
-    );
-
-  if(!ok){
-    return;
-  }
-
-  try{
-
-    await api(
-      `/api/payroll/mark-paid/${currentType}/${encodeURIComponent(id)}`,
-      {
-        method:"POST",
-        headers:
-          authHeaders(true),
-        body:
-          JSON.stringify({
-            from:
-              fromDate.value,
-            to:
-              toDate.value
-          })
-      }
-    );
-
-    await loadPayroll();
-
-  }catch(error){
-
-    alert(
-      error.message
-    );
-  }
-};
 
 /* =========================
-   HOURS MODAL
+   MANUAL HOURS
 ========================= */
 
 window.openHours =
@@ -717,7 +780,7 @@ function(id){
   document.getElementById(
     "hoursDate"
   ).value =
-    fromDate.value;
+    currentPeriod.from;
 
   document.getElementById(
     "hoursValue"
@@ -729,7 +792,9 @@ function(id){
   ).value =
     "";
 
-  hoursModal.classList.add(
+  document.getElementById(
+    "hoursModal"
+  ).classList.add(
     "show"
   );
 };
@@ -741,7 +806,9 @@ document.getElementById(
   "click",
   ()=>{
 
-    hoursModal.classList.remove(
+    document.getElementById(
+      "hoursModal"
+    ).classList.remove(
       "show"
     );
   }
@@ -778,6 +845,20 @@ document.getElementById(
 
     if(
       !workDate ||
+      workDate <
+        currentPeriod.from ||
+      workDate >
+        currentPeriod.to
+    ){
+
+      alert(
+        "Work date must be inside the current pay period."
+      );
+
+      return;
+    }
+
+    if(
       !Number.isFinite(
         workHours
       ) ||
@@ -809,7 +890,9 @@ document.getElementById(
         }
       );
 
-      hoursModal.classList.remove(
+      document.getElementById(
+        "hoursModal"
+      ).classList.remove(
         "show"
       );
 
@@ -824,11 +907,14 @@ document.getElementById(
   }
 );
 
+
 /* =========================
-   EMPLOYEE MODAL
+   EMPLOYEE
 ========================= */
 
-addEmployeeBtn
+document.getElementById(
+  "addEmployeeBtn"
+)
 .addEventListener(
   "click",
   ()=>{
@@ -854,7 +940,9 @@ addEmployeeBtn
       }
     );
 
-    employeeModal.classList.add(
+    document.getElementById(
+      "employeeModal"
+    ).classList.add(
       "show"
     );
   }
@@ -867,7 +955,9 @@ document.getElementById(
   "click",
   ()=>{
 
-    employeeModal.classList.remove(
+    document.getElementById(
+      "employeeModal"
+    ).classList.remove(
       "show"
     );
   }
@@ -941,7 +1031,9 @@ document.getElementById(
         }
       );
 
-      employeeModal.classList.remove(
+      document.getElementById(
+        "employeeModal"
+      ).classList.remove(
         "show"
       );
 
@@ -955,6 +1047,7 @@ document.getElementById(
     }
   }
 );
+
 
 /* =========================
    TABS
@@ -976,8 +1069,8 @@ document
               ".tab-btn"
             )
             .forEach(
-              btn=>
-                btn.classList.remove(
+              tab=>
+                tab.classList.remove(
                   "active"
                 )
             );
@@ -998,18 +1091,28 @@ document
     }
   );
 
-/* =========================
-   EVENTS
-========================= */
-
-loadBtn.addEventListener(
-  "click",
-  loadPayroll
-);
 
 /* =========================
    START
 ========================= */
 
-setupDefaultPeriod();
-loadPayroll();
+(async function start(){
+
+  try{
+
+    await loadPeriod();
+    await loadPayroll();
+
+  }catch(error){
+
+    console.error(
+      "PAYROLL START ERROR:",
+      error
+    );
+
+    alert(
+      error.message
+    );
+  }
+
+})();

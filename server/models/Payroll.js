@@ -7,7 +7,14 @@ const mongoose = require("mongoose");
    - Payroll Profiles
    - Manual Employees
    - Manual Time Entries
-   - Payment History
+   - Company Pay Period Settings
+   - Automatic Closed Period History
+
+   IMPORTANT:
+   - NO Paid / Unpaid workflow.
+   - NO Mark Paid workflow.
+   - Pay period is company-wide per tenant.
+   - Current period rolls automatically by tenant timezone.
 ========================================================= */
 
 
@@ -18,10 +25,8 @@ const mongoose = require("mongoose");
 const payrollProfileSchema =
 new mongoose.Schema(
   {
-
     tenantId:{
-      type:
-        mongoose.Schema.Types.ObjectId,
+      type:mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -69,7 +74,6 @@ new mongoose.Schema(
       type:Boolean,
       default:true
     }
-
   },
   {
     timestamps:true
@@ -84,8 +88,7 @@ payrollProfileSchema.index(
   },
   {
     unique:true,
-    name:
-      "tenant_payroll_profile_unique"
+    name:"tenant_payroll_profile_unique"
   }
 );
 
@@ -97,10 +100,8 @@ payrollProfileSchema.index(
 const payrollEmployeeSchema =
 new mongoose.Schema(
   {
-
     tenantId:{
-      type:
-        mongoose.Schema.Types.ObjectId,
+      type:mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -141,7 +142,6 @@ new mongoose.Schema(
       default:true,
       index:true
     }
-
   },
   {
     timestamps:true
@@ -163,10 +163,8 @@ payrollEmployeeSchema.index({
 const payrollTimeEntrySchema =
 new mongoose.Schema(
   {
-
     tenantId:{
-      type:
-        mongoose.Schema.Types.ObjectId,
+      type:mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -216,7 +214,6 @@ new mongoose.Schema(
       default:"",
       trim:true
     }
-
   },
   {
     timestamps:true
@@ -232,23 +229,81 @@ payrollTimeEntrySchema.index(
   },
   {
     unique:true,
-    name:
-      "tenant_payroll_daily_hours_unique"
+    name:"tenant_payroll_daily_hours_unique"
   }
 );
 
 
 /* =========================
-   PAYMENT HISTORY
+   COMPANY PAY PERIOD SETTINGS
+
+   Example:
+   anchorStart = 2026-08-23
+   periodLengthDays = 7
+
+   Then periods are:
+   Aug 23 -> Aug 29
+   Aug 30 -> Sep 05
+   etc.
+
+   Current period is derived from tenant timezone.
 ========================= */
 
-const payrollPaymentSchema =
+const payrollPeriodSettingsSchema =
 new mongoose.Schema(
   {
-
     tenantId:{
-      type:
-        mongoose.Schema.Types.ObjectId,
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Tenant",
+      required:true,
+      unique:true,
+      index:true
+    },
+
+    anchorStart:{
+      type:String,
+      required:true,
+      trim:true
+    },
+
+    periodLengthDays:{
+      type:Number,
+      required:true,
+      min:1,
+      max:366,
+      default:7
+    },
+
+    archiveCursorStart:{
+      type:String,
+      default:"",
+      trim:true
+    },
+
+    updatedBy:{
+      type:String,
+      default:"",
+      trim:true
+    }
+  },
+  {
+    timestamps:true
+  }
+);
+
+
+/* =========================
+   AUTOMATIC PERIOD HISTORY
+
+   Snapshot made automatically after a pay period ends.
+   This is history only — it does NOT mean money was paid.
+========================= */
+
+const payrollPeriodHistorySchema =
+new mongoose.Schema(
+  {
+    tenantId:{
+      type:mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -283,12 +338,20 @@ new mongoose.Schema(
     periodStart:{
       type:String,
       required:true,
-      trim:true
+      trim:true,
+      index:true
     },
 
     periodEnd:{
       type:String,
       required:true,
+      trim:true,
+      index:true
+    },
+
+    timezone:{
+      type:String,
+      default:"America/Phoenix",
       trim:true
     },
 
@@ -317,6 +380,11 @@ new mongoose.Schema(
       default:0
     },
 
+    overtimeAfterHours:{
+      type:Number,
+      default:40
+    },
+
     regularPay:{
       type:Number,
       default:0
@@ -332,32 +400,22 @@ new mongoose.Schema(
       default:0
     },
 
-    status:{
-      type:String,
-      enum:[
-        "PAID"
-      ],
-      default:"PAID"
+    dailyHours:{
+      type:Array,
+      default:[]
     },
 
-    paidAt:{
+    closedAt:{
       type:Date,
       default:Date.now
-    },
-
-    paidBy:{
-      type:String,
-      default:"",
-      trim:true
     }
-
   },
   {
     timestamps:true
   }
 );
 
-payrollPaymentSchema.index(
+payrollPeriodHistorySchema.index(
   {
     tenantId:1,
     personType:1,
@@ -367,8 +425,7 @@ payrollPaymentSchema.index(
   },
   {
     unique:true,
-    name:
-      "tenant_payroll_payment_period_unique"
+    name:"tenant_payroll_period_history_unique"
   }
 );
 
@@ -398,11 +455,18 @@ const PayrollTimeEntry =
     payrollTimeEntrySchema
   );
 
-const PayrollPayment =
-  mongoose.models.PayrollPayment ||
+const PayrollPeriodSettings =
+  mongoose.models.PayrollPeriodSettings ||
   mongoose.model(
-    "PayrollPayment",
-    payrollPaymentSchema
+    "PayrollPeriodSettings",
+    payrollPeriodSettingsSchema
+  );
+
+const PayrollPeriodHistory =
+  mongoose.models.PayrollPeriodHistory ||
+  mongoose.model(
+    "PayrollPeriodHistory",
+    payrollPeriodHistorySchema
   );
 
 
@@ -414,5 +478,6 @@ module.exports = {
   PayrollProfile,
   PayrollEmployee,
   PayrollTimeEntry,
-  PayrollPayment
+  PayrollPeriodSettings,
+  PayrollPeriodHistory
 };

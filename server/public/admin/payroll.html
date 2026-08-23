@@ -9,9 +9,7 @@
 <link rel="stylesheet" href="style.css">
 
 <style>
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
 body{
   margin:0;
@@ -34,188 +32,173 @@ body{
   padding:255px 22px 80px;
 }
 
-/* =========================
-   TITLE
-========================= */
-
 .page-title{
-  margin:0 0 24px;
-  width:100%;
+  margin:0 0 22px;
   text-align:center;
   color:#d4a900;
   font-size:38px;
-  line-height:1.1;
   font-weight:900;
-  letter-spacing:.5px;
 }
 
-/* =========================
-   TOOLBAR
-========================= */
+.period-card{
+  max-width:900px;
+  margin:0 auto 18px;
+  padding:16px 18px;
+  background:#fff;
+  border:1px solid rgba(212,169,0,.32);
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(15,39,71,.07);
+}
 
-.toolbar{
+.period-top{
   display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  gap:14px;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
   flex-wrap:wrap;
+}
 
-  margin-bottom:18px;
-  padding:18px;
+.period-info{
+  min-width:0;
+}
 
-  background:#ffffff;
-  border:1px solid #dfe7f0;
-  border-radius:20px;
+.period-label{
+  color:#64748b;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+}
 
-  box-shadow:0 8px 24px rgba(15,39,71,.08);
+.period-value{
+  margin-top:4px;
+  color:#0f2747;
+  font-size:22px;
+  font-weight:900;
+}
+
+.period-zone{
+  margin-top:4px;
+  color:#718096;
+  font-size:12px;
+  font-weight:700;
+}
+
+.period-edit{
+  display:none;
+  grid-template-columns:1fr 1fr auto auto;
+  gap:9px;
+  align-items:end;
+  margin-top:14px;
+}
+
+.period-edit.show{
+  display:grid;
 }
 
 .field{
   display:flex;
   flex-direction:column;
-  gap:6px;
+  gap:5px;
 }
 
 .field label{
   color:#53657a;
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
 }
 
 .field input{
-  height:42px;
-  min-width:150px;
-  padding:0 12px;
-
+  height:40px;
+  padding:0 11px;
   border:1px solid #cbd6e2;
-  border-radius:11px;
-
+  border-radius:10px;
   background:#fff;
   color:#0f2747;
-
   font-size:14px;
   font-weight:700;
-  outline:none;
 }
 
-.field input:focus{
-  border-color:#d4a900;
-  box-shadow:0 0 0 3px rgba(212,169,0,.12);
-}
-
-.primary-btn{
-  height:42px;
-  padding:0 18px;
-
+.primary-btn,
+.soft-btn{
+  height:40px;
+  padding:0 15px;
   border:0;
-  border-radius:11px;
-
-  background:#0f2747;
-  color:#fff;
-
+  border-radius:10px;
   font-weight:900;
   cursor:pointer;
 }
 
-.primary-btn:hover{
-  background:#173f70;
+.primary-btn{
+  background:#0f2747;
+  color:#fff;
 }
 
-/* =========================
-   TABS
-========================= */
+.soft-btn{
+  background:#e8eef6;
+  color:#0f2747;
+}
 
 .tabs{
   display:flex;
   justify-content:center;
   gap:10px;
   flex-wrap:wrap;
-
   margin-bottom:18px;
 }
 
 .tab-btn{
   min-width:130px;
-  padding:12px 18px;
-
+  padding:11px 17px;
   border:1px solid rgba(212,169,0,.55);
   border-radius:14px;
-
-  background:linear-gradient(180deg,#ffffff,#edf3f9);
+  background:linear-gradient(180deg,#fff,#edf3f9);
   color:#0f2747;
-
   box-shadow:0 5px 14px rgba(15,39,71,.08);
-
   font-size:13px;
   font-weight:900;
   cursor:pointer;
-}
-
-.tab-btn:hover{
-  border-color:#d4a900;
-  transform:translateY(-1px);
 }
 
 .tab-btn.active{
   background:linear-gradient(180deg,#173f70,#0f2747);
   color:#ffd21f;
   border-color:#d4a900;
-
-  box-shadow:
-    0 7px 16px rgba(15,39,71,.18),
-    inset 0 0 0 1px rgba(255,210,31,.14);
 }
-
-/* =========================
-   SUMMARY
-========================= */
 
 .summary-row{
   display:flex;
   justify-content:center;
-  gap:14px;
+  gap:12px;
   flex-wrap:wrap;
-
   margin-bottom:18px;
 }
 
 .summary-card{
   min-width:180px;
-  padding:14px 20px;
-
+  padding:13px 18px;
   background:#fff;
-  border:1px solid rgba(212,169,0,.30);
-  border-radius:16px;
-
-  box-shadow:0 7px 20px rgba(15,39,71,.06);
-
-  color:#64748b;
+  border:1px solid rgba(212,169,0,.28);
+  border-radius:15px;
   text-align:center;
-  font-size:12px;
+  color:#64748b;
+  font-size:11px;
   font-weight:900;
   text-transform:uppercase;
+  box-shadow:0 6px 18px rgba(15,39,71,.06);
 }
 
 .summary-card b{
   display:block;
   margin-top:4px;
-
   color:#0f2747;
-  font-size:24px;
-  font-weight:900;
+  font-size:21px;
 }
-
-/* =========================
-   TABLE
-========================= */
 
 .table-card{
   overflow:hidden;
-
   background:#fff;
   border:1px solid #dfe7f0;
   border-radius:20px;
-
   box-shadow:0 10px 28px rgba(15,39,71,.08);
 }
 
@@ -226,114 +209,84 @@ body{
 
 table{
   width:100%;
-  min-width:1320px;
+  min-width:1240px;
   border-collapse:collapse;
 }
 
 thead th{
-  padding:12px 10px;
-
+  padding:11px 9px;
   background:#0f2747;
   color:#fff;
-
-  border-right:1px solid rgba(255,255,255,.08);
-
   text-align:left;
   white-space:nowrap;
-
-  font-size:11px;
+  font-size:10px;
   font-weight:900;
   text-transform:uppercase;
 }
 
 tbody td{
-  padding:10px;
+  padding:9px;
   border-bottom:1px solid #e5ebf2;
-
   background:#fff;
   vertical-align:middle;
-
-  font-size:13px;
+  font-size:12px;
 }
 
 tbody tr:nth-child(even) td{
   background:#fbfdff;
 }
 
-tbody tr:hover td{
-  background:#f4f8fc;
-}
-
-/* NAME CELL */
-
 .name-cell{
-  min-width:175px;
-
+  min-width:170px;
   color:#0f2747;
   font-weight:900;
-
-  background:linear-gradient(90deg,#fff7cf,#ffffff) !important;
+  background:linear-gradient(90deg,#fff7cf,#fff) !important;
   border-left:4px solid #d4a900;
 }
 
 tbody tr:nth-child(even) .name-cell{
-  background:linear-gradient(90deg,#eaf2ff,#ffffff) !important;
+  background:linear-gradient(90deg,#eaf2ff,#fff) !important;
   border-left-color:#0f2747;
 }
 
 .name-sub{
-  margin-top:4px;
+  margin-top:3px;
   color:#718096;
-  font-size:11px;
+  font-size:10px;
   font-weight:700;
 }
 
-/* INPUTS */
-
 .rate-input{
-  width:84px;
-  height:36px;
-
-  padding:0 8px;
-
+  width:82px;
+  height:34px;
+  padding:0 7px;
   border:1px solid #cbd6e2;
-  border-radius:9px;
-
+  border-radius:8px;
   background:#fff;
-  color:#0f2747;
-
   text-align:center;
-  font-size:13px;
+  font-size:12px;
   font-weight:800;
 }
 
 .rate-input:disabled{
   background:#eef2f6;
   color:#58697b;
-  border-color:#dde4eb;
 }
-
-/* =========================
-   BUTTONS
-========================= */
 
 .actions{
   display:flex;
-  gap:6px;
+  gap:5px;
   flex-wrap:wrap;
 }
 
 .edit-btn,
 .save-btn,
-.hours-btn,
-.paid-btn{
-  min-height:34px;
-  padding:0 11px;
-
+.hours-btn{
+  min-height:32px;
+  padding:0 10px;
   border:0;
-  border-radius:9px;
-
-  font-size:11px;
+  border-radius:8px;
+  font-size:10px;
   font-weight:900;
   cursor:pointer;
 }
@@ -353,44 +306,19 @@ tbody tr:nth-child(even) .name-cell{
   color:#174a8b;
 }
 
-.paid-btn{
-  background:#16a34a;
-  color:#fff;
-}
-
-.edit-btn:disabled,
-.save-btn:disabled,
-.hours-btn:disabled,
-.paid-btn:disabled{
+button:disabled{
   opacity:.48;
   cursor:not-allowed;
 }
-
-.status-paid{
-  color:#15803d;
-  font-weight:900;
-}
-
-.status-unpaid{
-  color:#b45309;
-  font-weight:900;
-}
-
-/* =========================
-   MODALS
-========================= */
 
 .modal{
   position:fixed;
   inset:0;
   z-index:5000;
-
   display:none;
   align-items:center;
   justify-content:center;
-
   padding:18px;
-
   background:rgba(5,20,40,.55);
 }
 
@@ -401,44 +329,33 @@ tbody tr:nth-child(even) .name-cell{
 .modal-card{
   width:min(520px,96vw);
   padding:22px;
-
   background:#fff;
   border-radius:20px;
-
-  box-shadow:0 24px 60px rgba(0,0,0,.28);
 }
 
 .modal-title{
   margin-bottom:16px;
-
   color:#0f2747;
   font-size:22px;
   font-weight:900;
 }
 
 .modal-card .field{
-  margin-top:11px;
+  margin-top:10px;
 }
 
 .modal-card .field input{
   width:100%;
-  min-width:0;
 }
 
 .modal-actions{
   display:flex;
   justify-content:flex-end;
-  gap:9px;
-
-  margin-top:18px;
+  gap:8px;
+  margin-top:17px;
 }
 
-/* =========================
-   MOBILE
-========================= */
-
 @media(max-width:900px){
-
   .payroll-page{
     padding:310px 10px 60px;
   }
@@ -447,14 +364,14 @@ tbody tr:nth-child(even) .name-cell{
     font-size:30px;
   }
 
-  .toolbar{
-    padding:14px;
+  .period-edit{
+    grid-template-columns:1fr;
   }
 
   .tab-btn{
-    min-width:110px;
-    padding:10px 12px;
-    font-size:12px;
+    min-width:108px;
+    padding:10px 11px;
+    font-size:11px;
   }
 }
 </style>
@@ -470,32 +387,69 @@ tbody tr:nth-child(even) .name-cell{
     Payroll & Earnings
   </h1>
 
-  <section class="toolbar">
+  <section class="period-card">
 
-    <div class="field">
-      <label>FROM</label>
-      <input type="date" id="fromDate">
+    <div class="period-top">
+
+      <div class="period-info">
+        <div class="period-label">
+          Current Company Pay Period
+        </div>
+
+        <div
+          class="period-value"
+          id="currentPeriod">
+          Loading...
+        </div>
+
+        <div
+          class="period-zone"
+          id="timezoneText">
+        </div>
+      </div>
+
+      <button
+        class="soft-btn"
+        id="editPeriodBtn"
+        type="button">
+        Edit Pay Period
+      </button>
+
     </div>
 
-    <div class="field">
-      <label>TO</label>
-      <input type="date" id="toDate">
+    <div
+      class="period-edit"
+      id="periodEdit">
+
+      <div class="field">
+        <label>START DATE</label>
+        <input
+          type="date"
+          id="periodFrom">
+      </div>
+
+      <div class="field">
+        <label>END DATE</label>
+        <input
+          type="date"
+          id="periodTo">
+      </div>
+
+      <button
+        class="primary-btn"
+        id="savePeriodBtn"
+        type="button">
+        Save Period
+      </button>
+
+      <button
+        class="soft-btn"
+        id="cancelPeriodBtn"
+        type="button">
+        Cancel
+      </button>
+
     </div>
-
-    <button
-      class="primary-btn"
-      id="loadBtn"
-      type="button">
-      Load Period
-    </button>
-
-    <button
-      class="primary-btn"
-      id="addEmployeeBtn"
-      type="button"
-      style="display:none;">
-      + Add Employee
-    </button>
 
   </section>
 
@@ -547,13 +501,21 @@ tbody tr:nth-child(even) .name-cell{
 
     <div class="summary-card">
       Total Hours
-      <b id="allHours">0.00</b>
+      <b id="allHours">0 H 00 MIN</b>
     </div>
 
     <div class="summary-card">
-      Total Due
+      Total Earnings
       <b id="allDue">$0.00</b>
     </div>
+
+    <button
+      class="primary-btn"
+      id="addEmployeeBtn"
+      type="button"
+      style="display:none;">
+      + Add Employee
+    </button>
 
   </section>
 
@@ -574,8 +536,7 @@ tbody tr:nth-child(even) .name-cell{
             <th>OT After / Week</th>
             <th>Regular Pay</th>
             <th>OT Pay</th>
-            <th>Total Due</th>
-            <th>Status</th>
+            <th>Total Earnings</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -590,20 +551,22 @@ tbody tr:nth-child(even) .name-cell{
 
 </main>
 
-<!-- HOURS MODAL -->
 <div class="modal" id="hoursModal">
-
   <div class="modal-card">
 
     <div class="modal-title">
       Add / Update Work Hours
     </div>
 
-    <input type="hidden" id="hoursPersonId">
+    <input
+      type="hidden"
+      id="hoursPersonId">
 
     <div class="field">
       <label>WORK DATE</label>
-      <input type="date" id="hoursDate">
+      <input
+        type="date"
+        id="hoursDate">
     </div>
 
     <div class="field">
@@ -618,34 +581,31 @@ tbody tr:nth-child(even) .name-cell{
 
     <div class="field">
       <label>NOTE</label>
-      <input type="text" id="hoursNote">
+      <input
+        type="text"
+        id="hoursNote">
     </div>
 
     <div class="modal-actions">
-
       <button
-        class="edit-btn"
+        class="soft-btn"
         id="closeHoursBtn"
         type="button">
         Cancel
       </button>
 
       <button
-        class="save-btn"
+        class="primary-btn"
         id="saveHoursBtn"
         type="button">
         Save Hours
       </button>
-
     </div>
 
   </div>
-
 </div>
 
-<!-- EMPLOYEE MODAL -->
 <div class="modal" id="employeeModal">
-
   <div class="modal-card">
 
     <div class="modal-title">
@@ -654,49 +614,56 @@ tbody tr:nth-child(even) .name-cell{
 
     <div class="field">
       <label>NAME</label>
-      <input type="text" id="employeeName">
+      <input
+        type="text"
+        id="employeeName">
     </div>
 
     <div class="field">
       <label>EMPLOYEE ID</label>
-      <input type="text" id="employeeNumber">
+      <input
+        type="text"
+        id="employeeNumber">
     </div>
 
     <div class="field">
       <label>JOB TITLE</label>
-      <input type="text" id="employeeJobTitle">
+      <input
+        type="text"
+        id="employeeJobTitle">
     </div>
 
     <div class="field">
       <label>PHONE</label>
-      <input type="text" id="employeePhone">
+      <input
+        type="text"
+        id="employeePhone">
     </div>
 
     <div class="field">
       <label>EMAIL</label>
-      <input type="email" id="employeeEmail">
+      <input
+        type="email"
+        id="employeeEmail">
     </div>
 
     <div class="modal-actions">
-
       <button
-        class="edit-btn"
+        class="soft-btn"
         id="closeEmployeeBtn"
         type="button">
         Cancel
       </button>
 
       <button
-        class="save-btn"
+        class="primary-btn"
         id="saveEmployeeBtn"
         type="button">
         Save Employee
       </button>
-
     </div>
 
   </div>
-
 </div>
 
 <script src="header.js"></script>
