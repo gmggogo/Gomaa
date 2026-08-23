@@ -292,6 +292,35 @@ function inclusiveDays(
 }
 
 
+
+function rollingMonthStartKey(
+  todayKey,
+  monthCount
+){
+
+  const date =
+    keyToUtc(todayKey);
+
+  if(!date){
+    return "";
+  }
+
+  const months =
+    Math.max(
+      1,
+      Number(monthCount || 1)
+    );
+
+  date.setUTCDate(1);
+
+  date.setUTCMonth(
+    date.getUTCMonth() -
+    (months - 1)
+  );
+
+  return utcToKey(date);
+}
+
 /* =========================
    TENANT GLOBAL TIME ENGINE
 
@@ -392,6 +421,31 @@ function serverTodayKey(
   );
 }
 
+
+
+async function enforceHistoryRetention(
+  tenantId,
+  todayKey
+){
+
+  const cutoff =
+    rollingMonthStartKey(
+      todayKey,
+      24
+    );
+
+  if(!cutoff){
+    return;
+  }
+
+  await PayrollPeriodHistory
+    .deleteMany({
+      tenantId,
+      periodEnd:{
+        $lt:cutoff
+      }
+    });
+}
 
 /* =========================
    PAY PERIOD ENGINE
@@ -813,6 +867,10 @@ function buildDriverDay(
         ) /
         3600000
       ),
+
+    tripCount:
+      workable.length,
+
     running
   };
 }
@@ -1004,6 +1062,8 @@ async function manualDailyHours(
           hours(
             row.hours
           ),
+
+        tripCount:0,
 
         running:false,
 
@@ -1220,6 +1280,19 @@ async function calculatePerson(
       profile.overtimeAfterHours
     );
 
+  const tripCount =
+    personType === "driver"
+      ? dailyHours.reduce(
+          (sum,row)=>
+            sum +
+            Number(
+              row.tripCount ||
+              0
+            ),
+          0
+        )
+      : 0;
+
   const hourlyRate =
     money(
       profile.hourlyRate
@@ -1300,6 +1373,8 @@ async function calculatePerson(
 
     totalHours:
       split.totalHours,
+
+    tripCount,
 
     regularPay,
     overtimePay,
@@ -1452,6 +1527,9 @@ async function archiveOnePeriod(
               totalHours:
                 calc.totalHours,
 
+              tripCount:
+                calc.tripCount,
+
               hourlyRate:
                 calc.hourlyRate,
 
@@ -1581,6 +1659,31 @@ async function ensureClosedPeriods(
     period.start;
 
   await settings.save();
+
+
+  /*
+    ADMIN RETENTION:
+    Keep only the rolling last 24 calendar months
+    in PayrollPeriodHistory.
+    Driver access is separately limited to 6 months.
+  */
+
+  const adminCutoff =
+    rollingMonthStartKey(
+      info.today,
+      24
+    );
+
+  if(adminCutoff){
+
+    await PayrollPeriodHistory
+      .deleteMany({
+        tenantId,
+        periodEnd:{
+          $lt:adminCutoff
+        }
+      });
+  }
 
   return info;
 }
@@ -2438,15 +2541,29 @@ router.get(
           req.authUser.role
         );
 
+      const info =
+        await ensureClosedPeriods(
+          req.authUser.tenantId
+        );
+
+      await enforceHistoryRetention(
+        req.authUser.tenantId,
+        info.today
+      );
+
       const filter = {
         tenantId:
           req.authUser
             .tenantId
       };
 
+      let retentionMonths = 24;
+
       if(
         role === "DRIVER"
       ){
+
+        retentionMonths = 6;
 
         filter.personType =
           "driver";
@@ -2494,9 +2611,18 @@ router.get(
           });
       }
 
-      await ensureClosedPeriods(
-        req.authUser.tenantId
-      );
+      const cutoff =
+        rollingMonthStartKey(
+          info.today,
+          retentionMonths
+        );
+
+      if(cutoff){
+
+        filter.periodEnd = {
+          $gte:cutoff
+        };
+      }
 
       const rows =
         await PayrollPeriodHistory
@@ -2505,11 +2631,20 @@ router.get(
             periodStart:-1,
             personName:1
           })
-          .limit(500)
+          .limit(1000)
           .lean();
 
       return res.json({
         success:true,
+
+        timezone:
+          info.timezone,
+
+        serverToday:
+          info.today,
+
+        retentionMonths,
+
         history:rows
       });
 
@@ -2529,5 +2664,221 @@ router.get(
     }
   }
 );
+
+
+/* =========================
+   ADMIN PAYROLL SUMMARY
+   LAST 24 ROLLING MONTHS
+
+   One row per CLOSED pay period:
+   - workers
+   - total hours
+   - driver trips
+   - total earnings
+========================= */
+
+router.get(
+  "/admin-summary",
+  requirePayrollAuth,
+  requireSuperAdmin,
+  async(req,res)=>{
+
+    try{
+
+      const info =
+        await ensureClosedPeriods(
+          req.authUser.tenantId
+        );
+
+      await enforceHistoryRetention(
+        req.authUser.tenantId,
+        info.today
+      );
+
+      const cutoff =
+        rollingMonthStartKey(
+          info.today,
+          24
+        );
+
+      const match = {
+        tenantId:
+          req.authUser.tenantId
+      };
+
+      if(cutoff){
+        match.periodEnd = {
+          $gte:cutoff
+        };
+      }
+
+      const rows =
+        await PayrollPeriodHistory
+          .find(match)
+          .sort({
+            periodStart:-1,
+            personName:1
+          })
+          .lean();
+
+      const groups =
+        new Map();
+
+      for(const row of rows){
+
+        const key =
+          `${row.periodStart}|${row.periodEnd}`;
+
+        if(!groups.has(key)){
+
+          groups.set(
+            key,
+            {
+              from:
+                row.periodStart,
+
+              to:
+                row.periodEnd,
+
+              workers:0,
+              totalHours:0,
+              totalTrips:0,
+              totalEarnings:0
+            }
+          );
+        }
+
+        const group =
+          groups.get(key);
+
+        group.workers += 1;
+
+        group.totalHours +=
+          Number(
+            row.totalHours ||
+            0
+          );
+
+        group.totalTrips +=
+          Number(
+            row.tripCount ||
+            0
+          );
+
+        group.totalEarnings +=
+          Number(
+            row.totalDue ||
+            0
+          );
+      }
+
+      const periods =
+        Array
+          .from(
+            groups.values()
+          )
+          .map(
+            row=>({
+              ...row,
+
+              totalHours:
+                hours(
+                  row.totalHours
+                ),
+
+              totalEarnings:
+                money(
+                  row.totalEarnings
+                )
+            })
+          )
+          .sort(
+            (a,b)=>
+              String(
+                b.from
+              ).localeCompare(
+                String(
+                  a.from
+                )
+              )
+          );
+
+      const totals =
+        periods.reduce(
+          (acc,row)=>{
+
+            acc.totalHours +=
+              Number(
+                row.totalHours ||
+                0
+              );
+
+            acc.totalTrips +=
+              Number(
+                row.totalTrips ||
+                0
+              );
+
+            acc.totalEarnings +=
+              Number(
+                row.totalEarnings ||
+                0
+              );
+
+            return acc;
+          },
+          {
+            totalHours:0,
+            totalTrips:0,
+            totalEarnings:0
+          }
+        );
+
+      return res.json({
+        success:true,
+
+        timezone:
+          info.timezone,
+
+        serverToday:
+          info.today,
+
+        retentionMonths:24,
+
+        totals:{
+          totalHours:
+            hours(
+              totals.totalHours
+            ),
+
+          totalTrips:
+            totals.totalTrips,
+
+          totalEarnings:
+            money(
+              totals.totalEarnings
+            )
+        },
+
+        periods
+      });
+
+    }catch(err){
+
+      console.log(
+        "ADMIN PAYROLL SUMMARY ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Payroll summary load failed"
+        });
+    }
+  }
+);
+
 
 module.exports = router;

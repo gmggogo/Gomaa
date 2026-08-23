@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Payroll Summary</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:#eef3f8;
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:#0f2747;
+}
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+
+.page{
+  max-width:1500px;
+  margin:0 auto;
+  padding:255px 20px 70px;
+}
+
+.title{
+  margin:0 0 20px;
+  text-align:center;
+  color:#d4a900;
+  font-size:36px;
+  font-weight:900;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.card{
+  padding:15px 17px;
+  border-radius:16px;
+  background:#fff;
+  border:1px solid rgba(212,169,0,.28);
+  box-shadow:0 7px 20px rgba(15,39,71,.06);
+  text-align:center;
+}
+
+.card span{
+  display:block;
+  color:#64748b;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.card b{
+  display:block;
+  margin-top:5px;
+  color:#0f2747;
+  font-size:22px;
+  font-weight:900;
+}
+
+.table-card{
+  overflow:hidden;
+  border-radius:18px;
+  background:#fff;
+  border:1px solid #dfe7f0;
+  box-shadow:0 9px 25px rgba(15,39,71,.08);
+}
+
+.table-wrap{
+  width:100%;
+  overflow:auto;
+}
+
+table{
+  width:100%;
+  min-width:850px;
+  border-collapse:collapse;
+}
+
+th{
+  padding:11px 10px;
+  background:#0f2747;
+  color:#fff;
+  text-align:left;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+td{
+  padding:11px 10px;
+  border-bottom:1px solid #e5ebf2;
+  font-size:12px;
+  font-weight:700;
+}
+
+tbody tr:nth-child(even) td{
+  background:#fbfdff;
+}
+
+.money{
+  color:#16a34a;
+  font-weight:900;
+}
+
+.note{
+  margin-top:10px;
+  text-align:center;
+  color:#64748b;
+  font-size:11px;
+  font-weight:800;
+}
+
+@media(max-width:900px){
+  .page{padding:310px 10px 60px}
+  .title{font-size:29px}
+  .cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<main class="page">
+
+  <h1 class="title">
+    Payroll Summary
+  </h1>
+
+  <section class="cards">
+
+    <div class="card">
+      <span>Total Hours — Last 24 Months</span>
+      <b id="totalHours">0 H 00 MIN</b>
+    </div>
+
+    <div class="card">
+      <span>Total Driver Trips</span>
+      <b id="totalTrips">0</b>
+    </div>
+
+    <div class="card">
+      <span>Total Payroll</span>
+      <b id="totalEarnings">$0.00</b>
+    </div>
+
+  </section>
+
+  <section class="table-card">
+    <div class="table-wrap">
+
+      <table>
+        <thead>
+          <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>Workers</th>
+            <th>Total Hours</th>
+            <th>Trips</th>
+            <th>Total Payroll</th>
+          </tr>
+        </thead>
+
+        <tbody id="summaryBody">
+          <tr>
+            <td colspan="6">
+              Loading...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </section>
+
+  <div class="note" id="retentionNote">
+    Payroll history is retained for the rolling last 24 months.
+  </div>
+
+</main>
+
+<script src="header.js"></script>
+<script src="payroll-summary.js"></script>
+
+</body>
+</html>

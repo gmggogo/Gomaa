@@ -12,7 +12,7 @@
     history:"trip-history.html",
     map:"map.html",
     hours:"work-hours.html",
-    earnings:"Earnings.html",
+    earnings:"earnings.html",
     summary:"summary.html",
     chat:"chat.html",
     login:"login.html"
@@ -50,6 +50,59 @@
       driver?.username ||
       driver?.email ||
       "Driver";
+  }
+
+  /* =========================
+     SUMMARY CARD NAME
+     summary.html is now the Earnings Summary page.
+  ========================= */
+
+  function syncSummaryCardName(){
+
+    const card =
+      $("cardSummary");
+
+    if(!card){
+      return;
+    }
+
+    const title =
+      card.querySelector(
+        ".summary-title"
+      );
+
+    if(title){
+      title.textContent =
+        "Earnings Summary";
+      return;
+    }
+
+    /*
+      Fallback for an older dashboard version
+      where cardSummary may contain plain text.
+    */
+    const textNodes =
+      Array.from(
+        card.childNodes
+      )
+      .filter(
+        node=>
+          node.nodeType ===
+          Node.TEXT_NODE
+      );
+
+    if(textNodes.length){
+      textNodes.forEach(
+        node=>
+          node.textContent = ""
+      );
+
+      card.appendChild(
+        document.createTextNode(
+          " Earnings Summary"
+        )
+      );
+    }
   }
 
   function go(pageKey){
@@ -136,6 +189,13 @@
     }
 
     loadDriverName();
+
+    /*
+      Keep dashboard label aligned with the new file purpose.
+      The destination remains summary.html.
+    */
+    syncSummaryCardName();
+
     bindNavigation();
     exposeGlobals();
 
@@ -146,6 +206,7 @@
         if(!document.hidden){
           ensureSession();
           loadDriverName();
+          syncSummaryCardName();
         }
 
       }

@@ -103,7 +103,14 @@ const admin=[
 ];
 const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
 const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
-const superAdminPayroll={l:"Payroll & Earnings",h:"payroll.html",i:"money"};
+const payrollGroup={
+  g:"Payroll",
+  i:"money",
+  items:[
+    ["Payroll & Earnings","payroll.html","money"],
+    ["Payroll Summary","payroll-summary.html","chart"]
+  ]
+};
 
 document.addEventListener("DOMContentLoaded",async()=>{
  const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
@@ -284,7 +291,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  if(currentRole!=="DISPATCHER")nav.push(...admin);
  if(currentRole==="SUPER_ADMIN"){
    nav.push(...extra);
-   nav.push(superAdminPayroll);
+   nav.push(payrollGroup);
  }
  if(currentRole!=="DISPATCHER")nav.push(settings);
 
