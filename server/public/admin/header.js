@@ -19,6 +19,68 @@ bolt:'<svg viewBox="0 0 24 24"><path d="m13 2-7 12h6l-1 8 7-12h-6z"/></svg>',
 building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/></svg>'
 };
 const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
+
+/* =========================
+   ADMIN FLOATING CHAT LOADER
+   Restores chat on every admin page
+========================= */
+
+(function loadAdminFloatingChat(){
+
+  if(window.ADMIN_CHAT_LOADER_STARTED){
+    return;
+  }
+
+  window.ADMIN_CHAT_LOADER_STARTED = true;
+
+  function injectChatScript(){
+
+    if(
+      window.SUNBEAM_ADMIN_FLOATING_CHAT ||
+      document.querySelector(
+        'script[src="/admin/admin-chat.js"]'
+      ) ||
+      document.querySelector(
+        'script[src="admin-chat.js"]'
+      )
+    ){
+      return;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src =
+      "/admin/admin-chat.js";
+
+    script.defer = true;
+
+    script.onerror = function(){
+      console.log(
+        "ADMIN CHAT LOAD ERROR"
+      );
+    };
+
+    document.body.appendChild(
+      script
+    );
+  }
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
+    document.addEventListener(
+      "DOMContentLoaded",
+      injectChatScript,
+      {once:true}
+    );
+  }else{
+    injectChatScript();
+  }
+
+})();
+
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
 const role=()=>{
   const r=norm(localStorage.getItem("role"));
@@ -219,19 +281,12 @@ document.addEventListener("DOMContentLoaded",async()=>{
  }
 
  let nav=[...core];
-
- if(currentRole!=="DISPATCHER"){
-   nav.push(...admin);
- }
-
+ if(currentRole!=="DISPATCHER")nav.push(...admin);
  if(currentRole==="SUPER_ADMIN"){
    nav.push(...extra);
    nav.push(superAdminPayroll);
  }
-
- if(currentRole!=="DISPATCHER"){
-   nav.push(settings);
- }
+ if(currentRole!=="DISPATCHER")nav.push(settings);
 
  const desktop=document.getElementById("adminDesktopNav");
  const mobile=document.getElementById("mobileSideNav");
