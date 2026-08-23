@@ -1,20 +1,27 @@
+const mongoose = require("mongoose");
+
 /* =========================================================
    FILE: models/Payroll.js
-   ONE FILE FOR:
+
+   ONE MODEL FILE FOR:
    - Payroll Profiles
    - Manual Employees
    - Manual Time Entries
    - Payment History
 ========================================================= */
 
+
 /* =========================
    PAYROLL PROFILE
 ========================= */
 
-const payrollProfileSchema = new mongoose.Schema(
+const payrollProfileSchema =
+new mongoose.Schema(
   {
+
     tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
+      type:
+        mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -62,6 +69,7 @@ const payrollProfileSchema = new mongoose.Schema(
       type:Boolean,
       default:true
     }
+
   },
   {
     timestamps:true
@@ -76,18 +84,23 @@ payrollProfileSchema.index(
   },
   {
     unique:true,
-    name:"tenant_payroll_profile_unique"
+    name:
+      "tenant_payroll_profile_unique"
   }
 );
+
 
 /* =========================
    MANUAL EMPLOYEE
 ========================= */
 
-const payrollEmployeeSchema = new mongoose.Schema(
+const payrollEmployeeSchema =
+new mongoose.Schema(
   {
+
     tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
+      type:
+        mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -128,6 +141,7 @@ const payrollEmployeeSchema = new mongoose.Schema(
       default:true,
       index:true
     }
+
   },
   {
     timestamps:true
@@ -140,15 +154,19 @@ payrollEmployeeSchema.index({
   name:1
 });
 
+
 /* =========================
    MANUAL TIME ENTRY
-   FOR NON-DRIVERS
+   NON-DRIVERS ONLY
 ========================= */
 
-const payrollTimeEntrySchema = new mongoose.Schema(
+const payrollTimeEntrySchema =
+new mongoose.Schema(
   {
+
     tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
+      type:
+        mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -198,6 +216,7 @@ const payrollTimeEntrySchema = new mongoose.Schema(
       default:"",
       trim:true
     }
+
   },
   {
     timestamps:true
@@ -213,18 +232,23 @@ payrollTimeEntrySchema.index(
   },
   {
     unique:true,
-    name:"tenant_payroll_daily_hours_unique"
+    name:
+      "tenant_payroll_daily_hours_unique"
   }
 );
+
 
 /* =========================
    PAYMENT HISTORY
 ========================= */
 
-const payrollPaymentSchema = new mongoose.Schema(
+const payrollPaymentSchema =
+new mongoose.Schema(
   {
+
     tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
+      type:
+        mongoose.Schema.Types.ObjectId,
       ref:"Tenant",
       required:true,
       index:true
@@ -310,7 +334,9 @@ const payrollPaymentSchema = new mongoose.Schema(
 
     status:{
       type:String,
-      enum:["PAID"],
+      enum:[
+        "PAID"
+      ],
       default:"PAID"
     },
 
@@ -324,6 +350,7 @@ const payrollPaymentSchema = new mongoose.Schema(
       default:"",
       trim:true
     }
+
   },
   {
     timestamps:true
@@ -340,9 +367,11 @@ payrollPaymentSchema.index(
   },
   {
     unique:true,
-    name:"tenant_payroll_payment_period_unique"
+    name:
+      "tenant_payroll_payment_period_unique"
   }
 );
+
 
 /* =========================
    MODELS
@@ -375,6 +404,11 @@ const PayrollPayment =
     "PayrollPayment",
     payrollPaymentSchema
   );
+
+
+/* =========================
+   EXPORT
+========================= */
 
 module.exports = {
   PayrollProfile,
