@@ -1147,6 +1147,22 @@ global.Trip = Trip;
 global.User = User;
 
 /* =========================
+   PAYROLL & EARNINGS ROUTES
+========================= */
+
+const payrollRoutes =
+  require("./routes/payrollRoutes");
+
+app.use(
+  "/api/payroll",
+  payrollRoutes
+);
+
+console.log(
+  "✅ payrollRoutes mounted on /api/payroll"
+);
+
+/* =========================
    DEFERRED TRIP PAYMENTS
    Save card now -> Hold 24h before -> Capture after trip
 ========================= */

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Earnings</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:#f1f5f9;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
+}
+
+.page{
+  max-width:760px;
+  margin:auto;
+  padding:22px 14px 110px;
+}
+
+.title{
+  font-size:30px;
+  font-weight:900;
+  margin:8px 0 18px;
+}
+
+.filters{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+  margin-bottom:18px;
+}
+
+.filter-btn{
+  border:none;
+  border-radius:14px;
+  padding:12px 8px;
+  font-weight:900;
+  background:#e2e8f0;
+  color:#334155;
+  cursor:pointer;
+}
+
+.filter-btn.active{
+  background:#0f2747;
+  color:#fff;
+}
+
+.summary{
+  background:#0f2747;
+  color:#fff;
+  border-radius:24px;
+  padding:22px;
+  margin-bottom:18px;
+  box-shadow:0 14px 30px rgba(15,39,71,.18);
+}
+
+.summary-period{
+  opacity:.75;
+  font-size:13px;
+  font-weight:700;
+}
+
+.summary-total{
+  font-size:42px;
+  font-weight:900;
+  margin-top:8px;
+}
+
+.summary-label{
+  opacity:.8;
+  font-size:13px;
+  font-weight:800;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.stat{
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.stat small{
+  display:block;
+  color:#64748b;
+  font-weight:800;
+  margin-bottom:5px;
+}
+
+.stat b{
+  font-size:22px;
+}
+
+.day-card{
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:11px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+
+.day-date{
+  font-weight:900;
+}
+
+.day-hours{
+  font-size:18px;
+  font-weight:900;
+}
+
+.running{
+  color:#15803d;
+  font-size:12px;
+  font-weight:900;
+}
+
+.empty,
+.error{
+  background:#fff;
+  border-radius:18px;
+  padding:24px;
+  text-align:center;
+  color:#64748b;
+  font-weight:800;
+}
+</style>
+</head>
+
+<body>
+
+<main class="page">
+
+  <div class="title">Earnings</div>
+
+  <div class="filters">
+    <button id="btn-today" class="filter-btn active">Today</button>
+    <button id="btn-week" class="filter-btn">Week</button>
+    <button id="btn-month" class="filter-btn">Month</button>
+  </div>
+
+  <section class="summary">
+    <div class="summary-period" id="periodLabel">-</div>
+    <div class="summary-total" id="totalDue">$0.00</div>
+    <div class="summary-label">Estimated Earnings</div>
+  </section>
+
+  <section class="stats">
+
+    <div class="stat">
+      <small>Total Hours</small>
+      <b id="totalHours">0.00</b>
+    </div>
+
+    <div class="stat">
+      <small>Regular Hours</small>
+      <b id="regularHours">0.00</b>
+    </div>
+
+    <div class="stat">
+      <small>Overtime Hours</small>
+      <b id="overtimeHours">0.00</b>
+    </div>
+
+    <div class="stat">
+      <small>Payment Status</small>
+      <b id="paymentStatus">UNPAID</b>
+    </div>
+
+    <div class="stat">
+      <small>Hourly Rate</small>
+      <b id="hourlyRate">$0.00</b>
+    </div>
+
+    <div class="stat">
+      <small>Overtime Rate</small>
+      <b id="overtimeRate">$0.00</b>
+    </div>
+
+  </section>
+
+  <div id="list"></div>
+
+</main>
+
+<script src="Earnings.js"></script>
+
+</body>
+</html>

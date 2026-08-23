@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Payroll & Earnings</title>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+body{
+  margin:0;
+  background:#f1f5f9;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
+}
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:1000;
+}
+.page-body{
+  max-width:1900px;
+  margin:auto;
+  padding:260px 22px 80px;
+}
+.page-title{
+  font-size:38px;
+  font-weight:900;
+  margin-bottom:24px;
+}
+.toolbar,
+.section-box{
+  background:#fff;
+  border-radius:24px;
+  padding:20px;
+  box-shadow:0 10px 30px rgba(15,23,42,.08);
+  margin-bottom:20px;
+}
+.toolbar{
+  display:flex;
+  gap:14px;
+  align-items:end;
+  flex-wrap:wrap;
+}
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.field label{
+  font-size:13px;
+  font-weight:800;
+  color:#475569;
+}
+.field input{
+  border:1px solid #cbd5e1;
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:14px;
+}
+.tabs{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:20px;
+}
+.tab-btn{
+  border:none;
+  border-radius:14px;
+  padding:12px 18px;
+  font-weight:900;
+  cursor:pointer;
+  background:#e2e8f0;
+  color:#334155;
+}
+.tab-btn.active{
+  background:#0f2747;
+  color:#fff;
+}
+.primary-btn,
+.save-btn,
+.paid-btn,
+.hours-btn{
+  border:none;
+  border-radius:14px;
+  padding:11px 15px;
+  font-weight:900;
+  cursor:pointer;
+}
+.primary-btn,
+.save-btn{
+  background:#145cff;
+  color:#fff;
+}
+.hours-btn{
+  background:#e2e8f0;
+  color:#0f172a;
+}
+.paid-btn{
+  background:#16a34a;
+  color:#fff;
+}
+.paid-btn[disabled]{
+  background:#94a3b8;
+  cursor:not-allowed;
+}
+.table-wrap{
+  overflow:auto;
+}
+table{
+  width:100%;
+  min-width:1250px;
+  border-collapse:collapse;
+}
+th{
+  background:#0f2747;
+  color:#fff;
+  padding:12px 10px;
+  text-align:left;
+  font-size:12px;
+  white-space:nowrap;
+}
+td{
+  padding:11px 10px;
+  border-bottom:1px solid #e2e8f0;
+  vertical-align:middle;
+}
+td input{
+  width:92px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:9px;
+}
+.name-cell{
+  font-weight:900;
+}
+.status-paid{
+  color:#15803d;
+  font-weight:900;
+}
+.status-unpaid{
+  color:#b45309;
+  font-weight:900;
+}
+.summary-row{
+  display:flex;
+  gap:18px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.summary-card{
+  background:#fff;
+  border-radius:18px;
+  padding:16px 20px;
+  min-width:180px;
+  box-shadow:0 8px 24px rgba(15,23,42,.06);
+}
+.summary-card b{
+  display:block;
+  font-size:24px;
+  margin-top:5px;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:5000;
+}
+.modal.show{
+  display:flex;
+}
+.modal-card{
+  width:min(520px,92vw);
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:0 30px 70px rgba(0,0,0,.25);
+}
+.modal-title{
+  font-size:24px;
+  font-weight:900;
+  margin-bottom:18px;
+}
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+@media(max-width:768px){
+  .page-body{
+    padding:320px 12px 60px;
+  }
+  .page-title{
+    font-size:30px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<main class="page-body">
+
+  <div class="page-title">Payroll & Earnings</div>
+
+  <div class="toolbar">
+
+    <div class="field">
+      <label>From</label>
+      <input type="date" id="fromDate">
+    </div>
+
+    <div class="field">
+      <label>To</label>
+      <input type="date" id="toDate">
+    </div>
+
+    <button class="primary-btn" id="loadBtn" type="button">
+      Load Period
+    </button>
+
+    <button
+      class="primary-btn"
+      id="addEmployeeBtn"
+      type="button"
+      style="display:none;">
+      + Add Employee
+    </button>
+
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-type="driver">Drivers</button>
+    <button class="tab-btn" data-type="dispatcher">Dispatchers</button>
+    <button class="tab-btn" data-type="admin">Admins</button>
+    <button class="tab-btn" data-type="super_admin">Super Admins</button>
+    <button class="tab-btn" data-type="employee">Employees</button>
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-card">
+      People
+      <b id="peopleCount">0</b>
+    </div>
+
+    <div class="summary-card">
+      Total Hours
+      <b id="allHours">0</b>
+    </div>
+
+    <div class="summary-card">
+      Total Due
+      <b id="allDue">$0.00</b>
+    </div>
+  </div>
+
+  <section class="section-box">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Regular Hrs</th>
+            <th>OT Hrs</th>
+            <th>Total Hrs</th>
+            <th>Hourly Rate</th>
+            <th>OT Rate</th>
+            <th>OT After / Week</th>
+            <th>Regular Pay</th>
+            <th>OT Pay</th>
+            <th>Total Due</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="payrollBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<div class="modal" id="hoursModal">
+  <div class="modal-card">
+
+    <div class="modal-title">Add / Update Work Hours</div>
+
+    <input type="hidden" id="hoursPersonId">
+
+    <div class="field">
+      <label>Work Date</label>
+      <input type="date" id="hoursDate">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Hours</label>
+      <input type="number" id="hoursValue" min="0" max="24" step="0.25">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Note</label>
+      <input type="text" id="hoursNote">
+    </div>
+
+    <div class="modal-actions">
+      <button class="hours-btn" id="closeHoursBtn" type="button">Cancel</button>
+      <button class="save-btn" id="saveHoursBtn" type="button">Save Hours</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="employeeModal">
+  <div class="modal-card">
+
+    <div class="modal-title">Add Employee</div>
+
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="employeeName">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Employee ID</label>
+      <input type="text" id="employeeNumber">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Job Title</label>
+      <input type="text" id="employeeJobTitle">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Phone</label>
+      <input type="text" id="employeePhone">
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Email</label>
+      <input type="email" id="employeeEmail">
+    </div>
+
+    <div class="modal-actions">
+      <button class="hours-btn" id="closeEmployeeBtn" type="button">Cancel</button>
+      <button class="save-btn" id="saveEmployeeBtn" type="button">Save Employee</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="header.js"></script>
+<script>
+if(typeof loadHeader === "function"){
+  loadHeader("Payroll & Earnings");
+}
+</script>
+
+<script src="payroll.js"></script>
+
+</body>
+</html>
