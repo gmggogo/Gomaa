@@ -3,17 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
 <title>Payroll & Earnings</title>
 
 <link rel="stylesheet" href="style.css">
 
 <style>
+*{
+  box-sizing:border-box;
+}
+
 body{
   margin:0;
-  background:#f1f5f9;
-  font-family:'Segoe UI',sans-serif;
-  color:#0f172a;
+  background:#eef3f8;
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:#0f2747;
 }
+
 #adminHeader{
   position:fixed;
   top:0;
@@ -21,184 +27,434 @@ body{
   width:100%;
   z-index:1000;
 }
-.page-body{
+
+.payroll-page{
   max-width:1900px;
-  margin:auto;
-  padding:260px 22px 80px;
+  margin:0 auto;
+  padding:255px 22px 80px;
 }
+
+/* =========================
+   TITLE
+========================= */
+
 .page-title{
+  margin:0 0 24px;
+  width:100%;
+  text-align:center;
+  color:#d4a900;
   font-size:38px;
+  line-height:1.1;
   font-weight:900;
-  margin-bottom:24px;
+  letter-spacing:.5px;
 }
-.toolbar,
-.section-box{
-  background:#fff;
-  border-radius:24px;
-  padding:20px;
-  box-shadow:0 10px 30px rgba(15,23,42,.08);
-  margin-bottom:20px;
-}
+
+/* =========================
+   TOOLBAR
+========================= */
+
 .toolbar{
   display:flex;
+  align-items:flex-end;
+  justify-content:center;
   gap:14px;
-  align-items:end;
   flex-wrap:wrap;
+
+  margin-bottom:18px;
+  padding:18px;
+
+  background:#ffffff;
+  border:1px solid #dfe7f0;
+  border-radius:20px;
+
+  box-shadow:0 8px 24px rgba(15,39,71,.08);
 }
+
 .field{
   display:flex;
   flex-direction:column;
-  gap:7px;
+  gap:6px;
 }
+
 .field label{
-  font-size:13px;
-  font-weight:800;
-  color:#475569;
-}
-.field input{
-  border:1px solid #cbd5e1;
-  border-radius:14px;
-  padding:12px 14px;
-  font-size:14px;
-}
-.tabs{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:20px;
-}
-.tab-btn{
-  border:none;
-  border-radius:14px;
-  padding:12px 18px;
+  color:#53657a;
+  font-size:12px;
   font-weight:900;
-  cursor:pointer;
-  background:#e2e8f0;
-  color:#334155;
 }
-.tab-btn.active{
+
+.field input{
+  height:42px;
+  min-width:150px;
+  padding:0 12px;
+
+  border:1px solid #cbd6e2;
+  border-radius:11px;
+
+  background:#fff;
+  color:#0f2747;
+
+  font-size:14px;
+  font-weight:700;
+  outline:none;
+}
+
+.field input:focus{
+  border-color:#d4a900;
+  box-shadow:0 0 0 3px rgba(212,169,0,.12);
+}
+
+.primary-btn{
+  height:42px;
+  padding:0 18px;
+
+  border:0;
+  border-radius:11px;
+
   background:#0f2747;
   color:#fff;
-}
-.primary-btn,
-.save-btn,
-.paid-btn,
-.hours-btn{
-  border:none;
-  border-radius:14px;
-  padding:11px 15px;
+
   font-weight:900;
   cursor:pointer;
 }
-.primary-btn,
+
+.primary-btn:hover{
+  background:#173f70;
+}
+
+/* =========================
+   TABS
+========================= */
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+
+  margin-bottom:18px;
+}
+
+.tab-btn{
+  min-width:130px;
+  padding:12px 18px;
+
+  border:1px solid rgba(212,169,0,.55);
+  border-radius:14px;
+
+  background:linear-gradient(180deg,#ffffff,#edf3f9);
+  color:#0f2747;
+
+  box-shadow:0 5px 14px rgba(15,39,71,.08);
+
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.tab-btn:hover{
+  border-color:#d4a900;
+  transform:translateY(-1px);
+}
+
+.tab-btn.active{
+  background:linear-gradient(180deg,#173f70,#0f2747);
+  color:#ffd21f;
+  border-color:#d4a900;
+
+  box-shadow:
+    0 7px 16px rgba(15,39,71,.18),
+    inset 0 0 0 1px rgba(255,210,31,.14);
+}
+
+/* =========================
+   SUMMARY
+========================= */
+
+.summary-row{
+  display:flex;
+  justify-content:center;
+  gap:14px;
+  flex-wrap:wrap;
+
+  margin-bottom:18px;
+}
+
+.summary-card{
+  min-width:180px;
+  padding:14px 20px;
+
+  background:#fff;
+  border:1px solid rgba(212,169,0,.30);
+  border-radius:16px;
+
+  box-shadow:0 7px 20px rgba(15,39,71,.06);
+
+  color:#64748b;
+  text-align:center;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.summary-card b{
+  display:block;
+  margin-top:4px;
+
+  color:#0f2747;
+  font-size:24px;
+  font-weight:900;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-card{
+  overflow:hidden;
+
+  background:#fff;
+  border:1px solid #dfe7f0;
+  border-radius:20px;
+
+  box-shadow:0 10px 28px rgba(15,39,71,.08);
+}
+
+.table-wrap{
+  width:100%;
+  overflow:auto;
+}
+
+table{
+  width:100%;
+  min-width:1320px;
+  border-collapse:collapse;
+}
+
+thead th{
+  padding:12px 10px;
+
+  background:#0f2747;
+  color:#fff;
+
+  border-right:1px solid rgba(255,255,255,.08);
+
+  text-align:left;
+  white-space:nowrap;
+
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+tbody td{
+  padding:10px;
+  border-bottom:1px solid #e5ebf2;
+
+  background:#fff;
+  vertical-align:middle;
+
+  font-size:13px;
+}
+
+tbody tr:nth-child(even) td{
+  background:#fbfdff;
+}
+
+tbody tr:hover td{
+  background:#f4f8fc;
+}
+
+/* NAME CELL */
+
+.name-cell{
+  min-width:175px;
+
+  color:#0f2747;
+  font-weight:900;
+
+  background:linear-gradient(90deg,#fff7cf,#ffffff) !important;
+  border-left:4px solid #d4a900;
+}
+
+tbody tr:nth-child(even) .name-cell{
+  background:linear-gradient(90deg,#eaf2ff,#ffffff) !important;
+  border-left-color:#0f2747;
+}
+
+.name-sub{
+  margin-top:4px;
+  color:#718096;
+  font-size:11px;
+  font-weight:700;
+}
+
+/* INPUTS */
+
+.rate-input{
+  width:84px;
+  height:36px;
+
+  padding:0 8px;
+
+  border:1px solid #cbd6e2;
+  border-radius:9px;
+
+  background:#fff;
+  color:#0f2747;
+
+  text-align:center;
+  font-size:13px;
+  font-weight:800;
+}
+
+.rate-input:disabled{
+  background:#eef2f6;
+  color:#58697b;
+  border-color:#dde4eb;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.edit-btn,
+.save-btn,
+.hours-btn,
+.paid-btn{
+  min-height:34px;
+  padding:0 11px;
+
+  border:0;
+  border-radius:9px;
+
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.edit-btn{
+  background:#e8eef6;
+  color:#0f2747;
+}
+
 .save-btn{
   background:#145cff;
   color:#fff;
 }
+
 .hours-btn{
-  background:#e2e8f0;
-  color:#0f172a;
+  background:#dbeafe;
+  color:#174a8b;
 }
+
 .paid-btn{
   background:#16a34a;
   color:#fff;
 }
-.paid-btn[disabled]{
-  background:#94a3b8;
+
+.edit-btn:disabled,
+.save-btn:disabled,
+.hours-btn:disabled,
+.paid-btn:disabled{
+  opacity:.48;
   cursor:not-allowed;
 }
-.table-wrap{
-  overflow:auto;
-}
-table{
-  width:100%;
-  min-width:1250px;
-  border-collapse:collapse;
-}
-th{
-  background:#0f2747;
-  color:#fff;
-  padding:12px 10px;
-  text-align:left;
-  font-size:12px;
-  white-space:nowrap;
-}
-td{
-  padding:11px 10px;
-  border-bottom:1px solid #e2e8f0;
-  vertical-align:middle;
-}
-td input{
-  width:92px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  padding:9px;
-}
-.name-cell{
-  font-weight:900;
-}
+
 .status-paid{
   color:#15803d;
   font-weight:900;
 }
+
 .status-unpaid{
   color:#b45309;
   font-weight:900;
 }
-.summary-row{
-  display:flex;
-  gap:18px;
-  flex-wrap:wrap;
-  margin-bottom:18px;
-}
-.summary-card{
-  background:#fff;
-  border-radius:18px;
-  padding:16px 20px;
-  min-width:180px;
-  box-shadow:0 8px 24px rgba(15,23,42,.06);
-}
-.summary-card b{
-  display:block;
-  font-size:24px;
-  margin-top:5px;
-}
+
+/* =========================
+   MODALS
+========================= */
+
 .modal{
   position:fixed;
   inset:0;
-  background:rgba(15,23,42,.55);
+  z-index:5000;
+
   display:none;
   align-items:center;
   justify-content:center;
-  z-index:5000;
+
+  padding:18px;
+
+  background:rgba(5,20,40,.55);
 }
+
 .modal.show{
   display:flex;
 }
+
 .modal-card{
-  width:min(520px,92vw);
+  width:min(520px,96vw);
+  padding:22px;
+
   background:#fff;
-  border-radius:24px;
-  padding:24px;
-  box-shadow:0 30px 70px rgba(0,0,0,.25);
+  border-radius:20px;
+
+  box-shadow:0 24px 60px rgba(0,0,0,.28);
 }
+
 .modal-title{
-  font-size:24px;
+  margin-bottom:16px;
+
+  color:#0f2747;
+  font-size:22px;
   font-weight:900;
-  margin-bottom:18px;
 }
+
+.modal-card .field{
+  margin-top:11px;
+}
+
+.modal-card .field input{
+  width:100%;
+  min-width:0;
+}
+
 .modal-actions{
   display:flex;
   justify-content:flex-end;
-  gap:10px;
+  gap:9px;
+
   margin-top:18px;
 }
-@media(max-width:768px){
-  .page-body{
-    padding:320px 12px 60px;
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:900px){
+
+  .payroll-page{
+    padding:310px 10px 60px;
   }
+
   .page-title{
     font-size:30px;
+  }
+
+  .toolbar{
+    padding:14px;
+  }
+
+  .tab-btn{
+    min-width:110px;
+    padding:10px 12px;
+    font-size:12px;
   }
 }
 </style>
@@ -208,23 +464,28 @@ td input{
 
 <div id="adminHeader"></div>
 
-<main class="page-body">
+<main class="payroll-page">
 
-  <div class="page-title">Payroll & Earnings</div>
+  <h1 class="page-title">
+    Payroll & Earnings
+  </h1>
 
-  <div class="toolbar">
+  <section class="toolbar">
 
     <div class="field">
-      <label>From</label>
+      <label>FROM</label>
       <input type="date" id="fromDate">
     </div>
 
     <div class="field">
-      <label>To</label>
+      <label>TO</label>
       <input type="date" id="toDate">
     </div>
 
-    <button class="primary-btn" id="loadBtn" type="button">
+    <button
+      class="primary-btn"
+      id="loadBtn"
+      type="button">
       Load Period
     </button>
 
@@ -236,17 +497,49 @@ td input{
       + Add Employee
     </button>
 
-  </div>
+  </section>
 
-  <div class="tabs">
-    <button class="tab-btn active" data-type="driver">Drivers</button>
-    <button class="tab-btn" data-type="dispatcher">Dispatchers</button>
-    <button class="tab-btn" data-type="admin">Admins</button>
-    <button class="tab-btn" data-type="super_admin">Super Admins</button>
-    <button class="tab-btn" data-type="employee">Employees</button>
-  </div>
+  <section class="tabs">
 
-  <div class="summary-row">
+    <button
+      class="tab-btn active"
+      data-type="driver"
+      type="button">
+      Drivers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="dispatcher"
+      type="button">
+      Dispatchers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="admin"
+      type="button">
+      Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="super_admin"
+      type="button">
+      Super Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="employee"
+      type="button">
+      Employees
+    </button>
+
+  </section>
+
+  <section class="summary-row">
+
     <div class="summary-card">
       People
       <b id="peopleCount">0</b>
@@ -254,18 +547,22 @@ td input{
 
     <div class="summary-card">
       Total Hours
-      <b id="allHours">0</b>
+      <b id="allHours">0.00</b>
     </div>
 
     <div class="summary-card">
       Total Due
       <b id="allDue">$0.00</b>
     </div>
-  </div>
 
-  <section class="section-box">
+  </section>
+
+  <section class="table-card">
+
     <div class="table-wrap">
+
       <table>
+
         <thead>
           <tr>
             <th>Name</th>
@@ -284,86 +581,125 @@ td input{
         </thead>
 
         <tbody id="payrollBody"></tbody>
+
       </table>
+
     </div>
+
   </section>
 
 </main>
 
+<!-- HOURS MODAL -->
 <div class="modal" id="hoursModal">
+
   <div class="modal-card">
 
-    <div class="modal-title">Add / Update Work Hours</div>
+    <div class="modal-title">
+      Add / Update Work Hours
+    </div>
 
     <input type="hidden" id="hoursPersonId">
 
     <div class="field">
-      <label>Work Date</label>
+      <label>WORK DATE</label>
       <input type="date" id="hoursDate">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Hours</label>
-      <input type="number" id="hoursValue" min="0" max="24" step="0.25">
+    <div class="field">
+      <label>HOURS</label>
+      <input
+        type="number"
+        id="hoursValue"
+        min="0"
+        max="24"
+        step="0.25">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Note</label>
+    <div class="field">
+      <label>NOTE</label>
       <input type="text" id="hoursNote">
     </div>
 
     <div class="modal-actions">
-      <button class="hours-btn" id="closeHoursBtn" type="button">Cancel</button>
-      <button class="save-btn" id="saveHoursBtn" type="button">Save Hours</button>
+
+      <button
+        class="edit-btn"
+        id="closeHoursBtn"
+        type="button">
+        Cancel
+      </button>
+
+      <button
+        class="save-btn"
+        id="saveHoursBtn"
+        type="button">
+        Save Hours
+      </button>
+
     </div>
+
   </div>
+
 </div>
 
+<!-- EMPLOYEE MODAL -->
 <div class="modal" id="employeeModal">
+
   <div class="modal-card">
 
-    <div class="modal-title">Add Employee</div>
+    <div class="modal-title">
+      Add Employee
+    </div>
 
     <div class="field">
-      <label>Name</label>
+      <label>NAME</label>
       <input type="text" id="employeeName">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Employee ID</label>
+    <div class="field">
+      <label>EMPLOYEE ID</label>
       <input type="text" id="employeeNumber">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Job Title</label>
+    <div class="field">
+      <label>JOB TITLE</label>
       <input type="text" id="employeeJobTitle">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Phone</label>
+    <div class="field">
+      <label>PHONE</label>
       <input type="text" id="employeePhone">
     </div>
 
-    <div class="field" style="margin-top:12px;">
-      <label>Email</label>
+    <div class="field">
+      <label>EMAIL</label>
       <input type="email" id="employeeEmail">
     </div>
 
     <div class="modal-actions">
-      <button class="hours-btn" id="closeEmployeeBtn" type="button">Cancel</button>
-      <button class="save-btn" id="saveEmployeeBtn" type="button">Save Employee</button>
+
+      <button
+        class="edit-btn"
+        id="closeEmployeeBtn"
+        type="button">
+        Cancel
+      </button>
+
+      <button
+        class="save-btn"
+        id="saveEmployeeBtn"
+        type="button">
+        Save Employee
+      </button>
+
     </div>
 
   </div>
+
 </div>
 
 <script src="header.js"></script>
-<script>
-if(typeof loadHeader === "function"){
-  loadHeader("Payroll & Earnings");
-}
-</script>
-
 <script src="payroll.js"></script>
 
 </body>
