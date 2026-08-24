@@ -31,8 +31,7 @@ body{
 ================================ */
 
 #adminHeader{
-  position:sticky;
-  top:0;
+  width:100%;
   z-index:1000;
 }
 
@@ -41,27 +40,39 @@ body{
 ================================ */
 
 .page-body{
-  padding:22px;
+  padding:18px 22px 30px;
   width:100%;
 }
 
 .page-head{
-  background:#fff;
-  border:1px solid #dbe3ee;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
   border-radius:18px;
-  padding:18px 20px;
-  margin-bottom:16px;
-  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
 }
 
 .page-title{
-  font-size:26px;
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
   font-weight:900;
-  color:#0f172a;
+  color:#111827;
 }
 
 .page-sub{
-  margin-top:6px;
+  margin-top:5px;
   color:#64748b;
   font-size:13px;
   font-weight:800;
@@ -604,7 +615,21 @@ body{
 
 @media(max-width:900px){
   .page-body{
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
     padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
   }
 
   .layout{
@@ -672,9 +697,11 @@ body{
 <div class="page-body">
 
   <div class="page-head">
-    <div class="page-title">Facility Pricing Override</div>
-    <div class="page-sub">
-      OFF = use Service Management. ON = this facility uses its own pricing only.
+    <div>
+      <h1 class="page-title">Facility Pricing Override</h1>
+      <div class="page-sub">
+        OFF = use Service Management. ON = this facility uses its own pricing only.
+      </div>
     </div>
   </div>
 
