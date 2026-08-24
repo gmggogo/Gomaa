@@ -19,7 +19,7 @@ body{
 .page{
   max-width:1500px;
   margin:auto;
-  padding:38px 28px 28px;
+  padding:42px 28px 28px;
 }
 
 h2{
@@ -75,7 +75,7 @@ h2{
 @media(max-width:900px){
   .page{
     max-width:100%;
-    padding:24px 10px 20px;
+    padding:28px 10px 20px;
   }
 
   h2{
@@ -92,8 +92,8 @@ h2{
 
 <body>
 
-<!-- 🔥 HEADER -->
-<div id="header"></div>
+<!-- ADMIN HEADER -->
+<div id="adminHeader"></div>
 
 <div class="page">
 
@@ -126,14 +126,8 @@ h2{
 
 </div>
 
-<!-- 🔥 HEADER LOAD -->
-<script>
-fetch("/admin/header.html")
-  .then(res => res.text())
-  .then(data => {
-    document.getElementById("header").innerHTML = data;
-  });
-</script>
+<!-- SAME FULL ADMIN HEADER LOADER AS THE OTHER ADMIN PAGES -->
+<script src="/admin/header.js"></script>
 
 <script>
 
