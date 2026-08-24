@@ -24,34 +24,76 @@ background:#f1f5f9;
 /* HEADER */
 
 #adminHeader{
-position:fixed;
-top:0;
-left:0;
 width:100%;
 z-index:1000;
 }
 
 /* PAGE */
 
-.page-body{
-padding-top:300px;
-padding-left:20px;
-padding-right:20px;
-padding-bottom:40px;
-max-width:1700px;
-margin:auto;
+.page-content{
+padding:18px 22px 30px;
+width:100%;
 }
 
 /* MOBILE */
 
 @media(max-width:768px){
 
-.page-body{
-padding-top:360px;
-padding-left:10px;
-padding-right:10px;
+.page-content{
+padding:10px 8px 20px;
 }
 
+.page-head{
+min-height:72px;
+padding:12px;
+margin-bottom:10px;
+}
+
+.page-main-title{
+font-size:22px;
+}
+
+.page-main-sub{
+font-size:11px;
+}
+
+}
+
+
+/* GOLD PAGE TITLE — SAME AS TRIPS HUB */
+
+.page-head{
+display:flex;
+align-items:center;
+justify-content:center;
+min-height:84px;
+margin-bottom:12px;
+padding:16px 20px;
+border:1px solid #e0be5a;
+border-radius:18px;
+background:linear-gradient(
+135deg,
+#fff8dc 0%,
+#f8e6ae 48%,
+#fff4cf 100%
+);
+box-shadow:0 8px 22px rgba(146,102,14,.13);
+text-align:center;
+}
+
+.page-main-title{
+margin:0;
+font-size:28px;
+line-height:1.1;
+font-weight:900;
+color:#111827;
+}
+
+.page-main-sub{
+margin-top:5px;
+font-size:13px;
+font-weight:800;
+color:#64748b;
 }
 
 /* LAYOUT */
@@ -270,7 +312,14 @@ color:#991b1b;
 <div id="adminHeader"></div>
 
 <!-- PAGE -->
-<div class="page-body">
+<div class="page-content">
+
+<div class="page-head">
+  <div>
+    <h1 class="page-main-title">Add User</h1>
+    <div class="page-main-sub">Create and manage staff, drivers and companies</div>
+  </div>
+</div>
 
 <div class="layout">
 
