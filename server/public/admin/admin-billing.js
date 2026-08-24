@@ -670,13 +670,15 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="company-box">
 
                 <div class="company-name">
-                  ${c.username || c.name || "--"}
+                  ${c.name || "--"}
                 </div>
 
                 <div class="company-small">
                   ${c.email || "--"}
                   <br>
                   ${c.phone || "--"}
+                  <br>
+                  ${c.username || "--"}
                 </div>
 
               </div>
