@@ -367,6 +367,50 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
  document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
 
+
+ /* =========================
+    STAFF PAYROLL SIGN IN
+    Load only after header.html exists.
+ ========================= */
+
+ (function loadStaffPayrollSignin(){
+
+   if(
+     document.querySelector(
+       'script[src="/admin/staff-signin.js"]'
+     ) ||
+     document.querySelector(
+       'script[src="staff-signin.js"]'
+     )
+   ){
+     return;
+   }
+
+   const script =
+     document.createElement(
+       "script"
+     );
+
+   script.src =
+     "/admin/staff-signin.js";
+
+   script.defer =
+     true;
+
+   script.onerror =
+     function(){
+
+       console.log(
+         "STAFF SIGN IN LOAD ERROR"
+       );
+     };
+
+   document.body.appendChild(
+     script
+   );
+
+ })();
+
  const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
  function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
 

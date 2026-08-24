@@ -3,19 +3,47 @@ const mongoose = require("mongoose");
 /* =========================================================
    FILE: models/Payroll.js
 
-   ONE MODEL FILE FOR:
-   - Payroll Profiles
-   - Manual Employees
-   - Manual Time Entries
-   - Company Pay Period Settings
-   - Automatic Closed Period History
+   ONE PAYROLL MODEL FILE
+
+   ACTIVE SYSTEM:
+   - Driver payroll profiles
+   - Staff payroll profiles
+   - Company pay-period settings
+   - Staff work schedules
+   - Staff daily Sign In attendance
+   - Closed payroll period history
+
+   STAFF TYPES:
+   - dispatcher
+   - admin
+   - super_admin
 
    IMPORTANT:
-   - NO Paid / Unpaid workflow.
-   - NO Mark Paid workflow.
-   - Pay period is company-wide per tenant.
-   - Current period rolls automatically by tenant timezone.
+   - No manual employee payroll.
+   - No Paid / Unpaid.
+   - No Mark Paid.
+   - Staff Sign In is attendance confirmation only.
+   - One successful Sign In credits the scheduled hours
+     for that day; no Sign Out is required.
 ========================================================= */
+
+
+/* =========================
+   COMMONS
+========================= */
+
+const PERSON_TYPES = [
+  "driver",
+  "dispatcher",
+  "admin",
+  "super_admin"
+];
+
+const STAFF_TYPES = [
+  "dispatcher",
+  "admin",
+  "super_admin"
+];
 
 
 /* =========================
@@ -34,13 +62,7 @@ new mongoose.Schema(
 
     personType:{
       type:String,
-      enum:[
-        "driver",
-        "dispatcher",
-        "admin",
-        "super_admin",
-        "employee"
-      ],
+      enum:PERSON_TYPES,
       required:true,
       index:true
     },
@@ -64,6 +86,10 @@ new mongoose.Schema(
       min:0
     },
 
+    /*
+      Weekly regular-hour limit.
+      Hours above this amount become overtime.
+    */
     overtimeAfterHours:{
       type:Number,
       default:40,
@@ -94,159 +120,7 @@ payrollProfileSchema.index(
 
 
 /* =========================
-   MANUAL EMPLOYEE
-========================= */
-
-const payrollEmployeeSchema =
-new mongoose.Schema(
-  {
-    tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
-      ref:"Tenant",
-      required:true,
-      index:true
-    },
-
-    name:{
-      type:String,
-      required:true,
-      trim:true
-    },
-
-    employeeNumber:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    jobTitle:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    phone:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    email:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    active:{
-      type:Boolean,
-      default:true,
-      index:true
-    }
-  },
-  {
-    timestamps:true
-  }
-);
-
-payrollEmployeeSchema.index({
-  tenantId:1,
-  active:1,
-  name:1
-});
-
-
-/* =========================
-   MANUAL TIME ENTRY
-   NON-DRIVERS ONLY
-========================= */
-
-const payrollTimeEntrySchema =
-new mongoose.Schema(
-  {
-    tenantId:{
-      type:mongoose.Schema.Types.ObjectId,
-      ref:"Tenant",
-      required:true,
-      index:true
-    },
-
-    personType:{
-      type:String,
-      enum:[
-        "dispatcher",
-        "admin",
-        "super_admin",
-        "employee"
-      ],
-      required:true,
-      index:true
-    },
-
-    personId:{
-      type:String,
-      required:true,
-      trim:true,
-      index:true
-    },
-
-    workDate:{
-      type:String,
-      required:true,
-      trim:true,
-      index:true
-    },
-
-    hours:{
-      type:Number,
-      required:true,
-      min:0,
-      max:24
-    },
-
-    note:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    enteredBy:{
-      type:String,
-      default:"",
-      trim:true
-    }
-  },
-  {
-    timestamps:true
-  }
-);
-
-payrollTimeEntrySchema.index(
-  {
-    tenantId:1,
-    personType:1,
-    personId:1,
-    workDate:1
-  },
-  {
-    unique:true,
-    name:"tenant_payroll_daily_hours_unique"
-  }
-);
-
-
-/* =========================
-   COMPANY PAY PERIOD SETTINGS
-
-   Example:
-   anchorStart = 2026-08-23
-   periodLengthDays = 7
-
-   Then periods are:
-   Aug 23 -> Aug 29
-   Aug 30 -> Sep 05
-   etc.
-
-   Current period is derived from tenant timezone.
+   COMPANY PAY PERIOD
 ========================= */
 
 const payrollPeriodSettingsSchema =
@@ -260,6 +134,15 @@ new mongoose.Schema(
       index:true
     },
 
+    /*
+      Example:
+      anchorStart = 2026-08-23
+      periodLengthDays = 7
+
+      Periods repeat automatically:
+      Aug 23 -> Aug 29
+      Aug 30 -> Sep 05
+    */
     anchorStart:{
       type:String,
       required:true,
@@ -293,10 +176,234 @@ new mongoose.Schema(
 
 
 /* =========================
-   AUTOMATIC PERIOD HISTORY
+   STAFF WORK SCHEDULE
+========================= */
 
-   Snapshot made automatically after a pay period ends.
-   This is history only — it does NOT mean money was paid.
+const staffDaySchema =
+new mongoose.Schema(
+  {
+    enabled:{
+      type:Boolean,
+      default:false
+    },
+
+    /*
+      Hours credited after successful Sign In
+      on this scheduled day.
+    */
+    hours:{
+      type:Number,
+      default:0,
+      min:0,
+      max:24
+    }
+  },
+  {
+    _id:false
+  }
+);
+
+function defaultDay(){
+  return {
+    enabled:false,
+    hours:0
+  };
+}
+
+const payrollStaffScheduleSchema =
+new mongoose.Schema(
+  {
+    tenantId:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Tenant",
+      required:true,
+      index:true
+    },
+
+    personType:{
+      type:String,
+      enum:STAFF_TYPES,
+      required:true,
+      index:true
+    },
+
+    personId:{
+      type:String,
+      required:true,
+      trim:true,
+      index:true
+    },
+
+    /*
+      Master switch requested by the user.
+      Disabled = Sign In never appears and no
+      schedule-based payroll is credited.
+    */
+    payrollEnabled:{
+      type:Boolean,
+      default:false,
+      index:true
+    },
+
+    days:{
+      sun:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      mon:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      tue:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      wed:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      thu:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      fri:{
+        type:staffDaySchema,
+        default:defaultDay
+      },
+
+      sat:{
+        type:staffDaySchema,
+        default:defaultDay
+      }
+    },
+
+    updatedBy:{
+      type:String,
+      default:"",
+      trim:true
+    }
+  },
+  {
+    timestamps:true
+  }
+);
+
+payrollStaffScheduleSchema.index(
+  {
+    tenantId:1,
+    personType:1,
+    personId:1
+  },
+  {
+    unique:true,
+    name:"tenant_staff_payroll_schedule_unique"
+  }
+);
+
+
+/* =========================
+   STAFF DAILY ATTENDANCE
+========================= */
+
+const payrollAttendanceSchema =
+new mongoose.Schema(
+  {
+    tenantId:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Tenant",
+      required:true,
+      index:true
+    },
+
+    personType:{
+      type:String,
+      enum:STAFF_TYPES,
+      required:true,
+      index:true
+    },
+
+    personId:{
+      type:String,
+      required:true,
+      trim:true,
+      index:true
+    },
+
+    /*
+      Tenant-local calendar date.
+      Example: 2026-08-24
+    */
+    workDate:{
+      type:String,
+      required:true,
+      trim:true,
+      index:true
+    },
+
+    dayKey:{
+      type:String,
+      enum:[
+        "sun",
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat"
+      ],
+      required:true
+    },
+
+    /*
+      Snapshot of scheduled hours at Sign In.
+      Later schedule edits do not change the
+      already signed day.
+    */
+    creditedHours:{
+      type:Number,
+      required:true,
+      min:0,
+      max:24
+    },
+
+    signedAt:{
+      type:Date,
+      default:Date.now,
+      required:true
+    },
+
+    timezone:{
+      type:String,
+      default:"",
+      trim:true
+    }
+  },
+  {
+    timestamps:true
+  }
+);
+
+payrollAttendanceSchema.index(
+  {
+    tenantId:1,
+    personType:1,
+    personId:1,
+    workDate:1
+  },
+  {
+    unique:true,
+    name:"tenant_staff_daily_signin_unique"
+  }
+);
+
+
+/* =========================
+   CLOSED PERIOD HISTORY
 ========================= */
 
 const payrollPeriodHistorySchema =
@@ -311,6 +418,12 @@ new mongoose.Schema(
 
     personType:{
       type:String,
+      /*
+        "employee" remains accepted only so old
+        snapshots already stored in MongoDB do
+        not create migration problems.
+        New payroll routes never create it.
+      */
       enum:[
         "driver",
         "dispatcher",
@@ -437,6 +550,72 @@ payrollPeriodHistorySchema.index(
 
 
 /* =========================
+   LEGACY MODELS
+   Kept only so old collections/imports do not
+   crash a previous deployment. New routes do
+   not expose Employees or manual time entry.
+========================= */
+
+const legacyPayrollEmployeeSchema =
+new mongoose.Schema(
+  {
+    tenantId:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Tenant",
+      index:true
+    },
+
+    name:{
+      type:String,
+      default:""
+    },
+
+    active:{
+      type:Boolean,
+      default:false
+    }
+  },
+  {
+    timestamps:true
+  }
+);
+
+const legacyPayrollTimeEntrySchema =
+new mongoose.Schema(
+  {
+    tenantId:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Tenant",
+      index:true
+    },
+
+    personType:{
+      type:String,
+      default:""
+    },
+
+    personId:{
+      type:String,
+      default:""
+    },
+
+    workDate:{
+      type:String,
+      default:""
+    },
+
+    hours:{
+      type:Number,
+      default:0
+    }
+  },
+  {
+    timestamps:true
+  }
+);
+
+
+/* =========================
    MODELS
 ========================= */
 
@@ -447,25 +626,25 @@ const PayrollProfile =
     payrollProfileSchema
   );
 
-const PayrollEmployee =
-  mongoose.models.PayrollEmployee ||
-  mongoose.model(
-    "PayrollEmployee",
-    payrollEmployeeSchema
-  );
-
-const PayrollTimeEntry =
-  mongoose.models.PayrollTimeEntry ||
-  mongoose.model(
-    "PayrollTimeEntry",
-    payrollTimeEntrySchema
-  );
-
 const PayrollPeriodSettings =
   mongoose.models.PayrollPeriodSettings ||
   mongoose.model(
     "PayrollPeriodSettings",
     payrollPeriodSettingsSchema
+  );
+
+const PayrollStaffSchedule =
+  mongoose.models.PayrollStaffSchedule ||
+  mongoose.model(
+    "PayrollStaffSchedule",
+    payrollStaffScheduleSchema
+  );
+
+const PayrollAttendance =
+  mongoose.models.PayrollAttendance ||
+  mongoose.model(
+    "PayrollAttendance",
+    payrollAttendanceSchema
   );
 
 const PayrollPeriodHistory =
@@ -475,6 +654,20 @@ const PayrollPeriodHistory =
     payrollPeriodHistorySchema
   );
 
+const PayrollEmployee =
+  mongoose.models.PayrollEmployee ||
+  mongoose.model(
+    "PayrollEmployee",
+    legacyPayrollEmployeeSchema
+  );
+
+const PayrollTimeEntry =
+  mongoose.models.PayrollTimeEntry ||
+  mongoose.model(
+    "PayrollTimeEntry",
+    legacyPayrollTimeEntrySchema
+  );
+
 
 /* =========================
    EXPORT
@@ -482,8 +675,12 @@ const PayrollPeriodHistory =
 
 module.exports = {
   PayrollProfile,
-  PayrollEmployee,
-  PayrollTimeEntry,
   PayrollPeriodSettings,
-  PayrollPeriodHistory
+  PayrollStaffSchedule,
+  PayrollAttendance,
+  PayrollPeriodHistory,
+
+  /* legacy compatibility only */
+  PayrollEmployee,
+  PayrollTimeEntry
 };

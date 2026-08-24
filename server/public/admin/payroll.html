@@ -33,19 +33,23 @@ body{
 }
 
 .page-title{
-  margin:0 0 22px;
+  margin:0 0 20px;
   text-align:center;
   color:#d4a900;
   font-size:38px;
   font-weight:900;
 }
 
+/* =========================
+   PAY PERIOD
+========================= */
+
 .period-card{
-  max-width:900px;
+  max-width:920px;
   margin:0 auto 18px;
-  padding:16px 18px;
+  padding:15px 18px;
   background:#fff;
-  border:1px solid rgba(212,169,0,.32);
+  border:1px solid rgba(212,169,0,.30);
   border-radius:18px;
   box-shadow:0 8px 24px rgba(15,39,71,.07);
 }
@@ -58,13 +62,9 @@ body{
   flex-wrap:wrap;
 }
 
-.period-info{
-  min-width:0;
-}
-
 .period-label{
   color:#64748b;
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
   text-transform:uppercase;
 }
@@ -72,89 +72,50 @@ body{
 .period-value{
   margin-top:4px;
   color:#0f2747;
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
 }
 
 .period-zone{
-  margin-top:4px;
+  margin-top:3px;
   color:#718096;
-  font-size:12px;
+  font-size:11px;
   font-weight:700;
 }
 
 .period-edit{
   display:none;
   grid-template-columns:1fr 1fr auto auto;
-  gap:9px;
+  gap:8px;
   align-items:end;
-  margin-top:14px;
+  margin-top:13px;
 }
 
 .period-edit.show{
   display:grid;
 }
 
-.field{
-  display:flex;
-  flex-direction:column;
-  gap:5px;
-}
-
-.field label{
-  color:#53657a;
-  font-size:11px;
-  font-weight:900;
-}
-
-.field input{
-  height:40px;
-  padding:0 11px;
-  border:1px solid #cbd6e2;
-  border-radius:10px;
-  background:#fff;
-  color:#0f2747;
-  font-size:14px;
-  font-weight:700;
-}
-
-.primary-btn,
-.soft-btn{
-  height:40px;
-  padding:0 15px;
-  border:0;
-  border-radius:10px;
-  font-weight:900;
-  cursor:pointer;
-}
-
-.primary-btn{
-  background:#0f2747;
-  color:#fff;
-}
-
-.soft-btn{
-  background:#e8eef6;
-  color:#0f2747;
-}
+/* =========================
+   TABS
+========================= */
 
 .tabs{
   display:flex;
   justify-content:center;
-  gap:10px;
+  gap:9px;
   flex-wrap:wrap;
-  margin-bottom:18px;
+  margin-bottom:17px;
 }
 
 .tab-btn{
   min-width:130px;
-  padding:11px 17px;
-  border:1px solid rgba(212,169,0,.55);
+  padding:11px 16px;
+  border:1px solid rgba(212,169,0,.50);
   border-radius:14px;
   background:linear-gradient(180deg,#fff,#edf3f9);
   color:#0f2747;
-  box-shadow:0 5px 14px rgba(15,39,71,.08);
-  font-size:13px;
+  box-shadow:0 5px 14px rgba(15,39,71,.07);
+  font-size:12px;
   font-weight:900;
   cursor:pointer;
 }
@@ -165,34 +126,51 @@ body{
   border-color:#d4a900;
 }
 
+/* =========================
+   SUMMARY
+========================= */
+
 .summary-row{
   display:flex;
   justify-content:center;
   gap:12px;
   flex-wrap:wrap;
-  margin-bottom:18px;
+  margin-bottom:17px;
 }
 
 .summary-card{
   min-width:180px;
-  padding:13px 18px;
+  padding:12px 16px;
   background:#fff;
-  border:1px solid rgba(212,169,0,.28);
+  border:1px solid rgba(212,169,0,.25);
   border-radius:15px;
   text-align:center;
+  box-shadow:0 6px 18px rgba(15,39,71,.06);
+}
+
+.summary-card span{
+  display:block;
   color:#64748b;
-  font-size:11px;
+  font-size:10px;
   font-weight:900;
   text-transform:uppercase;
-  box-shadow:0 6px 18px rgba(15,39,71,.06);
 }
 
 .summary-card b{
   display:block;
   margin-top:4px;
   color:#0f2747;
-  font-size:21px;
+  font-size:20px;
+  font-weight:900;
 }
+
+.summary-card.money b{
+  color:#15803d;
+}
+
+/* =========================
+   TABLE
+========================= */
 
 .table-card{
   overflow:hidden;
@@ -209,7 +187,7 @@ body{
 
 table{
   width:100%;
-  min-width:1240px;
+  min-width:1220px;
   border-collapse:collapse;
 }
 
@@ -244,18 +222,6 @@ tbody tr:nth-child(even) td{
   border-left:4px solid #d4a900;
 }
 
-tbody tr:nth-child(even) .name-cell{
-  background:linear-gradient(90deg,#eaf2ff,#fff) !important;
-  border-left-color:#0f2747;
-}
-
-.name-sub{
-  margin-top:3px;
-  color:#718096;
-  font-size:10px;
-  font-weight:700;
-}
-
 .rate-input{
   width:82px;
   height:34px;
@@ -273,37 +239,66 @@ tbody tr:nth-child(even) .name-cell{
   color:#58697b;
 }
 
+.enable-wrap{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-weight:900;
+}
+
+.enable-wrap input{
+  width:18px;
+  height:18px;
+  accent-color:#145cff;
+}
+
+.enable-wrap input:disabled{
+  opacity:.55;
+}
+
+.schedule-summary{
+  min-width:155px;
+  color:#53657a;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
 .actions{
   display:flex;
   gap:5px;
   flex-wrap:wrap;
 }
 
+.primary-btn,
+.soft-btn,
 .edit-btn,
 .save-btn,
-.hours-btn{
-  min-height:32px;
-  padding:0 10px;
+.schedule-btn{
+  min-height:34px;
+  padding:0 11px;
   border:0;
-  border-radius:8px;
+  border-radius:9px;
   font-size:10px;
   font-weight:900;
   cursor:pointer;
 }
 
-.edit-btn{
-  background:#e8eef6;
-  color:#0f2747;
-}
-
+.primary-btn,
 .save-btn{
   background:#145cff;
   color:#fff;
 }
 
-.hours-btn{
-  background:#dbeafe;
-  color:#174a8b;
+.soft-btn,
+.edit-btn{
+  background:#e8eef6;
+  color:#0f2747;
+}
+
+.schedule-btn{
+  background:#0f2747;
+  color:#ffd21f;
 }
 
 button:disabled{
@@ -311,15 +306,19 @@ button:disabled{
   cursor:not-allowed;
 }
 
+/* =========================
+   SCHEDULE MODAL
+========================= */
+
 .modal{
   position:fixed;
   inset:0;
-  z-index:5000;
+  z-index:6000;
   display:none;
   align-items:center;
   justify-content:center;
   padding:18px;
-  background:rgba(5,20,40,.55);
+  background:rgba(5,20,40,.58);
 }
 
 .modal.show{
@@ -327,35 +326,88 @@ button:disabled{
 }
 
 .modal-card{
-  width:min(520px,96vw);
-  padding:22px;
+  width:min(720px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  padding:20px;
   background:#fff;
   border-radius:20px;
+  box-shadow:0 25px 70px rgba(0,0,0,.25);
 }
 
 .modal-title{
-  margin-bottom:16px;
   color:#0f2747;
-  font-size:22px;
+  font-size:21px;
   font-weight:900;
 }
 
-.modal-card .field{
-  margin-top:10px;
+.modal-name{
+  margin-top:3px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
 }
 
-.modal-card .field input{
+.days-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  margin-top:16px;
+}
+
+.day-row{
+  display:grid;
+  grid-template-columns:auto 1fr 100px;
+  gap:9px;
+  align-items:center;
+  padding:10px 11px;
+  border:1px solid #dfe7f0;
+  border-radius:12px;
+  background:#f8fbff;
+}
+
+.day-row input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  accent-color:#145cff;
+}
+
+.day-name{
+  color:#0f2747;
+  font-size:12px;
+  font-weight:900;
+}
+
+.day-hours{
   width:100%;
+  height:36px;
+  padding:0 8px;
+  border:1px solid #cbd6e2;
+  border-radius:8px;
+  text-align:center;
+  font-weight:800;
 }
 
 .modal-actions{
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  margin-top:17px;
+  margin-top:16px;
+}
+
+.help{
+  margin-top:13px;
+  padding:10px 12px;
+  border-radius:11px;
+  background:#fff8d9;
+  color:#665300;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.45;
 }
 
 @media(max-width:900px){
+
   .payroll-page{
     padding:310px 10px 60px;
   }
@@ -368,10 +420,8 @@ button:disabled{
     grid-template-columns:1fr;
   }
 
-  .tab-btn{
-    min-width:108px;
-    padding:10px 11px;
-    font-size:11px;
+  .days-grid{
+    grid-template-columns:1fr;
   }
 }
 </style>
@@ -391,7 +441,7 @@ button:disabled{
 
     <div class="period-top">
 
-      <div class="period-info">
+      <div>
         <div class="period-label">
           Current Company Pay Period
         </div>
@@ -421,19 +471,19 @@ button:disabled{
       class="period-edit"
       id="periodEdit">
 
-      <div class="field">
-        <label>START DATE</label>
+      <label>
+        START DATE
         <input
           type="date"
           id="periodFrom">
-      </div>
+      </label>
 
-      <div class="field">
-        <label>END DATE</label>
+      <label>
+        END DATE
         <input
           type="date"
           id="periodTo">
-      </div>
+      </label>
 
       <button
         class="primary-btn"
@@ -483,39 +533,24 @@ button:disabled{
       Super Admins
     </button>
 
-    <button
-      class="tab-btn"
-      data-type="employee"
-      type="button">
-      Employees
-    </button>
-
   </section>
 
   <section class="summary-row">
 
     <div class="summary-card">
-      People
+      <span>People</span>
       <b id="peopleCount">0</b>
     </div>
 
     <div class="summary-card">
-      Total Hours
+      <span>Total Hours</span>
       <b id="allHours">0 H 00 MIN</b>
     </div>
 
-    <div class="summary-card">
-      Total Earnings
+    <div class="summary-card money">
+      <span>Total Earnings</span>
       <b id="allDue">$0.00</b>
     </div>
-
-    <button
-      class="primary-btn"
-      id="addEmployeeBtn"
-      type="button"
-      style="display:none;">
-      + Add Employee
-    </button>
 
   </section>
 
@@ -525,23 +560,13 @@ button:disabled{
 
       <table>
 
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Regular Hrs</th>
-            <th>OT Hrs</th>
-            <th>Total Hrs</th>
-            <th>Hourly Rate</th>
-            <th>OT Rate</th>
-            <th>OT After / Week</th>
-            <th>Regular Pay</th>
-            <th>OT Pay</th>
-            <th>Total Earnings</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
+        <thead id="payrollHead"></thead>
 
-        <tbody id="payrollBody"></tbody>
+        <tbody id="payrollBody">
+          <tr>
+            <td>Loading...</td>
+          </tr>
+        </tbody>
 
       </table>
 
@@ -551,119 +576,96 @@ button:disabled{
 
 </main>
 
-<div class="modal" id="hoursModal">
+<!-- STAFF SCHEDULE MODAL -->
+<div
+  class="modal"
+  id="scheduleModal">
+
   <div class="modal-card">
 
     <div class="modal-title">
-      Add / Update Work Hours
+      Work Schedule
+    </div>
+
+    <div
+      class="modal-name"
+      id="schedulePersonName">
     </div>
 
     <input
       type="hidden"
-      id="hoursPersonId">
+      id="schedulePersonId">
 
-    <div class="field">
-      <label>WORK DATE</label>
-      <input
-        type="date"
-        id="hoursDate">
+    <div class="days-grid" id="daysGrid">
+
+      <div class="day-row">
+        <input type="checkbox" id="day-sun">
+        <div class="day-name">Sunday</div>
+        <input class="day-hours" type="number" id="hours-sun" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-mon">
+        <div class="day-name">Monday</div>
+        <input class="day-hours" type="number" id="hours-mon" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-tue">
+        <div class="day-name">Tuesday</div>
+        <input class="day-hours" type="number" id="hours-tue" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-wed">
+        <div class="day-name">Wednesday</div>
+        <input class="day-hours" type="number" id="hours-wed" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-thu">
+        <div class="day-name">Thursday</div>
+        <input class="day-hours" type="number" id="hours-thu" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-fri">
+        <div class="day-name">Friday</div>
+        <input class="day-hours" type="number" id="hours-fri" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-sat">
+        <div class="day-name">Saturday</div>
+        <input class="day-hours" type="number" id="hours-sat" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
     </div>
 
-    <div class="field">
-      <label>HOURS</label>
-      <input
-        type="number"
-        id="hoursValue"
-        min="0"
-        max="24"
-        step="0.25">
-    </div>
-
-    <div class="field">
-      <label>NOTE</label>
-      <input
-        type="text"
-        id="hoursNote">
+    <div class="help">
+      If Payroll Sign In is enabled for this person, the SIGN IN button appears in the header only on checked work days. One successful SIGN IN credits the hours entered for that day. No Sign Out is required.
     </div>
 
     <div class="modal-actions">
+
       <button
         class="soft-btn"
-        id="closeHoursBtn"
+        id="cancelScheduleBtn"
         type="button">
         Cancel
       </button>
 
       <button
         class="primary-btn"
-        id="saveHoursBtn"
+        id="saveScheduleBtn"
         type="button">
-        Save Hours
+        Save Schedule
       </button>
+
     </div>
 
   </div>
-</div>
 
-<div class="modal" id="employeeModal">
-  <div class="modal-card">
-
-    <div class="modal-title">
-      Add Employee
-    </div>
-
-    <div class="field">
-      <label>NAME</label>
-      <input
-        type="text"
-        id="employeeName">
-    </div>
-
-    <div class="field">
-      <label>EMPLOYEE ID</label>
-      <input
-        type="text"
-        id="employeeNumber">
-    </div>
-
-    <div class="field">
-      <label>JOB TITLE</label>
-      <input
-        type="text"
-        id="employeeJobTitle">
-    </div>
-
-    <div class="field">
-      <label>PHONE</label>
-      <input
-        type="text"
-        id="employeePhone">
-    </div>
-
-    <div class="field">
-      <label>EMAIL</label>
-      <input
-        type="email"
-        id="employeeEmail">
-    </div>
-
-    <div class="modal-actions">
-      <button
-        class="soft-btn"
-        id="closeEmployeeBtn"
-        type="button">
-        Cancel
-      </button>
-
-      <button
-        class="primary-btn"
-        id="saveEmployeeBtn"
-        type="button">
-        Save Employee
-      </button>
-    </div>
-
-  </div>
 </div>
 
 <script src="header.js"></script>

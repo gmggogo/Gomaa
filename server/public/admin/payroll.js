@@ -2,9 +2,16 @@
    FILE: public/admin/payroll.js
 
    SUPER ADMIN ONLY
-   AUTOMATIC COMPANY-WIDE PAY PERIOD
-   NO PAID / UNPAID
-   NO MARK PAID
+
+   DRIVERS:
+   - Automatic hours from trips.
+
+   DISPATCHER / ADMIN / SUPER ADMIN:
+   - Super Admin sets Enable/Disable.
+   - Super Admin sets work days and credited hours/day.
+   - Staff SIGN IN appears only on eligible scheduled days.
+   - One SIGN IN credits scheduled hours.
+   - No Sign Out.
 ========================================================= */
 
 const token =
@@ -33,6 +40,26 @@ if(
     "dashboard.html";
 }
 
+const DAY_KEYS = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat"
+];
+
+const DAY_LABELS = {
+  sun:"Sun",
+  mon:"Mon",
+  tue:"Tue",
+  wed:"Wed",
+  thu:"Thu",
+  fri:"Fri",
+  sat:"Sat"
+};
+
 let currentType =
   "driver";
 
@@ -44,6 +71,9 @@ let currentPeriod = {
   to:"",
   timezone:""
 };
+
+let scheduleEditingId =
+  "";
 
 
 /* =========================
@@ -127,26 +157,22 @@ function dateLabel(key){
       .split("-")
       .map(Number);
 
-  const date =
-    new Date(
-      Date.UTC(
-        y,
-        m - 1,
-        d,
-        12
-      )
-    );
-
-  return date
-    .toLocaleDateString(
-      "en-US",
-      {
-        month:"short",
-        day:"numeric",
-        year:"numeric",
-        timeZone:"UTC"
-      }
-    );
+  return new Date(
+    Date.UTC(
+      y,
+      m - 1,
+      d,
+      12
+    )
+  ).toLocaleDateString(
+    "en-US",
+    {
+      month:"short",
+      day:"numeric",
+      year:"numeric",
+      timeZone:"UTC"
+    }
+  );
 }
 
 async function api(
@@ -179,6 +205,15 @@ async function api(
   }
 
   return data;
+}
+
+function getRow(id){
+
+  return currentRows.find(
+    row=>
+      String(row._id) ===
+      String(id)
+  );
 }
 
 
@@ -236,8 +271,7 @@ async function loadPeriod(){
 
 document.getElementById(
   "editPeriodBtn"
-)
-.addEventListener(
+).addEventListener(
   "click",
   ()=>{
 
@@ -251,20 +285,9 @@ document.getElementById(
 
 document.getElementById(
   "cancelPeriodBtn"
-)
-.addEventListener(
+).addEventListener(
   "click",
   ()=>{
-
-    document.getElementById(
-      "periodFrom"
-    ).value =
-      currentPeriod.from;
-
-    document.getElementById(
-      "periodTo"
-    ).value =
-      currentPeriod.to;
 
     document.getElementById(
       "periodEdit"
@@ -276,8 +299,7 @@ document.getElementById(
 
 document.getElementById(
   "savePeriodBtn"
-)
-.addEventListener(
+).addEventListener(
   "click",
   async()=>{
 
@@ -304,13 +326,11 @@ document.getElementById(
       return;
     }
 
-    const ok =
-      confirm(
-        "Save this company-wide pay period?\n\n" +
-        "The same duration will repeat automatically for every future payroll period."
-      );
-
-    if(!ok){
+    if(
+      !confirm(
+        "Save this company-wide pay period?"
+      )
+    ){
       return;
     }
 
@@ -362,9 +382,7 @@ async function loadPayroll(){
 
   body.innerHTML = `
     <tr>
-      <td colspan="11">
-        Loading...
-      </td>
+      <td>Loading...</td>
     </tr>
   `;
 
@@ -391,31 +409,17 @@ async function loadPayroll(){
         ? data.people
         : [];
 
-    currentPeriod = {
-      from:
-        data.from ||
-        currentPeriod.from,
+    currentPeriod.from =
+      data.from ||
+      currentPeriod.from;
 
-      to:
-        data.to ||
-        currentPeriod.to,
+    currentPeriod.to =
+      data.to ||
+      currentPeriod.to;
 
-      timezone:
-        data.timezone ||
-        currentPeriod.timezone
-    };
-
-    document.getElementById(
-      "currentPeriod"
-    ).textContent =
-      `${dateLabel(currentPeriod.from)} → ${dateLabel(currentPeriod.to)}`;
-
-    document.getElementById(
-      "timezoneText"
-    ).textContent =
-      currentPeriod.timezone
-        ? `Server time • ${currentPeriod.timezone}`
-        : "Server time";
+    currentPeriod.timezone =
+      data.timezone ||
+      currentPeriod.timezone;
 
     render();
 
@@ -428,7 +432,7 @@ async function loadPayroll(){
 
     body.innerHTML = `
       <tr>
-        <td colspan="11">
+        <td>
           ${escapeHtml(error.message)}
         </td>
       </tr>
@@ -438,10 +442,64 @@ async function loadPayroll(){
 
 
 /* =========================
+   TABLE HEAD
+========================= */
+
+function renderHead(){
+
+  const head =
+    document.getElementById(
+      "payrollHead"
+    );
+
+  if(
+    currentType === "driver"
+  ){
+
+    head.innerHTML = `
+      <tr>
+        <th>Name</th>
+        <th>Regular Hrs</th>
+        <th>OT Hrs</th>
+        <th>Total Hrs</th>
+        <th>Hourly Rate</th>
+        <th>OT Rate</th>
+        <th>OT After / Week</th>
+        <th>Regular Pay</th>
+        <th>OT Pay</th>
+        <th>Total Earnings</th>
+        <th>Actions</th>
+      </tr>
+    `;
+
+    return;
+  }
+
+  head.innerHTML = `
+    <tr>
+      <th>Name</th>
+      <th>Enable</th>
+      <th>Work Schedule</th>
+      <th>Regular Hrs</th>
+      <th>OT Hrs</th>
+      <th>Total Hrs</th>
+      <th>Hourly Rate</th>
+      <th>OT Rate</th>
+      <th>Weekly Hours</th>
+      <th>Total Earnings</th>
+      <th>Actions</th>
+    </tr>
+  `;
+}
+
+
+/* =========================
    RENDER
 ========================= */
 
 function render(){
+
+  renderHead();
 
   const body =
     document.getElementById(
@@ -491,14 +549,6 @@ function render(){
       totalDue
     );
 
-  document.getElementById(
-    "addEmployeeBtn"
-  ).style.display =
-    currentType ===
-      "employee"
-      ? "inline-block"
-      : "none";
-
   if(!currentRows.length){
 
     body.innerHTML = `
@@ -515,202 +565,316 @@ function render(){
   body.innerHTML =
     currentRows
       .map(
-        row=>{
-
-          const id =
-            escapeHtml(
-              row._id
-            );
-
-          const title =
-            row.jobTitle
-              ? `
-                <div class="name-sub">
-                  ${escapeHtml(row.jobTitle)}
-                </div>
-              `
-              : "";
-
-          const hoursButton =
-            currentType !==
-              "driver"
-              ? `
-                <button
-                  class="hours-btn"
-                  type="button"
-                  onclick="openHours('${id}')">
-                  Hours
-                </button>
-              `
-              : "";
-
-          return `
-            <tr>
-
-              <td class="name-cell">
-                ${escapeHtml(row.name)}
-                ${title}
-              </td>
-
-              <td>
-                ${hoursText(row.regularHours)}
-              </td>
-
-              <td>
-                ${hoursText(row.overtimeHours)}
-              </td>
-
-              <td>
-                <b>
-                  ${hoursText(row.totalHours)}
-                </b>
-              </td>
-
-              <td>
-                <input
-                  class="rate-input"
-                  id="rate-${id}"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value="${Number(row.hourlyRate || 0)}"
-                  disabled>
-              </td>
-
-              <td>
-                <input
-                  class="rate-input"
-                  id="ot-rate-${id}"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value="${Number(row.overtimeRate || 0)}"
-                  disabled>
-              </td>
-
-              <td>
-                <input
-                  class="rate-input"
-                  id="ot-after-${id}"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value="${Number(row.overtimeAfterHours ?? 40)}"
-                  disabled>
-              </td>
-
-              <td>
-                ${money(row.regularPay)}
-              </td>
-
-              <td>
-                ${money(row.overtimePay)}
-              </td>
-
-              <td>
-                <b>
-                  ${money(row.totalDue)}
-                </b>
-              </td>
-
-              <td>
-                <div class="actions">
-
-                  ${hoursButton}
-
-                  <button
-                    class="edit-btn"
-                    id="edit-${id}"
-                    type="button"
-                    onclick="editProfile('${id}')">
-                    Edit
-                  </button>
-
-                  <button
-                    class="save-btn"
-                    id="save-${id}"
-                    type="button"
-                    onclick="saveProfile('${id}')"
-                    disabled>
-                    Save
-                  </button>
-
-                </div>
-              </td>
-
-            </tr>
-          `;
-        }
+        row=>
+          currentType ===
+            "driver"
+            ? driverRow(row)
+            : staffRow(row)
       )
       .join("");
 }
 
+function driverRow(row){
+
+  const id =
+    escapeHtml(
+      row._id
+    );
+
+  return `
+    <tr>
+
+      <td class="name-cell">
+        ${escapeHtml(row.name)}
+      </td>
+
+      <td>
+        ${hoursText(row.regularHours)}
+      </td>
+
+      <td>
+        ${hoursText(row.overtimeHours)}
+      </td>
+
+      <td>
+        <b>${hoursText(row.totalHours)}</b>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="rate-${id}"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${Number(row.hourlyRate || 0)}"
+          disabled>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="ot-rate-${id}"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${Number(row.overtimeRate || 0)}"
+          disabled>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="weekly-${id}"
+          type="number"
+          min="0"
+          step="1"
+          value="${Number(row.overtimeAfterHours ?? 40)}"
+          disabled>
+      </td>
+
+      <td>${money(row.regularPay)}</td>
+      <td>${money(row.overtimePay)}</td>
+
+      <td>
+        <b>${money(row.totalDue)}</b>
+      </td>
+
+      <td>
+        <div class="actions">
+
+          <button
+            class="edit-btn"
+            id="edit-${id}"
+            type="button"
+            onclick="editDriver('${id}')">
+            Edit
+          </button>
+
+          <button
+            class="save-btn"
+            id="save-${id}"
+            type="button"
+            onclick="saveDriver('${id}')"
+            disabled>
+            Save
+          </button>
+
+        </div>
+      </td>
+
+    </tr>
+  `;
+}
+
+function scheduleSummary(row){
+
+  const schedule =
+    row.staffSchedule ||
+    {};
+
+  const days =
+    schedule.days ||
+    {};
+
+  const pieces = [];
+
+  DAY_KEYS.forEach(
+    key=>{
+
+      const rule =
+        days[key];
+
+      if(
+        rule?.enabled &&
+        Number(
+          rule.hours ||
+          0
+        ) > 0
+      ){
+
+        pieces.push(
+          `${DAY_LABELS[key]} ${Number(rule.hours)}h`
+        );
+      }
+    }
+  );
+
+  if(!pieces.length){
+    return "No work days";
+  }
+
+  return pieces.join(" • ");
+}
+
+function staffRow(row){
+
+  const id =
+    escapeHtml(
+      row._id
+    );
+
+  const enabled =
+    row.staffSchedule
+      ?.payrollEnabled === true;
+
+  return `
+    <tr>
+
+      <td class="name-cell">
+        ${escapeHtml(row.name)}
+      </td>
+
+      <td>
+        <label class="enable-wrap">
+
+          <input
+            id="enabled-${id}"
+            type="checkbox"
+            ${enabled ? "checked" : ""}
+            disabled>
+
+          <span>
+            ${enabled ? "Enabled" : "Disabled"}
+          </span>
+
+        </label>
+      </td>
+
+      <td>
+        <div class="schedule-summary">
+          ${escapeHtml(scheduleSummary(row))}
+        </div>
+      </td>
+
+      <td>
+        ${hoursText(row.regularHours)}
+      </td>
+
+      <td>
+        ${hoursText(row.overtimeHours)}
+      </td>
+
+      <td>
+        <b>${hoursText(row.totalHours)}</b>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="rate-${id}"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${Number(row.hourlyRate || 0)}"
+          disabled>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="ot-rate-${id}"
+          type="number"
+          min="0"
+          step="0.01"
+          value="${Number(row.overtimeRate || 0)}"
+          disabled>
+      </td>
+
+      <td>
+        <input
+          class="rate-input"
+          id="weekly-${id}"
+          type="number"
+          min="0"
+          step="1"
+          value="${Number(row.overtimeAfterHours ?? 40)}"
+          disabled>
+      </td>
+
+      <td>
+        <b>${money(row.totalDue)}</b>
+      </td>
+
+      <td>
+
+        <div class="actions">
+
+          <button
+            class="schedule-btn"
+            type="button"
+            onclick="openSchedule('${id}')">
+            Schedule
+          </button>
+
+          <button
+            class="edit-btn"
+            id="edit-${id}"
+            type="button"
+            onclick="editStaff('${id}')">
+            Edit
+          </button>
+
+          <button
+            class="save-btn"
+            id="save-${id}"
+            type="button"
+            onclick="saveStaff('${id}')"
+            disabled>
+            Save
+          </button>
+
+        </div>
+
+      </td>
+
+    </tr>
+  `;
+}
+
 
 /* =========================
-   EDIT / SAVE RATE
+   DRIVER EDIT / SAVE
 ========================= */
 
-window.editProfile =
+window.editDriver =
 function(id){
 
   [
     `rate-${id}`,
     `ot-rate-${id}`,
-    `ot-after-${id}`
+    `weekly-${id}`
   ]
   .forEach(
-    fieldId=>{
+    field=>{
 
-      const input =
+      const el =
         document.getElementById(
-          fieldId
+          field
         );
 
-      if(input){
-        input.disabled = false;
+      if(el){
+        el.disabled = false;
       }
     }
   );
 
-  const edit =
-    document.getElementById(
-      `edit-${id}`
-    );
-
-  const save =
-    document.getElementById(
-      `save-${id}`
-    );
-
-  if(edit){
-    edit.disabled = true;
-  }
-
-  if(save){
-    save.disabled = false;
-  }
+  document.getElementById(
+    `edit-${id}`
+  ).disabled = true;
 
   document.getElementById(
-    `rate-${id}`
-  )?.focus();
+    `save-${id}`
+  ).disabled = false;
 };
 
-window.saveProfile =
+window.saveDriver =
 async function(id){
-
-  const save =
-    document.getElementById(
-      `save-${id}`
-    );
 
   try{
 
-    if(save){
-      save.disabled = true;
-    }
-
     await api(
-      `/api/payroll/profile/${currentType}/${encodeURIComponent(id)}`,
+      `/api/payroll/profile/driver/${encodeURIComponent(id)}`,
       {
         method:"PUT",
         headers:
@@ -719,31 +883,25 @@ async function(id){
           JSON.stringify({
             hourlyRate:
               Number(
-                document
-                  .getElementById(
-                    `rate-${id}`
-                  )
-                  ?.value ||
+                document.getElementById(
+                  `rate-${id}`
+                ).value ||
                 0
               ),
 
             overtimeRate:
               Number(
-                document
-                  .getElementById(
-                    `ot-rate-${id}`
-                  )
-                  ?.value ||
+                document.getElementById(
+                  `ot-rate-${id}`
+                ).value ||
                 0
               ),
 
             overtimeAfterHours:
               Number(
-                document
-                  .getElementById(
-                    `ot-after-${id}`
-                  )
-                  ?.value ||
+                document.getElementById(
+                  `weekly-${id}`
+                ).value ||
                 40
               )
           })
@@ -754,9 +912,111 @@ async function(id){
 
   }catch(error){
 
-    if(save){
-      save.disabled = false;
+    alert(
+      error.message
+    );
+  }
+};
+
+
+/* =========================
+   STAFF EDIT / SAVE
+========================= */
+
+window.editStaff =
+function(id){
+
+  [
+    `enabled-${id}`,
+    `rate-${id}`,
+    `ot-rate-${id}`,
+    `weekly-${id}`
+  ]
+  .forEach(
+    field=>{
+
+      const el =
+        document.getElementById(
+          field
+        );
+
+      if(el){
+        el.disabled = false;
+      }
     }
+  );
+
+  document.getElementById(
+    `edit-${id}`
+  ).disabled = true;
+
+  document.getElementById(
+    `save-${id}`
+  ).disabled = false;
+};
+
+window.saveStaff =
+async function(id){
+
+  const row =
+    getRow(id);
+
+  if(!row){
+    return;
+  }
+
+  const days =
+    row.staffSchedule
+      ?.days ||
+    {};
+
+  try{
+
+    await api(
+      `/api/payroll/staff-schedule/${currentType}/${encodeURIComponent(id)}`,
+      {
+        method:"PUT",
+        headers:
+          authHeaders(true),
+        body:
+          JSON.stringify({
+            payrollEnabled:
+              document.getElementById(
+                `enabled-${id}`
+              ).checked,
+
+            hourlyRate:
+              Number(
+                document.getElementById(
+                  `rate-${id}`
+                ).value ||
+                0
+              ),
+
+            overtimeRate:
+              Number(
+                document.getElementById(
+                  `ot-rate-${id}`
+                ).value ||
+                0
+              ),
+
+            weeklyHours:
+              Number(
+                document.getElementById(
+                  `weekly-${id}`
+                ).value ||
+                40
+              ),
+
+            days
+          })
+      }
+    );
+
+    await loadPayroll();
+
+  }catch(error){
 
     alert(
       error.message
@@ -766,48 +1026,78 @@ async function(id){
 
 
 /* =========================
-   MANUAL HOURS
+   SCHEDULE MODAL
 ========================= */
 
-window.openHours =
+window.openSchedule =
 function(id){
 
+  const row =
+    getRow(id);
+
+  if(!row){
+    return;
+  }
+
+  scheduleEditingId =
+    id;
+
   document.getElementById(
-    "hoursPersonId"
+    "schedulePersonId"
   ).value =
     id;
 
   document.getElementById(
-    "hoursDate"
-  ).value =
-    currentPeriod.from;
-
-  document.getElementById(
-    "hoursValue"
-  ).value =
+    "schedulePersonName"
+  ).textContent =
+    row.name ||
     "";
 
-  document.getElementById(
-    "hoursNote"
-  ).value =
-    "";
+  const days =
+    row.staffSchedule
+      ?.days ||
+    {};
+
+  DAY_KEYS.forEach(
+    key=>{
+
+      const rule =
+        days[key] ||
+        {
+          enabled:false,
+          hours:0
+        };
+
+      document.getElementById(
+        `day-${key}`
+      ).checked =
+        rule.enabled === true;
+
+      document.getElementById(
+        `hours-${key}`
+      ).value =
+        Number(
+          rule.hours ||
+          0
+        );
+    }
+  );
 
   document.getElementById(
-    "hoursModal"
+    "scheduleModal"
   ).classList.add(
     "show"
   );
 };
 
 document.getElementById(
-  "closeHoursBtn"
-)
-.addEventListener(
+  "cancelScheduleBtn"
+).addEventListener(
   "click",
   ()=>{
 
     document.getElementById(
-      "hoursModal"
+      "scheduleModal"
     ).classList.remove(
       "show"
     );
@@ -815,224 +1105,107 @@ document.getElementById(
 );
 
 document.getElementById(
-  "saveHoursBtn"
-)
-.addEventListener(
+  "saveScheduleBtn"
+).addEventListener(
   "click",
   async()=>{
 
     const id =
-      document.getElementById(
-        "hoursPersonId"
-      ).value;
+      scheduleEditingId;
 
-    const workDate =
-      document.getElementById(
-        "hoursDate"
-      ).value;
+    const row =
+      getRow(id);
 
-    const workHours =
-      Number(
-        document.getElementById(
-          "hoursValue"
-        ).value
-      );
-
-    const note =
-      document.getElementById(
-        "hoursNote"
-      ).value.trim();
-
-    if(
-      !workDate ||
-      workDate <
-        currentPeriod.from ||
-      workDate >
-        currentPeriod.to
-    ){
-
-      alert(
-        "Work date must be inside the current pay period."
-      );
-
+    if(!id || !row){
       return;
     }
 
-    if(
-      !Number.isFinite(
-        workHours
-      ) ||
-      workHours < 0 ||
-      workHours > 24
+    const days = {};
+
+    for(
+      const key
+      of DAY_KEYS
     ){
 
-      alert(
-        "Enter valid work hours."
-      );
+      const enabled =
+        document.getElementById(
+          `day-${key}`
+        ).checked;
 
-      return;
+      const dayHours =
+        Number(
+          document.getElementById(
+            `hours-${key}`
+          ).value ||
+          0
+        );
+
+      if(
+        enabled &&
+        (
+          !Number.isFinite(
+            dayHours
+          ) ||
+          dayHours <= 0 ||
+          dayHours > 24
+        )
+      ){
+
+        alert(
+          `${DAY_LABELS[key]} needs valid scheduled hours.`
+        );
+
+        return;
+      }
+
+      days[key] = {
+        enabled,
+        hours:
+          enabled
+            ? dayHours
+            : 0
+      };
     }
 
     try{
 
       await api(
-        `/api/payroll/hours/${currentType}/${encodeURIComponent(id)}`,
+        `/api/payroll/staff-schedule/${currentType}/${encodeURIComponent(id)}`,
         {
           method:"PUT",
           headers:
             authHeaders(true),
           body:
             JSON.stringify({
-              workDate,
-              hours:workHours,
-              note
+              payrollEnabled:
+                row.staffSchedule
+                  ?.payrollEnabled === true,
+
+              hourlyRate:
+                Number(
+                  row.hourlyRate ||
+                  0
+                ),
+
+              overtimeRate:
+                Number(
+                  row.overtimeRate ||
+                  0
+                ),
+
+              weeklyHours:
+                Number(
+                  row.overtimeAfterHours ??
+                  40
+                ),
+
+              days
             })
         }
       );
 
       document.getElementById(
-        "hoursModal"
-      ).classList.remove(
-        "show"
-      );
-
-      await loadPayroll();
-
-    }catch(error){
-
-      alert(
-        error.message
-      );
-    }
-  }
-);
-
-
-/* =========================
-   EMPLOYEE
-========================= */
-
-document.getElementById(
-  "addEmployeeBtn"
-)
-.addEventListener(
-  "click",
-  ()=>{
-
-    [
-      "employeeName",
-      "employeeNumber",
-      "employeeJobTitle",
-      "employeePhone",
-      "employeeEmail"
-    ]
-    .forEach(
-      id=>{
-
-        const input =
-          document.getElementById(
-            id
-          );
-
-        if(input){
-          input.value = "";
-        }
-      }
-    );
-
-    document.getElementById(
-      "employeeModal"
-    ).classList.add(
-      "show"
-    );
-  }
-);
-
-document.getElementById(
-  "closeEmployeeBtn"
-)
-.addEventListener(
-  "click",
-  ()=>{
-
-    document.getElementById(
-      "employeeModal"
-    ).classList.remove(
-      "show"
-    );
-  }
-);
-
-document.getElementById(
-  "saveEmployeeBtn"
-)
-.addEventListener(
-  "click",
-  async()=>{
-
-    const name =
-      document.getElementById(
-        "employeeName"
-      ).value.trim();
-
-    if(!name){
-
-      alert(
-        "Employee name required."
-      );
-
-      return;
-    }
-
-    try{
-
-      await api(
-        "/api/payroll/employees",
-        {
-          method:"POST",
-          headers:
-            authHeaders(true),
-          body:
-            JSON.stringify({
-              name,
-
-              employeeNumber:
-                document
-                  .getElementById(
-                    "employeeNumber"
-                  )
-                  .value
-                  .trim(),
-
-              jobTitle:
-                document
-                  .getElementById(
-                    "employeeJobTitle"
-                  )
-                  .value
-                  .trim(),
-
-              phone:
-                document
-                  .getElementById(
-                    "employeePhone"
-                  )
-                  .value
-                  .trim(),
-
-              email:
-                document
-                  .getElementById(
-                    "employeeEmail"
-                  )
-                  .value
-                  .trim()
-            })
-        }
-      );
-
-      document.getElementById(
-        "employeeModal"
+        "scheduleModal"
       ).classList.remove(
         "show"
       );

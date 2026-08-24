@@ -9,9 +9,9 @@ const DispatchAssignment = require("../models/DispatchAssignment");
 
 const {
   PayrollProfile,
-  PayrollEmployee,
-  PayrollTimeEntry,
   PayrollPeriodSettings,
+  PayrollStaffSchedule,
+  PayrollAttendance,
   PayrollPeriodHistory
 } = require("../models/Payroll");
 
@@ -31,6 +31,8 @@ const JWT_SECRET =
    - Time comes from SERVER + tenant timezone stored in SystemDesign.
    - Driver hours remain automatic from trips.
    - Closed periods are snapshotted for future Summary.
+   - Staff hours come ONLY from eligible daily Sign In.
+   - Staff Sign In credits scheduled hours; no Sign Out.
 ========================================================= */
 
 
@@ -1024,7 +1026,7 @@ async function driverDailyHours(
     .filter(Boolean);
 }
 
-async function manualDailyHours(
+async function staffAttendanceDailyHours(
   tenantId,
   personType,
   personId,
@@ -1033,7 +1035,7 @@ async function manualDailyHours(
 ){
 
   const rows =
-    await PayrollTimeEntry
+    await PayrollAttendance
       .find({
         tenantId,
         personType,
@@ -1060,18 +1062,224 @@ async function manualDailyHours(
 
         hours:
           hours(
-            row.hours
+            row.creditedHours
           ),
 
         tripCount:0,
 
         running:false,
 
-        note:
-          row.note ||
-          ""
+        signedAt:
+          row.signedAt ||
+          null
       })
     );
+}
+
+
+/* =========================
+   STAFF SCHEDULE HELPERS
+========================= */
+
+const STAFF_TYPES = [
+  "dispatcher",
+  "admin",
+  "super_admin"
+];
+
+const DAY_KEYS = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat"
+];
+
+function personTypeFromRole(
+  role
+){
+
+  const r =
+    normalizedRole(
+      role
+    );
+
+  if(r === "DISPATCHER"){
+    return "dispatcher";
+  }
+
+  if(r === "ADMIN"){
+    return "admin";
+  }
+
+  if(r === "SUPER_ADMIN"){
+    return "super_admin";
+  }
+
+  return "";
+}
+
+function emptyScheduleDays(){
+
+  return {
+    sun:{
+      enabled:false,
+      hours:0
+    },
+
+    mon:{
+      enabled:false,
+      hours:0
+    },
+
+    tue:{
+      enabled:false,
+      hours:0
+    },
+
+    wed:{
+      enabled:false,
+      hours:0
+    },
+
+    thu:{
+      enabled:false,
+      hours:0
+    },
+
+    fri:{
+      enabled:false,
+      hours:0
+    },
+
+    sat:{
+      enabled:false,
+      hours:0
+    }
+  };
+}
+
+function normalizeScheduleDays(
+  input
+){
+
+  const days =
+    emptyScheduleDays();
+
+  for(
+    const key
+    of DAY_KEYS
+  ){
+
+    const source =
+      input?.[key] ||
+      {};
+
+    const enabled =
+      source.enabled === true;
+
+    const dayHours =
+      Math.max(
+        0,
+        Math.min(
+          24,
+          Number(
+            source.hours ||
+            0
+          )
+        )
+      );
+
+    days[key] = {
+      enabled,
+      hours:
+        enabled
+          ? dayHours
+          : 0
+    };
+  }
+
+  return days;
+}
+
+function weekdayKeyFromDateKey(
+  dateKey
+){
+
+  const date =
+    keyToUtc(
+      dateKey
+    );
+
+  if(!date){
+    return "";
+  }
+
+  return DAY_KEYS[
+    date.getUTCDay()
+  ] || "";
+}
+
+async function getStaffSchedule(
+  tenantId,
+  personType,
+  personId
+){
+
+  let schedule =
+    await PayrollStaffSchedule
+      .findOne({
+        tenantId,
+        personType,
+        personId:
+          String(
+            personId
+          )
+      });
+
+  if(!schedule){
+
+    schedule =
+      await PayrollStaffSchedule
+        .create({
+          tenantId,
+          personType,
+          personId:
+            String(
+              personId
+            ),
+
+          payrollEnabled:false,
+
+          days:
+            emptyScheduleDays()
+        });
+  }
+
+  return schedule;
+}
+
+function scheduleForClient(
+  schedule
+){
+
+  const raw =
+    schedule?.toObject
+      ? schedule.toObject()
+      : schedule || {};
+
+  return {
+    payrollEnabled:
+      raw.payrollEnabled === true,
+
+    days:
+      normalizeScheduleDays(
+        raw.days ||
+        {}
+      )
+  };
 }
 
 
@@ -1254,6 +1462,17 @@ async function calculatePerson(
       personId
     );
 
+  const staffSchedule =
+    STAFF_TYPES.includes(
+      personType
+    )
+      ? await getStaffSchedule(
+          tenantId,
+          personType,
+          personId
+        )
+      : null;
+
   const dailyHours =
     personType ===
       "driver"
@@ -1266,7 +1485,7 @@ async function calculatePerson(
           timezone
         )
 
-      : await manualDailyHours(
+      : await staffAttendanceDailyHours(
           tenantId,
           personType,
           personId,
@@ -1380,7 +1599,14 @@ async function calculatePerson(
     overtimePay,
     totalDue,
 
-    dailyHours
+    dailyHours,
+
+    staffSchedule:
+      staffSchedule
+        ? scheduleForClient(
+            staffSchedule
+          )
+        : null
   };
 }
 
@@ -1393,22 +1619,6 @@ async function loadPeople(
   tenantId,
   personType
 ){
-
-  if(
-    personType ===
-    "employee"
-  ){
-
-    return await PayrollEmployee
-      .find({
-        tenantId
-      })
-      .sort({
-        active:-1,
-        name:1
-      })
-      .lean();
-  }
 
   const roleMap = {
     driver:[
@@ -1462,8 +1672,7 @@ const PERSON_TYPES = [
   "driver",
   "dispatcher",
   "admin",
-  "super_admin",
-  "employee"
+  "super_admin"
 ];
 
 async function archiveOnePeriod(
@@ -2106,12 +2315,12 @@ router.put(
 
 
 /* =========================
-   DAILY HOURS
-   NON-DRIVERS ONLY
+   STAFF SCHEDULE
+   SUPER ADMIN ONLY
 ========================= */
 
 router.put(
-  "/hours/:type/:id",
+  "/staff-schedule/:type/:id",
   requirePayrollAuth,
   requireSuperAdmin,
   async(req,res)=>{
@@ -2124,12 +2333,7 @@ router.put(
         );
 
       if(
-        ![
-          "dispatcher",
-          "admin",
-          "super_admin",
-          "employee"
-        ].includes(
+        !STAFF_TYPES.includes(
           personType
         )
       ){
@@ -2138,43 +2342,99 @@ router.put(
           .status(400)
           .json({
             message:
-              "Driver hours are automatic"
+              "Invalid staff payroll type"
           });
       }
 
-      const workDate =
-        clean(
-          req.body
-            ?.workDate
-        );
+      /*
+        Confirm the person belongs to this tenant
+        and matches the selected role.
+      */
+      const roleMap = {
+        dispatcher:"dispatcher",
+        admin:"admin",
+        super_admin:"SUPER_ADMIN"
+      };
 
-      const workHours =
-        Number(
-          req.body
-            ?.hours
-        );
+      const person =
+        await User
+          .findOne({
+            _id:
+              req.params.id,
 
-      if(
-        !validDateKey(
-          workDate
-        ) ||
-        !Number.isFinite(
-          workHours
-        ) ||
-        workHours < 0 ||
-        workHours > 24
-      ){
+            tenantId:
+              req.authUser
+                .tenantId,
+
+            role:
+              roleMap[
+                personType
+              ]
+          })
+          .select(
+            "_id name role"
+          )
+          .lean();
+
+      if(!person){
 
         return res
-          .status(400)
+          .status(404)
           .json({
             message:
-              "Invalid hours"
+              "Staff member not found"
           });
       }
 
-      const row =
-        await PayrollTimeEntry
+      /*
+        Close old completed periods first.
+      */
+      await ensureClosedPeriods(
+        req.authUser.tenantId
+      );
+
+      const days =
+        normalizeScheduleDays(
+          req.body?.days ||
+          {}
+        );
+
+      const payrollEnabled =
+        req.body
+          ?.payrollEnabled === true;
+
+      const hourlyRate =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.hourlyRate ||
+            0
+          )
+        );
+
+      const overtimeRate =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.overtimeRate ||
+            0
+          )
+        );
+
+      const weeklyHours =
+        Math.max(
+          0,
+          Number(
+            req.body
+              ?.weeklyHours ??
+            40
+          )
+        );
+
+      const schedule =
+        await PayrollStaffSchedule
           .findOneAndUpdate(
             {
               tenantId:
@@ -2186,41 +2446,85 @@ router.put(
               personId:
                 String(
                   req.params.id
-                ),
-
-              workDate
+                )
             },
             {
               $set:{
-                hours:
-                  workHours,
-
-                note:
-                  clean(
-                    req.body
-                      ?.note
-                  ),
-
-                enteredBy:
+                payrollEnabled,
+                days,
+                updatedBy:
                   req.authUser.id
               }
             },
             {
-              new:true,
               upsert:true,
+              new:true,
+              setDefaultsOnInsert:true
+            }
+          );
+
+      const profile =
+        await PayrollProfile
+          .findOneAndUpdate(
+            {
+              tenantId:
+                req.authUser
+                  .tenantId,
+
+              personType,
+
+              personId:
+                String(
+                  req.params.id
+                )
+            },
+            {
+              $set:{
+                hourlyRate,
+                overtimeRate,
+
+                /*
+                  Weekly Hours is the regular-hours
+                  threshold before overtime.
+                */
+                overtimeAfterHours:
+                  weeklyHours,
+
+                enabled:true
+              }
+            },
+            {
+              upsert:true,
+              new:true,
               setDefaultsOnInsert:true
             }
           );
 
       return res.json({
         success:true,
-        row
+
+        schedule:
+          scheduleForClient(
+            schedule
+          ),
+
+        profile:{
+          hourlyRate:
+            profile.hourlyRate,
+
+          overtimeRate:
+            profile.overtimeRate,
+
+          weeklyHours:
+            profile
+              .overtimeAfterHours
+        }
       });
 
     }catch(err){
 
       console.log(
-        "PAYROLL HOURS ERROR:",
+        "STAFF PAYROLL SCHEDULE SAVE ERROR:",
         err
       );
 
@@ -2228,7 +2532,7 @@ router.put(
         .status(500)
         .json({
           message:
-            "Hours save failed"
+            "Staff schedule save failed"
         });
     }
   }
@@ -2236,77 +2540,154 @@ router.put(
 
 
 /* =========================
-   MANUAL EMPLOYEE
+   STAFF SIGN IN STATUS
+
+   This is called by the header BEFORE
+   showing the SIGN IN button.
 ========================= */
 
-router.post(
-  "/employees",
+router.get(
+  "/staff-signin/status",
   requirePayrollAuth,
-  requireSuperAdmin,
   async(req,res)=>{
 
     try{
 
-      const name =
-        clean(
-          req.body?.name
+      const personType =
+        personTypeFromRole(
+          req.authUser.role
         );
 
-      if(!name){
+      if(
+        !STAFF_TYPES.includes(
+          personType
+        )
+      ){
 
-        return res
-          .status(400)
-          .json({
-            message:
-              "Employee name required"
-          });
+        return res.json({
+          success:true,
+          supported:false,
+          showSignIn:false,
+          signed:false
+        });
       }
 
-      const employee =
-        await PayrollEmployee
-          .create({
+      const info =
+        await getCurrentPeriod(
+          req.authUser.tenantId
+        );
+
+      const today =
+        info.today;
+
+      const dayKey =
+        weekdayKeyFromDateKey(
+          today
+        );
+
+      const schedule =
+        await getStaffSchedule(
+          req.authUser.tenantId,
+          personType,
+          req.authUser.id
+        );
+
+      const clientSchedule =
+        scheduleForClient(
+          schedule
+        );
+
+      const todayRule =
+        clientSchedule
+          .days
+          ?.[dayKey] ||
+        {
+          enabled:false,
+          hours:0
+        };
+
+      const eligible =
+        clientSchedule
+          .payrollEnabled === true &&
+        todayRule
+          .enabled === true &&
+        Number(
+          todayRule.hours ||
+          0
+        ) > 0;
+
+      if(!eligible){
+
+        return res.json({
+          success:true,
+          supported:true,
+          showSignIn:false,
+          signed:false,
+          eligible:false,
+          today,
+          dayKey,
+          timezone:
+            info.timezone
+        });
+      }
+
+      const attendance =
+        await PayrollAttendance
+          .findOne({
             tenantId:
               req.authUser
                 .tenantId,
 
-            name,
+            personType,
 
-            employeeNumber:
-              clean(
-                req.body
-                  ?.employeeNumber
+            personId:
+              String(
+                req.authUser.id
               ),
 
-            jobTitle:
-              clean(
-                req.body
-                  ?.jobTitle
-              ),
-
-            phone:
-              clean(
-                req.body
-                  ?.phone
-              ),
-
-            email:
-              clean(
-                req.body
-                  ?.email
-              ),
-
-            active:true
-          });
+            workDate:
+              today
+          })
+          .lean();
 
       return res.json({
         success:true,
-        employee
+        supported:true,
+        eligible:true,
+
+        /*
+          Header only shows SIGN IN if the person
+          is scheduled today and has not signed yet.
+        */
+        showSignIn:
+          !attendance,
+
+        signed:
+          !!attendance,
+
+        today,
+        dayKey,
+
+        creditedHours:
+          attendance
+            ? Number(
+                attendance
+                  .creditedHours ||
+                0
+              )
+            : Number(
+                todayRule.hours ||
+                0
+              ),
+
+        timezone:
+          info.timezone
       });
 
     }catch(err){
 
       console.log(
-        "PAYROLL EMPLOYEE CREATE ERROR:",
+        "STAFF SIGNIN STATUS ERROR:",
         err
       );
 
@@ -2314,92 +2695,195 @@ router.post(
         .status(500)
         .json({
           message:
-            "Employee create failed"
+            "Sign In status failed"
         });
     }
   }
 );
 
-router.put(
-  "/employees/:id",
+
+/* =========================
+   STAFF SIGN IN
+
+   No Sign Out.
+   Successful Sign In credits the scheduled
+   hours for today as a snapshot.
+========================= */
+
+router.post(
+  "/staff-signin",
   requirePayrollAuth,
-  requireSuperAdmin,
   async(req,res)=>{
 
     try{
 
-      const employee =
-        await PayrollEmployee
-          .findOneAndUpdate(
-            {
-              _id:
-                req.params.id,
+      const personType =
+        personTypeFromRole(
+          req.authUser.role
+        );
 
-              tenantId:
-                req.authUser
-                  .tenantId
-            },
-            {
-              $set:{
-                name:
-                  clean(
-                    req.body
-                      ?.name
-                  ),
-
-                employeeNumber:
-                  clean(
-                    req.body
-                      ?.employeeNumber
-                  ),
-
-                jobTitle:
-                  clean(
-                    req.body
-                      ?.jobTitle
-                  ),
-
-                phone:
-                  clean(
-                    req.body
-                      ?.phone
-                  ),
-
-                email:
-                  clean(
-                    req.body
-                      ?.email
-                  ),
-
-                active:
-                  req.body
-                    ?.active !== false
-              }
-            },
-            {
-              new:true
-            }
-          );
-
-      if(!employee){
+      if(
+        !STAFF_TYPES.includes(
+          personType
+        )
+      ){
 
         return res
-          .status(404)
+          .status(403)
           .json({
             message:
-              "Employee not found"
+              "Sign In is not available for this role"
           });
       }
 
+      const info =
+        await getCurrentPeriod(
+          req.authUser.tenantId
+        );
+
+      const today =
+        info.today;
+
+      const dayKey =
+        weekdayKeyFromDateKey(
+          today
+        );
+
+      const schedule =
+        await getStaffSchedule(
+          req.authUser.tenantId,
+          personType,
+          req.authUser.id
+        );
+
+      const clientSchedule =
+        scheduleForClient(
+          schedule
+        );
+
+      const todayRule =
+        clientSchedule
+          .days
+          ?.[dayKey] ||
+        {
+          enabled:false,
+          hours:0
+        };
+
+      if(
+        clientSchedule
+          .payrollEnabled !== true
+      ){
+
+        return res
+          .status(403)
+          .json({
+            message:
+              "Payroll Sign In is disabled for your account"
+          });
+      }
+
+      if(
+        todayRule
+          .enabled !== true ||
+        Number(
+          todayRule.hours ||
+          0
+        ) <= 0
+      ){
+
+        return res
+          .status(403)
+          .json({
+            message:
+              "Today is not a scheduled work day"
+          });
+      }
+
+      /*
+        Idempotent: repeated taps cannot create
+        duplicate credited days.
+      */
+      const attendance =
+        await PayrollAttendance
+          .findOneAndUpdate(
+            {
+              tenantId:
+                req.authUser
+                  .tenantId,
+
+              personType,
+
+              personId:
+                String(
+                  req.authUser.id
+                ),
+
+              workDate:
+                today
+            },
+            {
+              $setOnInsert:{
+                dayKey,
+
+                creditedHours:
+                  Number(
+                    todayRule.hours
+                  ),
+
+                signedAt:
+                  new Date(),
+
+                timezone:
+                  info.timezone
+              }
+            },
+            {
+              upsert:true,
+              new:true,
+              setDefaultsOnInsert:true
+            }
+          );
+
       return res.json({
         success:true,
-        employee
+        signed:true,
+        today,
+        dayKey,
+
+        creditedHours:
+          Number(
+            attendance
+              .creditedHours ||
+            todayRule.hours ||
+            0
+          ),
+
+        timezone:
+          info.timezone
       });
 
     }catch(err){
 
+      /*
+        Unique index race safety.
+      */
+      if(
+        Number(
+          err?.code
+        ) === 11000
+      ){
+
+        return res.json({
+          success:true,
+          signed:true,
+          message:
+            "Already signed in today"
+        });
+      }
+
       console.log(
-        "PAYROLL EMPLOYEE UPDATE ERROR:",
+        "STAFF SIGNIN ERROR:",
         err
       );
 
@@ -2407,7 +2891,7 @@ router.put(
         .status(500)
         .json({
           message:
-            "Employee update failed"
+            "Sign In failed"
         });
     }
   }
@@ -2709,8 +3193,7 @@ router.get(
         "driver",
         "dispatcher",
         "admin",
-        "super_admin",
-        "employee"
+        "super_admin"
       ];
 
       if(
