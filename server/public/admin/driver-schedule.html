@@ -16,22 +16,50 @@ body{
   background:#f4f6fb;
 }
 
-/* ===== IMPORTANT: HEADER SPACE FIX ===== */
-.page-body{
-  max-width:1400px;
-  margin:auto;
-  padding:120px 20px 20px 20px;
+/* ===== PAGE — SAME SPACING AS TRIPS HUB ===== */
+#adminHeader{
+  width:100%;
+  z-index:1000;
 }
 
-/* ===== PAGE TITLE ===== */
-.page-title{
+.page-content{
+  padding:18px 22px 30px;
+  width:100%;
+}
+
+/* ===== GOLD PAGE TITLE — SAME AS TRIPS HUB ===== */
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
   text-align:center;
-  background:#1e3a8a;
-  color:#fff;
-  padding:12px;
-  font-weight:700;
-  border-radius:10px;
-  margin-bottom:15px;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
 }
 
 /* ===== TABLE ===== */
@@ -135,6 +163,26 @@ input,select{
 .disable{background:#dc2626;color:#fff;}
 .enable{background:#f59e0b;color:#fff;}
 
+@media(max-width:768px){
+  .page-content{
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+}
+
 </style>
 
 </head>
@@ -144,9 +192,14 @@ input,select{
 <!-- ✅ HEADER رجع زي ما هو -->
 <div id="adminHeader"></div>
 
-<div class="page-body">
+<div class="page-content">
 
-<div class="page-title">Driver Schedule Management</div>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Driver Schedule</h1>
+      <div class="page-sub">Driver availability, services and weekly schedule management</div>
+    </div>
+  </div>
 
 <table>
 <thead>
