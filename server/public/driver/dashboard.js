@@ -12,7 +12,7 @@
     history:"trip-history.html",
     map:"map.html",
     hours:"work-hours.html",
-    earnings:"earnings.html",
+    earnings:"Earnings.html",
     summary:"summary.html",
     chat:"chat.html",
     login:"login.html"

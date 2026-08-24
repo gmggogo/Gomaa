@@ -4117,19 +4117,74 @@ app.get(
       });
     }
 
+    /*
+      IMPORTANT:
+      Never block the Admin Billing page while recalculating
+      every company and every trip.
+
+      Return the tenant companies immediately from MongoDB,
+      then refresh their billing totals in the background.
+      This prevents the page from staying forever on
+      "Loading billing...".
+    */
     const companies =
       await User.find(filter)
         .sort({name:1})
         .lean();
 
-    const updated =
-      await Promise.all(
-        companies.map(company =>
-          updateCompanyBilling(company)
-        )
-      );
+    res.json(companies);
 
-    return res.json(updated);
+    /*
+      Recalculate saved billing data AFTER the response.
+      A later Refresh/page load receives the fresh values.
+
+      Promise.allSettled means one bad company can never
+      stop the rest of the tenant companies from updating.
+    */
+    setImmediate(async ()=>{
+
+      try{
+
+        const results =
+          await Promise.allSettled(
+            companies.map(company =>
+              updateCompanyBilling(company)
+            )
+          );
+
+        const failed =
+          results.filter(
+            row=>row.status === "rejected"
+          );
+
+        if(failed.length){
+
+          console.log(
+            "ADMIN BILLING BACKGROUND REFRESH FAILURES:",
+            failed.length
+          );
+
+          failed.forEach(row=>{
+            console.log(
+              row.reason?.message ||
+              row.reason ||
+              "Unknown billing refresh error"
+            );
+          });
+        }
+
+      }catch(refreshErr){
+
+        console.log(
+          "ADMIN BILLING BACKGROUND REFRESH ERROR:",
+          refreshErr?.message ||
+          refreshErr
+        );
+      }
+
+    });
+
+    return;
 
   }catch(err){
 
@@ -4146,16 +4201,21 @@ app.get(
 
 });
 
+function billingServiceKey(trip){
+
+  return String(
+    trip?.serviceKey ||
+    trip?.serviceType ||
+    ""
+  )
+  .trim()
+  .toUpperCase();
+}
+
 async function getServiceByTrip(trip){
 
   const serviceKey =
-    String(
-      trip.serviceKey ||
-      trip.serviceType ||
-      ""
-    )
-    .trim()
-    .toUpperCase();
+    billingServiceKey(trip);
 
   if(!serviceKey){
     return null;
@@ -4165,6 +4225,47 @@ async function getServiceByTrip(trip){
     serviceKey
   }).lean();
 
+}
+
+/*
+  ADMIN BILLING PERFORMANCE:
+  Load all services required by a company's trips in ONE query
+  instead of one Mongo query for every trip.
+*/
+async function getBillingServiceMap(trips){
+
+  const keys =
+    [
+      ...new Set(
+        (Array.isArray(trips) ? trips : [])
+          .map(billingServiceKey)
+          .filter(Boolean)
+      )
+    ];
+
+  if(!keys.length){
+    return new Map();
+  }
+
+  const services =
+    await Service.find({
+      serviceKey:{
+        $in:keys
+      }
+    })
+    .lean();
+
+  return new Map(
+    services.map(service=>[
+      String(
+        service.serviceKey ||
+        ""
+      )
+      .trim()
+      .toUpperCase(),
+      service
+    ])
+  );
 }
 /* =========================
    BILLING ENGINE FINAL
@@ -4293,6 +4394,15 @@ async function updateCompanyBilling(company){
 
   }).lean();
 
+  /*
+    Load service definitions once for all trips.
+    This removes the old N+1 Service query loop.
+  */
+  const billingServiceMap =
+    await getBillingServiceMap(
+      trips
+    );
+
   let individualTrips = 0;
   let completedTrips = 0;
   let cancelledTrips = 0;
@@ -4302,8 +4412,11 @@ async function updateCompanyBilling(company){
   const sharedGroups = new Set();
 
 for (const t of trips) {
-   const service =
-  await getServiceByTrip(t);
+
+const service =
+  billingServiceMap.get(
+    billingServiceKey(t)
+  ) || null;
 
 const isShared =
 
