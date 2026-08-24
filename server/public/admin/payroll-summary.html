@@ -3,17 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
 <title>Payroll Summary</title>
 <link rel="stylesheet" href="style.css">
 
 <style>
 *{box-sizing:border-box}
 
+:root{
+  --navy:#0f2747;
+  --navy2:#173f70;
+  --gold:#d4a900;
+  --gold2:#ffd21f;
+  --bg:#eef3f8;
+  --line:#dfe7f0;
+  --muted:#64748b;
+  --green:#15803d;
+}
+
 body{
   margin:0;
-  background:#eef3f8;
+  background:var(--bg);
   font-family:"Segoe UI",Arial,sans-serif;
-  color:#0f2747;
+  color:var(--navy);
 }
 
 #adminHeader{
@@ -25,7 +37,7 @@ body{
 }
 
 .page{
-  max-width:1500px;
+  max-width:1650px;
   margin:0 auto;
   padding:255px 20px 70px;
 }
@@ -33,26 +45,30 @@ body{
 .title{
   margin:0 0 18px;
   text-align:center;
-  color:#d4a900;
+  color:var(--gold);
   font-size:36px;
   font-weight:900;
 }
+
+/* =========================
+   TABS
+========================= */
 
 .tabs{
   display:flex;
   justify-content:center;
   gap:8px;
   flex-wrap:wrap;
-  margin-bottom:16px;
+  margin-bottom:14px;
 }
 
 .tab-btn{
-  min-width:115px;
+  min-width:120px;
   padding:10px 14px;
-  border:1px solid rgba(212,169,0,.50);
+  border:1px solid rgba(212,169,0,.48);
   border-radius:13px;
   background:linear-gradient(180deg,#fff,#edf3f9);
-  color:#0f2747;
+  color:var(--navy);
   box-shadow:0 4px 12px rgba(15,39,71,.07);
   font-size:11px;
   font-weight:900;
@@ -60,89 +76,206 @@ body{
 }
 
 .tab-btn.active{
-  background:linear-gradient(180deg,#173f70,#0f2747);
-  color:#ffd21f;
-  border-color:#d4a900;
+  background:linear-gradient(180deg,var(--navy2),var(--navy));
+  color:var(--gold2);
+  border-color:var(--gold);
 }
 
-.summary-row{
-  display:flex;
-  justify-content:center;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-bottom:16px;
-}
-
-.summary-card{
-  min-width:180px;
-  padding:13px 16px;
-  border-radius:15px;
-  background:#fff;
-  border:1px solid rgba(212,169,0,.25);
-  box-shadow:0 6px 18px rgba(15,39,71,.06);
+.help-line{
+  margin:0 0 14px;
   text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
 }
 
-.summary-card span{
+/* =========================
+   MASTER / DETAIL
+========================= */
+
+.workspace{
+  display:grid;
+  grid-template-columns:360px minmax(0,1fr);
+  gap:14px;
+  align-items:start;
+}
+
+.people-panel,
+.detail-panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:19px;
+  box-shadow:0 8px 24px rgba(15,39,71,.07);
+}
+
+.people-panel{
+  overflow:hidden;
+}
+
+.search-wrap{
+  padding:13px;
+  border-bottom:1px solid var(--line);
+}
+
+.search{
+  width:100%;
+  height:42px;
+  padding:0 13px;
+  border:1px solid #cbd6e2;
+  border-radius:11px;
+  outline:none;
+  color:var(--navy);
+  font-size:13px;
+  font-weight:700;
+}
+
+.search:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(212,169,0,.10);
+}
+
+.people-list{
+  max-height:650px;
+  overflow:auto;
+  padding:9px;
+}
+
+.person-item{
+  width:100%;
   display:block;
-  color:#64748b;
+  margin-bottom:8px;
+  padding:12px 13px;
+  border:1px solid #e0e6ed;
+  border-radius:14px;
+  background:#fff;
+  color:var(--navy);
+  text-align:left;
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.person-item:hover{
+  border-color:#c8d4e3;
+  transform:translateY(-1px);
+}
+
+.person-item.active{
+  background:linear-gradient(90deg,#fff6cd,#fff);
+  border-color:var(--gold);
+  box-shadow:0 5px 14px rgba(212,169,0,.13);
+}
+
+.person-name{
+  font-size:15px;
+  font-weight:900;
+}
+
+.person-last{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+.person-last-row{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:6px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.person-hours{
+  color:var(--navy2);
+}
+
+.person-money{
+  color:var(--green);
+}
+
+.no-people{
+  padding:24px 12px;
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================
+   DETAIL
+========================= */
+
+.detail-panel{
+  padding:16px;
+  min-height:430px;
+}
+
+.detail-empty{
+  min-height:380px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.detail-title{
+  margin:0 0 13px;
+  color:var(--gold);
+  font-size:25px;
+  font-weight:900;
+}
+
+.detail-sub{
+  margin-top:-7px;
+  margin-bottom:14px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.card{
+  padding:13px 15px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fbfdff;
+}
+
+.card span{
+  display:block;
+  color:var(--muted);
   font-size:10px;
   font-weight:900;
   text-transform:uppercase;
 }
 
-.summary-card b{
+.card b{
   display:block;
-  margin-top:4px;
-  color:#0f2747;
-  font-size:20px;
+  margin-top:5px;
+  color:var(--navy);
+  font-size:19px;
   font-weight:900;
 }
 
-.summary-card.money b{
-  color:#15803d;
+.card.money b{
+  color:var(--green);
 }
 
-.people-list{
-  display:grid;
-  gap:14px;
-}
-
-.person-card{
+.table-card{
   overflow:hidden;
-  border-radius:18px;
-  background:#fff;
-  border:1px solid #dfe7f0;
-  box-shadow:0 8px 22px rgba(15,39,71,.07);
-}
-
-.person-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:13px 16px;
-  background:linear-gradient(90deg,#fff7cf,#fff);
-  border-bottom:1px solid #e6ebf1;
-}
-
-.person-name{
-  color:#0f2747;
-  font-size:17px;
-  font-weight:900;
-}
-
-.person-meta{
-  margin-top:2px;
-  color:#718096;
-  font-size:10px;
-  font-weight:700;
-}
-
-.period-count{
-  color:#64748b;
-  font-size:10px;
-  font-weight:900;
+  border:1px solid var(--line);
+  border-radius:14px;
 }
 
 .table-wrap{
@@ -158,7 +291,7 @@ table{
 
 th{
   padding:10px 9px;
-  background:#0f2747;
+  background:var(--navy);
   color:#fff;
   text-align:left;
   white-space:nowrap;
@@ -169,7 +302,7 @@ th{
 
 td{
   padding:10px 9px;
-  border-bottom:1px solid #e5ebf2;
+  border-bottom:1px solid #e7ecf2;
   font-size:12px;
   font-weight:700;
 }
@@ -179,27 +312,65 @@ tbody tr:nth-child(even) td{
 }
 
 .money{
-  color:#16a34a;
+  color:var(--green);
   font-weight:900;
 }
 
-.empty{
-  padding:20px 14px;
-  text-align:center;
-  color:#64748b;
-  font-size:12px;
-  font-weight:800;
+.pagination{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:12px;
 }
 
-.note{
-  margin-top:12px;
+.page-btn{
+  min-width:34px;
+  height:34px;
+  padding:0 9px;
+  border:1px solid #d7e0ea;
+  border-radius:9px;
+  background:#fff;
+  color:var(--navy);
+  font-weight:900;
+  cursor:pointer;
+}
+
+.page-btn.active{
+  background:var(--navy);
+  color:#fff;
+  border-color:var(--navy);
+}
+
+.page-btn:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+}
+
+.retention-note{
+  margin-top:11px;
+  color:var(--muted);
   text-align:center;
-  color:#64748b;
   font-size:10px;
   font-weight:800;
 }
 
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1050px){
+
+  .workspace{
+    grid-template-columns:300px minmax(0,1fr);
+  }
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
 @media(max-width:900px){
+
   .page{
     padding:310px 10px 60px;
   }
@@ -208,9 +379,23 @@ tbody tr:nth-child(even) td{
     font-size:29px;
   }
 
-  .tab-btn{
-    min-width:105px;
-    padding:9px 10px;
+  .workspace{
+    grid-template-columns:1fr;
+  }
+
+  .people-list{
+    max-height:330px;
+  }
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:520px){
+
+  .cards{
+    grid-template-columns:1fr;
   }
 }
 </style>
@@ -255,45 +440,51 @@ tbody tr:nth-child(even) td{
       type="button">
       Super Admins
     </button>
-</section>
-
-  <section class="summary-row">
-
-    <div class="summary-card">
-      <span>People</span>
-      <b id="peopleCount">0</b>
-    </div>
-
-    <div class="summary-card">
-      <span>Total Hours</span>
-      <b id="totalHours">0 H 00 MIN</b>
-    </div>
-
-    <div
-      class="summary-card"
-      id="tripsCard">
-      <span>Trips</span>
-      <b id="totalTrips">0</b>
-    </div>
-
-    <div class="summary-card money">
-      <span>Total Earnings</span>
-      <b id="totalEarnings">$0.00</b>
-    </div>
 
   </section>
 
-  <section
-    class="people-list"
-    id="peopleList">
+  <div class="help-line">
+    Search on the left, then select a name to view that person's payroll history.
+  </div>
 
-    <div class="empty">
-      Loading...
-    </div>
+  <section class="workspace">
+
+    <!-- LEFT -->
+    <aside class="people-panel">
+
+      <div class="search-wrap">
+        <input
+          class="search"
+          id="nameSearch"
+          type="search"
+          placeholder="Search by name..."
+          autocomplete="off">
+      </div>
+
+      <div
+        class="people-list"
+        id="peopleList">
+        <div class="no-people">
+          Loading...
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT -->
+    <section
+      class="detail-panel"
+      id="detailPanel">
+
+      <div class="detail-empty">
+        Select a name from the list.
+      </div>
+
+    </section>
 
   </section>
 
-  <div class="note">
+  <div class="retention-note">
     Each person keeps their own closed payroll periods for the rolling last 24 months.
   </div>
 

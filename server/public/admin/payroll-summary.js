@@ -1,9 +1,19 @@
 /* =========================================================
    FILE: public/admin/payroll-summary.js
 
-   SUPER ADMIN
-   PER-PERSON PAYROLL SUMMARY
-   NO "ALL" TAB
+   MASTER / DETAIL PAYROLL SUMMARY
+
+   LEFT:
+   - Names
+   - Search
+   - Last closed pay period only
+
+   RIGHT:
+   - Selected person's full payroll history
+   - Rolling last 24 months
+
+   Groups:
+   Drivers / Dispatchers / Admins / Super Admins
 ========================================================= */
 
 const token =
@@ -35,6 +45,26 @@ if(
 let currentType =
   "driver";
 
+let people =
+  [];
+
+let selectedPersonId =
+  "";
+
+let searchText =
+  "";
+
+let currentPage =
+  1;
+
+const PAGE_SIZE =
+  8;
+
+
+/* =========================
+   HELPERS
+========================= */
+
 function hoursText(value){
 
   const minutes =
@@ -65,7 +95,8 @@ function money(value){
       style:"currency",
       currency:"USD"
     }
-  ).format(
+  )
+  .format(
     Number(value || 0)
   );
 }
@@ -81,7 +112,11 @@ function dateText(key){
       .split("-")
       .map(Number);
 
-  if(!y || !m || !d){
+  if(
+    !y ||
+    !m ||
+    !d
+  ){
     return "-";
   }
 
@@ -114,6 +149,46 @@ function escapeHtml(value){
     .replaceAll("'","&#039;");
 }
 
+function selectedPerson(){
+
+  return people.find(
+    person=>
+      String(
+        person.personId
+      ) ===
+      String(
+        selectedPersonId
+      )
+  );
+}
+
+function filteredPeople(){
+
+  const q =
+    searchText
+      .trim()
+      .toLowerCase();
+
+  if(!q){
+    return people;
+  }
+
+  return people.filter(
+    person=>
+      String(
+        person.name ||
+        ""
+      )
+      .toLowerCase()
+      .includes(q)
+  );
+}
+
+
+/* =========================
+   LOAD GROUP
+========================= */
+
 async function loadSummary(){
 
   const list =
@@ -122,7 +197,15 @@ async function loadSummary(){
     );
 
   list.innerHTML = `
-    <div class="empty">
+    <div class="no-people">
+      Loading...
+    </div>
+  `;
+
+  document.getElementById(
+    "detailPanel"
+  ).innerHTML = `
+    <div class="detail-empty">
       Loading...
     </div>
   `;
@@ -142,6 +225,7 @@ async function loadSummary(){
             Authorization:
               `Bearer ${token}`
           },
+
           cache:"no-store"
         }
       );
@@ -161,226 +245,535 @@ async function loadSummary(){
       );
     }
 
-    const totals =
-      data.totals ||
-      {};
-
-    document.getElementById(
-      "peopleCount"
-    ).textContent =
-      String(
-        Number(
-          totals.people ||
-          0
-        )
-      );
-
-    document.getElementById(
-      "totalHours"
-    ).textContent =
-      hoursText(
-        totals.totalHours
-      );
-
-    document.getElementById(
-      "totalTrips"
-    ).textContent =
-      String(
-        Number(
-          totals.totalTrips ||
-          0
-        )
-      );
-
-    document.getElementById(
-      "totalEarnings"
-    ).textContent =
-      money(
-        totals.totalEarnings
-      );
-
-    document.getElementById(
-      "tripsCard"
-    ).style.display =
-      currentType === "driver"
-        ? "block"
-        : "none";
-
-    const people =
+    people =
       Array.isArray(
         data.people
       )
         ? data.people
         : [];
 
-    if(!people.length){
+    selectedPersonId =
+      people[0]
+        ?.personId ||
+      "";
 
-      list.innerHTML = `
-        <div class="empty">
-          No people found in this group.
-        </div>
-      `;
+    currentPage =
+      1;
 
-      return;
-    }
-
-    list.innerHTML =
-      people
-        .map(
-          person=>{
-
-            const periods =
-              Array.isArray(
-                person.periods
-              )
-                ? person.periods
-                : [];
-
-            const metaParts = [];
-
-            if(person.jobTitle){
-              metaParts.push(
-                person.jobTitle
-              );
-            }
-
-            if(person.employeeNumber){
-              metaParts.push(
-                `ID: ${person.employeeNumber}`
-              );
-            }
-
-            const meta =
-              metaParts.length
-                ? `
-                  <div class="person-meta">
-                    ${escapeHtml(metaParts.join(" • "))}
-                  </div>
-                `
-                : "";
-
-            const tripHeader =
-              currentType === "driver"
-                ? "<th>Trips</th>"
-                : "";
-
-            const rows =
-              periods.length
-                ? periods
-                    .map(
-                      row=>`
-                        <tr>
-
-                          <td>
-                            ${escapeHtml(dateText(row.from))}
-                          </td>
-
-                          <td>
-                            ${escapeHtml(dateText(row.to))}
-                          </td>
-
-                          <td>
-                            ${escapeHtml(hoursText(row.totalHours))}
-                          </td>
-
-                          ${
-                            currentType === "driver"
-                              ? `
-                                <td>
-                                  ${Number(row.totalTrips || 0)}
-                                </td>
-                              `
-                              : ""
-                          }
-
-                          <td class="money">
-                            ${escapeHtml(money(row.totalEarnings))}
-                          </td>
-
-                        </tr>
-                      `
-                    )
-                    .join("")
-                : `
-                  <tr>
-                    <td
-                      colspan="${
-                        currentType === "driver"
-                          ? 5
-                          : 4
-                      }">
-                      No closed payroll periods yet.
-                    </td>
-                  </tr>
-                `;
-
-            return `
-              <article class="person-card">
-
-                <div class="person-head">
-
-                  <div>
-
-                    <div class="person-name">
-                      ${escapeHtml(person.name)}
-                    </div>
-
-                    ${meta}
-
-                  </div>
-
-                  <div class="period-count">
-                    ${periods.length} Period${
-                      periods.length === 1
-                        ? ""
-                        : "s"
-                    }
-                  </div>
-
-                </div>
-
-                <div class="table-wrap">
-
-                  <table>
-
-                    <thead>
-                      <tr>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Total Hours</th>
-                        ${tripHeader}
-                        <th>Total Earnings</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      ${rows}
-                    </tbody>
-
-                  </table>
-
-                </div>
-
-              </article>
-            `;
-          }
-        )
-        .join("");
+    renderPeople();
+    renderDetail();
 
   }catch(error){
 
     console.error(
-      "ADMIN PAYROLL PERSON SUMMARY ERROR:",
+      "PAYROLL SUMMARY ERROR:",
       error
     );
 
     list.innerHTML = `
-      <div class="empty">
+      <div class="no-people">
         ${escapeHtml(error.message)}
+      </div>
+    `;
+
+    document.getElementById(
+      "detailPanel"
+    ).innerHTML = `
+      <div class="detail-empty">
+        Unable to load payroll history.
       </div>
     `;
   }
 }
+
+
+/* =========================
+   LEFT LIST
+========================= */
+
+function renderPeople(){
+
+  const list =
+    document.getElementById(
+      "peopleList"
+    );
+
+  const rows =
+    filteredPeople();
+
+  if(!rows.length){
+
+    list.innerHTML = `
+      <div class="no-people">
+        No matching names.
+      </div>
+    `;
+
+    return;
+  }
+
+  list.innerHTML =
+    rows
+      .map(
+        person=>{
+
+          const periods =
+            Array.isArray(
+              person.periods
+            )
+              ? person.periods
+              : [];
+
+          const last =
+            periods[0] ||
+            null;
+
+          const active =
+            String(
+              selectedPersonId
+            ) ===
+            String(
+              person.personId
+            );
+
+          return `
+            <button
+              class="person-item ${active ? "active" : ""}"
+              type="button"
+              data-person-id="${escapeHtml(person.personId)}">
+
+              <div class="person-name">
+                ${escapeHtml(person.name)}
+              </div>
+
+              ${
+                last
+                  ? `
+                    <div class="person-last">
+                      Last Pay Period:
+                      ${escapeHtml(dateText(last.from))}
+                      →
+                      ${escapeHtml(dateText(last.to))}
+                    </div>
+
+                    <div class="person-last-row">
+
+                      <span class="person-hours">
+                        ${escapeHtml(hoursText(last.totalHours))}
+                      </span>
+
+                      <span class="person-money">
+                        ${escapeHtml(money(last.totalEarnings))}
+                      </span>
+
+                    </div>
+                  `
+                  : `
+                    <div class="person-last">
+                      No closed pay periods yet.
+                    </div>
+                  `
+              }
+
+            </button>
+          `;
+        }
+      )
+      .join("");
+
+  list
+    .querySelectorAll(
+      ".person-item"
+    )
+    .forEach(
+      button=>{
+
+        button.addEventListener(
+          "click",
+          ()=>{
+
+            selectedPersonId =
+              String(
+                button.dataset.personId ||
+                ""
+              );
+
+            currentPage =
+              1;
+
+            renderPeople();
+            renderDetail();
+          }
+        );
+      }
+    );
+}
+
+
+/* =========================
+   RIGHT DETAIL
+========================= */
+
+function renderDetail(){
+
+  const panel =
+    document.getElementById(
+      "detailPanel"
+    );
+
+  const person =
+    selectedPerson();
+
+  if(!person){
+
+    panel.innerHTML = `
+      <div class="detail-empty">
+        Select a name from the list.
+      </div>
+    `;
+
+    return;
+  }
+
+  const periods =
+    Array.isArray(
+      person.periods
+    )
+      ? person.periods
+      : [];
+
+  const totalHours =
+    periods.reduce(
+      (sum,row)=>
+        sum +
+        Number(
+          row.totalHours ||
+          0
+        ),
+      0
+    );
+
+  const totalTrips =
+    periods.reduce(
+      (sum,row)=>
+        sum +
+        Number(
+          row.totalTrips ||
+          0
+        ),
+      0
+    );
+
+  const totalEarnings =
+    periods.reduce(
+      (sum,row)=>
+        sum +
+        Number(
+          row.totalEarnings ||
+          0
+        ),
+      0
+    );
+
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        periods.length /
+        PAGE_SIZE
+      )
+    );
+
+  if(
+    currentPage >
+    pageCount
+  ){
+    currentPage =
+      pageCount;
+  }
+
+  const start =
+    (
+      currentPage -
+      1
+    ) *
+    PAGE_SIZE;
+
+  const pageRows =
+    periods.slice(
+      start,
+      start +
+      PAGE_SIZE
+    );
+
+  const tripsCard =
+    currentType ===
+      "driver"
+      ? `
+        <div class="card">
+          <span>Total Trips</span>
+          <b>${Number(totalTrips)}</b>
+        </div>
+      `
+      : "";
+
+  const tripsHead =
+    currentType ===
+      "driver"
+      ? "<th>Trips</th>"
+      : "";
+
+  const tableRows =
+    pageRows.length
+      ? pageRows
+          .map(
+            row=>`
+              <tr>
+
+                <td>
+                  ${escapeHtml(dateText(row.from))}
+                </td>
+
+                <td>
+                  ${escapeHtml(dateText(row.to))}
+                </td>
+
+                <td>
+                  ${escapeHtml(hoursText(row.totalHours))}
+                </td>
+
+                ${
+                  currentType === "driver"
+                    ? `
+                      <td>
+                        ${Number(row.totalTrips || 0)}
+                      </td>
+                    `
+                    : ""
+                }
+
+                <td class="money">
+                  ${escapeHtml(money(row.totalEarnings))}
+                </td>
+
+              </tr>
+            `
+          )
+          .join("")
+      : `
+        <tr>
+          <td
+            colspan="${
+              currentType === "driver"
+                ? 5
+                : 4
+            }">
+            No closed payroll periods yet.
+          </td>
+        </tr>
+      `;
+
+  panel.innerHTML = `
+    <h2 class="detail-title">
+      ${escapeHtml(person.name)} — Payroll History
+    </h2>
+
+    <div class="detail-sub">
+      Rolling last 24 months
+    </div>
+
+    <section class="cards">
+
+      <div class="card">
+        <span>Total Hours</span>
+        <b>${escapeHtml(hoursText(totalHours))}</b>
+      </div>
+
+      ${tripsCard}
+
+      <div class="card money">
+        <span>Total Earnings</span>
+        <b>${escapeHtml(money(totalEarnings))}</b>
+      </div>
+
+    </section>
+
+    <section class="table-card">
+
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th>Hours</th>
+              ${tripsHead}
+              <th>Total Earnings</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${tableRows}
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+    ${
+      periods.length > PAGE_SIZE
+        ? paginationHtml(
+            pageCount
+          )
+        : ""
+    }
+  `;
+
+  bindPagination();
+}
+
+
+/* =========================
+   PAGINATION
+========================= */
+
+function paginationHtml(
+  pageCount
+){
+
+  const buttons = [];
+
+  buttons.push(`
+    <button
+      class="page-btn"
+      data-page="${
+        Math.max(
+          1,
+          currentPage - 1
+        )
+      }"
+      ${currentPage === 1 ? "disabled" : ""}>
+      ‹
+    </button>
+  `);
+
+  for(
+    let page = 1;
+    page <= pageCount;
+    page++
+  ){
+
+    buttons.push(`
+      <button
+        class="page-btn ${page === currentPage ? "active" : ""}"
+        data-page="${page}">
+        ${page}
+      </button>
+    `);
+  }
+
+  buttons.push(`
+    <button
+      class="page-btn"
+      data-page="${
+        Math.min(
+          pageCount,
+          currentPage + 1
+        )
+      }"
+      ${currentPage === pageCount ? "disabled" : ""}>
+      ›
+    </button>
+  `);
+
+  return `
+    <div class="pagination">
+      ${buttons.join("")}
+    </div>
+  `;
+}
+
+function bindPagination(){
+
+  document
+    .querySelectorAll(
+      ".page-btn[data-page]"
+    )
+    .forEach(
+      button=>{
+
+        button.addEventListener(
+          "click",
+          ()=>{
+
+            if(button.disabled){
+              return;
+            }
+
+            currentPage =
+              Number(
+                button.dataset.page ||
+                1
+              );
+
+            renderDetail();
+          }
+        );
+      }
+    );
+}
+
+
+/* =========================
+   SEARCH
+========================= */
+
+document.getElementById(
+  "nameSearch"
+)
+.addEventListener(
+  "input",
+  event=>{
+
+    searchText =
+      String(
+        event.target.value ||
+        ""
+      );
+
+    const filtered =
+      filteredPeople();
+
+    if(
+      filtered.length &&
+      !filtered.some(
+        person=>
+          String(
+            person.personId
+          ) ===
+          String(
+            selectedPersonId
+          )
+      )
+    ){
+      selectedPersonId =
+        filtered[0]
+          .personId;
+    }
+
+    renderPeople();
+    renderDetail();
+  }
+);
+
+
+/* =========================
+   TABS
+========================= */
 
 document
   .querySelectorAll(
@@ -414,10 +807,23 @@ document
               "driver"
             );
 
+          searchText =
+            "";
+
+          document.getElementById(
+            "nameSearch"
+          ).value =
+            "";
+
           loadSummary();
         }
       );
     }
   );
+
+
+/* =========================
+   START
+========================= */
 
 loadSummary();
