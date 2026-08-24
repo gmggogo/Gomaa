@@ -19,10 +19,48 @@ body{
 }
 
 .page-body{
-  padding:18px 20px 35px;
+  padding:18px 22px 30px;
   background:#f1f5f9;
   min-height:calc(100vh - 80px);
+  width:100%;
 }
+
+/* PAGE TITLE — SAME SIZE / POSITION AS TRIPS HUB */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
 
 /* ================= TABS ================= */
 
@@ -662,7 +700,21 @@ body{
 }
 
 @media(max-width:768px){
-  .page-body{padding:12px;}
+  .page-body{padding:10px 8px 20px;}
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
   .dispatch-tabs{flex-direction:column;}
   .top-actions{display:flex;} .action-left,.action-right{width:100%;display:flex;} .action-right{margin-left:0;}
   .dispatch-table{min-width:1750px;}
@@ -680,6 +732,13 @@ body{
 <div id="adminHeader"></div>
 
 <div class="page-body">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Dispatch</h1>
+      <div class="page-sub">Trip assignment and driver dispatch management</div>
+    </div>
+  </div>
 
   <div class="dispatch-tabs">
     <button id="tabDispatch" class="tab-btn active" type="button">
