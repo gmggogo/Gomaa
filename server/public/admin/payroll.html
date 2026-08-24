@@ -19,26 +19,55 @@ body{
 }
 
 #adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
   width:100%;
   z-index:1000;
 }
 
 .payroll-page{
   max-width:1900px;
+  width:100%;
   margin:0 auto;
-  padding:255px 22px 80px;
+  padding:18px 22px 80px;
+}
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
 }
 
 .page-title{
-  margin:0 0 20px;
-  text-align:center;
-  color:#d4a900;
-  font-size:38px;
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
   font-weight:900;
+  color:#111827;
 }
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
 
 /* =========================
    PAY PERIOD
@@ -409,11 +438,21 @@ button:disabled{
 @media(max-width:900px){
 
   .payroll-page{
-    padding:310px 10px 60px;
+    padding:10px 8px 60px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
   }
 
   .page-title{
-    font-size:30px;
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
   }
 
   .period-edit{
@@ -433,9 +472,12 @@ button:disabled{
 
 <main class="payroll-page">
 
-  <h1 class="page-title">
-    Payroll & Earnings
-  </h1>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Payroll & Earnings</h1>
+      <div class="page-sub">Company pay periods, staff schedules, hours and earnings</div>
+    </div>
+  </div>
 
   <section class="period-card">
 

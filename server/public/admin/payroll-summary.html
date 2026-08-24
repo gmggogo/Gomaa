@@ -29,25 +29,53 @@ body{
 }
 
 #adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
   width:100%;
   z-index:1000;
 }
 
 .page{
   max-width:1650px;
+  width:100%;
   margin:0 auto;
-  padding:255px 20px 70px;
+  padding:18px 22px 70px;
+}
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
 }
 
 .title{
-  margin:0 0 18px;
-  text-align:center;
-  color:var(--gold);
-  font-size:36px;
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
   font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
 }
 
 /* =========================
@@ -372,11 +400,21 @@ tbody tr:nth-child(even) td{
 @media(max-width:900px){
 
   .page{
-    padding:310px 10px 60px;
+    padding:10px 8px 60px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
   }
 
   .title{
-    font-size:29px;
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
   }
 
   .workspace{
@@ -407,9 +445,12 @@ tbody tr:nth-child(even) td{
 
 <main class="page">
 
-  <h1 class="title">
-    Payroll Summary
-  </h1>
+  <div class="page-head">
+    <div>
+      <h1 class="title">Payroll Summary</h1>
+      <div class="page-sub">Payroll history and closed pay periods by person</div>
+    </div>
+  </div>
 
   <section class="tabs">
 
