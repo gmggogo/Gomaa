@@ -19,35 +19,48 @@ body{
 }
 
 #adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
   width:100%;
   z-index:1000;
 }
 
 .page-body{
-  padding:130px 22px 35px;
+  padding:18px 22px 35px;
+  width:100%;
 }
 
+/* GOLD PAGE TITLE — SAME AS TRIPS HUB */
 .page-head{
-  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
   border-radius:18px;
-  padding:20px;
-  margin-bottom:18px;
-  box-shadow:0 8px 22px rgba(0,0,0,.08);
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
 }
 
 .page-head h1{
   margin:0;
   font-size:28px;
-  color:#0f172a;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
 }
 
 .page-head p{
-  margin:7px 0 0;
+  margin:5px 0 0;
   color:#64748b;
-  font-weight:600;
+  font-size:13px;
+  font-weight:800;
 }
 
 .grid{
@@ -275,7 +288,21 @@ select:disabled{
   }
 
   .page-body{
-    padding-top:150px;
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+  }
+
+  .page-head p{
+    font-size:11px;
   }
 }
 </style>
@@ -582,18 +609,7 @@ select:disabled{
 
 <div id="toast" class="toast"></div>
 
-<script>
-fetch("/admin/header.html")
-.then(r=>r.text())
-.then(html=>{
-  document.getElementById("adminHeader").innerHTML = html;
-
-  const s = document.createElement("script");
-  s.src = "/admin/header.js?v=" + Date.now();
-  document.body.appendChild(s);
-});
-</script>
-
+<script src="/admin/header.js"></script>
 <script src="/admin/smart-dispatch-engine.js?v=1"></script>
 
 </body>
