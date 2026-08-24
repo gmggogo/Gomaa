@@ -669,7 +669,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
               <div class="company-box">
 
-                <div class="company-name">
+                <div class="billing-company-title"
+                  style="font-size:22px;font-weight:900;color:#166534;margin-bottom:8px;">
                   ${c.name || "--"}
                 </div>
 
