@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-
 <title>Payroll Summary</title>
 <link rel="stylesheet" href="style.css">
 
@@ -39,10 +38,6 @@ body{
   font-weight:900;
 }
 
-/* =========================
-   FILTER TABS
-========================= */
-
 .tabs{
   display:flex;
   justify-content:center;
@@ -52,7 +47,7 @@ body{
 }
 
 .tab-btn{
-  min-width:105px;
+  min-width:115px;
   padding:10px 14px;
   border:1px solid rgba(212,169,0,.50);
   border-radius:13px;
@@ -70,19 +65,17 @@ body{
   border-color:#d4a900;
 }
 
-/* =========================
-   TOP CARDS
-========================= */
-
-.cards{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:10px;
+.summary-row{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
   margin-bottom:16px;
 }
 
-.card{
-  padding:13px 14px;
+.summary-card{
+  min-width:180px;
+  padding:13px 16px;
   border-radius:15px;
   background:#fff;
   border:1px solid rgba(212,169,0,.25);
@@ -90,7 +83,7 @@ body{
   text-align:center;
 }
 
-.card span{
+.summary-card span{
   display:block;
   color:#64748b;
   font-size:10px;
@@ -98,28 +91,58 @@ body{
   text-transform:uppercase;
 }
 
-.card b{
+.summary-card b{
   display:block;
-  margin-top:5px;
+  margin-top:4px;
   color:#0f2747;
   font-size:20px;
   font-weight:900;
 }
 
-.card.money-card b{
-  color:#14833b;
+.summary-card.money b{
+  color:#15803d;
 }
 
-/* =========================
-   TABLE
-========================= */
+.people-list{
+  display:grid;
+  gap:14px;
+}
 
-.table-card{
+.person-card{
   overflow:hidden;
   border-radius:18px;
   background:#fff;
   border:1px solid #dfe7f0;
-  box-shadow:0 9px 25px rgba(15,39,71,.08);
+  box-shadow:0 8px 22px rgba(15,39,71,.07);
+}
+
+.person-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  background:linear-gradient(90deg,#fff7cf,#fff);
+  border-bottom:1px solid #e6ebf1;
+}
+
+.person-name{
+  color:#0f2747;
+  font-size:17px;
+  font-weight:900;
+}
+
+.person-meta{
+  margin-top:2px;
+  color:#718096;
+  font-size:10px;
+  font-weight:700;
+}
+
+.period-count{
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
 }
 
 .table-wrap{
@@ -129,12 +152,12 @@ body{
 
 table{
   width:100%;
-  min-width:900px;
+  min-width:760px;
   border-collapse:collapse;
 }
 
 th{
-  padding:11px 10px;
+  padding:10px 9px;
   background:#0f2747;
   color:#fff;
   text-align:left;
@@ -145,7 +168,7 @@ th{
 }
 
 td{
-  padding:11px 10px;
+  padding:10px 9px;
   border-bottom:1px solid #e5ebf2;
   font-size:12px;
   font-weight:700;
@@ -160,23 +183,23 @@ tbody tr:nth-child(even) td{
   font-weight:900;
 }
 
+.empty{
+  padding:20px 14px;
+  text-align:center;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
 .note{
-  margin-top:10px;
+  margin-top:12px;
   text-align:center;
   color:#64748b;
   font-size:10px;
   font-weight:800;
 }
 
-@media(max-width:1000px){
-
-  .cards{
-    grid-template-columns:repeat(2,1fr);
-  }
-}
-
 @media(max-width:900px){
-
   .page{
     padding:310px 10px 60px;
   }
@@ -186,19 +209,8 @@ tbody tr:nth-child(even) td{
   }
 
   .tab-btn{
-    min-width:96px;
+    min-width:105px;
     padding:9px 10px;
-  }
-}
-
-@media(max-width:520px){
-
-  .cards{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .card b{
-    font-size:17px;
   }
 }
 </style>
@@ -218,13 +230,6 @@ tbody tr:nth-child(even) td{
 
     <button
       class="tab-btn active"
-      data-type="all"
-      type="button">
-      All
-    </button>
-
-    <button
-      class="tab-btn"
       data-type="driver"
       type="button">
       Drivers
@@ -260,65 +265,44 @@ tbody tr:nth-child(even) td{
 
   </section>
 
-  <section class="cards">
+  <section class="summary-row">
 
-    <div class="card">
-      <span>Total Workers</span>
-      <b id="totalWorkers">0</b>
+    <div class="summary-card">
+      <span>People</span>
+      <b id="peopleCount">0</b>
     </div>
 
-    <div class="card">
+    <div class="summary-card">
       <span>Total Hours</span>
       <b id="totalHours">0 H 00 MIN</b>
     </div>
 
-    <div class="card">
-      <span>Driver Trips</span>
+    <div
+      class="summary-card"
+      id="tripsCard">
+      <span>Trips</span>
       <b id="totalTrips">0</b>
     </div>
 
-    <div class="card money-card">
-      <span>Total Payroll</span>
+    <div class="summary-card money">
+      <span>Total Earnings</span>
       <b id="totalEarnings">$0.00</b>
     </div>
 
   </section>
 
-  <section class="table-card">
+  <section
+    class="people-list"
+    id="peopleList">
 
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>From</th>
-            <th>To</th>
-            <th>Workers</th>
-            <th>Total Hours</th>
-            <th>Driver Trips</th>
-            <th>Total Payroll</th>
-          </tr>
-        </thead>
-
-        <tbody id="summaryBody">
-
-          <tr>
-            <td colspan="6">
-              Loading...
-            </td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
+    <div class="empty">
+      Loading...
     </div>
 
   </section>
 
   <div class="note">
-    Payroll Summary keeps the rolling last 24 months for the selected worker group.
+    Each person keeps their own closed payroll periods for the rolling last 24 months.
   </div>
 
 </main>

@@ -1,9 +1,9 @@
 /* =========================================================
    FILE: public/admin/payroll-summary.js
 
-   COMPANY PAYROLL SUMMARY
-   ALL WORKER TYPES
-   ROLLING LAST 24 MONTHS
+   SUPER ADMIN
+   PER-PERSON PAYROLL SUMMARY
+   NO "ALL" TAB
 ========================================================= */
 
 const token =
@@ -33,18 +33,14 @@ if(
 }
 
 let currentType =
-  "all";
-
-
-/* =========================
-   HELPERS
-========================= */
+  "driver";
 
 function hoursText(value){
 
   const minutes =
     Math.round(
-      Number(value || 0) * 60
+      Number(value || 0) *
+      60
     );
 
   const h =
@@ -118,24 +114,17 @@ function escapeHtml(value){
     .replaceAll("'","&#039;");
 }
 
-
-/* =========================
-   LOAD
-========================= */
-
 async function loadSummary(){
 
-  const body =
+  const list =
     document.getElementById(
-      "summaryBody"
+      "peopleList"
     );
 
-  body.innerHTML = `
-    <tr>
-      <td colspan="6">
-        Loading...
-      </td>
-    </tr>
+  list.innerHTML = `
+    <div class="empty">
+      Loading...
+    </div>
   `;
 
   try{
@@ -153,7 +142,6 @@ async function loadSummary(){
             Authorization:
               `Bearer ${token}`
           },
-
           cache:"no-store"
         }
       );
@@ -178,11 +166,11 @@ async function loadSummary(){
       {};
 
     document.getElementById(
-      "totalWorkers"
+      "peopleCount"
     ).textContent =
       String(
         Number(
-          totals.totalWorkers ||
+          totals.people ||
           0
         )
       );
@@ -211,82 +199,188 @@ async function loadSummary(){
         totals.totalEarnings
       );
 
-    const periods =
+    document.getElementById(
+      "tripsCard"
+    ).style.display =
+      currentType === "driver"
+        ? "block"
+        : "none";
+
+    const people =
       Array.isArray(
-        data.periods
+        data.people
       )
-        ? data.periods
+        ? data.people
         : [];
 
-    if(!periods.length){
+    if(!people.length){
 
-      body.innerHTML = `
-        <tr>
-          <td colspan="6">
-            No closed payroll periods yet.
-          </td>
-        </tr>
+      list.innerHTML = `
+        <div class="empty">
+          No people found in this group.
+        </div>
       `;
 
       return;
     }
 
-    body.innerHTML =
-      periods
+    list.innerHTML =
+      people
         .map(
-          row=>`
-            <tr>
+          person=>{
 
-              <td>
-                ${escapeHtml(dateText(row.from))}
-              </td>
+            const periods =
+              Array.isArray(
+                person.periods
+              )
+                ? person.periods
+                : [];
 
-              <td>
-                ${escapeHtml(dateText(row.to))}
-              </td>
+            const metaParts = [];
 
-              <td>
-                ${Number(row.workers || 0)}
-              </td>
+            if(person.jobTitle){
+              metaParts.push(
+                person.jobTitle
+              );
+            }
 
-              <td>
-                ${escapeHtml(hoursText(row.totalHours))}
-              </td>
+            if(person.employeeNumber){
+              metaParts.push(
+                `ID: ${person.employeeNumber}`
+              );
+            }
 
-              <td>
-                ${Number(row.totalTrips || 0)}
-              </td>
+            const meta =
+              metaParts.length
+                ? `
+                  <div class="person-meta">
+                    ${escapeHtml(metaParts.join(" • "))}
+                  </div>
+                `
+                : "";
 
-              <td class="money">
-                ${escapeHtml(money(row.totalEarnings))}
-              </td>
+            const tripHeader =
+              currentType === "driver"
+                ? "<th>Trips</th>"
+                : "";
 
-            </tr>
-          `
+            const rows =
+              periods.length
+                ? periods
+                    .map(
+                      row=>`
+                        <tr>
+
+                          <td>
+                            ${escapeHtml(dateText(row.from))}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(dateText(row.to))}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(hoursText(row.totalHours))}
+                          </td>
+
+                          ${
+                            currentType === "driver"
+                              ? `
+                                <td>
+                                  ${Number(row.totalTrips || 0)}
+                                </td>
+                              `
+                              : ""
+                          }
+
+                          <td class="money">
+                            ${escapeHtml(money(row.totalEarnings))}
+                          </td>
+
+                        </tr>
+                      `
+                    )
+                    .join("")
+                : `
+                  <tr>
+                    <td
+                      colspan="${
+                        currentType === "driver"
+                          ? 5
+                          : 4
+                      }">
+                      No closed payroll periods yet.
+                    </td>
+                  </tr>
+                `;
+
+            return `
+              <article class="person-card">
+
+                <div class="person-head">
+
+                  <div>
+
+                    <div class="person-name">
+                      ${escapeHtml(person.name)}
+                    </div>
+
+                    ${meta}
+
+                  </div>
+
+                  <div class="period-count">
+                    ${periods.length} Period${
+                      periods.length === 1
+                        ? ""
+                        : "s"
+                    }
+                  </div>
+
+                </div>
+
+                <div class="table-wrap">
+
+                  <table>
+
+                    <thead>
+                      <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Total Hours</th>
+                        ${tripHeader}
+                        <th>Total Earnings</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      ${rows}
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </article>
+            `;
+          }
         )
         .join("");
 
   }catch(error){
 
     console.error(
-      "ADMIN PAYROLL SUMMARY ERROR:",
+      "ADMIN PAYROLL PERSON SUMMARY ERROR:",
       error
     );
 
-    body.innerHTML = `
-      <tr>
-        <td colspan="6">
-          ${escapeHtml(error.message)}
-        </td>
-      </tr>
+    list.innerHTML = `
+      <div class="empty">
+        ${escapeHtml(error.message)}
+      </div>
     `;
   }
 }
-
-
-/* =========================
-   TABS
-========================= */
 
 document
   .querySelectorAll(
@@ -317,7 +411,7 @@ document
           currentType =
             String(
               button.dataset.type ||
-              "all"
+              "driver"
             );
 
           loadSummary();
@@ -325,10 +419,5 @@ document
       );
     }
   );
-
-
-/* =========================
-   START
-========================= */
 
 loadSummary();

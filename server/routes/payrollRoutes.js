@@ -2668,16 +2668,18 @@ router.get(
 
 /* =========================
    ADMIN PAYROLL SUMMARY
+   PER PERSON
    LAST 24 ROLLING MONTHS
 
-   Supports:
-   all | driver | dispatcher | admin | super_admin | employee
+   Supported groups:
+   driver | dispatcher | admin | super_admin | employee
 
-   One row per CLOSED pay period:
-   - workers
+   Each person gets their own summary:
+   - name
+   - from / to
    - total hours
-   - driver trips
-   - total payroll
+   - trips (drivers only)
+   - total earnings
 ========================= */
 
 router.get(
@@ -2698,7 +2700,7 @@ router.get(
         info.today
       );
 
-      const requestedType =
+      const personType =
         clean(
           req.query.type
         );
@@ -2712,10 +2714,8 @@ router.get(
       ];
 
       if(
-        requestedType &&
-        requestedType !== "all" &&
         !validTypes.includes(
-          requestedType
+          personType
         )
       ){
 
@@ -2723,7 +2723,7 @@ router.get(
           .status(400)
           .json({
             message:
-              "Invalid payroll summary type"
+              "Select a valid payroll group"
           });
       }
 
@@ -2735,7 +2735,8 @@ router.get(
 
       const match = {
         tenantId:
-          req.authUser.tenantId
+          req.authUser.tenantId,
+        personType
       };
 
       if(cutoff){
@@ -2745,133 +2746,127 @@ router.get(
         };
       }
 
-      if(
-        requestedType &&
-        requestedType !== "all"
-      ){
-
-        match.personType =
-          requestedType;
-      }
-
-      const rows =
+      const historyRows =
         await PayrollPeriodHistory
           .find(match)
           .sort({
-            periodStart:-1,
-            personName:1
+            personName:1,
+            periodStart:-1
           })
           .lean();
 
-      const groups =
-        new Map();
-
-      const uniqueWorkers =
-        new Set();
-
-      for(const row of rows){
-
-        uniqueWorkers.add(
-          `${row.personType}:${row.personId}`
+      const currentPeople =
+        await loadPeople(
+          req.authUser.tenantId,
+          personType
         );
 
-        const key =
-          `${row.periodStart}|${row.periodEnd}`;
+      const peopleMap =
+        new Map();
 
-        if(!groups.has(key)){
+      for(const person of currentPeople){
 
-          groups.set(
-            key,
+        const id =
+          String(
+            person._id
+          );
+
+        peopleMap.set(
+          id,
+          {
+            personId:id,
+
+            name:
+              person.name ||
+              person.username ||
+              "Unknown",
+
+            jobTitle:
+              person.jobTitle ||
+              "",
+
+            employeeNumber:
+              person.employeeNumber ||
+              "",
+
+            periods:[]
+          }
+        );
+      }
+
+      for(const row of historyRows){
+
+        const id =
+          String(
+            row.personId
+          );
+
+        if(!peopleMap.has(id)){
+
+          peopleMap.set(
+            id,
             {
-              from:
-                row.periodStart,
+              personId:id,
 
-              to:
-                row.periodEnd,
+              name:
+                row.personName ||
+                "Unknown",
 
-              workersSet:
-                new Set(),
-
-              totalHours:0,
-              totalTrips:0,
-              totalEarnings:0
+              jobTitle:"",
+              employeeNumber:"",
+              periods:[]
             }
           );
         }
 
-        const group =
-          groups.get(key);
+        peopleMap
+          .get(id)
+          .periods
+          .push({
+            from:
+              row.periodStart,
 
-        group.workersSet.add(
-          `${row.personType}:${row.personId}`
-        );
+            to:
+              row.periodEnd,
 
-        group.totalHours +=
-          Number(
-            row.totalHours ||
-            0
-          );
+            totalHours:
+              hours(
+                row.totalHours
+              ),
 
-        /*
-          Only driver snapshots contain tripCount.
-          Other worker types correctly add zero.
-        */
-        group.totalTrips +=
-          Number(
-            row.tripCount ||
-            0
-          );
+            totalTrips:
+              personType === "driver"
+                ? Number(
+                    row.tripCount ||
+                    0
+                  )
+                : 0,
 
-        group.totalEarnings +=
-          Number(
-            row.totalDue ||
-            0
-          );
+            totalEarnings:
+              money(
+                row.totalDue
+              )
+          });
       }
 
-      const periods =
+      const people =
         Array
           .from(
-            groups.values()
-          )
-          .map(
-            row=>({
-              from:
-                row.from,
-
-              to:
-                row.to,
-
-              workers:
-                row.workersSet.size,
-
-              totalHours:
-                hours(
-                  row.totalHours
-                ),
-
-              totalTrips:
-                row.totalTrips,
-
-              totalEarnings:
-                money(
-                  row.totalEarnings
-                )
-            })
+            peopleMap.values()
           )
           .sort(
             (a,b)=>
               String(
-                b.from
+                a.name
               ).localeCompare(
                 String(
-                  a.from
+                  b.name
                 )
               )
           );
 
       const totals =
-        periods.reduce(
+        historyRows.reduce(
           (acc,row)=>{
 
             acc.totalHours +=
@@ -2881,14 +2876,16 @@ router.get(
               );
 
             acc.totalTrips +=
-              Number(
-                row.totalTrips ||
-                0
-              );
+              personType === "driver"
+                ? Number(
+                    row.tripCount ||
+                    0
+                  )
+                : 0;
 
             acc.totalEarnings +=
               Number(
-                row.totalEarnings ||
+                row.totalDue ||
                 0
               );
 
@@ -2905,8 +2902,7 @@ router.get(
         success:true,
 
         type:
-          requestedType ||
-          "all",
+          personType,
 
         timezone:
           info.timezone,
@@ -2917,8 +2913,8 @@ router.get(
         retentionMonths:24,
 
         totals:{
-          totalWorkers:
-            uniqueWorkers.size,
+          people:
+            people.length,
 
           totalHours:
             hours(
@@ -2934,7 +2930,7 @@ router.get(
             )
         },
 
-        periods
+        people
       });
 
     }catch(err){
