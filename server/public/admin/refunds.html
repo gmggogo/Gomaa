@@ -17,21 +17,50 @@ body{
 }
 
 .page{
-  max-width:1500px;
-  margin:auto;
-  padding:42px 28px 28px;
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:18px 22px 30px;
 }
 
-h2{
-  margin:0 0 14px;
-  font-size:30px;
+/* GOLD PAGE TITLE — SAME AS TRIPS HUB */
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
   font-weight:900;
   color:#111827;
 }
 
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
 /* SEARCH */
 .search-box{
-  margin:18px 0;
+  margin:14px 0 16px;
 }
 
 .search-box input{
@@ -43,8 +72,14 @@ h2{
 }
 
 /* TABLE */
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+}
+
 .table{
   width:100%;
+  min-width:1450px;
   border-collapse:collapse;
   background:#fff;
   border-radius:12px;
@@ -55,15 +90,17 @@ h2{
 .table th{
   background:#111827;
   color:#fff;
-  padding:14px 12px;
+  padding:16px 14px;
   font-size:14px;
+  white-space:nowrap;
 }
 
 .table td{
-  padding:13px 12px;
+  padding:15px 14px;
   border-bottom:1px solid #eee;
   font-size:14px;
   text-align:center;
+  white-space:nowrap;
 }
 
 /* STATUS */
@@ -74,17 +111,25 @@ h2{
 /* MOBILE */
 @media(max-width:900px){
   .page{
-    max-width:100%;
-    padding:28px 10px 20px;
+    padding:10px 8px 20px;
   }
 
-  h2{
-    font-size:24px;
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
   }
 
   .table{
-    display:block;
-    overflow-x:auto;
+    min-width:1200px;
   }
 }
 </style>
@@ -97,7 +142,12 @@ h2{
 
 <div class="page">
 
-<h2>Refunds</h2>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Refunds</h1>
+    <div class="page-sub">Cancelled trips, refund amounts and refund status</div>
+  </div>
+</div>
 
 <!-- 🔍 SEARCH -->
 <div class="search-box">
@@ -105,6 +155,7 @@ h2{
 </div>
 
 <!-- 📊 TABLE -->
+<div class="table-wrap">
 <table class="table">
 <thead>
 <tr>
@@ -123,10 +174,11 @@ h2{
 
 <tbody id="tableBody"></tbody>
 </table>
+</div>
 
 </div>
 
-<!-- SAME FULL ADMIN HEADER LOADER AS THE OTHER ADMIN PAGES -->
+<!-- FULL ADMIN HEADER -->
 <script src="/admin/header.js"></script>
 
 <script>
