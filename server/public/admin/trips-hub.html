@@ -241,45 +241,55 @@ body{
 
 /* =========================================================
    TOP SUMMARY CARDS
-   ORDER:
-   1 NEW TRIPS  = PINK
-   2 TOTAL      = BLUE
-   3 FACILITY   = PURPLE
-   4 GET QUOTE  = GREEN
-   5 RESERVED   = ORANGE
+   SAME CLEAN STRUCTURE AS THE SERVICE CARDS BELOW
+   FA / GQ / RV stay separated in 3 columns.
    ========================================================= */
+
+.stats-grid > *,
+.cards-grid > *,
+.hub-stats > *{
+  background:linear-gradient(
+    135deg,
+    #fff7cf 0%,
+    #f3dc82 52%,
+    #f7e6a3 100%
+  )!important;
+  border:1px solid #c9a83c!important;
+  color:#111827!important;
+  box-shadow:
+    0 7px 16px rgba(104,83,20,.14),
+    inset 0 1px 0 rgba(255,255,255,.55)!important;
+}
 
 .stats-grid > :nth-child(1),
 .cards-grid > :nth-child(1),
 .hub-stats > :nth-child(1){
-  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%);
+  border-top:5px solid #ec4899!important;
 }
 
 .stats-grid > :nth-child(2),
 .cards-grid > :nth-child(2),
 .hub-stats > :nth-child(2){
-  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
+  border-top:5px solid #2563eb!important;
 }
 
 .stats-grid > :nth-child(3),
 .cards-grid > :nth-child(3),
 .hub-stats > :nth-child(3){
-  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);
+  border-top:5px solid #7c3aed!important;
 }
 
 .stats-grid > :nth-child(4),
 .cards-grid > :nth-child(4),
 .hub-stats > :nth-child(4){
-  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);
+  border-top:5px solid #16a34a!important;
 }
 
 .stats-grid > :nth-child(5),
 .cards-grid > :nth-child(5),
 .hub-stats > :nth-child(5){
-  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
+  border-top:5px solid #f59e0b!important;
 }
-
-/* TOP ROW TEXT */
 
 .stats-grid .stat-label,
 .stats-grid .card-label,
@@ -290,7 +300,6 @@ body{
 .stats-grid .stat-mini,
 .stats-grid .card-mini,
 .stats-grid .service-mini,
-
 .cards-grid .stat-label,
 .cards-grid .card-label,
 .cards-grid .service-name,
@@ -300,7 +309,6 @@ body{
 .cards-grid .stat-mini,
 .cards-grid .card-mini,
 .cards-grid .service-mini,
-
 .hub-stats .stat-label,
 .hub-stats .card-label,
 .hub-stats .service-name,
@@ -310,8 +318,38 @@ body{
 .hub-stats .stat-mini,
 .hub-stats .card-mini,
 .hub-stats .service-mini{
-  color:#fff!important;
-  text-shadow:0 1px 2px rgba(0,0,0,.22);
+  color:#111827!important;
+  text-shadow:none!important;
+}
+
+.stats-grid .stat-mini,
+.stats-grid .card-mini,
+.stats-grid .service-mini,
+.cards-grid .stat-mini,
+.cards-grid .card-mini,
+.cards-grid .service-mini,
+.hub-stats .stat-mini,
+.hub-stats .card-mini,
+.hub-stats .service-mini{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:10px!important;
+  align-items:center!important;
+}
+
+.stats-grid .stat-mini > *,
+.stats-grid .card-mini > *,
+.stats-grid .service-mini > *,
+.cards-grid .stat-mini > *,
+.cards-grid .card-mini > *,
+.cards-grid .service-mini > *,
+.hub-stats .stat-mini > *,
+.hub-stats .card-mini > *,
+.hub-stats .service-mini > *{
+  min-width:0!important;
+  padding:4px 2px!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.34)!important;
 }
 
 /* =========================================================
@@ -460,18 +498,68 @@ body{
   background:#64748b;
 }
 
+/* EDIT / DELETE SELECTED
+   No selection = visible but muted
+   With selection = strong active color
+*/
 .action-btn.edit,
 .edit-selected,
 #editSelectedBtn{
-  background:#93c5fd;
+  background:#2563eb;
   color:#fff;
+  border:1px solid #1d4ed8;
+  box-shadow:0 5px 12px rgba(37,99,235,.22);
+  transition:.16s ease;
 }
 
 .action-btn.delete,
 .delete-selected,
 #deleteSelectedBtn{
-  background:#ef9a9a;
+  background:#dc2626;
   color:#fff;
+  border:1px solid #b91c1c;
+  box-shadow:0 5px 12px rgba(220,38,38,.22);
+  transition:.16s ease;
+}
+
+.action-btn.edit:disabled,
+.edit-selected:disabled,
+#editSelectedBtn:disabled{
+  background:#bfd7f7!important;
+  color:#eef5ff!important;
+  border-color:#a9c7ec!important;
+  box-shadow:none!important;
+  opacity:.72!important;
+  cursor:not-allowed!important;
+  filter:saturate(.55)!important;
+}
+
+.action-btn.delete:disabled,
+.delete-selected:disabled,
+#deleteSelectedBtn:disabled{
+  background:#f0b6bc!important;
+  color:#fff3f4!important;
+  border-color:#e5a2aa!important;
+  box-shadow:none!important;
+  opacity:.72!important;
+  cursor:not-allowed!important;
+  filter:saturate(.55)!important;
+}
+
+.action-btn.edit:not(:disabled),
+.edit-selected:not(:disabled),
+#editSelectedBtn:not(:disabled){
+  background:linear-gradient(180deg,#3b82f6,#1d4ed8)!important;
+  color:#fff!important;
+  box-shadow:0 0 0 2px rgba(59,130,246,.14),0 7px 16px rgba(37,99,235,.28)!important;
+}
+
+.action-btn.delete:not(:disabled),
+.delete-selected:not(:disabled),
+#deleteSelectedBtn:not(:disabled){
+  background:linear-gradient(180deg,#ef4444,#b91c1c)!important;
+  color:#fff!important;
+  box-shadow:0 0 0 2px rgba(239,68,68,.14),0 7px 16px rgba(220,38,38,.28)!important;
 }
 
 /* TABLE */
