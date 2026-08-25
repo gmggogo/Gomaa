@@ -779,6 +779,65 @@ body{
 }
 </style>
 
+
+<style id="organizationLastRowCenteredFix">
+/* =========================================================
+   ORGANIZATION OVERVIEW
+   Center the incomplete last row above Enabled Services.
+   ========================================================= */
+
+.org-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.org-grid .card{
+  flex:0 0 220px !important;
+  width:220px !important;
+  max-width:220px !important;
+  min-width:220px !important;
+  min-height:118px !important;
+}
+
+/* Keep service row centered too */
+.services-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  flex:0 0 205px !important;
+  width:205px !important;
+  max-width:205px !important;
+  min-width:205px !important;
+}
+
+@media(max-width:760px){
+  .org-grid,
+  .services-grid{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .org-grid .card,
+  .services-grid .service-card{
+    flex:none !important;
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
