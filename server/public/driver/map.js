@@ -311,6 +311,11 @@ let routePolyline = null;
 let guidePolyline = null;
 let routeMarkers = [];
 
+let displayDirectionsService = null;
+let displayDirectionsRenderer = null;
+let displayDirectionsRequested = false;
+let displayDirectionsSignature = "";
+
 let driverLat = null;
 let driverLng = null;
 let lastGpsAccuracyMeters = 0;
@@ -2788,6 +2793,129 @@ function savedRoutePathArray(){
   return [];
 }
 
+
+function routeDisplayPoints(){
+
+  const points = [];
+
+  /*
+    Use the exact existing routeStops order.
+    This does NOT reorder the trip.
+  */
+  for(const stop of routeStops){
+    if(validPoint(stop?.lat, stop?.lng)){
+      points.push({
+        lat:Number(stop.lat),
+        lng:Number(stop.lng)
+      });
+    }
+  }
+
+  return points;
+}
+
+function routePointsSignature(points=[]){
+  return points
+    .map(p=>`${Number(p.lat).toFixed(6)},${Number(p.lng).toFixed(6)}`)
+    .join("|");
+}
+
+function drawGoogleDirectionsFallback(){
+
+  if(
+    !map ||
+    !window.google ||
+    !google.maps ||
+    !google.maps.DirectionsService ||
+    !google.maps.DirectionsRenderer
+  ){
+    return;
+  }
+
+  const points = routeDisplayPoints();
+
+  if(points.length < 2){
+    return;
+  }
+
+  const signature = routePointsSignature(points);
+
+  /*
+    Request only once for the same ordered route.
+    renderExecutionState() runs every second, so this prevents repeat API calls.
+  */
+  if(
+    displayDirectionsRequested &&
+    displayDirectionsSignature === signature
+  ){
+    return;
+  }
+
+  displayDirectionsRequested = true;
+  displayDirectionsSignature = signature;
+
+  if(!displayDirectionsService){
+    displayDirectionsService =
+      new google.maps.DirectionsService();
+  }
+
+  if(!displayDirectionsRenderer){
+    displayDirectionsRenderer =
+      new google.maps.DirectionsRenderer({
+        map,
+        suppressMarkers:true,
+        preserveViewport:true,
+        polylineOptions:{
+          strokeColor:"#2f7df6",
+          strokeOpacity:0.95,
+          strokeWeight:6,
+          zIndex:5
+        }
+      });
+  }else{
+    displayDirectionsRenderer.setMap(map);
+  }
+
+  const origin = points[0];
+  const destination = points[points.length - 1];
+
+  const waypoints =
+    points
+      .slice(1,-1)
+      .map(point=>({
+        location:point,
+        stopover:true
+      }));
+
+  displayDirectionsService.route(
+    {
+      origin,
+      destination,
+      waypoints,
+      optimizeWaypoints:false,
+      travelMode:google.maps.TravelMode.DRIVING
+    },
+    (result,status)=>{
+
+      if(status === "OK" && result){
+        displayDirectionsRenderer.setDirections(result);
+        console.log("Driver display route drawn with Google Directions fallback");
+        return;
+      }
+
+      console.log(
+        "DRIVER DISPLAY DIRECTIONS FALLBACK ERROR:",
+        status
+      );
+
+      /*
+        Permit a later retry if Google temporarily fails.
+      */
+      displayDirectionsRequested = false;
+    }
+  );
+}
+
 function drawDisplayLine(){
 
   if(!map){
@@ -2830,6 +2958,10 @@ function drawDisplayLine(){
       if(
         fullPath?.length >= 2
       ){
+        if(displayDirectionsRenderer){
+          displayDirectionsRenderer.setMap(null);
+        }
+
         routePolyline =
           new google.maps.Polyline({
             map,
@@ -2864,6 +2996,10 @@ function drawDisplayLine(){
   if(
     savedPath.length >= 2
   ){
+    if(displayDirectionsRenderer){
+      displayDirectionsRenderer.setMap(null);
+    }
+
     routePolyline =
       new google.maps.Polyline({
         map,
@@ -2879,10 +3015,13 @@ function drawDisplayLine(){
   }
 
   /*
-    NO FAKE ROUTE:
-    if the trip has no saved road path, show only the fixed markers.
-    Never invent a straight line between stops.
+    PRIORITY 3:
+    If this older trip has stop coordinates but no saved road polyline/path,
+    ask Google only for a DISPLAY route using the ALREADY FIXED stop order.
+    optimizeWaypoints:false = absolutely no re-ordering.
+    The request is cached in-memory and is not repeated every timer tick.
   */
+  drawGoogleDirectionsFallback();
 }
 
 function fitMap(){
