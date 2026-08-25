@@ -372,24 +372,30 @@ function getMatchingSavedClients(query){
 }
 
 /* ================= CURRENT LOCATION =================
-   Browser geolocation only.
-   No reverse-geocode request here.
+   UX:
+   - User clicks/focuses Pickup / Dropoff / Stop.
+   - First option shown is "Current Location".
+   - Only when that option is clicked do we request GPS.
+   - One reverse-geocode request turns GPS into a real street address.
+   - The visible input receives the real address.
+   - lat/lng remain stored in the background for Review/route logic.
+
+   LOW REQUEST POLICY:
+   - No location request on page load.
+   - No polling / watchPosition.
+   - Current GPS + resolved address are cached for 2 minutes.
+   - Reusing Current Location in another field during that window causes
+     ZERO extra GPS and ZERO extra reverse-geocode requests.
 ============================================== */
+
+let currentLocationCache = null;
+const CURRENT_LOCATION_CACHE_MS = 2 * 60 * 1000;
 
 function hasValidCoords(lat,lng){
 
   return (
     Number.isFinite(Number(lat)) &&
     Number.isFinite(Number(lng))
-  );
-}
-
-function coordText(lat,lng){
-
-  return (
-    Number(lat).toFixed(6) +
-    "," +
-    Number(lng).toFixed(6)
   );
 }
 
@@ -400,6 +406,7 @@ function clearLocationMeta(input){
   delete input.dataset.currentLat;
   delete input.dataset.currentLng;
   delete input.dataset.currentLocation;
+  delete input.dataset.currentAddress;
 }
 
 function attachLocationChangeReset(input){
@@ -421,164 +428,449 @@ function attachLocationChangeReset(input){
   );
 }
 
-function useCurrentLocation(input,button){
+function getFreshCachedCurrentLocation(){
 
-  if(!input){
-    return;
+  if(
+    !currentLocationCache ||
+    !Number.isFinite(Number(currentLocationCache.savedAt))
+  ){
+    return null;
   }
 
-  if(!navigator.geolocation){
-
-    showAlert(
-      "Current Location is not supported on this device."
-    );
-
-    return;
+  if(
+    Date.now() - Number(currentLocationCache.savedAt) >
+    CURRENT_LOCATION_CACHE_MS
+  ){
+    currentLocationCache = null;
+    return null;
   }
 
-  if(button){
-    button.disabled = true;
-    button.dataset.oldText =
-      button.textContent || "⌖";
-    button.textContent = "…";
+  if(
+    !normalizeText(currentLocationCache.address) ||
+    !hasValidCoords(
+      currentLocationCache.lat,
+      currentLocationCache.lng
+    )
+  ){
+    currentLocationCache = null;
+    return null;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    position=>{
-
-      const lat =
-        Number(
-          position.coords.latitude
-        );
-
-      const lng =
-        Number(
-          position.coords.longitude
-        );
-
-      if(!hasValidCoords(lat,lng)){
-        showAlert(
-          "Could not read current location."
-        );
-        return;
-      }
-
-      input.dataset.settingLocation = "1";
-
-      input.value =
-        coordText(lat,lng);
-
-      input.dataset.currentLat =
-        String(lat);
-
-      input.dataset.currentLng =
-        String(lng);
-
-      input.dataset.currentLocation =
-        "1";
-
-      input.dispatchEvent(
-        new Event(
-          "change",
-          {bubbles:true}
-        )
-      );
-
-      delete input.dataset.settingLocation;
-
-    },
-    error=>{
-
-      let message =
-        "Could not get current location.";
-
-      if(error?.code === 1){
-        message =
-          "Location permission was denied.";
-      }else if(error?.code === 2){
-        message =
-          "Current location is unavailable.";
-      }else if(error?.code === 3){
-        message =
-          "Current location request timed out.";
-      }
-
-      showAlert(
-        message
-      );
-
-    },
-    {
-      enableHighAccuracy:false,
-      timeout:10000,
-      maximumAge:60000
-    }
-  );
-
-  /*
-    Re-enable shortly after the browser callback has had time to run.
-    No polling or repeated GPS requests.
-  */
-  window.setTimeout(
-    ()=>{
-      if(button){
-        button.disabled = false;
-        button.textContent =
-          button.dataset.oldText || "⌖";
-      }
-    },
-    11000
-  );
+  return currentLocationCache;
 }
 
-function bindCurrentLocationButton(button){
+function getBrowserCurrentPosition(){
 
-  if(!button || button.dataset.locationBound === "1"){
-    return;
+  return new Promise((resolve,reject)=>{
+
+    if(!navigator.geolocation){
+      reject(
+        new Error(
+          "Current Location is not supported on this device."
+        )
+      );
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position=>{
+        resolve({
+          lat:Number(position.coords.latitude),
+          lng:Number(position.coords.longitude)
+        });
+      },
+      error=>{
+
+        let message =
+          "Could not get current location.";
+
+        if(error?.code === 1){
+          message =
+            "Location permission was denied.";
+        }else if(error?.code === 2){
+          message =
+            "Current location is unavailable.";
+        }else if(error?.code === 3){
+          message =
+            "Current location request timed out.";
+        }
+
+        reject(
+          new Error(message)
+        );
+      },
+      {
+        enableHighAccuracy:false,
+        timeout:10000,
+        maximumAge:120000
+      }
+    );
+  });
+}
+
+function reverseGeocodeCurrentPosition(lat,lng){
+
+  return new Promise((resolve,reject)=>{
+
+    if(
+      !window.google ||
+      !google.maps ||
+      typeof google.maps.Geocoder !== "function"
+    ){
+      reject(
+        new Error(
+          "Address service is not ready. Please try again in a moment."
+        )
+      );
+      return;
+    }
+
+    const geocoder =
+      new google.maps.Geocoder();
+
+    geocoder.geocode(
+      {
+        location:{
+          lat:Number(lat),
+          lng:Number(lng)
+        }
+      },
+      (results,status)=>{
+
+        if(
+          status !== "OK" ||
+          !Array.isArray(results) ||
+          !results.length
+        ){
+          reject(
+            new Error(
+              "Could not find the street address for Current Location."
+            )
+          );
+          return;
+        }
+
+        const result =
+          results[0];
+
+        const point =
+          extractGoogleAddress(result);
+
+        if(
+          !normalizeText(point.address)
+        ){
+          reject(
+            new Error(
+              "Current Location address is unavailable."
+            )
+          );
+          return;
+        }
+
+        resolve({
+          ...point,
+          lat:Number(lat),
+          lng:Number(lng),
+          latitude:Number(lat),
+          longitude:Number(lng),
+          source:"browser-current-location"
+        });
+      }
+    );
+  });
+}
+
+async function resolveCurrentLocation(){
+
+  const cached =
+    getFreshCachedCurrentLocation();
+
+  if(cached){
+    return {
+      ...cached
+    };
   }
 
-  const targetId =
-    normalizeText(
-      button.dataset.locationTarget
+  const coords =
+    await getBrowserCurrentPosition();
+
+  if(
+    !hasValidCoords(
+      coords.lat,
+      coords.lng
+    )
+  ){
+    throw new Error(
+      "Could not read current location."
+    );
+  }
+
+  const point =
+    await reverseGeocodeCurrentPosition(
+      coords.lat,
+      coords.lng
     );
 
-  const input =
-    targetId
-      ? document.getElementById(targetId)
-      : button.closest(".location-field,.stop-address-wrap")
-          ?.querySelector("input");
+  currentLocationCache = {
+    ...point,
+    savedAt:Date.now()
+  };
 
-  if(!input){
+  return {
+    ...currentLocationCache
+  };
+}
+
+function setCurrentLocationOnInput(input,point){
+
+  if(
+    !input ||
+    !point ||
+    !normalizeText(point.address) ||
+    !hasValidCoords(point.lat,point.lng)
+  ){
     return;
   }
 
-  button.dataset.locationBound = "1";
+  input.dataset.settingLocation = "1";
+
+  /*
+    IMPORTANT:
+    The user sees the REAL ADDRESS, not coordinates and not the words
+    "Current Location". Review.js therefore receives a normal address.
+  */
+  input.value =
+    normalizeText(point.address);
+
+  input.dataset.currentLat =
+    String(point.lat);
+
+  input.dataset.currentLng =
+    String(point.lng);
+
+  input.dataset.currentLocation =
+    "1";
+
+  input.dataset.currentAddress =
+    normalizeText(point.address);
+
+  input.dataset.hasLatLng =
+    "1";
+
+  input.dispatchEvent(
+    new Event(
+      "change",
+      {bubbles:true}
+    )
+  );
+
+  delete input.dataset.settingLocation;
+}
+
+function closeCurrentLocationChoices(except=null){
+
+  document
+    .querySelectorAll(
+      ".current-location-choice.show"
+    )
+    .forEach(choice=>{
+      if(choice !== except){
+        choice.classList.remove("show");
+      }
+    });
+}
+
+function bindCurrentLocationChoice(input){
+
+  if(
+    !input ||
+    input.dataset.currentLocationChoiceBound === "1"
+  ){
+    return;
+  }
+
+  input.dataset.currentLocationChoiceBound = "1";
 
   attachLocationChangeReset(
     input
   );
 
-  button.addEventListener(
+  const parent =
+    input.closest(
+      ".location-field,.stop-address-wrap"
+    ) ||
+    input.parentElement;
+
+  if(!parent){
+    return;
+  }
+
+  if(
+    getComputedStyle(parent).position === "static"
+  ){
+    parent.style.position = "relative";
+  }
+
+  const choice =
+    document.createElement("div");
+
+  choice.className =
+    "current-location-choice";
+
+  choice.setAttribute(
+    "role",
+    "button"
+  );
+
+  choice.setAttribute(
+    "tabindex",
+    "0"
+  );
+
+  choice.innerHTML = `
+    <span class="pin">📍</span>
+    <span>Current Location</span>
+  `;
+
+  parent.appendChild(
+    choice
+  );
+
+  const showChoice = ()=>{
+    closeCurrentLocationChoices(choice);
+    choice.classList.add("show");
+  };
+
+  input.addEventListener(
+    "focus",
+    showChoice
+  );
+
+  input.addEventListener(
     "click",
-    ()=>{
-      useCurrentLocation(
+    showChoice
+  );
+
+  async function chooseCurrentLocation(event){
+
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if(choice.classList.contains("loading")){
+      return;
+    }
+
+    choice.classList.add("loading");
+    choice.innerHTML = `
+      <span class="pin">📍</span>
+      <span>Getting Current Location...</span>
+    `;
+
+    try{
+
+      const point =
+        await resolveCurrentLocation();
+
+      setCurrentLocationOnInput(
         input,
-        button
+        point
       );
+
+      /*
+        Keep the existing per-input point stores in sync so old validation
+        and submit logic continue to work.
+      */
+      if(input === pickupInput){
+        pickupPoint = normalizeAddressPoint(point);
+      }else if(input === dropoffInput){
+        dropoffPoint = normalizeAddressPoint(point);
+      }else if(input.classList.contains("stop-input")){
+        stopPoints.set(
+          input,
+          normalizeAddressPoint(point)
+        );
+      }else if(input.classList.contains("sharedPickup")){
+        sharedPickupPoints.set(
+          input,
+          normalizeAddressPoint(point)
+        );
+      }else if(input.classList.contains("sharedDropoff")){
+        sharedDropoffPoints.set(
+          input,
+          normalizeAddressPoint(point)
+        );
+      }
+
+      choice.classList.remove("show");
+
+    }catch(err){
+
+      console.log(
+        "CURRENT LOCATION ERROR:",
+        err
+      );
+
+      showAlert(
+        err.message ||
+        "Could not get Current Location."
+      );
+
+    }finally{
+
+      choice.classList.remove("loading");
+      choice.innerHTML = `
+        <span class="pin">📍</span>
+        <span>Current Location</span>
+      `;
+    }
+  }
+
+  choice.addEventListener(
+    "mousedown",
+    e=>e.preventDefault()
+  );
+
+  choice.addEventListener(
+    "click",
+    chooseCurrentLocation
+  );
+
+  choice.addEventListener(
+    "keydown",
+    e=>{
+      if(
+        e.key === "Enter" ||
+        e.key === " "
+      ){
+        chooseCurrentLocation(e);
+      }
     }
   );
 }
 
-function bindStaticLocationButtons(){
+function bindStaticLocationChoices(){
 
-  document
-    .querySelectorAll(
-      ".current-location-btn"
-    )
-    .forEach(
-      bindCurrentLocationButton
-    );
+  bindCurrentLocationChoice(
+    pickupInput
+  );
+
+  bindCurrentLocationChoice(
+    dropoffInput
+  );
 }
+
+document.addEventListener(
+  "click",
+  e=>{
+    if(
+      !e.target.closest(
+        ".location-field,.stop-address-wrap"
+      )
+    ){
+      closeCurrentLocationChoices();
+    }
+  }
+);
 
 function getLocationMeta(input){
 
@@ -599,6 +891,11 @@ function getLocationMeta(input){
     return {
       lat,
       lng,
+      address:
+        normalizeText(
+          input.dataset.currentAddress ||
+          input.value
+        ),
       source:"browser-current-location"
     };
   }
@@ -1916,12 +2213,6 @@ function createStopInput(value=""){
         placeholder="Stop address"
         value="${value}"
       >
-      <button
-        type="button"
-        class="current-location-btn"
-        title="Use Current Location"
-        aria-label="Use Current Location"
-      >⌖</button>
     </div>
     <button
       type="button"
@@ -1935,18 +2226,16 @@ function createStopInput(value=""){
     wrapper.remove();
   };
 
-  const stopLocationBtn =
+  const stopInput =
     wrapper.querySelector(
-      ".current-location-btn"
+      ".stop-input"
     );
 
-  if(stopLocationBtn){
-    bindCurrentLocationButton(
-      stopLocationBtn
-    );
-  }
+  bindCurrentLocationChoice(
+    stopInput
+  );
 
-  stopsBox.appendChild(wrapper);
+stopsBox.appendChild(wrapper);
 }
 
 if(addStopBtn){
@@ -1982,23 +2271,9 @@ function renderSharedPassengers(count){
           <input class="sharedClientPhone" placeholder="Client Phone">
         </div>
         <div class="field-wrap location-field">
-          <input class="sharedPickup" placeholder="Pickup Address">
-          <button
-            type="button"
-            class="current-location-btn"
-            title="Use Current Location"
-            aria-label="Use Current Location"
-          >⌖</button>
-        </div>
+          <input class="sharedPickup" placeholder="Pickup Address"></div>
         <div class="field-wrap location-field">
-          <input class="sharedDropoff" placeholder="Dropoff Address">
-          <button
-            type="button"
-            class="current-location-btn"
-            title="Use Current Location"
-            aria-label="Use Current Location"
-          >⌖</button>
-        </div>
+          <input class="sharedDropoff" placeholder="Dropoff Address"></div>
       </div>
     `;
 
@@ -2021,6 +2296,14 @@ function renderSharedPassengers(count){
       card.querySelector(
         ".sharedDropoff"
       );
+
+    bindCurrentLocationChoice(
+      sharedPickup
+    );
+
+    bindCurrentLocationChoice(
+      sharedDropoff
+    );
 
     const sharedSuggestions =
       card.querySelector(
@@ -2182,14 +2465,6 @@ function renderSharedPassengers(count){
         }
       );
     }
-
-    card
-      .querySelectorAll(
-        ".current-location-btn"
-      )
-      .forEach(
-        bindCurrentLocationButton
-      );
 
     passengersContainer.appendChild(card);
   }
@@ -2560,7 +2835,7 @@ submitSharedBtn.onclick = async function(){
 
 /* ================= INIT ================= */
 
-bindStaticLocationButtons();
+bindStaticLocationChoices();
 
 attachLocationChangeReset(
   pickupInput
