@@ -688,6 +688,97 @@ body{
 }
 </style>
 
+
+<style id="dashboardSectionHeaderSoftUnified">
+/* =========================================================
+   DASHBOARD SECTION HEADERS — SOFT UNIFIED COLOR
+   Keeps cards metallic, but makes all section title bars
+   calm, flat, and the same color.
+   ========================================================= */
+
+.section-head{
+  min-height:50px !important;
+  padding:10px 16px !important;
+  border-radius:13px !important;
+  border:1px solid #c7d9e6 !important;
+
+  background:
+    linear-gradient(180deg,#eaf5fc 0%,#dcecf7 100%) !important;
+
+  box-shadow:
+    0 4px 10px rgba(47,78,100,.07) !important;
+
+  text-shadow:none !important;
+}
+
+.section-head .section-title{
+  color:#28475d !important;
+  font-size:18px !important;
+  font-weight:900 !important;
+  text-shadow:none !important;
+}
+
+.section-head .section-note{
+  color:#718594 !important;
+  font-size:9px !important;
+  font-weight:750 !important;
+  text-shadow:none !important;
+}
+
+/* Override all previous per-section metallic header colors */
+.section:nth-of-type(1) .section-head,
+.section:nth-of-type(2) .section-head,
+.section:nth-of-type(3) .section-head,
+.section:nth-of-type(4) .section-head,
+.section:nth-of-type(5) .section-head{
+  background:
+    linear-gradient(180deg,#eaf5fc 0%,#dcecf7 100%) !important;
+  border-color:#c7d9e6 !important;
+}
+
+@media(max-width:760px){
+  .section-head .section-title{
+    font-size:15px !important;
+  }
+}
+</style>
+
+
+<style id="servicesCenterLastRowOverride">
+/* Center the last Enabled Services cards cleanly */
+.services-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  flex:0 0 205px !important;
+  width:205px !important;
+  max-width:205px !important;
+  min-width:205px !important;
+  justify-self:auto !important;
+}
+
+@media (max-width:760px){
+  .services-grid{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .services-grid .service-card{
+    flex:none !important;
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
