@@ -782,29 +782,14 @@ function bindCurrentLocationChoice(input){
       );
 
       /*
-        Keep the existing per-input point stores in sync so old validation
-        and submit logic continue to work.
+        Current Location is already stored on the input itself by
+        setCurrentLocationOnInput():
+        - visible street address in input.value
+        - lat/lng in data-current-lat / data-current-lng
+
+        getLocationMeta() reads those values later during save/submit,
+        so no extra point-store synchronization is needed here.
       */
-      if(input === pickupInput){
-        pickupPoint = normalizeAddressPoint(point);
-      }else if(input === dropoffInput){
-        dropoffPoint = normalizeAddressPoint(point);
-      }else if(input.classList.contains("stop-input")){
-        stopPoints.set(
-          input,
-          normalizeAddressPoint(point)
-        );
-      }else if(input.classList.contains("sharedPickup")){
-        sharedPickupPoints.set(
-          input,
-          normalizeAddressPoint(point)
-        );
-      }else if(input.classList.contains("sharedDropoff")){
-        sharedDropoffPoints.set(
-          input,
-          normalizeAddressPoint(point)
-        );
-      }
 
       choice.classList.remove("show");
 
