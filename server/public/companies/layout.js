@@ -1,47 +1,103 @@
-function getCompanyToken(){
-  const own = String(localStorage.getItem("companyToken") || "").trim();
-  if(own) return own;
-  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
-    return String(localStorage.getItem("token") || "").trim();
-  }
-  return "";
-}
-function getCompanyRole(){
-  const own = String(localStorage.getItem("companyRole") || "").trim();
-  if(own) return own;
-  const legacy = String(localStorage.getItem("role") || "").trim();
-  return legacy.toLowerCase() === "company" ? legacy : "";
-}
-function getCompanyName(){
-  const own = String(localStorage.getItem("companyName") || "").trim();
-  if(own) return own;
-  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
-    return String(localStorage.getItem("name") || "").trim();
-  }
-  return "";
-}
-function getCompanyTenantSlug(){
+function companySessionValue(key){
   return String(
-    localStorage.getItem("companyTenantSlug") ||
-    sessionStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem(key) ||
+    localStorage.getItem(key) ||
     ""
-  ).trim().toLowerCase();
+  ).trim();
 }
+
+function syncCompanyLegacyStorage(){
+
+  [
+    "companyToken",
+    "companyRole",
+    "companyName",
+    "companyTenantId",
+    "companyTenantSlug",
+    "companyUserId",
+    "companyFacilityId"
+  ].forEach(key=>{
+
+    const value=
+      String(
+        sessionStorage.getItem(key) ||
+        ""
+      ).trim();
+
+    if(value){
+      localStorage.setItem(
+        key,
+        value
+      );
+    }
+  });
+}
+
+function getCompanyToken(){
+  return companySessionValue(
+    "companyToken"
+  );
+}
+
+function getCompanyRole(){
+  return companySessionValue(
+    "companyRole"
+  );
+}
+
+function getCompanyName(){
+  return companySessionValue(
+    "companyName"
+  );
+}
+
+function getCompanyTenantSlug(){
+  return companySessionValue(
+    "companyTenantSlug"
+  ).toLowerCase();
+}
+
 function companyLoginUrl(){
   const slug = getCompanyTenantSlug();
+
   return slug
     ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
     : "/companies/company-login.html";
 }
+
 function companyStorageKey(baseKey){
   const scope =
     getCompanyTenantSlug() ||
-    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    companySessionValue(
+      "companyTenantId"
+    ) ||
     "company";
+
   return `${baseKey}:${scope}`;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+
+syncCompanyLegacyStorage();
+
+window.addEventListener(
+  "focus",
+  syncCompanyLegacyStorage
+);
+
+window.addEventListener(
+  "pageshow",
+  syncCompanyLegacyStorage
+);
+
+document.addEventListener(
+  "visibilitychange",
+  ()=>{
+    if(!document.hidden){
+      syncCompanyLegacyStorage();
+    }
+  }
+);
 
 const container =
 document.getElementById(
@@ -347,14 +403,52 @@ document
 
     e.preventDefault();
 
-    localStorage.removeItem("companyToken");
-    localStorage.removeItem("companyRole");
-    localStorage.removeItem("companyName");
-    localStorage.removeItem("companyTenantId");
-    localStorage.removeItem("companyUserId");
-    localStorage.removeItem("companyFacilityId");
+    const currentToken =
+      String(
+        sessionStorage.getItem("companyToken") ||
+        ""
+      ).trim();
 
-    window.location.replace(companyLoginUrl());
+    const loginUrl =
+      companyLoginUrl();
+
+    [
+      "companyToken",
+      "companyRole",
+      "companyName",
+      "companyTenantId",
+      "companyUserId",
+      "companyFacilityId"
+    ].forEach(
+      key=>sessionStorage.removeItem(key)
+    );
+
+    /*
+      Keep companyTenantSlug in this tab so logout returns to
+      the same tenant company-login link.
+    */
+
+    if(
+      currentToken &&
+      String(
+        localStorage.getItem("companyToken") || ""
+      ).trim() === currentToken
+    ){
+      [
+        "companyToken",
+        "companyRole",
+        "companyName",
+        "companyTenantId",
+        "companyUserId",
+        "companyFacilityId"
+      ].forEach(
+        key=>localStorage.removeItem(key)
+      );
+    }
+
+    window.location.replace(
+      loginUrl
+    );
 
   }
 );

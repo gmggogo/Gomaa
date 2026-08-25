@@ -165,30 +165,56 @@ async function login(){
       return;
     }
 
-    localStorage.setItem(
-      "token",
-      data.token
+    /*
+      TAB-SAFE STAFF SESSION
+      sessionStorage is unique per browser tab, so Admin and Dispatcher
+      can stay logged in at the same time in different tabs.
+
+      localStorage is updated only as a compatibility mirror because
+      some existing admin pages still read token/role/name from it.
+    */
+    const staffSession = {
+      token:data.token || "",
+      role:data.user.role || "",
+      name:data.user.name || "",
+      tenantId:data.user.tenantId || "",
+      tenantSlug:data.user.tenantSlug || tenantSlug || ""
+    };
+
+    sessionStorage.setItem(
+      "staffToken",
+      staffSession.token
     );
 
-    localStorage.setItem(
-      "role",
-      data.user.role
+    sessionStorage.setItem(
+      "staffRole",
+      staffSession.role
     );
 
-    localStorage.setItem(
-      "name",
-      data.user.name
+    sessionStorage.setItem(
+      "staffName",
+      staffSession.name
     );
 
-    localStorage.setItem(
-      "tenantId",
-      data.user.tenantId || ""
+    sessionStorage.setItem(
+      "staffTenantId",
+      staffSession.tenantId
     );
 
-    localStorage.setItem(
-      "tenantSlug",
-      data.user.tenantSlug || ""
+    sessionStorage.setItem(
+      "staffTenantSlug",
+      staffSession.tenantSlug
     );
+
+    /*
+      Legacy mirror for existing admin page scripts.
+      header.js will restore THIS TAB's values whenever the tab is active.
+    */
+    localStorage.setItem("token",staffSession.token);
+    localStorage.setItem("role",staffSession.role);
+    localStorage.setItem("name",staffSession.name);
+    localStorage.setItem("tenantId",staffSession.tenantId);
+    localStorage.setItem("tenantSlug",staffSession.tenantSlug);
 
     if(
       data.user.role ===

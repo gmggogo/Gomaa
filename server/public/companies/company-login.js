@@ -43,15 +43,12 @@ function resolveTenantSlug(){
     "companyTenantSlug"
   );
 
-  localStorage.removeItem(
-    "companyTenantSlug"
-  );
-
   sessionStorage.setItem(
     "companyTenantSlug",
     fromUrl
   );
 
+  /* Compatibility mirror only. */
   localStorage.setItem(
     "companyTenantSlug",
     fromUrl
@@ -109,30 +106,38 @@ form.addEventListener("submit",async function(e){
     }
 
     /*
-      Replace any previous company session completely.
+      TAB-SAFE COMPANY SESSION
+      sessionStorage is authoritative for this company tab.
     */
-    [
-      "companyToken",
-      "companyRole",
-      "companyName",
-      "companyTenantId",
-      "companyTenantSlug",
-      "companyUserId",
-      "companyFacilityId"
-    ].forEach(
-      key => localStorage.removeItem(key)
-    );
+    const companySession = {
+      token:data.token || "",
+      role:"company",
+      name:data.user.name || "",
+      tenantId:data.user.tenantId || "",
+      tenantSlug:data.user.tenantSlug || tenantSlug,
+      userId:data.user.id || "",
+      facilityId:data.user.facilityId || data.user.companyId || data.user.id || ""
+    };
 
-    localStorage.setItem("companyToken",data.token);
-    localStorage.setItem("companyRole","company");
-    localStorage.setItem("companyName",data.user.name || "");
-    localStorage.setItem("companyTenantId",data.user.tenantId || "");
-    localStorage.setItem("companyTenantSlug",data.user.tenantSlug || tenantSlug);
-    localStorage.setItem("companyUserId",data.user.id || "");
-    localStorage.setItem(
-      "companyFacilityId",
-      data.user.facilityId || data.user.companyId || data.user.id || ""
-    );
+    sessionStorage.setItem("companyToken",companySession.token);
+    sessionStorage.setItem("companyRole",companySession.role);
+    sessionStorage.setItem("companyName",companySession.name);
+    sessionStorage.setItem("companyTenantId",companySession.tenantId);
+    sessionStorage.setItem("companyTenantSlug",companySession.tenantSlug);
+    sessionStorage.setItem("companyUserId",companySession.userId);
+    sessionStorage.setItem("companyFacilityId",companySession.facilityId);
+
+    /*
+      Compatibility mirror for existing company page scripts.
+      company header will restore this tab's values on focus.
+    */
+    localStorage.setItem("companyToken",companySession.token);
+    localStorage.setItem("companyRole",companySession.role);
+    localStorage.setItem("companyName",companySession.name);
+    localStorage.setItem("companyTenantId",companySession.tenantId);
+    localStorage.setItem("companyTenantSlug",companySession.tenantSlug);
+    localStorage.setItem("companyUserId",companySession.userId);
+    localStorage.setItem("companyFacilityId",companySession.facilityId);
 
     window.location.replace("/companies/dashboard.html");
 

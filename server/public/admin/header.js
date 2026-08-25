@@ -20,7 +20,38 @@ building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9
 };
 const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
-const role=()=>{const r=norm(localStorage.getItem("role"));return (r==="SUPER_ADMIN"||r==="SUPERADMIN")?"SUPER_ADMIN":r==="DISPATCHER"?"DISPATCHER":"ADMIN"};
+function staffSessionValue(sessionKey,legacyKey){
+  return String(
+    sessionStorage.getItem(sessionKey) ||
+    localStorage.getItem(legacyKey) ||
+    ""
+  ).trim();
+}
+
+function syncStaffLegacyStorage(){
+  const token=staffSessionValue("staffToken","token");
+  const staffRole=staffSessionValue("staffRole","role");
+  const name=staffSessionValue("staffName","name");
+  const tenantId=staffSessionValue("staffTenantId","tenantId");
+  const tenantSlug=staffSessionValue("staffTenantSlug","tenantSlug");
+
+  if(token) localStorage.setItem("token",token);
+  if(staffRole) localStorage.setItem("role",staffRole);
+  if(name) localStorage.setItem("name",name);
+  if(tenantId) localStorage.setItem("tenantId",tenantId);
+  if(tenantSlug) localStorage.setItem("tenantSlug",tenantSlug);
+}
+
+const role=()=>{
+  const r=norm(
+    staffSessionValue("staffRole","role")
+  );
+  return (r==="SUPER_ADMIN"||r==="SUPERADMIN")
+    ?"SUPER_ADMIN"
+    :r==="DISPATCHER"
+      ?"DISPATCHER"
+      :"ADMIN";
+};
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
@@ -37,18 +68,34 @@ const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:
 const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
+
+ /* Restore this tab's staff identity before header/auth logic runs. */
+ syncStaffLegacyStorage();
+
+ /*
+   If another tab logs in as another staff user, localStorage changes
+   globally. Whenever THIS tab becomes active again, restore this tab's
+   own session values so existing page scripts keep using the right user.
+ */
+ window.addEventListener("focus",syncStaffLegacyStorage);
+ window.addEventListener("pageshow",syncStaffLegacyStorage);
+ document.addEventListener("visibilitychange",()=>{
+   if(!document.hidden){
+     syncStaffLegacyStorage();
+   }
+ });
  const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
  const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
 
  const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
  const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
- const tenantNameForHeader=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
+ const tenantNameForHeader=localStorage.getItem("tenantName")||localStorage.getItem("companyName")||"";
  const saasEl=document.getElementById("saasCompanyName"); if(saasEl) saasEl.textContent=tenantNameForHeader;
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
  document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
 
  const fallbackCompany=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
- const fallbackStaff=localStorage.getItem("name")||localStorage.getItem("fullName")||"";
+ const fallbackStaff=staffSessionValue("staffName","name")||localStorage.getItem("fullName")||"";
 
  async function ensureBrandingLoaded(){
    if(!window.Branding){
@@ -161,13 +208,71 @@ document.addEventListener("DOMContentLoaded",async()=>{
 });
 })();
 function logout(){
-  const tenantSlug=String(localStorage.getItem("tenantSlug")||sessionStorage.getItem("loginTenantSlug")||"").trim().toLowerCase();
-  ["token","role","name","companyName","tenantId"].forEach(k=>localStorage.removeItem(k));
-  sessionStorage.removeItem("loginTenantSlug");
+
+  const currentToken=
+    String(
+      sessionStorage.getItem("staffToken") ||
+      ""
+    ).trim();
+
+  const tenantSlug=
+    String(
+      sessionStorage.getItem("staffTenantSlug") ||
+      sessionStorage.getItem("loginTenantSlug") ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  /*
+    Clear ONLY this tab's staff session.
+  */
+  [
+    "staffToken",
+    "staffRole",
+    "staffName",
+    "staffTenantId",
+    "staffTenantSlug"
+  ].forEach(
+    k=>sessionStorage.removeItem(k)
+  );
+
+  /*
+    Remove legacy shared values only if they still belong to THIS tab.
+    This prevents logging out Admin from killing Dispatcher in another tab.
+  */
+  if(
+    currentToken &&
+    String(localStorage.getItem("token")||"").trim() === currentToken
+  ){
+    [
+      "token",
+      "role",
+      "name",
+      "tenantId"
+    ].forEach(
+      k=>localStorage.removeItem(k)
+    );
+  }
+
+  sessionStorage.removeItem(
+    "loginTenantSlug"
+  );
+
   if(tenantSlug){
-    sessionStorage.setItem("loginTenantSlug",tenantSlug);
-    location.href="/login.html?tenant="+encodeURIComponent(tenantSlug);
+
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      tenantSlug
+    );
+
+    location.href=
+      "/login.html?tenant="+
+      encodeURIComponent(tenantSlug);
+
     return;
   }
+
   location.href="/login.html";
 }
