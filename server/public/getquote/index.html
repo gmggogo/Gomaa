@@ -252,6 +252,54 @@ button{
 
 }
 
+
+/* ================= CURRENT LOCATION ================= */
+
+.location-field,
+.stop-location-field{
+  position:relative;
+}
+
+.current-location-choice{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% - 6px);
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:11px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#fff;
+  color:#111827;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(15,23,42,.14);
+  z-index:100;
+}
+
+.current-location-choice.show{
+  display:flex;
+}
+
+.current-location-choice:hover{
+  background:#eff6ff;
+}
+
+.current-location-choice.loading{
+  opacity:.65;
+  cursor:wait;
+}
+
+.current-location-pin{
+  color:#2563eb;
+  font-size:16px;
+  line-height:1;
+}
+
+
 /* ================= STOP ================= */
 
 .stop-row{
@@ -396,7 +444,9 @@ Loading...
 Pickup
 </label>
 
+<div class="location-field">
 <input id="pickup">
+</div>
 
 <div id="stops"></div>
 
@@ -411,7 +461,9 @@ onclick="addStop()"
 Dropoff
 </label>
 
+<div class="location-field">
 <input id="dropoff">
+</div>
 
 <button
 class="btn-primary"
@@ -994,6 +1046,505 @@ directionsRenderer.setMap(map);
 
 }
 
+
+/* ================= CURRENT LOCATION ================= */
+
+.location-field,
+.stop-location-field{
+  position:relative;
+}
+
+.current-location-choice{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% - 6px);
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:11px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#fff;
+  color:#111827;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(15,23,42,.14);
+  z-index:100;
+}
+
+.current-location-choice.show{
+  display:flex;
+}
+
+.current-location-choice:hover{
+  background:#eff6ff;
+}
+
+.current-location-choice.loading{
+  opacity:.65;
+  cursor:wait;
+}
+
+.current-location-pin{
+  color:#2563eb;
+  font-size:16px;
+  line-height:1;
+}
+
+
+
+/* ================= CURRENT LOCATION =================
+   Shared server endpoint:
+   /api/location/reverse
+
+   LOW REQUEST POLICY:
+   - No request on page load.
+   - GPS only when user selects Current Location.
+   - Reverse geocode only once per new location.
+   - 15-minute client cache.
+============================================== */
+
+let currentLocationCache = null;
+const CURRENT_LOCATION_CACHE_MS = 15 * 60 * 1000;
+
+function validCurrentCoords(lat,lng){
+
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
+
+function getCachedCurrentLocation(){
+
+  if(!currentLocationCache){
+    return null;
+  }
+
+  if(
+    Date.now() -
+    Number(currentLocationCache.savedAt || 0) >
+    CURRENT_LOCATION_CACHE_MS
+  ){
+    currentLocationCache = null;
+    return null;
+  }
+
+  if(
+    !currentLocationCache.address ||
+    !validCurrentCoords(
+      currentLocationCache.lat,
+      currentLocationCache.lng
+    )
+  ){
+    currentLocationCache = null;
+    return null;
+  }
+
+  return currentLocationCache;
+}
+
+function browserCurrentPosition(){
+
+  return new Promise((resolve,reject)=>{
+
+    if(!navigator.geolocation){
+
+      reject(
+        new Error(
+          "Current Location is not supported on this device."
+        )
+      );
+
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position=>{
+
+        resolve({
+          lat:Number(position.coords.latitude),
+          lng:Number(position.coords.longitude)
+        });
+      },
+      error=>{
+
+        let message =
+          "Could not get Current Location.";
+
+        if(error?.code === 1){
+          message =
+            "Location permission was denied.";
+        }else if(error?.code === 2){
+          message =
+            "Current Location is unavailable.";
+        }else if(error?.code === 3){
+          message =
+            "Current Location request timed out.";
+        }
+
+        reject(
+          new Error(message)
+        );
+      },
+      {
+        enableHighAccuracy:false,
+        timeout:10000,
+        maximumAge:15 * 60 * 1000
+      }
+    );
+  });
+}
+
+async function reverseCurrentLocation(lat,lng){
+
+  const tenantSlug =
+    getTenantSlug();
+
+  if(!tenantSlug){
+
+    throw new Error(
+      "Company link is required."
+    );
+  }
+
+  const res =
+    await fetch(
+      "/api/location/reverse?" +
+      new URLSearchParams({
+        lat:String(lat),
+        lng:String(lng),
+        tenantSlug
+      }).toString(),
+      {
+        method:"GET",
+        cache:"no-store"
+      }
+    );
+
+  let data = {};
+
+  try{
+    data = await res.json();
+  }catch(_){}
+
+  if(!res.ok){
+
+    throw new Error(
+      data?.message ||
+      "Could not find the street address for Current Location."
+    );
+  }
+
+  const address =
+    String(
+      data.address ||
+      data.formattedAddress ||
+      ""
+    ).trim();
+
+  if(!address){
+
+    throw new Error(
+      "Current Location address is unavailable."
+    );
+  }
+
+  return {
+    address,
+    lat:Number(lat),
+    lng:Number(lng),
+    source:
+      data.source ||
+      "server-reverse-geocode"
+  };
+}
+
+async function resolveCurrentLocation(){
+
+  const cached =
+    getCachedCurrentLocation();
+
+  if(cached){
+    return {
+      ...cached
+    };
+  }
+
+  const coords =
+    await browserCurrentPosition();
+
+  const result =
+    await reverseCurrentLocation(
+      coords.lat,
+      coords.lng
+    );
+
+  currentLocationCache = {
+    ...result,
+    savedAt:Date.now()
+  };
+
+  return {
+    ...currentLocationCache
+  };
+}
+
+function clearCurrentLocationMeta(input){
+
+  if(!input) return;
+
+  delete input.dataset.currentLat;
+  delete input.dataset.currentLng;
+  delete input.dataset.currentAddress;
+  delete input.dataset.currentLocation;
+}
+
+function setCurrentLocationInput(input,point){
+
+  if(
+    !input ||
+    !point?.address ||
+    !validCurrentCoords(
+      point.lat,
+      point.lng
+    )
+  ){
+    return;
+  }
+
+  input.dataset.settingCurrentLocation = "1";
+
+  /*
+    User sees the REAL street address.
+    Coordinates stay hidden on the input for route/review use.
+  */
+  input.value =
+    String(point.address).trim();
+
+  input.dataset.currentLat =
+    String(point.lat);
+
+  input.dataset.currentLng =
+    String(point.lng);
+
+  input.dataset.currentAddress =
+    String(point.address).trim();
+
+  input.dataset.currentLocation =
+    "1";
+
+  input.dispatchEvent(
+    new Event(
+      "input",
+      {bubbles:true}
+    )
+  );
+
+  delete input.dataset.settingCurrentLocation;
+}
+
+function closeCurrentLocationChoices(except=null){
+
+  document
+    .querySelectorAll(
+      ".current-location-choice.show"
+    )
+    .forEach(choice=>{
+
+      if(choice !== except){
+        choice.classList.remove("show");
+      }
+    });
+}
+
+function bindCurrentLocationInput(input){
+
+  if(
+    !input ||
+    input.dataset.currentLocationBound === "1"
+  ){
+    return;
+  }
+
+  input.dataset.currentLocationBound = "1";
+
+  input.addEventListener(
+    "input",
+    ()=>{
+
+      if(
+        input.dataset.settingCurrentLocation === "1"
+      ){
+        return;
+      }
+
+      clearCurrentLocationMeta(
+        input
+      );
+    }
+  );
+
+  const host =
+    input.closest(
+      ".location-field,.stop-location-field"
+    ) ||
+    input.parentElement;
+
+  if(!host){
+    return;
+  }
+
+  if(
+    getComputedStyle(host).position === "static"
+  ){
+    host.style.position =
+      "relative";
+  }
+
+  const choice =
+    document.createElement("div");
+
+  choice.className =
+    "current-location-choice";
+
+  choice.innerHTML = `
+    <span class="current-location-pin">📍</span>
+    <span>Current Location</span>
+  `;
+
+  host.appendChild(
+    choice
+  );
+
+  const show = ()=>{
+
+    closeCurrentLocationChoices(
+      choice
+    );
+
+    choice.classList.add(
+      "show"
+    );
+  };
+
+  input.addEventListener(
+    "focus",
+    show
+  );
+
+  input.addEventListener(
+    "click",
+    show
+  );
+
+  choice.addEventListener(
+    "mousedown",
+    e=>e.preventDefault()
+  );
+
+  choice.addEventListener(
+    "click",
+    async e=>{
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if(
+        choice.classList.contains(
+          "loading"
+        )
+      ){
+        return;
+      }
+
+      choice.classList.add(
+        "loading"
+      );
+
+      choice.innerHTML = `
+        <span class="current-location-pin">📍</span>
+        <span>Getting Current Location...</span>
+      `;
+
+      try{
+
+        const point =
+          await resolveCurrentLocation();
+
+        setCurrentLocationInput(
+          input,
+          point
+        );
+
+        choice.classList.remove(
+          "show"
+        );
+
+        /*
+          Any location change invalidates the old quote.
+        */
+        resetUI();
+
+      }catch(err){
+
+        console.log(
+          "GET QUOTE CURRENT LOCATION ERROR:",
+          err
+        );
+
+        alert(
+          err?.message ||
+          "Could not get Current Location."
+        );
+
+      }finally{
+
+        choice.classList.remove(
+          "loading"
+        );
+
+        choice.innerHTML = `
+          <span class="current-location-pin">📍</span>
+          <span>Current Location</span>
+        `;
+      }
+    }
+  );
+}
+
+function bindMainCurrentLocationFields(){
+
+  bindCurrentLocationInput(
+    document.getElementById(
+      "pickup"
+    )
+  );
+
+  bindCurrentLocationInput(
+    document.getElementById(
+      "dropoff"
+    )
+  );
+}
+
+document.addEventListener(
+  "click",
+  e=>{
+
+    if(
+      !e.target.closest(
+        ".location-field,.stop-location-field"
+      )
+    ){
+      closeCurrentLocationChoices();
+    }
+  }
+);
+
+
 /* ================= STOP ================= */
 
 function addStop(){
@@ -1003,6 +1554,14 @@ document.createElement("div");
 
 row.className =
 "stop-row";
+
+const field =
+document.createElement("div");
+
+field.className =
+"stop-location-field";
+
+field.style.flex = "1";
 
 const input =
 document.createElement("input");
@@ -1015,6 +1574,10 @@ lang==="es"
 input.addEventListener(
 "input",
 resetUI
+);
+
+field.appendChild(
+  input
 );
 
 const remove =
@@ -1033,12 +1596,16 @@ resetUI();
 
 };
 
-row.appendChild(input);
+row.appendChild(field);
 row.appendChild(remove);
 
 document
 .getElementById("stops")
 .appendChild(row);
+
+bindCurrentLocationInput(
+  input
+);
 
 }
 
@@ -1799,6 +2366,8 @@ initGoogle;
 /* ================= START ================= */
 
 window.onload = async function(){
+
+bindMainCurrentLocationFields();
 
 await loadServices();
 
