@@ -794,7 +794,7 @@ footer{
   <h2
   id="aboutTitle"
   class="gh-word-text gh-align-center">
-    
+    Professional Transportation Across Arizona
   </h2>
 
   <div
@@ -810,13 +810,13 @@ footer{
   <h2
   id="quoteTitle"
   class="gh-word-text gh-align-center">
-    
+    Book Your Ride Today
   </h2>
 
   <div
   id="quoteText"
   class="gh-word-text gh-align-justify-center">
-    
+    Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
   </div>
 
 </section>
@@ -843,7 +843,7 @@ id="extraSections">
     <div
     id="extra1TextView"
     class="gh-word-text gh-align-justify-center">
-      
+      Professional Drivers
     </div>
 
   </div>
@@ -855,13 +855,13 @@ id="extraSections">
     <h3
     id="extra2TitleView"
     class="gh-word-text gh-align-center">
-      
+      Serving All Arizona
     </h3>
 
     <div
     id="extra2TextView"
     class="gh-word-text gh-align-justify-center">
-      
+      Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
     </div>
 
   </div>
@@ -1517,24 +1517,6 @@ function renderPage(){
   const data =
   Branding.data || {};
 
-  const heroSection =
-  document.querySelector(".hero");
-
-  const heroImage =
-  document.querySelector(".hero-image");
-
-  const heroSrc =
-  String(data.heroImage || "").trim();
-
-  if(heroImage){
-    heroImage.src = heroSrc;
-  }
-
-  if(heroSection){
-    heroSection.style.display =
-    heroSrc ? "flex" : "none";
-  }
-
   document.title =
   data.companyName ||
   "GH Mobility";
@@ -1549,7 +1531,7 @@ function renderPage(){
       )
     : (
         data.aboutTitle ||
-        ""
+        "Professional Transportation Across Arizona"
       ),
     data.aboutTitleAlign ||
     "center"
@@ -1730,76 +1712,6 @@ function renderPage(){
         ""
       )
   );
-
-  const aboutSection =
-  document.querySelector(".about");
-
-  if(aboutSection){
-    const hasAbout =
-    String(data.aboutTitle || data.aboutTitleEs || "").trim() ||
-    String(data.aboutText || data.aboutTextEs || "").trim();
-
-    aboutSection.style.display =
-    hasAbout ? "block" : "none";
-  }
-
-  const quoteSection =
-  document.querySelector(".quote-header");
-
-  if(quoteSection){
-    const hasQuote =
-    String(data.quoteTitle || data.quoteTitleEs || "").trim() ||
-    String(data.quoteText || data.quoteTextEs || "").trim();
-
-    quoteSection.style.display =
-    hasQuote ? "block" : "none";
-  }
-
-  if(extraBox1){
-    const hasExtra1 =
-    String(data.extra1Title || data.extra1TitleEs || "").trim() ||
-    String(data.extra1Text || data.extra1TextEs || "").trim();
-
-    extraBox1.style.display =
-    data.extra1Active === false || !hasExtra1
-    ? "none"
-    : "block";
-  }
-
-  if(extraBox2){
-    const hasExtra2 =
-    String(data.extra2Title || data.extra2TitleEs || "").trim() ||
-    String(data.extra2Text || data.extra2TextEs || "").trim();
-
-    extraBox2.style.display =
-    data.extra2Active === false || !hasExtra2
-    ? "none"
-    : "block";
-  }
-
-  const contactSection =
-  document.querySelector(".contact-section");
-
-  if(contactSection){
-    const hasContact =
-    String(data.contactTitle || data.contactTitleEs || "").trim() ||
-    String(data.contactPhone || "").trim() ||
-    String(data.contactEmail || "").trim();
-
-    contactSection.style.display =
-    hasContact ? "block" : "none";
-  }
-
-  const footerEl =
-  document.getElementById("footerView");
-
-  if(footerEl){
-    const hasFooter =
-    String(data.footerText || data.footerTextEs || "").trim();
-
-    footerEl.style.display =
-    hasFooter ? "block" : "none";
-  }
 
   Branding.renderHomepageCards(
     "servicesContainer",
