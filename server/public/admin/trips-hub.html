@@ -1328,6 +1328,174 @@ body{
 }
 </style>
 
+
+<style id="tripsHubMiniHeadValuesFix">
+/* =========================================================
+   REAL TRIPS-HUB.JS MARKUP FIX
+   trips-hub.js renders:
+     .mini-head   => FA / GQ / RV
+     .mini-values => values
+   So these exact classes must be 3 equal columns.
+   ========================================================= */
+
+#hubStats .mini-head,
+#hubStats .mini-values,
+#serviceTabs .mini-head,
+#serviceTabs .mini-values,
+.stats-grid .mini-head,
+.stats-grid .mini-values,
+.service-grid .mini-head,
+.service-grid .mini-values{
+  width:100% !important;
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  column-gap:18px !important;
+  align-items:center !important;
+  justify-items:center !important;
+  text-align:center !important;
+}
+
+#hubStats .mini-head,
+#serviceTabs .mini-head,
+.stats-grid .mini-head,
+.service-grid .mini-head{
+  margin-top:5px !important;
+  margin-bottom:3px !important;
+}
+
+#hubStats .mini-head span,
+#serviceTabs .mini-head span,
+.stats-grid .mini-head span,
+.service-grid .mini-head span{
+  display:block !important;
+  width:100% !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  font-weight:900 !important;
+  letter-spacing:.45px !important;
+  text-align:center !important;
+}
+
+#hubStats .mini-values span,
+#serviceTabs .mini-values span,
+.stats-grid .mini-values span,
+.service-grid .mini-values span{
+  display:block !important;
+  width:100% !important;
+  margin-top:1px !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  font-weight:950 !important;
+  text-align:center !important;
+}
+
+/* Top summary cards: white source labels/values */
+#hubStats .mini-head,
+#hubStats .mini-values,
+.stats-grid .mini-head,
+.stats-grid .mini-values{
+  color:#fff !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22) !important;
+}
+
+/* Service cards: dark source labels/values */
+#serviceTabs .mini-head,
+#serviceTabs .mini-values,
+.service-grid .mini-head,
+.service-grid .mini-values{
+  color:#111827 !important;
+  text-shadow:none !important;
+}
+
+/* Make the card content breathe like the gold service cards */
+#hubStats .stat-card{
+  min-height:112px !important;
+  padding:11px 14px 12px !important;
+}
+
+#hubStats .stat-title{
+  width:100% !important;
+  font-size:11px !important;
+  line-height:1.1 !important;
+  font-weight:900 !important;
+  text-align:center !important;
+}
+
+#hubStats .stat-number{
+  width:100% !important;
+  margin:5px 0 5px !important;
+  font-size:29px !important;
+  line-height:1 !important;
+  font-weight:900 !important;
+  text-align:center !important;
+}
+
+#serviceTabs .service-tab{
+  min-height:105px !important;
+  padding:10px 12px 11px !important;
+}
+
+#serviceTabs .service-title{
+  width:100% !important;
+  text-align:center !important;
+  font-weight:900 !important;
+}
+
+#serviceTabs .service-total{
+  width:100% !important;
+  margin:5px 0 5px !important;
+  text-align:center !important;
+}
+
+/* Selection action buttons:
+   visible but sleeping with no selection,
+   strong when enabled by trips-hub.js */
+#editSelectedBtn,
+#deleteSelectedBtn{
+  opacity:.48 !important;
+  filter:saturate(.55) brightness(.98) !important;
+  box-shadow:none !important;
+  transition:opacity .16s ease,filter .16s ease,box-shadow .16s ease,transform .16s ease !important;
+}
+
+#editSelectedBtn:not(:disabled){
+  opacity:1 !important;
+  filter:none !important;
+  background:linear-gradient(180deg,#378cff 0%,#1d63df 100%) !important;
+  color:#fff !important;
+  box-shadow:0 6px 15px rgba(37,99,235,.34) !important;
+  transform:translateY(-1px) !important;
+}
+
+#deleteSelectedBtn:not(:disabled){
+  opacity:1 !important;
+  filter:none !important;
+  background:linear-gradient(180deg,#ef5868 0%,#c92639 100%) !important;
+  color:#fff !important;
+  box-shadow:0 6px 15px rgba(220,38,38,.31) !important;
+  transform:translateY(-1px) !important;
+}
+
+@media(max-width:768px){
+  #hubStats .mini-head,
+  #hubStats .mini-values,
+  #serviceTabs .mini-head,
+  #serviceTabs .mini-values{
+    column-gap:8px !important;
+  }
+
+  #hubStats .mini-head span,
+  #serviceTabs .mini-head span{
+    font-size:8.5px !important;
+  }
+
+  #hubStats .mini-values span,
+  #serviceTabs .mini-values span{
+    font-size:10.5px !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
