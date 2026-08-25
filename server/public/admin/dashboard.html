@@ -220,7 +220,7 @@ body{
 }
 
 /* role visibility */
-.super-only,.admin-super-only{display:none}
+.super-only{display:none}
 
 @media(max-width:1250px){
   .today-grid,.month-grid{grid-template-columns:repeat(3,1fr)}
@@ -327,27 +327,6 @@ body{
     </div>
   </section>
 
-  <!-- REVENUE -->
-  <section class="section admin-super-only">
-    <div class="section-head">
-      <h2 class="section-title">Revenue</h2>
-      <div class="section-note">Finalized trip revenue</div>
-    </div>
-
-    <div class="grid money-grid">
-      <div class="card money-card">
-        <div class="card-label">Today's Revenue</div>
-        <div class="card-value" id="todayRevenue">$0.00</div>
-        <div class="card-note">Revenue from today's finalized trips</div>
-      </div>
-      <div class="card money-card monthly">
-        <div class="card-label">Monthly Revenue</div>
-        <div class="card-value" id="monthRevenue">$0.00</div>
-        <div class="card-note">Revenue for current month</div>
-      </div>
-    </div>
-  </section>
-
   <!-- MONTH -->
   <section class="section">
     <div class="section-head">
@@ -390,10 +369,10 @@ body{
   </section>
 
   <!-- ORGANIZATION -->
-  <section class="section admin-super-only">
+  <section class="section">
     <div class="section-head">
       <h2 class="section-title">Organization Overview</h2>
-      <div class="section-note">Tenant staff and contracted facilities</div>
+      <div class="section-note">Users and vehicles from tenant user accounts</div>
     </div>
 
     <div class="grid org-grid">
@@ -402,25 +381,65 @@ body{
         <div class="card-value" id="facilityCount">0</div>
         <div class="card-note">Contracted accounts</div>
       </div>
+
       <div class="card teal">
         <div class="card-label">Drivers</div>
         <div class="card-value" id="driverCount">0</div>
-        <div class="card-note">Driver accounts</div>
+        <div class="card-note">Total driver accounts</div>
       </div>
+
+      <div class="card green">
+        <div class="card-label">Active Drivers Today</div>
+        <div class="card-value" id="activeDriverCount">0</div>
+        <div class="card-note">Active driver accounts</div>
+      </div>
+
       <div class="card cyan">
+        <div class="card-label">Vehicles</div>
+        <div class="card-value" id="vehicleCount">0</div>
+        <div class="card-note">Unique vehicles assigned to drivers</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-label">Active Vehicles Today</div>
+        <div class="card-value" id="activeVehicleCount">0</div>
+        <div class="card-note">Vehicles assigned to active drivers</div>
+      </div>
+
+      <div class="card">
         <div class="card-label">Dispatchers</div>
         <div class="card-value" id="dispatcherCount">0</div>
-        <div class="card-note">Dispatcher accounts</div>
+        <div class="card-note">Total dispatcher accounts</div>
       </div>
+
+      <div class="card green">
+        <div class="card-label">Active Dispatchers</div>
+        <div class="card-value" id="activeDispatcherCount">0</div>
+        <div class="card-note">Active dispatcher accounts</div>
+      </div>
+
       <div class="card navy super-only">
         <div class="card-label">Admins</div>
         <div class="card-value" id="adminCount">0</div>
-        <div class="card-note">Admin accounts</div>
+        <div class="card-note">Total admin accounts</div>
       </div>
+
+      <div class="card green super-only">
+        <div class="card-label">Active Admins</div>
+        <div class="card-value" id="activeAdminCount">0</div>
+        <div class="card-note">Active admin accounts</div>
+      </div>
+
       <div class="card purple super-only">
         <div class="card-label">Super Admins</div>
         <div class="card-value" id="superAdminCount">0</div>
-        <div class="card-note">Super Admin accounts</div>
+        <div class="card-note">Total Super Admin accounts</div>
+      </div>
+
+      <div class="card green super-only">
+        <div class="card-label">Active Super Admins</div>
+        <div class="card-value" id="activeSuperAdminCount">0</div>
+        <div class="card-note">Active Super Admin accounts</div>
       </div>
     </div>
   </section>
@@ -435,44 +454,6 @@ body{
     <div class="services-wrap">
       <div class="grid services-grid" id="servicesGrid">
         <div class="empty">Loading services...</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- BILLING -->
-  <section class="section super-only">
-    <div class="section-head">
-      <h2 class="section-title">Billing & Platform Payment</h2>
-      <div class="section-note">Company collections and GH Mobility subscription</div>
-    </div>
-
-    <div class="grid billing-grid">
-      <div class="card billing-card gold">
-        <div class="billing-icon">🏢</div>
-        <div class="card-label">Contracted Companies</div>
-        <div class="card-value" id="billingCompanies">0</div>
-        <div class="card-note">Active company/facility accounts</div>
-      </div>
-
-      <div class="card billing-card green">
-        <div class="billing-icon">💵</div>
-        <div class="card-label">Current Company Invoices</div>
-        <div class="card-value" id="companyInvoices">$0.00</div>
-        <div class="card-note">Open company billing total</div>
-      </div>
-
-      <div class="card billing-card orange">
-        <div class="billing-icon">📅</div>
-        <div class="card-label">Next Company Payment</div>
-        <div class="card-value" id="nextCompanyPayment">--</div>
-        <div class="card-note">Nearest company due date</div>
-      </div>
-
-      <div class="card billing-card platform-card" id="platformPaymentCard" title="Open Payments">
-        <div class="billing-icon">◆</div>
-        <div class="card-label">GH Mobility Platform Payment</div>
-        <div class="card-value" id="platformPaymentDate">Payments</div>
-        <div class="card-note" id="platformPaymentNote">Open Payments for platform subscription billing</div>
       </div>
     </div>
   </section>

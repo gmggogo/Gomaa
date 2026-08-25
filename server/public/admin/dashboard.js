@@ -168,11 +168,15 @@ function isRefundedTrip(t){
 }
 
 function renderRoleVisibility(){
-  document.querySelectorAll(".admin-super-only").forEach(el=>el.style.display=canAdminData?"":"none");
   document.querySelectorAll(".super-only").forEach(el=>el.style.display=isSuper?"":"none");
-  if(role==="DISPATCHER")$("dashboardSub").textContent="Live dispatch operations and action alerts";
-  else if(isSuper)$("dashboardSub").textContent="Operations, revenue, services, organization and billing overview";
-  else $("dashboardSub").textContent="Operations, revenue, services and organization overview";
+
+  if(role==="DISPATCHER"){
+    $("dashboardSub").textContent="Live dispatch operations, alerts and active staff overview";
+  }else if(isSuper){
+    $("dashboardSub").textContent="Operations, services, organization and active staff overview";
+  }else{
+    $("dashboardSub").textContent="Operations, services and organization overview";
+  }
 }
 
 function renderTrips(trips,finalTrips,services){
@@ -217,10 +221,6 @@ function renderTrips(trips,finalTrips,services){
   $("monthNoShow").textContent=monthItems.filter(i=>statuses(i).some(isNoShow)).length;
   $("monthMiles").textContent=monthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
 
-  if(canAdminData){
-    $("todayRevenue").textContent=money(todayItems.reduce((s,i)=>s+itemRevenue(i),0));
-    $("monthRevenue").textContent=money(monthItems.reduce((s,i)=>s+itemRevenue(i),0));
-  }
 
   const sharedEnabled=hasSharedService(services);
   $("sharedPassengersCard").classList.toggle("hidden",!sharedEnabled);
@@ -253,48 +253,89 @@ function renderServices(services){
   }).join("");
 }
 
+function userIsActive(u){
+  if(!u) return false;
+
+  if(u.active !== undefined) return u.active === true;
+  if(u.isActive !== undefined) return u.isActive === true;
+  if(u.enabled !== undefined) return u.enabled === true;
+
+  const s=clean(u.status).toUpperCase();
+  if(s) return ["ACTIVE","ENABLED","ONLINE"].includes(s);
+
+  return true;
+}
+
+function vehicleKey(u){
+  return clean(
+    u?.vehicleNumber ||
+    u?.vehicleNo ||
+    u?.vehiclePlate ||
+    u?.plateNumber ||
+    u?.vehicleId ||
+    u?.vehicle?._id ||
+    u?.vehicle?.plate ||
+    u?.vehicle?.plateNumber ||
+    ""
+  ).toUpperCase();
+}
+
 async function loadUserCounts(){
-  if(!canAdminData)return;
-  const requests=[
-    ["company","facilityCount"],
-    ["driver","driverCount"],
-    ["dispatcher","dispatcherCount"]
-  ];
+  const roles=["driver","dispatcher"];
+
   if(isSuper){
-    requests.push(["admin","adminCount"],["superadmin","superAdminCount"]);
+    roles.push("admin","superadmin");
   }
-  await Promise.all(requests.map(async([r,id])=>{
+
+  if(canAdminData){
+    roles.push("company");
+  }
+
+  const dataByRole={};
+
+  await Promise.all(roles.map(async r=>{
     try{
       const data=await getJson("/api/users/"+r);
-      $(id).textContent=Array.isArray(data)?data.length:0;
+      dataByRole[r]=Array.isArray(data)?data:[];
     }catch(e){
-      $(id).textContent="--";
+      dataByRole[r]=[];
     }
   }));
-}
 
-function formatDate(v){
-  if(!v)return "--";
-  const d=new Date(v);
-  if(isNaN(d.getTime()))return "--";
-  return d.toLocaleDateString("en-US",{timeZone:tz(),month:"short",day:"numeric",year:"numeric"});
-}
+  const drivers=dataByRole.driver||[];
+  const dispatchers=dataByRole.dispatcher||[];
+  const admins=dataByRole.admin||[];
+  const supers=dataByRole.superadmin||[];
+  const companies=dataByRole.company||[];
 
-async function loadBilling(){
-  if(!isSuper)return;
-  try{
-    const companies=await getJson("/api/admin/billing");
-    const list=Array.isArray(companies)?companies:[];
-    $("billingCompanies").textContent=list.length;
-    $("companyInvoices").textContent=money(list.reduce((s,c)=>s+n(c.invoiceAmount||0),0));
-    const dates=list.map(c=>c.nextBillingDate).filter(Boolean).map(x=>new Date(x)).filter(x=>!isNaN(x.getTime())).sort((a,b)=>a-b);
-    $("nextCompanyPayment").textContent=dates.length?formatDate(dates[0]):"--";
-  }catch(e){
-    $("billingCompanies").textContent="--";
-    $("companyInvoices").textContent="--";
-    $("nextCompanyPayment").textContent="--";
+  if($("facilityCount")) $("facilityCount").textContent=companies.length;
+
+  $("driverCount").textContent=drivers.length;
+  $("activeDriverCount").textContent=drivers.filter(userIsActive).length;
+
+  const allVehicles=new Set(
+    drivers.map(vehicleKey).filter(Boolean)
+  );
+
+  const activeVehicles=new Set(
+    drivers.filter(userIsActive).map(vehicleKey).filter(Boolean)
+  );
+
+  $("vehicleCount").textContent=allVehicles.size;
+  $("activeVehicleCount").textContent=activeVehicles.size;
+
+  $("dispatcherCount").textContent=dispatchers.length;
+  $("activeDispatcherCount").textContent=dispatchers.filter(userIsActive).length;
+
+  if(isSuper){
+    $("adminCount").textContent=admins.length;
+    $("activeAdminCount").textContent=admins.filter(userIsActive).length;
+
+    $("superAdminCount").textContent=supers.length;
+    $("activeSuperAdminCount").textContent=supers.filter(userIsActive).length;
   }
 }
+
 
 async function init(){
   renderRoleVisibility();
@@ -322,9 +363,7 @@ async function init(){
   renderServices(services);
   renderTrips(trips,finalTrips,services);
 
-  await Promise.allSettled([loadUserCounts(),loadBilling()]);
-
-  $("platformPaymentCard")?.addEventListener("click",()=>location.href="payments.html");
+  await Promise.allSettled([loadUserCounts()]);
 }
 
 document.addEventListener("DOMContentLoaded",init);
