@@ -476,6 +476,218 @@ body{
 }
 </style>
 
+
+<style id="dashboardMetallicSectionsFinal">
+/* =========================================================
+   DASHBOARD — METALLIC SECTION SYSTEM
+   - Every section has its own metallic identity
+   - Section title lives inside a metallic header bar
+   - Last organization row is centered
+   - Enabled Services stay centered as cards appear/disappear
+   ========================================================= */
+
+/* ---------- COMMON SECTION HEADER ---------- */
+.section-head{
+  min-height:52px !important;
+  padding:10px 16px !important;
+  border-radius:13px !important;
+  border:1px solid rgba(255,255,255,.32) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -1px 0 rgba(0,0,0,.14),
+    0 5px 13px rgba(32,58,79,.12) !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.30) !important;
+}
+
+.section-head .section-title{
+  color:#fff !important;
+  font-size:18px !important;
+  letter-spacing:.18px !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35) !important;
+}
+
+.section-head .section-note{
+  color:rgba(255,255,255,.88) !important;
+  font-size:9px !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.25) !important;
+}
+
+/* ---------- ACTION CENTER: METALLIC GOLD ---------- */
+.section:nth-of-type(1) .section-head{
+  background:
+    linear-gradient(180deg,#f4ce66 0%,#d9ae39 16%,#b88b17 50%,#9a710f 51%,#7f5b08 100%) !important;
+  border-color:#9e7413 !important;
+}
+.section:nth-of-type(1) .alert-card.new{
+  background:
+    linear-gradient(145deg,#fff8de 0%,#f5df96 100%) !important;
+  border-color:#d1ad42 !important;
+}
+.section:nth-of-type(1) .alert-card.confirm{
+  background:
+    linear-gradient(145deg,#fff4e2 0%,#f5d09a 100%) !important;
+  border-color:#df9c3e !important;
+}
+
+/* ---------- TODAY: METALLIC BLUE / TEAL ---------- */
+.section:nth-of-type(2) .section-head{
+  background:
+    linear-gradient(180deg,#4699a0 0%,#2c7f88 15%,#126773 50%,#0b5868 51%,#07465a 100%) !important;
+  border-color:#0b5e6a !important;
+}
+
+/* ---------- MONTHLY: METALLIC PURPLE ---------- */
+.section:nth-of-type(3) .section-head{
+  background:
+    linear-gradient(180deg,#9c87df 0%,#7c66c7 15%,#644eb2 50%,#563f9d 51%,#463180 100%) !important;
+  border-color:#5d49a4 !important;
+}
+
+/* ---------- ORGANIZATION: METALLIC NAVY ---------- */
+.section:nth-of-type(4) .section-head{
+  background:
+    linear-gradient(180deg,#58728b 0%,#405c76 15%,#2d4864 50%,#233b55 51%,#1b3049 100%) !important;
+  border-color:#2d4a65 !important;
+}
+
+/* ---------- SERVICES: METALLIC GREEN/TEAL ---------- */
+.section:nth-of-type(5) .section-head{
+  background:
+    linear-gradient(180deg,#4aa88f 0%,#2c8c76 15%,#18725f 50%,#105f50 51%,#0a4e42 100%) !important;
+  border-color:#176c5b !important;
+}
+
+/* ---------- METALLIC CARD SHEEN ---------- */
+.card,
+.service-card{
+  position:relative !important;
+  overflow:hidden !important;
+}
+
+.card:after,
+.service-card:after{
+  content:"" !important;
+  position:absolute !important;
+  top:1px !important;
+  left:5% !important;
+  right:5% !important;
+  height:34% !important;
+  border-radius:12px 12px 50% 50% !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.02)) !important;
+  pointer-events:none !important;
+}
+
+.card > *,
+.service-card > *{
+  position:relative !important;
+  z-index:1 !important;
+}
+
+/* ---------- SECTION CARD COLOR FAMILIES ---------- */
+
+/* Today Operations cards: cool metallic palette */
+.section:nth-of-type(2) .card{
+  border-color:#bfd7e2 !important;
+  background:linear-gradient(145deg,#fbfdff 0%,#eef6fa 100%) !important;
+}
+
+/* Monthly Reports cards: light metallic lavender */
+.section:nth-of-type(3) .card{
+  border-color:#d6cff0 !important;
+  background:linear-gradient(145deg,#fdfcff 0%,#f2effc 100%) !important;
+}
+
+/* Organization cards: light metallic blue-gray */
+.section:nth-of-type(4) .card{
+  border-color:#cbd8e2 !important;
+  background:linear-gradient(145deg,#fcfdff 0%,#eef3f7 100%) !important;
+}
+
+/* Enabled Services cards: metallic mint */
+.section:nth-of-type(5) .service-card{
+  border-color:#c9e0d8 !important;
+  background:linear-gradient(145deg,#fbfffd 0%,#edf8f3 100%) !important;
+}
+
+/* ---------- ORGANIZATION: CENTER EVERY ROW ---------- */
+/*
+  auto-fit + fixed max card width makes the remainder row
+  sit in the middle instead of starting at the far left.
+*/
+.org-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(190px,220px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.org-grid .card{
+  width:220px !important;
+  max-width:220px !important;
+  min-width:190px !important;
+  justify-self:center !important;
+}
+
+/* Explicitly center last row for modern browsers */
+@supports selector(:has(*)){
+  .org-grid{
+    place-content:start center !important;
+  }
+}
+
+/* ---------- SERVICES: CENTER DYNAMIC COUNT ---------- */
+.services-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(165px,205px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  width:205px !important;
+  max-width:205px !important;
+  justify-self:center !important;
+}
+
+/* ---------- SMALL VISUAL POLISH ---------- */
+.card-value{
+  font-weight:950 !important;
+}
+
+.section:nth-of-type(2) .card-value{color:#244f67 !important;}
+.section:nth-of-type(3) .card-value{color:#584695 !important;}
+.section:nth-of-type(4) .card-value{color:#2d455b !important;}
+.section:nth-of-type(5) .service-state{color:#16745f !important;}
+
+@media(max-width:760px){
+  .section-head{
+    min-height:46px !important;
+    padding:8px 10px !important;
+  }
+
+  .section-head .section-title{
+    font-size:15px !important;
+  }
+
+  .org-grid,
+  .services-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .org-grid .card,
+  .services-grid .service-card{
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
