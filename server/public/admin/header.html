@@ -1,526 +1,222 @@
-<!--
-GH MOBILITY / SUNBEAM
-ADMIN HEADER — METALLIC APPROVED STYLE
-Replace:
-D:\Sunbeamllc\server\public\admin\header.html
-
-IMPORTANT:
-- All existing IDs are preserved.
-- header.js behavior is untouched.
-- Styling is isolated to the header so existing pages do not need editing.
--->
-
-<style>
+<style id="gh-header-metallic-theme">
 /* =========================================================
-   GH ADMIN HEADER — METALLIC TEAL / NAVY
-========================================================= */
+   GH ADMIN HEADER — METALLIC TEAL / NAVY FINAL THEME
+   Visual-only override. No navigation or role logic changed.
+   ========================================================= */
 
-.gh-admin-header{
-  position:relative;
-  z-index:1000;
-  width:100%;
-  font-family:Inter,Segoe UI,Arial,sans-serif;
-  background:#dceeff;
-  box-shadow:0 10px 28px rgba(3,32,55,.18);
-}
-
-/* TOP BAND */
+/* ---------- TOP HEADER ---------- */
 .gh-admin-header .gh-topbar{
-  position:relative;
-  min-height:94px;
-  display:grid;
-  grid-template-columns:minmax(250px,1fr) minmax(320px,1.2fr) minmax(220px,.8fr);
-  align-items:center;
-  gap:18px;
-  padding:15px 24px 12px;
-  overflow:hidden;
-  color:#fff;
   background:
-    radial-gradient(circle at 18% -40%,rgba(86,222,229,.26) 0 28%,transparent 29%),
-    radial-gradient(circle at 72% 140%,rgba(51,167,193,.22) 0 35%,transparent 36%),
-    linear-gradient(115deg,#08667a 0%,#075269 34%,#063b53 65%,#031f38 100%);
-  border-bottom:1px solid rgba(255,255,255,.16);
+    radial-gradient(circle at 18% -20%, rgba(61,210,220,.20), transparent 34%),
+    radial-gradient(circle at 82% -35%, rgba(255,255,255,.12), transparent 30%),
+    linear-gradient(135deg,#073a53 0%,#07536a 42%,#062f4d 72%,#031f3d 100%) !important;
+  border-bottom:2px solid #d4a92f !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    0 4px 14px rgba(2,18,38,.22) !important;
 }
 
-.gh-admin-header .gh-topbar:before{
+/* subtle metallic sweep */
+.gh-admin-header .gh-topbar::after{
   content:"";
   position:absolute;
   inset:0;
   pointer-events:none;
   background:
-    linear-gradient(105deg,transparent 0 28%,rgba(255,255,255,.07) 36%,transparent 44%),
-    linear-gradient(0deg,rgba(0,0,0,.12),transparent 48%);
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 29%,
+      rgba(255,255,255,.07) 38%,
+      transparent 48%,
+      transparent 67%,
+      rgba(118,224,230,.08) 75%,
+      transparent 84%
+    );
 }
 
-.gh-admin-header .gh-topbar:after{
-  content:"";
-  position:absolute;
-  width:540px;
-  height:160px;
-  right:-90px;
-  bottom:-122px;
-  border-radius:50%;
-  border:18px solid rgba(85,210,220,.10);
-  box-shadow:0 0 0 24px rgba(38,145,171,.07);
-  pointer-events:none;
-}
-
-.gh-admin-header .gh-brand,
-.gh-admin-header .gh-center,
-.gh-admin-header .gh-clock,
-.gh-admin-header .gh-mobile-menu-btn{
+/* keep header content above sheen */
+.gh-admin-header .gh-topbar > *{
   position:relative;
-  z-index:2;
+  z-index:1;
 }
 
-.gh-admin-header .gh-brand{
-  display:flex;
-  align-items:center;
-  gap:13px;
-  min-width:0;
-}
-
-.gh-admin-header .gh-logo{
-  width:62px;
-  height:62px;
-  object-fit:contain;
-  border-radius:15px;
-  padding:4px;
-  background:rgba(255,255,255,.96);
-  border:1px solid rgba(255,220,105,.82);
-  box-shadow:
-    0 7px 18px rgba(0,0,0,.22),
-    inset 0 1px 0 rgba(255,255,255,.85);
-}
-
-.gh-admin-header .gh-company{
-  max-width:330px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:19px;
-  line-height:1.15;
-  font-weight:900;
-  letter-spacing:.15px;
-  color:#fff;
-  text-shadow:0 2px 5px rgba(0,0,0,.28);
-}
-
-.gh-admin-header .gh-center{
-  text-align:center;
-  min-width:0;
-}
-
-.gh-admin-header .gh-role-title{
-  font-size:19px;
-  font-weight:950;
-  color:#ffdb67;
-  letter-spacing:.25px;
-  text-shadow:0 2px 5px rgba(0,0,0,.28);
-}
-
-.gh-admin-header .gh-greeting{
-  margin-top:7px;
-  font-size:13px;
-  font-weight:750;
-  color:#eefbff;
-}
-
-.gh-admin-header .gh-clock{
-  justify-self:end;
-  min-width:205px;
-  padding:10px 14px;
-  border:1px solid rgba(255,255,255,.16);
-  border-radius:14px;
-  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(0,0,0,.08));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.12),
-    0 5px 14px rgba(0,0,0,.13);
-  font-size:12px;
-  font-weight:800;
-  color:#effcff;
-  line-height:1.8;
-  text-align:left;
-}
-
-.gh-admin-header .gh-powered{
-  position:absolute;
-  left:50%;
-  top:78px;
-  transform:translateX(-50%);
-  z-index:3;
-  padding:3px 10px;
-  font-size:9.5px;
-  font-weight:750;
-  letter-spacing:.2px;
-  color:#dffaff;
-  background:rgba(3,31,55,.48);
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:999px;
-  white-space:nowrap;
-}
-
-.gh-admin-header .gh-powered b{
-  color:#ffdb67;
-}
-
-/* NAV SHELL */
+/* ---------- NAV BACKGROUND ---------- */
 .gh-admin-header .gh-nav-shell{
-  padding:9px 12px 10px;
   background:
-    linear-gradient(180deg,#e9f5ff 0%,#d7ebfb 55%,#cce3f6 100%);
-  border-bottom:1px solid #a9cce5;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
+    linear-gradient(180deg,#e5f3ff 0%,#d4ebff 48%,#c7e2fb 100%) !important;
+  border-bottom:1px solid #9fc7e8 !important;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(73,130,176,.16) !important;
 }
 
-.gh-admin-header .gh-nav{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  flex-wrap:wrap;
-  width:100%;
-}
-
-/* METALLIC NAV TILES */
+/* ---------- ALL DESKTOP NAV BUTTONS ---------- */
 .gh-admin-header .gh-nav-tile,
 .gh-admin-header .gh-nav-group-btn{
-  position:relative;
-  min-height:42px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  padding:8px 11px;
-  border:1px solid #075263;
-  border-radius:11px;
   color:#fff !important;
-  text-decoration:none;
-  font-size:10.8px;
-  line-height:1;
-  font-weight:900;
-  letter-spacing:.08px;
-  cursor:pointer;
-  white-space:nowrap;
-  overflow:hidden;
   background:
-    linear-gradient(180deg,#43949a 0%,#287a82 12%,#126772 51%,#075063 52%,#083f52 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.38),
-    inset 0 -1px 0 rgba(0,0,0,.20),
-    0 4px 8px rgba(5,53,70,.21);
-  text-shadow:0 1px 2px rgba(0,0,0,.42);
-  transition:transform .14s ease,filter .14s ease,box-shadow .14s ease;
-}
+    linear-gradient(
+      180deg,
+      #3d8e99 0%,
+      #27727f 18%,
+      #155766 52%,
+      #0c4154 78%,
+      #073348 100%
+    ) !important;
 
-.gh-admin-header .gh-nav-tile:before,
-.gh-admin-header .gh-nav-group-btn:before{
-  content:"";
-  position:absolute;
-  top:1px;
-  left:7%;
-  right:7%;
-  height:42%;
-  border-radius:8px 8px 50% 50%;
-  background:linear-gradient(180deg,rgba(255,255,255,.21),rgba(255,255,255,.03));
-  pointer-events:none;
+  border-top:2px solid rgba(232,255,255,.94) !important;
+  border-left:2px solid rgba(222,250,255,.90) !important;
+  border-right:2px solid #24546b !important;
+  border-bottom:3px solid #06304a !important;
+
+  border-radius:11px !important;
+
+  box-shadow:
+    0 4px 0 rgba(4,39,57,.35),
+    0 8px 16px rgba(5,49,72,.18),
+    inset 0 1px 0 rgba(255,255,255,.34),
+    inset 0 -10px 20px rgba(0,21,37,.12) !important;
+
+  text-shadow:0 1px 1px rgba(0,0,0,.38) !important;
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease !important;
 }
 
 .gh-admin-header .gh-nav-tile:hover,
 .gh-admin-header .gh-nav-group-btn:hover{
+  filter:brightness(1.08) saturate(1.06);
   transform:translateY(-1px);
-  filter:brightness(1.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.42),
-    0 6px 13px rgba(5,53,70,.28);
 }
 
+.gh-admin-header .gh-nav-tile:active,
+.gh-admin-header .gh-nav-group-btn:active{
+  transform:translateY(2px);
+  box-shadow:
+    0 1px 0 rgba(4,39,57,.34),
+    0 4px 9px rgba(5,49,72,.15),
+    inset 0 2px 5px rgba(0,0,0,.15) !important;
+}
+
+/* icons/text always clear */
+.gh-admin-header .gh-nav-tile .gh-icon,
+.gh-admin-header .gh-nav-group-btn .gh-icon{
+  color:#fff !important;
+}
+
+.gh-admin-header .gh-nav-tile svg,
+.gh-admin-header .gh-nav-group-btn svg{
+  stroke:#fff !important;
+}
+
+/* ---------- ACTIVE PAGE ---------- */
 .gh-admin-header .gh-nav-tile.active,
 .gh-admin-header .gh-nav-group.has-active > .gh-nav-group-btn{
-  border-color:#11870b;
+  color:#fff !important;
   background:
-    linear-gradient(180deg,#65dd45 0%,#42c729 15%,#20ae13 53%,#159908 54%,#0f8006 100%);
+    linear-gradient(
+      180deg,
+      #53c738 0%,
+      #37ad27 22%,
+      #239919 58%,
+      #14830f 100%
+    ) !important;
+
+  border-top-color:#ecffe9 !important;
+  border-left-color:#e8ffe5 !important;
+  border-right-color:#14750e !important;
+  border-bottom-color:#0d6509 !important;
+
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.52),
-    0 5px 12px rgba(30,151,18,.30);
+    0 4px 0 rgba(17,101,10,.36),
+    0 8px 17px rgba(31,142,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -8px 15px rgba(9,91,4,.12) !important;
 }
 
+/* ---------- BIGGER DROP-DOWN ARROW ---------- */
+.gh-admin-header .gh-caret{
+  font-size:24px !important;
+  line-height:1 !important;
+  font-weight:1000 !important;
+  margin-left:8px !important;
+  transform:translateY(-1px) !important;
+  color:#fff !important;
+  text-shadow:0 1px 1px rgba(0,0,0,.45);
+}
+
+.gh-admin-header .gh-nav-group.open .gh-caret{
+  transform:rotate(180deg) translateY(1px) !important;
+}
+
+/* ---------- LOG OUT ---------- */
 .gh-admin-header .gh-logout-tile{
-  border-color:#aa1f2d !important;
+  color:#fff !important;
   background:
-    linear-gradient(180deg,#ff7a84 0%,#ef5966 14%,#dc3b4a 52%,#c92b39 53%,#ae1f2d 100%) !important;
+    linear-gradient(
+      180deg,
+      #ef6d73 0%,
+      #df4c55 25%,
+      #c92f3b 62%,
+      #ac1f2c 100%
+    ) !important;
+
+  border-top-color:#ffe9eb !important;
+  border-left-color:#ffe3e6 !important;
+  border-right-color:#9d1d29 !important;
+  border-bottom-color:#831520 !important;
+
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.46),
-    0 5px 12px rgba(172,30,47,.25) !important;
+    0 4px 0 rgba(112,18,28,.32),
+    0 8px 16px rgba(130,23,34,.18),
+    inset 0 1px 0 rgba(255,255,255,.38) !important;
 }
 
-.gh-admin-header .gh-icon{
-  width:17px;
-  height:17px;
-  display:inline-flex;
-  flex:0 0 17px;
-  position:relative;
-  z-index:1;
-}
-
-.gh-admin-header .gh-icon svg{
-  width:17px;
-  height:17px;
-  fill:none;
-  stroke:currentColor;
-  stroke-width:1.9;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-}
-
-.gh-admin-header .gh-nav-tile > span,
-.gh-admin-header .gh-nav-group-btn > span,
-.gh-admin-header .gh-caret{
-  position:relative;
-  z-index:1;
-}
-
-.gh-admin-header .gh-caret{
-  margin-left:2px;
-  font-size:15px;
-  line-height:.8;
-  color:#fff;
-}
-
-/* DROPDOWNS */
-.gh-admin-header .gh-nav-group{
-  position:relative;
-}
-
+/* ---------- DROP-DOWN MENU ---------- */
 .gh-admin-header .gh-nav-menu{
-  display:none;
-  position:absolute;
-  top:calc(100% + 7px);
-  left:50%;
-  transform:translateX(-50%);
-  z-index:2000;
-  min-width:205px;
-  padding:7px;
-  border-radius:13px;
-  border:1px solid #8ab8ce;
-  background:linear-gradient(180deg,#f7fcff,#dceefa);
-  box-shadow:0 15px 35px rgba(4,45,68,.25);
-}
-
-.gh-admin-header .gh-nav-group.open .gh-nav-menu{
-  display:block;
+  background:linear-gradient(180deg,#f9fdff,#e5f3fb) !important;
+  border:1px solid #7eb4d0 !important;
+  box-shadow:0 12px 26px rgba(3,39,59,.20) !important;
 }
 
 .gh-admin-header .gh-nav-menu a{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:10px 11px;
-  border-radius:9px;
-  color:#073b50 !important;
-  text-decoration:none;
-  font-size:11px;
-  font-weight:850;
+  color:#0b3850 !important;
 }
 
-.gh-admin-header .gh-nav-menu a:hover{
-  color:#fff !important;
-  background:linear-gradient(180deg,#2d8892,#0b6170);
-}
-
+.gh-admin-header .gh-nav-menu a:hover,
 .gh-admin-header .gh-nav-menu a.active{
   color:#fff !important;
-  background:linear-gradient(180deg,#58d936,#15950b);
+  background:linear-gradient(180deg,#47b936,#258f1b) !important;
 }
 
-.gh-mobile-menu-btn{
-  display:none;
-}
-
-/* MOBILE */
+/* ---------- MOBILE ---------- */
 @media(max-width:900px){
-  .gh-admin-header .gh-topbar{
-    min-height:78px;
-    grid-template-columns:46px 1fr auto;
-    gap:8px;
-    padding:10px 10px 9px;
-  }
-
   .gh-admin-header .gh-mobile-menu-btn{
-    display:flex;
-    width:40px;
-    height:40px;
-    align-items:center;
-    justify-content:center;
-    border:1px solid rgba(255,255,255,.24);
-    border-radius:11px;
-    color:#fff;
-    background:linear-gradient(180deg,#388893,#0b5968);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 4px 10px rgba(0,0,0,.18);
-    font-size:21px;
-    cursor:pointer;
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:2px solid rgba(230,255,255,.85) !important;
   }
 
-  .gh-admin-header .gh-brand{
-    gap:8px;
+  .gh-admin-header .gh-mobile-drawer{
+    background:linear-gradient(180deg,#073f56 0%,#052d45 100%) !important;
   }
 
-  .gh-admin-header .gh-logo{
-    width:46px;
-    height:46px;
-    border-radius:11px;
+  .gh-admin-header .gh-mobile-nav a{
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:1px solid rgba(190,232,240,.58) !important;
   }
 
-  .gh-admin-header .gh-company{
-    max-width:180px;
-    font-size:13px;
+  .gh-admin-header .gh-mobile-nav a.active{
+    background:linear-gradient(180deg,#53c738,#239919 58%,#14830f) !important;
   }
 
-  .gh-admin-header .gh-center{
-    display:none;
+  .gh-admin-header .gh-mobile-logout{
+    color:#fff !important;
+    background:linear-gradient(180deg,#ef6d73,#c92f3b 60%,#ac1f2c) !important;
   }
-
-  .gh-admin-header .gh-clock{
-    min-width:auto;
-    padding:6px 8px;
-    border-radius:9px;
-    font-size:8.5px;
-    line-height:1.6;
-  }
-
-  .gh-admin-header .gh-powered{
-    top:63px;
-    font-size:7.5px;
-    padding:2px 7px;
-  }
-
-  .gh-admin-header .gh-nav-shell{
-    display:none;
-  }
-}
-
-/* Existing drawer classes remain compatible */
-.gh-admin-header .gh-mobile-overlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:2998;
-  background:rgba(0,15,27,.58);
-  backdrop-filter:blur(2px);
-}
-
-.gh-admin-header .gh-mobile-overlay.show{
-  display:block;
-}
-
-.gh-admin-header .gh-mobile-drawer{
-  position:fixed;
-  top:0;
-  left:-310px;
-  bottom:0;
-  width:min(86vw,300px);
-  z-index:2999;
-  overflow-y:auto;
-  padding-bottom:20px;
-  color:#fff;
-  background:linear-gradient(160deg,#075a6d,#073e56 55%,#031f38);
-  box-shadow:16px 0 40px rgba(0,0,0,.30);
-  transition:left .2s ease;
-}
-
-.gh-admin-header .gh-mobile-drawer.show{
-  left:0;
-}
-
-.gh-admin-header .gh-mobile-head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:16px 13px;
-  border-bottom:1px solid rgba(255,255,255,.14);
-}
-
-.gh-admin-header .gh-mobile-logo{
-  width:48px;
-  height:48px;
-  object-fit:contain;
-  padding:3px;
-  border-radius:11px;
-  background:#fff;
-}
-
-.gh-admin-header .gh-mobile-title{
-  flex:1;
-  min-width:0;
-  font-weight:900;
-  color:#fff;
-}
-
-.gh-admin-header .gh-mobile-title small{
-  display:block;
-  margin-top:3px;
-  color:#ffdb67;
-}
-
-.gh-admin-header .gh-mobile-close{
-  width:34px;
-  height:34px;
-  border:0;
-  border-radius:9px;
-  color:#fff;
-  background:rgba(255,255,255,.13);
-  font-size:24px;
-}
-
-.gh-admin-header .gh-mobile-nav{
-  padding:9px;
-}
-
-.gh-admin-header .gh-mobile-nav a{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-height:43px;
-  margin:5px 0;
-  padding:8px 11px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:10px;
-  color:#fff !important;
-  text-decoration:none;
-  font-size:12px;
-  font-weight:850;
-  background:linear-gradient(180deg,#2c8189,#0a5968);
-}
-
-.gh-admin-header .gh-mobile-nav a.active{
-  background:linear-gradient(180deg,#53d735,#15950a);
-}
-
-.gh-admin-header .gh-mobile-group-title{
-  margin:12px 5px 5px;
-  color:#ffdb67;
-  font-size:10px;
-  font-weight:950;
-  text-transform:uppercase;
-  letter-spacing:.5px;
-}
-
-.gh-admin-header .gh-mobile-logout{
-  width:calc(100% - 18px);
-  min-height:44px;
-  margin:8px 9px;
-  border:1px solid #a61b29;
-  border-radius:10px;
-  color:#fff;
-  font-weight:900;
-  background:linear-gradient(180deg,#f26874,#c92738);
-}
-
-.gh-admin-header .gh-mobile-powered{
-  padding:8px;
-  text-align:center;
-  color:#cceef3;
-  font-size:9px;
 }
 </style>
 
@@ -532,16 +228,13 @@ IMPORTANT:
       <img class="gh-logo app-logo" alt="Company Logo">
       <div>
         <div class="gh-company" id="dynamicCompanyName"></div>
+        
       </div>
     </div>
 
     <div class="gh-center">
       <div class="gh-role-title" id="roleTitle">Admin — Administrator</div>
-      <div class="gh-greeting">
-        <span id="weatherIcon">☀️</span>
-        <span id="welcomeMessage">Good Morning</span>,
-        <strong id="staffDisplayName"></strong>
-      </div>
+      <div class="gh-greeting"><span id="weatherIcon">☀️</span> <span id="welcomeMessage">Good Morning</span>, <strong id="staffDisplayName"></strong></div>
     </div>
 
     <div class="gh-clock">
@@ -557,23 +250,14 @@ IMPORTANT:
   </div>
 
   <div class="gh-mobile-overlay" id="mobileMenuOverlay"></div>
-
   <aside class="gh-mobile-drawer" id="mobileSideMenu">
     <div class="gh-mobile-head">
       <img class="gh-mobile-logo app-logo" alt="Company Logo">
-
-      <div class="gh-mobile-title">
-        <div id="mobileCompanyName"></div>
-        <small id="mobileRoleLabel"></small>
-      </div>
-
+      <div class="gh-mobile-title"><div id="mobileCompanyName"></div><small id="mobileRoleLabel"></small></div>
       <button id="mobileCloseBtn" class="gh-mobile-close" type="button">×</button>
     </div>
-
     <nav id="mobileSideNav" class="gh-mobile-nav"></nav>
-
     <button class="gh-mobile-logout" onclick="logout()">Log Out</button>
-
     <div class="gh-mobile-powered">Powered by GH Mobility</div>
   </aside>
 </header>

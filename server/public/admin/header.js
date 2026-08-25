@@ -1,465 +1,263 @@
-(function(){
-const svg={
-home:'<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg>',
-car:'<svg viewBox="0 0 24 24"><path d="M4 15h16l-1.5-5H5.5L4 15Z"/><path d="M8 10l1-3h6l1 3"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/></svg>',
-check:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/></svg>',
-doc:'<svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h5"/><path d="M10 12h6M10 16h6"/></svg>',
-user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>',
-plus:'<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3.5 21v-2a5.5 5.5 0 0 1 11 0v2"/><path d="M18 8v6M15 11h6"/></svg>',
-chart:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/><path d="M3 20h18"/></svg>',
-refund:'<svg viewBox="0 0 24 24"><path d="M7 7h8a5 5 0 0 1 0 10H8"/><path d="m7 7 3-3M7 7l3 3"/></svg>',
-tag:'<svg viewBox="0 0 24 24"><path d="M4 12 12 4h7v7l-8 8-7-7Z"/><circle cx="16" cy="8" r="1.2"/></svg>',
-gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>',
-money:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
-logout:'<svg viewBox="0 0 24 24"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>',
-list:'<svg viewBox="0 0 24 24"><path d="M7 5h13M7 12h13M7 19h13"/><circle cx="3.5" cy="5" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="19" r="1"/></svg>',
-calendar:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>',
-map:'<svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>',
-bolt:'<svg viewBox="0 0 24 24"><path d="m13 2-7 12h6l-1 8 7-12h-6z"/></svg>',
-building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/></svg>'
-};
-const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
-
-/* =========================
-   ADMIN FLOATING CHAT LOADER
-   Restores chat on every admin page
-========================= */
-
-(function loadAdminFloatingChat(){
-
-  if(window.ADMIN_CHAT_LOADER_STARTED){
-    return;
-  }
-
-  window.ADMIN_CHAT_LOADER_STARTED = true;
-
-  function injectChatScript(){
-
-    if(
-      window.SUNBEAM_ADMIN_FLOATING_CHAT ||
-      document.querySelector(
-        'script[src="/admin/admin-chat.js"]'
-      ) ||
-      document.querySelector(
-        'script[src="admin-chat.js"]'
-      )
-    ){
-      return;
-    }
-
-    const script =
-      document.createElement("script");
-
-    script.src =
-      "/admin/admin-chat.js";
-
-    script.defer = true;
-
-    script.onerror = function(){
-      console.log(
-        "ADMIN CHAT LOAD ERROR"
-      );
-    };
-
-    document.body.appendChild(
-      script
-    );
-  }
-
-  if(
-    document.readyState ===
-    "loading"
-  ){
-    document.addEventListener(
-      "DOMContentLoaded",
-      injectChatScript,
-      {once:true}
-    );
-  }else{
-    injectChatScript();
-  }
-
-})();
-
-const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
-const role=()=>{
-  const r=norm(localStorage.getItem("role"));
-  if(r==="PLATFORM_ADMIN") return "PLATFORM_ADMIN";
-  if(r==="SUPER_ADMIN"||r==="SUPERADMIN") return "SUPER_ADMIN";
-  if(r==="DISPATCHER") return "DISPATCHER";
-  return "ADMIN";
-};
-const core=[
-{l:"Dashboard",h:"dashboard.html",i:"home"},
-{g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
-{l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
-{l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
-{g:"Driver Follow-up",i:"user",items:[["Driver Schedule","driver-schedule.html","calendar"],["Drivers Map","maps.html","map"]]}
-];
-const admin=[
-{l:"Add User",h:"users.html",i:"plus"},
-{l:"Summary",h:"summary.html",i:"chart"},
-{l:"Refunds",h:"refunds.html",i:"refund"}
-];
-const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
-const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
-const payrollGroup={
-  g:"Payroll",
-  i:"money",
-  items:[
-    ["Payroll & Earnings","payroll.html","money"],
-    ["Payroll Summary","payroll-summary.html","chart"]
-  ]
-};
-
-document.addEventListener("DOMContentLoaded",async()=>{
- const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
- const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
-
- const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
- const roleLabel=
-   currentRole==="PLATFORM_ADMIN"
-     ? "Platform Admin"
-     : currentRole==="SUPER_ADMIN"
-       ? "Super Admin"
-       : currentRole==="DISPATCHER"
-         ? "Dispatcher"
-         : "Admin";
- const tenantNameForHeader =
-   localStorage.getItem("companyName") ||
-   localStorage.getItem("tenantName") ||
-   "";
- const saasEl=document.getElementById("saasCompanyName");
- if(saasEl) saasEl.textContent=tenantNameForHeader;
- document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
- document.getElementById("roleTitle").textContent=
-   currentRole==="PLATFORM_ADMIN"
-     ? "Platform Admin — Administrator"
-     : currentRole==="DISPATCHER"
-       ? "Dispatcher"
-       : currentRole==="SUPER_ADMIN"
-         ? "Super Admin — Administrator"
-         : "Admin — Administrator";
-
- const fallbackCompany =
-   localStorage.getItem("companyName") ||
-   localStorage.getItem("tenantName") ||
-   "";
-
- const fallbackStaff =
-   localStorage.getItem("name") ||
-   localStorage.getItem("fullName") ||
-   "";
-
- async function ensureBrandingLoaded(){
-
-   if(!window.Branding){
-
-     await new Promise(resolve=>{
-
-       const existing =
-         document.querySelector(
-           'script[src="/core/branding.js"]'
-         );
-
-       if(existing){
-
-         if(window.Branding){
-           resolve();
-           return;
-         }
-
-         existing.addEventListener(
-           "load",
-           resolve,
-           {once:true}
-         );
-
-         setTimeout(resolve,700);
-         return;
-       }
-
-       const script =
-         document.createElement("script");
-
-       script.src =
-         "/core/branding.js";
-
-       script.onload =
-         resolve;
-
-       script.onerror =
-         resolve;
-
-       document.body.appendChild(
-         script
-       );
-     });
-   }
-
-   if(
-     window.Branding &&
-     typeof window.Branding.load === "function"
-   ){
-
-     try{
-       await window.Branding.load();
-     }catch(err){
-       console.log(
-         "HEADER BRANDING LOAD ERROR:",
-         err
-       );
-     }
-   }
- }
-
- await ensureBrandingLoaded();
-
- const brandingData =
-   window.Branding?.data || {};
-
- const tenantCompany =
-   brandingData.companyName ||
-   fallbackCompany ||
-   "";
-
- const tenantMainLogo =
-   brandingData.mainLogo ||
-   (
-     typeof window.Branding?.getMainLogo === "function"
-       ? window.Branding.getMainLogo()
-       : ""
-   ) ||
-   "/assets/logo.png";
-
- const companyEl =
-   document.getElementById(
-     "dynamicCompanyName"
-   );
-
- const mobileCompanyEl =
-   document.getElementById(
-     "mobileCompanyName"
-   );
-
- const staffEl =
-   document.getElementById(
-     "staffDisplayName"
-   );
-
- if(companyEl){
-   companyEl.textContent =
-     tenantCompany;
- }
-
- if(mobileCompanyEl){
-   mobileCompanyEl.textContent =
-     tenantCompany;
- }
-
- if(staffEl){
-   staffEl.textContent =
-     fallbackStaff;
- }
-
- document
-   .querySelectorAll(
-     ".app-logo"
-   )
-   .forEach(img=>{
-
-     img.src =
-       tenantMainLogo;
-   });
-
- /* Keep local cache synchronized with System Design */
- if(tenantCompany){
-   localStorage.setItem(
-     "companyName",
-     tenantCompany
-   );
- }
-
- if(tenantMainLogo){
-   localStorage.setItem(
-     "appLogo",
-     tenantMainLogo
-   );
- }
-
- let nav=[...core];
- if(currentRole!=="DISPATCHER")nav.push(...admin);
- if(currentRole==="SUPER_ADMIN"){
-   nav.push(...extra);
-   nav.push(payrollGroup);
- }
- if(currentRole!=="DISPATCHER")nav.push(settings);
-
- const desktop=document.getElementById("adminDesktopNav");
- const mobile=document.getElementById("mobileSideNav");
-
- function link(item){
-   const a=document.createElement("a"); a.href=item.h;a.dataset.href=item.h;a.className="gh-nav-tile";a.innerHTML=I(item.i)+`<span>${item.l}</span>`;return a;
- }
- function group(item){
-   const w=document.createElement("div");w.className="gh-nav-group";
-   const b=document.createElement("button");b.type="button";b.className="gh-nav-tile gh-nav-group-btn";b.innerHTML=I(item.i)+`<span>${item.g}</span><b class="gh-caret">▾</b>`;
-   const m=document.createElement("div");m.className="gh-nav-menu";
-   item.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;m.appendChild(a)});
-   b.onclick=e=>{e.preventDefault();document.querySelectorAll(".gh-nav-group.open").forEach(x=>{if(x!==w)x.classList.remove("open")});w.classList.toggle("open")};
-   w.append(b,m);return w;
- }
- nav.forEach(x=>desktop.appendChild(x.g?group(x):link(x)));
-
- const lo=document.createElement("button");lo.type="button";lo.className="gh-nav-tile gh-logout-tile";lo.innerHTML=I("logout")+"<span>Log Out</span>";lo.onclick=logout;desktop.appendChild(lo);
-
- nav.forEach(x=>{
-   if(x.g){
-     const t=document.createElement("div");t.className="gh-mobile-group-title";t.textContent=x.g;mobile.appendChild(t);
-     x.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;mobile.appendChild(a)});
-   }else{const a=link(x);a.className="";mobile.appendChild(a)}
- });
-
-
- /* Re-sync after Branding global application completes */
- setTimeout(()=>{
-
-   const data =
-     window.Branding?.data || {};
-
-   const latestCompany =
-     data.companyName ||
-     localStorage.getItem("companyName") ||
-     "";
-
-   const latestLogo =
-     data.mainLogo ||
-     (
-       typeof window.Branding?.getMainLogo === "function"
-         ? window.Branding.getMainLogo()
-         : ""
-     ) ||
-     localStorage.getItem("appLogo") ||
-     "/assets/logo.png";
-
-   const a =
-     document.getElementById(
-       "dynamicCompanyName"
-     );
-
-   const c =
-     document.getElementById(
-       "mobileCompanyName"
-     );
-
-   if(a) a.textContent = latestCompany;
-   if(c) c.textContent = latestCompany;
-
-   document
-     .querySelectorAll(".app-logo")
-     .forEach(img=>{
-       img.src = latestLogo;
-     });
-
- },350);
-
- const page=location.pathname.split("/").pop();
- document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
- document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
-
-
- /* =========================
-    STAFF PAYROLL SIGN IN
-    Load only after header.html exists.
- ========================= */
-
- (function loadStaffPayrollSignin(){
-
-   if(
-     document.querySelector(
-       'script[src="/admin/staff-signin.js"]'
-     ) ||
-     document.querySelector(
-       'script[src="staff-signin.js"]'
-     )
-   ){
-     return;
-   }
-
-   const script =
-     document.createElement(
-       "script"
-     );
-
-   script.src =
-     "/admin/staff-signin.js";
-
-   script.defer =
-     true;
-
-   script.onerror =
-     function(){
-
-       console.log(
-         "STAFF SIGN IN LOAD ERROR"
-       );
-     };
-
-   document.body.appendChild(
-     script
-   );
-
- })();
-
- const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
- function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
-
- const drawer=document.getElementById("mobileSideMenu"),ov=document.getElementById("mobileMenuOverlay");
- const open=()=>{drawer.classList.add("show");ov.classList.add("show")},close=()=>{drawer.classList.remove("show");ov.classList.remove("show")};
- document.getElementById("mobileMenuBtn").onclick=open;document.getElementById("mobileCloseBtn").onclick=close;ov.onclick=close;
-});
-})();
-function logout(){
-
-  const tenantSlug =
-    String(
-      localStorage.getItem("tenantSlug") ||
-      sessionStorage.getItem("loginTenantSlug") ||
-      ""
-    )
-    .trim()
-    .toLowerCase();
-
-  [
-    "token",
-    "role",
-    "name",
-    "companyName",
-    "tenantId"
-  ].forEach(
-    k => localStorage.removeItem(k)
-  );
-
-  sessionStorage.removeItem(
-    "loginTenantSlug"
-  );
-
-  if(tenantSlug){
-
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      tenantSlug
-    );
-
-    location.href =
-      "/login.html?tenant=" +
-      encodeURIComponent(
-        tenantSlug
-      );
-
-    return;
-  }
-
-  location.href =
-    "/login.html";
+<style id="gh-header-metallic-theme">
+/* =========================================================
+   GH ADMIN HEADER — METALLIC TEAL / NAVY FINAL THEME
+   Visual-only override. No navigation or role logic changed.
+   ========================================================= */
+
+/* ---------- TOP HEADER ---------- */
+.gh-admin-header .gh-topbar{
+  background:
+    radial-gradient(circle at 18% -20%, rgba(61,210,220,.20), transparent 34%),
+    radial-gradient(circle at 82% -35%, rgba(255,255,255,.12), transparent 30%),
+    linear-gradient(135deg,#073a53 0%,#07536a 42%,#062f4d 72%,#031f3d 100%) !important;
+  border-bottom:2px solid #d4a92f !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    0 4px 14px rgba(2,18,38,.22) !important;
 }
+
+/* subtle metallic sweep */
+.gh-admin-header .gh-topbar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 29%,
+      rgba(255,255,255,.07) 38%,
+      transparent 48%,
+      transparent 67%,
+      rgba(118,224,230,.08) 75%,
+      transparent 84%
+    );
+}
+
+/* keep header content above sheen */
+.gh-admin-header .gh-topbar > *{
+  position:relative;
+  z-index:1;
+}
+
+/* ---------- NAV BACKGROUND ---------- */
+.gh-admin-header .gh-nav-shell{
+  background:
+    linear-gradient(180deg,#e5f3ff 0%,#d4ebff 48%,#c7e2fb 100%) !important;
+  border-bottom:1px solid #9fc7e8 !important;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(73,130,176,.16) !important;
+}
+
+/* ---------- ALL DESKTOP NAV BUTTONS ---------- */
+.gh-admin-header .gh-nav-tile,
+.gh-admin-header .gh-nav-group-btn{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #3d8e99 0%,
+      #27727f 18%,
+      #155766 52%,
+      #0c4154 78%,
+      #073348 100%
+    ) !important;
+
+  border-top:2px solid rgba(232,255,255,.94) !important;
+  border-left:2px solid rgba(222,250,255,.90) !important;
+  border-right:2px solid #24546b !important;
+  border-bottom:3px solid #06304a !important;
+
+  border-radius:11px !important;
+
+  box-shadow:
+    0 4px 0 rgba(4,39,57,.35),
+    0 8px 16px rgba(5,49,72,.18),
+    inset 0 1px 0 rgba(255,255,255,.34),
+    inset 0 -10px 20px rgba(0,21,37,.12) !important;
+
+  text-shadow:0 1px 1px rgba(0,0,0,.38) !important;
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease !important;
+}
+
+.gh-admin-header .gh-nav-tile:hover,
+.gh-admin-header .gh-nav-group-btn:hover{
+  filter:brightness(1.08) saturate(1.06);
+  transform:translateY(-1px);
+}
+
+.gh-admin-header .gh-nav-tile:active,
+.gh-admin-header .gh-nav-group-btn:active{
+  transform:translateY(2px);
+  box-shadow:
+    0 1px 0 rgba(4,39,57,.34),
+    0 4px 9px rgba(5,49,72,.15),
+    inset 0 2px 5px rgba(0,0,0,.15) !important;
+}
+
+/* icons/text always clear */
+.gh-admin-header .gh-nav-tile .gh-icon,
+.gh-admin-header .gh-nav-group-btn .gh-icon{
+  color:#fff !important;
+}
+
+.gh-admin-header .gh-nav-tile svg,
+.gh-admin-header .gh-nav-group-btn svg{
+  stroke:#fff !important;
+}
+
+/* ---------- ACTIVE PAGE ---------- */
+.gh-admin-header .gh-nav-tile.active,
+.gh-admin-header .gh-nav-group.has-active > .gh-nav-group-btn{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #53c738 0%,
+      #37ad27 22%,
+      #239919 58%,
+      #14830f 100%
+    ) !important;
+
+  border-top-color:#ecffe9 !important;
+  border-left-color:#e8ffe5 !important;
+  border-right-color:#14750e !important;
+  border-bottom-color:#0d6509 !important;
+
+  box-shadow:
+    0 4px 0 rgba(17,101,10,.36),
+    0 8px 17px rgba(31,142,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -8px 15px rgba(9,91,4,.12) !important;
+}
+
+/* ---------- BIGGER DROP-DOWN ARROW ---------- */
+.gh-admin-header .gh-caret{
+  font-size:24px !important;
+  line-height:1 !important;
+  font-weight:1000 !important;
+  margin-left:8px !important;
+  transform:translateY(-1px) !important;
+  color:#fff !important;
+  text-shadow:0 1px 1px rgba(0,0,0,.45);
+}
+
+.gh-admin-header .gh-nav-group.open .gh-caret{
+  transform:rotate(180deg) translateY(1px) !important;
+}
+
+/* ---------- LOG OUT ---------- */
+.gh-admin-header .gh-logout-tile{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #ef6d73 0%,
+      #df4c55 25%,
+      #c92f3b 62%,
+      #ac1f2c 100%
+    ) !important;
+
+  border-top-color:#ffe9eb !important;
+  border-left-color:#ffe3e6 !important;
+  border-right-color:#9d1d29 !important;
+  border-bottom-color:#831520 !important;
+
+  box-shadow:
+    0 4px 0 rgba(112,18,28,.32),
+    0 8px 16px rgba(130,23,34,.18),
+    inset 0 1px 0 rgba(255,255,255,.38) !important;
+}
+
+/* ---------- DROP-DOWN MENU ---------- */
+.gh-admin-header .gh-nav-menu{
+  background:linear-gradient(180deg,#f9fdff,#e5f3fb) !important;
+  border:1px solid #7eb4d0 !important;
+  box-shadow:0 12px 26px rgba(3,39,59,.20) !important;
+}
+
+.gh-admin-header .gh-nav-menu a{
+  color:#0b3850 !important;
+}
+
+.gh-admin-header .gh-nav-menu a:hover,
+.gh-admin-header .gh-nav-menu a.active{
+  color:#fff !important;
+  background:linear-gradient(180deg,#47b936,#258f1b) !important;
+}
+
+/* ---------- MOBILE ---------- */
+@media(max-width:900px){
+  .gh-admin-header .gh-mobile-menu-btn{
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:2px solid rgba(230,255,255,.85) !important;
+  }
+
+  .gh-admin-header .gh-mobile-drawer{
+    background:linear-gradient(180deg,#073f56 0%,#052d45 100%) !important;
+  }
+
+  .gh-admin-header .gh-mobile-nav a{
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:1px solid rgba(190,232,240,.58) !important;
+  }
+
+  .gh-admin-header .gh-mobile-nav a.active{
+    background:linear-gradient(180deg,#53c738,#239919 58%,#14830f) !important;
+  }
+
+  .gh-admin-header .gh-mobile-logout{
+    color:#fff !important;
+    background:linear-gradient(180deg,#ef6d73,#c92f3b 60%,#ac1f2c) !important;
+  }
+}
+</style>
+
+<header class="gh-admin-header" id="ghAdminHeader">
+  <div class="gh-topbar">
+    <button class="gh-mobile-menu-btn" id="mobileMenuBtn" type="button">☰</button>
+
+    <div class="gh-brand">
+      <img class="gh-logo app-logo" alt="Company Logo">
+      <div>
+        <div class="gh-company" id="dynamicCompanyName"></div>
+        
+      </div>
+    </div>
+
+    <div class="gh-center">
+      <div class="gh-role-title" id="roleTitle">Admin — Administrator</div>
+      <div class="gh-greeting"><span id="weatherIcon">☀️</span> <span id="welcomeMessage">Good Morning</span>, <strong id="staffDisplayName"></strong></div>
+    </div>
+
+    <div class="gh-clock">
+      <div>📅 <span id="headerDate">--</span></div>
+      <div>🕘 <span id="headerTime">--</span></div>
+    </div>
+  </div>
+
+  <div class="gh-powered">Powered by <b>GH Mobility</b></div>
+
+  <div class="gh-nav-shell">
+    <nav class="gh-nav" id="adminDesktopNav"></nav>
+  </div>
+
+  <div class="gh-mobile-overlay" id="mobileMenuOverlay"></div>
+  <aside class="gh-mobile-drawer" id="mobileSideMenu">
+    <div class="gh-mobile-head">
+      <img class="gh-mobile-logo app-logo" alt="Company Logo">
+      <div class="gh-mobile-title"><div id="mobileCompanyName"></div><small id="mobileRoleLabel"></small></div>
+      <button id="mobileCloseBtn" class="gh-mobile-close" type="button">×</button>
+    </div>
+    <nav id="mobileSideNav" class="gh-mobile-nav"></nav>
+    <button class="gh-mobile-logout" onclick="logout()">Log Out</button>
+    <div class="gh-mobile-powered">Powered by GH Mobility</div>
+  </aside>
+</header>
