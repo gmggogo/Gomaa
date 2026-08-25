@@ -4,639 +4,476 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Dashboard</title>
-
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
 *{box-sizing:border-box}
-
+:root{
+  --bg:#f3f7fb;
+  --ink:#1f2937;
+  --muted:#708090;
+  --line:#dce6ee;
+  --shadow:0 8px 22px rgba(28,57,80,.08);
+}
 body{
   margin:0;
   font-family:Arial,Helvetica,sans-serif;
-  color:#172033;
-  background:#f5f8fc;
+  color:var(--ink);
+  background:var(--bg);
 }
-
-#adminHeader{
-  width:100%;
-}
-
 .dashboard-page{
   width:100%;
-  padding:18px 28px 34px;
+  max-width:1560px;
+  margin:0 auto;
+  padding:18px 26px 34px;
 }
-
-.dashboard-title{
-  margin:0 0 18px;
-  padding:16px 18px;
-  border:1px solid #e7d18f;
-  border-radius:16px;
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:82px;
+  margin-bottom:16px;
+  padding:15px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
   text-align:center;
-  background:linear-gradient(135deg,#fffaf0 0%,#fbf1d2 52%,#fff8e6 100%);
-  box-shadow:0 6px 18px rgba(120,90,20,.08);
 }
+.page-title{margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#111827}
+.page-sub{margin-top:5px;font-size:12px;font-weight:800;color:#64748b}
 
-.dashboard-title h1{
-  margin:0;
-  font-size:28px;
-  font-weight:900;
-  color:#1f2937;
-}
-
-.dashboard-title p{
-  margin:5px 0 0;
-  font-size:12px;
-  font-weight:700;
-  color:#6b7280;
-}
-
-.section{
-  margin-top:20px;
-}
-
+.section{margin-top:18px}
 .section-head{
   display:flex;
   align-items:flex-end;
   justify-content:space-between;
   gap:10px;
-  margin:0 4px 10px;
+  margin:0 3px 9px;
 }
-
 .section-title{
   margin:0;
   padding-left:10px;
   border-left:4px solid #2563eb;
-  font-size:20px;
+  font-size:19px;
   font-weight:900;
-  color:#1f2937;
+  color:#213044;
 }
+.section-note{font-size:10px;font-weight:750;color:#7b8996}
 
-.section-sub{
-  font-size:11px;
-  font-weight:700;
-  color:#7b8794;
-}
+.grid{display:grid;gap:12px}
+.alert-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}
+.today-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
+.month-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
+.org-grid{grid-template-columns:repeat(5,minmax(130px,1fr))}
+.money-grid{grid-template-columns:repeat(2,minmax(240px,1fr))}
+.billing-grid{grid-template-columns:repeat(4,minmax(150px,1fr))}
+.services-grid{grid-template-columns:repeat(6,minmax(125px,1fr))}
 
-.cards{
-  display:grid;
-  gap:14px;
-}
-
-.cards.today{
-  grid-template-columns:repeat(6,minmax(140px,1fr));
-}
-
-.cards.month{
-  grid-template-columns:repeat(7,minmax(130px,1fr));
-}
-
-.summary-card{
+.card{
   position:relative;
-  min-height:118px;
-  padding:17px 16px 14px;
-  border:1px solid #dfe7ef;
+  min-height:112px;
+  padding:16px 15px 14px;
+  border:1px solid var(--line);
   border-radius:16px;
   background:#fff;
-  box-shadow:0 7px 18px rgba(38,61,84,.08);
+  box-shadow:var(--shadow);
   overflow:hidden;
 }
-
-.summary-card:before{
+.card:before{
   content:"";
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:5px;
-  background:#2563eb;
+  position:absolute;left:0;right:0;top:0;height:5px;
+  background:#2f80ed;
 }
-
-.summary-card.green:before{background:#27ae60}
-.summary-card.red:before{background:#e74c3c}
-.summary-card.orange:before{background:#f39c12}
-.summary-card.purple:before{background:#8e44ad}
-.summary-card.cyan:before{background:#20a8d8}
-.summary-card.navy:before{background:#34495e}
-.summary-card.pink:before{background:#e84393}
+.card.green:before{background:#2ebd6e}
+.card.red:before{background:#e24b5b}
+.card.orange:before{background:#f3a11a}
+.card.purple:before{background:#8d57df}
+.card.teal:before{background:#1594a5}
+.card.navy:before{background:#425c78}
+.card.gold:before{background:#dcae2e}
+.card.cyan:before{background:#30a8d8}
 
 .card-label{
-  min-height:28px;
-  font-size:10px;
+  min-height:27px;
+  font-size:9.5px;
   line-height:1.3;
   font-weight:900;
   letter-spacing:.35px;
-  color:#5d6875;
   text-transform:uppercase;
+  color:#687686;
 }
-
 .card-value{
-  margin-top:10px;
+  margin-top:9px;
   font-size:31px;
   line-height:1;
   font-weight:900;
-  color:#202938;
+  color:#1f2a38;
 }
-
 .card-note{
   margin-top:8px;
-  font-size:9px;
+  font-size:8.7px;
+  line-height:1.45;
   font-weight:700;
-  color:#8b96a3;
+  color:#8a96a2;
 }
+
+/* ALERT CARDS */
+.alert-card{
+  min-height:128px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:18px 20px;
+}
+.alert-card.new{
+  border-color:#e0c566;
+  background:linear-gradient(135deg,#fffdf3,#fff7d2);
+}
+.alert-card.confirm{
+  border-color:#efb45c;
+  background:linear-gradient(135deg,#fffaf2,#ffedd0);
+}
+.alert-card:before{height:6px}
+.alert-card.new:before{background:#d9ad23}
+.alert-card.confirm:before{background:#ef9418}
+.alert-card .card-value{
+  margin-top:6px;
+  font-size:42px;
+}
+.alert-icon{
+  width:62px;height:62px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;
+  background:rgba(255,255,255,.72);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 5px 12px rgba(70,60,20,.08);
+}
+.alert-card.is-hot{
+  animation:softPulse 1.8s ease-in-out infinite;
+}
+@keyframes softPulse{
+  0%,100%{box-shadow:0 8px 22px rgba(28,57,80,.08)}
+  50%{box-shadow:0 0 0 3px rgba(241,175,31,.17),0 10px 25px rgba(194,126,13,.16)}
+}
+
+/* MONEY */
+.money-card{
+  min-height:140px;
+  padding:20px 18px;
+  background:linear-gradient(135deg,#fbfffc,#f0fbf4);
+  border-color:#cfe8d7;
+}
+.money-card:before{height:6px;background:#2ebd6e}
+.money-card .card-value{font-size:36px;color:#167a42}
+.money-card.monthly{
+  background:linear-gradient(135deg,#fbfcff,#eef6ff);
+  border-color:#d3e4f6;
+}
+.money-card.monthly:before{background:#2f80ed}
+.money-card.monthly .card-value{color:#235e9e}
 
 /* SERVICES */
-.service-panel{
-  padding:16px;
-  border:1px solid #e0e8ef;
+.services-wrap{
+  padding:14px;
+  border:1px solid var(--line);
   border-radius:16px;
   background:#fff;
-  box-shadow:0 7px 18px rgba(38,61,84,.06);
+  box-shadow:var(--shadow);
 }
-
-.service-grid{
-  display:grid;
-  grid-template-columns:repeat(6,minmax(130px,1fr));
-  gap:12px;
-}
-
 .service-card{
-  min-height:106px;
-  padding:14px;
-  border:1px solid #e0e8ef;
-  border-radius:14px;
-  background:#fbfdff;
+  min-height:94px;
+  padding:13px 10px;
   text-align:center;
-  box-shadow:0 4px 12px rgba(38,61,84,.05);
+  border:1px solid #d8e5eb;
+  border-radius:14px;
+  background:linear-gradient(180deg,#f9fdfe,#eff8fa);
 }
+.service-name{font-size:11px;font-weight:900;color:#244553}
+.service-state{margin-top:8px;font-size:18px;font-weight:900;color:#177486}
+.service-channels{margin-top:7px;font-size:8px;line-height:1.4;font-weight:800;color:#74838f}
 
-.service-card .service-name{
-  font-size:12px;
-  font-weight:900;
-  color:#233044;
+/* BILLING */
+.billing-card{
+  min-height:130px;
+  text-align:center;
+  padding:18px 14px;
 }
-
-.service-card .service-total{
-  margin-top:10px;
-  font-size:28px;
-  font-weight:900;
-  color:#17677c;
+.billing-card .card-value{font-size:25px}
+.billing-icon{font-size:25px;margin-bottom:8px}
+.platform-card{
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease;
+  background:linear-gradient(135deg,#f8fbff,#edf5ff);
 }
+.platform-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(28,57,80,.12)}
+.platform-card:before{background:#7255d9}
 
-.service-card .service-sub{
-  margin-top:6px;
-  font-size:8.5px;
-  line-height:1.45;
-  font-weight:800;
-  color:#7c8996;
-}
-
+.hidden{display:none!important}
 .empty{
   grid-column:1/-1;
   padding:22px;
   text-align:center;
   font-size:11px;
   font-weight:800;
-  color:#7b8794;
+  color:#7c8994;
 }
 
-/* BILLING */
-.finance-only{
-  display:none;
-}
-
-.billing-cards{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(160px,1fr));
-  gap:14px;
-}
-
-.billing-card{
-  min-height:145px;
-  padding:18px 16px;
-  border:1px solid #dfe8e1;
-  border-radius:16px;
-  background:#fff;
-  text-align:center;
-  box-shadow:0 7px 18px rgba(38,61,84,.07);
-  position:relative;
-  overflow:hidden;
-}
-
-.billing-card:before{
-  content:"";
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:5px;
-  background:#35b86b;
-}
-
-.billing-icon{
-  margin-top:6px;
-  font-size:28px;
-}
-
-.billing-label{
-  margin-top:7px;
-  font-size:10px;
-  font-weight:900;
-  text-transform:uppercase;
-  letter-spacing:.35px;
-  color:#65717d;
-}
-
-.billing-value{
-  margin-top:9px;
-  font-size:25px;
-  font-weight:900;
-  color:#24303d;
-}
-
-.billing-note{
-  margin-top:7px;
-  font-size:9px;
-  line-height:1.5;
-  font-weight:700;
-  color:#89939d;
-}
-
-.due-list{
-  margin-top:14px;
-  border:1px solid #e1e8ee;
-  border-radius:16px;
-  overflow:hidden;
-  background:#fff;
-  box-shadow:0 7px 18px rgba(38,61,84,.06);
-}
-
-.due-list-head{
-  padding:11px 14px;
-  background:#f4f8fb;
-  border-bottom:1px solid #e1e8ee;
-  font-size:12px;
-  font-weight:900;
-  color:#263647;
-}
-
-.due-row{
-  display:grid;
-  grid-template-columns:1.6fr 1fr 1fr 1fr;
-  gap:10px;
-  padding:10px 14px;
-  border-bottom:1px solid #edf1f4;
-  font-size:10px;
-  align-items:center;
-}
-
-.due-row:last-child{
-  border-bottom:0;
-}
-
-.due-row.header{
-  font-weight:900;
-  color:#687583;
-  background:#fbfcfd;
-}
-
-.status{
-  display:inline-flex;
-  justify-content:center;
-  min-width:72px;
-  padding:4px 7px;
-  border-radius:999px;
-  color:#fff;
-  font-size:8px;
-  font-weight:900;
-  background:#27ae60;
-}
-
-.status.warn{background:#f39c12}
-.status.bad{background:#d6424e}
-.status.neutral{background:#607387}
-
-/* PLATFORM PAYMENT */
-.platform-box{
-  margin-top:14px;
-  padding:16px;
-  border:1px solid #dce5ec;
-  border-radius:16px;
-  background:#fff;
-  box-shadow:0 7px 18px rgba(38,61,84,.06);
-}
-
-.platform-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(150px,1fr));
-  gap:12px;
-}
-
-.platform-item{
-  min-height:88px;
-  padding:14px;
-  border-radius:13px;
-  background:#f7fafc;
-  border:1px solid #e3eaf0;
-  text-align:center;
-}
-
-.platform-item span{
-  display:block;
-  font-size:9px;
-  font-weight:900;
-  text-transform:uppercase;
-  color:#74808c;
-}
-
-.platform-item strong{
-  display:block;
-  margin-top:9px;
-  font-size:19px;
-  color:#273444;
-}
-
-/* LATEST */
-.latest-table-wrap{
-  overflow:auto;
-  border:1px solid #e0e8ef;
-  border-radius:16px;
-  background:#fff;
-  box-shadow:0 7px 18px rgba(38,61,84,.06);
-}
-
-.latest-table{
-  width:100%;
-  border-collapse:collapse;
-  min-width:760px;
-}
-
-.latest-table th{
-  padding:10px;
-  background:#34495e;
-  color:#fff;
-  font-size:9px;
-  font-weight:900;
-  text-transform:uppercase;
-}
-
-.latest-table td{
-  padding:10px;
-  border-bottom:1px solid #edf1f4;
-  font-size:10px;
-  font-weight:700;
-  text-align:center;
-  color:#344050;
-}
-
-.latest-table tbody tr:last-child td{
-  border-bottom:0;
-}
+/* role visibility */
+.super-only,.admin-super-only{display:none}
 
 @media(max-width:1250px){
-  .cards.today{grid-template-columns:repeat(3,1fr)}
-  .cards.month{grid-template-columns:repeat(4,1fr)}
-  .service-grid{grid-template-columns:repeat(3,1fr)}
-  .billing-cards{grid-template-columns:repeat(2,1fr)}
+  .today-grid,.month-grid{grid-template-columns:repeat(3,1fr)}
+  .org-grid{grid-template-columns:repeat(3,1fr)}
+  .billing-grid{grid-template-columns:repeat(2,1fr)}
+  .services-grid{grid-template-columns:repeat(3,1fr)}
 }
-
 @media(max-width:760px){
-  .dashboard-page{padding:12px 8px 22px}
-  .dashboard-title h1{font-size:22px}
-  .section-title{font-size:17px}
+  .dashboard-page{padding:10px 8px 22px}
+  .page-head{min-height:72px;padding:12px}
+  .page-title{font-size:22px}
+  .page-sub{font-size:10px}
   .section-head{align-items:flex-start;flex-direction:column}
-  .cards.today,.cards.month{grid-template-columns:repeat(2,1fr);gap:8px}
-  .summary-card{min-height:100px;padding:14px 11px}
+  .section-title{font-size:16px}
+  .alert-grid,.money-grid{grid-template-columns:1fr}
+  .today-grid,.month-grid,.org-grid,.billing-grid,.services-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .card{min-height:96px;padding:13px 10px}
   .card-value{font-size:27px}
-  .service-grid{grid-template-columns:repeat(2,1fr);gap:8px}
-  .billing-cards{grid-template-columns:1fr 1fr;gap:8px}
-  .platform-grid{grid-template-columns:1fr 1fr}
-  .due-row{grid-template-columns:1.4fr 1fr 1fr}
-  .due-row > div:nth-child(3){display:none}
+  .alert-card{min-height:112px;padding:15px}
+  .alert-card .card-value{font-size:36px}
+  .alert-icon{width:52px;height:52px;font-size:25px}
 }
 </style>
 </head>
 
 <body>
-
 <div id="adminHeader"></div>
 
 <main class="dashboard-page">
 
-  <div class="dashboard-title">
-    <h1>Dashboard</h1>
-    <p id="dashboardSubtitle">Operations overview</p>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Operations Dashboard</h1>
+      <div class="page-sub" id="dashboardSub">Live operations overview</div>
+    </div>
   </div>
 
+  <!-- ACTION CENTER -->
   <section class="section">
     <div class="section-head">
-      <h2 class="section-title">Today's Activity</h2>
-      <div class="section-sub">Live summary for today</div>
+      <h2 class="section-title">Action Center</h2>
+      <div class="section-note">Items requiring dispatcher attention</div>
     </div>
 
-    <div class="cards today">
-      <div class="summary-card">
-        <div class="card-label">Total Trips Today</div>
-        <div class="card-value" id="todayTrips">0</div>
-        <div class="card-note">All trips scheduled today</div>
+    <div class="grid alert-grid">
+      <div class="card alert-card new" id="newTripAlert">
+        <div>
+          <div class="card-label">New Trips</div>
+          <div class="card-value" id="newTrips">0</div>
+          <div class="card-note">New reservations waiting in Trips Hub</div>
+        </div>
+        <div class="alert-icon">✦</div>
       </div>
 
-      <div class="summary-card green">
-        <div class="card-label">New Trips</div>
-        <div class="card-value" id="newTrips">0</div>
-        <div class="card-note">Recently added reservations</div>
-      </div>
-
-      <div class="summary-card cyan">
-        <div class="card-label">On Trip</div>
-        <div class="card-value" id="onTripToday">0</div>
-        <div class="card-note">Trips currently running</div>
-      </div>
-
-      <div class="summary-card green">
-        <div class="card-label">Completed Today</div>
-        <div class="card-value" id="completedToday">0</div>
-        <div class="card-note">Finished trips</div>
-      </div>
-
-      <div class="summary-card red">
-        <div class="card-label">Cancelled Today</div>
-        <div class="card-value" id="cancelledToday">0</div>
-        <div class="card-note">Cancelled trips</div>
-      </div>
-
-      <div class="summary-card orange">
-        <div class="card-label">No Show Today</div>
-        <div class="card-value" id="noShowToday">0</div>
-        <div class="card-note">No-show trips</div>
+      <div class="card alert-card confirm" id="confirmAlert">
+        <div>
+          <div class="card-label">Needs Final Confirmation Today</div>
+          <div class="card-value" id="needsConfirmation">0</div>
+          <div class="card-note">Completed / final-status trips waiting for confirmation</div>
+        </div>
+        <div class="alert-icon">✓</div>
       </div>
     </div>
   </section>
 
+  <!-- TODAY -->
   <section class="section">
     <div class="section-head">
-      <h2 class="section-title">Monthly Overview</h2>
-      <div class="section-sub" id="monthLabel">Current month</div>
+      <h2 class="section-title">Today's Operations</h2>
+      <div class="section-note">Today in tenant timezone</div>
     </div>
 
-    <div class="cards month">
-      <div class="summary-card">
+    <div class="grid today-grid">
+      <div class="card">
+        <div class="card-label">Total Trips Today</div>
+        <div class="card-value" id="todayTrips">0</div>
+        <div class="card-note">Scheduled today</div>
+      </div>
+      <div class="card teal">
+        <div class="card-label">On Trip</div>
+        <div class="card-value" id="todayOnTrip">0</div>
+        <div class="card-note">Currently active</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Completed Today</div>
+        <div class="card-value" id="todayCompleted">0</div>
+        <div class="card-note">Completed trips</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Cancelled Today</div>
+        <div class="card-value" id="todayCancelled">0</div>
+        <div class="card-note">Cancelled trips</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">No Show Today</div>
+        <div class="card-value" id="todayNoShow">0</div>
+        <div class="card-note">No-show trips</div>
+      </div>
+      <div class="card purple">
+        <div class="card-label">Refunded Today</div>
+        <div class="card-value" id="todayRefunds">0</div>
+        <div class="card-note">Trips with refund processed today</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVENUE -->
+  <section class="section admin-super-only">
+    <div class="section-head">
+      <h2 class="section-title">Revenue</h2>
+      <div class="section-note">Finalized trip revenue</div>
+    </div>
+
+    <div class="grid money-grid">
+      <div class="card money-card">
+        <div class="card-label">Today's Revenue</div>
+        <div class="card-value" id="todayRevenue">$0.00</div>
+        <div class="card-note">Revenue from today's finalized trips</div>
+      </div>
+      <div class="card money-card monthly">
+        <div class="card-label">Monthly Revenue</div>
+        <div class="card-value" id="monthRevenue">$0.00</div>
+        <div class="card-note">Revenue for current month</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MONTH -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Monthly Reports</h2>
+      <div class="section-note" id="monthLabel">Current month</div>
+    </div>
+
+    <div class="grid month-grid">
+      <div class="card">
         <div class="card-label">Monthly Trips</div>
         <div class="card-value" id="monthTrips">0</div>
         <div class="card-note">All trips this month</div>
       </div>
-
-      <div class="summary-card green">
-        <div class="card-label">Completed Trips</div>
+      <div class="card green">
+        <div class="card-label">Completed</div>
         <div class="card-value" id="monthCompleted">0</div>
         <div class="card-note">Completed this month</div>
       </div>
-
-      <div class="summary-card red">
-        <div class="card-label">Cancelled Trips</div>
+      <div class="card red">
+        <div class="card-label">Cancelled</div>
         <div class="card-value" id="monthCancelled">0</div>
         <div class="card-note">Cancelled this month</div>
       </div>
-
-      <div class="summary-card orange">
-        <div class="card-label">No Show Trips</div>
+      <div class="card orange">
+        <div class="card-label">No Show</div>
         <div class="card-value" id="monthNoShow">0</div>
-        <div class="card-note">No shows this month</div>
+        <div class="card-note">No-show this month</div>
       </div>
-
-      <div class="summary-card purple">
-        <div class="card-label">Shared Passengers</div>
-        <div class="card-value" id="monthSharedPassengers">0</div>
-        <div class="card-note">Shared riders this month</div>
-      </div>
-
-      <div class="summary-card navy">
+      <div class="card navy">
         <div class="card-label">Monthly Miles</div>
         <div class="card-value" id="monthMiles">0.0</div>
         <div class="card-note">Recorded trip miles</div>
       </div>
-
-      <div class="summary-card green finance-only" id="monthRevenueCard">
-        <div class="card-label">Monthly Revenue</div>
-        <div class="card-value" id="monthRevenue">$0.00</div>
-        <div class="card-note">Closed trip revenue</div>
+      <div class="card purple hidden" id="sharedPassengersCard">
+        <div class="card-label">Shared Passengers</div>
+        <div class="card-value" id="sharedPassengers">0</div>
+        <div class="card-note">Shown only when Shared service is active</div>
       </div>
     </div>
   </section>
 
-  <section class="section">
+  <!-- ORGANIZATION -->
+  <section class="section admin-super-only">
     <div class="section-head">
-      <h2 class="section-title">Service Performance</h2>
-      <div class="section-sub">Only services active for this organization are shown</div>
+      <h2 class="section-title">Organization Overview</h2>
+      <div class="section-note">Tenant staff and contracted facilities</div>
     </div>
 
-    <div class="service-panel">
-      <div class="service-grid" id="serviceGrid">
+    <div class="grid org-grid">
+      <div class="card gold">
+        <div class="card-label">Facilities / Companies</div>
+        <div class="card-value" id="facilityCount">0</div>
+        <div class="card-note">Contracted accounts</div>
+      </div>
+      <div class="card teal">
+        <div class="card-label">Drivers</div>
+        <div class="card-value" id="driverCount">0</div>
+        <div class="card-note">Driver accounts</div>
+      </div>
+      <div class="card cyan">
+        <div class="card-label">Dispatchers</div>
+        <div class="card-value" id="dispatcherCount">0</div>
+        <div class="card-note">Dispatcher accounts</div>
+      </div>
+      <div class="card navy super-only">
+        <div class="card-label">Admins</div>
+        <div class="card-value" id="adminCount">0</div>
+        <div class="card-note">Admin accounts</div>
+      </div>
+      <div class="card purple super-only">
+        <div class="card-label">Super Admins</div>
+        <div class="card-value" id="superAdminCount">0</div>
+        <div class="card-note">Super Admin accounts</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Enabled Services</h2>
+      <div class="section-note">Shown only when at least one channel is enabled</div>
+    </div>
+
+    <div class="services-wrap">
+      <div class="grid services-grid" id="servicesGrid">
         <div class="empty">Loading services...</div>
       </div>
     </div>
   </section>
 
-  <section class="section finance-only" id="billingSection">
+  <!-- BILLING -->
+  <section class="section super-only">
     <div class="section-head">
-      <h2 class="section-title">Billing Overview</h2>
-      <div class="section-sub">Contracted company billing and platform payment</div>
+      <h2 class="section-title">Billing & Platform Payment</h2>
+      <div class="section-note">Company collections and GH Mobility subscription</div>
     </div>
 
-    <div class="billing-cards">
-      <div class="billing-card">
+    <div class="grid billing-grid">
+      <div class="card billing-card gold">
         <div class="billing-icon">🏢</div>
-        <div class="billing-label">Contracted Companies</div>
-        <div class="billing-value" id="billingCompanies">0</div>
-        <div class="billing-note">Companies / facilities in this tenant</div>
+        <div class="card-label">Contracted Companies</div>
+        <div class="card-value" id="billingCompanies">0</div>
+        <div class="card-note">Active company/facility accounts</div>
       </div>
 
-      <div class="billing-card">
+      <div class="card billing-card green">
         <div class="billing-icon">💵</div>
-        <div class="billing-label">Current Company Invoices</div>
-        <div class="billing-value" id="billingInvoice">$0.00</div>
-        <div class="billing-note">Open billing total</div>
+        <div class="card-label">Current Company Invoices</div>
+        <div class="card-value" id="companyInvoices">$0.00</div>
+        <div class="card-note">Open company billing total</div>
       </div>
 
-      <div class="billing-card">
+      <div class="card billing-card orange">
         <div class="billing-icon">📅</div>
-        <div class="billing-label">Next Company Payment</div>
-        <div class="billing-value" id="nextCompanyPayment">--</div>
-        <div class="billing-note">Nearest company due date</div>
+        <div class="card-label">Next Company Payment</div>
+        <div class="card-value" id="nextCompanyPayment">--</div>
+        <div class="card-note">Nearest company due date</div>
       </div>
 
-      <div class="billing-card">
-        <div class="billing-icon">⚠️</div>
-        <div class="billing-label">Past Due / Suspended</div>
-        <div class="billing-value" id="billingPastDue">0</div>
-        <div class="billing-note">Accounts requiring attention</div>
+      <div class="card billing-card platform-card" id="platformPaymentCard" title="Open Payments">
+        <div class="billing-icon">◆</div>
+        <div class="card-label">GH Mobility Platform Payment</div>
+        <div class="card-value" id="platformPaymentDate">Payments</div>
+        <div class="card-note" id="platformPaymentNote">Open Payments for platform subscription billing</div>
       </div>
-    </div>
-
-    <div class="due-list">
-      <div class="due-list-head">Company Payment Schedule</div>
-      <div class="due-row header">
-        <div>Company</div>
-        <div>Amount</div>
-        <div>Billing Cycle</div>
-        <div>Next Payment</div>
-      </div>
-      <div id="companyDueRows">
-        <div class="empty">Loading company billing...</div>
-      </div>
-    </div>
-
-    <div class="platform-box">
-      <div class="section-head" style="margin-bottom:12px">
-        <h3 class="section-title" style="font-size:16px">GH Mobility Platform Payment</h3>
-        <div class="section-sub">Tenant payment to Platform Admin</div>
-      </div>
-
-      <div class="platform-grid">
-        <div class="platform-item">
-          <span>Subscription Status</span>
-          <strong id="platformStatus">--</strong>
-        </div>
-
-        <div class="platform-item">
-          <span>Plan</span>
-          <strong id="platformPlan">--</strong>
-        </div>
-
-        <div class="platform-item">
-          <span>Amount</span>
-          <strong id="platformAmount">--</strong>
-        </div>
-
-        <div class="platform-item">
-          <span>Next Payment</span>
-          <strong id="platformNextPayment">--</strong>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-head">
-      <h2 class="section-title">Latest Trips</h2>
-      <div class="section-sub">Most recently added trips</div>
-    </div>
-
-    <div class="latest-table-wrap">
-      <table class="latest-table">
-        <thead>
-          <tr>
-            <th>Trip #</th>
-            <th>Service</th>
-            <th>Passenger / Group</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="latestTripsBody">
-          <tr><td colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
     </div>
   </section>
 

@@ -1,645 +1,332 @@
 /*
 =========================================================
-ADMIN DASHBOARD — DATA CARDS ONLY
-NO QUICK ACCESS BUTTONS
-HEADER IS NOT MODIFIED
-
-Uses:
-GET /api/trips
-GET /api/services/admin
-GET /api/admin/billing     (SUPER_ADMIN only)
-
-Platform payment card is ready for real tenant subscription data.
-It will display values only if a real platform-subscription endpoint
-is added later. No fake payment date or amount is generated.
+ADMIN DASHBOARD — PROFESSIONAL DATA CARDS
+- NO quick-access button section
+- HEADER APPEARANCE IS NOT CHANGED
+- Shared Passengers card appears only when SH service is visible
+- New Trips + Final Confirmation are alert cards
+- Organization counts use tenant-isolated /api/users/:role
+- Company billing uses /api/admin/billing
 =========================================================
 */
 
 (function(){
-
 "use strict";
 
-const token = localStorage.getItem("token") || "";
-const rawRole = String(localStorage.getItem("role") || "")
-  .trim()
-  .toUpperCase()
-  .replace(/[\s-]+/g,"_");
-
-const role =
-  rawRole === "SUPERADMIN"
-    ? "SUPER_ADMIN"
-    : rawRole === "DISPATCHER"
-      ? "DISPATCHER"
-      : rawRole === "PLATFORM_ADMIN"
-        ? "PLATFORM_ADMIN"
-        : "ADMIN";
+const token=String(localStorage.getItem("token")||"").trim();
+const rawRole=String(localStorage.getItem("role")||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
+const role=rawRole==="SUPERADMIN"?"SUPER_ADMIN":rawRole;
+const isSuper=role==="SUPER_ADMIN";
+const isAdmin=role==="ADMIN";
+const canAdminData=isSuper||isAdmin;
 
 if(!token){
   location.href="/login.html";
   return;
 }
 
-if(role === "PLATFORM_ADMIN"){
-  location.href="/platform-admin/dashboard.html";
-  return;
-}
-
-const isSuperAdmin = role === "SUPER_ADMIN";
-const tz = () =>
-  localStorage.getItem("systemTimezone") ||
-  localStorage.getItem("appTimezone") ||
-  "America/Phoenix";
-
-const $ = id => document.getElementById(id);
-
-function clean(v){
-  return String(v ?? "").trim();
-}
-
-function n(v){
-  const num = Number(v);
-  return Number.isFinite(num) ? num : 0;
-}
+const $=id=>document.getElementById(id);
+const n=v=>Number.isFinite(Number(v))?Number(v):0;
+const clean=v=>String(v??"").trim();
 
 function money(v){
-  return "$" + n(v).toLocaleString("en-US",{
-    minimumFractionDigits:2,
-    maximumFractionDigits:2
-  });
+  return "$"+n(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
-
-function safe(v){
-  return String(v ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
-}
-
-function normStatus(v){
-  return clean(v)
-    .toLowerCase()
-    .replace(/[_\s-]+/g,"");
-}
-
-function isCompleted(v){
-  const s=normStatus(v);
-  return s==="completed" || s==="complete" || s==="dropoff" || s==="droppedoff";
-}
-
-function isCancelled(v){
-  return normStatus(v).includes("cancel");
-}
-
-function isNoShow(v){
-  return normStatus(v).includes("noshow");
-}
-
-function isOnTrip(v){
-  const s=normStatus(v);
-  return [
-    "accepted","ontrip","inprogress","arrived","pickup","pickedup"
-  ].includes(s);
-}
-
-function authHeaders(){
-  return {Authorization:"Bearer "+token};
-}
-
-async function fetchJson(url){
-  const res=await fetch(url,{
-    headers:authHeaders(),
-    cache:"no-store"
-  });
-
-  let data=null;
-  try{ data=await res.json(); }catch(_){}
-
-  if(!res.ok){
-    throw new Error(data?.message || `Request failed ${res.status}`);
-  }
-
+function headers(){return {Authorization:"Bearer "+token};}
+async function getJson(url){
+  const r=await fetch(url,{headers:headers(),cache:"no-store"});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error(data?.message||`Request failed ${r.status}`);
   return data;
 }
-
+function tz(){
+  return localStorage.getItem("systemTimezone")||
+         localStorage.getItem("appTimezone")||
+         "America/Phoenix";
+}
 function dateKey(value){
-  if(!value) return "";
-
-  if(typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)){
-    return value;
-  }
-
+  if(!value)return "";
+  if(typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
   const d=new Date(value);
-  if(isNaN(d.getTime())) return "";
-
-  const parts=new Intl.DateTimeFormat("en-CA",{
-    timeZone:tz(),
-    year:"numeric",
-    month:"2-digit",
-    day:"2-digit"
-  }).formatToParts(d);
-
-  const y=parts.find(x=>x.type==="year")?.value || "";
-  const m=parts.find(x=>x.type==="month")?.value || "";
-  const day=parts.find(x=>x.type==="day")?.value || "";
-
+  if(isNaN(d.getTime()))return "";
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:tz(),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+  const y=p.find(x=>x.type==="year")?.value||"";
+  const m=p.find(x=>x.type==="month")?.value||"";
+  const day=p.find(x=>x.type==="day")?.value||"";
   return `${y}-${m}-${day}`;
 }
-
-function todayKey(){
-  return dateKey(new Date());
-}
-
-function monthKey(){
-  return todayKey().slice(0,7);
-}
-
+function todayKey(){return dateKey(new Date());}
+function monthKey(){return todayKey().slice(0,7);}
 function tripDateKey(t){
-  const raw=clean(t?.tripDate);
-  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  return dateKey(raw);
+  const d=clean(t?.tripDate);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:dateKey(d);
 }
-
-function bookedDate(t){
-  const d=new Date(t?.bookedAt || t?.createdAt || 0);
-  return isNaN(d.getTime()) ? new Date(0) : d;
+function norm(v){return clean(v).toLowerCase().replace(/[\s_-]+/g,"");}
+function isCompleted(v){const s=norm(v);return ["completed","complete","dropoff","droppedoff"].includes(s);}
+function isCancelled(v){return norm(v).includes("cancel");}
+function isNoShow(v){return norm(v).includes("noshow");}
+function isOnTrip(v){return ["accepted","ontrip","inprogress","arrived","pickup","pickedup"].includes(norm(v));}
+function isFinalStatus(v){return isCompleted(v)||isCancelled(v)||isNoShow(v)||norm(v)==="notcompleted";}
+function isFinalConfirmed(t){
+  return t?.finalStatusConfirmed===true||
+         t?.sharedFinalConfirmed===true||
+         !!t?.dispatchFinalConfirmedAt||
+         !!t?.finalStatusConfirmedAt||
+         !!t?.sharedFinalConfirmedAt;
 }
-
-function isNewTrip(t){
-  const d=bookedDate(t);
-  return Date.now()-d.getTime() <= 2*60*60*1000;
-}
-
-/* =========================
-   SHARED GROUPS
-========================= */
-
 function isShared(t){
-  return (
-    t?.isShared === true ||
-    clean(t?.tripType).toUpperCase()==="SHARED" ||
-    Array.isArray(t?.passengers) && t.passengers.length>0 ||
-    clean(t?.tripNumber).toUpperCase().includes("-SH")
-  );
+  return t?.isShared===true||
+         clean(t?.tripType).toUpperCase()==="SHARED"||
+         clean(t?.serviceKey).toUpperCase()==="SH"||
+         clean(t?.serviceCode).toUpperCase()==="SH"||
+         (Array.isArray(t?.passengers)&&t.passengers.length>0);
 }
-
-function groupKey(t){
-  return clean(t?.groupId) || clean(t?.tripNumber) || clean(t?._id || t?.id);
+function sharedKey(t){
+  return clean(t?.groupId)||clean(t?.tripNumber)||clean(t?._id||t?.id);
 }
-
 function buildItems(trips){
-  const map=new Map();
-  const normal=[];
-
+  const seen=new Set(), groups=new Map(), out=[];
   trips.forEach(t=>{
     if(isShared(t)){
-      const key=groupKey(t);
-      if(!map.has(key)) map.set(key,[]);
-      map.get(key).push(t);
-    }else{
-      normal.push({kind:"trip",trip:t,key:clean(t?._id || t?.id)});
+      const k=sharedKey(t);
+      if(!groups.has(k))groups.set(k,[]);
+      groups.get(k).push(t);
     }
   });
-
-  const shared=[...map.entries()].map(([key,group])=>({
-    kind:"shared",
-    key,
-    group,
-    trip:group[0]
-  }));
-
-  return [...normal,...shared];
+  trips.forEach(t=>{
+    if(isShared(t)){
+      const k=sharedKey(t);
+      if(seen.has(k))return;
+      seen.add(k);
+      const g=groups.get(k)||[t];
+      out.push({kind:"shared",trip:g[0],group:g});
+    }else out.push({kind:"trip",trip:t,group:[t]});
+  });
+  return out;
 }
-
-function passengersFor(item){
-  if(item.kind!=="shared") return [];
-
-  const first=item.trip || {};
-
-  if(Array.isArray(first.passengers) && first.passengers.length){
-    return first.passengers;
+function passengers(item){
+  const p=item?.trip?.passengers;
+  if(Array.isArray(p)&&p.length)return p;
+  return item.kind==="shared"?item.group.map(t=>({status:t.status,finalPrice:t.finalPrice,priceAmount:t.priceAmount})): [];
+}
+function statuses(item){
+  if(item.kind==="shared"){
+    const p=passengers(item);
+    return p.length?p.map(x=>x.status||item.trip?.status||""):item.group.map(x=>x.status||"");
   }
-
-  return item.group.map(t=>({
-    name:t.clientName || t.name || "",
-    status:t.status || "",
-    finalPrice:t.finalPrice,
-    priceAmount:t.priceAmount,
-    cancelFee:t.cancelFee,
-    noShowFee:t.noShowFee
-  }));
+  return [item.trip?.status||""];
 }
-
-function itemStatuses(item){
-  if(item.kind==="trip") return [item.trip?.status || ""];
-
-  const p=passengersFor(item);
-  if(p.length) return p.map(x=>x.status || item.trip?.status || "");
-
-  return item.group.map(t=>t.status || "");
-}
-
-function itemDateKey(item){
-  return tripDateKey(item.trip);
-}
-
 function itemMiles(item){
-  if(item.kind==="trip") return n(item.trip?.miles);
-
-  const first=item.trip || {};
-  const routeMiles=n(first.sharedRouteMiles || first.miles);
-
-  if(routeMiles>0) return routeMiles;
-
-  return Math.max(...item.group.map(t=>n(t.miles)),0);
+  if(item.kind==="shared"){
+    return n(item.trip?.sharedRouteMiles||item.trip?.miles||0);
+  }
+  return n(item.trip?.miles||0);
 }
-
-function itemSharedPassengers(item){
-  if(item.kind!=="shared") return 0;
-
-  const p=passengersFor(item);
-  if(p.length) return p.length;
-
-  return Math.max(
-    n(item.trip?.totalPassengers),
-    item.group.length
-  );
-}
-
 function itemRevenue(item){
-  if(item.kind==="trip"){
-    const t=item.trip || {};
-    const s=t.status || "";
-
-    if(isCompleted(s)){
-      return n(t.finalPrice || t.capturedAmount || t.priceAmount);
-    }
-
-    if(isCancelled(s)){
-      return n(t.finalPrice || t.cancelFee || 0);
-    }
-
-    if(isNoShow(s)){
-      return n(t.finalPrice || t.noShowFee || 0);
-    }
-
-    return 0;
+  const t=item.trip||{};
+  if(!isFinalConfirmed(t)&&t.isFinalized!==true)return 0;
+  if(item.kind==="shared"){
+    if(n(t.groupTotal)>0)return n(t.groupTotal);
+    if(n(t.finalPrice)>0)return n(t.finalPrice);
+    if(n(t.priceAmount)>0)return n(t.priceAmount);
+    const p=passengers(item);
+    return p.reduce((s,x)=>s+n(x.finalPrice||x.priceAmount||0),0);
   }
-
-  const passengers=passengersFor(item);
-
-  if(passengers.length){
-    return passengers.reduce((sum,p)=>{
-      const s=p.status || "";
-      if(isCompleted(s)) return sum+n(p.finalPrice || p.priceAmount);
-      if(isCancelled(s)) return sum+n(p.finalPrice || p.cancelFee);
-      if(isNoShow(s)) return sum+n(p.finalPrice || p.noShowFee);
-      return sum;
-    },0);
-  }
-
-  return n(item.trip?.finalPrice || item.trip?.priceAmount);
+  return n(t.finalPrice||t.priceAmount||t.capturedAmount||0);
+}
+function itemSharedPassengers(item){
+  if(item.kind!=="shared")return 0;
+  const p=passengers(item);
+  return p.length||n(item.trip?.totalPassengers||item.trip?.passengerCount||item.group.length);
 }
 
-/* =========================
-   SERVICES
-========================= */
-
-function boolFlag(v){
-  if(v===true) return true;
-  if(v===false || v===null || v===undefined) return false;
-  const s=String(v).trim().toLowerCase();
-  return ["true","1","yes","on","enabled","enable"].includes(s);
+/* exact service visibility rule */
+function bool(v){
+  if(v===true)return true;
+  if(v===false||v===null||v===undefined)return false;
+  return ["true","1","yes","on","enabled","enable"].includes(clean(v).toLowerCase());
+}
+function quoteOn(s){return bool(s?.getQuoteEnabled??s?.getQuoteDisplay??s?.quoteEnabled??s?.displayInGetQuote??s?.showInGetQuote);}
+function reservedOn(s){return bool(s?.reservedEnabled??s?.reservedDisplay??s?.displayInReserved??s?.showInReserved??s?.reservationEnabled);}
+function companiesOn(s){return bool(s?.companyEnabled??s?.companiesEnabled??s?.companyEnable??s?.companiesEnable??s?.displayInCompanies??s?.showInCompanies);}
+function serviceVisible(s){return quoteOn(s)||reservedOn(s)||companiesOn(s);}
+function serviceCode(s){return clean(s?.serviceKey||s?.serviceCode||s?.serviceType||s?.suffix||s?.companySuffix||s?.code).toUpperCase();}
+function serviceName(s){return s?.title||s?.serviceName||s?.name||serviceCode(s)||"Service";}
+function hasSharedService(services){
+  return services.some(s=>serviceVisible(s)&&(["SH","SHARED"].includes(serviceCode(s))||clean(serviceName(s)).toLowerCase().includes("shared")));
 }
 
-function getQuoteEnabled(s){
-  return boolFlag(
-    s?.getQuoteEnabled ??
-    s?.getQuoteDisplay ??
-    s?.quoteEnabled ??
-    s?.displayInGetQuote ??
-    s?.showInGetQuote ??
-    s?.getquoteEnabled
-  );
+/* refund only when a real refund amount/flag exists */
+function refundDate(t){
+  return t?.refundedAt||t?.refundDateTime||t?.refundProcessedAt||t?.paymentRefundedAt||null;
+}
+function isRefundedTrip(t){
+  return n(t?.refundAmount)>0||
+         t?.refunded===true||
+         t?.refundProcessed===true||
+         norm(t?.paymentStatus)==="refunded";
 }
 
-function reservedEnabled(s){
-  return boolFlag(
-    s?.reservedEnabled ??
-    s?.reservedDisplay ??
-    s?.displayInReserved ??
-    s?.showInReserved ??
-    s?.reservationEnabled
-  );
+function renderRoleVisibility(){
+  document.querySelectorAll(".admin-super-only").forEach(el=>el.style.display=canAdminData?"":"none");
+  document.querySelectorAll(".super-only").forEach(el=>el.style.display=isSuper?"":"none");
+  if(role==="DISPATCHER")$("dashboardSub").textContent="Live dispatch operations and action alerts";
+  else if(isSuper)$("dashboardSub").textContent="Operations, revenue, services, organization and billing overview";
+  else $("dashboardSub").textContent="Operations, revenue, services and organization overview";
 }
 
-function companiesEnabled(s){
-  return boolFlag(
-    s?.companyEnabled ??
-    s?.companiesEnabled ??
-    s?.companyEnable ??
-    s?.companiesEnable ??
-    s?.displayInCompanies ??
-    s?.showInCompanies
-  );
-}
-
-function serviceVisible(s){
-  return getQuoteEnabled(s) || reservedEnabled(s) || companiesEnabled(s);
-}
-
-function serviceCode(s){
-  return clean(
-    s?.serviceKey ||
-    s?.serviceCode ||
-    s?.serviceType ||
-    s?.suffix ||
-    s?.companySuffix ||
-    s?.code
-  ).toUpperCase();
-}
-
-function serviceName(s){
-  return s?.title || s?.serviceName || s?.name || serviceCode(s) || "Service";
-}
-
-function tripServiceCode(t){
-  const direct=clean(
-    t?.serviceKey ||
-    t?.serviceCode ||
-    t?.serviceType ||
-    t?.serviceSuffix ||
-    t?.vehicleTypeFromQuote
-  ).toUpperCase();
-
-  if(direct) return direct;
-  if(isShared(t)) return "SH";
-  return "";
-}
-
-/* =========================
-   TODAY + MONTH
-========================= */
-
-function renderTripSummary(trips,services){
+function renderTrips(trips,finalTrips,services){
   const items=buildItems(trips);
   const today=todayKey();
   const month=monthKey();
+  const todayItems=items.filter(i=>tripDateKey(i.trip)===today);
+  const monthItems=items.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
 
-  const todayItems=items.filter(i=>itemDateKey(i)===today);
-  const monthItems=items.filter(i=>itemDateKey(i).slice(0,7)===month);
+  const newItems=items.filter(i=>{
+    const d=new Date(i.trip?.bookedAt||i.trip?.createdAt||0);
+    return !isNaN(d.getTime())&&(Date.now()-d.getTime()<=2*60*60*1000);
+  });
+
+  const pendingFinal=(finalTrips||[]).filter(t=>{
+    const ready=isShared(t)
+      ? (Array.isArray(t.passengers)&&t.passengers.some(p=>isFinalStatus(p.status||t.status)))
+      : isFinalStatus(t.status);
+    return ready && !isFinalConfirmed(t) && tripDateKey(t)===today;
+  });
+
+  $("newTrips").textContent=newItems.length;
+  $("needsConfirmation").textContent=pendingFinal.length;
+  $("newTripAlert").classList.toggle("is-hot",newItems.length>0);
+  $("confirmAlert").classList.toggle("is-hot",pendingFinal.length>0);
 
   $("todayTrips").textContent=todayItems.length;
-  $("newTrips").textContent=items.filter(i=>{
-    if(i.kind==="trip") return isNewTrip(i.trip);
-    return i.group.some(isNewTrip);
-  }).length;
+  $("todayOnTrip").textContent=todayItems.filter(i=>statuses(i).some(isOnTrip)).length;
+  $("todayCompleted").textContent=todayItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("todayCancelled").textContent=todayItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("todayNoShow").textContent=todayItems.filter(i=>statuses(i).some(isNoShow)).length;
 
-  $("onTripToday").textContent=todayItems.filter(i=>itemStatuses(i).some(isOnTrip)).length;
-  $("completedToday").textContent=todayItems.filter(i=>itemStatuses(i).some(isCompleted)).length;
-  $("cancelledToday").textContent=todayItems.filter(i=>itemStatuses(i).some(isCancelled)).length;
-  $("noShowToday").textContent=todayItems.filter(i=>itemStatuses(i).some(isNoShow)).length;
+  $("todayRefunds").textContent=trips.filter(t=>{
+    if(!isRefundedTrip(t))return false;
+    const d=refundDate(t);
+    return d?dateKey(d)===today:tripDateKey(t)===today;
+  }).length;
 
   $("monthTrips").textContent=monthItems.length;
-  $("monthCompleted").textContent=monthItems.filter(i=>itemStatuses(i).some(isCompleted)).length;
-  $("monthCancelled").textContent=monthItems.filter(i=>itemStatuses(i).some(isCancelled)).length;
-  $("monthNoShow").textContent=monthItems.filter(i=>itemStatuses(i).some(isNoShow)).length;
-  $("monthSharedPassengers").textContent=monthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
+  $("monthCompleted").textContent=monthItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("monthCancelled").textContent=monthItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("monthNoShow").textContent=monthItems.filter(i=>statuses(i).some(isNoShow)).length;
   $("monthMiles").textContent=monthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
 
-  if(isSuperAdmin){
-    $("monthRevenue").textContent=money(
-      monthItems.reduce((s,i)=>s+itemRevenue(i),0)
-    );
+  if(canAdminData){
+    $("todayRevenue").textContent=money(todayItems.reduce((s,i)=>s+itemRevenue(i),0));
+    $("monthRevenue").textContent=money(monthItems.reduce((s,i)=>s+itemRevenue(i),0));
   }
 
-  renderServices(items,services,month);
-  renderLatest(items);
+  const sharedEnabled=hasSharedService(services);
+  $("sharedPassengersCard").classList.toggle("hidden",!sharedEnabled);
+  if(sharedEnabled){
+    $("sharedPassengers").textContent=monthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
+  }
+
+  localStorage.setItem("dashboardNewTripsCount",String(newItems.length));
+  localStorage.setItem("dashboardPendingConfirmationCount",String(pendingFinal.length));
+  window.dispatchEvent(new CustomEvent("gh-dashboard-alerts",{detail:{newTrips:newItems.length,pendingConfirmation:pendingFinal.length}}));
 }
 
-function renderServices(items,services,month){
-  const grid=$("serviceGrid");
+function renderServices(services){
   const visible=services.filter(serviceVisible);
-
+  const grid=$("servicesGrid");
   if(!visible.length){
-    grid.innerHTML='<div class="empty">No active services for this organization</div>';
+    grid.innerHTML='<div class="empty">No enabled services</div>';
     return;
   }
-
   grid.innerHTML=visible.map(s=>{
-    const code=serviceCode(s);
-
-    const monthItems=items.filter(i=>{
-      if(itemDateKey(i).slice(0,7)!==month) return false;
-      return tripServiceCode(i.trip)===code;
-    });
-
-    const completed=monthItems.filter(i=>itemStatuses(i).some(isCompleted)).length;
-    const cancelled=monthItems.filter(i=>itemStatuses(i).some(isCancelled)).length;
-    const noShow=monthItems.filter(i=>itemStatuses(i).some(isNoShow)).length;
-
     const channels=[];
-    if(getQuoteEnabled(s)) channels.push("Get Quote");
-    if(reservedEnabled(s)) channels.push("Reserved");
-    if(companiesEnabled(s)) channels.push("Companies");
-
-    return `
-      <div class="service-card">
-        <div class="service-name">${safe(serviceName(s))}</div>
-        <div class="service-total">${monthItems.length}</div>
-        <div class="service-sub">
-          Completed ${completed} · Cancelled ${cancelled} · No Show ${noShow}
-          <br>${safe(channels.join(" · "))}
-        </div>
-      </div>
-    `;
+    if(quoteOn(s))channels.push("Get Quote");
+    if(reservedOn(s))channels.push("Reserved");
+    if(companiesOn(s))channels.push("Companies");
+    return `<div class="service-card">
+      <div class="service-name">${String(serviceName(s)).replace(/[<>]/g,"")}</div>
+      <div class="service-state">ACTIVE</div>
+      <div class="service-channels">${channels.join(" · ")}</div>
+    </div>`;
   }).join("");
 }
 
-function representativeStatus(item){
-  const statuses=itemStatuses(item);
-
-  if(statuses.some(isOnTrip)) return "On Trip";
-  if(statuses.some(isCompleted)) return "Completed";
-  if(statuses.some(isCancelled)) return "Cancelled";
-  if(statuses.some(isNoShow)) return "No Show";
-
-  return item.trip?.status || "Scheduled";
-}
-
-function renderLatest(items){
-  const body=$("latestTripsBody");
-
-  const latest=[...items]
-    .sort((a,b)=>bookedDate(b.trip)-bookedDate(a.trip))
-    .slice(0,8);
-
-  if(!latest.length){
-    body.innerHTML='<tr><td colspan="6">No trips found</td></tr>';
-    return;
+async function loadUserCounts(){
+  if(!canAdminData)return;
+  const requests=[
+    ["company","facilityCount"],
+    ["driver","driverCount"],
+    ["dispatcher","dispatcherCount"]
+  ];
+  if(isSuper){
+    requests.push(["admin","adminCount"],["superadmin","superAdminCount"]);
   }
-
-  body.innerHTML=latest.map(i=>{
-    const t=i.trip || {};
-    const passenger=i.kind==="shared"
-      ? `Shared Group (${itemSharedPassengers(i)})`
-      : (t.clientName || t.passengerName || t.company || "--");
-
-    return `
-      <tr>
-        <td>${safe(t.tripNumber || "--")}</td>
-        <td>${safe(tripServiceCode(t) || "--")}</td>
-        <td>${safe(passenger)}</td>
-        <td>${safe(t.tripDate || "--")}</td>
-        <td>${safe(t.tripTime || "--")}</td>
-        <td>${safe(representativeStatus(i))}</td>
-      </tr>
-    `;
-  }).join("");
+  await Promise.all(requests.map(async([r,id])=>{
+    try{
+      const data=await getJson("/api/users/"+r);
+      $(id).textContent=Array.isArray(data)?data.length:0;
+    }catch(e){
+      $(id).textContent="--";
+    }
+  }));
 }
-
-/* =========================
-   COMPANY BILLING
-========================= */
 
 function formatDate(v){
-  if(!v) return "--";
+  if(!v)return "--";
   const d=new Date(v);
-  if(isNaN(d.getTime())) return "--";
-  return d.toLocaleDateString("en-US",{
-    timeZone:tz(),
-    month:"short",
-    day:"numeric",
-    year:"numeric"
-  });
+  if(isNaN(d.getTime()))return "--";
+  return d.toLocaleDateString("en-US",{timeZone:tz(),month:"short",day:"numeric",year:"numeric"});
 }
 
-function renderBilling(companies){
-  if(!isSuperAdmin) return;
-
-  $("billingCompanies").textContent=companies.length;
-
-  const invoiceTotal=companies.reduce((s,c)=>s+n(c.invoiceAmount),0);
-  $("billingInvoice").textContent=money(invoiceTotal);
-
-  const due=companies
-    .filter(c=>c.nextBillingDate)
-    .map(c=>new Date(c.nextBillingDate))
-    .filter(d=>!isNaN(d.getTime()))
-    .sort((a,b)=>a-b);
-
-  $("nextCompanyPayment").textContent=due.length ? formatDate(due[0]) : "--";
-
-  const pastDue=companies.filter(c=>{
-    const s=clean(c.billingStatus).toUpperCase();
-    return s==="PAST_DUE" || s==="SUSPENDED" || c.billingLocked===true;
-  }).length;
-
-  $("billingPastDue").textContent=pastDue;
-
-  const rows=$("companyDueRows");
-
-  if(!companies.length){
-    rows.innerHTML='<div class="empty">No contracted companies</div>';
-    return;
-  }
-
-  rows.innerHTML=companies
-    .slice()
-    .sort((a,b)=>{
-      const da=new Date(a.nextBillingDate || "2999-12-31");
-      const db=new Date(b.nextBillingDate || "2999-12-31");
-      return da-db;
-    })
-    .map(c=>`
-      <div class="due-row">
-        <div><strong>${safe(c.name || c.companyName || "--")}</strong></div>
-        <div>${money(c.invoiceAmount || 0)}</div>
-        <div>${safe(c.billingCycle || "MONTHLY")}</div>
-        <div>${safe(formatDate(c.nextBillingDate))}</div>
-      </div>
-    `)
-    .join("");
-}
-
-/* =========================
-   PLATFORM PAYMENT
-   No fake data.
-========================= */
-
-function renderPlatformPlaceholder(){
-  if(!isSuperAdmin) return;
-
-  $("platformStatus").textContent="NOT CONFIGURED";
-  $("platformPlan").textContent="--";
-  $("platformAmount").textContent="--";
-  $("platformNextPayment").textContent="--";
-}
-
-/* =========================
-   INIT
-========================= */
-
-document.addEventListener("DOMContentLoaded",async()=>{
-
-  if(isSuperAdmin){
-    document.querySelectorAll(".finance-only").forEach(el=>{
-      el.style.display="";
-    });
-
-    $("dashboardSubtitle").textContent=
-      "Operations, monthly revenue, company billing and platform payment overview";
-  }else if(role==="DISPATCHER"){
-    $("dashboardSubtitle").textContent=
-      "Trip and dispatch operations overview";
-  }else{
-    $("dashboardSubtitle").textContent=
-      "Operations and administration overview";
-  }
-
-  const now=new Date();
-  $("monthLabel").textContent=now.toLocaleDateString("en-US",{
-    timeZone:tz(),
-    month:"long",
-    year:"numeric"
-  });
-
-  renderPlatformPlaceholder();
-
-  let trips=[];
-  let services=[];
-  let companies=[];
-
+async function loadBilling(){
+  if(!isSuper)return;
   try{
-    const data=await fetchJson("/api/trips");
-    trips=Array.isArray(data) ? data : (data?.trips || []);
-  }catch(err){
-    console.log("DASHBOARD TRIPS:",err);
+    const companies=await getJson("/api/admin/billing");
+    const list=Array.isArray(companies)?companies:[];
+    $("billingCompanies").textContent=list.length;
+    $("companyInvoices").textContent=money(list.reduce((s,c)=>s+n(c.invoiceAmount||0),0));
+    const dates=list.map(c=>c.nextBillingDate).filter(Boolean).map(x=>new Date(x)).filter(x=>!isNaN(x.getTime())).sort((a,b)=>a-b);
+    $("nextCompanyPayment").textContent=dates.length?formatDate(dates[0]):"--";
+  }catch(e){
+    $("billingCompanies").textContent="--";
+    $("companyInvoices").textContent="--";
+    $("nextCompanyPayment").textContent="--";
+  }
+}
+
+async function init(){
+  renderRoleVisibility();
+
+  $("monthLabel").textContent=new Date().toLocaleDateString("en-US",{timeZone:tz(),month:"long",year:"numeric"});
+
+  let trips=[],services=[],finalTrips=[];
+
+  const [tripsR,servicesR,finalR]=await Promise.allSettled([
+    getJson("/api/trips"),
+    getJson("/api/services/admin"),
+    getJson("/api/dispatch-final-confirmation")
+  ]);
+
+  if(tripsR.status==="fulfilled"){
+    trips=Array.isArray(tripsR.value)?tripsR.value:(tripsR.value?.trips||[]);
+  }
+  if(servicesR.status==="fulfilled"){
+    services=Array.isArray(servicesR.value)?servicesR.value:(servicesR.value?.services||servicesR.value?.items||[]);
+  }
+  if(finalR.status==="fulfilled"){
+    finalTrips=Array.isArray(finalR.value)?finalR.value:(finalR.value?.trips||[]);
   }
 
-  try{
-    const data=await fetchJson("/api/services/admin");
-    services=Array.isArray(data)
-      ? data
-      : Array.isArray(data?.services)
-        ? data.services
-        : [];
-  }catch(err){
-    console.log("DASHBOARD SERVICES:",err);
-  }
+  renderServices(services);
+  renderTrips(trips,finalTrips,services);
 
-  renderTripSummary(trips,services);
+  await Promise.allSettled([loadUserCounts(),loadBilling()]);
 
-  if(isSuperAdmin){
-    try{
-      const data=await fetchJson("/api/admin/billing");
-      companies=Array.isArray(data) ? data : [];
-    }catch(err){
-      console.log("DASHBOARD BILLING:",err);
-    }
+  $("platformPaymentCard")?.addEventListener("click",()=>location.href="payments.html");
+}
 
-    renderBilling(companies);
-  }
-});
+document.addEventListener("DOMContentLoaded",init);
 
 })();

@@ -18,447 +18,156 @@ map:'<svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path
 bolt:'<svg viewBox="0 0 24 24"><path d="m13 2-7 12h6l-1 8 7-12h-6z"/></svg>',
 building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/></svg>'
 };
-
 const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
 const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
-
-const role=()=>{
-  const r=norm(localStorage.getItem("role"));
-  return (r==="SUPER_ADMIN"||r==="SUPERADMIN")
-    ? "SUPER_ADMIN"
-    : r==="DISPATCHER"
-      ? "DISPATCHER"
-      : "ADMIN";
-};
-
+const role=()=>{const r=norm(localStorage.getItem("role"));return (r==="SUPER_ADMIN"||r==="SUPERADMIN")?"SUPER_ADMIN":r==="DISPATCHER"?"DISPATCHER":"ADMIN"};
 const core=[
-  {l:"Dashboard",h:"dashboard.html",i:"home"},
-  {g:"Operations",i:"car",items:[
-    ["Trips Hub","trips-hub.html","list"],
-    ["Trips","trips.html","list"],
-    ["Dispatch","dispatch.html","car"]
-  ]},
-  {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
-  {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
-  {g:"Driver Follow-up",i:"user",items:[
-    ["Driver Schedule","driver-schedule.html","calendar"],
-    ["Drivers Map","maps.html","map"]
-  ]}
+{l:"Dashboard",h:"dashboard.html",i:"home"},
+{g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
+{l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
+{l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
+{g:"Driver Follow-up",i:"user",items:[["Driver Schedule","driver-schedule.html","calendar"],["Drivers Map","maps.html","map"]]}
 ];
-
 const admin=[
-  {l:"Add User",h:"users.html",i:"plus"},
-  {l:"Summary",h:"summary.html",i:"chart"},
-  {l:"Refunds",h:"refunds.html",i:"refund"}
+{l:"Add User",h:"users.html",i:"plus"},
+{l:"Summary",h:"summary.html",i:"chart"},
+{l:"Refunds",h:"refunds.html",i:"refund"}
 ];
-
-const extra=[
-  {l:"Admin Billing",h:"admin-billing.html",i:"doc"},
-  {l:"Payments",h:"payments.html",i:"money"},
-  {g:"Pricing",i:"tag",items:[
-    ["Service Management","service-management.html","doc"],
-    ["Facility Pricing Override","facility-pricing-override.html","building"]
-  ]}
-];
-
-const settings={
-  g:"Settings",
-  i:"gear",
-  items:[
-    ["System Design","system-design.html","doc"],
-    ["Smart Dispatch","smart-dispatch-engine.html","bolt"]
-  ]
-};
+const extra=[{l:"Admin Billing",h:"admin-billing.html",i:"doc"},{l:"Payments",h:"payments.html",i:"money"},{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}];
+const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
-
-  const host=
-    document.getElementById("adminHeader") ||
-    document.getElementById("headerContainer") ||
-    document.getElementById("header-container");
-
-  if(!host) return;
-
-  const r=await fetch("/admin/header.html",{cache:"no-store"});
-  host.innerHTML=await r.text();
-
-  const currentRole=role();
-
-  document.getElementById("ghAdminHeader")
-    ?.setAttribute("data-role",currentRole);
-
-  const roleLabel=
-    currentRole==="SUPER_ADMIN"
-      ? "Super Admin"
-      : currentRole==="DISPATCHER"
-        ? "Dispatcher"
-        : "Admin";
-
-  const tenantNameForHeader=
-    localStorage.getItem("companyName") ||
-    localStorage.getItem("tenantName") ||
-    "";
-
-  const saasEl=document.getElementById("saasCompanyName");
-  if(saasEl) saasEl.textContent=tenantNameForHeader;
-
-  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
-
-  document.getElementById("roleTitle").textContent=
-    currentRole==="DISPATCHER"
-      ? "Dispatcher"
-      : currentRole==="SUPER_ADMIN"
-        ? "Super Admin — Administrator"
-        : "Admin — Administrator";
-
-  const fallbackCompany=
-    localStorage.getItem("companyName") ||
-    localStorage.getItem("tenantName") ||
-    "";
-
-  const fallbackStaff=
-    localStorage.getItem("name") ||
-    localStorage.getItem("fullName") ||
-    "";
-
-  async function ensureBrandingLoaded(){
-
-    if(!window.Branding){
-
-      await new Promise(resolve=>{
-
-        const existing=
-          document.querySelector('script[src="/core/branding.js"]');
-
-        if(existing){
-
-          if(window.Branding){
-            resolve();
-            return;
-          }
-
-          existing.addEventListener("load",resolve,{once:true});
-          setTimeout(resolve,700);
-          return;
-        }
-
-        const script=document.createElement("script");
-        script.src="/core/branding.js";
-        script.onload=resolve;
-        script.onerror=resolve;
-        document.body.appendChild(script);
-      });
-    }
-
-    if(
-      window.Branding &&
-      typeof window.Branding.load === "function"
-    ){
-      try{
-        await window.Branding.load();
-      }catch(err){
-        console.log("HEADER BRANDING LOAD ERROR:",err);
-      }
-    }
-  }
-
-  await ensureBrandingLoaded();
-
-  const brandingData=window.Branding?.data || {};
-
-  const tenantCompany=
-    brandingData.companyName ||
-    fallbackCompany ||
-    "";
-
-  const tenantMainLogo=
-    brandingData.mainLogo ||
-    (
-      typeof window.Branding?.getMainLogo === "function"
-        ? window.Branding.getMainLogo()
-        : ""
-    ) ||
-    "/assets/logo.png";
-
-  const companyEl=document.getElementById("dynamicCompanyName");
-  const mobileCompanyEl=document.getElementById("mobileCompanyName");
-  const staffEl=document.getElementById("staffDisplayName");
-
-  if(companyEl) companyEl.textContent=tenantCompany;
-  if(mobileCompanyEl) mobileCompanyEl.textContent=tenantCompany;
-  if(staffEl) staffEl.textContent=fallbackStaff;
-
-  document.querySelectorAll(".app-logo").forEach(img=>{
-    img.src=tenantMainLogo;
-  });
-
-  if(tenantCompany){
-    localStorage.setItem("companyName",tenantCompany);
-  }
-
-  if(tenantMainLogo){
-    localStorage.setItem("appLogo",tenantMainLogo);
-  }
-
-  let nav=[...core];
-
-  if(currentRole!=="DISPATCHER"){
-    nav.push(...admin);
-  }
-
-  if(currentRole==="SUPER_ADMIN"){
-    nav.push(...extra);
-  }
-
-  if(currentRole!=="DISPATCHER"){
-    nav.push(settings);
-  }
-
-  const desktop=document.getElementById("adminDesktopNav");
-  const mobile=document.getElementById("mobileSideNav");
-
-  function link(item){
-    const a=document.createElement("a");
-    a.href=item.h;
-    a.dataset.href=item.h;
-    a.className="gh-nav-tile";
-    a.innerHTML=I(item.i)+`<span>${item.l}</span>`;
-    return a;
-  }
-
-  function group(item){
-
-    const w=document.createElement("div");
-    w.className="gh-nav-group";
-
-    const b=document.createElement("button");
-    b.type="button";
-    b.className="gh-nav-tile gh-nav-group-btn";
-    b.innerHTML=
-      I(item.i)+
-      `<span>${item.g}</span><b class="gh-caret">▾</b>`;
-
-    const m=document.createElement("div");
-    m.className="gh-nav-menu";
-
-    item.items.forEach(([l,h,i])=>{
-      const a=document.createElement("a");
-      a.href=h;
-      a.dataset.href=h;
-      a.innerHTML=I(i)+`<span>${l}</span>`;
-      m.appendChild(a);
-    });
-
-    b.onclick=e=>{
-      e.preventDefault();
-
-      document
-        .querySelectorAll(".gh-nav-group.open")
-        .forEach(x=>{
-          if(x!==w) x.classList.remove("open");
-        });
-
-      w.classList.toggle("open");
-    };
-
-    w.append(b,m);
-    return w;
-  }
-
-  nav.forEach(x=>{
-    desktop.appendChild(
-      x.g ? group(x) : link(x)
-    );
-  });
-
-  const lo=document.createElement("button");
-  lo.type="button";
-  lo.className="gh-nav-tile gh-logout-tile";
-  lo.innerHTML=I("logout")+"<span>Log Out</span>";
-  lo.onclick=logout;
-  desktop.appendChild(lo);
-
-  nav.forEach(x=>{
-
-    if(x.g){
-
-      const t=document.createElement("div");
-      t.className="gh-mobile-group-title";
-      t.textContent=x.g;
-      mobile.appendChild(t);
-
-      x.items.forEach(([l,h,i])=>{
-        const a=document.createElement("a");
-        a.href=h;
-        a.dataset.href=h;
-        a.innerHTML=I(i)+`<span>${l}</span>`;
-        mobile.appendChild(a);
-      });
-
-    }else{
-
-      const a=link(x);
-      a.className="";
-      mobile.appendChild(a);
-    }
-  });
-
-  setTimeout(()=>{
-
-    const data=window.Branding?.data || {};
-
-    const latestCompany=
-      data.companyName ||
-      localStorage.getItem("companyName") ||
-      "";
-
-    const latestLogo=
-      data.mainLogo ||
-      (
-        typeof window.Branding?.getMainLogo === "function"
-          ? window.Branding.getMainLogo()
-          : ""
-      ) ||
-      localStorage.getItem("appLogo") ||
-      "/assets/logo.png";
-
-    const a=document.getElementById("dynamicCompanyName");
-    const c=document.getElementById("mobileCompanyName");
-
-    if(a) a.textContent=latestCompany;
-    if(c) c.textContent=latestCompany;
-
-    document.querySelectorAll(".app-logo").forEach(img=>{
-      img.src=latestLogo;
-    });
-
-  },350);
-
-  const page=location.pathname.split("/").pop();
-
-  document.querySelectorAll("[data-href]").forEach(a=>{
-    a.classList.toggle(
-      "active",
-      a.dataset.href===page
-    );
-  });
-
-  document.querySelectorAll(".gh-nav-group").forEach(g=>{
-    g.classList.toggle(
-      "has-active",
-      !!g.querySelector("a.active")
-    );
-  });
-
-  const tz=()=>
-    localStorage.getItem("systemTimezone") ||
-    localStorage.getItem("appTimezone") ||
-    "America/Phoenix";
-
-  function tick(){
-
-    const n=new Date();
-
-    document.getElementById("headerDate").textContent=
-      n.toLocaleDateString("en-US",{
-        timeZone:tz(),
-        weekday:"short",
-        month:"short",
-        day:"numeric",
-        year:"numeric"
-      });
-
-    document.getElementById("headerTime").textContent=
-      n.toLocaleTimeString("en-US",{
-        timeZone:tz(),
-        hour:"numeric",
-        minute:"2-digit",
-        second:"2-digit",
-        hour12:true
-      });
-
-    const h=Number(
-      new Intl.DateTimeFormat("en-US",{
-        hour:"numeric",
-        hour12:false,
-        timeZone:tz()
-      }).format(n)
-    );
-
-    document.getElementById("welcomeMessage").textContent=
-      h<12
-        ? "Good Morning"
-        : h<18
-          ? "Good Afternoon"
-          : "Good Evening";
-
-    document.getElementById("weatherIcon").textContent=
-      h<12
-        ? "☀️"
-        : h<18
-          ? "🌤️"
-          : "🌙";
-  }
-
-  tick();
-  setInterval(tick,1000);
-
-  const drawer=document.getElementById("mobileSideMenu");
-  const ov=document.getElementById("mobileMenuOverlay");
-
-  const open=()=>{
-    drawer.classList.add("show");
-    ov.classList.add("show");
-  };
-
-  const close=()=>{
-    drawer.classList.remove("show");
-    ov.classList.remove("show");
-  };
-
-  document.getElementById("mobileMenuBtn").onclick=open;
-  document.getElementById("mobileCloseBtn").onclick=close;
-  ov.onclick=close;
+ const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
+ const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
+
+ const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
+ const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
+ const tenantNameForHeader=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
+ const saasEl=document.getElementById("saasCompanyName"); if(saasEl) saasEl.textContent=tenantNameForHeader;
+ document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
+ document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
+
+ const fallbackCompany=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
+ const fallbackStaff=localStorage.getItem("name")||localStorage.getItem("fullName")||"";
+
+ async function ensureBrandingLoaded(){
+   if(!window.Branding){
+     await new Promise(resolve=>{
+       const existing=document.querySelector('script[src="/core/branding.js"]');
+       if(existing){
+         if(window.Branding){resolve();return;}
+         existing.addEventListener("load",resolve,{once:true});
+         setTimeout(resolve,700);return;
+       }
+       const script=document.createElement("script");
+       script.src="/core/branding.js";script.onload=resolve;script.onerror=resolve;document.body.appendChild(script);
+     });
+   }
+   if(window.Branding&&typeof window.Branding.load==="function"){
+     try{await window.Branding.load();}catch(err){console.log("HEADER BRANDING LOAD ERROR:",err);}
+   }
+ }
+
+ await ensureBrandingLoaded();
+ const brandingData=window.Branding?.data||{};
+ const tenantCompany=brandingData.companyName||fallbackCompany||"";
+ const tenantMainLogo=brandingData.mainLogo||(typeof window.Branding?.getMainLogo==="function"?window.Branding.getMainLogo():"")||"/assets/logo.png";
+ const companyEl=document.getElementById("dynamicCompanyName");
+ const mobileCompanyEl=document.getElementById("mobileCompanyName");
+ const staffEl=document.getElementById("staffDisplayName");
+ if(companyEl)companyEl.textContent=tenantCompany;
+ if(mobileCompanyEl)mobileCompanyEl.textContent=tenantCompany;
+ if(staffEl)staffEl.textContent=fallbackStaff;
+ document.querySelectorAll(".app-logo").forEach(img=>{img.src=tenantMainLogo;});
+ if(tenantCompany)localStorage.setItem("companyName",tenantCompany);
+ if(tenantMainLogo)localStorage.setItem("appLogo",tenantMainLogo);
+
+ let nav=[...core]; if(currentRole!=="DISPATCHER")nav.push(...admin); if(currentRole==="SUPER_ADMIN")nav.push(...extra); if(currentRole!=="DISPATCHER")nav.push(settings);
+ const desktop=document.getElementById("adminDesktopNav");
+ const mobile=document.getElementById("mobileSideNav");
+
+ function link(item){const a=document.createElement("a");a.href=item.h;a.dataset.href=item.h;a.className="gh-nav-tile";a.innerHTML=I(item.i)+`<span>${item.l}</span>`;return a;}
+ function group(item){
+   const w=document.createElement("div");w.className="gh-nav-group";
+   const b=document.createElement("button");b.type="button";b.className="gh-nav-tile gh-nav-group-btn";b.innerHTML=I(item.i)+`<span>${item.g}</span><b class="gh-caret">▾</b>`;
+   const m=document.createElement("div");m.className="gh-nav-menu";
+   item.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;m.appendChild(a)});
+   b.onclick=e=>{e.preventDefault();document.querySelectorAll(".gh-nav-group.open").forEach(x=>{if(x!==w)x.classList.remove("open")});w.classList.toggle("open")};
+   w.append(b,m);return w;
+ }
+ nav.forEach(x=>desktop.appendChild(x.g?group(x):link(x)));
+ const lo=document.createElement("button");lo.type="button";lo.className="gh-nav-tile gh-logout-tile";lo.innerHTML=I("logout")+"<span>Log Out</span>";lo.onclick=logout;desktop.appendChild(lo);
+
+ nav.forEach(x=>{
+   if(x.g){
+     const t=document.createElement("div");t.className="gh-mobile-group-title";t.textContent=x.g;mobile.appendChild(t);
+     x.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;mobile.appendChild(a)});
+   }else{const a=link(x);a.className="";mobile.appendChild(a)}
+ });
+
+ setTimeout(()=>{
+   const data=window.Branding?.data||{};
+   const latestCompany=data.companyName||localStorage.getItem("companyName")||"";
+   const latestLogo=data.mainLogo||(typeof window.Branding?.getMainLogo==="function"?window.Branding.getMainLogo():"")||localStorage.getItem("appLogo")||"/assets/logo.png";
+   const a=document.getElementById("dynamicCompanyName"),c=document.getElementById("mobileCompanyName");
+   if(a)a.textContent=latestCompany;if(c)c.textContent=latestCompany;
+   document.querySelectorAll(".app-logo").forEach(img=>{img.src=latestLogo;});
+ },350);
+
+ const page=location.pathname.split("/").pop();
+ document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
+ document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
+
+ /* ALERT BADGES — VISUAL ONLY; EXISTING HEADER SIZE/COLORS ARE UNCHANGED */
+ const alertStyle=document.createElement("style");
+ alertStyle.textContent=`
+ .gh-alert-hot{position:relative!important;box-shadow:0 0 0 2px rgba(255,186,35,.75),0 0 15px rgba(255,176,19,.38)!important}
+ .gh-alert-badge{position:absolute;right:4px;top:3px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#ffb11b;color:#172033;font-size:8px;font-weight:900;line-height:1;z-index:5}
+ `;
+ document.head.appendChild(alertStyle);
+
+ function applyHeaderAlerts(detail){
+   const pending=Number(detail?.pendingConfirmation??localStorage.getItem("dashboardPendingConfirmationCount")??0);
+   const fresh=Number(detail?.newTrips??localStorage.getItem("dashboardNewTripsCount")??0);
+
+   const finalLink=document.querySelector('[data-href="dispatch-final-confirmation.html"]');
+   if(finalLink){
+     finalLink.classList.toggle("gh-alert-hot",pending>0);
+     finalLink.querySelector(".gh-alert-badge")?.remove();
+     if(pending>0){
+       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=pending;finalLink.appendChild(b);
+     }
+   }
+
+   const opsGroup=[...document.querySelectorAll(".gh-nav-group")].find(g=>g.querySelector('[data-href="trips-hub.html"]'));
+   const opsButton=opsGroup?.querySelector(".gh-nav-group-btn");
+   if(opsButton){
+     opsButton.classList.toggle("gh-alert-hot",fresh>0);
+     opsButton.querySelector(".gh-alert-badge")?.remove();
+     if(fresh>0){
+       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=fresh;opsButton.appendChild(b);
+     }
+   }
+ }
+ window.addEventListener("gh-dashboard-alerts",e=>applyHeaderAlerts(e.detail||{}));
+ applyHeaderAlerts({});
+
+ const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
+ function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
+
+ const drawer=document.getElementById("mobileSideMenu"),ov=document.getElementById("mobileMenuOverlay");
+ const open=()=>{drawer.classList.add("show");ov.classList.add("show")},close=()=>{drawer.classList.remove("show");ov.classList.remove("show")};
+ document.getElementById("mobileMenuBtn").onclick=open;document.getElementById("mobileCloseBtn").onclick=close;ov.onclick=close;
 });
-
 })();
-
 function logout(){
-
-  const tenantSlug=
-    String(
-      localStorage.getItem("tenantSlug") ||
-      sessionStorage.getItem("loginTenantSlug") ||
-      ""
-    )
-    .trim()
-    .toLowerCase();
-
-  [
-    "token",
-    "role",
-    "name",
-    "companyName",
-    "tenantId"
-  ].forEach(
-    k=>localStorage.removeItem(k)
-  );
-
+  const tenantSlug=String(localStorage.getItem("tenantSlug")||sessionStorage.getItem("loginTenantSlug")||"").trim().toLowerCase();
+  ["token","role","name","companyName","tenantId"].forEach(k=>localStorage.removeItem(k));
   sessionStorage.removeItem("loginTenantSlug");
-
   if(tenantSlug){
-
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      tenantSlug
-    );
-
-    location.href=
-      "/login.html?tenant="+
-      encodeURIComponent(tenantSlug);
-
+    sessionStorage.setItem("loginTenantSlug",tenantSlug);
+    location.href="/login.html?tenant="+encodeURIComponent(tenantSlug);
     return;
   }
-
   location.href="/login.html";
 }
