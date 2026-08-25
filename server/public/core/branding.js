@@ -1,7 +1,7 @@
 // =========================
 // FILE: public/core/branding.js
 // CENTRAL BRANDING ENGINE
-// WORD ALIGN SAFE VERSION
+// TENANT AWARE + WORD ALIGN SAFE
 // =========================
 
 console.log("BRANDING ENGINE LOADED");
@@ -9,6 +9,137 @@ console.log("BRANDING ENGINE LOADED");
 window.Branding = {
 
   data:{},
+  tenant:null,
+
+  /* =========================
+     TENANT
+  ========================= */
+
+  cleanTenantSlug(value){
+
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+
+  },
+
+  getTenantSlug(){
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const fromQuery =
+      this.cleanTenantSlug(
+        params.get("tenant") ||
+        params.get("tenantSlug")
+      );
+
+    if(fromQuery){
+      return fromQuery;
+    }
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    if(
+      parts[0] === "t" &&
+      parts[1]
+    ){
+      return this.cleanTenantSlug(
+        parts[1]
+      );
+    }
+
+    if(parts.length === 1){
+
+      const candidate =
+        this.cleanTenantSlug(
+          parts[0]
+        );
+
+      const reserved =
+        new Set([
+          "",
+          "admin",
+          "dispatcher",
+          "driver",
+          "company",
+          "companies",
+          "platform-admin",
+          "booking",
+          "api",
+          "uploads",
+          "assets",
+          "core",
+          "getquote",
+          "login",
+          "login.html",
+          "index.html"
+        ]);
+
+      if(
+        candidate &&
+        !reserved.has(candidate) &&
+        /^[a-z0-9-]+$/.test(candidate)
+      ){
+        return candidate;
+      }
+    }
+
+    /*
+      Company dashboard pages have no ?tenant= in the URL.
+      Use ONLY the authenticated company tenant storage there.
+      This does not affect Staff Login or public tenant pages.
+    */
+    if(
+      parts[0] === "companies"
+    ){
+
+      const companySlug =
+        this.cleanTenantSlug(
+          localStorage.getItem(
+            "companyTenantSlug"
+          ) ||
+          sessionStorage.getItem(
+            "companyTenantSlug"
+          )
+        );
+
+      if(companySlug){
+        return companySlug;
+      }
+    }
+
+    return "";
+
+  },
+
+  getAuthToken(){
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    if(parts[0] === "companies"){
+
+      return String(
+        localStorage.getItem("companyToken") ||
+        ""
+      ).trim();
+
+    }
+
+    return String(
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
+
+  },
 
   /* =========================
      LOAD
@@ -18,24 +149,145 @@ window.Branding = {
 
     try{
 
+      const tenantSlug =
+        this.getTenantSlug();
+
+      const token =
+        this.getAuthToken();
+
+      let url =
+        "/api/public/tenant/default";
+
+      let options = {
+        cache:"no-store"
+      };
+
+      /*
+        Public tenant page:
+        /sony
+        /cover-all
+        /login.html?tenant=sony
+      */
+      if(tenantSlug){
+
+        url =
+          "/api/public/tenant/" +
+          encodeURIComponent(
+            tenantSlug
+          );
+
+      }
+      /*
+        Logged-in staff page:
+        branding comes from authenticated tenant.
+      */
+      else if(token){
+
+        url =
+          "/api/system-design";
+
+        options.headers = {
+          Authorization:
+            `Bearer ${token}`
+        };
+
+      }
+
       const res =
-      await fetch(
-        "/api/system-design",
-        {
-          cache:"no-store"
-        }
-      );
+        await fetch(
+          url,
+          options
+        );
+
+      let payload = {};
+
+      try{
+        payload =
+          await res.json();
+      }catch{
+        payload = {};
+      }
 
       if(!res.ok){
 
         throw new Error(
-          "Failed To Load System Design"
+          payload?.message ||
+          "Failed To Load Branding"
         );
 
       }
 
-      this.data =
-      await res.json();
+      if(
+        payload &&
+        payload.design
+      ){
+
+        this.data =
+          payload.design || {};
+
+        this.tenant =
+          payload.tenant || null;
+
+      }else{
+
+        this.data =
+          payload || {};
+
+        this.tenant =
+          payload?.tenant || null;
+
+      }
+
+      const resolvedSlug =
+        this.cleanTenantSlug(
+          this.tenant?.slug ||
+          this.data?.tenantSlug ||
+          tenantSlug
+        );
+
+      if(resolvedSlug){
+
+        localStorage.setItem(
+          "tenantSlug",
+          resolvedSlug
+        );
+
+        sessionStorage.setItem(
+          "loginTenantSlug",
+          resolvedSlug
+        );
+
+      }
+
+      if(this.tenant?.id){
+
+        localStorage.setItem(
+          "tenantId",
+          String(this.tenant.id)
+        );
+
+      }else if(this.tenant?._id){
+
+        localStorage.setItem(
+          "tenantId",
+          String(this.tenant._id)
+        );
+
+      }
+
+      const timezone =
+        this.tenant?.timezone ||
+        this.data?.timezone ||
+        "";
+
+      if(timezone){
+
+        localStorage.setItem(
+          "appTimezone",
+          timezone
+        );
+
+      }
 
     }catch(err){
 
@@ -45,6 +297,7 @@ window.Branding = {
       );
 
       this.data = {};
+      this.tenant = null;
 
     }
 
@@ -61,7 +314,7 @@ window.Branding = {
   save(data){
 
     this.data =
-    data || {};
+      data || {};
 
     localStorage.setItem(
       "ghSystemDesign",
@@ -80,7 +333,7 @@ window.Branding = {
 
     return (
       this.data?.companyName ||
-      "GH Mobility"
+      ""
     );
 
   },
@@ -89,6 +342,7 @@ window.Branding = {
 
     return (
       this.data?.timezone ||
+      this.tenant?.timezone ||
       "America/Phoenix"
     );
 
@@ -126,8 +380,8 @@ window.Branding = {
     return Array.isArray(
       this.data?.services
     )
-    ? this.data.services
-    : [];
+      ? this.data.services
+      : [];
 
   },
 
@@ -140,8 +394,8 @@ window.Branding = {
     return String(
       value === undefined ||
       value === null
-      ? ""
-      : value
+        ? ""
+        : value
     );
 
   },
@@ -149,25 +403,25 @@ window.Branding = {
   cleanWordText(value){
 
     return this.cleanText(value)
-    .replace(/style="[^"]*"/gi,"")
-    .replace(/style='[^']*'/gi,"")
-    .replace(/text-align\s*:\s*(left|right|center|justify)\s*;?/gi,"")
-    .replace(/<div[^>]*>/gi,"")
-    .replace(/<\/div>/gi,"\n")
-    .replace(/<p[^>]*>/gi,"")
-    .replace(/<\/p>/gi,"\n")
-    .replace(/<br\s*\/?>/gi,"\n")
-    .replace(/\n{3,}/g,"\n\n")
-    .trim();
+      .replace(/style="[^"]*"/gi,"")
+      .replace(/style='[^']*'/gi,"")
+      .replace(/text-align\s*:\s*(left|right|center|justify)\s*;?/gi,"")
+      .replace(/<div[^>]*>/gi,"")
+      .replace(/<\/div>/gi,"\n")
+      .replace(/<p[^>]*>/gi,"")
+      .replace(/<\/p>/gi,"\n")
+      .replace(/<br\s*\/?>/gi,"\n")
+      .replace(/\n{3,}/g,"\n\n")
+      .trim();
 
   },
 
   normalizeWordAlign(align){
 
     const clean =
-    String(align || "")
-    .toLowerCase()
-    .trim();
+      String(align || "")
+        .toLowerCase()
+        .trim();
 
     const allowed = [
       "left",
@@ -180,8 +434,8 @@ window.Branding = {
     ];
 
     return allowed.includes(clean)
-    ? clean
-    : "center";
+      ? clean
+      : "center";
 
   },
 
@@ -190,8 +444,8 @@ window.Branding = {
     return /[\u0600-\u06FF]/.test(
       String(text || "")
     )
-    ? "rtl"
-    : "ltr";
+      ? "rtl"
+      : "ltr";
 
   },
 
@@ -200,13 +454,13 @@ window.Branding = {
     if(!el) return;
 
     const text =
-    this.cleanWordText(value);
+      this.cleanWordText(value);
 
     const finalAlign =
-    this.normalizeWordAlign(align);
+      this.normalizeWordAlign(align);
 
     const dir =
-    this.detectDirection(text);
+      this.detectDirection(text);
 
     el.classList.remove(
       "gh-align-left",
@@ -224,12 +478,12 @@ window.Branding = {
       "gh-word-text",
       "gh-align-" + finalAlign,
       dir === "rtl"
-      ? "gh-dir-rtl"
-      : "gh-dir-ltr"
+        ? "gh-dir-rtl"
+        : "gh-dir-ltr"
     );
 
     el.innerText =
-    text;
+      text;
 
   },
 
@@ -240,55 +494,84 @@ window.Branding = {
   applyGlobalBranding(){
 
     document.title =
-    this.getCompanyName();
-
-    document
-    .querySelectorAll(".company-name")
-    .forEach(el=>{
-
-      el.innerText =
       this.getCompanyName();
 
-    });
+    document
+      .querySelectorAll(".company-name")
+      .forEach(el=>{
+
+        el.innerText =
+          this.getCompanyName();
+
+      });
 
     document
-    .querySelectorAll(".main-logo")
-    .forEach(el=>{
+      .querySelectorAll(".main-logo")
+      .forEach(el=>{
 
-      const src =
-      this.getMainLogo();
+        const src =
+          this.getMainLogo();
 
-      el.src = src;
-      el.style.display =
-      src ? "" : "none";
+        if(src){
+          el.src = src;
+          el.style.display = "";
+        }else{
+          el.removeAttribute("src");
+          el.style.display = "none";
+        }
 
-    });
-
-    document
-    .querySelectorAll(".driver-logo")
-    .forEach(el=>{
-
-      const src =
-      this.getDriverLogo();
-
-      el.src = src;
-      el.style.display =
-      src ? "" : "none";
-
-    });
+      });
 
     document
-    .querySelectorAll(".hero-image")
-    .forEach(el=>{
+      .querySelectorAll(".app-logo")
+      .forEach(el=>{
 
-      const src =
-      this.getHeroImage();
+        const src =
+          this.getMainLogo();
 
-      el.src = src;
-      el.style.display =
-      src ? "" : "none";
+        if(src){
+          el.src = src;
+          el.style.display = "";
+        }else{
+          el.removeAttribute("src");
+          el.style.display = "none";
+        }
 
-    });
+      });
+
+    document
+      .querySelectorAll(".driver-logo")
+      .forEach(el=>{
+
+        const src =
+          this.getDriverLogo();
+
+        if(src){
+          el.src = src;
+          el.style.display = "";
+        }else{
+          el.removeAttribute("src");
+          el.style.display = "none";
+        }
+
+      });
+
+    document
+      .querySelectorAll(".hero-image")
+      .forEach(el=>{
+
+        const src =
+          this.getHeroImage();
+
+        if(src){
+          el.src = src;
+          el.style.display = "";
+        }else{
+          el.removeAttribute("src");
+          el.style.display = "none";
+        }
+
+      });
 
     this.applyThemeEngine();
 
@@ -301,105 +584,104 @@ window.Branding = {
   applyThemeEngine(){
 
     const d =
-    this.data || {};
+      this.data || {};
 
     const extraAlign =
-    d.extraBoxAlign ||
-    "justify-center";
+      d.extraBoxAlign ||
+      "justify-center";
 
     document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
+      .querySelectorAll(".extra-box")
+      .forEach(box=>{
 
-      box.style.setProperty(
-        "background",
-        d.extraBoxBg || "#ffffff",
-        "important"
-      );
+        box.style.setProperty(
+          "background",
+          d.extraBoxBg || "#ffffff",
+          "important"
+        );
 
-      box.style.setProperty(
-        "border",
-        `${d.extraBoxBorderSize || 2}px solid ${
-          d.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
+        box.style.setProperty(
+          "border",
+          `${d.extraBoxBorderSize || 2}px solid ${
+            d.extraBoxBorder || "#dbeafe"
+          }`,
+          "important"
+        );
 
-      box.style.setProperty(
-        "border-radius",
-        `${d.extraBoxRadius || 32}px`,
-        "important"
-      );
+        box.style.setProperty(
+          "border-radius",
+          `${d.extraBoxRadius || 32}px`,
+          "important"
+        );
 
-      box.style.setProperty(
-        "box-shadow",
-        d.extraBoxShadow
-        ? "0 8px 22px rgba(15,23,42,.06)"
-        : "none",
-        "important"
-      );
+        box.style.setProperty(
+          "box-shadow",
+          d.extraBoxShadow
+            ? "0 8px 22px rgba(15,23,42,.06)"
+            : "none",
+          "important"
+        );
 
-    });
-
-    document
-    .querySelectorAll(
-      ".extra-box h2, .extra-box h3"
-    )
-    .forEach(title=>{
-
-      title.style.setProperty(
-        "color",
-        d.extraBoxTitleColor || "#1e3a6d",
-        "important"
-      );
-
-      title.style.setProperty(
-        "font-size",
-        `${d.extraBoxTitleSize || 42}px`,
-        "important"
-      );
-
-      this.applyWordElement(
-        title,
-        title.innerText,
-        extraAlign
-      );
-
-    });
+      });
 
     document
-    .querySelectorAll(".extra-box p, .extra-box div")
-    .forEach(text=>{
+      .querySelectorAll(
+        ".extra-box h2, .extra-box h3"
+      )
+      .forEach(title=>{
 
-      if(
-        text.classList.contains("extra-box")
-      ) return;
+        title.style.setProperty(
+          "color",
+          d.extraBoxTitleColor || "#1e3a6d",
+          "important"
+        );
 
-      text.style.setProperty(
-        "color",
-        d.extraBoxTextColor || "#6b7280",
-        "important"
-      );
+        title.style.setProperty(
+          "font-size",
+          `${d.extraBoxTitleSize || 42}px`,
+          "important"
+        );
 
-      text.style.setProperty(
-        "font-size",
-        `${d.extraBoxTextSize || 22}px`,
-        "important"
-      );
+        this.applyWordElement(
+          title,
+          title.innerText,
+          extraAlign
+        );
 
-      this.applyWordElement(
-        text,
-        text.innerText,
-        extraAlign
-      );
+      });
 
-    });
+    document
+      .querySelectorAll(".extra-box p, .extra-box div")
+      .forEach(text=>{
+
+        if(
+          text.classList.contains("extra-box")
+        ) return;
+
+        text.style.setProperty(
+          "color",
+          d.extraBoxTextColor || "#6b7280",
+          "important"
+        );
+
+        text.style.setProperty(
+          "font-size",
+          `${d.extraBoxTextSize || 22}px`,
+          "important"
+        );
+
+        this.applyWordElement(
+          text,
+          text.innerText,
+          extraAlign
+        );
+
+      });
 
   },
 
   /* =========================
      RENDER HOMEPAGE CARDS
-     نفس الكروت — مع تحسين الرندر فقط
   ========================= */
 
   renderHomepageCards(
@@ -408,111 +690,164 @@ window.Branding = {
   ){
 
     const container =
-    document.getElementById(
-      containerId
-    );
+      document.getElementById(
+        containerId
+      );
 
     if(!container) return;
 
     const services =
-    this.getServices();
+      this.getServices();
 
     container.innerHTML = "";
 
     const fragment =
-    document.createDocumentFragment();
+      document.createDocumentFragment();
+
+    const tenantSlug =
+      this.getTenantSlug();
 
     services.forEach(service=>{
 
       if(!service || !service.active) return;
 
       const title =
-      lang === "es"
-      ? (
-          service.title_es ||
-          service.titleEs ||
-          service.title ||
-          service.title_en ||
-          ""
-        )
-      : (
-          service.title_en ||
-          service.title ||
-          ""
-        );
+        lang === "es"
+          ? (
+              service.title_es ||
+              service.titleEs ||
+              service.title ||
+              service.title_en ||
+              ""
+            )
+          : (
+              service.title_en ||
+              service.title ||
+              ""
+            );
 
       const desc =
-      lang === "es"
-      ? (
-          service.description_es ||
-          service.descriptionEs ||
-          service.description ||
-          service.description_en ||
-          ""
-        )
-      : (
-          service.description_en ||
-          service.description ||
-          ""
-        );
+        lang === "es"
+          ? (
+              service.description_es ||
+              service.descriptionEs ||
+              service.description ||
+              service.description_en ||
+              ""
+            )
+          : (
+              service.description_en ||
+              service.description ||
+              ""
+            );
 
       const card =
-      document.createElement("div");
+        document.createElement("div");
 
       card.className =
-      "card";
+        "card";
 
       const img =
-      document.createElement("img");
+        document.createElement("img");
 
       const serviceImage =
-      String(service.image || "").trim();
+        String(
+          service.image ||
+          ""
+        ).trim();
 
-      img.src =
-      serviceImage;
-
-      img.className =
-      "card-image";
-
-      if(!serviceImage){
+      if(serviceImage){
+        img.src = serviceImage;
+      }else{
+        img.removeAttribute("src");
         img.style.display = "none";
       }
 
+      img.className =
+        "card-image";
+
       img.alt =
-      this.cleanText(title);
+        this.cleanText(title);
 
       const body =
-      document.createElement("div");
+        document.createElement("div");
 
       body.className =
-      "card-body";
+        "card-body";
 
       const h3 =
-      document.createElement("h3");
+        document.createElement("h3");
 
       h3.innerText =
-      this.cleanText(title);
+        this.cleanText(title);
 
       const p =
-      document.createElement("p");
+        document.createElement("p");
 
       p.innerText =
-      this.cleanText(desc);
+        this.cleanText(desc);
 
       const a =
-      document.createElement("a");
+        document.createElement("a");
 
-      a.href =
-      service.link ||
-      "getquote/index.html";
+      const baseLink =
+        service.link ||
+        "getquote/index.html";
+
+      try{
+
+        const url =
+          new URL(
+            baseLink,
+            window.location.origin
+          );
+
+        if(tenantSlug){
+
+          url.searchParams.set(
+            "tenant",
+            tenantSlug
+          );
+
+        }
+
+        const serviceKey =
+          String(
+            service.serviceKey ||
+            service.serviceCode ||
+            ""
+          )
+            .trim()
+            .toUpperCase();
+
+        if(serviceKey){
+
+          url.searchParams.set(
+            "service",
+            serviceKey
+          );
+
+        }
+
+        a.href =
+          url.pathname +
+          url.search +
+          url.hash;
+
+      }catch{
+
+        a.href =
+          baseLink;
+
+      }
 
       a.className =
-      "card-btn";
+        "card-btn";
 
       a.innerText =
-      lang === "es"
-      ? "Obtener precio"
-      : "Get Quote";
+        lang === "es"
+          ? "Obtener precio"
+          : "Get Quote";
 
       body.appendChild(h3);
       body.appendChild(p);
