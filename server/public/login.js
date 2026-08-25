@@ -207,14 +207,13 @@ async function login(){
     );
 
     /*
-      Legacy mirror for existing admin page scripts.
-      header.js will restore THIS TAB's values whenever the tab is active.
+      IMPORTANT:
+      Do NOT copy staff auth into localStorage.
+      localStorage is shared across browser tabs and was the reason
+      Admin and Dispatcher were replacing each other.
+
+      Every staff login now lives only in this tab's sessionStorage.
     */
-    localStorage.setItem("token",staffSession.token);
-    localStorage.setItem("role",staffSession.role);
-    localStorage.setItem("name",staffSession.name);
-    localStorage.setItem("tenantId",staffSession.tenantId);
-    localStorage.setItem("tenantSlug",staffSession.tenantSlug);
 
     if(
       data.user.role ===

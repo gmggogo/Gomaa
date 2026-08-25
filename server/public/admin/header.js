@@ -1,4 +1,171 @@
 (function(){
+
+/* =========================================================
+   STAFF TAB SESSION ISOLATION
+   ---------------------------------------------------------
+   Existing admin pages still call localStorage.getItem("token"),
+   localStorage.getItem("role"), etc.
+
+   localStorage is shared by every tab, which caused Admin and
+   Dispatcher to overwrite each other.
+
+   This compatibility bridge makes those STAFF keys behave like
+   per-tab values while leaving the rest of localStorage untouched.
+   It must run immediately when header.js is loaded.
+========================================================= */
+(function installStaffTabStorageBridge(){
+
+  if(window.__GH_STAFF_TAB_STORAGE_BRIDGE__){
+    return;
+  }
+
+  window.__GH_STAFF_TAB_STORAGE_BRIDGE__ = true;
+
+  const STAFF_KEYS = new Set([
+    "token",
+    "role",
+    "name",
+    "fullName",
+    "tenantId",
+    "tenantSlug",
+    "tenant",
+    "tenantName",
+    "companyName",
+    "appLogo",
+    "systemTimezone",
+    "appTimezone"
+  ]);
+
+  const originalGetItem =
+    Storage.prototype.getItem;
+
+  const originalSetItem =
+    Storage.prototype.setItem;
+
+  const originalRemoveItem =
+    Storage.prototype.removeItem;
+
+  Storage.prototype.getItem =
+    function(key){
+
+      const k =
+        String(key || "");
+
+      if(
+        this === window.localStorage &&
+        STAFF_KEYS.has(k)
+      ){
+
+        const sessionKey =
+          k === "token"
+            ? "staffToken"
+            : k === "role"
+              ? "staffRole"
+              : k === "name"
+                ? "staffName"
+                : k === "tenantId"
+                  ? "staffTenantId"
+                  : k === "tenantSlug"
+                    ? "staffTenantSlug"
+                    : "staffCompat:" + k;
+
+        const value =
+          originalGetItem.call(
+            window.sessionStorage,
+            sessionKey
+          );
+
+        if(value !== null){
+          return value;
+        }
+      }
+
+      return originalGetItem.call(
+        this,
+        k
+      );
+    };
+
+  Storage.prototype.setItem =
+    function(key,value){
+
+      const k =
+        String(key || "");
+
+      if(
+        this === window.localStorage &&
+        STAFF_KEYS.has(k)
+      ){
+
+        const sessionKey =
+          k === "token"
+            ? "staffToken"
+            : k === "role"
+              ? "staffRole"
+              : k === "name"
+                ? "staffName"
+                : k === "tenantId"
+                  ? "staffTenantId"
+                  : k === "tenantSlug"
+                    ? "staffTenantSlug"
+                    : "staffCompat:" + k;
+
+        originalSetItem.call(
+          window.sessionStorage,
+          sessionKey,
+          String(value ?? "")
+        );
+
+        return;
+      }
+
+      return originalSetItem.call(
+        this,
+        k,
+        String(value ?? "")
+      );
+    };
+
+  Storage.prototype.removeItem =
+    function(key){
+
+      const k =
+        String(key || "");
+
+      if(
+        this === window.localStorage &&
+        STAFF_KEYS.has(k)
+      ){
+
+        const sessionKey =
+          k === "token"
+            ? "staffToken"
+            : k === "role"
+              ? "staffRole"
+              : k === "name"
+                ? "staffName"
+                : k === "tenantId"
+                  ? "staffTenantId"
+                  : k === "tenantSlug"
+                    ? "staffTenantSlug"
+                    : "staffCompat:" + k;
+
+        originalRemoveItem.call(
+          window.sessionStorage,
+          sessionKey
+        );
+
+        return;
+      }
+
+      return originalRemoveItem.call(
+        this,
+        k
+      );
+    };
+
+})();
+
 const svg={
 home:'<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg>',
 car:'<svg viewBox="0 0 24 24"><path d="M4 15h16l-1.5-5H5.5L4 15Z"/><path d="M8 10l1-3h6l1 3"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/></svg>',
@@ -29,17 +196,35 @@ function staffSessionValue(sessionKey,legacyKey){
 }
 
 function syncStaffLegacyStorage(){
-  const token=staffSessionValue("staffToken","token");
-  const staffRole=staffSessionValue("staffRole","role");
-  const name=staffSessionValue("staffName","name");
-  const tenantId=staffSessionValue("staffTenantId","tenantId");
-  const tenantSlug=staffSessionValue("staffTenantSlug","tenantSlug");
+  /*
+    No global localStorage mirroring anymore.
+    The storage bridge above makes old admin scripts read this tab's
+    sessionStorage transparently.
+  */
+  const pairs = [
+    ["staffToken","token"],
+    ["staffRole","role"],
+    ["staffName","name"],
+    ["staffTenantId","tenantId"],
+    ["staffTenantSlug","tenantSlug"]
+  ];
 
-  if(token) localStorage.setItem("token",token);
-  if(staffRole) localStorage.setItem("role",staffRole);
-  if(name) localStorage.setItem("name",name);
-  if(tenantId) localStorage.setItem("tenantId",tenantId);
-  if(tenantSlug) localStorage.setItem("tenantSlug",tenantSlug);
+  pairs.forEach(([sessionKey,legacyKey])=>{
+
+    if(sessionStorage.getItem(sessionKey)){
+      return;
+    }
+
+    const legacy =
+      localStorage.getItem(legacyKey);
+
+    if(legacy){
+      sessionStorage.setItem(
+        sessionKey,
+        legacy
+      );
+    }
+  });
 }
 
 const role=()=>{
@@ -73,17 +258,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
  syncStaffLegacyStorage();
 
  /*
-   If another tab logs in as another staff user, localStorage changes
-   globally. Whenever THIS tab becomes active again, restore this tab's
-   own session values so existing page scripts keep using the right user.
+   Auth is now isolated per tab by the storage bridge above.
  */
- window.addEventListener("focus",syncStaffLegacyStorage);
- window.addEventListener("pageshow",syncStaffLegacyStorage);
- document.addEventListener("visibilitychange",()=>{
-   if(!document.hidden){
-     syncStaffLegacyStorage();
-   }
- });
  const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
  const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
 
@@ -209,52 +385,31 @@ document.addEventListener("DOMContentLoaded",async()=>{
 })();
 function logout(){
 
-  const currentToken=
-    String(
-      sessionStorage.getItem("staffToken") ||
-      ""
-    ).trim();
-
-  const tenantSlug=
+  const tenantSlug =
     String(
       sessionStorage.getItem("staffTenantSlug") ||
       sessionStorage.getItem("loginTenantSlug") ||
-      localStorage.getItem("tenantSlug") ||
       ""
     )
     .trim()
     .toLowerCase();
 
-  /*
-    Clear ONLY this tab's staff session.
-  */
   [
     "staffToken",
     "staffRole",
     "staffName",
     "staffTenantId",
-    "staffTenantSlug"
+    "staffTenantSlug",
+    "staffCompat:fullName",
+    "staffCompat:tenant",
+    "staffCompat:tenantName",
+    "staffCompat:companyName",
+    "staffCompat:appLogo",
+    "staffCompat:systemTimezone",
+    "staffCompat:appTimezone"
   ].forEach(
     k=>sessionStorage.removeItem(k)
   );
-
-  /*
-    Remove legacy shared values only if they still belong to THIS tab.
-    This prevents logging out Admin from killing Dispatcher in another tab.
-  */
-  if(
-    currentToken &&
-    String(localStorage.getItem("token")||"").trim() === currentToken
-  ){
-    [
-      "token",
-      "role",
-      "name",
-      "tenantId"
-    ].forEach(
-      k=>localStorage.removeItem(k)
-    );
-  }
 
   sessionStorage.removeItem(
     "loginTenantSlug"
