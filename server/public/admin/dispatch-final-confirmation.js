@@ -1793,6 +1793,17 @@ function beginEditSingle(key){
 }
 
 function beginEditShared(key){
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
+    return;
+  }
+
   editingShared.add(key);
   render();
 }
@@ -2114,7 +2125,10 @@ async function confirmSharedTrip(key){
   const root =
     findLiveSharedRootByKey(key);
 
-  if(!root){
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
     return;
   }
 
@@ -2235,6 +2249,22 @@ async function saveSharedEdit(key){
     findLiveSharedRootByKey(key);
 
   if(!root){
+    return;
+  }
+
+  /*
+    HARD LOCK:
+    once a shared trip is final-confirmed, it can no longer
+    be edited from Final Confirmation.
+  */
+  if(isSharedConfirmed(root)){
+    editingShared.delete(key);
+
+    if(root.__draftPassengers){
+      delete root.__draftPassengers;
+    }
+
+    render();
     return;
   }
 
@@ -2395,7 +2425,10 @@ function handleSharedPassengerStatusChange(
       groupKey
     );
 
-  if(!root){
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
     return;
   }
 
@@ -2545,10 +2578,14 @@ function sharedPassengerStatusEditHTML(
       trip.status
     );
 
+  const confirmed =
+    isSharedConfirmed(root);
+
   return `
     <select
       class="status-select"
       onchange="handleSharedPassengerStatusChange('${safe(groupKey)}', ${idx}, this.value)"
+      ${confirmed ? "disabled" : ""}
     >
       <option value="completed" ${current === "completed" ? "selected" : ""}>Completed</option>
       <option value="cancelled" ${current === "cancelled" ? "selected" : ""}>Cancelled</option>
@@ -3059,6 +3096,7 @@ function renderSharedRow(item){
                 class="btn-action btn-edit"
                 type="button"
                 onclick="beginEditShared('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 Edit
               </button>
@@ -3067,6 +3105,7 @@ function renderSharedRow(item){
                 class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
                 type="button"
                 onclick="confirmSharedTrip('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
               >
                 ${
                   confirmed
