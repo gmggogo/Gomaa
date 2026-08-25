@@ -114,26 +114,87 @@
     const target =
       ROUTES[key];
 
-    if(target){
-      window.location.href = target;
+    if(!target){
+      return;
     }
+
+    const driver =
+      getLoggedDriver();
+
+    const tenantSlug = String(
+      driver?.tenantSlug ||
+      driver?.tenant ||
+      localStorage.getItem("tenantSlug") ||
+      localStorage.getItem("tenant") ||
+      sessionStorage.getItem("driverLoginTenantSlug") ||
+      ""
+    ).trim();
+
+    window.location.href =
+      tenantSlug
+        ? `${target}?tenant=${encodeURIComponent(tenantSlug)}`
+        : target;
   }
 
   function logout(){
 
     stopChatPolling();
 
+    /*
+      Preserve the tenant BEFORE clearing the driver session.
+      This is the company login context, not the authenticated driver.
+    */
+    const loggedDriver =
+      getLoggedDriver();
+
+    const tenantSlug = String(
+      loggedDriver?.tenantSlug ||
+      loggedDriver?.tenant ||
+      localStorage.getItem("tenantSlug") ||
+      localStorage.getItem("tenant") ||
+      sessionStorage.getItem("driverLoginTenantSlug") ||
+      ""
+    ).trim();
+
+    if(tenantSlug){
+      sessionStorage.setItem(
+        "driverLoginTenantSlug",
+        tenantSlug
+      );
+
+      localStorage.setItem(
+        "tenant",
+        tenantSlug
+      );
+
+      localStorage.setItem(
+        "tenantSlug",
+        tenantSlug
+      );
+    }
+
+    /* Clear DRIVER AUTH only */
     localStorage.removeItem("driverToken");
     localStorage.removeItem("loggedDriver");
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("driverName");
+    localStorage.removeItem("name");
     localStorage.removeItem("companyName");
+    localStorage.removeItem("company");
+    localStorage.removeItem("driverId");
     localStorage.removeItem("systemTimezone");
     localStorage.removeItem("appTimezone");
 
+    /*
+      Return to the SAME tenant login link.
+      Example:
+      /driver/login.html?tenant=sony
+    */
     window.location.href =
-      ROUTES.login;
+      tenantSlug
+        ? `${ROUTES.login}?tenant=${encodeURIComponent(tenantSlug)}`
+        : ROUTES.login;
   }
 
   function homeSvg(){

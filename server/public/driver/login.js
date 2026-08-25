@@ -21,8 +21,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const params = new URLSearchParams(window.location.search);
 
+  /*
+    TENANT PRIORITY:
+    1) Explicit company link ?tenant=sony
+    2) Driver login session preserved during logout
+    3) Existing tenant cache as final fallback
+
+    This fixes the case where the driver logs out and returns to
+    login.html without the tenant query string.
+  */
   const tenant = String(
-    params.get("tenant") || ""
+    params.get("tenant") ||
+    sessionStorage.getItem("driverLoginTenantSlug") ||
+    localStorage.getItem("tenantSlug") ||
+    localStorage.getItem("tenant") ||
+    ""
   ).trim();
 
   if(!tenant){
@@ -35,7 +48,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
+  /*
+    Canonicalize the URL so Branding.load() can still read the tenant
+    from the login link after a logout/back navigation.
+  */
+  if(!params.get("tenant")){
+    const url = new URL(window.location.href);
+    url.searchParams.set("tenant", tenant);
+    window.history.replaceState({}, "", url.pathname + url.search);
+  }
+
   /* Keep tenant available to the rest of Driver App */
+  sessionStorage.setItem("driverLoginTenantSlug", tenant);
   localStorage.setItem("tenant", tenant);
   localStorage.setItem("tenantSlug", tenant);
 
@@ -179,6 +203,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       localStorage.setItem(
         "tenantSlug",
+        returnedTenant || tenant
+      );
+
+      sessionStorage.setItem(
+        "driverLoginTenantSlug",
         returnedTenant || tenant
       );
 
