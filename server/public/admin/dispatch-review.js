@@ -268,12 +268,12 @@ const reviewContent = document.getElementById("reviewContent");
       .service-card{
         width:100%!important;
         min-width:0!important;
-        padding:8px 9px!important;
-        border-radius:10px!important;
+        padding:6px 8px!important;
+        border-radius:9px!important;
         background:linear-gradient(135deg,#fff8dc 0%,#f7e4a5 52%,#fff2c4 100%)!important;
         border:1px solid #dfbd58!important;
         color:#111827!important;
-        box-shadow:0 6px 16px rgba(146,102,14,.12)!important;
+        box-shadow:0 5px 14px rgba(146,102,14,.11)!important;
       }
 
       .service-card:hover{
@@ -294,12 +294,20 @@ const reviewContent = document.getElementById("reviewContent");
 
       .service-card-title{
         font-size:12px!important;
-        margin-bottom:5px!important;
+        margin-bottom:4px!important;
+        text-align:center!important;
+        line-height:1.1!important;
       }
 
       .service-line{
-        font-size:9.5px!important;
-        padding:2px 0!important;
+        font-size:9px!important;
+        padding:1.5px 0!important;
+        line-height:1.15!important;
+      }
+
+      .service-line span:last-child{
+        font-size:11px!important;
+        font-weight:900!important;
       }
 
       /* ===============================
@@ -384,15 +392,16 @@ const reviewContent = document.getElementById("reviewContent");
         }
 
         .service-card{
-          flex:0 0 175px!important;
-          min-width:175px!important;
-          max-width:175px!important;
-          padding:7px!important;
+          flex:0 0 155px!important;
+          min-width:155px!important;
+          max-width:155px!important;
+          padding:6px!important;
           scroll-snap-align:start!important;
         }
 
         .service-card-title{
           font-size:11px!important;
+          text-align:center!important;
         }
 
         .service-line{
@@ -622,12 +631,6 @@ const reviewContent = document.getElementById("reviewContent");
         background:#e5e7eb!important;
         color:#374151!important;
         border-color:#cbd5e1!important;
-      }
-
-      .status-pill.mixed{
-        background:#ddd6fe!important;
-        color:#4c1d95!important;
-        border-color:#c4b5fd!important;
       }
 
       .completed-row td{
@@ -1192,7 +1195,6 @@ function isClosedStatus(status,trip){
 }
 
 function displayStatus(status,trip){
-  if(status === "Mixed Closed") return "Mixed Closed";
   if(isNotCompletedStatus(status,trip)) return "Not Completed";
   if(isCompletedStatus(status)) return "Completed";
   if(isCancelledStatus(status)) return "Cancelled";
@@ -1208,7 +1210,6 @@ function statusClass(status,trip){
   if(label === "Cancelled") return "cancelled";
   if(label === "No Show") return "noshow";
   if(label === "Not Completed") return "notcompleted";
-  if(label === "Mixed Closed") return "mixed";
 
   return "";
 }
@@ -1551,12 +1552,16 @@ function getGroupStatus(group){
     );
 
   /*
-    Shared final rule:
-    - Any Completed => Completed
-    - All Cancelled => Cancelled
-    - All No Show => No Show
-    - All Not Completed => Not Completed
-    - Any mixed non-completed => Mixed Closed
+    Shared display rule:
+    NO "Mixed" status.
+
+    The passenger-level counts are handled individually in the service cards:
+      Completed passenger     -> Completed
+      Cancelled passenger     -> Cancelled
+      No Show passenger       -> No Show
+      Not Completed passenger -> Not Completed
+
+    Trip Status is only a simple summary label for the row.
   */
 
   if(statuses.includes("Completed")){
@@ -1571,11 +1576,19 @@ function getGroupStatus(group){
     return "No Show";
   }
 
-  if(statuses.every(s => s === "Not Completed")){
+  if(statuses.includes("Not Completed")){
     return "Not Completed";
   }
 
-  return "Mixed Closed";
+  if(statuses.includes("Cancelled")){
+    return "Cancelled";
+  }
+
+  if(statuses.includes("No Show")){
+    return "No Show";
+  }
+
+  return first.status || "Closed";
 }
 
 /* ===============================
@@ -2049,7 +2062,6 @@ function createStats(){
     cancelled:0,
     noshow:0,
     notCompleted:0,
-    mixed:0,
     facility:0,
     gq:0,
     reserved:0,
@@ -2065,7 +2077,6 @@ function countStatus(stats,status,trip){
   else if(label === "Cancelled") stats.cancelled++;
   else if(label === "No Show") stats.noshow++;
   else if(label === "Not Completed") stats.notCompleted++;
-  else if(label === "Mixed Closed") stats.mixed++;
 }
 
 function countItem(stats,item){
@@ -2097,7 +2108,25 @@ function countItem(stats,item){
   if(item.kind === "shared"){
 
     stats.shared++;
-    countStatus(stats,getGroupStatus(item.group),first);
+
+    /*
+      IMPORTANT:
+      Shared passengers are counted individually by their own final status.
+      Example:
+        Passenger 1 Completed  -> +1 Completed
+        Passenger 2 Cancelled  -> +1 Cancelled
+        Passenger 3 No Show    -> +1 No Show
+      There is no Mixed bucket.
+    */
+    const passengers = getClosedPassengers(item.group);
+
+    passengers.forEach(p=>{
+      countStatus(
+        stats,
+        p?.status || first.status,
+        first
+      );
+    });
 
     return;
   }
@@ -2201,7 +2230,6 @@ function renderServiceCards(){
         <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
         <div class="service-line"><span>Cancelled</span><span>${c.cancelled}</span></div>
         <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
-        <div class="service-line"><span>Mixed</span><span>${c.mixed}</span></div>
         <div class="service-line"><span>Not Completed</span><span>${c.notCompleted}</span></div>
       </div>
     `;
