@@ -1,3 +1,225 @@
+<style id="gh-header-metallic-theme">
+/* =========================================================
+   GH ADMIN HEADER — METALLIC TEAL / NAVY FINAL THEME
+   Visual-only override. No navigation or role logic changed.
+   ========================================================= */
+
+/* ---------- TOP HEADER ---------- */
+.gh-admin-header .gh-topbar{
+  background:
+    radial-gradient(circle at 18% -20%, rgba(61,210,220,.20), transparent 34%),
+    radial-gradient(circle at 82% -35%, rgba(255,255,255,.12), transparent 30%),
+    linear-gradient(135deg,#073a53 0%,#07536a 42%,#062f4d 72%,#031f3d 100%) !important;
+  border-bottom:2px solid #d4a92f !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    0 4px 14px rgba(2,18,38,.22) !important;
+}
+
+/* subtle metallic sweep */
+.gh-admin-header .gh-topbar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 29%,
+      rgba(255,255,255,.07) 38%,
+      transparent 48%,
+      transparent 67%,
+      rgba(118,224,230,.08) 75%,
+      transparent 84%
+    );
+}
+
+/* keep header content above sheen */
+.gh-admin-header .gh-topbar > *{
+  position:relative;
+  z-index:1;
+}
+
+/* ---------- NAV BACKGROUND ---------- */
+.gh-admin-header .gh-nav-shell{
+  background:
+    linear-gradient(180deg,#e5f3ff 0%,#d4ebff 48%,#c7e2fb 100%) !important;
+  border-bottom:1px solid #9fc7e8 !important;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -1px 0 rgba(73,130,176,.16) !important;
+}
+
+/* ---------- ALL DESKTOP NAV BUTTONS ---------- */
+.gh-admin-header .gh-nav-tile,
+.gh-admin-header .gh-nav-group-btn{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #3d8e99 0%,
+      #27727f 18%,
+      #155766 52%,
+      #0c4154 78%,
+      #073348 100%
+    ) !important;
+
+  border-top:2px solid rgba(232,255,255,.94) !important;
+  border-left:2px solid rgba(222,250,255,.90) !important;
+  border-right:2px solid #24546b !important;
+  border-bottom:3px solid #06304a !important;
+
+  border-radius:11px !important;
+
+  box-shadow:
+    0 4px 0 rgba(4,39,57,.35),
+    0 8px 16px rgba(5,49,72,.18),
+    inset 0 1px 0 rgba(255,255,255,.34),
+    inset 0 -10px 20px rgba(0,21,37,.12) !important;
+
+  text-shadow:0 1px 1px rgba(0,0,0,.38) !important;
+  transition:
+    transform .12s ease,
+    filter .12s ease,
+    box-shadow .12s ease !important;
+}
+
+.gh-admin-header .gh-nav-tile:hover,
+.gh-admin-header .gh-nav-group-btn:hover{
+  filter:brightness(1.08) saturate(1.06);
+  transform:translateY(-1px);
+}
+
+.gh-admin-header .gh-nav-tile:active,
+.gh-admin-header .gh-nav-group-btn:active{
+  transform:translateY(2px);
+  box-shadow:
+    0 1px 0 rgba(4,39,57,.34),
+    0 4px 9px rgba(5,49,72,.15),
+    inset 0 2px 5px rgba(0,0,0,.15) !important;
+}
+
+/* icons/text always clear */
+.gh-admin-header .gh-nav-tile .gh-icon,
+.gh-admin-header .gh-nav-group-btn .gh-icon{
+  color:#fff !important;
+}
+
+.gh-admin-header .gh-nav-tile svg,
+.gh-admin-header .gh-nav-group-btn svg{
+  stroke:#fff !important;
+}
+
+/* ---------- ACTIVE PAGE ---------- */
+.gh-admin-header .gh-nav-tile.active,
+.gh-admin-header .gh-nav-group.has-active > .gh-nav-group-btn{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #53c738 0%,
+      #37ad27 22%,
+      #239919 58%,
+      #14830f 100%
+    ) !important;
+
+  border-top-color:#ecffe9 !important;
+  border-left-color:#e8ffe5 !important;
+  border-right-color:#14750e !important;
+  border-bottom-color:#0d6509 !important;
+
+  box-shadow:
+    0 4px 0 rgba(17,101,10,.36),
+    0 8px 17px rgba(31,142,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -8px 15px rgba(9,91,4,.12) !important;
+}
+
+/* ---------- BIGGER DROP-DOWN ARROW ---------- */
+.gh-admin-header .gh-caret{
+  font-size:24px !important;
+  line-height:1 !important;
+  font-weight:1000 !important;
+  margin-left:8px !important;
+  transform:translateY(-1px) !important;
+  color:#fff !important;
+  text-shadow:0 1px 1px rgba(0,0,0,.45);
+}
+
+.gh-admin-header .gh-nav-group.open .gh-caret{
+  transform:rotate(180deg) translateY(1px) !important;
+}
+
+/* ---------- LOG OUT ---------- */
+.gh-admin-header .gh-logout-tile{
+  color:#fff !important;
+  background:
+    linear-gradient(
+      180deg,
+      #ef6d73 0%,
+      #df4c55 25%,
+      #c92f3b 62%,
+      #ac1f2c 100%
+    ) !important;
+
+  border-top-color:#ffe9eb !important;
+  border-left-color:#ffe3e6 !important;
+  border-right-color:#9d1d29 !important;
+  border-bottom-color:#831520 !important;
+
+  box-shadow:
+    0 4px 0 rgba(112,18,28,.32),
+    0 8px 16px rgba(130,23,34,.18),
+    inset 0 1px 0 rgba(255,255,255,.38) !important;
+}
+
+/* ---------- DROP-DOWN MENU ---------- */
+.gh-admin-header .gh-nav-menu{
+  background:linear-gradient(180deg,#f9fdff,#e5f3fb) !important;
+  border:1px solid #7eb4d0 !important;
+  box-shadow:0 12px 26px rgba(3,39,59,.20) !important;
+}
+
+.gh-admin-header .gh-nav-menu a{
+  color:#0b3850 !important;
+}
+
+.gh-admin-header .gh-nav-menu a:hover,
+.gh-admin-header .gh-nav-menu a.active{
+  color:#fff !important;
+  background:linear-gradient(180deg,#47b936,#258f1b) !important;
+}
+
+/* ---------- MOBILE ---------- */
+@media(max-width:900px){
+  .gh-admin-header .gh-mobile-menu-btn{
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:2px solid rgba(230,255,255,.85) !important;
+  }
+
+  .gh-admin-header .gh-mobile-drawer{
+    background:linear-gradient(180deg,#073f56 0%,#052d45 100%) !important;
+  }
+
+  .gh-admin-header .gh-mobile-nav a{
+    color:#fff !important;
+    background:linear-gradient(180deg,#3d8e99,#155766 55%,#073348) !important;
+    border:1px solid rgba(190,232,240,.58) !important;
+  }
+
+  .gh-admin-header .gh-mobile-nav a.active{
+    background:linear-gradient(180deg,#53c738,#239919 58%,#14830f) !important;
+  }
+
+  .gh-admin-header .gh-mobile-logout{
+    color:#fff !important;
+    background:linear-gradient(180deg,#ef6d73,#c92f3b 60%,#ac1f2c) !important;
+  }
+}
+</style>
+
 <header class="gh-admin-header" id="ghAdminHeader">
   <div class="gh-topbar">
     <button class="gh-mobile-menu-btn" id="mobileMenuBtn" type="button">☰</button>
