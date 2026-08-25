@@ -159,6 +159,9 @@ const clientName =
 const clientPhone =
   document.getElementById("clientPhone");
 
+const clientSuggestions =
+  document.getElementById("clientSuggestions");
+
 const pickupInput =
   document.getElementById("pickup");
 
@@ -215,8 +218,392 @@ const saveSharedDraftBtn =
 
 /* ================= HELPERS ================= */
 
+
 function normalizeText(v){
   return String(v ?? "").trim();
+}
+
+/* ================= SAVED CLIENTS =================
+   Tenant-scoped browser cache.
+   Zero API requests.
+============================================== */
+
+const SAVED_CLIENTS_KEY =
+  companyStorageKey("savedClients");
+
+function loadSavedClients(){
+
+  try{
+
+    const data =
+      JSON.parse(
+        localStorage.getItem(
+          SAVED_CLIENTS_KEY
+        ) || "[]"
+      );
+
+    return Array.isArray(data)
+      ? data
+      : [];
+
+  }catch(_){
+    return [];
+  }
+}
+
+function saveSavedClients(list){
+
+  try{
+
+    localStorage.setItem(
+      SAVED_CLIENTS_KEY,
+      JSON.stringify(
+        Array.isArray(list)
+          ? list.slice(0,200)
+          : []
+      )
+    );
+
+  }catch(err){
+    console.log(
+      "SAVE CLIENT CACHE ERROR:",
+      err
+    );
+  }
+}
+
+function clientKey(name){
+
+  return normalizeText(name)
+    .toLowerCase()
+    .replace(/\s+/g," ");
+}
+
+function upsertSavedClient(data){
+
+  const name =
+    normalizeText(data?.clientName);
+
+  if(!name){
+    return;
+  }
+
+  const key =
+    clientKey(name);
+
+  const list =
+    loadSavedClients();
+
+  const existingIndex =
+    list.findIndex(
+      item=>
+        clientKey(item?.clientName) === key
+    );
+
+  const cleanItem = {
+    clientName:name,
+    clientPhone:
+      normalizeText(data?.clientPhone),
+    pickup:
+      normalizeText(data?.pickup),
+    dropoff:
+      normalizeText(data?.dropoff),
+    updatedAt:
+      Date.now()
+  };
+
+  if(existingIndex >= 0){
+
+    list.splice(
+      existingIndex,
+      1
+    );
+  }
+
+  list.unshift(
+    cleanItem
+  );
+
+  saveSavedClients(
+    list
+  );
+}
+
+function findSavedClientByName(name){
+
+  const key =
+    clientKey(name);
+
+  if(!key){
+    return null;
+  }
+
+  return (
+    loadSavedClients()
+      .find(
+        item=>
+          clientKey(item?.clientName) === key
+      ) ||
+    null
+  );
+}
+
+function getMatchingSavedClients(query){
+
+  const q =
+    clientKey(query);
+
+  if(q.length < 1){
+    return [];
+  }
+
+  return loadSavedClients()
+    .filter(item=>{
+      const name =
+        clientKey(item?.clientName);
+
+      return (
+        name.includes(q) ||
+        normalizeText(item?.clientPhone)
+          .includes(q)
+      );
+    })
+    .slice(0,8);
+}
+
+/* ================= CURRENT LOCATION =================
+   Browser geolocation only.
+   No reverse-geocode request here.
+============================================== */
+
+function hasValidCoords(lat,lng){
+
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
+
+function coordText(lat,lng){
+
+  return (
+    Number(lat).toFixed(6) +
+    "," +
+    Number(lng).toFixed(6)
+  );
+}
+
+function clearLocationMeta(input){
+
+  if(!input) return;
+
+  delete input.dataset.currentLat;
+  delete input.dataset.currentLng;
+  delete input.dataset.currentLocation;
+}
+
+function attachLocationChangeReset(input){
+
+  if(!input || input.dataset.locationResetBound === "1"){
+    return;
+  }
+
+  input.dataset.locationResetBound = "1";
+
+  input.addEventListener(
+    "input",
+    ()=>{
+      if(input.dataset.settingLocation === "1"){
+        return;
+      }
+      clearLocationMeta(input);
+    }
+  );
+}
+
+function useCurrentLocation(input,button){
+
+  if(!input){
+    return;
+  }
+
+  if(!navigator.geolocation){
+
+    showAlert(
+      "Current Location is not supported on this device."
+    );
+
+    return;
+  }
+
+  if(button){
+    button.disabled = true;
+    button.dataset.oldText =
+      button.textContent || "⌖";
+    button.textContent = "…";
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    position=>{
+
+      const lat =
+        Number(
+          position.coords.latitude
+        );
+
+      const lng =
+        Number(
+          position.coords.longitude
+        );
+
+      if(!hasValidCoords(lat,lng)){
+        showAlert(
+          "Could not read current location."
+        );
+        return;
+      }
+
+      input.dataset.settingLocation = "1";
+
+      input.value =
+        coordText(lat,lng);
+
+      input.dataset.currentLat =
+        String(lat);
+
+      input.dataset.currentLng =
+        String(lng);
+
+      input.dataset.currentLocation =
+        "1";
+
+      input.dispatchEvent(
+        new Event(
+          "change",
+          {bubbles:true}
+        )
+      );
+
+      delete input.dataset.settingLocation;
+
+    },
+    error=>{
+
+      let message =
+        "Could not get current location.";
+
+      if(error?.code === 1){
+        message =
+          "Location permission was denied.";
+      }else if(error?.code === 2){
+        message =
+          "Current location is unavailable.";
+      }else if(error?.code === 3){
+        message =
+          "Current location request timed out.";
+      }
+
+      showAlert(
+        message
+      );
+
+    },
+    {
+      enableHighAccuracy:false,
+      timeout:10000,
+      maximumAge:60000
+    }
+  );
+
+  /*
+    Re-enable shortly after the browser callback has had time to run.
+    No polling or repeated GPS requests.
+  */
+  window.setTimeout(
+    ()=>{
+      if(button){
+        button.disabled = false;
+        button.textContent =
+          button.dataset.oldText || "⌖";
+      }
+    },
+    11000
+  );
+}
+
+function bindCurrentLocationButton(button){
+
+  if(!button || button.dataset.locationBound === "1"){
+    return;
+  }
+
+  const targetId =
+    normalizeText(
+      button.dataset.locationTarget
+    );
+
+  const input =
+    targetId
+      ? document.getElementById(targetId)
+      : button.closest(".location-field,.stop-address-wrap")
+          ?.querySelector("input");
+
+  if(!input){
+    return;
+  }
+
+  button.dataset.locationBound = "1";
+
+  attachLocationChangeReset(
+    input
+  );
+
+  button.addEventListener(
+    "click",
+    ()=>{
+      useCurrentLocation(
+        input,
+        button
+      );
+    }
+  );
+}
+
+function bindStaticLocationButtons(){
+
+  document
+    .querySelectorAll(
+      ".current-location-btn"
+    )
+    .forEach(
+      bindCurrentLocationButton
+    );
+}
+
+function getLocationMeta(input){
+
+  const lat =
+    Number(
+      input?.dataset?.currentLat
+    );
+
+  const lng =
+    Number(
+      input?.dataset?.currentLng
+    );
+
+  if(
+    input?.dataset?.currentLocation === "1" &&
+    hasValidCoords(lat,lng)
+  ){
+    return {
+      lat,
+      lng,
+      source:"browser-current-location"
+    };
+  }
+
+  return null;
 }
 
 function showAlert(msg){
@@ -944,6 +1331,174 @@ if(saveEntryBtn) saveEntryBtn.onclick = saveEntryInfo;
 
 loadEntryInfo();
 
+/* ================= CLIENT AUTOCOMPLETE ================= */
+
+function hideClientSuggestions(){
+
+  if(!clientSuggestions){
+    return;
+  }
+
+  clientSuggestions.innerHTML = "";
+  clientSuggestions.classList.remove(
+    "show"
+  );
+}
+
+function applySavedClientToIndividual(item){
+
+  if(!item){
+    return;
+  }
+
+  clientName.value =
+    item.clientName || "";
+
+  clientPhone.value =
+    item.clientPhone || "";
+
+  pickupInput.value =
+    item.pickup || "";
+
+  dropoffInput.value =
+    item.dropoff || "";
+
+  clearLocationMeta(
+    pickupInput
+  );
+
+  clearLocationMeta(
+    dropoffInput
+  );
+
+  hideClientSuggestions();
+}
+
+function renderClientSuggestions(query){
+
+  if(!clientSuggestions){
+    return;
+  }
+
+  const matches =
+    getMatchingSavedClients(
+      query
+    );
+
+  if(!matches.length){
+
+    hideClientSuggestions();
+    return;
+  }
+
+  clientSuggestions.innerHTML = "";
+
+  matches.forEach(item=>{
+
+    const row =
+      document.createElement("div");
+
+    row.className =
+      "client-suggestion";
+
+    const name =
+      document.createElement("div");
+
+    name.className =
+      "client-suggestion-name";
+
+    name.textContent =
+      item.clientName || "";
+
+    const meta =
+      document.createElement("div");
+
+    meta.className =
+      "client-suggestion-meta";
+
+    meta.textContent =
+      [
+        item.clientPhone || "",
+        item.pickup || ""
+      ]
+      .filter(Boolean)
+      .join(" • ");
+
+    row.appendChild(name);
+
+    if(meta.textContent){
+      row.appendChild(meta);
+    }
+
+    row.addEventListener(
+      "mousedown",
+      event=>{
+        event.preventDefault();
+        applySavedClientToIndividual(
+          item
+        );
+      }
+    );
+
+    clientSuggestions.appendChild(
+      row
+    );
+  });
+
+  clientSuggestions.classList.add(
+    "show"
+  );
+}
+
+if(clientName){
+
+  clientName.addEventListener(
+    "input",
+    ()=>{
+      renderClientSuggestions(
+        clientName.value
+      );
+    }
+  );
+
+  clientName.addEventListener(
+    "focus",
+    ()=>{
+      if(normalizeText(clientName.value)){
+        renderClientSuggestions(
+          clientName.value
+        );
+      }
+    }
+  );
+
+  clientName.addEventListener(
+    "change",
+    ()=>{
+      const exact =
+        findSavedClientByName(
+          clientName.value
+        );
+
+      if(exact){
+        applySavedClientToIndividual(
+          exact
+        );
+      }
+    }
+  );
+
+  clientName.addEventListener(
+    "blur",
+    ()=>{
+      window.setTimeout(
+        hideClientSuggestions,
+        120
+      );
+    }
+  );
+}
+
 /* ================= DRAFTS ================= */
 
 function loadDraft(){
@@ -1354,12 +1909,20 @@ function createStopInput(value=""){
     "stop-row";
 
   wrapper.innerHTML = `
-    <input
-      type="text"
-      class="stop-input"
-      placeholder="Stop address"
-      value="${value}"
-    >
+    <div class="stop-address-wrap">
+      <input
+        type="text"
+        class="stop-input"
+        placeholder="Stop address"
+        value="${value}"
+      >
+      <button
+        type="button"
+        class="current-location-btn"
+        title="Use Current Location"
+        aria-label="Use Current Location"
+      >⌖</button>
+    </div>
     <button
       type="button"
       class="remove-stop-btn"
@@ -1371,6 +1934,17 @@ function createStopInput(value=""){
   wrapper.querySelector(".remove-stop-btn").onclick = ()=>{
     wrapper.remove();
   };
+
+  const stopLocationBtn =
+    wrapper.querySelector(
+      ".current-location-btn"
+    );
+
+  if(stopLocationBtn){
+    bindCurrentLocationButton(
+      stopLocationBtn
+    );
+  }
 
   stopsBox.appendChild(wrapper);
 }
@@ -1401,19 +1975,221 @@ function renderSharedPassengers(count){
       </div>
       <div class="form-grid">
         <div class="field-wrap">
-          <input class="sharedClientName" placeholder="Client Name">
+          <input class="sharedClientName" placeholder="Client Name" autocomplete="off">
+          <div class="client-suggestions shared-client-suggestions"></div>
         </div>
         <div class="field-wrap">
           <input class="sharedClientPhone" placeholder="Client Phone">
         </div>
-        <div class="field-wrap">
+        <div class="field-wrap location-field">
           <input class="sharedPickup" placeholder="Pickup Address">
+          <button
+            type="button"
+            class="current-location-btn"
+            title="Use Current Location"
+            aria-label="Use Current Location"
+          >⌖</button>
         </div>
-        <div class="field-wrap">
+        <div class="field-wrap location-field">
           <input class="sharedDropoff" placeholder="Dropoff Address">
+          <button
+            type="button"
+            class="current-location-btn"
+            title="Use Current Location"
+            aria-label="Use Current Location"
+          >⌖</button>
         </div>
       </div>
     `;
+
+    const sharedName =
+      card.querySelector(
+        ".sharedClientName"
+      );
+
+    const sharedPhone =
+      card.querySelector(
+        ".sharedClientPhone"
+      );
+
+    const sharedPickup =
+      card.querySelector(
+        ".sharedPickup"
+      );
+
+    const sharedDropoff =
+      card.querySelector(
+        ".sharedDropoff"
+      );
+
+    const sharedSuggestions =
+      card.querySelector(
+        ".shared-client-suggestions"
+      );
+
+    function hideSharedSuggestions(){
+
+      if(!sharedSuggestions){
+        return;
+      }
+
+      sharedSuggestions.innerHTML = "";
+
+      sharedSuggestions.classList.remove(
+        "show"
+      );
+    }
+
+    function applySharedSavedClient(item){
+
+      if(!item){
+        return;
+      }
+
+      sharedName.value =
+        item.clientName || "";
+
+      sharedPhone.value =
+        item.clientPhone || "";
+
+      sharedPickup.value =
+        item.pickup || "";
+
+      sharedDropoff.value =
+        item.dropoff || "";
+
+      clearLocationMeta(
+        sharedPickup
+      );
+
+      clearLocationMeta(
+        sharedDropoff
+      );
+
+      hideSharedSuggestions();
+    }
+
+    function renderSharedSuggestions(query){
+
+      if(!sharedSuggestions){
+        return;
+      }
+
+      const matches =
+        getMatchingSavedClients(
+          query
+        );
+
+      if(!matches.length){
+        hideSharedSuggestions();
+        return;
+      }
+
+      sharedSuggestions.innerHTML = "";
+
+      matches.forEach(item=>{
+
+        const row =
+          document.createElement("div");
+
+        row.className =
+          "client-suggestion";
+
+        const name =
+          document.createElement("div");
+
+        name.className =
+          "client-suggestion-name";
+
+        name.textContent =
+          item.clientName || "";
+
+        const meta =
+          document.createElement("div");
+
+        meta.className =
+          "client-suggestion-meta";
+
+        meta.textContent =
+          [
+            item.clientPhone || "",
+            item.pickup || ""
+          ]
+          .filter(Boolean)
+          .join(" • ");
+
+        row.appendChild(name);
+
+        if(meta.textContent){
+          row.appendChild(meta);
+        }
+
+        row.addEventListener(
+          "mousedown",
+          event=>{
+            event.preventDefault();
+
+            applySharedSavedClient(
+              item
+            );
+          }
+        );
+
+        sharedSuggestions.appendChild(
+          row
+        );
+      });
+
+      sharedSuggestions.classList.add(
+        "show"
+      );
+    }
+
+    if(sharedName){
+
+      sharedName.addEventListener(
+        "input",
+        ()=>{
+          renderSharedSuggestions(
+            sharedName.value
+          );
+        }
+      );
+
+      sharedName.addEventListener(
+        "change",
+        ()=>{
+          const exact =
+            findSavedClientByName(
+              sharedName.value
+            );
+
+          if(exact){
+            applySharedSavedClient(
+              exact
+            );
+          }
+        }
+      );
+
+      sharedName.addEventListener(
+        "blur",
+        ()=>{
+          window.setTimeout(
+            hideSharedSuggestions,
+            120
+          );
+        }
+      );
+    }
+
+    card
+      .querySelectorAll(
+        ".current-location-btn"
+      )
+      .forEach(
+        bindCurrentLocationButton
+      );
 
     passengersContainer.appendChild(card);
   }
@@ -1464,6 +2240,42 @@ submitTripBtn.onclick = async function(){
     console.log("selected service object:", selected.service);
     console.log("===============================================");
 
+    const pickupLocation =
+      getLocationMeta(
+        pickupInput
+      );
+
+    const dropoffLocation =
+      getLocationMeta(
+        dropoffInput
+      );
+
+    const stopDetails =
+      [...document.querySelectorAll(".stop-input")]
+        .map(input=>{
+
+          const loc =
+            getLocationMeta(
+              input
+            );
+
+          return {
+            address:
+              normalizeText(
+                input.value
+              ),
+            lat:
+              loc?.lat ?? null,
+            lng:
+              loc?.lng ?? null,
+            source:
+              loc?.source || ""
+          };
+        })
+        .filter(
+          item=>item.address
+        );
+
     const trip = {
       company:companyName,
       companyName:companyName,
@@ -1499,6 +2311,22 @@ submitTripBtn.onclick = async function(){
       dropoff:dropoffInput.value,
       stops,
 
+      pickupLat:
+        pickupLocation?.lat ?? null,
+      pickupLng:
+        pickupLocation?.lng ?? null,
+      pickupGeoSource:
+        pickupLocation?.source || "",
+
+      dropoffLat:
+        dropoffLocation?.lat ?? null,
+      dropoffLng:
+        dropoffLocation?.lng ?? null,
+      dropoffGeoSource:
+        dropoffLocation?.source || "",
+
+      stopDetails,
+
       tripDate:tripDate.value,
       tripTime:tripTime.value,
       notes:notes.value,
@@ -1523,6 +2351,13 @@ submitTripBtn.onclick = async function(){
         await res.json().catch(()=>({}));
       throw new Error(err.message || "Server Error");
     }
+
+    upsertSavedClient({
+      clientName:clientName.value,
+      clientPhone:clientPhone.value,
+      pickup:pickupInput.value,
+      dropoff:dropoffInput.value
+    });
 
     showAlert("Trip Submitted Successfully ✔");
 
@@ -1579,12 +2414,43 @@ submitSharedBtn.onclick = async function(){
 
   document.querySelectorAll(".passenger-card").forEach((card,index)=>{
 
+    const sharedPickupInput =
+      card.querySelector(".sharedPickup");
+
+    const sharedDropoffInput =
+      card.querySelector(".sharedDropoff");
+
+    const pickupLocation =
+      getLocationMeta(
+        sharedPickupInput
+      );
+
+    const dropoffLocation =
+      getLocationMeta(
+        sharedDropoffInput
+      );
+
     passengers.push({
       passengerId:"P" + (index + 1),
       clientName:card.querySelector(".sharedClientName").value,
       clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:card.querySelector(".sharedPickup").value,
-      dropoff:card.querySelector(".sharedDropoff").value,
+      pickup:sharedPickupInput.value,
+      dropoff:sharedDropoffInput.value,
+
+      pickupLat:
+        pickupLocation?.lat ?? null,
+      pickupLng:
+        pickupLocation?.lng ?? null,
+      pickupGeoSource:
+        pickupLocation?.source || "",
+
+      dropoffLat:
+        dropoffLocation?.lat ?? null,
+      dropoffLng:
+        dropoffLocation?.lng ?? null,
+      dropoffGeoSource:
+        dropoffLocation?.source || "",
+
       status:"Scheduled"
     });
   });
@@ -1659,6 +2525,15 @@ submitSharedBtn.onclick = async function(){
       throw new Error(err.message || "Server Error");
     }
 
+    passengers.forEach(passenger=>{
+      upsertSavedClient({
+        clientName:passenger.clientName,
+        clientPhone:passenger.clientPhone,
+        pickup:passenger.pickup,
+        dropoff:passenger.dropoff
+      });
+    });
+
     showAlert("Shared Trip Submitted ✔");
 
     passengersContainer.innerHTML = "";
@@ -1684,6 +2559,16 @@ submitSharedBtn.onclick = async function(){
 }
 
 /* ================= INIT ================= */
+
+bindStaticLocationButtons();
+
+attachLocationChangeReset(
+  pickupInput
+);
+
+attachLocationChangeReset(
+  dropoffInput
+);
 
 loadDraft();
 loadSharedDraft();

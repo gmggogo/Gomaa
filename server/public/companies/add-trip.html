@@ -227,6 +227,105 @@ button:hover{
   width:auto;
 }
 
+
+/* ================= CURRENT LOCATION ================= */
+
+.location-field{
+  position:relative;
+}
+
+.location-field input{
+  padding-right:52px;
+}
+
+.current-location-btn{
+  position:absolute;
+  right:6px;
+  top:50%;
+  transform:translateY(-50%);
+  width:38px;
+  height:34px;
+  padding:0;
+  border:none;
+  border-radius:9px;
+  background:#eaf3ff;
+  color:#2563eb;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:3;
+}
+
+.current-location-btn:hover{
+  transform:translateY(-50%);
+  background:#dbeafe;
+}
+
+.current-location-btn:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+
+.stop-address-wrap{
+  position:relative;
+  flex:1;
+}
+
+.stop-address-wrap input{
+  width:100%;
+  padding-right:52px;
+}
+
+/* ================= SAVED CLIENTS ================= */
+
+.client-suggestions{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% + 4px);
+  background:#fff;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  box-shadow:0 10px 24px rgba(15,23,42,.12);
+  max-height:210px;
+  overflow:auto;
+  z-index:50;
+  display:none;
+}
+
+.client-suggestions.show{
+  display:block;
+}
+
+.client-suggestion{
+  padding:10px 12px;
+  cursor:pointer;
+  border-bottom:1px solid #eef2f7;
+}
+
+.client-suggestion:last-child{
+  border-bottom:none;
+}
+
+.client-suggestion:hover{
+  background:#f1f5f9;
+}
+
+.client-suggestion-name{
+  font-size:13px;
+  font-weight:800;
+  color:#0f172a;
+}
+
+.client-suggestion-meta{
+  margin-top:2px;
+  font-size:11px;
+  color:#64748b;
+}
+
 /* ================= MOBILE ================= */
 
 @media(max-width:768px){
@@ -368,7 +467,8 @@ button:hover{
 <div class="form-grid">
 
   <div class="field-wrap">
-    <input id="clientName" placeholder="Client Name">
+    <input id="clientName" placeholder="Client Name" autocomplete="off">
+    <div class="client-suggestions" id="clientSuggestions"></div>
   </div>
 
   <div class="field-wrap">
@@ -385,8 +485,15 @@ button:hover{
 
 <div class="form-grid">
 
-  <div class="field-wrap">
+  <div class="field-wrap location-field">
     <input id="pickup" placeholder="Pickup Address">
+    <button
+      type="button"
+      class="current-location-btn"
+      data-location-target="pickup"
+      title="Use Current Location"
+      aria-label="Use Current Location"
+    >⌖</button>
   </div>
 
   <div class="field-wrap">
@@ -405,8 +512,15 @@ button:hover{
 
 <div class="form-grid" style="margin-top:12px;">
 
-  <div class="field-wrap">
+  <div class="field-wrap location-field">
     <input id="dropoff" placeholder="Dropoff Address">
+    <button
+      type="button"
+      class="current-location-btn"
+      data-location-target="dropoff"
+      title="Use Current Location"
+      aria-label="Use Current Location"
+    >⌖</button>
   </div>
 
   <div class="field-wrap">
