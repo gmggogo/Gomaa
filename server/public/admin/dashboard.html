@@ -1,527 +1,805 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-<title>Admin Dashboard</title>
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
-/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard | GH Mobility</title>
 
 <link rel="stylesheet" href="/admin/style.css">
 
 <style>
+*{box-sizing:border-box}
 
-/* =========================
-   BODY
-========================= */
+:root{
+  --ink:#0b1b2a;
+  --muted:#637689;
+  --gold:#d3a72e;
+  --gold-light:#ffe39a;
+  --sky:#eaf5fd;
+  --line:#c9dce9;
+  --teal1:#378c93;
+  --teal2:#126b76;
+  --teal3:#07485d;
+  --navy1:#0c5870;
+  --navy2:#06364f;
+  --green1:#53d835;
+  --green2:#159509;
+  --amber1:#ffc954;
+  --amber2:#d8900f;
+  --red1:#ef6875;
+  --red2:#bd293a;
+  --blue1:#5ba6e8;
+  --blue2:#246cb0;
+  --purple1:#9985e8;
+  --purple2:#6351b7;
+}
 
 body{
   margin:0;
-  font-family:'Segoe UI',Arial,sans-serif;
-  background:#eef3f9;
-  color:#0f172a;
+  min-height:100vh;
+  color:var(--ink);
+  background:
+    radial-gradient(circle at 15% 5%,rgba(79,183,203,.13),transparent 23%),
+    radial-gradient(circle at 90% 28%,rgba(211,167,46,.10),transparent 21%),
+    linear-gradient(180deg,#f7fbfe 0%,#edf5fa 100%);
+  font-family:Inter,Segoe UI,Arial,sans-serif;
 }
 
-/* =========================
-   HEADER
-========================= */
-
-#adminHeader{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:9999;
+.dashboard-page{
+  width:min(1500px,100%);
+  margin:0 auto;
+  padding:18px 22px 34px;
 }
 
-/* =========================
-   PAGE
-========================= */
-
-.page-body{
-  padding-top:240px;
-  padding-left:25px;
-  padding-right:25px;
-  padding-bottom:40px;
-  max-width:1700px;
-  margin:auto;
-}
-
-/* =========================
-   TITLE
-========================= */
-
-.page-title{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  margin-bottom:30px;
-  flex-wrap:wrap;
-}
-
-.page-title h1{
-  margin:0;
-  font-size:34px;
-  font-weight:900;
-  color:#0f172a;
-}
-
-.page-title p{
-  margin:8px 0 0;
-  color:#64748b;
-  font-size:15px;
-  font-weight:600;
-}
-
-/* =========================
-   DASHBOARD GRID
-========================= */
-
-.dashboard-grid{
-  display:grid;
-  grid-template-columns:
-    repeat(auto-fit,minmax(250px,1fr));
-  gap:22px;
-}
-
-/* =========================
-   CARD
-========================= */
-
-.dashboard-card{
-  position:relative;
-  overflow:hidden;
-
-  background:#fff;
-
-  border-radius:22px;
-
-  padding:28px;
-
-  border:1px solid #dbe2ea;
-
-  box-shadow:
-    0 12px 35px rgba(0,0,0,.06);
-
-  transition:.25s;
-}
-
-.dashboard-card:hover{
-  transform:translateY(-4px);
-  box-shadow:
-    0 18px 45px rgba(0,0,0,.10);
-}
-
-/* TOP BAR */
-
-.card-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  margin-bottom:18px;
-}
-
-/* ICON */
-
-.card-icon{
-  width:58px;
-  height:58px;
-  border-radius:16px;
-
+/* SAME GOLD PAGE TITLE LANGUAGE AS TRIPS HUB */
+.page-head{
   display:flex;
   align-items:center;
   justify-content:center;
-
-  font-size:28px;
-  font-weight:900;
+  min-height:84px;
+  margin-bottom:13px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
 }
 
-/* COLORS */
-
-.blue{
-  background:#dbeafe;
-  color:#2563eb;
-}
-
-.green{
-  background:#dcfce7;
-  color:#16a34a;
-}
-
-.red{
-  background:#fee2e2;
-  color:#dc2626;
-}
-
-.orange{
-  background:#fef3c7;
-  color:#ca8a04;
-}
-
-.purple{
-  background:#ede9fe;
-  color:#7c3aed;
-}
-
-/* TITLE */
-
-.dashboard-card h3{
+.page-title{
   margin:0;
-  font-size:15px;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:950;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
   font-weight:800;
   color:#64748b;
+}
+
+/* METALLIC COMMON CARD */
+.metal-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:17px;
+  color:#fff;
+  border:1px solid rgba(5,70,83,.95);
+  background:
+    linear-gradient(180deg,var(--teal1) 0%,#277d84 10%,var(--teal2) 50%,#0b5667 51%,var(--teal3) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -1px 0 rgba(0,0,0,.22),
+    0 8px 17px rgba(11,68,83,.18);
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+.metal-card:before{
+  content:"";
+  position:absolute;
+  top:1px;
+  left:5%;
+  right:5%;
+  height:42%;
+  border-radius:14px 14px 55% 55%;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.02));
+  pointer-events:none;
+}
+
+.metal-card > *{
+  position:relative;
+  z-index:1;
+}
+
+/* FIRST ROW */
+.primary-stats{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(130px,1fr));
+  gap:10px;
+  margin-bottom:13px;
+}
+
+.stat-card{
+  min-height:118px;
+  padding:15px 13px 13px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  text-align:center;
+  cursor:pointer;
+  transition:transform .15s ease,filter .15s ease;
+}
+
+.stat-card:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.05);
+}
+
+.stat-card.green{
+  border-color:#177f12;
+  background:linear-gradient(180deg,#65df48 0%,#3bc529 14%,#20ad15 50%,#15990b 51%,#0d7c08 100%);
+}
+
+.stat-card.blue{
+  border-color:#2b6ea5;
+  background:linear-gradient(180deg,#72b9ee 0%,#4d9edc 15%,#357fbe 50%,#266eaf 51%,#185a96 100%);
+}
+
+.stat-card.gold{
+  color:#322200;
+  text-shadow:none;
+  border-color:#c6921e;
+  background:linear-gradient(180deg,#ffe38c 0%,#f6c954 15%,#e9b737 50%,#dca227 51%,#c78914 100%);
+}
+
+.stat-card.red{
+  border-color:#b92d3d;
+  background:linear-gradient(180deg,#f7838d 0%,#ed5d6b 15%,#d94052 50%,#c42e40 51%,#a82032 100%);
+}
+
+.stat-card.purple{
+  border-color:#6552ae;
+  background:linear-gradient(180deg,#b0a0f1 0%,#9180df 15%,#7866cc 50%,#6553b9 51%,#50409e 100%);
+}
+
+.stat-label{
+  min-height:29px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:950;
+  letter-spacing:.45px;
   text-transform:uppercase;
-  letter-spacing:.4px;
 }
 
-/* NUMBER */
-
-.dashboard-number{
-  font-size:42px;
-  font-weight:900;
+.stat-value{
+  margin:5px 0 2px;
+  font-size:38px;
   line-height:1;
-  margin-bottom:10px;
-  color:#0f172a;
+  font-weight:1000;
 }
 
-/* SMALL TEXT */
+.stat-note{
+  font-size:9.5px;
+  font-weight:800;
+  opacity:.92;
+}
 
-.card-small{
+/* SECTION */
+.section{
+  margin-top:13px;
+}
+
+.section-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 2px 7px;
+}
+
+.section-title{
+  margin:0;
+  color:#12384b;
+  font-size:15px;
+  font-weight:950;
+}
+
+.section-note{
+  color:#718294;
+  font-size:10px;
+  font-weight:750;
+}
+
+/* SHORTCUTS */
+.quick-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(140px,1fr));
+  gap:9px;
+}
+
+.quick-card{
+  min-height:86px;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  text-align:center;
+  text-decoration:none;
+  cursor:pointer;
+}
+
+.quick-card:hover{
+  filter:brightness(1.07);
+  transform:translateY(-1px);
+}
+
+.quick-title{
+  color:#fff;
+  font-size:12px;
+  font-weight:950;
+}
+
+.quick-sub{
+  color:#dff7fb;
+  font-size:9px;
+  font-weight:750;
+}
+
+/* SERVICES */
+.services-panel{
+  padding:13px;
+  border:1px solid #bdd6e4;
+  border-radius:18px;
+  background:rgba(255,255,255,.86);
+  box-shadow:0 7px 17px rgba(28,78,100,.09);
+}
+
+.service-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(125px,1fr));
+  gap:8px;
+}
+
+.service-pill{
+  min-height:67px;
+  padding:9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  border-radius:13px;
+  text-align:center;
+  color:#fff;
+  border:1px solid #146d70;
+  background:linear-gradient(180deg,#48a1a0 0%,#228277 48%,#12675c 49%,#0b5049 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 9px rgba(15,91,84,.15);
+}
+
+.service-pill.off{
+  color:#70818e;
+  text-shadow:none;
+  border-color:#bccad2;
+  background:linear-gradient(180deg,#eef3f6,#dbe4e9);
+}
+
+.service-name{
+  font-size:11px;
+  font-weight:950;
+}
+
+.service-state{
+  margin-top:4px;
+  font-size:8.5px;
+  font-weight:950;
+  letter-spacing:.45px;
+}
+
+/* SUPER ADMIN FINANCE */
+.super-only{
+  display:none;
+}
+
+.finance-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(150px,1fr));
+  gap:9px;
+}
+
+.finance-card{
+  min-height:101px;
+  padding:13px;
+  text-align:center;
+}
+
+.finance-label{
+  min-height:29px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:10.5px;
+  font-weight:950;
+  letter-spacing:.3px;
+  text-transform:uppercase;
+}
+
+.finance-value{
+  margin-top:6px;
+  font-size:26px;
+  font-weight:1000;
+}
+
+.finance-sub{
+  margin-top:4px;
+  font-size:9px;
+  font-weight:750;
+  color:#ddf8fb;
+}
+
+.platform-box{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:9px;
+  margin-top:9px;
+}
+
+.platform-subscription,
+.company-billing-summary{
+  min-height:126px;
+  padding:14px 16px;
+}
+
+.panel-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+
+.panel-title{
   font-size:13px;
-  color:#94a3b8;
-  font-weight:700;
+  font-weight:950;
 }
 
-/* =========================
-   MOBILE
-========================= */
-
-@media(max-width:768px){
-
-  .page-body{
-    padding-top:330px;
-    padding-left:12px;
-    padding-right:12px;
-    padding-bottom:20px;
-  }
-
-  .page-title h1{
-    font-size:28px;
-  }
-
-  .dashboard-grid{
-    gap:15px;
-  }
-
-  .dashboard-card{
-    padding:22px;
-    border-radius:18px;
-  }
-
-  .dashboard-number{
-    font-size:36px;
-  }
-
-  .card-icon{
-    width:50px;
-    height:50px;
-    font-size:24px;
-  }
-
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.25);
+  font-size:8.5px;
+  font-weight:1000;
+  letter-spacing:.5px;
+  background:rgba(255,255,255,.11);
 }
 
+.data-line{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.13);
+  font-size:10px;
+  font-weight:800;
+}
+
+.data-line:last-child{
+  border-bottom:0;
+}
+
+/* LATEST TRIPS */
+.latest-wrap{
+  overflow:hidden;
+  border:1px solid #bfd5e2;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 7px 17px rgba(31,78,98,.09);
+}
+
+.latest-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.latest-table th{
+  padding:10px 9px;
+  color:#fff;
+  font-size:9px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+  background:linear-gradient(180deg,#338b92,#0c5b6b);
+}
+
+.latest-table td{
+  padding:10px 9px;
+  border-bottom:1px solid #e3edf3;
+  color:#263c4b;
+  font-size:10px;
+  font-weight:750;
+  text-align:center;
+}
+
+.latest-table tr:last-child td{
+  border-bottom:0;
+}
+
+.status-chip{
+  display:inline-flex;
+  min-width:72px;
+  justify-content:center;
+  padding:4px 7px;
+  border-radius:999px;
+  font-size:8px;
+  font-weight:950;
+  color:#fff;
+  background:#147184;
+}
+
+.status-chip.completed{background:#159315}
+.status-chip.cancelled{background:#c72d40}
+.status-chip.noshow{background:#7a54b9}
+.status-chip.ontrip{background:#cb8916}
+.status-chip.new{background:#2781bf}
+
+.loading-box{
+  padding:25px;
+  text-align:center;
+  color:#668091;
+  font-size:12px;
+  font-weight:850;
+}
+
+/* ROLE NOTICE */
+.role-strip{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+  padding:10px 14px;
+  border:1px solid #9fc7d5;
+  border-radius:13px;
+  color:#eaffff;
+  background:linear-gradient(180deg,#287e88,#0b5a68);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 4px 10px rgba(15,78,91,.13);
+}
+
+.role-strip strong{
+  color:#ffe075;
+}
+
+.role-strip span{
+  font-size:10px;
+  font-weight:800;
+}
+
+.refresh-btn{
+  min-height:30px;
+  padding:5px 11px;
+  border:1px solid #d1a536;
+  border-radius:9px;
+  color:#2e2305;
+  font-size:9px;
+  font-weight:950;
+  cursor:pointer;
+  background:linear-gradient(180deg,#ffe89c,#eab93e);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* RESPONSIVE */
+@media(max-width:1200px){
+  .primary-stats{grid-template-columns:repeat(3,1fr)}
+  .quick-grid{grid-template-columns:repeat(3,1fr)}
+  .service-grid{grid-template-columns:repeat(4,1fr)}
+  .finance-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:760px){
+  .dashboard-page{padding:10px 8px 22px}
+  .page-head{min-height:72px;padding:12px;margin-bottom:10px}
+  .page-title{font-size:22px}
+  .page-sub{font-size:11px}
+
+  .role-strip{
+    padding:8px 9px;
+  }
+
+  .primary-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .stat-card{
+    min-height:91px;
+    padding:9px 6px;
+    border-radius:12px;
+  }
+
+  .stat-label{font-size:8.7px;min-height:22px}
+  .stat-value{font-size:29px}
+  .stat-note{font-size:7.7px}
+
+  .quick-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .quick-card{
+    min-height:67px;
+    padding:7px 5px;
+    border-radius:12px;
+  }
+
+  .quick-title{font-size:9.7px}
+  .quick-sub{font-size:7.5px}
+
+  .service-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .service-pill{min-height:56px}
+  .service-name{font-size:9.5px}
+
+  .finance-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .finance-card{
+    min-height:87px;
+    padding:9px 5px;
+    border-radius:12px;
+  }
+
+  .finance-label{font-size:8.5px}
+  .finance-value{font-size:22px}
+
+  .platform-box{
+    grid-template-columns:1fr;
+    gap:6px;
+  }
+
+  .latest-wrap{
+    overflow-x:auto;
+  }
+
+  .latest-table{
+    min-width:710px;
+  }
+
+  .section-title{font-size:13px}
+  .section-note{font-size:8px}
+}
+
+@media(max-width:390px){
+  .primary-stats,
+  .quick-grid,
+  .finance-grid{
+    gap:5px;
+  }
+
+  .stat-card{
+    min-height:85px;
+  }
+
+  .stat-value{font-size:26px}
+}
 </style>
-
 </head>
 
 <body>
 
-<!-- HEADER -->
 <div id="adminHeader"></div>
 
-<!-- PAGE -->
-<div class="page-body">
+<main class="dashboard-page">
 
-  <!-- TITLE -->
-  <div class="page-title">
-
+  <div class="page-head">
     <div>
-
-      <h1>
-        Dashboard Overview
-      </h1>
-
-      <p>
-        Sunbeam Transportation Admin System
-      </p>
-
+      <h1 class="page-title">Operations Dashboard</h1>
+      <div class="page-sub" id="dashboardSubtitle">
+        Live operational overview
+      </div>
     </div>
-
   </div>
 
-  <!-- GRID -->
-  <div class="dashboard-grid">
+  <div class="role-strip">
+    <span>
+      Dashboard view:
+      <strong id="dashboardRole">--</strong>
+    </span>
 
-    <!-- TOTAL -->
-
-    <div class="dashboard-card">
-
-      <div class="card-top">
-
-        <div class="card-icon blue">
-          🚐
-        </div>
-
-      </div>
-
-      <h3>Total Trips</h3>
-
-      <div
-        class="dashboard-number"
-        id="totalTrips">
-
-        0
-
-      </div>
-
-      <div class="card-small">
-        All trips in system
-      </div>
-
-    </div>
-
-    <!-- CONFIRMED -->
-
-    <div class="dashboard-card">
-
-      <div class="card-top">
-
-        <div class="card-icon green">
-          ✔
-        </div>
-
-      </div>
-
-      <h3>Confirmed Trips</h3>
-
-      <div
-        class="dashboard-number"
-        id="confirmedTrips">
-
-        0
-
-      </div>
-
-      <div class="card-small">
-        Approved & scheduled
-      </div>
-
-    </div>
-
-    <!-- CANCELLED -->
-
-    <div class="dashboard-card">
-
-      <div class="card-top">
-
-        <div class="card-icon red">
-          ✖
-        </div>
-
-      </div>
-
-      <h3>Cancelled Trips</h3>
-
-      <div
-        class="dashboard-number"
-        id="cancelledTrips">
-
-        0
-
-      </div>
-
-      <div class="card-small">
-        Cancelled bookings
-      </div>
-
-    </div>
-
-    <!-- COMPLETED -->
-
-    <div class="dashboard-card">
-
-      <div class="card-top">
-
-        <div class="card-icon orange">
-          🏁
-        </div>
-
-      </div>
-
-      <h3>Completed Trips</h3>
-
-      <div
-        class="dashboard-number"
-        id="completedTrips">
-
-        0
-
-      </div>
-
-      <div class="card-small">
-        Successfully completed
-      </div>
-
-    </div>
-
-    <!-- DISPATCH -->
-
-    <div class="dashboard-card">
-
-      <div class="card-top">
-
-        <div class="card-icon purple">
-          📍
-        </div>
-
-      </div>
-
-      <h3>Dispatch Trips</h3>
-
-      <div
-        class="dashboard-number"
-        id="dispatchTrips">
-
-        0
-
-      </div>
-
-      <div class="card-small">
-        Assigned to dispatch
-      </div>
-
-    </div>
-
+    <button class="refresh-btn" id="refreshDashboardBtn" type="button">
+      Refresh
+    </button>
   </div>
 
-</div>
+  <!-- MAIN LIVE TOTALS -->
+  <section class="primary-stats">
+    <div class="stat-card metal-card gold" data-href="trips-hub.html">
+      <div class="stat-label">Trips Hub</div>
+      <div class="stat-value" id="hubTripsValue">0</div>
+      <div class="stat-note">Active reservations</div>
+    </div>
 
-<!-- HEADER -->
+    <div class="stat-card metal-card green" data-href="trips-hub.html">
+      <div class="stat-label">New Trips</div>
+      <div class="stat-value" id="newTripsValue">0</div>
+      <div class="stat-note">Added in last 2 hours</div>
+    </div>
+
+    <div class="stat-card metal-card blue" data-href="trips.html">
+      <div class="stat-label">Today's Trips</div>
+      <div class="stat-value" id="todayTripsValue">0</div>
+      <div class="stat-note">Scheduled for today</div>
+    </div>
+
+    <div class="stat-card metal-card" data-href="dispatch.html">
+      <div class="stat-label">Dispatched</div>
+      <div class="stat-value" id="dispatchedValue">0</div>
+      <div class="stat-note">Assigned / sent</div>
+    </div>
+
+    <div class="stat-card metal-card purple" data-href="dispatch-final-confirmation.html">
+      <div class="stat-label">Completed Today</div>
+      <div class="stat-value" id="completedValue">0</div>
+      <div class="stat-note">Finished today</div>
+    </div>
+
+    <div class="stat-card metal-card red" data-href="dispatch-review.html">
+      <div class="stat-label">Needs Attention</div>
+      <div class="stat-value" id="attentionValue">0</div>
+      <div class="stat-note">No Show / Cancel / Not Completed</div>
+    </div>
+  </section>
+
+  <!-- ROLE SHORTCUTS -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Quick Access</h2>
+      <div class="section-note">Shortcuts are controlled by your role</div>
+    </div>
+
+    <div class="quick-grid" id="quickAccessGrid"></div>
+  </section>
+
+  <!-- ENABLED SERVICES -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Enabled Services</h2>
+      <div class="section-note">Services available for this organization</div>
+    </div>
+
+    <div class="services-panel">
+      <div class="service-grid" id="enabledServicesGrid">
+        <div class="loading-box">Loading services...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUPER ADMIN FINANCE -->
+  <section class="section super-only" id="superAdminFinance">
+    <div class="section-head">
+      <h2 class="section-title">Financial Overview</h2>
+      <div class="section-note">Super Admin only</div>
+    </div>
+
+    <div class="finance-grid">
+      <div class="finance-card metal-card">
+        <div class="finance-label">Contracted Companies</div>
+        <div class="finance-value" id="companiesValue">0</div>
+        <div class="finance-sub">Company / facility accounts</div>
+      </div>
+
+      <div class="finance-card metal-card green">
+        <div class="finance-label">Current Invoices</div>
+        <div class="finance-value" id="invoiceValue">$0.00</div>
+        <div class="finance-sub">Open company billing total</div>
+      </div>
+
+      <div class="finance-card metal-card gold">
+        <div class="finance-label">Current Revenue</div>
+        <div class="finance-value" id="revenueValue">$0.00</div>
+        <div class="finance-sub">Current billing cycles</div>
+      </div>
+
+      <div class="finance-card metal-card red">
+        <div class="finance-label">Past Due / Suspended</div>
+        <div class="finance-value" id="pastDueValue">0</div>
+        <div class="finance-sub">Accounts needing action</div>
+      </div>
+    </div>
+
+    <div class="platform-box">
+      <div class="platform-subscription metal-card">
+        <div class="panel-top">
+          <div class="panel-title">GH Mobility Platform Subscription</div>
+          <span class="badge" id="platformBillingStatus">NOT CONFIGURED</span>
+        </div>
+
+        <div class="data-line">
+          <span>Plan</span>
+          <strong id="platformPlan">--</strong>
+        </div>
+
+        <div class="data-line">
+          <span>Next Platform Payment</span>
+          <strong id="platformNextPayment">--</strong>
+        </div>
+
+        <div class="data-line">
+          <span>Amount</span>
+          <strong id="platformAmount">--</strong>
+        </div>
+      </div>
+
+      <div class="company-billing-summary metal-card">
+        <div class="panel-top">
+          <div class="panel-title">Company Billing</div>
+          <span class="badge">LIVE</span>
+        </div>
+
+        <div class="data-line">
+          <span>Next Company Due</span>
+          <strong id="nextCompanyDue">--</strong>
+        </div>
+
+        <div class="data-line">
+          <span>Active Accounts</span>
+          <strong id="activeCompaniesValue">0</strong>
+        </div>
+
+        <div class="data-line">
+          <span>Locked Accounts</span>
+          <strong id="lockedCompaniesValue">0</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LATEST TRIPS -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Latest Trips</h2>
+      <div class="section-note">Most recently added reservations</div>
+    </div>
+
+    <div class="latest-wrap">
+      <table class="latest-table">
+        <thead>
+          <tr>
+            <th>Trip #</th>
+            <th>Service</th>
+            <th>Passenger / Group</th>
+            <th>Trip Date</th>
+            <th>Trip Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="latestTripsBody">
+          <tr>
+            <td colspan="6">
+              <div class="loading-box">Loading dashboard...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
 <script src="/admin/header.js"></script>
-
-<script>
-
-/* =========================
-   LOAD DASHBOARD
-========================= */
-
-async function loadDashboard(){
-
-  try{
-
-    const token =
-      localStorage.getItem(
-        "token"
-      ) || "";
-
-    const res =
-      await fetch(
-        "/api/tenant-trips",
-        {
-          headers:{
-            "Authorization":
-              "Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-
-      throw new Error(
-        data.message ||
-        "Dashboard load failed"
-      );
-
-    }
-
-    const trips =
-      Array.isArray(data)
-        ? data
-        : [];
-
-    document.getElementById(
-      "totalTrips"
-    ).innerText =
-      trips.length || 0;
-
-    document.getElementById(
-      "confirmedTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "confirmed" ||
-          t.status === "Confirmed"
-      ).length;
-
-    document.getElementById(
-      "cancelledTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "cancelled" ||
-          t.status === "Cancelled"
-      ).length;
-
-    document.getElementById(
-      "completedTrips"
-    ).innerText =
-      trips.filter(
-        t =>
-          t.status === "completed" ||
-          t.status === "Completed"
-      ).length;
-
-    document.getElementById(
-      "dispatchTrips"
-    ).innerText =
-      trips.filter(
-        t => t.dispatchSelected
-      ).length;
-
-  }catch(err){
-
-    console.log(
-      "Dashboard error",
-      err
-    );
-
-  }
-
-}
-
-/* =========================
-   INIT
-========================= */
-
-document.addEventListener(
-  "DOMContentLoaded",
-  ()=>{
-
-    loadDashboard();
-
-  }
-);
-
-</script>
+<script src="/admin/dashboard.js"></script>
 
 </body>
 </html>
