@@ -656,6 +656,462 @@ const Tenant =
 global.User = User;
 
 /* =========================
+   CURRENT LOCATION - GLOBAL
+   ONE ENGINE FOR:
+   - Companies Add Trip
+   - Reserved / Reservation
+   - Get Quote
+
+   Main endpoint:
+   GET /api/location/reverse?lat=...&lng=...&tenantSlug=sony
+
+   Backward-compatible company endpoint:
+   GET /api/company-current-location/reverse?lat=...&lng=...
+
+   LOW REQUEST DESIGN:
+   - Browser GPS is requested only when user chooses Current Location.
+   - Server performs one Google reverse-geocode only when cache misses.
+   - Same nearby coordinates are cached for 10 minutes.
+========================= */
+
+const currentLocationReverseCache =
+  global.__currentLocationReverseCache ||
+  new Map();
+
+global.__currentLocationReverseCache =
+  currentLocationReverseCache;
+
+const CURRENT_LOCATION_CACHE_MS =
+  10 * 60 * 1000;
+
+function currentLocationNumber(value){
+
+  const num =
+    Number(value);
+
+  return Number.isFinite(num)
+    ? num
+    : null;
+}
+
+function currentLocationCacheKey(
+  lat,
+  lng
+){
+
+  /*
+    5 decimals keeps the point precise to roughly 1 meter
+    while still allowing repeated clicks from the same device
+    to reuse the cached address.
+  */
+  return (
+    Number(lat).toFixed(5) +
+    "," +
+    Number(lng).toFixed(5)
+  );
+}
+
+function getGoogleMapsServerKey(){
+
+  return String(
+    process.env.GOOGLE_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    ""
+  ).trim();
+}
+
+async function resolveLocationTenantContext(req){
+
+  /*
+    Logged-in Company / Staff / Driver:
+    use the signed JWT when present.
+  */
+  const bearer =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    bearer.toLowerCase().startsWith(
+      "bearer "
+    )
+  ){
+
+    try{
+
+      const verified =
+        jwt.verify(
+          bearer.slice(7).trim(),
+          JWT_SECRET
+        );
+
+      if(
+        verified?.role ===
+        "PLATFORM_ADMIN"
+      ){
+        return {
+          mode:"TOKEN",
+          tenantId:
+            verified?.tenantId ||
+            null,
+          tenantSlug:
+            verified?.tenantSlug ||
+            ""
+        };
+      }
+
+      if(
+        !verified?.tenantId
+      ){
+        throw Object.assign(
+          new Error(
+            "Tenant Required"
+          ),
+          {statusCode:403}
+        );
+      }
+
+      return {
+        mode:"TOKEN",
+        tenantId:
+          String(
+            verified.tenantId
+          ),
+        tenantSlug:
+          String(
+            verified.tenantSlug ||
+            ""
+          )
+      };
+
+    }catch(err){
+
+      if(err?.statusCode){
+        throw err;
+      }
+
+      throw Object.assign(
+        new Error(
+          "Invalid Token"
+        ),
+        {statusCode:401}
+      );
+    }
+  }
+
+  /*
+    Public Get Quote / Reservation:
+    no login token is required, but the public tenant link must
+    identify an enabled tenant. Never accept a public tenantId.
+  */
+  const tenantSlug =
+    cleanTenantSlug(
+      req.query?.tenantSlug ||
+      req.query?.tenant ||
+      req.body?.tenantSlug ||
+      req.body?.tenant ||
+      ""
+    );
+
+  if(
+    !tenantSlug ||
+    !/^[a-z0-9-]+$/.test(
+      tenantSlug
+    )
+  ){
+    throw Object.assign(
+      new Error(
+        "Company login link required"
+      ),
+      {statusCode:400}
+    );
+  }
+
+  const tenant =
+    await Tenant.findOne({
+      slug:tenantSlug,
+      enabled:true,
+      subscriptionStatus:{
+        $in:["ACTIVE","TRIAL"]
+      }
+    })
+    .select(
+      "_id slug"
+    )
+    .lean();
+
+  if(!tenant){
+
+    throw Object.assign(
+      new Error(
+        "Organization not found or inactive"
+      ),
+      {statusCode:404}
+    );
+  }
+
+  return {
+    mode:"PUBLIC",
+    tenantId:
+      String(
+        tenant._id
+      ),
+    tenantSlug:
+      String(
+        tenant.slug ||
+        tenantSlug
+      )
+  };
+}
+
+async function reverseGeocodeCurrentLocation(
+  lat,
+  lng
+){
+
+  const key =
+    currentLocationCacheKey(
+      lat,
+      lng
+    );
+
+  const cached =
+    currentLocationReverseCache.get(
+      key
+    );
+
+  if(
+    cached &&
+    (
+      Date.now() -
+      Number(cached.savedAt || 0)
+    ) < CURRENT_LOCATION_CACHE_MS
+  ){
+    return {
+      ...cached,
+      cacheHit:true
+    };
+  }
+
+  const googleKey =
+    getGoogleMapsServerKey();
+
+  if(!googleKey){
+
+    throw Object.assign(
+      new Error(
+        "Google Maps API key is not configured"
+      ),
+      {statusCode:500}
+    );
+  }
+
+  const url =
+    "https://maps.googleapis.com/maps/api/geocode/json" +
+    "?latlng=" +
+    encodeURIComponent(
+      `${lat},${lng}`
+    ) +
+    "&key=" +
+    encodeURIComponent(
+      googleKey
+    );
+
+  const response =
+    await fetch(url);
+
+  let data = {};
+
+  try{
+    data =
+      await response.json();
+  }catch(_){}
+
+  if(
+    !response.ok ||
+    data?.status !== "OK" ||
+    !Array.isArray(
+      data?.results
+    ) ||
+    !data.results.length
+  ){
+
+    console.log(
+      "CURRENT LOCATION GOOGLE ERROR:",
+      data?.status ||
+      response.status,
+      data?.error_message ||
+      ""
+    );
+
+    throw Object.assign(
+      new Error(
+        "Could not find the street address for Current Location"
+      ),
+      {statusCode:404}
+    );
+  }
+
+  const address =
+    String(
+      data.results[0]
+        ?.formatted_address ||
+      ""
+    ).trim();
+
+  if(!address){
+
+    throw Object.assign(
+      new Error(
+        "Current Location address is unavailable"
+      ),
+      {statusCode:404}
+    );
+  }
+
+  const result = {
+    address,
+    formattedAddress:
+      address,
+    lat:Number(lat),
+    lng:Number(lng),
+    source:
+      "google-server-reverse-geocode",
+    savedAt:
+      Date.now()
+  };
+
+  currentLocationReverseCache.set(
+    key,
+    result
+  );
+
+  return {
+    ...result,
+    cacheHit:false
+  };
+}
+
+async function currentLocationReverseHandler(
+  req,
+  res
+){
+
+  try{
+
+    /*
+      Resolve the tenant first.
+      This lets the SAME endpoint safely serve:
+      Company Add Trip, Reserved, and public Get Quote.
+    */
+    const tenantContext =
+      await resolveLocationTenantContext(
+        req
+      );
+
+    const lat =
+      currentLocationNumber(
+        req.query?.lat ??
+        req.body?.lat
+      );
+
+    const lng =
+      currentLocationNumber(
+        req.query?.lng ??
+        req.body?.lng
+      );
+
+    if(
+      lat === null ||
+      lng === null ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ){
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Invalid location coordinates"
+      });
+    }
+
+    const result =
+      await reverseGeocodeCurrentLocation(
+        lat,
+        lng
+      );
+
+    return res.json({
+      success:true,
+      address:
+        result.address,
+      formattedAddress:
+        result.formattedAddress,
+      lat:
+        result.lat,
+      lng:
+        result.lng,
+      source:
+        result.source,
+      cacheHit:
+        result.cacheHit === true,
+      tenantSlug:
+        tenantContext.tenantSlug ||
+        ""
+    });
+
+  }catch(err){
+
+    console.log(
+      "CURRENT LOCATION REVERSE ERROR:",
+      err?.message ||
+      err
+    );
+
+    return res
+      .status(
+        Number(
+          err?.statusCode ||
+          500
+        )
+      )
+      .json({
+        success:false,
+        message:
+          err?.message ||
+          "Could not resolve Current Location address"
+      });
+  }
+}
+
+/*
+  GLOBAL endpoint for all booking flows.
+*/
+app.get(
+  "/api/location/reverse",
+  currentLocationReverseHandler
+);
+
+/*
+  Backward compatibility:
+  existing Company Add Trip JS can continue working immediately.
+  Future Reserved / Get Quote should use /api/location/reverse.
+*/
+app.get(
+  "/api/company-current-location/reverse",
+  currentLocationReverseHandler
+);
+
+console.log(
+  "✅ Current Location mounted on /api/location/reverse"
+);
+
+/* =========================
    FACILITY PRICING OVERRIDE
 ========================= */
 

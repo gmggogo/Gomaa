@@ -508,76 +508,76 @@ function getBrowserCurrentPosition(){
   });
 }
 
-function reverseGeocodeCurrentPosition(lat,lng){
+async function reverseGeocodeCurrentPosition(lat,lng){
 
-  return new Promise((resolve,reject)=>{
+  /*
+    Server-side reverse geocode.
+    We intentionally do NOT require google.maps.Geocoder in the browser.
+    The Google key stays on the server and the company token protects
+    this endpoint.
+  */
 
-    if(
-      !window.google ||
-      !google.maps ||
-      typeof google.maps.Geocoder !== "function"
-    ){
-      reject(
-        new Error(
-          "Address service is not ready. Please try again in a moment."
-        )
-      );
-      return;
-    }
+  if(!hasValidCoords(lat,lng)){
+    throw new Error(
+      "Invalid Current Location coordinates."
+    );
+  }
 
-    const geocoder =
-      new google.maps.Geocoder();
-
-    geocoder.geocode(
+  const res =
+    await fetch(
+      "/api/location/reverse?" +
+      new URLSearchParams({
+        lat:String(lat),
+        lng:String(lng)
+      }).toString(),
       {
-        location:{
-          lat:Number(lat),
-          lng:Number(lng)
-        }
-      },
-      (results,status)=>{
-
-        if(
-          status !== "OK" ||
-          !Array.isArray(results) ||
-          !results.length
-        ){
-          reject(
-            new Error(
-              "Could not find the street address for Current Location."
-            )
-          );
-          return;
-        }
-
-        const result =
-          results[0];
-
-        const point =
-          extractGoogleAddress(result);
-
-        if(
-          !normalizeText(point.address)
-        ){
-          reject(
-            new Error(
-              "Current Location address is unavailable."
-            )
-          );
-          return;
-        }
-
-        resolve({
-          ...point,
-          lat:Number(lat),
-          lng:Number(lng),
-          latitude:Number(lat),
-          longitude:Number(lng),
-          source:"browser-current-location"
-        });
+        method:"GET",
+        headers:{
+          Authorization:
+            "Bearer " + token
+        },
+        cache:"no-store"
       }
     );
-  });
+
+  let data = {};
+
+  try{
+    data = await res.json();
+  }catch(_){}
+
+  if(!res.ok){
+
+    throw new Error(
+      data.message ||
+      "Could not find the street address for Current Location."
+    );
+  }
+
+  const address =
+    normalizeText(
+      data.address ||
+      data.formattedAddress ||
+      ""
+    );
+
+  if(!address){
+
+    throw new Error(
+      "Current Location address is unavailable."
+    );
+  }
+
+  return {
+    address,
+    lat:Number(lat),
+    lng:Number(lng),
+    latitude:Number(lat),
+    longitude:Number(lng),
+    source:
+      data.source ||
+      "server-reverse-geocode"
+  };
 }
 
 async function resolveCurrentLocation(){
