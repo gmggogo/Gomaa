@@ -1047,53 +1047,6 @@ directionsRenderer.setMap(map);
 }
 
 
-/* ================= CURRENT LOCATION ================= */
-
-.location-field,
-.stop-location-field{
-  position:relative;
-}
-
-.current-location-choice{
-  position:absolute;
-  left:0;
-  right:0;
-  top:calc(100% - 6px);
-  display:none;
-  align-items:center;
-  gap:8px;
-  padding:11px 12px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  background:#fff;
-  color:#111827;
-  font-size:13px;
-  font-weight:800;
-  cursor:pointer;
-  box-shadow:0 10px 24px rgba(15,23,42,.14);
-  z-index:100;
-}
-
-.current-location-choice.show{
-  display:flex;
-}
-
-.current-location-choice:hover{
-  background:#eff6ff;
-}
-
-.current-location-choice.loading{
-  opacity:.65;
-  cursor:wait;
-}
-
-.current-location-pin{
-  color:#2563eb;
-  font-size:16px;
-  line-height:1;
-}
-
-
 
 /* ================= CURRENT LOCATION =================
    Shared server endpoint:
