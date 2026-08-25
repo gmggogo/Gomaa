@@ -389,7 +389,7 @@ function getMatchingSavedClients(query){
 ============================================== */
 
 let currentLocationCache = null;
-const CURRENT_LOCATION_CACHE_MS = 2 * 60 * 1000;
+const CURRENT_LOCATION_CACHE_MS = 15 * 60 * 1000;
 
 function hasValidCoords(lat,lng){
 
@@ -528,7 +528,12 @@ async function reverseGeocodeCurrentPosition(lat,lng){
       "/api/location/reverse?" +
       new URLSearchParams({
         lat:String(lat),
-        lng:String(lng)
+        lng:String(lng),
+        tenantSlug:String(
+          localStorage.getItem("tenantSlug") ||
+          localStorage.getItem("tenant") ||
+          ""
+        ).trim()
       }).toString(),
       {
         method:"GET",
