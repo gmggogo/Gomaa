@@ -241,55 +241,45 @@ body{
 
 /* =========================================================
    TOP SUMMARY CARDS
-   SAME CLEAN STRUCTURE AS THE SERVICE CARDS BELOW
-   FA / GQ / RV stay separated in 3 columns.
+   ORDER:
+   1 NEW TRIPS  = PINK
+   2 TOTAL      = BLUE
+   3 FACILITY   = PURPLE
+   4 GET QUOTE  = GREEN
+   5 RESERVED   = ORANGE
    ========================================================= */
-
-.stats-grid > *,
-.cards-grid > *,
-.hub-stats > *{
-  background:linear-gradient(
-    135deg,
-    #fff7cf 0%,
-    #f3dc82 52%,
-    #f7e6a3 100%
-  )!important;
-  border:1px solid #c9a83c!important;
-  color:#111827!important;
-  box-shadow:
-    0 7px 16px rgba(104,83,20,.14),
-    inset 0 1px 0 rgba(255,255,255,.55)!important;
-}
 
 .stats-grid > :nth-child(1),
 .cards-grid > :nth-child(1),
 .hub-stats > :nth-child(1){
-  border-top:5px solid #ec4899!important;
+  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%);
 }
 
 .stats-grid > :nth-child(2),
 .cards-grid > :nth-child(2),
 .hub-stats > :nth-child(2){
-  border-top:5px solid #2563eb!important;
+  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%);
 }
 
 .stats-grid > :nth-child(3),
 .cards-grid > :nth-child(3),
 .hub-stats > :nth-child(3){
-  border-top:5px solid #7c3aed!important;
+  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%);
 }
 
 .stats-grid > :nth-child(4),
 .cards-grid > :nth-child(4),
 .hub-stats > :nth-child(4){
-  border-top:5px solid #16a34a!important;
+  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%);
 }
 
 .stats-grid > :nth-child(5),
 .cards-grid > :nth-child(5),
 .hub-stats > :nth-child(5){
-  border-top:5px solid #f59e0b!important;
+  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
 }
+
+/* TOP ROW TEXT */
 
 .stats-grid .stat-label,
 .stats-grid .card-label,
@@ -300,6 +290,7 @@ body{
 .stats-grid .stat-mini,
 .stats-grid .card-mini,
 .stats-grid .service-mini,
+
 .cards-grid .stat-label,
 .cards-grid .card-label,
 .cards-grid .service-name,
@@ -309,6 +300,7 @@ body{
 .cards-grid .stat-mini,
 .cards-grid .card-mini,
 .cards-grid .service-mini,
+
 .hub-stats .stat-label,
 .hub-stats .card-label,
 .hub-stats .service-name,
@@ -318,38 +310,8 @@ body{
 .hub-stats .stat-mini,
 .hub-stats .card-mini,
 .hub-stats .service-mini{
-  color:#111827!important;
-  text-shadow:none!important;
-}
-
-.stats-grid .stat-mini,
-.stats-grid .card-mini,
-.stats-grid .service-mini,
-.cards-grid .stat-mini,
-.cards-grid .card-mini,
-.cards-grid .service-mini,
-.hub-stats .stat-mini,
-.hub-stats .card-mini,
-.hub-stats .service-mini{
-  display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  gap:10px!important;
-  align-items:center!important;
-}
-
-.stats-grid .stat-mini > *,
-.stats-grid .card-mini > *,
-.stats-grid .service-mini > *,
-.cards-grid .stat-mini > *,
-.cards-grid .card-mini > *,
-.cards-grid .service-mini > *,
-.hub-stats .stat-mini > *,
-.hub-stats .card-mini > *,
-.hub-stats .service-mini > *{
-  min-width:0!important;
-  padding:4px 2px!important;
-  border-radius:7px!important;
-  background:rgba(255,255,255,.34)!important;
+  color:#fff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22);
 }
 
 /* =========================================================
@@ -498,68 +460,18 @@ body{
   background:#64748b;
 }
 
-/* EDIT / DELETE SELECTED
-   No selection = visible but muted
-   With selection = strong active color
-*/
 .action-btn.edit,
 .edit-selected,
 #editSelectedBtn{
-  background:#2563eb;
+  background:#93c5fd;
   color:#fff;
-  border:1px solid #1d4ed8;
-  box-shadow:0 5px 12px rgba(37,99,235,.22);
-  transition:.16s ease;
 }
 
 .action-btn.delete,
 .delete-selected,
 #deleteSelectedBtn{
-  background:#dc2626;
+  background:#ef9a9a;
   color:#fff;
-  border:1px solid #b91c1c;
-  box-shadow:0 5px 12px rgba(220,38,38,.22);
-  transition:.16s ease;
-}
-
-.action-btn.edit:disabled,
-.edit-selected:disabled,
-#editSelectedBtn:disabled{
-  background:#bfd7f7!important;
-  color:#eef5ff!important;
-  border-color:#a9c7ec!important;
-  box-shadow:none!important;
-  opacity:.72!important;
-  cursor:not-allowed!important;
-  filter:saturate(.55)!important;
-}
-
-.action-btn.delete:disabled,
-.delete-selected:disabled,
-#deleteSelectedBtn:disabled{
-  background:#f0b6bc!important;
-  color:#fff3f4!important;
-  border-color:#e5a2aa!important;
-  box-shadow:none!important;
-  opacity:.72!important;
-  cursor:not-allowed!important;
-  filter:saturate(.55)!important;
-}
-
-.action-btn.edit:not(:disabled),
-.edit-selected:not(:disabled),
-#editSelectedBtn:not(:disabled){
-  background:linear-gradient(180deg,#3b82f6,#1d4ed8)!important;
-  color:#fff!important;
-  box-shadow:0 0 0 2px rgba(59,130,246,.14),0 7px 16px rgba(37,99,235,.28)!important;
-}
-
-.action-btn.delete:not(:disabled),
-.delete-selected:not(:disabled),
-#deleteSelectedBtn:not(:disabled){
-  background:linear-gradient(180deg,#ef4444,#b91c1c)!important;
-  color:#fff!important;
-  box-shadow:0 0 0 2px rgba(239,68,68,.14),0 7px 16px rgba(220,38,38,.28)!important;
 }
 
 /* TABLE */
@@ -1159,6 +1071,263 @@ body{
   }
 }
 </style>
+
+<style id="tripsHubFinalCardFix">
+/* =========================================================
+   TRIPS HUB — FINAL CARD + SELECTION VISUAL FIX
+   Visual-only patch:
+   - Keeps existing Trips Hub logic.
+   - Top cards use the same FA / GQ / RV layout as service cards.
+   - Edit/Delete stay visible but subdued with no selection.
+   - Edit/Delete light strongly when one or more rows are selected.
+   ========================================================= */
+
+/* ---------- TOP + SERVICE CARD GEOMETRY ---------- */
+.stats-grid .stat-card,
+.stats-grid .hub-card,
+.stats-grid .service-card,
+.cards-grid .stat-card,
+.cards-grid .hub-card,
+.cards-grid .service-card,
+.hub-stats .stat-card,
+.hub-stats .hub-card,
+.hub-stats .service-card,
+.service-grid .stat-card,
+.service-grid .hub-card,
+.service-grid .service-card,
+.service-cards .stat-card,
+.service-cards .hub-card,
+.service-cards .service-card,
+.service-strip .stat-card,
+.service-strip .hub-card,
+.service-strip .service-card{
+  min-height:118px!important;
+  padding:11px 12px 12px!important;
+  justify-content:flex-start!important;
+}
+
+/* label at top */
+.stats-grid .stat-label,
+.stats-grid .card-label,
+.stats-grid .service-name,
+.cards-grid .stat-label,
+.cards-grid .card-label,
+.cards-grid .service-name,
+.hub-stats .stat-label,
+.hub-stats .card-label,
+.hub-stats .service-name,
+.service-grid .stat-label,
+.service-grid .card-label,
+.service-grid .service-name,
+.service-cards .stat-label,
+.service-cards .card-label,
+.service-cards .service-name,
+.service-strip .stat-label,
+.service-strip .card-label,
+.service-strip .service-name{
+  margin-top:0!important;
+  margin-bottom:2px!important;
+  line-height:1.15!important;
+}
+
+/* big number */
+.stats-grid .stat-value,
+.stats-grid .card-value,
+.stats-grid .service-total,
+.cards-grid .stat-value,
+.cards-grid .card-value,
+.cards-grid .service-total,
+.hub-stats .stat-value,
+.hub-stats .card-value,
+.hub-stats .service-total,
+.service-grid .stat-value,
+.service-grid .card-value,
+.service-grid .service-total,
+.service-cards .stat-value,
+.service-cards .card-value,
+.service-cards .service-total,
+.service-strip .stat-value,
+.service-strip .card-value,
+.service-strip .service-total{
+  margin:5px 0 7px!important;
+  font-size:29px!important;
+  line-height:1!important;
+}
+
+/* ---------- FA / GQ / RV: THREE SEPARATE COLUMNS ---------- */
+.stat-mini,
+.card-mini,
+.service-mini{
+  width:100%!important;
+  margin-top:auto!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+  align-items:stretch!important;
+  justify-items:stretch!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  text-align:center!important;
+}
+
+.hub-mini-cell{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:4px 3px 3px;
+  border-radius:8px;
+  background:rgba(255,255,255,.16);
+}
+
+.service-grid .hub-mini-cell,
+.service-cards .hub-mini-cell,
+.service-strip .hub-mini-cell{
+  background:rgba(255,255,255,.30);
+}
+
+.hub-mini-label{
+  display:block;
+  font-size:9px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.45px;
+  opacity:.88;
+}
+
+.hub-mini-value{
+  display:block;
+  margin-top:2px;
+  font-size:13px;
+  line-height:1;
+  font-weight:950;
+}
+
+/* Top colored cards stay white text. */
+.stats-grid .hub-mini-cell,
+.cards-grid .hub-mini-cell,
+.hub-stats .hub-mini-cell{
+  color:#fff!important;
+}
+
+/* Gold service cards keep dark text. */
+.service-grid .hub-mini-cell,
+.service-cards .hub-mini-cell,
+.service-strip .hub-mini-cell{
+  color:#111827!important;
+}
+
+/* ---------- SELECTION BUTTONS ---------- */
+#editSelectedBtn,
+.edit-selected,
+.action-btn.edit,
+#deleteSelectedBtn,
+.delete-selected,
+.action-btn.delete{
+  min-width:145px!important;
+  min-height:42px!important;
+  border-radius:10px!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  transition:
+    opacity .16s ease,
+    filter .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease!important;
+}
+
+/* No selection: visible but clearly sleeping. */
+#editSelectedBtn:not(.selection-active),
+.edit-selected:not(.selection-active),
+.action-btn.edit:not(.selection-active){
+  background:#7faee8!important;
+  color:#eef6ff!important;
+  opacity:.55!important;
+  filter:saturate(.55)!important;
+  box-shadow:none!important;
+}
+
+#deleteSelectedBtn:not(.selection-active),
+.delete-selected:not(.selection-active),
+.action-btn.delete:not(.selection-active){
+  background:#df858e!important;
+  color:#fff4f5!important;
+  opacity:.55!important;
+  filter:saturate(.55)!important;
+  box-shadow:none!important;
+}
+
+/* Selection exists: strong and obvious. */
+#editSelectedBtn.selection-active,
+.edit-selected.selection-active,
+.action-btn.edit.selection-active{
+  background:linear-gradient(180deg,#3387ff 0%,#1d63df 100%)!important;
+  color:#fff!important;
+  opacity:1!important;
+  filter:none!important;
+  box-shadow:
+    0 0 0 2px rgba(37,99,235,.16),
+    0 7px 16px rgba(37,99,235,.32)!important;
+  transform:translateY(-1px)!important;
+}
+
+#deleteSelectedBtn.selection-active,
+.delete-selected.selection-active,
+.action-btn.delete.selection-active{
+  background:linear-gradient(180deg,#ef5262 0%,#ca2639 100%)!important;
+  color:#fff!important;
+  opacity:1!important;
+  filter:none!important;
+  box-shadow:
+    0 0 0 2px rgba(220,38,38,.13),
+    0 7px 16px rgba(220,38,38,.30)!important;
+  transform:translateY(-1px)!important;
+}
+
+/* Disabled remains non-clickable even though visible. */
+#editSelectedBtn:disabled,
+#deleteSelectedBtn:disabled,
+.edit-selected:disabled,
+.delete-selected:disabled{
+  cursor:not-allowed!important;
+}
+
+/* Mobile keeps same three-source layout. */
+@media(max-width:768px){
+  .stats-grid .stat-card,
+  .stats-grid .hub-card,
+  .stats-grid .service-card,
+  .service-grid .stat-card,
+  .service-grid .hub-card,
+  .service-grid .service-card,
+  .service-cards .stat-card,
+  .service-cards .hub-card,
+  .service-cards .service-card{
+    min-height:96px!important;
+  }
+
+  .stat-mini,
+  .card-mini,
+  .service-mini{
+    gap:4px!important;
+  }
+
+  .hub-mini-label{font-size:8px!important;}
+  .hub-mini-value{font-size:11px!important;}
+
+  #editSelectedBtn,
+  #deleteSelectedBtn,
+  .edit-selected,
+  .delete-selected{
+    min-width:120px!important;
+    min-height:38px!important;
+    font-size:11px!important;
+  }
+}
+</style>
+
 </head>
 
 <body>
@@ -1195,6 +1364,152 @@ body{
 
 <script src="/admin/header.js"></script>
 <script src="/admin/trips-hub.js"></script>
+
+
+<script id="tripsHubFinalCardFixScript">
+(function(){
+  "use strict";
+
+  /*
+    trips-hub.js already calculates the numbers.
+    This script only normalizes how FA / GQ / RV are displayed.
+    It does not recalculate trips or alter filtering/table behavior.
+  */
+
+  function normalizeMini(mini){
+    if(!mini || mini.dataset.hubNormalized === "1") return;
+
+    const raw = String(mini.textContent || "")
+      .replace(/\s+/g," ")
+      .trim();
+
+    if(!raw) return;
+
+    const upper = raw.toUpperCase();
+
+    /* Only touch source counters. */
+    if(
+      !upper.includes("FA") ||
+      !upper.includes("GQ") ||
+      !upper.includes("RV")
+    ){
+      return;
+    }
+
+    /*
+      Existing markup may arrive in either form:
+      FA 0 GQ 0 RV 1
+      or:
+      FA GQ RV 0 0 1
+      We only use the three source-counter numbers from this mini block.
+    */
+    let fa = "0";
+    let gq = "0";
+    let rv = "0";
+
+    const pairFA = upper.match(/FA\s*[:\-]?\s*(\d+)/);
+    const pairGQ = upper.match(/GQ\s*[:\-]?\s*(\d+)/);
+    const pairRV = upper.match(/RV\s*[:\-]?\s*(\d+)/);
+
+    if(pairFA && pairGQ && pairRV){
+      fa = pairFA[1];
+      gq = pairGQ[1];
+      rv = pairRV[1];
+    }else{
+      const nums = raw.match(/\d+/g) || [];
+      if(nums.length >= 3){
+        const last = nums.slice(-3);
+        [fa,gq,rv] = last;
+      }
+    }
+
+    mini.innerHTML = `
+      <div class="hub-mini-cell">
+        <span class="hub-mini-label">FA</span>
+        <span class="hub-mini-value">${fa}</span>
+      </div>
+      <div class="hub-mini-cell">
+        <span class="hub-mini-label">GQ</span>
+        <span class="hub-mini-value">${gq}</span>
+      </div>
+      <div class="hub-mini-cell">
+        <span class="hub-mini-label">RV</span>
+        <span class="hub-mini-value">${rv}</span>
+      </div>
+    `;
+
+    mini.dataset.hubNormalized = "1";
+  }
+
+  function normalizeAllCards(){
+    document
+      .querySelectorAll(".stat-mini,.card-mini,.service-mini")
+      .forEach(normalizeMini);
+  }
+
+  function selectedCount(){
+    const root = document.getElementById("hubContainer") || document;
+
+    const checked = [
+      ...root.querySelectorAll(
+        'tbody input[type="checkbox"]:checked,' +
+        '.trip-table input[type="checkbox"]:checked,' +
+        '.hub-table input[type="checkbox"]:checked'
+      )
+    ];
+
+    return checked.filter(box=>{
+      const id = String(box.id || "").toLowerCase();
+      const cls = String(box.className || "").toLowerCase();
+
+      return !(
+        id.includes("selectall") ||
+        cls.includes("select-all")
+      );
+    }).length;
+  }
+
+  function updateSelectionButtons(){
+    const hasSelection = selectedCount() > 0;
+
+    document
+      .querySelectorAll(
+        "#editSelectedBtn,.edit-selected,.action-btn.edit," +
+        "#deleteSelectedBtn,.delete-selected,.action-btn.delete"
+      )
+      .forEach(btn=>{
+        btn.classList.toggle("selection-active",hasSelection);
+      });
+  }
+
+  function refresh(){
+    normalizeAllCards();
+    updateSelectionButtons();
+  }
+
+  document.addEventListener("change",function(e){
+    if(e.target && e.target.matches('input[type="checkbox"]')){
+      requestAnimationFrame(refresh);
+    }
+  });
+
+  const root = document.getElementById("hubContainer");
+
+  if(root){
+    const observer = new MutationObserver(()=>{
+      requestAnimationFrame(refresh);
+    });
+
+    observer.observe(root,{
+      childList:true,
+      subtree:true,
+      characterData:true
+    });
+  }
+
+  refresh();
+})();
+</script>
 
 </body>
 </html>
