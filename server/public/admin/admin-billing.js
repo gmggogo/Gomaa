@@ -772,7 +772,7 @@
                 <div class="company-box">
 
                   <div class="company-name">
-                    ${company.name || company.username || "--"}
+                    ${company.username || company.name || "--"}
                   </div>
 
                   <div class="company-small">
@@ -1170,7 +1170,7 @@
           const ok =
             confirm(
               `Mark invoice as PAID?\n\n` +
-              `Company: ${company.name || company.username || "--"}\n` +
+              `Company: ${company.username || company.name || "--"}\n` +
               `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
               `This will reset the invoice, unlock the company, and start a new billing cycle.\n\n` +
               `Continue?`
