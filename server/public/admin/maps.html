@@ -16,88 +16,31 @@
 <link rel="stylesheet" href="/admin/maps.css">
 
 <style>
-*{box-sizing:border-box;}
-
 html,
 body{
   margin:0;
   width:100%;
   height:100%;
   background:#020617;
-  font-family:Segoe UI,Arial,sans-serif;
-}
-
-body{
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+  font-family:Arial, sans-serif;
   overflow:hidden;
 }
 
-/* ===== ADMIN HEADER — SAME LOADER AS OTHER ADMIN PAGES ===== */
 #adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
   width:100%;
-  flex:0 0 auto;
   z-index:10000;
 }
 
-/* ===== PAGE AREA ===== */
-.map-content{
-  flex:1 1 auto;
-  min-height:0;
-  width:100%;
-  padding:18px 22px 22px;
-  background:#f1f5f9;
-  display:flex;
-  flex-direction:column;
-}
-
-/* ===== GOLD PAGE TITLE — SAME AS TRIPS HUB ===== */
-.page-head{
-  flex:0 0 auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  min-height:84px;
-  margin-bottom:12px;
-  padding:16px 20px;
-  border:1px solid #e0be5a;
-  border-radius:18px;
-  background:linear-gradient(
-    135deg,
-    #fff8dc 0%,
-    #f8e6ae 48%,
-    #fff4cf 100%
-  );
-  box-shadow:0 8px 22px rgba(146,102,14,.13);
-  text-align:center;
-}
-
-.page-title{
-  margin:0;
-  font-size:28px;
-  line-height:1.1;
-  font-weight:900;
-  color:#111827;
-}
-
-.page-sub{
-  margin-top:5px;
-  font-size:13px;
-  font-weight:800;
-  color:#64748b;
-}
-
-/* ===== MAP ===== */
 .map-page{
-  position:relative;
-  flex:1 1 auto;
-  min-height:0;
-  width:100%;
-  overflow:hidden;
-  border-radius:16px;
+  position:absolute;
+  top:80px;
+  left:0;
+  right:0;
+  bottom:0;
   background:#020617;
-  box-shadow:0 8px 22px rgba(15,23,42,.16);
 }
 
 #map{
@@ -108,63 +51,174 @@ body{
   z-index:1;
 }
 
-@media(max-width:768px){
-  .map-content{
-    padding:10px 8px 12px;
+.map-title-box{
+  position:fixed;
+  top:92px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:9998;
+  background:rgba(15,23,42,.92);
+  color:white;
+  padding:8px 18px;
+  border-radius:999px;
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+  text-align:center;
+  pointer-events:none;
+}
+
+.map-title-box h2{
+  margin:0;
+  font-size:14px;
+  color:#facc15;
+  font-weight:900;
+}
+
+.map-title-box span{
+  display:block;
+  font-size:11px;
+  color:#cbd5e1;
+  margin-top:2px;
+  font-weight:700;
+}
+
+@media(max-width:800px){
+  .map-page{ top:75px; }
+
+  .map-title-box{
+    top:84px;
+    padding:6px 12px;
   }
 
-  .page-head{
-    min-height:72px;
-    padding:12px;
-    margin-bottom:10px;
-  }
-
-  .page-title{
-    font-size:22px;
-  }
-
-  .page-sub{
-    font-size:11px;
-  }
+  .map-title-box h2{ font-size:12px; }
+  .map-title-box span{ font-size:10px; }
 }
 </style>
 </head>
 
 <body>
 
-<!-- ADMIN MAIN HEADER -->
 <div id="adminHeader"></div>
 
-<div class="map-content">
+<div class="map-title-box">
+  <h2 class="company-name">Sunbeam Transportation</h2>
+  <span>LIVE DRIVERS MAP</span>
+</div>
 
-  <div class="page-head">
-    <div>
-      <h1 class="page-title">Drivers Map</h1>
-      <div class="page-sub">Live driver locations and fleet overview</div>
-    </div>
-  </div>
-
-  <div class="map-page">
-    <div id="map"></div>
-  </div>
-
+<div class="map-page">
+  <div id="map"></div>
 </div>
 
 <script>
 /* =========================
-   SECURITY
+   SECURITY - TAB SAFE
 ========================= */
 
-const token = localStorage.getItem("token") || "";
-const role = String(localStorage.getItem("role") || "").trim().toUpperCase();
-
-if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)){
-  window.location.href = "/login.html";
+function staffValue(sessionKey, legacyKey){
+  return String(
+    sessionStorage.getItem(sessionKey) ||
+    localStorage.getItem(legacyKey) ||
+    ""
+  ).trim();
 }
-</script>
 
-<!-- SAME ADMIN HEADER LOADER USED BY THE WORKING ADMIN PAGES -->
-<script src="/admin/header.js"></script>
+const token =
+  staffValue("staffToken","token");
+
+const role =
+  staffValue("staffRole","role")
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+
+const allowed =
+  role === "SUPER_ADMIN" ||
+  role === "SUPERADMIN" ||
+  role === "ADMIN" ||
+  role === "DISPATCHER";
+
+if(!token || !allowed){
+  window.location.replace("/login.html");
+}else{
+  /*
+    Keep legacy admin scripts/header working in this tab.
+  */
+  localStorage.setItem("token",token);
+  localStorage.setItem(
+    "role",
+    staffValue("staffRole","role")
+  );
+
+  const staffName =
+    staffValue("staffName","name");
+
+  const tenantId =
+    staffValue("staffTenantId","tenantId");
+
+  const tenantSlug =
+    staffValue("staffTenantSlug","tenantSlug");
+
+  if(staffName){
+    localStorage.setItem("name",staffName);
+  }
+
+  if(tenantId){
+    localStorage.setItem("tenantId",tenantId);
+  }
+
+  if(tenantSlug){
+    localStorage.setItem("tenantSlug",tenantSlug);
+  }
+}
+
+/* =========================
+   LOAD ADMIN HEADER
+========================= */
+
+async function loadAdminHeader(){
+
+  try{
+
+    const holder =
+      document.getElementById("adminHeader");
+
+    if(!holder){
+      return;
+    }
+
+    const res =
+      await fetch("/admin/header.html", {
+        cache:"no-store"
+      });
+
+    if(res.ok){
+      holder.innerHTML =
+        await res.text();
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.src =
+      "/admin/header.js";
+
+    script.defer =
+      true;
+
+    document.body.appendChild(
+      script
+    );
+
+  }catch(err){
+
+    console.log(
+      "HEADER LOAD ERROR:",
+      err
+    );
+
+  }
+}
+
+loadAdminHeader();
+</script>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/admin/maps.js"></script>

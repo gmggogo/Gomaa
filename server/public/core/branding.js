@@ -514,16 +514,38 @@ window.Branding = {
       driver pages, company pages, or any login page.
     */
     if(isAdminInternalPage){
+
+      const adminBg =
+        d.bodyBg || "#f1f5f9";
+
+      /*
+        ADMIN INTERNAL PAGES:
+        background only.
+        Some pages (like Dispatch) paint their own full-page wrapper,
+        so body alone is not enough.
+      */
       document.body.style.setProperty(
         "background",
-        d.bodyBg || "#f1f5f9",
+        adminBg,
         "important"
       );
 
       document.documentElement.style.setProperty(
         "--gh-tenant-body-bg",
-        d.bodyBg || "#f1f5f9"
+        adminBg
       );
+
+      document
+        .querySelectorAll(
+          ".page-body, .page-content"
+        )
+        .forEach(el=>{
+          el.style.setProperty(
+            "background",
+            adminBg,
+            "important"
+          );
+        });
     }
 
     document.title =
