@@ -9,216 +9,49 @@ console.log("BRANDING ENGINE LOADED");
 window.Branding = {
 
   data:{},
-  tenant:null,
-
-  /* =========================
-     TENANT RESOLUTION
-     Public homepage: /sunbeam, /sony, etc.
-  ========================= */
-
-  getTenantSlug(){
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-    const fromQuery =
-      String(
-        params.get("tenant") ||
-        params.get("tenantSlug") ||
-        ""
-      )
-      .trim()
-      .toLowerCase();
-
-    if(fromQuery){
-      return fromQuery;
-    }
-
-    const parts =
-      window.location.pathname
-        .split("/")
-        .filter(Boolean);
-
-    if(
-      parts[0] === "t" &&
-      parts[1]
-    ){
-      return String(parts[1])
-        .trim()
-        .toLowerCase();
-    }
-
-    if(parts.length === 1){
-
-      const candidate =
-        String(parts[0] || "")
-          .trim()
-          .toLowerCase();
-
-      const reserved =
-        new Set([
-          "",
-          "admin",
-          "dispatcher",
-          "driver",
-          "booking",
-          "company",
-          "companies",
-          "platform-admin",
-          "api",
-          "uploads",
-          "assets",
-          "core",
-          "getquote",
-          "login",
-          "login.html",
-          "index.html"
-        ]);
-
-      if(
-        candidate &&
-        !reserved.has(candidate) &&
-        !candidate.includes(".") &&
-        /^[a-z0-9-]+$/.test(candidate)
-      ){
-        return candidate;
-      }
-    }
-
-    return "";
-  },
-
-  getAuthToken(){
-
-    return String(
-      localStorage.getItem("token") ||
-      ""
-    ).trim();
-  },
 
   /* =========================
      LOAD
-     Public tenant homepage uses public tenant API.
-     Staff pages use secure system-design API with JWT.
   ========================= */
 
   async load(){
 
     try{
 
-      const tenantSlug =
-        this.getTenantSlug();
-
-      const token =
-        this.getAuthToken();
-
-      let url =
-        "/api/public/tenant/default";
-
-      let options = {
-        cache:"no-store"
-      };
-
-      if(tenantSlug){
-
-        url =
-          "/api/public/tenant/" +
-          encodeURIComponent(
-            tenantSlug
-          );
-
-      }else if(token){
-
-        url =
-          "/api/system-design";
-
-        options.headers = {
-          Authorization:
-            `Bearer ${token}`
-        };
-      }
-
       const res =
-        await fetch(
-          url,
-          options
-        );
-
-      const payload =
-        await res.json()
-          .catch(()=>({}));
+      await fetch(
+        "/api/system-design",
+        {
+          cache:"no-store"
+        }
+      );
 
       if(!res.ok){
 
         throw new Error(
-          payload?.message ||
-          "Failed To Load Branding"
+          "Failed To Load System Design"
         );
+
       }
 
-      if(
-        payload &&
-        payload.design
-      ){
-
-        this.data =
-          payload.design || {};
-
-        this.tenant =
-          payload.tenant || null;
-
-        if(payload.tenant?.slug){
-
-          localStorage.setItem(
-            "tenantSlug",
-            payload.tenant.slug
-          );
-        }
-
-        if(payload.tenant?.id){
-
-          localStorage.setItem(
-            "tenantId",
-            String(
-              payload.tenant.id
-            )
-          );
-        }
-
-        if(payload.tenant?.timezone){
-
-          localStorage.setItem(
-            "appTimezone",
-            payload.tenant.timezone
-          );
-        }
-
-      }else{
-
-        this.data =
-          payload || {};
-      }
+      this.data =
+      await res.json();
 
     }catch(err){
 
       console.log(
-        "BRANDING LOAD ERROR",
+        "Branding Load Error",
         err
       );
 
-      /*
-        Do not show another tenant's stale branding.
-        Empty data intentionally falls back to static defaults only.
-      */
       this.data = {};
-      this.tenant = null;
+
     }
 
     this.applyGlobalBranding();
 
     return this.data;
+
   },
 
   /* =========================
@@ -651,49 +484,9 @@ window.Branding = {
       const a =
       document.createElement("a");
 
-      {
-        const baseLink =
-          service.link ||
-          "getquote/index.html";
-
-        const url =
-          new URL(
-            baseLink,
-            window.location.origin
-          );
-
-        const tenantSlug =
-          this.getTenantSlug();
-
-        const serviceKey =
-          String(
-            service.serviceKey ||
-            service.serviceCode ||
-            service.key ||
-            ""
-          )
-          .trim()
-          .toUpperCase();
-
-        if(tenantSlug){
-          url.searchParams.set(
-            "tenant",
-            tenantSlug
-          );
-        }
-
-        if(serviceKey){
-          url.searchParams.set(
-            "service",
-            serviceKey
-          );
-        }
-
-        a.href =
-          url.pathname +
-          url.search +
-          url.hash;
-      }
+      a.href =
+      service.link ||
+      "getquote/index.html";
 
       a.className =
       "card-btn";
