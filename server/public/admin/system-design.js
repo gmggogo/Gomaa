@@ -293,6 +293,7 @@ SERVICES
 
     {
       id:"standard",
+      serviceKey:"ST",
       active:false,
       title:"Standard",
       description:"Standard transportation service",
@@ -302,6 +303,7 @@ SERVICES
 
     {
       id:"xl",
+      serviceKey:"XL",
       active:false,
       title:"XL",
       description:"Large vehicle transportation",
@@ -311,6 +313,7 @@ SERVICES
 
     {
       id:"taxi",
+      serviceKey:"TX",
       active:false,
       title:"Taxi",
       description:"Daily city transportation",
@@ -320,6 +323,7 @@ SERVICES
 
     {
       id:"limo",
+      serviceKey:"LM",
       active:false,
       title:"Limo",
       description:"Luxury transportation service",
@@ -329,6 +333,7 @@ SERVICES
 
     {
       id:"wheelchair",
+      serviceKey:"WH",
       active:false,
       title:"Wheelchair",
       description:"Wheelchair accessible rides",
@@ -338,6 +343,7 @@ SERVICES
 
     {
       id:"shared",
+      serviceKey:"SH",
       active:false,
       title:"Shared Ride",
       description:"Affordable shared rides",
@@ -399,13 +405,29 @@ async function loadSystemDesign(){
             );
 
           const saved =
-            savedServices.find(item =>
-              serviceCardKey(item) === key
-            );
+            savedServices.find(item => {
+              const savedKey =
+                serviceCardKey(item);
+
+              if(savedKey === key){
+                return true;
+              }
+
+              return (
+                String(item?.id || "")
+                  .trim()
+                  .toLowerCase() ===
+                String(defaultService?.id || "")
+                  .trim()
+                  .toLowerCase()
+              );
+            });
 
           return {
             ...defaultService,
-            ...(saved || {})
+            ...(saved || {}),
+            id:defaultService.id,
+            serviceKey:key
           };
         });
 
@@ -1333,12 +1355,23 @@ async function(index){
     return;
   }
 
-  systemDesign.services[index].title =
+  const service =
+    systemDesign.services[index];
+
+  const permanentKey =
+    serviceCardKey(service);
+
+  if(permanentKey){
+    service.serviceKey =
+      permanentKey;
+  }
+
+  service.title =
   document.getElementById(
     `title-${index}`
   ).value;
 
-  systemDesign.services[index].description =
+  service.description =
   document.getElementById(
     `desc-${index}`
   ).value;
