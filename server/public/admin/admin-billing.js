@@ -1,4 +1,11 @@
 /* =========================================
+   BUILD: ADMIN-BILLING-20260826-0150
+========================================= */
+
+window.ADMIN_BILLING_BUILD = "ADMIN-BILLING-20260826-0150";
+console.log("ADMIN BILLING BUILD:", window.ADMIN_BILLING_BUILD);
+
+/* =========================================
    ADMIN BILLING
    RESILIENT TENANT BILLING + STRIPE CONNECT
 ========================================= */
