@@ -14,9 +14,9 @@
 
 body{
   margin:0;
-  font-family:Segoe UI,Arial,sans-serif;
+  font-family:Arial,Helvetica,sans-serif;
   background:#f3f5f8;
-  color:#111827;
+  color:#18202b;
 }
 
 #platformHeader{
@@ -29,23 +29,22 @@ body{
 }
 
 .page-head{
-  background:#fff;
-  border:1px solid #e5e7eb;
+  background:#ffffff;
+  border:1px solid #e4e7ec;
   border-radius:16px;
   padding:24px;
-  margin-bottom:20px;
+  margin-bottom:22px;
 }
 
 .page-head h1{
   margin:0;
   font-size:28px;
-  font-weight:900;
-  color:#1f2937;
+  color:#351c75;
 }
 
 .page-head p{
   margin:8px 0 0;
-  color:#6b7280;
+  color:#6a7280;
   font-size:14px;
 }
 
@@ -57,44 +56,44 @@ body{
 
 .card{
   display:block;
-  background:#fff;
-  border:1px solid #e5e7eb;
+  background:#ffffff;
+  border:1px solid #e4e7ec;
   border-radius:16px;
   padding:22px;
   text-decoration:none;
-  color:#111827;
-  min-height:145px;
+  color:#18202b;
+  min-height:150px;
 }
 
 .card h2{
   margin:0 0 10px;
   font-size:19px;
-  font-weight:900;
+  color:#351c75;
 }
 
 .card p{
   margin:0;
-  color:#6b7280;
-  font-size:13px;
+  color:#6a7280;
   line-height:1.5;
+  font-size:13px;
 }
 
-.card span{
+.card-link{
   display:inline-block;
   margin-top:18px;
   font-size:13px;
-  font-weight:800;
-  color:#2563eb;
+  font-weight:700;
+  color:#351c75;
 }
 
-.session-box{
-  margin-top:20px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:14px;
+.status{
+  margin-top:22px;
   padding:16px 18px;
+  background:#ffffff;
+  border:1px solid #e4e7ec;
+  border-radius:14px;
+  color:#5c6471;
   font-size:13px;
-  color:#4b5563;
 }
 
 @media(max-width:900px){
@@ -109,7 +108,7 @@ body{
   }
 
   .page{
-    width:calc(100% - 20px);
+    width:min(100% - 20px,1200px);
     margin-top:18px;
   }
 }
@@ -124,44 +123,44 @@ body{
 
   <section class="page-head">
     <h1>Platform Admin Dashboard</h1>
-    <p>Manage tenant companies, Super Admin accounts, services, permissions and billing.</p>
+    <p>Manage platform companies, administrators, services, permissions and billing.</p>
   </section>
 
   <section class="grid">
 
     <a class="card" href="/platform-admin/tenants.html">
       <h2>Companies</h2>
-      <p>Create and manage tenant companies on the platform.</p>
-      <span>Open Companies</span>
+      <p>Create, review and manage platform tenant companies.</p>
+      <span class="card-link">Open Companies</span>
     </a>
 
     <a class="card" href="/platform-admin/super-admins.html">
       <h2>Super Admins</h2>
       <p>Create and manage Super Admin accounts for tenant companies.</p>
-      <span>Open Super Admins</span>
+      <span class="card-link">Open Super Admins</span>
     </a>
 
     <a class="card" href="/platform-admin/services.html">
       <h2>Services</h2>
-      <p>Manage services available across the platform.</p>
-      <span>Open Services</span>
+      <p>Manage platform service availability and service settings.</p>
+      <span class="card-link">Open Services</span>
     </a>
 
     <a class="card" href="/platform-admin/permissions.html">
       <h2>Permissions</h2>
-      <p>Manage platform permissions and access rules.</p>
-      <span>Open Permissions</span>
+      <p>Review and manage platform-level access permissions.</p>
+      <span class="card-link">Open Permissions</span>
     </a>
 
     <a class="card" href="/platform-admin/billing.html">
       <h2>Billing</h2>
-      <p>Review platform billing and tenant subscription information.</p>
-      <span>Open Billing</span>
+      <p>Review platform billing and subscription information.</p>
+      <span class="card-link">Open Billing</span>
     </a>
 
   </section>
 
-  <div id="sessionBox" class="session-box">
+  <div class="status" id="sessionInfo">
     Platform Admin session active.
   </div>
 
@@ -173,18 +172,16 @@ body{
   "use strict";
 
   const token =
-    sessionStorage.getItem("staffToken") ||
-    "";
+    String(
+      sessionStorage.getItem("staffToken") ||
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
 
   const role =
     String(
       sessionStorage.getItem("staffRole") ||
-      ""
-    ).trim();
-
-  const name =
-    String(
-      sessionStorage.getItem("staffName") ||
+      localStorage.getItem("role") ||
       ""
     ).trim();
 
@@ -198,22 +195,22 @@ body{
     return;
   }
 
-  const sessionBox =
-    document.getElementById(
-      "sessionBox"
-    );
+  const name =
+    String(
+      sessionStorage.getItem("staffName") ||
+      localStorage.getItem("name") ||
+      ""
+    ).trim();
 
-  if(
-    sessionBox &&
-    name
-  ){
-    sessionBox.textContent =
-      "Signed in as " +
-      name +
-      " — Platform Admin";
+  const sessionInfo =
+    document.getElementById("sessionInfo");
+
+  if(sessionInfo && name){
+    sessionInfo.textContent =
+      "Signed in as " + name + " — Platform Admin";
   }
 
-  async function loadHeader(){
+  async function loadPlatformHeader(){
 
     const container =
       document.getElementById(
@@ -236,27 +233,12 @@ body{
 
       if(!res.ok){
         throw new Error(
-          "Unable to load platform header"
+          "Platform header could not be loaded"
         );
       }
 
       container.innerHTML =
         await res.text();
-
-      const script =
-        document.createElement(
-          "script"
-        );
-
-      script.src =
-        "/platform-admin/platform_header.js";
-
-      script.defer =
-        true;
-
-      document.body.appendChild(
-        script
-      );
 
     }catch(err){
 
@@ -268,7 +250,7 @@ body{
     }
   }
 
-  loadHeader();
+  loadPlatformHeader();
 
 })();
 </script>

@@ -1,492 +1,479 @@
-document.addEventListener("DOMContentLoaded", async () => {
+/* =========================================
+   PLATFORM ADMIN HEADER
+   TAB-SAFE SESSION AUTH
+========================================= */
 
-  /* =========================
-     PLATFORM ADMIN GUARD
-  ========================= */
+(function syncPlatformAdminSession(){
 
-  const role =
-    localStorage.getItem("role") || "";
+  "use strict";
 
-  if(role !== "PLATFORM_ADMIN"){
+  const sessionRole =
+    String(
+      sessionStorage.getItem("staffRole") ||
+      ""
+    ).trim();
 
-    window.location.replace(
-      "/login.html"
-    );
-
+  if(sessionRole !== "PLATFORM_ADMIN"){
     return;
   }
 
-  /* =========================
-     HEADER CONTAINER
-  ========================= */
+  const token =
+    String(
+      sessionStorage.getItem("staffToken") ||
+      ""
+    ).trim();
 
-  const headerContainer =
-    document.getElementById("platformHeader") ||
-    document.getElementById("headerContainer") ||
-    document.getElementById("header-container");
+  const name =
+    String(
+      sessionStorage.getItem("staffName") ||
+      ""
+    ).trim();
 
-  if(!headerContainer) return;
-
-  /* =========================
-     LOAD HEADER HTML
-  ========================= */
-
-  try{
-
-    const res =
-      await fetch("/platform-admin/platform_header.html");
-
-    if(!res.ok){
-      throw new Error(
-        "Header load failed"
-      );
-    }
-
-    const html =
-      await res.text();
-
-    headerContainer.innerHTML =
-      html;
-
-  }catch(err){
-
-    console.log(
-      "PLATFORM HEADER LOAD ERROR:",
-      err
+  if(token){
+    localStorage.setItem(
+      "token",
+      token
     );
-
-    return;
   }
 
-  /* =========================
-     PLATFORM TITLE
-  ========================= */
-
-  const title =
-    document.getElementById(
-      "platformTitle"
-    );
-
-  if(title){
-
-    title.innerText =
-      "GH Mobility Platform";
-
-  }
-
-  /* =========================
-     DYNAMIC TIME
-  ========================= */
-
-  function updatePlatformTime(){
-
-    const timezone =
-      localStorage.getItem(
-        "platformTimezone"
-      ) ||
-      localStorage.getItem(
-        "systemTimezone"
-      ) ||
-      "America/Phoenix";
-
-    const now =
-      new Date();
-
-    const date =
-      now.toLocaleDateString(
-        "en-US",
-        {
-          timeZone:timezone,
-          weekday:"short",
-          month:"short",
-          day:"numeric",
-          year:"numeric"
-        }
-      );
-
-    const time =
-      now.toLocaleTimeString(
-        "en-US",
-        {
-          timeZone:timezone,
-          hour:"numeric",
-          minute:"2-digit",
-          second:"2-digit",
-          hour12:true
-        }
-      );
-
-    const el =
-      document.getElementById(
-        "platformTime"
-      );
-
-    if(el){
-
-      el.innerHTML =
-        `${date}<br>${time}`;
-
-    }
-
-  }
-
-  updatePlatformTime();
-
-  setInterval(
-    updatePlatformTime,
-    1000
+  localStorage.setItem(
+    "role",
+    "PLATFORM_ADMIN"
   );
 
-  /* =========================
-     WELCOME MESSAGE
-  ========================= */
-
-  function updatePlatformWelcome(){
-
-    const timezone =
-      localStorage.getItem(
-        "platformTimezone"
-      ) ||
-      localStorage.getItem(
-        "systemTimezone"
-      ) ||
-      "America/Phoenix";
-
-    const now =
-      new Date();
-
-    const hour =
-      Number(
-        new Intl.DateTimeFormat(
-          "en-US",
-          {
-            hour:"numeric",
-            hour12:false,
-            timeZone:timezone
-          }
-        ).format(now)
-      );
-
-    let message =
-      "Good Evening";
-
-    let icon =
-      "🌙";
-
-    if(hour < 12){
-
-      message =
-        "Good Morning";
-
-      icon =
-        "☀️";
-
-    }else if(hour < 18){
-
-      message =
-        "Good Afternoon";
-
-      icon =
-        "🌤️";
-
-    }
-
-    const welcomeEl =
-      document.getElementById(
-        "platformWelcomeMessage"
-      );
-
-    const iconEl =
-      document.getElementById(
-        "platformWeatherIcon"
-      );
-
-    if(welcomeEl){
-
-      welcomeEl.innerText =
-        message;
-
-    }
-
-    if(iconEl){
-
-      iconEl.innerText =
-        icon;
-
-    }
-
-  }
-
-  updatePlatformWelcome();
-
-  setInterval(
-    updatePlatformWelcome,
-    60000
+  localStorage.setItem(
+    "name",
+    name
   );
 
-  /* =========================
-     ACTIVE NAV
-  ========================= */
+  localStorage.removeItem(
+    "tenantId"
+  );
 
-  function setPlatformActiveNav(){
+  localStorage.removeItem(
+    "tenantSlug"
+  );
 
-    const currentPage =
-      window.location.pathname
-        .split("/")
-        .pop();
+})();
 
-    document
-      .querySelectorAll(
-        ".platform-nav .platform-nav-btn, .platform-mobile-side-nav a"
-      )
-      .forEach(link=>{
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
 
-        const href =
-          link.getAttribute("href") || "";
+    "use strict";
 
-        if(href === currentPage){
+    const token =
+      String(
+        sessionStorage.getItem("staffToken") ||
+        localStorage.getItem("token") ||
+        ""
+      ).trim();
 
-          link.classList.add(
-            "active"
-          );
-
-        }else{
-
-          link.classList.remove(
-            "active"
-          );
-
-        }
-
-      });
-
-  }
-
-  /* =========================
-     BUILD MOBILE MENU
-  ========================= */
-
-  function buildPlatformMobileMenu(){
-
-    const desktopNav =
-      document.getElementById(
-        "platformDesktopNav"
-      );
-
-    const mobileNav =
-      document.getElementById(
-        "platformMobileSideNav"
-      );
+    const role =
+      String(
+        sessionStorage.getItem("staffRole") ||
+        localStorage.getItem("role") ||
+        ""
+      ).trim();
 
     if(
-      !desktopNav ||
-      !mobileNav
-    ) return;
+      !token ||
+      role !== "PLATFORM_ADMIN"
+    ){
+      window.location.replace(
+        "/login.html"
+      );
+      return;
+    }
 
-    mobileNav.innerHTML = "";
-
-    const links =
-      desktopNav.querySelectorAll(
-        "a.platform-nav-btn"
+    const headerContainer =
+      document.getElementById(
+        "platformHeader"
+      ) ||
+      document.getElementById(
+        "headerContainer"
+      ) ||
+      document.getElementById(
+        "header-container"
       );
 
-    links.forEach(link=>{
+    if(!headerContainer){
+      return;
+    }
 
-      const a =
-        document.createElement("a");
+    try{
 
-      a.href =
-        link.getAttribute("href") || "#";
-
-      a.innerText =
-        link.innerText.trim();
-
-      if(
-        link.classList.contains(
-          "active"
-        )
-      ){
-
-        a.classList.add(
-          "active"
+      const res =
+        await fetch(
+          "/platform-admin/platform_header.html",
+          {
+            cache:"no-store"
+          }
         );
 
+      if(!res.ok){
+        throw new Error(
+          "Platform header load failed"
+        );
       }
 
-      mobileNav.appendChild(a);
+      headerContainer.innerHTML =
+        await res.text();
 
-    });
+    }catch(err){
 
+      console.error(
+        "PLATFORM HEADER LOAD ERROR:",
+        err
+      );
+
+      return;
+    }
+
+    const title =
+      document.getElementById(
+        "platformTitle"
+      );
+
+    if(title){
+      title.textContent =
+        "GH Mobility Platform";
+    }
+
+    function updatePlatformTime(){
+
+      const timezone =
+        localStorage.getItem(
+          "platformTimezone"
+        ) ||
+        localStorage.getItem(
+          "systemTimezone"
+        ) ||
+        "America/Phoenix";
+
+      const now =
+        new Date();
+
+      const date =
+        now.toLocaleDateString(
+          "en-US",
+          {
+            timeZone:timezone,
+            weekday:"short",
+            month:"short",
+            day:"numeric",
+            year:"numeric"
+          }
+        );
+
+      const time =
+        now.toLocaleTimeString(
+          "en-US",
+          {
+            timeZone:timezone,
+            hour:"numeric",
+            minute:"2-digit",
+            second:"2-digit",
+            hour12:true
+          }
+        );
+
+      const el =
+        document.getElementById(
+          "platformTime"
+        );
+
+      if(el){
+        el.innerHTML =
+          `${date}<br>${time}`;
+      }
+    }
+
+    function updatePlatformWelcome(){
+
+      const timezone =
+        localStorage.getItem(
+          "platformTimezone"
+        ) ||
+        localStorage.getItem(
+          "systemTimezone"
+        ) ||
+        "America/Phoenix";
+
+      const hour =
+        Number(
+          new Intl.DateTimeFormat(
+            "en-US",
+            {
+              hour:"numeric",
+              hour12:false,
+              timeZone:timezone
+            }
+          ).format(
+            new Date()
+          )
+        );
+
+      let message =
+        "Good Evening";
+
+      if(hour < 12){
+        message =
+          "Good Morning";
+      }else if(hour < 18){
+        message =
+          "Good Afternoon";
+      }
+
+      const welcomeEl =
+        document.getElementById(
+          "platformWelcomeMessage"
+        );
+
+      if(welcomeEl){
+        welcomeEl.textContent =
+          message;
+      }
+    }
+
+    function setPlatformActiveNav(){
+
+      const currentPage =
+        window.location.pathname
+          .split("/")
+          .pop();
+
+      document
+        .querySelectorAll(
+          ".platform-nav .platform-nav-btn, .platform-mobile-side-nav a"
+        )
+        .forEach(link=>{
+
+          const href =
+            String(
+              link.getAttribute("href") ||
+              ""
+            )
+            .split("/")
+            .pop();
+
+          link.classList.toggle(
+            "active",
+            href === currentPage
+          );
+        });
+    }
+
+    function buildPlatformMobileMenu(){
+
+      const desktopNav =
+        document.getElementById(
+          "platformDesktopNav"
+        );
+
+      const mobileNav =
+        document.getElementById(
+          "platformMobileSideNav"
+        );
+
+      if(
+        !desktopNav ||
+        !mobileNav
+      ){
+        return;
+      }
+
+      mobileNav.innerHTML = "";
+
+      desktopNav
+        .querySelectorAll(
+          "a.platform-nav-btn"
+        )
+        .forEach(link=>{
+
+          const item =
+            document.createElement(
+              "a"
+            );
+
+          item.href =
+            link.getAttribute(
+              "href"
+            ) || "#";
+
+          item.textContent =
+            link.textContent.trim();
+
+          mobileNav.appendChild(
+            item
+          );
+        });
+
+      setPlatformActiveNav();
+    }
+
+    function closePlatformMobileMenu(){
+
+      const mobileOverlay =
+        document.getElementById(
+          "platformMobileOverlay"
+        );
+
+      const mobileSideMenu =
+        document.getElementById(
+          "platformMobileSideMenu"
+        );
+
+      if(mobileOverlay){
+        mobileOverlay.classList.remove(
+          "show"
+        );
+      }
+
+      if(mobileSideMenu){
+        mobileSideMenu.classList.remove(
+          "show"
+        );
+      }
+
+      document.body.style.overflow =
+        "";
+    }
+
+    function openPlatformMobileMenu(){
+
+      const mobileOverlay =
+        document.getElementById(
+          "platformMobileOverlay"
+        );
+
+      const mobileSideMenu =
+        document.getElementById(
+          "platformMobileSideMenu"
+        );
+
+      if(mobileOverlay){
+        mobileOverlay.classList.add(
+          "show"
+        );
+      }
+
+      if(mobileSideMenu){
+        mobileSideMenu.classList.add(
+          "show"
+        );
+      }
+
+      document.body.style.overflow =
+        "hidden";
+    }
+
+    buildPlatformMobileMenu();
+    updatePlatformTime();
+    updatePlatformWelcome();
     setPlatformActiveNav();
 
-  }
-
-  buildPlatformMobileMenu();
-
-  /* =========================
-     MOBILE MENU
-  ========================= */
-
-  const mobileMenuBtn =
-    document.getElementById(
-      "platformMobileMenuBtn"
+    setInterval(
+      updatePlatformTime,
+      1000
     );
 
-  const mobileCloseBtn =
-    document.getElementById(
-      "platformMobileCloseBtn"
+    setInterval(
+      updatePlatformWelcome,
+      60000
     );
 
-  const mobileOverlay =
-    document.getElementById(
-      "platformMobileOverlay"
-    );
-
-  const mobileSideMenu =
-    document.getElementById(
-      "platformMobileSideMenu"
-    );
-
-  function openPlatformMobileMenu(){
-
-    if(mobileOverlay){
-
-      mobileOverlay.classList.add(
-        "show"
-      );
-
-    }
-
-    if(mobileSideMenu){
-
-      mobileSideMenu.classList.add(
-        "show"
-      );
-
-    }
-
-    document.body.style.overflow =
-      "hidden";
-
-  }
-
-  function closePlatformMobileMenu(){
-
-    if(mobileOverlay){
-
-      mobileOverlay.classList.remove(
-        "show"
-      );
-
-    }
-
-    if(mobileSideMenu){
-
-      mobileSideMenu.classList.remove(
-        "show"
-      );
-
-    }
-
-    document.body.style.overflow =
-      "";
-
-  }
-
-  if(mobileMenuBtn){
-
-    mobileMenuBtn.addEventListener(
-      "click",
-      e=>{
-
-        e.preventDefault();
-
-        openPlatformMobileMenu();
-
-      }
-    );
-
-  }
-
-  if(mobileCloseBtn){
-
-    mobileCloseBtn.addEventListener(
-      "click",
-      e=>{
-
-        e.preventDefault();
-
-        closePlatformMobileMenu();
-
-      }
-    );
-
-  }
-
-  if(mobileOverlay){
-
-    mobileOverlay.addEventListener(
-      "click",
-      closePlatformMobileMenu
-    );
-
-  }
-
-  document.addEventListener(
-    "keydown",
-    e=>{
-
-      if(e.key === "Escape"){
-
-        closePlatformMobileMenu();
-
-      }
-
-    }
-  );
-
-  const mobileNav =
-    document.getElementById(
-      "platformMobileSideNav"
-    );
-
-  if(mobileNav){
-
-    mobileNav.addEventListener(
-      "click",
-      e=>{
-
-        const link =
-          e.target.closest("a");
-
-        if(link){
-
-          closePlatformMobileMenu();
-
+    document
+      .getElementById(
+        "platformMobileMenuBtn"
+      )
+      ?.addEventListener(
+        "click",
+        event=>{
+          event.preventDefault();
+          openPlatformMobileMenu();
         }
+      );
 
+    document
+      .getElementById(
+        "platformMobileCloseBtn"
+      )
+      ?.addEventListener(
+        "click",
+        event=>{
+          event.preventDefault();
+          closePlatformMobileMenu();
+        }
+      );
+
+    document
+      .getElementById(
+        "platformMobileOverlay"
+      )
+      ?.addEventListener(
+        "click",
+        closePlatformMobileMenu
+      );
+
+    document.addEventListener(
+      "keydown",
+      event=>{
+        if(event.key === "Escape"){
+          closePlatformMobileMenu();
+        }
       }
     );
-
   }
+);
 
-  setPlatformActiveNav();
-
-});
-
-
-/* =========================
+/* =========================================
    PLATFORM LOGOUT
-========================= */
+========================================= */
 
 function platformLogout(){
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("role");
-  localStorage.removeItem("name");
-  localStorage.removeItem("tenantId");
+  sessionStorage.removeItem(
+    "staffToken"
+  );
 
-  window.location.href =
-    "/login.html";
+  sessionStorage.removeItem(
+    "staffRole"
+  );
 
+  sessionStorage.removeItem(
+    "staffName"
+  );
+
+  sessionStorage.removeItem(
+    "staffTenantId"
+  );
+
+  sessionStorage.removeItem(
+    "staffTenantSlug"
+  );
+
+  localStorage.removeItem(
+    "token"
+  );
+
+  localStorage.removeItem(
+    "role"
+  );
+
+  localStorage.removeItem(
+    "name"
+  );
+
+  localStorage.removeItem(
+    "tenantId"
+  );
+
+  localStorage.removeItem(
+    "tenantSlug"
+  );
+
+  window.location.replace(
+    "/login.html"
+  );
 }
