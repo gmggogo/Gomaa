@@ -1,682 +1,582 @@
 /* =========================================
-   BUILD: ADMIN-BILLING-20260826-0150
-========================================= */
-
-window.ADMIN_BILLING_BUILD = "ADMIN-BILLING-20260826-0150";
-console.log("ADMIN BILLING BUILD:", window.ADMIN_BILLING_BUILD);
-
-/* =========================================
    ADMIN BILLING
-   RESILIENT TENANT BILLING + STRIPE CONNECT
+   FIXED: DOM READY + SAFE ELEMENT BINDING
 ========================================= */
 
-(function(){
+document.addEventListener("DOMContentLoaded", () => {
 
-  "use strict";
+  /* =========================
+     AUTH
+  ========================= */
 
-  function normalizeRole(value){
-    return String(value || "")
-      .trim()
-      .toUpperCase()
-      .replace(/[\s-]+/g,"_");
-  }
+  const token =
+    localStorage.getItem("token");
 
-  function sessionValue(sessionKey, legacyKey){
-    return String(
-      sessionStorage.getItem(sessionKey) ||
-      localStorage.getItem(legacyKey) ||
+  const role =
+    String(
+      localStorage.getItem("role") ||
       ""
     ).trim();
+
+  if(
+    !token ||
+    !["SUPER_ADMIN","admin"].includes(role)
+  ){
+    window.location.href =
+      "/login.html";
+    return;
   }
 
-  function getToken(){
-    return sessionValue("staffToken","token");
-  }
+  /* =========================
+     ELEMENTS
+  ========================= */
 
-  function getRole(){
-    const role =
-      normalizeRole(
-        sessionValue("staffRole","role")
+  const container =
+    document.getElementById("billingContainer");
+
+  const searchInput =
+    document.getElementById("searchInput");
+
+  const statusFilter =
+    document.getElementById("statusFilter");
+
+  const monthFilter =
+    document.getElementById("monthFilter");
+
+  const yearFilter =
+    document.getElementById("yearFilter");
+
+  const stripeStatus =
+    document.getElementById("stripeStatus");
+
+  const stripeAccountText =
+    document.getElementById("stripeAccountText");
+
+  const connectStripeBtn =
+    document.getElementById("connectStripeBtn");
+
+  const stripeDashboardBtn =
+    document.getElementById("stripeDashboardBtn");
+
+  /* =========================
+     DATA
+  ========================= */
+
+  let companies = [];
+
+  /* =========================
+     MONTHS
+  ========================= */
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+
+  if(monthFilter){
+
+    const existingValues =
+      new Set(
+        Array.from(
+          monthFilter.options || []
+        ).map(
+          option =>
+            String(option.value)
+        )
       );
 
-    if(role === "SUPERADMIN"){
-      return "SUPER_ADMIN";
+    months.forEach((m,i)=>{
+
+      const value =
+        String(i + 1);
+
+      if(
+        existingValues.has(
+          value
+        )
+      ){
+        return;
+      }
+
+      monthFilter.innerHTML += `
+        <option value="${value}">
+          ${m}
+        </option>
+      `;
+
+    });
+
+  }
+
+  /* =========================
+     HELPERS
+  ========================= */
+
+  function money(value){
+
+    return "$" +
+      Number(value || 0)
+        .toFixed(2);
+
+  }
+
+  function getArizonaDate(value){
+
+    if(!value) return null;
+
+    return new Date(
+      new Date(value).toLocaleString(
+        "en-US",
+        {
+          timeZone:"America/Phoenix"
+        }
+      )
+    );
+
+  }
+
+  function formatDate(value){
+
+    if(!value) return "--";
+
+    const d =
+      getArizonaDate(value);
+
+    if(
+      !d ||
+      isNaN(d.getTime())
+    ){
+      return "--";
     }
 
-    return role;
+    return d.toLocaleDateString(
+      "en-US",
+      {
+        year:"numeric",
+        month:"short",
+        day:"numeric",
+        timeZone:"America/Phoenix"
+      }
+    );
+
+  }
+
+  function toInputDate(value){
+
+    if(!value) return "";
+
+    const d =
+      getArizonaDate(value);
+
+    if(
+      !d ||
+      isNaN(d.getTime())
+    ){
+      return "";
+    }
+
+    const year =
+      d.getFullYear();
+
+    const month =
+      String(
+        d.getMonth() + 1
+      ).padStart(
+        2,
+        "0"
+      );
+
+    const day =
+      String(
+        d.getDate()
+      ).padStart(
+        2,
+        "0"
+      );
+
+    return `${year}-${month}-${day}`;
+
+  }
+
+  async function safeJson(res){
+
+    try{
+      return await res.json();
+    }catch(err){
+      return {};
+    }
+
   }
 
   function getTenantSlug(){
+
     return String(
-      sessionStorage.getItem("staffTenantSlug") ||
-      sessionStorage.getItem("loginTenantSlug") ||
       localStorage.getItem("tenantSlug") ||
+      sessionStorage.getItem("loginTenantSlug") ||
       ""
     )
     .trim()
     .toLowerCase();
+
   }
 
-  function syncLegacyAuth(){
+  function setStripeUi(
+    type,
+    text,
+    accountId = ""
+  ){
 
-    const token =
-      sessionStorage.getItem("staffToken");
-
-    const role =
-      sessionStorage.getItem("staffRole");
-
-    const tenantId =
-      sessionStorage.getItem("staffTenantId");
-
-    const tenantSlug =
-      sessionStorage.getItem("staffTenantSlug");
-
-    if(token){
-      localStorage.setItem("token",token);
-    }
-
-    if(role){
-      localStorage.setItem("role",role);
-    }
-
-    if(tenantId){
-      localStorage.setItem("tenantId",tenantId);
-    }
-
-    if(tenantSlug){
-      localStorage.setItem("tenantSlug",tenantSlug);
-    }
-  }
-
-  function start(){
-
-    syncLegacyAuth();
-
-    const token =
-      getToken();
-
-    const role =
-      getRole();
-
-    if(
-      !token ||
-      ![
-        "SUPER_ADMIN",
-        "ADMIN"
-      ].includes(role)
-    ){
-      window.location.href =
-        "/login.html";
+    if(!stripeStatus){
       return;
     }
 
-    const container =
-      document.getElementById(
-        "billingContainer"
-      );
+    stripeStatus.className =
+      "stripe-status " + type;
 
-    const searchInput =
-      document.getElementById(
-        "searchInput"
-      );
+    stripeStatus.innerText =
+      text;
 
-    const statusFilter =
-      document.getElementById(
-        "statusFilter"
-      );
+    if(stripeAccountText){
 
-    const monthFilter =
-      document.getElementById(
-        "monthFilter"
-      );
+      if(accountId){
 
-    const yearFilter =
-      document.getElementById(
-        "yearFilter"
-      );
+        stripeAccountText.innerText =
+          "Connected account: " +
+          accountId;
 
-    const stripeStatus =
-      document.getElementById(
-        "stripeStatus"
-      );
+      }else{
 
-    const stripeAccountText =
-      document.getElementById(
-        "stripeAccountText"
-      );
-
-    const connectStripeBtn =
-      document.getElementById(
-        "connectStripeBtn"
-      );
-
-    const stripeDashboardBtn =
-      document.getElementById(
-        "stripeDashboardBtn"
-      );
-
-    let companies = [];
-
-    const months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December"
-    ];
-
-    if(monthFilter){
-
-      const existingValues =
-        new Set(
-          Array.from(
-            monthFilter.options || []
-          ).map(
-            option =>
-              String(option.value)
-          )
-        );
-
-      months.forEach((month,index)=>{
-
-        const value =
-          String(index + 1);
-
-        if(
-          existingValues.has(value)
-        ){
-          return;
-        }
-
-        const option =
-          document.createElement(
-            "option"
-          );
-
-        option.value =
-          value;
-
-        option.textContent =
-          month;
-
-        monthFilter.appendChild(
-          option
-        );
-
-      });
-
-    }
-
-    function money(value){
-      return "$" +
-        Number(value || 0)
-          .toFixed(2);
-    }
-
-    function getArizonaDate(value){
-
-      if(!value){
-        return null;
-      }
-
-      return new Date(
-        new Date(value)
-          .toLocaleString(
-            "en-US",
-            {
-              timeZone:
-                "America/Phoenix"
-            }
-          )
-      );
-    }
-
-    function formatDate(value){
-
-      if(!value){
-        return "--";
-      }
-
-      const date =
-        getArizonaDate(value);
-
-      if(
-        !date ||
-        Number.isNaN(
-          date.getTime()
-        )
-      ){
-        return "--";
-      }
-
-      return date.toLocaleDateString(
-        "en-US",
-        {
-          year:"numeric",
-          month:"short",
-          day:"numeric",
-          timeZone:
-            "America/Phoenix"
-        }
-      );
-    }
-
-    function toInputDate(value){
-
-      if(!value){
-        return "";
-      }
-
-      const date =
-        getArizonaDate(value);
-
-      if(
-        !date ||
-        Number.isNaN(
-          date.getTime()
-        )
-      ){
-        return "";
-      }
-
-      const year =
-        date.getFullYear();
-
-      const month =
-        String(
-          date.getMonth() + 1
-        ).padStart(2,"0");
-
-      const day =
-        String(
-          date.getDate()
-        ).padStart(2,"0");
-
-      return (
-        `${year}-${month}-${day}`
-      );
-    }
-
-    async function readResponse(res){
-
-      const text =
-        await res.text();
-
-      if(!text){
-        return {};
-      }
-
-      try{
-        return JSON.parse(text);
-      }catch(err){
-        return {
-          message:text
-        };
-      }
-    }
-
-    async function apiFetch(
-      url,
-      options = {},
-      timeoutMs = 15000
-    ){
-
-      const controller =
-        new AbortController();
-
-      const timer =
-        setTimeout(
-          ()=>{
-            controller.abort();
-          },
-          timeoutMs
-        );
-
-      try{
-
-        const headers = {
-          ...(options.headers || {}),
-          Authorization:
-            "Bearer " + getToken()
-        };
-
-        const res =
-          await fetch(
-            url,
-            {
-              ...options,
-              headers,
-              signal:
-                controller.signal,
-              cache:"no-store"
-            }
-          );
-
-        const data =
-          await readResponse(res);
-
-        if(!res.ok){
-
-          const error =
-            new Error(
-              data.message ||
-              `Request failed (${res.status})`
-            );
-
-          error.status =
-            res.status;
-
-          throw error;
-        }
-
-        return data;
-
-      }catch(err){
-
-        if(
-          err &&
-          err.name ===
-            "AbortError"
-        ){
-          throw new Error(
-            "Request timed out"
-          );
-        }
-
-        throw err;
-
-      }finally{
-
-        clearTimeout(
-          timer
-        );
-      }
-    }
-
-    function setStripeUi(
-      type,
-      text,
-      accountId = ""
-    ){
-
-      if(stripeStatus){
-
-        stripeStatus.className =
-          "stripe-status " +
-          type;
-
-        stripeStatus.textContent =
-          text;
-      }
-
-      if(stripeAccountText){
-
-        if(accountId){
-
-          stripeAccountText.textContent =
-            "Connected account: " +
-            accountId;
-
-        }else if(
+        stripeAccountText.innerText =
           type === "connected"
-        ){
+            ? "Stripe is connected and ready to receive payments."
+            : "Connect the organization Stripe account to receive Company Billing and Get Quote payments.";
 
-          stripeAccountText.textContent =
-            "Stripe is connected and ready to receive payments.";
-
-        }else{
-
-          stripeAccountText.textContent =
-            "Connect the organization Stripe account to receive Company Billing and Get Quote payments.";
-        }
       }
+
     }
 
-    async function loadStripeStatus(){
+  }
 
-      if(!connectStripeBtn){
-        return;
-      }
+  /* =========================
+     STRIPE CONNECT
+  ========================= */
+
+  async function loadStripeStatus(){
+
+    if(
+      !stripeStatus ||
+      !connectStripeBtn
+    ){
+      return;
+    }
+
+    try{
 
       setStripeUi(
         "pending",
         "CHECKING"
       );
 
-      /*
-        Keep Connect Stripe usable even if the status endpoint
-        is slow or unavailable.
-      */
       connectStripeBtn.disabled =
-        false;
+        true;
 
-      try{
+      if(stripeDashboardBtn){
+        stripeDashboardBtn.disabled =
+          true;
+      }
 
-        const data =
-          await apiFetch(
-            "/api/tenant-stripe/status",
-            {
-              method:"GET"
+      const res =
+        await fetch(
+          "/api/tenant-stripe/status",
+          {
+            headers:{
+              Authorization:
+                "Bearer " + token
             },
-            10000
-          );
-
-        const connected =
-          data.connected === true &&
-          data.chargesEnabled === true;
-
-        if(connected){
-
-          setStripeUi(
-            "connected",
-            "CONNECTED",
-            data.stripeAccountId ||
-            ""
-          );
-
-          connectStripeBtn.textContent =
-            "Manage Stripe";
-
-          if(stripeDashboardBtn){
-
-            stripeDashboardBtn.style.display =
-              "inline-flex";
-
-            stripeDashboardBtn.disabled =
-              false;
+            cache:"no-store"
           }
-
-        }else{
-
-          setStripeUi(
-            "pending",
-            data.stripeAccountId
-              ? "SETUP REQUIRED"
-              : "NOT CONNECTED",
-            data.stripeAccountId ||
-            ""
-          );
-
-          connectStripeBtn.textContent =
-            data.stripeAccountId
-              ? "Continue Stripe Setup"
-              : "Connect Stripe";
-
-          if(stripeDashboardBtn){
-
-            stripeDashboardBtn.style.display =
-              "none";
-          }
-        }
-
-      }catch(err){
-
-        console.log(
-          "STRIPE STATUS ERROR:",
-          err
         );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Unable to load Stripe status"
+        );
+
+      }
+
+      const connected =
+        data.connected === true &&
+        data.chargesEnabled === true;
+
+      if(connected){
 
         setStripeUi(
-          "error",
-          "NOT CONNECTED"
+          "connected",
+          "CONNECTED",
+          data.stripeAccountId || ""
         );
 
-        connectStripeBtn.textContent =
-          "Connect Stripe";
-
-        connectStripeBtn.disabled =
-          false;
+        connectStripeBtn.innerText =
+          "Manage Stripe";
 
         if(stripeDashboardBtn){
+          stripeDashboardBtn.style.display =
+            "inline-flex";
+        }
 
+      }else{
+
+        setStripeUi(
+          "pending",
+          data.stripeAccountId
+            ? "SETUP REQUIRED"
+            : "NOT CONNECTED",
+          data.stripeAccountId || ""
+        );
+
+        connectStripeBtn.innerText =
+          data.stripeAccountId
+            ? "Continue Stripe Setup"
+            : "Connect Stripe";
+
+        if(stripeDashboardBtn){
           stripeDashboardBtn.style.display =
             "none";
         }
+
       }
+
+      connectStripeBtn.disabled =
+        false;
+
+      if(stripeDashboardBtn){
+        stripeDashboardBtn.disabled =
+          false;
+      }
+
+    }catch(err){
+
+      console.log(
+        "STRIPE STATUS ERROR:",
+        err
+      );
+
+      setStripeUi(
+        "error",
+        "ERROR"
+      );
+
+      connectStripeBtn.disabled =
+        false;
+
+      if(stripeDashboardBtn){
+        stripeDashboardBtn.style.display =
+          "none";
+      }
+
     }
 
-    async function connectStripe(){
+  }
+
+  async function connectStripe(){
+
+    try{
 
       if(!connectStripeBtn){
         return;
       }
 
-      const originalText =
-        connectStripeBtn.textContent ||
-        "Connect Stripe";
+      connectStripeBtn.disabled =
+        true;
 
-      try{
+      connectStripeBtn.innerText =
+        "Opening Stripe...";
 
-        connectStripeBtn.disabled =
-          true;
+      const res =
+        await fetch(
+          "/api/tenant-stripe/connect",
+          {
+            method:"POST",
 
-        connectStripeBtn.textContent =
-          "Opening Stripe...";
+            headers:{
+              "Content-Type":
+                "application/json",
 
-        const data =
-          await apiFetch(
-            "/api/tenant-stripe/connect",
-            {
-              method:"POST",
-              headers:{
-                "Content-Type":
-                  "application/json"
-              },
-              body:
-                JSON.stringify({
-                  tenantSlug:
-                    getTenantSlug()
-                })
+              Authorization:
+                "Bearer " + token
             },
-            20000
-          );
 
-        if(!data.url){
-
-          throw new Error(
-            "Stripe onboarding link missing"
-          );
-        }
-
-        window.location.assign(
-          data.url
+            body:JSON.stringify({
+              tenantSlug:
+                getTenantSlug()
+            })
+          }
         );
 
-      }catch(err){
+      const data =
+        await safeJson(res);
 
-        console.log(
-          "STRIPE CONNECT ERROR:",
-          err
-        );
+      if(!res.ok){
 
-        alert(
-          err.message ||
+        throw new Error(
+          data.message ||
           "Unable to connect Stripe"
         );
 
-        connectStripeBtn.disabled =
-          false;
-
-        connectStripeBtn.textContent =
-          originalText;
       }
+
+      if(!data.url){
+
+        throw new Error(
+          "Stripe onboarding link missing"
+        );
+
+      }
+
+      window.location.href =
+        data.url;
+
+    }catch(err){
+
+      console.log(
+        "STRIPE CONNECT ERROR:",
+        err
+      );
+
+      alert(
+        err.message ||
+        "Unable to connect Stripe"
+      );
+
+      connectStripeBtn.disabled =
+        false;
+
+      connectStripeBtn.innerText =
+        "Connect Stripe";
+
     }
 
-    async function openStripeDashboard(){
+  }
+
+  async function openStripeDashboard(){
+
+    try{
 
       if(!stripeDashboardBtn){
         return;
       }
 
-      const originalText =
-        stripeDashboardBtn.textContent ||
-        "Open Stripe Dashboard";
+      stripeDashboardBtn.disabled =
+        true;
 
-      try{
+      stripeDashboardBtn.innerText =
+        "Opening...";
 
-        stripeDashboardBtn.disabled =
-          true;
+      const res =
+        await fetch(
+          "/api/tenant-stripe/dashboard-link",
+          {
+            method:"POST",
 
-        stripeDashboardBtn.textContent =
-          "Opening...";
-
-        const data =
-          await apiFetch(
-            "/api/tenant-stripe/dashboard-link",
-            {
-              method:"POST"
-            },
-            20000
-          );
-
-        if(!data.url){
-
-          throw new Error(
-            "Stripe dashboard link missing"
-          );
-        }
-
-        window.location.assign(
-          data.url
+            headers:{
+              Authorization:
+                "Bearer " + token
+            }
+          }
         );
 
-      }catch(err){
+      const data =
+        await safeJson(res);
 
-        console.log(
-          "STRIPE DASHBOARD ERROR:",
-          err
-        );
+      if(!res.ok){
 
-        alert(
-          err.message ||
+        throw new Error(
+          data.message ||
           "Unable to open Stripe dashboard"
         );
 
-        stripeDashboardBtn.disabled =
-          false;
-
-        stripeDashboardBtn.textContent =
-          originalText;
       }
-    }
 
-    async function loadBilling(){
+      if(!data.url){
 
-      if(!container){
-
-        console.error(
-          "billingContainer not found"
+        throw new Error(
+          "Stripe dashboard link missing"
         );
 
-        return;
       }
+
+      window.location.href =
+        data.url;
+
+    }catch(err){
+
+      console.log(
+        "STRIPE DASHBOARD ERROR:",
+        err
+      );
+
+      alert(
+        err.message ||
+        "Unable to open Stripe dashboard"
+      );
+
+      stripeDashboardBtn.disabled =
+        false;
+
+      stripeDashboardBtn.innerText =
+        "Open Stripe Dashboard";
+
+    }
+
+  }
+
+  if(connectStripeBtn){
+
+    connectStripeBtn.addEventListener(
+      "click",
+      connectStripe
+    );
+
+  }
+
+  if(stripeDashboardBtn){
+
+    stripeDashboardBtn.addEventListener(
+      "click",
+      openStripeDashboard
+    );
+
+  }
+
+  /* =========================
+     LOAD BILLING
+  ========================= */
+
+  async function loadBilling(){
+
+    if(!container){
+      console.error(
+        "billingContainer not found"
+      );
+      return;
+    }
+
+    try{
 
       container.innerHTML = `
         <div class="empty">
@@ -684,722 +584,752 @@ console.log("ADMIN BILLING BUILD:", window.ADMIN_BILLING_BUILD);
         </div>
       `;
 
-      try{
-
-        let data;
-
-        try{
-
-          data =
-            await apiFetch(
-              "/api/admin/billing",
-              {
-                method:"GET"
-              },
-              15000
-            );
-
-        }catch(primaryErr){
-
-          console.log(
-            "ADMIN BILLING PRIMARY LOAD ERROR:",
-            primaryErr
-          );
-
-          /*
-            Fallback keeps the company list available if the billing
-            calculation endpoint is temporarily slow. Saved billing
-            fields on each company are still rendered.
-          */
-          data =
-            await apiFetch(
-              "/api/users/company",
-              {
-                method:"GET"
-              },
-              10000
-            );
-        }
-
-        companies =
-          Array.isArray(data)
-            ? data
-            : Array.isArray(
-                data.companies
-              )
-              ? data.companies
-              : [];
-
-        render(companies);
-
-      }catch(err){
-
-        console.log(
-          "ADMIN BILLING LOAD ERROR:",
-          err
+      const res =
+        await fetch(
+          "/api/admin/billing",
+          {
+            headers:{
+              Authorization:
+                "Bearer " + token
+            },
+            cache:"no-store"
+          }
         );
 
-        container.innerHTML = `
-          <div class="empty">
-            ${String(
-              err.message ||
-              "Error loading companies"
-            )}
-          </div>
-        `;
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Billing load failed"
+        );
+
       }
+
+      companies =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.companies)
+            ? data.companies
+            : [];
+
+      render(companies);
+
+    }catch(err){
+
+      console.log(
+        "ADMIN BILLING LOAD ERROR:",
+        err
+      );
+
+      container.innerHTML = `
+        <div class="empty">
+          ${String(
+            err.message ||
+            "Error loading companies"
+          )}
+        </div>
+      `;
+
     }
 
-    function render(list){
+  }
 
-      if(!container){
-        return;
-      }
+  /* =========================
+     RENDER
+  ========================= */
 
-      if(!list.length){
+  function render(list){
 
-        container.innerHTML = `
-          <div class="empty">
-            No companies found
-          </div>
-        `;
+    if(!container){
+      return;
+    }
 
-        return;
-      }
+    if(!list.length){
 
-      container.innerHTML =
-        list.map(company=>{
+      container.innerHTML = `
+        <div class="empty">
+          No companies found
+        </div>
+      `;
 
-          return `
+      return;
+    }
 
-            <div class="company-card">
+    container.innerHTML =
+      list.map(c=>{
 
-              <div class="company-top">
+        return `
 
-                <div class="company-box">
+          <div class="company-card">
 
-                  <div class="company-name">
-                    ${company.username || "--"}
-                  </div>
+            <div class="company-top">
 
-                  <div class="company-small">
-                    ${company.email || "--"}
-                    <br>
-                    ${company.phone || "--"}
-                  </div>
+              <div class="company-box">
 
+                <div class="billing-company-title"
+                  style="font-size:22px;font-weight:900;color:#166534;margin-bottom:8px;">
+                  ${c.name || "--"}
                 </div>
 
-                <div>
-
-                  ${
-                    company.billingLocked
-                      ? `
-                        <span class="badge locked">
-                          LOCKED
-                        </span>
-                      `
-                      : `
-                        <span class="badge active">
-                          ACTIVE
-                        </span>
-                      `
-                  }
-
+                <div class="company-small">
+                  ${c.email || "--"}
+                  <br>
+                  ${c.phone || "--"}
+                  <br>
+                  ${c.username || "--"}
                 </div>
 
               </div>
 
-              <div class="stats-grid">
+              <div>
 
-                <div class="stat-box">
-                  <div class="stat-label">
-                    Trips
-                  </div>
-                  <div class="stat-value">
-                    ${company.totalTrips || 0}
-                  </div>
-                </div>
+                ${
+                  c.billingLocked
 
-                <div class="stat-box">
-                  <div class="stat-label">
-                    Completed
-                  </div>
-                  <div class="stat-value">
-                    ${company.completedTrips || 0}
-                  </div>
-                </div>
+                    ? `
+                      <span class="badge locked">
+                        LOCKED
+                      </span>
+                    `
 
-                <div class="stat-box">
-                  <div class="stat-label">
-                    Shared
-                  </div>
-                  <div class="stat-value">
-                    ${company.sharedTrips || 0}
-                  </div>
-                </div>
-
-                <div class="stat-box">
-                  <div class="stat-label">
-                    No Show
-                  </div>
-                  <div class="stat-value">
-                    ${company.noShowTrips || 0}
-                  </div>
-                </div>
-
-                <div class="stat-box">
-                  <div class="stat-label">
-                    Revenue
-                  </div>
-                  <div class="stat-value">
-                    ${money(company.revenue)}
-                  </div>
-                </div>
-
-                <div class="stat-box">
-                  <div class="stat-label">
-                    Invoice
-                  </div>
-                  <div class="stat-value">
-                    ${money(company.invoiceAmount)}
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="billing-grid">
-
-                <div class="field">
-                  <label>
-                    Billing Start
-                  </label>
-
-                  <input
-                    type="date"
-                    class="small-input"
-                    id="start-${company._id}"
-                    value="${toInputDate(company.billingStartDate)}"
-                    disabled
-                  >
-                </div>
-
-                <div class="field">
-                  <label>
-                    Billing End
-                  </label>
-
-                  <input
-                    type="date"
-                    class="small-input"
-                    id="end-${company._id}"
-                    value="${toInputDate(company.billingEndDate)}"
-                    disabled
-                  >
-                </div>
-
-                <div class="field">
-                  <label>
-                    Grace Days
-                  </label>
-
-                  <input
-                    type="number"
-                    class="small-input"
-                    id="grace-${company._id}"
-                    value="${company.graceDays || 3}"
-                    disabled
-                  >
-                </div>
-
-                <div class="field">
-                  <label>
-                    Last Payment
-                  </label>
-
-                  <input
-                    type="text"
-                    class="small-input"
-                    value="${formatDate(company.lastPaymentDate)}"
-                    disabled
-                  >
-                </div>
-
-              </div>
-
-              <div class="btn-row">
-
-                <button
-                  class="btn btn-blue"
-                  onclick="editBilling('${company._id}')"
-                  id="editBtn-${company._id}"
-                >
-                  Edit
-                </button>
-
-                <button
-                  class="btn btn-green"
-                  onclick="saveBilling('${company._id}')"
-                  id="saveBtn-${company._id}"
-                  style="display:none;"
-                >
-                  Save
-                </button>
-
-                <button
-                  class="btn btn-dark"
-                  onclick="openInvoice('${company._id}')"
-                >
-                  Open Invoice
-                </button>
-
-                <button
-                  class="btn btn-yellow"
-                  onclick="markPaid('${company._id}')"
-                >
-                  Mark Paid
-                </button>
-
-                <button
-                  class="btn btn-red"
-                  onclick="lockCompany('${company._id}')"
-                >
-                  Lock
-                </button>
-
-                <button
-                  class="btn btn-green"
-                  onclick="unlockCompany('${company._id}')"
-                >
-                  Unlock
-                </button>
+                    : `
+                      <span class="badge active">
+                        ACTIVE
+                      </span>
+                    `
+                }
 
               </div>
 
             </div>
-          `;
 
-        }).join("");
+            <div class="stats-grid">
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  Trips
+                </div>
+                <div class="stat-value">
+                  ${c.totalTrips || 0}
+                </div>
+              </div>
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  Completed
+                </div>
+                <div class="stat-value">
+                  ${c.completedTrips || 0}
+                </div>
+              </div>
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  Shared
+                </div>
+                <div class="stat-value">
+                  ${c.sharedTrips || 0}
+                </div>
+              </div>
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  No Show
+                </div>
+                <div class="stat-value">
+                  ${c.noShowTrips || 0}
+                </div>
+              </div>
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  Revenue
+                </div>
+                <div class="stat-value">
+                  ${money(c.revenue)}
+                </div>
+              </div>
+
+              <div class="stat-box">
+                <div class="stat-label">
+                  Invoice
+                </div>
+                <div class="stat-value">
+                  ${money(c.invoiceAmount)}
+                </div>
+              </div>
+
+            </div>
+
+            <div class="billing-grid">
+
+              <div class="field">
+                <label>
+                  Billing Start
+                </label>
+
+                <input
+                  type="date"
+                  class="small-input"
+                  id="start-${c._id}"
+                  value="${toInputDate(c.billingStartDate)}"
+                  disabled
+                >
+              </div>
+
+              <div class="field">
+                <label>
+                  Billing End
+                </label>
+
+                <input
+                  type="date"
+                  class="small-input"
+                  id="end-${c._id}"
+                  value="${toInputDate(c.billingEndDate)}"
+                  disabled
+                >
+              </div>
+
+              <div class="field">
+                <label>
+                  Grace Days
+                </label>
+
+                <input
+                  type="number"
+                  class="small-input"
+                  id="grace-${c._id}"
+                  value="${c.graceDays || 3}"
+                  disabled
+                >
+              </div>
+
+              <div class="field">
+                <label>
+                  Last Payment
+                </label>
+
+                <input
+                  type="text"
+                  class="small-input"
+                  value="${formatDate(c.lastPaymentDate)}"
+                  disabled
+                >
+              </div>
+
+            </div>
+
+            <div class="btn-row">
+
+              <button
+                class="btn btn-blue"
+                onclick="editBilling('${c._id}')"
+                id="editBtn-${c._id}"
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn btn-green"
+                onclick="saveBilling('${c._id}')"
+                id="saveBtn-${c._id}"
+                style="display:none;"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn btn-dark"
+                onclick="openInvoice('${c._id}')"
+              >
+                Open Invoice
+              </button>
+
+              <button
+                class="btn btn-yellow"
+                onclick="markPaid('${c._id}')"
+              >
+                Mark Paid
+              </button>
+
+              <button
+                class="btn btn-red"
+                onclick="lockCompany('${c._id}')"
+              >
+                Lock
+              </button>
+
+              <button
+                class="btn btn-green"
+                onclick="unlockCompany('${c._id}')"
+              >
+                Unlock
+              </button>
+
+            </div>
+
+          </div>
+
+        `;
+
+      }).join("");
+
+  }
+
+  /* =========================
+     ACTIONS
+     Expose to inline onclick
+  ========================= */
+
+  window.editBilling =
+  function editBilling(id){
+
+    const start =
+      document.getElementById(
+        `start-${id}`
+      );
+
+    const end =
+      document.getElementById(
+        `end-${id}`
+      );
+
+    const grace =
+      document.getElementById(
+        `grace-${id}`
+      );
+
+    const editBtn =
+      document.getElementById(
+        `editBtn-${id}`
+      );
+
+    const saveBtn =
+      document.getElementById(
+        `saveBtn-${id}`
+      );
+
+    if(start) start.disabled = false;
+    if(end) end.disabled = false;
+    if(grace) grace.disabled = false;
+
+    if(editBtn){
+      editBtn.style.display =
+        "none";
     }
 
-    window.editBilling =
-      function editBilling(id){
+    if(saveBtn){
+      saveBtn.style.display =
+        "inline-flex";
+    }
 
-        const start =
-          document.getElementById(
-            `start-${id}`
+  };
+
+  window.saveBilling =
+  async function saveBilling(id){
+
+    try{
+
+      const start =
+        document.getElementById(
+          `start-${id}`
+        )?.value || "";
+
+      const end =
+        document.getElementById(
+          `end-${id}`
+        )?.value || "";
+
+      const grace =
+        document.getElementById(
+          `grace-${id}`
+        )?.value || 3;
+
+      if(!start || !end){
+
+        alert(
+          "Please select dates"
+        );
+
+        return;
+
+      }
+
+      const res =
+        await fetch(
+          `/api/admin/generate-invoice/${id}`,
+          {
+            method:"PUT",
+
+            headers:{
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                "Bearer " + token
+            },
+
+            body:JSON.stringify({
+              billingStartDate:start,
+              billingEndDate:end,
+              graceDays:grace
+            })
+          }
+        );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Save failed"
+        );
+
+      }
+
+      alert("Saved");
+
+      await loadBilling();
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Save failed"
+      );
+
+    }
+
+  };
+
+  window.openInvoice =
+  function openInvoice(id){
+
+    window.open(
+      `/admin/invoice.html?id=${id}`,
+      "_blank"
+    );
+
+  };
+
+  window.lockCompany =
+  async function lockCompany(id){
+
+    try{
+
+      const res =
+        await fetch(
+          `/api/admin/billing/${id}/lock`,
+          {
+            method:"PUT",
+            headers:{
+              Authorization:
+                "Bearer " + token
+            }
+          }
+        );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Lock failed"
+        );
+
+      }
+
+      await loadBilling();
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Lock failed"
+      );
+
+    }
+
+  };
+
+  window.unlockCompany =
+  async function unlockCompany(id){
+
+    try{
+
+      const res =
+        await fetch(
+          `/api/admin/billing/${id}/unlock`,
+          {
+            method:"PUT",
+            headers:{
+              Authorization:
+                "Bearer " + token
+            }
+          }
+        );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Unlock failed"
+        );
+
+      }
+
+      await loadBilling();
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Unlock failed"
+      );
+
+    }
+
+  };
+
+  window.markPaid =
+  async function markPaid(id){
+
+    try{
+
+      const company =
+        companies.find(
+          c => c._id === id
+        );
+
+      if(!company){
+        return;
+      }
+
+      const ok =
+        confirm(
+          `Mark invoice as PAID?\n\n` +
+          `Company: ${company.name}\n` +
+          `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
+          `This will:\n\n` +
+          `• Reset invoice to $0\n` +
+          `• Unlock company\n` +
+          `• Start new billing cycle\n` +
+          `• Reset current billing stats\n\n` +
+          `Continue?`
+        );
+
+      if(!ok){
+        return;
+      }
+
+      const res =
+        await fetch(
+          `/api/admin/billing/${id}/mark-paid`,
+          {
+            method:"PUT",
+            headers:{
+              Authorization:
+                "Bearer " + token
+            }
+          }
+        );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+
+        throw new Error(
+          data.message ||
+          "Payment failed"
+        );
+
+      }
+
+      alert(
+        "Invoice marked as PAID successfully"
+      );
+
+      await loadBilling();
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Payment failed"
+      );
+
+    }
+
+  };
+
+  /* =========================
+     FILTERS
+  ========================= */
+
+  function applyFilters(){
+
+    let list =
+      [...companies];
+
+    const search =
+      String(
+        searchInput?.value ||
+        ""
+      )
+      .toLowerCase()
+      .trim();
+
+    const status =
+      String(
+        statusFilter?.value ||
+        ""
+      );
+
+    const month =
+      String(
+        monthFilter?.value ||
+        ""
+      );
+
+    const year =
+      String(
+        yearFilter?.value ||
+        ""
+      );
+
+    if(search){
+
+      list =
+        list.filter(c=>{
+
+          const text = `
+            ${c.name || ""}
+            ${c.email || ""}
+            ${c.phone || ""}
+            ${c.username || ""}
+          `
+          .toLowerCase();
+
+          return text.includes(
+            search
           );
 
-        const end =
-          document.getElementById(
-            `end-${id}`
-          );
+        });
 
-        const grace =
-          document.getElementById(
-            `grace-${id}`
-          );
+    }
 
-        const editBtn =
-          document.getElementById(
-            `editBtn-${id}`
-          );
+    if(status){
 
-        const saveBtn =
-          document.getElementById(
-            `saveBtn-${id}`
-          );
+      list =
+        list.filter(
+          c =>
+            c.billingStatus ===
+            status
+        );
 
-        if(start){
-          start.disabled = false;
-        }
+    }
 
-        if(end){
-          end.disabled = false;
-        }
+    if(month){
 
-        if(grace){
-          grace.disabled = false;
-        }
+      list =
+        list.filter(c=>{
 
-        if(editBtn){
-          editBtn.style.display =
-            "none";
-        }
-
-        if(saveBtn){
-          saveBtn.style.display =
-            "inline-flex";
-        }
-      };
-
-    window.saveBilling =
-      async function saveBilling(id){
-
-        try{
-
-          const start =
-            document.getElementById(
-              `start-${id}`
-            )?.value || "";
-
-          const end =
-            document.getElementById(
-              `end-${id}`
-            )?.value || "";
-
-          const grace =
-            document.getElementById(
-              `grace-${id}`
-            )?.value || 3;
-
-          if(!start || !end){
-
-            alert(
-              "Please select dates"
-            );
-
-            return;
+          if(!c.billingStartDate){
+            return false;
           }
 
-          await apiFetch(
-            `/api/admin/generate-invoice/${id}`,
-            {
-              method:"PUT",
-              headers:{
-                "Content-Type":
-                  "application/json"
-              },
-              body:
-                JSON.stringify({
-                  billingStartDate:
-                    start,
-                  billingEndDate:
-                    end,
-                  graceDays:
-                    grace
-                })
-            }
-          );
-
-          alert("Saved");
-
-          await loadBilling();
-
-        }catch(err){
-
-          console.log(err);
-
-          alert(
-            err.message ||
-            "Save failed"
-          );
-        }
-      };
-
-    window.openInvoice =
-      function openInvoice(id){
-
-        window.open(
-          `/admin/invoice.html?id=${id}`,
-          "_blank"
-        );
-      };
-
-    window.lockCompany =
-      async function lockCompany(id){
-
-        try{
-
-          await apiFetch(
-            `/api/admin/billing/${id}/lock`,
-            {
-              method:"PUT"
-            }
-          );
-
-          await loadBilling();
-
-        }catch(err){
-
-          console.log(err);
-
-          alert(
-            err.message ||
-            "Lock failed"
-          );
-        }
-      };
-
-    window.unlockCompany =
-      async function unlockCompany(id){
-
-        try{
-
-          await apiFetch(
-            `/api/admin/billing/${id}/unlock`,
-            {
-              method:"PUT"
-            }
-          );
-
-          await loadBilling();
-
-        }catch(err){
-
-          console.log(err);
-
-          alert(
-            err.message ||
-            "Unlock failed"
-          );
-        }
-      };
-
-    window.markPaid =
-      async function markPaid(id){
-
-        try{
-
-          const company =
-            companies.find(
-              row =>
-                String(row._id) ===
-                String(id)
+          const d =
+            new Date(
+              c.billingStartDate
             );
 
-          if(!company){
-            return;
+          return (
+            d.getMonth() + 1
+          ) == month;
+
+        });
+
+    }
+
+    if(year){
+
+      list =
+        list.filter(c=>{
+
+          if(!c.billingStartDate){
+            return false;
           }
 
-          const ok =
-            confirm(
-              `Mark invoice as PAID?\n\n` +
-              `Company: ${company.username || company.name || "--"}\n` +
-              `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
-              `This will reset the invoice, unlock the company, and start a new billing cycle.\n\n` +
-              `Continue?`
+          const d =
+            new Date(
+              c.billingStartDate
             );
 
-          if(!ok){
-            return;
-          }
+          return (
+            d.getFullYear()
+          ) == year;
 
-          await apiFetch(
-            `/api/admin/billing/${id}/mark-paid`,
-            {
-              method:"PUT"
-            }
-          );
+        });
 
-          alert(
-            "Invoice marked as PAID successfully"
-          );
-
-          await loadBilling();
-
-        }catch(err){
-
-          console.log(err);
-
-          alert(
-            err.message ||
-            "Payment failed"
-          );
-        }
-      };
-
-    function applyFilters(){
-
-      let list =
-        [...companies];
-
-      const search =
-        String(
-          searchInput?.value ||
-          ""
-        )
-        .toLowerCase()
-        .trim();
-
-      const status =
-        String(
-          statusFilter?.value ||
-          ""
-        );
-
-      const month =
-        String(
-          monthFilter?.value ||
-          ""
-        );
-
-      const year =
-        String(
-          yearFilter?.value ||
-          ""
-        );
-
-      if(search){
-
-        list =
-          list.filter(company=>{
-
-            const text = `
-              ${company.name || ""}
-              ${company.email || ""}
-              ${company.phone || ""}
-              ${company.username || ""}
-            `.toLowerCase();
-
-            return text.includes(
-              search
-            );
-          });
-      }
-
-      if(status){
-
-        list =
-          list.filter(
-            company =>
-              String(
-                company.billingStatus ||
-                ""
-              ) === status
-          );
-      }
-
-      if(month){
-
-        list =
-          list.filter(company=>{
-
-            if(
-              !company.billingStartDate
-            ){
-              return false;
-            }
-
-            const date =
-              new Date(
-                company.billingStartDate
-              );
-
-            return (
-              date.getMonth() + 1
-            ) == month;
-          });
-      }
-
-      if(year){
-
-        list =
-          list.filter(company=>{
-
-            if(
-              !company.billingStartDate
-            ){
-              return false;
-            }
-
-            const date =
-              new Date(
-                company.billingStartDate
-              );
-
-            return (
-              date.getFullYear()
-            ) == year;
-          });
-      }
-
-      render(list);
     }
 
-    if(searchInput){
+    render(list);
 
-      searchInput.addEventListener(
-        "input",
-        applyFilters
-      );
-    }
+  }
 
-    if(statusFilter){
-
-      statusFilter.addEventListener(
-        "change",
-        applyFilters
-      );
-    }
-
-    if(monthFilter){
-
-      monthFilter.addEventListener(
-        "change",
-        applyFilters
-      );
-    }
-
-    if(yearFilter){
-
-      yearFilter.addEventListener(
-        "input",
-        applyFilters
-      );
-    }
-
-    if(connectStripeBtn){
-
-      connectStripeBtn.disabled =
-        false;
-
-      connectStripeBtn.addEventListener(
-        "click",
-        connectStripe
-      );
-    }
-
-    if(stripeDashboardBtn){
-
-      stripeDashboardBtn.addEventListener(
-        "click",
-        openStripeDashboard
-      );
-    }
-
-    /*
-      Run independently so a slow Stripe request can never
-      block the company billing list.
-    */
-    loadBilling();
-
-    loadStripeStatus();
-
-    window.addEventListener(
-      "pageshow",
-      ()=>{
-        loadStripeStatus();
-      }
+  if(searchInput){
+    searchInput.addEventListener(
+      "input",
+      applyFilters
     );
   }
 
-  if(
-    document.readyState ===
-    "loading"
-  ){
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      start,
-      {
-        once:true
-      }
+  if(statusFilter){
+    statusFilter.addEventListener(
+      "change",
+      applyFilters
     );
-
-  }else{
-
-    start();
   }
 
-})();
+  if(monthFilter){
+    monthFilter.addEventListener(
+      "change",
+      applyFilters
+    );
+  }
+
+  if(yearFilter){
+    yearFilter.addEventListener(
+      "input",
+      applyFilters
+    );
+  }
+
+  /* =========================
+     INIT
+  ========================= */
+
+  loadStripeStatus();
+  loadBilling();
+
+});
