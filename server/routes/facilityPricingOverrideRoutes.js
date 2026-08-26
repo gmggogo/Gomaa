@@ -695,13 +695,12 @@ async function findOverrideByIdOrName({
     filter.active = true;
   }
 
+  /*
+    Override documents are owned by facilityId.
+    The model intentionally does not store tenantId.
+  */
   return FacilityPricingOverride
-    .findOne(
-      tenantFilter(
-        req,
-        filter
-      )
-    )
+    .findOne(filter)
     .sort({
       updatedAt:-1,
       createdAt:-1
@@ -743,8 +742,7 @@ router.get(
 
       const [
         users,
-        services,
-        overrides
+        services
       ] =
         await Promise.all([
 
@@ -754,14 +752,22 @@ router.get(
 
           Service.find({
             tenantId
-          }).lean(),
-
-          FacilityPricingOverride
-            .find({
-              tenantId
-            })
-            .lean()
+          }).lean()
         ]);
+
+      const facilityIds =
+        users
+          .filter(isFacilityUser)
+          .map(user=>user._id);
+
+      const overrides =
+        await FacilityPricingOverride
+          .find({
+            facilityId:{
+              $in:facilityIds
+            }
+          })
+          .lean();
 
       const facilities =
         users
@@ -975,16 +981,7 @@ router.get(
       const override =
         await FacilityPricingOverride
           .findOne({
-            facilityId,
-            $or:[
-              { tenantId },
-              { tenantId:null },
-              {
-                tenantId:{
-                  $exists:false
-                }
-              }
-            ]
+            facilityId
           })
           .lean();
 
@@ -1132,68 +1129,25 @@ router.patch(
           req.body?.updatedBy
         );
 
-      /*
-        Important legacy migration:
-        Older records are unique by facilityId and may not contain
-        tenantId. Find by facilityId first, then attach tenantId.
-        This prevents an E11000 duplicate-key error on upsert.
-      */
-
-      let override =
+      const override =
         await FacilityPricingOverride
-          .findOne({
-            facilityId
-          });
-
-      if(override){
-
-        if(
-          override.tenantId &&
-          String(
-            override.tenantId
-          ) !==
-          String(
-            tenantId
-          )
-        ){
-
-          return res.status(409).json({
-            success:false,
-            message:
-              "Facility pricing override belongs to another tenant"
-          });
-        }
-
-        override.tenantId =
-          tenantId;
-
-        override.facilityName =
-          facilityName;
-
-        override.active =
-          active;
-
-        override.services =
-          services;
-
-        override.updatedBy =
-          updatedBy;
-
-        await override.save();
-
-      }else{
-
-        override =
-          await FacilityPricingOverride
-            .create({
-              tenantId,
+          .findOneAndUpdate(
+            {
+              facilityId
+            },
+            {
               facilityId,
               facilityName,
               active,
               services,
               updatedBy
-            });
-      }
+            },
+            {
+              new:true,
+              upsert:true,
+              runValidators:true
+            }
+          );
 
       return res.json({
         success:true,
