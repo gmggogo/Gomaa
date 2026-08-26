@@ -493,6 +493,39 @@ window.Branding = {
 
   applyGlobalBranding(){
 
+    const d =
+      this.data || {};
+
+    const path =
+      String(window.location.pathname || "")
+        .toLowerCase();
+
+    const isLoginPage =
+      path.includes("login");
+
+    const isAdminInternalPage =
+      path.startsWith("/admin/") &&
+      !isLoginPage;
+
+    /*
+      ADMIN INTERNAL PAGES:
+      Apply ONLY the tenant Body Background Color.
+      Do not touch fonts, text colors, cards, buttons,
+      driver pages, company pages, or any login page.
+    */
+    if(isAdminInternalPage){
+      document.body.style.setProperty(
+        "background",
+        d.bodyBg || "#f1f5f9",
+        "important"
+      );
+
+      document.documentElement.style.setProperty(
+        "--gh-tenant-body-bg",
+        d.bodyBg || "#f1f5f9"
+      );
+    }
+
     document.title =
       this.getCompanyName();
 

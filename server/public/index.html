@@ -1404,6 +1404,16 @@ function applyExtraBoxesTheme(data){
 
 function applyPageTheme(data){
 
+  /*
+    HOMEPAGE ONLY:
+    System Design controls the full public tenant homepage.
+  */
+  document.body.style.background =
+    data.bodyBg || "#f1f5f9";
+
+  document.body.style.color =
+    data.bodyTextColor || "#0f172a";
+
   const about =
   document.querySelector(".about");
 
@@ -1505,6 +1515,56 @@ function applyPageTheme(data){
     : `${data.quoteTextSize || 24}px`;
 
   }
+
+  const contact =
+    document.querySelector(".contact-section");
+
+  const contactTitle =
+    document.getElementById("contactTitleView");
+
+  if(contact){
+
+    contact.style.background =
+      data.contactBg || "#ffffff";
+
+    contact.style.border =
+      `1px solid ${data.contactBorder || "#dbeafe"}`;
+
+    contact.style.borderRadius =
+      `${data.contactRadius || 28}px`;
+
+    contact.style.textAlign =
+      data.contactAlign || "center";
+
+  }
+
+  if(contactTitle){
+
+    contactTitle.style.color =
+      data.contactTitleColor || "#145cff";
+
+    contactTitle.style.fontSize =
+      `${data.contactTitleSize || 34}px`;
+
+  }
+
+  /*
+    Service card text alignment from System Design.
+  */
+  document
+    .querySelectorAll(".card-body")
+    .forEach(cardBody=>{
+
+      const align =
+        String(
+          data.cardTextAlign ||
+          "center"
+        ).trim();
+
+      cardBody.style.textAlign =
+        align || "center";
+
+    });
 
 }
 
