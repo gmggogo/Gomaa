@@ -9,11 +9,10 @@
   box-shadow:0 5px 18px #071a3620;
 }
 
-/* Wider left section so long tenant/company names display fully */
 .gh-topbar{
   min-height:104px;
   display:grid;
-  grid-template-columns:minmax(520px,1.45fr) minmax(360px,1fr) minmax(245px,.75fr);
+  grid-template-columns:1.15fr 1fr .75fr;
   align-items:center;
   gap:26px;
   padding:14px 28px 12px;
@@ -31,7 +30,6 @@
 
 .gh-brand>div{
   min-width:0;
-  flex:1;
 }
 
 .gh-logo{
@@ -42,10 +40,9 @@
 }
 
 .gh-company{
-  width:auto;
-  max-width:none;
-  overflow:visible;
-  text-overflow:clip;
+  max-width:520px;
+  overflow:hidden;
+  text-overflow:ellipsis;
   white-space:nowrap;
   color:#fff;
   font:800 25px Georgia,serif;
@@ -281,47 +278,6 @@ main>h2:first-child{
 
   .gh-nav-tile{
     font-size:11px;
-  }
-
-  .gh-topbar{
-    grid-template-columns:minmax(470px,1.35fr) minmax(330px,1fr) minmax(230px,.72fr);
-    gap:18px;
-    padding-left:20px;
-    padding-right:20px;
-  }
-
-  .gh-company{
-    font-size:23px;
-  }
-
-  .gh-clock{
-    min-width:230px;
-  }
-}
-
-@media(max-width:1100px) and (min-width:769px){
-  .gh-topbar{
-    grid-template-columns:minmax(400px,1.25fr) minmax(300px,1fr) minmax(210px,.7fr);
-    gap:12px;
-    padding-left:16px;
-    padding-right:16px;
-  }
-
-  .gh-company{
-    font-size:20px;
-  }
-
-  .gh-role-title{
-    font-size:19px;
-  }
-
-  .gh-greeting{
-    font-size:14px;
-  }
-
-  .gh-clock{
-    min-width:210px;
-    font-size:13px;
   }
 }
 
