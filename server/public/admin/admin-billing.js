@@ -218,6 +218,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   }
 
+  async function fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs = 10000
+  ){
+
+    const controller =
+      new AbortController();
+
+    const timer =
+      setTimeout(
+        ()=>controller.abort(),
+        timeoutMs
+      );
+
+    try{
+
+      return await fetch(
+        url,
+        {
+          ...options,
+          signal:controller.signal
+        }
+      );
+
+    }finally{
+
+      clearTimeout(timer);
+
+    }
+
+  }
+
   function getTenantSlug(){
 
     return String(
@@ -288,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       connectStripeBtn.disabled =
-        true;
+        false;
 
       if(stripeDashboardBtn){
         stripeDashboardBtn.disabled =
@@ -296,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const res =
-        await fetch(
+        await fetchWithTimeout(
           "/api/tenant-stripe/status",
           {
             headers:{
@@ -304,7 +337,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Bearer " + token
             },
             cache:"no-store"
-          }
+          },
+          10000
         );
 
       const data =
@@ -378,8 +412,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       setStripeUi(
         "error",
-        "ERROR"
+        "NOT CONNECTED"
       );
+
+      connectStripeBtn.innerText =
+        "Connect Stripe";
 
       connectStripeBtn.disabled =
         false;
@@ -408,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "Opening Stripe...";
 
       const res =
-        await fetch(
+        await fetchWithTimeout(
           "/api/tenant-stripe/connect",
           {
             method:"POST",
@@ -425,7 +462,8 @@ document.addEventListener("DOMContentLoaded", () => {
               tenantSlug:
                 getTenantSlug()
             })
-          }
+          },
+          20000
         );
 
       const data =
@@ -488,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "Opening...";
 
       const res =
-        await fetch(
+        await fetchWithTimeout(
           "/api/tenant-stripe/dashboard-link",
           {
             method:"POST",
@@ -497,7 +535,8 @@ document.addEventListener("DOMContentLoaded", () => {
               Authorization:
                 "Bearer " + token
             }
-          }
+          },
+          20000
         );
 
       const data =
