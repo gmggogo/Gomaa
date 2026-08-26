@@ -1,7 +1,10 @@
+"use strict";
+
 const express = require("express");
-const router = express.Router();
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+
+const router = express.Router();
 
 const FacilityPricingOverride =
   require("../models/FacilityPricingOverride");
@@ -24,16 +27,44 @@ const JWT_SECRET =
   "dev_secret";
 
 /* =========================
-   TENANT AUTH
+   AUTH
 ========================= */
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function upper(value){
+  return clean(value).toUpperCase();
+}
+
+function bool(value){
+  return (
+    value === true ||
+    String(value).toLowerCase() === "true" ||
+    String(value).toLowerCase() === "yes" ||
+    String(value) === "1"
+  );
+}
+
+function num(value){
+  const result = Number(value);
+  return Number.isFinite(result)
+    ? result
+    : 0;
+}
+
+function escapeRegex(value){
+  return clean(value)
+    .replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
 
 function readBearerToken(req){
 
   const header =
-    String(
-      req.headers?.authorization ||
-      ""
-    ).trim();
+    clean(
+      req.headers?.authorization
+    );
 
   if(
     !header
@@ -48,11 +79,7 @@ function readBearerToken(req){
     .trim();
 }
 
-function requireTenantApi(
-  req,
-  res,
-  next
-){
+function requireTenantApi(req,res,next){
 
   const token =
     readBearerToken(req);
@@ -112,31 +139,33 @@ function requireTenantApi(
   }
 }
 
-function tenantFilter(
-  req,
-  extra={}
-){
+function tenantIdForRequest(req){
 
   if(
     req.authUser?.role ===
     "PLATFORM_ADMIN"
   ){
+    return clean(
+      req.query?.tenantId ||
+      req.body?.tenantId
+    );
+  }
 
-    const requestedTenantId =
-      String(
-        req.query?.tenantId ||
-        req.body?.tenantId ||
-        ""
-      ).trim();
+  return clean(
+    req.authUser?.tenantId
+  );
+}
 
-    if(requestedTenantId){
+function tenantFilter(req,extra={}){
 
-      return {
-        ...extra,
-        tenantId:requestedTenantId
-      };
-    }
+  const tenantId =
+    tenantIdForRequest(req);
 
+  if(
+    req.authUser?.role ===
+    "PLATFORM_ADMIN" &&
+    !tenantId
+  ){
     return {
       ...extra
     };
@@ -144,94 +173,37 @@ function tenantFilter(
 
   return {
     ...extra,
-    tenantId:
-      req.authUser.tenantId
+    tenantId
   };
 }
 
-function tenantIdForWrite(req){
-
-  if(
-    req.authUser?.role ===
-    "PLATFORM_ADMIN"
-  ){
-    return String(
-      req.body?.tenantId ||
-      req.query?.tenantId ||
-      ""
-    ).trim();
-  }
-
-  return String(
-    req.authUser?.tenantId ||
-    ""
-  ).trim();
-}
-
 /* =========================
-   HELPERS
+   SERVICE HELPERS
 ========================= */
 
-function clean(v){
-  return String(v ?? "").trim();
-}
-
-function upper(v){
-  return clean(v).toUpperCase();
-}
-
-function bool(v){
-  return (
-    v === true ||
-    String(v).toLowerCase() === "true" ||
-    String(v).toLowerCase() === "yes" ||
-    String(v).toLowerCase() === "1"
-  );
-}
-
-function num(v){
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function escapeRegex(v){
-  return clean(v).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-}
-
-/* =========================
-   NORMALIZE SERVICE CODE
-========================= */
-
-function normalizeCode(v){
-
-  const original =
-    upper(v);
-
-  if(!original){
-    return "";
-  }
+function normalizeCode(value){
 
   const c =
-    original
+    upper(value)
       .replace(/[_-]+/g," ")
       .replace(/\s+/g," ")
       .trim();
 
-  /* STANDARD */
+  if(!c){
+    return "";
+  }
 
   if(
     c === "ST" ||
     c === "STANDARD" ||
-    c === "STANDARD SERVICE" ||
     c.includes("STANDARD")
   ){
     return "ST";
   }
 
-  /* WHEELCHAIR */
-
   if(
     c === "WH" ||
+    c === "WC" ||
     c === "WHEELCHAIR" ||
     c === "WHEEL CHAIR" ||
     c.includes("WHEELCHAIR") ||
@@ -239,8 +211,6 @@ function normalizeCode(v){
   ){
     return "WH";
   }
-
-  /* SHARED */
 
   if(
     c === "SH" ||
@@ -251,33 +221,23 @@ function normalizeCode(v){
     return "SH";
   }
 
-  /* LIMOUSINE */
-
   if(
     c === "LM" ||
     c === "LIMO" ||
     c === "LIMOUSINE" ||
-    c === "LIMO SERVICE" ||
-    c === "LIMOUSINE SERVICE" ||
-    c === "LIMOUSINE TRANSPORTATION" ||
     c.includes("LIMOUSINE") ||
     c.startsWith("LIMO ")
   ){
     return "LM";
   }
 
-  /* TAXI */
-
   if(
     c === "TX" ||
     c === "TAXI" ||
-    c === "TAXI SERVICE" ||
     c.includes("TAXI")
   ){
     return "TX";
   }
-
-  /* XL */
 
   if(
     c === "XL" ||
@@ -290,59 +250,34 @@ function normalizeCode(v){
   return c;
 }
 
-/* =========================
-   GET SERVICE CODE
-========================= */
-
-function getServiceCode(s){
+function getServiceCode(service){
 
   const candidates = [
-    s?.serviceKey,
-    s?.key,
-    s?.code,
-    s?.serviceCode,
-    s?.serviceType,
-    s?.companySuffix,
-    s?.suffix,
-    s?.serviceSuffix,
-    s?.title,
-    s?.name,
-    s?.serviceName
+    service?.serviceKey,
+    service?.key,
+    service?.code,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.companySuffix,
+    service?.suffix,
+    service?.serviceSuffix,
+    service?.title,
+    service?.name,
+    service?.serviceName
   ];
 
-  /*
-    First look for a known system service.
-
-    Important:
-    Do not just use the first existing field,
-    because Limousine may have a long title
-    while its real code is LM in another field.
-  */
-
   for(const value of candidates){
-
-    if(!clean(value)){
-      continue;
-    }
 
     const code =
       normalizeCode(value);
 
     if(
-      code === "ST" ||
-      code === "WH" ||
-      code === "SH" ||
-      code === "LM" ||
-      code === "TX" ||
-      code === "XL"
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(code)
     ){
       return code;
     }
   }
-
-  /*
-    Custom service fallback
-  */
 
   for(const value of candidates){
 
@@ -354,137 +289,71 @@ function getServiceCode(s){
   return "";
 }
 
-/* =========================
-   SERVICE NAME
-========================= */
-
-function getServiceName(s){
+function getServiceName(service){
 
   return (
-    s?.title ||
-    s?.name ||
-    s?.serviceName ||
-    getServiceCode(s) ||
+    service?.title ||
+    service?.name ||
+    service?.serviceName ||
+    getServiceCode(service) ||
     "Service"
   );
 }
 
-/* =========================
-   SERVICE ENABLED
-========================= */
-
-function serviceEnabled(s){
+function serviceEnabled(service){
 
   return (
-    s?.companyEnabled === true ||
-    s?.enabled === true
+    service?.companyEnabled === true ||
+    service?.enabled === true
   );
 }
 
-/* =========================
-   FACILITY NAME
-========================= */
-
-function getFacilityName(u){
-
-  return clean(
-    u?.facilityName ||
-    u?.organizationName ||
-    u?.companyName ||
-    u?.company ||
-    u?.name ||
-    u?.fullName ||
-    u?.username ||
-    ""
-  );
-}
-
-/* =========================
-   FACILITY USER
-========================= */
-
-function isFacilityUser(u){
-
-  const r =
-    clean(
-      u?.role ||
-      u?.type ||
-      ""
-    ).toLowerCase();
-
-  return (
-    r === "company" ||
-    r === "facility" ||
-    r.includes("company") ||
-    r.includes("facility")
-  );
-}
-
-/* =========================
-   SHARED SERVICE
-========================= */
-
-function isSharedService(s){
+function isSharedService(service){
 
   const key =
-    getServiceCode(s);
+    getServiceCode(service);
 
   const title =
     upper(
-      s?.title ||
-      s?.name ||
-      s?.serviceName
+      service?.title ||
+      service?.name ||
+      service?.serviceName
     );
 
   const pricing =
     upper(
-      s?.companyPricingMode ||
-      s?.pricingMode
-    );
-
-  const suffix =
-    normalizeCode(
-      s?.companySuffix ||
-      s?.suffix ||
-      s?.serviceSuffix
+      service?.companyPricingMode ||
+      service?.pricingMode
     );
 
   return (
-    s?.companyShared === true ||
-    s?.shared === true ||
+    service?.companyShared === true ||
+    service?.shared === true ||
     key === "SH" ||
-    title === "SHARED" ||
     title.includes("SHARED") ||
-    suffix === "SH" ||
     pricing === "SHARED"
   );
 }
 
-/* =========================
-   DEFAULT PRICING
-   FROM SERVICE MANAGEMENT
-========================= */
-
-function serviceDefaultPricing(s){
+function serviceDefaultPricing(service){
 
   const serviceKey =
-    getServiceCode(s);
+    getServiceCode(service);
 
   const shared =
-    isSharedService(s);
+    isSharedService(service);
 
   return {
-
     serviceKey,
 
     serviceName:
-      getServiceName(s),
+      getServiceName(service),
 
     serviceSuffix:
       normalizeCode(
-        s?.companySuffix ||
-        s?.suffix ||
-        s?.serviceSuffix ||
+        service?.companySuffix ||
+        service?.suffix ||
+        service?.serviceSuffix ||
         serviceKey
       ) || serviceKey,
 
@@ -492,318 +361,329 @@ function serviceDefaultPricing(s){
 
     pricingMode:
       upper(
-        s?.companyPricingMode ||
-        s?.pricingMode ||
+        service?.companyPricingMode ||
+        service?.pricingMode ||
         "MILE"
       ),
 
     baseFare:
       num(
-        s?.companyBaseFare ??
-        s?.baseFare ??
-        0
+        service?.companyBaseFare ??
+        service?.baseFare
       ),
 
     includedMiles:
       num(
-        s?.companyIncludedMiles ??
-        s?.includedMiles ??
-        0
+        service?.companyIncludedMiles ??
+        service?.includedMiles
       ),
 
     perMile:
       num(
-        s?.companyPerMile ??
-        s?.perMile ??
-        0
+        service?.companyPerMile ??
+        service?.perMile
       ),
 
     hourlyRate:
       num(
-        s?.companyHourlyRate ??
-        s?.hourlyRate ??
-        0
+        service?.companyHourlyRate ??
+        service?.hourlyRate
       ),
 
     hourlyBillingMode:
       upper(
-        s?.companyHourlyBillingMode ||
-        s?.hourlyBillingMode ||
+        service?.companyHourlyBillingMode ||
+        service?.hourlyBillingMode ||
         "FULL"
       ),
 
     initialDurationMinutes:
       num(
-        s?.companyInitialDurationMinutes ??
-        s?.initialDurationMinutes ??
-        0
+        service?.companyInitialDurationMinutes ??
+        service?.initialDurationMinutes
       ),
 
     initialPrice:
       num(
-        s?.companyInitialPrice ??
-        s?.initialPrice ??
-        0
+        service?.companyInitialPrice ??
+        service?.initialPrice
       ),
 
     stopFee:
       num(
-        s?.companyStopFee ??
-        s?.stopFee ??
-        0
+        service?.companyStopFee ??
+        service?.stopFee
       ),
 
     noShowFee:
       num(
-        s?.companyNoShowFee ??
-        s?.noShowFee ??
-        0
+        service?.companyNoShowFee ??
+        service?.noShowFee
       ),
 
     sharedPrice:
       num(
-        s?.companySharedPrice ??
-        s?.sharedPrice ??
-        0
+        service?.companySharedPrice ??
+        service?.sharedPrice
       ),
 
     disableCancel:
       bool(
-        s?.companyDisableCancel ??
-        s?.disableCancel ??
-        false
+        service?.companyDisableCancel ??
+        service?.disableCancel
       ),
 
     warningMinutes:
       num(
-        s?.companyWarningMinutes ??
-        s?.warningMinutes ??
-        0
+        service?.companyWarningMinutes ??
+        service?.warningMinutes
       ),
 
     cancelFee:
       num(
-        s?.companyCancelFee ??
-        s?.cancelFee ??
-        0
+        service?.companyCancelFee ??
+        service?.cancelFee
       ),
 
     addStopEnabled:
       shared
         ? false
         : bool(
-            s?.companyAddStopEnabled ??
-            s?.addStopEnabled ??
-            false
+            service?.companyAddStopEnabled ??
+            service?.addStopEnabled
           ),
 
     addStopCustomTimeEnabled:
       shared
         ? false
         : bool(
-            s?.companyAddStopCustomTimeEnabled ??
-            s?.addStopCustomTimeEnabled ??
-            false
+            service?.companyAddStopCustomTimeEnabled ??
+            service?.addStopCustomTimeEnabled
           ),
 
     addStopCutoffMinutes:
       shared
         ? 0
         : num(
-            s?.companyAddStopCutoffMinutes ??
-            s?.addStopCutoffMinutes ??
-            0
+            service?.companyAddStopCutoffMinutes ??
+            service?.addStopCutoffMinutes
           )
   };
 }
 
-/* =========================
-   NORMALIZE INPUT
-   FROM FRONTEND
-========================= */
-
-function normalizeServiceInput(s){
+function normalizeServiceInput(service){
 
   const serviceKey =
     normalizeCode(
-      s?.serviceKey ||
-      s?.serviceCode ||
-      s?.serviceType ||
-      s?.serviceSuffix ||
-      s?.suffix ||
-      s?.serviceName
+      service?.serviceKey ||
+      service?.serviceCode ||
+      service?.serviceType ||
+      service?.serviceSuffix ||
+      service?.suffix ||
+      service?.serviceName
     );
 
   const pricingMode =
     upper(
-      s?.pricingMode ||
+      service?.pricingMode ||
       "MILE"
     );
 
   const shared =
-    bool(s?.shared) ||
+    bool(service?.shared) ||
     pricingMode === "SHARED" ||
     serviceKey === "SH";
 
   return {
-
     serviceKey,
 
     serviceName:
       clean(
-        s?.serviceName
+        service?.serviceName
       ),
 
     serviceSuffix:
       normalizeCode(
-        s?.serviceSuffix ||
-        s?.suffix ||
+        service?.serviceSuffix ||
+        service?.suffix ||
         serviceKey
       ) || serviceKey,
 
     shared,
 
-    pricingMode,
+    pricingMode:
+      shared
+        ? "SHARED"
+        : pricingMode,
 
     baseFare:
-      num(
-        s?.baseFare
-      ),
+      num(service?.baseFare),
 
     includedMiles:
-      num(
-        s?.includedMiles
-      ),
+      num(service?.includedMiles),
 
     perMile:
-      num(
-        s?.perMile
-      ),
+      num(service?.perMile),
 
     hourlyRate:
-      num(
-        s?.hourlyRate
-      ),
+      num(service?.hourlyRate),
 
     hourlyBillingMode:
       upper(
-        s?.hourlyBillingMode ||
+        service?.hourlyBillingMode ||
         "FULL"
       ),
 
     initialDurationMinutes:
       num(
-        s?.initialDurationMinutes
+        service?.initialDurationMinutes
       ),
 
     initialPrice:
-      num(
-        s?.initialPrice
-      ),
+      num(service?.initialPrice),
 
     stopFee:
-      num(
-        s?.stopFee
-      ),
+      num(service?.stopFee),
 
     noShowFee:
-      num(
-        s?.noShowFee
-      ),
+      num(service?.noShowFee),
 
     sharedPrice:
-      num(
-        s?.sharedPrice
-      ),
+      num(service?.sharedPrice),
 
     disableCancel:
-      bool(
-        s?.disableCancel
-      ),
+      bool(service?.disableCancel),
 
     warningMinutes:
-      num(
-        s?.warningMinutes
-      ),
+      num(service?.warningMinutes),
 
     cancelFee:
-      num(
-        s?.cancelFee
-      ),
+      num(service?.cancelFee),
 
     addStopEnabled:
       shared
         ? false
         : bool(
-            s?.addStopEnabled
+            service?.addStopEnabled
           ),
 
     addStopCustomTimeEnabled:
       shared
         ? false
         : bool(
-            s?.addStopCustomTimeEnabled
+            service?.addStopCustomTimeEnabled
           ),
 
     addStopCutoffMinutes:
       shared
         ? 0
         : num(
-            s?.addStopCutoffMinutes
+            service?.addStopCutoffMinutes
           )
   };
 }
 
 /* =========================
-   FIND FACILITY OVERRIDE
+   FACILITY HELPERS
 ========================= */
+
+function getFacilityName(user){
+
+  return clean(
+    user?.facilityName ||
+    user?.organizationName ||
+    user?.companyName ||
+    user?.company ||
+    user?.name ||
+    user?.fullName ||
+    user?.username
+  );
+}
+
+function isFacilityUser(user){
+
+  const role =
+    clean(
+      user?.role ||
+      user?.type
+    ).toLowerCase();
+
+  return (
+    role === "company" ||
+    role === "facility" ||
+    role.includes("company") ||
+    role.includes("facility")
+  );
+}
+
+async function getTenantAllowedServices(
+  tenantId
+){
+
+  if(!tenantId){
+    return [];
+  }
+
+  const tenant =
+    await Tenant.findById(
+      tenantId
+    )
+    .select({
+      allowedServices:1
+    })
+    .lean();
+
+  if(!tenant){
+    return [];
+  }
+
+  return Array.isArray(
+    tenant.allowedServices
+  )
+    ? [
+        ...new Set(
+          tenant.allowedServices
+            .map(normalizeCode)
+            .filter(Boolean)
+        )
+      ]
+    : [];
+}
 
 async function findOverrideByIdOrName({
   facilityId,
   facilityName,
-  activeOnly = false,
+  activeOnly=false,
   req
 }){
 
   const or = [];
 
-  const cleanFacilityId =
-    clean(facilityId);
-
-  const cleanFacilityName =
-    clean(facilityName);
-
   if(
-    cleanFacilityId &&
+    facilityId &&
     mongoose.Types.ObjectId.isValid(
-      cleanFacilityId
+      facilityId
     )
   ){
-
     or.push({
-      facilityId:
-        cleanFacilityId
+      facilityId
     });
   }
 
-  if(cleanFacilityName){
-
-    const rx =
-      new RegExp(
-        "^" +
-        escapeRegex(cleanFacilityName) +
-        "$",
-        "i"
-      );
+  if(facilityName){
 
     or.push({
       facilityName:
-        rx
+        new RegExp(
+          "^" +
+          escapeRegex(facilityName) +
+          "$",
+          "i"
+        )
     });
   }
 
-  if(or.length === 0){
-
+  if(!or.length){
     return null;
   }
 
@@ -812,12 +692,10 @@ async function findOverrideByIdOrName({
   };
 
   if(activeOnly){
-
-    filter.active =
-      true;
+    filter.active = true;
   }
 
-  return await FacilityPricingOverride
+  return FacilityPricingOverride
     .findOne(
       tenantFilter(
         req,
@@ -835,680 +713,514 @@ async function findOverrideByIdOrName({
    BOOTSTRAP
 ========================= */
 
-router.get("/bootstrap", requireTenantApi, async (req,res)=>{
+router.get(
+  "/bootstrap",
+  requireTenantApi,
+  async (req,res)=>{
 
-  try{
+    try{
 
-    if(!User){
+      const tenantId =
+        tenantIdForRequest(req);
 
-      return res.status(500).json({
-        success:false,
-        message:"User model not loaded"
-      });
-    }
+      if(!tenantId){
 
-    if(!Service){
-
-      return res.status(500).json({
-        success:false,
-        message:"Service model not loaded"
-      });
-    }
-
-    if(!Tenant){
-
-      return res.status(500).json({
-        success:false,
-        message:"Tenant model not loaded"
-      });
-    }
-
-    /*
-      Facility Pricing is tenant-scoped.
-
-      SUPER_ADMIN / ADMIN:
-      tenantId always comes from the verified JWT.
-
-      PLATFORM_ADMIN:
-      tenantId must be supplied explicitly.
-    */
-
-    const tenantId =
-      tenantIdForWrite(req);
-
-    if(!tenantId){
-
-      return res.status(403).json({
-        success:false,
-        message:"Tenant Required"
-      });
-    }
-
-    if(
-      !mongoose.Types.ObjectId.isValid(
-        String(tenantId)
-      )
-    ){
-
-      return res.status(400).json({
-        success:false,
-        message:"Invalid tenant id"
-      });
-    }
-
-    const [
-      tenant,
-      users,
-      services,
-      overrides
-    ] =
-      await Promise.all([
-
-        Tenant
-          .findById(
-            tenantId
-          )
-          .lean(),
-
-        User
-          .find({
-            tenantId
-          })
-          .lean(),
-
-        Service
-          .find({
-            tenantId
-          })
-          .lean(),
-
-        FacilityPricingOverride
-          .find({
-            tenantId
-          })
-          .lean()
-
-      ]);
-
-    if(!tenant){
-
-      return res.status(404).json({
-        success:false,
-        message:"Tenant not found"
-      });
-    }
-
-    /*
-      Platform Admin controls the services available
-      to this tenant through Tenant.allowedServices.
-    */
-
-    const tenantAllowedServices =
-      Array.isArray(
-        tenant.allowedServices
-      )
-        ? [
-            ...new Set(
-              tenant.allowedServices
-                .map(normalizeCode)
-                .filter(Boolean)
-            )
-          ]
-        : [];
-
-    const facilities =
-      users
-        .filter(
-          isFacilityUser
-        )
-        .map(u=>({
-
-          _id:
-            String(u._id),
-
-          name:
-            getFacilityName(u),
-
-          email:
-            u.email || "",
-
-          username:
-            u.username || "",
-
-          /*
-            Optional per-facility restriction.
-            If empty, the frontend falls back to the
-            tenant-level Platform Admin permissions.
-          */
-          allowedServices:
-            Array.isArray(
-              u.allowedServices
-            )
-              ? [
-                  ...new Set(
-                    u.allowedServices
-                      .map(normalizeCode)
-                      .filter(Boolean)
-                  )
-                ]
-              : []
-
-        }))
-        .filter(
-          f=>f.name
-        )
-        .sort(
-          (a,b)=>
-            a.name.localeCompare(b.name)
-        );
-
-    /*
-      Pricing defaults continue to come from
-      Service Management for this same tenant.
-    */
-
-    const activeServices =
-      services
-        .filter(
-          serviceEnabled
-        )
-        .map(
-          serviceDefaultPricing
-        )
-        .filter(
-          s=>s.serviceKey
-        )
-        .sort(
-          (a,b)=>
-            a.serviceKey.localeCompare(
-              b.serviceKey
-            )
-        );
-
-    return res.json({
-
-      success:true,
-
-      tenant:{
-        id:
-          String(tenant._id),
-        name:
-          tenant.name || "",
-        slug:
-          tenant.slug || ""
-      },
-
-      tenantAllowedServices,
-
-      facilities,
-
-      services:
-        activeServices,
-
-      overrides
-
-    });
-
-  }catch(err){
-
-    console.log(
-      "FACILITY PRICING BOOTSTRAP ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-
-      success:false,
-
-      message:
-        "Failed to load facility pricing data"
-
-    });
-
-  }
-
-});
-
-/* =========================
-   RESOLVE ACTIVE
-   FACILITY OVERRIDE
-
-   IMPORTANT:
-   MUST STAY BEFORE
-   /:facilityId
-========================= */
-
-router.get("/resolve", requireTenantApi, async (req,res)=>{
-
-  try{
-
-    const facilityId =
-      clean(
-        req.query.facilityId ||
-        req.query.companyId ||
-        req.query.userId ||
-        ""
-      );
-
-    const facilityName =
-      clean(
-        req.query.facilityName ||
-        req.query.companyName ||
-        req.query.company ||
-        req.query.facility ||
-        req.query.name ||
-        ""
-      );
-
-    const override =
-      await findOverrideByIdOrName({
-
-        facilityId,
-
-        facilityName,
-
-        activeOnly:true,
-        req
-
-      });
-
-    if(!override){
-
-      return res.json({
-
-        success:false,
-
-        message:
-          "No active facility pricing override found",
-
-        override:null,
-
-        debug:{
-          facilityId,
-          facilityName
-        }
-
-      });
-    }
-
-    return res.json({
-
-      success:true,
-
-      override,
-
-      debug:{
-
-        facilityId,
-
-        facilityName,
-
-        matchedFacilityId:
-          String(
-            override.facilityId ||
-            ""
-          ),
-
-        matchedFacilityName:
-          override.facilityName ||
-          ""
-
+        return res.status(403).json({
+          success:false,
+          message:"Tenant Required"
+        });
       }
 
-    });
-
-  }catch(err){
-
-    console.log(
-      "FACILITY PRICING RESOLVE ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-
-      success:false,
-
-      message:
-        "Failed to resolve facility pricing override",
-
-      override:null
-
-    });
-
-  }
-
-});
-
-/* =========================
-   GET ONE FACILITY
-   OVERRIDE
-========================= */
-
-router.get("/:facilityId", requireTenantApi, async (req,res)=>{
-
-  try{
-
-    const {
-      facilityId
-    } =
-      req.params;
-
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(
-          String(facilityId)
-        )
-    ){
-
-      return res.status(400).json({
-
-        success:false,
-
-        message:
-          "Invalid facility id"
-
-      });
-    }
-
-    const override =
-      await FacilityPricingOverride
-        .findOne(
-          tenantFilter(req,{
-            facilityId
-          })
-        )
-        .lean();
-
-    return res.json({
-
-      success:true,
-
-      override
-
-    });
-
-  }catch(err){
-
-    console.log(
-      "FACILITY PRICING GET ERROR:",
-      err
-    );
-
-    return res.status(500).json({
-
-      success:false,
-
-      message:
-        "Failed to load override"
-
-    });
-
-  }
-
-});
-
-/* =========================
-   SAVE FACILITY
-   OVERRIDE
-========================= */
-
-router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
-
-  try{
-
-    const {
-      facilityId
-    } =
-      req.params;
-
-    if(
-      !mongoose.Types.ObjectId
-        .isValid(
-          String(facilityId)
-        )
-    ){
-
-      return res.status(400).json({
-
-        success:false,
-
-        message:
-          "Invalid facility id"
-
-      });
-    }
-
-    const tenantId =
-      tenantIdForWrite(req);
-
-    if(!tenantId){
-
-      return res.status(403).json({
-
-        success:false,
-
-        message:
-          "Tenant Required"
-
-      });
-    }
-
-    const facilityUser =
-      await User.findOne({
-        _id:facilityId,
-        tenantId
-      })
-      .lean();
-
-    if(
-      !facilityUser ||
-      !isFacilityUser(facilityUser)
-    ){
-
-      return res.status(404).json({
-
-        success:false,
-
-        message:
-          "Facility not found"
-
-      });
-    }
-
-    const tenant =
-      await Tenant.findById(
-        tenantId
-      )
-      .lean();
-
-    if(!tenant){
-
-      return res.status(404).json({
-
-        success:false,
-
-        message:
-          "Tenant not found"
-
-      });
-    }
-
-    const tenantAllowedServices =
-      Array.isArray(
-        tenant.allowedServices
-      )
-        ? [
-            ...new Set(
-              tenant.allowedServices
-                .map(normalizeCode)
-                .filter(Boolean)
-            )
-          ]
-        : [];
-
-    const facilityName =
-      clean(
-        req.body?.facilityName
-      );
-
-    const active =
-      bool(
-        req.body?.active
-      );
-
-    const servicesInput =
-      Array.isArray(
-        req.body?.services
-      )
-        ? req.body.services
-        : [];
-
-    if(!facilityName){
-
-      return res.status(400).json({
-
-        success:false,
-
-        message:
-          "Facility name is required"
-
-      });
-    }
-
-    if(
-      active &&
-      !servicesInput.length
-    ){
-
-      return res.status(400).json({
-
-        success:false,
-
-        message:
-          "Active override requires services pricing"
-
-      });
-    }
-
-    const services =
-      servicesInput
-        .map(
-          normalizeServiceInput
-        )
-        .filter(
-          s=>s.serviceKey
+      const allowedServices =
+        await getTenantAllowedServices(
+          tenantId
         );
 
-    const facilityAllowedServices =
-      Array.isArray(
-        facilityUser.allowedServices
-      )
-        ? facilityUser.allowedServices
-            .map(normalizeCode)
-            .filter(Boolean)
-        : [];
+      const allowedSet =
+        new Set(
+          allowedServices
+        );
 
-    const effectiveAllowedServices =
-      facilityAllowedServices.length
-        ? facilityAllowedServices.filter(
-            code =>
-              tenantAllowedServices.includes(
-                code
+      const [
+        users,
+        services,
+        overrides
+      ] =
+        await Promise.all([
+
+          User.find({
+            tenantId
+          }).lean(),
+
+          Service.find({
+            tenantId
+          }).lean(),
+
+          FacilityPricingOverride
+            .find({
+              tenantId
+            })
+            .lean()
+        ]);
+
+      const facilities =
+        users
+          .filter(isFacilityUser)
+          .map(user=>({
+            _id:
+              String(user._id),
+
+            name:
+              getFacilityName(user),
+
+            email:
+              user.email || "",
+
+            username:
+              user.username || "",
+
+            /*
+              Platform Admin controls the services available
+              to every facility inside this tenant.
+            */
+            allowedServices:
+              [...allowedServices]
+          }))
+          .filter(
+            facility =>
+              facility.name
+          )
+          .sort(
+            (a,b)=>
+              a.name.localeCompare(
+                b.name
+              )
+          );
+
+      const activeServices =
+        services
+          .filter(serviceEnabled)
+          .map(serviceDefaultPricing)
+          .filter(
+            service =>
+              service.serviceKey &&
+              allowedSet.has(
+                service.serviceKey
               )
           )
-        : tenantAllowedServices;
+          .sort(
+            (a,b)=>
+              a.serviceKey.localeCompare(
+                b.serviceKey
+              )
+          );
 
-    const invalidService =
-      services.find(
-        service =>
-          !effectiveAllowedServices.includes(
-            normalizeCode(
-              service.serviceKey
-            )
-          )
+      return res.json({
+        success:true,
+        facilities,
+        services:
+          activeServices,
+        overrides,
+        allowedServices
+      });
+
+    }catch(err){
+
+      console.error(
+        "FACILITY PRICING BOOTSTRAP ERROR:",
+        err
       );
 
-    if(invalidService){
-
-      return res.status(403).json({
-
+      return res.status(500).json({
         success:false,
-
         message:
-          "Service is not enabled for this facility"
-
+          "Failed to load facility pricing data"
       });
     }
+  }
+);
 
-    const updatedBy =
-      clean(
-        req.authUser?.name
-      ) ||
-      clean(
-        req.authUser?.username
-      ) ||
-      clean(
-        req.body?.updatedBy
-      ) ||
-      "";
+/* =========================
+   RESOLVE ACTIVE OVERRIDE
+========================= */
 
-    const override =
-      await FacilityPricingOverride
-        .findOneAndUpdate(
+router.get(
+  "/resolve",
+  requireTenantApi,
+  async (req,res)=>{
 
-          {
-            tenantId,
-            facilityId
-          },
+    try{
 
-          {
-            tenantId,
-            facilityId,
-            facilityName,
-            active,
-            services,
-            updatedBy
-          },
-
-          {
-            new:true,
-            upsert:true,
-            runValidators:true
-          }
-
+      const facilityId =
+        clean(
+          req.query.facilityId ||
+          req.query.companyId ||
+          req.query.userId
         );
 
-    return res.json({
+      const facilityName =
+        clean(
+          req.query.facilityName ||
+          req.query.companyName ||
+          req.query.company ||
+          req.query.facility ||
+          req.query.name
+        );
 
-      success:true,
+      const override =
+        await findOverrideByIdOrName({
+          facilityId,
+          facilityName,
+          activeOnly:true,
+          req
+        });
 
-      message:
-        active
-          ? "Facility pricing override activated"
-          : "Facility pricing override disabled",
+      if(!override){
 
-      override
+        return res.json({
+          success:false,
+          message:
+            "No active facility pricing override found",
+          override:null
+        });
+      }
 
-    });
+      return res.json({
+        success:true,
+        override
+      });
 
-  }catch(err){
+    }catch(err){
 
-    console.log(
-      "FACILITY PRICING SAVE ERROR:",
-      err
-    );
+      console.error(
+        "FACILITY PRICING RESOLVE ERROR:",
+        err
+      );
 
-    return res.status(500).json({
-
-      success:false,
-
-      message:
-        "Failed to save facility pricing override"
-
-    });
-
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed to resolve facility pricing override",
+        override:null
+      });
+    }
   }
+);
 
-});
+/* =========================
+   GET ONE OVERRIDE
+========================= */
+
+router.get(
+  "/:facilityId",
+  requireTenantApi,
+  async (req,res)=>{
+
+    try{
+
+      const facilityId =
+        clean(
+          req.params.facilityId
+        );
+
+      if(
+        !mongoose.Types.ObjectId.isValid(
+          facilityId
+        )
+      ){
+
+        return res.status(400).json({
+          success:false,
+          message:"Invalid facility id"
+        });
+      }
+
+      const tenantId =
+        tenantIdForRequest(req);
+
+      if(!tenantId){
+
+        return res.status(403).json({
+          success:false,
+          message:"Tenant Required"
+        });
+      }
+
+      /*
+        Compatibility:
+        Read a legacy override without tenantId only when the
+        facility itself belongs to the authenticated tenant.
+      */
+
+      const facilityUser =
+        await User.findOne({
+          _id:facilityId,
+          tenantId
+        })
+        .lean();
+
+      if(
+        !facilityUser ||
+        !isFacilityUser(
+          facilityUser
+        )
+      ){
+
+        return res.status(404).json({
+          success:false,
+          message:"Facility not found"
+        });
+      }
+
+      const override =
+        await FacilityPricingOverride
+          .findOne({
+            facilityId,
+            $or:[
+              { tenantId },
+              { tenantId:null },
+              {
+                tenantId:{
+                  $exists:false
+                }
+              }
+            ]
+          })
+          .lean();
+
+      return res.json({
+        success:true,
+        override
+      });
+
+    }catch(err){
+
+      console.error(
+        "FACILITY PRICING GET ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed to load override"
+      });
+    }
+  }
+);
+
+/* =========================
+   SAVE FACILITY OVERRIDE
+========================= */
+
+router.patch(
+  "/:facilityId",
+  requireTenantApi,
+  async (req,res)=>{
+
+    try{
+
+      const facilityId =
+        clean(
+          req.params.facilityId
+        );
+
+      if(
+        !mongoose.Types.ObjectId.isValid(
+          facilityId
+        )
+      ){
+
+        return res.status(400).json({
+          success:false,
+          message:"Invalid facility id"
+        });
+      }
+
+      const tenantId =
+        tenantIdForRequest(req);
+
+      if(!tenantId){
+
+        return res.status(403).json({
+          success:false,
+          message:"Tenant Required"
+        });
+      }
+
+      const facilityUser =
+        await User.findOne({
+          _id:facilityId,
+          tenantId
+        })
+        .lean();
+
+      if(
+        !facilityUser ||
+        !isFacilityUser(
+          facilityUser
+        )
+      ){
+
+        return res.status(404).json({
+          success:false,
+          message:"Facility not found"
+        });
+      }
+
+      const allowedServices =
+        await getTenantAllowedServices(
+          tenantId
+        );
+
+      const allowedSet =
+        new Set(
+          allowedServices
+        );
+
+      const facilityName =
+        clean(
+          req.body?.facilityName
+        ) ||
+        getFacilityName(
+          facilityUser
+        );
+
+      const active =
+        bool(
+          req.body?.active
+        );
+
+      const servicesInput =
+        Array.isArray(
+          req.body?.services
+        )
+          ? req.body.services
+          : [];
+
+      const services =
+        servicesInput
+          .map(normalizeServiceInput)
+          .filter(
+            service =>
+              service.serviceKey &&
+              allowedSet.has(
+                service.serviceKey
+              )
+          );
+
+      if(
+        active &&
+        !services.length
+      ){
+
+        return res.status(400).json({
+          success:false,
+          message:
+            "Active override requires at least one Platform Admin enabled service"
+        });
+      }
+
+      const updatedBy =
+        clean(
+          req.authUser?.name
+        ) ||
+        clean(
+          req.authUser?.username
+        ) ||
+        clean(
+          req.body?.updatedBy
+        );
+
+      /*
+        Important legacy migration:
+        Older records are unique by facilityId and may not contain
+        tenantId. Find by facilityId first, then attach tenantId.
+        This prevents an E11000 duplicate-key error on upsert.
+      */
+
+      let override =
+        await FacilityPricingOverride
+          .findOne({
+            facilityId
+          });
+
+      if(override){
+
+        if(
+          override.tenantId &&
+          String(
+            override.tenantId
+          ) !==
+          String(
+            tenantId
+          )
+        ){
+
+          return res.status(409).json({
+            success:false,
+            message:
+              "Facility pricing override belongs to another tenant"
+          });
+        }
+
+        override.tenantId =
+          tenantId;
+
+        override.facilityName =
+          facilityName;
+
+        override.active =
+          active;
+
+        override.services =
+          services;
+
+        override.updatedBy =
+          updatedBy;
+
+        await override.save();
+
+      }else{
+
+        override =
+          await FacilityPricingOverride
+            .create({
+              tenantId,
+              facilityId,
+              facilityName,
+              active,
+              services,
+              updatedBy
+            });
+      }
+
+      return res.json({
+        success:true,
+
+        message:
+          active
+            ? "Facility pricing override activated"
+            : "Facility pricing override disabled",
+
+        override
+      });
+
+    }catch(err){
+
+      console.error(
+        "FACILITY PRICING SAVE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          err.message ||
+          "Failed to save facility pricing override"
+      });
+    }
+  }
+);
 
 module.exports = router;
