@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Admin Dashboard</title>
+
+<link rel="stylesheet" href="/platform-admin/platform_header.css">
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f3f5f8;
+  color:#111827;
+}
+
+#platformHeader{
+  width:100%;
+}
+
+.page{
+  width:min(1200px,calc(100% - 32px));
+  margin:28px auto 50px;
+}
+
+.page-head{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:24px;
+  margin-bottom:20px;
+}
+
+.page-head h1{
+  margin:0;
+  font-size:28px;
+  font-weight:900;
+  color:#1f2937;
+}
+
+.page-head p{
+  margin:8px 0 0;
+  color:#6b7280;
+  font-size:14px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+
+.card{
+  display:block;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:22px;
+  text-decoration:none;
+  color:#111827;
+  min-height:145px;
+}
+
+.card h2{
+  margin:0 0 10px;
+  font-size:19px;
+  font-weight:900;
+}
+
+.card p{
+  margin:0;
+  color:#6b7280;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.card span{
+  display:inline-block;
+  margin-top:18px;
+  font-size:13px;
+  font-weight:800;
+  color:#2563eb;
+}
+
+.session-box{
+  margin-top:20px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:16px 18px;
+  font-size:13px;
+  color:#4b5563;
+}
+
+@media(max-width:900px){
+  .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:600px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .page{
+    width:calc(100% - 20px);
+    margin-top:18px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="platformHeader"></div>
+
+<main class="page">
+
+  <section class="page-head">
+    <h1>Platform Admin Dashboard</h1>
+    <p>Manage tenant companies, Super Admin accounts, services, permissions and billing.</p>
+  </section>
+
+  <section class="grid">
+
+    <a class="card" href="/platform-admin/tenants.html">
+      <h2>Companies</h2>
+      <p>Create and manage tenant companies on the platform.</p>
+      <span>Open Companies</span>
+    </a>
+
+    <a class="card" href="/platform-admin/super-admins.html">
+      <h2>Super Admins</h2>
+      <p>Create and manage Super Admin accounts for tenant companies.</p>
+      <span>Open Super Admins</span>
+    </a>
+
+    <a class="card" href="/platform-admin/services.html">
+      <h2>Services</h2>
+      <p>Manage services available across the platform.</p>
+      <span>Open Services</span>
+    </a>
+
+    <a class="card" href="/platform-admin/permissions.html">
+      <h2>Permissions</h2>
+      <p>Manage platform permissions and access rules.</p>
+      <span>Open Permissions</span>
+    </a>
+
+    <a class="card" href="/platform-admin/billing.html">
+      <h2>Billing</h2>
+      <p>Review platform billing and tenant subscription information.</p>
+      <span>Open Billing</span>
+    </a>
+
+  </section>
+
+  <div id="sessionBox" class="session-box">
+    Platform Admin session active.
+  </div>
+
+</main>
+
+<script>
+(function(){
+
+  "use strict";
+
+  const token =
+    sessionStorage.getItem("staffToken") ||
+    "";
+
+  const role =
+    String(
+      sessionStorage.getItem("staffRole") ||
+      ""
+    ).trim();
+
+  const name =
+    String(
+      sessionStorage.getItem("staffName") ||
+      ""
+    ).trim();
+
+  if(
+    !token ||
+    role !== "PLATFORM_ADMIN"
+  ){
+    window.location.replace(
+      "/login.html"
+    );
+    return;
+  }
+
+  const sessionBox =
+    document.getElementById(
+      "sessionBox"
+    );
+
+  if(
+    sessionBox &&
+    name
+  ){
+    sessionBox.textContent =
+      "Signed in as " +
+      name +
+      " — Platform Admin";
+  }
+
+  async function loadHeader(){
+
+    const container =
+      document.getElementById(
+        "platformHeader"
+      );
+
+    if(!container){
+      return;
+    }
+
+    try{
+
+      const res =
+        await fetch(
+          "/platform-admin/platform_header.html",
+          {
+            cache:"no-store"
+          }
+        );
+
+      if(!res.ok){
+        throw new Error(
+          "Unable to load platform header"
+        );
+      }
+
+      container.innerHTML =
+        await res.text();
+
+      const script =
+        document.createElement(
+          "script"
+        );
+
+      script.src =
+        "/platform-admin/platform_header.js";
+
+      script.defer =
+        true;
+
+      document.body.appendChild(
+        script
+      );
+
+    }catch(err){
+
+      console.error(
+        "PLATFORM HEADER ERROR:",
+        err
+      );
+
+    }
+  }
+
+  loadHeader();
+
+})();
+</script>
+
+</body>
+</html>
