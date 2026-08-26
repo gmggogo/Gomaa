@@ -302,9 +302,15 @@ function getServiceName(service){
 
 function serviceEnabled(service){
 
+  const companyEnabled =
+    service?.companyEnabled;
+
+  const enabled =
+    service?.enabled;
+
   return (
-    service?.companyEnabled === true ||
-    service?.enabled === true
+    bool(companyEnabled) ||
+    bool(enabled)
   );
 }
 
@@ -584,6 +590,222 @@ function normalizeServiceInput(service){
 }
 
 /* =========================
+   TENANT SERVICE DOCUMENTS
+========================= */
+
+function plainServiceCopy(service){
+
+  if(!service){
+    return null;
+  }
+
+  const raw =
+    service.toObject
+      ? service.toObject()
+      : { ...service };
+
+  delete raw._id;
+  delete raw.__v;
+  delete raw.createdAt;
+  delete raw.updatedAt;
+  delete raw.tenantId;
+
+  return raw;
+}
+
+function defaultTenantService(code){
+
+  const key =
+    normalizeCode(code);
+
+  const titles = {
+    ST:"Standard",
+    WH:"Wheelchair",
+    SH:"Shared",
+    LM:"Limousine",
+    TX:"Taxi",
+    XL:"XL"
+  };
+
+  const pricingMode =
+    key === "SH"
+      ? "SHARED"
+      : (
+          key === "LM"
+            ? "HOURLY"
+            : "MILE"
+        );
+
+  return {
+    serviceKey:key,
+    title:
+      titles[key] ||
+      key,
+
+    enabled:true,
+    companyEnabled:true,
+    reservedEnabled:false,
+
+    companySuffix:key,
+    companyShared:
+      key === "SH",
+    companyPricingMode:
+      pricingMode,
+
+    companyBaseFare:0,
+    companyIncludedMiles:0,
+    companyPerMile:0,
+    companyHourlyRate:0,
+    companyHourlyBillingMode:"FULL",
+    companyInitialDurationMinutes:0,
+    companyInitialPrice:0,
+    companyStopFee:0,
+    companyNoShowFee:0,
+    companySharedPrice:0,
+    companyWarningEnabled:true,
+    companyWarningMinutes:120,
+    companyCancelFee:15,
+    companyDisableCancel:false,
+    companyAddStopEnabled:false,
+    companyAddStopCustomTimeEnabled:false,
+    companyAddStopCutoffMinutes:0
+  };
+}
+
+async function findServiceTemplate(code){
+
+  const key =
+    normalizeCode(code);
+
+  const candidates =
+    await Service.find({
+      $or:[
+        { tenantId:null },
+        {
+          tenantId:{
+            $exists:false
+          }
+        }
+      ]
+    })
+    .sort({
+      createdAt:1
+    })
+    .lean();
+
+  return (
+    candidates.find(
+      service =>
+        getServiceCode(service) ===
+        key
+    ) ||
+    null
+  );
+}
+
+async function ensureTenantServiceDocuments(
+  tenantId,
+  allowedServices
+){
+
+  if(
+    !tenantId ||
+    !Array.isArray(
+      allowedServices
+    ) ||
+    !allowedServices.length
+  ){
+    return;
+  }
+
+  const existing =
+    await Service.find({
+      tenantId
+    })
+    .lean();
+
+  const existingCodes =
+    new Set(
+      existing
+        .map(getServiceCode)
+        .filter(Boolean)
+    );
+
+  for(
+    const rawCode
+    of allowedServices
+  ){
+
+    const code =
+      normalizeCode(
+        rawCode
+      );
+
+    if(
+      !code ||
+      existingCodes.has(code)
+    ){
+      continue;
+    }
+
+    const template =
+      await findServiceTemplate(
+        code
+      );
+
+    const payload =
+      template
+        ? plainServiceCopy(
+            template
+          )
+        : defaultTenantService(
+            code
+          );
+
+    payload.tenantId =
+      tenantId;
+
+    payload.serviceKey =
+      code;
+
+    payload.companySuffix =
+      code;
+
+    payload.enabled =
+      payload.enabled !== false;
+
+    payload.companyEnabled =
+      payload.companyEnabled !== false;
+
+    if(code === "SH"){
+
+      payload.companyShared =
+        true;
+
+      payload.companyPricingMode =
+        "SHARED";
+    }
+
+    try{
+
+      await Service.create(
+        payload
+      );
+
+    }catch(err){
+
+      if(err?.code !== 11000){
+        throw err;
+      }
+    }
+
+    existingCodes.add(
+      code
+    );
+  }
+}
+
+/* =========================
    FACILITY HELPERS
 ========================= */
 
@@ -741,6 +963,11 @@ router.get(
           allowedServices
         );
 
+      await ensureTenantServiceDocuments(
+        tenantId,
+        allowedServices
+      );
+
       const [
         users,
         services,
@@ -753,11 +980,13 @@ router.get(
           }).lean(),
 
           /*
-            Service Management records are platform-level/global.
-            Tenant access is controlled by Tenant.allowedServices,
-            so do not filter Service documents by tenantId here.
+            Service Management is tenant-owned in the current SaaS build.
+            Facility Pricing must read the same tenant service documents
+            used by /api/services/admin.
           */
-          Service.find({}).lean(),
+          Service.find({
+            tenantId
+          }).lean(),
 
           FacilityPricingOverride
             .find({
@@ -824,7 +1053,15 @@ router.get(
         services:
           activeServices,
         overrides,
-        allowedServices
+        allowedServices,
+        debug:{
+          tenantId:
+            String(tenantId),
+          tenantServiceCount:
+            services.length,
+          visibleServiceCount:
+            activeServices.length
+        }
       });
 
     }catch(err){
