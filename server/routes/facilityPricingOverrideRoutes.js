@@ -15,6 +15,10 @@ const Service =
   mongoose.models.Service ||
   require("../models/Service");
 
+const Tenant =
+  mongoose.models.Tenant ||
+  require("../models/Tenant");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -851,32 +855,106 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       });
     }
 
+    if(!Tenant){
+
+      return res.status(500).json({
+        success:false,
+        message:"Tenant model not loaded"
+      });
+    }
+
+    /*
+      Facility Pricing is tenant-scoped.
+
+      SUPER_ADMIN / ADMIN:
+      tenantId always comes from the verified JWT.
+
+      PLATFORM_ADMIN:
+      tenantId must be supplied explicitly.
+    */
+
+    const tenantId =
+      tenantIdForWrite(req);
+
+    if(!tenantId){
+
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    if(
+      !mongoose.Types.ObjectId.isValid(
+        String(tenantId)
+      )
+    ){
+
+      return res.status(400).json({
+        success:false,
+        message:"Invalid tenant id"
+      });
+    }
+
     const [
+      tenant,
       users,
       services,
       overrides
     ] =
       await Promise.all([
 
-        User
-          .find(
-            tenantFilter(req)
+        Tenant
+          .findById(
+            tenantId
           )
+          .lean(),
+
+        User
+          .find({
+            tenantId
+          })
           .lean(),
 
         Service
-          .find(
-            tenantFilter(req)
-          )
+          .find({
+            tenantId
+          })
           .lean(),
 
         FacilityPricingOverride
-          .find(
-            tenantFilter(req)
-          )
+          .find({
+            tenantId
+          })
           .lean()
 
       ]);
+
+    if(!tenant){
+
+      return res.status(404).json({
+        success:false,
+        message:"Tenant not found"
+      });
+    }
+
+    /*
+      Platform Admin controls the services available
+      to this tenant through Tenant.allowedServices.
+    */
+
+    const tenantAllowedServices =
+      Array.isArray(
+        tenant.allowedServices
+      )
+        ? [
+            ...new Set(
+              tenant.allowedServices
+                .map(normalizeCode)
+                .filter(Boolean)
+            )
+          ]
+        : [];
 
     const facilities =
       users
@@ -897,13 +975,22 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
           username:
             u.username || "",
 
+          /*
+            Optional per-facility restriction.
+            If empty, the frontend falls back to the
+            tenant-level Platform Admin permissions.
+          */
           allowedServices:
             Array.isArray(
               u.allowedServices
             )
-              ? u.allowedServices
-                  .map(normalizeCode)
-                  .filter(Boolean)
+              ? [
+                  ...new Set(
+                    u.allowedServices
+                      .map(normalizeCode)
+                      .filter(Boolean)
+                  )
+                ]
               : []
 
         }))
@@ -914,6 +1001,11 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
           (a,b)=>
             a.name.localeCompare(b.name)
         );
+
+    /*
+      Pricing defaults continue to come from
+      Service Management for this same tenant.
+    */
 
     const activeServices =
       services
@@ -936,6 +1028,17 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
     return res.json({
 
       success:true,
+
+      tenant:{
+        id:
+          String(tenant._id),
+        name:
+          tenant.name || "",
+        slug:
+          tenant.slug || ""
+      },
+
+      tenantAllowedServices,
 
       facilities,
 
@@ -1212,6 +1315,37 @@ router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
       });
     }
 
+    const tenant =
+      await Tenant.findById(
+        tenantId
+      )
+      .lean();
+
+    if(!tenant){
+
+      return res.status(404).json({
+
+        success:false,
+
+        message:
+          "Tenant not found"
+
+      });
+    }
+
+    const tenantAllowedServices =
+      Array.isArray(
+        tenant.allowedServices
+      )
+        ? [
+            ...new Set(
+              tenant.allowedServices
+                .map(normalizeCode)
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
     const facilityName =
       clean(
         req.body?.facilityName
@@ -1264,6 +1398,47 @@ router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
         .filter(
           s=>s.serviceKey
         );
+
+    const facilityAllowedServices =
+      Array.isArray(
+        facilityUser.allowedServices
+      )
+        ? facilityUser.allowedServices
+            .map(normalizeCode)
+            .filter(Boolean)
+        : [];
+
+    const effectiveAllowedServices =
+      facilityAllowedServices.length
+        ? facilityAllowedServices.filter(
+            code =>
+              tenantAllowedServices.includes(
+                code
+              )
+          )
+        : tenantAllowedServices;
+
+    const invalidService =
+      services.find(
+        service =>
+          !effectiveAllowedServices.includes(
+            normalizeCode(
+              service.serviceKey
+            )
+          )
+      );
+
+    if(invalidService){
+
+      return res.status(403).json({
+
+        success:false,
+
+        message:
+          "Service is not enabled for this facility"
+
+      });
+    }
 
     const updatedBy =
       clean(
