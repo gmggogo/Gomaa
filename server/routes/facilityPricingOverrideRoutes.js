@@ -752,9 +752,12 @@ router.get(
             tenantId
           }).lean(),
 
-          Service.find({
-            tenantId
-          }).lean(),
+          /*
+            Service Management records are platform-level/global.
+            Tenant access is controlled by Tenant.allowedServices,
+            so do not filter Service documents by tenantId here.
+          */
+          Service.find({}).lean(),
 
           FacilityPricingOverride
             .find({
