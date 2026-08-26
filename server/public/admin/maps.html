@@ -170,55 +170,19 @@ if(!token || !allowed){
 }
 
 /* =========================
-   LOAD ADMIN HEADER
+   ADMIN HEADER
 ========================= */
 
-async function loadAdminHeader(){
-
-  try{
-
-    const holder =
-      document.getElementById("adminHeader");
-
-    if(!holder){
-      return;
-    }
-
-    const res =
-      await fetch("/admin/header.html", {
-        cache:"no-store"
-      });
-
-    if(res.ok){
-      holder.innerHTML =
-        await res.text();
-    }
-
-    const script =
-      document.createElement("script");
-
-    script.src =
-      "/admin/header.js";
-
-    script.defer =
-      true;
-
-    document.body.appendChild(
-      script
-    );
-
-  }catch(err){
-
-    console.log(
-      "HEADER LOAD ERROR:",
-      err
-    );
-
-  }
-}
-
-loadAdminHeader();
+/*
+  header.js loads header.html itself and builds all desktop/mobile buttons.
+  Load it normally before DOMContentLoaded instead of injecting it after
+  DOMContentLoaded, otherwise its DOMContentLoaded handler never runs.
+*/
 </script>
+
+<script src="/admin/header.js"></script>
+
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/admin/maps.js"></script>
