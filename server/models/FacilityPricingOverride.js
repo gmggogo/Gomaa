@@ -1,34 +1,49 @@
-const mongoose = require("mongoose");
+"use strict";
 
-/* =====================================================
-   FACILITY PRICING OVERRIDE MODEL
-   Same pricing fields as Facility section in Service Management
-===================================================== */
+const mongoose =
+  require("mongoose");
 
-function clean(v){
-  return String(v ?? "").trim();
+/* =========================
+   HELPERS
+========================= */
+
+function clean(value){
+  return String(value ?? "").trim();
 }
 
-function normalizeServiceCode(v){
+function normalizeServiceCode(value){
+
   const c =
-    clean(v)
+    clean(value)
       .toUpperCase()
-      .replace(/[_-]/g, " ")
-      .replace(/\s+/g, " ")
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ")
       .trim();
 
-  if(!c) return "";
-  if(c === "STANDARD" || c === "ST") return "ST";
+  if(!c){
+    return "";
+  }
+
+  if(
+    c === "STANDARD" ||
+    c === "ST"
+  ){
+    return "ST";
+  }
 
   if(
     c === "WHEELCHAIR" ||
     c === "WHEEL CHAIR" ||
-    c === "WH"
+    c === "WH" ||
+    c === "WC"
   ){
     return "WH";
   }
 
-  if(c === "SHARED" || c === "SH"){
+  if(
+    c === "SHARED" ||
+    c === "SH"
+  ){
     return "SH";
   }
 
@@ -40,7 +55,10 @@ function normalizeServiceCode(v){
     return "LM";
   }
 
-  if(c === "TAXI" || c === "TX"){
+  if(
+    c === "TAXI" ||
+    c === "TX"
+  ){
     return "TX";
   }
 
@@ -53,283 +71,329 @@ function normalizeServiceCode(v){
 
 function detectServiceCode(service){
 
-  const raw =
-    [
-      service?.serviceName,
-      service?.serviceSuffix,
-      service?.serviceKey
-    ]
-    .map(clean)
-    .filter(Boolean)
-    .join(" ")
-    .toUpperCase()
-    .replace(/[_-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const values = [
+    service?.serviceKey,
+    service?.serviceSuffix,
+    service?.serviceName
+  ];
 
-  if(!raw){
-    return "";
+  for(const value of values){
+
+    const code =
+      normalizeServiceCode(
+        value
+      );
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(code)
+    ){
+      return code;
+    }
   }
 
-  if(
-    raw.includes("WHEELCHAIR") ||
-    raw.includes("WHEEL CHAIR") ||
-    raw === "WH" ||
-    raw.startsWith("WH ") ||
-    raw.endsWith(" WH") ||
-    raw.includes(" WH ")
-  ){
-    return "WH";
-  }
-
-  if(
-    raw.includes("SHARED") ||
-    raw === "SH" ||
-    raw.startsWith("SH ") ||
-    raw.endsWith(" SH") ||
-    raw.includes(" SH ")
-  ){
-    return "SH";
-  }
-
-  if(
-    raw.includes("LIMOUSINE") ||
-    raw.includes("LIMO") ||
-    raw === "LM" ||
-    raw.startsWith("LM ") ||
-    raw.endsWith(" LM") ||
-    raw.includes(" LM ")
-  ){
-    return "LM";
-  }
-
-  if(
-    raw.includes("TAXI") ||
-    raw === "TX" ||
-    raw.startsWith("TX ") ||
-    raw.endsWith(" TX") ||
-    raw.includes(" TX ")
-  ){
-    return "TX";
-  }
-
-  if(
-    raw === "XL" ||
-    raw.startsWith("XL ") ||
-    raw.endsWith(" XL") ||
-    raw.includes(" XL ")
-  ){
-    return "XL";
-  }
-
-  return (
-    normalizeServiceCode(service?.serviceKey) ||
-    normalizeServiceCode(service?.serviceSuffix) ||
-    normalizeServiceCode(service?.serviceName) ||
-    ""
+  return normalizeServiceCode(
+    values.find(Boolean)
   );
 }
 
-const servicePricingSchema = new mongoose.Schema(
-  {
-    serviceKey:{
-      type:String,
-      required:true,
-      trim:true,
-      uppercase:true
+/* =========================
+   SERVICE PRICING
+========================= */
+
+const servicePricingSchema =
+  new mongoose.Schema(
+    {
+      serviceKey:{
+        type:String,
+        required:true,
+        trim:true,
+        uppercase:true
+      },
+
+      serviceName:{
+        type:String,
+        default:"",
+        trim:true
+      },
+
+      serviceSuffix:{
+        type:String,
+        default:"",
+        trim:true,
+        uppercase:true
+      },
+
+      shared:{
+        type:Boolean,
+        default:false
+      },
+
+      pricingMode:{
+        type:String,
+        enum:[
+          "MILE",
+          "HOURLY",
+          "SHARED"
+        ],
+        default:"MILE"
+      },
+
+      baseFare:{
+        type:Number,
+        default:0
+      },
+
+      includedMiles:{
+        type:Number,
+        default:0
+      },
+
+      perMile:{
+        type:Number,
+        default:0
+      },
+
+      hourlyRate:{
+        type:Number,
+        default:0
+      },
+
+      hourlyBillingMode:{
+        type:String,
+        enum:[
+          "FULL",
+          "QUARTER"
+        ],
+        default:"FULL"
+      },
+
+      initialDurationMinutes:{
+        type:Number,
+        default:0,
+        min:0
+      },
+
+      initialPrice:{
+        type:Number,
+        default:0,
+        min:0
+      },
+
+      stopFee:{
+        type:Number,
+        default:0
+      },
+
+      noShowFee:{
+        type:Number,
+        default:0
+      },
+
+      sharedPrice:{
+        type:Number,
+        default:0
+      },
+
+      disableCancel:{
+        type:Boolean,
+        default:false
+      },
+
+      warningMinutes:{
+        type:Number,
+        default:0
+      },
+
+      cancelFee:{
+        type:Number,
+        default:0
+      },
+
+      addStopEnabled:{
+        type:Boolean,
+        default:false
+      },
+
+      addStopCustomTimeEnabled:{
+        type:Boolean,
+        default:false
+      },
+
+      addStopCutoffMinutes:{
+        type:Number,
+        default:0
+      }
     },
-
-    serviceName:{
-      type:String,
-      default:"",
-      trim:true
-    },
-
-    serviceSuffix:{
-      type:String,
-      default:"",
-      trim:true,
-      uppercase:true
-    },
-
-    shared:{
-      type:Boolean,
-      default:false
-    },
-
-    pricingMode:{
-      type:String,
-      enum:["MILE","HOURLY","SHARED"],
-      default:"MILE"
-    },
-
-    baseFare:{ type:Number, default:0 },
-    includedMiles:{ type:Number, default:0 },
-    perMile:{ type:Number, default:0 },
-    hourlyRate:{ type:Number, default:0 },
-
-    hourlyBillingMode:{
-      type:String,
-      enum:["FULL","QUARTER"],
-      default:"FULL"
-    },
-
-    initialDurationMinutes:{
-      type:Number,
-      default:0,
-      min:0
-    },
-
-    initialPrice:{
-      type:Number,
-      default:0,
-      min:0
-    },
-
-    stopFee:{ type:Number, default:0 },
-    noShowFee:{ type:Number, default:0 },
-    sharedPrice:{ type:Number, default:0 },
-
-    disableCancel:{
-      type:Boolean,
-      default:false
-    },
-
-    warningMinutes:{
-      type:Number,
-      default:0
-    },
-
-    cancelFee:{
-      type:Number,
-      default:0
-    },
-
-    addStopEnabled:{
-      type:Boolean,
-      default:false
-    },
-
-    addStopCustomTimeEnabled:{
-      type:Boolean,
-      default:false
-    },
-
-    addStopCutoffMinutes:{
-      type:Number,
-      default:0
+    {
+      _id:false
     }
-  },
-  { _id:false }
-);
+  );
 
-const facilityPricingOverrideSchema = new mongoose.Schema(
-  {
-    facilityId:{
-      type:mongoose.Schema.Types.ObjectId,
-      required:true,
-      index:true
+/* =========================
+   MAIN SCHEMA
+========================= */
+
+const facilityPricingOverrideSchema =
+  new mongoose.Schema(
+    {
+      tenantId:{
+        type:
+          mongoose.Schema.Types.ObjectId,
+        ref:"Tenant",
+        index:true,
+        default:null
+      },
+
+      facilityId:{
+        type:
+          mongoose.Schema.Types.ObjectId,
+        required:true,
+        index:true
+      },
+
+      facilityName:{
+        type:String,
+        required:true,
+        trim:true
+      },
+
+      active:{
+        type:Boolean,
+        default:false
+      },
+
+      services:{
+        type:[
+          servicePricingSchema
+        ],
+        default:[]
+      },
+
+      updatedBy:{
+        type:String,
+        default:""
+      }
     },
-
-    facilityName:{
-      type:String,
-      required:true,
-      trim:true
-    },
-
-    active:{
-      type:Boolean,
-      default:false
-    },
-
-    services:{
-      type:[servicePricingSchema],
-      default:[]
-    },
-
-    updatedBy:{
-      type:String,
-      default:""
+    {
+      timestamps:true
     }
-  },
-  {
-    timestamps:true
-  }
-);
+  );
+
+/* =========================
+   NORMALIZE
+========================= */
 
 facilityPricingOverrideSchema.pre(
   "validate",
   function(next){
 
-    if(!Array.isArray(this.services)){
+    if(
+      !Array.isArray(
+        this.services
+      )
+    ){
       this.services = [];
     }
 
     this.services =
-      this.services.map(service=>{
+      this.services.map(
+        service=>{
 
-        const code =
-          detectServiceCode(service);
+          const code =
+            detectServiceCode(
+              service
+            );
 
-        if(code){
-          service.serviceKey = code;
-        }
+          if(code){
+            service.serviceKey =
+              code;
+          }
 
-        if(!service.serviceSuffix){
-          service.serviceSuffix =
-            code ||
-            service.serviceKey;
-        }else{
           service.serviceSuffix =
             normalizeServiceCode(
-              service.serviceSuffix
+              service.serviceSuffix ||
+              code ||
+              service.serviceKey
             ) ||
             code ||
             service.serviceKey;
-        }
 
-        if(!service.serviceName){
-          service.serviceName =
-            service.serviceKey ||
-            code ||
-            "";
-        }
+          if(!service.serviceName){
 
-        if(
-          service.serviceKey === "SH" ||
-          service.shared === true
-        ){
-          service.serviceKey = "SH";
-          service.serviceSuffix = "SH";
-          service.shared = true;
-          service.pricingMode = "SHARED";
-          service.addStopEnabled = false;
-          service.addStopCustomTimeEnabled = false;
-          service.addStopCutoffMinutes = 0;
-        }
-
-        if(service.serviceKey !== "SH"){
-          service.shared = false;
-
-          if(service.pricingMode === "SHARED"){
-            service.pricingMode = "MILE";
+            service.serviceName =
+              service.serviceKey ||
+              code ||
+              "";
           }
-        }
 
-        return service;
-      });
+          if(
+            service.serviceKey ===
+              "SH" ||
+            service.shared === true
+          ){
+
+            service.serviceKey =
+              "SH";
+
+            service.serviceSuffix =
+              "SH";
+
+            service.shared =
+              true;
+
+            service.pricingMode =
+              "SHARED";
+
+            service.addStopEnabled =
+              false;
+
+            service.addStopCustomTimeEnabled =
+              false;
+
+            service.addStopCutoffMinutes =
+              0;
+
+          }else{
+
+            service.shared =
+              false;
+
+            if(
+              service.pricingMode ===
+              "SHARED"
+            ){
+              service.pricingMode =
+                "MILE";
+            }
+          }
+
+          return service;
+        }
+      );
 
     next();
   }
 );
 
+/*
+  Keep the existing unique facilityId rule.
+  Facility user ObjectIds are globally unique and this also keeps
+  compatibility with legacy records already using this index.
+*/
+
 facilityPricingOverrideSchema.index(
-  { facilityId:1 },
-  { unique:true }
+  {
+    facilityId:1
+  },
+  {
+    unique:true
+  }
 );
 
 module.exports =
-  mongoose.models.FacilityPricingOverride ||
+  mongoose.models
+    .FacilityPricingOverride ||
   mongoose.model(
     "FacilityPricingOverride",
     facilityPricingOverrideSchema
