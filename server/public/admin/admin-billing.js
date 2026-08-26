@@ -772,15 +772,13 @@
                 <div class="company-box">
 
                   <div class="company-name">
-                    ${company.username || company.name || "--"}
+                    ${company.username || "--"}
                   </div>
 
                   <div class="company-small">
                     ${company.email || "--"}
                     <br>
                     ${company.phone || "--"}
-                    <br>
-                    ${company.username || "--"}
                   </div>
 
                 </div>
