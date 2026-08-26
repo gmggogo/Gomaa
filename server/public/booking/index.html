@@ -1232,29 +1232,17 @@ Do you want to continue?`
 
     }
 
-    resultBox.style.display =
-    "block";
+    /*
+      IMPORTANT:
+      The Trip created by the server is only a PENDING PAYMENT draft.
+      Do not show "Trip Created Successfully" before Stripe is completed.
+      The booking becomes confirmed only after the card is saved successfully.
+    */
 
-    resultBox.innerHTML = `
-
-      Trip Created Successfully
-
-      <br><br>
-
-      Trip #:
-      <b>${trip.tripNumber}</b>
-
-    `;
-
-    setTimeout(()=>{
-
-      location.href =
-
+    location.href =
       TENANT_SLUG
-      ? `/booking/payment.html?tripId=${trip._id}&tenant=${encodeURIComponent(TENANT_SLUG)}`
-      : `/booking/payment.html?tripId=${trip._id}`;
-
-    },1500);
+        ? `/booking/payment.html?tripId=${trip._id}&tenant=${encodeURIComponent(TENANT_SLUG)}`
+        : `/booking/payment.html?tripId=${trip._id}`;
 
   }
 

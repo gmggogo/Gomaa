@@ -16,6 +16,9 @@ const {
 
 const router = express.Router();
 
+const TenantPaymentAccount =
+  require("../models/TenantPaymentAccount");
+
 const PUBLIC_BASE_URL = String(
   process.env.PUBLIC_BASE_URL ||
   "https://sunbeam-933q.onrender.com"
@@ -120,6 +123,29 @@ router.post("/:tripId/checkout-session", async (req,res)=>{
       tenantSlugFromTrip(
         trip
       );
+
+    /*
+      Defense in depth:
+      even if a pending Trip somehow exists, Stripe Checkout must not open
+      unless this tenant has completed Stripe onboarding.
+    */
+    const paymentAccount =
+      await TenantPaymentAccount.findOne({
+        tenantId
+      }).lean();
+
+    if(
+      !paymentAccount ||
+      !paymentAccount.stripeAccountId ||
+      paymentAccount.connected !== true ||
+      paymentAccount.chargesEnabled !== true
+    ){
+      return res.status(400).json({
+        success:false,
+        message:
+          "Online booking is currently unavailable. Payment account is not connected."
+      });
+    }
 
     const tenantPart =
       tenantQueryString(
@@ -359,6 +385,15 @@ router.post("/:tripId/checkout-success", async (req,res)=>{
       trip,
       setupIntentId
     );
+
+    /*
+      Only NOW is the public booking real.
+      The card has been saved successfully, so expose it to Trips Hub / Dispatch.
+    */
+    trip.status = "Confirmed";
+    trip.dispatchSelected = true;
+
+    await trip.save();
 
     if(!trip.confirmationEmailSent){
 

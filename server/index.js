@@ -5781,6 +5781,39 @@ app.post("/api/trips", optionalTenantApi, async (req, res) => {
       );
 
     /* =========================
+       PUBLIC GET QUOTE PAYMENT GATE
+
+       A public individual booking must NEVER become Booked
+       unless this tenant has a fully connected Stripe account.
+       Staff-created trips are not affected by this rule.
+    ========================= */
+
+    const isPublicIndividualBooking =
+      !req.authUser &&
+      type === "individual";
+
+    if(isPublicIndividualBooking){
+
+      const paymentAccount =
+        await TenantPaymentAccount.findOne({
+          tenantId
+        }).lean();
+
+      if(
+        !paymentAccount ||
+        !paymentAccount.stripeAccountId ||
+        paymentAccount.connected !== true ||
+        paymentAccount.chargesEnabled !== true
+      ){
+
+        return res.status(400).json({
+          message:
+            "Online booking is currently unavailable. Payment account is not connected."
+        });
+      }
+    }
+
+    /* =========================
        COMPANY LOCK CHECK
     ========================= */
 
@@ -6367,7 +6400,14 @@ serviceCode: vehicleTypeFromQuote,
 
       notes: normalizeText(req.body.notes),
 
-      status: normalizeText(req.body.status) || "Booked",
+      /*
+        Public Get Quote bookings stay invisible / unconfirmed until
+        Stripe card setup succeeds. Staff-created trips keep the old default.
+      */
+      status:
+        isPublicIndividualBooking
+          ? "Pending Payment"
+          : (normalizeText(req.body.status) || "Booked"),
 
 reservationStatus:
   normalizeText(req.body.reservationStatus),
@@ -6481,6 +6521,11 @@ app.get(
 
       }
 
+      filter.status = {
+        ...(filter.status || {}),
+        $ne:"Pending Payment"
+      };
+
       const trips =
         await Trip.find(filter)
         .sort({
@@ -6513,7 +6558,11 @@ app.get(
 ========================= */
 app.get("/api/trips", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find(tenantFilter(req,{})).sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(
+      tenantFilter(req,{
+        status:{ $ne:"Pending Payment" }
+      })
+    ).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
     console.log(err);
@@ -6532,7 +6581,9 @@ app.get(
   try{
 
     const filter =
-      tenantFilter(req,{});
+      tenantFilter(req,{
+        status:{ $ne:"Pending Payment" }
+      });
 
     /*
       Company users only see trips belonging to their own
