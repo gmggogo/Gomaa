@@ -176,8 +176,7 @@ async function syncStripeAccount(
       account.charges_enabled === true
     );
 
-  paymentAccount.connected =
-    paymentAccount.onboardingComplete;
+  paymentAccount.connected = true;
 
   paymentAccount.country =
     account.country ||
@@ -253,6 +252,10 @@ router.get(
 
         chargesEnabled:
           paymentAccount?.chargesEnabled === true,
+
+        paymentReady:
+          paymentAccount?.chargesEnabled === true &&
+          paymentAccount?.detailsSubmitted === true,
 
         payoutsEnabled:
           paymentAccount?.payoutsEnabled === true,
@@ -646,8 +649,7 @@ router.get(
           account.charges_enabled === true
         );
 
-      paymentAccount.connected =
-        paymentAccount.onboardingComplete;
+      paymentAccount.connected = true;
 
       paymentAccount.country =
         account.country ||

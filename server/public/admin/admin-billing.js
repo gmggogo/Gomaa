@@ -63,6 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
   ========================= */
 
   let companies = [];
+  let stripeAccountLinked = false;
+  let stripePaymentReady = false;
 
   /* =========================
      MONTHS
@@ -353,11 +355,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       }
 
-      const connected =
+      stripeAccountLinked =
         data.connected === true &&
-        data.chargesEnabled === true;
+        !!data.stripeAccountId;
 
-      if(connected){
+      stripePaymentReady =
+        data.chargesEnabled === true &&
+        data.detailsSubmitted === true;
+
+      if(
+        stripeAccountLinked &&
+        stripePaymentReady
+      ){
 
         setStripeUi(
           "connected",
@@ -373,20 +382,31 @@ document.addEventListener("DOMContentLoaded", () => {
             "inline-flex";
         }
 
-      }else{
+      }else if(stripeAccountLinked){
 
         setStripeUi(
           "pending",
-          data.stripeAccountId
-            ? "SETUP REQUIRED"
-            : "NOT CONNECTED",
+          "ACTION REQUIRED",
           data.stripeAccountId || ""
         );
 
         connectStripeBtn.innerText =
-          data.stripeAccountId
-            ? "Continue Stripe Setup"
-            : "Connect Stripe";
+          "Complete Stripe Setup";
+
+        if(stripeDashboardBtn){
+          stripeDashboardBtn.style.display =
+            "inline-flex";
+        }
+
+      }else{
+
+        setStripeUi(
+          "pending",
+          "NOT CONNECTED"
+        );
+
+        connectStripeBtn.innerText =
+          "Connect Stripe";
 
         if(stripeDashboardBtn){
           stripeDashboardBtn.style.display =
@@ -404,6 +424,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     }catch(err){
+
+      stripeAccountLinked = false;
+      stripePaymentReady = false;
 
       console.log(
         "STRIPE STATUS ERROR:",
@@ -435,6 +458,11 @@ document.addEventListener("DOMContentLoaded", () => {
     try{
 
       if(!connectStripeBtn){
+        return;
+      }
+
+      if(stripeAccountLinked){
+        await openStripeDashboard();
         return;
       }
 
