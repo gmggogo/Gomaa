@@ -29,6 +29,7 @@ const E = {
   company:$("companyName"),
   status:$("subscriptionStatus"),
   plan:$("planName"),
+  planPrice:$("planPrice"),
   amount:$("invoiceAmount"),
   next:$("nextPayment"),
   grace:$("gracePeriod"),
@@ -116,6 +117,7 @@ function render(data){
   E.status.textContent = status.replace(/_/g," ");
 
   E.plan.textContent = s.planName || "GH Mobility";
+  E.planPrice.textContent = money(s.planPrice);
   E.amount.textContent = money(s.amountDue);
   E.next.textContent = dateText(s.nextBillingDate);
   E.grace.textContent = Number(s.graceDays || 0) + " days";
@@ -125,8 +127,19 @@ function render(data){
   E.access.textContent = s.locked ? "PAYMENT REQUIRED" : "ACTIVE";
 
   const amount = Number(s.amountDue || 0);
-  E.pay.disabled = amount <= 0;
-  E.pay.textContent = amount > 0 ? "Pay " + money(amount) : "No Payment Due";
+  const canPay = s.canPay === true && amount > 0;
+
+  E.pay.disabled = !canPay;
+
+  if(canPay){
+    E.pay.textContent = "Pay " + money(amount);
+  }else if(s.paymentWindowOpensAt){
+    E.pay.textContent =
+      "Payment opens " +
+      dateText(s.paymentWindowOpensAt);
+  }else{
+    E.pay.textContent = "No Payment Due";
+  }
 
   const rows = Array.isArray(data.history) ? data.history : [];
 
@@ -188,8 +201,9 @@ async function payNow(){
   }catch(err){
     console.error("PAY NOW ERROR:",err);
     showMessage(err.message || "Unable to start payment.","error");
-    E.pay.disabled = false;
+    E.pay.disabled = true;
     E.pay.textContent = old;
+    await load();
   }
 }
 

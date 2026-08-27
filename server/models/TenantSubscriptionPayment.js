@@ -18,6 +18,18 @@ const schema = new mongoose.Schema(
       index:true
     },
 
+    billingKey:{
+      type:String,
+      trim:true,
+      index:true
+    },
+
+    billingDueDate:{
+      type:Date,
+      default:null,
+      index:true
+    },
+
     amount:{
       type:Number,
       required:true,
@@ -64,6 +76,16 @@ const schema = new mongoose.Schema(
     }
   },
   {timestamps:true}
+);
+
+schema.index(
+  {tenantId:1,billingKey:1},
+  {
+    unique:true,
+    partialFilterExpression:{
+      billingKey:{$type:"string"}
+    }
+  }
 );
 
 module.exports =

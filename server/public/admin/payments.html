@@ -20,7 +20,7 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 .badge.active{background:#dcfce7;color:#166534}.badge.trial{background:#dbeafe;color:#1d4ed8}.badge.past_due{background:#ffedd5;color:#9a3412}.badge.suspended{background:#fee2e2;color:#991b1b}.badge.none{background:#e5e7eb;color:#374151}
 .message{display:none;margin:16px 20px 0;padding:11px 13px;border-radius:8px;font-size:12px;font-weight:850}
 .message.show{display:block}.message.ok{background:#dcfce7;color:#166534}.message.error{background:#fee2e2;color:#991b1b}.message.info{background:#dbeafe;color:#1e40af}
-.summary{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px;padding:20px}
+.summary{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:12px;padding:20px}
 .card{min-height:106px;padding:15px;border:1px solid #d8e1e8;border-radius:12px;background:linear-gradient(180deg,#fff,#f8fbfd)}
 .label{font-size:11px;font-weight:900;color:#6b7585;text-transform:uppercase}.value{margin-top:12px;font-size:24px;font-weight:950;color:#071a36}.money{color:#137a4a}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 20px 20px}
@@ -55,7 +55,8 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
   <div class="summary">
     <div class="card"><div class="label">Plan</div><div class="value" id="planName">--</div></div>
-    <div class="card"><div class="label">Invoice Amount</div><div class="value money" id="invoiceAmount">$0.00</div></div>
+    <div class="card"><div class="label">Plan Price</div><div class="value money" id="planPrice">$0.00</div></div>
+    <div class="card"><div class="label">Amount Due</div><div class="value money" id="invoiceAmount">$0.00</div></div>
     <div class="card"><div class="label">Next Payment</div><div class="value" id="nextPayment">--</div></div>
     <div class="card"><div class="label">Grace Period</div><div class="value" id="gracePeriod">--</div></div>
   </div>
@@ -104,6 +105,6 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 </main>
 
 <script src="/admin/header.js"></script>
-<script src="/admin/payments.js?v=SAAS-V2-20260827"></script>
+<script src="/admin/payments.js?v=SAAS-V3-20260827"></script>
 </body>
 </html>

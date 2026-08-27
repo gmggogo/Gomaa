@@ -29,6 +29,53 @@ function clean(v){
   return String(v ?? "").trim();
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function validDate(value){
+  if(!value) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
+}
+
+function paymentState(subscription){
+  const now = new Date();
+  const planPrice = Number(subscription.amount || 0);
+  const dueDate = validDate(
+    subscription.nextBillingDate ||
+    subscription.dueDate
+  );
+
+  if(!dueDate){
+    return {
+      planPrice,
+      amountDue:planPrice,
+      canPay:planPrice > 0,
+      paymentWindowOpensAt:null,
+      billingDueDate:null,
+      billingKey:"IMMEDIATE"
+    };
+  }
+
+  const paymentWindowOpensAt =
+    new Date(dueDate.getTime() - DAY_MS);
+
+  const canPay =
+    planPrice > 0 &&
+    now.getTime() >= paymentWindowOpensAt.getTime();
+
+  return {
+    planPrice,
+    amountDue:canPay ? planPrice : 0,
+    canPay,
+    paymentWindowOpensAt,
+    billingDueDate:dueDate,
+    billingKey:dueDate.toISOString().slice(0,10)
+  };
+}
+
 function auth(req,res,next){
   const header = clean(req.headers.authorization);
 
@@ -168,15 +215,37 @@ async function markPaid(subscription,payment,session){
   payment.paidAt = new Date();
   await payment.save();
 
-  subscription.lastPaymentDate = payment.paidAt;
-  subscription.dueDate = addCycle(
-    payment.paidAt,
-    subscription.billingCycle
-  );
-  subscription.nextBillingDate = subscription.dueDate;
-  subscription.status = "ACTIVE";
+  const paidCycleDue =
+    validDate(payment.billingDueDate);
 
-  await subscription.save();
+  const currentDue =
+    validDate(
+      subscription.nextBillingDate ||
+      subscription.dueDate
+    );
+
+  const cycleAlreadyAdvanced =
+    paidCycleDue &&
+    currentDue &&
+    currentDue.getTime() >
+      paidCycleDue.getTime() + DAY_MS;
+
+  if(!cycleAlreadyAdvanced){
+    const cycleBase =
+      paidCycleDue ||
+      currentDue ||
+      payment.paidAt;
+
+    subscription.lastPaymentDate = payment.paidAt;
+    subscription.dueDate = addCycle(
+      cycleBase,
+      subscription.billingCycle
+    );
+    subscription.nextBillingDate = subscription.dueDate;
+    subscription.status = "ACTIVE";
+
+    await subscription.save();
+  }
 
   await Tenant.findByIdAndUpdate(
     subscription.tenantId,
@@ -206,6 +275,7 @@ router.get("/me",auth,async(req,res)=>{
       await ensureSubscription(tenant._id);
 
     const state = runtime(subscription);
+    const billing = paymentState(subscription);
 
     if(subscription.status !== state.status){
       subscription.status = state.status;
@@ -233,7 +303,11 @@ router.get("/me",auth,async(req,res)=>{
       subscription:{
         planName:subscription.planName,
         billingCycle:subscription.billingCycle,
-        amountDue:Number(subscription.amount || 0),
+        planPrice:billing.planPrice,
+        amountDue:billing.amountDue,
+        canPay:billing.canPay,
+        paymentWindowOpensAt:
+          billing.paymentWindowOpensAt,
         status:state.status,
         graceDays:subscription.graceDays,
         dueDate:subscription.dueDate,
@@ -258,6 +332,8 @@ router.get("/me",auth,async(req,res)=>{
 });
 
 router.post("/checkout-session",auth,async(req,res)=>{
+  let payment = null;
+
   try{
     const tenant =
       await Tenant.findById(req.authUser.tenantId);
@@ -272,13 +348,18 @@ router.post("/checkout-session",auth,async(req,res)=>{
     const subscription =
       await ensureSubscription(tenant._id);
 
-    const amount =
-      Number(subscription.amount || 0);
+    const billing =
+      paymentState(subscription);
 
-    if(amount <= 0){
-      return res.status(400).json({
+    const amount =
+      billing.amountDue;
+
+    if(!billing.canPay || amount <= 0){
+      return res.status(409).json({
         success:false,
-        message:"No subscription payment is due"
+        message:"No subscription payment is due",
+        paymentWindowOpensAt:
+          billing.paymentWindowOpensAt
       });
     }
 
@@ -297,21 +378,111 @@ router.post("/checkout-session",auth,async(req,res)=>{
       await subscription.save();
     }
 
-    const invoiceNumber =
-      "GH-" +
-      Date.now().toString(36).toUpperCase() +
-      "-" +
-      String(tenant._id).slice(-5).toUpperCase();
-
-    const payment =
-      await TenantSubscriptionPayment.create({
+    payment =
+      await TenantSubscriptionPayment.findOne({
         tenantId:tenant._id,
-        invoiceNumber,
-        amount,
-        currency:subscription.currency || "usd",
-        billingCycle:subscription.billingCycle,
-        status:"PENDING"
+        billingKey:billing.billingKey
       });
+
+    if(payment?.status === "PAID"){
+      return res.status(409).json({
+        success:false,
+        message:"This subscription invoice is already paid"
+      });
+    }
+
+    if(payment?.checkoutSessionId){
+      try{
+        const existingSession =
+          await stripe.checkout.sessions.retrieve(
+            payment.checkoutSessionId,
+            {expand:["payment_intent"]}
+          );
+
+        if(
+          existingSession.status === "open" &&
+          existingSession.url
+        ){
+          return res.json({
+            success:true,
+            reused:true,
+            url:existingSession.url
+          });
+        }
+
+        if(
+          existingSession.status === "complete" &&
+          existingSession.payment_status === "paid"
+        ){
+          await markPaid(
+            subscription,
+            payment,
+            existingSession
+          );
+
+          return res.status(409).json({
+            success:false,
+            message:"This subscription invoice is already paid"
+          });
+        }
+
+        payment.status = "CANCELED";
+        payment.checkoutSessionId = "";
+        await payment.save();
+
+      }catch(sessionErr){
+        console.log(
+          "EXISTING CHECKOUT SESSION ERROR:",
+          sessionErr.message
+        );
+
+        payment.status = "CANCELED";
+        payment.checkoutSessionId = "";
+        await payment.save();
+      }
+    }
+
+    if(
+      payment &&
+      !payment.checkoutSessionId &&
+      ["PENDING","PROCESSING"].includes(payment.status) &&
+      Date.now() - new Date(payment.updatedAt).getTime() < 120000
+    ){
+      return res.status(409).json({
+        success:false,
+        message:"Payment session is being prepared"
+      });
+    }
+
+    if(!payment){
+      const invoiceNumber =
+        "GH-" +
+        Date.now().toString(36).toUpperCase() +
+        "-" +
+        String(tenant._id).slice(-5).toUpperCase();
+
+      payment =
+        await TenantSubscriptionPayment.create({
+          tenantId:tenant._id,
+          invoiceNumber,
+          billingKey:billing.billingKey,
+          billingDueDate:billing.billingDueDate,
+          amount,
+          currency:subscription.currency || "usd",
+          billingCycle:subscription.billingCycle,
+          status:"PROCESSING"
+        });
+    }else{
+      payment.amount = amount;
+      payment.currency = subscription.currency || "usd";
+      payment.billingCycle = subscription.billingCycle;
+      payment.billingDueDate = billing.billingDueDate;
+      payment.status = "PROCESSING";
+      await payment.save();
+    }
+
+    const invoiceNumber =
+      payment.invoiceNumber;
 
     const session =
       await stripe.checkout.sessions.create({
@@ -367,6 +538,7 @@ router.post("/checkout-session",auth,async(req,res)=>{
       });
 
     payment.checkoutSessionId = session.id;
+    payment.status = "PENDING";
     await payment.save();
 
     return res.json({
@@ -376,6 +548,11 @@ router.post("/checkout-session",auth,async(req,res)=>{
 
   }catch(err){
     console.error("SUBSCRIPTION CHECKOUT ERROR:",err);
+
+    if(payment && payment.status !== "PAID"){
+      payment.status = "FAILED";
+      await payment.save().catch(()=>{});
+    }
 
     return res.status(500).json({
       success:false,
