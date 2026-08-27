@@ -1,18 +1,232 @@
 "use strict";
-const API="/api/tenant-subscription";
-const token=String(sessionStorage.getItem("staffToken")||localStorage.getItem("token")||"").trim();
-const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("role")||"").toUpperCase().replace(/[\s-]+/g,"_");
-if(!token||!["SUPER_ADMIN","SUPERADMIN","ADMIN"].includes(role)){window.location.replace("/login.html")}
-const $=id=>document.getElementById(id);
-const E={company:$("companyName"),status:$("subscriptionStatus"),plan:$("planName"),amount:$("invoiceAmount"),next:$("nextPayment"),grace:$("gracePeriod"),cycle:$("billingCycle"),due:$("dueDate"),last:$("lastPayment"),access:$("accessState"),pay:$("payNowBtn"),history:$("historyBody"),msg:$("messageBox")};
-let current=null;
-function money(v){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(v||0))}
-function date(v){if(!v)return"--";const d=new Date(v);return isNaN(d)?"--":d.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"})}
-function message(t,type="info"){E.msg.textContent=t;E.msg.className="message show "+type}
-async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+token},cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||"Request failed");return d}
-function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
-function render(d){current=d;const s=d.subscription||{};E.company.textContent=d.tenant?.name||"Company";const st=String(s.status||"ACTIVE").toUpperCase();const cls={ACTIVE:"active",TRIAL:"trial",DUE:"due",PAST_DUE:"past_due",SUSPENDED:"suspended"};E.status.className="badge "+(cls[st]||"due");E.status.textContent=st.replace(/_/g," ");E.plan.textContent=s.planName||"GH Mobility";E.amount.textContent=money(s.amountDue);E.next.textContent=date(s.nextBillingDate);E.grace.textContent=Number(s.graceDays||0)+" days";E.cycle.textContent=s.billingCycle||"--";E.due.textContent=date(s.dueDate);E.last.textContent=date(s.lastPaymentDate);E.access.textContent=s.locked?"PAYMENT REQUIRED":"ACTIVE";const amt=Number(s.amountDue||0);E.pay.disabled=amt<=0;E.pay.textContent=amt>0?"Pay "+money(amt):"No Payment Due";const rows=d.history||[];E.history.innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(date(r.paidAt||r.createdAt))}</td><td>${esc(r.invoiceNumber||"--")}</td><td>${esc(r.billingCycle||"--")}</td><td>${esc(r.paymentMethod||"--")}</td><td>${esc(r.status||"--")}</td><td class="amount">${esc(money(r.amount))}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">No subscription payments yet.</td></tr>`;if(s.locked)message("Subscription payment is required to restore full account access.","error")}
-async function load(){try{render(await api(API+"/me"))}catch(e){console.error(e);message(e.message||"Unable to load subscription.","error")}}
-async function pay(){if(!current)return;const old=E.pay.textContent;try{E.pay.disabled=true;E.pay.textContent="Opening Stripe...";const d=await api(API+"/checkout-session",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});if(!d.url)throw new Error("Stripe checkout URL missing");window.location.assign(d.url)}catch(e){message(e.message||"Unable to start payment.","error");E.pay.disabled=false;E.pay.textContent=old}}
-async function verify(){const q=new URLSearchParams(location.search),sid=q.get("session_id");if(q.get("cancelled")==="1"){message("Payment was cancelled.","info");return}if(!sid)return;try{message("Checking payment status...","info");const d=await api(API+"/verify?session_id="+encodeURIComponent(sid));message(d.paid?"Payment completed successfully. Full account access is active.":d.processing?"Bank payment is processing. Access will update after Stripe confirms it.":"Payment has not completed yet.",d.paid?"ok":"info");history.replaceState({},document.title,location.pathname)}catch(e){console.error(e)}}
-E.pay.addEventListener("click",pay);(async()=>{await verify();await load()})();
+
+const API = "/api/tenant-subscription";
+
+function clean(v){ return String(v ?? "").trim(); }
+
+const token =
+  clean(sessionStorage.getItem("staffToken")) ||
+  clean(localStorage.getItem("token"));
+
+const role =
+  (
+    clean(sessionStorage.getItem("staffRole")) ||
+    clean(localStorage.getItem("role"))
+  )
+  .toUpperCase()
+  .replace(/[\s-]+/g,"_");
+
+if(
+  !token ||
+  !["SUPER_ADMIN","SUPERADMIN","ADMIN"].includes(role)
+){
+  window.location.replace("/login.html");
+}
+
+const $ = id => document.getElementById(id);
+
+const E = {
+  company:$("companyName"),
+  status:$("subscriptionStatus"),
+  plan:$("planName"),
+  amount:$("invoiceAmount"),
+  next:$("nextPayment"),
+  grace:$("gracePeriod"),
+  cycle:$("billingCycle"),
+  due:$("dueDate"),
+  last:$("lastPayment"),
+  access:$("accessState"),
+  pay:$("payNowBtn"),
+  history:$("historyBody"),
+  msg:$("messageBox")
+};
+
+let current = null;
+
+function money(v){
+  return new Intl.NumberFormat(
+    "en-US",
+    {style:"currency",currency:"USD"}
+  ).format(Number(v || 0));
+}
+
+function dateText(v){
+  if(!v) return "--";
+  const d = new Date(v);
+  if(Number.isNaN(d.getTime())) return "--";
+  return d.toLocaleDateString(
+    "en-US",
+    {year:"numeric",month:"short",day:"numeric"}
+  );
+}
+
+function esc(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function showMessage(text,type="info"){
+  E.msg.textContent = text;
+  E.msg.className = "message show " + type;
+}
+
+async function api(url,options={}){
+  const res = await fetch(url,{
+    ...options,
+    headers:{
+      ...(options.headers || {}),
+      Authorization:"Bearer " + token
+    },
+    cache:"no-store"
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(data.message || "Request failed");
+  }
+
+  return data;
+}
+
+function render(data){
+  current = data;
+
+  const s = data.subscription || {};
+  const t = data.tenant || {};
+
+  E.company.textContent =
+    t.name ||
+    t.companyName ||
+    "Company";
+
+  const status = clean(s.status || "ACTIVE").toUpperCase();
+  const map = {
+    ACTIVE:"active",
+    TRIAL:"trial",
+    PAST_DUE:"past_due",
+    SUSPENDED:"suspended"
+  };
+
+  E.status.className = "badge " + (map[status] || "none");
+  E.status.textContent = status.replace(/_/g," ");
+
+  E.plan.textContent = s.planName || "GH Mobility";
+  E.amount.textContent = money(s.amountDue);
+  E.next.textContent = dateText(s.nextBillingDate);
+  E.grace.textContent = Number(s.graceDays || 0) + " days";
+  E.cycle.textContent = s.billingCycle || "--";
+  E.due.textContent = dateText(s.dueDate);
+  E.last.textContent = dateText(s.lastPaymentDate);
+  E.access.textContent = s.locked ? "PAYMENT REQUIRED" : "ACTIVE";
+
+  const amount = Number(s.amountDue || 0);
+  E.pay.disabled = amount <= 0;
+  E.pay.textContent = amount > 0 ? "Pay " + money(amount) : "No Payment Due";
+
+  const rows = Array.isArray(data.history) ? data.history : [];
+
+  E.history.innerHTML = rows.length
+    ? rows.map(r=>`
+      <tr>
+        <td>${esc(dateText(r.paidAt || r.createdAt))}</td>
+        <td>${esc(r.invoiceNumber || "--")}</td>
+        <td>${esc(r.billingCycle || "--")}</td>
+        <td>${esc(r.paymentMethod || "--")}</td>
+        <td>${esc(r.status || "--")}</td>
+        <td class="amount">${esc(money(r.amount))}</td>
+      </tr>
+    `).join("")
+    : `<tr><td colspan="6" class="empty">No subscription payments yet.</td></tr>`;
+
+  if(s.locked){
+    showMessage(
+      "Subscription payment is required to restore full account access.",
+      "error"
+    );
+  }
+}
+
+async function load(){
+  try{
+    const data = await api(API + "/me");
+    render(data);
+  }catch(err){
+    console.error("PAYMENTS LOAD ERROR:",err);
+    showMessage(err.message || "Unable to load subscription.","error");
+    E.history.innerHTML =
+      `<tr><td colspan="6" class="empty">Unable to load payment history.</td></tr>`;
+  }
+}
+
+async function payNow(){
+  const old = E.pay.textContent;
+
+  try{
+    E.pay.disabled = true;
+    E.pay.textContent = "Opening Stripe...";
+
+    const data = await api(
+      API + "/checkout-session",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:"{}"
+      }
+    );
+
+    if(!data.url){
+      throw new Error("Stripe checkout URL missing");
+    }
+
+    window.location.assign(data.url);
+
+  }catch(err){
+    console.error("PAY NOW ERROR:",err);
+    showMessage(err.message || "Unable to start payment.","error");
+    E.pay.disabled = false;
+    E.pay.textContent = old;
+  }
+}
+
+async function verifyReturn(){
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get("session_id");
+
+  if(params.get("cancelled") === "1"){
+    showMessage("Payment was cancelled.","info");
+    return;
+  }
+
+  if(!sessionId) return;
+
+  try{
+    const data = await api(
+      API + "/verify?session_id=" + encodeURIComponent(sessionId)
+    );
+
+    if(data.paid){
+      showMessage("Payment completed successfully.","ok");
+    }else if(data.processing){
+      showMessage("ACH payment is processing.","info");
+    }else{
+      showMessage("Payment is not completed yet.","info");
+    }
+
+    history.replaceState({},document.title,location.pathname);
+
+  }catch(err){
+    console.error("VERIFY ERROR:",err);
+  }
+}
+
+E.pay.addEventListener("click",payNow);
+
+(async()=>{
+  await verifyReturn();
+  await load();
+})();

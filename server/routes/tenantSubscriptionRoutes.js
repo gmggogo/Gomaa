@@ -1,19 +1,473 @@
 "use strict";
-const express=require("express"),jwt=require("jsonwebtoken");
-const stripe=require("stripe")(process.env.STRIPE_SECRET_KEY);
-const Tenant=require("../models/Tenant");
-const TenantSubscription=require("../models/TenantSubscription");
-const Payment=require("../models/TenantSubscriptionPayment");
-const router=express.Router(),SECRET=process.env.JWT_SECRET||"dev_secret";
-const BASE=String(process.env.PUBLIC_BASE_URL||"https://sunbeam-933q.onrender.com").replace(/\/+$/,"");
-const clean=v=>String(v??"").trim();
-function auth(req,res,next){const h=clean(req.headers.authorization);if(!h.toLowerCase().startsWith("bearer "))return res.status(401).json({message:"Access Denied"});try{const d=jwt.verify(h.slice(7).trim(),SECRET),r=clean(d.role).toUpperCase().replace(/[\s-]+/g,"_");if(!["SUPER_ADMIN","SUPERADMIN","ADMIN"].includes(r)||!d.tenantId)return res.status(403).json({message:"Admin access required"});req.authUser={tenantId:String(d.tenantId),role:r};next()}catch(e){return res.status(401).json({message:"Invalid Token"})}}
-function addCycle(d,c){const n=new Date(d);c==="MONTHLY"?n.setUTCMonth(n.getUTCMonth()+1):n.setUTCFullYear(n.getUTCFullYear()+1);return n}
-async function ensure(id){return await TenantSubscription.findOne({tenantId:id})||await TenantSubscription.create({tenantId:id,planName:"GH Mobility",billingCycle:"ANNUAL",amount:0,status:"ACTIVE",graceDays:3,locked:false})}
-function state(s){const now=new Date();if(s.status==="TRIAL"&&s.trialEndsAt&&new Date(s.trialEndsAt)>now)return{status:"TRIAL",locked:false};if(!s.dueDate)return{status:"ACTIVE",locked:false};const due=new Date(s.dueDate);if(now<=due)return{status:"ACTIVE",locked:false};const g=new Date(due);g.setUTCDate(g.getUTCDate()+Number(s.graceDays||0));return now<=g?{status:"PAST_DUE",locked:false}:{status:"SUSPENDED",locked:true}}
-async function paid(s,p,session){if(p.status==="PAID")return;const pi=typeof session.payment_intent==="string"?await stripe.paymentIntents.retrieve(session.payment_intent):session.payment_intent;if(!pi||pi.status!=="succeeded")return;let method=(pi.payment_method_types&&pi.payment_method_types[0])||"";p.status="PAID";p.paymentIntentId=pi.id;p.paymentMethod=method==="us_bank_account"?"ACH":method==="card"?"CARD":method.toUpperCase();p.paidAt=new Date();await p.save();s.lastPaymentDate=p.paidAt;s.currentPeriodStart=p.paidAt;s.dueDate=addCycle(p.paidAt,s.billingCycle);s.nextBillingDate=s.dueDate;s.status="ACTIVE";s.locked=false;await s.save();await Tenant.findByIdAndUpdate(s.tenantId,{$set:{enabled:true,subscriptionStatus:"ACTIVE"}})}
-async function reconcile(s){const list=await Payment.find({tenantId:s.tenantId,status:{$in:["PENDING","PROCESSING"]},checkoutSessionId:{$ne:""}}).sort({createdAt:-1}).limit(5);for(const p of list){try{const session=await stripe.checkout.sessions.retrieve(p.checkoutSessionId,{expand:["payment_intent"]});const pi=session.payment_intent;if(pi&&typeof pi==="object"&&pi.status==="succeeded")await paid(s,p,session);else if(pi&&typeof pi==="object"&&["processing","requires_action"].includes(pi.status)){p.status="PROCESSING";await p.save()}}catch(e){console.log("SUBSCRIPTION RECONCILE:",e.message)}}}
-router.get("/me",auth,async(req,res)=>{try{const t=await Tenant.findById(req.authUser.tenantId).lean();if(!t)return res.status(404).json({message:"Tenant not found"});let s=await ensure(t._id);await reconcile(s);s=await TenantSubscription.findOne({tenantId:t._id});const st=state(s);s.status=st.status;s.locked=st.locked;await s.save();const history=await Payment.find({tenantId:t._id}).sort({createdAt:-1}).limit(50).lean();res.json({success:true,tenant:{id:t._id,name:t.name||t.branding?.companyName||"Company"},subscription:{planName:s.planName,billingCycle:s.billingCycle,amountDue:Number(s.amount||0),status:s.status,graceDays:s.graceDays,dueDate:s.dueDate,nextBillingDate:s.nextBillingDate||s.dueDate,lastPaymentDate:s.lastPaymentDate,locked:s.locked},history})}catch(e){console.error(e);res.status(500).json({message:"Unable to load subscription"})}});
-router.post("/checkout-session",auth,async(req,res)=>{try{const t=await Tenant.findById(req.authUser.tenantId);if(!t)return res.status(404).json({message:"Tenant not found"});const s=await ensure(t._id),amount=Number(s.amount||0);if(amount<=0)return res.status(400).json({message:"No subscription payment is due"});if(!s.stripeCustomerId){const c=await stripe.customers.create({name:t.name||"GH Mobility Customer",metadata:{tenantId:String(t._id)}});s.stripeCustomerId=c.id;await s.save()}const invoice="GH-"+Date.now().toString(36).toUpperCase()+"-"+String(t._id).slice(-5).toUpperCase();const p=await Payment.create({tenantId:t._id,invoiceNumber:invoice,amount,currency:s.currency||"usd",billingCycle:s.billingCycle,status:"PENDING"});const session=await stripe.checkout.sessions.create({mode:"payment",customer:s.stripeCustomerId,payment_method_types:["card","us_bank_account"],line_items:[{price_data:{currency:s.currency||"usd",product_data:{name:`${s.planName} ${s.billingCycle} Subscription`},unit_amount:Math.round(amount*100)},quantity:1}],metadata:{purpose:"GH_MOBILITY_TENANT_SUBSCRIPTION",tenantId:String(t._id),subscriptionPaymentId:String(p._id),invoiceNumber:invoice},payment_intent_data:{metadata:{purpose:"GH_MOBILITY_TENANT_SUBSCRIPTION",tenantId:String(t._id),subscriptionPaymentId:String(p._id),invoiceNumber:invoice}},success_url:`${BASE}/admin/payment.html?session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${BASE}/admin/payment.html?cancelled=1`});p.checkoutSessionId=session.id;await p.save();res.json({success:true,url:session.url})}catch(e){console.error(e);res.status(500).json({message:"Unable to start subscription payment"})}});
-router.get("/verify",auth,async(req,res)=>{try{const sid=clean(req.query.session_id);if(!sid)return res.status(400).json({message:"Session required"});const p=await Payment.findOne({tenantId:req.authUser.tenantId,checkoutSessionId:sid});if(!p)return res.status(404).json({message:"Payment not found"});const s=await ensure(req.authUser.tenantId);const session=await stripe.checkout.sessions.retrieve(sid,{expand:["payment_intent"]});const pi=session.payment_intent;if(pi&&typeof pi==="object"&&pi.status==="succeeded"){await paid(s,p,session);return res.json({paid:true,processing:false})}if(pi&&typeof pi==="object"&&["processing","requires_action"].includes(pi.status)){p.status="PROCESSING";await p.save();return res.json({paid:false,processing:true})}res.json({paid:false,processing:false})}catch(e){console.error(e);res.status(500).json({message:"Unable to verify payment"})}});
-module.exports=router;
+
+const express = require("express");
+const jwt = require("jsonwebtoken");
+
+const router = express.Router();
+
+const stripe = require("stripe")(
+  process.env.STRIPE_SECRET_KEY
+);
+
+const Tenant = require("../models/Tenant");
+const TenantSubscription = require("../models/TenantSubscription");
+const TenantSubscriptionPayment = require("../models/TenantSubscriptionPayment");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+const PUBLIC_BASE_URL =
+  String(
+    process.env.PUBLIC_BASE_URL ||
+    "https://sunbeam-933q.onrender.com"
+  )
+  .trim()
+  .replace(/\/+$/,"");
+
+function clean(v){
+  return String(v ?? "").trim();
+}
+
+function auth(req,res,next){
+  const header = clean(req.headers.authorization);
+
+  if(!header.toLowerCase().startsWith("bearer ")){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+    const decoded = jwt.verify(
+      header.slice(7).trim(),
+      JWT_SECRET
+    );
+
+    const role =
+      clean(decoded.role)
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
+
+    if(
+      !["SUPER_ADMIN","SUPERADMIN","ADMIN"].includes(role)
+    ){
+      return res.status(403).json({
+        success:false,
+        message:"Admin access required"
+      });
+    }
+
+    if(!decoded.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    req.authUser = {
+      role,
+      tenantId:String(decoded.tenantId)
+    };
+
+    next();
+
+  }catch(err){
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+async function ensureSubscription(tenantId){
+  let row = await TenantSubscription.findOne({tenantId});
+
+  if(!row){
+    row = await TenantSubscription.create({
+      tenantId,
+      planName:"GH Mobility",
+      billingCycle:"ANNUAL",
+      amount:0,
+      status:"ACTIVE",
+      graceDays:3
+    });
+  }
+
+  return row;
+}
+
+function runtime(subscription){
+  const now = new Date();
+
+  if(!subscription.dueDate){
+    return {
+      status:subscription.status || "ACTIVE",
+      locked:false
+    };
+  }
+
+  const due = new Date(subscription.dueDate);
+
+  if(now <= due){
+    return {status:"ACTIVE",locked:false};
+  }
+
+  const graceEnd = new Date(due);
+  graceEnd.setUTCDate(
+    graceEnd.getUTCDate() +
+    Number(subscription.graceDays || 0)
+  );
+
+  if(now <= graceEnd){
+    return {status:"PAST_DUE",locked:false};
+  }
+
+  return {status:"SUSPENDED",locked:true};
+}
+
+function addCycle(date,cycle){
+  const next = new Date(date);
+
+  if(cycle === "MONTHLY"){
+    next.setUTCMonth(next.getUTCMonth() + 1);
+  }else{
+    next.setUTCFullYear(next.getUTCFullYear() + 1);
+  }
+
+  return next;
+}
+
+async function markPaid(subscription,payment,session){
+  if(payment.status === "PAID") return;
+
+  const intent =
+    typeof session.payment_intent === "string"
+      ? await stripe.paymentIntents.retrieve(session.payment_intent)
+      : session.payment_intent;
+
+  if(!intent || intent.status !== "succeeded"){
+    return;
+  }
+
+  const method =
+    Array.isArray(intent.payment_method_types)
+      ? String(intent.payment_method_types[0] || "")
+      : "";
+
+  payment.status = "PAID";
+  payment.paymentIntentId = String(intent.id || "");
+  payment.paymentMethod =
+    method === "us_bank_account"
+      ? "ACH"
+      : method === "card"
+        ? "CARD"
+        : method.toUpperCase();
+
+  payment.paidAt = new Date();
+  await payment.save();
+
+  subscription.lastPaymentDate = payment.paidAt;
+  subscription.dueDate = addCycle(
+    payment.paidAt,
+    subscription.billingCycle
+  );
+  subscription.nextBillingDate = subscription.dueDate;
+  subscription.status = "ACTIVE";
+
+  await subscription.save();
+
+  await Tenant.findByIdAndUpdate(
+    subscription.tenantId,
+    {
+      $set:{
+        enabled:true,
+        subscriptionStatus:"ACTIVE"
+      }
+    }
+  );
+}
+
+router.get("/me",auth,async(req,res)=>{
+  try{
+    const tenant = await Tenant.findById(
+      req.authUser.tenantId
+    ).lean();
+
+    if(!tenant){
+      return res.status(404).json({
+        success:false,
+        message:"Tenant not found"
+      });
+    }
+
+    const subscription =
+      await ensureSubscription(tenant._id);
+
+    const state = runtime(subscription);
+
+    if(subscription.status !== state.status){
+      subscription.status = state.status;
+      await subscription.save();
+    }
+
+    const history =
+      await TenantSubscriptionPayment
+      .find({tenantId:tenant._id})
+      .sort({createdAt:-1})
+      .limit(50)
+      .lean();
+
+    return res.json({
+      success:true,
+
+      tenant:{
+        id:tenant._id,
+        name:
+          tenant.name ||
+          tenant.branding?.companyName ||
+          "Company"
+      },
+
+      subscription:{
+        planName:subscription.planName,
+        billingCycle:subscription.billingCycle,
+        amountDue:Number(subscription.amount || 0),
+        status:state.status,
+        graceDays:subscription.graceDays,
+        dueDate:subscription.dueDate,
+        nextBillingDate:
+          subscription.nextBillingDate ||
+          subscription.dueDate,
+        lastPaymentDate:subscription.lastPaymentDate,
+        locked:state.locked
+      },
+
+      history
+    });
+
+  }catch(err){
+    console.error("TENANT SUBSCRIPTION ME ERROR:",err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Unable to load subscription"
+    });
+  }
+});
+
+router.post("/checkout-session",auth,async(req,res)=>{
+  try{
+    const tenant =
+      await Tenant.findById(req.authUser.tenantId);
+
+    if(!tenant){
+      return res.status(404).json({
+        success:false,
+        message:"Tenant not found"
+      });
+    }
+
+    const subscription =
+      await ensureSubscription(tenant._id);
+
+    const amount =
+      Number(subscription.amount || 0);
+
+    if(amount <= 0){
+      return res.status(400).json({
+        success:false,
+        message:"No subscription payment is due"
+      });
+    }
+
+    if(!subscription.stripeCustomerId){
+      const customer =
+        await stripe.customers.create({
+          name:tenant.name || "GH Mobility Customer",
+          metadata:{
+            tenantId:String(tenant._id)
+          }
+        });
+
+      subscription.stripeCustomerId =
+        customer.id;
+
+      await subscription.save();
+    }
+
+    const invoiceNumber =
+      "GH-" +
+      Date.now().toString(36).toUpperCase() +
+      "-" +
+      String(tenant._id).slice(-5).toUpperCase();
+
+    const payment =
+      await TenantSubscriptionPayment.create({
+        tenantId:tenant._id,
+        invoiceNumber,
+        amount,
+        currency:subscription.currency || "usd",
+        billingCycle:subscription.billingCycle,
+        status:"PENDING"
+      });
+
+    const session =
+      await stripe.checkout.sessions.create({
+        mode:"payment",
+
+        customer:
+          subscription.stripeCustomerId,
+
+        payment_method_types:[
+          "card",
+          "us_bank_account"
+        ],
+
+        line_items:[
+          {
+            price_data:{
+              currency:
+                subscription.currency ||
+                "usd",
+
+              product_data:{
+                name:
+                  `${subscription.planName} ${subscription.billingCycle} Subscription`
+              },
+
+              unit_amount:
+                Math.round(amount * 100)
+            },
+
+            quantity:1
+          }
+        ],
+
+        metadata:{
+          tenantId:String(tenant._id),
+          subscriptionPaymentId:String(payment._id),
+          invoiceNumber
+        },
+
+        payment_intent_data:{
+          metadata:{
+            tenantId:String(tenant._id),
+            subscriptionPaymentId:String(payment._id),
+            invoiceNumber
+          }
+        },
+
+        success_url:
+          `${PUBLIC_BASE_URL}/admin/payments.html?session_id={CHECKOUT_SESSION_ID}`,
+
+        cancel_url:
+          `${PUBLIC_BASE_URL}/admin/payments.html?cancelled=1`
+      });
+
+    payment.checkoutSessionId = session.id;
+    await payment.save();
+
+    return res.json({
+      success:true,
+      url:session.url
+    });
+
+  }catch(err){
+    console.error("SUBSCRIPTION CHECKOUT ERROR:",err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Unable to start subscription payment"
+    });
+  }
+});
+
+router.get("/verify",auth,async(req,res)=>{
+  try{
+    const sessionId = clean(req.query.session_id);
+
+    if(!sessionId){
+      return res.status(400).json({
+        success:false,
+        message:"Session required"
+      });
+    }
+
+    const payment =
+      await TenantSubscriptionPayment.findOne({
+        tenantId:req.authUser.tenantId,
+        checkoutSessionId:sessionId
+      });
+
+    if(!payment){
+      return res.status(404).json({
+        success:false,
+        message:"Payment not found"
+      });
+    }
+
+    const subscription =
+      await ensureSubscription(
+        req.authUser.tenantId
+      );
+
+    const session =
+      await stripe.checkout.sessions.retrieve(
+        sessionId,
+        {expand:["payment_intent"]}
+      );
+
+    const intent = session.payment_intent;
+
+    if(
+      intent &&
+      typeof intent === "object" &&
+      intent.status === "succeeded"
+    ){
+      await markPaid(
+        subscription,
+        payment,
+        session
+      );
+
+      return res.json({
+        success:true,
+        paid:true,
+        processing:false
+      });
+    }
+
+    if(
+      intent &&
+      typeof intent === "object" &&
+      ["processing","requires_action"].includes(intent.status)
+    ){
+      payment.status = "PROCESSING";
+      await payment.save();
+
+      return res.json({
+        success:true,
+        paid:false,
+        processing:true
+      });
+    }
+
+    return res.json({
+      success:true,
+      paid:false,
+      processing:false
+    });
+
+  }catch(err){
+    console.error("SUBSCRIPTION VERIFY ERROR:",err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Unable to verify payment"
+    });
+  }
+});
+
+module.exports = router;

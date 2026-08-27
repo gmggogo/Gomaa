@@ -428,6 +428,37 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
+
+/* =========================
+   GH MOBILITY SaaS BILLING
+   Super Admin subscription payment
+   Platform Admin subscription control
+========================= */
+
+const tenantSubscriptionRoutes =
+  require("./routes/tenantSubscriptionRoutes");
+
+const platformSubscriptionRoutes =
+  require("./routes/platformSubscriptionRoutes");
+
+app.use(
+  "/api/tenant-subscription",
+  tenantSubscriptionRoutes
+);
+
+app.use(
+  "/api/platform-subscription",
+  platformSubscriptionRoutes
+);
+
+console.log(
+  "✅ tenantSubscriptionRoutes mounted on /api/tenant-subscription"
+);
+
+console.log(
+  "✅ platformSubscriptionRoutes mounted on /api/platform-subscription"
+);
+
 /* =========================
    DRIVER / DISPATCH CHAT
 ========================= */
