@@ -396,6 +396,30 @@ if(!container){
 
   .past-row{background:#374151;color:#e5e7eb;}
 
+  /* Keep text visible inside white cells after the trip time has passed */
+  .past-row .cell-box,
+  .past-row .cell-item{
+    color:#111827 !important;
+  }
+
+  .past-row .edit-input{
+    color:#111827 !important;
+    -webkit-text-fill-color:#111827 !important;
+    opacity:1 !important;
+  }
+
+  .past-row .trip-number-badge{
+    color:#93c5fd !important;
+  }
+
+  .past-row .price-badge{
+    color:#86efac !important;
+  }
+
+  .past-row .miles-strong{
+    color:#93c5fd !important;
+  }
+
   @keyframes blinkTrip{
     0%{opacity:1;}
     50%{opacity:.82;}
