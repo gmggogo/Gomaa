@@ -370,6 +370,30 @@ if(!container){
   .red-light{background:#fecaca;color:#111827;}
   .red-mid{background:#fca5a5;color:#111827;}
   .red-dark{background:#7f1d1d;color:#fff;}
+
+  /* Keep text visible inside white cells during the final red warning */
+  .red-dark .cell-box,
+  .red-dark .cell-item{
+    color:#111827 !important;
+  }
+
+  .red-dark .edit-input{
+    color:#111827 !important;
+    -webkit-text-fill-color:#111827 !important;
+  }
+
+  .red-dark .trip-number-badge{
+    color:#93c5fd !important;
+  }
+
+  .red-dark .price-badge{
+    color:#86efac !important;
+  }
+
+  .red-dark .miles-strong{
+    color:#93c5fd !important;
+  }
+
   .past-row{background:#374151;color:#e5e7eb;}
 
   @keyframes blinkTrip{
