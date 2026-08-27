@@ -65,7 +65,7 @@ function dateValue(v){
 
 function statusClass(v){
   const s = clean(v).toLowerCase();
-  return ["active","trial","past_due","suspended"].includes(s) ? s : "none";
+  return ["active","trial","past_due","suspended"].includes(s) ? s : (s === "disabled" ? "suspended" : "none");
 }
 
 async function load(){
@@ -125,7 +125,10 @@ function render(){
   cards.innerHTML = list.map(item=>{
     const t = item.tenant || {};
     const s = item.subscription || {};
-    const status = clean(s.status || t.subscriptionStatus || "NOT SET").toUpperCase();
+    const tenantEnabled = t.enabled !== false;
+    const status = tenantEnabled
+      ? clean(s.status || t.subscriptionStatus || "ACTIVE").toUpperCase()
+      : "DISABLED";
 
     return `
       <article class="tenant-card" data-id="${esc(t._id)}">
@@ -143,7 +146,7 @@ function render(){
           <div class="row">
             <div class="field">
               <label>Billing Cycle</label>
-              <select class="cycle">
+              <select class="cycle" disabled>
                 <option value="ANNUAL" ${s.billingCycle==="ANNUAL"?"selected":""}>Annual</option>
                 <option value="MONTHLY" ${s.billingCycle==="MONTHLY"?"selected":""}>Monthly</option>
               </select>
@@ -151,19 +154,19 @@ function render(){
 
             <div class="field">
               <label>Amount</label>
-              <input class="amount" type="number" min="0" step="0.01" value="${Number(s.amount || 0)}">
+              <input class="amount" type="number" min="0" step="0.01" value="${Number(s.amount || 0)}" disabled>
             </div>
           </div>
 
           <div class="row">
             <div class="field">
               <label>Due Date</label>
-              <input class="due" type="date" value="${dateValue(s.dueDate)}">
+              <input class="due" type="date" value="${dateValue(s.dueDate)}" disabled>
             </div>
 
             <div class="field">
               <label>Grace Days</label>
-              <input class="grace" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}">
+              <input class="grace" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
             </div>
           </div>
 
@@ -172,13 +175,34 @@ function render(){
             <span class="badge ${statusClass(status)}">${esc(status)}</span>
           </div>
 
-          <button class="save" type="button" onclick="saveTenant('${esc(t._id)}')">
-            Save Subscription
-          </button>
+          <div class="actions">
+            <button class="edit-btn" type="button" onclick="editTenant('${esc(t._id)}')">
+              Edit
+            </button>
+
+            <button class="save" type="button" onclick="saveTenant('${esc(t._id)}')" disabled>
+              Save Subscription
+            </button>
+          </div>
         </div>
       </article>
     `;
   }).join("");
+}
+
+
+function editTenant(id){
+  const card = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  if(!card) return;
+
+  card.querySelectorAll("input,select").forEach(el=>{
+    el.disabled = false;
+  });
+
+  const saveButton = card.querySelector(".save");
+  if(saveButton){
+    saveButton.disabled = false;
+  }
 }
 
 async function saveTenant(id){
@@ -212,6 +236,7 @@ async function saveTenant(id){
   }
 }
 
+window.editTenant = editTenant;
 window.saveTenant = saveTenant;
 
 searchInput.addEventListener("input",render);

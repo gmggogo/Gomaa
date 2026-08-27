@@ -24,7 +24,12 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 .field input,.field select{width:100%;height:38px;border:1px solid #b9c6d1;border-radius:7px;padding:0 10px;background:#fff;color:#172033;font-size:12px;font-weight:700}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.status-line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0 3px;border-top:1px solid #edf1f4}
 .badge{padding:6px 9px;border-radius:999px;font-size:10px;font-weight:950}.badge.active{background:#dcfce7;color:#166534}.badge.trial{background:#dbeafe;color:#1d4ed8}.badge.past_due{background:#ffedd5;color:#9a3412}.badge.suspended{background:#fee2e2;color:#991b1b}.badge.none{background:#e5e7eb;color:#374151}
-.save{width:100%;height:42px;margin-top:12px;border:0;border-radius:8px;background:linear-gradient(180deg,#cda32d,#a8790c);color:#fff;font-size:12px;font-weight:950;cursor:pointer}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.edit-btn,.save{height:42px;border:0;border-radius:8px;font-size:12px;font-weight:950;cursor:pointer}
+.edit-btn{background:#0b4b73;color:#fff}
+.save{background:linear-gradient(180deg,#cda32d,#a8790c);color:#fff}
+.save:disabled{opacity:.5;cursor:not-allowed}
+.field input:disabled,.field select:disabled{background:#eef2f6;color:#6b7280;cursor:not-allowed}
 .empty{grid-column:1/-1;padding:36px;text-align:center;color:#6f7a89;font-weight:800}
 @media(max-width:1100px){.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.cards{grid-template-columns:1fr;padding:12px}}
 </style>
