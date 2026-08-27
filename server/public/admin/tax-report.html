@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tax Report - GH Mobility</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/header.css">
+
+<style>
+*{box-sizing:border-box}
+
+:root{
+  --navy:#071a36;
+  --navy2:#0b2b53;
+  --gold:#d4a92f;
+  --gold2:#f4cf62;
+  --bg:#eef4f8;
+  --card:#ffffff;
+  --line:#d8e1e8;
+  --text:#172033;
+  --muted:#687386;
+  --green:#117a4b;
+  --blue:#1f5f9f;
+}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.tax-page{
+  width:min(1500px,calc(100% - 28px));
+  margin:22px auto 40px;
+}
+
+.tax-report{
+  background:#fff;
+  border:1px solid #d5dee6;
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(7,26,54,.10);
+  overflow:hidden;
+}
+
+.report-gold-head{
+  min-height:118px;
+  padding:22px 28px;
+  text-align:center;
+  color:#fff;
+  background:
+    radial-gradient(circle at 50% -40%,rgba(255,255,255,.26),transparent 42%),
+    linear-gradient(135deg,#9f740c 0%,#c99a1d 42%,#e2b83d 67%,#a9790a 100%);
+  border-bottom:4px solid #7a5908;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
+}
+
+.report-company{
+  margin:0;
+  font-size:26px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+
+.report-title{
+  margin:6px 0 0;
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+
+.report-product{
+  margin-top:6px;
+  font-size:13px;
+  font-weight:800;
+  opacity:.95;
+}
+
+.toolbar{
+  display:flex;
+  align-items:flex-end;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:18px 20px;
+  background:#f9fbfd;
+  border-bottom:1px solid var(--line);
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.field label{
+  font-size:11px;
+  font-weight:900;
+  color:#4b5668;
+  text-transform:uppercase;
+}
+
+.field input{
+  height:39px;
+  min-width:165px;
+  padding:0 10px;
+  border:1px solid #b8c5d1;
+  border-radius:8px;
+  background:#fff;
+  color:#172033;
+  font-size:13px;
+  font-weight:700;
+}
+
+.action-btn{
+  height:39px;
+  padding:0 15px;
+  border:1px solid transparent;
+  border-radius:8px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.action-btn.primary{background:#0b4b73;color:#fff}
+.action-btn.print{background:#344154;color:#fff}
+.action-btn.save{background:#8e6810;color:#fff}
+.action-btn.excel{background:#177245;color:#fff}
+
+.report-period{
+  margin-left:auto;
+  text-align:right;
+  color:#5e6878;
+  font-size:12px;
+  line-height:1.55;
+}
+
+.report-period strong{
+  color:#172033;
+}
+
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(150px,1fr));
+  gap:12px;
+  padding:20px;
+}
+
+.summary-card{
+  min-height:112px;
+  padding:16px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:linear-gradient(180deg,#fff,#f7fafc);
+  box-shadow:0 3px 10px rgba(7,26,54,.05);
+}
+
+.summary-label{
+  font-size:11px;
+  font-weight:900;
+  color:#6a7483;
+  text-transform:uppercase;
+  letter-spacing:.45px;
+}
+
+.summary-value{
+  margin-top:12px;
+  font-size:26px;
+  line-height:1;
+  font-weight:950;
+  color:var(--navy);
+}
+
+.summary-value.money{color:var(--green)}
+.summary-value.miles{color:var(--blue)}
+
+.section{
+  margin:0 20px 20px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.section-title{
+  padding:12px 15px;
+  background:linear-gradient(180deg,#102c4e,#071a36);
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:900px;
+}
+
+th,td{
+  border-bottom:1px solid #e2e8ee;
+  padding:11px 12px;
+  font-size:12px;
+  text-align:right;
+}
+
+th{
+  background:#edf3f8;
+  color:#314055;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+th:first-child,
+td:first-child{
+  text-align:left;
+}
+
+tbody tr:nth-child(even){
+  background:#fafcfd;
+}
+
+tbody tr:hover{
+  background:#f2f7fb;
+}
+
+.company-cell{
+  font-weight:900;
+  color:#102c4e;
+}
+
+.total-row{
+  background:#fff5cd !important;
+  font-weight:950;
+}
+
+.empty{
+  padding:32px 15px;
+  text-align:center;
+  color:#748091;
+  font-weight:700;
+}
+
+.footer-note{
+  padding:0 22px 22px;
+  color:#7a8492;
+  font-size:10px;
+  text-align:center;
+}
+
+.status-message{
+  display:none;
+  margin:0 20px 16px;
+  padding:10px 12px;
+  border-radius:8px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.status-message.show{display:block}
+.status-message.error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.status-message.ok{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+
+@media(max-width:1100px){
+  .summary-grid{grid-template-columns:repeat(3,1fr)}
+  .report-period{width:100%;margin-left:0;text-align:left}
+}
+
+@media(max-width:700px){
+  .tax-page{width:calc(100% - 12px);margin-top:10px}
+  .summary-grid{grid-template-columns:repeat(2,1fr);padding:12px}
+  .toolbar{padding:12px}
+  .field{width:calc(50% - 6px)}
+  .field input{width:100%;min-width:0}
+  .action-btn{flex:1}
+  .report-company{font-size:20px}
+  .report-title{font-size:17px}
+  .section{margin:0 12px 14px}
+}
+
+@media print{
+  #adminHeader,
+  .toolbar,
+  .status-message{
+    display:none !important;
+  }
+
+  body{
+    background:#fff;
+  }
+
+  .tax-page{
+    width:100%;
+    margin:0;
+  }
+
+  .tax-report{
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+  }
+
+  .report-gold-head{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .summary-grid{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+  .summary-card,
+  .section-title,
+  th,
+  .total-row{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .section{
+    break-inside:avoid;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<main class="tax-page">
+  <section class="tax-report" id="taxReport">
+
+    <div class="report-gold-head">
+      <h1 class="report-company" id="reportCompanyName">Company</h1>
+      <div class="report-title">Tax Report</div>
+      <div class="report-product">GH Mobility</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="field">
+        <label for="fromDate">From</label>
+        <input type="date" id="fromDate">
+      </div>
+
+      <div class="field">
+        <label for="toDate">To</label>
+        <input type="date" id="toDate">
+      </div>
+
+      <button class="action-btn primary" id="loadBtn">Apply</button>
+      <button class="action-btn print" id="printBtn">Print</button>
+      <button class="action-btn save" id="saveBtn">Save Report</button>
+      <button class="action-btn excel" id="excelBtn">Export Excel</button>
+
+      <div class="report-period">
+        <div>Period: <strong id="periodText">--</strong></div>
+        <div>Generated: <strong id="generatedText">--</strong></div>
+      </div>
+    </div>
+
+    <div class="status-message" id="statusMessage"></div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Companies</div>
+        <div class="summary-value" id="companiesCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Company Payments</div>
+        <div class="summary-value money" id="companyPayments">$0.00</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Get Quote Payments</div>
+        <div class="summary-value money" id="getQuotePayments">$0.00</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Reserved Payments</div>
+        <div class="summary-value money" id="reservedPayments">$0.00</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Total Amount</div>
+        <div class="summary-value money" id="totalAmount">$0.00</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Total Miles</div>
+        <div class="summary-value miles" id="totalMiles">0.0</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Company Annual Payments</div>
+      <div class="table-wrap">
+        <table id="companyTable">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Payments</th>
+              <th>Paid Amount</th>
+              <th>Trips</th>
+            </tr>
+          </thead>
+          <tbody id="companyTableBody"></tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td>Grand Total</td>
+              <td id="tablePaymentCount">0</td>
+              <td id="tableCompanyTotal">$0.00</td>
+              <td id="tableTripCount">0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Payment Sources Summary</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Paid Trips</th>
+              <th>Amount</th>
+              <th>Miles</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="company-cell">Get Quote</td>
+              <td id="getQuoteTrips">0</td>
+              <td id="getQuoteTableAmount">$0.00</td>
+              <td id="getQuoteMiles">0.0</td>
+            </tr>
+            <tr>
+              <td class="company-cell">Reserved</td>
+              <td id="reservedTrips">0</td>
+              <td id="reservedTableAmount">$0.00</td>
+              <td id="reservedMiles">0.0</td>
+            </tr>
+            <tr class="total-row">
+              <td>Total</td>
+              <td id="paidTripsTotal">0</td>
+              <td id="directPaymentsTotal">$0.00</td>
+              <td id="directMilesTotal">0.0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Business activity report generated from GH Mobility records. Tax calculations are not included.
+    </div>
+
+  </section>
+</main>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/tax-report.js"></script>
+
+</body>
+</html>

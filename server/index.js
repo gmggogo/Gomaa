@@ -1163,6 +1163,24 @@ const Trip =
 global.Trip = Trip;
 global.User = User;
 
+
+/* =========================
+   TAX REPORT ROUTES
+   Super Admin tax data report
+========================= */
+
+const taxReportRoutes =
+  require("./routes/taxReportRoutes");
+
+app.use(
+  "/api/tax-report",
+  taxReportRoutes
+);
+
+console.log(
+  "✅ taxReportRoutes mounted on /api/tax-report"
+);
+
 /* =========================
    PAYROLL & EARNINGS ROUTES
 ========================= */
