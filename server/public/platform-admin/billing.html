@@ -147,6 +147,46 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
   <div class="message" id="messageBox"></div>
 
+
+  <section class="stripe-panel">
+    <div class="stripe-panel-head">
+      <div class="stripe-panel-title">Platform Stripe Account</div>
+      <div class="stripe-badge" id="stripeStatusBadge">CHECKING</div>
+    </div>
+
+    <div class="stripe-grid">
+      <div class="stripe-item">
+        <div class="stripe-item-label">Stripe Account</div>
+        <div class="stripe-item-value" id="stripeAccountId">--</div>
+      </div>
+
+      <div class="stripe-item">
+        <div class="stripe-item-label">Mode</div>
+        <div class="stripe-item-value" id="stripeMode">--</div>
+      </div>
+
+      <div class="stripe-item">
+        <div class="stripe-item-label">Charges</div>
+        <div class="stripe-item-value" id="stripeCharges">--</div>
+      </div>
+
+      <div class="stripe-item">
+        <div class="stripe-item-label">Payouts</div>
+        <div class="stripe-item-value" id="stripePayouts">--</div>
+      </div>
+    </div>
+
+    <div class="stripe-actions">
+      <button class="stripe-btn refresh" id="stripeRefreshBtn" type="button">
+        Refresh Stripe
+      </button>
+
+      <button class="stripe-btn dashboard" id="stripeDashboardBtn" type="button" disabled>
+        Open Stripe Dashboard
+      </button>
+    </div>
+  </section>
+
   <div class="cards" id="tenantCards">
     <div class="empty">Loading tenants...</div>
   </div>
@@ -154,6 +194,6 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 </main>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=SAAS-V2-20260827"></script>
+<script src="/platform-admin/billing.js?v=SAAS-V3-20260827"></script>
 </body>
 </html>

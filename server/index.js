@@ -460,6 +460,22 @@ console.log(
 );
 
 /* =========================
+   PLATFORM STRIPE ACCOUNT
+========================= */
+
+const platformStripeRoutes =
+  require("./routes/platformStripeRoutes");
+
+app.use(
+  "/api/platform-stripe",
+  platformStripeRoutes
+);
+
+console.log(
+  "✅ platformStripeRoutes mounted on /api/platform-stripe"
+);
+
+/* =========================
    DRIVER / DISPATCH CHAT
 ========================= */
 
