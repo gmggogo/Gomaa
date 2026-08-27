@@ -1,0 +1,7 @@
+"use strict";
+const jwt=require("jsonwebtoken");
+const Subscription=require("../models/TenantSubscription");
+const SECRET=process.env.JWT_SECRET||"dev_secret";
+const clean=v=>String(v??"").trim();
+function runtime(s){if(!s)return{locked:false};const now=new Date();if(s.status==="TRIAL"&&s.trialEndsAt&&new Date(s.trialEndsAt)>now)return{locked:false};if(!s.dueDate)return{locked:false};const due=new Date(s.dueDate);if(now<=due)return{locked:false};const g=new Date(due);g.setUTCDate(g.getUTCDate()+Number(s.graceDays||0));return{locked:now>g}}
+module.exports=async function(req,res,next){try{if(req.path.startsWith("/tenant-subscription")||req.path.startsWith("/auth")||req.path.startsWith("/logout"))return next();const h=clean(req.headers.authorization);if(!h.toLowerCase().startsWith("bearer "))return next();let d;try{d=jwt.verify(h.slice(7).trim(),SECRET)}catch(e){return next()}const role=clean(d.role).toUpperCase().replace(/[\s-]+/g,"_");if(role==="PLATFORM_ADMIN"||!d.tenantId)return next();const s=await Subscription.findOne({tenantId:d.tenantId}).lean();if(!runtime(s).locked)return next();return res.status(402).json({success:false,code:"SUBSCRIPTION_PAYMENT_REQUIRED",message:"Subscription payment required",redirect:"/admin/payment.html"})}catch(e){console.error("SUBSCRIPTION GATE:",e);next()}};

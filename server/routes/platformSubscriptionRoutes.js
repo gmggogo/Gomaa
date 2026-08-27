@@ -1,0 +1,11 @@
+"use strict";
+const express=require("express");
+const router=express.Router();
+const Tenant=require("../models/Tenant");
+const Subscription=require("../models/TenantSubscription");
+const {verifyToken,requireRole}=require("../middleware/authmiddleware");
+router.use(verifyToken,requireRole("PLATFORM_ADMIN"));
+const clean=v=>String(v??"").trim();
+router.get("/tenants/:tenantId/subscription",async(req,res)=>{try{const t=await Tenant.findById(req.params.tenantId).lean();if(!t)return res.status(404).json({message:"Tenant not found"});const s=await Subscription.findOne({tenantId:t._id}).lean();res.json({success:true,tenant:{id:t._id,name:t.name,slug:t.slug},subscription:s||null})}catch(e){res.status(500).json({message:"Unable to load subscription"})}});
+router.put("/tenants/:tenantId/subscription",async(req,res)=>{try{const t=await Tenant.findById(req.params.tenantId);if(!t)return res.status(404).json({message:"Tenant not found"});const cycle=clean(req.body?.billingCycle||"ANNUAL").toUpperCase();if(!["MONTHLY","ANNUAL"].includes(cycle))return res.status(400).json({message:"Invalid billing cycle"});const amount=Number(req.body?.amount||0);if(!Number.isFinite(amount)||amount<0)return res.status(400).json({message:"Invalid amount"});const grace=Math.max(0,Math.min(60,Number(req.body?.graceDays??3)||0));const due=req.body?.dueDate?new Date(req.body.dueDate):null;if(due&&isNaN(due))return res.status(400).json({message:"Invalid due date"});const set={planName:clean(req.body?.planName||"GH Mobility"),billingCycle:cycle,amount,graceDays:grace};if(due){set.dueDate=due;set.nextBillingDate=due}const s=await Subscription.findOneAndUpdate({tenantId:t._id},{$set:set,$setOnInsert:{status:"ACTIVE",locked:false}},{new:true,upsert:true,runValidators:true,setDefaultsOnInsert:true});res.json({success:true,message:"Subscription updated",subscription:s})}catch(e){console.error(e);res.status(500).json({message:"Unable to update subscription"})}});
+module.exports=router;

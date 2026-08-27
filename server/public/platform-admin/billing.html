@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Platform Billing - GH Mobility</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/platform-admin/platform_header.css">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial,sans-serif;
+  background:#eef4f8;
+  color:#172033;
+}
+
+.page{
+  width:min(1450px,calc(100% - 28px));
+  margin:22px auto 40px;
+}
+
+.shell{
+  background:#fff;
+  border:1px solid #d8e1e8;
+  border-radius:16px;
+  box-shadow:0 10px 28px rgba(7,26,54,.10);
+  overflow:hidden;
+}
+
+.head{
+  padding:24px 26px;
+  text-align:center;
+  color:#fff;
+  background:linear-gradient(135deg,#9b710d,#c79a21 45%,#e0b63d 70%,#a8780a);
+  border-bottom:4px solid #785707;
+}
+
+.head h1{
+  margin:0;
+  font-size:26px;
+  font-weight:950;
+}
+
+.head p{
+  margin:6px 0 0;
+  font-size:13px;
+  font-weight:800;
+}
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  padding:16px 18px;
+  background:#f8fafc;
+  border-bottom:1px solid #d8e1e8;
+}
+
+.search{
+  flex:1;
+  min-width:260px;
+  height:40px;
+  border:1px solid #b9c6d1;
+  border-radius:8px;
+  padding:0 12px;
+  font-size:13px;
+}
+
+.refresh{
+  height:40px;
+  border:0;
+  border-radius:8px;
+  padding:0 16px;
+  background:#0b4b73;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.message{
+  display:none;
+  margin:16px 18px 0;
+  padding:11px 13px;
+  border-radius:8px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.message.show{display:block}
+.message.ok{background:#dcfce7;color:#166534}
+.message.error{background:#fee2e2;color:#991b1b}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  padding:18px;
+}
+
+.tenant-card{
+  border:1px solid #d8e1e8;
+  border-radius:12px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 4px 12px rgba(7,26,54,.05);
+}
+
+.tenant-head{
+  padding:14px;
+  background:linear-gradient(180deg,#123b67,#071a36);
+  color:#fff;
+}
+
+.tenant-name{
+  font-size:15px;
+  font-weight:950;
+}
+
+.tenant-slug{
+  margin-top:3px;
+  font-size:10px;
+  opacity:.8;
+}
+
+.tenant-body{
+  padding:14px;
+}
+
+.field{
+  margin-bottom:11px;
+}
+
+.field label{
+  display:block;
+  margin-bottom:5px;
+  color:#657083;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.field input,
+.field select{
+  width:100%;
+  height:38px;
+  border:1px solid #b9c6d1;
+  border-radius:7px;
+  padding:0 10px;
+  background:#fff;
+  color:#172033;
+  font-size:12px;
+  font-weight:700;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.status-line{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:10px 0 3px;
+  border-top:1px solid #edf1f4;
+}
+
+.badge{
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:950;
+}
+
+.badge.active{background:#dcfce7;color:#166534}
+.badge.trial{background:#dbeafe;color:#1d4ed8}
+.badge.past_due{background:#ffedd5;color:#9a3412}
+.badge.suspended{background:#fee2e2;color:#991b1b}
+.badge.none{background:#e5e7eb;color:#374151}
+
+.save{
+  width:100%;
+  height:42px;
+  margin-top:12px;
+  border:0;
+  border-radius:8px;
+  background:linear-gradient(180deg,#cda32d,#a8790c);
+  color:#fff;
+  font-size:12px;
+  font-weight:950;
+  cursor:pointer;
+}
+
+.empty{
+  grid-column:1/-1;
+  padding:36px;
+  text-align:center;
+  color:#6f7a89;
+  font-weight:800;
+}
+
+@media(max-width:1100px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:720px){
+  .page{width:calc(100% - 12px);margin-top:10px}
+  .cards{grid-template-columns:1fr;padding:12px}
+}
+</style>
+</head>
+
+<body>
+
+<div id="platformHeader"></div>
+
+<main class="page">
+  <section class="shell">
+
+    <div class="head">
+      <h1>Platform Billing Control</h1>
+      <p>Manage GH Mobility SaaS subscription billing for every tenant.</p>
+    </div>
+
+    <div class="toolbar">
+      <input class="search" id="searchInput" type="search" placeholder="Search tenant...">
+      <button class="refresh" id="refreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div class="message" id="messageBox"></div>
+
+    <div class="cards" id="tenantCards">
+      <div class="empty">Loading tenants...</div>
+    </div>
+
+  </section>
+</main>
+
+<script src="/platform-admin/platform_header.js"></script>
+<script src="/platform-admin/billing.js?v=20260827"></script>
+
+</body>
+</html>
