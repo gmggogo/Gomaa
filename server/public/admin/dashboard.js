@@ -280,6 +280,30 @@ function vehicleKey(u){
   ).toUpperCase();
 }
 
+function scheduleDayKey(){
+  const day=new Intl.DateTimeFormat(
+    "en-US",
+    {weekday:"short",timeZone:tz()}
+  ).format(new Date()).toLowerCase();
+
+  if(day.startsWith("sun"))return "sun";
+  if(day.startsWith("mon"))return "mon";
+  if(day.startsWith("tue"))return "tue";
+  if(day.startsWith("wed"))return "wed";
+  if(day.startsWith("thu"))return "thu";
+  if(day.startsWith("fri"))return "fri";
+  return "sat";
+}
+
+function scheduleVehicleKey(row){
+  return clean(row?.vehicleNumber||"").toUpperCase();
+}
+
+function scheduleRowIsActiveToday(row){
+  if(!row||row.enabled===false)return false;
+  return row.days?.[scheduleDayKey()]===true;
+}
+
 async function loadUserCounts(){
   const roles=["driver","dispatcher"];
 
@@ -293,14 +317,26 @@ async function loadUserCounts(){
 
   const dataByRole={};
 
-  await Promise.all(roles.map(async r=>{
-    try{
-      const data=await getJson("/api/users/"+r);
-      dataByRole[r]=Array.isArray(data)?data:[];
-    }catch(e){
-      dataByRole[r]=[];
-    }
-  }));
+  let scheduleData={};
+
+  await Promise.all([
+    ...roles.map(async r=>{
+      try{
+        const data=await getJson("/api/users/"+r);
+        dataByRole[r]=Array.isArray(data)?data:[];
+      }catch(e){
+        dataByRole[r]=[];
+      }
+    }),
+    (async()=>{
+      try{
+        const data=await getJson("/api/driver-schedule");
+        scheduleData=data&&typeof data==="object"?data:{};
+      }catch(e){
+        scheduleData={};
+      }
+    })()
+  ]);
 
   const drivers=dataByRole.driver||[];
   const dispatchers=dataByRole.dispatcher||[];
@@ -313,12 +349,17 @@ async function loadUserCounts(){
   $("driverCount").textContent=drivers.length;
   $("activeDriverCount").textContent=drivers.filter(userIsActive).length;
 
+  const scheduleRows=Object.values(scheduleData||{});
+
   const allVehicles=new Set(
-    drivers.map(vehicleKey).filter(Boolean)
+    scheduleRows.map(scheduleVehicleKey).filter(Boolean)
   );
 
   const activeVehicles=new Set(
-    drivers.filter(userIsActive).map(vehicleKey).filter(Boolean)
+    scheduleRows
+      .filter(scheduleRowIsActiveToday)
+      .map(scheduleVehicleKey)
+      .filter(Boolean)
   );
 
   $("vehicleCount").textContent=allVehicles.size;
