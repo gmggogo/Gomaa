@@ -678,8 +678,12 @@ function getRealPassengersFromGroup(group){
     finalPrice:t.finalPrice,
     priceAmount:t.priceAmount,
     price:t.price,
+    summaryFee:t.summaryFee,
+    summaryFinalAmount:t.summaryFinalAmount,
     cancelFee:t.cancelFee,
-    noShowFee:t.noShowFee
+    noShowFee:t.noShowFee,
+    pricingSnapshot:t.pricingSnapshot,
+    priceSnapshot:t.priceSnapshot
   }));
 }
 
@@ -749,83 +753,101 @@ function getGroupStatus(group){
    MONEY / MILES ENGINE
 ================================ */
 
+function firstPositiveMoney(...values){
+
+  for(const value of values){
+
+    if(
+      value === undefined ||
+      value === null ||
+      clean(value) === ""
+    ){
+      continue;
+    }
+
+    const amount = num(value);
+
+    if(amount > 0){
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
 function feeFromService(t,type){
 
   /*
-    Server /api/admin-summary is the financial source of truth.
-    It already applies:
-    Facility Override ACTIVE -> Facility Service Management fallback,
-    Get Quote -> Get Quote Service Management,
-    Reserved -> Reserved Service Management.
+    Some /api/admin-summary rows contain summaryFee = 0 even when
+    the trip or service has a real Cancel / No Show fee.
+
+    A zero summaryFee must not stop the fallback chain.
   */
+
+  const s = getServiceByTrip(t) || {};
+  const src = getSourceCode(t);
 
   if(type === "cancel"){
 
-    if(
-      t?.summaryFee !== undefined &&
-      t?.summaryFee !== null &&
-      isCancelledStatus(t?.status)
-    ){
-      return num(t.summaryFee);
+    const savedFee = firstPositiveMoney(
+      isCancelledStatus(t?.status) ? t?.summaryFee : null,
+      t?.cancelFee,
+      t?.pricingSnapshot?.cancelFee,
+      t?.priceSnapshot?.cancelFee
+    );
+
+    if(savedFee > 0){
+      return savedFee;
     }
 
-    const s = getServiceByTrip(t) || {};
-    const src = getSourceCode(t);
-
     if(src === "RV"){
-      return num(
-        s?.reservedCancelFee ??
-        s?.cancelFee ??
-        0
+      return firstPositiveMoney(
+        s?.reservedCancelFee,
+        s?.cancelFee
       );
     }
 
     if(src === "FACILITY"){
-      return num(
-        s?.companyCancelFee ??
-        s?.cancelFee ??
-        0
+      return firstPositiveMoney(
+        s?.companyCancelFee,
+        s?.cancelFee
       );
     }
 
-    return num(
-      s?.cancelFee ??
-      0
+    return firstPositiveMoney(
+      s?.cancelFee
     );
   }
 
   if(type === "noshow"){
 
-    if(
-      t?.summaryFee !== undefined &&
-      t?.summaryFee !== null &&
-      isNoShowStatus(t?.status)
-    ){
-      return num(t.summaryFee);
+    const savedFee = firstPositiveMoney(
+      isNoShowStatus(t?.status) ? t?.summaryFee : null,
+      t?.noShowFee,
+      t?.pricingSnapshot?.noShowFee,
+      t?.priceSnapshot?.noShowFee
+    );
+
+    if(savedFee > 0){
+      return savedFee;
     }
 
-    const s = getServiceByTrip(t) || {};
-    const src = getSourceCode(t);
-
     if(src === "RV"){
-      return num(
-        s?.reservedNoShowFee ??
-        s?.noShowFee ??
-        0
+      return firstPositiveMoney(
+        s?.reservedNoShowFee,
+        s?.noShowFee
       );
     }
 
     if(src === "FACILITY"){
-      return num(
-        s?.companyNoShowFee ??
-        s?.noShowFee ??
-        0
+      return firstPositiveMoney(
+        s?.companyNoShowFee,
+        s?.noShowFee
       );
     }
 
-    return num(
-      s?.noShowFee ??
-      0
+    return firstPositiveMoney(
+      s?.noShowFee
     );
   }
 
@@ -862,31 +884,36 @@ function getPassengerBasePrice(p,t){
 
 function getPassengerFee(p,t){
 
-  if(
-    p?.summaryFee !== undefined &&
-    p?.summaryFee !== null
-  ){
-    return num(p.summaryFee);
-  }
-
   const status =
     p?.status ||
     t?.status ||
     "";
 
   if(isCancelledStatus(status)){
-    return num(
-      p?.cancelFee ??
-      feeFromService(t,"cancel") ??
-      0
+
+    return firstPositiveMoney(
+      p?.summaryFee,
+      p?.cancelFee,
+      p?.pricingSnapshot?.cancelFee,
+      p?.priceSnapshot?.cancelFee,
+      t?.cancelFee,
+      t?.pricingSnapshot?.cancelFee,
+      t?.priceSnapshot?.cancelFee,
+      feeFromService(t,"cancel")
     );
   }
 
   if(isNoShowStatus(status)){
-    return num(
-      p?.noShowFee ??
-      feeFromService(t,"noshow") ??
-      0
+
+    return firstPositiveMoney(
+      p?.summaryFee,
+      p?.noShowFee,
+      p?.pricingSnapshot?.noShowFee,
+      p?.priceSnapshot?.noShowFee,
+      t?.noShowFee,
+      t?.pricingSnapshot?.noShowFee,
+      t?.priceSnapshot?.noShowFee,
+      feeFromService(t,"noshow")
     );
   }
 
