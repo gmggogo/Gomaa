@@ -207,75 +207,13 @@ async function getTenantVehicles(
   tenant
 ){
 
-  /*
-    First load tenant drivers.
-    We use their ids as a safe fallback for old DriverSchedule
-    records that may have been created before tenantId was added.
-  */
-
-  const tenantDrivers =
-    await User.find({
-      tenantId:
-        tenant._id,
-
-      role:
-        "driver"
-    })
-    .select(
-      "_id name vehicleNumber vehicle"
-    )
-    .lean();
-
-  const driverIds =
-    tenantDrivers.map(
-      driver=>
-        String(
-          driver._id
-        )
-    );
-
-  const scheduleFilter =
-    driverIds.length
-      ? {
-          $or:[
-            {
-              tenantId:
-                tenant._id
-            },
-            {
-              driverId:{
-                $in:
-                  driverIds
-              }
-            }
-          ]
-        }
-      : {
-          tenantId:
-            tenant._id
-        };
-
-  const schedules =
-    await DriverSchedule
-      .find(
-        scheduleFilter
-      )
-      .select(
-        "driverId vehicleNumber enabled"
-      )
-      .lean();
-
   const vehicleMap =
     new Map();
 
-  function addVehicle(
-    value
-  ){
+  function addVehicle(value){
 
     const raw =
-      clean(
-        value
-      );
+      clean(value);
 
     if(!raw){
       return;
@@ -284,17 +222,12 @@ async function getTenantVehicles(
     const key =
       raw.toUpperCase();
 
-    if(
-      !vehicleMap.has(
-        key
-      )
-    ){
+    if(!vehicleMap.has(key)){
       vehicleMap.set(
         key,
         {
           key,
-          label:
-            raw
+          label:raw
         }
       );
     }
@@ -302,31 +235,78 @@ async function getTenantVehicles(
 
   /*
     PRIMARY SOURCE:
-    Car column from Driver Schedule.
+    Driver Schedule is already tenant-scoped.
+    Each saved Car value is stored in vehicleNumber.
   */
 
-  schedules.forEach(
-    row=>{
+  try{
+
+    const schedules =
+      await DriverSchedule
+        .find({
+          tenantId:
+            tenant._id
+        })
+        .select(
+          "vehicleNumber enabled"
+        )
+        .lean();
+
+    schedules.forEach(row=>{
       addVehicle(
         row.vehicleNumber
       );
-    }
-  );
+    });
+
+  }catch(err){
+
+    /*
+      Billing must never disappear because one usage source failed.
+      Log the issue and continue with the User fallback.
+    */
+
+    console.error(
+      "SAAS BILLING DRIVER SCHEDULE ERROR:",
+      err?.message ||
+      err
+    );
+  }
 
   /*
     FALLBACK:
-    If an old driver has a vehicle saved on User but not yet
-    copied into DriverSchedule, keep counting it.
+    Old driver records may also have a vehicle number saved on User.
   */
 
-  tenantDrivers.forEach(
-    driver=>{
+  try{
+
+    const tenantDrivers =
+      await User.find({
+        tenantId:
+          tenant._id,
+
+        role:
+          "driver"
+      })
+      .select(
+        "vehicleNumber vehicle"
+      )
+      .lean();
+
+    tenantDrivers.forEach(driver=>{
       addVehicle(
         driver.vehicleNumber ||
         driver.vehicle
       );
-    }
-  );
+    });
+
+  }catch(err){
+
+    console.error(
+      "SAAS BILLING DRIVER FALLBACK ERROR:",
+      err?.message ||
+      err
+    );
+  }
 
   return [
     ...vehicleMap.values()
