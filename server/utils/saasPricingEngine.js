@@ -1,6 +1,7 @@
 "use strict";
 
 const User = require("../models/User");
+const DriverSchedule = require("../models/DriverSchedule");
 const TenantSubscription = require("../models/TenantSubscription");
 const PlatformBillingSettings = require("../models/PlatformBillingSettings");
 
@@ -96,32 +97,78 @@ async function getTenantUsage(tenant){
   const users = await User.find({
     tenantId:tenant._id
   })
-  .select("role active enabled vehicleNumber vehicle")
+  .select("_id role active enabled vehicleNumber vehicle")
   .lean();
+
+  const tenantDrivers = users.filter(user=>{
+    const role = clean(user.role).toLowerCase();
+    return role === "driver";
+  });
 
   const vehicleMap = new Map();
 
-  users
+  function addVehicle(value){
+    const raw = clean(value);
+    if(!raw) return;
+
+    const key = raw.toUpperCase();
+
+    if(!vehicleMap.has(key)){
+      vehicleMap.set(key,{
+        key,
+        label:raw
+      });
+    }
+  }
+
+  /*
+    Primary source:
+    Driver Schedule stores the Car value in vehicleNumber.
+    Match schedules by driverId so billing uses the same vehicle
+    shown on the Driver Schedule page.
+  */
+  const driverIds = tenantDrivers
+    .map(driver=>String(driver._id))
+    .filter(Boolean);
+
+  if(driverIds.length){
+    try{
+      const schedules = await DriverSchedule.find({
+        driverId:{
+          $in:driverIds
+        }
+      })
+      .select("driverId vehicleNumber")
+      .lean();
+
+      schedules.forEach(row=>{
+        addVehicle(row.vehicleNumber);
+      });
+
+    }catch(err){
+      console.error(
+        "SAAS BILLING DRIVER SCHEDULE ERROR:",
+        err?.message || err
+      );
+    }
+  }
+
+  /*
+    Fallback:
+    Keep the original working User vehicle behavior.
+  */
+  tenantDrivers
     .filter(user=>{
-      const role = clean(user.role).toLowerCase();
       return (
-        role === "driver" &&
         user.enabled !== false &&
         user.active !== false
       );
     })
     .forEach(user=>{
-      const raw = clean(user.vehicleNumber || user.vehicle);
-      if(!raw) return;
-
-      const key = raw.toUpperCase();
-
-      if(!vehicleMap.has(key)){
-        vehicleMap.set(key,{
-          key,
-          label:raw
-        });
-      }
+      addVehicle(
+        user.vehicleNumber ||
+        user.vehicle
+      );
     });
 
   const vehicles = [...vehicleMap.values()]
