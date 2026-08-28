@@ -381,6 +381,78 @@ document.addEventListener("DOMContentLoaded",async()=>{
  window.addEventListener("gh-dashboard-alerts",e=>applyHeaderAlerts(e.detail||{}));
  applyHeaderAlerts({});
 
+ /* PAYROLL SIGN IN — shown only when today's staff schedule is eligible. */
+ async function setupPayrollSignIn(){
+   const token=staffSessionValue("staffToken","token");
+   if(!token)return;
+
+   const topbar=document.querySelector("#ghAdminHeader .gh-topbar");
+   if(!topbar)return;
+
+   const style=document.createElement("style");
+   style.textContent=`
+   .gh-payroll-signin{margin-left:auto;min-width:112px;padding:10px 15px;border:2px solid #eaffdf;border-radius:11px;background:linear-gradient(180deg,#62d443,#269c1b 60%,#167d10);color:#fff;font-size:13px;font-weight:900;letter-spacing:.35px;cursor:pointer;box-shadow:0 4px 0 rgba(12,91,7,.35),0 7px 14px rgba(8,64,8,.2),inset 0 1px 0 rgba(255,255,255,.4);white-space:nowrap;position:relative;z-index:2}
+   .gh-payroll-signin:hover{filter:brightness(1.07)}
+   .gh-payroll-signin:disabled{cursor:wait;opacity:.72}
+   .gh-payroll-signin-note{margin-left:10px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.13);color:#fff;font-size:12px;font-weight:800;white-space:nowrap;position:relative;z-index:2}
+   @media(max-width:900px){.gh-payroll-signin{min-width:auto;padding:8px 10px;font-size:11px}.gh-payroll-signin-note{display:none}}
+   `;
+   document.head.appendChild(style);
+
+   async function payrollRequest(url,options={}){
+     const response=await fetch(url,{
+       cache:"no-store",
+       ...options,
+       headers:{
+         ...(options.body?{"Content-Type":"application/json"}:{}),
+         ...(options.headers||{}),
+         Authorization:`Bearer ${token}`
+       }
+     });
+     const data=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(data.message||`HTTP ${response.status}`);
+     return data;
+   }
+
+   try{
+     const status=await payrollRequest("/api/payroll/staff-signin/status");
+     if(status.showSignIn!==true)return;
+
+     const button=document.createElement("button");
+     button.type="button";
+     button.className="gh-payroll-signin";
+     button.textContent="SIGN IN";
+     button.title=`Sign in and credit ${Number(status.creditedHours||0)} scheduled hours`;
+
+     button.addEventListener("click",async()=>{
+       if(button.disabled)return;
+       button.disabled=true;
+       button.textContent="SIGNING IN...";
+
+       try{
+         const result=await payrollRequest("/api/payroll/staff-signin",{method:"POST"});
+         button.remove();
+
+         const note=document.createElement("div");
+         note.className="gh-payroll-signin-note";
+         note.textContent=`SIGNED IN · ${Number(result.creditedHours||status.creditedHours||0)} HRS`;
+         topbar.appendChild(note);
+         setTimeout(()=>note.remove(),5000);
+       }catch(err){
+         button.disabled=false;
+         button.textContent="SIGN IN";
+         window.alert(err.message||"Sign In failed");
+       }
+     });
+
+     topbar.appendChild(button);
+   }catch(err){
+     console.log("PAYROLL SIGN IN STATUS ERROR:",err);
+   }
+ }
+
+ await setupPayrollSignIn();
+
  const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
  function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
 
