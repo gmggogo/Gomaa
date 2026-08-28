@@ -732,9 +732,12 @@ function staffRow(row){
             id="enabled-${id}"
             type="checkbox"
             ${enabled ? "checked" : ""}
+            onchange="updateStaffEnabledState('${id}')"
             disabled>
 
-          <span>
+          <span
+            id="enabled-status-${id}"
+            class="enable-status ${enabled ? "is-enabled" : "is-disabled"}">
             ${enabled ? "Enabled" : "Disabled"}
           </span>
 
@@ -953,6 +956,42 @@ function(id){
   document.getElementById(
     `save-${id}`
   ).disabled = false;
+};
+
+window.updateStaffEnabledState =
+function(id){
+
+  const checkbox =
+    document.getElementById(
+      `enabled-${id}`
+    );
+
+  const status =
+    document.getElementById(
+      `enabled-status-${id}`
+    );
+
+  if(!checkbox || !status){
+    return;
+  }
+
+  const enabled =
+    checkbox.checked === true;
+
+  status.textContent =
+    enabled
+      ? "Enabled"
+      : "Disabled";
+
+  status.classList.toggle(
+    "is-enabled",
+    enabled
+  );
+
+  status.classList.toggle(
+    "is-disabled",
+    !enabled
+  );
 };
 
 window.saveStaff =

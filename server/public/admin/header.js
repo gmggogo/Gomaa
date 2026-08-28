@@ -386,15 +386,17 @@ document.addEventListener("DOMContentLoaded",async()=>{
    const token=staffSessionValue("staffToken","token");
    if(!token)return;
 
-   const topbar=document.querySelector("#ghAdminHeader .gh-topbar");
-   if(!topbar)return;
+   const signInSlot=document.getElementById("payrollSignInSlot");
+   if(!signInSlot)return;
 
    const style=document.createElement("style");
    style.textContent=`
-   .gh-payroll-signin{margin-left:auto;min-width:112px;padding:10px 15px;border:2px solid #eaffdf;border-radius:11px;background:linear-gradient(180deg,#62d443,#269c1b 60%,#167d10);color:#fff;font-size:13px;font-weight:900;letter-spacing:.35px;cursor:pointer;box-shadow:0 4px 0 rgba(12,91,7,.35),0 7px 14px rgba(8,64,8,.2),inset 0 1px 0 rgba(255,255,255,.4);white-space:nowrap;position:relative;z-index:2}
-   .gh-payroll-signin:hover{filter:brightness(1.07)}
+   .gh-payroll-signin-slot{display:flex;min-height:0;align-items:center;justify-content:center;margin-top:7px}
+   .gh-payroll-signin{min-width:118px;padding:9px 16px;border:2px solid #eaffdf;border-radius:11px;background:linear-gradient(180deg,#62d443,#269c1b 60%,#167d10);color:#fff;font-size:13px;font-weight:1000;letter-spacing:.45px;cursor:pointer;box-shadow:0 0 0 0 rgba(89,239,72,.75),0 4px 0 rgba(12,91,7,.35),inset 0 1px 0 rgba(255,255,255,.4);white-space:nowrap;position:relative;z-index:2;animation:ghPayrollSignInPulse 1.05s ease-in-out infinite}
+   .gh-payroll-signin:hover{filter:brightness(1.12);animation-play-state:paused}
    .gh-payroll-signin:disabled{cursor:wait;opacity:.72}
-   .gh-payroll-signin-note{margin-left:10px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.13);color:#fff;font-size:12px;font-weight:800;white-space:nowrap;position:relative;z-index:2}
+   .gh-payroll-signin-note{padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;font-size:11px;font-weight:900;white-space:nowrap;position:relative;z-index:2}
+   @keyframes ghPayrollSignInPulse{0%,100%{filter:brightness(.92);transform:scale(1);box-shadow:0 0 0 0 rgba(89,239,72,.72),0 4px 0 rgba(12,91,7,.35)}50%{filter:brightness(1.28);transform:scale(1.055);box-shadow:0 0 0 9px rgba(89,239,72,0),0 5px 0 rgba(12,91,7,.35),0 0 20px rgba(104,255,84,.9)}}
    @media(max-width:900px){.gh-payroll-signin{min-width:auto;padding:8px 10px;font-size:11px}.gh-payroll-signin-note{display:none}}
    `;
    document.head.appendChild(style);
@@ -436,7 +438,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
          const note=document.createElement("div");
          note.className="gh-payroll-signin-note";
          note.textContent=`SIGNED IN · ${Number(result.creditedHours||status.creditedHours||0)} HRS`;
-         topbar.appendChild(note);
+         signInSlot.appendChild(note);
          setTimeout(()=>note.remove(),5000);
        }catch(err){
          button.disabled=false;
@@ -445,7 +447,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
        }
      });
 
-     topbar.appendChild(button);
+     signInSlot.appendChild(button);
    }catch(err){
      console.log("PAYROLL SIGN IN STATUS ERROR:",err);
    }
