@@ -230,7 +230,8 @@ if(
   if(
     !checkoutStatus ||
     checkoutStatus === "booked" ||
-    checkoutStatus === "scheduled"
+    checkoutStatus === "scheduled" ||
+    checkoutStatus === "pending payment"
   ){
     trip.status = "Confirmed";
   }
@@ -635,7 +636,8 @@ app.post(
       if(
         !currentStatus ||
         currentStatus === "booked" ||
-        currentStatus === "scheduled"
+        currentStatus === "scheduled" ||
+        currentStatus === "pending payment"
       ){
         trip.status = "Confirmed";
       }
@@ -982,6 +984,13 @@ cancelFee: { type: Number, default: 0 },
 
 noShowFee: { type: Number, default: 0 },
 
+cancelledByRole: { type: String, default: "" },
+
+cancellationChargeable: {
+  type: Boolean,
+  default: null
+},
+
 /* DRIVER FINAL COMMENT */
 cancelReason: { type: String, default: "" },
 noShowReason: { type: String, default: "" },
@@ -1076,6 +1085,16 @@ passengerDurationSeconds: {
   noShowFee: { type: Number, default: 0 },
 
   cancelDateTime: { type: Date, default: null },
+
+  cancelledByRole: {
+    type: String,
+    default: ""
+  },
+
+  cancellationChargeable: {
+    type: Boolean,
+    default: null
+  },
 
   refundStatus: {
     type: String,
@@ -3718,6 +3737,21 @@ function normalizeManagedUserRole(value){
     .toLowerCase();
 }
 
+function isOperationalCancellationRole(value){
+
+  const role =
+    normalizeActorRole(value);
+
+  return [
+    "DRIVER",
+    "DISPATCHER",
+    "ADMIN",
+    "SUPER_ADMIN",
+    "SUPERADMIN",
+    "PLATFORM_ADMIN"
+  ].includes(role);
+}
+
 function canManageUserRole(req,targetRole){
 
   const actorRole =
@@ -5063,16 +5097,24 @@ if(
 
     }else if(ps.includes("cancel")){
 
+      const cancellationChargeable =
+        p?.cancellationChargeable === false ||
+        t?.cancellationChargeable === false
+          ? false
+          : true;
+
       amount += Number(
-
-        p.finalPrice ||
-        p.cancelFee ||
-        t.cancelFee ||
-        service?.companyCancelFee ||
-        service?.cancelFee ||
-        t.finalPrice ||
-        0
-
+        cancellationChargeable
+          ? (
+              p.finalPrice ||
+              p.cancelFee ||
+              t.cancelFee ||
+              service?.companyCancelFee ||
+              service?.cancelFee ||
+              t.finalPrice ||
+              0
+            )
+          : 0
       );
 
     }else if(ps.includes("no")){
@@ -5102,16 +5144,17 @@ if(
 
   }else if(status.includes("cancel")){
 
-    amount = Number(
-
-      t.cancelFee ||
-      service?.companyCancelFee ||
-      service?.cancelFee ||
-      t.finalPrice ||
-      t.priceAmount ||
-      0
-
-    );
+    amount =
+      t?.cancellationChargeable === false
+        ? 0
+        : Number(
+            t.cancelFee ||
+            service?.companyCancelFee ||
+            service?.cancelFee ||
+            t.finalPrice ||
+            t.priceAmount ||
+            0
+          );
 
   }else if(status.includes("no")){
 
@@ -6344,7 +6387,7 @@ app.post("/api/trips", optionalTenantApi, async (req, res) => {
         )
       ) {
         return res.status(403).json({
-          message: "Company account locked بسبب عدم الدفع"
+          message: "Company account locked because billing is past due"
         });
       }
     }
@@ -7332,12 +7375,14 @@ app.get(
       }
 
       const summaryCancelFee =
-        Number(
-          t.cancelFee ||
-          summaryService?.companyCancelFee ||
-          summaryService?.cancelFee ||
-          0
-        );
+        t?.cancellationChargeable === false
+          ? 0
+          : Number(
+              t.cancelFee ||
+              summaryService?.companyCancelFee ||
+              summaryService?.cancelFee ||
+              0
+            );
 
       const summaryNoShowFee =
         Number(
@@ -7460,14 +7505,17 @@ if (
       ) {
 
         passengerPrice =
-          Number(
-
-            p.cancelFee ||
-            summaryCancelFee ||
-            p.finalPrice ||
-            0
-
-          );
+          (
+            p?.cancellationChargeable === false ||
+            t?.cancellationChargeable === false
+          )
+            ? 0
+            : Number(
+                p.cancelFee ||
+                summaryCancelFee ||
+                p.finalPrice ||
+                0
+              );
 
       }
 
@@ -7893,10 +7941,75 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
         return res.json(noShowTrip);
       }
       if(requestedFinalStatus === "Cancelled"){
-        const cancelledTrip = await finalizeIndividualTrip(existing,"CANCEL",{
-          cancelFee:Number(req.body.cancelFee ?? existing.cancelFee ?? 0),
-          refundAmount:0
-        });
+
+        const operationalCancel =
+          isOperationalCancellationRole(
+            req.authUser?.role
+          );
+
+        existing.cancelledByRole =
+          normalizeActorRole(
+            req.authUser?.role
+          ) || "UNKNOWN";
+
+        existing.cancellationChargeable =
+          operationalCancel
+            ? false
+            : existing.cancellationChargeable;
+
+        if(operationalCancel){
+          existing.cancelFee = 0;
+          existing.finalPrice = 0;
+          existing.priceAmount = 0;
+          await existing.save();
+        }
+
+        const cancelledTrip =
+          await finalizeIndividualTrip(
+            existing,
+            "CANCEL",
+            {
+              cancelFee:
+                operationalCancel
+                  ? 0
+                  : Number(
+                      req.body.cancelFee ??
+                      existing.cancelFee ??
+                      0
+                    ),
+              refundAmount:0
+            }
+          );
+
+        if(operationalCancel){
+          cancelledTrip.cancelFee = 0;
+          cancelledTrip.finalPrice = 0;
+          cancelledTrip.priceAmount = 0;
+          cancelledTrip.cancelledByRole =
+            normalizeActorRole(
+              req.authUser?.role
+            ) || "UNKNOWN";
+          cancelledTrip.cancellationChargeable = false;
+
+          if(
+            Array.isArray(
+              cancelledTrip.passengers
+            )
+          ){
+            cancelledTrip.passengers.forEach(p=>{
+              p.cancelFee = 0;
+              p.finalPrice = 0;
+              p.priceAmount = 0;
+              p.cancelledByRole =
+                cancelledTrip.cancelledByRole;
+              p.cancellationChargeable = false;
+            });
+            cancelledTrip.markModified("passengers");
+          }
+
+          await cancelledTrip.save();
+        }
+
         return res.json(cancelledTrip);
       }
     }
@@ -8353,17 +8466,71 @@ if(updateData.status === "Confirmed"){
 
 if(updateData.status === "Cancelled"){
 
-  const finalPricingService =
-    await getServiceByTrip(existing);
+  const operationalCancel =
+    isOperationalCancellationRole(
+      req.authUser?.role
+    );
 
-  if(
-    Number(existing.cancelFee || 0) <= 0 &&
-    Number(updateData.cancelFee || 0) <= 0
-  ){
-    updateData.cancelFee =
+  updateData.cancelledByRole =
+    normalizeActorRole(
+      req.authUser?.role
+    ) || "UNKNOWN";
+
+  updateData.cancellationChargeable =
+    operationalCancel
+      ? false
+      : (
+          existing.cancellationChargeable !== null &&
+          existing.cancellationChargeable !== undefined
+            ? existing.cancellationChargeable
+            : true
+        );
+
+  if(operationalCancel){
+
+    updateData.cancelFee = 0;
+    updateData.finalPrice = 0;
+    updateData.priceAmount = 0;
+
+    if(
+      Array.isArray(
+        updateData.passengers
+      )
+    ){
+      updateData.passengers =
+        updateData.passengers.map(p=>({
+          ...p,
+          cancelFee:0,
+          finalPrice:0,
+          priceAmount:0,
+          cancelledByRole:
+            updateData.cancelledByRole,
+          cancellationChargeable:false
+        }));
+    }
+
+  }else{
+
+    const finalPricingService =
+      await getServiceByTrip(existing);
+
+    if(
+      Number(existing.cancelFee || 0) <= 0 &&
+      Number(updateData.cancelFee || 0) <= 0
+    ){
+      updateData.cancelFee =
+        Number(
+          finalPricingService?.companyCancelFee ||
+          finalPricingService?.cancelFee ||
+          0
+        );
+    }
+
+    updateData.finalPrice =
       Number(
-        finalPricingService?.companyCancelFee ||
-        finalPricingService?.cancelFee ||
+        existing.cancelFee ||
+        updateData.cancelFee ||
+        existing.finalPrice ||
         0
       );
   }
@@ -8377,14 +8544,6 @@ if(updateData.status === "Cancelled"){
   updateData.historyAt =
     existing.historyAt ||
     new Date();
-
-  updateData.finalPrice =
-    Number(
-      existing.cancelFee ||
-      updateData.cancelFee ||
-      existing.finalPrice ||
-      0
-    );
 
 }
 
@@ -9477,6 +9636,16 @@ else{
 }
 
 /* =========================
+   CANCELLATION SOURCE
+========================= */
+
+trip.cancelledByRole =
+  "CUSTOMER";
+
+trip.cancellationChargeable =
+  Number(fee || 0) > 0;
+
+/* =========================
    REFUND ID
 ========================= */
 
@@ -9961,6 +10130,12 @@ const totalCancelFee =
         0
       );
 
+    trip.cancelledByRole =
+      "COMPANY";
+
+    trip.cancellationChargeable =
+      Number(totalCancelFee || 0) > 0;
+
     if(
       trip.isShared === true &&
       Array.isArray(trip.passengers) &&
@@ -10021,6 +10196,9 @@ const totalCancelFee =
             cancelFee:perPassengerFee,
             finalPrice:perPassengerFee,
             priceAmount:perPassengerFee,
+            cancelledByRole:"COMPANY",
+            cancellationChargeable:
+              Number(perPassengerFee || 0) > 0,
             isFinalized:true,
             finalizedAt:new Date()
           };
