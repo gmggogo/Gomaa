@@ -106,6 +106,30 @@
     retryBtn.style.display="none";
   }
 
+  async function confirmTripForDispatch(){
+    const res = await fetch(
+      "/api/payment-success",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          tripId
+        })
+      }
+    );
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      throw new Error(
+        data.message ||
+        "Booking confirmation failed"
+      );
+    }
+  }
+
   async function openStripe(){
     title.textContent="Opening secure payment...";
     message.textContent="You’ll continue on Stripe.";
@@ -132,6 +156,7 @@
     }
 
     if(data.alreadySaved){
+      await confirmTripForDispatch();
       success();
       return;
     }
@@ -179,6 +204,7 @@
         throw new Error(data.message || "Booking confirmation failed");
       }
 
+      await confirmTripForDispatch();
       success();
       return;
     }
