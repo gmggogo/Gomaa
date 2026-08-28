@@ -2,39 +2,31 @@
 
 document.addEventListener("DOMContentLoaded",()=>{
 
-  function clean(v){
-    return String(v ?? "").trim();
-  }
+  const clean = v => String(v ?? "").trim();
 
-  function esc(v){
-    return String(v ?? "")
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#039;");
-  }
+  const esc = v => String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 
-  function money(v){
+  const money = v => {
     const n = Number(v || 0);
     return "$" + (Number.isFinite(n) ? n : 0).toFixed(2);
-  }
+  };
 
-  function dateText(v){
+  const dateText = v => {
     if(!v) return "--";
-
     const d = new Date(v);
-
     return Number.isNaN(d.getTime())
       ? "--"
       : d.toLocaleDateString("en-US");
-  }
+  };
 
-  function normalizeRole(v){
-    return clean(v)
-      .toUpperCase()
-      .replace(/[\s-]+/g,"_");
-  }
+  const normalizeRole = v => clean(v)
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
 
   const token =
     clean(sessionStorage.getItem("staffToken")) ||
@@ -51,50 +43,41 @@ document.addEventListener("DOMContentLoaded",()=>{
     return;
   }
 
-  const cards =
-    document.getElementById("companyCards");
-
-  const searchInput =
-    document.getElementById("searchInput");
-
-  const statusFilter =
-    document.getElementById("statusFilter");
-
-  const messageBox =
-    document.getElementById("messageBox");
-
-  let dataStore = {
+  const state = {
+    companies:[],
     defaultPackage:null,
-    companies:[]
+    selectedId:"",
+    filter:"",
+    search:"",
+    defaultBackup:null
   };
 
-  let defaultBackup = null;
+  const messageBox = document.getElementById("messageBox");
+  const companyList = document.getElementById("companyList");
+  const companyDetail = document.getElementById("companyDetail");
+  const searchInput = document.getElementById("searchInput");
 
   function showMessage(text,type="ok"){
     messageBox.textContent = text;
-    messageBox.className =
-      "message show " + type;
+    messageBox.className = "message show " + type;
   }
 
   function clearMessage(){
     messageBox.textContent = "";
-    messageBox.className =
-      "message";
+    messageBox.className = "message";
   }
 
   async function api(url,options={}){
-    const res =
-      await fetch(url,{
-        ...options,
-        headers:{
-          ...(options.headers || {}),
-          Authorization:"Bearer " + token
-        },
-        cache:"no-store"
-      });
+    const res = await fetch(url,{
+      ...options,
+      headers:{
+        ...(options.headers || {}),
+        Authorization:"Bearer " + token
+      },
+      cache:"no-store"
+    });
 
-    const data =
-      await res.json().catch(()=>({}));
+    const data = await res.json().catch(()=>({}));
 
     if(!res.ok){
       throw new Error(
@@ -106,8 +89,20 @@ document.addEventListener("DOMContentLoaded",()=>{
     return data;
   }
 
-  function badgeClass(v){
-    const s = clean(v).toLowerCase();
+  function companyStatus(row){
+    if(row?.tenant?.enabled === false){
+      return "DISABLED";
+    }
+
+    return clean(
+      row?.subscription?.status ||
+      row?.tenant?.subscriptionStatus ||
+      "ACTIVE"
+    ).toUpperCase();
+  }
+
+  function badgeClass(status){
+    const s = clean(status).toLowerCase();
 
     if(["active","connected","paid"].includes(s)){
       return "active";
@@ -117,181 +112,96 @@ document.addEventListener("DOMContentLoaded",()=>{
       return "disabled";
     }
 
-    if(["past_due","pending","processing"].includes(s)){
+    if(["pending","processing","past_due"].includes(s)){
       return "pending";
     }
 
     return "";
   }
 
-  async function loadStripe(){
-    const badge =
-      document.getElementById("stripeStatusBadge");
+  function filteredCompanies(){
+    return state.companies.filter(row=>{
+      const name = clean(row.tenant?.name).toLowerCase();
+      const slug = clean(row.tenant?.slug).toLowerCase();
+      const status = companyStatus(row);
 
-    try{
-      const data =
-        await api("/api/platform-stripe/status");
-
-      const connected =
-        data.connected === true;
-
-      badge.textContent =
-        connected
-          ? "CONNECTED"
-          : "NOT CONNECTED";
-
-      badge.className =
-        "badge " +
-        (connected ? "connected" : "disabled");
-
-      document.getElementById("stripeAccountId").textContent =
-        data.accountId || "--";
-
-      document.getElementById("stripeMode").textContent =
-        data.mode || "--";
-
-      document.getElementById("stripeCharges").textContent =
-        data.chargesEnabled
-          ? "ENABLED"
-          : "DISABLED";
-
-      document.getElementById("stripePayouts").textContent =
-        data.payoutsEnabled
-          ? "ENABLED"
-          : "DISABLED";
-
-      const dashboard =
-        document.getElementById("stripeDashboardBtn");
-
-      dashboard.disabled =
-        !data.dashboardUrl;
-
-      dashboard.dataset.url =
-        data.dashboardUrl || "";
-
-    }catch(err){
-      console.error(err);
-
-      badge.textContent =
-        "NOT CONNECTED";
-
-      badge.className =
-        "badge disabled";
-    }
-  }
-
-  const defaultIds = [
-    "dPackageName",
-    "dBasePrice",
-    "dIncludedVehicles",
-    "dIncludedServices",
-    "dBillingCycle",
-    "dExtraVehiclePrice",
-    "dExtraServicePrice",
-    "dPackageStatus"
-  ];
-
-  function lockDefault(locked){
-    defaultIds.forEach(id=>{
-      document.getElementById(id).disabled =
-        locked;
-    });
-
-    document.getElementById("defaultEditBtn").disabled =
-      !locked;
-
-    document.getElementById("defaultSaveBtn").disabled =
-      locked;
-
-    document.getElementById("defaultCancelBtn").disabled =
-      locked;
-  }
-
-  function fillDefault(row){
-    if(!row) return;
-
-    document.getElementById("dPackageName").value =
-      row.packageName || "";
-
-    document.getElementById("dBasePrice").value =
-      Number(row.basePrice || 0);
-
-    document.getElementById("dIncludedVehicles").value =
-      Number(row.includedVehicles || 0);
-
-    document.getElementById("dIncludedServices").value =
-      Number(row.includedServices || 0);
-
-    document.getElementById("dBillingCycle").value =
-      row.billingCycle || "MONTHLY";
-
-    document.getElementById("dExtraVehiclePrice").value =
-      Number(row.extraVehiclePrice || 0);
-
-    document.getElementById("dExtraServicePrice").value =
-      Number(row.extraServicePrice || 0);
-
-    document.getElementById("dPackageStatus").value =
-      row.packageStatus || "ACTIVE";
-
-    const badge =
-      document.getElementById("defaultPackageBadge");
-
-    badge.textContent =
-      row.packageStatus || "ACTIVE";
-
-    badge.className =
-      "badge " +
-      (
-        row.packageStatus === "DISABLED"
-          ? "disabled"
-          : "active"
+      return (
+        (!state.search || name.includes(state.search) || slug.includes(state.search)) &&
+        (!state.filter || status === state.filter)
       );
-
-    lockDefault(true);
+    });
   }
 
-  function readDefault(){
-    return {
-      packageName:
-        clean(document.getElementById("dPackageName").value),
-
-      basePrice:
-        Number(document.getElementById("dBasePrice").value || 0),
-
-      includedVehicles:
-        Number(document.getElementById("dIncludedVehicles").value || 0),
-
-      includedServices:
-        Number(document.getElementById("dIncludedServices").value || 0),
-
-      billingCycle:
-        document.getElementById("dBillingCycle").value,
-
-      extraVehiclePrice:
-        Number(document.getElementById("dExtraVehiclePrice").value || 0),
-
-      extraServicePrice:
-        Number(document.getElementById("dExtraServicePrice").value || 0),
-
-      packageStatus:
-        document.getElementById("dPackageStatus").value
-    };
+  function selectedCompany(){
+    return state.companies.find(
+      row=>String(row.tenant?.id) === String(state.selectedId)
+    ) || null;
   }
 
-  function companyStatus(row){
-    if(row.tenant?.enabled === false){
-      return "DISABLED";
+  function renderSidebar(){
+    const list = filteredCompanies();
+
+    if(!list.length){
+      companyList.innerHTML =
+        `<div class="empty-state">No companies found.</div>`;
+      return;
     }
 
-    return clean(
-      row.subscription?.status ||
-      row.tenant?.subscriptionStatus ||
-      "ACTIVE"
-    ).toUpperCase();
+    companyList.innerHTML = list.map(row=>{
+      const t = row.tenant || {};
+      const status = companyStatus(row);
+      const active =
+        String(t.id) === String(state.selectedId);
+
+      return `
+        <button
+          class="company-item ${active ? "active" : ""}"
+          data-company-id="${esc(t.id)}"
+          type="button"
+        >
+          <div class="company-item-row">
+            <div class="company-item-name">${esc(t.name || "Company")}</div>
+            <span class="badge ${badgeClass(status)}">${esc(status)}</span>
+          </div>
+          <div class="company-item-sub">${esc(t.slug || "")}</div>
+        </button>
+      `;
+    }).join("");
   }
 
-  function controlTable(rows,type){
+  function toggleCell(row,kind){
+    const enabled =
+      kind === "access"
+        ? row.accessEnabled !== false
+        : row.billingEnabled !== false;
+
+    let label = enabled ? "Enabled" : "Disabled";
+    let cls = enabled ? "on" : "off";
+
+    if(kind === "billing" && !enabled){
+      label = "Free";
+      cls = "free";
+    }
+
+    const fieldClass =
+      kind === "access"
+        ? "access-toggle"
+        : "billing-toggle";
+
+    return `
+      <label class="toggle ${cls}">
+        <input
+          class="${fieldClass}"
+          type="checkbox"
+          ${enabled ? "checked" : ""}
+          disabled
+        >
+        <span>${label}</span>
+      </label>
+    `;
+  }
+
+  function usageRows(rows,type){
     if(!Array.isArray(rows) || !rows.length){
       return `
         <tr>
@@ -309,256 +219,329 @@ document.addEventListener("DOMContentLoaded",()=>{
         data-control-label="${esc(row.label)}"
       >
         <td>${esc(row.label)}</td>
-        <td>
-          <input
-            class="access-toggle"
-            type="checkbox"
-            ${row.accessEnabled !== false ? "checked" : ""}
-            disabled
-          >
-        </td>
-        <td>
-          <input
-            class="billing-toggle"
-            type="checkbox"
-            ${row.billingEnabled !== false ? "checked" : ""}
-            disabled
-          >
-        </td>
+        <td>${toggleCell(row,"access")}</td>
+        <td>${toggleCell(row,"billing")}</td>
       </tr>
     `).join("");
   }
 
-  function render(){
-    const q =
-      clean(searchInput.value).toLowerCase();
+  function renderCompany(){
+    const row = selectedCompany();
 
-    const filter =
-      clean(statusFilter.value).toUpperCase();
-
-    const list =
-      dataStore.companies.filter(row=>{
-        const name =
-          clean(row.tenant?.name).toLowerCase();
-
-        const slug =
-          clean(row.tenant?.slug).toLowerCase();
-
-        const status =
-          companyStatus(row);
-
-        return (
-          (!q || name.includes(q) || slug.includes(q)) &&
-          (!filter || status === filter)
-        );
-      });
-
-    if(!list.length){
-      cards.innerHTML =
-        `<div class="empty">No companies found.</div>`;
+    if(!row){
+      companyDetail.innerHTML =
+        `<div class="empty-state">Select a company to view billing details.</div>`;
       return;
     }
 
-    cards.innerHTML =
-      list.map(row=>{
-        const t = row.tenant || {};
-        const s = row.subscription || {};
-        const p = row.pricing || {};
-        const status = companyStatus(row);
+    const t = row.tenant || {};
+    const s = row.subscription || {};
+    const p = row.pricing || {};
+    const status = companyStatus(row);
+    const enabled = t.enabled !== false;
 
-        return `
-          <article class="card" data-id="${esc(t.id)}">
+    companyDetail.innerHTML = `
+      <div class="company-header">
+        <div class="company-title">
+          <h2>${esc(t.name || "Company")}</h2>
+          <p>${esc(t.slug || "")}</p>
+        </div>
 
-            <div class="card-head">
-              <div>
-                <div class="card-name">${esc(t.name || "Company")}</div>
-                <div class="card-slug">${esc(t.slug || "")}</div>
+        <div class="company-actions">
+          <span class="badge ${badgeClass(status)}">${esc(status)}</span>
+
+          <button
+            class="btn ${enabled ? "red" : "green"}"
+            data-action="toggle-company"
+            data-enabled="${enabled ? "true" : "false"}"
+            type="button"
+          >
+            ${enabled ? "Disable Company" : "Enable Company"}
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <span>Current Amount</span>
+          <strong>${money(p.finalAmount)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Vehicles</span>
+          <strong>${Number(p.actualVehicles || 0)} / ${Number(p.includedVehicles || 0)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Services</span>
+          <strong>${Number(p.enabledServices || 0)} / ${Number(p.includedServices || 0)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Next Payment</span>
+          <strong>${dateText(s.nextBillingDate || s.dueDate)}</strong>
+        </div>
+      </div>
+
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-tab="overview" type="button">Overview</button>
+        <button class="detail-tab" data-tab="usage" type="button">Usage & Access</button>
+        <button class="detail-tab" data-tab="pricing" type="button">Pricing</button>
+        <button class="detail-tab" data-tab="payments" type="button">Payments</button>
+      </div>
+
+      <div class="panel active" data-panel="overview">
+
+        <div class="section">
+          <div class="section-title">Subscription Overview</div>
+          <div class="section-body">
+            <div class="grid-4">
+              <div class="info"><span>Plan</span><strong>${esc(s.planName || "--")}</strong></div>
+              <div class="info"><span>Billing Cycle</span><strong>${esc(s.billingCycle || "--")}</strong></div>
+              <div class="info"><span>Last Payment</span><strong>${dateText(s.lastPaymentDate)}</strong></div>
+              <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
+              <div class="info"><span>Grace Period</span><strong>${Number(s.graceDays ?? 0)} days</strong></div>
+              <div class="info"><span>Base Price</span><strong>${money(s.basePrice)}</strong></div>
+              <div class="info"><span>Extra Vehicle Price</span><strong>${money(s.extraVehiclePrice)}</strong></div>
+              <div class="info"><span>Extra Service Price</span><strong>${money(s.extraServicePrice)}</strong></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" data-panel="usage">
+
+        <div class="section">
+          <div class="section-title">Vehicles</div>
+          <div class="section-body table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${usageRows(p.vehicleControls,"vehicle")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Services</div>
+          <div class="section-body table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${usageRows(p.serviceControls,"service")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" data-action="edit-usage" type="button">Edit Access & Billing</button>
+          <button class="btn gold" data-action="save-usage" type="button" disabled>Save Changes</button>
+          <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
+        </div>
+
+      </div>
+
+      <div class="panel" data-panel="pricing">
+
+        <div class="section">
+          <div class="section-title">Company Pricing</div>
+
+          <div class="section-body">
+
+            <div class="grid-3">
+
+              <div class="field">
+                <label>Package Name</label>
+                <input class="plan-name" value="${esc(s.planName || "")}" disabled>
               </div>
 
-              <span class="badge ${badgeClass(status)}">
-                ${esc(status)}
-              </span>
+              <div class="field">
+                <label>Billing Cycle</label>
+                <select class="cycle" disabled>
+                  <option value="MONTHLY" ${s.billingCycle === "MONTHLY" ? "selected" : ""}>Monthly</option>
+                  <option value="ANNUAL" ${s.billingCycle === "ANNUAL" ? "selected" : ""}>Annual</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Subscription Status</label>
+                <select class="status" disabled>
+                  <option value="ACTIVE" ${s.status === "ACTIVE" ? "selected" : ""}>Active</option>
+                  <option value="TRIAL" ${s.status === "TRIAL" ? "selected" : ""}>Trial</option>
+                  <option value="PAST_DUE" ${s.status === "PAST_DUE" ? "selected" : ""}>Past Due</option>
+                  <option value="SUSPENDED" ${s.status === "SUSPENDED" ? "selected" : ""}>Suspended</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Base Package Enabled</label>
+                <select class="base-enabled" disabled>
+                  <option value="true" ${s.basePackageEnabled !== false ? "selected" : ""}>Active</option>
+                  <option value="false" ${s.basePackageEnabled === false ? "selected" : ""}>Disabled</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Custom Base Price</label>
+                <input class="base-price" type="number" min="0" step="0.01" value="${Number(s.basePrice || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Included Vehicles</label>
+                <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Included Services</label>
+                <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Extra Vehicle Price</label>
+                <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Extra Service Price</label>
+                <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Free Extra Vehicles</label>
+                <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Free Extra Services</label>
+                <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Discount</label>
+                <input class="discount" type="number" min="0" step="0.01" value="${Number(s.discount || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Credit</label>
+                <input class="credit" type="number" min="0" step="0.01" value="${Number(s.credit || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Final Price Override</label>
+                <input class="final-override" type="number" min="0" step="0.01" value="${s.finalPriceOverride === null || s.finalPriceOverride === undefined ? "" : Number(s.finalPriceOverride)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Grace Days</label>
+                <input class="grace-days" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Due Date</label>
+                <input class="due-date" type="date" value="${s.dueDate ? new Date(s.dueDate).toISOString().slice(0,10) : ""}" disabled>
+              </div>
+
             </div>
 
-            <div class="card-body">
-
-              <div class="subhead">Company Usage</div>
-
-              <div class="usage">
-                <div class="info"><span>Actual Vehicles</span><strong>${Number(p.actualVehicles || 0)}</strong></div>
-                <div class="info"><span>Enabled Services</span><strong>${Number(p.enabledServices || 0)}</strong></div>
-                <div class="info"><span>Included Vehicles</span><strong>${Number(p.includedVehicles || 0)}</strong></div>
-                <div class="info"><span>Included Services</span><strong>${Number(p.includedServices || 0)}</strong></div>
-                <div class="info"><span>Extra Vehicles</span><strong>${Number(p.extraVehicles || 0)}</strong></div>
-                <div class="info"><span>Extra Services</span><strong>${Number(p.extraServices || 0)}</strong></div>
-                <div class="info"><span>Last Payment</span><strong>${dateText(s.lastPaymentDate)}</strong></div>
-                <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
-              </div>
-
-              <div class="subhead">Access & Billing Controls</div>
-
-              <table class="controls">
-                <thead>
-                  <tr>
-                    <th>Vehicle</th>
-                    <th>Access</th>
-                    <th>Billing</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${controlTable(p.vehicleControls,"vehicle")}
-                </tbody>
-              </table>
-
-              <table class="controls">
-                <thead>
-                  <tr>
-                    <th>Service</th>
-                    <th>Access</th>
-                    <th>Billing</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${controlTable(p.serviceControls,"service")}
-                </tbody>
-              </table>
-
-              <div class="subhead">Company Pricing Overrides</div>
-
-              <div class="company-grid">
-
-                <div class="field">
-                  <label>Package Name</label>
-                  <input class="plan-name" value="${esc(s.planName || "")}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Billing Cycle</label>
-                  <select class="cycle" disabled>
-                    <option value="MONTHLY" ${s.billingCycle === "MONTHLY" ? "selected" : ""}>Monthly</option>
-                    <option value="ANNUAL" ${s.billingCycle === "ANNUAL" ? "selected" : ""}>Annual</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label>Subscription Status</label>
-                  <select class="status" disabled>
-                    <option value="ACTIVE" ${s.status === "ACTIVE" ? "selected" : ""}>Active</option>
-                    <option value="TRIAL" ${s.status === "TRIAL" ? "selected" : ""}>Trial</option>
-                    <option value="PAST_DUE" ${s.status === "PAST_DUE" ? "selected" : ""}>Past Due</option>
-                    <option value="SUSPENDED" ${s.status === "SUSPENDED" ? "selected" : ""}>Suspended</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label>Base Package Enabled</label>
-                  <select class="base-enabled" disabled>
-                    <option value="true" ${s.basePackageEnabled !== false ? "selected" : ""}>Active</option>
-                    <option value="false" ${s.basePackageEnabled === false ? "selected" : ""}>Disabled</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label>Custom Base Price</label>
-                  <input class="base-price" type="number" min="0" step="0.01" value="${Number(s.basePrice || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Included Vehicles</label>
-                  <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Included Services</label>
-                  <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Extra Vehicle Price</label>
-                  <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Extra Service Price</label>
-                  <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Free Extra Vehicles</label>
-                  <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Free Extra Services</label>
-                  <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Discount</label>
-                  <input class="discount" type="number" min="0" step="0.01" value="${Number(s.discount || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Credit</label>
-                  <input class="credit" type="number" min="0" step="0.01" value="${Number(s.credit || 0)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Final Price Override</label>
-                  <input class="final-override" type="number" min="0" step="0.01" value="${s.finalPriceOverride === null || s.finalPriceOverride === undefined ? "" : Number(s.finalPriceOverride)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Grace Days</label>
-                  <input class="grace-days" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
-                </div>
-
-                <div class="field">
-                  <label>Due Date</label>
-                  <input class="due-date" type="date" value="${s.dueDate ? new Date(s.dueDate).toISOString().slice(0,10) : ""}" disabled>
-                </div>
-
-              </div>
-
-              <div class="total">
-                <span>Current Final Amount</span>
-                <strong>${money(p.finalAmount)}</strong>
-              </div>
-
-              <div class="actions">
-                <button class="btn primary" data-action="edit" type="button">Edit</button>
-                <button class="btn purple" data-action="preview" type="button">Preview Price</button>
-                <button class="btn gold" data-action="save" type="button" disabled>Save Pricing</button>
-                <button class="btn gray" data-action="cancel" type="button" disabled>Cancel</button>
-                <button class="btn primary" data-action="history" type="button">Payment History</button>
-              </div>
-
+            <div class="price-box">
+              <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
+              <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
+              <div class="price-line"><span>Extra Services</span><strong>${Number(p.billableExtraServices || 0)} × ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}</strong></div>
+              <div class="price-line"><span>Discount</span><strong>-${money(p.discount)}</strong></div>
+              <div class="price-line"><span>Credit</span><strong>-${money(p.credit)}</strong></div>
+              <div class="price-total"><span>Final Amount</span><strong>${money(p.finalAmount)}</strong></div>
             </div>
-          </article>
-        `;
-      }).join("");
+
+            <div class="actions">
+              <button class="btn primary" data-action="edit-pricing" type="button">Edit</button>
+              <button class="btn blue" data-action="preview-pricing" type="button">Preview Price</button>
+              <button class="btn gold" data-action="save-pricing" type="button" disabled>Save Pricing</button>
+              <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" data-panel="payments">
+        <div class="section">
+          <div class="section-title">
+            <span>Payment History</span>
+            <button class="btn primary" data-action="load-history" type="button">Refresh History</button>
+          </div>
+
+          <div class="section-body" id="inlineHistory">
+            <div class="empty-state">Open payment history to load records.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    bindToggleLabels(companyDetail);
   }
 
-  function setEditing(card,editing){
-    card.querySelectorAll(
-      ".card-body input,.card-body select"
-    ).forEach(el=>{
-      el.disabled = !editing;
+  function bindToggleLabels(scope){
+    scope.querySelectorAll(".toggle input").forEach(input=>{
+      input.addEventListener("change",()=>{
+        const label = input.closest(".toggle");
+        const text = label.querySelector("span");
+
+        if(input.classList.contains("billing-toggle")){
+          if(input.checked){
+            label.className = "toggle on";
+            text.textContent = "Enabled";
+          }else{
+            label.className = "toggle free";
+            text.textContent = "Free";
+          }
+        }else{
+          if(input.checked){
+            label.className = "toggle on";
+            text.textContent = "Enabled";
+          }else{
+            label.className = "toggle off";
+            text.textContent = "Disabled";
+          }
+        }
+      });
+    });
+  }
+
+  function activateCompanyTab(tabName){
+    companyDetail.querySelectorAll(".detail-tab").forEach(btn=>{
+      btn.classList.toggle(
+        "active",
+        btn.dataset.tab === tabName
+      );
     });
 
-    card.querySelector('[data-action="edit"]').disabled =
-      editing;
-
-    card.querySelector('[data-action="save"]').disabled =
-      !editing;
-
-    card.querySelector('[data-action="cancel"]').disabled =
-      !editing;
+    companyDetail.querySelectorAll(".panel").forEach(panel=>{
+      panel.classList.toggle(
+        "active",
+        panel.dataset.panel === tabName
+      );
+    });
   }
 
-  function readControls(card,type){
+  function readControls(type){
     return [
-      ...card.querySelectorAll(
+      ...companyDetail.querySelectorAll(
         `[data-control-type="${type}"]`
       )
     ].map(row=>({
@@ -571,263 +554,505 @@ document.addEventListener("DOMContentLoaded",()=>{
     }));
   }
 
-  function readCard(card){
-    const override =
-      clean(
-        card.querySelector(".final-override").value
-      );
+  function readCompanyForm(){
+    const q = selector => companyDetail.querySelector(selector);
+
+    const override = clean(q(".final-override")?.value);
 
     return {
-      planName:
-        clean(card.querySelector(".plan-name").value),
-
-      billingCycle:
-        card.querySelector(".cycle").value,
-
-      status:
-        card.querySelector(".status").value,
-
-      basePackageEnabled:
-        card.querySelector(".base-enabled").value === "true",
-
-      basePrice:
-        Number(card.querySelector(".base-price").value || 0),
-
-      includedVehicles:
-        Number(card.querySelector(".included-vehicles").value || 0),
-
-      includedServices:
-        Number(card.querySelector(".included-services").value || 0),
-
-      extraVehiclePrice:
-        Number(card.querySelector(".extra-vehicle-price").value || 0),
-
-      extraServicePrice:
-        Number(card.querySelector(".extra-service-price").value || 0),
-
-      freeExtraVehicles:
-        Number(card.querySelector(".free-extra-vehicles").value || 0),
-
-      freeExtraServices:
-        Number(card.querySelector(".free-extra-services").value || 0),
-
-      discount:
-        Number(card.querySelector(".discount").value || 0),
-
-      credit:
-        Number(card.querySelector(".credit").value || 0),
-
-      finalPriceOverride:
-        override === ""
-          ? null
-          : Number(override),
-
-      graceDays:
-        Number(card.querySelector(".grace-days").value || 0),
-
-      dueDate:
-        card.querySelector(".due-date").value || null,
-
-      vehicleControls:
-        readControls(card,"vehicle"),
-
-      serviceControls:
-        readControls(card,"service")
+      planName:clean(q(".plan-name")?.value),
+      billingCycle:q(".cycle")?.value || "MONTHLY",
+      status:q(".status")?.value || "ACTIVE",
+      basePackageEnabled:q(".base-enabled")?.value === "true",
+      basePrice:Number(q(".base-price")?.value || 0),
+      includedVehicles:Number(q(".included-vehicles")?.value || 0),
+      includedServices:Number(q(".included-services")?.value || 0),
+      extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
+      extraServicePrice:Number(q(".extra-service-price")?.value || 0),
+      freeExtraVehicles:Number(q(".free-extra-vehicles")?.value || 0),
+      freeExtraServices:Number(q(".free-extra-services")?.value || 0),
+      discount:Number(q(".discount")?.value || 0),
+      credit:Number(q(".credit")?.value || 0),
+      finalPriceOverride:override === "" ? null : Number(override),
+      graceDays:Number(q(".grace-days")?.value || 0),
+      dueDate:q(".due-date")?.value || null,
+      vehicleControls:readControls("vehicle"),
+      serviceControls:readControls("service")
     };
   }
 
-  function openModal(id){
-    document.getElementById(id)
-      .classList.add("show");
+  function setPricingEdit(editing){
+    companyDetail.querySelectorAll(
+      '[data-panel="pricing"] input,[data-panel="pricing"] select'
+    ).forEach(el=>{
+      el.disabled = !editing;
+    });
+
+    const save = companyDetail.querySelector('[data-action="save-pricing"]');
+    const cancel = companyDetail.querySelector('[data-panel="pricing"] [data-action="cancel-company"]');
+    const edit = companyDetail.querySelector('[data-action="edit-pricing"]');
+
+    if(save) save.disabled = !editing;
+    if(cancel) cancel.disabled = !editing;
+    if(edit) edit.disabled = editing;
   }
 
-  function closeModal(id){
-    document.getElementById(id)
-      .classList.remove("show");
+  function setUsageEdit(editing){
+    companyDetail.querySelectorAll(
+      '[data-panel="usage"] .toggle input'
+    ).forEach(el=>{
+      el.disabled = !editing;
+    });
+
+    const save = companyDetail.querySelector('[data-action="save-usage"]');
+    const cancel = companyDetail.querySelector('[data-panel="usage"] [data-action="cancel-company"]');
+    const edit = companyDetail.querySelector('[data-action="edit-usage"]');
+
+    if(save) save.disabled = !editing;
+    if(cancel) cancel.disabled = !editing;
+    if(edit) edit.disabled = editing;
   }
 
-  function previewMarkup(p){
-    return `
-      <table class="breakdown">
-        <tr><th>Pricing Item</th><th>Calculation</th></tr>
-        <tr><td>Base Package</td><td>${money(p.baseAmount)}</td></tr>
-        <tr><td>Actual Vehicles</td><td>${Number(p.actualVehicles || 0)}</td></tr>
-        <tr><td>Included Vehicles</td><td>${Number(p.includedVehicles || 0)}</td></tr>
-        <tr><td>Billable Extra Vehicles</td><td>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</td></tr>
-        <tr><td>Enabled Services</td><td>${Number(p.enabledServices || 0)}</td></tr>
-        <tr><td>Included Services</td><td>${Number(p.includedServices || 0)}</td></tr>
-        <tr><td>Billable Extra Services</td><td>${Number(p.billableExtraServices || 0)} × ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}</td></tr>
-        <tr><td>Discount</td><td>-${money(p.discount)}</td></tr>
-        <tr><td>Credit</td><td>-${money(p.credit)}</td></tr>
-        <tr><td><strong>Final Amount</strong></td><td><strong>${money(p.finalAmount)}</strong></td></tr>
-      </table>
-    `;
-  }
+  async function saveCompany(){
+    const row = selectedCompany();
+    if(!row) return;
 
-  async function previewCard(card){
+    if(!window.confirm("Save this company's billing changes?")){
+      return;
+    }
+
     try{
-      const id = card.dataset.id;
+      await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/subscription`,
+        {
+          method:"PUT",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(readCompanyForm())
+        }
+      );
 
-      const data =
-        await api(
-          `/api/platform-subscription/tenants/${encodeURIComponent(id)}/preview`,
-          {
-            method:"POST",
-            headers:{
-              "Content-Type":"application/json"
-            },
-            body:JSON.stringify(
-              readCard(card)
-            )
-          }
-        );
-
-      document.getElementById("previewBody").innerHTML =
-        previewMarkup(data.pricing);
-
-      openModal("previewModal");
+      showMessage("Company billing saved successfully.","ok");
+      await loadBilling(true);
 
     }catch(err){
       showMessage(err.message,"error");
     }
   }
 
-  async function saveCard(card){
+  async function previewPricing(){
+    const row = selectedCompany();
+    if(!row) return;
+
+    try{
+      const result = await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/preview`,
+        {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(readCompanyForm())
+        }
+      );
+
+      const p = result.pricing || {};
+
+      window.alert(
+        [
+          `Base Package: ${money(p.baseAmount)}`,
+          `Extra Vehicles: ${Number(p.billableExtraVehicles || 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
+          `Extra Services: ${Number(p.billableExtraServices || 0)} x ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}`,
+          `Discount: -${money(p.discount)}`,
+          `Credit: -${money(p.credit)}`,
+          `Final Amount: ${money(p.finalAmount)}`
+        ].join("\n")
+      );
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  async function toggleCompany(){
+    const row = selectedCompany();
+    if(!row) return;
+
+    const currentlyEnabled = row.tenant.enabled !== false;
+    const nextEnabled = !currentlyEnabled;
+
     if(
       !window.confirm(
-        "Save this company's pricing changes?"
+        `${nextEnabled ? "Enable" : "Disable"} ${row.tenant.name}?`
       )
     ){
       return;
     }
 
     try{
-      const id = card.dataset.id;
-
       await api(
-        `/api/platform-subscription/tenants/${encodeURIComponent(id)}/subscription`,
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/enabled`,
         {
           method:"PUT",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify(
-            readCard(card)
-          )
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({enabled:nextEnabled})
         }
       );
 
       showMessage(
-        "Company pricing saved successfully.",
+        nextEnabled
+          ? "Company enabled successfully."
+          : "Company disabled successfully.",
         "ok"
       );
 
-      await loadBilling();
+      await loadBilling(true);
 
     }catch(err){
       showMessage(err.message,"error");
     }
   }
 
-  async function showHistory(card){
+  async function loadHistory(inline=true){
+    const row = selectedCompany();
+    if(!row) return;
+
     try{
-      const id = card.dataset.id;
+      const result = await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/payment-history`
+      );
 
-      const data =
-        await api(
-          `/api/platform-subscription/tenants/${encodeURIComponent(id)}/payment-history`
-        );
+      const history = Array.isArray(result.history)
+        ? result.history
+        : [];
 
-      const rows =
-        Array.isArray(data.history)
-          ? data.history
-          : [];
-
-      document.getElementById("historyBody").innerHTML =
-        rows.length
-          ? `
-            <table class="breakdown">
-              <tr>
-                <th>Payment Date</th>
-                <th>Invoice Number</th>
-                <th>Billing Cycle</th>
-                <th>Payment Method</th>
-                <th>Status</th>
-                <th>Amount</th>
-              </tr>
-
-              ${rows.map(row=>`
+      const html = history.length
+        ? `
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
                 <tr>
-                  <td>${dateText(row.paidAt || row.createdAt)}</td>
-                  <td>${esc(row.invoiceNumber || "--")}</td>
-                  <td>${esc(row.billingCycle || "--")}</td>
-                  <td>${esc(row.paymentMethod || "--")}</td>
-                  <td>${esc(row.status || "--")}</td>
-                  <td>${money(row.amount)}</td>
+                  <th>Date</th>
+                  <th>Invoice</th>
+                  <th>Cycle</th>
+                  <th>Method</th>
+                  <th>Status</th>
+                  <th>Amount</th>
                 </tr>
-              `).join("")}
+              </thead>
+              <tbody>
+                ${history.map(item=>`
+                  <tr>
+                    <td>${dateText(item.paidAt || item.createdAt)}</td>
+                    <td>${esc(item.invoiceNumber || "--")}</td>
+                    <td>${esc(item.billingCycle || "--")}</td>
+                    <td>${esc(item.paymentMethod || "--")}</td>
+                    <td><span class="badge ${badgeClass(item.status)}">${esc(item.status || "--")}</span></td>
+                    <td>${money(item.amount)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
             </table>
-          `
-          : `<div class="empty">No payment history.</div>`;
+          </div>
+        `
+        : `<div class="empty-state">No payment history.</div>`;
 
-      openModal("historyModal");
+      if(inline){
+        const target = document.getElementById("inlineHistory");
+        if(target) target.innerHTML = html;
+      }else{
+        document.getElementById("historyBody").innerHTML = html;
+        document.getElementById("historyModal").classList.add("show");
+      }
 
     }catch(err){
       showMessage(err.message,"error");
     }
   }
 
-  async function loadBilling(){
-    cards.innerHTML =
-      `<div class="empty">Loading companies...</div>`;
-
+  async function loadPaymentSummary(){
     try{
-      const data =
-        await api(
-          "/api/platform-subscription/bootstrap"
-        );
-
-      dataStore.defaultPackage =
-        data.defaultPackage || null;
-
-      dataStore.companies =
-        Array.isArray(data.companies)
-          ? data.companies
-          : [];
-
-      fillDefault(
-        dataStore.defaultPackage
+      const result = await api(
+        "/api/platform-subscription/payment-summary"
       );
 
-      render();
+      document.getElementById("mActive").textContent =
+        Number(result.metrics?.activeCompanies || 0);
+
+      document.getElementById("mDisabled").textContent =
+        Number(result.metrics?.disabledCompanies || 0);
+
+      document.getElementById("mPastDue").textContent =
+        Number(result.metrics?.pastDueCompanies || 0);
+
+      document.getElementById("mRecurring").textContent =
+        money(result.metrics?.recurringAmount);
+
+      document.getElementById("mPaidMonth").textContent =
+        money(result.metrics?.paidThisMonth);
+
+      document.getElementById("mOutstanding").textContent =
+        money(result.metrics?.outstanding);
+
+      const rows = Array.isArray(result.companies)
+        ? result.companies
+        : [];
+
+      document.getElementById("summaryTableBody").innerHTML =
+        rows.map(row=>`
+          <tr>
+            <td>${esc(row.name || "Company")}</td>
+            <td>${esc(row.planName || "--")}</td>
+            <td>${money(row.amount)}</td>
+            <td>${dateText(row.lastPaymentDate)}</td>
+            <td>${dateText(row.nextPaymentDate)}</td>
+            <td><span class="badge ${badgeClass(row.status)}">${esc(row.status || "--")}</span></td>
+          </tr>
+        `).join("");
 
     }catch(err){
-      cards.innerHTML =
-        `<div class="empty">Unable to load companies.</div>`;
-
-      showMessage(
-        err.message,
-        "error"
-      );
+      showMessage(err.message,"error");
     }
   }
+
+  function setTopView(view){
+    document.querySelectorAll(".top-tab").forEach(btn=>{
+      btn.classList.toggle("active",btn.dataset.view === view);
+    });
+
+    document.getElementById("companiesView").style.display =
+      view === "companies" ? "grid" : "none";
+
+    document.getElementById("summaryView").classList.toggle(
+      "active",
+      view === "summary"
+    );
+
+    document.getElementById("settingsView").classList.toggle(
+      "active",
+      view === "settings"
+    );
+
+    if(view === "summary"){
+      loadPaymentSummary();
+    }
+  }
+
+  async function loadStripe(){
+    const badge = document.getElementById("stripeStatusBadge");
+
+    try{
+      const data = await api("/api/platform-stripe/status");
+
+      const connected = data.connected === true;
+
+      badge.textContent = connected
+        ? "CONNECTED"
+        : "NOT CONNECTED";
+
+      badge.className =
+        "badge " + (connected ? "connected" : "disabled");
+
+      document.getElementById("stripeAccountId").textContent =
+        data.accountId || "--";
+
+      document.getElementById("stripeMode").textContent =
+        data.mode || "--";
+
+      document.getElementById("stripeCharges").textContent =
+        data.chargesEnabled ? "ENABLED" : "DISABLED";
+
+      document.getElementById("stripePayouts").textContent =
+        data.payoutsEnabled ? "ENABLED" : "DISABLED";
+
+      const dashboard = document.getElementById("stripeDashboardBtn");
+      dashboard.disabled = !data.dashboardUrl;
+      dashboard.dataset.url = data.dashboardUrl || "";
+
+    }catch(err){
+      badge.textContent = "NOT CONNECTED";
+      badge.className = "badge disabled";
+    }
+  }
+
+  const defaultIds = [
+    "dPackageName",
+    "dBasePrice",
+    "dIncludedVehicles",
+    "dIncludedServices",
+    "dBillingCycle",
+    "dExtraVehiclePrice",
+    "dExtraServicePrice",
+    "dPackageStatus"
+  ];
+
+  function lockDefault(locked){
+    defaultIds.forEach(id=>{
+      document.getElementById(id).disabled = locked;
+    });
+
+    document.getElementById("defaultEditBtn").disabled = !locked;
+    document.getElementById("defaultSaveBtn").disabled = locked;
+    document.getElementById("defaultCancelBtn").disabled = locked;
+  }
+
+  function fillDefault(row){
+    if(!row) return;
+
+    document.getElementById("dPackageName").value = row.packageName || "";
+    document.getElementById("dBasePrice").value = Number(row.basePrice || 0);
+    document.getElementById("dIncludedVehicles").value = Number(row.includedVehicles || 0);
+    document.getElementById("dIncludedServices").value = Number(row.includedServices || 0);
+    document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
+    document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
+    document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
+    document.getElementById("dPackageStatus").value = row.packageStatus || "ACTIVE";
+
+    const badge = document.getElementById("defaultPackageBadge");
+    badge.textContent = row.packageStatus || "ACTIVE";
+    badge.className =
+      "badge " + (row.packageStatus === "DISABLED" ? "disabled" : "active");
+
+    lockDefault(true);
+  }
+
+  function readDefault(){
+    return {
+      packageName:clean(document.getElementById("dPackageName").value),
+      basePrice:Number(document.getElementById("dBasePrice").value || 0),
+      includedVehicles:Number(document.getElementById("dIncludedVehicles").value || 0),
+      includedServices:Number(document.getElementById("dIncludedServices").value || 0),
+      billingCycle:document.getElementById("dBillingCycle").value,
+      extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
+      extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),
+      packageStatus:document.getElementById("dPackageStatus").value
+    };
+  }
+
+  async function loadBilling(preserveSelection=false){
+    try{
+      const oldId = state.selectedId;
+
+      const data = await api("/api/platform-subscription/bootstrap");
+
+      state.defaultPackage = data.defaultPackage || null;
+      state.companies = Array.isArray(data.companies) ? data.companies : [];
+
+      if(
+        preserveSelection &&
+        state.companies.some(row=>String(row.tenant?.id) === String(oldId))
+      ){
+        state.selectedId = oldId;
+      }else if(
+        !state.selectedId ||
+        !state.companies.some(row=>String(row.tenant?.id) === String(state.selectedId))
+      ){
+        state.selectedId = state.companies[0]?.tenant?.id || "";
+      }
+
+      fillDefault(state.defaultPackage);
+      renderSidebar();
+      renderCompany();
+
+    }catch(err){
+      companyList.innerHTML =
+        `<div class="empty-state">Unable to load companies.</div>`;
+
+      showMessage(err.message,"error");
+    }
+  }
+
+  document.querySelectorAll(".top-tab").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      setTopView(btn.dataset.view);
+    });
+  });
+
+  searchInput.addEventListener("input",()=>{
+    state.search = clean(searchInput.value).toLowerCase();
+    renderSidebar();
+  });
+
+  document.querySelectorAll(".filter-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      state.filter = btn.dataset.filter || "";
+
+      document.querySelectorAll(".filter-btn").forEach(x=>{
+        x.classList.toggle("active",x === btn);
+      });
+
+      renderSidebar();
+    });
+  });
+
+  companyList.addEventListener("click",event=>{
+    const item = event.target.closest("[data-company-id]");
+    if(!item) return;
+
+    state.selectedId = item.dataset.companyId;
+    renderSidebar();
+    renderCompany();
+  });
+
+  companyDetail.addEventListener("click",event=>{
+    const tab = event.target.closest("[data-tab]");
+    if(tab){
+      activateCompanyTab(tab.dataset.tab);
+      return;
+    }
+
+    const button = event.target.closest("[data-action]");
+    if(!button) return;
+
+    const action = button.dataset.action;
+
+    if(action === "toggle-company"){
+      toggleCompany();
+      return;
+    }
+
+    if(action === "edit-pricing"){
+      setPricingEdit(true);
+      return;
+    }
+
+    if(action === "preview-pricing"){
+      previewPricing();
+      return;
+    }
+
+    if(action === "save-pricing"){
+      saveCompany();
+      return;
+    }
+
+    if(action === "edit-usage"){
+      setUsageEdit(true);
+      return;
+    }
+
+    if(action === "save-usage"){
+      saveCompany();
+      return;
+    }
+
+    if(action === "cancel-company"){
+      renderCompany();
+      return;
+    }
+
+    if(action === "load-history"){
+      loadHistory(true);
+    }
+  });
 
   document.getElementById("defaultEditBtn")
     .addEventListener("click",()=>{
-      defaultBackup =
-        readDefault();
-
+      state.defaultBackup = readDefault();
       lockDefault(false);
     });
 
   document.getElementById("defaultCancelBtn")
     .addEventListener("click",()=>{
-      fillDefault(
-        defaultBackup ||
-        dataStore.defaultPackage
-      );
-
-      defaultBackup = null;
+      fillDefault(state.defaultBackup || state.defaultPackage);
+      state.defaultBackup = null;
     });
 
   document.getElementById("defaultSaveBtn")
@@ -841,26 +1066,17 @@ document.addEventListener("DOMContentLoaded",()=>{
       }
 
       try{
-        const result =
-          await api(
-            "/api/platform-subscription/default-package",
-            {
-              method:"PUT",
-              headers:{
-                "Content-Type":"application/json"
-              },
-              body:JSON.stringify(
-                readDefault()
-              )
-            }
-          );
-
-        dataStore.defaultPackage =
-          result.defaultPackage;
-
-        fillDefault(
-          result.defaultPackage
+        const result = await api(
+          "/api/platform-subscription/default-package",
+          {
+            method:"PUT",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(readDefault())
+          }
         );
+
+        state.defaultPackage = result.defaultPackage;
+        fillDefault(result.defaultPackage);
 
         showMessage(
           "Default Package saved. Existing company pricing was not changed.",
@@ -868,109 +1084,28 @@ document.addEventListener("DOMContentLoaded",()=>{
         );
 
       }catch(err){
-        showMessage(
-          err.message,
-          "error"
-        );
+        showMessage(err.message,"error");
       }
-    });
-
-  searchInput.addEventListener(
-    "input",
-    render
-  );
-
-  statusFilter.addEventListener(
-    "change",
-    render
-  );
-
-  document.getElementById("refreshBtn")
-    .addEventListener("click",()=>{
-      clearMessage();
-      loadBilling();
-      loadStripe();
     });
 
   document.getElementById("stripeRefreshBtn")
-    .addEventListener(
-      "click",
-      loadStripe
-    );
+    .addEventListener("click",loadStripe);
 
   document.getElementById("stripeDashboardBtn")
     .addEventListener("click",event=>{
-      const url =
-        clean(
-          event.currentTarget.dataset.url
-        );
-
+      const url = clean(event.currentTarget.dataset.url);
       if(url){
-        window.open(
-          url,
-          "_blank",
-          "noopener"
-        );
+        window.open(url,"_blank","noopener");
       }
     });
 
-  cards.addEventListener("click",event=>{
-    const button =
-      event.target.closest("button");
-
-    if(!button) return;
-
-    const card =
-      button.closest(".card");
-
-    if(!card) return;
-
-    const action =
-      button.dataset.action;
-
-    if(action === "edit"){
-      setEditing(card,true);
-      return;
-    }
-
-    if(action === "cancel"){
-      render();
-      return;
-    }
-
-    if(action === "preview"){
-      previewCard(card);
-      return;
-    }
-
-    if(action === "save"){
-      saveCard(card);
-      return;
-    }
-
-    if(action === "history"){
-      showHistory(card);
-    }
+  document.querySelectorAll("[data-close]").forEach(button=>{
+    button.addEventListener("click",()=>{
+      document.getElementById(button.dataset.close).classList.remove("show");
+    });
   });
 
-  document.querySelectorAll("[data-close]")
-    .forEach(button=>{
-      button.addEventListener("click",()=>{
-        closeModal(
-          button.dataset.close
-        );
-      });
-    });
-
-  document.querySelectorAll(".modal")
-    .forEach(modal=>{
-      modal.addEventListener("click",event=>{
-        if(event.target === modal){
-          modal.classList.remove("show");
-        }
-      });
-    });
-
+  setTopView("companies");
   loadStripe();
   loadBilling();
 });

@@ -271,6 +271,206 @@ router.get(
 );
 
 router.get(
+  "/payment-summary",
+  async (req,res)=>{
+    try{
+      const tenants = await Tenant.find({})
+        .sort({createdAt:-1});
+
+      const now = new Date();
+      const monthStart =
+        new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          1
+        );
+
+      const paidThisMonthAgg =
+        await TenantSubscriptionPayment.aggregate([
+          {
+            $match:{
+              status:"PAID",
+              paidAt:{
+                $gte:monthStart
+              }
+            }
+          },
+          {
+            $group:{
+              _id:null,
+              total:{
+                $sum:"$amount"
+              }
+            }
+          }
+        ]);
+
+      let recurringAmount = 0;
+      let outstanding = 0;
+      let activeCompanies = 0;
+      let disabledCompanies = 0;
+      let pastDueCompanies = 0;
+
+      const companies = [];
+
+      for(const tenant of tenants){
+        const data =
+          await ensureTenantPricing(tenant);
+
+        const subscription =
+          data.subscription;
+
+        const enabled =
+          tenant.enabled !== false;
+
+        let status =
+          enabled
+            ? clean(
+                subscription.status ||
+                tenant.subscriptionStatus ||
+                "ACTIVE"
+              ).toUpperCase()
+            : "DISABLED";
+
+        if(status === "ACTIVE"){
+          activeCompanies += 1;
+        }
+
+        if(status === "DISABLED"){
+          disabledCompanies += 1;
+        }
+
+        if(status === "PAST_DUE"){
+          pastDueCompanies += 1;
+        }
+
+        const amount =
+          Number(
+            data.pricing?.finalAmount ||
+            subscription.amount ||
+            0
+          );
+
+        if(enabled){
+          recurringAmount += amount;
+        }
+
+        if(
+          ["PAST_DUE","SUSPENDED"].includes(status)
+        ){
+          outstanding += amount;
+        }
+
+        companies.push({
+          tenantId:String(tenant._id),
+          name:tenant.name || "",
+          planName:subscription.planName || "",
+          amount,
+          lastPaymentDate:
+            subscription.lastPaymentDate || null,
+          nextPaymentDate:
+            subscription.nextBillingDate ||
+            subscription.dueDate ||
+            null,
+          status
+        });
+      }
+
+      return res.json({
+        success:true,
+        metrics:{
+          activeCompanies,
+          disabledCompanies,
+          pastDueCompanies,
+          recurringAmount:Number(recurringAmount.toFixed(2)),
+          paidThisMonth:Number(
+            (
+              paidThisMonthAgg[0]?.total ||
+              0
+            ).toFixed(2)
+          ),
+          outstanding:Number(outstanding.toFixed(2))
+        },
+        companies
+      });
+
+    }catch(err){
+      console.error(
+        "PAYMENT SUMMARY ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to load payment summary"
+      });
+    }
+  }
+);
+
+router.put(
+  "/tenants/:tenantId/enabled",
+  async (req,res)=>{
+    try{
+      if(
+        !mongoose.Types.ObjectId.isValid(
+          String(req.params.tenantId)
+        )
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Invalid tenant id"
+        });
+      }
+
+      const enabled =
+        req.body?.enabled === true;
+
+      const tenant =
+        await Tenant.findByIdAndUpdate(
+          req.params.tenantId,
+          {
+            $set:{
+              enabled
+            }
+          },
+          {
+            new:true,
+            runValidators:true
+          }
+        );
+
+      if(!tenant){
+        return res.status(404).json({
+          success:false,
+          message:"Tenant not found"
+        });
+      }
+
+      return res.json({
+        success:true,
+        tenant:{
+          id:String(tenant._id),
+          name:tenant.name || "",
+          enabled:tenant.enabled !== false
+        }
+      });
+
+    }catch(err){
+      console.error(
+        "TENANT ENABLE UPDATE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to update company access"
+      });
+    }
+  }
+);
+
+router.get(
   "/tenants/:tenantId/subscription",
   async (req,res)=>{
     try{
@@ -345,9 +545,6 @@ router.post(
       const draft =
         data.subscription.toObject();
 
-      /*
-        Preview without saving.
-      */
       Object.assign(draft,{
         planName:
           req.body?.planName !== undefined

@@ -9,165 +9,828 @@
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#172033}
-.page{width:min(1460px,calc(100% - 28px));margin:22px auto 50px}
-.shell{background:#fff;border:1px solid #d8e1e8;border-radius:15px;overflow:hidden;box-shadow:0 8px 26px rgba(7,26,54,.10)}
-.head{padding:23px;text-align:center;color:#fff;background:linear-gradient(135deg,#9b710d,#c79a21 48%,#e0b63d 75%,#a8780a)}
-.head h1{margin:0;font-size:26px;font-weight:950}
-.head p{margin:6px 0 0;font-size:12px;font-weight:800}
-.section{margin:16px;border:1px solid #d8e1e8;border-radius:11px;overflow:hidden;background:#fff}
-.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:linear-gradient(180deg,#123b67,#071a36);color:#fff}
-.section-title.stripe{background:linear-gradient(180deg,#4c1d95,#312e81)}
-.section-title h2{margin:0;font-size:14px;font-weight:950}
-.section-body{padding:14px}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.field label{display:block;margin-bottom:5px;font-size:10px;font-weight:900;color:#657083;text-transform:uppercase}
-.field input,.field select{width:100%;height:38px;border:1px solid #bcc9d3;border-radius:7px;padding:0 10px;background:#fff;font-size:12px;font-weight:700}
-.field input:disabled,.field select:disabled{background:#eef2f6;color:#6b7280}
-.info{padding:11px;border:1px solid #e1e8ee;border-radius:8px;background:#f8fafc}
-.info span{display:block;font-size:9px;font-weight:900;text-transform:uppercase;color:#6b7280}
-.info strong{display:block;margin-top:5px;font-size:14px}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.btn{height:38px;border:0;border-radius:7px;padding:0 14px;font-size:11px;font-weight:900;cursor:pointer}
-.btn.primary{background:#0b4b73;color:#fff}
+
+:root{
+  --navy:#0b2747;
+  --navy2:#123b67;
+  --gold:#c89b27;
+  --gold2:#e0b63d;
+  --bg:#eef4f8;
+  --line:#d8e1e8;
+  --muted:#6b7280;
+  --green:#15803d;
+  --green-bg:#dcfce7;
+  --red:#b91c1c;
+  --red-bg:#fee2e2;
+  --amber:#b45309;
+  --amber-bg:#fef3c7;
+  --blue:#1d4ed8;
+  --blue-bg:#dbeafe;
+}
+
+body{
+  margin:0;
+  font-family:"Segoe UI",Arial,sans-serif;
+  background:var(--bg);
+  color:#172033;
+}
+
+.page{
+  width:min(1540px,calc(100% - 24px));
+  margin:18px auto 42px;
+}
+
+.shell{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 10px 28px rgba(7,26,54,.10);
+}
+
+.hero{
+  padding:22px 26px;
+  background:linear-gradient(135deg,#9b710d,#c79a21 48%,#e0b63d 75%,#a8780a);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.hero h1{
+  margin:0;
+  font-size:26px;
+  font-weight:950;
+}
+
+.hero p{
+  margin:5px 0 0;
+  font-size:12px;
+  font-weight:800;
+  opacity:.92;
+}
+
+.hero-tabs{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.top-tab{
+  border:1px solid rgba(255,255,255,.35);
+  background:rgba(255,255,255,.15);
+  color:#fff;
+  padding:9px 13px;
+  border-radius:9px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.top-tab.active{
+  background:#fff;
+  color:#7a5700;
+}
+
+.message{
+  display:none;
+  margin:14px 16px 0;
+  padding:11px 13px;
+  border-radius:8px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.message.show{display:block}
+.message.ok{background:var(--green-bg);color:var(--green)}
+.message.error{background:var(--red-bg);color:var(--red)}
+
+.workspace{
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+  min-height:720px;
+}
+
+.sidebar{
+  border-right:1px solid var(--line);
+  background:#f8fafc;
+}
+
+.sidebar-head{
+  padding:14px;
+  border-bottom:1px solid var(--line);
+}
+
+.sidebar-head h2{
+  margin:0 0 10px;
+  font-size:13px;
+  color:var(--navy);
+}
+
+.search{
+  width:100%;
+  height:39px;
+  border:1px solid #bcc9d3;
+  border-radius:8px;
+  padding:0 10px;
+  background:#fff;
+}
+
+.sidebar-filters{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin-top:9px;
+}
+
+.filter-btn{
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:8px;
+  height:34px;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+  color:#475569;
+}
+
+.filter-btn.active{
+  border-color:var(--navy2);
+  color:#fff;
+  background:var(--navy2);
+}
+
+.company-list{
+  padding:8px;
+  max-height:650px;
+  overflow:auto;
+}
+
+.company-item{
+  width:100%;
+  border:1px solid transparent;
+  background:transparent;
+  padding:10px;
+  border-radius:9px;
+  margin-bottom:5px;
+  text-align:left;
+  cursor:pointer;
+}
+
+.company-item:hover{
+  background:#eef3f8;
+}
+
+.company-item.active{
+  background:#fff;
+  border-color:#b9c8d5;
+  box-shadow:0 3px 10px rgba(7,26,54,.08);
+}
+
+.company-item-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+.company-item-name{
+  font-size:11px;
+  font-weight:900;
+  color:#172033;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.company-item-sub{
+  margin-top:4px;
+  font-size:9px;
+  color:#7a8491;
+}
+
+.main{
+  min-width:0;
+  background:#fff;
+}
+
+.empty-state{
+  padding:70px 25px;
+  text-align:center;
+  color:#6b7280;
+  font-weight:800;
+}
+
+.company-header{
+  padding:16px 18px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  background:#fff;
+}
+
+.company-title h2{
+  margin:0;
+  font-size:20px;
+  color:var(--navy);
+}
+
+.company-title p{
+  margin:4px 0 0;
+  font-size:10px;
+  color:#768190;
+}
+
+.company-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 10px;
+  min-width:70px;
+  border-radius:999px;
+  font-size:9px;
+  font-weight:950;
+}
+
+.badge.active,.badge.connected,.badge.paid{
+  background:var(--green-bg);
+  color:var(--green);
+}
+
+.badge.disabled,.badge.suspended,.badge.failed,.badge.canceled{
+  background:var(--red-bg);
+  color:var(--red);
+}
+
+.badge.pending,.badge.processing,.badge.past_due{
+  background:var(--amber-bg);
+  color:var(--amber);
+}
+
+.btn{
+  height:38px;
+  border:0;
+  border-radius:8px;
+  padding:0 14px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn.primary{background:var(--navy2);color:#fff}
 .btn.gold{background:linear-gradient(180deg,#cda32d,#a8790c);color:#fff}
 .btn.gray{background:#e5e7eb;color:#374151}
-.btn.purple{background:#635bff;color:#fff}
+.btn.green{background:#15803d;color:#fff}
+.btn.red{background:#b91c1c;color:#fff}
+.btn.blue{background:#1d4ed8;color:#fff}
 .btn:disabled{opacity:.48;cursor:not-allowed}
-.badge{padding:6px 10px;border-radius:999px;font-size:9px;font-weight:950;background:#e5e7eb;color:#374151}
-.badge.active,.badge.connected,.badge.paid{background:#dcfce7;color:#166534}
-.badge.disabled,.badge.suspended,.badge.failed,.badge.canceled{background:#fee2e2;color:#991b1b}
-.badge.pending,.badge.processing,.badge.past_due{background:#fef3c7;color:#92400e}
-.toolbar{display:flex;gap:9px;padding:15px 16px;background:#f8fafc;border-top:1px solid #d8e1e8;border-bottom:1px solid #d8e1e8}
-.toolbar input{flex:1;height:40px;border:1px solid #bcc9d3;border-radius:8px;padding:0 12px}
-.toolbar select{height:40px;border:1px solid #bcc9d3;border-radius:8px;padding:0 10px;background:#fff}
-.message{display:none;margin:15px 16px 0;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:800}
-.message.show{display:block}
-.message.ok{background:#dcfce7;color:#166534}
-.message.error{background:#fee2e2;color:#991b1b}
-.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px}
-.card{border:1px solid #d8e1e8;border-radius:11px;overflow:hidden;background:#fff}
-.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;background:linear-gradient(180deg,#123b67,#071a36);color:#fff}
-.card-name{font-size:14px;font-weight:950}
-.card-slug{margin-top:3px;font-size:10px;opacity:.78}
-.card-body{padding:13px}
-.subhead{margin:3px 0 9px;font-size:12px;font-weight:950;color:#123b67}
-.usage{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
-.usage .info strong{font-size:13px}
-.controls{width:100%;border-collapse:collapse;margin-bottom:12px}
-.controls th,.controls td{padding:7px 5px;border-bottom:1px solid #edf1f4;font-size:10px}
-.controls th{text-transform:uppercase;color:#657083}
-.controls th:nth-child(2),.controls th:nth-child(3),.controls td:nth-child(2),.controls td:nth-child(3){width:70px;text-align:center}
-.controls input{width:17px;height:17px}
-.company-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.total{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:11px;border:1px solid #e4ca72;border-radius:8px;background:#fff8da}
-.total span{font-size:11px;font-weight:900}
-.total strong{font-size:18px;color:#7a5700}
-.empty{grid-column:1/-1;padding:35px;text-align:center;color:#6b7280;font-weight:800}
-.modal{display:none;position:fixed;z-index:99999;inset:0;background:rgba(10,20,35,.58);padding:24px;overflow:auto}
+
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  padding:16px 18px;
+  border-bottom:1px solid var(--line);
+  background:#f8fafc;
+}
+
+.summary-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:13px;
+}
+
+.summary-card span{
+  display:block;
+  font-size:9px;
+  text-transform:uppercase;
+  color:#6b7280;
+  font-weight:900;
+}
+
+.summary-card strong{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
+  color:var(--navy);
+}
+
+.detail-tabs{
+  display:flex;
+  gap:6px;
+  padding:12px 18px 0;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+
+.detail-tab{
+  border:0;
+  background:transparent;
+  padding:10px 12px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  color:#6b7280;
+  border-bottom:3px solid transparent;
+}
+
+.detail-tab.active{
+  color:var(--navy2);
+  border-bottom-color:var(--gold);
+}
+
+.panel{
+  display:none;
+  padding:18px;
+}
+
+.panel.active{
+  display:block;
+}
+
+.section{
+  border:1px solid var(--line);
+  border-radius:11px;
+  overflow:hidden;
+  margin-bottom:14px;
+}
+
+.section-title{
+  background:linear-gradient(180deg,var(--navy2),var(--navy));
+  color:#fff;
+  padding:11px 13px;
+  font-size:12px;
+  font-weight:950;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.section-body{
+  padding:13px;
+}
+
+.grid-4{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+
+.grid-3{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.info{
+  padding:11px;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#f8fafc;
+}
+
+.info span{
+  display:block;
+  font-size:9px;
+  color:#6b7280;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.info strong{
+  display:block;
+  margin-top:5px;
+  font-size:13px;
+}
+
+.field label{
+  display:block;
+  margin-bottom:5px;
+  font-size:9px;
+  color:#6b7280;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.field input,
+.field select{
+  width:100%;
+  height:38px;
+  border:1px solid #bcc9d3;
+  border-radius:7px;
+  padding:0 10px;
+  font-size:12px;
+  background:#fff;
+  font-weight:700;
+}
+
+.field input:disabled,
+.field select:disabled{
+  background:#eef2f6;
+  color:#6b7280;
+}
+
+.table-wrap{
+  overflow:auto;
+}
+
+.table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:650px;
+}
+
+.table th,
+.table td{
+  padding:9px 8px;
+  border-bottom:1px solid #e8edf2;
+  text-align:left;
+  font-size:10px;
+}
+
+.table th{
+  color:#657083;
+  text-transform:uppercase;
+  font-weight:950;
+  background:#f8fafc;
+}
+
+.toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:9px;
+  font-weight:900;
+}
+
+.toggle input{
+  width:17px;
+  height:17px;
+}
+
+.toggle.on{color:var(--green)}
+.toggle.off{color:var(--red)}
+.toggle.free{color:var(--amber)}
+
+.price-box{
+  border:1px solid #e4ca72;
+  background:#fff8da;
+  border-radius:10px;
+  padding:14px;
+}
+
+.price-line{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:7px 0;
+  border-bottom:1px dashed #e7d487;
+  font-size:11px;
+  font-weight:800;
+}
+
+.price-line:last-child{border-bottom:0}
+
+.price-total{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:2px solid #d6b24e;
+  font-size:15px;
+  font-weight:950;
+  color:#7a5700;
+}
+
+.actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+
+.summary-page{
+  display:none;
+  padding:18px;
+}
+
+.summary-page.active{
+  display:block;
+}
+
+.summary-top{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.metric{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  padding:13px;
+}
+
+.metric span{
+  font-size:9px;
+  text-transform:uppercase;
+  color:#6b7280;
+  font-weight:900;
+}
+
+.metric strong{
+  display:block;
+  margin-top:6px;
+  font-size:17px;
+  color:var(--navy);
+}
+
+.settings-page{
+  display:none;
+  padding:18px;
+}
+
+.settings-page.active{
+  display:block;
+}
+
+.stripe-box{
+  border:1px solid var(--line);
+  border-radius:11px;
+  overflow:hidden;
+  margin-bottom:14px;
+}
+
+.stripe-title{
+  background:linear-gradient(180deg,#4c1d95,#312e81);
+  color:#fff;
+  padding:11px 13px;
+  font-size:12px;
+  font-weight:950;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.modal{
+  display:none;
+  position:fixed;
+  z-index:99999;
+  inset:0;
+  background:rgba(10,20,35,.58);
+  padding:24px;
+  overflow:auto;
+}
+
 .modal.show{display:block}
-.modal-box{width:min(880px,100%);margin:38px auto;background:#fff;border-radius:11px;overflow:hidden}
-.modal-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:#071a36;color:#fff}
-.modal-head h3{margin:0;font-size:15px}
-.modal-close{border:0;background:transparent;color:#fff;font-size:20px;cursor:pointer}
-.modal-body{padding:15px}
-.breakdown{width:100%;border-collapse:collapse}
-.breakdown th,.breakdown td{padding:9px;border-bottom:1px solid #e7edf2;font-size:12px}
-.breakdown th:last-child,.breakdown td:last-child{text-align:right}
-@media(max-width:1100px){.cards{grid-template-columns:1fr}.grid,.usage{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:720px){.grid,.usage,.company-grid{grid-template-columns:1fr}.page{width:calc(100% - 12px)}}
+
+.modal-box{
+  width:min(900px,100%);
+  margin:40px auto;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.modal-head{
+  background:var(--navy);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:13px 15px;
+}
+
+.modal-head h3{
+  margin:0;
+  font-size:14px;
+}
+
+.modal-close{
+  border:0;
+  background:transparent;
+  color:#fff;
+  font-size:20px;
+  cursor:pointer;
+}
+
+.modal-body{
+  padding:15px;
+}
+
+@media(max-width:1180px){
+  .workspace{grid-template-columns:240px minmax(0,1fr)}
+  .summary-grid,.grid-4{grid-template-columns:repeat(2,1fr)}
+  .summary-top{grid-template-columns:repeat(3,1fr)}
+}
+
+@media(max-width:820px){
+  .workspace{grid-template-columns:1fr}
+  .sidebar{border-right:0;border-bottom:1px solid var(--line)}
+  .company-list{max-height:240px}
+  .grid-3,.summary-grid,.grid-4,.summary-top{grid-template-columns:1fr}
+  .hero{align-items:flex-start;flex-direction:column}
+}
 </style>
 </head>
 
 <body>
+
 <div id="platformHeader"></div>
 
 <main class="page">
 <section class="shell">
 
-  <div class="head">
-    <h1>SaaS Billing</h1>
-    <p>Manage packages, usage, pricing and company subscription payments.</p>
+  <div class="hero">
+    <div>
+      <h1>SaaS Billing</h1>
+      <p>Manage subscriptions, pricing, company access and payment activity.</p>
+    </div>
+
+    <div class="hero-tabs">
+      <button class="top-tab active" data-view="companies" type="button">Companies</button>
+      <button class="top-tab" data-view="summary" type="button">Payment Summary</button>
+      <button class="top-tab" data-view="settings" type="button">Default Package</button>
+    </div>
   </div>
 
   <div class="message" id="messageBox"></div>
 
-  <section class="section">
-    <div class="section-title stripe">
-      <h2>Stripe Account Status</h2>
-      <span class="badge" id="stripeStatusBadge">CHECKING</span>
-    </div>
+  <section id="companiesView" class="workspace">
 
-    <div class="section-body">
-      <div class="grid">
-        <div class="info"><span>Stripe Account</span><strong id="stripeAccountId">--</strong></div>
-        <div class="info"><span>Mode</span><strong id="stripeMode">--</strong></div>
-        <div class="info"><span>Charges</span><strong id="stripeCharges">--</strong></div>
-        <div class="info"><span>Payouts</span><strong id="stripePayouts">--</strong></div>
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>Companies</h2>
+
+        <input
+          id="searchInput"
+          class="search"
+          type="search"
+          placeholder="Search company..."
+        >
+
+        <div class="sidebar-filters">
+          <button class="filter-btn active" data-filter="" type="button">All</button>
+          <button class="filter-btn" data-filter="ACTIVE" type="button">Active</button>
+          <button class="filter-btn" data-filter="PAST_DUE" type="button">Past Due</button>
+          <button class="filter-btn" data-filter="DISABLED" type="button">Disabled</button>
+        </div>
       </div>
 
-      <div class="actions">
-        <button class="btn primary" id="stripeRefreshBtn" type="button">Refresh Stripe</button>
-        <button class="btn purple" id="stripeDashboardBtn" type="button" disabled>Open Stripe Dashboard</button>
+      <div id="companyList" class="company-list">
+        <div class="empty-state">Loading companies...</div>
       </div>
-    </div>
+    </aside>
+
+    <section class="main">
+      <div id="companyDetail" class="empty-state">
+        Select a company to view billing details.
+      </div>
+    </section>
+
   </section>
 
-  <section class="section">
-    <div class="section-title">
-      <h2>Default Package Settings</h2>
-      <span class="badge active" id="defaultPackageBadge">ACTIVE</span>
-    </div>
+  <section id="summaryView" class="summary-page">
 
-    <div class="section-body">
-      <div class="grid">
-        <div class="field"><label>Package Name</label><input id="dPackageName" disabled></div>
-        <div class="field"><label>Base Price</label><input id="dBasePrice" type="number" min="0" step="0.01" disabled></div>
-        <div class="field"><label>Included Vehicles</label><input id="dIncludedVehicles" type="number" min="0" disabled></div>
-        <div class="field"><label>Included Services</label><input id="dIncludedServices" type="number" min="0" disabled></div>
-        <div class="field"><label>Billing Cycle</label><select id="dBillingCycle" disabled><option value="MONTHLY">Monthly</option><option value="ANNUAL">Annual</option></select></div>
-        <div class="field"><label>Extra Vehicle Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
-        <div class="field"><label>Extra Service Price</label><input id="dExtraServicePrice" type="number" min="0" step="0.01" disabled></div>
-        <div class="field"><label>Package Status</label><select id="dPackageStatus" disabled><option value="ACTIVE">Active</option><option value="DISABLED">Disabled</option></select></div>
+    <div class="summary-top">
+      <div class="metric">
+        <span>Active Companies</span>
+        <strong id="mActive">0</strong>
       </div>
 
-      <div class="actions">
-        <button class="btn primary" id="defaultEditBtn" type="button">Edit</button>
-        <button class="btn gold" id="defaultSaveBtn" type="button" disabled>Save Default Package</button>
-        <button class="btn gray" id="defaultCancelBtn" type="button" disabled>Cancel</button>
+      <div class="metric">
+        <span>Disabled Companies</span>
+        <strong id="mDisabled">0</strong>
+      </div>
+
+      <div class="metric">
+        <span>Past Due</span>
+        <strong id="mPastDue">0</strong>
+      </div>
+
+      <div class="metric">
+        <span>Recurring Amount</span>
+        <strong id="mRecurring">$0.00</strong>
+      </div>
+
+      <div class="metric">
+        <span>Paid This Month</span>
+        <strong id="mPaidMonth">$0.00</strong>
+      </div>
+
+      <div class="metric">
+        <span>Outstanding</span>
+        <strong id="mOutstanding">$0.00</strong>
       </div>
     </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>Company Payment Summary</span>
+      </div>
+
+      <div class="section-body table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Plan</th>
+              <th>Amount</th>
+              <th>Last Payment</th>
+              <th>Next Payment</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
   </section>
 
-  <div class="toolbar">
-    <input id="searchInput" type="search" placeholder="Search company...">
-    <select id="statusFilter">
-      <option value="">All Statuses</option>
-      <option value="ACTIVE">Active</option>
-      <option value="TRIAL">Trial</option>
-      <option value="PAST_DUE">Past Due</option>
-      <option value="SUSPENDED">Suspended</option>
-      <option value="DISABLED">Disabled</option>
-    </select>
-    <button class="btn primary" id="refreshBtn" type="button">Refresh</button>
-  </div>
+  <section id="settingsView" class="settings-page">
 
-  <div class="cards" id="companyCards">
-    <div class="empty">Loading companies...</div>
-  </div>
+    <div class="stripe-box">
+      <div class="stripe-title">
+        <span>Stripe Receiving Account</span>
+        <span class="badge" id="stripeStatusBadge">CHECKING</span>
+      </div>
+
+      <div class="section-body">
+        <div class="grid-4">
+          <div class="info"><span>Stripe Account</span><strong id="stripeAccountId">--</strong></div>
+          <div class="info"><span>Mode</span><strong id="stripeMode">--</strong></div>
+          <div class="info"><span>Charges</span><strong id="stripeCharges">--</strong></div>
+          <div class="info"><span>Payouts</span><strong id="stripePayouts">--</strong></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="stripeRefreshBtn" type="button">Refresh Stripe</button>
+          <button class="btn blue" id="stripeDashboardBtn" type="button" disabled>Open Stripe Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>Default Package Settings</span>
+        <span class="badge active" id="defaultPackageBadge">ACTIVE</span>
+      </div>
+
+      <div class="section-body">
+        <div class="grid-4">
+          <div class="field"><label>Package Name</label><input id="dPackageName" disabled></div>
+          <div class="field"><label>Base Price</label><input id="dBasePrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Included Vehicles</label><input id="dIncludedVehicles" type="number" min="0" disabled></div>
+          <div class="field"><label>Included Services</label><input id="dIncludedServices" type="number" min="0" disabled></div>
+
+          <div class="field">
+            <label>Billing Cycle</label>
+            <select id="dBillingCycle" disabled>
+              <option value="MONTHLY">Monthly</option>
+              <option value="ANNUAL">Annual</option>
+            </select>
+          </div>
+
+          <div class="field"><label>Extra Vehicle Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Service Price</label><input id="dExtraServicePrice" type="number" min="0" step="0.01" disabled></div>
+
+          <div class="field">
+            <label>Package Status</label>
+            <select id="dPackageStatus" disabled>
+              <option value="ACTIVE">Active</option>
+              <option value="DISABLED">Disabled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="defaultEditBtn" type="button">Edit</button>
+          <button class="btn gold" id="defaultSaveBtn" type="button" disabled>Save Default Package</button>
+          <button class="btn gray" id="defaultCancelBtn" type="button" disabled>Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </section>
 
 </section>
 </main>
-
-<div class="modal" id="previewModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3>Pricing Preview</h3>
-      <button class="modal-close" data-close="previewModal" type="button">×</button>
-    </div>
-    <div class="modal-body" id="previewBody"></div>
-  </div>
-</div>
 
 <div class="modal" id="historyModal">
   <div class="modal-box">
@@ -180,6 +843,7 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 </div>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=SAAS-BILLING-FULL-V1-20260827"></script>
+<script src="/platform-admin/billing.js?v=WORKSPACE-V1-20260828"></script>
+
 </body>
 </html>
