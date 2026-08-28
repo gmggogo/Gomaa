@@ -252,6 +252,7 @@ const admin=[
 const extra=[
 {l:"Admin Billing",h:"admin-billing.html",i:"doc"},
 {l:"Payments",h:"payments.html",i:"money"},
+{l:"Payroll",h:"payroll.html",i:"money"},
 {l:"Taxes",h:"tax-report.html",i:"chart"},
 {g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}
 ];
