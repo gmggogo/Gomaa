@@ -179,7 +179,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     let cls = enabled ? "on" : "off";
 
     if(kind === "billing" && !enabled){
-      label = "Free";
+      label = "Disabled";
       cls = "free";
     }
 
@@ -508,7 +508,7 @@ document.addEventListener("DOMContentLoaded",()=>{
             text.textContent = "Enabled";
           }else{
             label.className = "toggle free";
-            text.textContent = "Free";
+            text.textContent = "Disabled";
           }
         }else{
           if(input.checked){

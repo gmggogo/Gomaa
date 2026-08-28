@@ -470,19 +470,53 @@ body{
 .toggle{
   display:inline-flex;
   align-items:center;
-  gap:6px;
+  gap:7px;
   font-size:9px;
   font-weight:900;
 }
 
 .toggle input{
-  width:17px;
-  height:17px;
+  appearance:none;
+  -webkit-appearance:none;
+  width:20px;
+  height:20px;
+  margin:0;
+  border:2px solid var(--red);
+  border-radius:5px;
+  background:var(--red-bg);
+  display:inline-grid;
+  place-content:center;
+  cursor:pointer;
+  transition:none;
+}
+
+.toggle input::before{
+  content:"";
+  width:9px;
+  height:5px;
+  border-left:2px solid #fff;
+  border-bottom:2px solid #fff;
+  transform:rotate(-45deg) scale(0);
+  transform-origin:center;
+}
+
+.toggle input:checked{
+  border-color:var(--green);
+  background:var(--green);
+}
+
+.toggle input:checked::before{
+  transform:rotate(-45deg) scale(1);
+}
+
+.toggle input:disabled{
+  cursor:not-allowed;
+  opacity:.95;
 }
 
 .toggle.on{color:var(--green)}
 .toggle.off{color:var(--red)}
-.toggle.free{color:var(--amber)}
+.toggle.free{color:var(--red)}
 
 .price-box{
   border:1px solid #e4ca72;
