@@ -973,4 +973,4 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   loadStripe();
   loadBilling();
-});`
+});
