@@ -30,6 +30,8 @@ const E = {
   status:$("subscriptionStatus"),
   plan:$("planName"),
   planPrice:$("planPrice"),
+  vehicleUsage:$("vehicleUsage"),
+  serviceUsage:$("serviceUsage"),
   amount:$("invoiceAmount"),
   next:$("nextPayment"),
   grace:$("gracePeriod"),
@@ -39,7 +41,18 @@ const E = {
   access:$("accessState"),
   pay:$("payNowBtn"),
   history:$("historyBody"),
-  msg:$("messageBox")
+  msg:$("messageBox"),
+
+  basePackageAmount:$("basePackageAmount"),
+  actualVehicles:$("actualVehicles"),
+  includedVehicles:$("includedVehicles"),
+  extraVehiclesLine:$("extraVehiclesLine"),
+  enabledServices:$("enabledServices"),
+  includedServices:$("includedServices"),
+  extraServicesLine:$("extraServicesLine"),
+  discountAmount:$("discountAmount"),
+  creditAmount:$("creditAmount"),
+  finalPlanPrice:$("finalPlanPrice")
 };
 
 let current = null;
@@ -99,6 +112,8 @@ function render(data){
 
   const s = data.subscription || {};
   const t = data.tenant || {};
+  const p = data.pricing || {};
+  const u = data.usage || {};
 
   E.company.textContent =
     t.name ||
@@ -118,6 +133,41 @@ function render(data){
 
   E.plan.textContent = s.planName || "GH Mobility";
   E.planPrice.textContent = money(s.planPrice);
+
+  const actualVehicles =
+    Number(
+      p.actualVehicles ??
+      u.actualVehicles ??
+      0
+    );
+
+  const includedVehicles =
+    Number(
+      p.includedVehicles ??
+      s.includedVehicles ??
+      0
+    );
+
+  const enabledServices =
+    Number(
+      p.enabledServices ??
+      u.enabledServices ??
+      0
+    );
+
+  const includedServices =
+    Number(
+      p.includedServices ??
+      s.includedServices ??
+      0
+    );
+
+  E.vehicleUsage.textContent =
+    actualVehicles + " / " + includedVehicles;
+
+  E.serviceUsage.textContent =
+    enabledServices + " / " + includedServices;
+
   E.amount.textContent = money(s.amountDue);
   E.next.textContent = dateText(s.nextBillingDate);
   E.grace.textContent = Number(s.graceDays || 0) + " days";
@@ -125,6 +175,80 @@ function render(data){
   E.due.textContent = dateText(s.dueDate);
   E.last.textContent = dateText(s.lastPaymentDate);
   E.access.textContent = s.locked ? "PAYMENT REQUIRED" : "ACTIVE";
+
+  const extraVehicles =
+    Number(
+      p.billableExtraVehicles ??
+      p.extraVehicles ??
+      0
+    );
+
+  const extraServices =
+    Number(
+      p.billableExtraServices ??
+      p.extraServices ??
+      0
+    );
+
+  const extraVehiclePrice =
+    Number(
+      p.extraVehiclePrice ??
+      s.extraVehiclePrice ??
+      0
+    );
+
+  const extraServicePrice =
+    Number(
+      p.extraServicePrice ??
+      s.extraServicePrice ??
+      0
+    );
+
+  E.basePackageAmount.textContent =
+    money(
+      p.baseAmount ??
+      s.basePrice ??
+      0
+    );
+
+  E.actualVehicles.textContent =
+    actualVehicles;
+
+  E.includedVehicles.textContent =
+    includedVehicles;
+
+  E.extraVehiclesLine.textContent =
+    extraVehicles +
+    " × " +
+    money(extraVehiclePrice) +
+    " = " +
+    money(p.vehicleAmount || 0);
+
+  E.enabledServices.textContent =
+    enabledServices;
+
+  E.includedServices.textContent =
+    includedServices;
+
+  E.extraServicesLine.textContent =
+    extraServices +
+    " × " +
+    money(extraServicePrice) +
+    " = " +
+    money(p.serviceAmount || 0);
+
+  E.discountAmount.textContent =
+    "-" + money(p.discount || 0);
+
+  E.creditAmount.textContent =
+    "-" + money(p.credit || 0);
+
+  E.finalPlanPrice.textContent =
+    money(
+      p.finalAmount ??
+      s.planPrice ??
+      0
+    );
 
   const amount = Number(s.amountDue || 0);
   const canPay = s.canPay === true && amount > 0;

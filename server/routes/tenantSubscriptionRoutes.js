@@ -360,7 +360,7 @@ router.get(
       const tenant =
         await Tenant.findById(
           req.authUser.tenantId
-        ).lean();
+        );
 
       if(!tenant){
         return res.status(404).json({
@@ -369,10 +369,24 @@ router.get(
         });
       }
 
-      const subscription =
-        await ensureSubscription(
-          tenant._id
+      /*
+        Use the same pricing engine used by Platform Billing.
+        This keeps the company payment page synchronized with
+        actual vehicles, enabled services and the final price.
+      */
+      const pricingData =
+        await ensureTenantPricing(
+          tenant
         );
+
+      const subscription =
+        pricingData.subscription;
+
+      const pricing =
+        pricingData.pricing || {};
+
+      const usage =
+        pricingData.usage || {};
 
       const state =
         runtime(subscription);
@@ -446,7 +460,176 @@ router.get(
             subscription.lastPaymentDate,
 
           locked:
-            state.locked
+            state.locked,
+
+          basePrice:
+            Number(
+              subscription.basePrice ||
+              0
+            ),
+
+          includedVehicles:
+            Number(
+              subscription.includedVehicles ||
+              0
+            ),
+
+          includedServices:
+            Number(
+              subscription.includedServices ||
+              0
+            ),
+
+          extraVehiclePrice:
+            Number(
+              subscription.extraVehiclePrice ||
+              0
+            ),
+
+          extraServicePrice:
+            Number(
+              subscription.extraServicePrice ||
+              0
+            ),
+
+          freeExtraVehicles:
+            Number(
+              subscription.freeExtraVehicles ||
+              0
+            ),
+
+          freeExtraServices:
+            Number(
+              subscription.freeExtraServices ||
+              0
+            ),
+
+          discount:
+            Number(
+              subscription.discount ||
+              0
+            ),
+
+          credit:
+            Number(
+              subscription.credit ||
+              0
+            )
+        },
+
+        usage:{
+          actualVehicles:
+            Number(
+              usage.actualVehicles ||
+              pricing.actualVehicles ||
+              0
+            ),
+
+          enabledServices:
+            Number(
+              usage.enabledServices ||
+              pricing.enabledServices ||
+              0
+            )
+        },
+
+        pricing:{
+          actualVehicles:
+            Number(
+              pricing.actualVehicles ||
+              0
+            ),
+
+          enabledServices:
+            Number(
+              pricing.enabledServices ||
+              0
+            ),
+
+          includedVehicles:
+            Number(
+              pricing.includedVehicles ||
+              0
+            ),
+
+          includedServices:
+            Number(
+              pricing.includedServices ||
+              0
+            ),
+
+          extraVehicles:
+            Number(
+              pricing.extraVehicles ||
+              0
+            ),
+
+          extraServices:
+            Number(
+              pricing.extraServices ||
+              0
+            ),
+
+          billableExtraVehicles:
+            Number(
+              pricing.billableExtraVehicles ||
+              0
+            ),
+
+          billableExtraServices:
+            Number(
+              pricing.billableExtraServices ||
+              0
+            ),
+
+          baseAmount:
+            Number(
+              pricing.baseAmount ||
+              0
+            ),
+
+          extraVehiclePrice:
+            Number(
+              pricing.extraVehiclePrice ||
+              0
+            ),
+
+          extraServicePrice:
+            Number(
+              pricing.extraServicePrice ||
+              0
+            ),
+
+          vehicleAmount:
+            Number(
+              pricing.vehicleAmount ||
+              0
+            ),
+
+          serviceAmount:
+            Number(
+              pricing.serviceAmount ||
+              0
+            ),
+
+          discount:
+            Number(
+              pricing.discount ||
+              0
+            ),
+
+          credit:
+            Number(
+              pricing.credit ||
+              0
+            ),
+
+          finalAmount:
+            Number(
+              pricing.finalAmount ||
+              billing.planPrice ||
+              0
+            )
         },
 
         history
