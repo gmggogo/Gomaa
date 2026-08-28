@@ -1,31 +1,292 @@
 "use strict";
 
 const express = require("express");
+const mongoose = require("mongoose");
+
 const router = express.Router();
 
 const Tenant = require("../models/Tenant");
-const TenantSubscription = require("../models/TenantSubscription");
+const TenantSubscriptionPayment =
+  require("../models/TenantSubscriptionPayment");
 
 const {
   verifyToken,
   requireRole
 } = require("../middleware/authmiddleware");
 
+const {
+  clean,
+  nonNegative,
+  whole,
+  nullableMoney,
+  normalizeCycle,
+  getDefaultPackage,
+  calculatePricing,
+  ensureTenantPricing
+} = require("../utils/saasPricingEngine");
+
 router.use(
   verifyToken,
   requireRole("PLATFORM_ADMIN")
 );
 
-function clean(v){
-  return String(v ?? "").trim();
+function normalizeStatus(v){
+  const status = clean(v).toUpperCase();
+
+  return [
+    "ACTIVE",
+    "TRIAL",
+    "PAST_DUE",
+    "SUSPENDED"
+  ].includes(status)
+    ? status
+    : "ACTIVE";
 }
+
+function normalizeControlRows(rows){
+  return (Array.isArray(rows) ? rows : [])
+    .map(row=>({
+      key:clean(row.key),
+      label:clean(row.label) || clean(row.key),
+      accessEnabled:row.accessEnabled !== false,
+      billingEnabled:row.billingEnabled !== false
+    }))
+    .filter(row=>row.key);
+}
+
+function applyCompanyPayload(subscription,body){
+  if(body.planName !== undefined){
+    subscription.planName =
+      clean(body.planName) ||
+      subscription.planName;
+  }
+
+  if(body.billingCycle !== undefined){
+    subscription.billingCycle =
+      normalizeCycle(body.billingCycle);
+  }
+
+  if(body.basePackageEnabled !== undefined){
+    subscription.basePackageEnabled =
+      body.basePackageEnabled === true;
+  }
+
+  [
+    "basePrice",
+    "extraVehiclePrice",
+    "extraServicePrice",
+    "discount",
+    "credit"
+  ].forEach(field=>{
+    if(body[field] !== undefined){
+      subscription[field] =
+        nonNegative(body[field]);
+    }
+  });
+
+  [
+    "includedVehicles",
+    "includedServices",
+    "freeExtraVehicles",
+    "freeExtraServices"
+  ].forEach(field=>{
+    if(body[field] !== undefined){
+      subscription[field] =
+        whole(body[field]);
+    }
+  });
+
+  if(body.finalPriceOverride !== undefined){
+    subscription.finalPriceOverride =
+      nullableMoney(body.finalPriceOverride);
+  }
+
+  if(body.status !== undefined){
+    subscription.status =
+      normalizeStatus(body.status);
+  }
+
+  if(body.graceDays !== undefined){
+    subscription.graceDays =
+      Math.min(60,whole(body.graceDays,3));
+  }
+
+  if(body.dueDate !== undefined){
+    if(!body.dueDate){
+      subscription.dueDate = null;
+      subscription.nextBillingDate = null;
+    }else{
+      const date = new Date(body.dueDate);
+
+      if(!Number.isNaN(date.getTime())){
+        subscription.dueDate = date;
+        subscription.nextBillingDate = date;
+      }
+    }
+  }
+
+  if(Array.isArray(body.vehicleControls)){
+    subscription.vehicleControls =
+      normalizeControlRows(body.vehicleControls);
+  }
+
+  if(Array.isArray(body.serviceControls)){
+    subscription.serviceControls =
+      normalizeControlRows(body.serviceControls);
+  }
+
+  subscription.pricingInitialized = true;
+  subscription.pricingUpdatedAt = new Date();
+}
+
+router.get(
+  "/default-package",
+  async (req,res)=>{
+    try{
+      const row = await getDefaultPackage();
+
+      return res.json({
+        success:true,
+        defaultPackage:row
+      });
+
+    }catch(err){
+      console.error(
+        "DEFAULT PACKAGE GET ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to load default package"
+      });
+    }
+  }
+);
+
+router.put(
+  "/default-package",
+  async (req,res)=>{
+    try{
+      const row = await getDefaultPackage();
+
+      row.packageName =
+        clean(req.body?.packageName) ||
+        "GH Mobility Starter";
+
+      row.basePrice =
+        nonNegative(req.body?.basePrice,99);
+
+      row.includedVehicles =
+        whole(req.body?.includedVehicles,5);
+
+      row.includedServices =
+        whole(req.body?.includedServices,2);
+
+      row.billingCycle =
+        normalizeCycle(req.body?.billingCycle);
+
+      row.extraVehiclePrice =
+        nonNegative(req.body?.extraVehiclePrice,10);
+
+      row.extraServicePrice =
+        nonNegative(req.body?.extraServicePrice,15);
+
+      row.packageStatus =
+        clean(req.body?.packageStatus)
+          .toUpperCase() === "DISABLED"
+            ? "DISABLED"
+            : "ACTIVE";
+
+      await row.save();
+
+      return res.json({
+        success:true,
+        message:
+          "Default package updated. Existing company pricing was not changed.",
+        defaultPackage:row
+      });
+
+    }catch(err){
+      console.error(
+        "DEFAULT PACKAGE UPDATE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to update default package"
+      });
+    }
+  }
+);
+
+router.get(
+  "/bootstrap",
+  async (req,res)=>{
+    try{
+      const defaults = await getDefaultPackage();
+
+      const tenants = await Tenant.find({})
+        .sort({createdAt:-1});
+
+      const companies = [];
+
+      for(const tenant of tenants){
+        const data = await ensureTenantPricing(tenant);
+
+        companies.push({
+          tenant:{
+            id:String(tenant._id),
+            name:tenant.name || "",
+            slug:tenant.slug || "",
+            enabled:tenant.enabled !== false,
+            subscriptionStatus:
+              tenant.subscriptionStatus || "ACTIVE"
+          },
+          subscription:data.subscription.toObject(),
+          usage:data.usage,
+          pricing:data.pricing
+        });
+      }
+
+      return res.json({
+        success:true,
+        defaultPackage:defaults,
+        companies
+      });
+
+    }catch(err){
+      console.error(
+        "PLATFORM BILLING BOOTSTRAP ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to load platform billing"
+      });
+    }
+  }
+);
 
 router.get(
   "/tenants/:tenantId/subscription",
   async (req,res)=>{
     try{
+      if(
+        !mongoose.Types.ObjectId.isValid(
+          String(req.params.tenantId)
+        )
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Invalid tenant id"
+        });
+      }
+
       const tenant =
-        await Tenant.findById(req.params.tenantId).lean();
+        await Tenant.findById(req.params.tenantId);
 
       if(!tenant){
         return res.status(404).json({
@@ -34,27 +295,156 @@ router.get(
         });
       }
 
-      const subscription =
-        await TenantSubscription
-        .findOne({tenantId:tenant._id})
-        .lean();
+      const data =
+        await ensureTenantPricing(tenant);
 
       return res.json({
         success:true,
         tenant:{
-          id:tenant._id,
-          name:tenant.name,
-          slug:tenant.slug
+          id:String(tenant._id),
+          name:tenant.name || "",
+          slug:tenant.slug || "",
+          enabled:tenant.enabled !== false
         },
-        subscription:subscription || null
+        subscription:data.subscription,
+        usage:data.usage,
+        pricing:data.pricing
       });
 
     }catch(err){
-      console.error("PLATFORM SUBSCRIPTION GET ERROR:",err);
+      console.error(
+        "PLATFORM SUBSCRIPTION GET ERROR:",
+        err
+      );
 
       return res.status(500).json({
         success:false,
         message:"Unable to load subscription"
+      });
+    }
+  }
+);
+
+router.post(
+  "/tenants/:tenantId/preview",
+  async (req,res)=>{
+    try{
+      const tenant =
+        await Tenant.findById(req.params.tenantId);
+
+      if(!tenant){
+        return res.status(404).json({
+          success:false,
+          message:"Tenant not found"
+        });
+      }
+
+      const data =
+        await ensureTenantPricing(tenant);
+
+      const draft =
+        data.subscription.toObject();
+
+      /*
+        Preview without saving.
+      */
+      Object.assign(draft,{
+        planName:
+          req.body?.planName !== undefined
+            ? clean(req.body.planName)
+            : draft.planName,
+
+        billingCycle:
+          req.body?.billingCycle !== undefined
+            ? normalizeCycle(req.body.billingCycle)
+            : draft.billingCycle,
+
+        basePackageEnabled:
+          req.body?.basePackageEnabled !== undefined
+            ? req.body.basePackageEnabled === true
+            : draft.basePackageEnabled,
+
+        basePrice:
+          req.body?.basePrice !== undefined
+            ? nonNegative(req.body.basePrice)
+            : draft.basePrice,
+
+        includedVehicles:
+          req.body?.includedVehicles !== undefined
+            ? whole(req.body.includedVehicles)
+            : draft.includedVehicles,
+
+        includedServices:
+          req.body?.includedServices !== undefined
+            ? whole(req.body.includedServices)
+            : draft.includedServices,
+
+        extraVehiclePrice:
+          req.body?.extraVehiclePrice !== undefined
+            ? nonNegative(req.body.extraVehiclePrice)
+            : draft.extraVehiclePrice,
+
+        extraServicePrice:
+          req.body?.extraServicePrice !== undefined
+            ? nonNegative(req.body.extraServicePrice)
+            : draft.extraServicePrice,
+
+        freeExtraVehicles:
+          req.body?.freeExtraVehicles !== undefined
+            ? whole(req.body.freeExtraVehicles)
+            : draft.freeExtraVehicles,
+
+        freeExtraServices:
+          req.body?.freeExtraServices !== undefined
+            ? whole(req.body.freeExtraServices)
+            : draft.freeExtraServices,
+
+        discount:
+          req.body?.discount !== undefined
+            ? nonNegative(req.body.discount)
+            : draft.discount,
+
+        credit:
+          req.body?.credit !== undefined
+            ? nonNegative(req.body.credit)
+            : draft.credit,
+
+        finalPriceOverride:
+          req.body?.finalPriceOverride !== undefined
+            ? nullableMoney(req.body.finalPriceOverride)
+            : draft.finalPriceOverride,
+
+        vehicleControls:
+          Array.isArray(req.body?.vehicleControls)
+            ? normalizeControlRows(req.body.vehicleControls)
+            : draft.vehicleControls,
+
+        serviceControls:
+          Array.isArray(req.body?.serviceControls)
+            ? normalizeControlRows(req.body.serviceControls)
+            : draft.serviceControls
+      });
+
+      const pricing =
+        calculatePricing(
+          draft,
+          data.usage
+        );
+
+      return res.json({
+        success:true,
+        pricing
+      });
+
+    }catch(err){
+      console.error(
+        "PRICING PREVIEW ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to preview pricing"
       });
     }
   }
@@ -74,91 +464,96 @@ router.put(
         });
       }
 
-      const billingCycle =
-        clean(req.body?.billingCycle || "ANNUAL")
-        .toUpperCase();
-
-      if(!["MONTHLY","ANNUAL"].includes(billingCycle)){
-        return res.status(400).json({
-          success:false,
-          message:"Invalid billing cycle"
-        });
-      }
-
-      const amount = Number(req.body?.amount || 0);
-
-      if(!Number.isFinite(amount) || amount < 0){
-        return res.status(400).json({
-          success:false,
-          message:"Invalid amount"
-        });
-      }
-
-      const graceDays =
-        Math.max(
-          0,
-          Math.min(
-            60,
-            Number(req.body?.graceDays ?? 3) || 0
-          )
-        );
-
-      let dueDate = null;
-
-      if(req.body?.dueDate){
-        dueDate = new Date(req.body.dueDate);
-
-        if(Number.isNaN(dueDate.getTime())){
-          return res.status(400).json({
-            success:false,
-            message:"Invalid due date"
-          });
-        }
-      }
-
-      const set = {
-        planName:
-          clean(req.body?.planName || "GH Mobility"),
-
-        billingCycle,
-        amount,
-        graceDays
-      };
-
-      if(dueDate){
-        set.dueDate = dueDate;
-        set.nextBillingDate = dueDate;
-      }
+      const data =
+        await ensureTenantPricing(tenant);
 
       const subscription =
-        await TenantSubscription.findOneAndUpdate(
-          {tenantId:tenant._id},
-          {
-            $set:set,
-            $setOnInsert:{
-              status:"ACTIVE"
-            }
-          },
-          {
-            new:true,
-            upsert:true,
-            runValidators:true,
-            setDefaultsOnInsert:true
-          }
+        data.subscription;
+
+      applyCompanyPayload(
+        subscription,
+        req.body || {}
+      );
+
+      const pricing =
+        calculatePricing(
+          subscription,
+          data.usage
         );
+
+      subscription.vehicleControls =
+        pricing.vehicleControls;
+
+      subscription.serviceControls =
+        pricing.serviceControls;
+
+      subscription.calculatedBaseAmount =
+        pricing.baseAmount;
+
+      subscription.calculatedVehicleAmount =
+        pricing.vehicleAmount;
+
+      subscription.calculatedServiceAmount =
+        pricing.serviceAmount;
+
+      subscription.calculatedSubtotal =
+        pricing.subtotal;
+
+      subscription.calculatedFinalAmount =
+        pricing.finalAmount;
+
+      subscription.amount =
+        pricing.finalAmount;
+
+      await subscription.save();
 
       return res.json({
         success:true,
-        message:"Subscription updated",
-        subscription
+        message:"Company pricing updated",
+        subscription,
+        pricing
       });
 
     }catch(err){
-      console.error("PLATFORM SUBSCRIPTION UPDATE ERROR:",err);
+      console.error(
+        "PLATFORM SUBSCRIPTION UPDATE ERROR:",
+        err
+      );
 
       return res.status(500).json({
         success:false,
         message:"Unable to update subscription"
+      });
+    }
+  }
+);
+
+router.get(
+  "/tenants/:tenantId/payment-history",
+  async (req,res)=>{
+    try{
+      const history =
+        await TenantSubscriptionPayment.find({
+          tenantId:req.params.tenantId
+        })
+        .sort({createdAt:-1})
+        .limit(100)
+        .lean();
+
+      return res.json({
+        success:true,
+        history
+      });
+
+    }catch(err){
+      console.error(
+        "PAYMENT HISTORY ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Unable to load payment history"
       });
     }
   }

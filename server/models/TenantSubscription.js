@@ -2,6 +2,30 @@
 
 const mongoose = require("mongoose");
 
+const controlSchema = new mongoose.Schema(
+  {
+    key:{
+      type:String,
+      required:true,
+      trim:true
+    },
+    label:{
+      type:String,
+      default:"",
+      trim:true
+    },
+    accessEnabled:{
+      type:Boolean,
+      default:true
+    },
+    billingEnabled:{
+      type:Boolean,
+      default:true
+    }
+  },
+  {_id:false}
+);
+
 const schema = new mongoose.Schema(
   {
     tenantId:{
@@ -37,8 +61,7 @@ const schema = new mongoose.Schema(
     status:{
       type:String,
       enum:["ACTIVE","TRIAL","PAST_DUE","SUSPENDED"],
-      default:"ACTIVE",
-      index:true
+      default:"ACTIVE"
     },
 
     graceDays:{
@@ -66,6 +89,116 @@ const schema = new mongoose.Schema(
     stripeCustomerId:{
       type:String,
       default:""
+    },
+
+    pricingInitialized:{
+      type:Boolean,
+      default:false
+    },
+
+    basePackageEnabled:{
+      type:Boolean,
+      default:true
+    },
+
+    basePrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    includedVehicles:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    includedServices:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraVehiclePrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraServicePrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    freeExtraVehicles:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    freeExtraServices:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    discount:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    credit:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    finalPriceOverride:{
+      type:Number,
+      default:null,
+      min:0
+    },
+
+    vehicleControls:{
+      type:[controlSchema],
+      default:[]
+    },
+
+    serviceControls:{
+      type:[controlSchema],
+      default:[]
+    },
+
+    calculatedBaseAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedVehicleAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedServiceAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedSubtotal:{
+      type:Number,
+      default:0
+    },
+
+    calculatedFinalAmount:{
+      type:Number,
+      default:0
+    },
+
+    pricingUpdatedAt:{
+      type:Date,
+      default:null
     }
   },
   {timestamps:true}

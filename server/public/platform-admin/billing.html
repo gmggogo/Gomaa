@@ -2,131 +2,80 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Platform Billing - GH Mobility</title>
+<title>SaaS Billing - GH Mobility</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <link rel="stylesheet" href="/platform-admin/platform_header.css">
 
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#172033}
-.page{width:min(1450px,calc(100% - 28px));margin:22px auto 40px}
-.shell{background:#fff;border:1px solid #d8e1e8;border-radius:16px;box-shadow:0 10px 28px rgba(7,26,54,.10);overflow:hidden}
-.head{padding:24px 26px;text-align:center;color:#fff;background:linear-gradient(135deg,#9b710d,#c79a21 45%,#e0b63d 70%,#a8780a);border-bottom:4px solid #785707}
-.head h1{margin:0;font-size:26px;font-weight:950}.head p{margin:6px 0 0;font-size:13px;font-weight:800}
-.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 18px;background:#f8fafc;border-bottom:1px solid #d8e1e8}
-.search{flex:1;min-width:260px;height:40px;border:1px solid #b9c6d1;border-radius:8px;padding:0 12px;font-size:13px}
-.refresh{height:40px;border:0;border-radius:8px;padding:0 16px;background:#0b4b73;color:#fff;font-size:12px;font-weight:900;cursor:pointer}
-.message{display:none;margin:16px 18px 0;padding:11px 13px;border-radius:8px;font-size:12px;font-weight:800}.message.show{display:block}.message.ok{background:#dcfce7;color:#166534}.message.error{background:#fee2e2;color:#991b1b}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px}
-.tenant-card{border:1px solid #d8e1e8;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 4px 12px rgba(7,26,54,.05)}
-.tenant-head{padding:14px;background:linear-gradient(180deg,#123b67,#071a36);color:#fff}.tenant-name{font-size:15px;font-weight:950}.tenant-slug{margin-top:3px;font-size:10px;opacity:.8}
-.tenant-body{padding:14px}.field{margin-bottom:11px}.field label{display:block;margin-bottom:5px;color:#657083;font-size:10px;font-weight:900;text-transform:uppercase}
-.field input,.field select{width:100%;height:38px;border:1px solid #b9c6d1;border-radius:7px;padding:0 10px;background:#fff;color:#172033;font-size:12px;font-weight:700}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.status-line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0 3px;border-top:1px solid #edf1f4}
-.badge{padding:6px 9px;border-radius:999px;font-size:10px;font-weight:950}.badge.active{background:#dcfce7;color:#166534}.badge.trial{background:#dbeafe;color:#1d4ed8}.badge.past_due{background:#ffedd5;color:#9a3412}.badge.suspended{background:#fee2e2;color:#991b1b}.badge.none{background:#e5e7eb;color:#374151}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.edit-btn,.save{height:42px;border:0;border-radius:8px;font-size:12px;font-weight:950;cursor:pointer}
-.edit-btn{background:#0b4b73;color:#fff}
-.save{background:linear-gradient(180deg,#cda32d,#a8790c);color:#fff}
-.save:disabled{opacity:.5;cursor:not-allowed}
-.field input:disabled,.field select:disabled{background:#eef2f6;color:#6b7280;cursor:not-allowed}
-.empty{grid-column:1/-1;padding:36px;text-align:center;color:#6f7a89;font-weight:800}
-.stripe-panel{
-  margin:18px;
-  border:1px solid #d8e1e8;
-  border-radius:12px;
-  overflow:hidden;
-  background:#fff;
-}
-
-.stripe-panel-head{
-  padding:13px 15px;
-  background:linear-gradient(180deg,#4c1d95,#312e81);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.stripe-panel-title{
-  font-size:14px;
-  font-weight:950;
-}
-
-.stripe-badge{
-  padding:6px 10px;
-  border-radius:999px;
-  font-size:10px;
-  font-weight:950;
-  background:#fee2e2;
-  color:#991b1b;
-}
-
-.stripe-badge.connected{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.stripe-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(150px,1fr));
-  gap:12px;
-  padding:15px;
-}
-
-.stripe-item{
-  border:1px solid #e1e8ee;
-  border-radius:9px;
-  padding:12px;
-  background:#f9fbfd;
-}
-
-.stripe-item-label{
-  font-size:10px;
-  font-weight:900;
-  text-transform:uppercase;
-  color:#6b7280;
-}
-
-.stripe-item-value{
-  margin-top:6px;
-  font-size:13px;
-  font-weight:900;
-  color:#172033;
-  word-break:break-word;
-}
-
-.stripe-actions{
-  display:flex;
-  gap:9px;
-  flex-wrap:wrap;
-  padding:0 15px 15px;
-}
-
-.stripe-btn{
-  height:38px;
-  padding:0 14px;
-  border:0;
-  border-radius:7px;
-  font-size:11px;
-  font-weight:900;
-  cursor:pointer;
-}
-
-.stripe-btn.refresh{
-  background:#0b4b73;
-  color:#fff;
-}
-
-.stripe-btn.dashboard{
-  background:#635bff;
-  color:#fff;
-}
-
-@media(max-width:1100px){
-  .stripe-grid{grid-template-columns:repeat(2,1fr)}
-.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.cards{grid-template-columns:1fr;padding:12px}}
+.page{width:min(1460px,calc(100% - 28px));margin:22px auto 50px}
+.shell{background:#fff;border:1px solid #d8e1e8;border-radius:15px;overflow:hidden;box-shadow:0 8px 26px rgba(7,26,54,.10)}
+.head{padding:23px;text-align:center;color:#fff;background:linear-gradient(135deg,#9b710d,#c79a21 48%,#e0b63d 75%,#a8780a)}
+.head h1{margin:0;font-size:26px;font-weight:950}
+.head p{margin:6px 0 0;font-size:12px;font-weight:800}
+.section{margin:16px;border:1px solid #d8e1e8;border-radius:11px;overflow:hidden;background:#fff}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:linear-gradient(180deg,#123b67,#071a36);color:#fff}
+.section-title.stripe{background:linear-gradient(180deg,#4c1d95,#312e81)}
+.section-title h2{margin:0;font-size:14px;font-weight:950}
+.section-body{padding:14px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.field label{display:block;margin-bottom:5px;font-size:10px;font-weight:900;color:#657083;text-transform:uppercase}
+.field input,.field select{width:100%;height:38px;border:1px solid #bcc9d3;border-radius:7px;padding:0 10px;background:#fff;font-size:12px;font-weight:700}
+.field input:disabled,.field select:disabled{background:#eef2f6;color:#6b7280}
+.info{padding:11px;border:1px solid #e1e8ee;border-radius:8px;background:#f8fafc}
+.info span{display:block;font-size:9px;font-weight:900;text-transform:uppercase;color:#6b7280}
+.info strong{display:block;margin-top:5px;font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{height:38px;border:0;border-radius:7px;padding:0 14px;font-size:11px;font-weight:900;cursor:pointer}
+.btn.primary{background:#0b4b73;color:#fff}
+.btn.gold{background:linear-gradient(180deg,#cda32d,#a8790c);color:#fff}
+.btn.gray{background:#e5e7eb;color:#374151}
+.btn.purple{background:#635bff;color:#fff}
+.btn:disabled{opacity:.48;cursor:not-allowed}
+.badge{padding:6px 10px;border-radius:999px;font-size:9px;font-weight:950;background:#e5e7eb;color:#374151}
+.badge.active,.badge.connected,.badge.paid{background:#dcfce7;color:#166534}
+.badge.disabled,.badge.suspended,.badge.failed,.badge.canceled{background:#fee2e2;color:#991b1b}
+.badge.pending,.badge.processing,.badge.past_due{background:#fef3c7;color:#92400e}
+.toolbar{display:flex;gap:9px;padding:15px 16px;background:#f8fafc;border-top:1px solid #d8e1e8;border-bottom:1px solid #d8e1e8}
+.toolbar input{flex:1;height:40px;border:1px solid #bcc9d3;border-radius:8px;padding:0 12px}
+.toolbar select{height:40px;border:1px solid #bcc9d3;border-radius:8px;padding:0 10px;background:#fff}
+.message{display:none;margin:15px 16px 0;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:800}
+.message.show{display:block}
+.message.ok{background:#dcfce7;color:#166534}
+.message.error{background:#fee2e2;color:#991b1b}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px}
+.card{border:1px solid #d8e1e8;border-radius:11px;overflow:hidden;background:#fff}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;background:linear-gradient(180deg,#123b67,#071a36);color:#fff}
+.card-name{font-size:14px;font-weight:950}
+.card-slug{margin-top:3px;font-size:10px;opacity:.78}
+.card-body{padding:13px}
+.subhead{margin:3px 0 9px;font-size:12px;font-weight:950;color:#123b67}
+.usage{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.usage .info strong{font-size:13px}
+.controls{width:100%;border-collapse:collapse;margin-bottom:12px}
+.controls th,.controls td{padding:7px 5px;border-bottom:1px solid #edf1f4;font-size:10px}
+.controls th{text-transform:uppercase;color:#657083}
+.controls th:nth-child(2),.controls th:nth-child(3),.controls td:nth-child(2),.controls td:nth-child(3){width:70px;text-align:center}
+.controls input{width:17px;height:17px}
+.company-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.total{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:11px;border:1px solid #e4ca72;border-radius:8px;background:#fff8da}
+.total span{font-size:11px;font-weight:900}
+.total strong{font-size:18px;color:#7a5700}
+.empty{grid-column:1/-1;padding:35px;text-align:center;color:#6b7280;font-weight:800}
+.modal{display:none;position:fixed;z-index:99999;inset:0;background:rgba(10,20,35,.58);padding:24px;overflow:auto}
+.modal.show{display:block}
+.modal-box{width:min(880px,100%);margin:38px auto;background:#fff;border-radius:11px;overflow:hidden}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;background:#071a36;color:#fff}
+.modal-head h3{margin:0;font-size:15px}
+.modal-close{border:0;background:transparent;color:#fff;font-size:20px;cursor:pointer}
+.modal-body{padding:15px}
+.breakdown{width:100%;border-collapse:collapse}
+.breakdown th,.breakdown td{padding:9px;border-bottom:1px solid #e7edf2;font-size:12px}
+.breakdown th:last-child,.breakdown td:last-child{text-align:right}
+@media(max-width:1100px){.cards{grid-template-columns:1fr}.grid,.usage{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.grid,.usage,.company-grid{grid-template-columns:1fr}.page{width:calc(100% - 12px)}}
 </style>
 </head>
 
@@ -135,65 +84,102 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
 <main class="page">
 <section class="shell">
-  <div class="head">
-    <h1>Platform Billing Control</h1>
-    <p>Manage GH Mobility SaaS subscription billing for every tenant.</p>
-  </div>
 
-  <div class="toolbar">
-    <input class="search" id="searchInput" type="search" placeholder="Search tenant...">
-    <button class="refresh" id="refreshBtn" type="button">Refresh</button>
+  <div class="head">
+    <h1>SaaS Billing</h1>
+    <p>Manage packages, usage, pricing and company subscription payments.</p>
   </div>
 
   <div class="message" id="messageBox"></div>
 
-
-  <section class="stripe-panel">
-    <div class="stripe-panel-head">
-      <div class="stripe-panel-title">Platform Stripe Account</div>
-      <div class="stripe-badge" id="stripeStatusBadge">CHECKING</div>
+  <section class="section">
+    <div class="section-title stripe">
+      <h2>Stripe Account Status</h2>
+      <span class="badge" id="stripeStatusBadge">CHECKING</span>
     </div>
 
-    <div class="stripe-grid">
-      <div class="stripe-item">
-        <div class="stripe-item-label">Stripe Account</div>
-        <div class="stripe-item-value" id="stripeAccountId">--</div>
+    <div class="section-body">
+      <div class="grid">
+        <div class="info"><span>Stripe Account</span><strong id="stripeAccountId">--</strong></div>
+        <div class="info"><span>Mode</span><strong id="stripeMode">--</strong></div>
+        <div class="info"><span>Charges</span><strong id="stripeCharges">--</strong></div>
+        <div class="info"><span>Payouts</span><strong id="stripePayouts">--</strong></div>
       </div>
 
-      <div class="stripe-item">
-        <div class="stripe-item-label">Mode</div>
-        <div class="stripe-item-value" id="stripeMode">--</div>
+      <div class="actions">
+        <button class="btn primary" id="stripeRefreshBtn" type="button">Refresh Stripe</button>
+        <button class="btn purple" id="stripeDashboardBtn" type="button" disabled>Open Stripe Dashboard</button>
       </div>
-
-      <div class="stripe-item">
-        <div class="stripe-item-label">Charges</div>
-        <div class="stripe-item-value" id="stripeCharges">--</div>
-      </div>
-
-      <div class="stripe-item">
-        <div class="stripe-item-label">Payouts</div>
-        <div class="stripe-item-value" id="stripePayouts">--</div>
-      </div>
-    </div>
-
-    <div class="stripe-actions">
-      <button class="stripe-btn refresh" id="stripeRefreshBtn" type="button">
-        Refresh Stripe
-      </button>
-
-      <button class="stripe-btn dashboard" id="stripeDashboardBtn" type="button" disabled>
-        Open Stripe Dashboard
-      </button>
     </div>
   </section>
 
-  <div class="cards" id="tenantCards">
-    <div class="empty">Loading tenants...</div>
+  <section class="section">
+    <div class="section-title">
+      <h2>Default Package Settings</h2>
+      <span class="badge active" id="defaultPackageBadge">ACTIVE</span>
+    </div>
+
+    <div class="section-body">
+      <div class="grid">
+        <div class="field"><label>Package Name</label><input id="dPackageName" disabled></div>
+        <div class="field"><label>Base Price</label><input id="dBasePrice" type="number" min="0" step="0.01" disabled></div>
+        <div class="field"><label>Included Vehicles</label><input id="dIncludedVehicles" type="number" min="0" disabled></div>
+        <div class="field"><label>Included Services</label><input id="dIncludedServices" type="number" min="0" disabled></div>
+        <div class="field"><label>Billing Cycle</label><select id="dBillingCycle" disabled><option value="MONTHLY">Monthly</option><option value="ANNUAL">Annual</option></select></div>
+        <div class="field"><label>Extra Vehicle Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
+        <div class="field"><label>Extra Service Price</label><input id="dExtraServicePrice" type="number" min="0" step="0.01" disabled></div>
+        <div class="field"><label>Package Status</label><select id="dPackageStatus" disabled><option value="ACTIVE">Active</option><option value="DISABLED">Disabled</option></select></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="defaultEditBtn" type="button">Edit</button>
+        <button class="btn gold" id="defaultSaveBtn" type="button" disabled>Save Default Package</button>
+        <button class="btn gray" id="defaultCancelBtn" type="button" disabled>Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <input id="searchInput" type="search" placeholder="Search company...">
+    <select id="statusFilter">
+      <option value="">All Statuses</option>
+      <option value="ACTIVE">Active</option>
+      <option value="TRIAL">Trial</option>
+      <option value="PAST_DUE">Past Due</option>
+      <option value="SUSPENDED">Suspended</option>
+      <option value="DISABLED">Disabled</option>
+    </select>
+    <button class="btn primary" id="refreshBtn" type="button">Refresh</button>
   </div>
+
+  <div class="cards" id="companyCards">
+    <div class="empty">Loading companies...</div>
+  </div>
+
 </section>
 </main>
 
+<div class="modal" id="previewModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Pricing Preview</h3>
+      <button class="modal-close" data-close="previewModal" type="button">×</button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="historyModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Payment History</h3>
+      <button class="modal-close" data-close="historyModal" type="button">×</button>
+    </div>
+    <div class="modal-body" id="historyBody"></div>
+  </div>
+</div>
+
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=SAAS-V3-20260827"></script>
+<script src="/platform-admin/billing.js?v=SAAS-BILLING-FULL-V1-20260827"></script>
 </body>
 </html>
