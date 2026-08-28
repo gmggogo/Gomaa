@@ -1138,9 +1138,7 @@ function isActiveStatus(status){
   return s === "booked" ||
     s === "scheduled" ||
     s === "confirmed" ||
-    s === "paid" ||
-    s === "pendingpayment" ||
-    s === "unpaid";
+    s === "paid";
 }
 
 function isClosedStatus(status){
@@ -1152,8 +1150,6 @@ function getStatusLabel(status){
   const s = statusKey(status);
   if(s === "confirmed") return "Confirmed";
   if(s === "paid") return "Paid";
-  if(s === "pendingpayment") return "Pending Payment";
-  if(s === "unpaid") return "Unpaid";
   if(s === "scheduled") return "Scheduled";
   return status || "Scheduled";
 }
