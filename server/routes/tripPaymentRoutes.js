@@ -16,9 +16,6 @@ const {
 
 const router = express.Router();
 
-const TenantPaymentAccount =
-  require("../models/TenantPaymentAccount");
-
 const PUBLIC_BASE_URL = String(
   process.env.PUBLIC_BASE_URL ||
   "https://sunbeam-933q.onrender.com"
@@ -26,9 +23,13 @@ const PUBLIC_BASE_URL = String(
 
 function Trip(){
   const model = global.Trip || mongoose.models.Trip;
+
   if(!model){
-    throw new Error("tripPaymentRoutes must be mounted after the Trip model");
+    throw new Error(
+      "tripPaymentRoutes must be mounted after the Trip model"
+    );
   }
+
   return model;
 }
 
@@ -60,396 +61,430 @@ function tenantQueryString(trip){
 }
 
 function isClosed(trip){
-  const status = clean(trip.status).toLowerCase();
-  return ["completed", "cancelled", "no show", "not completed"]
-    .includes(status);
+
+  const status =
+    clean(
+      trip.status
+    ).toLowerCase();
+
+  return [
+    "completed",
+    "cancelled",
+    "no show",
+    "not completed"
+  ].includes(status);
 }
 
 function tripStartDate(trip){
-  const date = clean(trip.tripDate);
-  const time = clean(trip.tripTime);
+
+  const date =
+    clean(
+      trip.tripDate
+    );
+
+  const time =
+    clean(
+      trip.tripTime
+    );
+
   if(!date || !time){
     return null;
   }
 
-  const parsed = new Date(`${date}T${time}:00-07:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const parsed =
+    new Date(
+      `${date}T${time}:00-07:00`
+    );
+
+  return Number.isNaN(
+    parsed.getTime()
+  )
+    ? null
+    : parsed;
 }
 
 /* =========================================
    CREATE STRIPE-HOSTED CHECKOUT
-   No card field is rendered by Sunbeam.
-
-   TENANT RULE:
-   Public customer does NOT send tenantId.
-   The Trip itself is the source of tenant identity.
 ========================================= */
 
-router.post("/:tripId/checkout-session", async (req,res)=>{
-  try{
+router.post(
+  "/:tripId/checkout-session",
+  async (req,res)=>{
 
-    /*
-      IMPORTANT:
-      tripId comes from the booking flow.
-      Tenant identity comes ONLY from the saved Trip.
-      We do not trust tenantId from the public browser.
-    */
+    try{
 
-    const trip =
-      await Trip().findById(
-        req.params.tripId
-      );
+      const trip =
+        await Trip().findById(
+          req.params.tripId
+        );
 
-    if(!trip){
-      return res.status(404).json({
-        success:false,
-        message:"Trip not found"
-      });
-    }
+      if(!trip){
 
-    const tenantId =
-      clean(
-        trip.tenantId
-      );
+        return res.status(404).json({
+          success:false,
+          message:"Trip not found"
+        });
+      }
 
-    if(!tenantId){
-      return res.status(403).json({
-        success:false,
-        message:"Trip tenant is missing"
-      });
-    }
+      const tenantId =
+        clean(
+          trip.tenantId
+        );
 
-    const tenantSlug =
-      tenantSlugFromTrip(
-        trip
-      );
+      if(!tenantId){
 
-    /*
-      Defense in depth:
-      even if a pending Trip somehow exists, Stripe Checkout must not open
-      unless this tenant has completed Stripe onboarding.
-    */
-    const paymentAccount =
-      await TenantPaymentAccount.findOne({
-        tenantId
-      }).lean();
+        return res.status(403).json({
+          success:false,
+          message:"Trip tenant is missing"
+        });
+      }
 
-    if(
-      !paymentAccount ||
-      !paymentAccount.stripeAccountId ||
-      paymentAccount.connected !== true ||
-      paymentAccount.chargesEnabled !== true
-    ){
-      return res.status(400).json({
-        success:false,
-        message:
-          "Online booking is currently unavailable. Payment account is not connected."
-      });
-    }
+      const tenantSlug =
+        tenantSlugFromTrip(
+          trip
+        );
 
-    const tenantPart =
-      tenantQueryString(
-        trip
-      );
+      const tenantPart =
+        tenantQueryString(
+          trip
+        );
 
-    if(isClosed(trip)){
-      return res.status(400).json({
-        success:false,
-        message:"Trip is closed"
-      });
-    }
+      if(isClosed(trip)){
 
-    if(trip.stripePaymentMethodId){
-      return res.json({
-        success:true,
-        alreadySaved:true,
-        redirectUrl:
-          `${PUBLIC_BASE_URL}/booking/payment.html` +
-          `?tripId=${encodeURIComponent(trip._id)}` +
-          tenantPart +
-          `&saved=1`
-      });
-    }
+        return res.status(400).json({
+          success:false,
+          message:"Trip is closed"
+        });
+      }
 
-    const customerId =
-      await ensureStripeCustomer(trip);
+      if(
+        trip.stripePaymentMethodId
+      ){
 
-    const successUrl =
-      `${PUBLIC_BASE_URL}/booking/payment.html` +
-      `?tripId=${encodeURIComponent(trip._id)}` +
-      tenantPart +
-      `&session_id={CHECKOUT_SESSION_ID}`;
+        return res.json({
+          success:true,
+          alreadySaved:true,
 
-    const cancelUrl =
-      `${PUBLIC_BASE_URL}/booking/payment.html` +
-      `?tripId=${encodeURIComponent(trip._id)}` +
-      tenantPart +
-      `&cancelled=1`;
+          redirectUrl:
+            `${PUBLIC_BASE_URL}/booking/payment.html` +
+            `?tripId=${encodeURIComponent(trip._id)}` +
+            tenantPart +
+            `&saved=1`
+        });
+      }
 
-    const session =
-      await stripe.checkout.sessions.create({
+      const customerId =
+        await ensureStripeCustomer(
+          trip
+        );
 
-        mode:"setup",
+      const successUrl =
+        `${PUBLIC_BASE_URL}/booking/payment.html` +
+        `?tripId=${encodeURIComponent(trip._id)}` +
+        tenantPart +
+        `&session_id={CHECKOUT_SESSION_ID}`;
 
-        customer:
-          customerId,
+      const cancelUrl =
+        `${PUBLIC_BASE_URL}/booking/payment.html` +
+        `?tripId=${encodeURIComponent(trip._id)}` +
+        tenantPart +
+        `&cancelled=1`;
 
-        payment_method_types:[
-          "card"
-        ],
+      const session =
+        await stripe.checkout.sessions.create({
 
-        client_reference_id:
-          String(trip._id),
+          mode:"setup",
 
-        metadata:{
-          tenantId:
-            String(tenantId),
+          customer:
+            customerId,
 
-          tenantSlug:
+          payment_method_types:[
+            "card"
+          ],
+
+          client_reference_id:
             String(
-              tenantSlug || ""
+              trip._id
             ),
 
-          tripId:
-            String(trip._id),
-
-          tripNumber:
-            String(
-              trip.tripNumber || ""
-            )
-        },
-
-        setup_intent_data:{
           metadata:{
+
             tenantId:
-              String(tenantId),
+              String(
+                tenantId
+              ),
+
+            tenantSlug:
+              String(
+                tenantSlug ||
+                ""
+              ),
 
             tripId:
-              String(trip._id),
+              String(
+                trip._id
+              ),
 
             tripNumber:
               String(
-                trip.tripNumber || ""
+                trip.tripNumber ||
+                ""
               )
-          }
-        },
+          },
 
-        success_url:
-          successUrl,
+          setup_intent_data:{
+            metadata:{
 
-        cancel_url:
-          cancelUrl
+              tenantId:
+                String(
+                  tenantId
+                ),
+
+              tripId:
+                String(
+                  trip._id
+                ),
+
+              tripNumber:
+                String(
+                  trip.tripNumber ||
+                  ""
+                )
+            }
+          },
+
+          success_url:
+            successUrl,
+
+          cancel_url:
+            cancelUrl
+        });
+
+      trip.paymentStatus =
+        "SETUP_PENDING";
+
+      await trip.save();
+
+      return res.json({
+        success:true,
+        checkoutUrl:
+          session.url
       });
 
-    /*
-      Keep the tenant already stored on the Trip.
-      Never move a Trip between tenants here.
-    */
+    }catch(err){
 
-    trip.paymentStatus =
-      "SETUP_PENDING";
+      console.error(
+        "CHECKOUT SESSION ERROR:",
+        err
+      );
 
-    await trip.save();
+      return res.status(400).json({
+        success:false,
 
-    return res.json({
-      success:true,
-      checkoutUrl:session.url
-    });
-
-  }catch(err){
-
-    console.error(
-      "CHECKOUT SESSION ERROR:",
-      err
-    );
-
-    return res.status(400).json({
-      success:false,
-      message:
-        err.message ||
-        "Unable to open Stripe Checkout"
-    });
+        message:
+          err.message ||
+          "Unable to open Stripe Checkout"
+      });
+    }
   }
-});
+);
 
 /* =========================================
    VERIFY STRIPE CHECKOUT RETURN
-
-   TENANT RULE:
-   Stripe session metadata is the source of
-   tenant identity on the return callback.
 ========================================= */
 
-router.post("/:tripId/checkout-success", async (req,res)=>{
-  try{
+router.post(
+  "/:tripId/checkout-success",
+  async (req,res)=>{
 
-    const sessionId =
-      clean(
-        req.body?.sessionId
-      );
+    try{
 
-    if(!sessionId){
-      return res.status(400).json({
-        success:false,
-        message:"Missing Stripe session"
-      });
-    }
-
-    const session =
-      await stripe.checkout.sessions.retrieve(
-        sessionId
-      );
-
-    const tenantId =
-      clean(
-        session.metadata?.tenantId
-      );
-
-    if(!tenantId){
-      return res.status(403).json({
-        success:false,
-        message:
-          "Tenant missing from Stripe session"
-      });
-    }
-
-    const trip =
-      await Trip().findOne({
-        _id:req.params.tripId,
-        tenantId
-      });
-
-    if(!trip){
-      return res.status(404).json({
-        success:false,
-        message:"Trip not found"
-      });
-    }
-
-    if(
-      session.status !== "complete" ||
-      String(
-        session.metadata?.tripId ||
-        session.client_reference_id ||
-        ""
-      ) !==
-      String(trip._id)
-    ){
-      return res.status(400).json({
-        success:false,
-        message:
-          "Stripe setup was not completed"
-      });
-    }
-
-    if(
-      String(
-        session.metadata?.tenantId ||
-        ""
-      ) !==
-      String(trip.tenantId || "")
-    ){
-      return res.status(403).json({
-        success:false,
-        message:
-          "Stripe tenant mismatch"
-      });
-    }
-
-    if(
-      trip.stripeCustomerId &&
-      String(session.customer || "") !==
-      String(trip.stripeCustomerId)
-    ){
-      return res.status(403).json({
-        success:false,
-        message:
-          "Stripe customer mismatch"
-      });
-    }
-
-    const setupIntentId =
-      clean(
-        session.setup_intent
-      );
-
-    if(!setupIntentId){
-      return res.status(400).json({
-        success:false,
-        message:
-          "Stripe payment method is missing"
-      });
-    }
-
-    await confirmSavedPaymentMethod(
-      trip,
-      setupIntentId
-    );
-
-    /*
-      Only NOW is the public booking real.
-      The card has been saved successfully, so expose it to Trips Hub / Dispatch.
-    */
-    trip.status = "Confirmed";
-    trip.dispatchSelected = true;
-
-    await trip.save();
-
-    if(!trip.confirmationEmailSent){
-
-      const sent =
-        await sendTripStatusEmail(
-          trip,
-          "CONFIRMED"
+      const sessionId =
+        clean(
+          req.body?.sessionId
         );
 
-      if(sent){
+      if(!sessionId){
 
-        trip.confirmationEmailSent =
-          true;
-
-        await trip.save();
+        return res.status(400).json({
+          success:false,
+          message:"Missing Stripe session"
+        });
       }
+
+      const session =
+        await stripe.checkout.sessions.retrieve(
+          sessionId
+        );
+
+      const tenantId =
+        clean(
+          session.metadata?.tenantId
+        );
+
+      if(!tenantId){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Tenant missing from Stripe session"
+        });
+      }
+
+      const trip =
+        await Trip().findOne({
+
+          _id:
+            req.params.tripId,
+
+          tenantId
+        });
+
+      if(!trip){
+
+        return res.status(404).json({
+          success:false,
+          message:"Trip not found"
+        });
+      }
+
+      if(
+        session.status !==
+        "complete" ||
+
+        String(
+          session.metadata?.tripId ||
+          session.client_reference_id ||
+          ""
+        ) !==
+        String(
+          trip._id
+        )
+      ){
+
+        return res.status(400).json({
+          success:false,
+          message:
+            "Stripe setup was not completed"
+        });
+      }
+
+      if(
+        String(
+          session.metadata?.tenantId ||
+          ""
+        ) !==
+        String(
+          trip.tenantId ||
+          ""
+        )
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Stripe tenant mismatch"
+        });
+      }
+
+      if(
+        trip.stripeCustomerId &&
+        String(
+          session.customer ||
+          ""
+        ) !==
+        String(
+          trip.stripeCustomerId
+        )
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Stripe customer mismatch"
+        });
+      }
+
+      const setupIntentId =
+        clean(
+          session.setup_intent
+        );
+
+      if(!setupIntentId){
+
+        return res.status(400).json({
+          success:false,
+          message:
+            "Stripe payment method is missing"
+        });
+      }
+
+      await confirmSavedPaymentMethod(
+        trip,
+        setupIntentId
+      );
+
+      if(
+        !trip.confirmationEmailSent
+      ){
+
+        const sent =
+          await sendTripStatusEmail(
+            trip,
+            "CONFIRMED"
+          );
+
+        if(sent){
+
+          trip.confirmationEmailSent =
+            true;
+
+          await trip.save();
+        }
+      }
+
+      return res.json({
+
+        success:true,
+
+        paymentStatus:
+          trip.paymentStatus,
+
+        message:
+          "Booking confirmed"
+      });
+
+    }catch(err){
+
+      console.error(
+        "CHECKOUT SUCCESS ERROR:",
+        err
+      );
+
+      return res.status(400).json({
+
+        success:false,
+
+        message:
+          err.message ||
+          "Unable to confirm Stripe setup"
+      });
     }
-
-    return res.json({
-      success:true,
-      paymentStatus:
-        trip.paymentStatus,
-      message:
-        "Booking confirmed"
-    });
-
-  }catch(err){
-
-    console.error(
-      "CHECKOUT SUCCESS ERROR:",
-      err
-    );
-
-    return res.status(400).json({
-      success:false,
-      message:
-        err.message ||
-        "Unable to confirm Stripe setup"
-    });
   }
-});
+);
 
-let authorizationJobRunning = false;
+let authorizationJobRunning =
+  false;
 
 /* =========================================
    24-HOUR AUTHORIZATION SCHEDULER
-
-   This is a server-wide background job.
-   It intentionally scans all tenants, but
-   each Trip remains isolated by its own
-   tenantId and is processed individually.
 ========================================= */
 
 async function authorizeTripsDueWithin24Hours(){
 
-  if(authorizationJobRunning){
+  if(
+    authorizationJobRunning
+  ){
     return;
   }
 
@@ -467,12 +502,23 @@ async function authorizeTripsDueWithin24Hours(){
         24 * 60 * 60 * 1000
       );
 
+    /*
+      IMPORTANT:
+      tenantId is an ObjectId field.
+
+      Never put an empty string inside $nin for an ObjectId field.
+      Mongoose tries to cast "" to ObjectId and throws CastError.
+
+      Missing/null tenant values are safely excluded with:
+      $exists:true + $ne:null
+    */
+
     const trips =
       await Trip().find({
 
         tenantId:{
           $exists:true,
-          $nin:[null,""]
+          $ne:null
         },
 
         paymentStatus:{
@@ -498,13 +544,17 @@ async function authorizeTripsDueWithin24Hours(){
             "Not Completed"
           ]
         }
-
       });
 
-    for(const trip of trips){
+    for(
+      const trip
+      of trips
+    ){
 
       const startsAt =
-        tripStartDate(trip);
+        tripStartDate(
+          trip
+        );
 
       if(
         !startsAt ||
@@ -517,12 +567,15 @@ async function authorizeTripsDueWithin24Hours(){
       try{
 
         await authorizeTripAmount(
+
           trip,
+
           Number(
             trip.priceAmount ||
             trip.finalPrice ||
             0
           ),
+
           "TWENTY_FOUR_HOUR_HOLD"
         );
 
@@ -573,20 +626,30 @@ async function authorizeTripsDueWithin24Hours(){
 
 function startTripAuthorizationScheduler(){
 
-  setTimeout(()=>{
-
-    authorizeTripsDueWithin24Hours()
-      .catch(console.error);
-
-  },5000);
-
-  const timer =
-    setInterval(()=>{
+  setTimeout(
+    ()=>{
 
       authorizeTripsDueWithin24Hours()
-        .catch(console.error);
+        .catch(
+          console.error
+        );
 
-    },5 * 60 * 1000);
+    },
+    5000
+  );
+
+  const timer =
+    setInterval(
+      ()=>{
+
+        authorizeTripsDueWithin24Hours()
+          .catch(
+            console.error
+          );
+
+      },
+      5 * 60 * 1000
+    );
 
   if(
     typeof timer.unref ===
@@ -604,4 +667,5 @@ router.authorizeTripsDueWithin24Hours =
 router.startTripAuthorizationScheduler =
   startTripAuthorizationScheduler;
 
-module.exports = router;
+module.exports =
+  router;
