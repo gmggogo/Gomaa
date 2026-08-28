@@ -1073,6 +1073,7 @@ passengerDurationSeconds: {
   simpleRefundId: { type: String, default: "" },
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
+  noShowFee: { type: Number, default: 0 },
 
   cancelDateTime: { type: Date, default: null },
 
@@ -4283,15 +4284,204 @@ app.get(
 
 });
 
+function normalizeBillingServiceCode(value){
+
+  const c =
+    String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ");
+
+  if(
+    c === "ST" ||
+    c === "STANDARD" ||
+    c.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(
+    c === "SH" ||
+    c === "SHARED" ||
+    c.includes("SHARED")
+  ){
+    return "SH";
+  }
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(
+    c === "TX" ||
+    c === "TAXI" ||
+    c.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  if(
+    c === "XL" ||
+    c === "XL SERVICE" ||
+    c.startsWith("XL ")
+  ){
+    return "XL";
+  }
+
+  return c;
+}
+
 function billingServiceKey(trip){
 
-  return String(
+  if(
+    trip?.isShared === true ||
+    String(trip?.tripType || "")
+      .toUpperCase()
+      .includes("SHARED") ||
+    String(trip?.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH")
+  ){
+    return "SH";
+  }
+
+  return normalizeBillingServiceCode(
     trip?.serviceKey ||
+    trip?.serviceCode ||
     trip?.serviceType ||
+    trip?.vehicleTypeFromQuote ||
+    trip?.vehicle ||
     ""
-  )
-  .trim()
-  .toUpperCase();
+  );
+}
+
+function billingEscapeRegex(value){
+  return String(value || "")
+    .replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
+function billingOverrideServiceCode(service){
+
+  return normalizeBillingServiceCode(
+    service?.serviceKey ||
+    service?.serviceCode ||
+    service?.serviceType ||
+    service?.serviceSuffix ||
+    service?.companySuffix ||
+    service?.suffix ||
+    service?.serviceName ||
+    service?.title ||
+    service?.name ||
+    ""
+  );
+}
+
+function billingOverrideServiceEnabled(service){
+
+  if(!service){
+    return false;
+  }
+
+  if(service.active !== undefined){
+    return service.active !== false;
+  }
+
+  if(service.enabled !== undefined){
+    return service.enabled !== false;
+  }
+
+  if(service.companyEnabled !== undefined){
+    return service.companyEnabled !== false;
+  }
+
+  return true;
+}
+
+function mapFacilityOverrideService(service,serviceKey){
+
+  const code =
+    normalizeBillingServiceCode(
+      serviceKey ||
+      billingOverrideServiceCode(service)
+    );
+
+  return {
+    ...service,
+
+    serviceKey:code,
+    serviceCode:code,
+    serviceType:code,
+    companySuffix:
+      normalizeBillingServiceCode(
+        service?.serviceSuffix ||
+        code
+      ) || code,
+
+    companyEnabled:true,
+
+    companyPricingMode:
+      String(
+        service?.pricingMode ||
+        "MILE"
+      ).toUpperCase(),
+
+    companyBaseFare:
+      Number(service?.baseFare || 0),
+
+    companyIncludedMiles:
+      Number(service?.includedMiles || 0),
+
+    companyPerMile:
+      Number(service?.perMile || 0),
+
+    companyHourlyRate:
+      Number(service?.hourlyRate || 0),
+
+    companyHourlyBillingMode:
+      String(
+        service?.hourlyBillingMode ||
+        "FULL"
+      ).toUpperCase(),
+
+    companyStopFee:
+      Number(service?.stopFee || 0),
+
+    companyNoShowFee:
+      Number(service?.noShowFee || 0),
+
+    companySharedPrice:
+      Number(service?.sharedPrice || 0),
+
+    companyDisableCancel:
+      service?.disableCancel === true,
+
+    companyWarningMinutes:
+      Number(service?.warningMinutes || 0),
+
+    companyCancelFee:
+      Number(service?.cancelFee || 0),
+
+    __pricingSource:
+      "FACILITY_OVERRIDE"
+  };
 }
 
 async function getServiceByTrip(trip){
@@ -4303,16 +4493,203 @@ async function getServiceByTrip(trip){
     return null;
   }
 
-  return await Service.findOne({
-    serviceKey
-  }).lean();
+  /*
+    COMPANY / FACILITY PRICING:
+    The active Facility Pricing Override is the primary source.
+    Service Management is only the fallback.
+  */
+  const companyName =
+    String(
+      trip?.company || ""
+    ).trim();
 
+  if(companyName){
+
+    const overrideOr = [
+      {
+        facilityName:{
+          $regex:
+            "^" +
+            billingEscapeRegex(companyName) +
+            "$",
+          $options:"i"
+        }
+      }
+    ];
+
+    /*
+      Older records may match the facility user id rather than only its name.
+    */
+    try{
+
+      const facilityUserFilter = {
+        role:{
+          $in:["company","facility"]
+        },
+        name:{
+          $regex:
+            "^" +
+            billingEscapeRegex(companyName) +
+            "$",
+          $options:"i"
+        }
+      };
+
+      if(trip?.tenantId){
+        facilityUserFilter.tenantId =
+          trip.tenantId;
+      }
+
+      const facilityUser =
+        await User.findOne(
+          facilityUserFilter
+        )
+        .select("_id")
+        .lean();
+
+      if(facilityUser?._id){
+        overrideOr.push({
+          facilityId:
+            facilityUser._id
+        });
+      }
+
+    }catch(err){
+
+      console.log(
+        "FACILITY USER RESOLVE ERROR:",
+        err?.message || err
+      );
+    }
+
+    const overrideFilter = {
+      active:true,
+      $or:overrideOr
+    };
+
+    if(trip?.tenantId){
+      overrideFilter.tenantId =
+        trip.tenantId;
+    }
+
+    const override =
+      await FacilityPricingOverride
+        .findOne(
+          overrideFilter
+        )
+        .sort({
+          updatedAt:-1,
+          createdAt:-1
+        })
+        .lean();
+
+    if(
+      override &&
+      Array.isArray(override.services)
+    ){
+
+      const overrideService =
+        override.services.find(
+          service =>
+            billingOverrideServiceCode(service) ===
+            serviceKey
+        );
+
+      if(
+        overrideService &&
+        billingOverrideServiceEnabled(
+          overrideService
+        )
+      ){
+
+        return mapFacilityOverrideService(
+          overrideService,
+          serviceKey
+        );
+      }
+    }
+  }
+
+  /*
+    SERVICE MANAGEMENT FALLBACK.
+    Match both short codes (ST/WH/SH/LM/TX/XL) and long names.
+  */
+  const rx =
+    new RegExp(
+      "^" +
+      billingEscapeRegex(serviceKey) +
+      "$",
+      "i"
+    );
+
+  const serviceFilter = {
+    $or:[
+      {serviceKey},
+      {serviceCode:serviceKey},
+      {serviceType:serviceKey},
+      {suffix:serviceKey},
+      {companySuffix:serviceKey},
+      {reservedSuffix:serviceKey},
+      {serviceSuffix:serviceKey},
+      {title:rx},
+      {name:rx},
+      {serviceName:rx}
+    ]
+  };
+
+  if(trip?.tenantId){
+    serviceFilter.tenantId =
+      trip.tenantId;
+  }
+
+  let service =
+    await Service.findOne(
+      serviceFilter
+    ).lean();
+
+  /*
+    Legacy Service records may store STANDARD/WHEELCHAIR/etc.
+    Scan the tenant services only when the direct lookup misses.
+  */
+  if(!service){
+
+    const tenantServiceFilter = {};
+
+    if(trip?.tenantId){
+      tenantServiceFilter.tenantId =
+        trip.tenantId;
+    }
+
+    const services =
+      await Service.find(
+        tenantServiceFilter
+      ).lean();
+
+    service =
+      services.find(
+        row =>
+          normalizeBillingServiceCode(
+            row?.serviceKey ||
+            row?.serviceCode ||
+            row?.serviceType ||
+            row?.companySuffix ||
+            row?.suffix ||
+            row?.serviceSuffix ||
+            row?.title ||
+            row?.name ||
+            row?.serviceName ||
+            ""
+          ) === serviceKey
+      ) || null;
+  }
+
+  return service;
 }
 
 /*
   ADMIN BILLING PERFORMANCE:
-  Load all services required by a company's trips in ONE query
-  instead of one Mongo query for every trip.
+  Load all Service Management definitions required by a company's trips
+  in one query. Facility-specific fees are resolved only when needed.
 */
 async function getBillingServiceMap(trips){
 
@@ -4329,25 +4706,59 @@ async function getBillingServiceMap(trips){
     return new Map();
   }
 
+  const tenantIds =
+    [
+      ...new Set(
+        (Array.isArray(trips) ? trips : [])
+          .map(t=>String(t?.tenantId || "").trim())
+          .filter(Boolean)
+      )
+    ];
+
+  const filter = {};
+
+  if(tenantIds.length === 1){
+    filter.tenantId = tenantIds[0];
+  }
+
   const services =
-    await Service.find({
-      serviceKey:{
-        $in:keys
-      }
-    })
+    await Service.find(
+      filter
+    )
     .lean();
 
-  return new Map(
-    services.map(service=>[
-      String(
-        service.serviceKey ||
+  const map =
+    new Map();
+
+  services.forEach(service=>{
+
+    const key =
+      normalizeBillingServiceCode(
+        service?.serviceKey ||
+        service?.serviceCode ||
+        service?.serviceType ||
+        service?.companySuffix ||
+        service?.suffix ||
+        service?.serviceSuffix ||
+        service?.title ||
+        service?.name ||
+        service?.serviceName ||
         ""
-      )
-      .trim()
-      .toUpperCase(),
-      service
-    ])
-  );
+      );
+
+    if(
+      key &&
+      keys.includes(key) &&
+      !map.has(key)
+    ){
+      map.set(
+        key,
+        service
+      );
+    }
+  });
+
+  return map;
 }
 /* =========================
    BILLING ENGINE FINAL
@@ -4495,7 +4906,7 @@ async function updateCompanyBilling(company){
 
 for (const t of trips) {
 
-const service =
+let service =
   billingServiceMap.get(
     billingServiceKey(t)
   ) || null;
@@ -4523,6 +4934,23 @@ const isShared =
         .replace(/\s+/g,"")
         .toLowerCase()
         .trim();
+
+    /*
+      Cancel / No Show pricing for company trips must use the
+      Facility Pricing Override first. This also repairs legacy
+      trips whose stored fee is still zero.
+    */
+    if(
+      status.includes("cancel") ||
+      status.includes("no")
+    ){
+      const resolvedService =
+        await getServiceByTrip(t);
+
+      if(resolvedService){
+        service = resolvedService;
+      }
+    }
 
    /* =========================
    BILLABLE CHECK
@@ -4638,8 +5066,11 @@ if(
       amount += Number(
 
         p.finalPrice ||
-        t.finalPrice ||
+        p.cancelFee ||
         t.cancelFee ||
+        service?.companyCancelFee ||
+        service?.cancelFee ||
+        t.finalPrice ||
         0
 
       );
@@ -4647,7 +5078,11 @@ if(
     }else if(ps.includes("no")){
 
       amount += Number(
-        t.noShowFee || 0
+        p.noShowFee ||
+        t.noShowFee ||
+        service?.companyNoShowFee ||
+        service?.noShowFee ||
+        0
       );
 
     }
@@ -4669,8 +5104,10 @@ if(
 
     amount = Number(
 
-      t.finalPrice ||
       t.cancelFee ||
+      service?.companyCancelFee ||
+      service?.cancelFee ||
+      t.finalPrice ||
       t.priceAmount ||
       0
 
@@ -4679,7 +5116,10 @@ if(
   }else if(status.includes("no")){
 
     amount = Number(
-      t.noShowFee || 0
+      t.noShowFee ||
+      service?.companyNoShowFee ||
+      service?.noShowFee ||
+      0
     );
 
   }
@@ -6875,6 +7315,38 @@ app.get(
         continue;
       }
 
+      /*
+        SUMMARY PRICE SOURCE:
+        Company / Facility Cancel and No Show fees come from the
+        active Facility Pricing Override first, then Service Management.
+        Stored trip fees remain the first choice when already correct.
+      */
+      let summaryService = null;
+
+      if(
+        status === "Cancelled" ||
+        status === "NoShow"
+      ){
+        summaryService =
+          await getServiceByTrip(t);
+      }
+
+      const summaryCancelFee =
+        Number(
+          t.cancelFee ||
+          summaryService?.companyCancelFee ||
+          summaryService?.cancelFee ||
+          0
+        );
+
+      const summaryNoShowFee =
+        Number(
+          t.noShowFee ||
+          summaryService?.companyNoShowFee ||
+          summaryService?.noShowFee ||
+          0
+        );
+
       // =========================
       // MILES
       // =========================
@@ -6991,7 +7463,7 @@ if (
           Number(
 
             p.cancelFee ||
-            t.cancelFee ||
+            summaryCancelFee ||
             p.finalPrice ||
             0
 
@@ -7010,7 +7482,7 @@ if (
           Number(
 
             p.noShowFee ||
-            t.noShowFee ||
+            summaryNoShowFee ||
             p.finalPrice ||
             0
 
@@ -7116,7 +7588,7 @@ else {
 
     finalPrice =
       Number(
-        t.cancelFee ||
+        summaryCancelFee ||
         t.finalPrice ||
         0
       );
@@ -7130,7 +7602,7 @@ else {
 
     finalPrice =
       Number(
-        t.noShowFee ||
+        summaryNoShowFee ||
         t.finalPrice ||
         0
       );
@@ -7881,6 +8353,21 @@ if(updateData.status === "Confirmed"){
 
 if(updateData.status === "Cancelled"){
 
+  const finalPricingService =
+    await getServiceByTrip(existing);
+
+  if(
+    Number(existing.cancelFee || 0) <= 0 &&
+    Number(updateData.cancelFee || 0) <= 0
+  ){
+    updateData.cancelFee =
+      Number(
+        finalPricingService?.companyCancelFee ||
+        finalPricingService?.cancelFee ||
+        0
+      );
+  }
+
   updateData.isFinalized = true;
 
   updateData.cancelDateTime =
@@ -7902,6 +8389,21 @@ if(updateData.status === "Cancelled"){
 }
 
 else if(updateData.status === "No Show"){
+
+  const finalPricingService =
+    await getServiceByTrip(existing);
+
+  if(
+    Number(existing.noShowFee || 0) <= 0 &&
+    Number(updateData.noShowFee || 0) <= 0
+  ){
+    updateData.noShowFee =
+      Number(
+        finalPricingService?.companyNoShowFee ||
+        finalPricingService?.noShowFee ||
+        0
+      );
+  }
 
   updateData.isFinalized = true;
 
@@ -8568,13 +9070,21 @@ app.patch("/api/driver/trips/:id/no-show", async (req, res) => {
        NO SHOW
     ========================= */
 
+const noShowPricingService =
+  await getServiceByTrip(trip);
+
 const noShowFee =
   Number(
     trip.noShowFee ||
+    noShowPricingService?.companyNoShowFee ||
+    noShowPricingService?.noShowFee ||
     trip.finalPrice ||
     trip.priceAmount ||
     0
   );
+
+trip.noShowFee =
+  noShowFee;
 
 await finalizeIndividualTrip(
   trip,
