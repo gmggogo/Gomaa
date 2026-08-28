@@ -2,6 +2,7 @@
 
 const express = require("express");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const {
   stripe,
@@ -103,6 +104,51 @@ function tripStartDate(trip){
     : parsed;
 }
 
+async function confirmTripAfterCardSaved(trip){
+
+  const currentStatus =
+    clean(
+      trip.status
+    ).toLowerCase();
+
+  if(
+    !currentStatus ||
+    currentStatus === "booked" ||
+    currentStatus === "scheduled" ||
+    currentStatus === "pending payment"
+  ){
+    trip.status = "Confirmed";
+  }
+
+  trip.dispatchSelected = true;
+
+  if(
+    !clean(
+      trip.paymentStatus
+    ) ||
+    clean(
+      trip.paymentStatus
+    ).toUpperCase() === "SETUP_PENDING"
+  ){
+    trip.paymentStatus =
+      "PAYMENT_METHOD_SAVED";
+  }
+
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+  trip.paymentRequiredEmailSentAt = null;
+
+  if(!trip.cancelToken){
+    trip.cancelToken =
+      crypto
+        .randomBytes(32)
+        .toString("hex");
+  }
+
+  await trip.save();
+  return trip;
+}
+
 /* =========================================
    CREATE STRIPE-HOSTED CHECKOUT
 ========================================= */
@@ -160,6 +206,10 @@ router.post(
       if(
         trip.stripePaymentMethodId
       ){
+
+        await confirmTripAfterCardSaved(
+          trip
+        );
 
         return res.json({
           success:true,
@@ -422,6 +472,10 @@ router.post(
       await confirmSavedPaymentMethod(
         trip,
         setupIntentId
+      );
+
+      await confirmTripAfterCardSaved(
+        trip
       );
 
       if(
