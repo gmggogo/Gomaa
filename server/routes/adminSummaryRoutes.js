@@ -1051,6 +1051,51 @@ function isCustomerCancellation(
   );
 }
 
+function isExplicitOperatorCancellation(
+  trip,
+  passenger=null
+){
+
+  const src =
+    getCancelSource(
+      trip,
+      passenger
+    );
+
+  return (
+    src === "OPERATOR" ||
+    src === "ADMIN" ||
+    src === "DISPATCH" ||
+    src === "DISPATCHER" ||
+    src === "SYSTEM" ||
+    passenger?.operatorCancelled === true ||
+    trip?.operatorCancelled === true
+  );
+}
+
+function firstPositiveMoney(...values){
+
+  for(const value of values){
+
+    if(
+      value === undefined ||
+      value === null ||
+      text(value) === ""
+    ){
+      continue;
+    }
+
+    const amount =
+      num(value);
+
+    if(amount > 0){
+      return amount;
+    }
+  }
+
+  return 0;
+}
+
 /* =========================
    FINAL MONEY
 ========================= */
@@ -1113,11 +1158,17 @@ function finalCharge(
   ){
 
     const fee =
-      num(
-        passenger?.noShowFee ??
-        pricing.noShowFee ??
-        trip?.noShowFee ??
-        0
+      firstPositiveMoney(
+        passenger?.noShowFee,
+        passenger?.finalChargeAmount,
+        !passenger
+          ? trip?.noShowFee
+          : undefined,
+        !passenger
+          ? trip?.finalChargeAmount
+          : undefined,
+        pricing.noShowFee,
+        trip?.noShowFee
       );
 
     return {
@@ -1129,8 +1180,13 @@ function finalCharge(
 
   if(status.includes("cancel")){
 
+    /*
+      Legacy cancelled trips often have no cancelSource at all.
+      Missing source must not be treated as an operator cancellation.
+      Only an explicit operator/admin/dispatch/system source is free.
+    */
     if(
-      !isCustomerCancellation(
+      isExplicitOperatorCancellation(
         trip,
         passenger
       )
@@ -1144,25 +1200,29 @@ function finalCharge(
     }
 
     const fee =
-      num(
-        passenger?.finalChargeAmount ??
-        passenger?.cancelFee ??
-        (
-          !passenger
-            ? (
-                trip?.finalChargeAmount ??
-                trip?.cancelFee
-              )
-            : undefined
-        ) ??
-        pricing.cancelFee ??
-        0
+      firstPositiveMoney(
+        passenger?.finalChargeAmount,
+        passenger?.cancelFee,
+        !passenger
+          ? trip?.finalChargeAmount
+          : undefined,
+        !passenger
+          ? trip?.cancelFee
+          : undefined,
+        pricing.cancelFee,
+        trip?.cancelFee
       );
 
     return {
       amount:fee,
       fee,
-      type:"CANCELLATION_FEE"
+      type:
+        isCustomerCancellation(
+          trip,
+          passenger
+        )
+          ? "CANCELLATION_FEE"
+          : "LEGACY_CANCELLATION_FEE"
     };
   }
 
