@@ -230,7 +230,8 @@ if(
   if(
     !checkoutStatus ||
     checkoutStatus === "booked" ||
-    checkoutStatus === "scheduled"
+    checkoutStatus === "scheduled" ||
+    checkoutStatus === "pending payment"
   ){
     trip.status = "Confirmed";
   }
@@ -428,6 +429,53 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
+
+/* =========================
+   GH MOBILITY SaaS BILLING
+   Super Admin subscription payment
+   Platform Admin subscription control
+========================= */
+
+const tenantSubscriptionRoutes =
+  require("./routes/tenantSubscriptionRoutes");
+
+const platformSubscriptionRoutes =
+  require("./routes/platformSubscriptionRoutes");
+
+app.use(
+  "/api/tenant-subscription",
+  tenantSubscriptionRoutes
+);
+
+app.use(
+  "/api/platform-subscription",
+  platformSubscriptionRoutes
+);
+
+console.log(
+  "✅ tenantSubscriptionRoutes mounted on /api/tenant-subscription"
+);
+
+console.log(
+  "✅ platformSubscriptionRoutes mounted on /api/platform-subscription"
+);
+
+/* =========================
+   PLATFORM STRIPE ACCOUNT
+========================= */
+
+const platformStripeRoutes =
+  require("./routes/platformStripeRoutes");
+
+app.use(
+  "/api/platform-stripe",
+  platformStripeRoutes
+);
+
+console.log(
+  "✅ platformStripeRoutes mounted on /api/platform-stripe"
+);
+
 /* =========================
    DRIVER / DISPATCH CHAT
 ========================= */
@@ -588,7 +636,8 @@ app.post(
       if(
         !currentStatus ||
         currentStatus === "booked" ||
-        currentStatus === "scheduled"
+        currentStatus === "scheduled" ||
+        currentStatus === "pending payment"
       ){
         trip.status = "Confirmed";
       }
@@ -935,6 +984,13 @@ cancelFee: { type: Number, default: 0 },
 
 noShowFee: { type: Number, default: 0 },
 
+cancelledByRole: { type: String, default: "" },
+
+cancellationChargeable: {
+  type: Boolean,
+  default: null
+},
+
 /* DRIVER FINAL COMMENT */
 cancelReason: { type: String, default: "" },
 noShowReason: { type: String, default: "" },
@@ -1026,8 +1082,19 @@ passengerDurationSeconds: {
   simpleRefundId: { type: String, default: "" },
   refundAmount: { type: Number, default: 0 },
   cancelFee: { type: Number, default: 0 },
+  noShowFee: { type: Number, default: 0 },
 
   cancelDateTime: { type: Date, default: null },
+
+  cancelledByRole: {
+    type: String,
+    default: ""
+  },
+
+  cancellationChargeable: {
+    type: Boolean,
+    default: null
+  },
 
   refundStatus: {
     type: String,
@@ -1162,6 +1229,24 @@ const Trip =
 
 global.Trip = Trip;
 global.User = User;
+
+
+/* =========================
+   TAX REPORT ROUTES
+   Super Admin tax data report
+========================= */
+
+const taxReportRoutes =
+  require("./routes/taxReportRoutes");
+
+app.use(
+  "/api/tax-report",
+  taxReportRoutes
+);
+
+console.log(
+  "✅ taxReportRoutes mounted on /api/tax-report"
+);
 
 /* =========================
    PAYROLL & EARNINGS ROUTES
@@ -3583,11 +3668,14 @@ app.post("/api/auth/login", async (req, res) => {
       }
     }
 
+    const browserRole =
+      legacyStaffRole(user.role);
+
     const token =
       jwt.sign(
         {
           id: user._id,
-          role: user.role,
+          role: browserRole,
           name: user.name,
           tenantId:
             user.tenantId
@@ -3608,7 +3696,7 @@ app.post("/api/auth/login", async (req, res) => {
         id: user._id,
         name: user.name,
         username: user.username,
-        role: user.role,
+        role: browserRole,
         tenantId:
           user.tenantId
             ? String(user.tenantId)
@@ -3646,10 +3734,40 @@ function normalizeActorRole(value){
     .replace(/[\s-]+/g,"_");
 }
 
+function legacyStaffRole(value){
+  const role = normalizeActorRole(value);
+
+  if(role === "SUPER_ADMIN" || role === "SUPERADMIN"){
+    return "SUPER_ADMIN";
+  }
+
+  if(role === "ADMIN") return "admin";
+  if(role === "DISPATCHER") return "dispatcher";
+  if(role === "DRIVER") return "driver";
+  if(role === "COMPANY") return "company";
+
+  return role || String(value || "").trim();
+}
+
 function normalizeManagedUserRole(value){
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function isOperationalCancellationRole(value){
+
+  const role =
+    normalizeActorRole(value);
+
+  return [
+    "DRIVER",
+    "DISPATCHER",
+    "ADMIN",
+    "SUPER_ADMIN",
+    "SUPERADMIN",
+    "PLATFORM_ADMIN"
+  ].includes(role);
 }
 
 function canManageUserRole(req,targetRole){
@@ -4218,15 +4336,204 @@ app.get(
 
 });
 
+function normalizeBillingServiceCode(value){
+
+  const c =
+    String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ");
+
+  if(
+    c === "ST" ||
+    c === "STANDARD" ||
+    c.includes("STANDARD")
+  ){
+    return "ST";
+  }
+
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(
+    c === "SH" ||
+    c === "SHARED" ||
+    c.includes("SHARED")
+  ){
+    return "SH";
+  }
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(
+    c === "TX" ||
+    c === "TAXI" ||
+    c.includes("TAXI")
+  ){
+    return "TX";
+  }
+
+  if(
+    c === "XL" ||
+    c === "XL SERVICE" ||
+    c.startsWith("XL ")
+  ){
+    return "XL";
+  }
+
+  return c;
+}
+
 function billingServiceKey(trip){
 
-  return String(
+  if(
+    trip?.isShared === true ||
+    String(trip?.tripType || "")
+      .toUpperCase()
+      .includes("SHARED") ||
+    String(trip?.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH")
+  ){
+    return "SH";
+  }
+
+  return normalizeBillingServiceCode(
     trip?.serviceKey ||
+    trip?.serviceCode ||
     trip?.serviceType ||
+    trip?.vehicleTypeFromQuote ||
+    trip?.vehicle ||
     ""
-  )
-  .trim()
-  .toUpperCase();
+  );
+}
+
+function billingEscapeRegex(value){
+  return String(value || "")
+    .replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+}
+
+function billingOverrideServiceCode(service){
+
+  return normalizeBillingServiceCode(
+    service?.serviceKey ||
+    service?.serviceCode ||
+    service?.serviceType ||
+    service?.serviceSuffix ||
+    service?.companySuffix ||
+    service?.suffix ||
+    service?.serviceName ||
+    service?.title ||
+    service?.name ||
+    ""
+  );
+}
+
+function billingOverrideServiceEnabled(service){
+
+  if(!service){
+    return false;
+  }
+
+  if(service.active !== undefined){
+    return service.active !== false;
+  }
+
+  if(service.enabled !== undefined){
+    return service.enabled !== false;
+  }
+
+  if(service.companyEnabled !== undefined){
+    return service.companyEnabled !== false;
+  }
+
+  return true;
+}
+
+function mapFacilityOverrideService(service,serviceKey){
+
+  const code =
+    normalizeBillingServiceCode(
+      serviceKey ||
+      billingOverrideServiceCode(service)
+    );
+
+  return {
+    ...service,
+
+    serviceKey:code,
+    serviceCode:code,
+    serviceType:code,
+    companySuffix:
+      normalizeBillingServiceCode(
+        service?.serviceSuffix ||
+        code
+      ) || code,
+
+    companyEnabled:true,
+
+    companyPricingMode:
+      String(
+        service?.pricingMode ||
+        "MILE"
+      ).toUpperCase(),
+
+    companyBaseFare:
+      Number(service?.baseFare || 0),
+
+    companyIncludedMiles:
+      Number(service?.includedMiles || 0),
+
+    companyPerMile:
+      Number(service?.perMile || 0),
+
+    companyHourlyRate:
+      Number(service?.hourlyRate || 0),
+
+    companyHourlyBillingMode:
+      String(
+        service?.hourlyBillingMode ||
+        "FULL"
+      ).toUpperCase(),
+
+    companyStopFee:
+      Number(service?.stopFee || 0),
+
+    companyNoShowFee:
+      Number(service?.noShowFee || 0),
+
+    companySharedPrice:
+      Number(service?.sharedPrice || 0),
+
+    companyDisableCancel:
+      service?.disableCancel === true,
+
+    companyWarningMinutes:
+      Number(service?.warningMinutes || 0),
+
+    companyCancelFee:
+      Number(service?.cancelFee || 0),
+
+    __pricingSource:
+      "FACILITY_OVERRIDE"
+  };
 }
 
 async function getServiceByTrip(trip){
@@ -4238,16 +4545,203 @@ async function getServiceByTrip(trip){
     return null;
   }
 
-  return await Service.findOne({
-    serviceKey
-  }).lean();
+  /*
+    COMPANY / FACILITY PRICING:
+    The active Facility Pricing Override is the primary source.
+    Service Management is only the fallback.
+  */
+  const companyName =
+    String(
+      trip?.company || ""
+    ).trim();
 
+  if(companyName){
+
+    const overrideOr = [
+      {
+        facilityName:{
+          $regex:
+            "^" +
+            billingEscapeRegex(companyName) +
+            "$",
+          $options:"i"
+        }
+      }
+    ];
+
+    /*
+      Older records may match the facility user id rather than only its name.
+    */
+    try{
+
+      const facilityUserFilter = {
+        role:{
+          $in:["company","facility"]
+        },
+        name:{
+          $regex:
+            "^" +
+            billingEscapeRegex(companyName) +
+            "$",
+          $options:"i"
+        }
+      };
+
+      if(trip?.tenantId){
+        facilityUserFilter.tenantId =
+          trip.tenantId;
+      }
+
+      const facilityUser =
+        await User.findOne(
+          facilityUserFilter
+        )
+        .select("_id")
+        .lean();
+
+      if(facilityUser?._id){
+        overrideOr.push({
+          facilityId:
+            facilityUser._id
+        });
+      }
+
+    }catch(err){
+
+      console.log(
+        "FACILITY USER RESOLVE ERROR:",
+        err?.message || err
+      );
+    }
+
+    const overrideFilter = {
+      active:true,
+      $or:overrideOr
+    };
+
+    if(trip?.tenantId){
+      overrideFilter.tenantId =
+        trip.tenantId;
+    }
+
+    const override =
+      await FacilityPricingOverride
+        .findOne(
+          overrideFilter
+        )
+        .sort({
+          updatedAt:-1,
+          createdAt:-1
+        })
+        .lean();
+
+    if(
+      override &&
+      Array.isArray(override.services)
+    ){
+
+      const overrideService =
+        override.services.find(
+          service =>
+            billingOverrideServiceCode(service) ===
+            serviceKey
+        );
+
+      if(
+        overrideService &&
+        billingOverrideServiceEnabled(
+          overrideService
+        )
+      ){
+
+        return mapFacilityOverrideService(
+          overrideService,
+          serviceKey
+        );
+      }
+    }
+  }
+
+  /*
+    SERVICE MANAGEMENT FALLBACK.
+    Match both short codes (ST/WH/SH/LM/TX/XL) and long names.
+  */
+  const rx =
+    new RegExp(
+      "^" +
+      billingEscapeRegex(serviceKey) +
+      "$",
+      "i"
+    );
+
+  const serviceFilter = {
+    $or:[
+      {serviceKey},
+      {serviceCode:serviceKey},
+      {serviceType:serviceKey},
+      {suffix:serviceKey},
+      {companySuffix:serviceKey},
+      {reservedSuffix:serviceKey},
+      {serviceSuffix:serviceKey},
+      {title:rx},
+      {name:rx},
+      {serviceName:rx}
+    ]
+  };
+
+  if(trip?.tenantId){
+    serviceFilter.tenantId =
+      trip.tenantId;
+  }
+
+  let service =
+    await Service.findOne(
+      serviceFilter
+    ).lean();
+
+  /*
+    Legacy Service records may store STANDARD/WHEELCHAIR/etc.
+    Scan the tenant services only when the direct lookup misses.
+  */
+  if(!service){
+
+    const tenantServiceFilter = {};
+
+    if(trip?.tenantId){
+      tenantServiceFilter.tenantId =
+        trip.tenantId;
+    }
+
+    const services =
+      await Service.find(
+        tenantServiceFilter
+      ).lean();
+
+    service =
+      services.find(
+        row =>
+          normalizeBillingServiceCode(
+            row?.serviceKey ||
+            row?.serviceCode ||
+            row?.serviceType ||
+            row?.companySuffix ||
+            row?.suffix ||
+            row?.serviceSuffix ||
+            row?.title ||
+            row?.name ||
+            row?.serviceName ||
+            ""
+          ) === serviceKey
+      ) || null;
+  }
+
+  return service;
 }
 
 /*
   ADMIN BILLING PERFORMANCE:
-  Load all services required by a company's trips in ONE query
-  instead of one Mongo query for every trip.
+  Load all Service Management definitions required by a company's trips
+  in one query. Facility-specific fees are resolved only when needed.
 */
 async function getBillingServiceMap(trips){
 
@@ -4264,25 +4758,59 @@ async function getBillingServiceMap(trips){
     return new Map();
   }
 
+  const tenantIds =
+    [
+      ...new Set(
+        (Array.isArray(trips) ? trips : [])
+          .map(t=>String(t?.tenantId || "").trim())
+          .filter(Boolean)
+      )
+    ];
+
+  const filter = {};
+
+  if(tenantIds.length === 1){
+    filter.tenantId = tenantIds[0];
+  }
+
   const services =
-    await Service.find({
-      serviceKey:{
-        $in:keys
-      }
-    })
+    await Service.find(
+      filter
+    )
     .lean();
 
-  return new Map(
-    services.map(service=>[
-      String(
-        service.serviceKey ||
+  const map =
+    new Map();
+
+  services.forEach(service=>{
+
+    const key =
+      normalizeBillingServiceCode(
+        service?.serviceKey ||
+        service?.serviceCode ||
+        service?.serviceType ||
+        service?.companySuffix ||
+        service?.suffix ||
+        service?.serviceSuffix ||
+        service?.title ||
+        service?.name ||
+        service?.serviceName ||
         ""
-      )
-      .trim()
-      .toUpperCase(),
-      service
-    ])
-  );
+      );
+
+    if(
+      key &&
+      keys.includes(key) &&
+      !map.has(key)
+    ){
+      map.set(
+        key,
+        service
+      );
+    }
+  });
+
+  return map;
 }
 /* =========================
    BILLING ENGINE FINAL
@@ -4430,7 +4958,7 @@ async function updateCompanyBilling(company){
 
 for (const t of trips) {
 
-const service =
+let service =
   billingServiceMap.get(
     billingServiceKey(t)
   ) || null;
@@ -4458,6 +4986,23 @@ const isShared =
         .replace(/\s+/g,"")
         .toLowerCase()
         .trim();
+
+    /*
+      Cancel / No Show pricing for company trips must use the
+      Facility Pricing Override first. This also repairs legacy
+      trips whose stored fee is still zero.
+    */
+    if(
+      status.includes("cancel") ||
+      status.includes("no")
+    ){
+      const resolvedService =
+        await getServiceByTrip(t);
+
+      if(resolvedService){
+        service = resolvedService;
+      }
+    }
 
    /* =========================
    BILLABLE CHECK
@@ -4570,19 +5115,34 @@ if(
 
     }else if(ps.includes("cancel")){
 
+      const cancellationChargeable =
+        p?.cancellationChargeable === false ||
+        t?.cancellationChargeable === false
+          ? false
+          : true;
+
       amount += Number(
-
-        p.finalPrice ||
-        t.finalPrice ||
-        t.cancelFee ||
-        0
-
+        cancellationChargeable
+          ? (
+              p.finalPrice ||
+              p.cancelFee ||
+              t.cancelFee ||
+              service?.companyCancelFee ||
+              service?.cancelFee ||
+              t.finalPrice ||
+              0
+            )
+          : 0
       );
 
     }else if(ps.includes("no")){
 
       amount += Number(
-        t.noShowFee || 0
+        p.noShowFee ||
+        t.noShowFee ||
+        service?.companyNoShowFee ||
+        service?.noShowFee ||
+        0
       );
 
     }
@@ -4602,19 +5162,25 @@ if(
 
   }else if(status.includes("cancel")){
 
-    amount = Number(
-
-      t.finalPrice ||
-      t.cancelFee ||
-      t.priceAmount ||
-      0
-
-    );
+    amount =
+      t?.cancellationChargeable === false
+        ? 0
+        : Number(
+            t.cancelFee ||
+            service?.companyCancelFee ||
+            service?.cancelFee ||
+            t.finalPrice ||
+            t.priceAmount ||
+            0
+          );
 
   }else if(status.includes("no")){
 
     amount = Number(
-      t.noShowFee || 0
+      t.noShowFee ||
+      service?.companyNoShowFee ||
+      service?.noShowFee ||
+      0
     );
 
   }
@@ -5781,6 +6347,39 @@ app.post("/api/trips", optionalTenantApi, async (req, res) => {
       );
 
     /* =========================
+       PUBLIC GET QUOTE PAYMENT GATE
+
+       A public individual booking must NEVER become Booked
+       unless this tenant has a fully connected Stripe account.
+       Staff-created trips are not affected by this rule.
+    ========================= */
+
+    const isPublicIndividualBooking =
+      !req.authUser &&
+      type === "individual";
+
+    if(isPublicIndividualBooking){
+
+      const paymentAccount =
+        await TenantPaymentAccount.findOne({
+          tenantId
+        }).lean();
+
+      if(
+        !paymentAccount ||
+        !paymentAccount.stripeAccountId ||
+        paymentAccount.connected !== true ||
+        paymentAccount.chargesEnabled !== true
+      ){
+
+        return res.status(400).json({
+          message:
+            "Online booking is currently unavailable. Payment account is not connected."
+        });
+      }
+    }
+
+    /* =========================
        COMPANY LOCK CHECK
     ========================= */
 
@@ -5806,7 +6405,7 @@ app.post("/api/trips", optionalTenantApi, async (req, res) => {
         )
       ) {
         return res.status(403).json({
-          message: "Company account locked بسبب عدم الدفع"
+          message: "Company account locked because billing is past due"
         });
       }
     }
@@ -6367,7 +6966,14 @@ serviceCode: vehicleTypeFromQuote,
 
       notes: normalizeText(req.body.notes),
 
-      status: normalizeText(req.body.status) || "Booked",
+      /*
+        Public Get Quote bookings stay invisible / unconfirmed until
+        Stripe card setup succeeds. Staff-created trips keep the old default.
+      */
+      status:
+        isPublicIndividualBooking
+          ? "Pending Payment"
+          : (normalizeText(req.body.status) || "Booked"),
 
 reservationStatus:
   normalizeText(req.body.reservationStatus),
@@ -6513,7 +7119,9 @@ app.get(
 ========================= */
 app.get("/api/trips", requireTenantApi, async (req, res) => {
   try {
-    const trips = await Trip.find(tenantFilter(req,{})).sort({ createdAt: -1, _id: -1 });
+    const trips = await Trip.find(
+      tenantFilter(req,{})
+    ).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
     console.log(err);
@@ -6759,6 +7367,40 @@ app.get(
         continue;
       }
 
+      /*
+        SUMMARY PRICE SOURCE:
+        Company / Facility Cancel and No Show fees come from the
+        active Facility Pricing Override first, then Service Management.
+        Stored trip fees remain the first choice when already correct.
+      */
+      let summaryService = null;
+
+      if(
+        status === "Cancelled" ||
+        status === "NoShow"
+      ){
+        summaryService =
+          await getServiceByTrip(t);
+      }
+
+      const summaryCancelFee =
+        t?.cancellationChargeable === false
+          ? 0
+          : Number(
+              t.cancelFee ||
+              summaryService?.companyCancelFee ||
+              summaryService?.cancelFee ||
+              0
+            );
+
+      const summaryNoShowFee =
+        Number(
+          t.noShowFee ||
+          summaryService?.companyNoShowFee ||
+          summaryService?.noShowFee ||
+          0
+        );
+
       // =========================
       // MILES
       // =========================
@@ -6872,14 +7514,17 @@ if (
       ) {
 
         passengerPrice =
-          Number(
-
-            p.cancelFee ||
-            t.cancelFee ||
-            p.finalPrice ||
-            0
-
-          );
+          (
+            p?.cancellationChargeable === false ||
+            t?.cancellationChargeable === false
+          )
+            ? 0
+            : Number(
+                p.cancelFee ||
+                summaryCancelFee ||
+                p.finalPrice ||
+                0
+              );
 
       }
 
@@ -6894,7 +7539,7 @@ if (
           Number(
 
             p.noShowFee ||
-            t.noShowFee ||
+            summaryNoShowFee ||
             p.finalPrice ||
             0
 
@@ -7000,7 +7645,7 @@ else {
 
     finalPrice =
       Number(
-        t.cancelFee ||
+        summaryCancelFee ||
         t.finalPrice ||
         0
       );
@@ -7014,7 +7659,7 @@ else {
 
     finalPrice =
       Number(
-        t.noShowFee ||
+        summaryNoShowFee ||
         t.finalPrice ||
         0
       );
@@ -7305,10 +7950,68 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
         return res.json(noShowTrip);
       }
       if(requestedFinalStatus === "Cancelled"){
-        const cancelledTrip = await finalizeIndividualTrip(existing,"CANCEL",{
-          cancelFee:Number(req.body.cancelFee ?? existing.cancelFee ?? 0),
-          refundAmount:0
-        });
+
+        const operationalCancel =
+          isOperationalCancellationRole(
+            req.authUser?.role
+          );
+
+        existing.cancelledByRole =
+          normalizeActorRole(
+            req.authUser?.role
+          ) || "UNKNOWN";
+
+        existing.cancellationChargeable =
+          operationalCancel
+            ? false
+            : existing.cancellationChargeable;
+
+        if(operationalCancel){
+          existing.cancelFee = 0;
+          existing.finalPrice = 0;
+          existing.priceAmount = 0;
+          existing.status = "Cancelled";
+          existing.paymentStatus = "UNPAID";
+          existing.isFinalized = true;
+          existing.cancelDateTime =
+            existing.cancelDateTime || new Date();
+          existing.historyAt =
+            existing.historyAt || new Date();
+
+          if(
+            Array.isArray(
+              existing.passengers
+            )
+          ){
+            existing.passengers.forEach(p=>{
+              p.cancelFee = 0;
+              p.finalPrice = 0;
+              p.priceAmount = 0;
+              p.cancelledByRole =
+                existing.cancelledByRole;
+              p.cancellationChargeable = false;
+            });
+            existing.markModified("passengers");
+          }
+
+          await existing.save();
+          return res.json(existing);
+        }
+
+        const cancelledTrip =
+          await finalizeIndividualTrip(
+            existing,
+            "CANCEL",
+            {
+              cancelFee:Number(
+                req.body.cancelFee ??
+                existing.cancelFee ??
+                0
+              ),
+              refundAmount:0
+            }
+          );
+
         return res.json(cancelledTrip);
       }
     }
@@ -7765,6 +8468,75 @@ if(updateData.status === "Confirmed"){
 
 if(updateData.status === "Cancelled"){
 
+  const operationalCancel =
+    isOperationalCancellationRole(
+      req.authUser?.role
+    );
+
+  updateData.cancelledByRole =
+    normalizeActorRole(
+      req.authUser?.role
+    ) || "UNKNOWN";
+
+  updateData.cancellationChargeable =
+    operationalCancel
+      ? false
+      : (
+          existing.cancellationChargeable !== null &&
+          existing.cancellationChargeable !== undefined
+            ? existing.cancellationChargeable
+            : true
+        );
+
+  if(operationalCancel){
+
+    updateData.cancelFee = 0;
+    updateData.finalPrice = 0;
+    updateData.priceAmount = 0;
+
+    if(
+      Array.isArray(
+        updateData.passengers
+      )
+    ){
+      updateData.passengers =
+        updateData.passengers.map(p=>({
+          ...p,
+          cancelFee:0,
+          finalPrice:0,
+          priceAmount:0,
+          cancelledByRole:
+            updateData.cancelledByRole,
+          cancellationChargeable:false
+        }));
+    }
+
+  }else{
+
+    const finalPricingService =
+      await getServiceByTrip(existing);
+
+    if(
+      Number(existing.cancelFee || 0) <= 0 &&
+      Number(updateData.cancelFee || 0) <= 0
+    ){
+      updateData.cancelFee =
+        Number(
+          finalPricingService?.companyCancelFee ||
+          finalPricingService?.cancelFee ||
+          0
+        );
+    }
+
+    updateData.finalPrice =
+      Number(
+        existing.cancelFee ||
+        updateData.cancelFee ||
+        existing.finalPrice ||
+        0
+      );
+  }
+
   updateData.isFinalized = true;
 
   updateData.cancelDateTime =
@@ -7775,17 +8547,24 @@ if(updateData.status === "Cancelled"){
     existing.historyAt ||
     new Date();
 
-  updateData.finalPrice =
-    Number(
-      existing.cancelFee ||
-      updateData.cancelFee ||
-      existing.finalPrice ||
-      0
-    );
-
 }
 
 else if(updateData.status === "No Show"){
+
+  const finalPricingService =
+    await getServiceByTrip(existing);
+
+  if(
+    Number(existing.noShowFee || 0) <= 0 &&
+    Number(updateData.noShowFee || 0) <= 0
+  ){
+    updateData.noShowFee =
+      Number(
+        finalPricingService?.companyNoShowFee ||
+        finalPricingService?.noShowFee ||
+        0
+      );
+  }
 
   updateData.isFinalized = true;
 
@@ -8452,13 +9231,21 @@ app.patch("/api/driver/trips/:id/no-show", async (req, res) => {
        NO SHOW
     ========================= */
 
+const noShowPricingService =
+  await getServiceByTrip(trip);
+
 const noShowFee =
   Number(
     trip.noShowFee ||
+    noShowPricingService?.companyNoShowFee ||
+    noShowPricingService?.noShowFee ||
     trip.finalPrice ||
     trip.priceAmount ||
     0
   );
+
+trip.noShowFee =
+  noShowFee;
 
 await finalizeIndividualTrip(
   trip,
@@ -8849,6 +9636,16 @@ else{
     totalAmount;
 
 }
+
+/* =========================
+   CANCELLATION SOURCE
+========================= */
+
+trip.cancelledByRole =
+  "CUSTOMER";
+
+trip.cancellationChargeable =
+  Number(fee || 0) > 0;
 
 /* =========================
    REFUND ID
@@ -9335,6 +10132,12 @@ const totalCancelFee =
         0
       );
 
+    trip.cancelledByRole =
+      "COMPANY";
+
+    trip.cancellationChargeable =
+      Number(totalCancelFee || 0) > 0;
+
     if(
       trip.isShared === true &&
       Array.isArray(trip.passengers) &&
@@ -9395,6 +10198,9 @@ const totalCancelFee =
             cancelFee:perPassengerFee,
             finalPrice:perPassengerFee,
             priceAmount:perPassengerFee,
+            cancelledByRole:"COMPANY",
+            cancellationChargeable:
+              Number(perPassengerFee || 0) > 0,
             isFinalized:true,
             finalizedAt:new Date()
           };
