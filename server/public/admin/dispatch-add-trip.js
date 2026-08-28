@@ -25,13 +25,42 @@ const SERVICES_URL = "/api/services/admin";
 const ADD_STOP_ACTIVE_FROM =
   new Date("2026-06-20T05:58:00");
 
-const token = localStorage.getItem("token") || "";
-const role  = localStorage.getItem("role") || "";
+const token =
+  sessionStorage.getItem("staffToken") ||
+  localStorage.getItem("staffToken") ||
+  sessionStorage.getItem("token") ||
+  localStorage.getItem("token") ||
+  "";
 
-if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+const role =
+  sessionStorage.getItem("staffRole") ||
+  localStorage.getItem("staffRole") ||
+  sessionStorage.getItem("role") ||
+  localStorage.getItem("role") ||
+  "";
+
+const normalizedRole =
+  String(role || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+
+const allowedStaffRoles = [
+  "SUPER_ADMIN",
+  "SUPERADMIN",
+  "ADMIN",
+  "DISPATCHER"
+];
+
+if(!token || !allowedStaffRoles.includes(normalizedRole)){
   window.location.href = "/login.html";
   return;
 }
+
+sessionStorage.setItem("staffToken",token);
+localStorage.setItem("token",token);
+sessionStorage.setItem("staffRole",role);
+localStorage.setItem("role",role);
 
 /* ================= STATE ================= */
 
