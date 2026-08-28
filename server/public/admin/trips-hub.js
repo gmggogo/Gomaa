@@ -1303,6 +1303,98 @@ function isNewTrip(t){
   return !isNaN(d) && Date.now() - d.getTime() <= 2 * 60 * 60 * 1000;
 }
 
+const VIEWED_NEW_TRIPS_KEY =
+  "tripsHubViewedNewTrips:" +
+  String(tenantId || tenantSlug || "default");
+
+function readViewedNewTrips(){
+  let viewed = {};
+
+  try{
+    viewed = JSON.parse(
+      localStorage.getItem(VIEWED_NEW_TRIPS_KEY) ||
+      "{}"
+    );
+  }catch(err){
+    viewed = {};
+  }
+
+  const now = Date.now();
+  let changed = false;
+
+  Object.keys(viewed).forEach(key=>{
+    if(Number(viewed[key] || 0) <= now){
+      delete viewed[key];
+      changed = true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem(
+      VIEWED_NEW_TRIPS_KEY,
+      JSON.stringify(viewed)
+    );
+  }
+
+  return viewed;
+}
+
+function isUnreadNewItem(item){
+  if(!item || !isNewTrip(getItemTrip(item))){
+    return false;
+  }
+
+  const viewed = readViewedNewTrips();
+  return !viewed[String(item.key)];
+}
+
+function publishUnreadNewTrips(count){
+  const value = Math.max(0,Number(count || 0));
+
+  localStorage.setItem(
+    "dashboardNewTripsCount",
+    String(value)
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "gh-dashboard-alerts",
+      {
+        detail:{
+          newTrips:value,
+          pendingConfirmation:Number(
+            localStorage.getItem(
+              "dashboardPendingConfirmationCount"
+            ) ||
+            0
+          )
+        }
+      }
+    )
+  );
+}
+
+function markNewItemViewed(item){
+  if(!item || !isNewTrip(getItemTrip(item))){
+    return;
+  }
+
+  const trip = getItemTrip(item);
+  const bookedAt = getBookedDateObj(trip);
+  const expiresAt =
+    bookedAt && !isNaN(bookedAt)
+      ? bookedAt.getTime() + (2 * 60 * 60 * 1000)
+      : Date.now() + (2 * 60 * 60 * 1000);
+
+  const viewed = readViewedNewTrips();
+  viewed[String(item.key)] = expiresAt;
+
+  localStorage.setItem(
+    VIEWED_NEW_TRIPS_KEY,
+    JSON.stringify(viewed)
+  );
+}
+
 function isTripToday(t){
   const d = getFilterDateObj(t);
   return d && !isNaN(d) && dateKey(d) === dateKey(getAZNow());
@@ -1925,7 +2017,7 @@ function renderStats(){
   const allItems = baseItemsCache;
 
   const total = countItems(allItems);
-  const newTrips = countItems(allItems.filter(item=>isNewTrip(getItemTrip(item))));
+  const newTrips = countItems(allItems.filter(isUnreadNewItem));
   const facility = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "FA"));
   const gq = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "GQ"));
   const rv = countItems(allItems.filter(item=>getSourceCode(getItemTrip(item)) === "RV"));
@@ -1937,6 +2029,8 @@ function renderStats(){
     ${statCard("gq","GET QUOTE",gq)}
     ${statCard("reserved","RESERVED",rv)}
   `;
+
+  publishUnreadNewTrips(newTrips.total);
 }
 
 function countItemsByService(code){
@@ -2006,6 +2100,18 @@ function renderServiceTabs(){
 function toggleSelection(key){
   if(selectedItems.has(key)) selectedItems.delete(key);
   else selectedItems.add(key);
+
+  const item =
+    displayItems.find(
+      current=>current.key === key
+    );
+
+  if(item){
+    markNewItemViewed(item);
+    applyFilters();
+    return;
+  }
+
   updateSelectionButtons();
 }
 
@@ -2312,7 +2418,7 @@ function rowClass(item){
     cls += " shared-row";
   }
 
-  if(isNewTrip(t)){
+  if(isUnreadNewItem(item)){
     cls += " new-trip-row";
   }
 
