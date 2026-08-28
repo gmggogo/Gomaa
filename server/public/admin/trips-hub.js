@@ -14,12 +14,83 @@ const API_URL = "/api/trips";
 const LIST_API_URL = "/api/tenant-trips";
 const SERVICES_URL = "/api/services/admin";
 
-const role = localStorage.getItem("role") || "";
-const token = localStorage.getItem("token") || "";
+function readStaffAuthValue(modernKey,legacyKey){
+  return (
+    sessionStorage.getItem(modernKey) ||
+    localStorage.getItem(modernKey) ||
+    sessionStorage.getItem(legacyKey) ||
+    localStorage.getItem(legacyKey) ||
+    ""
+  );
+}
 
-if(!["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+const role =
+  readStaffAuthValue("staffRole","role");
+
+const token =
+  readStaffAuthValue("staffToken","token");
+
+const tenantId =
+  readStaffAuthValue("staffTenantId","tenantId");
+
+const tenantSlug =
+  readStaffAuthValue("staffTenantSlug","tenantSlug");
+
+const normalizedRole =
+  String(role || "")
+    .trim()
+    .toUpperCase();
+
+const allowedStaffRoles = [
+  "SUPER_ADMIN",
+  "ADMIN",
+  "DISPATCHER"
+];
+
+if(
+  !token ||
+  !allowedStaffRoles.includes(normalizedRole)
+){
   window.location.href = "/login.html";
 }
+
+function syncLegacyAdminAuth(){
+  if(token){
+    sessionStorage.setItem("staffToken",token);
+    localStorage.setItem("token",token);
+  }
+
+  if(role){
+    sessionStorage.setItem("staffRole",role);
+    localStorage.setItem("role",role);
+  }
+
+  if(tenantId){
+    sessionStorage.setItem("staffTenantId",tenantId);
+    localStorage.setItem("tenantId",tenantId);
+  }
+
+  if(tenantSlug){
+    sessionStorage.setItem("staffTenantSlug",tenantSlug);
+    localStorage.setItem("tenantSlug",tenantSlug);
+  }
+}
+
+function openAddTripPage(event){
+  event?.preventDefault?.();
+
+  /*
+    Older Admin pages still read token/role from the legacy storage keys.
+    Synchronize the CURRENT authenticated staff session before navigation so
+    Add Trip cannot treat a valid staff session as logged out.
+  */
+  syncLegacyAdminAuth();
+
+  window.location.href =
+    "/admin/dispatch-add-trip.html";
+}
+
+syncLegacyAdminAuth();
 
 let hubTrips = [];
 let services = [];
@@ -82,18 +153,21 @@ if(!container) console.error("Missing #hubContainer");
     if(addBtn){
       addBtn.textContent = "+ Add Trip";
       addBtn.className = "top-add-trip-btn";
-      addBtn.onclick = e=>{
-        e.preventDefault();
-        window.location.href = "/admin/dispatch-add-trip.html";
-      };
+      addBtn.onclick = openAddTripPage;
       wrap.appendChild(addBtn);
     }else{
       wrap.innerHTML = `
-        <button class="top-add-trip-btn" type="button"
-          onclick="window.location.href='/admin/dispatch-add-trip.html'">
+        <button id="topAddTripFallbackBtn" class="top-add-trip-btn" type="button">
           + Add Trip
         </button>
       `;
+
+      wrap
+        .querySelector("#topAddTripFallbackBtn")
+        ?.addEventListener(
+          "click",
+          openAddTripPage
+        );
     }
 
     const pageHead = page.querySelector(".page-head");
@@ -1675,8 +1749,16 @@ function getItemTrip(item){
 }
 
 function getActiveServiceTrips(){
-  const activeCodes = services.map(s=>getServiceCodeFromService(s));
-  return hubTrips.filter(t=>activeCodes.includes(getServiceCodeFromTrip(t)));
+  /*
+    Trips Hub is the reservation inbox.
+    A valid active trip must never disappear only because the current Service
+    Management list is empty, temporarily unavailable, renamed, or does not
+    yet contain the trip's service code.
+
+    Service cards still filter by service when the user selects a card.
+    ALL always contains every active tenant trip returned by the server.
+  */
+  return hubTrips;
 }
 
 function tripPassesDateFilter(t){
@@ -2518,7 +2600,8 @@ Object.assign(window,{
   saveShared,
   cancelEdit,
   openTripView,
-  closeTripView
+  closeTripView,
+  openAddTripPage
 });
 
 /* ================= INIT ================= */
