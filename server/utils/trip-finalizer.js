@@ -939,19 +939,13 @@ async function finalizeIndividualTrip(
     n(options.finalPrice);
 
   const requestedCancelFee =
-    n(
-      options.cancelFee ??
-      trip.cancelFee
-    );
+    n(options.cancelFee);
 
   const noShowFee =
     n(options.noShowFee);
 
   const refundAmount =
-    n(
-      options.refundAmount ??
-      trip.refundAmount
-    );
+    n(options.refundAmount);
 
 
   const cancelSource =
@@ -1067,7 +1061,6 @@ async function finalizeIndividualTrip(
         ) || trip.cancelledByRole || "UNKNOWN";
 
       trip.cancelDateTime =
-        trip.cancelDateTime ||
         new Date();
 
       if(cancelSource){
@@ -1290,10 +1283,7 @@ async function finalizeSharedPassenger(
     n(options.finalPrice);
 
   const requestedCancelFee =
-    n(
-      options.cancelFee ??
-      passenger.cancelFee
-    );
+    n(options.cancelFee);
 
   const noShowFee =
     n(options.noShowFee);
