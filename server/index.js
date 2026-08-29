@@ -9566,13 +9566,13 @@ const warningMinutes =
     isCompanyTrip
 
       ? (
-          service?.companyWarningMinutes ||
-          service?.warningMinutes ||
+          service?.companyWarningMinutes ??
+          service?.warningMinutes ??
           120
         )
 
       : (
-          service?.warningMinutes ||
+          service?.warningMinutes ??
           120
         )
 
@@ -9588,13 +9588,13 @@ const cancelFee =
     isCompanyTrip
 
       ? (
-          service?.companyCancelFee ||
-          service?.cancelFee ||
+          service?.companyCancelFee ??
+          service?.cancelFee ??
           0
         )
 
       : (
-          service?.cancelFee ||
+          service?.cancelFee ??
           0
         )
 
@@ -9904,13 +9904,13 @@ app.post(
           isCompanyTrip
 
             ? (
-                service?.companyWarningMinutes ||
-                service?.warningMinutes ||
+                service?.companyWarningMinutes ??
+                service?.warningMinutes ??
                 120
               )
 
             : (
-                service?.warningMinutes ||
+                service?.warningMinutes ??
                 120
               )
 
@@ -9926,15 +9926,15 @@ app.post(
           isCompanyTrip
 
             ? (
-                service?.companyCancelFee ||
-                service?.cancelFee ||
-                trip.cancelFee ||
+                service?.companyCancelFee ??
+                service?.cancelFee ??
+                trip.cancelFee ??
                 0
               )
 
             : (
-                service?.cancelFee ||
-                trip.cancelFee ||
+                service?.cancelFee ??
+                trip.cancelFee ??
                 0
               )
 
@@ -9949,9 +9949,17 @@ app.post(
         trip.tripTime
       ){
 
-        const tripTime =
+        const tripTimeRaw =
           new Date(
             `${trip.tripDate}T${trip.tripTime}:00`
+          );
+
+        const tripTime =
+          new Date(
+            tripTimeRaw.toLocaleString(
+              "en-US",
+              {timeZone:timezone}
+            )
           );
 
         if(
@@ -10118,17 +10126,77 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
     const service =
       await getServiceByTrip(trip);
 
-const totalCancelFee =
+    const settings =
+      await SystemDesign.findOne({});
 
-  service?.companyDisableCancel === true ||
-  service?.disableCancel === true
+    const systemTimezone =
+      settings?.timezone ||
+      "America/Phoenix";
 
-    ? 0
+    const now =
+      new Date(
+        new Date().toLocaleString(
+          "en-US",
+          {timeZone:systemTimezone}
+        )
+      );
 
-    : Number(
-        service?.companyCancelFee ||
-        service?.cancelFee ||
-        trip.cancelFee ||
+    const tripTimeRaw =
+      new Date(
+        `${trip.tripDate}T${trip.tripTime}:00`
+      );
+
+    const tripTime =
+      new Date(
+        tripTimeRaw.toLocaleString(
+          "en-US",
+          {timeZone:systemTimezone}
+        )
+      );
+
+    if(isNaN(tripTime.getTime())){
+      return res.status(400).json({
+        message:"Invalid trip time"
+      });
+    }
+
+    const diffMinutes =
+      (tripTime - now) / 60000;
+
+    const warningMinutes =
+      Number(
+        service?.companyWarningMinutes ??
+        service?.warningMinutes ??
+        120
+      );
+
+    const cancellationConditionEnabled =
+      service?.companyDisableCancel !== true &&
+      service?.disableCancel !== true;
+
+    const insideWarningWindow =
+      diffMinutes > 0 &&
+      diffMinutes <= warningMinutes;
+
+    const configuredCancelFee =
+      Number(
+        service?.companyCancelFee ??
+        service?.cancelFee ??
+        trip.cancelFee ??
+        0
+      );
+
+    const totalCancelFee =
+      cancellationConditionEnabled &&
+      insideWarningWindow
+        ? configuredCancelFee
+        : 0;
+
+    const originalAmount =
+      Number(
+        trip.priceAmount ||
+        trip.finalPrice ||
+        trip.price ||
         0
       );
 
@@ -10144,34 +10212,11 @@ const totalCancelFee =
       trip.passengers.length > 0
     ){
 
-      const activePassengers =
-        trip.passengers.filter(p=>{
-
-          const s =
-            String(p.status || "")
-              .toLowerCase()
-              .trim();
-
-          return (
-            !s.includes("cancel") &&
-            !s.includes("no")
-          );
-
-        });
-
-      const count =
-        activePassengers.length ||
-        trip.passengers.length ||
-        1;
-
-     const perPassengerFee =
-  Number(totalCancelFee || 0);
+      const perPassengerFee =
+        Number(totalCancelFee || 0);
 
       trip.status = "Cancelled";
       trip.cancelFee = totalCancelFee;
-      trip.finalPrice = totalCancelFee;
-      trip.priceAmount = totalCancelFee;
-      trip.refundAmount = 0;
       trip.cancelDateTime = new Date();
       trip.historyAt = trip.historyAt || new Date();
       trip.isFinalized = true;
@@ -10212,12 +10257,22 @@ const totalCancelFee =
           return sum + Number(p.finalPrice || 0);
         },0);
 
+      trip.finalPrice = trip.groupTotal;
+      trip.priceAmount = trip.groupTotal;
+      trip.refundAmount =
+        Math.max(
+          0,
+          originalAmount - trip.groupTotal
+        );
+
       trip.groupStatus = "Cancelled";
 
       await trip.save();
 
       return res.json({
-        success:true
+        success:true,
+        fee:trip.groupTotal,
+        refund:trip.refundAmount
       });
 
     }
@@ -10227,7 +10282,12 @@ const totalCancelFee =
       "CANCEL",
       {
         cancelFee: totalCancelFee,
-        refundAmount: 0
+        refundAmount:
+          Math.max(
+            0,
+            originalAmount - totalCancelFee
+          ),
+        cancelledByRole:"COMPANY"
       }
     );
 
@@ -10240,7 +10300,9 @@ const totalCancelFee =
     await trip.save();
 
     res.json({
-      success:true
+      success:true,
+      fee:Number(trip.cancelFee || 0),
+      refund:Number(trip.refundAmount || 0)
     });
 
   }catch(err){

@@ -39,6 +39,45 @@ function cleanStatus(v){
     .toLowerCase();
 }
 
+function normalizeCancellationRole(value){
+  return clean(value)
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+}
+
+function cancellationRoleFrom(record,options = {}){
+  return normalizeCancellationRole(
+    options.cancelledByRole ||
+    options.cancelSource ||
+    record?.cancelledByRole ||
+    record?.cancelSource ||
+    ""
+  );
+}
+
+function isCustomerCancellationRole(role){
+  return [
+    "CUSTOMER",
+    "COMPANY"
+  ].includes(
+    normalizeCancellationRole(role)
+  );
+}
+
+function canChargeCancellation(record,options = {},fee = 0){
+  const role =
+    cancellationRoleFrom(
+      record,
+      options
+    );
+
+  return (
+    isCustomerCancellationRole(role) &&
+    record?.cancellationChargeable === true &&
+    n(fee) > 0
+  );
+}
+
 function normalizeAddress(v){
   return clean(v)
     .replace(/\s+/g," ")
@@ -895,7 +934,7 @@ async function finalizeIndividualTrip(
   const finalPrice =
     n(options.finalPrice);
 
-  const cancelFee =
+  const requestedCancelFee =
     n(options.cancelFee);
 
   const noShowFee =
@@ -984,6 +1023,18 @@ async function finalizeIndividualTrip(
 
     case "CANCEL":
 
+      const chargeableCancellation =
+        canChargeCancellation(
+          trip,
+          options,
+          requestedCancelFee
+        );
+
+      const cancelFee =
+        chargeableCancellation
+          ? requestedCancelFee
+          : 0;
+
       trip.status =
         "Cancelled";
 
@@ -995,6 +1046,15 @@ async function finalizeIndividualTrip(
 
       trip.refundAmount =
         refundAmount;
+
+      trip.cancellationChargeable =
+        chargeableCancellation;
+
+      trip.cancelledByRole =
+        cancellationRoleFrom(
+          trip,
+          options
+        ) || trip.cancelledByRole || "UNKNOWN";
 
       trip.cancelDateTime =
         new Date();
@@ -1143,11 +1203,36 @@ async function settleIndividualTripPayment(
 
   if(normalizedAction === "CANCEL"){
 
+    const chargeableCancellation =
+      canChargeCancellation(
+        trip,
+        options,
+        cancelFee
+      );
+
+    const settlementFee =
+      chargeableCancellation
+        ? cancelFee
+        : 0;
+
     await captureFeeAndReleaseRest(
       trip,
-      cancelFee,
-      "CANCELLATION_FEE"
+      settlementFee,
+      chargeableCancellation
+        ? "CANCELLATION_FEE"
+        : "INTERNAL_CANCEL_NO_FEE"
     );
+
+    trip.cancelFee =
+      settlementFee;
+
+    trip.finalPrice =
+      settlementFee;
+
+    trip.cancellationChargeable =
+      chargeableCancellation;
+
+    await trip.save();
 
     return trip;
   }
@@ -1193,7 +1278,7 @@ async function finalizeSharedPassenger(
   const finalPrice =
     n(options.finalPrice);
 
-  const cancelFee =
+  const requestedCancelFee =
     n(options.cancelFee);
 
   const noShowFee =
@@ -1241,6 +1326,24 @@ async function finalizeSharedPassenger(
 
     case "CANCEL":
 
+      const chargeableCancellation =
+        canChargeCancellation(
+          passenger,
+          {
+            ...options,
+            cancelledByRole:
+              options.cancelledByRole ||
+              passenger.cancelledByRole ||
+              trip.cancelledByRole
+          },
+          requestedCancelFee
+        );
+
+      const cancelFee =
+        chargeableCancellation
+          ? requestedCancelFee
+          : 0;
+
       passenger.status =
         "Cancelled";
 
@@ -1249,6 +1352,21 @@ async function finalizeSharedPassenger(
 
       passenger.finalPrice =
         cancelFee;
+
+      passenger.cancellationChargeable =
+        chargeableCancellation;
+
+      passenger.cancelledByRole =
+        cancellationRoleFrom(
+          passenger,
+          {
+            ...options,
+            cancelledByRole:
+              options.cancelledByRole ||
+              passenger.cancelledByRole ||
+              trip.cancelledByRole
+          }
+        ) || "UNKNOWN";
 
       passenger.isFinalized =
         true;
