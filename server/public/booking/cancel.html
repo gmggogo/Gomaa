@@ -320,6 +320,7 @@ params.get("token");
 
 let currentTrip = null;
 let currentTenantSlug = "";
+let cancellationInProgress = false;
 
 /* =========================
    BRANDING
@@ -593,6 +594,21 @@ async function checkTrip(){
 
 async function confirmCancel(){
 
+  if(cancellationInProgress){
+    return;
+  }
+
+  const confirmButton =
+    document.querySelector(
+      "#actions .confirm"
+    );
+
+  cancellationInProgress = true;
+
+  if(confirmButton){
+    confirmButton.disabled = true;
+  }
+
   try{
 
     showLoading(
@@ -621,6 +637,12 @@ async function confirmCancel(){
     await res.json();
 
     if(!res.ok){
+
+      cancellationInProgress = false;
+
+      if(confirmButton){
+        confirmButton.disabled = false;
+      }
 
       showError(
         data.message ||
@@ -652,6 +674,12 @@ async function confirmCancel(){
     );
 
   }catch(err){
+
+    cancellationInProgress = false;
+
+    if(confirmButton){
+      confirmButton.disabled = false;
+    }
 
     console.log(err);
 

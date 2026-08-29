@@ -224,6 +224,15 @@ function isFinalStatus(v){
   return !!normalizeFinalStatus(v);
 }
 
+function isCustomerCancellation(trip){
+
+  return (
+    clean(trip?.cancelSource) === "customer" ||
+    clean(trip?.cancelledByRole) === "customer" ||
+    clean(trip?.cancellationSource) === "customer"
+  );
+}
+
 function nowDate(){
   return new Date();
 }
@@ -562,12 +571,21 @@ router.patch("/:id/status", requireTenantApi, async (req,res)=>{
       status === "Cancelled" &&
       !String(trip.cancelSource || "").trim()
     ){
-      trip.cancelSource = "DISPATCH";
-      trip.cancelledBy = String(
-        req.body?.confirmedBy ||
-        req.body?.updatedBy ||
-        "dispatcher"
-      );
+
+      if(isCustomerCancellation(trip)){
+
+        trip.cancelSource = "CUSTOMER";
+
+      }else{
+
+        trip.cancelSource = "DISPATCH";
+        trip.cancelledBy = String(
+          req.body?.confirmedBy ||
+          req.body?.updatedBy ||
+          "dispatcher"
+        );
+
+      }
     }
 
     /*
@@ -670,6 +688,20 @@ router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
       });
     }
 
+    if(getTripFinalConfirmed(trip)){
+
+      return res.json({
+        success:true,
+        alreadyConfirmed:true,
+        message:"Trip already confirmed",
+        finalChargeAmount:
+          Number(trip.finalChargeAmount || 0),
+        finalPricingSource:
+          trip.finalPricingSource || "",
+        trip:sanitizeTripForFinalPage(trip)
+      });
+    }
+
     if(status){
       trip.status = status;
     }
@@ -694,14 +726,27 @@ router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
       Company / Dispatch / Driver cancellation = $0 cancellation fee.
     */
 
+    const customerCancellation =
+      trip.status === "Cancelled" &&
+      isCustomerCancellation(trip);
+
     if(
       trip.status === "Cancelled" &&
       !String(trip.cancelSource || "").trim()
     ){
-      trip.cancelSource = "DISPATCH";
-      trip.cancelledBy =
-        confirmedBy ||
-        "dispatcher";
+
+      if(customerCancellation){
+
+        trip.cancelSource = "CUSTOMER";
+
+      }else{
+
+        trip.cancelSource = "DISPATCH";
+        trip.cancelledBy =
+          confirmedBy ||
+          "dispatcher";
+
+      }
     }
 
     const financial =
@@ -811,7 +856,13 @@ router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
         emailType = "CANCELLED";
       }
 
-      if(emailType){
+      if(
+        emailType &&
+        !(
+          emailType === "CANCELLED" &&
+          customerCancellation
+        )
+      ){
         await sendTripStatusEmail(
           trip,
           emailType
