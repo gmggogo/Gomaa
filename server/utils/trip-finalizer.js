@@ -71,9 +71,13 @@ function canChargeCancellation(record,options = {},fee = 0){
       options
     );
 
+  const explicitlyChargeable =
+    options.cancellationChargeable === true ||
+    record?.cancellationChargeable === true;
+
   return (
     isCustomerCancellationRole(role) &&
-    record?.cancellationChargeable === true &&
+    explicitlyChargeable &&
     n(fee) > 0
   );
 }

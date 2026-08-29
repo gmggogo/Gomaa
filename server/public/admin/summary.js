@@ -1003,6 +1003,10 @@ function getPassengerMoney(p,t){
     return 0;
   }
 
+  if(isCancelledStatus(status) || isNoShowStatus(status)){
+    return getPassengerFee(p,t);
+  }
+
   if(
     p?.summaryFinalAmount !== undefined &&
     p?.summaryFinalAmount !== null
@@ -1012,10 +1016,6 @@ function getPassengerMoney(p,t){
 
   if(isNotCompletedStatus(status,t)){
     return 0;
-  }
-
-  if(isCancelledStatus(status) || isNoShowStatus(status)){
-    return getPassengerFee(p,t);
   }
 
   if(isCompletedStatus(status)){
@@ -1034,6 +1034,14 @@ function getTripMoney(t){
     return 0;
   }
 
+  if(isCancelledStatus(t?.status)){
+    return feeFromService(t,"cancel");
+  }
+
+  if(isNoShowStatus(t?.status)){
+    return feeFromService(t,"noshow");
+  }
+
   if(
     t?.summaryFinalAmount !== undefined &&
     t?.summaryFinalAmount !== null
@@ -1043,14 +1051,6 @@ function getTripMoney(t){
 
   if(isNotCompletedStatus(t?.status,t)){
     return 0;
-  }
-
-  if(isCancelledStatus(t?.status)){
-    return feeFromService(t,"cancel");
-  }
-
-  if(isNoShowStatus(t?.status)){
-    return feeFromService(t,"noshow");
   }
 
   if(isCompletedStatus(t?.status)){

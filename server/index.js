@@ -9513,7 +9513,11 @@ app.post("/api/cancel-trip", async (req, res) => {
 
     const totalAmount =
       Number(
-        trip.priceAmount || 0
+        trip.priceAmount ||
+        trip.finalPrice ||
+        trip.totalPrice ||
+        trip.price ||
+        0
       );
 
     let refundAmount = 0;
@@ -9589,11 +9593,13 @@ const cancelFee =
       ? (
           service?.companyCancelFee ??
           service?.cancelFee ??
+          trip.cancelFee ??
           0
         )
 
       : (
           service?.cancelFee ??
+          trip.cancelFee ??
           0
         )
 
@@ -9664,7 +9670,10 @@ await finalizeIndividualTrip(
   "CANCEL",
   {
     cancelFee: fee,
-    refundAmount
+    refundAmount,
+    cancelledByRole:"CUSTOMER",
+    cancellationChargeable:
+      Number(fee || 0) > 0
   }
 );
 

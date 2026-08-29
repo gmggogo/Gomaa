@@ -1432,12 +1432,14 @@ async function sendTripStatusEmail(
     }else if(type === "CANCELLED"){
 
       const chargedAmount =
-        Number(
-          trip.finalChargeAmount ??
-          trip.capturedAmount ??
-          trip.cancelFee ??
-          0
-        );
+        trip.cancellationChargeable === true
+          ? Number(
+              trip.cancelFee ??
+              trip.finalChargeAmount ??
+              trip.capturedAmount ??
+              0
+            )
+          : 0;
 
       subject =
         "Trip Cancelled";
