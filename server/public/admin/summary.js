@@ -291,6 +291,66 @@ function isCancelledStatus(status){
   return normalizeStatus(status).includes("cancel");
 }
 
+function normalizeCancellationRole(value){
+  return clean(value)
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+}
+
+function getCancellationRole(t,p=null){
+  return normalizeCancellationRole(
+    p?.cancelledByRole ||
+    p?.cancelSource ||
+    p?.cancellationSource ||
+    t?.cancelledByRole ||
+    t?.cancelSource ||
+    t?.cancellationSource ||
+    ""
+  );
+}
+
+function isOperationalCancellation(t,p=null){
+  return [
+    "DRIVER",
+    "DISPATCHER",
+    "DISPATCH",
+    "ADMIN",
+    "SUPER_ADMIN",
+    "SUPERADMIN",
+    "PLATFORM_ADMIN",
+    "OPERATOR",
+    "SYSTEM"
+  ].includes(
+    getCancellationRole(t,p)
+  );
+}
+
+function isCancellationChargeable(t,p=null){
+
+  if(
+    p?.cancellationChargeable === false ||
+    t?.cancellationChargeable === false ||
+    isOperationalCancellation(t,p)
+  ){
+    return false;
+  }
+
+  if(p?.cancellationChargeable === true){
+    return true;
+  }
+
+  if(t?.cancellationChargeable === true){
+    return true;
+  }
+
+  /*
+    Keep legacy customer cancellations compatible when older records do not
+    contain the explicit flag. Operational cancellations never reach this
+    fallback because their role is blocked above.
+  */
+  return true;
+}
+
 function isNoShowStatus(status){
   const s = normalizeStatus(status);
   return s.includes("no show") || s.includes("noshow");
@@ -682,6 +742,10 @@ function getRealPassengersFromGroup(group){
     summaryFinalAmount:t.summaryFinalAmount,
     cancelFee:t.cancelFee,
     noShowFee:t.noShowFee,
+    cancellationChargeable:t.cancellationChargeable,
+    cancelledByRole:t.cancelledByRole,
+    cancelSource:t.cancelSource,
+    cancellationSource:t.cancellationSource,
     pricingSnapshot:t.pricingSnapshot,
     priceSnapshot:t.priceSnapshot
   }));
@@ -789,6 +853,10 @@ function feeFromService(t,type){
 
   if(type === "cancel"){
 
+    if(!isCancellationChargeable(t)){
+      return 0;
+    }
+
     const savedFee = firstPositiveMoney(
       isCancelledStatus(t?.status) ? t?.summaryFee : null,
       t?.cancelFee,
@@ -891,6 +959,10 @@ function getPassengerFee(p,t){
 
   if(isCancelledStatus(status)){
 
+    if(!isCancellationChargeable(t,p)){
+      return 0;
+    }
+
     return firstPositiveMoney(
       p?.summaryFee,
       p?.cancelFee,
@@ -922,14 +994,21 @@ function getPassengerFee(p,t){
 
 function getPassengerMoney(p,t){
 
+  const status = p?.status || t?.status;
+
+  if(
+    isCancelledStatus(status) &&
+    !isCancellationChargeable(t,p)
+  ){
+    return 0;
+  }
+
   if(
     p?.summaryFinalAmount !== undefined &&
     p?.summaryFinalAmount !== null
   ){
     return num(p.summaryFinalAmount);
   }
-
-  const status = p?.status || t?.status;
 
   if(isNotCompletedStatus(status,t)){
     return 0;
@@ -947,6 +1026,13 @@ function getPassengerMoney(p,t){
 }
 
 function getTripMoney(t){
+
+  if(
+    isCancelledStatus(t?.status) &&
+    !isCancellationChargeable(t)
+  ){
+    return 0;
+  }
 
   if(
     t?.summaryFinalAmount !== undefined &&
