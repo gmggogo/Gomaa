@@ -18,7 +18,9 @@ const PRESETS={
 };
 
 let settings={...DEFAULTS};
+let savedSettings={...DEFAULTS};
 let dirty=false;
+let editMode=false;
 
 function number(value,fallback=0){const parsed=Number(value);return Number.isFinite(parsed)?parsed:fallback;}
 function toast(message){const el=$("toast");if(!el){window.alert(message);return;}el.textContent=message;el.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove("show"),1800);}
@@ -29,18 +31,19 @@ function getInput(id,fallback){return number($(id)?.value,fallback);}
 function setDirty(value=true){dirty=value===true;const label=$("dirtyLabel");if(label)label.style.visibility=dirty?"visible":"hidden";}
 
 function updateVisibleState(){
-  const enabled=getToggle("enabled");
   const status=$("engineStatus");
-  if(status){status.textContent=enabled?"ENABLED":"DISABLED";status.classList.toggle("active",enabled);}
+  if(status){status.textContent="ON";status.classList.add("active");}
   const strategy=$("strategy")?.value||"SMART";
   const preset=PRESETS[strategy]||PRESETS.SMART;
   if($("presetTitle"))$("presetTitle").textContent=preset.title;
   if($("presetDescription"))$("presetDescription").textContent=preset.description;
 }
 
-function writeSettingsToForm(data){
+function writeSettingsToForm(data,remember=false){
   settings={...DEFAULTS,...(data||{})};
-  setToggle("enabled",settings.enabled===true);
+  settings.enabled=true;
+  if(remember)savedSettings={...settings};
+  setToggle("enabled",true);
   setToggle("autoAssignNewTrips",settings.autoAssignNewTrips===true);
   if($("strategy"))$("strategy").value=PRESETS[settings.strategy]?settings.strategy:"SMART";
   ["requireActiveDriver","requireScheduleMatch","requireServiceMatch","useGoogleDistance","enableTimeConflict","enableFairDistribution","autoReassignUnassigned","autoAssignSharedTrips"].forEach(field=>setToggle(field,settings[field]===true));
@@ -52,15 +55,24 @@ function writeSettingsToForm(data){
 function applyPreset(strategy){
   const key=PRESETS[strategy]?strategy:"SMART";
   const selected=PRESETS[key];
-  const keepEnabled=getToggle("enabled");
   const keepAutoAssign=getToggle("autoAssignNewTrips");
-  settings={...settings,strategy:key,requireActiveDriver:true,requireScheduleMatch:true,requireServiceMatch:true,useGoogleDistance:true,autoReassignUnassigned:true,autoAssignSharedTrips:true,...selected.values,enabled:keepEnabled,autoAssignNewTrips:keepAutoAssign};
+  settings={...settings,strategy:key,requireActiveDriver:true,requireScheduleMatch:true,requireServiceMatch:true,useGoogleDistance:true,autoReassignUnassigned:true,autoAssignSharedTrips:true,...selected.values,enabled:true,autoAssignNewTrips:keepAutoAssign};
   writeSettingsToForm(settings);
   setDirty(true);
 }
 
 function readSettingsFromForm(){
-  return {enabled:getToggle("enabled"),strategy:$("strategy")?.value||"SMART",requireActiveDriver:getToggle("requireActiveDriver"),requireScheduleMatch:getToggle("requireScheduleMatch"),requireServiceMatch:getToggle("requireServiceMatch"),maxPickupDistanceMiles:getInput("maxPickupDistanceMiles",50),maxDeadheadMiles:getInput("maxDeadheadMiles",25),useGoogleDistance:getToggle("useGoogleDistance"),topDriversToCheck:getInput("topDriversToCheck",3),minBufferMinutes:getInput("minBufferMinutes",30),maxTripsPerDriver:getInput("maxTripsPerDriver",20),enableTimeConflict:getToggle("enableTimeConflict"),enableFairDistribution:getToggle("enableFairDistribution"),maxDriverLoadPercent:getInput("maxDriverLoadPercent",80),autoAssignNewTrips:getToggle("autoAssignNewTrips"),autoReassignUnassigned:getToggle("autoReassignUnassigned"),autoAssignSharedTrips:getToggle("autoAssignSharedTrips"),distanceWeight:getInput("distanceWeight",40),travelTimeWeight:getInput("travelTimeWeight",30),loadWeight:getInput("loadWeight",20),conflictWeight:getInput("conflictWeight",10)};
+  return {enabled:true,strategy:$("strategy")?.value||"SMART",requireActiveDriver:getToggle("requireActiveDriver"),requireScheduleMatch:getToggle("requireScheduleMatch"),requireServiceMatch:getToggle("requireServiceMatch"),maxPickupDistanceMiles:getInput("maxPickupDistanceMiles",50),maxDeadheadMiles:getInput("maxDeadheadMiles",25),useGoogleDistance:getToggle("useGoogleDistance"),topDriversToCheck:getInput("topDriversToCheck",3),minBufferMinutes:getInput("minBufferMinutes",30),maxTripsPerDriver:getInput("maxTripsPerDriver",20),enableTimeConflict:getToggle("enableTimeConflict"),enableFairDistribution:getToggle("enableFairDistribution"),maxDriverLoadPercent:getInput("maxDriverLoadPercent",80),autoAssignNewTrips:getToggle("autoAssignNewTrips"),autoReassignUnassigned:getToggle("autoReassignUnassigned"),autoAssignSharedTrips:getToggle("autoAssignSharedTrips"),distanceWeight:getInput("distanceWeight",40),travelTimeWeight:getInput("travelTimeWeight",30),loadWeight:getInput("loadWeight",20),conflictWeight:getInput("conflictWeight",10)};
+}
+
+function setEditMode(enabled){
+  editMode=enabled===true;
+  if($("strategy"))$("strategy").disabled=!editMode;
+  if($("autoAssignNewTripsBtn"))$("autoAssignNewTripsBtn").disabled=!editMode;
+  if($("editBtn"))$("editBtn").style.display=editMode?"none":"inline-block";
+  if($("cancelBtn"))$("cancelBtn").style.display=editMode?"inline-block":"none";
+  if($("saveBtn"))$("saveBtn").style.display=editMode?"inline-block":"none";
+  if(!editMode)setDirty(false);
 }
 
 async function loadSettings(){
@@ -68,8 +80,8 @@ async function loadSettings(){
     const response=await fetch(API_URL,{cache:"no-store",headers:{Authorization:"Bearer "+token,"x-access-token":token}});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.message||"Load failed");
-    writeSettingsToForm(data.settings&&typeof data.settings==="object"?data.settings:data);
-  }catch(error){console.log("SMART DISPATCH LOAD ERROR:",error);writeSettingsToForm(DEFAULTS);toast("Default settings loaded");}
+    writeSettingsToForm(data.settings&&typeof data.settings==="object"?data.settings:data,true);
+  }catch(error){console.log("SMART DISPATCH LOAD ERROR:",error);writeSettingsToForm(DEFAULTS,true);toast("Default settings loaded");}
 }
 
 async function saveSettings(){
@@ -80,15 +92,19 @@ async function saveSettings(){
     const response=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token,"x-access-token":token},body:JSON.stringify(data)});
     const result=await response.json().catch(()=>({}));
     if(!response.ok||result.success===false)throw new Error(result.message||"Save failed");
-    writeSettingsToForm(result.settings&&typeof result.settings==="object"?result.settings:data);
+    writeSettingsToForm(result.settings&&typeof result.settings==="object"?result.settings:data,true);
+    setEditMode(false);
     toast("Settings saved");
   }catch(error){console.log("SMART DISPATCH SAVE ERROR:",error);toast(error.message||"Save failed");}
   finally{if(button){button.disabled=false;button.textContent="Save Settings";}}
 }
 
-document.querySelectorAll("#enabledBtn,#autoAssignNewTripsBtn").forEach(button=>button.addEventListener("click",()=>{setToggle(button.dataset.field,!getToggle(button.dataset.field));settings={...settings,[button.dataset.field]:getToggle(button.dataset.field)};setDirty(true);updateVisibleState();}));
-$("strategy")?.addEventListener("change",event=>applyPreset(event.target.value));
+document.querySelectorAll("#autoAssignNewTripsBtn").forEach(button=>button.addEventListener("click",()=>{if(!editMode)return;setToggle(button.dataset.field,!getToggle(button.dataset.field));settings={...settings,[button.dataset.field]:getToggle(button.dataset.field)};setDirty(true);updateVisibleState();}));
+$("strategy")?.addEventListener("change",event=>{if(editMode)applyPreset(event.target.value);});
+$("editBtn")?.addEventListener("click",()=>{setEditMode(true);toast("Edit mode enabled");});
+$("cancelBtn")?.addEventListener("click",()=>{writeSettingsToForm(savedSettings);setEditMode(false);toast("Changes cancelled");});
 $("saveBtn")?.addEventListener("click",saveSettings);
 await loadSettings();
+setEditMode(false);
 
 });
