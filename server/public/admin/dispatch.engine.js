@@ -38,7 +38,7 @@ const SMART_DEFAULTS = {
   useGoogleDistance:true,
   topDriversToCheck:3,
 
-  minBufferMinutes:30,
+  minBufferMinutes:10,
   maxTripsPerDriver:20,
   enableTimeConflict:true,
 
@@ -632,7 +632,7 @@ function hasTimeConflict(driverId,trip){
   const target = parseTripDateTime(trip);
   if(!target) return false;
 
-  const buffer = num(SMART.minBufferMinutes,30) * 60 * 1000;
+  const buffer = Math.min(10,Math.max(0,num(SMART.minBufferMinutes,10))) * 60 * 1000;
 
   return trips.some(t=>{
     if(String(t.driverId || "") !== String(driverId)) return false;

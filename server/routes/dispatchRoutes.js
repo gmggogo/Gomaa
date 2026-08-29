@@ -593,7 +593,7 @@ function hasConflict(driverId,trip,ctx){
   if(ctx.settings.enableTimeConflict === false) return false;
   const target = tripDateTime(trip);
   if(!target) return false;
-  const buffer = num(ctx.settings.minBufferMinutes,30)*60000;
+  const buffer = Math.min(10,Math.max(0,num(ctx.settings.minBufferMinutes,10)))*60000;
   return ctx.assignments.some(a=>{
     if(String(a.driverId) !== String(driverId)) return false;
     const other = a.__trip;
