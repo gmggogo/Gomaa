@@ -873,6 +873,36 @@ confirmationEmailSent: {
   default: false
 },
 
+completedEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+completedEmailSentAt: {
+  type: Date,
+  default: null
+},
+
+noShowEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+noShowEmailSentAt: {
+  type: Date,
+  default: null
+},
+
+cancelledEmailSent: {
+  type: Boolean,
+  default: false
+},
+
+cancelledEmailSentAt: {
+  type: Date,
+  default: null
+},
+
   // 🚗 VEHICLE
   vehicleTypeFromQuote: { type: String, default: "X" },
 
@@ -7951,20 +7981,32 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
       }
       if(requestedFinalStatus === "Cancelled"){
 
+        const preserveCustomerCancellation =
+          normalizeActorRole(
+            existing.cancelledByRole
+          ) === "CUSTOMER" &&
+          existing.cancellationChargeable === true &&
+          Number(existing.cancelFee || 0) > 0;
+
         const operationalCancel =
           isOperationalCancellationRole(
             req.authUser?.role
-          );
+          ) &&
+          !preserveCustomerCancellation;
 
-        existing.cancelledByRole =
-          normalizeActorRole(
-            req.authUser?.role
-          ) || "UNKNOWN";
+        if(!preserveCustomerCancellation){
 
-        existing.cancellationChargeable =
-          operationalCancel
-            ? false
-            : existing.cancellationChargeable;
+          existing.cancelledByRole =
+            normalizeActorRole(
+              req.authUser?.role
+            ) || "UNKNOWN";
+
+          existing.cancellationChargeable =
+            operationalCancel
+              ? false
+              : existing.cancellationChargeable;
+
+        }
 
         if(operationalCancel){
           existing.cancelFee = 0;
@@ -8467,24 +8509,40 @@ if(updateData.status === "Confirmed"){
 
 if(updateData.status === "Cancelled"){
 
+  const preserveCustomerCancellation =
+    normalizeActorRole(
+      existing.cancelledByRole
+    ) === "CUSTOMER" &&
+    existing.cancellationChargeable === true &&
+    Number(existing.cancelFee || 0) > 0;
+
   const operationalCancel =
     isOperationalCancellationRole(
       req.authUser?.role
-    );
+    ) &&
+    !preserveCustomerCancellation;
 
   updateData.cancelledByRole =
-    normalizeActorRole(
-      req.authUser?.role
-    ) || "UNKNOWN";
+    preserveCustomerCancellation
+      ? existing.cancelledByRole
+      : (
+          normalizeActorRole(
+            req.authUser?.role
+          ) || "UNKNOWN"
+        );
 
   updateData.cancellationChargeable =
-    operationalCancel
-      ? false
+    preserveCustomerCancellation
+      ? true
       : (
-          existing.cancellationChargeable !== null &&
-          existing.cancellationChargeable !== undefined
-            ? existing.cancellationChargeable
-            : true
+          operationalCancel
+            ? false
+            : (
+                existing.cancellationChargeable !== null &&
+                existing.cancellationChargeable !== undefined
+                  ? existing.cancellationChargeable
+                  : true
+              )
         );
 
   if(operationalCancel){
@@ -8534,6 +8592,21 @@ if(updateData.status === "Cancelled"){
         existing.finalPrice ||
         0
       );
+
+    if(preserveCustomerCancellation){
+
+      updateData.cancelFee =
+        Number(existing.cancelFee || 0);
+
+      updateData.priceAmount =
+        Number(
+          existing.priceAmount ||
+          existing.totalPrice ||
+          existing.price ||
+          0
+        );
+
+    }
   }
 
   updateData.isFinalized = true;
@@ -10064,7 +10137,11 @@ res.json({
 
   priceAmount:
     Number(
-      trip.priceAmount || 0
+      trip.priceAmount ||
+      trip.finalPrice ||
+      trip.totalPrice ||
+      trip.price ||
+      0
     ),
 
   status:
