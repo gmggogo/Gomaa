@@ -2004,32 +2004,64 @@ await pricingRes.json();
 SAVE WARNING POLICY
 ========================= */
 
+const selectedServiceData =
+  servicesData.find(service =>
+    String(service?.serviceKey || "")
+      .trim()
+      .toUpperCase() ===
+    String(selectedService || "")
+      .trim()
+      .toUpperCase()
+  ) || {};
+
+const pricingServiceData =
+  pricingData.service || {};
+
+const warningEnabledValue =
+  pricingServiceData.warningEnabled ??
+  selectedServiceData.warningEnabled ??
+  "enabled";
+
 window.selectedWarningPolicy = {
 
   warningMinutes:
   Number(
-    pricingData.service?.warningMinutes || 0
+    pricingServiceData.warningMinutes ??
+    selectedServiceData.warningMinutes ??
+    0
   ),
 
   cancelFee:
   Number(
-    pricingData.service?.cancelFee || 0
+    pricingServiceData.cancelFee ??
+    selectedServiceData.cancelFee ??
+    0
   ),
 
   noShowFee:
   Number(
-    pricingData.service?.noShowFee || 0
+    pricingServiceData.noShowFee ??
+    selectedServiceData.noShowFee ??
+    0
   ),
 
   disableCancel:
 
-  pricingData.disableCancel === true,
+  (
+    pricingServiceData.disableCancel ??
+    pricingData.disableCancel ??
+    selectedServiceData.disableCancel ??
+    false
+  ) === true,
 
   warningEnabled:
 
-  String(
-    pricingData.service?.warningEnabled || "enabled"
-  ).toLowerCase()
+  warningEnabledValue === true ||
+  String(warningEnabledValue)
+    .trim()
+    .toLowerCase() === "enabled"
+    ? "enabled"
+    : "disabled"
 
 };
 

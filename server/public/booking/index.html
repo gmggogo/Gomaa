@@ -979,13 +979,16 @@ async function confirmBooking(){
 
   const warningEnabled =
 
+  tripData.warningEnabled === true ||
+
   String(
 
-    tripData.warningEnabled ||
+    tripData.warningEnabled ??
 
     "enabled"
 
   )
+  .trim()
   .toLowerCase() === "enabled";
 
   const mins =
@@ -1172,6 +1175,20 @@ Do you want to continue?`
 
     tripTime:
     time,
+
+    warningMinutes:
+    tripWarningMinutes,
+
+    cancelFee:
+    cancelFee,
+
+    disableCancel:
+    disableCancel,
+
+    warningEnabled:
+    warningEnabled
+      ? "enabled"
+      : "disabled",
 
     notes:
     notes
