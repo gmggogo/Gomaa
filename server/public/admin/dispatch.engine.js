@@ -4,7 +4,7 @@
    Smart Dispatch Page = إعدادات فقط
 ===================================================== */
 
-const DISPATCH_BUILD_ID = "20260801-live-schedule-reassign-4";
+const DISPATCH_BUILD_ID = "20260829-selected-actions-only-5";
 
 /* ================= STATE ================= */
 
@@ -30,12 +30,12 @@ const SMART_DEFAULTS = {
   strategy:"SMART",
 
   requireActiveDriver:true,
-  requireScheduleMatch:false,
-requireServiceMatch:false,
+  requireScheduleMatch:true,
+  requireServiceMatch:true,
 
   maxPickupDistanceMiles:50,
   maxDeadheadMiles:25,
-  useGoogleDistance:false,
+  useGoogleDistance:true,
   topDriversToCheck:3,
 
   minBufferMinutes:30,
@@ -45,7 +45,7 @@ requireServiceMatch:false,
   enableFairDistribution:true,
   maxDriverLoadPercent:80,
 
-  autoAssignNewTrips:true,
+  autoAssignNewTrips:false,
   autoReassignUnassigned:true,
   autoAssignSharedTrips:true,
 
@@ -607,7 +607,10 @@ function getTodayActiveDrivers(){
 
 async function loadSmartEngine(){
   try{
-    const res = await fetch("/api/smart-dispatch-engine");
+    const res = await fetch("/api/smart-dispatch-engine",{
+      cache:"no-store",
+      headers:Store.headers(false)
+    });
     if(!res.ok) throw new Error("Smart engine load failed");
 
     const data = await res.json();
@@ -849,11 +852,16 @@ async function autoAssign(options={}){
     !isTripInProgress(t)
   );
 
-  const reassignSelected = !silent && selectedTrips.length > 0;
+  if(!silent && !selectedIds.size){
+    toast("Select at least one trip first");
+    return;
+  }
 
-  const sortedTrips = (reassignSelected
-    ? selectedTrips
-    : trips.filter(t=>!clean(t.driverId))
+  const reassignSelected = !silent;
+
+  const sortedTrips = (silent
+    ? trips.filter(t=>!clean(t.driverId))
+    : selectedTrips
   )
     .sort((a,b)=>getTripTimeValue(a)-getTripTimeValue(b));
 
@@ -977,14 +985,24 @@ async function saveAssignment(trip,driverId,manual=true){
 /* ================= SEND ================= */
 
 async function sendTrips(ids){
-  ids = ids.filter(Boolean);
+  ids = [...new Set(ids.filter(Boolean).map(String))];
 
   if(!ids.length){
-    toast("No trips to send");
+    toast("Select at least one trip first");
     return;
   }
 
-  const selectedTrips = trips.filter(t=>ids.includes(t._id));
+  if(ids.some(id=>!selectedIds.has(id))){
+    toast("Only selected trips can be sent");
+    return;
+  }
+
+  const selectedTrips = trips.filter(t=>ids.includes(String(t._id)));
+
+  if(selectedTrips.length !== ids.length){
+    toast("One or more selected trips are no longer available");
+    return;
+  }
 
   for(const t of selectedTrips){
     if(!clean(t.driverId)){
@@ -1006,7 +1024,7 @@ async function sendTrips(ids){
       t.dispatchStatus = "SENT";
       t.dispatchSelected = false;
       t.selected = false;
-      selectedIds.delete(t._id);
+      selectedIds.delete(String(t._id));
     });
 
     renderAll();
@@ -1026,14 +1044,16 @@ function sendSelected(){
 }
 
 function sendAll(){
-  const ids = trips
-    .filter(t=>clean(t.driverId) && !isSentTrip(t))
-    .map(t=>t._id);
-  sendTrips(ids);
+  sendSelected();
 }
 
 function sendOne(id){
-  sendTrips([String(id)]);
+  id = String(id);
+  if(!selectedIds.has(id)){
+    toast("Select this trip before sending");
+    return;
+  }
+  sendTrips([id]);
 }
 
 /* ================= SELECTION ================= */
@@ -1112,6 +1132,14 @@ function syncSelectionControls(){
       selectedIds.has(id) &&
       !isTripInProgress(trip)
     );
+  });
+
+  document.querySelectorAll(".send-trip-btn[data-trip-id]").forEach(button=>{
+    const id = String(button.dataset.tripId || "");
+    const trip = trips.find(item=>String(item._id) === id);
+    const canSend = Boolean(trip && selectedIds.has(id) && !isSentTrip(trip));
+    button.disabled = !canSend;
+    button.textContent = isSentTrip(trip) ? "Sent" : (canSend ? "Send" : "Select First");
   });
 
   renderStats();
@@ -1312,6 +1340,16 @@ function renderStats(){
   if(editBtn){
     editBtn.textContent = editMode ? "Save Edit" : "Edit Selected";
   }
+
+  const hasSelection = selectedIds.size > 0;
+  const autoAssignBtn = document.getElementById("autoAssignBtn");
+  const sendSelectedBtn = document.getElementById("sendSelectedBtn");
+  const removeDriverBtn = document.getElementById("removeDriverBtn");
+
+  if(autoAssignBtn) autoAssignBtn.disabled = !hasSelection || autoAssignRunning;
+  if(sendSelectedBtn) sendSelectedBtn.disabled = !hasSelection;
+  if(removeDriverBtn) removeDriverBtn.disabled = !hasSelection;
+  if(editBtn && !editMode) editBtn.disabled = !hasSelection;
 }
 
 function getManualDriversForTrip(trip){
@@ -1543,7 +1581,7 @@ function renderTripRow(t,index){
         ${
           isSentTrip(t)
             ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
-            : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
+            : `<button class="btn green send-trip-btn" data-trip-id="${safe(t._id)}" type="button" onclick="sendOne('${safe(t._id)}')" ${selectedIds.has(String(t._id)) ? "" : "disabled"}>${selectedIds.has(String(t._id)) ? "Send" : "Select First"}</button>`
         }
       </td>
     </tr>
@@ -1644,7 +1682,7 @@ function renderSharedTripRows(t,index){
         ${
           isSentTrip(t)
             ? `<button class="btn sent-btn" type="button" disabled>Sent</button>`
-            : `<button class="btn green" type="button" onclick="sendOne('${safe(t._id)}')">Send</button>`
+            : `<button class="btn green send-trip-btn" data-trip-id="${safe(t._id)}" type="button" onclick="sendOne('${safe(t._id)}')" ${selectedIds.has(String(t._id)) ? "" : "disabled"}>${selectedIds.has(String(t._id)) ? "Send" : "Select First"}</button>`
         }
       </td>
     </tr>
