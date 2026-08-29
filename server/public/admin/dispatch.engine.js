@@ -883,24 +883,51 @@ async function autoAssign(options={}){
       The page never chooses the driver.
       Smart Dispatch runs on the server and saves the full result atomically.
     */
-    const result = await Store.autoAssign(
-      sortedTrips.map(trip=>trip._id),
-      reassignSelected
-    );
+    const ids = sortedTrips.map(trip=>trip._id);
+    const batchSize = 20;
+    const combined = {
+      success:true,
+      assignedCount:0,
+      unassignedCount:0,
+      results:[]
+    };
 
-    if(!result || result.success === false){
-      if(!silent) toast(result?.message || "Smart assignment failed");
-      return;
+    const progressButton = document.getElementById("autoAssignBtn");
+
+    for(let start=0;start<ids.length;start+=batchSize){
+      const batch = ids.slice(start,start+batchSize);
+      const result = await Store.autoAssign(batch);
+
+      if(!result || result.success === false){
+        if(!silent) toast(result?.message || "Smart assignment failed");
+        return;
+      }
+
+      combined.assignedCount += Number(result.assignedCount || 0);
+      combined.unassignedCount += Number(result.unassignedCount || 0);
+      combined.results.push(...(Array.isArray(result.results) ? result.results : []));
+
+      if(progressButton && !silent){
+        progressButton.textContent =
+          `Auto Assign ${Math.min(start+batch.length,ids.length)} / ${ids.length}`;
+      }
+
+      await new Promise(resolve=>requestAnimationFrame(resolve));
     }
 
     await loadAll();
     renderAll();
 
-    if(!silent || Number(result.assignedCount || 0) > 0){
+    if(!silent || combined.assignedCount > 0){
+      const firstFailure = combined.results.find(item=>item?.assigned === false);
+      const summary = reassignSelected
+        ? `${combined.assignedCount} selected trip(s) reassigned`
+        : `${combined.assignedCount} trip(s) smart assigned`;
+
       toast(
-        reassignSelected
-          ? `${Number(result.assignedCount || 0)} selected trip(s) reassigned`
-          : `${Number(result.assignedCount || 0)} trip(s) smart assigned`
+        combined.unassignedCount
+          ? `${summary}; ${combined.unassignedCount} not assigned${firstFailure?.reason ? `: ${firstFailure.reason}` : ""}`
+          : summary
       );
     }
 
@@ -909,6 +936,7 @@ async function autoAssign(options={}){
     if(!silent) toast("Smart assignment failed");
   }finally{
     autoAssignRunning = false;
+    renderStats();
   }
 }
 
@@ -1346,7 +1374,10 @@ function renderStats(){
   const sendSelectedBtn = document.getElementById("sendSelectedBtn");
   const removeDriverBtn = document.getElementById("removeDriverBtn");
 
-  if(autoAssignBtn) autoAssignBtn.disabled = !hasSelection || autoAssignRunning;
+  if(autoAssignBtn){
+    autoAssignBtn.disabled = !hasSelection || autoAssignRunning;
+    if(!autoAssignRunning) autoAssignBtn.textContent = "Auto Assign";
+  }
   if(sendSelectedBtn) sendSelectedBtn.disabled = !hasSelection;
   if(removeDriverBtn) removeDriverBtn.disabled = !hasSelection;
   if(editBtn && !editMode) editBtn.disabled = !hasSelection;

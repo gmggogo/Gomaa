@@ -126,6 +126,21 @@ function num(v,d=0){
   const n = Number(v);
   return Number.isFinite(n) ? n : d;
 }
+
+async function runWithConcurrency(items,limit,worker){
+  const list = Array.isArray(items) ? items : [];
+  const size = Math.max(1,Math.min(Number(limit) || 1,list.length || 1));
+  let cursor = 0;
+
+  const runners = Array.from({length:size},async()=>{
+    while(cursor < list.length){
+      const index = cursor++;
+      await worker(list[index],index);
+    }
+  });
+
+  await Promise.all(runners);
+}
 function id(v){
   return mongoose.isValidObjectId(v)
     ? new mongoose.Types.ObjectId(v)
@@ -891,10 +906,16 @@ async function prepareDriverOriginsForTrip(
 
       try{
 
-        const resolved =
-          await global.resolveDispatchAddressPoint(
-            originAddress
-          );
+        const cacheKey = originAddress.toLowerCase();
+        let resolved = ctx.addressPointCache?.get(cacheKey);
+
+        if(resolved === undefined){
+          resolved = await global.resolveDispatchAddressPoint(originAddress);
+          if(!(ctx.addressPointCache instanceof Map)){
+            ctx.addressPointCache = new Map();
+          }
+          ctx.addressPointCache.set(cacheKey,resolved || null);
+        }
 
         if(resolved){
           originPoint = resolved;
@@ -1042,11 +1063,11 @@ function rejectionReason(trip,ctx){
 async function prepareDriverScheduleCoords(ctx,tenantId){
   if(typeof global.ensureDriverScheduleCoords !== "function") return;
 
-  for(const driver of ctx.drivers){
+  await runWithConcurrency(ctx.drivers,5,async driver=>{
     const driverId = String(driver._id);
     const row = ctx.schedule.get(driverId) || {};
 
-    if(!clean(row.address)) continue;
+    if(!clean(row.address)) return;
 
     try{
       const safeRow = await global.ensureDriverScheduleCoords(
@@ -1058,10 +1079,14 @@ async function prepareDriverScheduleCoords(ctx,tenantId){
     }catch(err){
       console.log("DRIVER COORD PREP WARNING:",driverId,err?.message || err);
     }
-  }
+  });
 }
 
-async function prepareTripPickupForRanking(trip){
+async function prepareTripPickupForRanking(trip,ctx={}){
+
+  if(pickupPoint(trip)){
+    return;
+  }
 
   if(
     typeof global.resolveDispatchAddressPoint !==
@@ -1079,10 +1104,16 @@ async function prepareTripPickupForRanking(trip){
 
   try{
 
-    const currentPoint =
-      await global.resolveDispatchAddressPoint(
-        address
-      );
+    const cacheKey = address.toLowerCase();
+    let currentPoint = ctx.addressPointCache?.get(cacheKey);
+
+    if(currentPoint === undefined){
+      currentPoint = await global.resolveDispatchAddressPoint(address);
+      if(!(ctx.addressPointCache instanceof Map)){
+        ctx.addressPointCache = new Map();
+      }
+      ctx.addressPointCache.set(cacheKey,currentPoint || null);
+    }
 
     if(!currentPoint){
       return;
@@ -1384,7 +1415,8 @@ async function autoAssignTripById(
     }
 
     await prepareTripPickupForRanking(
-      trip
+      trip,
+      ctx
     );
 
     await prepareDriverOriginsForTrip(
@@ -1579,12 +1611,12 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
 
     const tripIds = trips.map(t=>t._id);
 
-    for(const trip of trips){
+    await runWithConcurrency(trips,8,async trip=>{
       const tenantId = requestTenantId(req,trip);
       if(tenantId){
         await migrateLegacyAssignmentTenant(trip,tenantId);
       }
-    }
+    });
 
     /*
       Explicit IDs mean the administrator intentionally requested a new
@@ -1621,34 +1653,57 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
       requestTenantId(req,trips[0] || null)
     );
 
+    ctx.addressPointCache = new Map();
+
+    const coordinateWarnings = new Map();
+
+    await runWithConcurrency(trips,8,async trip=>{
+      if(typeof global.ensureTripCoords !== "function") return;
+
+      try{
+        await global.ensureTripCoords(trip);
+      }catch(err){
+        coordinateWarnings.set(
+          String(trip._id),
+          err?.message || String(err)
+        );
+      }
+    });
+
     const results = [];
+    let writeBatch = [];
+
+    async function flushWriteBatch(){
+      if(!writeBatch.length) return;
+
+      const batch = writeBatch;
+      writeBatch = [];
+
+      try{
+        await DispatchAssignment.bulkWrite(
+          batch.map(item=>item.operation),
+          {ordered:false}
+        );
+      }catch(batchError){
+        console.log("AUTO ASSIGN BULK WRITE WARNING:",batchError?.message || batchError);
+
+        for(const item of batch){
+          try{
+            await DispatchAssignment.updateOne(
+              item.operation.updateOne.filter,
+              item.operation.updateOne.update,
+              {upsert:true}
+            );
+          }catch(writeError){
+            item.result.assigned = false;
+            item.result.reason = "Assignment save failed";
+            item.result.error = writeError?.message || String(writeError);
+          }
+        }
+      }
+    }
 
     for(const trip of trips){
-
-      try {
-
-        if (
-          typeof global.ensureTripCoords ===
-          "function"
-        ) {
-          await global.ensureTripCoords(
-            trip
-          );
-        }
-
-      } catch (err) {
-
-        results.push({
-          tripId:trip._id,
-          assigned:false,
-          reason:
-            "Trip coordinate preparation failed: " +
-            (err?.message || err)
-        });
-
-        continue;
-      }
-
       if(lockedIds.has(String(trip._id))){
         results.push({
           tripId:trip._id,
@@ -1668,7 +1723,8 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
       }
 
       await prepareTripPickupForRanking(
-        trip
+        trip,
+        ctx
       );
 
       await prepareDriverOriginsForTrip(
@@ -1687,51 +1743,72 @@ router.post("/auto-assign",requireTenantApi,async(req,res)=>{
         continue;
       }
 
-      const assignment = await DispatchAssignment.findOneAndUpdate(
-        {tripId:trip._id},
-        {$set:{
-          tenantId:req.authUser.role === "PLATFORM_ADMIN"
-            ? (trip.tenantId || req.body?.tenantId || null)
-            : req.authUser.tenantId,
-          tripId:trip._id,
-          driverId:best.driver._id,
-          driverName:best.driver.name || best.driver.fullName || "",
-          driverPhone:best.row.phone || best.driver.phone || "",
-          vehicleNumber:best.row.vehicleNumber || "",
-          driverAddress:best.row.address || "",
-          services:driverServices(best.row),
-          dispatchStatus:"ASSIGNED",
-          assignedBy:req.user?._id ? String(req.user._id) : "SYSTEM",
-          assignmentType:"AUTO",
-          smartScore:best.score,
-          smartReason:best.reason,
-          smartDistance:best.distance,
-          assignedAt:new Date()
-        }},
-        {upsert:true,new:true}
-      );
+      const tenantId = req.authUser.role === "PLATFORM_ADMIN"
+        ? (trip.tenantId || req.body?.tenantId || null)
+        : req.authUser.tenantId;
+
+      const assignmentData = {
+        tenantId,
+        tripId:trip._id,
+        driverId:best.driver._id,
+        driverName:best.driver.name || best.driver.fullName || "",
+        driverPhone:best.row.phone || best.driver.phone || "",
+        vehicleNumber:best.row.vehicleNumber || "",
+        driverAddress:best.row.address || "",
+        services:driverServices(best.row),
+        dispatchStatus:"ASSIGNED",
+        assignedBy:req.user?._id ? String(req.user._id) : "SYSTEM",
+        assignmentType:"AUTO",
+        smartScore:best.score,
+        smartReason:best.reason,
+        smartDistance:best.distance,
+        assignedAt:new Date()
+      };
 
       ctx.assignments.push({
-        ...assignment.toObject(),
+        ...assignmentData,
         __trip:trip
       });
 
-      results.push({
+      const result = {
         tripId:trip._id,
         assigned:true,
         driverId:best.driverId,
-        driverName:assignment.driverName,
+        driverName:assignmentData.driverName,
         score:best.score,
         distance:best.distance,
         originSource:best.originSource,
-        originAddress:best.originAddress
+        originAddress:best.originAddress,
+        coordinateWarning:coordinateWarnings.get(String(trip._id)) || ""
+      };
+
+      results.push(result);
+
+      writeBatch.push({
+        result,
+        operation:{
+          updateOne:{
+            filter:{tripId:trip._id,tenantId},
+            update:{$set:assignmentData},
+            upsert:true
+          }
+        }
       });
+
+      if(writeBatch.length >= 20){
+        await flushWriteBatch();
+      }
     }
+
+    await flushWriteBatch();
 
     res.json({
       success:true,
+      totalCount:trips.length,
+      processedCount:results.length,
       assignedCount:results.filter(x=>x.assigned).length,
       unassignedCount:results.filter(x=>!x.assigned).length,
+      coordinateWarningCount:coordinateWarnings.size,
       results
     });
 
