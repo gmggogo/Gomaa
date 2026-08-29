@@ -1749,7 +1749,29 @@ async function sendTripStatusEmail(
       trip[finalEmailMarker[0]] = true;
       trip[finalEmailMarker[1]] = new Date();
 
-      await trip.save();
+      if(
+        trip.constructor &&
+        typeof trip.constructor.updateOne === "function" &&
+        trip._id
+      ){
+
+        await trip.constructor.updateOne(
+          { _id:trip._id },
+          {
+            $set:{
+              [finalEmailMarker[0]]:true,
+              [finalEmailMarker[1]]:
+                trip[finalEmailMarker[1]]
+            }
+          },
+          { strict:false }
+        );
+
+      }else{
+
+        await trip.save();
+
+      }
     }
 
     console.log(
