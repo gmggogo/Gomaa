@@ -22,6 +22,11 @@ const adminName =
   role ||
   "dispatcher";
 
+const tenantId =
+  localStorage.getItem("tenantId") ||
+  localStorage.getItem("tenantSlug") ||
+  "default";
+
 if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
   window.location.href = "/login.html";
 }
@@ -40,6 +45,10 @@ let refreshTimer = null;
 let tripCounter = 1;
 
 const CONFIRM_HOURS = 12;
+
+const VIEWED_FINAL_ITEMS_KEY =
+  "finalConfirmationViewedItems:" +
+  String(tenantId);
 
 const editingSingles = new Set();
 const editingShared = new Set();
@@ -76,6 +85,103 @@ function safe(v){
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;");
+}
+
+function readViewedFinalItems(){
+  try{
+    const value = JSON.parse(
+      localStorage.getItem(
+        VIEWED_FINAL_ITEMS_KEY
+      ) ||
+      "{}"
+    );
+
+    return value && typeof value === "object"
+      ? value
+      : {};
+
+  }catch(err){
+    return {};
+  }
+}
+
+function markFinalItemViewed(item){
+  if(!item){
+    return;
+  }
+
+  const viewed =
+    readViewedFinalItems();
+
+  viewed[String(item.key)] =
+    Date.now();
+
+  localStorage.setItem(
+    VIEWED_FINAL_ITEMS_KEY,
+    JSON.stringify(viewed)
+  );
+}
+
+function publishUnreadFinalCount(items){
+  const pendingItems =
+    items.filter(item=>
+      item.kind === "trip"
+        ? isTripNotConfirmed(item.trip)
+        : isSharedNotConfirmed(item.group[0])
+    );
+
+  const activeKeys =
+    new Set(
+      pendingItems.map(
+        item=>String(item.key)
+      )
+    );
+
+  const viewed =
+    readViewedFinalItems();
+
+  let changed = false;
+
+  Object.keys(viewed).forEach(key=>{
+    if(!activeKeys.has(key)){
+      delete viewed[key];
+      changed = true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem(
+      VIEWED_FINAL_ITEMS_KEY,
+      JSON.stringify(viewed)
+    );
+  }
+
+  const unreadCount =
+    pendingItems.filter(
+      item=>!viewed[String(item.key)]
+    ).length;
+
+  localStorage.setItem(
+    "dashboardPendingConfirmationCount",
+    String(unreadCount)
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "gh-dashboard-alerts",
+      {
+        detail:{
+          pendingConfirmation:unreadCount,
+          newTrips:Number(
+            localStorage.getItem(
+              "dashboardNewTripsCount"
+            ) ||
+            0
+          )
+        }
+      }
+    )
+  );
 }
 
 function normalizeText(v){
@@ -1025,6 +1131,10 @@ function filterItems(items){
 function applyFilters(){
   const baseItems =
     buildDisplayItems(allTrips);
+
+  publishUnreadFinalCount(
+    baseItems
+  );
 
   displayItems =
     filterItems(baseItems);
@@ -2890,6 +3000,22 @@ function renderTripRow(item){
     </td>
   `;
 
+  tr.addEventListener(
+    "click",
+    event=>{
+      if(
+        event.target.closest(
+          "button, select, input, textarea, a"
+        )
+      ){
+        return;
+      }
+
+      markFinalItemViewed(item);
+      applyFilters();
+    }
+  );
+
   return tr;
 }
 
@@ -3133,6 +3259,22 @@ function renderSharedRow(item){
 
     </td>
   `;
+
+  tr.addEventListener(
+    "click",
+    event=>{
+      if(
+        event.target.closest(
+          "button, select, input, textarea, a"
+        )
+      ){
+        return;
+      }
+
+      markFinalItemViewed(item);
+      applyFilters();
+    }
+  );
 
   return tr;
 }
