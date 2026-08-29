@@ -7971,7 +7971,6 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
           existing.finalPrice = 0;
           existing.priceAmount = 0;
           existing.status = "Cancelled";
-          existing.paymentStatus = "UNPAID";
           existing.isFinalized = true;
           existing.cancelDateTime =
             existing.cancelDateTime || new Date();
