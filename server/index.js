@@ -7469,12 +7469,27 @@ app.get(
           0
         );
 
+      const summaryEndedAtStop =
+        t?.endedAtStop === true ||
+        String(t?.completionType || "")
+          .trim()
+          .toUpperCase() === "ENDED_AT_STOP" ||
+        Boolean(t?.stopEndAt) ||
+        Boolean(t?.stopExecution?.endedAt);
+
       // =========================
       // MILES
       // =========================
       let miles = 0;
 
-      if (t.miles && t.miles > 0) {
+      if (
+        summaryEndedAtStop &&
+        Number(t.stopEndMiles || 0) > 0
+      ) {
+
+        miles = Number(t.stopEndMiles);
+
+      } else if (t.miles && t.miles > 0) {
 
         miles = Number(t.miles);
 
@@ -7495,7 +7510,9 @@ app.get(
 
       }
 
-      miles = Math.round(miles);
+      miles = summaryEndedAtStop
+        ? Number(Number(miles || 0).toFixed(2))
+        : Math.round(miles);
 
       // =========================
       // BOOKING DATE/TIME
@@ -7694,7 +7711,28 @@ if (
       passengers.length,
 
     totalPrice:
-      total
+      total,
+
+    endedAtStop:
+      summaryEndedAtStop,
+
+    completionType:
+      t.completionType || "",
+
+    stopEndMiles:
+      Number(t.stopEndMiles || 0),
+
+    stopEndIndex:
+      Number(t.stopEndIndex || 0),
+
+    stopFeeApplied:
+      Number(t.stopFeeApplied || 0),
+
+    stopEndReason:
+      t.stopEndReason || "",
+
+    stopExecution:
+      t.stopExecution || null
   });
 
 }
@@ -7743,6 +7781,7 @@ else {
       Number(
         t.finalPrice ||
         t.priceAmount ||
+        t.stopExecution?.finalPrice ||
         0
       );
 
@@ -7805,7 +7844,34 @@ else {
       finalPrice,
 
     totalPrice:
-      finalPrice
+      finalPrice,
+
+    endedAtStop:
+      summaryEndedAtStop,
+
+    completionType:
+      t.completionType || "",
+
+    stopEndMiles:
+      Number(t.stopEndMiles || 0),
+
+    stopEndIndex:
+      Number(t.stopEndIndex || 0),
+
+    stopFeeApplied:
+      Number(
+        t.stopFeeApplied ||
+        t.stopExecution?.stopTotal ||
+        0
+      ),
+
+    stopEndReason:
+      t.stopEndReason ||
+      t.stopExecution?.reason ||
+      "",
+
+    stopExecution:
+      t.stopExecution || null
 
   });
 

@@ -288,6 +288,15 @@ function isCompleted(status){
   return normalizeStatus(status).includes("complete");
 }
 
+function isEndedAtStop(t){
+  return (
+    t?.endedAtStop === true ||
+    String(t?.completionType || "").trim().toUpperCase() === "ENDED_AT_STOP" ||
+    Boolean(t?.stopEndAt) ||
+    Boolean(t?.stopExecution?.endedAt)
+  );
+}
+
 function isCancelled(status){
   return normalizeStatus(status).includes("cancel");
 }
@@ -480,6 +489,14 @@ function getIndividualMiles(t){
     return 0;
   }
 
+  if(isEndedAtStop(t)){
+    return num(
+      t?.stopEndMiles ??
+      t?.stopExecution?.miles ??
+      0
+    );
+  }
+
   return num(t?.miles);
 
 }
@@ -532,12 +549,41 @@ function getTripPrice(t){
 
   }
 
+  if(isEndedAtStop(t)){
+    return firstPositiveNumber(
+      t?.finalPrice,
+      t?.priceAmount,
+      t?.totalPrice,
+      t?.stopExecution?.finalPrice
+    );
+  }
+
   return num(
     t.finalPrice ??
     t.priceAmount ??
     0
   );
 
+}
+
+function firstPositiveNumber(...values){
+  for(const value of values){
+    if(
+      value === undefined ||
+      value === null ||
+      String(value).trim() === ""
+    ){
+      continue;
+    }
+
+    const number = num(value);
+
+    if(number > 0){
+      return number;
+    }
+  }
+
+  return 0;
 }
 
 /* =========================
