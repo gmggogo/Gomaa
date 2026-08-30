@@ -316,6 +316,7 @@ function getNotes(t){
   Driver Map saves the written reason here:
     Cancel  -> cancelReason
     No Show -> noShowReason
+    End At Stop -> stopEndReason / stopExecution.reason
 
   This does NOT replace the normal client/trip Notes.
 */
@@ -325,6 +326,21 @@ function getDriverComment(t,p=null){
     p?.status ||
     t?.status ||
     "";
+
+  const endedAtStop =
+    t?.endedAtStop === true ||
+    normalizeText(t?.completionType)
+      .toUpperCase() === "ENDED_AT_STOP" ||
+    Boolean(t?.stopEndAt) ||
+    Boolean(t?.stopExecution?.endedAt);
+
+  if(endedAtStop){
+    return normalizeText(
+      t?.stopEndReason ||
+      t?.stopExecution?.reason ||
+      ""
+    );
+  }
 
   if(isNoShowStatus(status)){
     return normalizeText(
