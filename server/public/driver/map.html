@@ -523,8 +523,10 @@ button{
 */
 .passenger-btn,
 #btnPrimaryAction,
+#btnEndAtStop,
 #btnStartRide,
 .modal-close,
+#btnReasonCall,
 #btnSubmitReason{
   border-radius:6px;
 
@@ -546,8 +548,10 @@ button{
 
 .passenger-btn:active:not(:disabled),
 #btnPrimaryAction:active:not(:disabled),
+#btnEndAtStop:active:not(:disabled),
 #btnStartRide:active:not(:disabled),
 .modal-close:active:not(:disabled),
+#btnReasonCall:active:not(:disabled),
 #btnSubmitReason:active:not(:disabled){
   transform:translateY(2px);
 
@@ -680,6 +684,18 @@ button{
   min-height:54px;
   padding:9px 12px;
   color:#111;
+  font-size:11px;
+  font-weight:1000;
+}
+
+#btnEndAtStop{
+  display:none;
+  width:100%;
+  min-height:54px;
+  margin-top:12px;
+  padding:9px 12px;
+  color:#6f0808;
+  background:linear-gradient(180deg,#ffd7d7,#dc8d8d 58%,#b95656);
   font-size:11px;
   font-weight:1000;
 }
@@ -817,6 +833,19 @@ button{
   background:#c94040;
   font-size:11px;
   font-weight:900;
+}
+
+#btnReasonCall{
+  display:none;
+  width:100%;
+  min-height:48px;
+  margin-top:12px;
+  padding:9px 12px;
+  color:#fff;
+  background:linear-gradient(180deg,#214f82,#0e315d 58%,#071c38);
+  font-size:11px;
+  font-weight:1000;
+  text-shadow:0 1px 0 rgba(0,0,0,.70);
 }
 
 .details-content{
@@ -1116,6 +1145,13 @@ button{
       >
         DIRECTIONS
       </button>
+
+      <button
+        id="btnEndAtStop"
+        type="button"
+      >
+        END TRIP AT STOP
+      </button>
     </div>
 
     <button
@@ -1157,9 +1193,16 @@ button{
         </button>
       </div>
 
+      <button
+        id="btnReasonCall"
+        type="button"
+      >
+        CALL PASSENGER
+      </button>
+
       <textarea
         id="reasonNotes"
-        placeholder="Enter reason"></textarea>
+        placeholder="Enter reason / notes"></textarea>
 
       <button
         id="btnSubmitReason"

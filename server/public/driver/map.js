@@ -281,29 +281,14 @@ const recenterBtn = document.getElementById("recenterBtn");
 const btnPrimaryAction = document.getElementById("btnPrimaryAction");
 const btnStartRide = document.getElementById("btnStartRide");
 const eyeBtn = document.getElementById("eyeBtn");
-
-const btnEndAtStop = document.createElement("button");
-btnEndAtStop.type = "button";
-btnEndAtStop.id = "btnEndAtStop";
-btnEndAtStop.className = btnPrimaryAction?.className || "";
-btnEndAtStop.classList.remove("blue","green","gold","muted");
-btnEndAtStop.classList.add("red");
-btnEndAtStop.textContent = "END TRIP AT STOP";
-btnEndAtStop.style.display = "none";
-btnEndAtStop.style.marginTop = "10px";
-
-if(btnPrimaryAction?.parentNode){
-  btnPrimaryAction.parentNode.insertBefore(
-    btnEndAtStop,
-    btnPrimaryAction.nextSibling
-  );
-}
+const btnEndAtStop = document.getElementById("btnEndAtStop");
 
 const reasonBox = document.getElementById("reasonBox");
 const reasonTitle = document.getElementById("reasonTitle");
 const reasonPassenger = document.getElementById("reasonPassenger");
 const reasonNotes = document.getElementById("reasonNotes");
 const btnCloseReason = document.getElementById("btnCloseReason");
+const btnReasonCall = document.getElementById("btnReasonCall");
 const btnSubmitReason = document.getElementById("btnSubmitReason");
 
 const detailsBox = document.getElementById("detailsBox");
@@ -848,7 +833,7 @@ function passengerName(p, index){
   );
 }
 
-function passengerPhone(p){
+function passengerPhone(p,trip = tripDoc){
   return clean(
     firstValue(
       p?.clientPhone,
@@ -856,7 +841,15 @@ function passengerPhone(p){
       p?.memberPhone,
       p?.patientPhone,
       p?.phone,
-      p?.mobile
+      p?.mobile,
+      p?.entryPhone,
+      trip?.clientPhone,
+      trip?.passengerPhone,
+      trip?.memberPhone,
+      trip?.patientPhone,
+      trip?.entryPhone,
+      trip?.phone,
+      trip?.mobile
     )
   );
 }
@@ -981,7 +974,10 @@ function getPassengers(trip){
       trip?.clientPhone,
       trip?.passengerPhone,
       trip?.memberPhone,
-      trip?.patientPhone
+      trip?.patientPhone,
+      trip?.entryPhone,
+      trip?.phone,
+      trip?.mobile
     ),
     pickup: firstValue(trip?.pickup, trip?.pickupAddress),
     dropoff: firstValue(trip?.dropoff, trip?.dropoffAddress),
@@ -3374,7 +3370,11 @@ function passengerWasCalled(stop, passenger){
 }
 
 function dialPassenger(stop, passenger, forcedReasonAction = ""){
-  if(!passenger?.phone){
+  const phone =
+    passengerPhone(passenger,tripDoc) ||
+    clean(passenger?.phone);
+
+  if(!phone){
     alert("Passenger phone not found.");
     return false;
   }
@@ -3389,15 +3389,90 @@ function dialPassenger(stop, passenger, forcedReasonAction = ""){
     };
   }
 
-  window.location.href = `tel:${passenger.phone}`;
+  window.location.href = `tel:${phone}`;
   return true;
 }
 
+function reasonPassengerForStop(stop,passengerIdValue = ""){
+  const candidates = [
+    ...(Array.isArray(stop?.passengers) ? stop.passengers : []),
+    ...(getPassengers(tripDoc) || [])
+  ];
+
+  const source =
+    candidates.find(p =>
+      String(
+        p?.passengerId ||
+        p?._id ||
+        p?.id ||
+        ""
+      ) === String(passengerIdValue || "")
+    ) ||
+    candidates[0];
+
+  if(!source){
+    return null;
+  }
+
+  return {
+    ...source,
+    passengerId:
+      source.passengerId ||
+      source._id ||
+      source.id ||
+      "single",
+    name:
+      source.name ||
+      source.clientName ||
+      tripDoc?.clientName ||
+      "Passenger",
+    phone:
+      passengerPhone(source,tripDoc)
+  };
+}
+
+function renderReasonStep(stop,passenger,action){
+  const endAtStop =
+    action === "END_AT_STOP";
+
+  if(!endAtStop){
+    hide(btnReasonCall);
+    show(reasonNotes);
+    show(btnSubmitReason);
+    btnSubmitReason.disabled = false;
+    return;
+  }
+
+  const called =
+    passengerWasCalled(stop,passenger);
+
+  show(btnReasonCall);
+  btnReasonCall.textContent =
+    called
+      ? "CALL PASSENGER AGAIN"
+      : "CALL PASSENGER";
+
+  reasonNotes.style.display =
+    called ? "block" : "none";
+
+  btnSubmitReason.style.display =
+    called ? "block" : "none";
+
+  btnSubmitReason.disabled = !called;
+}
+
 function openReasonModal(action, stop, passenger){
+  const resolvedPassenger =
+    reasonPassengerForStop(
+      stop,
+      passenger?.passengerId
+    ) ||
+    passenger;
+
   reasonContext = {
     action,
     stopId: stop.stopId,
-    passengerId: passenger.passengerId
+    passengerId: resolvedPassenger.passengerId
   };
 
   reasonTitle.textContent =
@@ -3407,16 +3482,35 @@ function openReasonModal(action, stop, passenger){
         ? "End Trip At Stop Reason"
         : "Cancel Reason";
 
-  reasonPassenger.textContent = passenger.name || "Passenger";
+  reasonPassenger.textContent =
+    resolvedPassenger.name ||
+    "Passenger";
+
   reasonNotes.value = "";
 
+  renderReasonStep(
+    stop,
+    resolvedPassenger,
+    action
+  );
+
   show(reasonBox, "flex");
-  setTimeout(() => reasonNotes.focus(), 100);
+
+  if(
+    action !== "END_AT_STOP" ||
+    passengerWasCalled(stop,resolvedPassenger)
+  ){
+    setTimeout(() => reasonNotes.focus(), 100);
+  }
 }
 
 function closeReasonModal(){
   reasonContext = null;
   reasonNotes.value = "";
+  reasonNotes.style.display = "block";
+  btnSubmitReason.style.display = "block";
+  btnSubmitReason.disabled = false;
+  hide(btnReasonCall);
   hide(reasonBox);
 }
 
@@ -4813,20 +4907,10 @@ btnEndAtStop?.addEventListener("click", () => {
   }
 
   const passenger =
-    (stop.passengers || [])[0] ||
-    (getPassengers(tripDoc) || [])[0];
+    reasonPassengerForStop(stop);
 
   if(!passenger){
     alert("Passenger information is unavailable.");
-    return;
-  }
-
-  if(!passengerWasCalled(stop,passenger)){
-    dialPassenger(
-      stop,
-      passenger,
-      "END_AT_STOP"
-    );
     return;
   }
 
@@ -4840,6 +4924,46 @@ btnEndAtStop?.addEventListener("click", () => {
 /* ================= REASON SUBMIT ================= */
 
 btnCloseReason?.addEventListener("click", closeReasonModal);
+
+btnReasonCall?.addEventListener("click", () => {
+  if(
+    !reasonContext ||
+    reasonContext.action !== "END_AT_STOP"
+  ){
+    return;
+  }
+
+  const stop = currentStop();
+
+  if(
+    !stop ||
+    stop.stopId !== reasonContext.stopId
+  ){
+    closeReasonModal();
+    return;
+  }
+
+  const passenger =
+    reasonPassengerForStop(
+      stop,
+      reasonContext.passengerId
+    );
+
+  if(!passenger){
+    alert("Passenger information is unavailable.");
+    return;
+  }
+
+  if(
+    dialPassenger(
+      stop,
+      passenger,
+      "END_AT_STOP"
+    )
+  ){
+    hide(reasonBox);
+  }
+});
 
 btnSubmitReason?.addEventListener("click", async () => {
   if(!reasonContext) return;
@@ -4856,16 +4980,11 @@ btnSubmitReason?.addEventListener("click", async () => {
     return;
   }
 
-  const passenger = (stop.passengers || [])
-    .find(p =>
-      String(p.passengerId) ===
-      String(reasonContext.passengerId)
-    ) ||
-    (getPassengers(tripDoc) || [])
-      .find(p =>
-        String(p.passengerId) ===
-        String(reasonContext.passengerId)
-      );
+  const passenger =
+    reasonPassengerForStop(
+      stop,
+      reasonContext.passengerId
+    );
 
   if(!passenger){
     closeReasonModal();
@@ -4880,6 +4999,16 @@ btnSubmitReason?.addEventListener("click", async () => {
   }
 
   if(!passengerWasCalled(stop, passenger)){
+    if(reasonContext.action === "END_AT_STOP"){
+      alert("Call the passenger first.");
+      renderReasonStep(
+        stop,
+        passenger,
+        reasonContext.action
+      );
+      return;
+    }
+
     closeReasonModal();
     dialPassenger(stop, passenger, reasonContext.action);
     return;
