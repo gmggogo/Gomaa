@@ -549,10 +549,17 @@ function formatTripDateTime(
       trip?.tripTime
     );
 
-  const dateObj =
-    getTripDateTime(trip);
+  const dateMatch =
+    rawDate.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    );
 
-  if(!dateObj){
+  const timeMatch =
+    rawTime.match(
+      /^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s*([AP]M))?$/i
+    );
+
+  if(!dateMatch || !timeMatch){
 
     return {
       date:rawDate,
@@ -561,20 +568,46 @@ function formatTripDateTime(
 
   }
 
-  const timezone =
-    getSystemTimezone(
-      settings
-    );
-
   try{
+
+    const year = Number(dateMatch[1]);
+    const month = Number(dateMatch[2]);
+    const day = Number(dateMatch[3]);
+
+    let hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    const meridiem = upper(timeMatch[3]);
+
+    if(meridiem === "AM" && hour === 12){
+      hour = 0;
+    }
+
+    if(meridiem === "PM" && hour < 12){
+      hour += 12;
+    }
+
+    const dateOnly =
+      new Date(
+        Date.UTC(
+          year,
+          month - 1,
+          day
+        )
+      );
+
+    const displayHour =
+      hour % 12 || 12;
+
+    const displayMeridiem =
+      hour >= 12 ? "PM" : "AM";
 
     return {
 
       date:
-        dateObj.toLocaleDateString(
+        dateOnly.toLocaleDateString(
           "en-US",
           {
-            timeZone:timezone,
+            timeZone:"UTC",
             year:"numeric",
             month:"long",
             day:"numeric"
@@ -582,14 +615,9 @@ function formatTripDateTime(
         ),
 
       time:
-        dateObj.toLocaleTimeString(
-          "en-US",
-          {
-            timeZone:timezone,
-            hour:"numeric",
-            minute:"2-digit"
-          }
-        )
+        `${displayHour}:` +
+        `${String(minute).padStart(2,"0")} ` +
+        displayMeridiem
 
     };
 
@@ -1060,12 +1088,27 @@ function buildEmailButton({
    STOPS HTML
 ========================= */
 
+function getStopAddress(stop){
+
+  if(typeof stop === "string"){
+    return clean(stop);
+  }
+
+  return clean(
+    stop?.address ||
+    stop?.location ||
+    stop?.formattedAddress ||
+    stop?.name
+  );
+
+}
+
 function buildStopsHtml(stops){
 
   const list =
     Array.isArray(stops)
       ? stops
-          .map(stop=>clean(stop))
+          .map(getStopAddress)
           .filter(Boolean)
       : [];
 
@@ -1105,6 +1148,30 @@ function buildStopsHtml(stops){
 
 }
 
+function isEndedAtStop(trip){
+
+  return (
+    trip?.endedAtStop === true ||
+    upper(trip?.completionType) === "ENDED_AT_STOP" ||
+    !!trip?.stopEndAt ||
+    !!trip?.stopExecution?.endedAt
+  );
+
+}
+
+function moneyValue(...values){
+
+  for(const value of values){
+    const number = Number(value);
+    if(Number.isFinite(number) && number >= 0){
+      return number;
+    }
+  }
+
+  return 0;
+
+}
+
 /* =========================
    SEND EMAIL
 ========================= */
@@ -1113,6 +1180,8 @@ async function sendTripStatusEmail(
   trip,
   type
 ){
+
+  let claimedFinalMarker = null;
 
   try{
 
@@ -1268,6 +1337,7 @@ async function sendTripStatusEmail(
     let subject = "";
     let statusBlock = "";
     let showActions = false;
+    const endedAtStop = isEndedAtStop(trip);
 
     if(type === "CONFIRMED"){
 
@@ -1402,8 +1472,44 @@ async function sendTripStatusEmail(
           0
         );
 
-      subject =
-        "Trip Completed";
+      subject = endedAtStop
+        ? "Trip Ended at Stop"
+        : "Trip Completed";
+
+      const stopNumber =
+        Number(
+          trip.stopEndIndex ??
+          trip.stopExecution?.stopIndex ??
+          trip.currentStopIndex ??
+          0
+        ) + 1;
+
+      const stopAddress =
+        clean(trip.stopEndAddress) ||
+        getStopAddress(
+          Array.isArray(trip.stops)
+            ? trip.stops[Math.max(0,stopNumber - 1)]
+            : ""
+        );
+
+      const executedMiles = moneyValue(
+        trip.stopEndMiles,
+        trip.stopExecution?.executedMiles,
+        trip.actualMiles,
+        trip.routeMiles
+      );
+
+      const rideFare = moneyValue(
+        trip.stopExecution?.rideFare,
+        trip.rideFare,
+        trip.baseFare
+      );
+
+      const stopFees = moneyValue(
+        trip.stopFeeApplied,
+        trip.stopExecution?.stopTotal,
+        trip.stopFees
+      );
 
       statusBlock = `
 
@@ -1413,8 +1519,19 @@ async function sendTripStatusEmail(
           font-size:15px;
           line-height:1.5;
         ">
-          Your trip has been completed successfully.
+          ${endedAtStop
+            ? `Your trip was ended at Stop ${stopNumber} because the passenger did not return within the allowed waiting time.`
+            : "Your trip has been completed successfully."}
         </p>
+
+        ${endedAtStop ? `
+          <p style="margin:0 0 12px;color:#111827;font-size:15px;line-height:1.6;">
+            ${stopAddress ? `<b>Ended At:</b> ${escapeHtml(stopAddress)}<br>` : ""}
+            <b>Executed Miles:</b> ${executedMiles.toFixed(2)}<br>
+            <b>Ride Fare:</b> $${rideFare.toFixed(2)}<br>
+            <b>Stop Fees:</b> $${stopFees.toFixed(2)}
+          </p>
+        ` : ""}
 
         <p style="
           margin:0;
@@ -1433,13 +1550,23 @@ async function sendTripStatusEmail(
 
       const chargedAmount =
         trip.cancellationChargeable === true
-          ? Number(
-              trip.cancelFee ??
-              trip.finalChargeAmount ??
-              trip.capturedAmount ??
-              0
+          ? moneyValue(
+              trip.cancelFee,
+              trip.finalChargeAmount,
+              trip.capturedAmount
             )
           : 0;
+
+      const originalAmount = moneyValue(
+        trip.priceAmount,
+        trip.totalPrice,
+        trip.originalPrice
+      );
+
+      const refundAmount =
+        trip.refundAmount !== undefined && trip.refundAmount !== null
+          ? moneyValue(trip.refundAmount)
+          : Math.max(0,originalAmount - chargedAmount);
 
       subject =
         "Trip Cancelled";
@@ -1452,7 +1579,9 @@ async function sendTripStatusEmail(
           font-size:15px;
           line-height:1.5;
         ">
-          Your trip has been cancelled.
+          ${chargedAmount > 0
+            ? `Your trip has been cancelled. A $${chargedAmount.toFixed(2)} cancellation fee was applied.`
+            : "Your trip has been cancelled. You are eligible for a full refund."}
         </p>
 
         <p style="
@@ -1460,8 +1589,9 @@ async function sendTripStatusEmail(
           color:#111827;
           font-size:15px;
         ">
-          <b>Cancellation Fee Charged:</b>
-          $${chargedAmount.toFixed(2)}
+          <b>Cancellation Fee:</b> $${chargedAmount.toFixed(2)}<br>
+          <b>Refund:</b> $${refundAmount.toFixed(2)}<br>
+          <b>Amount Charged:</b> $${chargedAmount.toFixed(2)}
         </p>
 
       `;
@@ -1546,6 +1676,53 @@ async function sendTripStatusEmail(
         trip.stops
       );
 
+    const passengerDisplay = clean(
+      trip.clientName ||
+      trip.passengerName ||
+      trip.customerName
+    );
+
+    const serviceDisplay = clean(
+      trip.serviceName ||
+      trip.serviceType ||
+      trip.service
+    );
+
+    const finalEmailMarker = {
+      COMPLETED:["completedEmailSent","completedEmailSentAt"],
+      NOSHOW:["noShowEmailSent","noShowEmailSentAt"],
+      CANCELLED:["cancelledEmailSent","cancelledEmailSentAt"]
+    }[type];
+
+    if(
+      finalEmailMarker &&
+      trip?._id &&
+      typeof trip?.constructor?.findOneAndUpdate === "function"
+    ){
+
+      const claimed = await trip.constructor.findOneAndUpdate(
+        {
+          _id:trip._id,
+          [finalEmailMarker[0]]:{ $ne:true }
+        },
+        {
+          $set:{
+            [finalEmailMarker[0]]:true,
+            [finalEmailMarker[1]]:new Date()
+          }
+        },
+        { new:true }
+      );
+
+      if(!claimed){
+        return null;
+      }
+
+      claimedFinalMarker = finalEmailMarker;
+      trip[finalEmailMarker[0]] = true;
+      trip[finalEmailMarker[1]] = new Date();
+    }
+
     const result =
       await transporter.sendMail({
 
@@ -1625,6 +1802,18 @@ async function sendTripStatusEmail(
 
                   </tr>
 
+                  ${passengerDisplay ? `
+                  <tr>
+                    <td style="padding:8px 0;font-weight:bold;vertical-align:top;">Passenger:</td>
+                    <td style="padding:8px 0;vertical-align:top;">${escapeHtml(passengerDisplay)}</td>
+                  </tr>` : ""}
+
+                  ${serviceDisplay ? `
+                  <tr>
+                    <td style="padding:8px 0;font-weight:bold;vertical-align:top;">Service:</td>
+                    <td style="padding:8px 0;vertical-align:top;">${escapeHtml(serviceDisplay)}</td>
+                  </tr>` : ""}
+
                   <tr>
 
                     <td style="
@@ -1655,16 +1844,15 @@ async function sendTripStatusEmail(
                       font-weight:bold;
                       vertical-align:top;
                     ">
-                      Dropoff:
+                      ${endedAtStop ? "Scheduled Dropoff:" : "Dropoff:"}
                     </td>
 
                     <td style="
                       padding:8px 0;
                       vertical-align:top;
                     ">
-                      ${escapeHtml(
-                        trip.dropoff || ""
-                      )}
+                      ${escapeHtml(trip.dropoff || "")}
+                      ${endedAtStop ? "<br><b style=\"color:#991b1b;\">Not Reached</b>" : ""}
                     </td>
 
                   </tr>
@@ -1735,14 +1923,9 @@ async function sendTripStatusEmail(
 
       });
 
-    const finalEmailMarker = {
-      COMPLETED:["completedEmailSent","completedEmailSentAt"],
-      NOSHOW:["noShowEmailSent","noShowEmailSentAt"],
-      CANCELLED:["cancelledEmailSent","cancelledEmailSentAt"]
-    }[type];
-
     if(
       finalEmailMarker &&
+      !claimedFinalMarker &&
       typeof trip.save === "function"
     ){
 
@@ -1761,6 +1944,24 @@ async function sendTripStatusEmail(
     return result;
 
   }catch(err){
+
+    if(
+      claimedFinalMarker &&
+      trip?._id &&
+      typeof trip?.constructor?.updateOne === "function"
+    ){
+      try{
+        await trip.constructor.updateOne(
+          { _id:trip._id },
+          {
+            $set:{ [claimedFinalMarker[0]]:false },
+            $unset:{ [claimedFinalMarker[1]]:1 }
+          }
+        );
+      }catch(releaseErr){
+        console.error("EMAIL CLAIM RELEASE ERROR:",releaseErr);
+      }
+    }
 
     console.error(
       "TRIP EMAIL ERROR:",

@@ -259,8 +259,27 @@ button:hover{
     </div>
 
     <div class="trip-item">
+      <b>Passenger:</b>
+      <span id="passengerName"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Service:</b>
+      <span id="serviceName"></span>
+    </div>
+
+    <div class="trip-item">
       <b>Pickup:</b>
       <span id="pickupText"></span>
+    </div>
+
+    <div
+      id="stopsRow"
+      class="trip-item"
+      style="display:none"
+    >
+      <b>Stops:</b>
+      <span id="stopsText"></span>
     </div>
 
     <div class="trip-item">
@@ -321,6 +340,11 @@ params.get("token");
 let currentTrip = null;
 let currentTenantSlug = "";
 let cancellationInProgress = false;
+let cancellationSubmitted = false;
+
+const cancellationStorageKey =
+  "cancelTripSubmitted:" +
+  String(token || "");
 
 /* =========================
    BRANDING
@@ -439,6 +463,138 @@ function goBack(){
   window.history.back();
 }
 
+function firstValue(...values){
+  for(const value of values){
+    if(
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    ){
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function stopAddress(stop){
+  if(typeof stop === "string"){
+    return stop.trim();
+  }
+
+  return String(
+    stop?.address ||
+    stop?.stopAddress ||
+    stop?.formattedAddress ||
+    ""
+  ).trim();
+}
+
+function renderTripDetails(data){
+  document.getElementById(
+    "tripBox"
+  ).style.display = "block";
+
+  document.getElementById(
+    "tripNumber"
+  ).innerText =
+    firstValue(
+      data.tripNumber,
+      data.number,
+      "--"
+    );
+
+  document.getElementById(
+    "passengerName"
+  ).innerText =
+    firstValue(
+      data.clientName,
+      data.passengerName,
+      data.name,
+      "--"
+    );
+
+  document.getElementById(
+    "serviceName"
+  ).innerText =
+    firstValue(
+      data.serviceName,
+      data.serviceTitle,
+      data.serviceType,
+      data.serviceCode,
+      "--"
+    );
+
+  document.getElementById(
+    "pickupText"
+  ).innerText =
+    firstValue(
+      data.pickup,
+      data.pickupAddress,
+      "--"
+    );
+
+  document.getElementById(
+    "dropoffText"
+  ).innerText =
+    firstValue(
+      data.dropoff,
+      data.dropoffAddress,
+      "--"
+    );
+
+  document.getElementById(
+    "tripDate"
+  ).innerText =
+    firstValue(data.tripDate,"--");
+
+  document.getElementById(
+    "tripTime"
+  ).innerText =
+    firstValue(data.tripTime,"--");
+
+  const amount = Number(
+    firstValue(
+      data.priceAmount,
+      data.finalPrice,
+      data.totalPrice,
+      data.price,
+      0
+    )
+  );
+
+  document.getElementById(
+    "tripAmount"
+  ).innerText =
+    Number.isFinite(amount)
+      ? amount.toFixed(2)
+      : "0.00";
+
+  const stops = Array.isArray(data.stops)
+    ? data.stops
+        .map(stopAddress)
+        .filter(Boolean)
+    : [];
+
+  const stopsRow =
+    document.getElementById("stopsRow");
+
+  if(stops.length){
+    document.getElementById(
+      "stopsText"
+    ).innerText =
+      stops
+        .map((stop,index)=>
+          `${index + 1}. ${stop}`
+        )
+        .join("\n");
+
+    stopsRow.style.display = "flex";
+  }else{
+    stopsRow.style.display = "none";
+  }
+}
+
 /* =========================
    LOAD TRIP
 ========================= */
@@ -493,16 +649,6 @@ async function checkTrip(){
 
     }
 
-    if(data.alreadyCancelled){
-
-      showWarning(
-        "This trip has already been cancelled."
-      );
-
-      return;
-
-    }
-
     currentTrip = data;
 
     currentTenantSlug =
@@ -519,47 +665,46 @@ async function checkTrip(){
       currentTenantSlug
     );
 
-    document.getElementById(
-      "tripBox"
-    ).style.display =
-    "block";
+    renderTripDetails(data);
 
-    document.getElementById(
-      "tripNumber"
-    ).innerText =
-    data.tripNumber || "";
+    if(data.alreadyCancelled){
 
-    document.getElementById(
-      "pickupText"
-    ).innerText =
-    data.pickup || "";
+      cancellationSubmitted = true;
 
-    document.getElementById(
-      "dropoffText"
-    ).innerText =
-    data.dropoff || "";
+      showWarning(
+        "This trip has already been cancelled."
+      );
 
-    document.getElementById(
-      "tripDate"
-    ).innerText =
-    data.tripDate || "";
+      document.getElementById(
+        "actions"
+      ).classList.add("hidden");
 
-    document.getElementById(
-      "tripTime"
-    ).innerText =
-    data.tripTime || "";
+      return;
 
-    document.getElementById(
-      "tripAmount"
-    ).innerText =
-    Number(
-      data.priceAmount || 0
-    ).toFixed(2);
+    }
+
+    if(
+      sessionStorage.getItem(
+        cancellationStorageKey
+      ) === "1"
+    ){
+      cancellationSubmitted = true;
+
+      showWarning(
+        "A cancellation request has already been submitted."
+      );
+
+      document.getElementById(
+        "actions"
+      ).classList.add("hidden");
+
+      return;
+    }
 
     if(Number(data.fee || 0) > 0){
 
       showWarning(
-        `$${data.fee} cancellation fee will apply.`
+        `A $${Number(data.fee).toFixed(2)} cancellation fee will apply.`
       );
 
     }else{
@@ -594,7 +739,10 @@ async function checkTrip(){
 
 async function confirmCancel(){
 
-  if(cancellationInProgress){
+  if(
+    cancellationInProgress ||
+    cancellationSubmitted
+  ){
     return;
   }
 
@@ -604,9 +752,17 @@ async function confirmCancel(){
     );
 
   cancellationInProgress = true;
+  cancellationSubmitted = true;
+
+  sessionStorage.setItem(
+    cancellationStorageKey,
+    "1"
+  );
 
   if(confirmButton){
     confirmButton.disabled = true;
+    confirmButton.innerText =
+      "Cancellation Submitted";
   }
 
   try{
@@ -637,12 +793,6 @@ async function confirmCancel(){
     await res.json();
 
     if(!res.ok){
-
-      cancellationInProgress = false;
-
-      if(confirmButton){
-        confirmButton.disabled = false;
-      }
 
       showError(
         data.message ||
@@ -675,16 +825,10 @@ async function confirmCancel(){
 
   }catch(err){
 
-    cancellationInProgress = false;
-
-    if(confirmButton){
-      confirmButton.disabled = false;
-    }
-
     console.log(err);
 
     showError(
-      "Server error."
+      "The cancellation request was submitted. Please refresh this page to verify its status."
     );
 
   }

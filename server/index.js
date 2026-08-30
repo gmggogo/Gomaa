@@ -10109,6 +10109,8 @@ app.post("/api/create-payment-intent", async (req, res) => {
 
 app.post("/api/cancel-trip", async (req, res) => {
 
+  let cancellationClaimedTripId = null;
+
   try{
 
     const { token } = req.body;
@@ -10199,17 +10201,9 @@ app.post("/api/cancel-trip", async (req, res) => {
       `${trip.tripDate}T${trip.tripTime}:00`
     );
 
-    const tripTime =
-    new Date(
-
-      tripTimeRaw.toLocaleString(
-        "en-US",
-        {
-          timeZone:systemTimezone
-        }
-      )
-
-    );
+    // tripDate/tripTime are already stored as the program's wall-clock time.
+    // Compare them with the system wall clock without converting them twice.
+    const tripTime = tripTimeRaw;
 
     if(
       isNaN(tripTime.getTime())
@@ -10360,6 +10354,39 @@ else{
 }
 
 /* =========================
+   ONE CANCELLATION REQUEST
+========================= */
+
+const cancellationClaim = await Trip.findOneAndUpdate(
+  {
+    _id:trip._id,
+    status:{ $ne:"Cancelled" },
+    cancellationRequestProcessing:{ $ne:true }
+  },
+  {
+    $set:{
+      cancellationRequestProcessing:true,
+      cancellationRequestProcessingAt:new Date()
+    }
+  },
+  { new:true }
+);
+
+if(!cancellationClaim){
+  return res.status(409).json({
+    success:false,
+    alreadySubmitted:true,
+    message:"Cancellation has already been submitted."
+  });
+}
+
+cancellationClaimedTripId = trip._id;
+
+trip.cancellationRequestProcessing = true;
+trip.cancellationRequestProcessingAt =
+  cancellationClaim.cancellationRequestProcessingAt;
+
+/* =========================
    CANCELLATION SOURCE
 ========================= */
 
@@ -10442,6 +10469,9 @@ if(
             refundAmount * 100
           )
 
+      },{
+        idempotencyKey:
+          `cancel-refund-${trip._id}-${Math.round(refundAmount * 100)}`
       });
 
     stripeRefundId =
@@ -10498,6 +10528,23 @@ res.json({
 });
 
 } catch (err) {
+
+  if(cancellationClaimedTripId){
+    try{
+      await Trip.updateOne(
+        {
+          _id:cancellationClaimedTripId,
+          status:{ $ne:"Cancelled" }
+        },
+        {
+          $set:{ cancellationRequestProcessing:false },
+          $unset:{ cancellationRequestProcessingAt:1 }
+        }
+      );
+    }catch(unlockErr){
+      console.log("CANCEL UNLOCK ERROR",unlockErr);
+    }
+  }
 
   console.log(
     "🔥 CANCEL ERROR FULL:",
@@ -10679,13 +10726,8 @@ app.post(
             `${trip.tripDate}T${trip.tripTime}:00`
           );
 
-        const tripTime =
-          new Date(
-            tripTimeRaw.toLocaleString(
-              "en-US",
-              {timeZone:timezone}
-            )
-          );
+        // Stored trip time and `now` are both system wall-clock values.
+        const tripTime = tripTimeRaw;
 
         if(
           isNaN(
@@ -10767,11 +10809,23 @@ res.json({
   clientName:
     trip.clientName,
 
+  passengerName:
+    trip.passengerName || trip.clientName,
+
+  serviceName:
+    trip.serviceName || service?.name || service?.serviceName || "",
+
+  serviceType:
+    trip.serviceType || trip.service || "",
+
   pickup:
     trip.pickup,
 
   dropoff:
     trip.dropoff,
+
+  stops:
+    Array.isArray(trip.stops) ? trip.stops : [],
 
   tripDate:
     trip.tripDate,
@@ -10781,7 +10835,11 @@ res.json({
 
   priceAmount:
     Number(
-      trip.priceAmount || 0
+      trip.priceAmount ||
+      trip.finalPrice ||
+      trip.totalPrice ||
+      trip.price ||
+      0
     ),
 
   status:
