@@ -1448,7 +1448,7 @@ function stopText(stop){
 
 function stopsDisplay(stops){
   if(!Array.isArray(stops) || !stops.length) return "--";
-  return stops.map((s,i)=>`${i+1}. ${safe(stopText(s))}`).join("\n");
+  return stops.map(s=>safe(stopText(s))).filter(Boolean);
 }
 
 function stopsPlain(stops){
