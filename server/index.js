@@ -7911,8 +7911,18 @@ async function stopEndRouteMetrics(trip,stopIndex){
     {
       type:"pickup",
       address:existingAddress(trip?.pickup),
-      lat:trip?.pickupLat,
-      lng:trip?.pickupLng
+      lat:stopEndCoordinate(
+        trip?.pickupLat,
+        trip?.pickupCoords?.lat,
+        trip?.pickupLocation?.lat,
+        trip?.pickupLocation?.latitude
+      ),
+      lng:stopEndCoordinate(
+        trip?.pickupLng,
+        trip?.pickupCoords?.lng,
+        trip?.pickupLocation?.lng,
+        trip?.pickupLocation?.longitude
+      )
     }
   ];
 
@@ -7931,13 +7941,50 @@ async function stopEndRouteMetrics(trip,stopIndex){
       address:
         existingAddress(stops[index]) ||
         existingAddress(coord?.address),
-      lat:coord?.lat,
-      lng:coord?.lng
+      lat:stopEndCoordinate(
+        coord?.lat,
+        coord?.latitude,
+        stops[index]?.lat,
+        stops[index]?.latitude,
+        stops[index]?.location?.lat,
+        stops[index]?.location?.latitude
+      ),
+      lng:stopEndCoordinate(
+        coord?.lng,
+        coord?.longitude,
+        stops[index]?.lng,
+        stops[index]?.longitude,
+        stops[index]?.location?.lng,
+        stops[index]?.location?.longitude
+      )
     });
   }
 
-  const calculated =
-    await routeMapEngine.calculateRouteMiles(routePoints);
+  let calculated = null;
+  let routeSource = "PARTIAL_ROUTE_CALCULATION";
+
+  try{
+    calculated =
+      await routeMapEngine.calculateRouteMiles(routePoints);
+  }catch(primaryError){
+    const cleanedRoutePoints =
+      routePoints.map(point=>({
+        ...point,
+        lat:null,
+        lng:null,
+        address:stopEndCleanDirectionsAddress(
+          point.address
+        )
+      }));
+
+    calculated =
+      await routeMapEngine.calculateRouteMiles(
+        cleanedRoutePoints
+      );
+
+    routeSource =
+      "PARTIAL_ROUTE_CALCULATION_CLEAN_ADDRESS";
+  }
 
   return {
     miles:Number(stopEndNumber(calculated?.miles).toFixed(2)),
@@ -7946,8 +7993,39 @@ async function stopEndRouteMetrics(trip,stopIndex){
     minutes:Math.ceil(
       stopEndNumber(calculated?.durationSeconds) / 60
     ),
-    source:"PARTIAL_ROUTE_CALCULATION"
+    source:routeSource
   };
+}
+
+function stopEndCoordinate(...values){
+  for(const value of values){
+    if(
+      value === null ||
+      value === undefined ||
+      String(value).trim() === ""
+    ){
+      continue;
+    }
+
+    const number = Number(value);
+
+    if(Number.isFinite(number)){
+      return number;
+    }
+  }
+
+  return null;
+}
+
+function stopEndCleanDirectionsAddress(value){
+  return String(value || "")
+    .replace(
+      /\b(?:lot|suite|ste|unit|apt|apartment)\s*[#-]?\s*[a-z0-9-]+\b/gi,
+      " "
+    )
+    .replace(/\s+#\s*[a-z0-9-]+\b/gi," ")
+    .replace(/\s+/g," ")
+    .trim();
 }
 
 function existingAddress(value){
