@@ -59,6 +59,15 @@ const {
   "./utils/trip-finalizer"
 );
 
+const {
+  resolveTripPricing
+} = require(
+  "./utils/finalPricingResolver"
+);
+
+const routeMapEngine =
+require("./utils/routeMapEngine");
+
 const DispatchAssignment =
 require("./models/DispatchAssignment"
 );
@@ -861,6 +870,65 @@ sharedRouteMeta: {
 finalPrice: {
   type: Number,
   default: 0
+},
+
+/* =========================
+   DRIVER END AT INTERMEDIATE STOP
+========================= */
+
+stopExecution: {
+  type: Object,
+  default: null
+},
+
+endedAtStop: {
+  type: Boolean,
+  default: false
+},
+
+stopEndReason: {
+  type: String,
+  default: ""
+},
+
+stopEndAt: {
+  type: Date,
+  default: null
+},
+
+stopEndIndex: {
+  type: Number,
+  default: -1
+},
+
+stopEndAddress: {
+  type: String,
+  default: ""
+},
+
+stopEndMiles: {
+  type: Number,
+  default: 0
+},
+
+stopEndMinutes: {
+  type: Number,
+  default: 0
+},
+
+stopFeeApplied: {
+  type: Number,
+  default: 0
+},
+
+stopPricingSource: {
+  type: String,
+  default: ""
+},
+
+completionType: {
+  type: String,
+  default: ""
 },
 
 isFinalized: {
@@ -7757,6 +7825,511 @@ else {
 
   }
 });
+
+/* =========================
+   END TRIP AT INTERMEDIATE STOP
+========================= */
+
+function stopEndNumber(value){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function stopEndLegs(trip){
+  const candidates = [
+    trip?.googleRoute?.legs,
+    trip?.optimizedRoute?.legs,
+    trip?.googleRoute?.routes?.[0]?.legs,
+    trip?.optimizedRoute?.routes?.[0]?.legs
+  ];
+
+  return (
+    candidates.find(value =>
+      Array.isArray(value) && value.length
+    ) ||
+    []
+  );
+}
+
+function stopEndLegMetrics(leg){
+  const meters = stopEndNumber(
+    leg?.distanceMeters ??
+    leg?.distance?.value ??
+    leg?.meters
+  );
+
+  const miles = meters > 0
+    ? meters * 0.000621371
+    : stopEndNumber(
+        leg?.miles ??
+        leg?.distanceMiles
+      );
+
+  const seconds = stopEndNumber(
+    leg?.durationSeconds ??
+    leg?.duration?.value ??
+    leg?.seconds
+  );
+
+  return {
+    miles,
+    meters,
+    seconds
+  };
+}
+
+async function stopEndRouteMetrics(trip,stopIndex){
+  const legs = stopEndLegs(trip);
+
+  if(legs.length >= stopIndex){
+    const selected = legs.slice(0,stopIndex);
+
+    const totals = selected.reduce((out,leg)=>{
+      const current = stopEndLegMetrics(leg);
+      out.miles += current.miles;
+      out.meters += current.meters;
+      out.seconds += current.seconds;
+      return out;
+    },{
+      miles:0,
+      meters:0,
+      seconds:0
+    });
+
+    if(totals.miles > 0){
+      return {
+        miles:Number(totals.miles.toFixed(2)),
+        distanceMeters:Number(totals.meters.toFixed(0)),
+        durationSeconds:Number(totals.seconds.toFixed(0)),
+        minutes:Math.ceil(totals.seconds / 60),
+        source:"SAVED_ROUTE_LEGS"
+      };
+    }
+  }
+
+  const routePoints = [
+    {
+      type:"pickup",
+      address:existingAddress(trip?.pickup),
+      lat:trip?.pickupLat,
+      lng:trip?.pickupLng
+    }
+  ];
+
+  const stops = Array.isArray(trip?.stops)
+    ? trip.stops
+    : [];
+
+  const stopCoords = Array.isArray(trip?.stopCoords)
+    ? trip.stopCoords
+    : [];
+
+  for(let index = 0; index < stopIndex; index++){
+    const coord = stopCoords[index] || {};
+    routePoints.push({
+      type:"stop",
+      address:
+        existingAddress(stops[index]) ||
+        existingAddress(coord?.address),
+      lat:coord?.lat,
+      lng:coord?.lng
+    });
+  }
+
+  const calculated =
+    await routeMapEngine.calculateRouteMiles(routePoints);
+
+  return {
+    miles:Number(stopEndNumber(calculated?.miles).toFixed(2)),
+    distanceMeters:stopEndNumber(calculated?.distanceMeters),
+    durationSeconds:stopEndNumber(calculated?.durationSeconds),
+    minutes:Math.ceil(
+      stopEndNumber(calculated?.durationSeconds) / 60
+    ),
+    source:"PARTIAL_ROUTE_CALCULATION"
+  };
+}
+
+function existingAddress(value){
+  if(typeof value === "string"){
+    return value.trim();
+  }
+
+  return String(
+    value?.address ||
+    value?.stopAddress ||
+    value?.formattedAddress ||
+    ""
+  ).trim();
+}
+
+function calculateStopEndFare({pricing,miles,minutes,stops}){
+  const mode = String(
+    pricing?.pricingMode || "MILE"
+  ).trim().toUpperCase();
+
+  const stopFee = Math.max(
+    0,
+    stopEndNumber(pricing?.stopFee)
+  );
+
+  const stopCount = Math.max(
+    1,
+    Math.floor(stopEndNumber(stops))
+  );
+
+  const stopTotal = stopCount * stopFee;
+  let rideFare = 0;
+
+  if(mode === "HOURLY"){
+    const totalMinutes = Math.max(
+      0,
+      stopEndNumber(minutes)
+    );
+
+    const initialDurationMinutes = Math.max(
+      0,
+      stopEndNumber(pricing?.initialDurationMinutes)
+    );
+
+    const initialPrice = Math.max(
+      0,
+      stopEndNumber(pricing?.initialPrice)
+    );
+
+    const hourlyRate = Math.max(
+      0,
+      stopEndNumber(pricing?.hourlyRate)
+    );
+
+    const hourlyBillingMode = String(
+      pricing?.hourlyBillingMode || "FULL"
+    ).trim().toUpperCase();
+
+    if(initialDurationMinutes > 0){
+      if(totalMinutes <= initialDurationMinutes){
+        rideFare = initialPrice;
+      }else{
+        const extraMinutes =
+          totalMinutes - initialDurationMinutes;
+
+        const extraHours =
+          hourlyBillingMode === "QUARTER"
+            ? Math.ceil(extraMinutes / 15) / 4
+            : Math.ceil(extraMinutes / 60);
+
+        rideFare =
+          initialPrice +
+          (extraHours * hourlyRate);
+      }
+    }else{
+      const hours =
+        hourlyBillingMode === "QUARTER"
+          ? Math.max(1,Math.ceil(totalMinutes / 15) / 4)
+          : Math.max(1,Math.ceil(totalMinutes / 60));
+
+      rideFare = hours * hourlyRate;
+    }
+  }else{
+    const baseFare = Math.max(
+      0,
+      stopEndNumber(pricing?.baseFare)
+    );
+
+    const includedMiles = Math.max(
+      0,
+      stopEndNumber(pricing?.includedMiles)
+    );
+
+    const perMile = Math.max(
+      0,
+      stopEndNumber(pricing?.perMile)
+    );
+
+    const extraMiles = Math.max(
+      0,
+      stopEndNumber(miles) - includedMiles
+    );
+
+    rideFare =
+      baseFare +
+      (extraMiles * perMile);
+  }
+
+  return {
+    rideFare:Number(rideFare.toFixed(2)),
+    stopFee:Number(stopFee.toFixed(2)),
+    stopTotal:Number(stopTotal.toFixed(2)),
+    total:Number((rideFare + stopTotal).toFixed(2))
+  };
+}
+
+app.post(
+  "/api/driver/trips/:id/stop-arrived",
+  requireTenantApi,
+  async (req,res)=>{
+    try{
+      const trip = await Trip.findOne(
+        tenantFilter(req,{_id:req.params.id})
+      );
+
+      if(!trip){
+        return res.status(404).json({
+          message:"Trip not found"
+        });
+      }
+
+      if(trip.isFinalized){
+        return res.status(400).json({
+          message:"Trip is already finalized"
+        });
+      }
+
+      const stopIndex = Math.floor(
+        stopEndNumber(req.body?.stopIndex)
+      );
+
+      const stops = Array.isArray(trip.stops)
+        ? trip.stops
+        : [];
+
+      if(stopIndex < 1 || stopIndex > stops.length){
+        return res.status(400).json({
+          message:"Invalid intermediate stop"
+        });
+      }
+
+      const stopId = String(
+        req.body?.stopId || `stop-${stopIndex}`
+      ).trim();
+
+      const currentExecution =
+        trip.stopExecution || {};
+
+      if(
+        Number(currentExecution.stopIndex) === stopIndex &&
+        String(currentExecution.stopId || "") === stopId &&
+        currentExecution.arrivedAt
+      ){
+        return res.json({
+          success:true,
+          stopExecution:currentExecution,
+          trip
+        });
+      }
+
+      const pricingResult =
+        await resolveTripPricing(trip);
+
+      const service = pricingResult?.service || {};
+
+      const waitEnabled =
+        service.driverStopWaitEnabled !== false;
+
+      const waitMinutes = waitEnabled
+        ? Math.max(
+            0,
+            stopEndNumber(
+              service.driverStopWaitMinutes ?? 5
+            )
+          )
+        : 0;
+
+      trip.stopExecution = {
+        stopIndex,
+        stopId,
+        address:existingAddress(stops[stopIndex - 1]),
+        arrivedAt:new Date(),
+        waitMinutes,
+        waitEnabled
+      };
+
+      trip.markModified("stopExecution");
+      await trip.save();
+
+      return res.json({
+        success:true,
+        stopExecution:trip.stopExecution,
+        trip
+      });
+    }catch(err){
+      console.log("STOP ARRIVED ERROR:",err);
+      return res.status(500).json({
+        message:"Unable to record stop arrival"
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/driver/trips/:id/end-at-stop",
+  requireTenantApi,
+  async (req,res)=>{
+    try{
+      const trip = await Trip.findOne(
+        tenantFilter(req,{_id:req.params.id})
+      );
+
+      if(!trip){
+        return res.status(404).json({
+          message:"Trip not found"
+        });
+      }
+
+      if(trip.isFinalized){
+        return res.json({
+          success:true,
+          trip
+        });
+      }
+
+      const stopIndex = Math.floor(
+        stopEndNumber(req.body?.stopIndex)
+      );
+
+      const stopId = String(
+        req.body?.stopId || ""
+      ).trim();
+
+      const reason = normalizeText(
+        req.body?.reason
+      );
+
+      const calledAt = stopEndNumber(
+        req.body?.calledAt
+      );
+
+      if(!reason){
+        return res.status(400).json({
+          message:"Stop end reason is required"
+        });
+      }
+
+      if(calledAt <= 0){
+        return res.status(400).json({
+          message:"Passenger call is required first"
+        });
+      }
+
+      const execution = trip.stopExecution || {};
+
+      if(
+        Number(execution.stopIndex) !== stopIndex ||
+        String(execution.stopId || "") !== stopId ||
+        !execution.arrivedAt
+      ){
+        return res.status(400).json({
+          message:"Stop arrival must be recorded first"
+        });
+      }
+
+      const arrivedAt = new Date(
+        execution.arrivedAt
+      ).getTime();
+
+      const waitMilliseconds =
+        Math.max(
+          0,
+          stopEndNumber(execution.waitMinutes)
+        ) * 60 * 1000;
+
+      if(Date.now() < arrivedAt + waitMilliseconds){
+        return res.status(400).json({
+          message:"Stop waiting time must finish first"
+        });
+      }
+
+      const stops = Array.isArray(trip.stops)
+        ? trip.stops
+        : [];
+
+      if(stopIndex < 1 || stopIndex > stops.length){
+        return res.status(400).json({
+          message:"Invalid intermediate stop"
+        });
+      }
+
+      const [pricingResult,routeMetrics] =
+        await Promise.all([
+          resolveTripPricing(trip),
+          stopEndRouteMetrics(trip,stopIndex)
+        ]);
+
+      const fare = calculateStopEndFare({
+        pricing:pricingResult?.pricing || {},
+        miles:routeMetrics.miles,
+        minutes:routeMetrics.minutes,
+        stops:stopIndex
+      });
+
+      trip.status = "Completed";
+      trip.finalPrice = fare.total;
+      trip.priceAmount = fare.total;
+      trip.isFinalized = true;
+      trip.historyAt = trip.historyAt || new Date();
+      trip.finalStatusConfirmed = false;
+      trip.endedAtStop = true;
+      trip.completionType = "ENDED_AT_STOP";
+      trip.stopEndReason = reason;
+      trip.stopEndAt = new Date();
+      trip.stopEndIndex = stopIndex;
+      trip.stopEndAddress =
+        existingAddress(stops[stopIndex - 1]);
+      trip.stopEndMiles = routeMetrics.miles;
+      trip.stopEndMinutes = routeMetrics.minutes;
+      trip.stopFeeApplied = fare.stopTotal;
+      trip.stopPricingSource =
+        pricingResult?.pricingSource || "";
+
+      trip.stopExecution = {
+        ...execution,
+        calledAt:new Date(calledAt),
+        endedAt:trip.stopEndAt,
+        reason,
+        routeSource:routeMetrics.source,
+        rideFare:fare.rideFare,
+        stopFee:fare.stopFee,
+        stopTotal:fare.stopTotal,
+        finalPrice:fare.total,
+        pricingSource:trip.stopPricingSource
+      };
+
+      trip.markModified("stopExecution");
+      await trip.save();
+
+      await DispatchAssignment.findOneAndUpdate(
+        {tripId:trip._id},
+        {
+          $set:{
+            dispatchStatus:"COMPLETED",
+            completedAt:new Date()
+          }
+        }
+      );
+
+      return res.json({
+        success:true,
+        trip,
+        calculation:{
+          miles:routeMetrics.miles,
+          minutes:routeMetrics.minutes,
+          rideFare:fare.rideFare,
+          stopFee:fare.stopFee,
+          stopCount:stopIndex,
+          stopTotal:fare.stopTotal,
+          finalPrice:fare.total,
+          pricingSource:trip.stopPricingSource,
+          routeSource:routeMetrics.source
+        }
+      });
+    }catch(err){
+      console.log("END TRIP AT STOP ERROR:",err);
+      return res.status(500).json({
+        message:"Unable to end trip at stop"
+      });
+    }
+  }
+);
 
 /* =========================
    GET ONE TRIP

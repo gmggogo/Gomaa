@@ -241,6 +241,18 @@ function servicePricingForSource(service,source){
           "FULL"
         ),
 
+      initialDurationMinutes:
+        n(
+          s.reservedInitialDurationMinutes ??
+          s.initialDurationMinutes
+        ),
+
+      initialPrice:
+        n(
+          s.reservedInitialPrice ??
+          s.initialPrice
+        ),
+
       stopFee:
         n(
           s.reservedStopFee ??
@@ -321,6 +333,18 @@ function servicePricingForSource(service,source){
           "FULL"
         ),
 
+      initialDurationMinutes:
+        n(
+          s.companyInitialDurationMinutes ??
+          s.initialDurationMinutes
+        ),
+
+      initialPrice:
+        n(
+          s.companyInitialPrice ??
+          s.initialPrice
+        ),
+
       stopFee:
         n(
           s.companyStopFee ??
@@ -378,6 +402,9 @@ function servicePricingForSource(service,source){
         s.hourlyBillingMode ??
         "FULL"
       ),
+
+    initialDurationMinutes:n(s.initialDurationMinutes),
+    initialPrice:n(s.initialPrice),
 
     stopFee:n(s.stopFee),
     noShowFee:n(s.noShowFee),
@@ -568,6 +595,18 @@ function overridePricing(service,base){
         service.hourlyBillingMode ??
         base.hourlyBillingMode ??
         "FULL"
+      ),
+
+    initialDurationMinutes:
+      n(
+        service.initialDurationMinutes ??
+        base.initialDurationMinutes
+      ),
+
+    initialPrice:
+      n(
+        service.initialPrice ??
+        base.initialPrice
       ),
 
     stopFee:

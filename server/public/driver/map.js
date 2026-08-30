@@ -282,6 +282,23 @@ const btnPrimaryAction = document.getElementById("btnPrimaryAction");
 const btnStartRide = document.getElementById("btnStartRide");
 const eyeBtn = document.getElementById("eyeBtn");
 
+const btnEndAtStop = document.createElement("button");
+btnEndAtStop.type = "button";
+btnEndAtStop.id = "btnEndAtStop";
+btnEndAtStop.className = btnPrimaryAction?.className || "";
+btnEndAtStop.classList.remove("blue","green","gold","muted");
+btnEndAtStop.classList.add("red");
+btnEndAtStop.textContent = "END TRIP AT STOP";
+btnEndAtStop.style.display = "none";
+btnEndAtStop.style.marginTop = "10px";
+
+if(btnPrimaryAction?.parentNode){
+  btnPrimaryAction.parentNode.insertBefore(
+    btnEndAtStop,
+    btnPrimaryAction.nextSibling
+  );
+}
+
 const reasonBox = document.getElementById("reasonBox");
 const reasonTitle = document.getElementById("reasonTitle");
 const reasonPassenger = document.getElementById("reasonPassenger");
@@ -714,6 +731,95 @@ async function updateTrip(body){
   }
 
   return tripDoc;
+}
+
+async function recordIntermediateStopArrival(stop){
+  const res = await fetch(
+    `/api/driver/trips/${TRIP_ID}/stop-arrived`,
+    {
+      method:"POST",
+      headers:driverAuthHeaders({
+        "Content-Type":"application/json"
+      }),
+      body:JSON.stringify({
+        stopIndex:currentStopIndex,
+        stopId:stop?.stopId || "",
+        address:stop?.address || ""
+      })
+    }
+  );
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      "Unable to record stop arrival"
+    );
+  }
+
+  if(data?.trip){
+    tripDoc = data.trip;
+  }
+
+  return data?.stopExecution || {};
+}
+
+async function endTripAtIntermediateStop(stop,passenger,reason){
+  const calledAt = num(
+    callState(stop,passenger).calledAt
+  );
+
+  const res = await fetch(
+    `/api/driver/trips/${TRIP_ID}/end-at-stop`,
+    {
+      method:"POST",
+      headers:driverAuthHeaders({
+        "Content-Type":"application/json"
+      }),
+      body:JSON.stringify({
+        stopIndex:currentStopIndex,
+        stopId:stop?.stopId || "",
+        reason,
+        calledAt
+      })
+    }
+  );
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      "Unable to end trip at stop"
+    );
+  }
+
+  if(data?.trip){
+    tripDoc = data.trip;
+  }
+
+  return data;
+}
+
+function returnToTripsAfterStopEnd(){
+  clearTripLocalState();
+  localStorage.removeItem("activeDriverTripId");
+
+  if(timerInterval){
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  if(
+    watchId !== null &&
+    navigator.geolocation
+  ){
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+
+  window.location.replace("/driver/trips.html");
 }
 
 /* ================= PASSENGERS ================= */
@@ -3297,7 +3403,9 @@ function openReasonModal(action, stop, passenger){
   reasonTitle.textContent =
     action === "NO_SHOW"
       ? "No Show Reason"
-      : "Cancel Reason";
+      : action === "END_AT_STOP"
+        ? "End Trip At Stop Reason"
+        : "Cancel Reason";
 
   reasonPassenger.textContent = passenger.name || "Passenger";
   reasonNotes.value = "";
@@ -3329,7 +3437,12 @@ function maybeOpenPendingReasonAfterCall(){
     .find(p =>
       String(p.passengerId) ===
       String(pendingReasonAfterCall.passengerId)
-    );
+    ) ||
+    (getPassengers(tripDoc) || [])
+      .find(p =>
+        String(p.passengerId) ===
+        String(pendingReasonAfterCall.passengerId)
+      );
 
   const action = pendingReasonAfterCall.action;
   pendingReasonAfterCall = null;
@@ -4066,6 +4179,7 @@ function renderExecutionState(){
 
   hideTimer();
   showPrimaryButton();
+  btnEndAtStop.style.display = "none";
 
   /*
     STRICT FLOW:
@@ -4326,6 +4440,11 @@ function renderExecutionState(){
     );
 
     btnPrimaryAction.dataset.mode = "complete-stop";
+
+    if(timerExpired(stop)){
+      btnEndAtStop.style.display = "block";
+    }
+
     return;
   }
 
@@ -4460,8 +4579,28 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
-    const arrivedAt =
+    let arrivedAt =
       serverNow();
+
+    if(stop.type === "stop"){
+      try{
+        const stopExecution =
+          await recordIntermediateStopArrival(stop);
+
+        const savedArrivedAt =
+          new Date(
+            stopExecution?.arrivedAt || ""
+          ).getTime();
+
+        if(Number.isFinite(savedArrivedAt)){
+          arrivedAt = savedArrivedAt;
+        }
+      }catch(err){
+        alert(err.message);
+        renderExecutionState();
+        return;
+      }
+    }
 
     saveStopState(stop, {
       arrived: true,
@@ -4656,6 +4795,48 @@ btnStartRide?.addEventListener("click", async () => {
   await advanceStop(true);
 });
 
+btnEndAtStop?.addEventListener("click", () => {
+  const stop = currentStop();
+
+  if(
+    !stop ||
+    stop.type !== "stop" ||
+    !requireArrived(stop)
+  ){
+    renderExecutionState();
+    return;
+  }
+
+  if(!timerExpired(stop)){
+    alert("Stop waiting time must finish first.");
+    return;
+  }
+
+  const passenger =
+    (stop.passengers || [])[0] ||
+    (getPassengers(tripDoc) || [])[0];
+
+  if(!passenger){
+    alert("Passenger information is unavailable.");
+    return;
+  }
+
+  if(!passengerWasCalled(stop,passenger)){
+    dialPassenger(
+      stop,
+      passenger,
+      "END_AT_STOP"
+    );
+    return;
+  }
+
+  openReasonModal(
+    "END_AT_STOP",
+    stop,
+    passenger
+  );
+});
+
 /* ================= REASON SUBMIT ================= */
 
 btnCloseReason?.addEventListener("click", closeReasonModal);
@@ -4679,7 +4860,12 @@ btnSubmitReason?.addEventListener("click", async () => {
     .find(p =>
       String(p.passengerId) ===
       String(reasonContext.passengerId)
-    );
+    ) ||
+    (getPassengers(tripDoc) || [])
+      .find(p =>
+        String(p.passengerId) ===
+        String(reasonContext.passengerId)
+      );
 
   if(!passenger){
     closeReasonModal();
@@ -4700,7 +4886,9 @@ btnSubmitReason?.addEventListener("click", async () => {
   }
 
   if(
-    reasonContext.action === "NO_SHOW" &&
+    ["NO_SHOW","END_AT_STOP"].includes(
+      reasonContext.action
+    ) &&
     EXECUTION.noShowRequiresTimer &&
     waitEnabledForStop(stop) &&
     !timerExpired(stop)
@@ -4710,6 +4898,26 @@ btnSubmitReason?.addEventListener("click", async () => {
   }
 
   const action = reasonContext.action;
+
+  if(action === "END_AT_STOP"){
+    try{
+      btnSubmitReason.disabled = true;
+
+      await endTripAtIntermediateStop(
+        stop,
+        passenger,
+        reason
+      );
+
+      closeReasonModal();
+      returnToTripsAfterStopEnd();
+      return;
+    }catch(err){
+      alert(err.message);
+      btnSubmitReason.disabled = false;
+      return;
+    }
+  }
 
   try{
     await persistPassengerPickupState(
