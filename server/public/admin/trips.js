@@ -28,6 +28,10 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 let editingKey = null;
 let autoSelectRunning = false;
 
+const dispatchDeselectedStorageKey =
+  "tripsDispatchDeselected:" +
+  clean(localStorage.getItem("loginTenantSlug") || "default");
+
 const selectedMap = new WeakMap();
 
 /* ===============================
@@ -1017,7 +1021,7 @@ function stopsPlain(t){
 function stopsDisplay(t){
   const arr = getStops(t).map(stopText).filter(Boolean);
   if(!arr.length) return "--";
-  return arr.map((x,i)=>`${i+1}. ${safe(x)}`).join("\n");
+  return arr.map(x=>safe(x));
 }
 
 function parseStopsText(v){
@@ -1381,6 +1385,45 @@ function allSelected(items){
   return items.length > 0 && items.every(item=>itemSelected(item));
 }
 
+function getItemTripIds(item){
+  const group = item?.kind === "shared" ? item.group : [item?.trip];
+
+  return group
+    .map(t=>clean(t?._id || t?.id))
+    .filter(Boolean);
+}
+
+function getManuallyDeselectedTripIds(){
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem(dispatchDeselectedStorageKey) || "[]"
+    );
+
+    return new Set(Array.isArray(saved) ? saved.map(clean).filter(Boolean) : []);
+  }catch(err){
+    return new Set();
+  }
+}
+
+function rememberManualSelection(item,val){
+  const saved = getManuallyDeselectedTripIds();
+
+  getItemTripIds(item).forEach(tripId=>{
+    if(val) saved.delete(tripId);
+    else saved.add(tripId);
+  });
+
+  localStorage.setItem(
+    dispatchDeselectedStorageKey,
+    JSON.stringify([...saved])
+  );
+}
+
+function itemWasManuallyDeselected(item){
+  const saved = getManuallyDeselectedTripIds();
+  return getItemTripIds(item).some(tripId=>saved.has(tripId));
+}
+
 function updateSelectionButtons(){
   const all = currentItems();
   const today = all.filter(item=>isTodayTrip(item.trip));
@@ -1447,7 +1490,10 @@ async function setItemSelected(item,val){
 
 async function bulkSetSelected(items,val){
   try{
-    await Promise.all(items.map(item=>setItemSelected(item,val)));
+    await Promise.all(items.map(async item=>{
+      await setItemSelected(item,val);
+      rememberManualSelection(item,val);
+    }));
     await loadTrips();
   }catch(err){
     console.error("DISPATCH SELECT:",err);
@@ -1477,6 +1523,7 @@ async function sendDispatchItem(key,val){
 
   try{
     await setItemSelected(item,val);
+    rememberManualSelection(item,val);
     updateSelectionButtons();
   }catch(err){
     console.error("DISPATCH SELECT:",err);
@@ -1662,7 +1709,8 @@ async function autoSelectIncomingTrips(){
     const eligibleItems = buildDisplayItems(baseTrips());
 
     const pending = eligibleItems.filter(item=>
-      !itemSelected(item)
+      !itemSelected(item) &&
+      !itemWasManuallyDeselected(item)
     );
 
     if(!pending.length){
@@ -1857,7 +1905,13 @@ function renderTripRow(item,num){
     </td>
 
     <td class="wide-stops">
-      ${editing ? cellBox(areaCell(stopsPlain(t),"stopsText")) : cellBox(stopsDisplay(t))}
+      ${editing
+        ? cellBox(
+            getStops(t).length
+              ? getStops(t).map(stop=>areaCell(stopText(stop),"stopsText"))
+              : areaCell(stopsPlain(t),"stopsText")
+          )
+        : cellBox(stopsDisplay(t))}
     </td>
 
     <td class="wide-address">
@@ -2033,7 +2087,10 @@ async function saveSingleItem(item,row){
     tripDate: row.querySelector(`[data-field="tripDate"]`)?.value || "",
     tripTime: row.querySelector(`[data-field="tripTime"]`)?.value || "",
     notes: row.querySelector(`[data-field="notes"]`)?.value || "",
-    stops: parseStopsText(row.querySelector(`[data-field="stopsText"]`)?.value || "")
+    stops: [...row.querySelectorAll(`[data-field="stopsText"]`)]
+      .map(stopInput=>clean(stopInput.value))
+      .filter(Boolean)
+      .map(address=>({address}))
   };
 
   if(!isFutureTrip(payload.tripDate,payload.tripTime)){
