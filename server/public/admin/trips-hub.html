@@ -1496,6 +1496,28 @@ body{
 }
 </style>
 
+<style id="tripsHubStopBoxesStyle">
+/* Stops display only. Each stop remains inside the original Stops cell. */
+.w-stops .gh-stop-box{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin:0 0 5px;
+  padding:7px 9px;
+  border:1px solid #b8c1ce;
+  border-radius:3px;
+  background:#f8fafc;
+  color:#1f2937;
+  line-height:1.35;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+.w-stops .gh-stop-box:last-child{
+  margin-bottom:0;
+}
+</style>
+
 </head>
 
 <body>
@@ -1676,6 +1698,67 @@ body{
   }
 
   refresh();
+})();
+</script>
+
+<script id="tripsHubStopBoxesScript">
+(function(){
+  "use strict";
+
+  function splitStops(raw){
+    const text = String(raw || "")
+      .replace(/\u00a0/g," ")
+      .trim();
+
+    if(!text) return [];
+
+    const numbered = text
+      .split(/\s+(?=\d+\.\s+)/)
+      .map(item=>item.replace(/^\d+\.\s*/,"").trim())
+      .filter(Boolean);
+
+    if(numbered.length > 1 || /^\d+\.\s+/.test(text)){
+      return numbered;
+    }
+
+    return text
+      .split(/\r?\n+/)
+      .map(item=>item.trim())
+      .filter(Boolean);
+  }
+
+  function formatStopsCell(cell){
+    if(!cell || cell.dataset.stopBoxesReady === "1") return;
+
+    const stops = splitStops(cell.textContent);
+    if(!stops.length) return;
+
+    cell.dataset.stopBoxesReady = "1";
+    cell.textContent = "";
+
+    stops.forEach(stop=>{
+      const box = document.createElement("div");
+      box.className = "gh-stop-box";
+      box.textContent = stop;
+      cell.appendChild(box);
+    });
+  }
+
+  function formatAllStops(){
+    document
+      .querySelectorAll("#hubContainer .w-stops")
+      .forEach(formatStopsCell);
+  }
+
+  const hub = document.getElementById("hubContainer");
+
+  if(hub){
+    new MutationObserver(()=>{
+      requestAnimationFrame(formatAllStops);
+    }).observe(hub,{childList:true,subtree:true});
+  }
+
+  formatAllStops();
 })();
 </script>
 
