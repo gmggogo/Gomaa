@@ -124,19 +124,33 @@ function resolveTripSource(trip){
 
 function getServiceCodeFromTrip(trip){
 
-  const direct =
-    normalizeCode(
-      trip?.serviceKey ||
-      trip?.serviceCode ||
-      trip?.serviceType ||
-      trip?.serviceSuffix ||
-      trip?.vehicleTypeFromQuote ||
-      trip?.vehicle ||
-      ""
-    );
+  const values = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceSuffix,
+    trip?.vehicleTypeFromQuote,
+    trip?.serviceName,
+    trip?.serviceTitle,
+    trip?.service
+  ];
+
+  const direct = values
+    .map(normalizeCode)
+    .find(Boolean);
 
   if(direct){
     return direct;
+  }
+
+  const legacyVehicle =
+    normalizeCode(trip?.vehicle);
+
+  if(
+    ["ST","WH","SH","LM","TX","XL"]
+      .includes(legacyVehicle)
+  ){
+    return legacyVehicle;
   }
 
   const num =
@@ -173,9 +187,6 @@ function getServiceCodeFromService(service){
 
 async function findServiceForTrip(trip){
 
-  const code =
-    getServiceCodeFromTrip(trip);
-
   const tenantId =
     getTenantId(trip);
 
@@ -188,12 +199,80 @@ async function findServiceForTrip(trip){
       tenantId
     }).lean();
 
-  return (
-    services.find(s =>
-      getServiceCodeFromService(s) === code
-    ) ||
-    null
-  );
+  const possibleServiceId =
+    clean(
+      trip?.serviceId ||
+      trip?.service?._id ||
+      ""
+    );
+
+  if(possibleServiceId){
+    const byId = services.find(s =>
+      String(s?._id || "") === possibleServiceId
+    );
+
+    if(byId){
+      return byId;
+    }
+  }
+
+  const tripCandidates = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceSuffix,
+    trip?.vehicleTypeFromQuote,
+    trip?.serviceName,
+    trip?.serviceTitle,
+    trip?.service,
+    getServiceCodeFromTrip(trip)
+  ]
+    .map(normalizeCode)
+    .filter(Boolean);
+
+  const byServiceIdentity =
+    services.find(service => {
+      const serviceCandidates = [
+        getServiceCodeFromService(service),
+        service?.serviceKey,
+        service?.serviceCode,
+        service?.serviceType,
+        service?.serviceSuffix,
+        service?.suffix,
+        service?.companySuffix,
+        service?.reservedSuffix,
+        service?.title,
+        service?.name,
+        service?.serviceName
+      ]
+        .map(normalizeCode)
+        .filter(Boolean);
+
+      return tripCandidates.some(candidate =>
+        serviceCandidates.includes(candidate)
+      );
+    });
+
+  if(byServiceIdentity){
+    return byServiceIdentity;
+  }
+
+  const legacyVehicle =
+    normalizeCode(trip?.vehicle);
+
+  if(
+    ["ST","WH","SH","LM","TX","XL"]
+      .includes(legacyVehicle)
+  ){
+    return (
+      services.find(s =>
+        getServiceCodeFromService(s) === legacyVehicle
+      ) ||
+      null
+    );
+  }
+
+  return null;
 }
 
 function servicePricingForSource(service,source){

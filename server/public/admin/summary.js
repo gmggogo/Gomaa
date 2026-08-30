@@ -287,6 +287,16 @@ function isCompletedStatus(status){
   return s === "completed" || s === "complete";
 }
 
+function isEndedAtStop(t){
+  return (
+    t?.endedAtStop === true ||
+    clean(t?.completionType).toUpperCase() === "ENDED_AT_STOP" ||
+    Boolean(t?.stopEndAt) ||
+    Boolean(t?.stopExecution?.endedAt) ||
+    clean(t?.summaryChargeType).toUpperCase() === "ENDED_AT_STOP_FARE"
+  );
+}
+
 function isCancelledStatus(status){
   return normalizeStatus(status).includes("cancel");
 }
@@ -924,6 +934,17 @@ function feeFromService(t,type){
 
 function getTripBasePrice(t){
 
+  if(isEndedAtStop(t)){
+    return firstPositiveMoney(
+      t?.summaryFinalAmount,
+      t?.finalPrice,
+      t?.priceAmount,
+      t?.stopExecution?.finalPrice,
+      t?.totalPrice,
+      t?.price
+    );
+  }
+
   return num(
     t?.finalPrice ??
     t?.priceAmount ??
@@ -956,6 +977,14 @@ function getPassengerFee(p,t){
     p?.status ||
     t?.status ||
     "";
+
+  if(isEndedAtStop(t)){
+    return firstPositiveMoney(
+      t?.summaryFee,
+      t?.stopFeeApplied,
+      t?.stopExecution?.stopTotal
+    );
+  }
 
   if(isCancelledStatus(status)){
 
@@ -1064,6 +1093,15 @@ function getTripMiles(t){
 
   if(!isCompletedStatus(t?.status)){
     return 0;
+  }
+
+  if(isEndedAtStop(t)){
+    return num(
+      t?.summaryExecutedMiles ??
+      t?.stopEndMiles ??
+      t?.stopExecution?.miles ??
+      0
+    );
   }
 
   return num(

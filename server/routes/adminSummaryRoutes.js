@@ -530,19 +530,31 @@ function getServiceCodeFromService(service){
 
 function getServiceCodeFromTrip(trip){
 
-  const direct =
-    normalizeCode(
-      trip?.serviceKey ||
-      trip?.serviceCode ||
-      trip?.serviceType ||
-      trip?.serviceSuffix ||
-      trip?.vehicleTypeFromQuote ||
-      trip?.vehicle ||
-      ""
-    );
+  const direct = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceSuffix,
+    trip?.vehicleTypeFromQuote,
+    trip?.serviceName,
+    trip?.serviceTitle,
+    trip?.service
+  ]
+    .map(normalizeCode)
+    .find(Boolean);
 
   if(direct){
     return direct;
+  }
+
+  const legacyVehicle =
+    normalizeCode(trip?.vehicle);
+
+  if(
+    ["ST","WH","SH","LM","TX","XL"]
+      .includes(legacyVehicle)
+  ){
+    return legacyVehicle;
   }
 
   const number =
@@ -873,19 +885,32 @@ function buildServiceMap(services){
 
   for(const service of services){
 
-    const code =
-      getServiceCodeFromService(
-        service
-      );
+    const identities = [
+      service?._id,
+      getServiceCodeFromService(service),
+      service?.serviceKey,
+      service?.serviceCode,
+      service?.serviceType,
+      service?.serviceSuffix,
+      service?.suffix,
+      service?.companySuffix,
+      service?.reservedSuffix,
+      service?.key,
+      service?.code,
+      service?.title,
+      service?.name,
+      service?.serviceName
+    ];
 
-    if(
-      code &&
-      !map.has(code)
-    ){
-      map.set(
-        code,
-        service
-      );
+    for(const identity of identities){
+      const key =
+        identity === service?._id
+          ? text(identity)
+          : normalizeCode(identity);
+
+      if(key && !map.has(key)){
+        map.set(key,service);
+      }
     }
   }
 
@@ -1124,6 +1149,176 @@ function completedAmount(
   );
 }
 
+function isEndedAtStop(trip){
+
+  return (
+    trip?.endedAtStop === true ||
+    upper(trip?.completionType) === "ENDED_AT_STOP" ||
+    Boolean(trip?.stopEndAt) ||
+    Boolean(trip?.stopExecution?.endedAt)
+  );
+}
+
+function calculateEndedAtStopCharge(
+  trip,
+  pricing
+){
+
+  const savedFinal =
+    firstPositiveMoney(
+      trip?.finalPrice,
+      trip?.priceAmount,
+      trip?.summaryFinalAmount,
+      trip?.stopExecution?.finalPrice
+    );
+
+  const stopCount = Math.max(
+    1,
+    Math.floor(
+      num(
+        trip?.stopEndIndex ??
+        trip?.stopExecution?.stopIndex ??
+        1
+      )
+    )
+  );
+
+  const stopFee =
+    firstPositiveMoney(
+      trip?.stopExecution?.stopFee,
+      pricing?.stopFee,
+      trip?.stopFee,
+      trip?.companyStopFee
+    );
+
+  const savedStopTotal =
+    firstPositiveMoney(
+      trip?.stopFeeApplied,
+      trip?.stopExecution?.stopTotal
+    );
+
+  const stopTotal =
+    savedStopTotal > 0
+      ? savedStopTotal
+      : stopCount * stopFee;
+
+  const mode = upper(
+    pricing?.pricingMode ||
+    trip?.pricingMode ||
+    "MILE"
+  );
+
+  const miles = Math.max(
+    0,
+    num(
+      trip?.stopEndMiles ??
+      trip?.stopExecution?.miles ??
+      0
+    )
+  );
+
+  const minutes = Math.max(
+    0,
+    num(
+      trip?.stopEndMinutes ??
+      trip?.stopExecution?.minutes ??
+      0
+    )
+  );
+
+  let rideFare =
+    firstPositiveMoney(
+      trip?.stopExecution?.rideFare
+    );
+
+  if(rideFare <= 0 && mode === "HOURLY"){
+    const initialMinutes = Math.max(
+      0,
+      num(pricing?.initialDurationMinutes)
+    );
+
+    const initialPrice = Math.max(
+      0,
+      num(pricing?.initialPrice)
+    );
+
+    const hourlyRate = Math.max(
+      0,
+      num(pricing?.hourlyRate)
+    );
+
+    const billingMode = upper(
+      pricing?.hourlyBillingMode ||
+      "FULL"
+    );
+
+    if(initialMinutes > 0){
+      if(minutes <= initialMinutes){
+        rideFare = initialPrice;
+      }else{
+        const extraMinutes =
+          minutes - initialMinutes;
+
+        const extraHours =
+          billingMode === "QUARTER"
+            ? Math.ceil(extraMinutes / 15) / 4
+            : Math.ceil(extraMinutes / 60);
+
+        rideFare =
+          initialPrice +
+          extraHours * hourlyRate;
+      }
+    }else{
+      const hours =
+        billingMode === "QUARTER"
+          ? Math.max(1,Math.ceil(minutes / 15) / 4)
+          : Math.max(1,Math.ceil(minutes / 60));
+
+      rideFare = hours * hourlyRate;
+    }
+  }
+
+  if(rideFare <= 0 && mode !== "HOURLY"){
+    const baseFare = Math.max(
+      0,
+      num(pricing?.baseFare ?? trip?.baseFare)
+    );
+
+    const includedMiles = Math.max(
+      0,
+      num(
+        pricing?.includedMiles ??
+        trip?.includedMiles
+      )
+    );
+
+    const perMile = Math.max(
+      0,
+      num(pricing?.perMile ?? trip?.perMile)
+    );
+
+    rideFare =
+      baseFare +
+      Math.max(0,miles - includedMiles) * perMile;
+  }
+
+  const calculatedFinal =
+    rideFare + stopTotal;
+
+  return {
+    amount:
+      savedFinal > 0
+        ? savedFinal
+        : Number(calculatedFinal.toFixed(2)),
+    fee:Number(stopTotal.toFixed(2)),
+    rideFare:Number(rideFare.toFixed(2)),
+    miles:Number(miles.toFixed(2)),
+    stopCount,
+    stopFee:Number(stopFee.toFixed(2)),
+    type:"ENDED_AT_STOP_FARE"
+  };
+}
+
 function finalCharge(
   trip,
   pricing,
@@ -1140,6 +1335,13 @@ function finalCharge(
     status === "completed" ||
     status === "complete"
   ){
+
+    if(!passenger && isEndedAtStop(trip)){
+      return calculateEndedAtStopCharge(
+        trip,
+        pricing
+      );
+    }
 
     return {
       amount:
@@ -1266,8 +1468,9 @@ function enrichTrip(
 
   const service =
     serviceMap.get(
-      serviceCode
+      text(trip?.serviceId)
     ) ||
+    serviceMap.get(serviceCode) ||
     null;
 
   let pricing =
@@ -1422,6 +1625,23 @@ function enrichTrip(
 
   trip.summaryChargeType =
     charge.type;
+
+  if(charge.type === "ENDED_AT_STOP_FARE"){
+    trip.summaryExecutedMiles =
+      charge.miles;
+
+    trip.summaryRideFare =
+      charge.rideFare;
+
+    trip.summaryStopCount =
+      charge.stopCount;
+
+    trip.summaryStopFee =
+      charge.stopFee;
+
+    trip.stopFeeApplied =
+      charge.fee;
+  }
 
   return trip;
 }
