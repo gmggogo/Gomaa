@@ -2271,7 +2271,10 @@ async function saveTrip(id){
     if(!field) return;
 
     if(field === "stopsText"){
-      payload.stops = parseStopsText(input.value);
+      payload.stops = [...row.querySelectorAll('[data-field="stopsText"]')]
+        .map(stopInput=>String(stopInput.value || "").trim())
+        .filter(Boolean)
+        .map(address=>({address}));
       return;
     }
 
@@ -2546,7 +2549,13 @@ function renderTripRow(item,rowNumber){
     </td>
 
     <td class="wide-stops">
-      ${editing ? cellBox(createEditArea(stopsText, "stopsText")) : cellBox(stopsDisplay(getStops(t)))}
+      ${editing
+        ? cellBox(
+            getStops(t).length
+              ? getStops(t).map(stop=>createEditArea(stopText(stop), "stopsText"))
+              : createEditArea(stopsText, "stopsText")
+          )
+        : cellBox(stopsDisplay(getStops(t)))}
     </td>
 
     <td class="wide-address">
