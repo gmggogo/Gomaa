@@ -183,13 +183,37 @@ body{
 
 <script>
 
+const token =
+  sessionStorage.getItem("staffToken") ||
+  localStorage.getItem("staffToken") ||
+  sessionStorage.getItem("token") ||
+  localStorage.getItem("token") ||
+  "";
+
 // =======================
 // LOAD DATA
 // =======================
 async function loadRefunds(){
 
-  const res = await fetch("/api/trips");
-  const trips = await res.json();
+  const res = await fetch("/api/trips",{
+    headers:{
+      Authorization:"Bearer " + token
+    }
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(data.message || "Failed to load refunds");
+  }
+
+  const trips = Array.isArray(data)
+    ? data
+    : Array.isArray(data.trips)
+      ? data.trips
+      : Array.isArray(data.data)
+        ? data.data
+        : [];
 
   const tbody = document.getElementById("tableBody");
   tbody.innerHTML = "";
