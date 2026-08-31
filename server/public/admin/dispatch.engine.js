@@ -379,15 +379,45 @@ function getStops(t){
   return [];
 }
 
-function stopText(s){
-  if(!s) return "";
-  if(typeof s === "string") return s;
-  return s.address || s.location || s.name || "";
+function stopText(s,seen=new Set()){
+  if(s === undefined || s === null) return "";
+
+  if(typeof s === "string") return clean(s);
+  if(typeof s === "number") return String(s);
+  if(typeof s !== "object") return "";
+
+  if(seen.has(s)) return "";
+  seen.add(s);
+
+  const candidates = [
+    s.formattedAddress,
+    s.formatted_address,
+    s.description,
+    s.label,
+    s.placeName,
+    s.name,
+    s.address,
+    s.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
 }
 
 function stopsText(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
   return arr.length ? arr.map((x,i)=>`${i+1}. ${x}`).join("\n") : "-";
+}
+
+function stopItems(t){
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
+  return arr.length
+    ? arr.map((value,index)=>safe(`${index+1}. ${value}`))
+    : ["-"];
 }
 
 function getPassengers(t){
@@ -1575,7 +1605,7 @@ function renderTripRow(t,index){
         )
       }</td>
 
-      <td class="wide-address">${cellBox(safe(stopsText(t)))}</td>
+      <td class="wide-stops">${cellBox(stopItems(t))}</td>
 
       <td class="wide-address">${
         cellBox(
@@ -1644,7 +1674,7 @@ function passengerStops(t,p){
     [];
 
   if(ownStops.length){
-    return ownStops.map(stopText).filter(Boolean)
+    return ownStops.map(stop=>stopText(stop)).filter(Boolean)
       .map((value,i)=>`${i+1}. ${value}`).join("\n") || "-";
   }
 
