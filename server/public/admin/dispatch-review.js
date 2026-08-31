@@ -1046,22 +1046,53 @@ function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
 
-function stopText(stop){
-  if(!stop) return "";
-  if(typeof stop === "string") return stop;
-  return stop.address || stop.location || stop.name || "";
+function stopText(stop,seen=new Set()){
+  if(stop === undefined || stop === null) return "";
+
+  if(typeof stop === "string") return normalizeText(stop);
+  if(typeof stop === "number") return String(stop);
+  if(typeof stop !== "object") return "";
+
+  if(seen.has(stop)) return "";
+  seen.add(stop);
+
+  const candidates = [
+    stop.formattedAddress,
+    stop.formatted_address,
+    stop.description,
+    stop.label,
+    stop.placeName,
+    stop.name,
+    stop.address,
+    stop.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
 }
 
 function getStops(t){
   if(Array.isArray(t?.stops)) return t.stops;
   if(Array.isArray(t?.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t?.extraStops)) return t.extraStops;
   return [];
 }
 
 function stopsDisplay(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
   if(!arr.length) return "--";
   return arr.map((x,i)=>`${i+1}. ${x}`).join("\n");
+}
+
+function stopItems(t){
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
+  return arr.length
+    ? arr.map((value,index)=>`${index+1}. ${value}`)
+    : ["--"];
 }
 
 /* ===============================
@@ -2487,7 +2518,7 @@ function renderTripRow(item){
     </td>
 
     <td class="wide-stops">
-      ${cellBox(stopsDisplay(t))}
+      ${cellBox(stopItems(t))}
     </td>
 
     <td class="wide-address">
@@ -2563,7 +2594,7 @@ function renderSharedRow(item){
     <td class="wide-address">${cellBox(pickups)}</td>
 
     <td class="wide-stops">
-      ${cellBox(stopsDisplay(first))}
+      ${cellBox(stopItems(first))}
     </td>
 
     <td class="wide-address">${cellBox(dropoffs)}</td>
