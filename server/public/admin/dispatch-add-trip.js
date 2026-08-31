@@ -315,6 +315,42 @@ function cellBox(items){
   `;
 }
 
+function getTripStops(trip){
+  if(Array.isArray(trip?.stops)) return trip.stops;
+  if(Array.isArray(trip?.stopAddresses)) return trip.stopAddresses;
+  if(Array.isArray(trip?.extraStops)) return trip.extraStops;
+  return [];
+}
+
+function stopText(stop,seen=new Set()){
+  if(stop === undefined || stop === null) return "";
+
+  if(typeof stop === "string") return normalizeText(stop);
+  if(typeof stop === "number") return String(stop);
+  if(typeof stop !== "object") return "";
+
+  if(seen.has(stop)) return "";
+  seen.add(stop);
+
+  const candidates = [
+    stop.formattedAddress,
+    stop.formatted_address,
+    stop.description,
+    stop.label,
+    stop.placeName,
+    stop.name,
+    stop.address,
+    stop.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
+}
+
 function createEditInput(value,field,type="text"){
   return `
     <input
@@ -413,7 +449,7 @@ function ensureDispatchReviewTableStyle(){
 
     .review-table{
       width:100%;
-      min-width:1500px;
+      min-width:1620px;
       border-collapse:collapse;
       table-layout:fixed;
       background:#ffffff;
@@ -463,10 +499,10 @@ function ensureDispatchReviewTableStyle(){
     .review-table .col-num{width:44px;}
     .review-table .col-trip{width:110px;}
     .review-table .col-type{width:82px;}
-    .review-table .col-client{width:165px;}
+    .review-table .col-client{width:120px;}
     .review-table .col-phone{width:145px;}
     .review-table .col-pickup{width:245px;}
-    .review-table .col-stops{width:95px;}
+    .review-table .col-stops{width:250px;}
     .review-table .col-drop{width:245px;}
     .review-table .col-date{width:110px;}
     .review-table .col-time{width:90px;}
@@ -497,6 +533,11 @@ function ensureDispatchReviewTableStyle(){
       text-align:left;
       overflow-wrap:anywhere;
       word-break:break-word;
+    }
+
+    .review-table .col-stops .cell-item{
+      white-space:nowrap;
+      word-break:normal;
     }
 
     .trip-number-badge,
@@ -647,7 +688,7 @@ function ensureDispatchReviewTableStyle(){
       }
 
       .review-table{
-        min-width:1350px;
+        min-width:1460px;
         font-size:11px;
       }
 
@@ -662,7 +703,11 @@ function ensureDispatchReviewTableStyle(){
       }
 
       .review-table .col-client{
-        width:145px;
+        width:110px;
+      }
+
+      .review-table .col-stops{
+        width:210px;
       }
 
       .review-table .col-phone{
@@ -2834,8 +2879,8 @@ function renderTripRow(t,index){
             ? Number(t.sharedStopsCount || t.sharedStopTotal || 0)
             : Math.max(0,passengers.filter(passengerIsActive).length - 1)
         )
-      : Array.isArray(t.stops) && t.stops.length
-        ? t.stops.map((s,i)=>escapeHtml(`${i + 1}. ${s}`))
+      : getTripStops(t).length
+        ? getTripStops(t).map((stop,i)=>escapeHtml(`${i + 1}. ${stopText(stop)}`))
         : "--";
 
   const sharedClientEdit =
@@ -2917,12 +2962,12 @@ function renderTripRow(t,index){
       ${
         editing && !isShared
           ? (
-              Array.isArray(t.stops) && t.stops.length
-                ? t.stops.map((s,si)=>`
+              getTripStops(t).length
+                ? getTripStops(t).map((stop,si)=>`
                     <input
                       class="edit-input"
                       data-stop-index="${si}"
-                      value="${escapeHtml(s)}"
+                      value="${escapeHtml(stopText(stop))}"
                     >
                   `).join("")
                 : "--"
