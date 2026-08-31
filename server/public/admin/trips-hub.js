@@ -10,6 +10,8 @@
    - Trip times are interpreted in America/Phoenix
    ========================================================================== */
 
+// BUILD: trips-hub-render-fix-2026-08-31
+
 const API_URL = "/api/trips";
 const LIST_API_URL = "/api/tenant-trips";
 const SERVICES_URL = "/api/services/admin";
@@ -1449,7 +1451,7 @@ function getStops(t){
 function stopText(stop,seen=new Set()){
   if(stop === undefined || stop === null) return "";
 
-  if(typeof stop === "string") return clean(stop);
+  if(typeof stop === "string") return String(stop).trim();
   if(typeof stop === "number") return String(stop);
   if(typeof stop !== "object") return "";
 
