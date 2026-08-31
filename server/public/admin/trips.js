@@ -298,7 +298,7 @@ const selectedMap = new WeakMap();
 
 .trip-table{
   width:100%!important;
-  min-width:1820px!important;
+  min-width:1880px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -400,9 +400,9 @@ const selectedMap = new WeakMap();
 }
 
 .wide-client{
-  width:180px!important;
-  min-width:180px!important;
-  max-width:180px!important;
+  width:120px!important;
+  min-width:120px!important;
+  max-width:120px!important;
   text-align:left!important;
   white-space:normal!important;
   word-break:break-word!important;
@@ -428,13 +428,18 @@ const selectedMap = new WeakMap();
 }
 
 .wide-stops{
-  width:120px!important;
-  min-width:120px!important;
-  max-width:120px!important;
+  width:240px!important;
+  min-width:240px!important;
+  max-width:240px!important;
   text-align:left!important;
   white-space:normal!important;
   word-break:break-word!important;
   font-size:10.5px!important;
+}
+
+.wide-stops .cell-item{
+  white-space:nowrap!important;
+  word-break:normal!important;
 }
 
 .wide-notes{
@@ -772,7 +777,7 @@ const selectedMap = new WeakMap();
 
 @media(max-width:768px){
   .trip-table{
-    min-width:1820px!important;
+    min-width:1880px!important;
   }
 
   .trip-table th,
@@ -1002,24 +1007,48 @@ function formatTimeObj(d){
 function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
 function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
 
-function stopText(s){
-  if(!s) return "";
-  if(typeof s === "string") return s;
-  return s.address || s.location || s.name || "";
+function stopText(s,seen=new Set()){
+  if(s === undefined || s === null) return "";
+
+  if(typeof s === "string") return clean(s);
+  if(typeof s === "number") return String(s);
+  if(typeof s !== "object") return "";
+
+  if(seen.has(s)) return "";
+  seen.add(s);
+
+  const candidates = [
+    s.formattedAddress,
+    s.formatted_address,
+    s.description,
+    s.label,
+    s.placeName,
+    s.name,
+    s.address,
+    s.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
 }
 
 function getStops(t){
   if(Array.isArray(t.stops)) return t.stops;
   if(Array.isArray(t.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t.extraStops)) return t.extraStops;
   return [];
 }
 
 function stopsPlain(t){
-  return getStops(t).map(stopText).filter(Boolean).join("\n");
+  return getStops(t).map(stop=>stopText(stop)).filter(Boolean).join("\n");
 }
 
 function stopsDisplay(t){
-  const arr = getStops(t).map(stopText).filter(Boolean);
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
   if(!arr.length) return "--";
   return arr.map(x=>safe(x));
 }
