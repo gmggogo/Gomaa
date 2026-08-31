@@ -519,7 +519,7 @@ if(!container) console.error("Missing #hubContainer");
 
     .hub-table{
       width:100%;
-      min-width:1560px;
+      min-width:1620px;
       table-layout:fixed;
       border-collapse:collapse;
       background:#fff;
@@ -558,7 +558,7 @@ if(!container) console.error("Missing #hubContainer");
     .col-eye{width:32px;}
 
     .wide-client{
-      width:180px;
+      width:120px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
@@ -580,11 +580,16 @@ if(!container) console.error("Missing #hubContainer");
     }
 
     .wide-stops{
-      width:120px;
+      width:240px;
       text-align:left!important;
       white-space:normal;
       word-break:break-word;
       font-size:10.5px!important;
+    }
+
+    .wide-stops .cell-item{
+      white-space:nowrap!important;
+      word-break:normal!important;
     }
 
     .wide-notes{
@@ -1053,14 +1058,14 @@ if(!container) console.error("Missing #hubContainer");
   .col-status{width:62px!important;}
   .col-eye{width:30px!important;}
 
-  .wide-client{width:125px!important;}
+  .wide-client{width:100px!important;}
   .wide-phone{width:82px!important;}
   .wide-address{
     width:165px!important;
     font-size:8px!important;
   }
   .wide-stops{
-    width:95px!important;
+    width:170px!important;
     font-size:8px!important;
   }
   .wide-notes{width:120px!important;}
@@ -1437,13 +1442,37 @@ function getEmail(t,p=null){
 function getStops(t){
   if(Array.isArray(t?.stops)) return t.stops;
   if(Array.isArray(t?.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t?.extraStops)) return t.extraStops;
   return [];
 }
 
-function stopText(stop){
-  if(!stop) return "";
-  if(typeof stop === "string") return stop;
-  return stop.address || stop.location || stop.name || "";
+function stopText(stop,seen=new Set()){
+  if(stop === undefined || stop === null) return "";
+
+  if(typeof stop === "string") return clean(stop);
+  if(typeof stop === "number") return String(stop);
+  if(typeof stop !== "object") return "";
+
+  if(seen.has(stop)) return "";
+  seen.add(stop);
+
+  const candidates = [
+    stop.formattedAddress,
+    stop.formatted_address,
+    stop.description,
+    stop.label,
+    stop.placeName,
+    stop.name,
+    stop.address,
+    stop.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
 }
 
 function stopsDisplay(stops){
@@ -1453,7 +1482,7 @@ function stopsDisplay(stops){
 
 function stopsPlain(stops){
   if(!Array.isArray(stops) || !stops.length) return "";
-  return stops.map(stopText).filter(Boolean).join("\n");
+  return stops.map(stop=>stopText(stop)).filter(Boolean).join("\n");
 }
 
 function parseStopsText(text){
