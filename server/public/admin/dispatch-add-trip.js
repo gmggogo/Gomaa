@@ -2597,7 +2597,7 @@ function renderTripButtons(t){
       <div class="actions-wrap">
         ${viewBtn}
         <button class="btn confirm" data-action="confirm-trip">Confirm</button>
-        <button class="btn cancel" data-action="cancel-trip">Cancel</button>
+        <button class="btn delete" data-action="delete-trip">Delete</button>
         ${stopBtn}
       </div>
     `;
@@ -3848,12 +3848,18 @@ async function handleDeleteTrip(btn){
     mins > 0 &&
     mins <= warningMinutes;
 
-  if(insideWarning){
+  const status =
+    cleanStatus(trip.status);
+
+  const confirmed =
+    status.includes("confirm");
+
+  if(insideWarning && confirmed){
     showAlert("This trip is inside the warning window. Delete is not allowed. Use Cancel.");
     return;
   }
 
-  if(!confirm("Delete this trip?")){
+  if(!confirm("Are you sure you want to permanently delete this unconfirmed reservation? This action cannot be undone.")){
     return;
   }
 
