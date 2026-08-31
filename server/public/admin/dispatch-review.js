@@ -462,7 +462,7 @@ const reviewContent = document.getElementById("reviewContent");
 
       .review-table{
         width:100%!important;
-        min-width:1680px!important;
+        min-width:1750px!important;
         table-layout:fixed!important;
         border-collapse:collapse!important;
         background:#fff!important;
@@ -497,7 +497,7 @@ const reviewContent = document.getElementById("reviewContent");
       .col-eye{width:34px!important;}
 
       .wide-client{
-        width:170px!important;
+        width:120px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
@@ -519,11 +519,16 @@ const reviewContent = document.getElementById("reviewContent");
       }
 
       .wide-stops{
-        width:120px!important;
+        width:240px!important;
         text-align:left!important;
         white-space:normal!important;
         word-break:break-word!important;
         font-size:10.5px!important;
+      }
+
+      .wide-stops .cell-item{
+        white-space:nowrap!important;
+        word-break:normal!important;
       }
 
       .wide-notes{
@@ -747,7 +752,7 @@ const reviewContent = document.getElementById("reviewContent");
 
       @media(max-width:768px){
         .review-table{
-          min-width:1680px!important;
+          min-width:1750px!important;
         }
 
         .review-table th,
