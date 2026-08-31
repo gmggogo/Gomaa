@@ -79,6 +79,7 @@ let confirmedNewStops = [];
 let editingExistingIndex = null;
 let existingEditDrafts = {};
 let confirmedExistingEdits = {};
+let removedExistingStopIndexes = new Set();
 
 let editingDropoff = false;
 let dropoffDraft = "";
@@ -653,6 +654,10 @@ function hasExistingEdits(){
   return Object.keys(confirmedExistingEdits).length > 0;
 }
 
+function hasRemovedExistingStops(){
+  return removedExistingStopIndexes.size > 0;
+}
+
 function hasDropoffEdit(){
   return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
 }
@@ -661,6 +666,7 @@ function hasAnyChange(){
   return (
     totalConfirmedNewStops() > 0 ||
     hasExistingEdits() ||
+    hasRemovedExistingStops() ||
     hasDropoffEdit()
   );
 }
@@ -883,9 +889,14 @@ function getEditedExistingStops(trip){
   const original =
     getExistingStops(trip);
 
-  return original.map((stop,index)=>{
-    return confirmedExistingEdits[index] || stop;
-  });
+  return original
+    .map((stop,index)=>({stop,index}))
+    .filter(item=>
+      !removedExistingStopIndexes.has(item.index)
+    )
+    .map(item=>{
+      return confirmedExistingEdits[item.index] || item.stop;
+    });
 }
 
 function hasActiveStopRequest(trip){
@@ -1328,6 +1339,10 @@ function getSubmitButtonText(){
     parts.push("Edited Stops");
   }
 
+  if(hasRemovedExistingStops()){
+    parts.push("Removed Stops");
+  }
+
   if(hasDropoffEdit()){
     parts.push("Edited Dropoff");
   }
@@ -1356,7 +1371,7 @@ function updateSubmitButtonState(){
 
 /* ================= UI RENDER HELPERS ================= */
 
-function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=false}){
+function renderRoutePoint({type,label,value,index,dataIndex=null,isLast,editable=false,edited=false}){
 
   const icon =
     type === "pickup"
@@ -1368,14 +1383,31 @@ function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=f
   const editButton =
     editable
       ? `
-        <button
-          type="button"
-          class="route-action-btn edit"
-          data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
-          data-index="${index - 1}"
-        >
-          Edit
-        </button>
+        <div class="route-actions">
+          <button
+            type="button"
+            class="route-action-btn edit"
+            data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
+            data-index="${type === "stop" ? dataIndex : index - 1}"
+          >
+            Edit
+          </button>
+
+          ${
+            type === "stop"
+              ? `
+                <button
+                  type="button"
+                  class="route-action-btn cancel"
+                  data-action="remove-existing-stop"
+                  data-index="${dataIndex}"
+                >
+                  Remove
+                </button>
+              `
+              : ""
+          }
+        </div>
       `
       : "";
 
@@ -1401,18 +1433,18 @@ function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=f
           ${esc(value || "--")}
         </div>
 
-        ${renderInlineEditBox(type,index,value)}
+        ${renderInlineEditBox(type,index,value,dataIndex)}
       </div>
     </div>
   `;
 }
 
-function renderInlineEditBox(type,index,value){
+function renderInlineEditBox(type,index,value,dataIndex=null){
 
   if(type === "stop"){
 
     const stopIndex =
-      index - 1;
+      Number(dataIndex);
 
     if(Number(editingExistingIndex) !== Number(stopIndex)){
       return "";
@@ -1628,8 +1660,27 @@ function renderRouteEditor(trip){
   const existingOriginal =
     getExistingStops(trip);
 
+  const existingOriginalEntries =
+    getExistingStops(trip)
+      .map((address,originalIndex)=>({
+        address,
+        originalIndex
+      }));
+
+  const existingEditedEntries =
+    existingOriginalEntries
+      .filter(entry=>
+        !removedExistingStopIndexes.has(entry.originalIndex)
+      )
+      .map(entry=>({
+        ...entry,
+        address:
+          confirmedExistingEdits[entry.originalIndex] ||
+          entry.address
+      }));
+
   const existingEdited =
-    getEditedExistingStops(trip);
+    existingEditedEntries.map(entry=>entry.address);
 
   const points = [];
 
@@ -1642,14 +1693,17 @@ function renderRouteEditor(trip){
     edited:false
   });
 
-  existingEdited.forEach((stop,index)=>{
+  existingEditedEntries.forEach((entry,index)=>{
     points.push({
       type:"stop",
       label:`Existing Stop ${index + 1}`,
-      value:stop,
+      value:entry.address,
       index:index + 1,
+      dataIndex:entry.originalIndex,
       editable:true,
-      edited:stop !== existingOriginal[index]
+      edited:
+        entry.address !==
+        existingOriginal[entry.originalIndex]
     });
   });
 
@@ -1917,6 +1971,35 @@ function cancelExistingEdit(index){
   rerender();
 }
 
+function removeExistingStop(index){
+
+  const originalIndex =
+    Number(index);
+
+  const stop =
+    getExistingStops(currentTrip || {})[originalIndex] || "";
+
+  if(!stop){
+    showAlert("error","Stop not found");
+    return;
+  }
+
+  if(!window.confirm("Remove this stop from the route?")){
+    return;
+  }
+
+  removedExistingStopIndexes.add(originalIndex);
+  delete confirmedExistingEdits[originalIndex];
+  delete existingEditDrafts[originalIndex];
+
+  if(Number(editingExistingIndex) === originalIndex){
+    editingExistingIndex = null;
+  }
+
+  hideAlert();
+  rerender();
+}
+
 /* ================= DROPOFF EDIT ================= */
 
 function startDropoffEdit(){
@@ -1983,9 +2066,14 @@ function buildFinalStops(originalExistingStops,addedStopObjects){
       : [];
 
   const editedStops =
-    oldStops.map((stop,index)=>{
-      return confirmedExistingEdits[index] || stop;
-    });
+    oldStops
+      .map((stop,index)=>({stop,index}))
+      .filter(item=>
+        !removedExistingStopIndexes.has(item.index)
+      )
+      .map(item=>{
+        return confirmedExistingEdits[item.index] || item.stop;
+      });
 
   const added =
     Array.isArray(addedStopObjects)
@@ -2447,6 +2535,11 @@ document.addEventListener("click",e=>{
 
   if(action === "cancel-existing-edit"){
     cancelExistingEdit(Number(btn.dataset.index || 0));
+    return;
+  }
+
+  if(action === "remove-existing-stop"){
+    removeExistingStop(Number(btn.dataset.index || 0));
     return;
   }
 

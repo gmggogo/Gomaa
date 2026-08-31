@@ -270,10 +270,18 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
     const addedStopsDetailed = detailed(body.addedStopsDetailed);
     const finalStops = strings(body.finalStops);
 
+    const routeStopsChanged =
+      JSON.stringify(
+        existingStopsBefore.map(value=>value.toLowerCase())
+      ) !==
+      JSON.stringify(
+        finalStops.map(value=>value.toLowerCase())
+      );
+
     if(!pickup || !dropoffBefore){
       return res.status(400).json({success:false,message:"Pickup or dropoff address missing"});
     }
-    if(!addedStops.length && !editedExistingStops.length && dropoffAfter === dropoffBefore){
+    if(!routeStopsChanged && dropoffAfter === dropoffBefore){
       return res.status(400).json({success:false,message:"No route change detected"});
     }
 

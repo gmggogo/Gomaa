@@ -322,6 +322,21 @@ function getTripStops(trip){
   return [];
 }
 
+function getReviewDisplayStops(trip){
+
+  const request =
+    trip?.addStopRequest || null;
+
+  if(
+    hasActiveAddStopRequest(trip) &&
+    Array.isArray(request?.finalStops)
+  ){
+    return request.finalStops;
+  }
+
+  return getTripStops(trip);
+}
+
 function stopText(stop,seen=new Set()){
   if(stop === undefined || stop === null) return "";
 
@@ -2879,8 +2894,8 @@ function renderTripRow(t,index){
             ? Number(t.sharedStopsCount || t.sharedStopTotal || 0)
             : Math.max(0,passengers.filter(passengerIsActive).length - 1)
         )
-      : getTripStops(t).length
-        ? getTripStops(t).map((stop,i)=>escapeHtml(`${i + 1}. ${stopText(stop)}`))
+      : getReviewDisplayStops(t).length
+        ? getReviewDisplayStops(t).map((stop,i)=>escapeHtml(`${i + 1}. ${stopText(stop)}`))
         : "--";
 
   const sharedClientEdit =
