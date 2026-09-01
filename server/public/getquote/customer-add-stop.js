@@ -63,6 +63,7 @@ let confirmedNewStops = [];
 let editingExistingIndex = null;
 let existingEditDrafts = {};
 let confirmedExistingEdits = {};
+let removedExistingStopIndexes = new Set();
 
 let editingDropoff = false;
 let dropoffDraft = "";
@@ -226,10 +227,10 @@ const backBtn =
     .route-card{
       background:#fff;
       border:1px solid #e2e8f0;
-      border-radius:14px;
-      margin-bottom:10px;
+      border-radius:12px;
+      margin-bottom:8px;
       overflow:hidden;
-      box-shadow:0 6px 16px rgba(15,23,42,.06);
+      box-shadow:0 3px 10px rgba(15,23,42,.05);
     }
 
     .route-card-head{
@@ -237,12 +238,12 @@ const backBtn =
       justify-content:space-between;
       align-items:center;
       gap:10px;
-      padding:10px 12px;
-      background:#f1f5f9;
-      border-bottom:1px solid #e2e8f0;
+      padding:14px 14px 5px;
+      background:#fff;
+      border-bottom:none;
       font-weight:900;
       color:#0f172a;
-      font-size:13px;
+      font-size:16px;
     }
 
     .route-card-head-left{
@@ -282,12 +283,19 @@ const backBtn =
     }
 
     .route-address{
-      padding:12px;
-      font-size:13px;
-      font-weight:800;
+      padding:5px 14px 15px;
+      font-size:14px;
+      font-weight:700;
       line-height:1.45;
       color:#111827;
       word-break:break-word;
+    }
+
+    .route-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-shrink:0;
     }
 
     .route-action-btn{
@@ -307,6 +315,10 @@ const backBtn =
 
     .route-action-btn.cancel{
       background:#64748b;
+    }
+
+    .route-action-btn.delete{
+      background:#dc2626;
     }
 
     .route-action-btn.confirm{
@@ -370,36 +382,28 @@ const backBtn =
     }
 
     .add-here-btn{
-      width:100%;
-      border:none;
-      background:linear-gradient(135deg,#2563eb,#1d4ed8);
-      color:#fff;
-      padding:14px;
-      border-radius:16px;
-      font-size:14px;
+      width:auto;
+      min-width:190px;
+      margin:4px auto;
+      border:2px solid #2563eb;
+      background:#fff;
+      color:#1d4ed8;
+      padding:9px 18px;
+      border-radius:10px;
+      font-size:13px;
       font-weight:900;
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:center;
-      gap:10px;
-      box-shadow:0 10px 25px rgba(37,99,235,.35);
-      transition:.2s;
-    }
-
-    .add-here-btn:hover{
-      transform:scale(1.02);
+      gap:8px;
+      box-shadow:none;
     }
 
     .add-here-btn span{
-      background:#fff;
       color:#1d4ed8;
-      width:26px;
-      height:26px;
-      border-radius:50%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      font-size:19px;
+      line-height:1;
       font-weight:900;
     }
 
@@ -450,20 +454,20 @@ const backBtn =
 
     .draft-remove-btn,
     .confirmed-stop-remove{
-      width:40px;
+      min-width:72px;
       height:40px;
       border:none;
       border-radius:12px;
       background:#fee2e2;
       color:#dc2626;
-      font-size:20px;
+      font-size:12px;
       font-weight:900;
       cursor:pointer;
     }
 
     .confirmed-stop-chip{
       display:grid;
-      grid-template-columns:1fr 40px;
+      grid-template-columns:1fr auto;
       gap:8px;
       align-items:center;
       background:#ecfdf5;
@@ -481,11 +485,7 @@ const backBtn =
     }
 
     .slot-note{
-      color:#475569;
-      font-size:11px;
-      font-weight:800;
-      line-height:1.4;
-      margin-top:6px;
+      display:none;
     }
 
     .submit-box{
@@ -496,7 +496,7 @@ const backBtn =
       padding:14px;
       display:flex;
       gap:10px;
-      justify-content:flex-end;
+      justify-content:center;
       flex-wrap:wrap;
       box-shadow:0 6px 16px rgba(15,23,42,.06);
     }
@@ -509,7 +509,8 @@ const backBtn =
       border-radius:14px;
       font-weight:900;
       cursor:pointer;
-      min-width:270px;
+      width:min(100%,520px);
+      min-width:240px;
     }
 
     .submit-main-btn:disabled,
@@ -538,8 +539,8 @@ const backBtn =
       }
 
       .route-card-head{
-        align-items:flex-start;
-        flex-direction:column;
+        align-items:center;
+        flex-direction:row;
       }
 
       .edit-input-row,
@@ -808,9 +809,14 @@ function getEditedExistingStops(trip){
   const original =
     getExistingStops(trip);
 
-  return original.map((stop,index)=>{
-    return confirmedExistingEdits[index] || stop;
-  });
+  return original
+    .map((stop,index)=>({stop,index}))
+    .filter(item=>
+      !removedExistingStopIndexes.has(item.index)
+    )
+    .map(item=>{
+      return confirmedExistingEdits[item.index] || item.stop;
+    });
 }
 
 function totalConfirmedNewStops(){
@@ -820,7 +826,7 @@ function totalConfirmedNewStops(){
 function totalCurrentStopsCount(){
 
   return (
-    getExistingStops(currentTrip || {}).length +
+    getEditedExistingStops(currentTrip || {}).length +
     totalConfirmedNewStops() +
     newStopDrafts.length
   );
@@ -833,6 +839,10 @@ function hasExistingEdits(){
       confirmedExistingEdits
     ).length > 0
   );
+}
+
+function hasRemovedExistingStops(){
+  return removedExistingStopIndexes.size > 0;
 }
 
 function hasDropoffEdit(){
@@ -849,6 +859,7 @@ function hasAnyChange(){
   return (
     totalConfirmedNewStops() > 0 ||
     hasExistingEdits() ||
+    hasRemovedExistingStops() ||
     hasDropoffEdit()
   );
 }
@@ -1632,38 +1643,7 @@ function ensureSubmitBox(){
 }
 
 function getSubmitButtonText(){
-
-  const parts = [];
-
-  if(totalConfirmedNewStops()){
-
-    parts.push(
-      `${totalConfirmedNewStops()} Added Stop${
-        totalConfirmedNewStops() === 1
-          ? ""
-          : "s"
-      }`
-    );
-  }
-
-  if(hasExistingEdits()){
-    parts.push("Edited Stops");
-  }
-
-  if(hasDropoffEdit()){
-    parts.push("Edited Dropoff");
-  }
-
-  if(!parts.length){
-
-    return (
-      "Confirm Route & Price Change"
-    );
-  }
-
-  return (
-    `Confirm Route & Price Change (${parts.join(" + ")})`
-  );
+  return "Confirm Route & Price Change";
 }
 
 function updateSubmitButtonState(){
@@ -1692,6 +1672,7 @@ function renderRoutePoint({
   label,
   value,
   index,
+  dataIndex=null,
   isLast,
   editable=false,
   edited=false
@@ -1704,21 +1685,44 @@ function renderRoutePoint({
         ? "D"
         : String(index);
 
+  const isEditing =
+    (
+      type === "stop" &&
+      Number(editingExistingIndex) === Number(dataIndex)
+    ) ||
+    (
+      type === "dropoff" &&
+      editingDropoff === true
+    );
+
   const editButton =
     editable
       ? `
-        <button
-          type="button"
-          class="route-action-btn edit"
-          data-action="${
-            type === "dropoff"
-              ? "edit-dropoff"
-              : "edit-existing"
-          }"
-          data-index="${index - 1}"
-        >
-          Edit
-        </button>
+        <div class="route-actions">
+          <button
+            type="button"
+            class="route-action-btn edit"
+            data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
+            data-index="${type === "stop" ? dataIndex : index - 1}"
+          >
+            Edit
+          </button>
+
+          ${
+            type === "stop"
+              ? `
+                <button
+                  type="button"
+                  class="route-action-btn delete"
+                  data-action="remove-existing-stop"
+                  data-index="${dataIndex}"
+                >
+                  Delete
+                </button>
+              `
+              : ""
+          }
+        </div>
       `
       : "";
 
@@ -1750,10 +1754,6 @@ function renderRoutePoint({
               ${esc(label)}
             </div>
 
-            <span class="route-type ${type}">
-              ${esc(type.toUpperCase())}
-            </span>
-
             ${
               edited
                 ? `<span class="edited">EDITED</span>`
@@ -1766,15 +1766,22 @@ function renderRoutePoint({
 
         </div>
 
-        <div class="route-address">
-          ${esc(value || "--")}
-        </div>
+        ${
+          isEditing
+            ? ""
+            : `
+              <div class="route-address">
+                ${esc(value || "--")}
+              </div>
+            `
+        }
 
         ${
           renderInlineEditBox(
             type,
             index,
-            value
+            value,
+            dataIndex
           )
         }
 
@@ -1787,13 +1794,14 @@ function renderRoutePoint({
 function renderInlineEditBox(
   type,
   index,
-  value
+  value,
+  dataIndex=null
 ){
 
   if(type === "stop"){
 
     const stopIndex =
-      index - 1;
+      Number(dataIndex);
 
     if(
       Number(editingExistingIndex) !==
@@ -1828,7 +1836,7 @@ function renderInlineEditBox(
             data-action="confirm-existing-edit"
             data-index="${stopIndex}"
           >
-            Confirm
+            Save
           </button>
 
           <button
@@ -1875,7 +1883,7 @@ function renderInlineEditBox(
             class="route-action-btn confirm"
             data-action="confirm-dropoff-edit"
           >
-            Confirm
+            Save
           </button>
 
           <button
@@ -1895,12 +1903,16 @@ function renderInlineEditBox(
   return "";
 }
 
-function getDraftsForSlot(slotIndex){
+function getDraftsForSlot(slotIndex,rowIndex=null){
 
   return newStopDrafts.filter(
     stop =>
       Number(stop.insertAfterIndex) ===
-      Number(slotIndex)
+      Number(slotIndex) &&
+      (
+        rowIndex === null ||
+        Number(stop.rowIndex || 0) === Number(rowIndex)
+      )
   );
 }
 
@@ -1921,10 +1933,10 @@ function getConfirmedNewStopsForSlot(
     );
 }
 
-function renderDraftRows(slotIndex){
+function renderDraftRows(slotIndex,rowIndex){
 
   const drafts =
-    getDraftsForSlot(slotIndex);
+    getDraftsForSlot(slotIndex,rowIndex);
 
   if(!drafts.length){
     return "";
@@ -1953,7 +1965,7 @@ function renderDraftRows(slotIndex){
           data-action="confirm-new-stop"
           data-id="${esc(draft.id)}"
         >
-          Confirm
+          Add
         </button>
 
         <button
@@ -1963,7 +1975,7 @@ function renderDraftRows(slotIndex){
           data-id="${esc(draft.id)}"
           title="Remove"
         >
-          ×
+          Cancel
         </button>
 
       </div>
@@ -1972,21 +1984,8 @@ function renderDraftRows(slotIndex){
     .join("");
 }
 
-function renderConfirmedNewStops(
-  slotIndex
-){
-
-  const list =
-    getConfirmedNewStopsForSlot(
-      slotIndex
-    );
-
-  if(!list.length){
-    return "";
-  }
-
-  return list
-    .map(stop=>`
+function renderConfirmedNewStop(stop){
+  return `
 
       <div
         class="confirmed-stop-chip"
@@ -2004,13 +2003,39 @@ function renderConfirmedNewStops(
           data-id="${esc(stop.id)}"
           title="Remove"
         >
-          ×
+          Delete
         </button>
 
       </div>
 
-    `)
-    .join("");
+    `;
+}
+
+function renderAddHereButton(slotIndex,rowIndex){
+
+  const cannotAdd =
+    totalCurrentStopsCount() >= MAX_STOPS;
+
+  const hasDraft =
+    getDraftsForSlot(slotIndex,rowIndex).length > 0;
+
+  if(hasDraft){
+    return "";
+  }
+
+  return `
+    <button
+      type="button"
+      class="add-here-btn"
+      data-action="add-draft-stop"
+      data-slot="${slotIndex}"
+      data-row="${rowIndex}"
+      ${cannotAdd ? "disabled" : ""}
+    >
+      <span>+</span>
+      Add Stop Here
+    </button>
+  `;
 }
 
 function renderInsertZone(
@@ -2018,9 +2043,19 @@ function renderInsertZone(
   label
 ){
 
-  const cannotAdd =
-    totalCurrentStopsCount() >=
-    MAX_STOPS;
+  const confirmed =
+    getConfirmedNewStopsForSlot(slotIndex);
+
+  let slotContent = "";
+
+  for(let rowIndex = 0; rowIndex <= confirmed.length; rowIndex++){
+    slotContent += renderAddHereButton(slotIndex,rowIndex);
+    slotContent += renderDraftRows(slotIndex,rowIndex);
+
+    if(rowIndex < confirmed.length){
+      slotContent += renderConfirmedNewStop(confirmed[rowIndex]);
+    }
+  }
 
   return `
 
@@ -2035,26 +2070,8 @@ function renderInsertZone(
 
       <div class="insert-content">
 
-        <button
-          type="button"
-          class="add-here-btn"
-          data-action="add-draft-stop"
-          data-slot="${slotIndex}"
-          ${cannotAdd ? "disabled" : ""}
-        >
-          <span>+</span>
-          Add Stop Here
-        </button>
-
         <div class="slot-area">
-
-          ${renderDraftRows(slotIndex)}
-
-          ${
-            renderConfirmedNewStops(
-              slotIndex
-            )
-          }
+          ${slotContent}
 
         </div>
 
@@ -2087,8 +2104,26 @@ function renderRouteEditor(trip){
   const existingOriginal =
     getExistingStops(trip);
 
+  const existingOriginalEntries =
+    existingOriginal.map((address,originalIndex)=>({
+      address,
+      originalIndex
+    }));
+
+  const existingEditedEntries =
+    existingOriginalEntries
+      .filter(entry=>
+        !removedExistingStopIndexes.has(entry.originalIndex)
+      )
+      .map(entry=>({
+        ...entry,
+        address:
+          confirmedExistingEdits[entry.originalIndex] ||
+          entry.address
+      }));
+
   const existingEdited =
-    getEditedExistingStops(trip);
+    existingEditedEntries.map(entry=>entry.address);
 
   const points = [];
 
@@ -2101,17 +2136,18 @@ function renderRouteEditor(trip){
     edited:false
   });
 
-  existingEdited.forEach(
-    (stop,index)=>{
+  existingEditedEntries.forEach(
+    (entry,index)=>{
 
       points.push({
         type:"stop",
-        label:`Existing Stop ${index + 1}`,
-        value:stop,
+        label:`Stop ${index + 1}`,
+        value:entry.address,
         index:index + 1,
+        dataIndex:entry.originalIndex,
         editable:true,
         edited:
-          stop !== existingOriginal[index]
+          entry.address !== existingOriginal[entry.originalIndex]
       });
     }
   );
@@ -2173,14 +2209,14 @@ function renderRouteEditor(trip){
     <div class="route-editor-head">
 
       <div class="route-editor-title">
-        Current Route Editor
+        Current Route
       </div>
 
       <div class="route-editor-badge">
 
-        ${existingOriginal.length}
-        Existing Stop${
-          existingOriginal.length === 1
+        ${existingEdited.length + totalConfirmedNewStops()}
+        Stop${
+          existingEdited.length + totalConfirmedNewStops() === 1
             ? ""
             : "s"
         }
@@ -2210,7 +2246,7 @@ function rerender(){
 
 /* ================= NEW STOP ACTIONS ================= */
 
-function addDraftStop(slotIndex){
+function addDraftStop(slotIndex,rowIndex){
 
   hideAlert();
 
@@ -2234,6 +2270,8 @@ function addDraftStop(slotIndex){
     id,
     insertAfterIndex:
       Number(slotIndex || 0),
+    rowIndex:
+      Number(rowIndex || 0),
     value:""
   });
 
@@ -2369,14 +2407,30 @@ function confirmNewStop(id){
     );
 
   const rowIndex =
-    confirmedNewStops
-      .filter(
-        stop =>
-          Number(
-            stop.insertAfterIndex
-          ) === slotIndex
-      )
-      .length;
+    Number(draft.rowIndex || 0);
+
+  confirmedNewStops.forEach(stop=>{
+
+    if(
+      Number(stop.insertAfterIndex) === slotIndex &&
+      Number(stop.rowIndex || 0) >= rowIndex
+    ){
+      stop.rowIndex =
+        Number(stop.rowIndex || 0) + 1;
+    }
+  });
+
+  newStopDrafts.forEach(stop=>{
+
+    if(
+      String(stop.id) !== String(id) &&
+      Number(stop.insertAfterIndex) === slotIndex &&
+      Number(stop.rowIndex || 0) >= rowIndex
+    ){
+      stop.rowIndex =
+        Number(stop.rowIndex || 0) + 1;
+    }
+  });
 
   confirmedNewStops.push({
     id:nextId(),
@@ -2412,6 +2466,11 @@ function removeConfirmedNewStop(id){
         )
       : null;
 
+  const removedRowIndex =
+    removed
+      ? Number(removed.rowIndex || 0)
+      : null;
+
   confirmedNewStops =
     confirmedNewStops.filter(
       stop =>
@@ -2440,6 +2499,17 @@ function removeConfirmedNewStop(id){
         stop.rowIndex = index;
       }
     );
+
+    newStopDrafts.forEach(stop=>{
+
+      if(
+        Number(stop.insertAfterIndex) === slotIndex &&
+        Number(stop.rowIndex || 0) > removedRowIndex
+      ){
+        stop.rowIndex =
+          Number(stop.rowIndex || 0) - 1;
+      }
+    });
   }
 
   hideAlert();
@@ -2456,7 +2526,7 @@ function startExistingEdit(index){
     Number(index);
 
   const stops =
-    getEditedExistingStops(
+    getExistingStops(
       currentTrip || {}
     );
 
@@ -2538,6 +2608,70 @@ function cancelExistingEdit(index){
 
   editingExistingIndex =
     null;
+
+  hideAlert();
+  rerender();
+}
+
+function removeExistingStop(index){
+
+  const originalIndex =
+    Number(index);
+
+  const visibleStopPosition =
+    getExistingStops(currentTrip || {})
+      .map((stop,itemIndex)=>({stop,itemIndex}))
+      .filter(item=>
+        !removedExistingStopIndexes.has(item.itemIndex)
+      )
+      .findIndex(item=>
+        item.itemIndex === originalIndex
+      );
+
+  const stop =
+    getExistingStops(currentTrip || {})[originalIndex] || "";
+
+  if(!stop){
+    showAlert("error","Stop not found");
+    return;
+  }
+
+  if(!window.confirm("Remove this stop from the route?")){
+    return;
+  }
+
+  removedExistingStopIndexes.add(originalIndex);
+  delete confirmedExistingEdits[originalIndex];
+  delete existingEditDrafts[originalIndex];
+
+  if(visibleStopPosition >= 0){
+
+    confirmedNewStops.forEach(stop=>{
+
+      if(
+        Number(stop.insertAfterIndex || 0) >
+        visibleStopPosition
+      ){
+        stop.insertAfterIndex =
+          Number(stop.insertAfterIndex || 0) - 1;
+      }
+    });
+
+    newStopDrafts.forEach(stop=>{
+
+      if(
+        Number(stop.insertAfterIndex || 0) >
+        visibleStopPosition
+      ){
+        stop.insertAfterIndex =
+          Number(stop.insertAfterIndex || 0) - 1;
+      }
+    });
+  }
+
+  if(Number(editingExistingIndex) === originalIndex){
+    editingExistingIndex = null;
+  }
 
   hideAlert();
   rerender();
@@ -2640,15 +2774,14 @@ function buildFinalStops(
       : [];
 
   const editedStops =
-    oldStops.map(
-      (stop,index)=>{
-
-        return (
-          confirmedExistingEdits[index] ||
-          stop
-        );
-      }
-    );
+    oldStops
+      .map((stop,index)=>({stop,index}))
+      .filter(item=>
+        !removedExistingStopIndexes.has(item.index)
+      )
+      .map(item=>{
+        return confirmedExistingEdits[item.index] || item.stop;
+      });
 
   const added =
     Array.isArray(
@@ -2999,7 +3132,7 @@ async function finalSubmitAddStop(){
     }
 
     const existingCount =
-      getExistingStops(
+      getEditedExistingStops(
         freshTrip
       ).length;
 
@@ -3354,6 +3487,23 @@ document.addEventListener(
       addDraftStop(
         Number(
           btn.dataset.slot || 0
+        ),
+        Number(
+          btn.dataset.row || 0
+        )
+      );
+
+      return;
+    }
+
+    if(
+      action ===
+      "remove-existing-stop"
+    ){
+
+      removeExistingStop(
+        Number(
+          btn.dataset.index || 0
         )
       );
 
