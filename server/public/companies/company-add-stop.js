@@ -124,6 +124,7 @@ let confirmedNewStops = [];
 let editingExistingIndex = null;
 let existingEditDrafts = {};
 let confirmedExistingEdits = {};
+let removedExistingStopIndexes = new Set();
 
 let editingDropoff = false;
 let dropoffDraft = "";
@@ -698,14 +699,22 @@ function hasExistingEdits(){
   return Object.keys(confirmedExistingEdits).length > 0;
 }
 
+function hasRemovedExistingStops(){
+  return removedExistingStopIndexes.size > 0;
+}
+
 function hasDropoffEdit(){
-  return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
+  return (
+    confirmedDropoff !== null &&
+    confirmedDropoff !== getEditorDropoff(currentTrip || {})
+  );
 }
 
 function hasAnyChange(){
   return (
     totalConfirmedNewStops() > 0 ||
     hasExistingEdits() ||
+    hasRemovedExistingStops() ||
     hasDropoffEdit()
   );
 }
@@ -909,10 +918,12 @@ function getDropoff(trip){
 }
 
 function getFinalDropoff(){
-  return confirmedDropoff || getDropoff(currentTrip || {});
+  return confirmedDropoff !== null
+    ? confirmedDropoff
+    : getEditorDropoff(currentTrip || {});
 }
 
-function getExistingStops(trip){
+function getStoredStops(trip){
 
   if(!Array.isArray(trip.stops)){
     return [];
@@ -923,14 +934,59 @@ function getExistingStops(trip){
     .filter(Boolean);
 }
 
+function getActiveCompanyRequest(trip){
+
+  if(!hasActiveStopRequest(trip)){
+    return null;
+  }
+
+  const request =
+    trip?.addStopRequest || null;
+
+  return clean(request?.source).toLowerCase() === "company-add-stop"
+    ? request
+    : null;
+}
+
+function getEditorDropoff(trip){
+
+  const request =
+    getActiveCompanyRequest(trip);
+
+  return clean(
+    request?.dropoffAfter ||
+    request?.dropoffBefore ||
+    getDropoff(trip)
+  );
+}
+
+function getExistingStops(trip){
+
+  const request =
+    getActiveCompanyRequest(trip);
+
+  if(Array.isArray(request?.finalStops)){
+    return request.finalStops
+      .map(s=>normalizeAddress(s))
+      .filter(Boolean);
+  }
+
+  return getStoredStops(trip);
+}
+
 function getEditedExistingStops(trip){
 
   const original =
     getExistingStops(trip);
 
-  return original.map((stop,index)=>{
-    return confirmedExistingEdits[index] || stop;
-  });
+  return original
+    .map((stop,index)=>({stop,index}))
+    .filter(item=>
+      !removedExistingStopIndexes.has(item.index)
+    )
+    .map(item=>{
+      return confirmedExistingEdits[item.index] || item.stop;
+    });
 }
 
 function hasActiveStopRequest(trip){
@@ -1368,6 +1424,10 @@ function getSubmitButtonText(){
     parts.push("Edited Stops");
   }
 
+  if(hasRemovedExistingStops()){
+    parts.push("Removed Stops");
+  }
+
   if(hasDropoffEdit()){
     parts.push("Edited Dropoff");
   }
@@ -1389,14 +1449,12 @@ function updateSubmitButtonState(){
   btn.textContent =
     getSubmitButtonText();
 
-  btn.disabled =
-    hasActiveStopRequest(currentTrip) ||
-    !hasAnyChange();
+  btn.disabled = !hasAnyChange();
 }
 
 /* ================= UI RENDER HELPERS ================= */
 
-function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=false}){
+function renderRoutePoint({type,label,value,index,dataIndex=null,isLast,editable=false,edited=false}){
 
   const icon =
     type === "pickup"
@@ -1408,14 +1466,31 @@ function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=f
   const editButton =
     editable
       ? `
-        <button
-          type="button"
-          class="route-action-btn edit"
-          data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
-          data-index="${index - 1}"
-        >
-          Edit
-        </button>
+        <div class="route-actions">
+          <button
+            type="button"
+            class="route-action-btn edit"
+            data-action="${type === "dropoff" ? "edit-dropoff" : "edit-existing"}"
+            data-index="${type === "stop" ? dataIndex : index - 1}"
+          >
+            Edit
+          </button>
+
+          ${
+            type === "stop"
+              ? `
+                <button
+                  type="button"
+                  class="route-action-btn cancel"
+                  data-action="remove-existing-stop"
+                  data-index="${dataIndex}"
+                >
+                  Remove
+                </button>
+              `
+              : ""
+          }
+        </div>
       `
       : "";
 
@@ -1441,18 +1516,18 @@ function renderRoutePoint({type,label,value,index,isLast,editable=false,edited=f
           ${esc(value || "--")}
         </div>
 
-        ${renderInlineEditBox(type,index,value)}
+        ${renderInlineEditBox(type,index,value,dataIndex)}
       </div>
     </div>
   `;
 }
 
-function renderInlineEditBox(type,index,value){
+function renderInlineEditBox(type,index,value,dataIndex=null){
 
   if(type === "stop"){
 
     const stopIndex =
-      index - 1;
+      Number(dataIndex);
 
     if(Number(editingExistingIndex) !== Number(stopIndex)){
       return "";
@@ -1668,8 +1743,27 @@ function renderRouteEditor(trip){
   const existingOriginal =
     getExistingStops(trip);
 
+  const existingOriginalEntries =
+    getExistingStops(trip)
+      .map((address,originalIndex)=>({
+        address,
+        originalIndex
+      }));
+
+  const existingEditedEntries =
+    existingOriginalEntries
+      .filter(entry=>
+        !removedExistingStopIndexes.has(entry.originalIndex)
+      )
+      .map(entry=>({
+        ...entry,
+        address:
+          confirmedExistingEdits[entry.originalIndex] ||
+          entry.address
+      }));
+
   const existingEdited =
-    getEditedExistingStops(trip);
+    existingEditedEntries.map(entry=>entry.address);
 
   const points = [];
 
@@ -1682,14 +1776,17 @@ function renderRouteEditor(trip){
     edited:false
   });
 
-  existingEdited.forEach((stop,index)=>{
+  existingEditedEntries.forEach((entry,index)=>{
     points.push({
       type:"stop",
       label:`Existing Stop ${index + 1}`,
-      value:stop,
+      value:entry.address,
       index:index + 1,
+      dataIndex:entry.originalIndex,
       editable:true,
-      edited:stop !== existingOriginal[index]
+      edited:
+        entry.address !==
+        existingOriginal[entry.originalIndex]
     });
   });
 
@@ -1957,6 +2054,35 @@ function cancelExistingEdit(index){
   rerender();
 }
 
+function removeExistingStop(index){
+
+  const originalIndex =
+    Number(index);
+
+  const stop =
+    getExistingStops(currentTrip || {})[originalIndex] || "";
+
+  if(!stop){
+    showAlert("error","Stop not found");
+    return;
+  }
+
+  if(!window.confirm("Remove this stop from the route?")){
+    return;
+  }
+
+  removedExistingStopIndexes.add(originalIndex);
+  delete confirmedExistingEdits[originalIndex];
+  delete existingEditDrafts[originalIndex];
+
+  if(Number(editingExistingIndex) === originalIndex){
+    editingExistingIndex = null;
+  }
+
+  hideAlert();
+  rerender();
+}
+
 /* ================= DROPOFF EDIT ================= */
 
 function startDropoffEdit(){
@@ -1993,7 +2119,7 @@ function confirmDropoffEdit(){
   }
 
   const original =
-    getDropoff(currentTrip || {});
+    getEditorDropoff(currentTrip || {});
 
   confirmedDropoff =
     value === original ? null : value;
@@ -2023,9 +2149,14 @@ function buildFinalStops(originalExistingStops,addedStopObjects){
       : [];
 
   const editedStops =
-    oldStops.map((stop,index)=>{
-      return confirmedExistingEdits[index] || stop;
-    });
+    oldStops
+      .map((stop,index)=>({stop,index}))
+      .filter(item=>
+        !removedExistingStopIndexes.has(item.index)
+      )
+      .map(item=>{
+        return confirmedExistingEdits[item.index] || item.stop;
+      });
 
   const added =
     Array.isArray(addedStopObjects)
@@ -2077,13 +2208,15 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
   const dropoffBefore = getDropoff(trip);
   const dropoffAfter = getFinalDropoff();
 
-  const existingStopsBefore = getExistingStops(trip);
+  const existingStopsBefore = getStoredStops(trip);
+
+  const editorStopsBefore = getExistingStops(trip);
 
   const editedExistingStops =
     getEditedExistingStops(trip);
 
   const finalStops = buildFinalStops(
-    existingStopsBefore,
+    editorStopsBefore,
     addedStopObjects
   );
 
@@ -2239,10 +2372,6 @@ async function finalSubmitAddStop(){
       throw new Error("This trip is closed and cannot be modified");
     }
 
-    if(hasActiveStopRequest(freshTrip)){
-      throw new Error("This trip already has an active stop request");
-    }
-
     const addedStopObjects =
       confirmedNewStops.map((s,index)=>({
         address:s.address,
@@ -2331,11 +2460,14 @@ async function finalSubmitAddStop(){
         calc.newRouteData
     };
 
-    await notifyServerAddStop(payload);
+    const result =
+      await notifyServerAddStop(payload);
 
     showAlert(
       "success",
-      "Route change request sent to Review. Price will be calculated there."
+      result?.cancelled === true
+        ? "Route change request cancelled."
+        : "Route change request updated and sent to Review."
     );
 
     setTimeout(()=>{
@@ -2375,7 +2507,7 @@ function fillPage(trip){
   }
 
   if(dropoffAddressInput){
-    dropoffAddressInput.value = getDropoff(trip) || "";
+    dropoffAddressInput.value = getEditorDropoff(trip) || "";
   }
 
   renderRouteEditor(trip);
@@ -2390,7 +2522,7 @@ function fillPage(trip){
   if(hasActiveStopRequest(trip)){
     showAlert(
       "info",
-      "This trip already has an active route change request. Cancel it from the Review page before adding another one."
+      "Update the pending route by adding, editing, or removing stops. Saving the original route cancels the request."
     );
   }
 
@@ -2487,6 +2619,11 @@ document.addEventListener("click",e=>{
 
   if(action === "cancel-existing-edit"){
     cancelExistingEdit(Number(btn.dataset.index || 0));
+    return;
+  }
+
+  if(action === "remove-existing-stop"){
+    removeExistingStop(Number(btn.dataset.index || 0));
     return;
   }
 

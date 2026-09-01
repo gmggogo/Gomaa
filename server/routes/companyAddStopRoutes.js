@@ -531,16 +531,26 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
     const addStopPolicy =
       await resolveCompanyAddStopPolicy(trip,req);
 
-    enforceCompanyAddStopPolicy(
-      trip,
-      addStopPolicy
-    );
+    const currentActiveRequest =
+      hasActiveRouteChange(trip)
+        ? trip.addStopRequest
+        : null;
 
-    if(hasActiveRouteChange(trip)){
+    if(
+      currentActiveRequest &&
+      clean(currentActiveRequest.source).toLowerCase() !== "company-add-stop"
+    ){
       return res.status(409).json({
         success:false,
         message:"This trip already has an active route change request"
       });
+    }
+
+    if(!currentActiveRequest){
+      enforceCompanyAddStopPolicy(
+        trip,
+        addStopPolicy
+      );
     }
 
     const body =
@@ -599,6 +609,14 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
         body.finalStops
       );
 
+    const routeStopsChanged =
+      JSON.stringify(
+        existingStopsBefore.map(value=>value.toLowerCase())
+      ) !==
+      JSON.stringify(
+        finalStops.map(value=>value.toLowerCase())
+      );
+
     if(!pickup){
       return res.status(400).json({
         success:false,
@@ -613,11 +631,28 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
       });
     }
 
-    if(
-      !addedStops.length &&
-      !editedExistingStops.length &&
-      dropoffAfter === dropoffBefore
-    ){
+    if(!routeStopsChanged && dropoffAfter === dropoffBefore){
+
+      if(currentActiveRequest){
+        trip.addStopRequest.active = false;
+        trip.addStopRequest.status = "CANCELLED_BY_COMPANY";
+        trip.addStopRequest.cancelledAt = new Date();
+        trip.addStopRequest.updatedAt = new Date();
+        trip.routeChangePending = false;
+        trip.routeChangeStatus = "CANCELLED";
+        trip.markModified("addStopRequest");
+        await trip.save();
+
+        return res.json({
+          success:true,
+          cancelled:true,
+          message:"Company route change request cancelled",
+          tripId:trip._id,
+          tripNumber:trip.tripNumber || "",
+          addStopRequest:trip.addStopRequest
+        });
+      }
+
       return res.status(400).json({
         success:false,
         message:"No route change detected"
@@ -748,6 +783,7 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
         body.newRouteData || {},
 
       createdAt:
+        currentActiveRequest?.createdAt ||
         new Date(),
 
       updatedAt:
@@ -769,6 +805,7 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
     return res.json({
       success:true,
       message:"Route change request saved for review",
+      updated:Boolean(currentActiveRequest),
       tripId:trip._id,
       tripNumber:trip.tripNumber || "",
       tripSource,

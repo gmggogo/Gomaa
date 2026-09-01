@@ -1594,8 +1594,8 @@ function renderAddStopButton(trip){
 
   if(hasActiveAddStopRequest(trip)){
     return `
-      <button class="btn cancel" data-action="cancel-stop">
-        Cancel Stop
+      <button class="btn add-stop" data-action="add-stop">
+        Add / Cancel Stop
       </button>
     `;
   }
@@ -3695,7 +3695,7 @@ async function handleAddStop(btn){
     return;
   }
 
-  if(!serviceAllowsAddStop(trip)){
+  if(!hasActiveAddStopRequest(trip) && !serviceAllowsAddStop(trip)){
     alert("Add Stop is not enabled for this service");
     return;
   }
