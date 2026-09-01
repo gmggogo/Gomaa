@@ -100,6 +100,8 @@ let displayItems = [];
 let activeService = "ALL";
 let editingKey = null;
 let refreshTimer = null;
+let hubTripsLoading = false;
+let hubTripsLoadedOnce = false;
 
 let filterYear = "";
 let filterMonth = "";
@@ -1442,6 +1444,34 @@ function getEmail(t,p=null){
 }
 
 function getStops(t){
+
+  const request =
+    t?.addStopRequest || null;
+
+  const requestStatus =
+    String(request?.status || "")
+      .trim()
+      .toUpperCase();
+
+  const requestIsActive =
+    request?.active === true &&
+    ![
+      "CANCELLED",
+      "CANCELLED_BY_DISPATCH",
+      "CANCELLED_BY_COMPANY",
+      "CANCELLED_BY_CUSTOMER",
+      "COMPLETED",
+      "STOP_REACHED",
+      "REJECTED"
+    ].includes(requestStatus);
+
+  if(
+    requestIsActive &&
+    Array.isArray(request?.finalStops)
+  ){
+    return request.finalStops;
+  }
+
   if(Array.isArray(t?.stops)) return t.stops;
   if(Array.isArray(t?.stopAddresses)) return t.stopAddresses;
   if(Array.isArray(t?.extraStops)) return t.extraStops;
@@ -1769,18 +1799,40 @@ async function loadServices(){
 }
 
 async function loadHubTrips(){
+
+  if(hubTripsLoading){
+    return;
+  }
+
+  hubTripsLoading = true;
+
   try{
-    const res = await fetch(LIST_API_URL,{
-      headers: token ? {Authorization:"Bearer " + token} : {}
+    const separator =
+      LIST_API_URL.includes("?") ? "&" : "?";
+
+    const res = await fetch(`${LIST_API_URL}${separator}_=${Date.now()}`,{
+      cache:"no-store",
+      headers:{
+        ...(token ? {Authorization:"Bearer " + token} : {}),
+        "Cache-Control":"no-cache"
+      }
     });
 
-    if(!res.ok) throw new Error();
+    if(!res.ok){
+      throw new Error(`Trips Hub request failed (${res.status})`);
+    }
 
     const data = await res.json();
 
-    hubTrips = Array.isArray(data)
-      ? data.sort((a,b)=>getBookedDateObj(b)-getBookedDateObj(a))
-      : [];
+    if(!Array.isArray(data)){
+      throw new Error("Invalid Trips Hub response");
+    }
+
+    hubTrips = data.sort((a,b)=>
+      getBookedDateObj(b) - getBookedDateObj(a)
+    );
+
+    hubTripsLoadedOnce = true;
 
     rebuildSharedGroupsCache(hubTrips);
 
@@ -1800,9 +1852,15 @@ async function loadHubTrips(){
 
   }catch(err){
     console.log(err);
-    hubTrips = [];
-    displayItems = [];
-    render();
+
+    if(!hubTripsLoadedOnce){
+      hubTrips = [];
+      displayItems = [];
+      render();
+    }
+
+  }finally{
+    hubTripsLoading = false;
   }
 }
 
@@ -2701,6 +2759,14 @@ function updateStickyOffsets(){
 
 window.addEventListener("resize",updateStickyOffsets);
 window.addEventListener("orientationchange",updateStickyOffsets);
+window.addEventListener("focus",refreshTripsOnly);
+window.addEventListener("pageshow",refreshTripsOnly);
+
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState === "visible"){
+    refreshTripsOnly();
+  }
+});
 
 /* ================= EVENTS ================= */
 
