@@ -1599,9 +1599,15 @@ function renderInlineEditBox(type,index,value,dataIndex=null){
   return "";
 }
 
-function getDraftsForSlot(slotIndex){
+function getDraftsForSlot(slotIndex,rowIndex=null){
   return newStopDrafts
-    .filter(s => Number(s.insertAfterIndex) === Number(slotIndex));
+    .filter(s =>
+      Number(s.insertAfterIndex) === Number(slotIndex) &&
+      (
+        rowIndex === null ||
+        Number(s.rowIndex || 0) === Number(rowIndex)
+      )
+    );
 }
 
 function getConfirmedNewStopsForSlot(slotIndex){
@@ -1610,10 +1616,10 @@ function getConfirmedNewStopsForSlot(slotIndex){
     .sort((a,b)=>Number(a.rowIndex || 0) - Number(b.rowIndex || 0));
 }
 
-function renderDraftRows(slotIndex){
+function renderDraftRows(slotIndex,rowIndex){
 
   const drafts =
-    getDraftsForSlot(slotIndex);
+    getDraftsForSlot(slotIndex,rowIndex);
 
   if(!drafts.length){
     return "";
@@ -1651,16 +1657,8 @@ function renderDraftRows(slotIndex){
   `).join("");
 }
 
-function renderConfirmedNewStops(slotIndex){
-
-  const list =
-    getConfirmedNewStopsForSlot(slotIndex);
-
-  if(!list.length){
-    return "";
-  }
-
-  return list.map(stop=>`
+function renderConfirmedNewStop(stop){
+  return `
     <div class="confirmed-stop-chip" data-stop-id="${esc(stop.id)}">
       <div class="confirmed-stop-text">
         ${esc(stop.address)}
@@ -1676,13 +1674,58 @@ function renderConfirmedNewStops(slotIndex){
         Delete
       </button>
     </div>
-  `).join("");
+  `;
+}
+
+function getCurrentStopCount(){
+  return (
+    totalConfirmedNewStops() +
+    newStopDrafts.length
+  );
+}
+
+function renderAddHereButton(slotIndex,rowIndex){
+
+  const cannotAdd =
+    getCurrentStopCount() >= MAX_STOPS;
+
+  const hasDraft =
+    getDraftsForSlot(slotIndex,rowIndex).length > 0;
+
+  if(hasDraft){
+    return "";
+  }
+
+  return `
+    <button
+      type="button"
+      class="add-here-btn"
+      data-action="add-draft-stop"
+      data-slot="${slotIndex}"
+      data-row="${rowIndex}"
+      ${cannotAdd ? "disabled" : ""}
+    >
+      <span>+</span>
+      Add Stop Here
+    </button>
+  `;
 }
 
 function renderInsertZone(slotIndex,label){
 
-  const cannotAdd =
-    totalConfirmedNewStops() + newStopDrafts.length >= MAX_STOPS;
+  const confirmed =
+    getConfirmedNewStopsForSlot(slotIndex);
+
+  let slotContent = "";
+
+  for(let rowIndex = 0; rowIndex <= confirmed.length; rowIndex++){
+    slotContent += renderAddHereButton(slotIndex,rowIndex);
+    slotContent += renderDraftRows(slotIndex,rowIndex);
+
+    if(rowIndex < confirmed.length){
+      slotContent += renderConfirmedNewStop(confirmed[rowIndex]);
+    }
+  }
 
   return `
     <div class="insert-zone" data-slot="${slotIndex}">
@@ -1691,21 +1734,8 @@ function renderInsertZone(slotIndex,label){
       </div>
 
       <div class="insert-content">
-
-        <button
-          type="button"
-          class="add-here-btn"
-          data-action="add-draft-stop"
-          data-slot="${slotIndex}"
-          ${cannotAdd ? "disabled" : ""}
-        >
-          <span>+</span>
-          Add Stop Here
-        </button>
-
         <div class="slot-area">
-          ${renderDraftRows(slotIndex)}
-          ${renderConfirmedNewStops(slotIndex)}
+          ${slotContent}
         </div>
 
         <div class="slot-note">
@@ -1847,12 +1877,12 @@ function rerender(){
 
 /* ================= ADD NEW STOP ACTIONS ================= */
 
-function addDraftStop(slotIndex){
+function addDraftStop(slotIndex,rowIndex){
 
   hideAlert();
 
   const total =
-    totalConfirmedNewStops() + newStopDrafts.length;
+    getCurrentStopCount();
 
   if(total >= MAX_STOPS){
     showAlert("error",`Maximum ${MAX_STOPS} added stops allowed`);
@@ -1865,6 +1895,7 @@ function addDraftStop(slotIndex){
   newStopDrafts.push({
     id,
     insertAfterIndex:Number(slotIndex || 0),
+    rowIndex:Number(rowIndex || 0),
     value:""
   });
 
@@ -1936,9 +1967,26 @@ function confirmNewStop(id){
     Number(draft.insertAfterIndex || 0);
 
   const rowIndex =
-    confirmedNewStops
-      .filter(s => Number(s.insertAfterIndex) === slotIndex)
-      .length;
+    Number(draft.rowIndex || 0);
+
+  confirmedNewStops
+    .filter(s =>
+      Number(s.insertAfterIndex) === slotIndex &&
+      Number(s.rowIndex || 0) >= rowIndex
+    )
+    .forEach(s=>{
+      s.rowIndex = Number(s.rowIndex || 0) + 1;
+    });
+
+  newStopDrafts
+    .filter(s =>
+      String(s.id) !== String(id) &&
+      Number(s.insertAfterIndex) === slotIndex &&
+      Number(s.rowIndex || 0) >= rowIndex
+    )
+    .forEach(s=>{
+      s.rowIndex = Number(s.rowIndex || 0) + 1;
+    });
 
   confirmedNewStops.push({
     id:nextId(),
@@ -1961,6 +2009,9 @@ function removeConfirmedNewStop(id){
   const slotIndex =
     removed ? Number(removed.insertAfterIndex || 0) : null;
 
+  const removedRowIndex =
+    removed ? Number(removed.rowIndex || 0) : null;
+
   confirmedNewStops =
     confirmedNewStops.filter(s => String(s.id) !== String(id));
 
@@ -1973,6 +2024,15 @@ function removeConfirmedNewStop(id){
     slotStops.forEach((s,index)=>{
       s.rowIndex = index;
     });
+
+    newStopDrafts
+      .filter(s =>
+        Number(s.insertAfterIndex) === slotIndex &&
+        Number(s.rowIndex || 0) > removedRowIndex
+      )
+      .forEach(s=>{
+        s.rowIndex = Number(s.rowIndex || 0) - 1;
+      });
   }
 
   hideAlert();
@@ -2580,7 +2640,10 @@ document.addEventListener("click",e=>{
   if(!action) return;
 
   if(action === "add-draft-stop"){
-    addDraftStop(Number(btn.dataset.slot || 0));
+    addDraftStop(
+      Number(btn.dataset.slot || 0),
+      Number(btn.dataset.row || 0)
+    );
     return;
   }
 
