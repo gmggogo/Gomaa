@@ -898,7 +898,7 @@ function getActiveReservedRequest(trip){
   const request =
     trip?.addStopRequest || null;
 
-  return lower(request?.source) === "reserved-add-stop"
+  return clean(request?.source).toLowerCase() === "reserved-add-stop"
     ? request
     : null;
 }
