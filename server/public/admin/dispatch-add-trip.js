@@ -2572,7 +2572,7 @@ function renderAddStopButton(t){
   }
 
   if(hasActiveAddStopRequest(t)){
-    return `<button class="btn cancel" data-action="cancel-stop">Cancel Stop</button>`;
+    return `<button class="btn add-stop" data-action="add-stop">Add / Cancel Stop</button>`;
   }
 
   if(!reservedAllowsAddStop(t)){
@@ -3943,7 +3943,10 @@ async function handleAddStop(btn){
 
   if(!trip) return;
 
-  if(!reservedAllowsAddStop(trip)){
+  if(
+    !hasActiveAddStopRequest(trip) &&
+    !reservedAllowsAddStop(trip)
+  ){
     showAlert("Add Stop is not available for this Reserved trip.");
     return;
   }

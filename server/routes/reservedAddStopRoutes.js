@@ -255,9 +255,21 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
     }
 
     const policy = await resolveReservedPolicy(trip,req);
-    enforcePolicy(trip,policy);
-    if(activeRequest(trip)){
+
+    const currentActiveRequest =
+      activeRequest(trip)
+        ? trip.addStopRequest
+        : null;
+
+    if(
+      currentActiveRequest &&
+      clean(currentActiveRequest.source).toLowerCase() !== "reserved-add-stop"
+    ){
       return res.status(409).json({success:false,message:"This trip already has an active route change request"});
+    }
+
+    if(!currentActiveRequest){
+      enforcePolicy(trip,policy);
     }
 
     const body = req.body || {};
@@ -282,6 +294,27 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
       return res.status(400).json({success:false,message:"Pickup or dropoff address missing"});
     }
     if(!routeStopsChanged && dropoffAfter === dropoffBefore){
+
+      if(currentActiveRequest){
+        trip.addStopRequest.active = false;
+        trip.addStopRequest.status = "CANCELLED_BY_DISPATCH";
+        trip.addStopRequest.cancelledAt = new Date();
+        trip.addStopRequest.updatedAt = new Date();
+        trip.routeChangePending = false;
+        trip.routeChangeStatus = "CANCELLED";
+        trip.markModified("addStopRequest");
+        await trip.save();
+
+        return res.json({
+          success:true,
+          cancelled:true,
+          message:"Reserved route change request cancelled",
+          tripId:trip._id,
+          tripNumber:trip.tripNumber,
+          addStopRequest:trip.addStopRequest
+        });
+      }
+
       return res.status(400).json({success:false,message:"No route change detected"});
     }
 
@@ -312,7 +345,10 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
       extraMiles:n(body.extraMiles),
       originalRouteData:body.originalRouteData || {},
       newRouteData:body.newRouteData || {},
-      createdAt:new Date(),updatedAt:new Date()
+      createdAt:
+        currentActiveRequest?.createdAt ||
+        new Date(),
+      updatedAt:new Date()
     };
 
     if(req.authUser.role !== "PLATFORM_ADMIN"){
@@ -329,6 +365,7 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
     return res.json({
       success:true,
       message:"Reserved route change request saved for Dispatch Review",
+      updated:Boolean(currentActiveRequest),
       tripId:trip._id,
       tripNumber:trip.tripNumber,
       addStopPolicy:policy,

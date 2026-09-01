@@ -659,7 +659,10 @@ function hasRemovedExistingStops(){
 }
 
 function hasDropoffEdit(){
-  return !!confirmedDropoff && confirmedDropoff !== getDropoff(currentTrip || {});
+  return (
+    confirmedDropoff !== null &&
+    confirmedDropoff !== getEditorDropoff(currentTrip || {})
+  );
 }
 
 function hasAnyChange(){
@@ -870,10 +873,12 @@ function getDropoff(trip){
 }
 
 function getFinalDropoff(){
-  return confirmedDropoff || getDropoff(currentTrip || {});
+  return confirmedDropoff !== null
+    ? confirmedDropoff
+    : getEditorDropoff(currentTrip || {});
 }
 
-function getExistingStops(trip){
+function getStoredStops(trip){
 
   if(!Array.isArray(trip.stops)){
     return [];
@@ -882,6 +887,46 @@ function getExistingStops(trip){
   return trip.stops
     .map(s => normalizeAddress(s))
     .filter(Boolean);
+}
+
+function getActiveReservedRequest(trip){
+
+  if(!hasActiveStopRequest(trip)){
+    return null;
+  }
+
+  const request =
+    trip?.addStopRequest || null;
+
+  return lower(request?.source) === "reserved-add-stop"
+    ? request
+    : null;
+}
+
+function getEditorDropoff(trip){
+
+  const request =
+    getActiveReservedRequest(trip);
+
+  return clean(
+    request?.dropoffAfter ||
+    request?.dropoffBefore ||
+    getDropoff(trip)
+  );
+}
+
+function getExistingStops(trip){
+
+  const request =
+    getActiveReservedRequest(trip);
+
+  if(Array.isArray(request?.finalStops)){
+    return request.finalStops
+      .map(s=>normalizeAddress(s))
+      .filter(Boolean);
+  }
+
+  return getStoredStops(trip);
 }
 
 function getEditedExistingStops(trip){
@@ -1364,9 +1409,7 @@ function updateSubmitButtonState(){
   btn.textContent =
     getSubmitButtonText();
 
-  btn.disabled =
-    hasActiveStopRequest(currentTrip) ||
-    !hasAnyChange();
+  btn.disabled = !hasAnyChange();
 }
 
 /* ================= UI RENDER HELPERS ================= */
@@ -2036,7 +2079,7 @@ function confirmDropoffEdit(){
   }
 
   const original =
-    getDropoff(currentTrip || {});
+    getEditorDropoff(currentTrip || {});
 
   confirmedDropoff =
     value === original ? null : value;
@@ -2125,13 +2168,15 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
   const dropoffBefore = getDropoff(trip);
   const dropoffAfter = getFinalDropoff();
 
-  const existingStopsBefore = getExistingStops(trip);
+  const existingStopsBefore = getStoredStops(trip);
+
+  const editorStopsBefore = getExistingStops(trip);
 
   const editedExistingStops =
     getEditedExistingStops(trip);
 
   const finalStops = buildFinalStops(
-    existingStopsBefore,
+    editorStopsBefore,
     addedStopObjects
   );
 
@@ -2287,10 +2332,6 @@ async function finalSubmitAddStop(){
       throw new Error("This trip is closed and cannot be modified");
     }
 
-    if(hasActiveStopRequest(freshTrip)){
-      throw new Error("This trip already has an active stop request");
-    }
-
     const addedStopObjects =
       confirmedNewStops.map((s,index)=>({
         address:s.address,
@@ -2379,11 +2420,14 @@ async function finalSubmitAddStop(){
         calc.newRouteData
     };
 
-    await notifyServerAddStop(payload);
+    const result =
+      await notifyServerAddStop(payload);
 
     showAlert(
       "success",
-      "Route change request sent to Review. Price will be calculated there."
+      result?.cancelled === true
+        ? "Route change request cancelled."
+        : "Route change request updated and sent to Review."
     );
 
     setTimeout(()=>{
@@ -2423,7 +2467,7 @@ function fillPage(trip){
   }
 
   if(dropoffAddressInput){
-    dropoffAddressInput.value = getDropoff(trip) || "";
+    dropoffAddressInput.value = getEditorDropoff(trip) || "";
   }
 
   renderRouteEditor(trip);
@@ -2438,7 +2482,7 @@ function fillPage(trip){
   if(hasActiveStopRequest(trip)){
     showAlert(
       "info",
-      "This trip already has an active route change request. Cancel it from the Review page before adding another one."
+      "Update the pending route by adding, editing, or removing stops. Saving the original route cancels the request."
     );
   }
 
