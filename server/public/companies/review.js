@@ -1560,30 +1560,27 @@ function serviceAllowsAddStop(trip){
   const customTime =
     service.companyAddStopCustomTimeEnabled === true;
 
-  /* Normal Add Stop wins and stays active until the trip is closed. */
-  if(normalEnabled){
-    return true;
+  /* Custom Time controls the button whenever it is enabled. */
+  if(customTime){
+
+    const mins =
+      minutesToTrip(trip);
+
+    if(mins === null){
+      return false;
+    }
+
+    const cutoff =
+      Math.max(
+        0,
+        Number(service.companyAddStopCutoffMinutes || 0)
+      );
+
+    return mins > cutoff;
   }
 
-  if(!customTime){
-    return false;
-  }
-
-  const mins =
-    minutesToTrip(trip);
-
-  if(mins === null){
-    return true;
-  }
-
-  const cutoff =
-    Number(service.companyAddStopCutoffMinutes || 0);
-
-  if(cutoff <= 0){
-    return mins > 0;
-  }
-
-  return mins > cutoff;
+  /* Without Custom Time, normal Add Stop stays active until the trip closes. */
+  return normalEnabled;
 }
 
 function renderAddStopButton(trip){
