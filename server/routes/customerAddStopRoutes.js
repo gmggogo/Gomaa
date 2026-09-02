@@ -1141,16 +1141,29 @@ function extractLatLngFromObject(obj){
 
 async function getLiveDriverLocation(trip){
 
-  const direct =
-    extractLatLngFromObject(
+  const liveState =
+    getLiveDriverState(
       trip
     );
 
-  if(direct){
+  const liveLocation =
+    extractLatLngFromObject(
+      liveState
+    );
 
-    return direct;
+  if(liveLocation){
+
+    return liveLocation;
 
   }
+
+  return extractLatLngFromObject(
+    trip
+  );
+
+}
+
+function getLiveDriverState(trip){
 
   if(
     !global.liveDrivers ||
@@ -1199,9 +1212,80 @@ async function getLiveDriverLocation(trip){
 
     });
 
-  return extractLatLngFromObject(
-    found
-  );
+  return found || null;
+
+}
+
+function extractCurrentStopIndex(obj){
+
+  if(
+    !obj ||
+    typeof obj !== "object"
+  ){
+
+    return null;
+
+  }
+
+  const value =
+    obj.currentStopIndex ??
+    obj.routeStopIndex ??
+    obj.activeStopIndex ??
+    obj.stopExecution?.currentStopIndex;
+
+  if(
+    Number.isInteger(Number(value)) &&
+    Number(value) >= 0
+  ){
+
+    return Number(value);
+
+  }
+
+  return null;
+
+}
+
+function getRouteProgress(trip){
+
+  const liveState =
+    getLiveDriverState(
+      trip
+    );
+
+  const currentStopIndex =
+    extractCurrentStopIndex(
+      liveState
+    ) ??
+    extractCurrentStopIndex(
+      trip
+    ) ??
+    0;
+
+  const totalStops =
+    normalizeStops(
+      trip?.stops
+    ).length;
+
+  /*
+    Driver route indexes are:
+    0 = Pickup
+    1..N = Intermediate Stops
+    N + 1 = Dropoff
+  */
+  const completedStopCount =
+    Math.max(
+      0,
+      Math.min(
+        totalStops,
+        currentStopIndex - 1
+      )
+    );
+
+  return {
+    currentStopIndex,
+    completedStopCount
+  };
 
 }
 
@@ -1781,34 +1865,55 @@ async function buildUpdatedRoutePoints(
   }
 
   /*
-    During trip:
-    Keep any already-travelled route points
-    submitted by the page.
+    During trip, the server builds the route itself:
+    Pickup -> completed stop(s) -> live driver location
+    -> remaining/new stop(s) -> Dropoff.
 
-    Expected:
-    Pickup -> previous/completed stop(s)
-    -> driver location -> new/remaining stops
-    -> Dropoff
+    Google Directions calculates driving-road distance for every leg.
+    Client-submitted route points are never trusted for final pricing.
   */
 
-  const submitted =
-    sanitizeRoutePoints(
-      body?.newRoutePoints ||
-      body?.finalRoutePoints
+  const progress =
+    getRouteProgress(
+      trip
     );
 
-  if(submitted.length >= 2){
+  const completedStops =
+    validated.existingStopsBefore.slice(
+      0,
+      progress.completedStopCount
+    );
 
-    return submitted;
+  const submittedCompletedStops =
+    validated.finalStops.slice(
+      0,
+      progress.completedStopCount
+    );
+
+  if(
+    !sameAddressArray(
+      submittedCompletedStops,
+      completedStops
+    )
+  ){
+
+    throw new Error(
+      "Completed stops cannot be edited, deleted, or reordered"
+    );
 
   }
 
+  const remainingStops =
+    validated.finalStops.slice(
+      progress.completedStopCount
+    );
+
   const driverLocation =
-    extractLatLngFromObject(
-      body?.driverLocationAtConfirm
-    ) ||
     await getLiveDriverLocation(
       trip
+    ) ||
+    extractLatLngFromObject(
+      body?.driverLocationAtConfirm
     );
 
   if(!driverLocation){
@@ -1823,9 +1928,11 @@ async function buildUpdatedRoutePoints(
 
     validated.pickup,
 
+    ...completedStops,
+
     driverLocation,
 
-    ...validated.finalStops,
+    ...remainingStops,
 
     validated.dropoffAfter
 
@@ -1923,8 +2030,8 @@ function calculateGetQuotePrice({
     }
 
     total =
-      hours *
-      hourlyRate;
+      (hours * hourlyRate) +
+      (n(stops) * stopFee);
 
   }else if(pricingMode === "SHARED"){
 
@@ -2024,7 +2131,7 @@ function calculateGetQuotePrice({
    SAFE TRIP RESPONSE
 ========================= */
 
-function buildSafeCustomerTrip(
+async function buildSafeCustomerTrip(
   trip,
   service,
   policy
@@ -2126,9 +2233,17 @@ function buildSafeCustomerTrip(
       ),
 
     driverLocationAtRequest:
-      extractLatLngFromObject(
+      await getLiveDriverLocation(
         trip
       ),
+
+    currentStopIndex:
+      getRouteProgress(trip)
+        .currentStopIndex,
+
+    completedStopCount:
+      getRouteProgress(trip)
+        .completedStopCount,
 
     tripInProgress:
       tripIsInProgress(trip),
@@ -2258,7 +2373,7 @@ router.get(
         success:true,
 
         trip:
-          buildSafeCustomerTrip(
+          await buildSafeCustomerTrip(
             trip,
             service,
             policy

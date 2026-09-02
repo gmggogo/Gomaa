@@ -2858,6 +2858,55 @@ function buildNewRouteBeforeStart(
   ].filter(Boolean);
 }
 
+function getCompletedStopCount(
+  trip,
+  totalStops
+){
+
+  const directCount =
+    Number(
+      trip?.completedStopCount
+    );
+
+  const currentStopIndex =
+    Number(
+      trip?.currentStopIndex
+    );
+
+  const count =
+    Number.isInteger(directCount) &&
+    directCount >= 0
+      ? directCount
+      : Number.isInteger(currentStopIndex) &&
+        currentStopIndex >= 0
+        ? Math.max(
+            0,
+            currentStopIndex - 1
+          )
+        : 0;
+
+  return Math.max(
+    0,
+    Math.min(
+      Number(totalStops || 0),
+      count
+    )
+  );
+}
+
+function sameRouteAddress(
+  first,
+  second
+){
+
+  return (
+    clean(first)
+      .toLowerCase() ===
+    clean(second)
+      .toLowerCase()
+  );
+}
+
 /* ================= ROUTE CALCULATION ================= */
 
 async function calculateFinalRouteChange(
@@ -2915,33 +2964,73 @@ async function calculateFinalRouteChange(
       );
     }
 
+    const completedStopCount =
+      getCompletedStopCount(
+        trip,
+        existingStopsBefore.length
+      );
+
+    const completedStops =
+      existingStopsBefore.slice(
+        0,
+        completedStopCount
+      );
+
+    const submittedCompletedStops =
+      finalStops.slice(
+        0,
+        completedStopCount
+      );
+
+    const completedStopsUnchanged =
+      completedStops.every(
+        (stop,index)=>
+          sameRouteAddress(
+            stop,
+            submittedCompletedStops[index]
+          )
+      );
+
+    if(
+      submittedCompletedStops.length !==
+        completedStops.length ||
+      !completedStopsUnchanged
+    ){
+
+      throw new Error(
+        "Completed stops cannot be edited, deleted, or reordered."
+      );
+    }
+
+    const remainingExistingStops =
+      existingStopsBefore.slice(
+        completedStopCount
+      );
+
+    const remainingFinalStops =
+      finalStops.slice(
+        completedStopCount
+      );
+
     /*
-      نفس منطق Company Add Stop
-
-      المسار القديم:
-      Pickup
-      Driver Current Location
-      Existing Stops
-      Dropoff
-
-      المسار الجديد:
-      Pickup
-      Driver Current Location
-      Final Stops
-      Dropoff
+      Google Directions driving route:
+      Pickup -> completed stops -> live driver location
+      -> remaining/new stops -> Dropoff.
     */
 
     originalRoutePoints = [
       pickup,
+      ...completedStops,
       driverLocationAtConfirm,
-      ...existingStopsBefore,
+      ...remainingExistingStops,
       dropoffBefore
     ].filter(Boolean);
 
     newRoutePoints = [
       pickup,
+      ...completedStops,
       driverLocationAtConfirm,
-      ...finalStops,
+      ...remainingFinalStops,
       dropoffAfter
     ].filter(Boolean);
 
