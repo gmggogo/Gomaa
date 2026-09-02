@@ -15,6 +15,35 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
 
+if(
+  !global.liveDrivers ||
+  typeof global.liveDrivers.set !== "function"
+){
+  global.liveDrivers = new Map();
+}
+
+function cleanStatus(value){
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g,"");
+}
+
+function tripIsInProgress(trip){
+  return [
+    "ontrip",
+    "started",
+    "inprogress",
+    "pickedup",
+    "pickupcompleted",
+    "passengerpickedup",
+    "enroute",
+    "active"
+  ].includes(
+    cleanStatus(trip?.status)
+  );
+}
+
 /* =========================
    TENANT AUTH
 ========================= */
@@ -77,7 +106,7 @@ function requireTenantApi(
     };
 
     if(
-      String(req.authUser.role || "").trim().toUpperCase() ===
+      req.authUser.role ===
       "PLATFORM_ADMIN"
     ){
       return next();
@@ -108,7 +137,7 @@ function tenantFilter(
 ){
 
   if(
-    String(req.authUser?.role || "").trim().toUpperCase() ===
+    req.authUser?.role ===
     "PLATFORM_ADMIN"
   ){
 
@@ -142,7 +171,7 @@ function tenantFilter(
 function tenantIdForWrite(req){
 
   if(
-    String(req.authUser?.role || "").trim().toUpperCase() ===
+    req.authUser?.role ===
     "PLATFORM_ADMIN"
   ){
 
@@ -188,7 +217,9 @@ router.post(
       name,
       phone,
       vehicleNumber,
-      routeMode
+      routeMode,
+      currentStopId,
+      currentStopIndex
     } = req.body;
 
     const id =
@@ -206,6 +237,14 @@ router.post(
 
     const numLng =
       Number(lng);
+
+    const safeCurrentStopIndex =
+      Number.isInteger(
+        Number(currentStopIndex)
+      ) &&
+      Number(currentStopIndex) >= 0
+        ? Number(currentStopIndex)
+        : 0;
 
     if(
       !id ||
@@ -254,6 +293,8 @@ router.post(
       belongs to the same tenant before
       linking live location to it.
     */
+    let activeTrip = null;
+
     if(activeTripId){
 
       const Trip =
@@ -266,15 +307,15 @@ router.post(
         )
       ){
 
-        const trip =
+        activeTrip =
           await Trip.findOne({
             _id:activeTripId,
             tenantId
           })
-          .select("_id tenantId")
+          .select("_id tenantId status")
           .lean();
 
-        if(!trip){
+        if(!activeTrip){
 
           return res.status(404).json({
             success:false,
@@ -319,6 +360,12 @@ router.post(
             routeMode:
               routeMode || "",
 
+            currentStopId:
+              String(currentStopId || ""),
+
+            currentStopIndex:
+              safeCurrentStopIndex,
+
             lat:
               numLat,
 
@@ -350,7 +397,10 @@ router.post(
        يحسب الميلز الحقيقي لو فيه tripId
     ========================= */
 
-    if(activeTripId){
+    if(
+      activeTripId &&
+      tripIsInProgress(activeTrip)
+    ){
 
       try{
 
@@ -368,6 +418,21 @@ router.post(
         );
       }
     }
+
+    global.liveDrivers.set(
+      `${String(tenantId)}:${id}`,
+      {
+        tenantId:String(tenantId),
+        driverId:id,
+        tripId:activeTripId,
+        name:name || "",
+        lat:numLat,
+        lng:numLng,
+        currentStopId:String(currentStopId || ""),
+        currentStopIndex:safeCurrentStopIndex,
+        time:Date.now()
+      }
+    );
 
     return res.json({
       success:true,
@@ -456,6 +521,12 @@ router.get(
 
           routeMode:
             d.routeMode || "",
+
+          currentStopId:
+            d.currentStopId || "",
+
+          currentStopIndex:
+            Number(d.currentStopIndex || 0),
 
           lat:
             Number(d.lat),
