@@ -82,7 +82,7 @@ const API_ADD_STOP_CONFIRM = id =>
   `/api/company/add-stop/${encodeURIComponent(id)}/confirm`;
 
 const API_ADD_STOP_CONTEXT = id =>
-  `/api/company/add-stop/${encodeURIComponent(id)}/context`;
+  `/api/company/add-stop/${encodeURIComponent(id)}/request?context=1`;
 
 const DRIVER_LOCATION_ENDPOINTS = id => [
   "/api/admin/live-drivers"
