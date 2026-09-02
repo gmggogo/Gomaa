@@ -34,6 +34,12 @@ const Service =
 const SystemDesign =
   require("../models/SystemDesign");
 
+const LiveDriver =
+  require("../models/LiveDriver");
+
+const routeMapEngine =
+  require("../utils/routeMapEngine");
+
 const {
   sendTripStatusEmail
 } = require("../utils/tripEmailEngine");
@@ -1141,25 +1147,94 @@ function extractLatLngFromObject(obj){
 
 async function getLiveDriverLocation(trip){
 
-  const direct =
-    extractLatLngFromObject(
+  const liveState =
+    await getLiveDriverState(
       trip
     );
 
-  if(direct){
+  const routeMapLocation =
+    getFreshRouteMapLocation(
+      trip
+    );
 
-    return direct;
+  if(routeMapLocation){
+
+    return routeMapLocation;
 
   }
 
+  const liveLocation =
+    extractLatLngFromObject(
+      liveState
+    );
+
+  if(liveLocation){
+
+    return liveLocation;
+
+  }
+
+  return extractLatLngFromObject(
+    trip
+  );
+
+}
+
+function sameAddressCollection(first,second){
+
+  const a =
+    sanitizeAddressArray(first)
+      .map(lower)
+      .sort();
+
+  const b =
+    sanitizeAddressArray(second)
+      .map(lower)
+      .sort();
+
+  return sameAddressArray(a,b);
+
+}
+
+function getFreshRouteMapLocation(trip){
+
+  const tripId =
+    String(
+      trip?._id || ""
+    );
+
   if(
-    !global.liveDrivers ||
-    typeof global.liveDrivers.values !== "function"
+    !tripId ||
+    !routeMapEngine ||
+    typeof routeMapEngine.getLastLocation !== "function"
   ){
 
     return null;
 
   }
+
+  const point =
+    routeMapEngine.getLastLocation(
+      tripId
+    );
+
+  if(
+    !point ||
+    !Number.isFinite(Number(point.t)) ||
+    Date.now() - Number(point.t) > 1000 * 60 * 5
+  ){
+
+    return null;
+
+  }
+
+  return extractLatLngFromObject(
+    point
+  );
+
+}
+
+async function getLiveDriverState(trip){
 
   const tripId =
     String(
@@ -1170,6 +1245,72 @@ async function getLiveDriverLocation(trip){
     String(
       trip?.driverId || ""
     );
+
+  const tenantId =
+    trip?.tenantId || null;
+
+  const since =
+    new Date(
+      Date.now() -
+      1000 * 60 * 5
+    );
+
+  if(tenantId){
+
+    const conditions = [];
+
+    if(tripId){
+      conditions.push({tripId});
+    }
+
+    if(driverId){
+      conditions.push({driverId});
+    }
+
+    if(conditions.length){
+
+      try{
+
+        const saved =
+          await LiveDriver.findOne({
+            tenantId,
+            lastSeen:{$gte:since},
+            $or:conditions
+          })
+          .sort({lastSeen:-1})
+          .lean();
+
+        if(
+          saved &&
+          (
+            !saved.tripId ||
+            String(saved.tripId) === tripId
+          )
+        ){
+
+          return saved;
+
+        }
+
+      }catch(err){
+
+        console.error(
+          "LIVE DRIVER LOOKUP ERROR:",
+          err
+        );
+
+      }
+    }
+  }
+
+  if(
+    !global.liveDrivers ||
+    typeof global.liveDrivers.values !== "function"
+  ){
+
+    return null;
+
+  }
 
   const list =
     Array.from(
@@ -1190,18 +1331,101 @@ async function getLiveDriverLocation(trip){
         );
 
       return (
-        itemTripId === tripId ||
+        (
+          itemTripId === tripId &&
+          (
+            !tenantId ||
+            !item?.tenantId ||
+            String(item.tenantId) === String(tenantId)
+          )
+        ) ||
         (
           driverId &&
-          itemDriverId === driverId
+          itemDriverId === driverId &&
+          (
+            !tenantId ||
+            !item?.tenantId ||
+            String(item.tenantId) === String(tenantId)
+          )
         )
       );
 
     });
 
-  return extractLatLngFromObject(
-    found
-  );
+  return found || null;
+
+}
+
+function extractCurrentStopIndex(obj){
+
+  if(
+    !obj ||
+    typeof obj !== "object"
+  ){
+
+    return null;
+
+  }
+
+  const value =
+    obj.currentStopIndex ??
+    obj.routeStopIndex ??
+    obj.activeStopIndex ??
+    obj.stopExecution?.currentStopIndex;
+
+  if(
+    Number.isInteger(Number(value)) &&
+    Number(value) >= 0
+  ){
+
+    return Number(value);
+
+  }
+
+  return null;
+
+}
+
+async function getRouteProgress(trip){
+
+  const liveState =
+    await getLiveDriverState(
+      trip
+    );
+
+  const currentStopIndex =
+    extractCurrentStopIndex(
+      liveState
+    ) ??
+    extractCurrentStopIndex(
+      trip
+    ) ??
+    0;
+
+  const totalStops =
+    normalizeStops(
+      trip?.stops
+    ).length;
+
+  /*
+    Driver route indexes are:
+    0 = Pickup
+    1..N = Intermediate Stops
+    N + 1 = Dropoff
+  */
+  const completedStopCount =
+    Math.max(
+      0,
+      Math.min(
+        totalStops,
+        currentStopIndex - 1
+      )
+    );
+
+  return {
+    currentStopIndex,
+    completedStopCount
+  };
 
 }
 
@@ -1656,12 +1880,12 @@ function validateRouteChangePayload(
   }
 
   if(
-    editedExistingStops.length !==
+    editedExistingStops.length >
     actualStops.length
   ){
 
     throw new Error(
-      "Existing stop information is incomplete"
+      "Existing stop information is invalid"
     );
 
   }
@@ -1675,25 +1899,29 @@ function validateRouteChangePayload(
   }
 
   if(
-    actualStops.length +
-    addedStops.length >
-    MAX_STOPS
-  ){
-
-    throw new Error(
-      `Maximum ${MAX_STOPS} total stops allowed`
-    );
-
-  }
-
-  if(
     finalStops.length !==
-    actualStops.length +
+    editedExistingStops.length +
     addedStops.length
   ){
 
     throw new Error(
       "Final stop list is invalid"
+    );
+
+  }
+
+  if(
+    !sameAddressCollection(
+      finalStops,
+      [
+        ...editedExistingStops,
+        ...addedStops
+      ]
+    )
+  ){
+
+    throw new Error(
+      "Final stop list does not match the submitted route changes"
     );
 
   }
@@ -1781,34 +2009,55 @@ async function buildUpdatedRoutePoints(
   }
 
   /*
-    During trip:
-    Keep any already-travelled route points
-    submitted by the page.
+    During trip, the server builds the route itself:
+    Pickup -> completed stop(s) -> live driver location
+    -> remaining/new stop(s) -> Dropoff.
 
-    Expected:
-    Pickup -> previous/completed stop(s)
-    -> driver location -> new/remaining stops
-    -> Dropoff
+    Google Directions calculates driving-road distance for every leg.
+    Client-submitted route points are never trusted for final pricing.
   */
 
-  const submitted =
-    sanitizeRoutePoints(
-      body?.newRoutePoints ||
-      body?.finalRoutePoints
+  const progress =
+    await getRouteProgress(
+      trip
     );
 
-  if(submitted.length >= 2){
+  const completedStops =
+    validated.existingStopsBefore.slice(
+      0,
+      progress.completedStopCount
+    );
 
-    return submitted;
+  const submittedCompletedStops =
+    validated.finalStops.slice(
+      0,
+      progress.completedStopCount
+    );
+
+  if(
+    !sameAddressArray(
+      submittedCompletedStops,
+      completedStops
+    )
+  ){
+
+    throw new Error(
+      "Completed stops cannot be edited, deleted, or reordered"
+    );
 
   }
 
+  const remainingStops =
+    validated.finalStops.slice(
+      progress.completedStopCount
+    );
+
   const driverLocation =
-    extractLatLngFromObject(
-      body?.driverLocationAtConfirm
-    ) ||
     await getLiveDriverLocation(
       trip
+    ) ||
+    extractLatLngFromObject(
+      body?.driverLocationAtConfirm
     );
 
   if(!driverLocation){
@@ -1823,9 +2072,11 @@ async function buildUpdatedRoutePoints(
 
     validated.pickup,
 
+    ...completedStops,
+
     driverLocation,
 
-    ...validated.finalStops,
+    ...remainingStops,
 
     validated.dropoffAfter
 
@@ -1923,8 +2174,8 @@ function calculateGetQuotePrice({
     }
 
     total =
-      hours *
-      hourlyRate;
+      (hours * hourlyRate) +
+      (n(stops) * stopFee);
 
   }else if(pricingMode === "SHARED"){
 
@@ -2024,11 +2275,16 @@ function calculateGetQuotePrice({
    SAFE TRIP RESPONSE
 ========================= */
 
-function buildSafeCustomerTrip(
+async function buildSafeCustomerTrip(
   trip,
   service,
   policy
 ){
+
+  const routeProgress =
+    await getRouteProgress(
+      trip
+    );
 
   return {
 
@@ -2126,9 +2382,15 @@ function buildSafeCustomerTrip(
       ),
 
     driverLocationAtRequest:
-      extractLatLngFromObject(
+      await getLiveDriverLocation(
         trip
       ),
+
+    currentStopIndex:
+      routeProgress.currentStopIndex,
+
+    completedStopCount:
+      routeProgress.completedStopCount,
 
     tripInProgress:
       tripIsInProgress(trip),
@@ -2258,7 +2520,7 @@ router.get(
         success:true,
 
         trip:
-          buildSafeCustomerTrip(
+          await buildSafeCustomerTrip(
             trip,
             service,
             policy
