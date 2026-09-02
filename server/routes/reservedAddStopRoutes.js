@@ -9,9 +9,14 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+const fetch = require("node-fetch");
 const Service = require("../models/Service");
+const LiveDriver = require("../models/LiveDriver");
+const routeMapEngine = require("../utils/routeMapEngine");
 
 const router = express.Router();
+const MAX_STOPS = 5;
+const LIVE_LOCATION_MAX_AGE_MS = 5 * 60 * 1000;
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -108,8 +113,24 @@ function getTripModel(){
 
 function clean(v){ return String(v ?? "").trim(); }
 function upper(v){ return clean(v).toUpperCase(); }
+function lower(v){ return clean(v).toLowerCase(); }
 function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
 function bool(v){ return v === true || ["true","1","yes"].includes(clean(v).toLowerCase()); }
+function safeArray(v){ return Array.isArray(v) ? v : []; }
+function getStopAddress(stop){
+  if(typeof stop === "string") return clean(stop);
+  if(!stop || typeof stop !== "object") return "";
+  return clean(stop.address || stop.stopAddress || stop.fullAddress || stop.formattedAddress || stop.formatted_address || stop.description || stop.location || stop.label || "");
+}
+function normalizeStops(value){ return safeArray(value).map(getStopAddress).filter(Boolean); }
+function sameAddress(a,b){ return lower(a) === lower(b); }
+function sameAddressArray(a,b){
+  const first = normalizeStops(a), second = normalizeStops(b);
+  return first.length === second.length && first.every((value,index)=>sameAddress(value,second[index]));
+}
+function sameAddressCollection(a,b){
+  return sameAddressArray(normalizeStops(a).map(lower).sort(),normalizeStops(b).map(lower).sort());
+}
 
 function normalizeCode(v){
   const c = upper(v).replace(/[_-]/g," ").replace(/\s+/g," ").trim();
@@ -229,11 +250,113 @@ function detailed(arr){
 }
 
 function edits(arr){
-  return Array.isArray(arr) ? arr.map((item,index)=>({
-    index:n(item?.index ?? index),
-    oldAddress:clean(item?.oldAddress),
-    newAddress:clean(item?.newAddress || (typeof item === "string" ? item : ""))
-  })).filter(item=>item.newAddress) : [];
+  return safeArray(arr).map(item=>getStopAddress(item?.newAddress || item)).filter(Boolean);
+}
+
+function tripIsInProgress(trip){
+  const status = lower(trip?.status).replace(/[\s_-]+/g,"");
+  return ["ontrip","started","inprogress","pickedup","pickupcompleted","passengerpickedup","enroute","active"].includes(status);
+}
+
+function extractLatLngFromObject(obj){
+  if(!obj || typeof obj !== "object") return null;
+  const lat = obj.lat ?? obj.latitude ?? obj.driverLat ?? obj.currentLat ?? obj.locationLat;
+  const lng = obj.lng ?? obj.lon ?? obj.long ?? obj.longitude ?? obj.driverLng ?? obj.currentLng ?? obj.locationLng;
+  if(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) return {lat:Number(lat),lng:Number(lng)};
+  for(const item of [obj.currentLocation,obj.driverLocation,obj.liveLocation,obj.location,obj.coords,obj.position,obj.assignment,obj.driver,obj.data]){
+    const found = extractLatLngFromObject(item);
+    if(found) return found;
+  }
+  return null;
+}
+
+function getFreshRouteMapLocation(trip){
+  const id = clean(trip?._id);
+  if(!id || !routeMapEngine || typeof routeMapEngine.getLastLocation !== "function") return null;
+  const point = routeMapEngine.getLastLocation(id);
+  if(!point || !Number.isFinite(Number(point.t)) || Date.now() - Number(point.t) > LIVE_LOCATION_MAX_AGE_MS) return null;
+  return extractLatLngFromObject(point);
+}
+
+async function getLiveDriverState(trip){
+  const tripId = clean(trip?._id);
+  const driverId = clean(trip?.driverId || trip?.assignedDriverId || trip?.driver?._id || trip?.driver);
+  const tenantId = trip?.tenantId || null;
+  const conditions = [];
+  if(tripId) conditions.push({tripId});
+  if(driverId) conditions.push({driverId});
+  if(tenantId && conditions.length){
+    try{
+      const saved = await LiveDriver.findOne({tenantId,lastSeen:{$gte:new Date(Date.now()-LIVE_LOCATION_MAX_AGE_MS)},$or:conditions}).sort({lastSeen:-1}).lean();
+      if(saved && (!saved.tripId || String(saved.tripId) === tripId)) return saved;
+    }catch(err){ console.error("RESERVED LIVE DRIVER LOOKUP ERROR:",err); }
+  }
+  if(!global.liveDrivers || typeof global.liveDrivers.values !== "function") return null;
+  return Array.from(global.liveDrivers.values()).find(item=>{
+    const sameTenant = !tenantId || !item?.tenantId || String(item.tenantId) === String(tenantId);
+    return sameTenant && (clean(item?.tripId) === tripId || (driverId && clean(item?.driverId) === driverId));
+  }) || null;
+}
+
+async function getLiveDriverLocation(trip){
+  return getFreshRouteMapLocation(trip) || extractLatLngFromObject(await getLiveDriverState(trip)) || extractLatLngFromObject(trip);
+}
+
+function extractCurrentStopIndex(obj){
+  const value = obj?.currentStopIndex ?? obj?.routeStopIndex ?? obj?.activeStopIndex ?? obj?.stopExecution?.currentStopIndex;
+  return Number.isInteger(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+}
+
+async function getRouteProgress(trip){
+  const liveState = await getLiveDriverState(trip);
+  const currentStopIndex = extractCurrentStopIndex(liveState) ?? extractCurrentStopIndex(trip) ?? 0;
+  const totalStops = normalizeStops(trip?.stops).length;
+  return {currentStopIndex,completedStopCount:Math.max(0,Math.min(totalStops,currentStopIndex-1))};
+}
+
+function isLatLngPoint(point){ return point && typeof point === "object" && Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng)); }
+function sanitizeRoutePoint(point){
+  if(typeof point === "string") return clean(point) || null;
+  return isLatLngPoint(point) ? {lat:Number(point.lat),lng:Number(point.lng)} : null;
+}
+function pointToGoogleValue(point){ return typeof point === "string" ? point : isLatLngPoint(point) ? `${Number(point.lat)},${Number(point.lng)}` : ""; }
+
+async function calculateGoogleRoute(routePoints){
+  const key = process.env.GOOGLE_SERVER_KEY;
+  if(!key) throw new Error("Google Maps key is missing");
+  const points = safeArray(routePoints).map(sanitizeRoutePoint).filter(Boolean).slice(0,25);
+  if(points.length < 2) throw new Error("At least two route points are required");
+  const params = new URLSearchParams();
+  params.set("origin",pointToGoogleValue(points[0]));
+  params.set("destination",pointToGoogleValue(points[points.length-1]));
+  params.set("mode","driving"); params.set("units","imperial"); params.set("key",key);
+  if(points.length > 2) params.set("waypoints",points.slice(1,-1).map(pointToGoogleValue).join("|"));
+  const response = await fetch("https://maps.googleapis.com/maps/api/directions/json?"+params.toString());
+  const data = await response.json().catch(()=>({}));
+  if(!response.ok || data.status !== "OK" || !data.routes?.[0]) throw new Error(data.error_message || `Google route failed: ${data.status || response.status}`);
+  const route = data.routes[0], legs = safeArray(route.legs);
+  const distanceMeters = legs.reduce((sum,leg)=>sum+n(leg?.distance?.value),0);
+  const durationSeconds = legs.reduce((sum,leg)=>sum+n(leg?.duration?.value),0);
+  return {miles:Number((distanceMeters*0.000621371).toFixed(2)),distanceMeters,durationSeconds,estimatedMinutes:Math.ceil(durationSeconds/60),routePoints:points,googleRoute:{summary:route.summary||"",waypointOrder:safeArray(route.waypoint_order),overviewPolyline:route?.overview_polyline?.points||"",legs:legs.map((leg,index)=>({legIndex:index,startAddress:leg?.start_address||"",endAddress:leg?.end_address||"",distanceText:leg?.distance?.text||"",distanceMeters:n(leg?.distance?.value),durationText:leg?.duration?.text||"",durationSeconds:n(leg?.duration?.value)}))}};
+}
+
+async function buildServerRouteChange(trip,finalStops,dropoffAfter){
+  const pickup = clean(trip.pickup || trip.pickupAddress), dropoffBefore = clean(trip.dropoff || trip.dropoffAddress);
+  const actualStops = normalizeStops(trip.stops), inProgress = tripIsInProgress(trip), progress = await getRouteProgress(trip);
+  let mode="BEFORE_START", driverLocationAtConfirm=null, originalRoutePoints=[], newRoutePoints=[];
+  if(inProgress){
+    mode="IN_PROGRESS"; driverLocationAtConfirm=await getLiveDriverLocation(trip);
+    if(!driverLocationAtConfirm) throw new Error("Driver current location is unavailable");
+    const completedStops=actualStops.slice(0,progress.completedStopCount);
+    if(!sameAddressArray(finalStops.slice(0,progress.completedStopCount),completedStops)) throw new Error("Completed stops cannot be edited, deleted, or reordered");
+    originalRoutePoints=[pickup,...completedStops,driverLocationAtConfirm,...actualStops.slice(progress.completedStopCount),dropoffBefore].filter(Boolean);
+    newRoutePoints=[pickup,...completedStops,driverLocationAtConfirm,...finalStops.slice(progress.completedStopCount),dropoffAfter].filter(Boolean);
+  }else{
+    originalRoutePoints=[pickup,...actualStops,dropoffBefore].filter(Boolean);
+    newRoutePoints=[pickup,...finalStops,dropoffAfter].filter(Boolean);
+  }
+  const originalRouteData=await calculateGoogleRoute(originalRoutePoints), newRouteData=await calculateGoogleRoute(newRoutePoints);
+  return {mode,currentStopIndex:progress.currentStopIndex,completedStopCount:progress.completedStopCount,driverLocationAtConfirm,originalRoutePoints,newRoutePoints,originalRouteData,newRouteData,originalRemainingMiles:originalRouteData.miles,newRemainingMiles:newRouteData.miles,extraMiles:Number((newRouteData.miles-originalRouteData.miles).toFixed(2))};
 }
 
 router.get("/add-stop/ping",requireTenantApi,(req,res)=>{
@@ -268,19 +391,35 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
       return res.status(409).json({success:false,message:"This trip already has an active route change request"});
     }
 
-    if(!currentActiveRequest){
-      enforcePolicy(trip,policy);
-    }
+    enforcePolicy(trip,policy);
 
     const body = req.body || {};
-    const pickup = clean(body.pickup || trip.pickup || trip.pickupAddress);
-    const dropoffBefore = clean(body.dropoffBefore || trip.dropoff || trip.dropoffAddress);
+    const pickup = clean(trip.pickup || trip.pickupAddress);
+    const dropoffBefore = clean(trip.dropoff || trip.dropoffAddress);
     const dropoffAfter = clean(body.dropoffAfter || body.finalDropoff || dropoffBefore);
-    const existingStopsBefore = strings(body.existingStopsBefore || trip.stops);
+    const existingStopsBefore = normalizeStops(trip.stops);
     const editedExistingStops = edits(body.editedExistingStops);
     const addedStops = strings(body.addedStops);
     const addedStopsDetailed = detailed(body.addedStopsDetailed);
     const finalStops = strings(body.finalStops);
+
+    if(clean(body.pickup) && !sameAddress(body.pickup,pickup)){
+      return res.status(409).json({success:false,message:"Pickup changed. Reload the trip and try again"});
+    }
+    if(clean(body.dropoffBefore) && !sameAddress(body.dropoffBefore,dropoffBefore)){
+      return res.status(409).json({success:false,message:"Dropoff changed. Reload the trip and try again"});
+    }
+    if(finalStops.length > MAX_STOPS){
+      return res.status(400).json({success:false,message:`A trip can have up to ${MAX_STOPS} stops`});
+    }
+
+    const editorBaseline = currentActiveRequest ? normalizeStops(currentActiveRequest.finalStops) : existingStopsBefore;
+    if(editedExistingStops.length > editorBaseline.length){
+      return res.status(400).json({success:false,message:"Invalid existing stop list"});
+    }
+    if(finalStops.length !== editedExistingStops.length + addedStops.length || !sameAddressCollection(finalStops,[...editedExistingStops,...addedStops])){
+      return res.status(400).json({success:false,message:"Final stops do not match the submitted changes"});
+    }
 
     const routeStopsChanged =
       JSON.stringify(
@@ -318,6 +457,8 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
       return res.status(400).json({success:false,message:"No route change detected"});
     }
 
+    const serverRoute = await buildServerRouteChange(trip,finalStops,dropoffAfter);
+
     trip.addStopRequest = {
       active:true,
       status:body.status || "PENDING_REVIEW",
@@ -331,20 +472,22 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
       clientName:clean(body.clientName || trip.clientName),
       tripStatusAtConfirm:clean(body.tripStatusAtConfirm || trip.status),
       confirmedAt:body.confirmedAt || new Date(),
-      mode:clean(body.mode),
-      maxStops:Math.min(5,Math.max(0,n(body.maxStops || 5))),
+      mode:serverRoute.mode,
+      maxStops:MAX_STOPS,
       pickup,dropoffBefore,dropoffAfter,
       existingStopsBefore,editedExistingStops,addedStops,addedStopsDetailed,finalStops,
-      finalRoutePoints:Array.isArray(body.finalRoutePoints) ? body.finalRoutePoints : [],
-      driverLocationAtConfirm:body.driverLocationAtConfirm || null,
+      finalRoutePoints:serverRoute.newRoutePoints,
+      driverLocationAtConfirm:serverRoute.driverLocationAtConfirm,
+      currentStopIndex:serverRoute.currentStopIndex,
+      completedStopCount:serverRoute.completedStopCount,
       beforeStopChange:body.beforeStopChange || {},
-      originalRoutePoints:Array.isArray(body.originalRoutePoints) ? body.originalRoutePoints : [],
-      newRoutePoints:Array.isArray(body.newRoutePoints) ? body.newRoutePoints : [],
-      originalRemainingMiles:n(body.originalRemainingMiles),
-      newRemainingMiles:n(body.newRemainingMiles),
-      extraMiles:n(body.extraMiles),
-      originalRouteData:body.originalRouteData || {},
-      newRouteData:body.newRouteData || {},
+      originalRoutePoints:serverRoute.originalRoutePoints,
+      newRoutePoints:serverRoute.newRoutePoints,
+      originalRemainingMiles:serverRoute.originalRemainingMiles,
+      newRemainingMiles:serverRoute.newRemainingMiles,
+      extraMiles:serverRoute.extraMiles,
+      originalRouteData:serverRoute.originalRouteData,
+      newRouteData:serverRoute.newRouteData,
       createdAt:
         currentActiveRequest?.createdAt ||
         new Date(),
@@ -384,9 +527,20 @@ router.get("/add-stop/:id/request",requireTenantApi,async (req,res)=>{
     const Trip = getTripModel();
     const trip = await Trip.findOne(tenantFilter(req,{_id:req.params.id})).lean();
     if(!trip) return res.status(404).json({success:false,message:"Trip not found"});
-    return res.json({success:true,tripId:trip._id,tripNumber:trip.tripNumber,addStopRequest:trip.addStopRequest || null});
+    if(!bool(req.query?.context)){
+      return res.json({success:true,tripId:trip._id,tripNumber:trip.tripNumber,addStopRequest:trip.addStopRequest || null});
+    }
+    if(tripClosed(trip)) return res.status(400).json({success:false,allowed:false,message:"This trip is closed and cannot be modified"});
+    if(trip.isShared === true || upper(trip.tripType) === "SHARED" || tripServiceCode(trip) === "SH"){
+      return res.status(400).json({success:false,allowed:false,message:"Add Stop is not available for shared trips"});
+    }
+    const addStopPolicy = await resolveReservedPolicy(trip,req);
+    enforcePolicy(trip,addStopPolicy);
+    const progress = await getRouteProgress(trip);
+    const driverLocationAtRequest = tripIsInProgress(trip) ? await getLiveDriverLocation(trip) : null;
+    return res.json({success:true,allowed:true,tripId:trip._id,tripNumber:trip.tripNumber,addStopRequest:trip.addStopRequest || null,addStopPolicy,tripStatus:trip.status || "",tripInProgress:tripIsInProgress(trip),currentStopIndex:progress.currentStopIndex,completedStopCount:progress.completedStopCount,driverLocationAtRequest});
   }catch(err){
-    return res.status(500).json({success:false,message:err.message || "Failed to load request"});
+    return res.status(err.statusCode || 500).json({success:false,allowed:false,message:err.message || "Failed to load request"});
   }
 });
 
