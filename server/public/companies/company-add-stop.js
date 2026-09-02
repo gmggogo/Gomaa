@@ -81,6 +81,9 @@ const API_COMPANY_TRIPS = companyName
 const API_ADD_STOP_CONFIRM = id =>
   `/api/company/add-stop/${encodeURIComponent(id)}/confirm`;
 
+const API_ADD_STOP_CONTEXT = id =>
+  `/api/company/add-stop/${encodeURIComponent(id)}/context`;
+
 const DRIVER_LOCATION_ENDPOINTS = id => [
   "/api/admin/live-drivers"
 ];
@@ -828,7 +831,41 @@ async function fetchTripById(){
 
 async function reloadFreshTrip(){
   currentTrip = await fetchTripById();
+  currentTrip = await applyAddStopContext(currentTrip);
   return currentTrip;
+}
+
+async function applyAddStopContext(trip){
+
+  const res = await fetch(
+    API_ADD_STOP_CONTEXT(tripId),
+    {
+      method:"GET",
+      cache:"no-store",
+      headers:{
+        Accept:"application/json",
+        Authorization:"Bearer " + token
+      }
+    }
+  );
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false || data.allowed !== true){
+    throw new Error(
+      data.message ||
+      "Add Stop is not available for this trip"
+    );
+  }
+
+  return {
+    ...trip,
+    addStopPolicy:data.addStopPolicy || {},
+    tripInProgress:data.tripInProgress === true,
+    currentStopIndex:Number(data.currentStopIndex || 0),
+    completedStopCount:Number(data.completedStopCount || 0),
+    driverLocationAtRequest:data.driverLocationAtRequest || null
+  };
 }
 
 /* ================= TRIP RULES ================= */
@@ -892,6 +929,34 @@ function tripIsInProgress(trip){
   ].includes(s);
 }
 
+function getCompletedStopCount(trip,totalStops){
+
+  const directCount = Number(trip?.completedStopCount);
+  const currentStopIndex = Number(trip?.currentStopIndex);
+
+  const count =
+    Number.isInteger(directCount) && directCount >= 0
+      ? directCount
+      : Number.isInteger(currentStopIndex) && currentStopIndex >= 0
+        ? Math.max(0,currentStopIndex - 1)
+        : 0;
+
+  return Math.max(
+    0,
+    Math.min(Number(totalStops || 0),count)
+  );
+}
+
+function existingStopIsCompleted(trip,index){
+  return (
+    tripIsInProgress(trip) &&
+    Number(index) < getCompletedStopCount(
+      trip,
+      getExistingStops(trip).length
+    )
+  );
+}
+
 function getClientName(trip){
   return (
     trip.clientName ||
@@ -930,7 +995,24 @@ function getStoredStops(trip){
   }
 
   return trip.stops
-    .map(s => normalizeAddress(s))
+    .map(s => {
+
+      if(typeof s === "string"){
+        return normalizeAddress(s);
+      }
+
+      return normalizeAddress(
+        s?.address ||
+        s?.stopAddress ||
+        s?.fullAddress ||
+        s?.formattedAddress ||
+        s?.formatted_address ||
+        s?.description ||
+        s?.location ||
+        s?.label ||
+        ""
+      );
+    })
     .filter(Boolean);
 }
 
@@ -1313,6 +1395,13 @@ async function fetchDriverLocationFromServer(id){
 
 async function getFreshDriverLocation(trip){
 
+  const fromContext =
+    extractLatLngFromObject(
+      trip?.driverLocationAtRequest
+    );
+
+  if(fromContext) return fromContext;
+
   const fromTrip =
     getDriverLocationFromTrip(trip);
 
@@ -1431,7 +1520,7 @@ function updateSubmitButtonState(){
 
 /* ================= UI RENDER HELPERS ================= */
 
-function renderRoutePoint({type,label,value,index,dataIndex=null,isLast,editable=false,edited=false}){
+function renderRoutePoint({type,label,value,index,dataIndex=null,isLast,editable=false,edited=false,completed=false}){
 
   const icon =
     type === "pickup"
@@ -1493,6 +1582,7 @@ function renderRoutePoint({type,label,value,index,dataIndex=null,isLast,editable
           <div class="route-card-head-left">
             <div>${esc(label)}</div>
             ${edited ? `<span class="edited">EDITED</span>` : ""}
+            ${completed ? `<span class="edited">COMPLETED</span>` : ""}
           </div>
 
           ${editButton}
@@ -1679,6 +1769,7 @@ function renderConfirmedNewStop(stop){
 
 function getCurrentStopCount(){
   return (
+    getEditedExistingStops(currentTrip || {}).length +
     totalConfirmedNewStops() +
     newStopDrafts.length
   );
@@ -1787,6 +1878,12 @@ function renderRouteEditor(trip){
   const existingEdited =
     existingEditedEntries.map(entry=>entry.address);
 
+  const completedStopCount =
+    getCompletedStopCount(
+      trip,
+      existingOriginal.length
+    );
+
   const points = [];
 
   points.push({
@@ -1799,13 +1896,21 @@ function renderRouteEditor(trip){
   });
 
   existingEditedEntries.forEach((entry,index)=>{
+
+    const completed =
+      existingStopIsCompleted(
+        trip,
+        entry.originalIndex
+      );
+
     points.push({
       type:"stop",
       label:`Stop ${index + 1}`,
       value:entry.address,
       index:index + 1,
       dataIndex:entry.originalIndex,
-      editable:true,
+      editable:!completed,
+      completed,
       edited:
         entry.address !==
         existingOriginal[entry.originalIndex]
@@ -1833,7 +1938,13 @@ function renderRouteEditor(trip){
       isLast
     });
 
-    if(!isLast){
+    if(
+      !isLast &&
+      (
+        !tripIsInProgress(trip) ||
+        index >= completedStopCount
+      )
+    ){
 
       let label = "";
 
@@ -1881,11 +1992,28 @@ function addDraftStop(slotIndex,rowIndex){
 
   hideAlert();
 
+  const completedStopCount =
+    getCompletedStopCount(
+      currentTrip || {},
+      getExistingStops(currentTrip || {}).length
+    );
+
+  if(
+    tripIsInProgress(currentTrip || {}) &&
+    Number(slotIndex) < completedStopCount
+  ){
+    showAlert(
+      "error",
+      "New stops cannot be inserted before completed stops."
+    );
+    return;
+  }
+
   const total =
     getCurrentStopCount();
 
   if(total >= MAX_STOPS){
-    showAlert("error",`Maximum ${MAX_STOPS} added stops allowed`);
+    showAlert("error",`Maximum ${MAX_STOPS} total stops allowed`);
     return;
   }
 
@@ -2045,6 +2173,11 @@ function startExistingEdit(index){
 
   hideAlert();
 
+  if(existingStopIsCompleted(currentTrip || {},index)){
+    showAlert("error","Completed stops cannot be edited or deleted.");
+    return;
+  }
+
   editingExistingIndex =
     Number(index);
 
@@ -2110,6 +2243,11 @@ function removeExistingStop(index){
 
   const originalIndex =
     Number(index);
+
+  if(existingStopIsCompleted(currentTrip || {},originalIndex)){
+    showAlert("error","Completed stops cannot be edited or deleted.");
+    return;
+  }
 
   const stop =
     getExistingStops(currentTrip || {})[originalIndex] || "";
@@ -2252,6 +2390,10 @@ function buildNewRouteBeforeStart(trip,finalStops,dropoffAfter){
   ].filter(Boolean);
 }
 
+function sameRouteAddress(first,second){
+  return clean(first).toLowerCase() === clean(second).toLowerCase();
+}
+
 /* ================= CALCULATION ================= */
 
 async function calculateFinalRouteChange(trip,addedStopObjects){
@@ -2291,17 +2433,45 @@ async function calculateFinalRouteChange(trip,addedStopObjects){
       throw new Error("Driver current location is missing");
     }
 
+    const completedStopCount =
+      getCompletedStopCount(
+        trip,
+        existingStopsBefore.length
+      );
+
+    const completedStops =
+      existingStopsBefore.slice(0,completedStopCount);
+
+    const submittedCompletedStops =
+      finalStops.slice(0,completedStopCount);
+
+    if(
+      submittedCompletedStops.length !== completedStops.length ||
+      !completedStops.every(
+        (stop,index)=>sameRouteAddress(
+          stop,
+          submittedCompletedStops[index]
+        )
+      )
+    ){
+      throw new Error(
+        "Completed stops cannot be edited, deleted, or reordered."
+      );
+    }
+
     originalRoutePoints = [
       pickup,
+      ...completedStops,
       driverLocationAtConfirm,
-      ...existingStopsBefore,
+      ...existingStopsBefore.slice(completedStopCount),
       dropoffBefore
     ].filter(Boolean);
 
     newRoutePoints = [
       pickup,
+      ...completedStops,
       driverLocationAtConfirm,
-      ...finalStops,
+      ...finalStops.slice(completedStopCount),
       dropoffAfter
     ].filter(Boolean);
 
@@ -2712,6 +2882,9 @@ async function init(){
 
     currentTrip =
       await fetchTripById();
+
+    currentTrip =
+      await applyAddStopContext(currentTrip);
 
     if(isSharedTrip(currentTrip)){
       throw new Error("Add Stop is not available for shared trips");
