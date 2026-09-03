@@ -641,9 +641,16 @@ window.Branding = {
     const d =
       this.data || {};
 
+    const isMobile =
+      window.innerWidth <= 768;
+
     const extraAlign =
-      d.extraBoxAlign ||
-      "justify-center";
+      isMobile
+        ? "left"
+        : (
+            d.extraBoxAlign ||
+            "justify-center"
+          );
 
     document
       .querySelectorAll(".extra-box")
@@ -693,14 +700,18 @@ window.Branding = {
 
         title.style.setProperty(
           "font-size",
-          `${d.extraBoxTitleSize || 42}px`,
+          isMobile
+            ? "23px"
+            : `${d.extraBoxTitleSize || 42}px`,
           "important"
         );
 
         this.applyWordElement(
           title,
           title.innerText,
-          extraAlign
+          isMobile
+            ? "center"
+            : extraAlign
         );
 
       });
@@ -721,14 +732,18 @@ window.Branding = {
 
         text.style.setProperty(
           "font-size",
-          `${d.extraBoxTextSize || 22}px`,
+          isMobile
+            ? "15px"
+            : `${d.extraBoxTextSize || 22}px`,
           "important"
         );
 
         this.applyWordElement(
           text,
           text.innerText,
-          extraAlign
+          isMobile
+            ? "left"
+            : extraAlign
         );
 
       });

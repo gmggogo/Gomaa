@@ -344,13 +344,10 @@ body{
 
 .card{
   width:340px;
-  height:560px;
   background:#fff;
   border-radius:26px;
   overflow:hidden;
   box-shadow:0 10px 30px rgba(0,0,0,.10);
-  display:flex;
-  flex-direction:column;
 }
 
 .card-image{
@@ -366,10 +363,6 @@ body{
 .card-body{
   padding:24px;
   text-align:center;
-  display:flex;
-  flex:1;
-  flex-direction:column;
-  min-height:0;
 }
 
 .card h3{
@@ -378,24 +371,15 @@ body{
   color:#111827;
   font-weight:800;
   line-height:1.25;
-  min-height:76px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
 }
 
 .card p{
   font-size:17px;
   color:#6b7280;
-  line-height:1.75;
-  height:120px;
+  line-height:1.9;
   min-height:120px;
-  max-height:120px;
-  overflow:hidden;
   word-break:normal;
   overflow-wrap:break-word;
-  text-align:center;
 }
 
 .card-btn{
@@ -404,7 +388,7 @@ body{
   justify-content:center;
   width:100%;
   height:58px;
-  margin-top:auto;
+  margin-top:20px;
   background:#2563eb;
   color:#fff !important;
   text-decoration:none;
@@ -520,7 +504,7 @@ body{
 
 /* =========================
    MOBILE FIX
-   Mobile Auto Text Mode
+   Clean mobile typography and spacing
 ========================= */
 
 @media(max-width:768px){
@@ -530,16 +514,15 @@ body{
     width:100%;
     max-width:100%;
     overflow-x:hidden !important;
+    -webkit-text-size-adjust:100% !important;
+    text-size-adjust:100% !important;
   }
 
   *{
     max-width:100%;
   }
 
-  /* =========================
-     TOP BAR
-  ========================= */
-
+  /* TOP BAR */
   .top-bar{
     width:100%;
     flex-direction:column;
@@ -565,10 +548,7 @@ body{
     border-radius:12px;
   }
 
-  /* =========================
-     HERO
-  ========================= */
-
+  /* HERO */
   .hero{
     width:100%;
     padding:0;
@@ -596,233 +576,21 @@ body{
     border-radius:20px;
   }
 
-  /* =========================
-     TEXT BOXES
-  ========================= */
-
-.about,
-.quote-header{
-  width:auto !important;
-  max-width:none !important;
-  margin:12px 10px 0 !important;
-  padding:22px 18px !important;
-  border-radius:20px !important;
-}
-
-.quote-header{
-  width:auto !important;
-  margin:10px 4px 0 !important;
-  padding:20px 8px !important;
-  border-radius:18px !important;
-}
-
-.extra-sections{
-  width:100% !important;
-  padding:0 4px 45px !important;
-  gap:14px !important;
-}
-
-.extra-box{
-  width:100% !important;
-  padding:20px 8px !important;
-  border-radius:18px !important;
-}
-  /* =========================
-     MOBILE TITLES
-  ========================= */
-
-#aboutTitle,
-#quoteTitle,
-#extra1TitleView,
-#extra2TitleView,
-.about h2,
-.quote-header h2,
-.extra-box h3{
-  text-align:center !important;
-  text-align-last:center !important;
-
-  direction:ltr !important;
-  unicode-bidi:normal !important;
-
-  font-size:24px !important;
-  line-height:1.18 !important;
-  font-weight:900 !important;
-
-  word-spacing:normal !important;
-  letter-spacing:0 !important;
-
-  margin:0 0 14px 0 !important;
-  padding:0 !important;
-}
-
-  /* =========================
-     MOBILE AUTO TEXT
-  ========================= */
-#aboutText,
-#quoteText,
-#extra1TextView,
-#extra2TextView{
-  width:100% !important;
-  max-width:100% !important;
-
-  text-align:center !important;
-  text-align-last:center !important;
-
-  direction:ltr !important;
-  unicode-bidi:normal !important;
-
-  font-size:14px !important;
-  line-height:1.58 !important;
-  font-weight:400 !important;
-
-  word-spacing:normal !important;
-  letter-spacing:0 !important;
-  word-break:normal !important;
-  overflow-wrap:break-word !important;
-  hyphens:none !important;
-
-  margin:0 !important;
-  padding:0 !important;
-}
-
-
-.extra-box p,
-.extra-box .gh-word-text{
-  text-align:center !important;
-  text-align-last:center !important;
-}
-
-/* =========================
-     SERVICES / CARDS
-  ========================= */
-
-  .services,
-  .services.layout-1,
-  .services.layout-2,
-  .services.layout-4,
-  .services.layout-5{
-    width:100%;
-    max-width:100%;
-    padding:20px 14px 60px;
-    display:grid;
-    grid-template-columns:1fr !important;
-    justify-content:center;
-    gap:20px;
-  }
-
-  .services.layout-5 .card,
-  .services.layout-5 .card:nth-child(4),
-  .services.layout-5 .card:nth-child(5){
-    grid-column:auto !important;
-  }
-
-  .card{
-    width:100% !important;
-    max-width:430px !important;
-    height:520px !important;
-    margin:0 auto !important;
-    border-radius:20px;
-    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
-    display:flex !important;
-    flex-direction:column !important;
-  }
-
-  .card-image{
-    width:100%;
-    height:220px;
-    object-fit:contain;
-  }
-
-  .card-body{
-    padding:18px;
-    display:flex !important;
-    flex:1 !important;
-    flex-direction:column !important;
-    text-align:center !important;
-    align-items:stretch !important;
-  }
-
-  .card h3{
-    font-size:24px !important;
-    line-height:1.3;
-    margin-bottom:10px;
-    min-height:62px !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    text-align:center !important;
-  }
-
-  .card p{
-    font-size:15px !important;
-    line-height:1.65 !important;
-    height:100px !important;
-    min-height:100px !important;
-    max-height:100px !important;
-    overflow:hidden !important;
-    text-align:center !important;
-    text-align-last:center !important;
-  }
-
-  .card-btn{
-    height:50px;
-    font-size:16px;
-    margin-top:auto !important;
-  }
-
-  /* =========================
-     CONTACT
-  ========================= */
-
-  .contact-section{
-    width:100%;
-    padding:36px 14px;
-    font-size:15px !important;
-    line-height:1.8;
-  }
-
-  .contact-section strong{
-    font-size:24px !important;
-    line-height:1.3;
-    display:block;
-    margin-bottom:12px;
-  }
-
-  footer{
-    width:100%;
-    padding:18px 12px;
-    font-size:14px;
-    line-height:1.7;
-  }
-
-}
-
-
-/* =========================================================
-   MOBILE TYPOGRAPHY FINAL OVERRIDE
-   Desktop unchanged. Mobile text is compact and readable.
-========================================================= */
-@media (max-width:768px){
-
-  body{
-    overflow-x:hidden !important;
-    -webkit-text-size-adjust:100% !important;
-    text-size-adjust:100% !important;
-  }
-
+  /* MAIN TEXT BOXES */
   .about,
   .quote-header{
-    width:calc(100% - 28px) !important;
-    max-width:calc(100% - 28px) !important;
-    margin:14px auto 0 !important;
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    margin:16px auto 0 !important;
     padding:22px 20px !important;
-    border-radius:22px !important;
+    border-radius:20px !important;
   }
 
   .extra-sections{
     width:100% !important;
     max-width:100% !important;
-    padding:0 14px 42px !important;
+    margin:0 auto !important;
+    padding:0 16px 40px !important;
     gap:16px !important;
   }
 
@@ -831,44 +599,37 @@ body{
     max-width:100% !important;
     margin:0 auto !important;
     padding:22px 20px !important;
-    border-radius:22px !important;
+    border-radius:20px !important;
   }
 
-  /* Titles only */
+  /* TITLES */
   #aboutTitle,
   #quoteTitle,
   #extra1TitleView,
   #extra2TitleView,
-  #aboutTitle *,
-  #quoteTitle *,
-  #extra1TitleView *,
-  #extra2TitleView *{
+  .about h2,
+  .quote-header h2,
+  .extra-box h3{
     width:100% !important;
-    max-width:100% !important;
-    margin-left:auto !important;
-    margin-right:auto !important;
+    margin:0 0 16px 0 !important;
     padding:0 !important;
 
     font-family:'Segoe UI',Arial,sans-serif !important;
-    font-size:22px !important;
+    font-size:23px !important;
     line-height:1.18 !important;
     font-weight:800 !important;
-    letter-spacing:-0.25px !important;
+    letter-spacing:-0.2px !important;
     word-spacing:0 !important;
 
     text-align:center !important;
     text-align-last:center !important;
+
+    direction:ltr !important;
+    unicode-bidi:normal !important;
     white-space:normal !important;
   }
 
-  #aboutTitle,
-  #quoteTitle,
-  #extra1TitleView,
-  #extra2TitleView{
-    margin-bottom:16px !important;
-  }
-
-  /* Paragraph text */
+  /* BODY COPY */
   #aboutText,
   #quoteText,
   #extra1TextView,
@@ -879,13 +640,12 @@ body{
   #extra2TextView *{
     width:100% !important;
     max-width:100% !important;
-    margin-left:auto !important;
-    margin-right:auto !important;
+    margin:0 !important;
     padding:0 !important;
 
     font-family:'Segoe UI',Arial,sans-serif !important;
     font-size:15px !important;
-    line-height:1.48 !important;
+    line-height:1.5 !important;
     font-weight:400 !important;
     letter-spacing:0 !important;
     word-spacing:0 !important;
@@ -893,16 +653,16 @@ body{
     text-align:left !important;
     text-align-last:auto !important;
 
+    direction:ltr !important;
+    unicode-bidi:normal !important;
+
     white-space:normal !important;
     word-break:normal !important;
     overflow-wrap:normal !important;
     hyphens:none !important;
-
-    direction:ltr !important;
-    unicode-bidi:normal !important;
   }
 
-  /* Keep service cards compact */
+  /* SERVICES / CARDS */
   .services,
   .services.layout-1,
   .services.layout-2,
@@ -910,90 +670,80 @@ body{
   .services.layout-5{
     width:100% !important;
     max-width:100% !important;
-    padding:24px 14px 50px !important;
+    padding:24px 16px 50px !important;
     display:grid !important;
     grid-template-columns:minmax(0,1fr) !important;
     justify-items:center !important;
-    align-items:start !important;
     gap:18px !important;
   }
 
-  .services .card,
   .services.layout-5 .card,
   .services.layout-5 .card:nth-child(4),
   .services.layout-5 .card:nth-child(5){
     grid-column:auto !important;
+  }
+
+  .card{
     width:100% !important;
     max-width:360px !important;
-    height:390px !important;
-    min-height:390px !important;
-    max-height:390px !important;
-    margin:0 auto !important;
-    border-radius:22px !important;
-    overflow:hidden !important;
+    border-radius:20px !important;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
   }
 
-  .services .card-image{
+  .card-image{
     width:100% !important;
-    height:165px !important;
-    min-height:165px !important;
-    max-height:165px !important;
+    height:200px !important;
     object-fit:contain !important;
     object-position:center !important;
-    padding:6px !important;
   }
 
-  .services .card-body{
-    min-height:0 !important;
-    padding:14px 16px 16px !important;
-    display:flex !important;
-    flex-direction:column !important;
-    align-items:stretch !important;
+  .card-body{
+    padding:18px !important;
     text-align:center !important;
   }
 
-  .services .card h3,
-  .services .card h3 *{
-    min-height:48px !important;
-    max-height:48px !important;
-    margin:0 0 8px !important;
-    font-size:20px !important;
-    line-height:1.2 !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
+  .card h3{
+    font-size:22px !important;
+    line-height:1.25 !important;
+    margin-bottom:10px !important;
     text-align:center !important;
-    text-align-last:center !important;
-    overflow:hidden !important;
   }
 
-  .services .card p,
-  .services .card p *,
-  .services .card .gh-word-text,
-  .services .card .gh-word-text *{
-    height:60px !important;
-    min-height:60px !important;
-    max-height:60px !important;
-    margin:0 !important;
+  .card p{
     font-size:14px !important;
-    line-height:1.4 !important;
-    overflow:hidden !important;
-    text-align:center !important;
-    text-align-last:center !important;
+    line-height:1.5 !important;
+    min-height:auto !important;
     word-spacing:0 !important;
     letter-spacing:0 !important;
-    white-space:normal !important;
+    text-align:center !important;
   }
 
-  .services .card-btn,
-  .services .card-btn *{
-    width:100% !important;
-    min-height:46px !important;
-    height:46px !important;
-    margin-top:auto !important;
+  .card-btn{
+    height:50px !important;
     font-size:16px !important;
-    text-align:center !important;
-    justify-content:center !important;
+    margin-top:16px !important;
+  }
+
+  /* CONTACT */
+  .contact-section{
+    width:100% !important;
+    padding:36px 16px !important;
+    font-size:15px !important;
+    line-height:1.6 !important;
+  }
+
+  .contact-section strong{
+    font-size:24px !important;
+    line-height:1.3 !important;
+    display:block !important;
+    margin-bottom:12px !important;
+  }
+
+  footer{
+    width:100% !important;
+    padding:18px 12px !important;
+    font-size:14px !important;
+    line-height:1.6 !important;
   }
 }
 
@@ -1836,7 +1586,7 @@ function applyPageTheme(data){
 
     about.style.padding =
     window.innerWidth <= 768
-    ? "34px 22px"
+    ? "22px 20px"
     : `${data.aboutPadding || 70}px`;
 
   }
@@ -1854,7 +1604,7 @@ function applyPageTheme(data){
 
     quote.style.padding =
     window.innerWidth <= 768
-    ? "34px 22px"
+    ? "22px 20px"
     : `${data.quotePadding || 70}px`;
 
   }
@@ -1878,7 +1628,7 @@ function applyPageTheme(data){
 
     aboutTitle.style.fontSize =
     window.innerWidth <= 768
-    ? `${data.aboutTitleMobileSize || 34}px`
+    ? "23px"
     : `${data.aboutTitleSize || 60}px`;
 
   }
@@ -1890,7 +1640,7 @@ function applyPageTheme(data){
 
     aboutText.style.fontSize =
     window.innerWidth <= 768
-    ? `${data.aboutTextMobileSize || 17}px`
+    ? "15px"
     : `${data.aboutTextSize || 25}px`;
 
   }
@@ -1902,7 +1652,7 @@ function applyPageTheme(data){
 
     quoteTitle.style.fontSize =
     window.innerWidth <= 768
-    ? `${data.quoteTitleMobileSize || 40}px`
+    ? "23px"
     : `${data.quoteTitleSize || 70}px`;
 
   }
@@ -1914,7 +1664,7 @@ function applyPageTheme(data){
 
     quoteText.style.fontSize =
     window.innerWidth <= 768
-    ? `${data.quoteTextMobileSize || 17}px`
+    ? "15px"
     : `${data.quoteTextSize || 24}px`;
 
   }
@@ -2217,101 +1967,6 @@ function forceMobileHomeLayout(){
 
   if(window.innerWidth > 768) return;
 
-  const sections = [
-    document.querySelector(".about"),
-    document.querySelector(".quote-header")
-  ];
-
-  sections.forEach(section=>{
-
-    if(!section) return;
-
-    section.style.setProperty(
-      "width",
-      "calc(100% - 28px)",
-      "important"
-    );
-
-    section.style.setProperty(
-      "max-width",
-      "calc(100% - 28px)",
-      "important"
-    );
-
-    section.style.setProperty(
-      "margin",
-      "14px auto 0",
-      "important"
-    );
-
-    section.style.setProperty(
-      "padding",
-      "22px 18px",
-      "important"
-    );
-
-    section.style.setProperty(
-      "border-radius",
-      "20px",
-      "important"
-    );
-
-  });
-
-  const extraSections =
-  document.getElementById("extraSections");
-
-  if(extraSections){
-
-    extraSections.style.setProperty(
-      "width",
-      "100%",
-      "important"
-    );
-
-    extraSections.style.setProperty(
-      "padding",
-      "0 14px 42px",
-      "important"
-    );
-
-    extraSections.style.setProperty(
-      "gap",
-      "14px",
-      "important"
-    );
-
-  }
-
-  const extraBoxes = [
-    document.getElementById("extraBox1"),
-    document.getElementById("extraBox2")
-  ];
-
-  extraBoxes.forEach(box=>{
-
-    if(!box) return;
-
-    box.style.setProperty(
-      "width",
-      "100%",
-      "important"
-    );
-
-    box.style.setProperty(
-      "padding",
-      "22px 18px",
-      "important"
-    );
-
-    box.style.setProperty(
-      "border-radius",
-      "20px",
-      "important"
-    );
-
-  });
-
   const titles = [
     "aboutTitle",
     "quoteTitle",
@@ -2322,7 +1977,7 @@ function forceMobileHomeLayout(){
   titles.forEach(id=>{
 
     const el =
-    document.getElementById(id);
+      document.getElementById(id);
 
     if(!el) return;
 
@@ -2341,7 +1996,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-size",
-      "22px",
+      "23px",
       "important"
     );
 
@@ -2353,7 +2008,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-weight",
-      "900",
+      "800",
       "important"
     );
 
@@ -2365,19 +2020,19 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "text-align-last",
-      "auto",
+      "center",
       "important"
     );
 
     el.style.setProperty(
-      "margin",
-      "0 0 14px 0",
-      "important"
-    );
-
-    el.style.setProperty(
-      "padding",
+      "word-spacing",
       "0",
+      "important"
+    );
+
+    el.style.setProperty(
+      "letter-spacing",
+      "-0.2px",
       "important"
     );
 
@@ -2393,12 +2048,12 @@ function forceMobileHomeLayout(){
   texts.forEach(id=>{
 
     const el =
-    document.getElementById(id);
+      document.getElementById(id);
 
     if(!el) return;
 
     el.classList.remove(
-      "gh-align-left",
+      "gh-align-center",
       "gh-align-right",
       "gh-align-justify",
       "gh-align-justify-left",
@@ -2418,7 +2073,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "line-height",
-      "1.48",
+      "1.5",
       "important"
     );
 
@@ -2441,38 +2096,8 @@ function forceMobileHomeLayout(){
     );
 
     el.style.setProperty(
-      "direction",
-      "ltr",
-      "important"
-    );
-
-    el.style.setProperty(
-      "unicode-bidi",
-      "normal",
-      "important"
-    );
-
-    el.style.setProperty(
-      "max-width",
-      "100%",
-      "important"
-    );
-
-    el.style.setProperty(
-      "margin-left",
-      "auto",
-      "important"
-    );
-
-    el.style.setProperty(
-      "margin-right",
-      "auto",
-      "important"
-    );
-
-    el.style.setProperty(
       "word-spacing",
-      "normal",
+      "0",
       "important"
     );
 
@@ -2490,25 +2115,13 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "overflow-wrap",
-      "break-word",
+      "normal",
       "important"
     );
 
     el.style.setProperty(
-      "hyphens",
-      "none",
-      "important"
-    );
-
-    el.style.setProperty(
-      "margin",
-      "0 auto",
-      "important"
-    );
-
-    el.style.setProperty(
-      "padding",
-      "0",
+      "white-space",
+      "normal",
       "important"
     );
 
