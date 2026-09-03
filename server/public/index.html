@@ -1180,10 +1180,7 @@ id="extraSections">
 
 <script>
 
-let currentLang =
-  localStorage.getItem("ghPublicLanguage") === "es"
-  ? "es"
-  : "en";
+let currentLang = "en";
 
 /* =========================
    BASIC HELPERS
@@ -1335,7 +1332,7 @@ function updateLangButtons(){
 ========================= */
 
 let googleTranslateReady = false;
-let pendingGoogleLang = currentLang;
+let pendingGoogleLang = "en";
 
 function clearGoogleTranslateCookie(){
 
@@ -1465,10 +1462,6 @@ window.googleTranslateElementInit = function(){
   );
 
   googleTranslateReady = true;
-
-  queueGoogleTranslate(
-    currentLang
-  );
 
 };
 
@@ -1920,26 +1913,24 @@ updateServicesLayout();
 
 window.setLang = function(lang){
 
-  const nextLang =
+  currentLang =
   lang === "es"
   ? "es"
   : "en";
 
-  localStorage.setItem(
-    "ghPublicLanguage",
-    nextLang
-  );
+  renderPage();
 
-  currentLang =
-  nextLang;
+  if(currentLang === "es"){
 
-  if(nextLang === "es"){
     setGoogleTranslateCookie("es");
-  }else{
-    clearGoogleTranslateCookie();
-  }
+    queueGoogleTranslate("es");
 
-  window.location.reload();
+  }else{
+
+    clearGoogleTranslateCookie();
+    applyGoogleTranslate("en");
+
+  }
 
 };
 
@@ -1950,6 +1941,10 @@ window.setLang = function(lang){
 window.addEventListener(
   "DOMContentLoaded",
   async ()=>{
+
+    currentLang = "en";
+    pendingGoogleLang = "en";
+    clearGoogleTranslateCookie();
 
     await Branding.load();
 
