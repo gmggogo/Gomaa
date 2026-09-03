@@ -2630,3 +2630,46 @@ body.driver-dashboard-page{
     padding:12px 16px !important;
   }
 }
+
+/* =========================================
+   EARNINGS SUMMARY — EXACT TRIPS BOX SIZE
+   Copy the final Trips dimensions literally.
+========================================= */
+
+/* Desktop / tablet: Trips = 96px high, grid side inset = 18px */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+
+  min-height:96px !important;
+  height:96px !important;
+
+  margin-left:18px !important;
+  margin-right:18px !important;
+  margin-top:4px !important;
+  margin-bottom:6px !important;
+
+  padding:14px 18px !important;
+
+  box-sizing:border-box !important;
+}
+
+/* iPhone compact: Trips = 90px high, grid side inset = 16px */
+@media(max-width:390px){
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+
+    min-height:90px !important;
+    height:90px !important;
+
+    margin-left:16px !important;
+    margin-right:16px !important;
+    margin-top:3px !important;
+    margin-bottom:6px !important;
+
+    padding:12px 10px !important;
+
+    box-sizing:border-box !important;
+  }
+}
