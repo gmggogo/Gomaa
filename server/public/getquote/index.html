@@ -216,12 +216,12 @@ button{
 }
 
 .vehicle-option img{
-  width:62px;
-  height:40px;
+  width:88px;
+  height:62px;
   object-fit:contain;
   margin:auto;
   display:block;
-  margin-bottom:6px;
+  margin-bottom:8px;
 }
 
 .vehicle-emoji{
@@ -612,11 +612,23 @@ const words = {
 function getServiceImage(serviceKey){
 
   if(serviceKey === "ST"){
-    return "11.jpeg";
+    return "assets/service-icons/standard.png";
+  }
+
+  if(serviceKey === "LM"){
+    return "assets/service-icons/limousine.png";
+  }
+
+  if(serviceKey === "WH"){
+    return "assets/service-icons/wheelchair.png";
+  }
+
+  if(serviceKey === "TX"){
+    return "assets/service-icons/taxi.png";
   }
 
   if(serviceKey === "XL"){
-    return "10.jpeg";
+    return "assets/service-icons/xl.png";
   }
 
   return "";
