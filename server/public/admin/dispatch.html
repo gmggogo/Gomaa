@@ -174,14 +174,14 @@ body{
 
 .top-actions{
   margin:12px 0 14px;
-  display:flex;
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
   align-items:center;
-  justify-content:space-between;
   gap:10px;
-  flex-wrap:wrap;
 }
 
 .action-left,
+.action-center,
 .action-right{
   display:flex;
   align-items:center;
@@ -189,8 +189,16 @@ body{
   flex-wrap:wrap;
 }
 
+.action-left{
+  justify-content:flex-start;
+}
+
+.action-center{
+  justify-content:center;
+}
+
 .action-right{
-  margin-left:auto;
+  justify-content:flex-end;
 }
 
 .btn{
@@ -721,7 +729,8 @@ body{
     font-size:11px;
   }
   .dispatch-tabs{flex-direction:column;}
-  .top-actions{display:flex;} .action-left,.action-right{width:100%;display:flex;} .action-right{margin-left:0;}
+  .top-actions{display:flex;flex-direction:column;align-items:stretch;}
+  .action-left,.action-center,.action-right{width:100%;display:flex;justify-content:center;}
   .dispatch-table{min-width:1750px;}
   .dispatch-table th,
   .dispatch-table td{
@@ -794,7 +803,9 @@ body{
         <button id="selectBtn" class="btn blue" type="button">
           Select All
         </button>
+      </div>
 
+      <div class="action-center">
         <button id="autoAssignBtn" class="btn purple" type="button">
           Auto Assign
         </button>
@@ -804,13 +815,18 @@ body{
         </button>
       </div>
 
-      <div class="action-right">
-        <button id="editBtn" class="btn orange" type="button">
+        <button id="editBtn" class="btn blue" type="button">
           Edit Selected
         </button>
 
-        <button id="removeDriverBtn" class="btn red" type="button">
+        <button id="removeDriverBtn" class="btn orange" type="button">
           Remove Driver
+        </button>
+      </div>
+
+      <div class="action-right">
+        <button id="deleteTripBtn" class="btn red" type="button">
+          Delete Trip
         </button>
       </div>
     </div>
@@ -926,7 +942,7 @@ body{
 
 <script src="/admin/header.js"></script>
 <script src="/admin/dispatch.store.js?v=20260726-select-fix-4"></script>
-<script src="/admin/dispatch.engine.js?v=20260829-selected-actions-only-5"></script>
+<script src="/admin/dispatch.engine.js?v=20260903-delete-trip-1"></script>
 
 </body>
 </html>

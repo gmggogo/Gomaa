@@ -4,7 +4,7 @@
    Smart Dispatch Page = إعدادات فقط
 ===================================================== */
 
-const DISPATCH_BUILD_ID = "20260829-selected-actions-only-5";
+const DISPATCH_BUILD_ID = "20260903-delete-trip-1";
 
 /* ================= STATE ================= */
 
@@ -1326,6 +1326,68 @@ async function removeSelectedDrivers(){
   }
 }
 
+async function deleteSelectedTrip(){
+  if(selectedIds.size !== 1){
+    toast(
+      selectedIds.size
+        ? "Select only one trip to delete"
+        : "Select one trip to delete"
+    );
+    return;
+  }
+
+  const tripId = String([...selectedIds][0] || "");
+  const trip = trips.find(item=>String(item._id) === tripId);
+
+  if(!trip){
+    toast("Selected trip is no longer available");
+    selectedIds.clear();
+    renderAll();
+    return;
+  }
+
+  const activeWarning = isTripInProgress(trip)
+    ? " This trip is currently active and will be removed immediately from Dispatch and the driver's screen."
+    : "";
+
+  const confirmed = await askYesNo(
+    "Delete Trip",
+    `Warning:${activeWarning} This action cannot be undone. Are you sure you want to delete trip ${clean(trip.tripNumber) || tripId}?`
+  );
+
+  if(!confirmed) return;
+
+  const btn = document.getElementById("deleteTripBtn");
+  if(btn) btn.disabled = true;
+
+  try{
+    const res = await fetch(`/api/trips/${encodeURIComponent(tripId)}`,{
+      method:"DELETE",
+      headers:Store.headers(false)
+    });
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      throw new Error(data.message || "Delete trip failed");
+    }
+
+    selectedIds.delete(tripId);
+    trips = trips.filter(item=>String(item._id) !== tripId);
+    renderAll();
+    toast("Trip deleted");
+
+    await loadAll();
+    renderAll();
+  }catch(err){
+    console.error("DELETE TRIP ERROR:",err);
+    toast(err.message || "Delete trip failed");
+  }finally{
+    if(btn) btn.disabled = false;
+    renderStats();
+  }
+}
+
 async function toggleEdit(){
   if(!editMode && !selectedIds.size){
     toast("Select a trip to edit");
@@ -1403,6 +1465,7 @@ function renderStats(){
   const autoAssignBtn = document.getElementById("autoAssignBtn");
   const sendSelectedBtn = document.getElementById("sendSelectedBtn");
   const removeDriverBtn = document.getElementById("removeDriverBtn");
+  const deleteTripBtn = document.getElementById("deleteTripBtn");
 
   if(autoAssignBtn){
     autoAssignBtn.disabled = !hasSelection || autoAssignRunning;
@@ -1410,6 +1473,7 @@ function renderStats(){
   }
   if(sendSelectedBtn) sendSelectedBtn.disabled = !hasSelection;
   if(removeDriverBtn) removeDriverBtn.disabled = !hasSelection;
+  if(deleteTripBtn) deleteTripBtn.disabled = selectedIds.size !== 1;
   if(editBtn && !editMode) editBtn.disabled = !hasSelection;
 }
 
@@ -1854,6 +1918,7 @@ function bindActions(){
   document.getElementById("autoAssignBtn")?.addEventListener("click",()=>autoAssign());
   document.getElementById("sendSelectedBtn")?.addEventListener("click",sendSelected);
   document.getElementById("removeDriverBtn")?.addEventListener("click",removeSelectedDrivers);
+  document.getElementById("deleteTripBtn")?.addEventListener("click",deleteSelectedTrip);
 }
 
 function toast(msg){
