@@ -9,6 +9,84 @@ console.log("BRANDING ENGINE LOADED");
 window.Branding = {
 
   data:{},
+  tenant:null,
+
+  /* =========================
+     HOMEPAGE TENANT
+  ========================= */
+
+  cleanTenantSlug(value){
+
+    return String(value || "")
+    .trim()
+    .toLowerCase();
+
+  },
+
+  getTenantSlug(){
+
+    const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+    const fromQuery =
+    this.cleanTenantSlug(
+      params.get("tenant") ||
+      params.get("tenantSlug")
+    );
+
+    if(fromQuery) return fromQuery;
+
+    const parts =
+    window.location.pathname
+    .split("/")
+    .filter(Boolean);
+
+    if(
+      parts[0] === "t" &&
+      parts[1]
+    ){
+      return this.cleanTenantSlug(parts[1]);
+    }
+
+    if(parts.length === 1){
+
+      const candidate =
+      this.cleanTenantSlug(parts[0]);
+
+      const reserved =
+      new Set([
+        "",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company",
+        "companies",
+        "platform-admin",
+        "booking",
+        "api",
+        "core",
+        "assets",
+        "uploads",
+        "getquote",
+        "login",
+        "login.html",
+        "index.html"
+      ]);
+
+      if(
+        candidate &&
+        !reserved.has(candidate) &&
+        /^[a-z0-9-]+$/.test(candidate)
+      ){
+        return candidate;
+      }
+    }
+
+    return "";
+
+  },
 
   /* =========================
      LOAD
@@ -18,33 +96,67 @@ window.Branding = {
 
     try{
 
+      const tenantSlug =
+      this.getTenantSlug();
+
+      const url =
+      tenantSlug
+      ? "/api/public/tenant/" +
+        encodeURIComponent(tenantSlug)
+      : "/api/public/tenant/default";
+
       const res =
       await fetch(
-        "/api/system-design",
+        url,
         {
           cache:"no-store"
         }
       );
 
+      let payload = {};
+
+      try{
+        payload = await res.json();
+      }catch{
+        payload = {};
+      }
+
       if(!res.ok){
 
         throw new Error(
-          "Failed To Load System Design"
+          payload?.message ||
+          "Failed To Load Homepage Design"
         );
 
       }
 
-      this.data =
-      await res.json();
+      if(payload && payload.design){
+
+        this.data =
+        payload.design || {};
+
+        this.tenant =
+        payload.tenant || null;
+
+      }else{
+
+        this.data =
+        payload || {};
+
+        this.tenant =
+        payload?.tenant || null;
+
+      }
 
     }catch(err){
 
       console.log(
-        "Branding Load Error",
+        "Homepage Branding Load Error",
         err
       );
 
       this.data = {};
+      this.tenant = null;
 
     }
 
@@ -291,9 +403,18 @@ window.Branding = {
     const d =
     this.data || {};
 
-    const extraAlign =
-    d.extraBoxAlign ||
-    "justify-center";
+    const isMobile =
+    window.innerWidth <= 768;
+
+    const extraTitleAlign =
+    isMobile
+    ? (d.extraBoxTitleMobileAlign || "center")
+    : (d.extraBoxAlign || "justify-center");
+
+    const extraTextAlign =
+    isMobile
+    ? (d.extraBoxTextMobileAlign || "left")
+    : (d.extraBoxAlign || "justify-center");
 
     document
     .querySelectorAll(".extra-box")
@@ -316,6 +437,14 @@ window.Branding = {
       box.style.setProperty(
         "border-radius",
         `${d.extraBoxRadius || 32}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        isMobile
+        ? `${d.extraBoxMobilePadding || 18}px`
+        : `${d.extraBoxPadding || 70}px`,
         "important"
       );
 
@@ -343,14 +472,16 @@ window.Branding = {
 
       title.style.setProperty(
         "font-size",
-        `${d.extraBoxTitleSize || 42}px`,
+        isMobile
+        ? `${d.extraBoxTitleMobileSize || 20}px`
+        : `${d.extraBoxTitleSize || 42}px`,
         "important"
       );
 
       this.applyWordElement(
         title,
         title.innerText,
-        extraAlign
+        extraTitleAlign
       );
 
     });
@@ -371,14 +502,16 @@ window.Branding = {
 
       text.style.setProperty(
         "font-size",
-        `${d.extraBoxTextSize || 22}px`,
+        isMobile
+        ? `${d.extraBoxTextMobileSize || 14}px`
+        : `${d.extraBoxTextSize || 22}px`,
         "important"
       );
 
       this.applyWordElement(
         text,
         text.innerText,
-        extraAlign
+        extraTextAlign
       );
 
     });
