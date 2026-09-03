@@ -494,12 +494,26 @@ iframe.goog-te-banner-frame,
 #goog-gt-tt,
 .goog-logo-link,
 .goog-te-gadget span,
-.goog-te-gadget{
+.goog-te-gadget,
+.goog-te-spinner-pos,
+.goog-tooltip,
+.goog-tooltip:hover,
+body > .skiptranslate,
+html > body > .skiptranslate{
   display:none !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  height:0 !important;
+  min-height:0 !important;
+  max-height:0 !important;
+  overflow:hidden !important;
+  pointer-events:none !important;
 }
 
+html,
 body{
   top:0 !important;
+  margin-top:0 !important;
 }
 
 /* =========================
@@ -1464,6 +1478,101 @@ window.googleTranslateElementInit = function(){
   googleTranslateReady = true;
 
 };
+
+/* =========================
+   GOOGLE TRANSLATE UI GUARD
+   Keeps translation engine hidden while preserving translation.
+========================= */
+
+function hideGoogleTranslateChrome(){
+
+  document.documentElement.style.setProperty(
+    "margin-top",
+    "0",
+    "important"
+  );
+
+  document.body.style.setProperty(
+    "top",
+    "0",
+    "important"
+  );
+
+  document.body.style.setProperty(
+    "margin-top",
+    "0",
+    "important"
+  );
+
+  document
+    .querySelectorAll(
+      [
+        ".goog-te-banner-frame",
+        ".goog-te-banner-frame.skiptranslate",
+        ".goog-te-balloon-frame",
+        "iframe.goog-te-banner-frame",
+        "#goog-gt-tt",
+        ".goog-te-spinner-pos",
+        ".goog-tooltip",
+        "body > .skiptranslate"
+      ].join(",")
+    )
+    .forEach(el=>{
+      el.style.setProperty(
+        "display",
+        "none",
+        "important"
+      );
+
+      el.style.setProperty(
+        "visibility",
+        "hidden",
+        "important"
+      );
+
+      el.style.setProperty(
+        "height",
+        "0",
+        "important"
+      );
+    });
+
+}
+
+const googleTranslateUiObserver =
+  new MutationObserver(
+    hideGoogleTranslateChrome
+  );
+
+googleTranslateUiObserver.observe(
+  document.documentElement,
+  {
+    childList:true,
+    subtree:true,
+    attributes:true,
+    attributeFilter:[
+      "style",
+      "class"
+    ]
+  }
+);
+
+window.addEventListener(
+  "load",
+  hideGoogleTranslateChrome
+);
+
+window.addEventListener(
+  "scroll",
+  hideGoogleTranslateChrome,
+  {passive:true}
+);
+
+setInterval(
+  hideGoogleTranslateChrome,
+  500
+);
+
 
 /* =========================
    EXTRA THEME
