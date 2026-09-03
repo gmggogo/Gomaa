@@ -2673,3 +2673,33 @@ body.driver-dashboard-page{
     box-sizing:border-box !important;
   }
 }
+
+/* =========================================
+   EARNINGS SUMMARY — VISUAL HEIGHT MATCH
+   Measured against the current iPhone screenshot.
+========================================= */
+
+/* Keep the already-correct width. Increase only the box height
+   so the rendered outer size visually matches Trips. */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:122px !important;
+  height:122px !important;
+  margin-left:18px !important;
+  margin-right:18px !important;
+  box-sizing:border-box !important;
+}
+
+/* iPhone 390px viewport */
+@media(max-width:390px){
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:114px !important;
+    height:114px !important;
+    margin-left:16px !important;
+    margin-right:16px !important;
+    box-sizing:border-box !important;
+  }
+}
