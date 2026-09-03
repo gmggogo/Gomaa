@@ -656,9 +656,8 @@ body{
   width:100% !important;
   max-width:100% !important;
 
-  text-align:justify !important;
+  text-align:left !important;
   text-align-last:left !important;
-  text-justify:auto !important;
 
   direction:ltr !important;
   unicode-bidi:normal !important;
@@ -2002,14 +2001,14 @@ window.addEventListener(
 function getBalancedMobileAlign(value){
 
   const align =
-    String(value || "justify")
+    String(value || "left")
       .trim()
       .toLowerCase();
 
   if(align === "center") return "center";
   if(align === "right") return "right";
 
-  return "justify";
+  return "left";
 }
 
 function forceMobileHomeLayout(){
@@ -2070,7 +2069,7 @@ function forceMobileHomeLayout(){
     {
       id:"extra1TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:"justify"
+      align:"left"
     },
     {
       id:"extra2TitleView",
@@ -2080,7 +2079,7 @@ function forceMobileHomeLayout(){
     {
       id:"extra2TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:"justify"
+      align:"left"
     }
   ];
 
@@ -2126,7 +2125,7 @@ function forceMobileHomeLayout(){
     if(!item.id.includes("Title")){
       el.style.setProperty("white-space","normal","important");
       el.style.setProperty("text-wrap","pretty","important");
-      el.style.setProperty("text-align","justify","important");
+      el.style.setProperty("text-align","left","important");
       el.style.setProperty("text-align-last","left","important");
       el.style.setProperty("word-spacing","0","important");
       el.style.setProperty("letter-spacing","0","important");
