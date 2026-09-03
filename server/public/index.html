@@ -586,28 +586,30 @@ body{
 
 .about,
 .quote-header{
-  width:auto !important;
-  max-width:none !important;
-  margin:12px 10px 0 !important;
-  padding:22px 18px !important;
-  border-radius:20px !important;
+  width:calc(100% - 24px) !important;
+  max-width:calc(100% - 24px) !important;
+  margin:14px auto 0 !important;
+  padding:18px 16px !important;
+  border-radius:18px !important;
 }
 
 .quote-header{
-  width:auto !important;
-  margin:10px 4px 0 !important;
-  border-radius:18px !important;
+  margin-top:14px !important;
 }
 
 .extra-sections{
   width:100% !important;
-  padding:0 4px 45px !important;
-  gap:14px !important;
+  max-width:100% !important;
+  padding:0 12px 48px !important;
+  gap:18px !important;
 }
 
 .extra-box{
   width:100% !important;
+  max-width:100% !important;
+  margin:0 auto !important;
   border-radius:18px !important;
+  padding:18px 16px !important;
 }
   /* =========================
      MOBILE TITLES
@@ -636,6 +638,14 @@ body{
   padding:0 !important;
 }
 
+#extra1TitleView,
+#extra2TitleView,
+.extra-box h3{
+  font-size:18px !important;
+  line-height:1.16 !important;
+  margin-bottom:12px !important;
+}
+
   /* =========================
      MOBILE AUTO TEXT
   ========================= */
@@ -646,23 +656,23 @@ body{
   width:100% !important;
   max-width:100% !important;
 
-  text-align:left !important;
+  text-align:justify !important;
   text-align-last:left !important;
+  text-justify:auto !important;
 
   direction:ltr !important;
   unicode-bidi:normal !important;
 
-  line-height:1.5 !important;
+  line-height:1.48 !important;
   font-weight:400 !important;
 
-  /* Balanced wrapping keeps word spacing natural on narrow screens. */
   white-space:normal !important;
-  text-wrap:balance;
-  word-spacing:normal !important;
+  text-wrap:pretty !important;
+  word-spacing:0 !important;
   letter-spacing:0 !important;
   word-break:normal !important;
-  overflow-wrap:break-word !important;
-  hyphens:none !important;
+  overflow-wrap:normal !important;
+  hyphens:auto !important;
 
   margin:0 !important;
   padding:0 !important;
@@ -1992,15 +2002,14 @@ window.addEventListener(
 function getBalancedMobileAlign(value){
 
   const align =
-    String(value || "left")
+    String(value || "justify")
       .trim()
       .toLowerCase();
 
-  if(align.startsWith("justify")){
-    return "left";
-  }
+  if(align === "center") return "center";
+  if(align === "right") return "right";
 
-  return align || "left";
+  return "justify";
 }
 
 function forceMobileHomeLayout(){
@@ -2055,23 +2064,23 @@ function forceMobileHomeLayout(){
     },
     {
       id:"extra1TitleView",
-      size:data.extraBoxTitleMobileSize || 20,
-      align:data.extraBoxTitleMobileAlign || "center"
+      size:Math.min(Number(data.extraBoxTitleMobileSize || 18),18),
+      align:"center"
     },
     {
       id:"extra1TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
+      align:"justify"
     },
     {
       id:"extra2TitleView",
-      size:data.extraBoxTitleMobileSize || 20,
-      align:data.extraBoxTitleMobileAlign || "center"
+      size:Math.min(Number(data.extraBoxTitleMobileSize || 18),18),
+      align:"center"
     },
     {
       id:"extra2TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
+      align:"justify"
     }
   ];
 
@@ -2097,8 +2106,8 @@ function forceMobileHomeLayout(){
     el.style.setProperty(
       "line-height",
       item.id.includes("Title")
-        ? "1.2"
-        : "1.5",
+        ? "1.16"
+        : "1.48",
       "important"
     );
 
@@ -2115,16 +2124,13 @@ function forceMobileHomeLayout(){
     );
 
     if(!item.id.includes("Title")){
-      el.style.setProperty(
-        "white-space",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-wrap",
-        "balance"
-      );
+      el.style.setProperty("white-space","normal","important");
+      el.style.setProperty("text-wrap","pretty","important");
+      el.style.setProperty("text-align","justify","important");
+      el.style.setProperty("text-align-last","left","important");
+      el.style.setProperty("word-spacing","0","important");
+      el.style.setProperty("letter-spacing","0","important");
+      el.style.setProperty("hyphens","auto","important");
     }
 
   });
