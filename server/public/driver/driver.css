@@ -2384,3 +2384,76 @@ body.driver-dashboard-page{
     text-align:center !important;
   }
 }
+
+/* =========================================
+   DRIVER DASHBOARD — FINAL 2 FIXES
+   1) Summary box exactly same size as Trips
+   2) Status + ONLINE centered as one compact group
+========================================= */
+
+/* 1) Make Summary box exactly match Trips */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:96px !important;
+  height:96px !important;
+  margin:4px 18px 6px !important;
+  padding:14px 18px !important;
+  box-sizing:border-box !important;
+}
+
+/* Keep Summary content centered without changing text size */
+.driver-dashboard-page .summary-card.summary-final-card{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+/* 2) Center Status + ONLINE together in the middle */
+.driver-dashboard-page .status-pill{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+}
+
+.driver-dashboard-page .status-left{
+  display:flex !important;
+  align-items:center !important;
+  gap:5px !important;
+}
+
+.driver-dashboard-page .status-value{
+  margin-left:0 !important;
+  margin-right:0 !important;
+  text-align:center !important;
+}
+
+@media(max-width:390px){
+
+  /* Summary exactly matches mobile Trips height/width */
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:90px !important;
+    height:90px !important;
+    margin:3px 16px 6px !important;
+    padding:12px 16px !important;
+  }
+
+  /* Keep status group centered on phone */
+  .driver-dashboard-page .status-pill{
+    justify-content:center !important;
+    gap:7px !important;
+  }
+
+  .driver-dashboard-page .status-left{
+    gap:4px !important;
+  }
+
+  .driver-dashboard-page .status-value{
+    margin-left:0 !important;
+    margin-right:0 !important;
+    text-align:center !important;
+  }
+}
