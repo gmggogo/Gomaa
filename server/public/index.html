@@ -503,143 +503,188 @@ body{
 }
 
 /* =========================
-   MOBILE FIX - FINAL TIGHT VERSION
+   MOBILE FIX
+   Mobile Auto Text Mode
 ========================= */
+
 @media(max-width:768px){
 
-  html, body{
-    width:100% !important;
-    max-width:100% !important;
+  html,
+  body{
+    width:100%;
+    max-width:100%;
     overflow-x:hidden !important;
-    -webkit-text-size-adjust:100% !important;
-    text-size-adjust:100% !important;
   }
 
+  *{
+    max-width:100%;
+  }
+
+  /* =========================
+     TOP BAR
+  ========================= */
+
   .top-bar{
-    width:100% !important;
-    padding:12px !important;
-    gap:10px !important;
+    width:100%;
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+    padding:14px;
   }
 
   .top-links,
   .lang-right{
-    width:100% !important;
-    display:grid !important;
-    grid-template-columns:1fr 1fr !important;
-    gap:8px !important;
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
   }
 
   .top-links a,
   .lang-btn{
-    font-size:13px !important;
-    padding:11px 7px !important;
+    width:100%;
+    text-align:center;
+    font-size:13px;
+    padding:12px 8px;
+    border-radius:12px;
   }
 
+  /* =========================
+     HERO
+  ========================= */
+
   .hero{
-    width:100% !important;
-    padding:0 !important;
+    width:100%;
+    padding:0;
+    overflow:hidden;
+  }
+
+  .hero-inner{
+    width:100%;
+    max-width:100%;
   }
 
   .hero-image{
-    width:100% !important;
-    height:auto !important;
-    border-radius:0 !important;
-    object-fit:cover !important;
+    width:100%;
+    height:auto;
+    display:block;
+    border-radius:0;
+    object-fit:cover;
   }
 
   .powered-box{
-    left:10px !important;
-    bottom:10px !important;
-    font-size:10px !important;
-    padding:7px 12px !important;
+    left:12px;
+    bottom:12px;
+    font-size:11px;
+    padding:8px 14px;
+    border-radius:20px;
   }
 
-  /* narrower boxes */
-  .about,
-  .quote-header{
-    width:calc(100% - 36px) !important;
-    max-width:calc(100% - 36px) !important;
-    margin:14px auto 0 !important;
-    padding:18px 18px !important;
-    border-radius:18px !important;
-  }
+  /* =========================
+     TEXT BOXES
+  ========================= */
 
-  .extra-sections{
-    width:100% !important;
-    padding:0 18px 36px !important;
-    gap:14px !important;
-  }
+.about,
+.quote-header{
+  width:auto !important;
+  max-width:none !important;
+  margin:12px 10px 0 !important;
+  padding:22px 18px !important;
+  border-radius:20px !important;
+}
 
-  .extra-box{
-    width:100% !important;
-    margin:0 auto !important;
-    padding:18px 18px !important;
-    border-radius:18px !important;
-  }
+.quote-header{
+  width:auto !important;
+  margin:10px 4px 0 !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
+}
 
-  /* compact titles */
-  #aboutTitle,
-  #quoteTitle,
-  #extra1TitleView,
-  #extra2TitleView,
-  .about h2,
-  .quote-header h2,
-  .extra-box h3{
-    width:100% !important;
-    margin:0 0 12px !important;
-    padding:0 !important;
-    font-family:'Segoe UI',Arial,sans-serif !important;
-    font-size:20px !important;
-    line-height:1.18 !important;
-    font-weight:800 !important;
-    letter-spacing:0 !important;
-    word-spacing:0 !important;
-    text-align:center !important;
-    text-align-last:center !important;
-    white-space:normal !important;
-  }
+.extra-sections{
+  width:100% !important;
+  padding:0 4px 45px !important;
+  gap:14px !important;
+}
 
-  /* compact readable body text */
-  #aboutText,
-  #quoteText,
-  #extra1TextView,
-  #extra2TextView,
-  #aboutText *,
-  #quoteText *,
-  #extra1TextView *,
-  #extra2TextView *{
-    width:100% !important;
-    max-width:100% !important;
-    margin:0 !important;
-    padding:0 !important;
-    font-family:'Segoe UI',Arial,sans-serif !important;
-    font-size:14px !important;
-    line-height:1.45 !important;
-    font-weight:400 !important;
-    letter-spacing:0 !important;
-    word-spacing:0 !important;
-    text-align:left !important;
-    text-align-last:auto !important;
-    white-space:normal !important;
-    word-break:normal !important;
-    overflow-wrap:normal !important;
-    hyphens:none !important;
-    direction:ltr !important;
-    unicode-bidi:normal !important;
-  }
+.extra-box{
+  width:100% !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
+}
+  /* =========================
+     MOBILE TITLES
+  ========================= */
+
+#aboutTitle,
+#quoteTitle,
+#extra1TitleView,
+#extra2TitleView,
+.about h2,
+.quote-header h2,
+.extra-box h3{
+  text-align:center !important;
+  text-align-last:center !important;
+
+  direction:ltr !important;
+  unicode-bidi:normal !important;
+
+  font-size:24px !important;
+  line-height:1.18 !important;
+  font-weight:900 !important;
+
+  word-spacing:normal !important;
+  letter-spacing:0 !important;
+
+  margin:0 0 14px 0 !important;
+  padding:0 !important;
+}
+
+  /* =========================
+     MOBILE AUTO TEXT
+  ========================= */
+#aboutText,
+#quoteText,
+#extra1TextView,
+#extra2TextView{
+  width:100% !important;
+  max-width:100% !important;
+
+  text-align:left !important;
+  text-align-last:auto !important;
+
+  direction:ltr !important;
+  unicode-bidi:normal !important;
+
+  font-size:14px !important;
+  line-height:1.58 !important;
+  font-weight:400 !important;
+
+  word-spacing:normal !important;
+  letter-spacing:0 !important;
+  word-break:normal !important;
+  overflow-wrap:break-word !important;
+  hyphens:none !important;
+
+  margin:0 !important;
+  padding:0 !important;
+}
+
+/* =========================
+     SERVICES / CARDS
+  ========================= */
 
   .services,
   .services.layout-1,
   .services.layout-2,
   .services.layout-4,
   .services.layout-5{
-    width:100% !important;
-    max-width:100% !important;
-    padding:22px 18px 44px !important;
-    display:grid !important;
-    grid-template-columns:minmax(0,1fr) !important;
-    justify-items:center !important;
-    gap:16px !important;
+    width:100%;
+    max-width:100%;
+    padding:20px 14px 60px;
+    display:grid;
+    grid-template-columns:1fr !important;
+    justify-content:center;
+    gap:20px;
   }
 
   .services.layout-5 .card,
@@ -650,58 +695,65 @@ body{
 
   .card{
     width:100% !important;
-    max-width:350px !important;
-    border-radius:18px !important;
+    max-width:100% !important;
+    border-radius:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
   }
 
   .card-image{
-    width:100% !important;
-    height:185px !important;
-    object-fit:contain !important;
+    width:100%;
+    height:220px;
+    object-fit:contain;
   }
 
   .card-body{
-    padding:16px !important;
-    text-align:center !important;
+    padding:18px;
   }
 
   .card h3{
-    font-size:20px !important;
-    line-height:1.2 !important;
-    margin-bottom:8px !important;
+    font-size:24px !important;
+    line-height:1.3;
+    margin-bottom:10px;
   }
 
   .card p{
-    font-size:13px !important;
-    line-height:1.45 !important;
-    min-height:auto !important;
-    text-align:center !important;
-    word-spacing:0 !important;
+    font-size:15px !important;
+    line-height:1.8;
+    min-height:auto;
   }
 
   .card-btn{
-    height:46px !important;
-    font-size:15px !important;
-    margin-top:14px !important;
+    height:50px;
+    font-size:16px;
+    margin-top:16px;
   }
 
+  /* =========================
+     CONTACT
+  ========================= */
+
   .contact-section{
-    padding:30px 16px !important;
-    font-size:14px !important;
-    line-height:1.5 !important;
+    width:100%;
+    padding:36px 14px;
+    font-size:15px !important;
+    line-height:1.8;
   }
 
   .contact-section strong{
-    font-size:21px !important;
-    margin-bottom:10px !important;
+    font-size:24px !important;
+    line-height:1.3;
+    display:block;
+    margin-bottom:12px;
   }
 
   footer{
-    padding:16px 10px !important;
-    font-size:13px !important;
+    width:100%;
+    padding:18px 12px;
+    font-size:14px;
+    line-height:1.7;
   }
-}
 
+}
 </style>
 
 </head>
@@ -868,7 +920,7 @@ id="extraSections">
   
 </footer>
 
-<script src="/core/branding.js?v=mobile-tight-final-20260902"></script>
+<script src="/core/branding.js?v=mobile-design-final-20260903"></script>
 
 <script>
 
@@ -1437,7 +1489,7 @@ function applyExtraBoxesTheme(data){
     box.style.setProperty(
       "padding",
       window.innerWidth <= 768
-      ? "18px 18px"
+      ? "34px 22px"
       : `${data.extraBoxPadding || 70}px`,
       "important"
     );
@@ -1465,7 +1517,7 @@ function applyExtraBoxesTheme(data){
     title.style.setProperty(
       "font-size",
       window.innerWidth <= 768
-      ? "20px"
+      ? `${data.extraBoxTitleMobileSize || 28}px`
       : `${data.extraBoxTitleSize || 42}px`,
       "important"
     );
@@ -1491,7 +1543,7 @@ function applyExtraBoxesTheme(data){
     text.style.setProperty(
       "font-size",
       window.innerWidth <= 768
-      ? "14px"
+      ? `${data.extraBoxTextMobileSize || 16}px`
       : `${data.extraBoxTextSize || 22}px`,
       "important"
     );
@@ -1541,7 +1593,7 @@ function applyPageTheme(data){
 
     about.style.padding =
     window.innerWidth <= 768
-    ? "18px 18px"
+    ? `${data.aboutMobilePadding || 18}px`
     : `${data.aboutPadding || 70}px`;
 
   }
@@ -1559,7 +1611,7 @@ function applyPageTheme(data){
 
     quote.style.padding =
     window.innerWidth <= 768
-    ? "18px 18px"
+    ? `${data.quoteMobilePadding || 18}px`
     : `${data.quotePadding || 70}px`;
 
   }
@@ -1583,7 +1635,7 @@ function applyPageTheme(data){
 
     aboutTitle.style.fontSize =
     window.innerWidth <= 768
-    ? "20px"
+    ? `${data.aboutTitleMobileSize || 20}px`
     : `${data.aboutTitleSize || 60}px`;
 
   }
@@ -1595,7 +1647,7 @@ function applyPageTheme(data){
 
     aboutText.style.fontSize =
     window.innerWidth <= 768
-    ? "14px"
+    ? `${data.aboutTextMobileSize || 14}px`
     : `${data.aboutTextSize || 25}px`;
 
   }
@@ -1607,7 +1659,7 @@ function applyPageTheme(data){
 
     quoteTitle.style.fontSize =
     window.innerWidth <= 768
-    ? "20px"
+    ? `${data.quoteTitleMobileSize || 20}px`
     : `${data.quoteTitleSize || 70}px`;
 
   }
@@ -1619,7 +1671,7 @@ function applyPageTheme(data){
 
     quoteText.style.fontSize =
     window.innerWidth <= 768
-    ? "14px"
+    ? `${data.quoteTextMobileSize || 14}px`
     : `${data.quoteTextSize || 24}px`;
 
   }
@@ -1922,48 +1974,127 @@ function forceMobileHomeLayout(){
 
   if(window.innerWidth > 768) return;
 
-  ["aboutTitle","quoteTitle","extra1TitleView","extra2TitleView"]
-  .forEach(id=>{
-    const el = document.getElementById(id);
+  const data =
+    Branding.data || {};
+
+  const about =
+    document.querySelector(".about");
+
+  const quote =
+    document.querySelector(".quote-header");
+
+  if(about){
+    about.style.setProperty(
+      "padding",
+      `${data.aboutMobilePadding || 18}px`,
+      "important"
+    );
+  }
+
+  if(quote){
+    quote.style.setProperty(
+      "padding",
+      `${data.quoteMobilePadding || 18}px`,
+      "important"
+    );
+  }
+
+  const mobileMap = [
+    {
+      id:"aboutTitle",
+      size:data.aboutTitleMobileSize || 20,
+      align:data.aboutTitleMobileAlign || "center"
+    },
+    {
+      id:"aboutText",
+      size:data.aboutTextMobileSize || 14,
+      align:data.aboutTextMobileAlign || "left"
+    },
+    {
+      id:"quoteTitle",
+      size:data.quoteTitleMobileSize || 20,
+      align:data.quoteTitleMobileAlign || "center"
+    },
+    {
+      id:"quoteText",
+      size:data.quoteTextMobileSize || 14,
+      align:data.quoteTextMobileAlign || "left"
+    },
+    {
+      id:"extra1TitleView",
+      size:data.extraBoxTitleMobileSize || 20,
+      align:data.extraBoxTitleMobileAlign || "center"
+    },
+    {
+      id:"extra1TextView",
+      size:data.extraBoxTextMobileSize || 14,
+      align:data.extraBoxTextMobileAlign || "left"
+    },
+    {
+      id:"extra2TitleView",
+      size:data.extraBoxTitleMobileSize || 20,
+      align:data.extraBoxTitleMobileAlign || "center"
+    },
+    {
+      id:"extra2TextView",
+      size:data.extraBoxTextMobileSize || 14,
+      align:data.extraBoxTextMobileAlign || "left"
+    }
+  ];
+
+  mobileMap.forEach(item=>{
+
+    const el =
+      document.getElementById(item.id);
+
     if(!el) return;
 
-    el.classList.remove(
-      "gh-align-left","gh-align-right","gh-align-justify",
-      "gh-align-justify-left","gh-align-justify-center","gh-align-justify-right"
+    applyWordText(
+      item.id,
+      el.innerText,
+      item.align
     );
-    el.classList.add("gh-align-center");
 
-    el.style.setProperty("font-size","20px","important");
-    el.style.setProperty("line-height","1.18","important");
-    el.style.setProperty("font-weight","800","important");
-    el.style.setProperty("text-align","center","important");
-    el.style.setProperty("text-align-last","center","important");
-    el.style.setProperty("word-spacing","0","important");
-    el.style.setProperty("letter-spacing","0","important");
+    el.style.setProperty(
+      "font-size",
+      `${item.size}px`,
+      "important"
+    );
+
+    el.style.setProperty(
+      "line-height",
+      item.id.includes("Title")
+        ? "1.2"
+        : "1.5",
+      "important"
+    );
+
+    el.style.setProperty(
+      "word-spacing",
+      "0",
+      "important"
+    );
+
+    el.style.setProperty(
+      "letter-spacing",
+      "0",
+      "important"
+    );
+
   });
 
-  ["aboutText","quoteText","extra1TextView","extra2TextView"]
-  .forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
+  document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
 
-    el.classList.remove(
-      "gh-align-center","gh-align-right","gh-align-justify",
-      "gh-align-justify-left","gh-align-justify-center","gh-align-justify-right"
-    );
-    el.classList.add("gh-align-left");
+      box.style.setProperty(
+        "padding",
+        `${data.extraBoxMobilePadding || 18}px`,
+        "important"
+      );
 
-    el.style.setProperty("font-size","14px","important");
-    el.style.setProperty("line-height","1.45","important");
-    el.style.setProperty("font-weight","400","important");
-    el.style.setProperty("text-align","left","important");
-    el.style.setProperty("text-align-last","auto","important");
-    el.style.setProperty("word-spacing","0","important");
-    el.style.setProperty("letter-spacing","0","important");
-    el.style.setProperty("word-break","normal","important");
-    el.style.setProperty("overflow-wrap","normal","important");
-    el.style.setProperty("white-space","normal","important");
-  });
+    });
+
 }
 /* =========================
    SERVICES LAYOUT

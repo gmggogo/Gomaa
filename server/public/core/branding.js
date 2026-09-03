@@ -646,11 +646,8 @@ window.Branding = {
 
     const extraAlign =
       isMobile
-        ? "left"
-        : (
-            d.extraBoxAlign ||
-            "justify-center"
-          );
+        ? (d.extraBoxTextMobileAlign || "left")
+        : (d.extraBoxAlign || "justify-center");
 
     document
       .querySelectorAll(".extra-box")
@@ -673,6 +670,14 @@ window.Branding = {
         box.style.setProperty(
           "border-radius",
           `${d.extraBoxRadius || 32}px`,
+          "important"
+        );
+
+        box.style.setProperty(
+          "padding",
+          isMobile
+            ? `${d.extraBoxMobilePadding || 18}px`
+            : `${d.extraBoxPadding || 40}px`,
           "important"
         );
 
@@ -701,7 +706,7 @@ window.Branding = {
         title.style.setProperty(
           "font-size",
           isMobile
-            ? "20px"
+            ? `${d.extraBoxTitleMobileSize || 20}px`
             : `${d.extraBoxTitleSize || 42}px`,
           "important"
         );
@@ -709,7 +714,9 @@ window.Branding = {
         this.applyWordElement(
           title,
           title.innerText,
-          isMobile ? "center" : extraAlign
+          isMobile
+            ? (d.extraBoxTitleMobileAlign || "center")
+            : (d.extraBoxAlign || "justify-center")
         );
 
       });
@@ -731,7 +738,7 @@ window.Branding = {
         text.style.setProperty(
           "font-size",
           isMobile
-            ? "14px"
+            ? `${d.extraBoxTextMobileSize || 14}px`
             : `${d.extraBoxTextSize || 22}px`,
           "important"
         );
@@ -739,7 +746,9 @@ window.Branding = {
         this.applyWordElement(
           text,
           text.innerText,
-          isMobile ? "left" : extraAlign
+          isMobile
+            ? (d.extraBoxTextMobileAlign || "left")
+            : (d.extraBoxAlign || "justify-center")
         );
 
       });
