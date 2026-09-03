@@ -93,6 +93,36 @@ body{
   .map-title-box span{ font-size:10px; }
 }
 </style>
+
+<style>
+/* =========================
+   DRIVERS LIST POSITION FIX
+   Move the Leaflet control/list to the left and below the fixed admin header.
+   Map geometry and header are untouched.
+========================= */
+
+.leaflet-top.leaflet-right{
+  top:72px !important;
+  right:auto !important;
+  left:12px !important;
+}
+
+.leaflet-top.leaflet-right .leaflet-control{
+  margin-right:0 !important;
+  margin-left:0 !important;
+}
+
+@media(max-width:800px){
+
+  .leaflet-top.leaflet-right{
+    top:68px !important;
+    left:8px !important;
+    right:auto !important;
+  }
+
+}
+</style>
+
 </head>
 
 <body>
