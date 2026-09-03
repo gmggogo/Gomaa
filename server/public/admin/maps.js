@@ -217,6 +217,71 @@ function ensureSidebar(){
 
 }
 
+function positionDriversSidebarBelowHeader(){
+
+  const sidebar =
+    document.getElementById("driversSidebar");
+
+  if(!sidebar){
+    return;
+  }
+
+  const header =
+    document.getElementById("adminHeader");
+
+  let headerBottom = 0;
+
+  if(header){
+
+    const rect =
+      header.getBoundingClientRect();
+
+    headerBottom =
+      Math.max(
+        0,
+        Number(rect.bottom || 0)
+      );
+
+  }
+
+  /*
+    Keep the list fully below the real rendered admin header.
+    The extra 18px gives a visible gap under the header/navigation.
+  */
+  const top =
+    Math.max(
+      headerBottom + 18,
+      190
+    );
+
+  sidebar.style.setProperty(
+    "top",
+    `${top}px`,
+    "important"
+  );
+
+  sidebar.style.setProperty(
+    "left",
+    window.innerWidth <= 900
+      ? "8px"
+      : "14px",
+    "important"
+  );
+
+  sidebar.style.setProperty(
+    "right",
+    "auto",
+    "important"
+  );
+
+  sidebar.style.setProperty(
+    "max-height",
+    `calc(100vh - ${top + 20}px)`,
+    "important"
+  );
+
+}
+
 /* ===============================
    HELPERS
 =============================== */
@@ -678,15 +743,37 @@ async function loadLiveDrivers(){
 
 injectMapStyles();
 ensureSidebar();
+positionDriversSidebarBelowHeader();
 bindSearch();
+
+/*
+  header.js builds the admin header dynamically.
+  Re-check the real header height after it finishes rendering.
+*/
+setTimeout(
+  positionDriversSidebarBelowHeader,
+  100
+);
+
+setTimeout(
+  positionDriversSidebarBelowHeader,
+  350
+);
+
+setTimeout(
+  positionDriversSidebarBelowHeader,
+  800
+);
 
 setTimeout(() => {
   map.invalidateSize(true);
+  positionDriversSidebarBelowHeader();
   loadLiveDrivers();
 }, 150);
 
 window.addEventListener("resize", () => {
   map.invalidateSize(false);
+  positionDriversSidebarBelowHeader();
 });
 
 setInterval(loadLiveDrivers, 30000);
