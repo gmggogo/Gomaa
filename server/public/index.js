@@ -1,668 +1,303 @@
 // =========================
-// FILE: public/core/branding.js
-// CENTRAL BRANDING ENGINE
-// WORD ALIGN SAFE VERSION
+// FILE: public/index.js
 // =========================
 
-console.log("BRANDING ENGINE LOADED");
+let currentLang = "en";
 
-window.Branding = {
+/* =========================
+SETTINGS
+========================= */
 
-  data:{},
-  tenant:null,
+const settingsRaw =
+localStorage.getItem(
+    "ghSystemDesign"
+);
 
-  /* =========================
-     HOMEPAGE TENANT
-  ========================= */
+let settings = {};
 
-  cleanTenantSlug(value){
-
-    return String(value || "")
-    .trim()
-    .toLowerCase();
-
-  },
-
-  getTenantSlug(){
-
-    const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-    const fromQuery =
-    this.cleanTenantSlug(
-      params.get("tenant") ||
-      params.get("tenantSlug")
-    );
-
-    if(fromQuery) return fromQuery;
-
-    const parts =
-    window.location.pathname
-    .split("/")
-    .filter(Boolean);
-
-    if(
-      parts[0] === "t" &&
-      parts[1]
-    ){
-      return this.cleanTenantSlug(parts[1]);
-    }
-
-    if(parts.length === 1){
-
-      const candidate =
-      this.cleanTenantSlug(parts[0]);
-
-      const reserved =
-      new Set([
-        "",
-        "admin",
-        "dispatcher",
-        "driver",
-        "company",
-        "companies",
-        "platform-admin",
-        "booking",
-        "api",
-        "core",
-        "assets",
-        "uploads",
-        "getquote",
-        "login",
-        "login.html",
-        "index.html"
-      ]);
-
-      if(
-        candidate &&
-        !reserved.has(candidate) &&
-        /^[a-z0-9-]+$/.test(candidate)
-      ){
-        return candidate;
-      }
-    }
-
-    return "";
-
-  },
-
-  /* =========================
-     LOAD
-  ========================= */
-
-  async load(){
+if(settingsRaw){
 
     try{
 
-      const tenantSlug =
-      this.getTenantSlug();
-
-      const url =
-      tenantSlug
-      ? "/api/public/tenant/" +
-        encodeURIComponent(tenantSlug)
-      : "/api/public/tenant/default";
-
-      const res =
-      await fetch(
-        url,
-        {
-          cache:"no-store"
-        }
-      );
-
-      let payload = {};
-
-      try{
-        payload = await res.json();
-      }catch{
-        payload = {};
-      }
-
-      if(!res.ok){
-
-        throw new Error(
-          payload?.message ||
-          "Failed To Load Homepage Design"
-        );
-
-      }
-
-      if(payload && payload.design){
-
-        this.data =
-        payload.design || {};
-
-        this.tenant =
-        payload.tenant || null;
-
-      }else{
-
-        this.data =
-        payload || {};
-
-        this.tenant =
-        payload?.tenant || null;
-
-      }
+        settings =
+        JSON.parse(settingsRaw);
 
     }catch(err){
 
-      console.log(
-        "Homepage Branding Load Error",
-        err
-      );
-
-      this.data = {};
-      this.tenant = null;
+        settings = {};
 
     }
 
-    this.applyGlobalBranding();
+}
 
-    return this.data;
+/* =========================
+SERVICES
+========================= */
 
-  },
+const services = [
 
-  /* =========================
-     SAVE
-  ========================= */
+{
+    active:true,
 
-  save(data){
+    image:"assets/nemt.jpeg",
 
-    this.data =
-    data || {};
+    title_en:"NEMT",
+    title_es:"NEMT",
 
-    localStorage.setItem(
-      "ghSystemDesign",
-      JSON.stringify(this.data)
-    );
+    description_en:
+    "Medical appointments & clinics",
 
-    this.applyGlobalBranding();
+    description_es:
+    "Citas médicas y clínicas",
 
-  },
+    link:"getquote/index.html"
+},
 
-  /* =========================
-     GETTERS
-  ========================= */
+{
+    active:true,
 
-  getCompanyName(){
+    image:"assets/airport.jpeg",
 
-    return (
-      this.data?.companyName ||
-      "Sunbeam Transportation"
-    );
+    title_en:"Airport",
+    title_es:"Aeropuerto",
 
-  },
+    description_en:
+    "Airport pickup & drop-off",
 
-  getTimezone(){
+    description_es:
+    "Traslados al aeropuerto",
 
-    return (
-      this.data?.timezone ||
-      "America/Phoenix"
-    );
+    link:"getquote/index.html"
+},
 
-  },
+{
+    active:true,
 
-  getMainLogo(){
+    image:"assets/business.jpeg",
 
-    return (
-      this.data?.mainLogo ||
-      "/assets/logo.png"
-    );
+    title_en:"Business",
+    title_es:"Negocios",
 
-  },
+    description_en:
+    "Corporate & private rides",
 
-  getDriverLogo(){
+    description_es:
+    "Viajes corporativos y privados",
 
-    return (
-      this.data?.driverLogo ||
-      "/assets/logo.png"
-    );
+    link:"getquote/index.html"
+},
 
-  },
+{
+    active:true,
 
-  getHeroImage(){
+    image:"assets/business.jpeg",
 
-    return (
-      this.data?.heroImage ||
-      "/assets/hero.jpeg"
-    );
+    title_en:"Taxi",
+    title_es:"Taxi",
 
-  },
+    description_en:
+    "Daily city transportation",
 
-  getServices(){
+    description_es:
+    "Transporte diario en la ciudad",
 
-    return Array.isArray(
-      this.data?.services
-    )
-    ? this.data.services
-    : [];
+    link:"getquote/index.html"
+},
 
-  },
+{
+    active:true,
 
-  /* =========================
-     TEXT HELPERS
-  ========================= */
+    image:"assets/business.jpeg",
 
-  cleanText(value){
+    title_en:"Limo",
+    title_es:"Limusina",
 
-    return String(
-      value === undefined ||
-      value === null
-      ? ""
-      : value
-    );
+    description_en:
+    "Luxury transportation service",
 
-  },
+    description_es:
+    "Servicio de lujo",
 
-  cleanWordText(value){
+    link:"getquote/index.html"
+},
 
-    return this.cleanText(value)
-    .replace(/style="[^"]*"/gi,"")
-    .replace(/style='[^']*'/gi,"")
-    .replace(/text-align\s*:\s*(left|right|center|justify)\s*;?/gi,"")
-    .replace(/<div[^>]*>/gi,"")
-    .replace(/<\/div>/gi,"\n")
-    .replace(/<p[^>]*>/gi,"")
-    .replace(/<\/p>/gi,"\n")
-    .replace(/<br\s*\/?>/gi,"\n")
-    .replace(/\n{3,}/g,"\n\n")
-    .trim();
+{
+    active:true,
 
-  },
+    image:"assets/business.jpeg",
 
-  normalizeWordAlign(align){
+    title_en:"XL",
+    title_es:"XL",
 
-    const clean =
-    String(align || "")
-    .toLowerCase()
-    .trim();
+    description_en:
+    "Large family transportation",
 
-    const allowed = [
-      "left",
-      "center",
-      "right",
-      "justify",
-      "justify-left",
-      "justify-center",
-      "justify-right"
-    ];
+    description_es:
+    "Transporte familiar",
 
-    return allowed.includes(clean)
-    ? clean
-    : "center";
+    link:"getquote/index.html"
+},
 
-  },
+{
+    active:true,
 
-  detectDirection(text){
+    image:"assets/nemt.jpeg",
 
-    return /[\u0600-\u06FF]/.test(
-      String(text || "")
-    )
-    ? "rtl"
-    : "ltr";
+    title_en:"Wheelchair",
+    title_es:"Silla de ruedas",
 
-  },
+    description_en:
+    "Wheelchair accessible rides",
 
-  applyWordElement(el,value,align){
+    description_es:
+    "Viajes accesibles",
 
-    if(!el) return;
+    link:"getquote/index.html"
+},
 
-    const text =
-    this.cleanWordText(value);
+{
+    active:true,
 
-    const finalAlign =
-    this.normalizeWordAlign(align);
+    image:"assets/airport.jpeg",
 
-    const dir =
-    this.detectDirection(text);
+    title_en:"Shared Ride",
+    title_es:"Viaje compartido",
 
-    el.classList.remove(
-      "gh-align-left",
-      "gh-align-center",
-      "gh-align-right",
-      "gh-align-justify",
-      "gh-align-justify-left",
-      "gh-align-justify-center",
-      "gh-align-justify-right",
-      "gh-dir-ltr",
-      "gh-dir-rtl"
-    );
+    description_en:
+    "Affordable shared rides",
 
-    el.classList.add(
-      "gh-word-text",
-      "gh-align-" + finalAlign,
-      dir === "rtl"
-      ? "gh-dir-rtl"
-      : "gh-dir-ltr"
-    );
+    description_es:
+    "Viajes compartidos económicos",
 
-    el.innerText =
-    text;
+    link:"getquote/index.html"
+}
 
-  },
+];
 
-  /* =========================
-     APPLY GLOBAL
-  ========================= */
+/* =========================
+HELPER
+========================= */
 
-  applyGlobalBranding(){
+function getText(en,es){
 
-    document.title =
-    this.getCompanyName();
+    if(currentLang === "es"){
+        return es || en || "";
+    }
+
+    return en || es || "";
+
+}
+
+/* =========================
+TRANSLATE STATIC
+========================= */
+
+function translateStatic(){
 
     document
-    .querySelectorAll(".company-name")
+    .querySelectorAll("[data-en]")
     .forEach(el=>{
 
-      el.innerText =
-      this.getCompanyName();
+        const en =
+        el.getAttribute("data-en");
+
+        const es =
+        el.getAttribute("data-es");
+
+        el.innerText =
+        getText(en,es);
 
     });
 
-    document
-    .querySelectorAll(".main-logo")
-    .forEach(el=>{
+}
 
-      el.src =
-      this.getMainLogo();
+/* =========================
+SERVICES RENDER
+========================= */
 
-    });
-
-    document
-    .querySelectorAll(".driver-logo")
-    .forEach(el=>{
-
-      el.src =
-      this.getDriverLogo();
-
-    });
-
-    document
-    .querySelectorAll(".hero-image")
-    .forEach(el=>{
-
-      el.src =
-      this.getHeroImage();
-
-    });
-
-    this.applyThemeEngine();
-
-  },
-
-  /* =========================
-     APPLY THEME ENGINE
-  ========================= */
-
-  applyThemeEngine(){
-
-    const d =
-    this.data || {};
-
-    const isMobile =
-    window.innerWidth <= 768;
-
-    const extraTitleAlign =
-    isMobile
-    ? (d.extraBoxTitleMobileAlign || "center")
-    : (d.extraBoxAlign || "justify-center");
-
-    const requestedExtraTextAlign =
-    isMobile
-    ? (d.extraBoxTextMobileAlign || "left")
-    : (d.extraBoxAlign || "justify-center");
-
-    const extraTextAlign =
-    isMobile &&
-    String(requestedExtraTextAlign)
-      .toLowerCase()
-      .startsWith("justify")
-    ? "left"
-    : requestedExtraTextAlign;
-
-    document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-      box.style.setProperty(
-        "background",
-        d.extraBoxBg || "#ffffff",
-        "important"
-      );
-
-      box.style.setProperty(
-        "border",
-        `${d.extraBoxBorderSize || 2}px solid ${
-          d.extraBoxBorder || "#dbeafe"
-        }`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "border-radius",
-        `${d.extraBoxRadius || 32}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "padding",
-        isMobile
-        ? `${d.extraBoxMobilePadding || 18}px`
-        : `${d.extraBoxPadding || 70}px`,
-        "important"
-      );
-
-      box.style.setProperty(
-        "box-shadow",
-        d.extraBoxShadow
-        ? "0 8px 22px rgba(15,23,42,.06)"
-        : "none",
-        "important"
-      );
-
-    });
-
-    document
-    .querySelectorAll(
-      ".extra-box h2, .extra-box h3"
-    )
-    .forEach(title=>{
-
-      title.style.setProperty(
-        "color",
-        d.extraBoxTitleColor || "#1e3a6d",
-        "important"
-      );
-
-      title.style.setProperty(
-        "font-size",
-        isMobile
-        ? `${d.extraBoxTitleMobileSize || 20}px`
-        : `${d.extraBoxTitleSize || 42}px`,
-        "important"
-      );
-
-      this.applyWordElement(
-        title,
-        title.innerText,
-        extraTitleAlign
-      );
-
-    });
-
-    document
-    .querySelectorAll(".extra-box p, .extra-box div")
-    .forEach(text=>{
-
-      if(
-        text.classList.contains("extra-box")
-      ) return;
-
-      text.style.setProperty(
-        "color",
-        d.extraBoxTextColor || "#6b7280",
-        "important"
-      );
-
-      text.style.setProperty(
-        "font-size",
-        isMobile
-        ? `${d.extraBoxTextMobileSize || 14}px`
-        : `${d.extraBoxTextSize || 22}px`,
-        "important"
-      );
-
-      this.applyWordElement(
-        text,
-        text.innerText,
-        extraTextAlign
-      );
-
-      if(isMobile){
-        text.style.setProperty(
-          "white-space",
-          "normal",
-          "important"
-        );
-
-        text.style.setProperty(
-          "text-wrap",
-          "balance"
-        );
-      }
-
-    });
-
-  },
-
-  /* =========================
-     RENDER HOMEPAGE CARDS
-     نفس الكروت — مع تحسين الرندر فقط
-  ========================= */
-
-  renderHomepageCards(
-    containerId,
-    lang = "en"
-  ){
+function renderServices(){
 
     const container =
     document.getElementById(
-      containerId
+        "servicesContainer"
     );
 
     if(!container) return;
 
-    const services =
-    this.getServices();
-
     container.innerHTML = "";
-
-    const fragment =
-    document.createDocumentFragment();
 
     services.forEach(service=>{
 
-      if(!service || !service.active) return;
+        if(!service.active) return;
 
-      const title =
-      lang === "es"
-      ? (
-          service.title_es ||
-          service.titleEs ||
-          service.title ||
-          service.title_en ||
-          ""
-        )
-      : (
-          service.title_en ||
-          service.title ||
-          ""
+        const title =
+        getText(
+            service.title_en,
+            service.title_es
         );
 
-      const desc =
-      lang === "es"
-      ? (
-          service.description_es ||
-          service.descriptionEs ||
-          service.description ||
-          service.description_en ||
-          ""
-        )
-      : (
-          service.description_en ||
-          service.description ||
-          ""
+        const description =
+        getText(
+            service.description_en,
+            service.description_es
         );
 
-      const card =
-      document.createElement("div");
+        const buttonText =
+        currentLang === "es"
+        ? "Obtener precio"
+        : "Get Quote";
 
-      card.className =
-      "card";
+        container.innerHTML += `
 
-      const img =
-      document.createElement("img");
+        <div class="card">
 
-      img.src =
-      service.image ||
-      "/assets/logo.png";
+            <img src="${service.image}">
 
-      img.className =
-      "card-image";
+            <div class="card-content">
 
-      img.alt =
-      this.cleanText(title);
+                <h3>
+                    ${title}
+                </h3>
 
-      const body =
-      document.createElement("div");
+                <p>
+                    ${description}
+                </p>
 
-      body.className =
-      "card-body";
+                <a href="${service.link}"
+                class="btn">
 
-      const h3 =
-      document.createElement("h3");
+                    ${buttonText}
 
-      h3.innerText =
-      this.cleanText(title);
+                </a>
 
-      const p =
-      document.createElement("p");
+            </div>
 
-      p.innerText =
-      this.cleanText(desc);
+        </div>
 
-      const a =
-      document.createElement("a");
-
-      a.href =
-      service.link ||
-      "getquote/index.html";
-
-      a.className =
-      "card-btn";
-
-      a.innerText =
-      lang === "es"
-      ? "Obtener precio"
-      : "Get Quote";
-
-      body.appendChild(h3);
-      body.appendChild(p);
-      body.appendChild(a);
-
-      card.appendChild(img);
-      card.appendChild(body);
-
-      fragment.appendChild(card);
+        `;
 
     });
 
-    container.appendChild(fragment);
+}
 
-  }
+/* =========================
+LANGUAGE
+========================= */
+
+window.setLang = function(lang){
+
+    currentLang = lang;
+
+    translateStatic();
+
+    renderServices();
 
 };
+
+/* =========================
+INIT
+========================= */
+
+translateStatic();
+
+renderServices();
