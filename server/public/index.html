@@ -2027,19 +2027,40 @@ window.setLang = function(lang){
   ? "es"
   : "en";
 
-  renderPage();
-
   if(currentLang === "es"){
 
+    renderPage();
+
     setGoogleTranslateCookie("es");
+
     queueGoogleTranslate("es");
 
-  }else{
+    return;
+  }
 
-    clearGoogleTranslateCookie();
-    applyGoogleTranslate("en");
+  /*
+    English must restore the ORIGINAL page text.
+    Google Translate is more reliable when its translation cookie
+    is cleared and the page is reloaded cleanly.
+  */
+
+  pendingGoogleLang = "en";
+
+  clearGoogleTranslateCookie();
+
+  document.cookie =
+    "googtrans=;path=/;max-age=0";
+
+  if(location.hostname){
+
+    document.cookie =
+      "googtrans=;path=/;domain=" +
+      location.hostname +
+      ";max-age=0";
 
   }
+
+  window.location.reload();
 
 };
 
