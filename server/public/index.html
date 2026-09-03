@@ -401,50 +401,6 @@ body{
   background:#1d4ed8;
 }
 
-
-/* =========================
-   DESKTOP CARD HEIGHT LOCK
-   Keeps all homepage service cards aligned.
-   Mobile layout is untouched.
-========================= */
-
-@media(min-width:769px){
-
-  .services .card{
-    height:610px;
-    display:flex;
-    flex-direction:column;
-  }
-
-  .services .card-image{
-    flex:0 0 240px;
-  }
-
-  .services .card-body{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    min-height:0;
-  }
-
-  .services .card h3{
-    min-height:76px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-
-  .services .card p{
-    min-height:130px;
-  }
-
-  .services .card-btn{
-    margin-top:auto;
-    flex:0 0 58px;
-  }
-
-}
-
 /* =========================
    EXTRA BIG TEXT BOXES
 ========================= */
@@ -1224,7 +1180,10 @@ id="extraSections">
 
 <script>
 
-let currentLang = "en";
+let currentLang =
+  localStorage.getItem("ghPublicLanguage") === "es"
+  ? "es"
+  : "en";
 
 /* =========================
    BASIC HELPERS
@@ -1376,7 +1335,7 @@ function updateLangButtons(){
 ========================= */
 
 let googleTranslateReady = false;
-let pendingGoogleLang = "en";
+let pendingGoogleLang = currentLang;
 
 function clearGoogleTranslateCookie(){
 
@@ -1425,50 +1384,63 @@ function applyGoogleTranslate(lang){
   : "en";
 
   if(pendingGoogleLang === "en"){
-
     clearGoogleTranslateCookie();
-
   }else{
-
     setGoogleTranslateCookie(
       pendingGoogleLang
     );
-
   }
 
   const select =
   getGoogleTranslateSelect();
 
-  if(!select) return;
+  if(!select){
+    return false;
+  }
 
-  select.value =
+  const targetValue =
   pendingGoogleLang === "es"
   ? "es"
   : "";
 
+  if(select.value !== targetValue){
+    select.value = targetValue;
+  }
+
   select.dispatchEvent(
     new Event(
-      "change"
+      "change",
+      {bubbles:true}
     )
   );
 
+  return true;
 }
 
 function queueGoogleTranslate(lang){
 
-  applyGoogleTranslate(lang);
+  pendingGoogleLang =
+  lang === "es"
+  ? "es"
+  : "en";
 
-  setTimeout(()=>{
-    applyGoogleTranslate(lang);
-  },400);
+  let attempts = 0;
 
-  setTimeout(()=>{
-    applyGoogleTranslate(lang);
-  },1200);
+  const timer =
+  setInterval(()=>{
 
-  setTimeout(()=>{
-    applyGoogleTranslate(lang);
-  },2400);
+    attempts += 1;
+
+    const applied =
+    applyGoogleTranslate(
+      pendingGoogleLang
+    );
+
+    if(applied || attempts >= 30){
+      clearInterval(timer);
+    }
+
+  },250);
 
 }
 
@@ -1495,7 +1467,7 @@ window.googleTranslateElementInit = function(){
   googleTranslateReady = true;
 
   queueGoogleTranslate(
-    pendingGoogleLang
+    currentLang
   );
 
 };
@@ -1948,22 +1920,26 @@ updateServicesLayout();
 
 window.setLang = function(lang){
 
-  currentLang =
+  const nextLang =
   lang === "es"
   ? "es"
   : "en";
 
-  renderPage();
+  localStorage.setItem(
+    "ghPublicLanguage",
+    nextLang
+  );
 
-  if(currentLang === "es"){
+  currentLang =
+  nextLang;
 
-    queueGoogleTranslate("es");
-
+  if(nextLang === "es"){
+    setGoogleTranslateCookie("es");
   }else{
-
-    applyGoogleTranslate("en");
-
+    clearGoogleTranslateCookie();
   }
+
+  window.location.reload();
 
 };
 
