@@ -2292,3 +2292,95 @@ body.driver-dashboard-page{
     height:22px !important;
   }
 }
+
+/* =========================================
+   DRIVER DASHBOARD — 3 REQUESTED FIXES ONLY
+   1) Cards closer together
+   2) Summary box same size as Trips
+   3) Status box same width as Trips + centered compact status text
+========================================= */
+
+/* 1) Bring dashboard cards closer together */
+.driver-dashboard-page .dashboard-grid{
+  column-gap:4px !important;
+  row-gap:4px !important;
+}
+
+/* 2) Summary box = same effective width and height as Trips */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:96px !important;
+  height:96px !important;
+  margin:4px 18px 6px !important;
+  padding:14px 18px !important;
+}
+
+/* Keep Summary wording at its existing size */
+.driver-dashboard-page .summary-final-text{
+  font-size:20px !important;
+}
+
+/* 3) Status box = same effective width as Trips */
+.driver-dashboard-page .status-pill{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  margin-left:18px !important;
+  margin-right:18px !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:10px !important;
+}
+
+/* Bring green dot + Status: together */
+.driver-dashboard-page .status-left{
+  display:flex !important;
+  align-items:center !important;
+  gap:6px !important;
+}
+
+/* Cancel older rule that pushed ONLINE to the far right */
+.driver-dashboard-page .status-value{
+  margin-left:0 !important;
+  text-align:center !important;
+}
+
+@media(max-width:390px){
+
+  /* 1) Keep phone cards very close */
+  .driver-dashboard-page .dashboard-grid{
+    column-gap:3px !important;
+    row-gap:3px !important;
+  }
+
+  /* 2) Summary = same mobile height as Trips */
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:90px !important;
+    height:90px !important;
+    margin:3px 16px 6px !important;
+    padding:12px 16px !important;
+  }
+
+  /* 3) Status = same effective mobile width as Trips */
+  .driver-dashboard-page .status-pill{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    margin-left:16px !important;
+    margin-right:16px !important;
+    justify-content:center !important;
+    gap:8px !important;
+  }
+
+  .driver-dashboard-page .status-left{
+    gap:5px !important;
+  }
+
+  .driver-dashboard-page .status-value{
+    margin-left:0 !important;
+    text-align:center !important;
+  }
+}
