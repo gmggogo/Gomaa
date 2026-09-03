@@ -53,10 +53,11 @@ function injectMapStyles(){
   style.innerHTML = `
     .drivers-sidebar{
       position:fixed;
-      top:130px;
-      right:14px;
+      top:190px;
+      left:14px;
+      right:auto;
       width:290px;
-      max-height:calc(100vh - 150px);
+      max-height:calc(100vh - 210px);
       overflow:auto;
       background:rgba(15,23,42,.96);
       border:1px solid #334155;
@@ -174,15 +175,20 @@ function injectMapStyles(){
     @media(max-width:900px){
       .drivers-sidebar{
         width:220px;
-        top:120px;
-        right:8px;
-        max-height:calc(100vh - 140px);
+        top:180px;
+        left:8px;
+        right:auto;
+        max-height:calc(100vh - 200px);
       }
     }
 
     @media(max-width:700px){
       .drivers-sidebar{
         width:180px;
+        top:170px;
+        left:8px;
+        right:auto;
+        max-height:calc(100vh - 190px);
       }
       .leaflet-driver-name{
         font-size:10px;
