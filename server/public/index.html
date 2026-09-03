@@ -344,10 +344,13 @@ body{
 
 .card{
   width:340px;
+  height:560px;
   background:#fff;
   border-radius:26px;
   overflow:hidden;
   box-shadow:0 10px 30px rgba(0,0,0,.10);
+  display:flex;
+  flex-direction:column;
 }
 
 .card-image{
@@ -363,6 +366,10 @@ body{
 .card-body{
   padding:24px;
   text-align:center;
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  min-height:0;
 }
 
 .card h3{
@@ -371,15 +378,24 @@ body{
   color:#111827;
   font-weight:800;
   line-height:1.25;
+  min-height:76px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
 }
 
 .card p{
   font-size:17px;
   color:#6b7280;
-  line-height:1.9;
+  line-height:1.75;
+  height:120px;
   min-height:120px;
+  max-height:120px;
+  overflow:hidden;
   word-break:normal;
   overflow-wrap:break-word;
+  text-align:center;
 }
 
 .card-btn{
@@ -388,7 +404,7 @@ body{
   justify-content:center;
   width:100%;
   height:58px;
-  margin-top:20px;
+  margin-top:auto;
   background:#2563eb;
   color:#fff !important;
   text-decoration:none;
@@ -649,8 +665,8 @@ body{
   width:100% !important;
   max-width:100% !important;
 
-  text-align:left !important;
-  text-align-last:auto !important;
+  text-align:center !important;
+  text-align-last:center !important;
 
   direction:ltr !important;
   unicode-bidi:normal !important;
@@ -667,6 +683,13 @@ body{
 
   margin:0 !important;
   padding:0 !important;
+}
+
+
+.extra-box p,
+.extra-box .gh-word-text{
+  text-align:center !important;
+  text-align-last:center !important;
 }
 
 /* =========================
@@ -695,9 +718,13 @@ body{
 
   .card{
     width:100% !important;
-    max-width:100% !important;
+    max-width:430px !important;
+    height:520px !important;
+    margin:0 auto !important;
     border-radius:20px;
     box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+    display:flex !important;
+    flex-direction:column !important;
   }
 
   .card-image{
@@ -708,24 +735,39 @@ body{
 
   .card-body{
     padding:18px;
+    display:flex !important;
+    flex:1 !important;
+    flex-direction:column !important;
+    text-align:center !important;
+    align-items:stretch !important;
   }
 
   .card h3{
     font-size:24px !important;
     line-height:1.3;
     margin-bottom:10px;
+    min-height:62px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
   }
 
   .card p{
     font-size:15px !important;
-    line-height:1.8;
-    min-height:auto;
+    line-height:1.65 !important;
+    height:100px !important;
+    min-height:100px !important;
+    max-height:100px !important;
+    overflow:hidden !important;
+    text-align:center !important;
+    text-align-last:center !important;
   }
 
   .card-btn{
     height:50px;
     font-size:16px;
-    margin-top:16px;
+    margin-top:auto !important;
   }
 
   /* =========================
@@ -754,6 +796,207 @@ body{
   }
 
 }
+
+
+/* =========================================================
+   MOBILE TYPOGRAPHY FINAL OVERRIDE
+   Desktop unchanged. Mobile text is compact and readable.
+========================================================= */
+@media (max-width:768px){
+
+  body{
+    overflow-x:hidden !important;
+    -webkit-text-size-adjust:100% !important;
+    text-size-adjust:100% !important;
+  }
+
+  .about,
+  .quote-header{
+    width:calc(100% - 28px) !important;
+    max-width:calc(100% - 28px) !important;
+    margin:14px auto 0 !important;
+    padding:22px 20px !important;
+    border-radius:22px !important;
+  }
+
+  .extra-sections{
+    width:100% !important;
+    max-width:100% !important;
+    padding:0 14px 42px !important;
+    gap:16px !important;
+  }
+
+  .extra-box{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 auto !important;
+    padding:22px 20px !important;
+    border-radius:22px !important;
+  }
+
+  /* Titles only */
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView,
+  #aboutTitle *,
+  #quoteTitle *,
+  #extra1TitleView *,
+  #extra2TitleView *{
+    width:100% !important;
+    max-width:100% !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    padding:0 !important;
+
+    font-family:'Segoe UI',Arial,sans-serif !important;
+    font-size:22px !important;
+    line-height:1.18 !important;
+    font-weight:800 !important;
+    letter-spacing:-0.25px !important;
+    word-spacing:0 !important;
+
+    text-align:center !important;
+    text-align-last:center !important;
+    white-space:normal !important;
+  }
+
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView{
+    margin-bottom:16px !important;
+  }
+
+  /* Paragraph text */
+  #aboutText,
+  #quoteText,
+  #extra1TextView,
+  #extra2TextView,
+  #aboutText *,
+  #quoteText *,
+  #extra1TextView *,
+  #extra2TextView *{
+    width:100% !important;
+    max-width:100% !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    padding:0 !important;
+
+    font-family:'Segoe UI',Arial,sans-serif !important;
+    font-size:15px !important;
+    line-height:1.48 !important;
+    font-weight:400 !important;
+    letter-spacing:0 !important;
+    word-spacing:0 !important;
+
+    text-align:left !important;
+    text-align-last:auto !important;
+
+    white-space:normal !important;
+    word-break:normal !important;
+    overflow-wrap:normal !important;
+    hyphens:none !important;
+
+    direction:ltr !important;
+    unicode-bidi:normal !important;
+  }
+
+  /* Keep service cards compact */
+  .services,
+  .services.layout-1,
+  .services.layout-2,
+  .services.layout-4,
+  .services.layout-5{
+    width:100% !important;
+    max-width:100% !important;
+    padding:24px 14px 50px !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    justify-items:center !important;
+    align-items:start !important;
+    gap:18px !important;
+  }
+
+  .services .card,
+  .services.layout-5 .card,
+  .services.layout-5 .card:nth-child(4),
+  .services.layout-5 .card:nth-child(5){
+    grid-column:auto !important;
+    width:100% !important;
+    max-width:360px !important;
+    height:390px !important;
+    min-height:390px !important;
+    max-height:390px !important;
+    margin:0 auto !important;
+    border-radius:22px !important;
+    overflow:hidden !important;
+  }
+
+  .services .card-image{
+    width:100% !important;
+    height:165px !important;
+    min-height:165px !important;
+    max-height:165px !important;
+    object-fit:contain !important;
+    object-position:center !important;
+    padding:6px !important;
+  }
+
+  .services .card-body{
+    min-height:0 !important;
+    padding:14px 16px 16px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    text-align:center !important;
+  }
+
+  .services .card h3,
+  .services .card h3 *{
+    min-height:48px !important;
+    max-height:48px !important;
+    margin:0 0 8px !important;
+    font-size:20px !important;
+    line-height:1.2 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
+    text-align-last:center !important;
+    overflow:hidden !important;
+  }
+
+  .services .card p,
+  .services .card p *,
+  .services .card .gh-word-text,
+  .services .card .gh-word-text *{
+    height:60px !important;
+    min-height:60px !important;
+    max-height:60px !important;
+    margin:0 !important;
+    font-size:14px !important;
+    line-height:1.4 !important;
+    overflow:hidden !important;
+    text-align:center !important;
+    text-align-last:center !important;
+    word-spacing:0 !important;
+    letter-spacing:0 !important;
+    white-space:normal !important;
+  }
+
+  .services .card-btn,
+  .services .card-btn *{
+    width:100% !important;
+    min-height:46px !important;
+    height:46px !important;
+    margin-top:auto !important;
+    font-size:16px !important;
+    text-align:center !important;
+    justify-content:center !important;
+  }
+}
+
 </style>
 
 </head>
@@ -1985,19 +2228,19 @@ function forceMobileHomeLayout(){
 
     section.style.setProperty(
       "width",
-      "auto",
+      "calc(100% - 28px)",
       "important"
     );
 
     section.style.setProperty(
       "max-width",
-      "none",
+      "calc(100% - 28px)",
       "important"
     );
 
     section.style.setProperty(
       "margin",
-      "12px 10px 0",
+      "14px auto 0",
       "important"
     );
 
@@ -2028,7 +2271,7 @@ function forceMobileHomeLayout(){
 
     extraSections.style.setProperty(
       "padding",
-      "0 10px 45px",
+      "0 14px 42px",
       "important"
     );
 
@@ -2098,7 +2341,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-size",
-      "24px",
+      "22px",
       "important"
     );
 
@@ -2122,7 +2365,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "text-align-last",
-      "center",
+      "auto",
       "important"
     );
 
@@ -2155,7 +2398,7 @@ function forceMobileHomeLayout(){
     if(!el) return;
 
     el.classList.remove(
-      "gh-align-center",
+      "gh-align-left",
       "gh-align-right",
       "gh-align-justify",
       "gh-align-justify-left",
@@ -2169,13 +2412,13 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-size",
-      "14px",
+      "15px",
       "important"
     );
 
     el.style.setProperty(
       "line-height",
-      "1.58",
+      "1.48",
       "important"
     );
 
@@ -2206,6 +2449,24 @@ function forceMobileHomeLayout(){
     el.style.setProperty(
       "unicode-bidi",
       "normal",
+      "important"
+    );
+
+    el.style.setProperty(
+      "max-width",
+      "100%",
+      "important"
+    );
+
+    el.style.setProperty(
+      "margin-left",
+      "auto",
+      "important"
+    );
+
+    el.style.setProperty(
+      "margin-right",
+      "auto",
       "important"
     );
 
@@ -2241,7 +2502,7 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "margin",
-      "0",
+      "0 auto",
       "important"
     );
 
