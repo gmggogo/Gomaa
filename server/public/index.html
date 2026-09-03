@@ -476,6 +476,32 @@ footer{
   font-weight:700;
 }
 
+.google-translate-holder{
+  position:absolute;
+  left:-9999px;
+  top:auto;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-logo-link,
+.goog-te-gadget span,
+.goog-te-gadget,
+.goog-te-combo{
+  display:none !important;
+}
+
+body{
+  top:0 !important;
+}
+
 /* =========================
    MOBILE FIX
    Mobile Auto Text Mode
@@ -569,21 +595,21 @@ footer{
 
 .quote-header{
   width:auto !important;
-  margin:12px 10px 0 !important;
-  padding:22px 18px !important;
-  border-radius:20px !important;
+  margin:10px 4px 0 !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
 }
 
 .extra-sections{
   width:100% !important;
-  padding:0 10px 45px !important;
+  padding:0 4px 45px !important;
   gap:14px !important;
 }
 
 .extra-box{
   width:100% !important;
-  padding:22px 18px !important;
-  border-radius:20px !important;
+  padding:20px 8px !important;
+  border-radius:18px !important;
 }
   /* =========================
      MOBILE TITLES
@@ -733,6 +759,10 @@ footer{
 </head>
 
 <body>
+
+<div
+id="google_translate_element"
+class="google-translate-holder"></div>
 
 <div class="top-bar">
 
@@ -1163,115 +1193,6 @@ function cleanText(value){
 
 }
 
-/* =========================
-   SPANISH FALLBACK
-========================= */
-
-const ES_TEXT = {
-  "professional transportation across arizona":
-    "Transporte profesional en todo Arizona",
-  "about sunbeam transportation llc":
-    "Acerca de Sunbeam Transportation LLC",
-  "sunbeam transportation provides safe, reliable, and comfortable transportation services across arizona. we are committed to professional service, on-time pickups, and a smooth ride for every passenger":
-    "Sunbeam Transportation ofrece servicios de transporte seguros, confiables y cómodos en todo Arizona. Estamos comprometidos con un servicio profesional, recogidas puntuales y un viaje cómodo para cada pasajero.",
-  "get quote & book your ride":
-    "Obtenga una cotización y reserve su viaje",
-  "book your ride today":
-    "Reserve su viaje hoy",
-  "choose the service that fits your trip and get a competitive price instantly":
-    "Elija el servicio que se adapte a su viaje y obtenga un precio competitivo al instante.",
-  "fast booking, professional drivers, clean vehicles, and reliable transportation across arizona":
-    "Reservas rápidas, conductores profesionales, vehículos limpios y transporte confiable en todo Arizona.",
-  "extra information":
-    "Información adicional",
-  "simple pricing, no surprises":
-    "Precios claros, sin sorpresas",
-  "get your price before you book. rates are based on your selected service, trip distance, and ride details":
-    "Obtenga su precio antes de reservar. Las tarifas se basan en el servicio seleccionado, la distancia del viaje y los detalles del viaje.",
-  "additional services":
-    "Servicios adicionales",
-  "more ways to ride":
-    "Más formas de viajar",
-  "need a special trip? we also offer scheduled rides, group transportation, business transportation, and customized transportation solutions":
-    "¿Necesita un viaje especial? También ofrecemos viajes programados, transporte para grupos, transporte empresarial y soluciones de transporte personalizadas.",
-  "professional drivers":
-    "Conductores profesionales",
-  "serving all arizona":
-    "Servicio en todo Arizona",
-  "customer support":
-    "Atención al cliente",
-  "non-medical transportation":
-    "Transporte no médico",
-  "medical transportation":
-    "Transporte médico",
-  "wheelchair transportation":
-    "Transporte en silla de ruedas",
-  "airport transportation":
-    "Transporte al aeropuerto",
-  "business transportation":
-    "Transporte empresarial",
-  "private transportation":
-    "Transporte privado",
-  "hourly transportation":
-    "Transporte por hora",
-  "shared ride":
-    "Viaje compartido",
-  "limo":
-    "Limusina",
-  "limo service":
-    "Servicio de limusina",
-  "professional transportation for business meetings, corporate travel, and executive appointments":
-    "Transporte profesional para reuniones de negocios, viajes corporativos y citas ejecutivas.",
-  "get quote":
-    "Obtener precio"
-};
-
-function esKey(value){
-
-  return cleanText(value)
-    .replace(/\s+/g," ")
-    .trim()
-    .replace(/[.!]+$/,"")
-    .toLowerCase();
-
-}
-
-function esFallback(value){
-
-  const key =
-  esKey(value);
-
-  return ES_TEXT[key] ||
-  value ||
-  "";
-
-}
-
-function pickLangText(esValue,enValue,defaultValue){
-
-  if(
-    currentLang === "es" &&
-    esValue !== undefined &&
-    esValue !== null &&
-    String(esValue).trim()
-  ){
-    return esValue;
-  }
-
-  if(currentLang === "es"){
-    return esFallback(
-      enValue ||
-      defaultValue ||
-      ""
-    );
-  }
-
-  return enValue ||
-  defaultValue ||
-  "";
-
-}
-
 function cleanWordText(value){
 
   return cleanText(value)
@@ -1401,24 +1322,106 @@ function updateLangButtons(){
 
 }
 
-function applyServiceCardLanguage(){
+/* =========================
+   GOOGLE TRANSLATE
+   Hidden engine controlled by the page buttons.
+========================= */
 
-  if(currentLang !== "es") return;
+let googleTranslateReady = false;
+let pendingGoogleLang = "en";
 
-  document
-    .querySelectorAll(".card h3, .card p, .card-btn")
-    .forEach(el=>{
+function setGoogleTranslateCookie(lang){
 
-      if(!el) return;
+  const value =
+  lang === "es"
+  ? "/en/es"
+  : "/en/en";
 
-      el.innerText =
-      esFallback(
-        el.innerText
-      );
+  document.cookie =
+  "googtrans=" + value + ";path=/";
 
-    });
+  document.cookie =
+  "googtrans=" + value + ";path=/;domain=" +
+  location.hostname;
 
 }
+
+function getGoogleTranslateSelect(){
+
+  return document.querySelector(
+    ".goog-te-combo"
+  );
+
+}
+
+function applyGoogleTranslate(lang){
+
+  pendingGoogleLang =
+  lang === "es"
+  ? "es"
+  : "en";
+
+  setGoogleTranslateCookie(
+    pendingGoogleLang
+  );
+
+  const select =
+  getGoogleTranslateSelect();
+
+  if(!select) return;
+
+  select.value =
+  pendingGoogleLang;
+
+  select.dispatchEvent(
+    new Event(
+      "change"
+    )
+  );
+
+}
+
+function queueGoogleTranslate(lang){
+
+  applyGoogleTranslate(lang);
+
+  setTimeout(()=>{
+    applyGoogleTranslate(lang);
+  },400);
+
+  setTimeout(()=>{
+    applyGoogleTranslate(lang);
+  },1200);
+
+}
+
+window.googleTranslateElementInit = function(){
+
+  if(
+    !window.google ||
+    !google.translate ||
+    !google.translate.TranslateElement
+  ){
+    return;
+  }
+
+  new google.translate.TranslateElement(
+    {
+      pageLanguage:"en",
+      includedLanguages:"en,es",
+      autoDisplay:false,
+      multilanguagePage:true
+    },
+    "google_translate_element"
+  );
+
+  googleTranslateReady = true;
+
+  queueGoogleTranslate(
+    pendingGoogleLang
+  );
+
+};
 
 /* =========================
    EXTRA THEME
@@ -1457,7 +1460,7 @@ function applyExtraBoxesTheme(data){
     box.style.setProperty(
       "padding",
       window.innerWidth <= 768
-      ? "22px 18px"
+      ? "34px 22px"
       : `${data.extraBoxPadding || 70}px`,
       "important"
     );
@@ -1561,7 +1564,7 @@ function applyPageTheme(data){
 
     about.style.padding =
     window.innerWidth <= 768
-    ? "22px 18px"
+    ? "34px 22px"
     : `${data.aboutPadding || 70}px`;
 
   }
@@ -1579,7 +1582,7 @@ function applyPageTheme(data){
 
     quote.style.padding =
     window.innerWidth <= 768
-    ? "22px 18px"
+    ? "34px 22px"
     : `${data.quotePadding || 70}px`;
 
   }
@@ -1711,44 +1714,64 @@ function renderPage(){
 
   applyWordText(
     "aboutTitle",
-    pickLangText(
-      data.aboutTitleEs,
-      data.aboutTitle,
-      "Professional Transportation Across Arizona"
-    ),
+    currentLang === "es"
+    ? (
+        data.aboutTitleEs ||
+        data.aboutTitle ||
+        "Transporte profesional en Arizona"
+      )
+    : (
+        data.aboutTitle ||
+        "Professional Transportation Across Arizona"
+      ),
     data.aboutTitleAlign ||
     "center"
   );
 
   applyWordText(
     "aboutText",
-    pickLangText(
-      data.aboutTextEs,
-      data.aboutText,
-      ""
-    ),
+    currentLang === "es"
+    ? (
+        data.aboutTextEs ||
+        data.aboutText ||
+        ""
+      )
+    : (
+        data.aboutText ||
+        ""
+      ),
     data.aboutTextAlign ||
     "justify-center"
   );
 
   applyWordText(
     "quoteTitle",
-    pickLangText(
-      data.quoteTitleEs,
-      data.quoteTitle,
-      "Book Your Ride Today"
-    ),
+    currentLang === "es"
+    ? (
+        data.quoteTitleEs ||
+        data.quoteTitle ||
+        ""
+      )
+    : (
+        data.quoteTitle ||
+        ""
+      ),
     data.quoteTitleAlign ||
     "center"
   );
 
   applyWordText(
     "quoteText",
-    pickLangText(
-      data.quoteTextEs,
-      data.quoteText,
-      "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
-    ),
+    currentLang === "es"
+    ? (
+        data.quoteTextEs ||
+        data.quoteText ||
+        ""
+      )
+    : (
+        data.quoteText ||
+        ""
+      ),
     data.quoteTextAlign ||
     "justify-center"
   );
@@ -1779,55 +1802,80 @@ function renderPage(){
 
   applyWordText(
     "extra1TitleView",
-    pickLangText(
-      data.extra1TitleEs,
-      data.extra1Title,
-      ""
-    ),
+    currentLang === "es"
+    ? (
+        data.extra1TitleEs ||
+        data.extra1Title ||
+        ""
+      )
+    : (
+        data.extra1Title ||
+        ""
+      ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra1TextView",
-    pickLangText(
-      data.extra1TextEs,
-      data.extra1Text,
-      "Professional Drivers"
-    ),
+    currentLang === "es"
+    ? (
+        data.extra1TextEs ||
+        data.extra1Text ||
+        ""
+      )
+    : (
+        data.extra1Text ||
+        ""
+      ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TitleView",
-    pickLangText(
-      data.extra2TitleEs,
-      data.extra2Title,
-      "Serving All Arizona"
-    ),
+    currentLang === "es"
+    ? (
+        data.extra2TitleEs ||
+        data.extra2Title ||
+        ""
+      )
+    : (
+        data.extra2Title ||
+        ""
+      ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TextView",
-    pickLangText(
-      data.extra2TextEs,
-      data.extra2Text,
-      ""
-    ),
+    currentLang === "es"
+    ? (
+        data.extra2TextEs ||
+        data.extra2Text ||
+        ""
+      )
+    : (
+        data.extra2Text ||
+        ""
+      ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   setText(
     "contactTitleView",
-    pickLangText(
-      data.contactTitleEs,
-      data.contactTitle,
-      "Customer Support"
-    )
+    currentLang === "es"
+    ? (
+        data.contactTitleEs ||
+        data.contactTitle ||
+        "Atención al cliente"
+      )
+    : (
+        data.contactTitle ||
+        "Customer Support"
+      )
   );
 
   setText(
@@ -1844,19 +1892,22 @@ function renderPage(){
 
   setText(
     "footerView",
-    pickLangText(
-      data.footerTextEs,
-      data.footerText,
-      ""
-    )
+    currentLang === "es"
+    ? (
+        data.footerTextEs ||
+        data.footerText ||
+        ""
+      )
+    : (
+        data.footerText ||
+        ""
+      )
   );
 
   Branding.renderHomepageCards(
     "servicesContainer",
     currentLang
   );
-
-  applyServiceCardLanguage();
 
   applyPageTheme(data);
 
@@ -1883,6 +1934,10 @@ window.setLang = function(lang){
 
   renderPage();
 
+  queueGoogleTranslate(
+    currentLang
+  );
+
 };
 
 /* =========================
@@ -1905,6 +1960,10 @@ window.addEventListener(
 
     renderPage();
 
+    queueGoogleTranslate(
+      currentLang
+    );
+
   }
 );
 
@@ -1918,6 +1977,10 @@ window.addEventListener(
     setTimeout(()=>{
 
       renderPage();
+
+      queueGoogleTranslate(
+        currentLang
+      );
 
     },150);
 
@@ -2252,6 +2315,9 @@ function updateServicesLayout(){
 }
 
 </script>
+
+<script
+src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
 </body>
 </html>
