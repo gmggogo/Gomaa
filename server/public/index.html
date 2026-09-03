@@ -401,6 +401,50 @@ body{
   background:#1d4ed8;
 }
 
+
+/* =========================
+   DESKTOP CARD HEIGHT LOCK
+   Keeps all homepage service cards aligned.
+   Mobile layout is untouched.
+========================= */
+
+@media(min-width:769px){
+
+  .services .card{
+    height:610px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .services .card-image{
+    flex:0 0 240px;
+  }
+
+  .services .card-body{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  .services .card h3{
+    min-height:76px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .services .card p{
+    min-height:130px;
+  }
+
+  .services .card-btn{
+    margin-top:auto;
+    flex:0 0 58px;
+  }
+
+}
+
 /* =========================
    EXTRA BIG TEXT BOXES
 ========================= */
