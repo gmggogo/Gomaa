@@ -2703,3 +2703,39 @@ body.driver-dashboard-page{
     box-sizing:border-box !important;
   }
 }
+
+/* =========================================
+   EARNINGS SUMMARY — SCREEN-MEASURED MATCH TO TRIPS
+   Do not touch Status or the four middle cards.
+========================================= */
+
+/*
+Current screenshot measurement:
+- Trips visible outer height: ~158 image px
+- Earnings Summary visible outer height: ~151 image px
+So Summary needs about +7 image px, which is ~4 CSS px on this iPhone.
+*/
+
+/* Keep the same full width as Trips */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:126px !important;
+  height:126px !important;
+  margin-left:18px !important;
+  margin-right:18px !important;
+  box-sizing:border-box !important;
+}
+
+/* iPhone 390px viewport: measured visual correction */
+@media(max-width:390px){
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:118px !important;
+    height:118px !important;
+    margin-left:16px !important;
+    margin-right:16px !important;
+    box-sizing:border-box !important;
+  }
+}
