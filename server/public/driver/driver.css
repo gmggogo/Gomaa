@@ -2545,3 +2545,88 @@ body.driver-dashboard-page{
     margin:0 !important;
   }
 }
+
+/* =========================================
+   DRIVER DASHBOARD — FINAL SIZE CORRECTION
+   1) Status: original compact height, Trips width only
+   2) Summary: exactly same width + height as Trips
+========================================= */
+
+/* STATUS — same width as Trips, but restore compact/original height */
+.driver-dashboard-page .status-pill{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:54px !important;
+  height:54px !important;
+
+  margin-left:18px !important;
+  margin-right:18px !important;
+  padding:0 16px !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+
+  box-sizing:border-box !important;
+}
+
+.driver-dashboard-page .status-left{
+  display:flex !important;
+  align-items:center !important;
+  gap:5px !important;
+}
+
+.driver-dashboard-page .status-value{
+  margin:0 !important;
+  text-align:center !important;
+}
+
+/* SUMMARY — exactly same width and height as Trips */
+.driver-dashboard-page .summary-card.summary-final-card{
+  width:calc(100% - 36px) !important;
+  max-width:calc(100% - 36px) !important;
+  min-height:96px !important;
+  height:96px !important;
+
+  margin-left:18px !important;
+  margin-right:18px !important;
+  margin-top:4px !important;
+  margin-bottom:6px !important;
+
+  padding:14px 18px !important;
+  box-sizing:border-box !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+/* Match the existing compact Trips dimensions on narrow iPhones */
+@media(max-width:390px){
+
+  .driver-dashboard-page .status-pill{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:54px !important;
+    height:54px !important;
+
+    margin-left:16px !important;
+    margin-right:16px !important;
+    padding:0 14px !important;
+  }
+
+  .driver-dashboard-page .summary-card.summary-final-card{
+    width:calc(100% - 32px) !important;
+    max-width:calc(100% - 32px) !important;
+    min-height:90px !important;
+    height:90px !important;
+
+    margin-left:16px !important;
+    margin-right:16px !important;
+    margin-top:3px !important;
+    margin-bottom:6px !important;
+
+    padding:12px 16px !important;
+  }
+}
