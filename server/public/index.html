@@ -562,27 +562,27 @@ footer{
 .quote-header{
   width:auto !important;
   max-width:none !important;
-  margin:18px 16px 0 !important;
-  padding:24px 20px !important;
+  margin:12px 10px 0 !important;
+  padding:22px 18px !important;
   border-radius:20px !important;
 }
 
 .quote-header{
   width:auto !important;
-  margin:18px 16px 0 !important;
-  padding:24px 20px !important;
+  margin:12px 10px 0 !important;
+  padding:22px 18px !important;
   border-radius:20px !important;
 }
 
 .extra-sections{
   width:100% !important;
-  padding:0 16px 45px !important;
+  padding:0 10px 45px !important;
   gap:14px !important;
 }
 
 .extra-box{
   width:100% !important;
-  padding:24px 20px !important;
+  padding:22px 18px !important;
   border-radius:20px !important;
 }
   /* =========================
@@ -602,8 +602,8 @@ footer{
   direction:ltr !important;
   unicode-bidi:normal !important;
 
-  font-size:22px !important;
-  line-height:1.22 !important;
+  font-size:24px !important;
+  line-height:1.18 !important;
   font-weight:900 !important;
 
   word-spacing:normal !important;
@@ -629,8 +629,8 @@ footer{
   direction:ltr !important;
   unicode-bidi:normal !important;
 
-  font-size:15px !important;
-  line-height:1.7 !important;
+  font-size:14px !important;
+  line-height:1.58 !important;
   font-weight:400 !important;
 
   word-spacing:normal !important;
@@ -654,7 +654,7 @@ footer{
   .services.layout-5{
     width:100%;
     max-width:100%;
-    padding:20px 16px 60px;
+    padding:20px 14px 60px;
     display:grid;
     grid-template-columns:1fr !important;
     justify-content:center;
@@ -1165,88 +1165,110 @@ function cleanText(value){
 
 /* =========================
    SPANISH FALLBACK
-   Uses saved Spanish text first.
-   If System Design has no Spanish field,
-   translate the known homepage text.
 ========================= */
 
-const SPANISH_FALLBACK_TEXT = {
-  "Professional Transportation Across Arizona":
+const ES_TEXT = {
+  "professional transportation across arizona":
     "Transporte profesional en todo Arizona",
-  "About Sunbeam Transportation LLC":
+  "about sunbeam transportation llc":
     "Acerca de Sunbeam Transportation LLC",
-  "Sunbeam Transportation provides safe, reliable, and comfortable transportation services across Arizona. We are committed to professional service, on-time pickups, and a smooth ride for every passenger.":
+  "sunbeam transportation provides safe, reliable, and comfortable transportation services across arizona. we are committed to professional service, on-time pickups, and a smooth ride for every passenger":
     "Sunbeam Transportation ofrece servicios de transporte seguros, confiables y cómodos en todo Arizona. Estamos comprometidos con un servicio profesional, recogidas puntuales y un viaje cómodo para cada pasajero.",
-  "Book Your Ride Today":
-    "Reserve su viaje hoy",
-  "Get Quote & Book Your Ride":
+  "get quote & book your ride":
     "Obtenga una cotización y reserve su viaje",
-  "Choose the service that fits your trip and get a competitive price instantly":
-    "Elija el servicio que se adapte a su viaje y obtenga un precio competitivo al instante",
-  "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.":
+  "book your ride today":
+    "Reserve su viaje hoy",
+  "choose the service that fits your trip and get a competitive price instantly":
+    "Elija el servicio que se adapte a su viaje y obtenga un precio competitivo al instante.",
+  "fast booking, professional drivers, clean vehicles, and reliable transportation across arizona":
     "Reservas rápidas, conductores profesionales, vehículos limpios y transporte confiable en todo Arizona.",
-  "Professional Drivers":
+  "extra information":
+    "Información adicional",
+  "simple pricing, no surprises":
+    "Precios claros, sin sorpresas",
+  "get your price before you book. rates are based on your selected service, trip distance, and ride details":
+    "Obtenga su precio antes de reservar. Las tarifas se basan en el servicio seleccionado, la distancia del viaje y los detalles del viaje.",
+  "additional services":
+    "Servicios adicionales",
+  "more ways to ride":
+    "Más formas de viajar",
+  "need a special trip? we also offer scheduled rides, group transportation, business transportation, and customized transportation solutions":
+    "¿Necesita un viaje especial? También ofrecemos viajes programados, transporte para grupos, transporte empresarial y soluciones de transporte personalizadas.",
+  "professional drivers":
     "Conductores profesionales",
-  "Serving All Arizona":
+  "serving all arizona":
     "Servicio en todo Arizona",
-  "Customer Support":
+  "customer support":
     "Atención al cliente",
-  "Non-Medical Transportation":
+  "non-medical transportation":
     "Transporte no médico",
-  "Medical Transportation":
+  "medical transportation":
     "Transporte médico",
-  "Wheelchair Transportation":
+  "wheelchair transportation":
     "Transporte en silla de ruedas",
-  "Airport Transportation":
+  "airport transportation":
     "Transporte al aeropuerto",
-  "Business Transportation":
+  "business transportation":
     "Transporte empresarial",
-  "Private Transportation":
+  "private transportation":
     "Transporte privado",
-  "Hourly Transportation":
+  "hourly transportation":
     "Transporte por hora",
-  "Shared Ride":
+  "shared ride":
     "Viaje compartido",
-  "Limo Service":
+  "limo":
+    "Limusina",
+  "limo service":
     "Servicio de limusina",
-  "Get Quote":
+  "professional transportation for business meetings, corporate travel, and executive appointments":
+    "Transporte profesional para reuniones de negocios, viajes corporativos y citas ejecutivas.",
+  "get quote":
     "Obtener precio"
 };
 
-function normalizeFallbackKey(value){
+function esKey(value){
 
   return cleanText(value)
     .replace(/\s+/g," ")
-    .trim();
+    .trim()
+    .replace(/[.!]+$/,"")
+    .toLowerCase();
 
 }
 
-function spanishFallback(value){
+function esFallback(value){
 
-  const text =
-  normalizeFallbackKey(value);
+  const key =
+  esKey(value);
 
-  return SPANISH_FALLBACK_TEXT[text] ||
+  return ES_TEXT[key] ||
   value ||
   "";
 
 }
 
-function spanishText(spanishValue,englishValue,defaultValue){
+function pickLangText(esValue,enValue,defaultValue){
 
   if(
-    spanishValue !== undefined &&
-    spanishValue !== null &&
-    String(spanishValue).trim()
+    currentLang === "es" &&
+    esValue !== undefined &&
+    esValue !== null &&
+    String(esValue).trim()
   ){
-    return spanishValue;
+    return esValue;
   }
 
-  return spanishFallback(
-    englishValue ||
-    defaultValue ||
-    ""
-  );
+  if(currentLang === "es"){
+    return esFallback(
+      enValue ||
+      defaultValue ||
+      ""
+    );
+  }
+
+  return enValue ||
+  defaultValue ||
+  "";
 
 }
 
@@ -1379,7 +1401,7 @@ function updateLangButtons(){
 
 }
 
-function applySpanishCardFallbacks(){
+function applyServiceCardLanguage(){
 
   if(currentLang !== "es") return;
 
@@ -1389,15 +1411,10 @@ function applySpanishCardFallbacks(){
 
       if(!el) return;
 
-      const translated =
-      spanishFallback(
+      el.innerText =
+      esFallback(
         el.innerText
       );
-
-      if(translated){
-        el.innerText =
-        translated;
-      }
 
     });
 
@@ -1440,7 +1457,7 @@ function applyExtraBoxesTheme(data){
     box.style.setProperty(
       "padding",
       window.innerWidth <= 768
-      ? "34px 22px"
+      ? "22px 18px"
       : `${data.extraBoxPadding || 70}px`,
       "important"
     );
@@ -1544,7 +1561,7 @@ function applyPageTheme(data){
 
     about.style.padding =
     window.innerWidth <= 768
-    ? "34px 22px"
+    ? "22px 18px"
     : `${data.aboutPadding || 70}px`;
 
   }
@@ -1562,7 +1579,7 @@ function applyPageTheme(data){
 
     quote.style.padding =
     window.innerWidth <= 768
-    ? "34px 22px"
+    ? "22px 18px"
     : `${data.quotePadding || 70}px`;
 
   }
@@ -1694,64 +1711,44 @@ function renderPage(){
 
   applyWordText(
     "aboutTitle",
-    currentLang === "es"
-    ? spanishText(
-        data.aboutTitleEs,
-        data.aboutTitle,
-        "Professional Transportation Across Arizona"
-      )
-    : (
-        data.aboutTitle ||
-        "Professional Transportation Across Arizona"
-      ),
+    pickLangText(
+      data.aboutTitleEs,
+      data.aboutTitle,
+      "Professional Transportation Across Arizona"
+    ),
     data.aboutTitleAlign ||
     "center"
   );
 
   applyWordText(
     "aboutText",
-    currentLang === "es"
-    ? spanishText(
-        data.aboutTextEs,
-        data.aboutText,
-        ""
-      )
-    : (
-        data.aboutText ||
-        ""
-      ),
+    pickLangText(
+      data.aboutTextEs,
+      data.aboutText,
+      ""
+    ),
     data.aboutTextAlign ||
     "justify-center"
   );
 
   applyWordText(
     "quoteTitle",
-    currentLang === "es"
-    ? spanishText(
-        data.quoteTitleEs,
-        data.quoteTitle,
-        "Book Your Ride Today"
-      )
-    : (
-        data.quoteTitle ||
-        "Book Your Ride Today"
-      ),
+    pickLangText(
+      data.quoteTitleEs,
+      data.quoteTitle,
+      "Book Your Ride Today"
+    ),
     data.quoteTitleAlign ||
     "center"
   );
 
   applyWordText(
     "quoteText",
-    currentLang === "es"
-    ? spanishText(
-        data.quoteTextEs,
-        data.quoteText,
-        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
-      )
-    : (
-        data.quoteText ||
-        "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
-      ),
+    pickLangText(
+      data.quoteTextEs,
+      data.quoteText,
+      "Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona."
+    ),
     data.quoteTextAlign ||
     "justify-center"
   );
@@ -1782,80 +1779,55 @@ function renderPage(){
 
   applyWordText(
     "extra1TitleView",
-    currentLang === "es"
-    ? spanishText(
-        data.extra1TitleEs,
-        data.extra1Title,
-        ""
-      )
-    : (
-        data.extra1Title ||
-        ""
-      ),
+    pickLangText(
+      data.extra1TitleEs,
+      data.extra1Title,
+      ""
+    ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra1TextView",
-    currentLang === "es"
-    ? spanishText(
-        data.extra1TextEs,
-        data.extra1Text,
-        "Professional Drivers"
-      )
-    : (
-        data.extra1Text ||
-        "Professional Drivers"
-      ),
+    pickLangText(
+      data.extra1TextEs,
+      data.extra1Text,
+      "Professional Drivers"
+    ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TitleView",
-    currentLang === "es"
-    ? spanishText(
-        data.extra2TitleEs,
-        data.extra2Title,
-        "Serving All Arizona"
-      )
-    : (
-        data.extra2Title ||
-        "Serving All Arizona"
-      ),
+    pickLangText(
+      data.extra2TitleEs,
+      data.extra2Title,
+      "Serving All Arizona"
+    ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TextView",
-    currentLang === "es"
-    ? spanishText(
-        data.extra2TextEs,
-        data.extra2Text,
-        ""
-      )
-    : (
-        data.extra2Text ||
-        ""
-      ),
+    pickLangText(
+      data.extra2TextEs,
+      data.extra2Text,
+      ""
+    ),
     data.extraBoxAlign ||
     "justify-center"
   );
 
   setText(
     "contactTitleView",
-    currentLang === "es"
-    ? spanishText(
-        data.contactTitleEs,
-        data.contactTitle,
-        "Customer Support"
-      )
-    : (
-        data.contactTitle ||
-        "Customer Support"
-      )
+    pickLangText(
+      data.contactTitleEs,
+      data.contactTitle,
+      "Customer Support"
+    )
   );
 
   setText(
@@ -1872,16 +1844,11 @@ function renderPage(){
 
   setText(
     "footerView",
-    currentLang === "es"
-    ? spanishText(
-        data.footerTextEs,
-        data.footerText,
-        ""
-      )
-    : (
-        data.footerText ||
-        ""
-      )
+    pickLangText(
+      data.footerTextEs,
+      data.footerText,
+      ""
+    )
   );
 
   Branding.renderHomepageCards(
@@ -1889,7 +1856,7 @@ function renderPage(){
     currentLang
   );
 
-  applySpanishCardFallbacks();
+  applyServiceCardLanguage();
 
   applyPageTheme(data);
 
@@ -1984,13 +1951,13 @@ function forceMobileHomeLayout(){
 
     section.style.setProperty(
       "margin",
-      "18px 16px 0",
+      "12px 10px 0",
       "important"
     );
 
     section.style.setProperty(
       "padding",
-      "24px 20px",
+      "22px 18px",
       "important"
     );
 
@@ -2015,7 +1982,7 @@ function forceMobileHomeLayout(){
 
     extraSections.style.setProperty(
       "padding",
-      "0 16px 45px",
+      "0 10px 45px",
       "important"
     );
 
@@ -2044,7 +2011,7 @@ function forceMobileHomeLayout(){
 
     box.style.setProperty(
       "padding",
-      "24px 20px",
+      "22px 18px",
       "important"
     );
 
@@ -2085,13 +2052,13 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-size",
-      "22px",
+      "24px",
       "important"
     );
 
     el.style.setProperty(
       "line-height",
-      "1.22",
+      "1.18",
       "important"
     );
 
@@ -2156,13 +2123,13 @@ function forceMobileHomeLayout(){
 
     el.style.setProperty(
       "font-size",
-      "15px",
+      "14px",
       "important"
     );
 
     el.style.setProperty(
       "line-height",
-      "1.7",
+      "1.58",
       "important"
     );
 
