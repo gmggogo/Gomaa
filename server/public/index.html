@@ -586,30 +586,32 @@ body{
 
 .about,
 .quote-header{
-  width:calc(100% - 24px) !important;
-  max-width:calc(100% - 24px) !important;
+  width:calc(100vw - 24px) !important;
+  min-width:calc(100vw - 24px) !important;
+  max-width:calc(100vw - 24px) !important;
   margin:14px auto 0 !important;
   padding:18px 16px !important;
   border-radius:18px !important;
-}
-
-.quote-header{
-  margin-top:14px !important;
+  box-sizing:border-box !important;
 }
 
 .extra-sections{
-  width:100% !important;
-  max-width:100% !important;
+  width:100vw !important;
+  max-width:100vw !important;
+  margin:0 auto !important;
   padding:0 12px 48px !important;
   gap:18px !important;
+  box-sizing:border-box !important;
 }
 
 .extra-box{
   width:100% !important;
+  min-width:100% !important;
   max-width:100% !important;
   margin:0 auto !important;
-  border-radius:18px !important;
   padding:18px 16px !important;
+  border-radius:18px !important;
+  box-sizing:border-box !important;
 }
   /* =========================
      MOBILE TITLES
@@ -638,14 +640,6 @@ body{
   padding:0 !important;
 }
 
-#extra1TitleView,
-#extra2TitleView,
-.extra-box h3{
-  font-size:18px !important;
-  line-height:1.16 !important;
-  margin-bottom:12px !important;
-}
-
   /* =========================
      MOBILE AUTO TEXT
   ========================= */
@@ -662,16 +656,16 @@ body{
   direction:ltr !important;
   unicode-bidi:normal !important;
 
-  line-height:1.48 !important;
+  line-height:1.45 !important;
   font-weight:400 !important;
 
   white-space:normal !important;
-  text-wrap:pretty !important;
-  word-spacing:0 !important;
+  text-wrap:wrap !important;
+  word-spacing:normal !important;
   letter-spacing:0 !important;
   word-break:normal !important;
-  overflow-wrap:normal !important;
-  hyphens:auto !important;
+  overflow-wrap:break-word !important;
+  hyphens:none !important;
 
   margin:0 !important;
   padding:0 !important;
@@ -1610,7 +1604,7 @@ function applyPageTheme(data){
 
     about.style.padding =
     window.innerWidth <= 768
-    ? `${data.aboutMobilePadding || 18}px`
+    ? "18px 16px"
     : `${data.aboutPadding || 70}px`;
 
   }
@@ -1628,7 +1622,7 @@ function applyPageTheme(data){
 
     quote.style.padding =
     window.innerWidth <= 768
-    ? `${data.quoteMobilePadding || 18}px`
+    ? "18px 16px"
     : `${data.quotePadding || 70}px`;
 
   }
@@ -2005,10 +1999,11 @@ function getBalancedMobileAlign(value){
       .trim()
       .toLowerCase();
 
-  if(align === "center") return "center";
-  if(align === "right") return "right";
+  if(align.startsWith("justify")){
+    return "left";
+  }
 
-  return "left";
+  return align || "left";
 }
 
 function forceMobileHomeLayout(){
@@ -2063,23 +2058,23 @@ function forceMobileHomeLayout(){
     },
     {
       id:"extra1TitleView",
-      size:Math.min(Number(data.extraBoxTitleMobileSize || 18),18),
-      align:"center"
+      size:data.extraBoxTitleMobileSize || 20,
+      align:data.extraBoxTitleMobileAlign || "center"
     },
     {
       id:"extra1TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:"left"
+      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
     },
     {
       id:"extra2TitleView",
-      size:Math.min(Number(data.extraBoxTitleMobileSize || 18),18),
-      align:"center"
+      size:data.extraBoxTitleMobileSize || 20,
+      align:data.extraBoxTitleMobileAlign || "center"
     },
     {
       id:"extra2TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:"left"
+      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
     }
   ];
 
@@ -2105,8 +2100,8 @@ function forceMobileHomeLayout(){
     el.style.setProperty(
       "line-height",
       item.id.includes("Title")
-        ? "1.16"
-        : "1.48",
+        ? "1.2"
+        : "1.5",
       "important"
     );
 
@@ -2123,13 +2118,17 @@ function forceMobileHomeLayout(){
     );
 
     if(!item.id.includes("Title")){
-      el.style.setProperty("white-space","normal","important");
-      el.style.setProperty("text-wrap","pretty","important");
-      el.style.setProperty("text-align","left","important");
-      el.style.setProperty("text-align-last","left","important");
-      el.style.setProperty("word-spacing","0","important");
-      el.style.setProperty("letter-spacing","0","important");
-      el.style.setProperty("hyphens","auto","important");
+      el.style.setProperty(
+        "white-space",
+        "normal",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-wrap",
+        "wrap",
+        "important"
+      );
     }
 
   });
@@ -2140,7 +2139,25 @@ function forceMobileHomeLayout(){
 
       box.style.setProperty(
         "padding",
-        `${data.extraBoxMobilePadding || 18}px`,
+        "18px 16px",
+        "important"
+      );
+
+      box.style.setProperty(
+        "width",
+        "100%",
+        "important"
+      );
+
+      box.style.setProperty(
+        "max-width",
+        "100%",
+        "important"
+      );
+
+      box.style.setProperty(
+        "margin",
+        "0 auto",
         "important"
       );
 
