@@ -647,7 +647,7 @@ body{
   max-width:100% !important;
 
   text-align:left !important;
-  text-align-last:auto !important;
+  text-align-last:left !important;
 
   direction:ltr !important;
   unicode-bidi:normal !important;
@@ -655,6 +655,9 @@ body{
   line-height:1.5 !important;
   font-weight:400 !important;
 
+  /* Balanced wrapping keeps word spacing natural on narrow screens. */
+  white-space:normal !important;
+  text-wrap:balance;
   word-spacing:normal !important;
   letter-spacing:0 !important;
   word-break:normal !important;
@@ -916,7 +919,7 @@ id="extraSections">
   
 </footer>
 
-<script src="/index.js?v=homepage-mobile-system-design-20260903"></script>
+<script src="/index.js?v=homepage-balanced-text-20260903"></script>
 
 <script>
 
@@ -1986,6 +1989,20 @@ window.addEventListener(
 
   }
 );
+function getBalancedMobileAlign(value){
+
+  const align =
+    String(value || "left")
+      .trim()
+      .toLowerCase();
+
+  if(align.startsWith("justify")){
+    return "left";
+  }
+
+  return align || "left";
+}
+
 function forceMobileHomeLayout(){
 
   if(window.innerWidth > 768) return;
@@ -2024,7 +2041,7 @@ function forceMobileHomeLayout(){
     {
       id:"aboutText",
       size:data.aboutTextMobileSize || 14,
-      align:data.aboutTextMobileAlign || "left"
+      align:getBalancedMobileAlign(data.aboutTextMobileAlign || "left")
     },
     {
       id:"quoteTitle",
@@ -2034,7 +2051,7 @@ function forceMobileHomeLayout(){
     {
       id:"quoteText",
       size:data.quoteTextMobileSize || 14,
-      align:data.quoteTextMobileAlign || "left"
+      align:getBalancedMobileAlign(data.quoteTextMobileAlign || "left")
     },
     {
       id:"extra1TitleView",
@@ -2044,7 +2061,7 @@ function forceMobileHomeLayout(){
     {
       id:"extra1TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:data.extraBoxTextMobileAlign || "left"
+      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
     },
     {
       id:"extra2TitleView",
@@ -2054,7 +2071,7 @@ function forceMobileHomeLayout(){
     {
       id:"extra2TextView",
       size:data.extraBoxTextMobileSize || 14,
-      align:data.extraBoxTextMobileAlign || "left"
+      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
     }
   ];
 
@@ -2096,6 +2113,19 @@ function forceMobileHomeLayout(){
       "0",
       "important"
     );
+
+    if(!item.id.includes("Title")){
+      el.style.setProperty(
+        "white-space",
+        "normal",
+        "important"
+      );
+
+      el.style.setProperty(
+        "text-wrap",
+        "balance"
+      );
+    }
 
   });
 

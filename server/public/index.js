@@ -411,10 +411,18 @@ window.Branding = {
     ? (d.extraBoxTitleMobileAlign || "center")
     : (d.extraBoxAlign || "justify-center");
 
-    const extraTextAlign =
+    const requestedExtraTextAlign =
     isMobile
     ? (d.extraBoxTextMobileAlign || "left")
     : (d.extraBoxAlign || "justify-center");
+
+    const extraTextAlign =
+    isMobile &&
+    String(requestedExtraTextAlign)
+      .toLowerCase()
+      .startsWith("justify")
+    ? "left"
+    : requestedExtraTextAlign;
 
     document
     .querySelectorAll(".extra-box")
@@ -513,6 +521,19 @@ window.Branding = {
         text.innerText,
         extraTextAlign
       );
+
+      if(isMobile){
+        text.style.setProperty(
+          "white-space",
+          "normal",
+          "important"
+        );
+
+        text.style.setProperty(
+          "text-wrap",
+          "balance"
+        );
+      }
 
     });
 
