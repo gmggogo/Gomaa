@@ -181,6 +181,21 @@ mainLogo:"",
 
   aboutTextAlign:"justify-center",
 
+  /* =========================
+  ABOUT - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  aboutMobilePadding:"18",
+
+  aboutTitleMobileSize:"20",
+
+  aboutTitleMobileAlign:"center",
+
+  aboutTextMobileSize:"14",
+
+  aboutTextMobileAlign:"left",
+
 
   /* =========================
   QUOTE
@@ -211,6 +226,21 @@ mainLogo:"",
   quoteTextSize:"18",
 
   quoteTextAlign:"justify-center",
+
+  /* =========================
+  QUOTE - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  quoteMobilePadding:"18",
+
+  quoteTitleMobileSize:"20",
+
+  quoteTitleMobileAlign:"center",
+
+  quoteTextMobileSize:"14",
+
+  quoteTextMobileAlign:"left",
 
 
   /* =========================
@@ -252,6 +282,21 @@ mainLogo:"",
   extraBoxTitleSize:"32",
 
   extraBoxTextSize:"18",
+
+  /* =========================
+  EXTRA BOX DESIGN - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  extraBoxMobilePadding:"18",
+
+  extraBoxTitleMobileSize:"20",
+
+  extraBoxTitleMobileAlign:"center",
+
+  extraBoxTextMobileSize:"14",
+
+  extraBoxTextMobileAlign:"left",
 
   extraBoxBorderSize:"2",
 
@@ -807,6 +852,37 @@ function loadFormValues(){
   );
 
   /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  setValue(
+    "aboutMobilePaddingInput",
+    systemDesign.aboutMobilePadding
+  );
+
+  setValue(
+    "aboutTitleMobileSizeInput",
+    systemDesign.aboutTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTitleMobileAlignInput",
+    systemDesign.aboutTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "aboutTextMobileSizeInput",
+    systemDesign.aboutTextMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTextMobileAlignInput",
+    systemDesign.aboutTextMobileAlign,
+    "left"
+  );
+
+  /* =========================
      QUOTE
   ========================= */
 
@@ -870,6 +946,37 @@ function loadFormValues(){
     "quoteTextAlignInput",
     systemDesign.quoteTextAlign,
     "justify-center"
+  );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  setValue(
+    "quoteMobilePaddingInput",
+    systemDesign.quoteMobilePadding
+  );
+
+  setValue(
+    "quoteTitleMobileSizeInput",
+    systemDesign.quoteTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTitleMobileAlignInput",
+    systemDesign.quoteTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "quoteTextMobileSizeInput",
+    systemDesign.quoteTextMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTextMobileAlignInput",
+    systemDesign.quoteTextMobileAlign,
+    "left"
   );
 
   /* =========================
@@ -954,6 +1061,37 @@ function loadFormValues(){
   setValue(
     "extraBoxTextSizeInput",
     systemDesign.extraBoxTextSize
+  );
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  setValue(
+    "extraBoxMobilePaddingInput",
+    systemDesign.extraBoxMobilePadding
+  );
+
+  setValue(
+    "extraBoxTitleMobileSizeInput",
+    systemDesign.extraBoxTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTitleMobileAlignInput",
+    systemDesign.extraBoxTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "extraBoxTextMobileSizeInput",
+    systemDesign.extraBoxTextMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTextMobileAlignInput",
+    systemDesign.extraBoxTextMobileAlign,
+    "left"
   );
 
   setValue(
@@ -1534,6 +1672,57 @@ async function(){
   );
 
   /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  systemDesign.aboutMobilePadding =
+  document.getElementById(
+    "aboutMobilePaddingInput"
+  )?.value ||
+  systemDesign.aboutMobilePadding ||
+  "18";
+
+  systemDesign.aboutTitleMobileSize =
+  document.getElementById(
+    "aboutTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTitleMobileSize ||
+  "20";
+
+  systemDesign.aboutTitleMobileAlign =
+  document.getElementById(
+    "aboutTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.aboutTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.aboutTextMobileSize =
+  document.getElementById(
+    "aboutTextMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTextMobileSize ||
+  "14";
+
+  systemDesign.aboutTextMobileAlign =
+  document.getElementById(
+    "aboutTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.aboutTextMobileAlign ||
+        "left"
+      );
+
+  /* =========================
      QUOTE
   ========================= */
 
@@ -1598,6 +1787,57 @@ async function(){
     "quoteTextAlignInput",
     "justify-center"
   );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  systemDesign.quoteMobilePadding =
+  document.getElementById(
+    "quoteMobilePaddingInput"
+  )?.value ||
+  systemDesign.quoteMobilePadding ||
+  "18";
+
+  systemDesign.quoteTitleMobileSize =
+  document.getElementById(
+    "quoteTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTitleMobileSize ||
+  "20";
+
+  systemDesign.quoteTitleMobileAlign =
+  document.getElementById(
+    "quoteTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.quoteTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.quoteTextMobileSize =
+  document.getElementById(
+    "quoteTextMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTextMobileSize ||
+  "14";
+
+  systemDesign.quoteTextMobileAlign =
+  document.getElementById(
+    "quoteTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.quoteTextMobileAlign ||
+        "left"
+      );
 
   /* =========================
      EXTRA BOXES CONTENT
@@ -1682,6 +1922,57 @@ async function(){
   document.getElementById(
     "extraBoxTextSizeInput"
   )?.value || "";
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  systemDesign.extraBoxMobilePadding =
+  document.getElementById(
+    "extraBoxMobilePaddingInput"
+  )?.value ||
+  systemDesign.extraBoxMobilePadding ||
+  "18";
+
+  systemDesign.extraBoxTitleMobileSize =
+  document.getElementById(
+    "extraBoxTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTitleMobileSize ||
+  "20";
+
+  systemDesign.extraBoxTitleMobileAlign =
+  document.getElementById(
+    "extraBoxTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.extraBoxTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.extraBoxTextMobileSize =
+  document.getElementById(
+    "extraBoxTextMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTextMobileSize ||
+  "14";
+
+  systemDesign.extraBoxTextMobileAlign =
+  document.getElementById(
+    "extraBoxTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.extraBoxTextMobileAlign ||
+        "left"
+      );
 
   systemDesign.extraBoxBorderSize =
   document.getElementById(
