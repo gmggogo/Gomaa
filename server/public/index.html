@@ -490,11 +490,11 @@ footer{
 .goog-te-banner-frame,
 .goog-te-banner-frame.skiptranslate,
 .goog-te-balloon-frame,
+iframe.goog-te-banner-frame,
 #goog-gt-tt,
 .goog-logo-link,
 .goog-te-gadget span,
-.goog-te-gadget,
-.goog-te-combo{
+.goog-te-gadget{
   display:none !important;
 }
 
@@ -1330,6 +1330,21 @@ function updateLangButtons(){
 let googleTranslateReady = false;
 let pendingGoogleLang = "en";
 
+function clearGoogleTranslateCookie(){
+
+  const expired =
+  "expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+  document.cookie =
+  "googtrans=;path=/;" + expired;
+
+  document.cookie =
+  "googtrans=;path=/;domain=" +
+  location.hostname +
+  ";" + expired;
+
+}
+
 function setGoogleTranslateCookie(lang){
 
   const value =
@@ -1361,9 +1376,17 @@ function applyGoogleTranslate(lang){
   ? "es"
   : "en";
 
-  setGoogleTranslateCookie(
-    pendingGoogleLang
-  );
+  if(pendingGoogleLang === "en"){
+
+    clearGoogleTranslateCookie();
+
+  }else{
+
+    setGoogleTranslateCookie(
+      pendingGoogleLang
+    );
+
+  }
 
   const select =
   getGoogleTranslateSelect();
@@ -1371,7 +1394,9 @@ function applyGoogleTranslate(lang){
   if(!select) return;
 
   select.value =
-  pendingGoogleLang;
+  pendingGoogleLang === "es"
+  ? "es"
+  : "";
 
   select.dispatchEvent(
     new Event(
@@ -1392,6 +1417,10 @@ function queueGoogleTranslate(lang){
   setTimeout(()=>{
     applyGoogleTranslate(lang);
   },1200);
+
+  setTimeout(()=>{
+    applyGoogleTranslate(lang);
+  },2400);
 
 }
 
@@ -1708,70 +1737,43 @@ function renderPage(){
   const data =
   Branding.data || {};
 
+  document.documentElement.lang =
+  currentLang === "es"
+  ? "es"
+  : "en";
+
   document.title =
   data.companyName ||
   "GH Mobility";
 
   applyWordText(
     "aboutTitle",
-    currentLang === "es"
-    ? (
-        data.aboutTitleEs ||
-        data.aboutTitle ||
-        "Transporte profesional en Arizona"
-      )
-    : (
-        data.aboutTitle ||
-        "Professional Transportation Across Arizona"
-      ),
+    data.aboutTitle ||
+    "Professional Transportation Across Arizona",
     data.aboutTitleAlign ||
     "center"
   );
 
   applyWordText(
     "aboutText",
-    currentLang === "es"
-    ? (
-        data.aboutTextEs ||
-        data.aboutText ||
-        ""
-      )
-    : (
-        data.aboutText ||
-        ""
-      ),
+    data.aboutText ||
+    "",
     data.aboutTextAlign ||
     "justify-center"
   );
 
   applyWordText(
     "quoteTitle",
-    currentLang === "es"
-    ? (
-        data.quoteTitleEs ||
-        data.quoteTitle ||
-        ""
-      )
-    : (
-        data.quoteTitle ||
-        ""
-      ),
+    data.quoteTitle ||
+    "",
     data.quoteTitleAlign ||
     "center"
   );
 
   applyWordText(
     "quoteText",
-    currentLang === "es"
-    ? (
-        data.quoteTextEs ||
-        data.quoteText ||
-        ""
-      )
-    : (
-        data.quoteText ||
-        ""
-      ),
+    data.quoteText ||
+    "",
     data.quoteTextAlign ||
     "justify-center"
   );
@@ -1802,80 +1804,40 @@ function renderPage(){
 
   applyWordText(
     "extra1TitleView",
-    currentLang === "es"
-    ? (
-        data.extra1TitleEs ||
-        data.extra1Title ||
-        ""
-      )
-    : (
-        data.extra1Title ||
-        ""
-      ),
+    data.extra1Title ||
+    "",
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra1TextView",
-    currentLang === "es"
-    ? (
-        data.extra1TextEs ||
-        data.extra1Text ||
-        ""
-      )
-    : (
-        data.extra1Text ||
-        ""
-      ),
+    data.extra1Text ||
+    "",
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TitleView",
-    currentLang === "es"
-    ? (
-        data.extra2TitleEs ||
-        data.extra2Title ||
-        ""
-      )
-    : (
-        data.extra2Title ||
-        ""
-      ),
+    data.extra2Title ||
+    "",
     data.extraBoxAlign ||
     "justify-center"
   );
 
   applyWordText(
     "extra2TextView",
-    currentLang === "es"
-    ? (
-        data.extra2TextEs ||
-        data.extra2Text ||
-        ""
-      )
-    : (
-        data.extra2Text ||
-        ""
-      ),
+    data.extra2Text ||
+    "",
     data.extraBoxAlign ||
     "justify-center"
   );
 
   setText(
     "contactTitleView",
-    currentLang === "es"
-    ? (
-        data.contactTitleEs ||
-        data.contactTitle ||
-        "Atención al cliente"
-      )
-    : (
-        data.contactTitle ||
-        "Customer Support"
-      )
+    data.contactTitle ||
+    "Customer Support"
   );
 
   setText(
@@ -1892,21 +1854,13 @@ function renderPage(){
 
   setText(
     "footerView",
-    currentLang === "es"
-    ? (
-        data.footerTextEs ||
-        data.footerText ||
-        ""
-      )
-    : (
-        data.footerText ||
-        ""
-      )
+    data.footerText ||
+    ""
   );
 
   Branding.renderHomepageCards(
     "servicesContainer",
-    currentLang
+    "en"
   );
 
   applyPageTheme(data);
@@ -1918,6 +1872,12 @@ updateServicesLayout();
   updateLangButtons();
 
   forceMobileHomeLayout();
+
+  if(currentLang === "es"){
+
+    queueGoogleTranslate("es");
+
+  }
 
 }
 
@@ -1934,9 +1894,15 @@ window.setLang = function(lang){
 
   renderPage();
 
-  queueGoogleTranslate(
-    currentLang
-  );
+  if(currentLang === "es"){
+
+    queueGoogleTranslate("es");
+
+  }else{
+
+    applyGoogleTranslate("en");
+
+  }
 
 };
 
@@ -1960,9 +1926,11 @@ window.addEventListener(
 
     renderPage();
 
-    queueGoogleTranslate(
-      currentLang
-    );
+    if(currentLang === "es"){
+
+      queueGoogleTranslate("es");
+
+    }
 
   }
 );
@@ -1978,14 +1946,29 @@ window.addEventListener(
 
       renderPage();
 
-      queueGoogleTranslate(
-        currentLang
-      );
+      if(currentLang === "es"){
+
+        queueGoogleTranslate("es");
+
+      }
 
     },150);
 
   },
   { passive:true }
+);
+
+window.addEventListener(
+  "load",
+  ()=>{
+
+    if(currentLang === "es"){
+
+      queueGoogleTranslate("es");
+
+    }
+
+  }
 );
 function forceMobileHomeLayout(){
 
