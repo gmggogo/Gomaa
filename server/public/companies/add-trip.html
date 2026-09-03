@@ -131,6 +131,10 @@ section h3{
   position:relative;
 }
 
+.mobile-trip-field-label{
+  display:none;
+}
+
 input,
 textarea,
 select{
@@ -387,6 +391,85 @@ button:hover{
     width:100%;
   }
 
+  /* ================= INDIVIDUAL TRIP DETAILS - MOBILE ONLY ================= */
+
+  #individualTripDetails{
+    display:flex;
+    flex-direction:column;
+  }
+
+  #individualTripDetails > h3{
+    order:0;
+  }
+
+  #individualTripDetails .trip-grid{
+    display:contents;
+  }
+
+  #individualTripDetails .trip-pickup-wrap{
+    order:1;
+  }
+
+  #individualTripDetails .trip-stops{
+    order:2;
+    margin-top:10px !important;
+  }
+
+  #individualTripDetails .trip-add-stop-wrap{
+    order:3;
+    margin-top:10px !important;
+  }
+
+  #individualTripDetails .trip-dropoff-wrap{
+    order:4;
+    margin-top:12px;
+  }
+
+  #individualTripDetails .trip-date-wrap{
+    order:5;
+    margin-top:12px;
+  }
+
+  #individualTripDetails .trip-time-wrap{
+    order:6;
+    margin-top:12px;
+  }
+
+  #individualTripDetails .trip-notes{
+    order:7;
+    margin-top:12px;
+  }
+
+  .mobile-trip-field-label{
+    display:block;
+    margin:0 0 6px 2px;
+    font-size:12px;
+    font-weight:800;
+    color:#475569;
+  }
+
+  #tripDate,
+  #tripTime{
+    min-height:46px;
+    background:#ffffff !important;
+    color:#111827 !important;
+    -webkit-text-fill-color:#111827 !important;
+    opacity:1 !important;
+    color-scheme:light;
+  }
+
+  #tripDate::-webkit-date-and-time-value,
+  #tripTime::-webkit-date-and-time-value{
+    text-align:left;
+    color:#111827 !important;
+    -webkit-text-fill-color:#111827 !important;
+  }
+
+  #tripDate::-webkit-calendar-picker-indicator,
+  #tripTime::-webkit-calendar-picker-indicator{
+    opacity:1;
+  }
+
 }
 
 </style>
@@ -474,41 +557,43 @@ button:hover{
 
 </section>
 
-<section>
+<section id="individualTripDetails">
 
 <h3>Trip Details</h3>
 
-<div class="form-grid">
+<div class="form-grid trip-grid trip-grid-top">
 
-  <div class="field-wrap location-field">
+  <div class="field-wrap location-field trip-pickup-wrap">
     <input id="pickup" placeholder="Pickup Address"></div>
 
-  <div class="field-wrap">
+  <div class="field-wrap trip-date-wrap">
+    <label class="mobile-trip-field-label" for="tripDate">Trip Date</label>
     <input id="tripDate" type="date">
   </div>
 
 </div>
 
-<div id="stops" style="margin-top:12px;"></div>
+<div id="stops" class="trip-stops" style="margin-top:12px;"></div>
 
-<div style="margin-top:10px;">
+<div class="trip-add-stop-wrap" style="margin-top:10px;">
   <button class="btn-orange" id="addStopBtn" type="button">
     + Add Stop
   </button>
 </div>
 
-<div class="form-grid" style="margin-top:12px;">
+<div class="form-grid trip-grid trip-grid-bottom" style="margin-top:12px;">
 
-  <div class="field-wrap location-field">
+  <div class="field-wrap location-field trip-dropoff-wrap">
     <input id="dropoff" placeholder="Dropoff Address"></div>
 
-  <div class="field-wrap">
+  <div class="field-wrap trip-time-wrap">
+    <label class="mobile-trip-field-label" for="tripTime">Trip Time</label>
     <input id="tripTime" type="time">
   </div>
 
 </div>
 
-<textarea id="notes" placeholder="Notes"></textarea>
+<textarea id="notes" class="trip-notes" placeholder="Notes"></textarea>
 
 </section>
 
