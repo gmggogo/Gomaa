@@ -701,7 +701,7 @@ window.Branding = {
         title.style.setProperty(
           "font-size",
           isMobile
-            ? "23px"
+            ? "20px"
             : `${d.extraBoxTitleSize || 42}px`,
           "important"
         );
@@ -709,9 +709,7 @@ window.Branding = {
         this.applyWordElement(
           title,
           title.innerText,
-          isMobile
-            ? "center"
-            : extraAlign
+          isMobile ? "center" : extraAlign
         );
 
       });
@@ -733,7 +731,7 @@ window.Branding = {
         text.style.setProperty(
           "font-size",
           isMobile
-            ? "15px"
+            ? "14px"
             : `${d.extraBoxTextSize || 22}px`,
           "important"
         );
@@ -741,9 +739,7 @@ window.Branding = {
         this.applyWordElement(
           text,
           text.innerText,
-          isMobile
-            ? "left"
-            : extraAlign
+          isMobile ? "left" : extraAlign
         );
 
       });
