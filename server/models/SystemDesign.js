@@ -186,6 +186,35 @@ country:{
   },
 
   /* =========================
+  ABOUT - MOBILE
+  ========================= */
+
+  aboutMobilePadding:{
+    type:String,
+    default:"18"
+  },
+
+  aboutTitleMobileSize:{
+    type:String,
+    default:"20"
+  },
+
+  aboutTitleMobileAlign:{
+    type:String,
+    default:"center"
+  },
+
+  aboutTextMobileSize:{
+    type:String,
+    default:"14"
+  },
+
+  aboutTextMobileAlign:{
+    type:String,
+    default:"left"
+  },
+
+  /* =========================
   QUOTE
   ========================= */
 
@@ -247,6 +276,35 @@ country:{
   quoteTextAlign:{
     type:String,
     default:"center"
+  },
+
+  /* =========================
+  QUOTE - MOBILE
+  ========================= */
+
+  quoteMobilePadding:{
+    type:String,
+    default:"18"
+  },
+
+  quoteTitleMobileSize:{
+    type:String,
+    default:"20"
+  },
+
+  quoteTitleMobileAlign:{
+    type:String,
+    default:"center"
+  },
+
+  quoteTextMobileSize:{
+    type:String,
+    default:"14"
+  },
+
+  quoteTextMobileAlign:{
+    type:String,
+    default:"left"
   },
 
   /* =========================
@@ -330,6 +388,35 @@ country:{
   extraBoxTextSize:{
     type:String,
     default:"18"
+  },
+
+  /* =========================
+  EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  extraBoxMobilePadding:{
+    type:String,
+    default:"18"
+  },
+
+  extraBoxTitleMobileSize:{
+    type:String,
+    default:"20"
+  },
+
+  extraBoxTitleMobileAlign:{
+    type:String,
+    default:"center"
+  },
+
+  extraBoxTextMobileSize:{
+    type:String,
+    default:"14"
+  },
+
+  extraBoxTextMobileAlign:{
+    type:String,
+    default:"left"
   },
 
   extraBoxBorderSize:{
