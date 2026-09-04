@@ -2404,6 +2404,215 @@ body{
   }
 }
 </style>
+<style>
+/* Final override: restore map background and limit the bottom nav overlay */
+@media(max-width:520px){
+  html,
+  body{
+    height:100% !important;
+    overflow:hidden !important;
+  }
+
+  body{
+    background:
+      linear-gradient(rgba(255,255,255,.05),rgba(255,255,255,.05)),
+      url("assets/map-background.png") center top / cover no-repeat !important;
+  }
+
+  .app{
+    height:100dvh !important;
+    overflow:hidden !important;
+    background:transparent !important;
+    padding-bottom:0 !important;
+  }
+
+  .header{
+    position:relative !important;
+    z-index:20 !important;
+    padding:10px 12px 10px !important;
+    margin:0 !important;
+  }
+
+  .scroll-area{
+    position:relative !important;
+    z-index:1 !important;
+    flex:1 1 auto !important;
+    min-height:0 !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    -webkit-overflow-scrolling:touch !important;
+    padding:10px 10px calc(98px + env(safe-area-inset-bottom)) !important;
+    background:transparent !important;
+  }
+
+  .scroll-area::before,
+  .scroll-area::after{
+    display:none !important;
+    content:none !important;
+  }
+
+  .container{
+    max-width:760px !important;
+    margin:0 auto !important;
+    padding:0 0 14px !important;
+    background:transparent !important;
+  }
+
+  .trip-card{
+    margin:0 auto 12px !important;
+    min-height:auto !important;
+    padding:10px 10px 12px !important;
+    border-radius:18px !important;
+  }
+
+  #driverNav{
+    position:fixed !important;
+    left:12px !important;
+    right:12px !important;
+    top:auto !important;
+    bottom:calc(8px + env(safe-area-inset-bottom)) !important;
+    width:auto !important;
+    height:82px !important;
+    min-height:0 !important;
+    max-height:82px !important;
+    padding:0 !important;
+    margin:0 !important;
+    overflow:visible !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+    pointer-events:none !important;
+    z-index:9999 !important;
+  }
+
+  #driverNav::before,
+  #driverNav::after{
+    display:none !important;
+    content:none !important;
+  }
+
+  #driverNav > *{
+    position:relative !important;
+    width:100% !important;
+    height:82px !important;
+    min-height:0 !important;
+    max-height:82px !important;
+    margin:0 !important;
+    padding:0 !important;
+    pointer-events:auto !important;
+  }
+
+  #driverNav .nav,
+  #driverNav nav,
+  #driverNav .driver-nav,
+  #driverNav .bottom-nav,
+  #driverNav .driver-bottom-nav{
+    width:100% !important;
+    height:82px !important;
+    min-height:0 !important;
+    max-height:82px !important;
+    padding:8px 10px !important;
+    margin:0 !important;
+    overflow:hidden !important;
+  }
+
+  #driverNav button,
+  #driverNav a{
+    min-height:48px !important;
+    padding:4px 4px !important;
+    font-size:11px !important;
+    line-height:1.1 !important;
+  }
+
+  #driverNav svg,
+  #driverNav img{
+    width:20px !important;
+    height:20px !important;
+  }
+
+  .stats{
+    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+    gap:5px !important;
+  }
+
+  .stat{
+    min-height:48px !important;
+    padding:5px 2px !important;
+  }
+
+  .stat span{
+    font-size:5.3px !important;
+    line-height:1.05 !important;
+    letter-spacing:.25px !important;
+  }
+
+  .stat strong{
+    font-size:15px !important;
+    line-height:1 !important;
+  }
+
+  .service-box,
+  .execution-status-box,
+  .route-box,
+  .note-box{
+    margin-bottom:7px !important;
+    padding:9px 10px !important;
+  }
+
+  .notification-btn{
+    min-height:43px !important;
+    margin:8px 0 8px !important;
+    font-size:15.5px !important;
+  }
+
+  .details-row{
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  .eye-btn{
+    width:48px !important;
+    height:48px !important;
+    min-width:48px !important;
+  }
+}
+
+@media(max-width:390px){
+  .scroll-area{
+    padding:8px 8px calc(94px + env(safe-area-inset-bottom)) !important;
+  }
+
+  #driverNav{
+    left:10px !important;
+    right:10px !important;
+    bottom:calc(7px + env(safe-area-inset-bottom)) !important;
+    height:78px !important;
+    max-height:78px !important;
+  }
+
+  #driverNav > *,
+  #driverNav .nav,
+  #driverNav nav,
+  #driverNav .driver-nav,
+  #driverNav .bottom-nav,
+  #driverNav .driver-bottom-nav{
+    height:78px !important;
+    max-height:78px !important;
+  }
+
+  #driverNav button,
+  #driverNav a{
+    min-height:45px !important;
+    font-size:10px !important;
+  }
+
+  #driverNav svg,
+  #driverNav img{
+    width:19px !important;
+    height:19px !important;
+  }
+}
+</style>
 </head>
 
 <body>
