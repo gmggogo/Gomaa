@@ -1695,28 +1695,6 @@ function card(t, options = {}){
 
       </div>
 
-      ${
-        hasImportantNote
-          ? `
-            <div
-              style="
-                margin:14px 0 10px;
-                padding:12px 14px;
-                border-radius:14px;
-                background:#fef3c7;
-                border:2px solid #f59e0b;
-                color:#92400e;
-                font-weight:900;
-                text-align:center;
-                letter-spacing:.3px;
-              "
-            >
-              ⚠ DRIVER NOTE — READ BEFORE STARTING
-            </div>
-          `
-          : ""
-      }
-
       <div
         class="note-box ${openNoteTripId === safeId ? "open" : ""}"
         id="note-${safeId}"

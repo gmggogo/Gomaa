@@ -2467,16 +2467,17 @@ body{
 
   #driverNav{
     position:fixed !important;
-    left:12px !important;
-    right:12px !important;
+    left:50% !important;
+    right:auto !important;
     top:auto !important;
-    bottom:calc(8px + env(safe-area-inset-bottom)) !important;
-    width:auto !important;
+    bottom:calc(0px + env(safe-area-inset-bottom)) !important;
+    width:min(670px,calc(100% - 24px)) !important;
     height:82px !important;
     min-height:0 !important;
     max-height:82px !important;
     padding:0 !important;
     margin:0 !important;
+    transform:translateX(-50%) !important;
     overflow:visible !important;
     background:transparent !important;
     border:0 !important;
@@ -2583,9 +2584,11 @@ body{
   }
 
   #driverNav{
-    left:10px !important;
-    right:10px !important;
-    bottom:calc(7px + env(safe-area-inset-bottom)) !important;
+    left:50% !important;
+    right:auto !important;
+    bottom:calc(0px + env(safe-area-inset-bottom)) !important;
+    width:calc(100% - 20px) !important;
+    transform:translateX(-50%) !important;
     height:78px !important;
     max-height:78px !important;
   }
