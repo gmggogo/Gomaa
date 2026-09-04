@@ -56,6 +56,9 @@ const container =
 const todayTripCount =
   document.getElementById("todayTripCount");
 
+const tomorrowTripCount =
+  document.getElementById("tomorrowTripCount");
+
 const completedTripCount =
   document.getElementById("completedTripCount");
 
@@ -79,6 +82,7 @@ const todayDate =
   Without this, render() rebuilds the card and closes the panel.
 */
 let openDetailsTripId = "";
+let openNoteTripId = "";
 
 /* =========================
    HELPERS
@@ -194,8 +198,68 @@ function isExpired(t){
 
 function isTodayTrip(t){
 
-  return clean(t.tripDate) ===
+  return getTripDateKey(t) ===
     getPhoenixDateKey();
+}
+
+function addDaysToDateKey(dateKey, days){
+
+  const d =
+    new Date(`${dateKey}T12:00:00`);
+
+  if(isNaN(d)){
+    return "";
+  }
+
+  d.setDate(
+    d.getDate() + days
+  );
+
+  return d.toISOString().slice(0,10);
+}
+
+function getTripDateKey(t){
+
+  return clean(
+    firstValue(
+      t.tripDate,
+      t.date,
+      t.serviceDate
+    )
+  );
+}
+
+function getTomorrowDateKey(){
+
+  return addDaysToDateKey(
+    getPhoenixDateKey(),
+    1
+  );
+}
+
+function isTomorrowTrip(t){
+
+  return getTripDateKey(t) ===
+    getTomorrowDateKey();
+}
+
+function isWithinExecutionWindow(t){
+
+  const tripDate =
+    getTripDate(t);
+
+  if(
+    !tripDate ||
+    isNaN(tripDate)
+  ){
+    return false;
+  }
+
+  const diffMs =
+    tripDate.getTime() -
+    getNow().getTime();
+
+  return diffMs <= (2 * 60 * 60 * 1000);
 }
 
 function formatTime(t){
@@ -879,6 +943,38 @@ function getVisibleNote(t){
   );
 }
 
+function getTripNoteCount(t){
+
+  let count = 0;
+
+  const tripNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    );
+
+  if(tripNote){
+    count += 1;
+  }
+
+  const passengers =
+    getSharedPassengers(t);
+
+  passengers.forEach(p=>{
+    if(passengerNoteValue(p)){
+      count += 1;
+    }
+  });
+
+  return count;
+}
+
 
 /* =========================
    SHARED
@@ -1219,10 +1315,39 @@ function buildExtraHtml(t){
    ACTIONS
 ========================= */
 
-function openTrip(id){
+function openTrip(id, locked = false){
+
+  if(locked){
+    alert(
+      "This trip will open 2 hours before pickup time."
+    );
+    return;
+  }
 
   location.href =
     `map.html?tripId=${encodeURIComponent(id)}`;
+}
+
+function toggleNote(id){
+
+  const box =
+    document.getElementById(
+      `note-${id}`
+    );
+
+  if(!box){
+    return;
+  }
+
+  const willOpen =
+    !box.classList.contains("open");
+
+  box.classList.toggle("open");
+
+  openNoteTripId =
+    willOpen
+      ? String(id)
+      : "";
 }
 
 function toggleExtra(id){
@@ -1382,7 +1507,7 @@ function sharedRoute(t){
    CURRENT TRIP CARD
 ========================= */
 
-function card(t){
+function card(t, options = {}){
 
   if(
     !canShowAsCurrentTrip(t)
@@ -1391,6 +1516,8 @@ function card(t){
   }
 
   const status = getStatus(t);
+  const previewLocked =
+    options.previewLocked === true;
   const shared = isShared(t);
   const passenger = getPassenger(t);
   const serviceTitle = getServiceTitle(t);
@@ -1408,6 +1535,9 @@ function card(t){
         t.note
       )
     ) !== "";
+
+  const noteCount =
+    getTripNoteCount(t);
 
   const id = clean(t._id || t.id);
 
@@ -1473,11 +1603,17 @@ function card(t){
 
       </div>
 
-      <div class="current-status-row">
-        <div class="current-status-pill status-${esc(status)}">
-          ${esc(status)}
-        </div>
-      </div>
+      ${
+        status === "Dispatched"
+          ? ""
+          : `
+            <div class="current-status-row">
+              <div class="current-status-pill status-${esc(status)}">
+                ${esc(status)}
+              </div>
+            </div>
+          `
+      }
 
       <div class="trip-summary-row">
 
@@ -1581,11 +1717,26 @@ function card(t){
           : ""
       }
 
-      <div class="note-box">
+      <div
+        class="note-box ${openNoteTripId === safeId ? "open" : ""}"
+        id="note-${safeId}"
+      >
 
-        <div class="note-box-label">
-          ${hasImportantNote ? "IMPORTANT NOTE" : "NOTE"}
-        </div>
+        <button
+          class="note-toggle"
+          type="button"
+          onclick="toggleNote('${safeId}')"
+        >
+          <span class="note-box-label">
+            ${hasImportantNote ? "IMPORTANT NOTE" : "NOTE"}
+          </span>
+
+          ${
+            noteCount > 0
+              ? `<span class="note-count">${noteCount}</span>`
+              : ""
+          }
+        </button>
 
         <div class="note-box-text">
           ${esc(noteText)}
@@ -1615,9 +1766,9 @@ function card(t){
       </div>
 
       <button
-        class="notification-btn"
+        class="notification-btn ${previewLocked ? "locked" : ""}"
         type="button"
-        onclick='openTrip(${JSON.stringify(id)})'
+        onclick='openTrip(${JSON.stringify(id)}, ${previewLocked ? "true" : "false"})'
       >
         Go To Notification
       </button>
@@ -1632,6 +1783,7 @@ function card(t){
 
 function updateHeader(
   todayTrips,
+  tomorrowTrips,
   completedTrips,
   noShowTrips,
   cancelledTrips,
@@ -1641,6 +1793,10 @@ function updateHeader(
 
   if(todayTripCount){
     todayTripCount.textContent = String(todayTrips.length);
+  }
+
+  if(tomorrowTripCount){
+    tomorrowTripCount.textContent = String(tomorrowTrips.length);
   }
 
   if(completedTripCount){
@@ -1663,7 +1819,11 @@ function updateHeader(
       tripAlertText.textContent =
         remainingTrips.length > 1
           ? "YOU HAVE A TRIP"
-          : "YOU HAVE YOUR LAST TRIP";
+          : (
+              isTomorrowTrip(currentTrip)
+                ? "TOMORROW TRIP PREVIEW"
+                : "YOU HAVE YOUR LAST TRIP"
+            );
     }
 
   }else{
@@ -1701,6 +1861,18 @@ function render(trips){
           getTripDate(b)
       );
 
+  const tomorrowTrips =
+    trips
+      .filter(isTomorrowTrip)
+      .filter(
+        t => !isClosedTrip(t)
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
   const completedTrips =
     todayTrips.filter(
       isCompletedTrip
@@ -1723,13 +1895,26 @@ function render(trips){
           getTripDate(b)
       );
 
+  const tomorrowPreviewTrips =
+    tomorrowTrips
+      .filter(
+        canShowAsCurrentTrip
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
   /*
     The driver sees ONE trip only.
-    All future trips stay hidden.
-    Dispatcher can change them before their turn.
+    Today's available work has priority.
+    If no current today trip is waiting, show the first tomorrow trip
+    as a locked preview so the driver can plan the next day.
   */
   const currentTrip =
     remainingTrips[0] ||
+    tomorrowPreviewTrips[0] ||
     null;
 
   if(currentTrip){
@@ -1751,12 +1936,21 @@ function render(trips){
       openDetailsTripId = "";
     }
 
+    if(
+      openNoteTripId &&
+      openNoteTripId !== currentId
+    ){
+      openNoteTripId = "";
+    }
+
   }else{
     openDetailsTripId = "";
+    openNoteTripId = "";
   }
 
   updateHeader(
     todayTrips,
+    tomorrowTrips,
     completedTrips,
     noShowTrips,
     cancelledTrips,
@@ -1766,8 +1960,17 @@ function render(trips){
 
   if(currentTrip){
 
+    const previewLocked =
+      isTomorrowTrip(currentTrip) &&
+      !isWithinExecutionWindow(currentTrip);
+
     container.innerHTML =
-      card(currentTrip);
+      card(
+        currentTrip,
+        {
+          previewLocked
+        }
+      );
 
     return;
   }
@@ -1848,6 +2051,10 @@ async function loadTrips(){
 
     if(todayTripCount){
       todayTripCount.textContent = "0";
+    }
+
+    if(tomorrowTripCount){
+      tomorrowTripCount.textContent = "0";
     }
 
     if(completedTripCount){
