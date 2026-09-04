@@ -1744,6 +1744,14 @@ function card(t, options = {}){
 
       </div>
 
+      <button
+        class="notification-btn ${previewLocked ? "locked" : ""}"
+        type="button"
+        onclick='openTrip(${JSON.stringify(id)}, ${previewLocked ? "true" : "false"})'
+      >
+        Go To Notification
+      </button>
+
       <div class="details-row">
 
         <button
@@ -1764,14 +1772,6 @@ function card(t, options = {}){
       >
         ${buildExtraHtml(t)}
       </div>
-
-      <button
-        class="notification-btn ${previewLocked ? "locked" : ""}"
-        type="button"
-        onclick='openTrip(${JSON.stringify(id)}, ${previewLocked ? "true" : "false"})'
-      >
-        Go To Notification
-      </button>
 
     </article>
   `;
