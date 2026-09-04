@@ -1349,6 +1349,74 @@ Continue anyway?`
   return true;
 }
 
+
+/*
+  Edit Save must validate the NEW date/time entered in the row.
+  The old trip object may still be scheduled for tomorrow, so checking only
+  checkTripWarningByTrip(trip) can miss a newly edited time that was moved
+  into the warning window.
+*/
+function checkTripWarningForDateTime(
+  trip,
+  dateValue,
+  timeValue
+){
+
+  if(!trip) return true;
+
+  const service =
+    getServiceByTrip(trip);
+
+  if(!service) return true;
+
+  const pricing =
+    getReservedPricing(service);
+
+  if(pricing.disableCancel === true){
+    return true;
+  }
+
+  const warningMinutes =
+    Number(
+      pricing.warningMinutes || 120
+    );
+
+  if(warningMinutes <= 0){
+    return true;
+  }
+
+  const tripDateTime =
+    parseTripDateTime(
+      dateValue,
+      timeValue
+    );
+
+  if(!tripDateTime){
+    return true;
+  }
+
+  const diffMinutes =
+    (
+      tripDateTime.getTime() -
+      getSystemNow().getTime()
+    ) / 60000;
+
+  if(
+    diffMinutes > 0 &&
+    diffMinutes <= warningMinutes
+  ){
+    return confirm(
+`WARNING
+
+This trip is within ${warningMinutes} minutes.
+
+Continue anyway?`
+    );
+  }
+
+  return true;
+}
+
 /* ================= LOAD SERVICES ================= */
 
 async function loadReservedServices(rebuildTabs = true){
@@ -3526,10 +3594,6 @@ async function handleSaveEdit(btn){
 
   if(!trip) return;
 
-  if(!checkTripWarningByTrip(trip)){
-    return;
-  }
-
   const isShared =
     trip.isShared === true ||
     trip.tripType === "SHARED";
@@ -3623,6 +3687,21 @@ async function handleSaveEdit(btn){
 
   if(dt <= getSystemNow()){
     showAlert("Trip time already passed");
+    return;
+  }
+
+  /*
+    IMPORTANT:
+    Warning is checked against the edited date/time, not the old saved trip.
+    Example: tomorrow -> now must show the Reserved warning before Save.
+  */
+  if(
+    !checkTripWarningForDateTime(
+      trip,
+      nextDate,
+      nextTime
+    )
+  ){
     return;
   }
 
