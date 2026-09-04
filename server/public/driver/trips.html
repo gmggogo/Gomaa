@@ -2043,15 +2043,22 @@ body{
     border-radius:14px !important;
   }
 
-  .content{
-    padding:8px 10px calc(188px + env(safe-area-inset-bottom)) !important;
+  .scroll-area{
+    padding:0 10px calc(188px + env(safe-area-inset-bottom)) !important;
+    background:linear-gradient(180deg,rgba(3,21,47,.36),rgba(3,21,47,.08)) !important;
+  }
+
+  .container{
+    padding-top:8px !important;
+    padding-bottom:0 !important;
   }
 
   .trip-card{
     margin-top:0 !important;
     min-height:auto !important;
-    padding:10px 10px 14px !important;
+    padding:10px 10px 12px !important;
     border-radius:18px !important;
+    overflow:hidden !important;
   }
 
   .trip-meta{
@@ -2146,8 +2153,17 @@ body{
 }
 
 @media(max-width:390px){
+  .scroll-area{
+    padding-top:0 !important;
+    padding-bottom:calc(182px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .container{
+    padding-top:7px !important;
+  }
+
   .trip-card{
-    padding:9px 9px 12px !important;
+    padding:9px 9px 11px !important;
   }
 
   .notification-btn{
