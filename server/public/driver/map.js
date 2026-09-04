@@ -4418,6 +4418,8 @@ function renderExecutionState(){
           "Passenger picked up — ready to start early"
         );
 
+        hideTimer();
+
         hidePrimaryButton();
 
         btnStartRide.style.display =
@@ -4469,13 +4471,24 @@ function renderExecutionState(){
       return;
     }
 
+    const hasPickedInCurrentPickup =
+      pickedPassengers(stop).length > 0;
+
     if(waitEnabledForStop(stop)){
-      showTimer(timerRemaining(stop));
+      if(hasPickedInCurrentPickup){
+        hideTimer();
+      }else{
+        showTimer(timerRemaining(stop));
+      }
 
       setStopStatus(
-        timerExpired(stop)
-          ? "Waiting time finished"
-          : "Pickup waiting time"
+        hasPickedInCurrentPickup
+          ? "Ready to start ride"
+          : (
+              timerExpired(stop)
+                ? "Waiting time finished"
+                : "Pickup waiting time"
+            )
       );
     }else{
       hideTimer();
