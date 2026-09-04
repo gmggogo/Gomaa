@@ -831,3 +831,44 @@ body.driver-dashboard-page{
     bottom:86px !important;
   }
 }
+
+/* =========================================
+   PWA STANDALONE IPHONE FRAME FIX
+   - Keeps the fixed header fully above dashboard content.
+   - Keeps the bottom navigation visually near the bottom edge.
+   - Applies only when launched as an installed standalone web app.
+   - Existing dashboard/nav styling and logic stay unchanged.
+========================================= */
+
+@media (display-mode: standalone){
+
+  body.driver-dashboard-page{
+    padding-top:0 !important;
+    padding-bottom:0 !important;
+  }
+
+  .dashboard-middle{
+    top:calc(88px + env(safe-area-inset-top)) !important;
+    bottom:86px !important;
+  }
+
+  .nav{
+    bottom:2px !important;
+  }
+}
+
+@supports (-webkit-touch-callout:none){
+
+  @media (display-mode: standalone) and (max-width:430px){
+
+    .dashboard-middle{
+      top:calc(88px + env(safe-area-inset-top)) !important;
+      bottom:86px !important;
+    }
+
+    .nav{
+      bottom:2px !important;
+    }
+  }
+}
+
