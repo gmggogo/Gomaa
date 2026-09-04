@@ -1178,35 +1178,35 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
         body.finalStops
       );
 
+    /*
+      Multi-editor behavior:
+      Customer / Admin / Dispatcher may all update the same trip.
+
+      Do not reject the request only because the page was opened before
+      another authorized route edit was saved. The current trip in MongoDB
+      is the live baseline.
+
+      Pickup still cannot be changed from this route-change flow.
+    */
     if(
       submittedPickup &&
       !sameAddress(submittedPickup,pickup)
     ){
       return res.status(409).json({
         success:false,
-        message:"The trip pickup changed before submission. Reload the page."
+        message:"Pickup address cannot be changed"
       });
     }
 
-    if(
-      submittedDropoffBefore &&
-      !sameAddress(submittedDropoffBefore,dropoffBefore)
-    ){
-      return res.status(409).json({
-        success:false,
-        message:"The trip dropoff changed before submission. Reload the page."
-      });
-    }
-
-    if(
-      submittedStopsBefore.length &&
-      !sameAddressArray(submittedStopsBefore,existingStopsBefore)
-    ){
-      return res.status(409).json({
-        success:false,
-        message:"The trip stops changed before submission. Reload the page."
-      });
-    }
+    const routeChangedSincePageLoad =
+      (
+        submittedDropoffBefore &&
+        !sameAddress(submittedDropoffBefore,dropoffBefore)
+      ) ||
+      (
+        submittedStopsBefore.length > 0 &&
+        !sameAddressArray(submittedStopsBefore,existingStopsBefore)
+      );
 
     if(finalStops.length > MAX_STOPS){
       return res.status(400).json({
@@ -1215,12 +1215,12 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
       });
     }
 
-    if(editedExistingStops.length > editorStopsBefore.length){
-      return res.status(400).json({
-        success:false,
-        message:"Existing stop information is invalid"
-      });
-    }
+    /*
+      Do not reject only because the editor opened the page before another
+      authorized stop change. Final route validation below still checks the
+      submitted route structure, and buildServerRouteChange() still blocks
+      edits/deletes/reordering of completed stops during an active trip.
+    */
 
     if(
       finalStops.length !==
@@ -1353,6 +1353,8 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
           trip.status ||
           ""
         ),
+
+      routeChangedSincePageLoad,
 
       confirmedAt:
         body.confirmedAt || new Date(),

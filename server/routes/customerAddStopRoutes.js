@@ -1852,43 +1852,35 @@ function validateRouteChangePayload(
 
   }
 
-  if(
-    submittedDropoffBefore &&
-    !sameAddress(
-      submittedDropoffBefore,
-      actualDropoff
-    )
-  ){
+  /*
+    Do not reject a route change only because another authorized actor
+    (Customer / Admin / Dispatcher) updated the trip after this page loaded.
 
-    throw new Error(
-      "The trip changed before submission. Reload the page."
-    );
+    The current database trip is the live source of truth for the "before"
+    route, while the submitted final route is still validated below.
 
-  }
-
-  if(
+    This prevents false "Reload the page" conflicts when stops/dropoff were
+    changed by another allowed editor or by a previous successful change.
+  */
+  const routeChangedSincePageLoad =
+    (
+      submittedDropoffBefore &&
+      !sameAddress(
+        submittedDropoffBefore,
+        actualDropoff
+      )
+    ) ||
     !sameAddressArray(
       submittedStopsBefore,
       actualStops
-    )
-  ){
-
-    throw new Error(
-      "The trip stops changed before submission. Reload the page."
     );
 
-  }
-
-  if(
-    editedExistingStops.length >
-    actualStops.length
-  ){
-
-    throw new Error(
-      "Existing stop information is invalid"
-    );
-
-  }
+  /*
+    A stale page may contain more or fewer old stops than the current trip.
+    Do not block the request for that reason alone. During an active trip,
+    buildUpdatedRoutePoints() still protects completed stops from being
+    edited, deleted, or reordered.
+  */
 
   if(finalStops.length > MAX_STOPS){
 
@@ -1970,7 +1962,9 @@ function validateRouteChangePayload(
 
     addedStops,
 
-    finalStops
+    finalStops,
+
+    routeChangedSincePageLoad
 
   };
 
