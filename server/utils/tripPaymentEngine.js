@@ -595,19 +595,32 @@ async function changeAuthorizedAmount(
       trip.paymentIntentId =
         updated.id;
 
+      trip.routeChangeAuthorizedAmount = null;
+      trip.routeChangeFinalAmount = null;
+
     }else{
 
-      updated =
-        await stripe.paymentIntents.update(
-          intentId,
-          {
-            amount:newCents
-          },
-          {
-            idempotencyKey:
-              `trip-decrement-${trip._id}-${newCents}`
-          }
+      /*
+        Stripe does not allow changing the amount of a PaymentIntent
+        after it has reached requires_capture.
+
+        When the new trip price is LOWER, keep the existing authorization
+        in place and capture only the lower final amount later.
+
+        captureAuthorizedTrip() already uses amount_to_capture, so Stripe
+        will capture the new lower trip price and release the unused
+        remainder of the authorization.
+      */
+      updated = current;
+
+      trip.routeChangeAuthorizedAmount =
+        dollars(
+          current.amount_capturable ||
+          current.amount
         );
+
+      trip.routeChangeFinalAmount =
+        dollars(newCents);
 
     }
 
@@ -620,6 +633,11 @@ async function changeAuthorizedAmount(
       );
     }
 
+    /*
+      Keep authorizedAmount equal to the amount actually held by Stripe.
+      For a decreased trip price, the lower final price remains on the trip
+      and is used later by captureAuthorizedTrip().
+    */
     trip.authorizedAmount =
       dollars(
         updated.amount_capturable ||
