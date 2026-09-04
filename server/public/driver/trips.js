@@ -1661,6 +1661,27 @@ function card(t, options = {}){
 
       </div>
 
+      <div
+        class="extra-panel summary-extra-panel ${openDetailsTripId === safeId ? "open" : ""}"
+        id="extra-${safeId}"
+      >
+        <div class="summary-extra-head">
+          <span>Passenger Details</span>
+
+          <button
+            class="summary-extra-close"
+            type="button"
+            onclick="toggleExtra('${safeId}')"
+            aria-label="Close passenger details"
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        ${buildExtraHtml(t)}
+      </div>
+
       ${executionStatusHtml(t)}
 
       <div class="compact-route">
@@ -1739,13 +1760,6 @@ function card(t, options = {}){
       >
         Go To Notification
       </button>
-
-      <div
-        class="extra-panel ${openDetailsTripId === safeId ? "open" : ""}"
-        id="extra-${safeId}"
-      >
-        ${buildExtraHtml(t)}
-      </div>
 
     </article>
   `;
