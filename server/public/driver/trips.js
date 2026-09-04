@@ -1649,6 +1649,16 @@ function card(t, options = {}){
             : ""
         }
 
+        <button
+          class="eye-btn summary-eye-btn"
+          type="button"
+          onclick="toggleExtra('${safeId}')"
+          aria-label="View all trip information"
+          title="View all trip information"
+        >
+          ${eyeIcon()}
+        </button>
+
       </div>
 
       ${executionStatusHtml(t)}
@@ -1729,20 +1739,6 @@ function card(t, options = {}){
       >
         Go To Notification
       </button>
-
-      <div class="details-row">
-
-        <button
-          class="eye-btn"
-          type="button"
-          onclick="toggleExtra('${safeId}')"
-          aria-label="View all trip information"
-          title="View all trip information"
-        >
-          ${eyeIcon()}
-        </button>
-
-      </div>
 
       <div
         class="extra-panel ${openDetailsTripId === safeId ? "open" : ""}"
