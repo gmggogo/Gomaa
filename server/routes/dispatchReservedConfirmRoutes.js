@@ -1238,6 +1238,116 @@ async function geocodeAddress(address,stats = null){
   return null;
 }
 
+
+/* =========================
+   INDIVIDUAL ROUTE RESOLUTION
+   Resolve every address before Directions so Google Directions never has
+   to guess which pickup/stop/dropoff failed.
+========================= */
+
+function waitMs(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+async function geocodeAddressWithRetry(
+  address,
+  stats = null,
+  attempts = 2
+){
+
+  const cleanAddress =
+    normalizePossibleAddress(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  let lastResult = null;
+
+  for(let attempt = 1; attempt <= attempts; attempt += 1){
+
+    lastResult =
+      await geocodeAddress(
+        cleanAddress,
+        stats
+      );
+
+    if(
+      lastResult &&
+      hasValidLatLng(
+        lastResult.lat,
+        lastResult.lng
+      )
+    ){
+      return lastResult;
+    }
+
+    if(attempt < attempts){
+      await waitMs(350);
+    }
+  }
+
+  return null;
+}
+
+async function resolveIndividualRouteForDirections(
+  trip,
+  stats = null
+){
+
+  const addresses =
+    buildIndividualRoutePoints(trip);
+
+  if(addresses.length < 2){
+    throw new Error(
+      "Route is missing pickup/dropoff"
+    );
+  }
+
+  const resolved = [];
+
+  for(let index = 0; index < addresses.length; index += 1){
+
+    const address =
+      normalizePossibleAddress(
+        addresses[index]
+      );
+
+    const coords =
+      await geocodeAddressWithRetry(
+        address,
+        stats,
+        2
+      );
+
+    if(!coords){
+
+      let label = "Route address";
+
+      if(index === 0){
+        label = "Pickup address";
+      }else if(index === addresses.length - 1){
+        label = "Dropoff address";
+      }else{
+        label = `Stop ${index} address`;
+      }
+
+      throw new Error(
+        `${label} was not found by Google: ${address}`
+      );
+    }
+
+    resolved.push(
+      `${Number(coords.lat)},${Number(coords.lng)}`
+    );
+  }
+
+  return {
+    displayRoutePoints:addresses,
+    directionsRoutePoints:resolved
+  };
+}
+
 /* =========================
    SERVICE / PRICING
 ========================= */
@@ -2655,29 +2765,60 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
 
     }else{
 
-      const routePoints = buildIndividualRoutePoints(trip);
+      /*
+        Resolve pickup / stops / dropoff first.
+        Directions receives exact coordinates instead of raw address text.
 
-      if(routePoints.length < 2){
-        return res.status(400).json({
-          success:false,
-          message:"Route is missing pickup/dropoff"
-        });
-      }
+        This fixes intermittent Google Directions NOT_FOUND responses and
+        gives a precise message when one specific address cannot be resolved.
+      */
+      const individualRoute =
+        await resolveIndividualRouteForDirections(
+          trip,
+          requestStats
+        );
 
       prepared = {
         isShared:false,
-        routePoints,
+
+        /*
+          Keep human-readable addresses on the trip.
+          Only the actual Google Directions request uses resolved coordinates.
+        */
+        routePoints:
+          individualRoute.displayRoutePoints,
+
         routePlan:[],
         passengers:[],
         activeCount:1,
         sharedStopsCount:0,
         routeCase:"INDIVIDUAL_1_REQUEST",
         routeMeta:{
-          mode:"INDIVIDUAL_1_REQUEST"
+          mode:"INDIVIDUAL_1_REQUEST",
+          directionsUsedResolvedCoordinates:true
         }
       };
 
-      routeData = await calculateRoute(routePoints);
+      try{
+
+        routeData =
+          await calculateRoute(
+            individualRoute.directionsRoutePoints
+          );
+
+      }catch(firstRouteErr){
+
+        /*
+          One short retry protects Confirm from a temporary Google/network
+          failure. A permanent invalid address was already caught above.
+        */
+        await waitMs(450);
+
+        routeData =
+          await calculateRoute(
+            individualRoute.directionsRoutePoints
+          );
+      }
 
       requestStats.directionsRequestsUsed += 1;
     }

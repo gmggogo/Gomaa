@@ -2202,6 +2202,13 @@ function buildSharedPayload(){
   };
 }
 
+
+/*
+  Confirm lock survives table refresh/re-render.
+  One trip can have only one Confirm request in flight.
+*/
+const confirmingTripIds = new Set();
+
 /* ================= SERVER ================= */
 
 function extractTripResponse(data){
@@ -4022,6 +4029,14 @@ async function handleConfirmTrip(btn){
     return;
   }
 
+  /*
+    Do not allow a second Confirm request for the same trip while the first
+    request is still calculating/geocoding the route on the server.
+  */
+  if(confirmingTripIds.has(String(id))){
+    return;
+  }
+
   const trip =
     reviewTrips.find(t=>String(t._id || t.id) === String(id));
 
@@ -4041,12 +4056,16 @@ async function handleConfirmTrip(btn){
   const oldText =
     btn.textContent;
 
+  confirmingTripIds.add(String(id));
+
   try{
 
     btn.disabled = true;
-    btn.textContent = "Confirming...";
+    btn.textContent = "Calculating Route...";
 
     await confirmTripOnServer(id);
+
+    btn.textContent = "Confirmed";
 
     await refreshReview();
 
@@ -4062,8 +4081,16 @@ async function handleConfirmTrip(btn){
 
   }finally{
 
-    btn.disabled = false;
-    btn.textContent = oldText || "Confirm";
+    confirmingTripIds.delete(String(id));
+
+    /*
+      The row normally disappears after successful refresh.
+      Restore the old button only if this same DOM button still exists.
+    */
+    if(btn && btn.isConnected){
+      btn.disabled = false;
+      btn.textContent = oldText || "Confirm";
+    }
   }
 }
 
