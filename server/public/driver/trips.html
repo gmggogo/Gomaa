@@ -2280,6 +2280,38 @@ body{
   }
 }
 </style>
+
+<style>
+/* =====================================================
+   MOBILE NAV GAP FIX
+   Removes the extra reserved background space created
+   behind the bottom navigation.
+===================================================== */
+@media(max-width:520px){
+  .app{
+    padding-bottom:0 !important;
+  }
+
+  .scroll-area{
+    padding-bottom:8px !important;
+  }
+
+  .container{
+    padding-bottom:0 !important;
+  }
+
+  .trip-card{
+    margin-bottom:8px !important;
+  }
+}
+
+@media(max-width:390px){
+  .scroll-area{
+    padding-bottom:8px !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
