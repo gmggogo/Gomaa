@@ -1,6 +1,6 @@
 {
-  "name": "Sunbeam Driver",
-  "short_name": "Sunbeam",
+  "name": "GH Mobility Driver",
+  "short_name": "GH Driver",
   "start_url": "login.html",
   "display": "standalone",
   "background_color": "#0f172a",
