@@ -3003,6 +3003,26 @@ router.post(
 
       await trip.save();
 
+      if(
+        typeof global.notifyDriverTripUpdate ===
+          "function" &&
+        trip.driverId
+      ){
+        global.notifyDriverTripUpdate(
+          trip,
+          {
+            changeType:"ROUTE_UPDATED",
+            title:"Route Updated",
+            body:"A stop was added or changed. Open GH Mobility to view the updated route."
+          }
+        ).catch(err=>{
+          console.error(
+            "DRIVER ROUTE UPDATE NOTIFY ERROR:",
+            err?.message || err
+          );
+        });
+      }
+
       /*
         Send update email after save.
       */

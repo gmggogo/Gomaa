@@ -1,3 +1,4 @@
+
 /* =====================================================
    SUNBEAM DRIVER MAP — EXECUTION UI FINAL
 
@@ -334,6 +335,523 @@ let lastSentLng = null;
 
 let reasonContext = null;
 let pendingReasonAfterCall = null;
+
+let driverRealtimeSocket = null;
+let tripRefreshPromise = null;
+let driverPushRegistration = null;
+let driverPushInitStarted = false;
+
+/* ================= LIVE TRIP UPDATE ================= */
+
+function routeStopIdentity(stop){
+  if(!stop){
+    return "";
+  }
+
+  return [
+    clean(stop.type).toLowerCase(),
+    normalizeAddressKey(
+      stop.address ||
+      stop.resolvedAddress ||
+      ""
+    )
+  ].join("|");
+}
+
+function snapshotStopExecution(){
+  const snapshot =
+    new Map();
+
+  for(const stop of routeStops){
+    const key =
+      routeStopIdentity(stop);
+
+    if(!key){
+      continue;
+    }
+
+    snapshot.set(
+      key,
+      readStopState(stop)
+    );
+  }
+
+  return snapshot;
+}
+
+function restoreStopExecutionSnapshot(snapshot){
+  if(
+    !snapshot ||
+    typeof snapshot.get !== "function"
+  ){
+    return;
+  }
+
+  for(const stop of routeStops){
+    const saved =
+      snapshot.get(
+        routeStopIdentity(stop)
+      );
+
+    if(!saved){
+      continue;
+    }
+
+    saveStopState(
+      stop,
+      saved
+    );
+  }
+}
+
+async function refreshTripFromServer(
+  options = {}
+){
+  if(tripRefreshPromise){
+    return tripRefreshPromise;
+  }
+
+  tripRefreshPromise =
+    (async()=>{
+      const previousStop =
+        currentStop();
+
+      const previousIdentity =
+        routeStopIdentity(
+          previousStop
+        );
+
+      const previousStopId =
+        String(
+          previousStop?.stopId ||
+          ""
+        );
+
+      const executionSnapshot =
+        snapshotStopExecution();
+
+      const nextTrip =
+        await fetchTrip();
+
+      if(!nextTrip){
+        return false;
+      }
+
+      tripDoc = nextTrip;
+
+      await loadTripServiceWaitConfig();
+
+      routeStops =
+        buildRouteStops(
+          tripDoc
+        );
+
+      for(const stop of routeStops){
+        await ensureStopCoordinates(stop);
+      }
+
+      if(!routeStops.length){
+        throw new Error(
+          "No route stops found"
+        );
+      }
+
+      restoreStopExecutionSnapshot(
+        executionSnapshot
+      );
+
+      let restoredIndex = -1;
+
+      if(previousIdentity){
+        restoredIndex =
+          routeStops.findIndex(
+            stop =>
+              routeStopIdentity(stop) ===
+              previousIdentity
+          );
+      }
+
+      if(
+        restoredIndex < 0 &&
+        previousStopId &&
+        ["pickup","dropoff"].includes(
+          clean(previousStop?.type).toLowerCase()
+        )
+      ){
+        restoredIndex =
+          routeStops.findIndex(
+            stop =>
+              String(stop?.stopId || "") ===
+              previousStopId
+          );
+      }
+
+      if(restoredIndex >= 0){
+        currentStopIndex =
+          restoredIndex;
+      }else{
+        restoreCurrentStop();
+      }
+
+      await ensureStopCoordinates(
+        currentStop()
+      );
+
+      if(allTripPassengersTerminal()){
+        await finishTripAndReturnToTrips();
+        return true;
+      }
+
+      setCurrentInfo();
+      renderExecutionState();
+      drawRouteMarkers();
+      drawDisplayLine();
+
+      if(
+        map &&
+        options.forceFit !== false
+      ){
+        userMovedMap = false;
+        fitMap();
+      }
+
+      return true;
+    })()
+    .catch(err=>{
+      console.log(
+        "LIVE TRIP REFRESH ERROR:",
+        err
+      );
+      return false;
+    })
+    .finally(()=>{
+      tripRefreshPromise = null;
+    });
+
+  return tripRefreshPromise;
+}
+
+function loadSocketIoClient(){
+  return new Promise((resolve,reject)=>{
+    if(typeof window.io === "function"){
+      resolve();
+      return;
+    }
+
+    const existing =
+      document.getElementById(
+        "driver-socket-io-client"
+      );
+
+    if(existing){
+      existing.addEventListener(
+        "load",
+        ()=>resolve(),
+        { once:true }
+      );
+
+      existing.addEventListener(
+        "error",
+        ()=>reject(
+          new Error(
+            "Driver realtime client failed to load"
+          )
+        ),
+        { once:true }
+      );
+      return;
+    }
+
+    const script =
+      document.createElement(
+        "script"
+      );
+
+    script.id =
+      "driver-socket-io-client";
+
+    script.src =
+      "/socket.io/socket.io.js";
+
+    script.async = true;
+
+    script.onload =
+      ()=>resolve();
+
+    script.onerror =
+      ()=>reject(
+        new Error(
+          "Driver realtime client failed to load"
+        )
+      );
+
+    document.head.appendChild(
+      script
+    );
+  });
+}
+
+async function startDriverRealtime(){
+  try{
+    const token =
+      getDriverToken();
+
+    if(!token){
+      return;
+    }
+
+    await loadSocketIoClient();
+
+    if(
+      driverRealtimeSocket &&
+      driverRealtimeSocket.connected
+    ){
+      return;
+    }
+
+    driverRealtimeSocket =
+      window.io(
+        {
+          auth:{
+            token
+          },
+          transports:[
+            "websocket",
+            "polling"
+          ]
+        }
+      );
+
+    driverRealtimeSocket.on(
+      "trip:updated",
+      async payload=>{
+        if(
+          String(payload?.tripId || "") !==
+          String(TRIP_ID)
+        ){
+          return;
+        }
+
+        await refreshTripFromServer({
+          forceFit:true
+        });
+      }
+    );
+
+    driverRealtimeSocket.on(
+      "trip:deleted",
+      payload=>{
+        if(
+          String(payload?.tripId || "") !==
+          String(TRIP_ID)
+        ){
+          return;
+        }
+
+        clearTripLocalState();
+        localStorage.removeItem(
+          "activeDriverTripId"
+        );
+
+        window.location.replace(
+          "/driver/trips.html"
+        );
+      }
+    );
+
+    driverRealtimeSocket.on(
+      "connect_error",
+      err=>{
+        console.log(
+          "DRIVER REALTIME CONNECTION ERROR:",
+          err?.message || err
+        );
+      }
+    );
+
+  }catch(err){
+    console.log(
+      "DRIVER REALTIME START ERROR:",
+      err?.message || err
+    );
+  }
+}
+
+function urlBase64ToUint8Array(value){
+  const padding =
+    "=".repeat(
+      (4 - value.length % 4) % 4
+    );
+
+  const base64 =
+    (value + padding)
+      .replace(/-/g,"+")
+      .replace(/_/g,"/");
+
+  const raw =
+    window.atob(base64);
+
+  return Uint8Array.from(
+    [...raw].map(
+      char=>char.charCodeAt(0)
+    )
+  );
+}
+
+async function subscribeDriverPush(){
+  if(
+    !driverPushRegistration ||
+    Notification.permission !== "granted"
+  ){
+    return false;
+  }
+
+  const keyResponse =
+    await fetch(
+      "/api/driver-push/public-key",
+      {
+        cache:"no-store",
+        headers:driverAuthHeaders()
+      }
+    );
+
+  if(!keyResponse.ok){
+    return false;
+  }
+
+  const keyData =
+    await keyResponse.json();
+
+  if(
+    keyData?.enabled !== true ||
+    !clean(keyData?.publicKey)
+  ){
+    return false;
+  }
+
+  let subscription =
+    await driverPushRegistration
+      .pushManager
+      .getSubscription();
+
+  if(!subscription){
+    subscription =
+      await driverPushRegistration
+        .pushManager
+        .subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:
+            urlBase64ToUint8Array(
+              keyData.publicKey
+            )
+        });
+  }
+
+  const saveResponse =
+    await fetch(
+      "/api/driver-push/subscribe",
+      {
+        method:"POST",
+        headers:driverAuthHeaders({
+          "Content-Type":"application/json"
+        }),
+        body:JSON.stringify({
+          driverId:DRIVER_ID,
+          subscription:
+            subscription.toJSON()
+        })
+      }
+    );
+
+  return saveResponse.ok;
+}
+
+async function requestAndSubscribeDriverPush(){
+  try{
+    if(
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    ){
+      return false;
+    }
+
+    if(Notification.permission === "denied"){
+      return false;
+    }
+
+    if(Notification.permission === "default"){
+      const permission =
+        await Notification.requestPermission();
+
+      if(permission !== "granted"){
+        return false;
+      }
+    }
+
+    return await subscribeDriverPush();
+
+  }catch(err){
+    console.log(
+      "DRIVER PUSH SUBSCRIBE ERROR:",
+      err?.message || err
+    );
+    return false;
+  }
+}
+
+async function initDriverPush(){
+  if(driverPushInitStarted){
+    return;
+  }
+
+  driverPushInitStarted = true;
+
+  if(
+    !("serviceWorker" in navigator) ||
+    !("Notification" in window) ||
+    !("PushManager" in window)
+  ){
+    return;
+  }
+
+  try{
+    driverPushRegistration =
+      await navigator.serviceWorker.register(
+        "/driver-sw.js",
+        {
+          scope:"/"
+        }
+      );
+
+    if(Notification.permission === "granted"){
+      await subscribeDriverPush();
+      return;
+    }
+
+    if(Notification.permission === "default"){
+      const enableOnFirstInteraction =
+        async ()=>{
+          await requestAndSubscribeDriverPush();
+        };
+
+      document.addEventListener(
+        "click",
+        enableOnFirstInteraction,
+        {
+          once:true,
+          capture:true
+        }
+      );
+    }
+
+  }catch(err){
+    console.log(
+      "DRIVER PUSH INIT ERROR:",
+      err?.message || err
+    );
+  }
+}
 
 /* ================= SERVER CLOCK ================= */
 
@@ -5257,6 +5775,9 @@ async function initPage(){
     drawDisplayLine();
     fitMap();
 
+    await startDriverRealtime();
+    await initDriverPush();
+
     startTimerWatcher();
     startGps();
   }catch(err){
@@ -5273,18 +5794,18 @@ document.addEventListener("visibilitychange", async () => {
   }
 
   await syncServerClock();
-  renderExecutionState();
-
-  if(map){
-    fitMap();
-  }
+  await refreshTripFromServer({
+    forceFit:true
+  });
 
   maybeOpenPendingReasonAfterCall();
 });
 
 window.addEventListener("pageshow", async () => {
   await syncServerClock();
-  renderExecutionState();
+  await refreshTripFromServer({
+    forceFit:true
+  });
   maybeOpenPendingReasonAfterCall();
 });
 
@@ -5295,6 +5816,10 @@ window.addEventListener("beforeunload", () => {
 
   if(watchId !== null && navigator.geolocation){
     navigator.geolocation.clearWatch(watchId);
+  }
+
+  if(driverRealtimeSocket){
+    driverRealtimeSocket.disconnect();
   }
 });
 

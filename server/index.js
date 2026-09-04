@@ -10,6 +10,9 @@ const cors = require("cors");
 const path = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const crypto = require("crypto");
+const http = require("http");
+const { Server: SocketIOServer } = require("socket.io");
+const webPush = require("web-push");
 
 const companyServerRoutes =
 require("./routes/companyServerRoutes");
@@ -20,6 +23,7 @@ require("./routes/CompanyCoreEngine");
 const GetQuoteEngine =
 require("./routes/GetQuoteEngine");
 const app = express();
+const httpServer = http.createServer(app);
 
 app.use(
   "/uploads",
@@ -88,6 +92,334 @@ require("./models/FacilityPricingOverride");
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+
+
+/* =========================
+   DRIVER REALTIME + PUSH
+   Live trip updates while Driver Map is open, plus Web Push while the
+   driver is using another app such as Google Maps.
+========================= */
+
+const io = new SocketIOServer(
+  httpServer,
+  {
+    cors:{
+      origin:true,
+      credentials:true
+    }
+  }
+);
+
+global.driverRealtimeIO = io;
+
+io.use((socket,next)=>{
+  try{
+    const token =
+      String(
+        socket.handshake?.auth?.token ||
+        socket.handshake?.headers?.authorization ||
+        ""
+      )
+      .replace(/^Bearer\s+/i,"")
+      .trim();
+
+    if(!token){
+      return next(
+        new Error("Driver socket authentication required")
+      );
+    }
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    socket.authUser = {
+      id:String(verified?.id || ""),
+      role:String(verified?.role || ""),
+      tenantId:String(verified?.tenantId || "")
+    };
+
+    if(!socket.authUser.id){
+      return next(
+        new Error("Driver socket identity missing")
+      );
+    }
+
+    return next();
+
+  }catch(err){
+    return next(
+      new Error("Driver socket authentication failed")
+    );
+  }
+});
+
+io.on("connection",socket=>{
+  const userId =
+    String(
+      socket.authUser?.id || ""
+    ).trim();
+
+  const tenantId =
+    String(
+      socket.authUser?.tenantId || ""
+    ).trim();
+
+  if(userId){
+    socket.join(
+      `driver:${userId}`
+    );
+  }
+
+  if(tenantId && userId){
+    socket.join(
+      `tenant:${tenantId}:driver:${userId}`
+    );
+  }
+});
+
+const driverPushSubscriptionSchema =
+  new mongoose.Schema(
+    {
+      tenantId:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Tenant",
+        default:null,
+        index:true
+      },
+
+      driverId:{
+        type:String,
+        required:true,
+        index:true
+      },
+
+      endpoint:{
+        type:String,
+        required:true,
+        unique:true,
+        index:true
+      },
+
+      subscription:{
+        type:Object,
+        required:true
+      },
+
+      createdAt:{
+        type:Date,
+        default:Date.now
+      },
+
+      updatedAt:{
+        type:Date,
+        default:Date.now
+      }
+    },
+    {
+      minimize:false
+    }
+  );
+
+const DriverPushSubscription =
+  mongoose.models.DriverPushSubscription ||
+  mongoose.model(
+    "DriverPushSubscription",
+    driverPushSubscriptionSchema
+  );
+
+const VAPID_PUBLIC_KEY =
+  String(
+    process.env.VAPID_PUBLIC_KEY ||
+    ""
+  ).trim();
+
+const VAPID_PRIVATE_KEY =
+  String(
+    process.env.VAPID_PRIVATE_KEY ||
+    ""
+  ).trim();
+
+const VAPID_SUBJECT =
+  String(
+    process.env.VAPID_SUBJECT ||
+    ""
+  ).trim();
+
+const DRIVER_PUSH_ENABLED =
+  !!(
+    VAPID_PUBLIC_KEY &&
+    VAPID_PRIVATE_KEY &&
+    VAPID_SUBJECT
+  );
+
+if(DRIVER_PUSH_ENABLED){
+  webPush.setVapidDetails(
+    VAPID_SUBJECT,
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+}else{
+  console.log(
+    "Driver Web Push disabled: VAPID keys are not configured"
+  );
+}
+
+async function notifyDriverTripUpdate(
+  trip,
+  options = {}
+){
+  if(!trip){
+    return;
+  }
+
+  const tripId =
+    String(
+      trip?._id ||
+      trip?.id ||
+      options?.tripId ||
+      ""
+    ).trim();
+
+  const driverId =
+    String(
+      options?.driverId ||
+      trip?.driverId ||
+      ""
+    ).trim();
+
+  const tenantId =
+    String(
+      options?.tenantId ||
+      trip?.tenantId ||
+      ""
+    ).trim();
+
+  if(!tripId || !driverId){
+    return;
+  }
+
+  const changeType =
+    String(
+      options?.changeType ||
+      "TRIP_UPDATED"
+    ).trim();
+
+  const title =
+    String(
+      options?.title ||
+      "Trip Updated"
+    ).trim();
+
+  const body =
+    String(
+      options?.body ||
+      "Your trip was updated. Open GH Mobility to view the latest route."
+    ).trim();
+
+  const url =
+    String(
+      options?.url ||
+      `/driver/map.html?tripId=${encodeURIComponent(tripId)}`
+    ).trim();
+
+  const realtimePayload = {
+    tripId,
+    driverId,
+    tenantId,
+    changeType,
+    title,
+    body,
+    url,
+    routeUpdatedAt:
+      trip?.routeUpdatedAt ||
+      new Date().toISOString(),
+    sentAt:
+      new Date().toISOString()
+  };
+
+  io.to(
+    `driver:${driverId}`
+  ).emit(
+    changeType === "TRIP_DELETED"
+      ? "trip:deleted"
+      : "trip:updated",
+    realtimePayload
+  );
+
+  if(!DRIVER_PUSH_ENABLED){
+    return;
+  }
+
+  const filter = {
+    driverId
+  };
+
+  if(
+    tenantId &&
+    mongoose.Types.ObjectId.isValid(tenantId)
+  ){
+    filter.tenantId = tenantId;
+  }
+
+  const subscriptions =
+    await DriverPushSubscription
+      .find(filter)
+      .lean();
+
+  if(!subscriptions.length){
+    return;
+  }
+
+  const pushPayload =
+    JSON.stringify({
+      title,
+      body,
+      tripId,
+      changeType,
+      url,
+      tag:`trip-${tripId}`
+    });
+
+  await Promise.allSettled(
+    subscriptions.map(async row=>{
+      try{
+        await webPush.sendNotification(
+          row.subscription,
+          pushPayload
+        );
+      }catch(err){
+        const statusCode =
+          Number(
+            err?.statusCode ||
+            err?.status ||
+            0
+          );
+
+        if(
+          statusCode === 404 ||
+          statusCode === 410
+        ){
+          await DriverPushSubscription
+            .deleteOne({
+              _id:row._id
+            });
+          return;
+        }
+
+        console.log(
+          "DRIVER PUSH ERROR:",
+          err?.message || err
+        );
+      }
+    })
+  );
+}
+
+global.notifyDriverTripUpdate =
+  notifyDriverTripUpdate;
 
 /* =========================
    MIDDLEWARE (FINAL CLEAN)
@@ -1597,6 +1929,120 @@ function requireTenantApi(
 
   }
 }
+
+/* =========================
+   DRIVER PUSH API
+========================= */
+
+app.get(
+  "/api/driver-push/public-key",
+  requireTenantApi,
+  (req,res)=>{
+    return res.json({
+      enabled:DRIVER_PUSH_ENABLED,
+      publicKey:
+        DRIVER_PUSH_ENABLED
+          ? VAPID_PUBLIC_KEY
+          : ""
+    });
+  }
+);
+
+app.post(
+  "/api/driver-push/subscribe",
+  requireTenantApi,
+  async (req,res)=>{
+    try{
+      const subscription =
+        req.body?.subscription;
+
+      const endpoint =
+        String(
+          subscription?.endpoint ||
+          ""
+        ).trim();
+
+      if(!endpoint){
+        return res.status(400).json({
+          message:"Push subscription endpoint is required"
+        });
+      }
+
+      const actorRole =
+        String(
+          req.authUser?.role ||
+          ""
+        ).trim().toLowerCase();
+
+      const requestedDriverId =
+        String(
+          req.body?.driverId ||
+          ""
+        ).trim();
+
+      const driverId =
+        actorRole === "driver"
+          ? String(req.authUser?.id || "").trim()
+          : requestedDriverId;
+
+      if(!driverId){
+        return res.status(400).json({
+          message:"Driver ID is required"
+        });
+      }
+
+      const tenantId =
+        String(
+          req.authUser?.tenantId ||
+          ""
+        ).trim();
+
+      const setData = {
+        driverId,
+        endpoint,
+        subscription,
+        updatedAt:new Date()
+      };
+
+      if(
+        tenantId &&
+        mongoose.Types.ObjectId.isValid(tenantId)
+      ){
+        setData.tenantId = tenantId;
+      }
+
+      await DriverPushSubscription
+        .findOneAndUpdate(
+          { endpoint },
+          {
+            $set:setData,
+            $setOnInsert:{
+              createdAt:new Date()
+            }
+          },
+          {
+            upsert:true,
+            new:true
+          }
+        );
+
+      return res.json({
+        success:true,
+        enabled:DRIVER_PUSH_ENABLED
+      });
+
+    }catch(err){
+      console.log(
+        "DRIVER PUSH SUBSCRIBE ERROR:",
+        err?.message || err
+      );
+
+      return res.status(500).json({
+        message:"Unable to save driver push subscription"
+      });
+    }
+  }
+);
 
 
 /* =========================
@@ -9338,6 +9784,45 @@ else if(updateData.status === "Completed"){
 
     await ensureTripCoords(updated);
 
+    const updateActorRole =
+      String(
+        req.authUser?.role ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    if(
+      updated &&
+      updated.driverId &&
+      updateActorRole !== "driver"
+    ){
+      notifyDriverTripUpdate(
+        updated,
+        {
+          changeType:
+            routeAddressChanged
+              ? "ROUTE_UPDATED"
+              : "TRIP_UPDATED",
+
+          title:
+            routeAddressChanged
+              ? "Route Updated"
+              : "Trip Updated",
+
+          body:
+            routeAddressChanged
+              ? "The trip route changed. Open GH Mobility to view the latest stops and directions."
+              : "Trip details changed. Open GH Mobility to view the latest information."
+        }
+      ).catch(err=>{
+        console.log(
+          "DRIVER REALTIME NOTIFY ERROR:",
+          err?.message || err
+        );
+      });
+    }
+
     res.json(updated);
 
   } catch (err) {
@@ -9363,6 +9848,23 @@ app.delete("/api/trips/:id", requireTenantApi, async (req, res) => {
 
     if (!deleted) {
       return res.status(404).json({ message: "Trip not found" });
+    }
+
+    if(deleted.driverId){
+      notifyDriverTripUpdate(
+        deleted,
+        {
+          changeType:"TRIP_DELETED",
+          title:"Trip Removed",
+          body:"This trip was removed from your schedule.",
+          url:"/driver/trips.html"
+        }
+      ).catch(err=>{
+        console.log(
+          "DRIVER DELETE NOTIFY ERROR:",
+          err?.message || err
+        );
+      });
     }
 
     res.json({ message: "Deleted" });
@@ -11440,6 +11942,6 @@ app.use(
 /* =========================
    START SERVER
 ========================= */
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log("🚀 Server running on port " + PORT);
 });
