@@ -308,6 +308,21 @@ document.addEventListener("DOMContentLoaded",()=>{
           </div>
         </div>
 
+        <div class="section">
+          <div class="section-title">Package Creation Limits</div>
+          <div class="section-body">
+            <div class="grid-4">
+              <div class="info"><span>Drivers</span><strong>${Number(p.actualDrivers || 0)} / ${Number(p.maxDrivers || 0)}</strong></div>
+              <div class="info"><span>Vehicles</span><strong>${Number(p.actualVehicles || 0)} / ${Number(p.maxVehicles || 0)}</strong></div>
+              <div class="info"><span>Admins</span><strong>${Number(p.actualAdmins || 0)} / ${Number(p.maxAdmins || 0)}</strong></div>
+              <div class="info"><span>Super Admins</span><strong>${Number(p.actualSuperAdmins || 0)} / ${Number(p.maxSuperAdmins || 0)}</strong></div>
+              <div class="info"><span>Dispatchers</span><strong>${Number(p.actualDispatchers || 0)} / ${Number(p.maxDispatchers || 0)}</strong></div>
+              <div class="info"><span>Companies</span><strong>${Number(p.actualCompanies || 0)} / ${Number(p.maxCompanies || 0)}</strong></div>
+              <div class="info"><span>Services</span><strong>${Number(p.enabledServices || 0)} / ${Number(p.maxServices || 0)}</strong></div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="panel" data-panel="usage">
@@ -409,6 +424,41 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="field">
                 <label>Included Services</label>
                 <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Driver Limit</label>
+                <input class="max-drivers" type="number" min="0" value="${Number(s.maxDrivers || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Vehicle Limit</label>
+                <input class="max-vehicles" type="number" min="0" value="${Number(s.maxVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Admin Limit</label>
+                <input class="max-admins" type="number" min="0" value="${Number(s.maxAdmins || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Super Admin Limit</label>
+                <input class="max-super-admins" type="number" min="0" value="${Number(s.maxSuperAdmins || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Dispatcher Limit</label>
+                <input class="max-dispatchers" type="number" min="0" value="${Number(s.maxDispatchers || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Company Limit</label>
+                <input class="max-companies" type="number" min="0" value="${Number(s.maxCompanies || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Service Limit</label>
+                <input class="max-services" type="number" min="0" value="${Number(s.maxServices || 0)}" disabled>
               </div>
 
               <div class="field">
@@ -567,6 +617,13 @@ document.addEventListener("DOMContentLoaded",()=>{
       basePrice:Number(q(".base-price")?.value || 0),
       includedVehicles:Number(q(".included-vehicles")?.value || 0),
       includedServices:Number(q(".included-services")?.value || 0),
+      maxDrivers:Number(q(".max-drivers")?.value || 0),
+      maxVehicles:Number(q(".max-vehicles")?.value || 0),
+      maxAdmins:Number(q(".max-admins")?.value || 0),
+      maxSuperAdmins:Number(q(".max-super-admins")?.value || 0),
+      maxDispatchers:Number(q(".max-dispatchers")?.value || 0),
+      maxCompanies:Number(q(".max-companies")?.value || 0),
+      maxServices:Number(q(".max-services")?.value || 0),
       extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
       extraServicePrice:Number(q(".extra-service-price")?.value || 0),
       freeExtraVehicles:Number(q(".free-extra-vehicles")?.value || 0),
@@ -877,6 +934,13 @@ document.addEventListener("DOMContentLoaded",()=>{
     "dBasePrice",
     "dIncludedVehicles",
     "dIncludedServices",
+    "dMaxDrivers",
+    "dMaxVehicles",
+    "dMaxAdmins",
+    "dMaxSuperAdmins",
+    "dMaxDispatchers",
+    "dMaxCompanies",
+    "dMaxServices",
     "dBillingCycle",
     "dExtraVehiclePrice",
     "dExtraServicePrice",
@@ -900,6 +964,13 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("dBasePrice").value = Number(row.basePrice || 0);
     document.getElementById("dIncludedVehicles").value = Number(row.includedVehicles || 0);
     document.getElementById("dIncludedServices").value = Number(row.includedServices || 0);
+    document.getElementById("dMaxDrivers").value = Number(row.maxDrivers ?? 5);
+    document.getElementById("dMaxVehicles").value = Number(row.maxVehicles ?? row.includedVehicles ?? 5);
+    document.getElementById("dMaxAdmins").value = Number(row.maxAdmins ?? 2);
+    document.getElementById("dMaxSuperAdmins").value = Number(row.maxSuperAdmins ?? 2);
+    document.getElementById("dMaxDispatchers").value = Number(row.maxDispatchers ?? 2);
+    document.getElementById("dMaxCompanies").value = Number(row.maxCompanies ?? 3);
+    document.getElementById("dMaxServices").value = Number(row.maxServices ?? row.includedServices ?? 2);
     document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
     document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
     document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
@@ -919,6 +990,13 @@ document.addEventListener("DOMContentLoaded",()=>{
       basePrice:Number(document.getElementById("dBasePrice").value || 0),
       includedVehicles:Number(document.getElementById("dIncludedVehicles").value || 0),
       includedServices:Number(document.getElementById("dIncludedServices").value || 0),
+      maxDrivers:Number(document.getElementById("dMaxDrivers").value || 0),
+      maxVehicles:Number(document.getElementById("dMaxVehicles").value || 0),
+      maxAdmins:Number(document.getElementById("dMaxAdmins").value || 0),
+      maxSuperAdmins:Number(document.getElementById("dMaxSuperAdmins").value || 0),
+      maxDispatchers:Number(document.getElementById("dMaxDispatchers").value || 0),
+      maxCompanies:Number(document.getElementById("dMaxCompanies").value || 0),
+      maxServices:Number(document.getElementById("dMaxServices").value || 0),
       billingCycle:document.getElementById("dBillingCycle").value,
       extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
       extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),

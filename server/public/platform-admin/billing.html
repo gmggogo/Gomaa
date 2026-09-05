@@ -518,6 +518,18 @@ body{
 .toggle.off{color:var(--red)}
 .toggle.free{color:var(--red)}
 
+.limit-note{
+  margin:0 0 12px;
+  padding:10px 12px;
+  border:1px solid #bfdbfe;
+  background:#eff6ff;
+  border-radius:8px;
+  color:#1e3a8a;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.5;
+}
+
 .price-box{
   border:1px solid #e4ca72;
   background:#fff8da;
@@ -833,6 +845,14 @@ body{
           <div class="field"><label>Included Vehicles</label><input id="dIncludedVehicles" type="number" min="0" disabled></div>
           <div class="field"><label>Included Services</label><input id="dIncludedServices" type="number" min="0" disabled></div>
 
+          <div class="field"><label>Driver Limit</label><input id="dMaxDrivers" type="number" min="0" disabled></div>
+          <div class="field"><label>Vehicle Limit</label><input id="dMaxVehicles" type="number" min="0" disabled></div>
+          <div class="field"><label>Admin Limit</label><input id="dMaxAdmins" type="number" min="0" disabled></div>
+          <div class="field"><label>Super Admin Limit</label><input id="dMaxSuperAdmins" type="number" min="0" disabled></div>
+          <div class="field"><label>Dispatcher Limit</label><input id="dMaxDispatchers" type="number" min="0" disabled></div>
+          <div class="field"><label>Company Limit</label><input id="dMaxCompanies" type="number" min="0" disabled></div>
+          <div class="field"><label>Service Limit</label><input id="dMaxServices" type="number" min="0" disabled></div>
+
           <div class="field">
             <label>Billing Cycle</label>
             <select id="dBillingCycle" disabled>
@@ -851,6 +871,10 @@ body{
               <option value="DISABLED">Disabled</option>
             </select>
           </div>
+        </div>
+
+        <div class="limit-note">
+          Creation limits are hard caps. Tenant users cannot create resources above these limits until Platform Admin increases the limit or changes the tenant package.
         </div>
 
         <div class="actions">
@@ -877,7 +901,7 @@ body{
 </div>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=WORKSPACE-V1-20260828"></script>
+<script src="/platform-admin/billing.js?v=PACKAGE-LIMITS-V1-20260905"></script>
 
 </body>
 </html>
