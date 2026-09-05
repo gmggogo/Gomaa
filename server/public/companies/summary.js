@@ -177,6 +177,52 @@ function safeText(v){
     .replace(/>/g,"&gt;");
 }
 
+function locationParts(value){
+
+  if(Array.isArray(value)){
+    return value
+      .map(v => String(v ?? "").trim())
+      .filter(Boolean);
+  }
+
+  const text =
+    String(value ?? "").trim();
+
+  if(!text){
+    return [];
+  }
+
+  const parts =
+    text
+      .split(/\r?\n+/)
+      .map(v => v.trim())
+      .filter(Boolean);
+
+  return parts.length
+    ? parts
+    : [text];
+
+}
+
+function locationBoxes(value){
+
+  const parts =
+    locationParts(value);
+
+  if(!parts.length){
+    return `<div class="location-box">-</div>`;
+  }
+
+  return `
+    <div class="location-boxes">
+      ${parts.map(part => `
+        <div class="location-box">${safeText(part)}</div>
+      `).join("")}
+    </div>
+  `;
+
+}
+
 function num(v){
   const n = Number(v);
   return isNaN(n) ? 0 : n;
@@ -1211,8 +1257,8 @@ function render(){
             <td>${safeText(t.entryPhone || "-")}</td>
             <td>${safeText(t.clientName || "-")}</td>
             <td>${safeText(t.clientPhone || "-")}</td>
-            <td>${safeText(t.pickup || "-")}</td>
-            <td>${safeText(t.dropoff || "-")}</td>
+            <td class="location-cell">${locationBoxes(t.pickup)}</td>
+            <td class="location-cell">${locationBoxes(t.dropoff)}</td>
             <td>${safeText(t.tripDate || "-")}</td>
             <td>${safeText(t.tripTime || "-")}</td>
             <td>${safeText(t.bookingDate || "-")}</td>
@@ -1295,8 +1341,8 @@ function render(){
 
               <td>${safeText(p.clientName || p.passengerName || "-")}</td>
               <td>${safeText(p.clientPhone || p.passengerPhone || "-")}</td>
-              <td>${safeText(p.pickup || "-")}</td>
-              <td>${safeText(p.dropoff || "-")}</td>
+              <td class="location-cell">${locationBoxes(p.pickup)}</td>
+              <td class="location-cell">${locationBoxes(p.dropoff)}</td>
 
               <td>
                 ${
