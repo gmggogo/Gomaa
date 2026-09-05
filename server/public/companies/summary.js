@@ -64,8 +64,10 @@ async function load(){
 
   try{
 
-    await loadServices();
-    await loadTrips();
+    await Promise.all([
+      loadServices(),
+      loadTrips()
+    ]);
 
     buildFilters();
     buildTabs();
@@ -1163,8 +1165,6 @@ function render(){
 
   updateStats(data);
 
-  wrap.innerHTML = "";
-
   const groups =
     groupByDay(data);
 
@@ -1186,49 +1186,11 @@ function render(){
 
   }
 
+  const pageParts = [];
+
   sortedDays.forEach(day=>{
 
-    wrap.innerHTML += `
-
-      <div class="day-title">
-        ${safeText(day)}
-      </div>
-
-      <div class="table-wrap">
-
-        <table class="summary-table">
-
-          <thead>
-            <tr>
-              <th>Trip#</th>
-              <th>Company</th>
-              <th>Entry</th>
-              <th>Entry Phone</th>
-              <th>Passenger</th>
-              <th>Phone</th>
-              <th>Pickup</th>
-              <th>Dropoff</th>
-              <th>Trip Date</th>
-              <th>Trip Time</th>
-              <th>Book Date</th>
-              <th>Book Time</th>
-              <th>Miles</th>
-              <th>Status</th>
-              <th>Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-
-          <tbody id="tbody-${safeText(day)}"></tbody>
-
-        </table>
-
-      </div>
-
-    `;
-
-    const tbody =
-      document.getElementById(`tbody-${day}`);
+    const rowParts = [];
 
     groups[day].forEach(t=>{
 
@@ -1240,7 +1202,7 @@ function render(){
         const miles =
           getIndividualMiles(t);
 
-        tbody.innerHTML += `
+        rowParts.push(`
 
           <tr>
             <td>${safeText(t.tripNumber || "-")}</td>
@@ -1269,7 +1231,7 @@ function render(){
             <td colspan="16"></td>
           </tr>
 
-        `;
+        `);
 
       }else{
 
@@ -1291,7 +1253,7 @@ function render(){
           const passengerPrice =
             getPassengerPrice(p);
 
-          tbody.innerHTML += `
+          rowParts.push(`
 
             <tr class="${
               index !== passengers.length - 1
@@ -1390,11 +1352,11 @@ function render(){
 
             </tr>
 
-          `;
+          `);
 
         });
 
-        tbody.innerHTML += `
+        rowParts.push(`
 
           <tr class="trip-divider-line">
             <td colspan="16"></td>
@@ -1404,13 +1366,57 @@ function render(){
             <td colspan="16"></td>
           </tr>
 
-        `;
+        `);
 
       }
 
     });
 
+    pageParts.push(`
+
+      <div class="day-title">
+        ${safeText(day)}
+      </div>
+
+      <div class="table-wrap">
+
+        <table class="summary-table">
+
+          <thead>
+            <tr>
+              <th>Trip#</th>
+              <th>Company</th>
+              <th>Entry</th>
+              <th>Entry Phone</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Dropoff</th>
+              <th>Trip Date</th>
+              <th>Trip Time</th>
+              <th>Book Date</th>
+              <th>Book Time</th>
+              <th>Miles</th>
+              <th>Status</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${rowParts.join("")}
+          </tbody>
+
+        </table>
+
+      </div>
+
+    `);
+
   });
+
+  wrap.innerHTML =
+    pageParts.join("");
 
 }
 
@@ -1418,10 +1424,21 @@ function render(){
 EVENTS
 ========================= */
 
+let searchRenderTimer = null;
+
 document.addEventListener("input",e=>{
 
   if(e.target.id === "searchInput"){
-    render();
+
+    if(searchRenderTimer){
+      clearTimeout(searchRenderTimer);
+    }
+
+    searchRenderTimer =
+      setTimeout(()=>{
+        render();
+      },180);
+
   }
 
 });
@@ -1453,8 +1470,10 @@ function startAutoRefresh(){
       const oldTab =
         currentTab;
 
-      await loadServices();
-      await loadTrips();
+      await Promise.all([
+        loadServices(),
+        loadTrips()
+      ]);
 
       currentTab =
         oldTab;
