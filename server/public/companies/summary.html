@@ -783,6 +783,64 @@ body{
 }
 
 
+
+/* =========================================================
+   FINAL TRIP SEPARATION + FULL CELL CENTERING
+   ========================================================= */
+
+.summary-table th,
+.summary-table td{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.location-cell{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.location-boxes{
+  align-items:stretch;
+  justify-content:center;
+}
+
+.location-box{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center !important;
+}
+
+.stop-box{
+  justify-content:center;
+  text-align:center !important;
+}
+
+.summary-table .single-value-cell,
+.summary-table .shared-master-cell{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.summary-table .trip-divider-line td{
+  height:5px !important;
+  padding:0 !important;
+  background:#64748b !important;
+  border:none !important;
+}
+
+.summary-table tbody > tr:not(.trip-divider-line):last-of-type td{
+  border-bottom:1px solid #cbd5e1;
+}
+
+.shared-separator td{
+  border-bottom:1px solid #d7dee8 !important;
+}
+
+.summary-eye-btn{
+  margin:0 auto;
+}
+
 </style>
 </head>
 
