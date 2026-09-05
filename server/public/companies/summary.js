@@ -1522,9 +1522,9 @@ function render(){
         rowParts.push(`
 
           <tr>
-            <td class="col-trip-number">${safeText(t.tripNumber || "-")}</td>
-            <td class="col-passenger">${safeText(t.clientName || "-")}</td>
-            <td class="col-phone">${safeText(t.clientPhone || "-")}</td>
+            <td class="col-trip-number single-value-cell">${safeText(t.tripNumber || "-")}</td>
+            <td class="col-passenger single-value-cell">${safeText(t.clientName || "-")}</td>
+            <td class="col-phone single-value-cell">${safeText(t.clientPhone || "-")}</td>
 
             <td class="location-cell col-pickup">
               ${locationBoxes(t.pickup)}
@@ -1538,14 +1538,14 @@ function render(){
               ${locationBoxes(t.dropoff)}
             </td>
 
-            <td class="col-date">${safeText(t.tripDate || "-")}</td>
-            <td class="col-time">${safeText(t.tripTime || "-")}</td>
-            <td class="col-miles">${miles.toFixed(1)}</td>
-            <td class="col-status">${statusHTML(t.status,t)}</td>
-            <td class="total col-price">${money(total)}</td>
-            <td class="total col-total">${money(total)}</td>
+            <td class="col-date single-value-cell">${safeText(t.tripDate || "-")}</td>
+            <td class="col-time single-value-cell">${safeText(t.tripTime || "-")}</td>
+            <td class="col-miles single-value-cell">${miles.toFixed(1)}</td>
+            <td class="col-status single-value-cell">${statusHTML(t.status,t)}</td>
+            <td class="total col-price single-value-cell">${money(total)}</td>
+            <td class="total col-total single-value-cell">${money(total)}</td>
 
-            <td class="col-eye">
+            <td class="col-eye single-value-cell">
               <button
                 type="button"
                 class="summary-eye-btn"
@@ -1558,10 +1558,6 @@ function render(){
           </tr>
 
           <tr class="trip-divider-line">
-            <td colspan="13"></td>
-          </tr>
-
-          <tr class="trip-divider">
             <td colspan="13"></td>
           </tr>
 
@@ -1582,121 +1578,169 @@ function render(){
         const sharedMiles =
           getSharedMiles(t);
 
-        passengers.forEach((p,index)=>{
+        const rowCount =
+          Math.max(passengers.length,1);
 
-          const passengerPrice =
-            getPassengerPrice(p);
+        if(!passengers.length){
 
           rowParts.push(`
-
-            <tr class="${
-              index !== passengers.length - 1
-              ? "shared-separator"
-              : ""
-            }">
-
-              <td class="col-trip-number">
-                ${
-                  index === 0
-                  ? safeText(t.tripNumber || "-")
-                  : ""
-                }
-              </td>
-
-              <td class="col-passenger">
-                ${safeText(p.clientName || p.passengerName || "-")}
-              </td>
-
-              <td class="col-phone">
-                ${safeText(p.clientPhone || p.passengerPhone || "-")}
-              </td>
+            <tr>
+              <td class="col-trip-number single-value-cell">${safeText(t.tripNumber || "-")}</td>
+              <td class="col-passenger single-value-cell">-</td>
+              <td class="col-phone single-value-cell">-</td>
 
               <td class="location-cell col-pickup">
-                ${locationBoxes(p.pickup)}
+                ${locationBoxes(t.pickup)}
               </td>
 
               <td class="location-cell col-stops">
-                ${stopsBoxes(p.stops || t.stops)}
+                ${stopsBoxes(t.stops)}
               </td>
 
               <td class="location-cell col-dropoff">
-                ${locationBoxes(p.dropoff)}
+                ${locationBoxes(t.dropoff)}
               </td>
 
-              <td class="col-date">
-                ${
-                  index === 0
-                  ? safeText(t.tripDate || "-")
-                  : ""
-                }
+              <td class="col-date single-value-cell">${safeText(t.tripDate || "-")}</td>
+              <td class="col-time single-value-cell">${safeText(t.tripTime || "-")}</td>
+              <td class="col-miles single-value-cell">${sharedMiles.toFixed(1)}</td>
+              <td class="col-status single-value-cell">${statusHTML(t.status || "Scheduled",t)}</td>
+              <td class="total col-price single-value-cell">${money(0)}</td>
+              <td class="total col-total single-value-cell">${money(sharedTotal)}</td>
+              <td class="col-eye single-value-cell">
+                <button
+                  type="button"
+                  class="summary-eye-btn"
+                  title="View Trip Details"
+                  aria-label="View Trip Details"
+                  onclick="openSummaryDetails('${safeText(t._id || "")}')">
+                  👁
+                </button>
               </td>
+            </tr>
 
-              <td class="col-time">
-                ${
-                  index === 0
-                  ? safeText(t.tripTime || "-")
-                  : ""
-                }
-              </td>
+            <tr class="trip-divider-line">
+              <td colspan="13"></td>
+            </tr>
+          `);
 
-              <td class="col-miles">
-                ${
-                  index === 0
-                  ? sharedMiles.toFixed(1)
-                  : ""
-                }
-              </td>
+        }else{
 
-              <td class="col-status">
-                ${statusHTML(p.status || "Scheduled",t)}
-              </td>
+          passengers.forEach((p,index)=>{
 
-              <td class="total col-price">
-                ${money(passengerPrice)}
-              </td>
+            const passengerPrice =
+              getPassengerPrice(p);
 
-              <td class="total col-total">
-                ${
-                  index === 0
-                  ? money(sharedTotal)
-                  : ""
-                }
-              </td>
+            rowParts.push(`
 
-              <td class="col-eye">
+              <tr class="${
+                index !== passengers.length - 1
+                ? "shared-separator"
+                : ""
+              }">
+
                 ${
                   index === 0
                   ? `
-                    <button
-                      type="button"
-                      class="summary-eye-btn"
-                      title="View Trip Details"
-                      aria-label="View Trip Details"
-                      onclick="openSummaryDetails('${safeText(t._id || "")}')">
-                      👁
-                    </button>
+                    <td
+                      class="col-trip-number shared-master-cell"
+                      rowspan="${rowCount}">
+                      ${safeText(t.tripNumber || "-")}
+                    </td>
                   `
                   : ""
                 }
-              </td>
 
+                <td class="col-passenger single-value-cell">
+                  ${safeText(p.clientName || p.passengerName || "-")}
+                </td>
+
+                <td class="col-phone single-value-cell">
+                  ${safeText(p.clientPhone || p.passengerPhone || "-")}
+                </td>
+
+                <td class="location-cell col-pickup">
+                  ${locationBoxes(p.pickup)}
+                </td>
+
+                <td class="location-cell col-stops">
+                  ${stopsBoxes(p.stops || t.stops)}
+                </td>
+
+                <td class="location-cell col-dropoff">
+                  ${locationBoxes(p.dropoff)}
+                </td>
+
+                ${
+                  index === 0
+                  ? `
+                    <td
+                      class="col-date shared-master-cell"
+                      rowspan="${rowCount}">
+                      ${safeText(t.tripDate || "-")}
+                    </td>
+
+                    <td
+                      class="col-time shared-master-cell"
+                      rowspan="${rowCount}">
+                      ${safeText(t.tripTime || "-")}
+                    </td>
+
+                    <td
+                      class="col-miles shared-master-cell"
+                      rowspan="${rowCount}">
+                      ${sharedMiles.toFixed(1)}
+                    </td>
+                  `
+                  : ""
+                }
+
+                <td class="col-status single-value-cell">
+                  ${statusHTML(p.status || "Scheduled",t)}
+                </td>
+
+                <td class="total col-price single-value-cell">
+                  ${money(passengerPrice)}
+                </td>
+
+                ${
+                  index === 0
+                  ? `
+                    <td
+                      class="total col-total shared-master-cell"
+                      rowspan="${rowCount}">
+                      ${money(sharedTotal)}
+                    </td>
+
+                    <td
+                      class="col-eye shared-master-cell"
+                      rowspan="${rowCount}">
+                      <button
+                        type="button"
+                        class="summary-eye-btn"
+                        title="View Trip Details"
+                        aria-label="View Trip Details"
+                        onclick="openSummaryDetails('${safeText(t._id || "")}')">
+                        👁
+                      </button>
+                    </td>
+                  `
+                  : ""
+                }
+
+              </tr>
+
+            `);
+
+          });
+
+          rowParts.push(`
+            <tr class="trip-divider-line">
+              <td colspan="13"></td>
             </tr>
-
           `);
 
-        });
-
-        rowParts.push(`
-
-          <tr class="trip-divider-line">
-            <td colspan="13"></td>
-          </tr>
-
-          <tr class="trip-divider">
-            <td colspan="13"></td>
-          </tr>
-
-        `);
+        }
 
       }
 
@@ -1704,39 +1748,43 @@ function render(){
 
     pageParts.push(`
 
-      <div class="day-title">
-        ${safeText(day)}
-      </div>
+      <section class="summary-day-section">
 
-      <div class="table-wrap">
+        <div class="day-title">
+          ${safeText(day)}
+        </div>
 
-        <table class="summary-table">
+        <div class="table-wrap">
 
-          <thead>
-            <tr>
-              <th class="col-trip-number">Trip#</th>
-              <th class="col-passenger">Passenger</th>
-              <th class="col-phone">Phone</th>
-              <th class="col-pickup">Pickup</th>
-              <th class="col-stops">Stops</th>
-              <th class="col-dropoff">Dropoff</th>
-              <th class="col-date">Trip Date</th>
-              <th class="col-time">Trip Time</th>
-              <th class="col-miles">Miles</th>
-              <th class="col-status">Status</th>
-              <th class="col-price">Price</th>
-              <th class="col-total">Total</th>
-              <th class="col-eye">View</th>
-            </tr>
-          </thead>
+          <table class="summary-table">
 
-          <tbody>
-            ${rowParts.join("")}
-          </tbody>
+            <thead>
+              <tr>
+                <th class="col-trip-number">Trip#</th>
+                <th class="col-passenger">Passenger</th>
+                <th class="col-phone">Phone</th>
+                <th class="col-pickup">Pickup</th>
+                <th class="col-stops">Stops</th>
+                <th class="col-dropoff">Dropoff</th>
+                <th class="col-date">Trip Date</th>
+                <th class="col-time">Trip Time</th>
+                <th class="col-miles">Miles</th>
+                <th class="col-status">Status</th>
+                <th class="col-price">Price</th>
+                <th class="col-total">Total</th>
+                <th class="col-eye">View</th>
+              </tr>
+            </thead>
 
-        </table>
+            <tbody>
+              ${rowParts.join("")}
+            </tbody>
 
-      </div>
+          </table>
+
+        </div>
+
+      </section>
 
     `);
 

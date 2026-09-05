@@ -575,6 +575,214 @@ body{
   .page{padding:0;}
   body{background:#fff;}
 }
+
+/* =========================================================
+   SUMMARY FULL-WIDTH TABLE
+   ========================================================= */
+
+.page{
+  max-width:none;
+  width:100%;
+  padding-left:10px;
+  padding-right:10px;
+}
+
+.export-btn{
+  border:none;
+  background:#0f172a;
+  color:#fff;
+  border-radius:10px;
+  padding:0 18px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.summary-day-section{
+  width:100%;
+  margin:0 0 18px;
+}
+
+.day-title{
+  width:100%;
+  margin:18px 0 0;
+  padding:10px 12px;
+  text-align:center;
+  background:#dbeafe;
+  color:#1e3a8a;
+  border:1px solid #bfdbfe;
+  border-bottom:none;
+  border-radius:12px 12px 0 0;
+  font-size:15px;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:visible;
+  border-radius:0 0 12px 12px;
+  margin-bottom:0;
+}
+
+.summary-table{
+  width:100%;
+  min-width:0 !important;
+  table-layout:fixed;
+}
+
+.summary-table th,
+.summary-table td{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+
+.summary-table .col-trip-number{
+  width:7%;
+}
+
+.summary-table .col-passenger{
+  width:8%;
+  max-width:none;
+}
+
+.summary-table .col-phone{
+  width:7%;
+}
+
+.summary-table .col-pickup{
+  width:15%;
+}
+
+.summary-table .col-stops{
+  width:17%;
+}
+
+.summary-table .col-dropoff{
+  width:15%;
+}
+
+.summary-table .col-date{
+  width:7%;
+}
+
+.summary-table .col-time{
+  width:6%;
+}
+
+.summary-table .col-miles{
+  width:5%;
+}
+
+.summary-table .col-status{
+  width:7%;
+}
+
+.summary-table .col-price{
+  width:6%;
+}
+
+.summary-table .col-total{
+  width:6%;
+}
+
+.summary-table .col-eye{
+  width:4%;
+}
+
+.single-value-cell,
+.shared-master-cell{
+  vertical-align:middle !important;
+}
+
+.shared-master-cell{
+  text-align:center;
+}
+
+.summary-table td.col-trip-number,
+.summary-table td.col-date,
+.summary-table td.col-time,
+.summary-table td.col-miles,
+.summary-table td.col-status,
+.summary-table td.col-price,
+.summary-table td.col-total,
+.summary-table td.col-eye{
+  vertical-align:middle !important;
+}
+
+.summary-table td.col-passenger,
+.summary-table td.col-phone{
+  vertical-align:middle !important;
+}
+
+.trip-divider{
+  display:none;
+}
+
+@media(max-width:1200px){
+  .summary-table{
+    min-width:0 !important;
+  }
+
+  .summary-table th{
+    font-size:9px;
+    padding:8px 4px;
+  }
+
+  .summary-table td{
+    font-size:8px;
+    padding:6px 4px;
+  }
+
+  .location-box{
+    font-size:8px;
+    padding:5px 6px;
+  }
+}
+
+@media(max-width:768px){
+  .page{
+    padding-left:4px;
+    padding-right:4px;
+  }
+
+  .summary-table{
+    min-width:0 !important;
+  }
+
+  .summary-table th{
+    font-size:7px;
+    padding:6px 2px;
+  }
+
+  .summary-table td{
+    font-size:7px;
+    padding:4px 2px;
+  }
+
+  .location-box{
+    min-height:24px;
+    font-size:7px;
+    padding:4px;
+  }
+
+  .summary-eye-btn{
+    width:26px;
+    height:26px;
+    font-size:12px;
+  }
+
+  .export-btn{
+    height:38px;
+    font-size:11px;
+  }
+}
+
+@media print{
+  .export-btn{
+    display:none !important;
+  }
+}
+
+
 </style>
 </head>
 
@@ -595,6 +803,8 @@ body{
     <select id="monthFilter" class="filter-select"></select>
 
     <button class="print-btn" onclick="window.print()">Print</button>
+    <button class="export-btn" onclick="exportSummaryExcel()">Excel</button>
+    <button class="export-btn" onclick="exportSummaryCSV()">CSV</button>
   </div>
 
   <div class="tabs" id="serviceTabs"></div>
