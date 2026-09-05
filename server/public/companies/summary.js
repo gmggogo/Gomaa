@@ -1795,6 +1795,329 @@ function render(){
 
 }
 
+
+/* =========================
+EXPORT
+========================= */
+
+function exportFileName(ext){
+
+  const company =
+    String(COMPANY_NAME || "company")
+      .trim()
+      .replace(/[^a-z0-9]+/gi,"-")
+      .replace(/^-+|-+$/g,"")
+      .toLowerCase() || "company";
+
+  return `${company}-summary.${ext}`;
+
+}
+
+function downloadBlob(content,type,fileName){
+
+  const blob =
+    new Blob([content],{type});
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+  },1000);
+
+}
+
+function exportStopText(value){
+
+  if(!value){
+    return "";
+  }
+
+  const list =
+    Array.isArray(value)
+      ? value
+      : [value];
+
+  return list
+    .map((item,index)=>{
+
+      let text = "";
+
+      if(typeof item === "string"){
+        text = item;
+      }
+
+      else if(item && typeof item === "object"){
+        text =
+          item.address ||
+          item.stop ||
+          item.location ||
+          item.name ||
+          "";
+      }
+
+      text =
+        String(text || "").trim();
+
+      return text
+        ? `${index + 1}. ${text}`
+        : "";
+
+    })
+    .filter(Boolean)
+    .join(" | ");
+
+}
+
+function getExportRows(){
+
+  const data =
+    getFilteredTrips();
+
+  const rows = [[
+    "Trip#",
+    "Passenger",
+    "Phone",
+    "Pickup",
+    "Stops",
+    "Dropoff",
+    "Trip Date",
+    "Trip Time",
+    "Miles",
+    "Status",
+    "Price",
+    "Total",
+    "Company",
+    "Entry Name",
+    "Entry Phone",
+    "Booked Date",
+    "Booked Time",
+    "Note"
+  ]];
+
+  data.forEach(t=>{
+
+    const company =
+      t?.company ||
+      t?.companyName ||
+      t?.facilityName ||
+      "";
+
+    const entryName =
+      t?.entryName || "";
+
+    const entryPhone =
+      t?.entryPhone || "";
+
+    const bookedDate =
+      getSummaryBookedDate(t);
+
+    const bookedTime =
+      getSummaryBookedTime(t);
+
+    const note =
+      getSummaryNote(t);
+
+    if(isSharedTrip(t)){
+
+      const passengers =
+        Array.isArray(t?.passengers)
+        ? t.passengers
+        : [];
+
+      const sharedTotal =
+        passengers.reduce(
+          (sum,p)=>sum + getPassengerPrice(p),
+          0
+        );
+
+      const sharedMiles =
+        getSharedMiles(t);
+
+      if(!passengers.length){
+
+        rows.push([
+          t?.tripNumber || "",
+          "",
+          "",
+          t?.pickup || "",
+          exportStopText(t?.stops),
+          t?.dropoff || "",
+          t?.tripDate || "",
+          t?.tripTime || "",
+          sharedMiles.toFixed(1),
+          displayStatus(t?.status,t),
+          money(0),
+          money(sharedTotal),
+          company,
+          entryName,
+          entryPhone,
+          bookedDate,
+          bookedTime,
+          note
+        ]);
+
+        return;
+      }
+
+      passengers.forEach((p,index)=>{
+
+        rows.push([
+          index === 0 ? (t?.tripNumber || "") : "",
+          p?.clientName || p?.passengerName || "",
+          p?.clientPhone || p?.passengerPhone || "",
+          p?.pickup || "",
+          exportStopText(p?.stops || t?.stops),
+          p?.dropoff || "",
+          index === 0 ? (t?.tripDate || "") : "",
+          index === 0 ? (t?.tripTime || "") : "",
+          index === 0 ? sharedMiles.toFixed(1) : "",
+          displayStatus(p?.status || "Scheduled",t),
+          money(getPassengerPrice(p)),
+          index === 0 ? money(sharedTotal) : "",
+          index === 0 ? company : "",
+          index === 0 ? entryName : "",
+          index === 0 ? entryPhone : "",
+          index === 0 ? bookedDate : "",
+          index === 0 ? bookedTime : "",
+          index === 0 ? note : ""
+        ]);
+
+      });
+
+      return;
+    }
+
+    const total =
+      getTripPrice(t);
+
+    rows.push([
+      t?.tripNumber || "",
+      t?.clientName || "",
+      t?.clientPhone || "",
+      t?.pickup || "",
+      exportStopText(t?.stops),
+      t?.dropoff || "",
+      t?.tripDate || "",
+      t?.tripTime || "",
+      getIndividualMiles(t).toFixed(1),
+      displayStatus(t?.status,t),
+      money(total),
+      money(total),
+      company,
+      entryName,
+      entryPhone,
+      bookedDate,
+      bookedTime,
+      note
+    ]);
+
+  });
+
+  return rows;
+
+}
+
+function csvEscape(value){
+
+  return `"${String(value ?? "").replace(/"/g,'""')}"`;
+
+}
+
+function exportSummaryCSV(){
+
+  const rows =
+    getExportRows();
+
+  const content =
+    "\uFEFF" +
+    rows
+      .map(row =>
+        row.map(csvEscape).join(",")
+      )
+      .join("\r\n");
+
+  downloadBlob(
+    content,
+    "text/csv;charset=utf-8",
+    exportFileName("csv")
+  );
+
+}
+
+function exportSummaryExcel(){
+
+  const rows =
+    getExportRows();
+
+  const body =
+    rows.map((row,rowIndex)=>{
+
+      const tag =
+        rowIndex === 0
+        ? "th"
+        : "td";
+
+      return `
+        <tr>
+          ${row.map(cell =>
+            `<${tag}>${safeText(cell)}</${tag}>`
+          ).join("")}
+        </tr>
+      `;
+
+    }).join("");
+
+  const file = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        table{
+          border-collapse:collapse;
+          font-family:Arial,sans-serif;
+        }
+        th,td{
+          border:1px solid #999;
+          padding:6px;
+          vertical-align:middle;
+          text-align:center;
+          white-space:normal;
+        }
+        th{
+          background:#dbe4f0;
+          font-weight:bold;
+        }
+      </style>
+    </head>
+    <body>
+      <table>
+        ${body}
+      </table>
+    </body>
+    </html>
+  `;
+
+  downloadBlob(
+    "\uFEFF" + file,
+    "application/vnd.ms-excel;charset=utf-8",
+    exportFileName("xls")
+  );
+
+}
+
 /* =========================
 EVENTS
 ========================= */
