@@ -30,6 +30,53 @@ const schema = new mongoose.Schema(
       default:2,
       min:0
     },
+
+    /*
+      HARD CREATION LIMITS
+      Platform Admin can change these defaults for new tenants.
+    */
+
+    maxDrivers:{
+      type:Number,
+      default:5,
+      min:0
+    },
+
+    maxVehicles:{
+      type:Number,
+      default:5,
+      min:0
+    },
+
+    maxAdmins:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxSuperAdmins:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxDispatchers:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxCompanies:{
+      type:Number,
+      default:3,
+      min:0
+    },
+
+    maxServices:{
+      type:Number,
+      default:2,
+      min:0
+    },
     billingCycle:{
       type:String,
       enum:["MONTHLY","ANNUAL"],

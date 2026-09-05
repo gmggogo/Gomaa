@@ -86,6 +86,13 @@ require("./models/TenantPaymentAccount"
 const FacilityPricingOverride =
 require("./models/FacilityPricingOverride");
 
+const {
+  ensureTenantPricing:
+    ensureSaasTenantPricing
+} = require(
+  "./utils/saasPricingEngine"
+);
+
 /* =========================
    ENV
 ========================= */
@@ -834,6 +841,300 @@ console.log(
 );
 
 /* =========================
+   TENANT VEHICLE PACKAGE LIMIT
+   Driver Schedule is the primary vehicle creation source.
+========================= */
+
+async function enforceTenantVehicleLimit(
+  req,
+  res,
+  next
+){
+
+  if(
+    !["POST","PUT","PATCH"]
+      .includes(
+        String(req.method || "")
+          .toUpperCase()
+      )
+  ){
+    return next();
+  }
+
+  try{
+
+    const token =
+      String(
+        req.headers?.authorization ||
+        ""
+      )
+      .replace(
+        /^Bearer\s+/i,
+        ""
+      )
+      .trim();
+
+    if(!token){
+      return next();
+    }
+
+    let verified = null;
+
+    try{
+      verified =
+        jwt.verify(
+          token,
+          JWT_SECRET
+        );
+    }catch(authErr){
+      /*
+        Preserve the Driver Schedule route's existing authentication
+        response for invalid tokens.
+      */
+      return next();
+    }
+
+    const role =
+      String(
+        verified?.role ||
+        ""
+      )
+      .trim()
+      .toUpperCase();
+
+    const tenantId =
+      role === "PLATFORM_ADMIN"
+        ? String(
+            req.query?.tenantId ||
+            req.body?.tenantId ||
+            ""
+          ).trim()
+        : String(
+            verified?.tenantId ||
+            ""
+          ).trim();
+
+    if(
+      !tenantId ||
+      !mongoose.Types.ObjectId.isValid(
+        tenantId
+      )
+    ){
+      return next();
+    }
+
+    const TenantModel =
+      mongoose.models.Tenant ||
+      require("./models/Tenant");
+
+    const DriverScheduleModel =
+      mongoose.models.DriverSchedule ||
+      require("./models/DriverSchedule");
+
+    const UserModel =
+      mongoose.models.User ||
+      require("./models/User");
+
+    const tenant =
+      await TenantModel.findById(
+        tenantId
+      );
+
+    if(!tenant){
+      return next();
+    }
+
+    const packageData =
+      await ensureSaasTenantPricing(
+        tenant
+      );
+
+    const maxVehicles =
+      Math.max(
+        0,
+        Math.floor(
+          Number(
+            packageData
+              ?.subscription
+              ?.maxVehicles ??
+            0
+          )
+        )
+      );
+
+    const payload =
+      req.body &&
+      typeof req.body === "object" &&
+      !Array.isArray(req.body)
+        ? req.body
+        : {};
+
+    const incomingRows =
+      Object.entries(payload)
+        .filter(
+          ([driverId,row]) =>
+            driverId !== "tenantId" &&
+            row &&
+            typeof row === "object" &&
+            !Array.isArray(row)
+        );
+
+    if(!incomingRows.length){
+      return next();
+    }
+
+    const currentSchedules =
+      await DriverScheduleModel.find({
+        tenantId
+      })
+      .select(
+        "driverId vehicleNumber"
+      )
+      .lean();
+
+    const scheduleMap =
+      new Map(
+        currentSchedules.map(row=>[
+          String(
+            row.driverId ||
+            ""
+          ),
+          String(
+            row.vehicleNumber ||
+            ""
+          ).trim()
+        ])
+      );
+
+    incomingRows.forEach(
+      ([driverId,row])=>{
+
+        if(
+          row.vehicleNumber ===
+          undefined
+        ){
+          return;
+        }
+
+        scheduleMap.set(
+          String(driverId),
+          String(
+            row.vehicleNumber ||
+            ""
+          ).trim()
+        );
+      }
+    );
+
+    const drivers =
+      await UserModel.find({
+        tenantId,
+        role:"driver",
+        active:{
+          $ne:false
+        },
+        enabled:{
+          $ne:false
+        }
+      })
+      .select(
+        "_id vehicleNumber vehicle"
+      )
+      .lean();
+
+    const vehicleSet =
+      new Set();
+
+    drivers.forEach(driver=>{
+
+      const driverId =
+        String(
+          driver._id ||
+          ""
+        );
+
+      const scheduleVehicle =
+        String(
+          scheduleMap.get(
+            driverId
+          ) ||
+          ""
+        ).trim();
+
+      const vehicle =
+        scheduleVehicle ||
+        String(
+          driver.vehicleNumber ||
+          driver.vehicle ||
+          ""
+        ).trim();
+
+      if(vehicle){
+        vehicleSet.add(
+          vehicle.toUpperCase()
+        );
+      }
+    });
+
+    /*
+      Keep schedule rows that belong to a tenant even if an old driver
+      record is no longer available. They still represent saved vehicles.
+    */
+    scheduleMap.forEach(vehicle=>{
+      const cleanVehicle =
+        String(
+          vehicle ||
+          ""
+        ).trim();
+
+      if(cleanVehicle){
+        vehicleSet.add(
+          cleanVehicle.toUpperCase()
+        );
+      }
+    });
+
+    const proposedCount =
+      vehicleSet.size;
+
+    if(proposedCount > maxVehicles){
+
+      return res.status(409).json({
+        success:false,
+        code:"PACKAGE_LIMIT_REACHED",
+        resource:"vehicle",
+        current:
+          packageData
+            ?.usage
+            ?.actualVehicles ||
+          0,
+        requestedTotal:
+          proposedCount,
+        limit:
+          maxVehicles,
+        message:
+          `Vehicle limit reached (${proposedCount}/${maxVehicles}). Contact Platform Admin to increase the package limit.`
+      });
+    }
+
+    return next();
+
+  }catch(err){
+
+    console.log(
+      "VEHICLE PACKAGE LIMIT CHECK ERROR:",
+      err?.message || err
+    );
+
+    return res.status(500).json({
+      success:false,
+      message:
+        "Unable to validate vehicle package limit"
+    });
+  }
+}
+
+/* =========================
    LIVE DRIVER ROUTES
 ========================= */
 
@@ -846,6 +1147,7 @@ app.use(
 );
 app.use(
   "/api/driver-schedule",
+  enforceTenantVehicleLimit,
   driverScheduleRoutes
 );
 
@@ -4270,6 +4572,121 @@ function normalizeManagedUserRole(value){
     .toLowerCase();
 }
 
+/* =========================
+   TENANT PACKAGE USER LIMITS
+   Hard server-side creation caps.
+========================= */
+
+const tenantUserLimitMeta = {
+  driver:{
+    limitField:"maxDrivers",
+    usageField:"actualDrivers",
+    label:"Driver"
+  },
+  admin:{
+    limitField:"maxAdmins",
+    usageField:"actualAdmins",
+    label:"Admin"
+  },
+  superadmin:{
+    limitField:"maxSuperAdmins",
+    usageField:"actualSuperAdmins",
+    label:"Super Admin"
+  },
+  dispatcher:{
+    limitField:"maxDispatchers",
+    usageField:"actualDispatchers",
+    label:"Dispatcher"
+  },
+  company:{
+    limitField:"maxCompanies",
+    usageField:"actualCompanies",
+    label:"Company"
+  }
+};
+
+async function getTenantUserLimitStatus(
+  tenantId,
+  role
+){
+
+  const meta =
+    tenantUserLimitMeta[
+      normalizeManagedUserRole(role)
+    ];
+
+  if(!meta){
+    return {
+      limited:false,
+      allowed:true,
+      current:0,
+      limit:null,
+      label:"User"
+    };
+  }
+
+  const tenant =
+    await Tenant.findById(
+      tenantId
+    );
+
+  if(!tenant){
+
+    return {
+      limited:true,
+      allowed:false,
+      current:0,
+      limit:0,
+      label:meta.label,
+      message:"Organization not found"
+    };
+  }
+
+  const data =
+    await ensureSaasTenantPricing(
+      tenant
+    );
+
+  const subscription =
+    data?.subscription || {};
+
+  const usage =
+    data?.usage || {};
+
+  const limit =
+    Math.max(
+      0,
+      Math.floor(
+        Number(
+          subscription[
+            meta.limitField
+          ] ?? 0
+        )
+      )
+    );
+
+  const current =
+    Math.max(
+      0,
+      Math.floor(
+        Number(
+          usage[
+            meta.usageField
+          ] ?? 0
+        )
+      )
+    );
+
+  return {
+    limited:true,
+    allowed:
+      current < limit,
+    current,
+    limit,
+    label:meta.label
+  };
+}
+
 function isOperationalCancellationRole(value){
 
   const role =
@@ -4429,6 +4846,34 @@ app.post(
       });
     }
 
+    /*
+      PACKAGE LIMIT:
+      Platform Admin controls the maximum number of users per tenant.
+      The check is server-side so it cannot be bypassed from the browser.
+    */
+    const packageLimit =
+      await getTenantUserLimitStatus(
+        tenantId,
+        role
+      );
+
+    if(
+      packageLimit.limited &&
+      !packageLimit.allowed
+    ){
+      return res.status(409).json({
+        success:false,
+        code:"PACKAGE_LIMIT_REACHED",
+        role,
+        current:
+          packageLimit.current,
+        limit:
+          packageLimit.limit,
+        message:
+          `${packageLimit.label} limit reached (${packageLimit.current}/${packageLimit.limit}). Contact Platform Admin to increase the package limit.`
+      });
+    }
+
     const exists =
       await User.findOne({
         username:
@@ -4474,6 +4919,44 @@ app.post(
         phone:
           normalizeText(phone)
       });
+
+    /*
+      CONCURRENCY SAFETY:
+      Recheck after creation. If two requests arrive at the same time,
+      never allow the tenant to finish above its package limit.
+    */
+    const postCreateLimit =
+      await getTenantUserLimitStatus(
+        tenantId,
+        role
+      );
+
+    if(
+      postCreateLimit.limited &&
+      postCreateLimit.current >
+        postCreateLimit.limit
+    ){
+
+      await User.deleteOne({
+        _id:newUser._id,
+        tenantId
+      });
+
+      return res.status(409).json({
+        success:false,
+        code:"PACKAGE_LIMIT_REACHED",
+        role,
+        current:
+          Math.max(
+            0,
+            postCreateLimit.current - 1
+          ),
+        limit:
+          postCreateLimit.limit,
+        message:
+          `${postCreateLimit.label} limit reached (${postCreateLimit.limit}/${postCreateLimit.limit}). Contact Platform Admin to increase the package limit.`
+      });
+    }
 
     return res.json(newUser);
 

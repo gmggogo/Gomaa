@@ -88,7 +88,14 @@ function applyCompanyPayload(subscription,body){
     "includedVehicles",
     "includedServices",
     "freeExtraVehicles",
-    "freeExtraServices"
+    "freeExtraServices",
+    "maxDrivers",
+    "maxVehicles",
+    "maxAdmins",
+    "maxSuperAdmins",
+    "maxDispatchers",
+    "maxCompanies",
+    "maxServices"
   ].forEach(field=>{
     if(body[field] !== undefined){
       subscription[field] =
@@ -136,6 +143,7 @@ function applyCompanyPayload(subscription,body){
   }
 
   subscription.pricingInitialized = true;
+  subscription.limitsInitialized = true;
   subscription.pricingUpdatedAt = new Date();
 }
 
@@ -182,6 +190,33 @@ router.put(
 
       row.includedServices =
         whole(req.body?.includedServices,2);
+
+      row.maxDrivers =
+        whole(req.body?.maxDrivers,5);
+
+      row.maxVehicles =
+        whole(
+          req.body?.maxVehicles,
+          row.includedVehicles || 5
+        );
+
+      row.maxAdmins =
+        whole(req.body?.maxAdmins,2);
+
+      row.maxSuperAdmins =
+        whole(req.body?.maxSuperAdmins,2);
+
+      row.maxDispatchers =
+        whole(req.body?.maxDispatchers,2);
+
+      row.maxCompanies =
+        whole(req.body?.maxCompanies,3);
+
+      row.maxServices =
+        whole(
+          req.body?.maxServices,
+          row.includedServices || 2
+        );
 
       row.billingCycle =
         normalizeCycle(req.body?.billingCycle);
@@ -575,6 +610,41 @@ router.post(
           req.body?.includedServices !== undefined
             ? whole(req.body.includedServices)
             : draft.includedServices,
+
+        maxDrivers:
+          req.body?.maxDrivers !== undefined
+            ? whole(req.body.maxDrivers)
+            : draft.maxDrivers,
+
+        maxVehicles:
+          req.body?.maxVehicles !== undefined
+            ? whole(req.body.maxVehicles)
+            : draft.maxVehicles,
+
+        maxAdmins:
+          req.body?.maxAdmins !== undefined
+            ? whole(req.body.maxAdmins)
+            : draft.maxAdmins,
+
+        maxSuperAdmins:
+          req.body?.maxSuperAdmins !== undefined
+            ? whole(req.body.maxSuperAdmins)
+            : draft.maxSuperAdmins,
+
+        maxDispatchers:
+          req.body?.maxDispatchers !== undefined
+            ? whole(req.body.maxDispatchers)
+            : draft.maxDispatchers,
+
+        maxCompanies:
+          req.body?.maxCompanies !== undefined
+            ? whole(req.body.maxCompanies)
+            : draft.maxCompanies,
+
+        maxServices:
+          req.body?.maxServices !== undefined
+            ? whole(req.body.maxServices)
+            : draft.maxServices,
 
         extraVehiclePrice:
           req.body?.extraVehiclePrice !== undefined

@@ -1,1458 +1,1189 @@
-/* =========================================
-   ADMIN BILLING
-   FIXED: DOM READY + SAFE ELEMENT BINDING
-========================================= */
+"use strict";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded",()=>{
 
-  /* =========================
-     AUTH
-  ========================= */
+  const clean = v => String(v ?? "").trim();
 
-  function normalizeRole(value){
-    const role =
-      String(value || "")
-        .trim()
-        .toUpperCase()
-        .replace(/[\s-]+/g,"_");
+  const esc = v => String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 
-    return role === "SUPERADMIN"
-      ? "SUPER_ADMIN"
-      : role;
-  }
+  const money = v => {
+    const n = Number(v || 0);
+    return "$" + (Number.isFinite(n) ? n : 0).toFixed(2);
+  };
+
+  const dateText = v => {
+    if(!v) return "--";
+    const d = new Date(v);
+    return Number.isNaN(d.getTime())
+      ? "--"
+      : d.toLocaleDateString("en-US");
+  };
+
+  const normalizeRole = v => clean(v)
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
 
   const token =
-    String(
-      sessionStorage.getItem("staffToken") ||
-      localStorage.getItem("token") ||
-      ""
-    ).trim();
+    clean(sessionStorage.getItem("staffToken")) ||
+    clean(localStorage.getItem("token"));
 
   const role =
     normalizeRole(
-      sessionStorage.getItem("staffRole") ||
-      localStorage.getItem("role") ||
-      ""
+      clean(sessionStorage.getItem("staffRole")) ||
+      clean(localStorage.getItem("role"))
     );
 
-  if(
-    !token ||
-    !["SUPER_ADMIN","ADMIN"].includes(role)
-  ){
-    window.location.href =
-      "/login.html";
+  if(!token || role !== "PLATFORM_ADMIN"){
+    window.location.replace("/login.html");
     return;
   }
 
-  /* =========================
-     ELEMENTS
-  ========================= */
+  const state = {
+    companies:[],
+    defaultPackage:null,
+    selectedId:"",
+    filter:"",
+    search:"",
+    defaultBackup:null
+  };
 
-  const container =
-    document.getElementById("billingContainer");
+  const messageBox = document.getElementById("messageBox");
+  const companyList = document.getElementById("companyList");
+  const companyDetail = document.getElementById("companyDetail");
+  const searchInput = document.getElementById("searchInput");
 
-  const searchInput =
-    document.getElementById("searchInput");
+  function showMessage(text,type="ok"){
+    messageBox.textContent = text;
+    messageBox.className = "message show " + type;
+  }
 
-  const statusFilter =
-    document.getElementById("statusFilter");
+  function clearMessage(){
+    messageBox.textContent = "";
+    messageBox.className = "message";
+  }
 
-  const monthFilter =
-    document.getElementById("monthFilter");
-
-  const yearFilter =
-    document.getElementById("yearFilter");
-
-  const stripeStatus =
-    document.getElementById("stripeStatus");
-
-  const stripeAccountText =
-    document.getElementById("stripeAccountText");
-
-  const connectStripeBtn =
-    document.getElementById("connectStripeBtn");
-
-  const stripeDashboardBtn =
-    document.getElementById("stripeDashboardBtn");
-
-  /* =========================
-     DATA
-  ========================= */
-
-  let companies = [];
-  let stripeAccountLinked = false;
-  let stripePaymentReady = false;
-
-  /* =========================
-     MONTHS
-  ========================= */
-
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December"
-  ];
-
-  if(monthFilter){
-
-    const existingValues =
-      new Set(
-        Array.from(
-          monthFilter.options || []
-        ).map(
-          option =>
-            String(option.value)
-        )
-      );
-
-    months.forEach((m,i)=>{
-
-      const value =
-        String(i + 1);
-
-      if(
-        existingValues.has(
-          value
-        )
-      ){
-        return;
-      }
-
-      monthFilter.innerHTML += `
-        <option value="${value}">
-          ${m}
-        </option>
-      `;
-
+  async function api(url,options={}){
+    const res = await fetch(url,{
+      ...options,
+      headers:{
+        ...(options.headers || {}),
+        Authorization:"Bearer " + token
+      },
+      cache:"no-store"
     });
 
-  }
+    const data = await res.json().catch(()=>({}));
 
-  /* =========================
-     HELPERS
-  ========================= */
-
-  function money(value){
-
-    return "$" +
-      Number(value || 0)
-        .toFixed(2);
-
-  }
-
-  function getArizonaDate(value){
-
-    if(!value) return null;
-
-    return new Date(
-      new Date(value).toLocaleString(
-        "en-US",
-        {
-          timeZone:"America/Phoenix"
-        }
-      )
-    );
-
-  }
-
-  function formatDate(value){
-
-    if(!value) return "--";
-
-    const d =
-      getArizonaDate(value);
-
-    if(
-      !d ||
-      isNaN(d.getTime())
-    ){
-      return "--";
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        `Request failed (${res.status})`
+      );
     }
 
-    return d.toLocaleDateString(
-      "en-US",
-      {
-        year:"numeric",
-        month:"short",
-        day:"numeric",
-        timeZone:"America/Phoenix"
-      }
-    );
-
+    return data;
   }
 
-  function toInputDate(value){
-
-    if(!value) return "";
-
-    const d =
-      getArizonaDate(value);
-
-    if(
-      !d ||
-      isNaN(d.getTime())
-    ){
-      return "";
+  function companyStatus(row){
+    if(row?.tenant?.enabled === false){
+      return "DISABLED";
     }
 
-    const year =
-      d.getFullYear();
-
-    const month =
-      String(
-        d.getMonth() + 1
-      ).padStart(
-        2,
-        "0"
-      );
-
-    const day =
-      String(
-        d.getDate()
-      ).padStart(
-        2,
-        "0"
-      );
-
-    return `${year}-${month}-${day}`;
-
+    return clean(
+      row?.subscription?.status ||
+      row?.tenant?.subscriptionStatus ||
+      "ACTIVE"
+    ).toUpperCase();
   }
 
-  async function safeJson(res){
+  function badgeClass(status){
+    const s = clean(status).toLowerCase();
 
-    try{
-      return await res.json();
-    }catch(err){
-      return {};
+    if(["active","connected","paid"].includes(s)){
+      return "active";
     }
 
+    if(["disabled","suspended","failed","canceled"].includes(s)){
+      return "disabled";
+    }
+
+    if(["pending","processing","past_due"].includes(s)){
+      return "pending";
+    }
+
+    return "";
   }
 
-  async function fetchWithTimeout(
-    url,
-    options = {},
-    timeoutMs = 10000
-  ){
+  function filteredCompanies(){
+    return state.companies.filter(row=>{
+      const name = clean(row.tenant?.name).toLowerCase();
+      const slug = clean(row.tenant?.slug).toLowerCase();
+      const status = companyStatus(row);
 
-    const controller =
-      new AbortController();
-
-    const timer =
-      setTimeout(
-        ()=>controller.abort(),
-        timeoutMs
+      return (
+        (!state.search || name.includes(state.search) || slug.includes(state.search)) &&
+        (!state.filter || status === state.filter)
       );
-
-    try{
-
-      return await fetch(
-        url,
-        {
-          ...options,
-          signal:controller.signal
-        }
-      );
-
-    }finally{
-
-      clearTimeout(timer);
-
-    }
-
+    });
   }
 
-  function getTenantSlug(){
-
-    return String(
-      sessionStorage.getItem("staffTenantSlug") ||
-      sessionStorage.getItem("loginTenantSlug") ||
-      localStorage.getItem("tenantSlug") ||
-      ""
-    )
-    .trim()
-    .toLowerCase();
-
+  function selectedCompany(){
+    return state.companies.find(
+      row=>String(row.tenant?.id) === String(state.selectedId)
+    ) || null;
   }
 
-  function setStripeUi(
-    type,
-    text,
-    accountId = ""
-  ){
-
-    if(!stripeStatus){
-      return;
-    }
-
-    stripeStatus.className =
-      "stripe-status " + type;
-
-    stripeStatus.innerText =
-      text;
-
-    if(stripeAccountText){
-
-      if(accountId){
-
-        stripeAccountText.innerText =
-          "Connected account: " +
-          accountId;
-
-      }else{
-
-        stripeAccountText.innerText =
-          type === "connected"
-            ? "Stripe is connected and ready to receive payments."
-            : "Connect the organization Stripe account to receive Company Billing and Get Quote payments.";
-
-      }
-
-    }
-
-  }
-
-  /* =========================
-     STRIPE CONNECT
-  ========================= */
-
-  async function loadStripeStatus(){
-
-    if(
-      !stripeStatus ||
-      !connectStripeBtn
-    ){
-      return;
-    }
-
-    try{
-
-      setStripeUi(
-        "pending",
-        "CHECKING"
-      );
-
-      connectStripeBtn.disabled =
-        false;
-
-      if(stripeDashboardBtn){
-        stripeDashboardBtn.disabled =
-          true;
-      }
-
-      const res =
-        await fetchWithTimeout(
-          "/api/tenant-stripe/status",
-          {
-            headers:{
-              Authorization:
-                "Bearer " + token
-            },
-            cache:"no-store"
-          },
-          10000
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Unable to load Stripe status"
-        );
-
-      }
-
-      stripeAccountLinked =
-        data.connected === true &&
-        !!data.stripeAccountId;
-
-      stripePaymentReady =
-        data.chargesEnabled === true &&
-        data.detailsSubmitted === true;
-
-      if(
-        stripeAccountLinked &&
-        stripePaymentReady
-      ){
-
-        setStripeUi(
-          "connected",
-          "CONNECTED",
-          data.stripeAccountId || ""
-        );
-
-        connectStripeBtn.innerText =
-          "Manage Stripe";
-
-        if(stripeDashboardBtn){
-          stripeDashboardBtn.style.display =
-            "inline-flex";
-        }
-
-      }else if(stripeAccountLinked){
-
-        setStripeUi(
-          "pending",
-          "ACTION REQUIRED",
-          data.stripeAccountId || ""
-        );
-
-        connectStripeBtn.innerText =
-          "Complete Stripe Setup";
-
-        if(stripeDashboardBtn){
-          stripeDashboardBtn.style.display =
-            "inline-flex";
-        }
-
-      }else{
-
-        setStripeUi(
-          "pending",
-          "NOT CONNECTED"
-        );
-
-        connectStripeBtn.innerText =
-          "Connect Stripe";
-
-        if(stripeDashboardBtn){
-          stripeDashboardBtn.style.display =
-            "none";
-        }
-
-      }
-
-      connectStripeBtn.disabled =
-        false;
-
-      if(stripeDashboardBtn){
-        stripeDashboardBtn.disabled =
-          false;
-      }
-
-    }catch(err){
-
-      stripeAccountLinked = false;
-      stripePaymentReady = false;
-
-      console.log(
-        "STRIPE STATUS ERROR:",
-        err
-      );
-
-      setStripeUi(
-        "error",
-        "NOT CONNECTED"
-      );
-
-      connectStripeBtn.innerText =
-        "Connect Stripe";
-
-      connectStripeBtn.disabled =
-        false;
-
-      if(stripeDashboardBtn){
-        stripeDashboardBtn.style.display =
-          "none";
-      }
-
-    }
-
-  }
-
-  async function connectStripe(){
-
-    try{
-
-      if(!connectStripeBtn){
-        return;
-      }
-
-      if(stripeAccountLinked){
-        await openStripeDashboard();
-        return;
-      }
-
-      connectStripeBtn.disabled =
-        true;
-
-      connectStripeBtn.innerText =
-        "Opening Stripe...";
-
-      const res =
-        await fetchWithTimeout(
-          "/api/tenant-stripe/connect",
-          {
-            method:"POST",
-
-            headers:{
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                "Bearer " + token
-            },
-
-            body:JSON.stringify({
-              tenantSlug:
-                getTenantSlug()
-            })
-          },
-          20000
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Unable to connect Stripe"
-        );
-
-      }
-
-      if(!data.url){
-
-        throw new Error(
-          "Stripe onboarding link missing"
-        );
-
-      }
-
-      window.location.href =
-        data.url;
-
-    }catch(err){
-
-      console.log(
-        "STRIPE CONNECT ERROR:",
-        err
-      );
-
-      alert(
-        err.message ||
-        "Unable to connect Stripe"
-      );
-
-      connectStripeBtn.disabled =
-        false;
-
-      connectStripeBtn.innerText =
-        "Connect Stripe";
-
-    }
-
-  }
-
-  async function openStripeDashboard(){
-
-    try{
-
-      if(!stripeDashboardBtn){
-        return;
-      }
-
-      stripeDashboardBtn.disabled =
-        true;
-
-      stripeDashboardBtn.innerText =
-        "Opening...";
-
-      const res =
-        await fetchWithTimeout(
-          "/api/tenant-stripe/dashboard-link",
-          {
-            method:"POST",
-
-            headers:{
-              Authorization:
-                "Bearer " + token
-            }
-          },
-          20000
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Unable to open Stripe dashboard"
-        );
-
-      }
-
-      if(!data.url){
-
-        throw new Error(
-          "Stripe dashboard link missing"
-        );
-
-      }
-
-      window.location.href =
-        data.url;
-
-    }catch(err){
-
-      console.log(
-        "STRIPE DASHBOARD ERROR:",
-        err
-      );
-
-      alert(
-        err.message ||
-        "Unable to open Stripe dashboard"
-      );
-
-      stripeDashboardBtn.disabled =
-        false;
-
-      stripeDashboardBtn.innerText =
-        "Open Stripe Dashboard";
-
-    }
-
-  }
-
-  if(connectStripeBtn){
-
-    connectStripeBtn.addEventListener(
-      "click",
-      connectStripe
-    );
-
-  }
-
-  if(stripeDashboardBtn){
-
-    stripeDashboardBtn.addEventListener(
-      "click",
-      openStripeDashboard
-    );
-
-  }
-
-  /* =========================
-     LOAD BILLING
-  ========================= */
-
-  async function loadBilling(){
-
-    if(!container){
-      console.error(
-        "billingContainer not found"
-      );
-      return;
-    }
-
-    try{
-
-      container.innerHTML = `
-        <div class="empty">
-          Loading billing...
-        </div>
-      `;
-
-      let data;
-
-      try{
-
-        const res =
-          await fetchWithTimeout(
-            "/api/admin/billing",
-            {
-              headers:{
-                Authorization:
-                  "Bearer " + token
-              },
-              cache:"no-store"
-            },
-            15000
-          );
-
-        data =
-          await safeJson(res);
-
-        if(!res.ok){
-
-          throw new Error(
-            data.message ||
-            "Billing load failed"
-          );
-        }
-
-      }catch(primaryErr){
-
-        console.log(
-          "ADMIN BILLING PRIMARY LOAD ERROR:",
-          primaryErr
-        );
-
-        const fallbackRes =
-          await fetchWithTimeout(
-            "/api/users/company",
-            {
-              headers:{
-                Authorization:
-                  "Bearer " + token
-              },
-              cache:"no-store"
-            },
-            10000
-          );
-
-        data =
-          await safeJson(
-            fallbackRes
-          );
-
-        if(!fallbackRes.ok){
-
-          throw new Error(
-            data.message ||
-            "Unable to load companies"
-          );
-        }
-      }
-
-      companies =
-        Array.isArray(data)
-          ? data
-          : Array.isArray(data.companies)
-            ? data.companies
-            : [];
-
-      render(companies);
-
-    }catch(err){
-
-      console.log(
-        "ADMIN BILLING LOAD ERROR:",
-        err
-      );
-
-      container.innerHTML = `
-        <div class="empty">
-          ${String(
-            err.message ||
-            "Error loading companies"
-          )}
-        </div>
-      `;
-
-    }
-
-  }
-
-  /* =========================
-     RENDER
-  ========================= */
-
-  function render(list){
-
-    if(!container){
-      return;
-    }
+  function renderSidebar(){
+    const list = filteredCompanies();
 
     if(!list.length){
-
-      container.innerHTML = `
-        <div class="empty">
-          No companies found
-        </div>
-      `;
-
+      companyList.innerHTML =
+        `<div class="empty-state">No companies found.</div>`;
       return;
     }
 
-    container.innerHTML =
-      list.map(c=>{
+    companyList.innerHTML = list.map(row=>{
+      const t = row.tenant || {};
+      const status = companyStatus(row);
+      const active =
+        String(t.id) === String(state.selectedId);
 
-        return `
+      return `
+        <button
+          class="company-item ${active ? "active" : ""}"
+          data-company-id="${esc(t.id)}"
+          type="button"
+        >
+          <div class="company-item-row">
+            <div class="company-item-name">${esc(t.name || "Company")}</div>
+            <span class="badge ${badgeClass(status)}">${esc(status)}</span>
+          </div>
+          <div class="company-item-sub">${esc(t.slug || "")}</div>
+        </button>
+      `;
+    }).join("");
+  }
 
-          <div class="company-card">
+  function toggleCell(row,kind){
+    const enabled =
+      kind === "access"
+        ? row.accessEnabled !== false
+        : row.billingEnabled !== false;
 
-            <div class="company-top">
+    let label = enabled ? "Enabled" : "Disabled";
+    let cls = enabled ? "on" : "off";
 
-              <div class="company-box">
+    if(kind === "billing" && !enabled){
+      label = "Disabled";
+      cls = "free";
+    }
 
-                <div class="billing-company-title"
-                  style="font-size:22px;font-weight:900;color:#166534;margin-bottom:8px;">
-                  ${c.name || "--"}
-                </div>
+    const fieldClass =
+      kind === "access"
+        ? "access-toggle"
+        : "billing-toggle";
 
-                <div class="company-small">
-                  ${c.email || "--"}
-                  <br>
-                  ${c.phone || "--"}
-                  <br>
-                  ${c.username || "--"}
-                </div>
+    return `
+      <label class="toggle ${cls}">
+        <input
+          class="${fieldClass}"
+          type="checkbox"
+          ${enabled ? "checked" : ""}
+          disabled
+        >
+        <span>${label}</span>
+      </label>
+    `;
+  }
 
+  function usageRows(rows,type){
+    if(!Array.isArray(rows) || !rows.length){
+      return `
+        <tr>
+          <td colspan="3">
+            No ${type === "vehicle" ? "vehicles" : "services"} found.
+          </td>
+        </tr>
+      `;
+    }
+
+    return rows.map(row=>`
+      <tr
+        data-control-type="${type}"
+        data-control-key="${esc(row.key)}"
+        data-control-label="${esc(row.label)}"
+      >
+        <td>${esc(row.label)}</td>
+        <td>${toggleCell(row,"access")}</td>
+        <td>${toggleCell(row,"billing")}</td>
+      </tr>
+    `).join("");
+  }
+
+  function renderCompany(){
+    const row = selectedCompany();
+
+    if(!row){
+      companyDetail.innerHTML =
+        `<div class="empty-state">Select a company to view billing details.</div>`;
+      return;
+    }
+
+    const t = row.tenant || {};
+    const s = row.subscription || {};
+    const p = row.pricing || {};
+    const status = companyStatus(row);
+    const enabled = t.enabled !== false;
+
+    companyDetail.innerHTML = `
+      <div class="company-header">
+        <div class="company-title">
+          <h2>${esc(t.name || "Company")}</h2>
+          <p>${esc(t.slug || "")}</p>
+        </div>
+
+        <div class="company-actions">
+          <span class="badge ${badgeClass(status)}">${esc(status)}</span>
+
+          <button
+            class="btn ${enabled ? "red" : "green"}"
+            data-action="toggle-company"
+            data-enabled="${enabled ? "true" : "false"}"
+            type="button"
+          >
+            ${enabled ? "Disable Company" : "Enable Company"}
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <span>Current Amount</span>
+          <strong>${money(p.finalAmount)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Vehicles</span>
+          <strong>${Number(p.actualVehicles || 0)} / ${Number(p.includedVehicles || 0)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Services</span>
+          <strong>${Number(p.enabledServices || 0)} / ${Number(p.includedServices || 0)}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Next Payment</span>
+          <strong>${dateText(s.nextBillingDate || s.dueDate)}</strong>
+        </div>
+      </div>
+
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-tab="overview" type="button">Overview</button>
+        <button class="detail-tab" data-tab="usage" type="button">Usage & Access</button>
+        <button class="detail-tab" data-tab="pricing" type="button">Pricing</button>
+        <button class="detail-tab" data-tab="payments" type="button">Payments</button>
+      </div>
+
+      <div class="panel active" data-panel="overview">
+
+        <div class="section">
+          <div class="section-title">Subscription Overview</div>
+          <div class="section-body">
+            <div class="grid-4">
+              <div class="info"><span>Plan</span><strong>${esc(s.planName || "--")}</strong></div>
+              <div class="info"><span>Billing Cycle</span><strong>${esc(s.billingCycle || "--")}</strong></div>
+              <div class="info"><span>Last Payment</span><strong>${dateText(s.lastPaymentDate)}</strong></div>
+              <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
+              <div class="info"><span>Grace Period</span><strong>${Number(s.graceDays ?? 0)} days</strong></div>
+              <div class="info"><span>Base Price</span><strong>${money(s.basePrice)}</strong></div>
+              <div class="info"><span>Extra Vehicle Price</span><strong>${money(s.extraVehiclePrice)}</strong></div>
+              <div class="info"><span>Extra Service Price</span><strong>${money(s.extraServicePrice)}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Package Creation Limits</div>
+          <div class="section-body">
+            <div class="grid-4">
+              <div class="info"><span>Drivers</span><strong>${Number(p.actualDrivers || 0)} / ${Number(p.maxDrivers || 0)}</strong></div>
+              <div class="info"><span>Vehicles</span><strong>${Number(p.actualVehicles || 0)} / ${Number(p.maxVehicles || 0)}</strong></div>
+              <div class="info"><span>Admins</span><strong>${Number(p.actualAdmins || 0)} / ${Number(p.maxAdmins || 0)}</strong></div>
+              <div class="info"><span>Super Admins</span><strong>${Number(p.actualSuperAdmins || 0)} / ${Number(p.maxSuperAdmins || 0)}</strong></div>
+              <div class="info"><span>Dispatchers</span><strong>${Number(p.actualDispatchers || 0)} / ${Number(p.maxDispatchers || 0)}</strong></div>
+              <div class="info"><span>Companies</span><strong>${Number(p.actualCompanies || 0)} / ${Number(p.maxCompanies || 0)}</strong></div>
+              <div class="info"><span>Services</span><strong>${Number(p.enabledServices || 0)} / ${Number(p.maxServices || 0)}</strong></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" data-panel="usage">
+
+        <div class="section">
+          <div class="section-title">Vehicles</div>
+          <div class="section-body table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${usageRows(p.vehicleControls,"vehicle")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Services</div>
+          <div class="section-body table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${usageRows(p.serviceControls,"service")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" data-action="edit-usage" type="button">Edit Access & Billing</button>
+          <button class="btn gold" data-action="save-usage" type="button" disabled>Save Changes</button>
+          <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
+        </div>
+
+      </div>
+
+      <div class="panel" data-panel="pricing">
+
+        <div class="section">
+          <div class="section-title">Company Pricing</div>
+
+          <div class="section-body">
+
+            <div class="grid-3">
+
+              <div class="field">
+                <label>Package Name</label>
+                <input class="plan-name" value="${esc(s.planName || "")}" disabled>
               </div>
 
-              <div>
+              <div class="field">
+                <label>Billing Cycle</label>
+                <select class="cycle" disabled>
+                  <option value="MONTHLY" ${s.billingCycle === "MONTHLY" ? "selected" : ""}>Monthly</option>
+                  <option value="ANNUAL" ${s.billingCycle === "ANNUAL" ? "selected" : ""}>Annual</option>
+                </select>
+              </div>
 
-                ${
-                  c.billingLocked
+              <div class="field">
+                <label>Subscription Status</label>
+                <select class="status" disabled>
+                  <option value="ACTIVE" ${s.status === "ACTIVE" ? "selected" : ""}>Active</option>
+                  <option value="TRIAL" ${s.status === "TRIAL" ? "selected" : ""}>Trial</option>
+                  <option value="PAST_DUE" ${s.status === "PAST_DUE" ? "selected" : ""}>Past Due</option>
+                  <option value="SUSPENDED" ${s.status === "SUSPENDED" ? "selected" : ""}>Suspended</option>
+                </select>
+              </div>
 
-                    ? `
-                      <span class="badge locked">
-                        LOCKED
-                      </span>
-                    `
+              <div class="field">
+                <label>Base Package Enabled</label>
+                <select class="base-enabled" disabled>
+                  <option value="true" ${s.basePackageEnabled !== false ? "selected" : ""}>Active</option>
+                  <option value="false" ${s.basePackageEnabled === false ? "selected" : ""}>Disabled</option>
+                </select>
+              </div>
 
-                    : `
-                      <span class="badge active">
-                        ACTIVE
-                      </span>
-                    `
-                }
+              <div class="field">
+                <label>Custom Base Price</label>
+                <input class="base-price" type="number" min="0" step="0.01" value="${Number(s.basePrice || 0)}" disabled>
+              </div>
 
+              <div class="field">
+                <label>Included Vehicles</label>
+                <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Included Services</label>
+                <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Driver Limit</label>
+                <input class="max-drivers" type="number" min="0" value="${Number(s.maxDrivers || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Vehicle Limit</label>
+                <input class="max-vehicles" type="number" min="0" value="${Number(s.maxVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Admin Limit</label>
+                <input class="max-admins" type="number" min="0" value="${Number(s.maxAdmins || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Super Admin Limit</label>
+                <input class="max-super-admins" type="number" min="0" value="${Number(s.maxSuperAdmins || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Dispatcher Limit</label>
+                <input class="max-dispatchers" type="number" min="0" value="${Number(s.maxDispatchers || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Company Limit</label>
+                <input class="max-companies" type="number" min="0" value="${Number(s.maxCompanies || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Service Limit</label>
+                <input class="max-services" type="number" min="0" value="${Number(s.maxServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Extra Vehicle Price</label>
+                <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Extra Service Price</label>
+                <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Free Extra Vehicles</label>
+                <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Free Extra Services</label>
+                <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Discount</label>
+                <input class="discount" type="number" min="0" step="0.01" value="${Number(s.discount || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Credit</label>
+                <input class="credit" type="number" min="0" step="0.01" value="${Number(s.credit || 0)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Final Price Override</label>
+                <input class="final-override" type="number" min="0" step="0.01" value="${s.finalPriceOverride === null || s.finalPriceOverride === undefined ? "" : Number(s.finalPriceOverride)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Grace Days</label>
+                <input class="grace-days" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
+              </div>
+
+              <div class="field">
+                <label>Due Date</label>
+                <input class="due-date" type="date" value="${s.dueDate ? new Date(s.dueDate).toISOString().slice(0,10) : ""}" disabled>
               </div>
 
             </div>
 
-            <div class="stats-grid">
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Trips
-                </div>
-                <div class="stat-value">
-                  ${c.totalTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Completed
-                </div>
-                <div class="stat-value">
-                  ${c.completedTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Shared
-                </div>
-                <div class="stat-value">
-                  ${c.sharedTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  No Show
-                </div>
-                <div class="stat-value">
-                  ${c.noShowTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Revenue
-                </div>
-                <div class="stat-value">
-                  ${money(c.revenue)}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Invoice
-                </div>
-                <div class="stat-value">
-                  ${money(c.invoiceAmount)}
-                </div>
-              </div>
-
+            <div class="price-box">
+              <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
+              <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
+              <div class="price-line"><span>Extra Services</span><strong>${Number(p.billableExtraServices || 0)} × ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}</strong></div>
+              <div class="price-line"><span>Discount</span><strong>-${money(p.discount)}</strong></div>
+              <div class="price-line"><span>Credit</span><strong>-${money(p.credit)}</strong></div>
+              <div class="price-total"><span>Final Amount</span><strong>${money(p.finalAmount)}</strong></div>
             </div>
 
-            <div class="billing-grid">
-
-              <div class="field">
-                <label>
-                  Billing Start
-                </label>
-
-                <input
-                  type="date"
-                  class="small-input"
-                  id="start-${c._id}"
-                  value="${toInputDate(c.billingStartDate)}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Billing End
-                </label>
-
-                <input
-                  type="date"
-                  class="small-input"
-                  id="end-${c._id}"
-                  value="${toInputDate(c.billingEndDate)}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Grace Days
-                </label>
-
-                <input
-                  type="number"
-                  class="small-input"
-                  id="grace-${c._id}"
-                  value="${c.graceDays || 3}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Last Payment
-                </label>
-
-                <input
-                  type="text"
-                  class="small-input"
-                  value="${formatDate(c.lastPaymentDate)}"
-                  disabled
-                >
-              </div>
-
-            </div>
-
-            <div class="btn-row">
-
-              <button
-                class="btn btn-blue"
-                onclick="editBilling('${c._id}')"
-                id="editBtn-${c._id}"
-              >
-                Edit
-              </button>
-
-              <button
-                class="btn btn-green"
-                onclick="saveBilling('${c._id}')"
-                id="saveBtn-${c._id}"
-                style="display:none;"
-              >
-                Save
-              </button>
-
-              <button
-                class="btn btn-dark"
-                onclick="openInvoice('${c._id}')"
-              >
-                Open Invoice
-              </button>
-
-              <button
-                class="btn btn-yellow"
-                onclick="markPaid('${c._id}')"
-              >
-                Mark Paid
-              </button>
-
-              <button
-                class="btn btn-red"
-                onclick="lockCompany('${c._id}')"
-              >
-                Lock
-              </button>
-
-              <button
-                class="btn btn-green"
-                onclick="unlockCompany('${c._id}')"
-              >
-                Unlock
-              </button>
-
+            <div class="actions">
+              <button class="btn primary" data-action="edit-pricing" type="button">Edit</button>
+              <button class="btn blue" data-action="preview-pricing" type="button">Preview Price</button>
+              <button class="btn gold" data-action="save-pricing" type="button" disabled>Save Pricing</button>
+              <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
             </div>
 
           </div>
+        </div>
 
-        `;
+      </div>
 
-      }).join("");
+      <div class="panel" data-panel="payments">
+        <div class="section">
+          <div class="section-title">
+            <span>Payment History</span>
+            <button class="btn primary" data-action="load-history" type="button">Refresh History</button>
+          </div>
 
+          <div class="section-body" id="inlineHistory">
+            <div class="empty-state">Open payment history to load records.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    bindToggleLabels(companyDetail);
   }
 
-  /* =========================
-     ACTIONS
-     Expose to inline onclick
-  ========================= */
+  function bindToggleLabels(scope){
+    scope.querySelectorAll(".toggle input").forEach(input=>{
+      input.addEventListener("change",()=>{
+        const label = input.closest(".toggle");
+        const text = label.querySelector("span");
 
-  window.editBilling =
-  function editBilling(id){
-
-    const start =
-      document.getElementById(
-        `start-${id}`
-      );
-
-    const end =
-      document.getElementById(
-        `end-${id}`
-      );
-
-    const grace =
-      document.getElementById(
-        `grace-${id}`
-      );
-
-    const editBtn =
-      document.getElementById(
-        `editBtn-${id}`
-      );
-
-    const saveBtn =
-      document.getElementById(
-        `saveBtn-${id}`
-      );
-
-    if(start) start.disabled = false;
-    if(end) end.disabled = false;
-    if(grace) grace.disabled = false;
-
-    if(editBtn){
-      editBtn.style.display =
-        "none";
-    }
-
-    if(saveBtn){
-      saveBtn.style.display =
-        "inline-flex";
-    }
-
-  };
-
-  window.saveBilling =
-  async function saveBilling(id){
-
-    try{
-
-      const start =
-        document.getElementById(
-          `start-${id}`
-        )?.value || "";
-
-      const end =
-        document.getElementById(
-          `end-${id}`
-        )?.value || "";
-
-      const grace =
-        document.getElementById(
-          `grace-${id}`
-        )?.value || 3;
-
-      if(!start || !end){
-
-        alert(
-          "Please select dates"
-        );
-
-        return;
-
-      }
-
-      const res =
-        await fetch(
-          `/api/admin/generate-invoice/${id}`,
-          {
-            method:"PUT",
-
-            headers:{
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                "Bearer " + token
-            },
-
-            body:JSON.stringify({
-              billingStartDate:start,
-              billingEndDate:end,
-              graceDays:grace
-            })
+        if(input.classList.contains("billing-toggle")){
+          if(input.checked){
+            label.className = "toggle on";
+            text.textContent = "Enabled";
+          }else{
+            label.className = "toggle free";
+            text.textContent = "Disabled";
           }
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Save failed"
-        );
-
-      }
-
-      alert("Saved");
-
-      await loadBilling();
-
-    }catch(err){
-
-      console.log(err);
-
-      alert(
-        err.message ||
-        "Save failed"
-      );
-
-    }
-
-  };
-
-  window.openInvoice =
-  function openInvoice(id){
-
-    window.open(
-      `/admin/invoice.html?id=${id}`,
-      "_blank"
-    );
-
-  };
-
-  window.lockCompany =
-  async function lockCompany(id){
-
-    try{
-
-      const res =
-        await fetch(
-          `/api/admin/billing/${id}/lock`,
-          {
-            method:"PUT",
-            headers:{
-              Authorization:
-                "Bearer " + token
-            }
+        }else{
+          if(input.checked){
+            label.className = "toggle on";
+            text.textContent = "Enabled";
+          }else{
+            label.className = "toggle off";
+            text.textContent = "Disabled";
           }
-        );
+        }
+      });
+    });
+  }
 
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Lock failed"
-        );
-
-      }
-
-      await loadBilling();
-
-    }catch(err){
-
-      console.log(err);
-
-      alert(
-        err.message ||
-        "Lock failed"
+  function activateCompanyTab(tabName){
+    companyDetail.querySelectorAll(".detail-tab").forEach(btn=>{
+      btn.classList.toggle(
+        "active",
+        btn.dataset.tab === tabName
       );
+    });
 
-    }
-
-  };
-
-  window.unlockCompany =
-  async function unlockCompany(id){
-
-    try{
-
-      const res =
-        await fetch(
-          `/api/admin/billing/${id}/unlock`,
-          {
-            method:"PUT",
-            headers:{
-              Authorization:
-                "Bearer " + token
-            }
-          }
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Unlock failed"
-        );
-
-      }
-
-      await loadBilling();
-
-    }catch(err){
-
-      console.log(err);
-
-      alert(
-        err.message ||
-        "Unlock failed"
+    companyDetail.querySelectorAll(".panel").forEach(panel=>{
+      panel.classList.toggle(
+        "active",
+        panel.dataset.panel === tabName
       );
+    });
+  }
 
-    }
-
-  };
-
-  window.markPaid =
-  async function markPaid(id){
-
-    try{
-
-      const company =
-        companies.find(
-          c => c._id === id
-        );
-
-      if(!company){
-        return;
-      }
-
-      const ok =
-        confirm(
-          `Mark invoice as PAID?\n\n` +
-          `Company: ${company.name}\n` +
-          `Invoice Amount: ${money(company.invoiceAmount)}\n\n` +
-          `This will:\n\n` +
-          `• Reset invoice to $0\n` +
-          `• Unlock company\n` +
-          `• Start new billing cycle\n` +
-          `• Reset current billing stats\n\n` +
-          `Continue?`
-        );
-
-      if(!ok){
-        return;
-      }
-
-      const res =
-        await fetch(
-          `/api/admin/billing/${id}/mark-paid`,
-          {
-            method:"PUT",
-            headers:{
-              Authorization:
-                "Bearer " + token
-            }
-          }
-        );
-
-      const data =
-        await safeJson(res);
-
-      if(!res.ok){
-
-        throw new Error(
-          data.message ||
-          "Payment failed"
-        );
-
-      }
-
-      alert(
-        "Invoice marked as PAID successfully"
-      );
-
-      await loadBilling();
-
-    }catch(err){
-
-      console.log(err);
-
-      alert(
-        err.message ||
-        "Payment failed"
-      );
-
-    }
-
-  };
-
-  /* =========================
-     FILTERS
-  ========================= */
-
-  function applyFilters(){
-
-    let list =
-      [...companies];
-
-    const search =
-      String(
-        searchInput?.value ||
-        ""
+  function readControls(type){
+    return [
+      ...companyDetail.querySelectorAll(
+        `[data-control-type="${type}"]`
       )
-      .toLowerCase()
-      .trim();
+    ].map(row=>({
+      key:row.dataset.controlKey,
+      label:row.dataset.controlLabel,
+      accessEnabled:
+        row.querySelector(".access-toggle")?.checked === true,
+      billingEnabled:
+        row.querySelector(".billing-toggle")?.checked === true
+    }));
+  }
 
-    const status =
-      String(
-        statusFilter?.value ||
-        ""
-      );
+  function readCompanyForm(){
+    const q = selector => companyDetail.querySelector(selector);
 
-    const month =
-      String(
-        monthFilter?.value ||
-        ""
-      );
+    const override = clean(q(".final-override")?.value);
 
-    const year =
-      String(
-        yearFilter?.value ||
-        ""
-      );
+    return {
+      planName:clean(q(".plan-name")?.value),
+      billingCycle:q(".cycle")?.value || "MONTHLY",
+      status:q(".status")?.value || "ACTIVE",
+      basePackageEnabled:q(".base-enabled")?.value === "true",
+      basePrice:Number(q(".base-price")?.value || 0),
+      includedVehicles:Number(q(".included-vehicles")?.value || 0),
+      includedServices:Number(q(".included-services")?.value || 0),
+      maxDrivers:Number(q(".max-drivers")?.value || 0),
+      maxVehicles:Number(q(".max-vehicles")?.value || 0),
+      maxAdmins:Number(q(".max-admins")?.value || 0),
+      maxSuperAdmins:Number(q(".max-super-admins")?.value || 0),
+      maxDispatchers:Number(q(".max-dispatchers")?.value || 0),
+      maxCompanies:Number(q(".max-companies")?.value || 0),
+      maxServices:Number(q(".max-services")?.value || 0),
+      extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
+      extraServicePrice:Number(q(".extra-service-price")?.value || 0),
+      freeExtraVehicles:Number(q(".free-extra-vehicles")?.value || 0),
+      freeExtraServices:Number(q(".free-extra-services")?.value || 0),
+      discount:Number(q(".discount")?.value || 0),
+      credit:Number(q(".credit")?.value || 0),
+      finalPriceOverride:override === "" ? null : Number(override),
+      graceDays:Number(q(".grace-days")?.value || 0),
+      dueDate:q(".due-date")?.value || null,
+      vehicleControls:readControls("vehicle"),
+      serviceControls:readControls("service")
+    };
+  }
 
-    if(search){
+  function setPricingEdit(editing){
+    companyDetail.querySelectorAll(
+      '[data-panel="pricing"] input,[data-panel="pricing"] select'
+    ).forEach(el=>{
+      el.disabled = !editing;
+    });
 
-      list =
-        list.filter(c=>{
+    const save = companyDetail.querySelector('[data-action="save-pricing"]');
+    const cancel = companyDetail.querySelector('[data-panel="pricing"] [data-action="cancel-company"]');
+    const edit = companyDetail.querySelector('[data-action="edit-pricing"]');
 
-          const text = `
-            ${c.name || ""}
-            ${c.email || ""}
-            ${c.phone || ""}
-            ${c.username || ""}
-          `
-          .toLowerCase();
+    if(save) save.disabled = !editing;
+    if(cancel) cancel.disabled = !editing;
+    if(edit) edit.disabled = editing;
+  }
 
-          return text.includes(
-            search
-          );
+  function setUsageEdit(editing){
+    companyDetail.querySelectorAll(
+      '[data-panel="usage"] .toggle input'
+    ).forEach(el=>{
+      el.disabled = !editing;
+    });
 
-        });
+    const save = companyDetail.querySelector('[data-action="save-usage"]');
+    const cancel = companyDetail.querySelector('[data-panel="usage"] [data-action="cancel-company"]');
+    const edit = companyDetail.querySelector('[data-action="edit-usage"]');
 
+    if(save) save.disabled = !editing;
+    if(cancel) cancel.disabled = !editing;
+    if(edit) edit.disabled = editing;
+  }
+
+  async function saveCompany(){
+    const row = selectedCompany();
+    if(!row) return;
+
+    if(!window.confirm("Save this company's billing changes?")){
+      return;
     }
 
-    if(status){
+    try{
+      await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/subscription`,
+        {
+          method:"PUT",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(readCompanyForm())
+        }
+      );
 
-      list =
-        list.filter(
-          c =>
-            c.billingStatus ===
-            status
+      showMessage("Company billing saved successfully.","ok");
+      await loadBilling(true);
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  async function previewPricing(){
+    const row = selectedCompany();
+    if(!row) return;
+
+    try{
+      const result = await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/preview`,
+        {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(readCompanyForm())
+        }
+      );
+
+      const p = result.pricing || {};
+
+      window.alert(
+        [
+          `Base Package: ${money(p.baseAmount)}`,
+          `Extra Vehicles: ${Number(p.billableExtraVehicles || 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
+          `Extra Services: ${Number(p.billableExtraServices || 0)} x ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}`,
+          `Discount: -${money(p.discount)}`,
+          `Credit: -${money(p.credit)}`,
+          `Final Amount: ${money(p.finalAmount)}`
+        ].join("\n")
+      );
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  async function toggleCompany(){
+    const row = selectedCompany();
+    if(!row) return;
+
+    const currentlyEnabled = row.tenant.enabled !== false;
+    const nextEnabled = !currentlyEnabled;
+
+    if(
+      !window.confirm(
+        `${nextEnabled ? "Enable" : "Disable"} ${row.tenant.name}?`
+      )
+    ){
+      return;
+    }
+
+    try{
+      await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/enabled`,
+        {
+          method:"PUT",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({enabled:nextEnabled})
+        }
+      );
+
+      showMessage(
+        nextEnabled
+          ? "Company enabled successfully."
+          : "Company disabled successfully.",
+        "ok"
+      );
+
+      await loadBilling(true);
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  async function loadHistory(inline=true){
+    const row = selectedCompany();
+    if(!row) return;
+
+    try{
+      const result = await api(
+        `/api/platform-subscription/tenants/${encodeURIComponent(row.tenant.id)}/payment-history`
+      );
+
+      const history = Array.isArray(result.history)
+        ? result.history
+        : [];
+
+      const html = history.length
+        ? `
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Invoice</th>
+                  <th>Cycle</th>
+                  <th>Method</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${history.map(item=>`
+                  <tr>
+                    <td>${dateText(item.paidAt || item.createdAt)}</td>
+                    <td>${esc(item.invoiceNumber || "--")}</td>
+                    <td>${esc(item.billingCycle || "--")}</td>
+                    <td>${esc(item.paymentMethod || "--")}</td>
+                    <td><span class="badge ${badgeClass(item.status)}">${esc(item.status || "--")}</span></td>
+                    <td>${money(item.amount)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `
+        : `<div class="empty-state">No payment history.</div>`;
+
+      if(inline){
+        const target = document.getElementById("inlineHistory");
+        if(target) target.innerHTML = html;
+      }else{
+        document.getElementById("historyBody").innerHTML = html;
+        document.getElementById("historyModal").classList.add("show");
+      }
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  async function loadPaymentSummary(){
+    try{
+      const result = await api(
+        "/api/platform-subscription/payment-summary"
+      );
+
+      document.getElementById("mActive").textContent =
+        Number(result.metrics?.activeCompanies || 0);
+
+      document.getElementById("mDisabled").textContent =
+        Number(result.metrics?.disabledCompanies || 0);
+
+      document.getElementById("mPastDue").textContent =
+        Number(result.metrics?.pastDueCompanies || 0);
+
+      document.getElementById("mRecurring").textContent =
+        money(result.metrics?.recurringAmount);
+
+      document.getElementById("mPaidMonth").textContent =
+        money(result.metrics?.paidThisMonth);
+
+      document.getElementById("mOutstanding").textContent =
+        money(result.metrics?.outstanding);
+
+      const rows = Array.isArray(result.companies)
+        ? result.companies
+        : [];
+
+      document.getElementById("summaryTableBody").innerHTML =
+        rows.map(row=>`
+          <tr>
+            <td>${esc(row.name || "Company")}</td>
+            <td>${esc(row.planName || "--")}</td>
+            <td>${money(row.amount)}</td>
+            <td>${dateText(row.lastPaymentDate)}</td>
+            <td>${dateText(row.nextPaymentDate)}</td>
+            <td><span class="badge ${badgeClass(row.status)}">${esc(row.status || "--")}</span></td>
+          </tr>
+        `).join("");
+
+    }catch(err){
+      showMessage(err.message,"error");
+    }
+  }
+
+  function setTopView(view){
+    document.querySelectorAll(".top-tab").forEach(btn=>{
+      btn.classList.toggle("active",btn.dataset.view === view);
+    });
+
+    document.getElementById("companiesView").style.display =
+      view === "companies" ? "grid" : "none";
+
+    document.getElementById("summaryView").classList.toggle(
+      "active",
+      view === "summary"
+    );
+
+    document.getElementById("settingsView").classList.toggle(
+      "active",
+      view === "settings"
+    );
+
+    if(view === "summary"){
+      loadPaymentSummary();
+    }
+  }
+
+  async function loadStripe(){
+    const badge = document.getElementById("stripeStatusBadge");
+
+    try{
+      const data = await api("/api/platform-stripe/status");
+
+      const connected = data.connected === true;
+
+      badge.textContent = connected
+        ? "CONNECTED"
+        : "NOT CONNECTED";
+
+      badge.className =
+        "badge " + (connected ? "connected" : "disabled");
+
+      document.getElementById("stripeAccountId").textContent =
+        data.accountId || "--";
+
+      document.getElementById("stripeMode").textContent =
+        data.mode || "--";
+
+      document.getElementById("stripeCharges").textContent =
+        data.chargesEnabled ? "ENABLED" : "DISABLED";
+
+      document.getElementById("stripePayouts").textContent =
+        data.payoutsEnabled ? "ENABLED" : "DISABLED";
+
+      const dashboard = document.getElementById("stripeDashboardBtn");
+      dashboard.disabled = !data.dashboardUrl;
+      dashboard.dataset.url = data.dashboardUrl || "";
+
+    }catch(err){
+      badge.textContent = "NOT CONNECTED";
+      badge.className = "badge disabled";
+    }
+  }
+
+  const defaultIds = [
+    "dPackageName",
+    "dBasePrice",
+    "dIncludedVehicles",
+    "dIncludedServices",
+    "dMaxDrivers",
+    "dMaxVehicles",
+    "dMaxAdmins",
+    "dMaxSuperAdmins",
+    "dMaxDispatchers",
+    "dMaxCompanies",
+    "dMaxServices",
+    "dBillingCycle",
+    "dExtraVehiclePrice",
+    "dExtraServicePrice",
+    "dPackageStatus"
+  ];
+
+  function lockDefault(locked){
+    defaultIds.forEach(id=>{
+      document.getElementById(id).disabled = locked;
+    });
+
+    document.getElementById("defaultEditBtn").disabled = !locked;
+    document.getElementById("defaultSaveBtn").disabled = locked;
+    document.getElementById("defaultCancelBtn").disabled = locked;
+  }
+
+  function fillDefault(row){
+    if(!row) return;
+
+    document.getElementById("dPackageName").value = row.packageName || "";
+    document.getElementById("dBasePrice").value = Number(row.basePrice || 0);
+    document.getElementById("dIncludedVehicles").value = Number(row.includedVehicles || 0);
+    document.getElementById("dIncludedServices").value = Number(row.includedServices || 0);
+    document.getElementById("dMaxDrivers").value = Number(row.maxDrivers ?? 5);
+    document.getElementById("dMaxVehicles").value = Number(row.maxVehicles ?? row.includedVehicles ?? 5);
+    document.getElementById("dMaxAdmins").value = Number(row.maxAdmins ?? 2);
+    document.getElementById("dMaxSuperAdmins").value = Number(row.maxSuperAdmins ?? 2);
+    document.getElementById("dMaxDispatchers").value = Number(row.maxDispatchers ?? 2);
+    document.getElementById("dMaxCompanies").value = Number(row.maxCompanies ?? 3);
+    document.getElementById("dMaxServices").value = Number(row.maxServices ?? row.includedServices ?? 2);
+    document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
+    document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
+    document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
+    document.getElementById("dPackageStatus").value = row.packageStatus || "ACTIVE";
+
+    const badge = document.getElementById("defaultPackageBadge");
+    badge.textContent = row.packageStatus || "ACTIVE";
+    badge.className =
+      "badge " + (row.packageStatus === "DISABLED" ? "disabled" : "active");
+
+    lockDefault(true);
+  }
+
+  function readDefault(){
+    return {
+      packageName:clean(document.getElementById("dPackageName").value),
+      basePrice:Number(document.getElementById("dBasePrice").value || 0),
+      includedVehicles:Number(document.getElementById("dIncludedVehicles").value || 0),
+      includedServices:Number(document.getElementById("dIncludedServices").value || 0),
+      maxDrivers:Number(document.getElementById("dMaxDrivers").value || 0),
+      maxVehicles:Number(document.getElementById("dMaxVehicles").value || 0),
+      maxAdmins:Number(document.getElementById("dMaxAdmins").value || 0),
+      maxSuperAdmins:Number(document.getElementById("dMaxSuperAdmins").value || 0),
+      maxDispatchers:Number(document.getElementById("dMaxDispatchers").value || 0),
+      maxCompanies:Number(document.getElementById("dMaxCompanies").value || 0),
+      maxServices:Number(document.getElementById("dMaxServices").value || 0),
+      billingCycle:document.getElementById("dBillingCycle").value,
+      extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
+      extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),
+      packageStatus:document.getElementById("dPackageStatus").value
+    };
+  }
+
+  async function loadBilling(preserveSelection=false){
+    try{
+      const oldId = state.selectedId;
+
+      const data = await api("/api/platform-subscription/bootstrap");
+
+      state.defaultPackage = data.defaultPackage || null;
+      state.companies = Array.isArray(data.companies) ? data.companies : [];
+
+      if(
+        preserveSelection &&
+        state.companies.some(row=>String(row.tenant?.id) === String(oldId))
+      ){
+        state.selectedId = oldId;
+      }else if(
+        !state.selectedId ||
+        !state.companies.some(row=>String(row.tenant?.id) === String(state.selectedId))
+      ){
+        state.selectedId = state.companies[0]?.tenant?.id || "";
+      }
+
+      fillDefault(state.defaultPackage);
+      renderSidebar();
+      renderCompany();
+
+    }catch(err){
+      companyList.innerHTML =
+        `<div class="empty-state">Unable to load companies.</div>`;
+
+      showMessage(err.message,"error");
+    }
+  }
+
+  document.querySelectorAll(".top-tab").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      setTopView(btn.dataset.view);
+    });
+  });
+
+  searchInput.addEventListener("input",()=>{
+    state.search = clean(searchInput.value).toLowerCase();
+    renderSidebar();
+  });
+
+  document.querySelectorAll(".filter-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      state.filter = btn.dataset.filter || "";
+
+      document.querySelectorAll(".filter-btn").forEach(x=>{
+        x.classList.toggle("active",x === btn);
+      });
+
+      renderSidebar();
+    });
+  });
+
+  companyList.addEventListener("click",event=>{
+    const item = event.target.closest("[data-company-id]");
+    if(!item) return;
+
+    state.selectedId = item.dataset.companyId;
+    renderSidebar();
+    renderCompany();
+  });
+
+  companyDetail.addEventListener("click",event=>{
+    const tab = event.target.closest("[data-tab]");
+    if(tab){
+      activateCompanyTab(tab.dataset.tab);
+      return;
+    }
+
+    const button = event.target.closest("[data-action]");
+    if(!button) return;
+
+    const action = button.dataset.action;
+
+    if(action === "toggle-company"){
+      toggleCompany();
+      return;
+    }
+
+    if(action === "edit-pricing"){
+      setPricingEdit(true);
+      return;
+    }
+
+    if(action === "preview-pricing"){
+      previewPricing();
+      return;
+    }
+
+    if(action === "save-pricing"){
+      saveCompany();
+      return;
+    }
+
+    if(action === "edit-usage"){
+      setUsageEdit(true);
+      return;
+    }
+
+    if(action === "save-usage"){
+      saveCompany();
+      return;
+    }
+
+    if(action === "cancel-company"){
+      renderCompany();
+      return;
+    }
+
+    if(action === "load-history"){
+      loadHistory(true);
+    }
+  });
+
+  document.getElementById("defaultEditBtn")
+    .addEventListener("click",()=>{
+      state.defaultBackup = readDefault();
+      lockDefault(false);
+    });
+
+  document.getElementById("defaultCancelBtn")
+    .addEventListener("click",()=>{
+      fillDefault(state.defaultBackup || state.defaultPackage);
+      state.defaultBackup = null;
+    });
+
+  document.getElementById("defaultSaveBtn")
+    .addEventListener("click",async()=>{
+      if(
+        !window.confirm(
+          "Save the new Default Package? It will apply to new companies only."
+        )
+      ){
+        return;
+      }
+
+      try{
+        const result = await api(
+          "/api/platform-subscription/default-package",
+          {
+            method:"PUT",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(readDefault())
+          }
         );
 
-    }
+        state.defaultPackage = result.defaultPackage;
+        fillDefault(result.defaultPackage);
 
-    if(month){
+        showMessage(
+          "Default Package saved. Existing company pricing was not changed.",
+          "ok"
+        );
 
-      list =
-        list.filter(c=>{
+      }catch(err){
+        showMessage(err.message,"error");
+      }
+    });
 
-          if(!c.billingStartDate){
-            return false;
-          }
+  document.getElementById("stripeRefreshBtn")
+    .addEventListener("click",loadStripe);
 
-          const d =
-            new Date(
-              c.billingStartDate
-            );
+  document.getElementById("stripeDashboardBtn")
+    .addEventListener("click",event=>{
+      const url = clean(event.currentTarget.dataset.url);
+      if(url){
+        window.open(url,"_blank","noopener");
+      }
+    });
 
-          return (
-            d.getMonth() + 1
-          ) == month;
+  document.querySelectorAll("[data-close]").forEach(button=>{
+    button.addEventListener("click",()=>{
+      document.getElementById(button.dataset.close).classList.remove("show");
+    });
+  });
 
-        });
-
-    }
-
-    if(year){
-
-      list =
-        list.filter(c=>{
-
-          if(!c.billingStartDate){
-            return false;
-          }
-
-          const d =
-            new Date(
-              c.billingStartDate
-            );
-
-          return (
-            d.getFullYear()
-          ) == year;
-
-        });
-
-    }
-
-    render(list);
-
-  }
-
-  if(searchInput){
-    searchInput.addEventListener(
-      "input",
-      applyFilters
-    );
-  }
-
-  if(statusFilter){
-    statusFilter.addEventListener(
-      "change",
-      applyFilters
-    );
-  }
-
-  if(monthFilter){
-    monthFilter.addEventListener(
-      "change",
-      applyFilters
-    );
-  }
-
-  if(yearFilter){
-    yearFilter.addEventListener(
-      "input",
-      applyFilters
-    );
-  }
-
-  /* =========================
-     INIT
-  ========================= */
-
-  loadStripeStatus();
+  setTopView("companies");
+  loadStripe();
   loadBilling();
-
 });

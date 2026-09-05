@@ -50,6 +50,13 @@ async function getDefaultPackage(){
       basePrice:99,
       includedVehicles:5,
       includedServices:2,
+      maxDrivers:5,
+      maxVehicles:5,
+      maxAdmins:2,
+      maxSuperAdmins:2,
+      maxDispatchers:2,
+      maxCompanies:3,
+      maxServices:2,
       billingCycle:"MONTHLY",
       extraVehiclePrice:10,
       extraServicePrice:15,
@@ -99,6 +106,51 @@ async function getTenantUsage(tenant){
   })
   .select("_id role active enabled vehicleNumber vehicle")
   .lean();
+
+  const roleCounts = {
+    drivers:0,
+    admins:0,
+    superAdmins:0,
+    dispatchers:0,
+    companies:0
+  };
+
+  users.forEach(user=>{
+    const role =
+      clean(user.role)
+        .toLowerCase()
+        .replace(/[\s-]+/g,"_");
+
+    if(role === "driver"){
+      roleCounts.drivers += 1;
+      return;
+    }
+
+    if(role === "admin"){
+      roleCounts.admins += 1;
+      return;
+    }
+
+    if(
+      role === "superadmin" ||
+      role === "super_admin"
+    ){
+      roleCounts.superAdmins += 1;
+      return;
+    }
+
+    if(role === "dispatcher"){
+      roleCounts.dispatchers += 1;
+      return;
+    }
+
+    if(
+      role === "company" ||
+      role === "facility"
+    ){
+      roleCounts.companies += 1;
+    }
+  });
 
   const tenantDrivers = users.filter(user=>{
     const role = clean(user.role).toLowerCase();
@@ -192,8 +244,27 @@ async function getTenantUsage(tenant){
   return {
     vehicles,
     services,
-    actualVehicles:vehicles.length,
-    enabledServices:services.length
+
+    actualDrivers:
+      roleCounts.drivers,
+
+    actualVehicles:
+      vehicles.length,
+
+    actualAdmins:
+      roleCounts.admins,
+
+    actualSuperAdmins:
+      roleCounts.superAdmins,
+
+    actualDispatchers:
+      roleCounts.dispatchers,
+
+    actualCompanies:
+      roleCounts.companies,
+
+    enabledServices:
+      services.length
   };
 }
 
@@ -218,6 +289,33 @@ function calculatePricing(subscription,usage){
 
   const includedVehicles = whole(subscription.includedVehicles);
   const includedServices = whole(subscription.includedServices);
+
+  const maxDrivers =
+    whole(subscription.maxDrivers,5);
+
+  const maxVehicles =
+    whole(
+      subscription.maxVehicles,
+      includedVehicles
+    );
+
+  const maxAdmins =
+    whole(subscription.maxAdmins,2);
+
+  const maxSuperAdmins =
+    whole(subscription.maxSuperAdmins,2);
+
+  const maxDispatchers =
+    whole(subscription.maxDispatchers,2);
+
+  const maxCompanies =
+    whole(subscription.maxCompanies,3);
+
+  const maxServices =
+    whole(
+      subscription.maxServices,
+      includedServices
+    );
 
   const extraVehicles = Math.max(
     0,
@@ -282,8 +380,34 @@ function calculatePricing(subscription,usage){
       : override;
 
   return {
-    actualVehicles:usage.actualVehicles,
-    enabledServices:usage.enabledServices,
+    actualDrivers:
+      whole(usage.actualDrivers),
+
+    actualVehicles:
+      whole(usage.actualVehicles),
+
+    actualAdmins:
+      whole(usage.actualAdmins),
+
+    actualSuperAdmins:
+      whole(usage.actualSuperAdmins),
+
+    actualDispatchers:
+      whole(usage.actualDispatchers),
+
+    actualCompanies:
+      whole(usage.actualCompanies),
+
+    enabledServices:
+      whole(usage.enabledServices),
+
+    maxDrivers,
+    maxVehicles,
+    maxAdmins,
+    maxSuperAdmins,
+    maxDispatchers,
+    maxCompanies,
+    maxServices,
 
     includedVehicles,
     includedServices,
@@ -369,6 +493,44 @@ async function ensureTenantPricing(tenant){
       nonNegative(defaults.extraServicePrice);
 
     subscription.pricingInitialized = true;
+    subscription.pricingUpdatedAt = new Date();
+  }
+
+  /*
+    LIMIT INITIALIZATION IS SEPARATE FROM PRICING INITIALIZATION.
+    This is required for existing tenants whose pricing was already
+    initialized before package creation limits were introduced.
+  */
+  if(subscription.limitsInitialized !== true){
+
+    subscription.maxDrivers =
+      whole(defaults.maxDrivers,5);
+
+    subscription.maxVehicles =
+      whole(
+        defaults.maxVehicles,
+        defaults.includedVehicles ?? 5
+      );
+
+    subscription.maxAdmins =
+      whole(defaults.maxAdmins,2);
+
+    subscription.maxSuperAdmins =
+      whole(defaults.maxSuperAdmins,2);
+
+    subscription.maxDispatchers =
+      whole(defaults.maxDispatchers,2);
+
+    subscription.maxCompanies =
+      whole(defaults.maxCompanies,3);
+
+    subscription.maxServices =
+      whole(
+        defaults.maxServices,
+        defaults.includedServices ?? 2
+      );
+
+    subscription.limitsInitialized = true;
     subscription.pricingUpdatedAt = new Date();
   }
 

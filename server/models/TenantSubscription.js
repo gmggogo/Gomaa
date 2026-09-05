@@ -119,6 +119,59 @@ const schema = new mongoose.Schema(
       min:0
     },
 
+    /*
+      HARD PACKAGE LIMITS
+      These limits control what tenant users are allowed to create.
+      Existing pricing fields stay independent so billing logic is unchanged.
+    */
+
+    maxDrivers:{
+      type:Number,
+      default:5,
+      min:0
+    },
+
+    maxVehicles:{
+      type:Number,
+      default:5,
+      min:0
+    },
+
+    maxAdmins:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxSuperAdmins:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxDispatchers:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    maxCompanies:{
+      type:Number,
+      default:3,
+      min:0
+    },
+
+    maxServices:{
+      type:Number,
+      default:2,
+      min:0
+    },
+
+    limitsInitialized:{
+      type:Boolean,
+      default:false
+    },
+
     extraVehiclePrice:{
       type:Number,
       default:0,
