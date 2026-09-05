@@ -1618,6 +1618,7 @@ createdAt: { type: Date, default: Date.now }
 ========================= */
 tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ tenantId: 1, createdAt: -1 });
+tripSchema.index({ tenantId: 1, tripDate: -1, tripTime: -1 });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
@@ -7848,22 +7849,169 @@ app.get(
 
     }
 
-    const trips = await Trip.find(filter)
-      .sort({ tripDate: -1, tripTime: -1 })
-      .lean();
+    /*
+      SUMMARY PERFORMANCE:
+      The original loop only keeps statuses containing
+      cancel / no / complete. Apply the same rule in Mongo
+      so scheduled/open trips are not loaded into memory.
+    */
+    filter.status = {
+      $regex:"cancel|no|complete",
+      $options:"i"
+    };
+
+    /*
+      SUMMARY PERFORMANCE:
+      Do not load large saved route objects that this endpoint never uses.
+      Keep every field required by the existing Summary response and by
+      getServiceByTrip().
+    */
+    const trips =
+      await Trip.find(filter)
+        .select({
+          _id:1,
+          tenantId:1,
+
+          tripNumber:1,
+          company:1,
+
+          entryName:1,
+          entryPhone:1,
+
+          clientName:1,
+          clientPhone:1,
+
+          pickup:1,
+          dropoff:1,
+          stops:1,
+
+          pickupLat:1,
+          pickupLng:1,
+          dropoffLat:1,
+          dropoffLng:1,
+
+          tripDate:1,
+          tripTime:1,
+          createdAt:1,
+
+          status:1,
+
+          priceAmount:1,
+          finalPrice:1,
+          cancelFee:1,
+          noShowFee:1,
+          cancellationChargeable:1,
+
+          miles:1,
+
+          isShared:1,
+          tripType:1,
+          groupId:1,
+          passengers:1,
+
+          serviceKey:1,
+          serviceCode:1,
+          serviceType:1,
+          vehicleTypeFromQuote:1,
+          vehicle:1,
+
+          endedAtStop:1,
+          completionType:1,
+          stopEndAt:1,
+          stopEndMiles:1,
+          stopEndIndex:1,
+          stopFeeApplied:1,
+          stopEndReason:1,
+          stopExecution:1
+        })
+        .sort({
+          tripDate:-1,
+          tripTime:-1
+        })
+        .lean();
+
+    /*
+      SUMMARY PERFORMANCE:
+      getServiceByTrip() used to run inside the loop for every Cancelled /
+      No Show trip. Keep that function and its exact pricing priority, but
+      run it only once per unique tenant + company + service combination.
+      All unique lookups start in parallel.
+    */
+    function summaryServiceLookupKey(trip){
+
+      return [
+        String(
+          trip?.tenantId || ""
+        ).trim(),
+
+        String(
+          trip?.company || ""
+        )
+        .trim()
+        .toLowerCase(),
+
+        billingServiceKey(trip)
+      ].join("::");
+
+    }
+
+    const summaryServicePromises =
+      new Map();
+
+    for(const trip of trips){
+
+      const rawStatus =
+        String(
+          trip?.status || ""
+        ).toLowerCase();
+
+      if(
+        !rawStatus.includes("cancel") &&
+        !rawStatus.includes("no")
+      ){
+        continue;
+      }
+
+      const key =
+        summaryServiceLookupKey(
+          trip
+        );
+
+      if(
+        !summaryServicePromises.has(
+          key
+        )
+      ){
+        summaryServicePromises.set(
+          key,
+          getServiceByTrip(trip)
+        );
+      }
+    }
+
+    await Promise.all(
+      summaryServicePromises.values()
+    );
 
     const result = [];
 
     for (const t of trips) {
 
-      console.log(
-        "TRIP:",
-        t.tripNumber,
-        "STATUS:",
-        t.status,
-        "FINAL:",
-        t.finalPrice
-      );
+      if(
+        String(
+          process.env.SUMMARY_DEBUG ||
+          ""
+        ).toLowerCase() === "true"
+      ){
+        console.log(
+          "TRIP:",
+          t.tripNumber,
+          "STATUS:",
+          t.status,
+          "FINAL:",
+          t.finalPrice
+        );
+      }
 
       // =========================
       // STATUS
@@ -7901,7 +8049,9 @@ app.get(
         status === "NoShow"
       ){
         summaryService =
-          await getServiceByTrip(t);
+          await summaryServicePromises.get(
+            summaryServiceLookupKey(t)
+          );
       }
 
       const summaryCancelFee =
