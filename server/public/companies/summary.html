@@ -343,6 +343,229 @@ body{
   }
 }
 
+
+/* =========================================================
+   SUMMARY TABLE FINAL COLUMN LAYOUT
+   Display-only:
+   Company / Entry / Booking / Note are inside View.
+   Pickup / Stops / Dropoff are wider.
+   ========================================================= */
+
+.summary-table{
+  min-width:1500px;
+}
+
+.summary-table .col-trip-number{
+  width:90px;
+}
+
+.summary-table .col-passenger{
+  width:120px;
+  max-width:120px;
+}
+
+.summary-table .col-phone{
+  width:105px;
+}
+
+.summary-table .col-pickup,
+.summary-table .col-stops,
+.summary-table .col-dropoff{
+  width:290px;
+}
+
+.summary-table .col-date{
+  width:90px;
+}
+
+.summary-table .col-time{
+  width:78px;
+}
+
+.summary-table .col-miles{
+  width:62px;
+}
+
+.summary-table .col-status{
+  width:92px;
+}
+
+.summary-table .col-price,
+.summary-table .col-total{
+  width:82px;
+}
+
+.summary-table .col-eye{
+  width:54px;
+  text-align:center;
+}
+
+.location-box{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+}
+
+.stop-box{
+  display:flex;
+  align-items:flex-start;
+  gap:5px;
+}
+
+.stop-number{
+  flex:0 0 auto;
+  font-weight:900;
+  color:#1d4ed8;
+}
+
+.summary-eye-btn{
+  width:32px;
+  height:30px;
+  border:none;
+  border-radius:8px;
+  background:#0f172a;
+  color:#fff;
+  cursor:pointer;
+  font-size:15px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.summary-eye-btn:hover{
+  background:#145cff;
+}
+
+.summary-details-overlay{
+  position:fixed;
+  inset:0;
+  z-index:5000;
+  background:rgba(15,23,42,.48);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+
+.summary-details-modal{
+  width:min(620px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 22px 60px rgba(0,0,0,.28);
+}
+
+.summary-details-head{
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  background:#0f172a;
+  color:#fff;
+  font-size:15px;
+  font-weight:900;
+}
+
+.summary-details-close{
+  width:30px;
+  height:30px;
+  border:none;
+  border-radius:8px;
+  background:#fff;
+  color:#0f172a;
+  font-size:20px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.summary-details-body{
+  padding:14px;
+}
+
+.summary-details-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.summary-detail-item{
+  border:1px solid #dbe3ee;
+  border-radius:10px;
+  background:#f8fafc;
+  padding:10px;
+}
+
+.summary-detail-label{
+  margin-bottom:4px;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+}
+
+.summary-detail-value{
+  color:#0f172a;
+  font-size:12px;
+  font-weight:800;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+.summary-detail-empty{
+  padding:18px;
+  text-align:center;
+  font-weight:900;
+  color:#64748b;
+}
+
+/* Old positional cell colors updated to the new 13-column layout. */
+.summary-table td:nth-child(11){
+  background:#fef9c3 !important;
+  color:#854d0e;
+  font-weight:900;
+}
+
+.summary-table td:nth-child(12){
+  background:#dcfce7 !important;
+  color:#166534;
+  font-weight:900;
+}
+
+/* Cancel the previous 15/16 positional styling after columns moved. */
+.summary-table td:nth-child(15),
+.summary-table td:nth-child(16){
+  background:inherit !important;
+  color:inherit;
+}
+
+@media(max-width:768px){
+  .summary-table{
+    min-width:1420px;
+  }
+
+  .summary-table .col-passenger{
+    width:105px;
+    max-width:105px;
+  }
+
+  .summary-table .col-pickup,
+  .summary-table .col-stops,
+  .summary-table .col-dropoff{
+    width:260px;
+  }
+
+  .summary-details-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
 @media print{
   #layoutHeader,
   .top-bar,
