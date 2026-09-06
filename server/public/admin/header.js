@@ -1,3 +1,8 @@
+/*
+DESTINATION PATH:
+server/public/admin/header.js
+*/
+
 (function(){
 
 /* =========================================================
@@ -445,7 +450,17 @@ document.addEventListener("DOMContentLoaded",async()=>{
      )
    ){
 
-     operationsGroup.items.push(
+     const tripsHubIndex =
+       operationsGroup.items.findIndex(
+         item =>
+           item?.[1] === "trips-hub.html"
+       );
+
+     operationsGroup.items.splice(
+       tripsHubIndex >= 0
+         ? tripsHubIndex + 1
+         : 0,
+       0,
        [
          "External Trips Hub",
          "external-trips.html",
