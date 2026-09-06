@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shared Engine Settings</title>
+  <title>Shared Engine</title>
 
   <link rel="stylesheet" href="/admin/style.css" />
   <link rel="stylesheet" href="/admin/header.css" />
@@ -16,35 +16,67 @@
     body{
       margin:0;
       font-family:Arial,Helvetica,sans-serif;
-      background:#f4f6f8;
+      background:#eef8f5;
       color:#1f2937;
     }
 
-    .page{
-      width:min(1200px,calc(100% - 32px));
-      margin:18px auto 32px;
+    .page-shell{
+      width:min(1440px,calc(100% - 28px));
+      margin:0 auto 34px;
+    }
+
+    .page-banner{
+      background:linear-gradient(180deg,#efe7b9 0%,#e5db9b 100%);
+      border-top:1px solid rgba(0,0,0,.05);
+      border-bottom:1px solid rgba(0,0,0,.08);
+      text-align:center;
+      padding:16px 18px 18px;
+      margin-bottom:18px;
+      border-radius:0 0 10px 10px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .page-banner h1{
+      margin:0;
+      color:#806200;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:.01em;
+    }
+
+    .page-banner p{
+      margin:5px 0 0;
+      color:#746b42;
+      font-size:12px;
+      line-height:1.45;
+      font-weight:600;
     }
 
     .settings-card{
+      width:min(1120px,100%);
+      margin:0 auto;
       background:#ffffff;
-      border:1px solid #dfe3e8;
-      border-radius:14px;
-      padding:22px;
-      box-shadow:0 4px 14px rgba(0,0,0,.05);
+      border:1px solid #dce6e2;
+      border-radius:16px;
+      padding:24px;
+      box-shadow:0 10px 26px rgba(0,0,0,.06);
     }
 
     .settings-head{
       display:flex;
       align-items:flex-start;
       justify-content:space-between;
-      gap:16px;
-      margin-bottom:20px;
+      gap:18px;
+      margin-bottom:22px;
+      padding-bottom:18px;
+      border-bottom:1px solid #edf2f0;
     }
 
-    .settings-head h1{
+    .settings-head h2{
       margin:0 0 6px;
-      font-size:24px;
+      font-size:26px;
       line-height:1.2;
+      color:#243342;
     }
 
     .settings-head p{
@@ -57,7 +89,7 @@
     .settings-grid{
       display:grid;
       grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:14px;
+      gap:16px;
     }
 
     .settings-field{
@@ -66,29 +98,41 @@
 
     .settings-field label{
       display:block;
-      margin-bottom:6px;
+      margin-bottom:7px;
       font-size:13px;
-      font-weight:700;
-      color:#374151;
+      font-weight:800;
+      color:#334155;
     }
 
     .settings-field input,
     .settings-field select{
       width:100%;
-      height:42px;
-      border:1px solid #cfd6dd;
-      border-radius:8px;
-      padding:0 11px;
-      background:#ffffff;
-      color:#111827;
+      height:44px;
+      border:1px solid #cfe0d9;
+      border-radius:10px;
+      padding:0 12px;
+      background:#f9fcfb;
+      color:#0f172a;
       font-size:14px;
       outline:none;
+      transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+    }
+
+    .settings-field input:hover,
+    .settings-field select:hover{
+      border-color:#bcd2ca;
+      background:#ffffff;
     }
 
     .settings-field input:focus,
     .settings-field select:focus{
-      border-color:#718096;
-      box-shadow:0 0 0 2px rgba(113,128,150,.12);
+      border-color:#6ea28e;
+      box-shadow:0 0 0 3px rgba(110,162,142,.15);
+      background:#ffffff;
+    }
+
+    .settings-field input::placeholder{
+      color:#94a3b8;
     }
 
     .input-with-unit{
@@ -103,66 +147,73 @@
     }
 
     .input-with-unit span{
-      min-width:58px;
+      min-width:60px;
       font-size:12px;
-      color:#6b7280;
-      text-align:left;
+      font-weight:700;
+      color:#64748b;
       white-space:nowrap;
     }
 
     .subsection{
-      margin-top:22px;
+      margin-top:24px;
       padding-top:18px;
-      border-top:1px solid #e5e7eb;
+      border-top:1px solid #edf2f0;
     }
 
     .subsection-title{
       margin:0 0 14px;
-      font-size:16px;
+      font-size:18px;
       font-weight:800;
+      color:#223344;
     }
 
     .source-card{
-      border:1px solid #e3e7eb;
-      border-radius:10px;
+      border:1px solid #e3ece8;
+      border-radius:12px;
       padding:14px;
-      background:#fafbfc;
-    }
-
-    .source-card label{
-      margin-bottom:8px;
+      background:linear-gradient(180deg,#fbfdfc 0%,#f4faf7 100%);
     }
 
     .settings-actions{
       display:flex;
       align-items:center;
       gap:12px;
-      margin-top:22px;
+      margin-top:24px;
+      padding-top:18px;
+      border-top:1px solid #edf2f0;
     }
 
     .btn{
       border:0;
-      border-radius:8px;
-      min-height:42px;
+      border-radius:10px;
+      min-height:44px;
       padding:0 18px;
       font-size:14px;
-      font-weight:700;
+      font-weight:800;
       cursor:pointer;
+      transition:transform .12s ease, opacity .12s ease, box-shadow .12s ease;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
     }
 
     .btn-primary{
-      background:#1f4f7a;
+      background:linear-gradient(180deg,#4b74c8 0%,#365eb6 100%);
       color:#ffffff;
+      box-shadow:0 8px 18px rgba(54,94,182,.22);
     }
 
     .btn-primary:disabled{
       opacity:.55;
       cursor:not-allowed;
+      transform:none;
+      box-shadow:none;
     }
 
     .settings-status{
       font-size:13px;
-      font-weight:700;
+      font-weight:800;
     }
 
     .settings-status[data-status="error"]{
@@ -173,20 +224,44 @@
       color:#166534;
     }
 
-    @media(max-width:1000px){
+    /* Enabled / Disabled select colors */
+    .settings-field select.state-enabled{
+      background:#ecfdf3;
+      border-color:#7bc69a;
+      color:#166534;
+      font-weight:800;
+    }
+
+    .settings-field select.state-disabled{
+      background:#fff1f1;
+      border-color:#f0a0a0;
+      color:#b42318;
+      font-weight:800;
+    }
+
+    @media(max-width:1100px){
       .settings-grid{
         grid-template-columns:repeat(2,minmax(0,1fr));
       }
     }
 
-    @media(max-width:640px){
-      .page{
-        width:min(100% - 20px,1200px);
-        margin:10px auto;
+    @media(max-width:700px){
+      .page-shell{
+        width:calc(100% - 16px);
+      }
+
+      .page-banner{
+        padding:14px 14px 16px;
+        margin-bottom:12px;
       }
 
       .settings-card{
         padding:16px;
+        border-radius:12px;
+      }
+
+      .settings-head h2{
+        font-size:22px;
       }
 
       .settings-grid{
@@ -209,19 +284,25 @@
 
   <div id="adminHeader"></div>
 
-  <main class="page">
+  <div class="page-banner">
+    <h1>Shared Engine</h1>
+    <p>
+      Configure shared ride grouping, route limits, timing rules,
+      and trip source availability.
+    </p>
+  </div>
 
+  <main class="page-shell">
     <section
       id="sharedEngineSettingsSection"
       class="settings-card"
     >
-
       <div class="settings-head">
         <div>
-          <h1>Shared Engine</h1>
+          <h2>Shared Engine</h2>
           <p>
-            Configure shared ride grouping, route limits,
-            timing rules, and trip source availability.
+            Configure shared ride grouping, route limits, timing rules,
+            and trip source availability.
           </p>
         </div>
       </div>
@@ -359,9 +440,9 @@
       </div>
 
       <div class="subsection">
-        <h2 class="subsection-title">
+        <h3 class="subsection-title">
           Grouping Priority
-        </h2>
+        </h3>
 
         <div class="settings-grid">
 
@@ -391,9 +472,9 @@
       </div>
 
       <div class="subsection">
-        <h2 class="subsection-title">
+        <h3 class="subsection-title">
           Trip Sources
-        </h2>
+        </h3>
 
         <div class="settings-grid">
 
@@ -450,13 +531,10 @@
           class="settings-status"
         ></span>
       </div>
-
     </section>
-
   </main>
 
   <script src="/admin/header.js"></script>
   <script src="/admin/js/sharedEngineSettings.js"></script>
-
 </body>
 </html>

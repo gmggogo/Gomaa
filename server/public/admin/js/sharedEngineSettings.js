@@ -5,29 +5,14 @@ DESTINATION PATH:
 server/public/admin/js/sharedEngineSettings.js
 
 PURPOSE:
-Admin Settings UI controller for Shared Engine.
+Shared Engine Settings UI controller.
 
-EXPECTED HTML IDS:
-sharedEngineSettingsSection
-sharedEngineBrokerSection
-sharedEngineEnabled
-sharedEngineCompanyEnabled
-sharedEngineReservedEnabled
-sharedEngineBrokerEnabled
-sharedEngineMaxGroupDistanceMiles
-sharedEngineMaxExtraMiles
-sharedEngineMaxExtraMinutes
-sharedEngineAppointmentBufferMinutes
-sharedEnginePickupLateToleranceMinutes
-sharedEnginePickupEarlyWindowMinutes
-sharedEngineMaxRidersPerGroup
-sharedEngineSamePickupPriority
-sharedEngineSameDropoffPriority
-sharedEngineSaveBtn
-sharedEngineStatus
-
-IMPORTANT:
-If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
+VISIBILITY RULES:
+- The whole page requires SHARED enabled by Platform Admin.
+- Company and Reserved remain visible once SHARED exists.
+- Broker section appears only when Broker Contract is enabled.
+- Enabled controls are shown in green.
+- Disabled controls are shown in red.
 */
 
 (function(){
@@ -44,6 +29,9 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
 
   function token(){
     return (
+      sessionStorage.getItem(
+        "staffToken"
+      ) ||
       localStorage.getItem(
         "token"
       ) ||
@@ -221,6 +209,70 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
         : "ok";
   }
 
+  function decorateSelect(
+    el
+  ){
+    if(!el){
+      return;
+    }
+
+    const value =
+      String(
+        el.value || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    el.classList.remove(
+      "state-enabled",
+      "state-disabled"
+    );
+
+    if(
+      value === "true" ||
+      value === "enabled"
+    ){
+      el.classList.add(
+        "state-enabled"
+      );
+      return;
+    }
+
+    if(
+      value === "false" ||
+      value === "disabled"
+    ){
+      el.classList.add(
+        "state-disabled"
+      );
+    }
+  }
+
+  function refreshControlStyles(){
+    document
+      .querySelectorAll(
+        "#sharedEngineSettingsSection select"
+      )
+      .forEach(
+        decorateSelect
+      );
+  }
+
+  function bindSelectColors(){
+    document
+      .querySelectorAll(
+        "#sharedEngineSettingsSection select"
+      )
+      .forEach(el=>{
+        el.addEventListener(
+          "change",
+          ()=>decorateSelect(el)
+        );
+
+        decorateSelect(el);
+      });
+  }
+
   function applyCapabilities(
     capabilities
   ){
@@ -231,8 +283,8 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
         ?.sharedServiceFound === true;
 
     /*
-      Platform Admin controls whether this tenant owns SHARED.
-      Without SHARED, this entire engine is unavailable.
+      Platform Admin controls whether the tenant has SHARED.
+      Without SHARED, this page must not remain accessible.
     */
     if(!sharedEnabled){
       window.location.replace(
@@ -244,9 +296,9 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
 
     /*
       Once SHARED is available:
-      - Company Trips stays visible.
-      - Reserved Trips stays visible.
-      - Broker Trips appears only with an enabled Broker Contract.
+      - Company stays visible.
+      - Reserved stays visible.
+      - Broker appears only if Broker Contract is enabled.
     */
     const companyField =
       $(
@@ -379,6 +431,8 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
       settings
         ?.sameDropoffPriority
     );
+
+    refreshControlStyles();
   }
 
   function payload(){
@@ -590,6 +644,8 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
         save
       );
     }
+
+    bindSelectColors();
   }
 
   document
@@ -603,6 +659,7 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
 
   window.SharedEngineSettingsUI = {
     load,
-    save
+    save,
+    refreshControlStyles
   };
 })();
