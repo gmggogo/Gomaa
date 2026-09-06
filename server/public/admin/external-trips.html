@@ -1,0 +1,333 @@
+<!--
+DESTINATION PATH:
+server/public/admin/external-trips.html
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>External Trips Hub</title>
+
+  <link rel="stylesheet" href="/admin/header.css" />
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#f5f7f9;
+      color:#1c2833;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+    .page{
+      width:100%;
+      padding:18px;
+    }
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .title-wrap h1{
+      margin:0;
+      font-size:26px;
+    }
+    .sub{
+      color:#66717c;
+      font-size:13px;
+      margin-top:4px;
+    }
+    .filters{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    select,input,textarea{
+      border:1px solid #ccd5dd;
+      border-radius:7px;
+      padding:9px 10px;
+      font:inherit;
+      background:#fff;
+    }
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:10px 14px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .btn-primary{background:#0c4154;color:#fff}
+    .btn-light{background:#e8edf2;color:#102d4f}
+    .btn-danger{background:#a82424;color:#fff}
+    .panel{
+      background:#fff;
+      border:1px solid #dce3e8;
+      border-radius:10px;
+      overflow:hidden;
+    }
+    .table-wrap{overflow:auto}
+    table{
+      width:100%;
+      min-width:1450px;
+      border-collapse:collapse;
+    }
+    th,td{
+      padding:10px 9px;
+      border-bottom:1px solid #e5e9ed;
+      text-align:left;
+      font-size:12px;
+      vertical-align:top;
+    }
+    th{
+      background:#f2f5f7;
+      color:#43515e;
+      white-space:nowrap;
+    }
+    .trip-id{
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .status{
+      display:inline-block;
+      padding:4px 7px;
+      border-radius:999px;
+      background:#edf1f4;
+      font-size:10px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .status.TRANSFERRED{background:#ddf3e4;color:#126635}
+    .status.CANCELLED{background:#fde1e1;color:#8a1d1d}
+    .status.ERROR{background:#ffe9d5;color:#8a4b0c}
+    .notes{
+      max-width:230px;
+      white-space:pre-wrap;
+    }
+    dialog{
+      border:0;
+      border-radius:12px;
+      width:min(900px,94vw);
+      max-height:90vh;
+      overflow:auto;
+      padding:0;
+      box-shadow:0 20px 60px rgba(0,0,0,.25);
+    }
+    dialog::backdrop{
+      background:rgba(10,20,30,.45);
+    }
+    .modal-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px 18px;
+      border-bottom:1px solid #e1e6eb;
+    }
+    .modal-body{padding:18px}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(180px,1fr));
+      gap:12px;
+    }
+    .field label{
+      display:block;
+      font-size:11px;
+      font-weight:800;
+      color:#52606c;
+      margin-bottom:5px;
+    }
+    .field input,.field select,.field textarea{width:100%}
+    .wide{grid-column:1/-1}
+    .modal-actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      padding:16px 18px;
+      border-top:1px solid #e1e6eb;
+    }
+    @media(max-width:700px){
+      .grid{grid-template-columns:1fr}
+      .page{padding:10px}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="page">
+
+    <div class="toolbar">
+      <div class="title-wrap">
+        <h1>External Trips Hub</h1>
+        <div class="sub">
+          Broker and manually entered external trips are isolated here before entering the main trip flow.
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="addTripBtn">
+        Add Trip
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="filters">
+        <select id="brokerFilter">
+          <option value="">All Brokers</option>
+        </select>
+
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="RECEIVED">Received</option>
+          <option value="READY">Ready</option>
+          <option value="HELD">Held</option>
+          <option value="UPDATED">Updated</option>
+          <option value="TRANSFERRED">Transferred</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="ERROR">Error</option>
+        </select>
+
+        <input id="dateFilter" type="date" />
+
+        <button class="btn btn-light" id="refreshBtn">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>External Trip</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Notes</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="tripRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="tripDialog">
+    <div class="modal-head">
+      <strong id="dialogTitle">Add External Trip</strong>
+      <button class="btn btn-light" id="closeDialogBtn">Close</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="grid">
+        <div class="field">
+          <label>Broker</label>
+          <select id="brokerCode"></select>
+        </div>
+
+        <div class="field">
+          <label>Broker Trip ID</label>
+          <input id="externalTripId" />
+        </div>
+
+        <div class="field">
+          <label>Trip Type</label>
+          <select id="tripType">
+            <option value="SINGLE">Single</option>
+            <option value="SHARED">Shared</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Trip Date</label>
+          <input id="tripDate" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Pickup Time</label>
+          <input id="tripTime" type="time" />
+        </div>
+
+        <div class="field">
+          <label>Appointment Time</label>
+          <input id="appointmentTime" type="time" />
+        </div>
+
+        <div class="field">
+          <label>Return Time</label>
+          <input id="returnTime" type="time" />
+        </div>
+
+        <div class="field">
+          <label>Passenger Name</label>
+          <input id="clientName" />
+        </div>
+
+        <div class="field">
+          <label>Passenger Phone</label>
+          <input id="clientPhone" />
+        </div>
+
+        <div class="field">
+          <label>Member ID</label>
+          <input id="memberId" />
+        </div>
+
+        <div class="field">
+          <label>Service</label>
+          <input id="serviceKey" />
+        </div>
+
+        <div class="field wide">
+          <label>Pickup Address</label>
+          <input id="pickup" />
+        </div>
+
+        <div class="field wide">
+          <label>Stops</label>
+          <textarea id="stops" placeholder="One stop address per line"></textarea>
+        </div>
+
+        <div class="field wide">
+          <label>Drop-off Address</label>
+          <input id="dropoff" />
+        </div>
+
+        <div class="field wide">
+          <label>Notes</label>
+          <textarea id="notes"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-light" id="cancelDialogBtn">
+        Cancel
+      </button>
+
+      <button class="btn btn-primary" id="saveTripBtn">
+        Save Trip
+      </button>
+    </div>
+  </dialog>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/external-trips.js"></script>
+</body>
+</html>

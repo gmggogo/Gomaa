@@ -299,6 +299,58 @@ const role=()=>{
       ?"DISPATCHER"
       :"ADMIN";
 };
+
+async function externalTripsFeatureEnabled(){
+
+  const token =
+    staffSessionValue(
+      "staffToken",
+      "token"
+    );
+
+  if(!token){
+    return false;
+  }
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/external-trips/brokers",
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      );
+
+    if(!response.ok){
+      return false;
+    }
+
+    const data =
+      await response
+        .json()
+        .catch(()=>({}));
+
+    return (
+      Array.isArray(data?.brokers) &&
+      data.brokers.length > 0
+    );
+
+  }catch(err){
+
+    console.log(
+      "EXTERNAL TRIPS ACCESS CHECK ERROR:",
+      err?.message || err
+    );
+
+    return false;
+  }
+}
+
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
@@ -373,7 +425,45 @@ document.addEventListener("DOMContentLoaded",async()=>{
  if(tenantCompany)localStorage.setItem("companyName",tenantCompany);
  if(tenantMainLogo)localStorage.setItem("appLogo",tenantMainLogo);
 
- let nav=[...core]; if(currentRole!=="DISPATCHER")nav.push(...admin); if(currentRole==="SUPER_ADMIN")nav.push(...extra); if(currentRole!=="DISPATCHER")nav.push(settings);
+ let nav=[...core];
+
+ const externalEnabled =
+   await externalTripsFeatureEnabled();
+
+ if(externalEnabled){
+
+   const operationsGroup =
+     nav.find(
+       item =>
+         item?.g === "Operations"
+     );
+
+   if(
+     operationsGroup &&
+     Array.isArray(
+       operationsGroup.items
+     )
+   ){
+
+     operationsGroup.items.push(
+       [
+         "External Trips Hub",
+         "external-trips.html",
+         "list"
+       ]
+     );
+   }
+
+   nav.push({
+     l:"External Summary",
+     h:"external-summary.html",
+     i:"chart"
+   });
+ }
+
+ if(currentRole!=="DISPATCHER")nav.push(...admin);
+ if(currentRole==="SUPER_ADMIN")nav.push(...extra);
+ if(currentRole!=="DISPATCHER")nav.push(settings);
  const desktop=document.getElementById("adminDesktopNav");
  const mobile=document.getElementById("mobileSideNav");
 

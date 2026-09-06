@@ -1,0 +1,206 @@
+<!--
+DESTINATION PATH:
+server/public/admin/external-summary.html
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>External Summary</title>
+
+  <link rel="stylesheet" href="/admin/header.css" />
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#f5f7f9;
+      color:#1b2732;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+    .page{
+      max-width:1500px;
+      margin:0 auto;
+      padding:20px;
+    }
+    h1{
+      margin:0;
+      font-size:28px;
+    }
+    .sub{
+      margin-top:5px;
+      color:#67727d;
+      font-size:13px;
+    }
+    .filters{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:18px 0;
+    }
+    input,select{
+      border:1px solid #cad3db;
+      border-radius:8px;
+      padding:9px 10px;
+      background:#fff;
+      font:inherit;
+    }
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:10px 14px;
+      background:#0c4154;
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(150px,1fr));
+      gap:12px;
+      margin-bottom:18px;
+    }
+    .card{
+      background:#fff;
+      border:1px solid #dce3e8;
+      border-radius:10px;
+      padding:16px;
+    }
+    .label{
+      font-size:12px;
+      color:#65717d;
+      font-weight:700;
+      margin-bottom:8px;
+    }
+    .value{
+      font-size:27px;
+      font-weight:900;
+    }
+    .panel{
+      background:#fff;
+      border:1px solid #dce3e8;
+      border-radius:10px;
+      overflow:hidden;
+    }
+    .table-wrap{
+      overflow:auto;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:1000px;
+    }
+    th,td{
+      padding:11px 10px;
+      border-bottom:1px solid #e5e9ed;
+      text-align:left;
+      font-size:13px;
+    }
+    th{
+      background:#f3f6f8;
+    }
+    @media(max-width:900px){
+      .cards{grid-template-columns:repeat(2,minmax(140px,1fr))}
+    }
+    @media(max-width:500px){
+      .page{padding:12px}
+      .cards{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="page">
+    <h1>External Summary</h1>
+
+    <div class="sub">
+      Broker activity is reported separately from the main GH Summary.
+    </div>
+
+    <div class="filters">
+      <input id="fromDate" type="date" />
+      <input id="toDate" type="date" />
+      <input id="brokerCode" maxlength="2" placeholder="Broker Code" />
+      <button class="btn" id="applyBtn">Apply</button>
+    </div>
+
+    <section class="cards">
+      <div class="card">
+        <div class="label">Total External Trips</div>
+        <div class="value" id="totalTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Waiting / Ready</div>
+        <div class="value" id="receivedTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Transferred</div>
+        <div class="value" id="transferredTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Cancelled</div>
+        <div class="value" id="cancelledTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Shared Trips</div>
+        <div class="value" id="sharedTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Automatic Intake</div>
+        <div class="value" id="automaticTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Manual Intake</div>
+        <div class="value" id="manualTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Rejected</div>
+        <div class="value" id="rejectedTrips">0</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Errors</div>
+        <div class="value" id="errorTrips">0</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Broker</th>
+              <th>Code</th>
+              <th>Total</th>
+              <th>Waiting / Ready</th>
+              <th>Transferred</th>
+              <th>Cancelled</th>
+              <th>Shared</th>
+              <th>Automatic</th>
+              <th>Manual</th>
+              <th>Rejected</th>
+              <th>Errors</th>
+            </tr>
+          </thead>
+
+          <tbody id="summaryRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/external-summary.js"></script>
+</body>
+</html>

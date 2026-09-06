@@ -1,0 +1,467 @@
+<!--
+DESTINATION PATH:
+server/public/platform-admin/broker-integrations.html
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Broker Integrations</title>
+
+  <link rel="stylesheet" href="/platform-admin/platform.css" />
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#f4f6f8;
+      color:#1f2933;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+    .page{
+      max-width:1500px;
+      margin:0 auto;
+      padding:22px;
+    }
+    .page-title{
+      margin:0;
+      font-size:28px;
+      font-weight:800;
+    }
+    .page-sub{
+      margin-top:6px;
+      color:#66717c;
+      font-size:13px;
+    }
+    .panel{
+      background:#fff;
+      border:1px solid #dce3e8;
+      border-radius:12px;
+      padding:18px;
+      margin-top:18px;
+    }
+    .section-title{
+      font-size:16px;
+      font-weight:800;
+      margin-bottom:14px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(180px,1fr));
+      gap:14px;
+    }
+    .field label{
+      display:block;
+      margin-bottom:6px;
+      color:#55616c;
+      font-size:12px;
+      font-weight:700;
+    }
+    input,select,textarea{
+      width:100%;
+      padding:10px 11px;
+      border:1px solid #cbd4dc;
+      border-radius:8px;
+      background:#fff;
+      font:inherit;
+    }
+    textarea{
+      min-height:88px;
+      resize:vertical;
+    }
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:10px 15px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .btn-primary{
+      background:#0c4154;
+      color:#fff;
+    }
+    .btn-light{
+      background:#e8edf2;
+      color:#16364a;
+    }
+    .btn-danger{
+      background:#a9202a;
+      color:#fff;
+    }
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:18px;
+    }
+    .connection-box{
+      display:none;
+      margin-top:18px;
+    }
+    .connection-box.active{
+      display:block;
+    }
+    .table-wrap{
+      overflow:auto;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:1100px;
+    }
+    th,td{
+      padding:11px 10px;
+      border-bottom:1px solid #e5e9ed;
+      text-align:left;
+      font-size:13px;
+      vertical-align:middle;
+    }
+    th{
+      background:#f6f8fa;
+      color:#46535f;
+    }
+    .status{
+      display:inline-block;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#edf1f4;
+      font-size:11px;
+      font-weight:800;
+    }
+    .status.CONNECTED{
+      background:#e1f4e7;
+      color:#146837;
+    }
+    .status.ERROR{
+      background:#fde3e3;
+      color:#8d1e1e;
+    }
+    .status.DISABLED{
+      background:#ececec;
+      color:#555;
+    }
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr 1fr}
+    }
+    @media(max-width:600px){
+      .grid{grid-template-columns:1fr}
+      .page{padding:12px}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="platformHeader"></div>
+
+  <main class="page">
+
+    <div class="toolbar">
+      <div>
+        <h1 class="page-title">Broker Integrations</h1>
+        <div class="page-sub">
+          Configure external broker connections for each company.
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-primary"
+        id="newIntegrationBtn">
+        Add Broker Connection
+      </button>
+    </div>
+
+    <section class="panel">
+      <div class="section-title">
+        Connection Setup
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Tenant ID</label>
+          <input id="tenantId" placeholder="Tenant ObjectId" />
+        </div>
+
+        <div class="field">
+          <label>Tenant Slug</label>
+          <input id="tenantSlug" placeholder="company-slug" />
+        </div>
+
+        <div class="field">
+          <label>Broker Name</label>
+          <input id="brokerName" placeholder="MTM" />
+        </div>
+
+        <div class="field">
+          <label>Broker Code</label>
+          <input id="brokerCode" maxlength="2" placeholder="MT" />
+        </div>
+
+        <div class="field">
+          <label>Connection Type</label>
+          <select id="connectionType">
+            <option value="API">API</option>
+            <option value="WEBHOOK">Webhook</option>
+            <option value="SFTP">SFTP</option>
+            <option value="FILE_IMPORT">File Import</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Monthly Flat Fee</label>
+          <input id="monthlyFlatFee" type="number" min="0" step="0.01" value="0" />
+        </div>
+
+        <div class="field">
+          <label>Feature Access</label>
+          <select id="featureVisible">
+            <option value="true">Visible</option>
+            <option value="false">Hidden</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Connection</label>
+          <select id="enabled">
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Billing</label>
+          <select id="billingEnabled">
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="connection-box active" data-type="API">
+        <div class="section-title">API Settings</div>
+
+        <div class="grid">
+          <div class="field">
+            <label>API Endpoint</label>
+            <input id="apiEndpoint" placeholder="https://..." />
+          </div>
+
+          <div class="field">
+            <label>Authentication Type</label>
+            <select id="apiAuthType">
+              <option value="NONE">None</option>
+              <option value="API_KEY">API Key</option>
+              <option value="BEARER">Bearer Token</option>
+              <option value="BASIC">Basic</option>
+              <option value="OAUTH2">OAuth 2</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>API Key</label>
+            <input id="apiKey" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Bearer Token</label>
+            <input id="bearerToken" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Username</label>
+            <input id="apiUsername" />
+          </div>
+
+          <div class="field">
+            <label>Password</label>
+            <input id="apiPassword" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Client ID</label>
+            <input id="clientId" />
+          </div>
+
+          <div class="field">
+            <label>Client Secret</label>
+            <input id="clientSecret" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Token URL</label>
+            <input id="tokenUrl" placeholder="https://..." />
+          </div>
+
+          <div class="field">
+            <label>Polling</label>
+            <select id="pollEnabled">
+              <option value="false">Disabled</option>
+              <option value="true">Enabled</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Polling Minutes</label>
+            <input id="pollMinutes" type="number" min="1" value="15" />
+          </div>
+        </div>
+      </div>
+
+      <div class="connection-box" data-type="WEBHOOK">
+        <div class="section-title">Webhook Settings</div>
+
+        <div class="grid">
+          <div class="field">
+            <label>Inbound Path</label>
+            <input id="webhookInboundPath" placeholder="/api/broker-inbound/webhook/..." />
+          </div>
+
+          <div class="field">
+            <label>Webhook Secret</label>
+            <input id="webhookSecret" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Signature Header</label>
+            <input id="signatureHeader" placeholder="x-signature" />
+          </div>
+
+          <div class="field">
+            <label>Signature Algorithm</label>
+            <select id="signatureAlgorithm">
+              <option value="NONE">None</option>
+              <option value="HMAC_SHA256">HMAC SHA256</option>
+              <option value="HMAC_SHA1">HMAC SHA1</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="connection-box" data-type="SFTP">
+        <div class="section-title">SFTP Settings</div>
+
+        <div class="grid">
+          <div class="field">
+            <label>Host</label>
+            <input id="sftpHost" />
+          </div>
+
+          <div class="field">
+            <label>Port</label>
+            <input id="sftpPort" type="number" value="22" />
+          </div>
+
+          <div class="field">
+            <label>Username</label>
+            <input id="sftpUsername" />
+          </div>
+
+          <div class="field">
+            <label>Password</label>
+            <input id="sftpPassword" type="password" />
+          </div>
+
+          <div class="field">
+            <label>Private Key</label>
+            <textarea id="sftpPrivateKey"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Remote Path</label>
+            <input id="sftpRemotePath" />
+          </div>
+
+          <div class="field">
+            <label>File Pattern</label>
+            <input id="sftpFilePattern" placeholder="*.csv" />
+          </div>
+
+          <div class="field">
+            <label>Processed Path</label>
+            <input id="sftpProcessedPath" />
+          </div>
+        </div>
+      </div>
+
+      <div class="connection-box" data-type="FILE_IMPORT">
+        <div class="section-title">File Import Settings</div>
+
+        <div class="grid">
+          <div class="field">
+            <label>Allowed Types</label>
+            <input id="allowedTypes" value="csv,json,xlsx" />
+          </div>
+
+          <div class="field">
+            <label>Delimiter</label>
+            <input id="delimiter" value="," />
+          </div>
+
+          <div class="field">
+            <label>Header Row</label>
+            <select id="hasHeaderRow">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="saveBtn">
+          Save Connection
+        </button>
+
+        <button type="button" class="btn btn-light" id="testBtn">
+          Test Connection
+        </button>
+
+        <button type="button" class="btn btn-light" id="clearBtn">
+          Clear
+        </button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">
+        Configured Broker Connections
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Broker</th>
+              <th>Code</th>
+              <th>Type</th>
+              <th>Access</th>
+              <th>Billing</th>
+              <th>Monthly Fee</th>
+              <th>Status</th>
+              <th>Last Received</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="integrationRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/platform-admin/platform_header.js"></script>
+  <script src="/platform-admin/js/broker-integrations.js"></script>
+</body>
+</html>

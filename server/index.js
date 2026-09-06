@@ -1933,6 +1933,84 @@ const Trip =
 global.Trip = Trip;
 global.User = User;
 
+/* =========================
+   EXTERNAL BROKER INTEGRATION
+   Broker intake -> External Trips Hub -> GH Trips Hub
+
+   IMPORTANT:
+   These routes are intentionally mounted after the Trip model is registered.
+========================= */
+
+const brokerIntegrationRoutes =
+  require("./routes/brokerIntegrationRoutes");
+
+const brokerInboundRoutes =
+  require("./routes/brokerInboundRoutes");
+
+const externalTripsRoutes =
+  require("./routes/externalTripsRoutes");
+
+const externalTransferRoutes =
+  require("./routes/externalTransferRoutes");
+
+const externalSummaryRoutes =
+  require("./routes/externalSummaryRoutes");
+
+app.use(
+  "/api/platform/broker-integrations",
+  brokerIntegrationRoutes
+);
+
+app.use(
+  "/api/broker-inbound",
+  brokerInboundRoutes
+);
+
+app.use(
+  "/api/external-trips",
+  externalTripsRoutes
+);
+
+app.use(
+  "/api/external-transfer",
+  externalTransferRoutes
+);
+
+app.use(
+  "/api/external-summary",
+  externalSummaryRoutes
+);
+
+/*
+  Development-only broker test route.
+  It is mounted only when explicitly enabled in the environment.
+  Keep BROKER_TEST_ROUTES_ENABLED unset/false in production.
+*/
+if(
+  String(
+    process.env.BROKER_TEST_ROUTES_ENABLED ||
+    ""
+  )
+  .trim()
+  .toLowerCase() === "true"
+){
+  const brokerTestRoutes =
+    require("./routes/brokerTestRoutes");
+
+  app.use(
+    "/api/broker-test",
+    brokerTestRoutes
+  );
+
+  console.log(
+    "Broker test routes enabled on /api/broker-test"
+  );
+}
+
+console.log(
+  "Broker integration routes mounted"
+);
+
 
 /* =========================
    TAX REPORT ROUTES
