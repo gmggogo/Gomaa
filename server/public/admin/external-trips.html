@@ -15,99 +15,265 @@ server/public/admin/external-trips.html
 
   <style>
     *{box-sizing:border-box}
+
+    :root{
+      --text:#0f172a;
+      --muted:#64748b;
+      --bg:#f1f5f9;
+      --border:#dbe3ee;
+      --blue:#2563eb;
+      --blueDark:#1d4ed8;
+      --red:#dc2626;
+    }
+
     body{
       margin:0;
-      background:#f5f7f9;
-      color:#1c2833;
-      font-family:Arial,Helvetica,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Segoe UI,Arial,sans-serif;
     }
+
     .page{
       width:100%;
-      padding:18px;
+      padding:18px 22px 30px;
     }
+
+
+    .page-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:84px;
+      margin-bottom:12px;
+      padding:16px 20px;
+      border:1px solid #e0be5a;
+      border-radius:18px;
+      background:linear-gradient(
+        135deg,
+        #fff8dc 0%,
+        #f8e6ae 48%,
+        #fff4cf 100%
+      );
+      box-shadow:0 8px 22px rgba(146,102,14,.13);
+      text-align:center;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:28px;
+      line-height:1.1;
+      font-weight:900;
+      color:#111827;
+    }
+
+    .page-head .sub{
+      margin-top:5px;
+      color:#64748b;
+      font-size:13px;
+      font-weight:800;
+    }
+
     .toolbar{
       display:flex;
       flex-wrap:wrap;
       gap:10px;
       align-items:center;
       justify-content:space-between;
-      margin-bottom:14px;
+      margin-bottom:12px;
     }
+
     .title-wrap h1{
       margin:0;
       font-size:26px;
+      font-weight:900;
     }
+
     .sub{
       color:#66717c;
       font-size:13px;
       margin-top:4px;
+      font-weight:700;
     }
+
     .filters{
       display:flex;
       gap:8px;
       flex-wrap:wrap;
     }
+
     select,input,textarea{
-      border:1px solid #ccd5dd;
+      border:1px solid #cbd5e1;
       border-radius:7px;
       padding:9px 10px;
       font:inherit;
       background:#fff;
     }
+
     .btn{
       border:0;
       border-radius:8px;
-      padding:10px 14px;
+      padding:8px 10px;
       cursor:pointer;
-      font-weight:700;
+      font-size:11px;
+      font-weight:900;
     }
-    .btn-primary{background:#0c4154;color:#fff}
+
+    .btn-primary{background:var(--blue);color:#fff}
+    .btn-primary:hover{background:var(--blueDark)}
     .btn-light{background:#e8edf2;color:#102d4f}
-    .btn-danger{background:#a82424;color:#fff}
+    .btn-danger{background:var(--red);color:#fff}
+
     .panel{
       background:#fff;
-      border:1px solid #dce3e8;
-      border-radius:10px;
+      border:1px solid var(--border);
+      border-radius:14px;
       overflow:hidden;
+      box-shadow:0 8px 22px rgba(15,23,42,.08);
     }
-    .table-wrap{overflow:auto}
+
+    .table-wrap{
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      -webkit-overflow-scrolling:touch;
+      background:#fff;
+    }
+
     table{
       width:100%;
-      min-width:1450px;
+      min-width:1600px;
+      table-layout:fixed;
       border-collapse:collapse;
+      background:#fff;
+      border-top:6px solid #000;
     }
+
     th,td{
-      padding:10px 9px;
-      border-bottom:1px solid #e5e9ed;
-      text-align:left;
-      font-size:12px;
-      vertical-align:top;
+      border:1px solid var(--border);
+      padding:5px;
+      text-align:center;
+      font-size:10.5px;
+      vertical-align:middle;
+      line-height:1.25;
+      box-sizing:border-box;
     }
+
     th{
-      background:#f2f5f7;
-      color:#43515e;
+      background:#1f2937;
+      color:#fff;
+      font-weight:900;
       white-space:nowrap;
+      font-size:10.5px;
     }
+
+    th:nth-child(1),td:nth-child(1){width:92px}
+    th:nth-child(2),td:nth-child(2){width:66px}
+    th:nth-child(3),td:nth-child(3){width:76px}
+    th:nth-child(4),td:nth-child(4){width:74px}
+    th:nth-child(5),td:nth-child(5){width:58px}
+    th:nth-child(6),td:nth-child(6){width:95px}
+    th:nth-child(7),td:nth-child(7){width:90px}
+    th:nth-child(8),td:nth-child(8){width:235px}
+    th:nth-child(9),td:nth-child(9){width:245px}
+    th:nth-child(10),td:nth-child(10){width:235px}
+    th:nth-child(11),td:nth-child(11){width:72px}
+    th:nth-child(12),td:nth-child(12){width:120px}
+    th:nth-child(13),td:nth-child(13){width:78px}
+    th:nth-child(14),td:nth-child(14){width:66px}
+    th:nth-child(15),td:nth-child(15){width:180px}
+
     .trip-id{
-      font-weight:800;
-      white-space:nowrap;
+      font-weight:900;
+      color:#1d4ed8;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      font-size:9.5px;
     }
+
+    td:nth-child(8),
+    td:nth-child(9),
+    td:nth-child(10),
+    .notes{
+      text-align:left;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .address-box{
+      display:block;
+      width:100%;
+      min-height:28px;
+      padding:6px 7px;
+      border:1px solid #111;
+      border-radius:4px;
+      background:#fff;
+      color:#1f2937;
+      line-height:1.3;
+      box-sizing:border-box;
+    }
+
+    .gh-stop-box{
+      display:block;
+      width:100%;
+      margin:0 0 5px;
+      padding:6px 7px;
+      border:1px solid #111;
+      border-radius:4px;
+      background:#fff;
+      color:#1f2937;
+      line-height:1.3;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      box-sizing:border-box;
+    }
+
+    .gh-stop-box:last-child{margin-bottom:0}
+
+    .notes{
+      white-space:pre-wrap;
+      font-size:9.5px;
+    }
+
     .status{
-      display:inline-block;
-      padding:4px 7px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      padding:4px 6px;
       border-radius:999px;
       background:#edf1f4;
-      font-size:10px;
-      font-weight:800;
-      white-space:nowrap;
+      font-size:9px;
+      font-weight:900;
+      white-space:normal;
+      text-align:center;
+      overflow-wrap:anywhere;
     }
+
     .status.TRANSFERRED{background:#ddf3e4;color:#126635}
     .status.CANCELLED{background:#fde1e1;color:#8a1d1d}
     .status.ERROR{background:#ffe9d5;color:#8a4b0c}
-    .notes{
-      max-width:230px;
-      white-space:pre-wrap;
+
+    .action-stack{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:5px;
+      align-items:center;
     }
+
+    .action-stack .btn{
+      width:100%;
+      min-width:0;
+      padding:6px 4px;
+      font-size:9px;
+      border-radius:6px;
+    }
+
+    .action-stack .btn-transfer{
+      grid-column:1/-1;
+    }
+
     dialog{
       border:0;
       border-radius:12px;
@@ -117,9 +283,11 @@ server/public/admin/external-trips.html
       padding:0;
       box-shadow:0 20px 60px rgba(0,0,0,.25);
     }
+
     dialog::backdrop{
       background:rgba(10,20,30,.45);
     }
+
     .modal-head{
       display:flex;
       justify-content:space-between;
@@ -127,12 +295,15 @@ server/public/admin/external-trips.html
       padding:16px 18px;
       border-bottom:1px solid #e1e6eb;
     }
+
     .modal-body{padding:18px}
+
     .grid{
       display:grid;
       grid-template-columns:repeat(3,minmax(180px,1fr));
       gap:12px;
     }
+
     .field label{
       display:block;
       font-size:11px;
@@ -140,8 +311,10 @@ server/public/admin/external-trips.html
       color:#52606c;
       margin-bottom:5px;
     }
+
     .field input,.field select,.field textarea{width:100%}
     .wide{grid-column:1/-1}
+
     .modal-actions{
       display:flex;
       gap:10px;
@@ -149,9 +322,63 @@ server/public/admin/external-trips.html
       padding:16px 18px;
       border-top:1px solid #e1e6eb;
     }
-    @media(max-width:700px){
+
+    @media(max-width:768px){
+      .page{padding:10px 8px 20px}
+      .page-head{
+        min-height:72px;
+        padding:12px;
+        margin-bottom:10px;
+      }
+      .page-title{font-size:22px}
+      .page-head .sub{font-size:11px}
       .grid{grid-template-columns:1fr}
-      .page{padding:10px}
+
+      .filters{
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        width:100%;
+      }
+
+      table{
+        min-width:1320px;
+        border-top-width:4px;
+      }
+
+      th,td{
+        font-size:8px;
+        padding:3px;
+        line-height:1.15;
+      }
+
+      th{font-size:7.8px}
+
+      th:nth-child(1),td:nth-child(1){width:70px}
+      th:nth-child(2),td:nth-child(2){width:50px}
+      th:nth-child(3),td:nth-child(3){width:58px}
+      th:nth-child(4),td:nth-child(4){width:58px}
+      th:nth-child(5),td:nth-child(5){width:46px}
+      th:nth-child(6),td:nth-child(6){width:76px}
+      th:nth-child(7),td:nth-child(7){width:72px}
+      th:nth-child(8),td:nth-child(8){width:180px}
+      th:nth-child(9),td:nth-child(9){width:190px}
+      th:nth-child(10),td:nth-child(10){width:180px}
+      th:nth-child(11),td:nth-child(11){width:56px}
+      th:nth-child(12),td:nth-child(12){width:90px}
+      th:nth-child(13),td:nth-child(13){width:62px}
+      th:nth-child(14),td:nth-child(14){width:52px}
+      th:nth-child(15),td:nth-child(15){width:140px}
+
+      .trip-id{font-size:7.5px}
+      .address-box,.gh-stop-box{
+        padding:4px 5px;
+        min-height:22px;
+        font-size:8px;
+      }
+      .gh-stop-box{margin-bottom:3px}
+      .status{font-size:7px;padding:3px 4px}
+      .action-stack{gap:3px}
+      .action-stack .btn{padding:4px 3px;font-size:7px}
     }
   </style>
 </head>
@@ -161,17 +388,13 @@ server/public/admin/external-trips.html
 
   <main class="page">
 
-    <div class="toolbar">
-      <div class="title-wrap">
-        <h1>External Trips Hub</h1>
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">External Trips Hub</h1>
         <div class="sub">
           Broker and manually entered external trips are isolated here before entering the main trip flow.
         </div>
       </div>
-
-      <button class="btn btn-primary" id="addTripBtn">
-        Add Trip
-      </button>
     </div>
 
     <div class="toolbar">
@@ -198,11 +421,43 @@ server/public/admin/external-trips.html
           Refresh
         </button>
       </div>
+
+      <button class="btn btn-primary" id="addTripBtn">
+        Add Trip
+      </button>
+    </div>
+
+    <div style="display:none">
+      <div class="filters">
+        <select id="brokerFilter">
+          <option value="">All Brokers</option>
+        </select>
+
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="RECEIVED">Received</option>
+          <option value="READY">Ready</option>
+          <option value="HELD">Held</option>
+          <option value="UPDATED">Updated</option>
+          <option value="TRANSFERRED">Transferred</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="ERROR">Error</option>
+        </select>
+
+        <input id="dateFilter" type="date" />
+
+        <button class="btn btn-light" id="refreshBtn">
+          Refresh
+        </button>
+      </div>
+    </div>
+
     </div>
 
     <section class="panel">
       <div class="table-wrap">
-        <table>
+        <table class="external-table">
           <thead>
             <tr>
               <th>External Trip</th>

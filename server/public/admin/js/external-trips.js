@@ -55,16 +55,59 @@ public/admin/js/external-trips.js
       .replaceAll("'","&#039;");
   }
 
-  function stopText(stops){
+  function normalizeStopAddress(stop){
 
-    if(!Array.isArray(stops) || !stops.length){
-      return "-";
+    if(stop === undefined || stop === null){
+      return "";
     }
 
-    return stops
-      .map(s => s.address || "")
-      .filter(Boolean)
-      .join(" → ");
+    if(typeof stop === "string"){
+      return stop.trim();
+    }
+
+    if(typeof stop === "object"){
+      return String(
+        stop.address ||
+        stop.formattedAddress ||
+        stop.formatted_address ||
+        stop.description ||
+        stop.label ||
+        ""
+      ).trim();
+    }
+
+    return String(stop).trim();
+  }
+
+  function stopBoxes(stops){
+
+    if(!Array.isArray(stops) || !stops.length){
+      return `<div class="gh-stop-box">-</div>`;
+    }
+
+    const items =
+      stops
+        .map(normalizeStopAddress)
+        .filter(Boolean);
+
+    if(!items.length){
+      return `<div class="gh-stop-box">-</div>`;
+    }
+
+    return items
+      .map(address =>
+        `<div class="gh-stop-box">${escapeHtml(address)}</div>`
+      )
+      .join("");
+  }
+
+  function addressBox(value){
+
+    return `
+      <div class="address-box">
+        ${escapeHtml(value || "-")}
+      </div>
+    `;
   }
 
   function selectedFilters(){
@@ -241,9 +284,9 @@ public/admin/js/external-trips.js
         <td>${escapeHtml(trip.tripTime || "")}</td>
         <td>${escapeHtml(trip.clientName || "")}</td>
         <td>${escapeHtml(trip.clientPhone || "")}</td>
-        <td>${escapeHtml(trip.pickup || "")}</td>
-        <td>${escapeHtml(stopText(trip.stops))}</td>
-        <td>${escapeHtml(trip.dropoff || "")}</td>
+        <td>${addressBox(trip.pickup)}</td>
+        <td>${stopBoxes(trip.stops)}</td>
+        <td>${addressBox(trip.dropoff)}</td>
         <td>${escapeHtml(trip.serviceName || trip.serviceKey || "")}</td>
         <td class="notes">${escapeHtml(trip.notes || "")}</td>
         <td><span class="status ${escapeHtml(trip.status || "")}">${escapeHtml(trip.status || "")}</span></td>
@@ -253,9 +296,11 @@ public/admin/js/external-trips.js
             transferred
               ? `<span class="status TRANSFERRED">Moved</span>`
               : `
-                <button class="btn btn-light" data-edit="${trip._id}">Edit</button>
-                <button class="btn btn-danger" data-delete="${trip._id}">Delete</button>
-                <button class="btn btn-primary" data-transfer="${trip._id}">Send to Trips Hub</button>
+                <div class="action-stack">
+                  <button class="btn btn-light" data-edit="${trip._id}">Edit</button>
+                  <button class="btn btn-danger" data-delete="${trip._id}">Delete</button>
+                  <button class="btn btn-primary btn-transfer" data-transfer="${trip._id}">Send to Trips Hub</button>
+                </div>
               `
           }
         </td>
@@ -393,7 +438,7 @@ public/admin/js/external-trips.js
 
     $("stops").value =
       (trip.stops || [])
-        .map(s => s.address || "")
+        .map(normalizeStopAddress)
         .filter(Boolean)
         .join("\n");
 
