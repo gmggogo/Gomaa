@@ -10,6 +10,7 @@ server/public/admin/external-summary.html
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>External Summary</title>
 
+  <link rel="stylesheet" href="/admin/style.css" />
   <link rel="stylesheet" href="/admin/header.css" />
 
   <style>
@@ -20,19 +21,36 @@ server/public/admin/external-summary.html
       color:#1b2732;
       font-family:Arial,Helvetica,sans-serif;
     }
+    .page-banner{
+      width:100%;
+      background:linear-gradient(180deg,#efe6b8 0%,#e4d99a 100%);
+      border-top:1px solid rgba(0,0,0,.05);
+      border-bottom:1px solid rgba(0,0,0,.08);
+      text-align:center;
+      padding:14px 18px 15px;
+      margin:0 0 16px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .page-banner h1{
+      margin:0;
+      color:#7f6200;
+      font-size:20px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
+    .page-banner p{
+      margin:5px 0 0;
+      color:#756b42;
+      font-size:12px;
+      font-weight:700;
+    }
+
     .page{
       max-width:1500px;
       margin:0 auto;
-      padding:20px;
-    }
-    h1{
-      margin:0;
-      font-size:28px;
-    }
-    .sub{
-      margin-top:5px;
-      color:#67727d;
-      font-size:13px;
+      padding:0 20px 20px;
     }
     .filters{
       display:flex;
@@ -114,12 +132,12 @@ server/public/admin/external-summary.html
 
   <div id="adminHeader"></div>
 
-  <main class="page">
+  <div class="page-banner">
     <h1>External Summary</h1>
+    <p>Broker activity is reported separately from the main GH Summary.</p>
+  </div>
 
-    <div class="sub">
-      Broker activity is reported separately from the main GH Summary.
-    </div>
+  <main class="page">
 
     <div class="filters">
       <input id="fromDate" type="date" />

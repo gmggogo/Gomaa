@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Trip Split</title>
 
+  <link rel="stylesheet" href="/admin/style.css" />
+  <link rel="stylesheet" href="/admin/header.css" />
+
   <style>
     *{box-sizing:border-box}
     body{
@@ -14,7 +17,36 @@
       color:#1f2937;
     }
 
-    #adminHeader{min-height:0}
+    #adminHeader{
+      width:100%;
+      min-height:0;
+    }
+
+    .page-banner{
+      width:100%;
+      background:linear-gradient(180deg,#efe6b8 0%,#e4d99a 100%);
+      border-top:1px solid rgba(0,0,0,.05);
+      border-bottom:1px solid rgba(0,0,0,.08);
+      text-align:center;
+      padding:14px 18px 15px;
+      margin:0 0 16px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+
+    .page-banner h1{
+      margin:0;
+      color:#7f6200;
+      font-size:20px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
+    .page-banner p{
+      margin:5px 0 0;
+      color:#756b42;
+      font-size:12px;
+      font-weight:700;
+    }
 
     .page{
       width:min(1600px,calc(100% - 28px));
@@ -340,15 +372,12 @@
 <body>
   <div id="adminHeader"></div>
 
+  <div class="page-banner">
+    <h1>Trip Split</h1>
+    <p>Prepare broker trips for Dispatch.</p>
+  </div>
+
   <main class="page" id="tripSplitPage">
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">Trip Split</h1>
-        <div class="page-sub">
-          Prepare broker trips for Dispatch.
-        </div>
-      </div>
-    </div>
 
     <div id="pageNotice" class="notice"></div>
 
@@ -488,7 +517,7 @@
     </div>
   </dialog>
 
-  <script src="header.js"></script>
-  <script src="js/tripSplit.js"></script>
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/tripSplit.js"></script>
 </body>
 </html>
