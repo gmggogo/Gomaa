@@ -387,7 +387,7 @@ const extra=[
 {l:"Taxes",h:"tax-report.html",i:"chart"},
 {g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}
 ];
-const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"],["Shared Engine","shared-engine-settings.html","car"]]};
+const settingsBase={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
 
@@ -406,6 +406,48 @@ document.addEventListener("DOMContentLoaded",async()=>{
  const saasEl=document.getElementById("saasCompanyName"); if(saasEl) saasEl.textContent=tenantNameForHeader;
  document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
  document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
+
+ /*
+   Dedicated page title in the center of the existing header.
+ */
+ const currentPageName =
+   String(
+     location.pathname
+       .split("/")
+       .pop() ||
+     ""
+   )
+   .trim()
+   .toLowerCase();
+
+ const pageHeaderTitles = {
+   "shared-engine-settings.html":
+     "Shared Engine",
+   "trip-split.html":
+     "Trip Split",
+   "external-trips.html":
+     "External Trips",
+   "external-summary.html":
+     "External Summary"
+ };
+
+ const pageHeaderTitle =
+   pageHeaderTitles[
+     currentPageName
+   ];
+
+ if(pageHeaderTitle){
+   const headerTitle =
+     document.getElementById(
+       "roleTitle"
+     );
+
+   if(headerTitle){
+     headerTitle.textContent =
+       pageHeaderTitle;
+   }
+ }
+
 
  const fallbackCompany=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
  const fallbackStaff=staffSessionValue("staffName","name")||localStorage.getItem("fullName")||"";
@@ -473,6 +515,28 @@ document.addEventListener("DOMContentLoaded",async()=>{
        ]
      ]
    });
+ }
+
+
+ const settings = {
+   ...settingsBase,
+   items:[
+     ...settingsBase.items
+   ]
+ };
+
+ /*
+   Shared Engine belongs to the SHARED service assigned by Platform Admin.
+   If SHARED is not enabled for this tenant, do not expose this page.
+ */
+ if(visibility.sharedEnabled){
+   settings.items.push(
+     [
+       "Shared Engine",
+       "shared-engine-settings.html",
+       "car"
+     ]
+   );
  }
 
  if(currentRole!=="DISPATCHER")nav.push(...admin);

@@ -224,14 +224,60 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
   function applyCapabilities(
     capabilities
   ){
+    const sharedEnabled =
+      capabilities
+        ?.sharedServiceEnabled === true ||
+      capabilities
+        ?.sharedServiceFound === true;
+
     /*
-      The Settings page remains available.
-      Only the Broker source section is conditional.
+      Platform Admin controls whether this tenant owns SHARED.
+      Without SHARED, this entire engine is unavailable.
     */
+    if(!sharedEnabled){
+      window.location.replace(
+        "settings.html"
+      );
+
+      return false;
+    }
+
+    /*
+      Once SHARED is available:
+      - Company Trips stays visible.
+      - Reserved Trips stays visible.
+      - Broker Trips appears only with an enabled Broker Contract.
+    */
+    const companyField =
+      $(
+        "sharedEngineCompanyEnabled"
+      )
+        ?.closest(
+          ".settings-field"
+        );
+
+    const reservedField =
+      $(
+        "sharedEngineReservedEnabled"
+      )
+        ?.closest(
+          ".settings-field"
+        );
+
     const brokerSection =
       $(
         "sharedEngineBrokerSection"
       );
+
+    if(companyField){
+      companyField.style.display =
+        "";
+    }
+
+    if(reservedField){
+      reservedField.style.display =
+        "";
+    }
 
     if(brokerSection){
       brokerSection.style.display =
@@ -240,6 +286,8 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
           ? ""
           : "none";
     }
+
+    return true;
   }
 
   function applySettings(
@@ -442,13 +490,18 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
           "/api/shared-engine/settings"
         );
 
+      const allowed =
+        applyCapabilities(
+          data.capabilities ||
+          {}
+        );
+
+      if(!allowed){
+        return;
+      }
+
       applySettings(
         data.settings ||
-        {}
-      );
-
-      applyCapabilities(
-        data.capabilities ||
         {}
       );
 
@@ -492,13 +545,18 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
           }
         );
 
+      const allowed =
+        applyCapabilities(
+          data.capabilities ||
+          {}
+        );
+
+      if(!allowed){
+        return;
+      }
+
       applySettings(
         data.settings ||
-        {}
-      );
-
-      applyCapabilities(
-        data.capabilities ||
         {}
       );
 
