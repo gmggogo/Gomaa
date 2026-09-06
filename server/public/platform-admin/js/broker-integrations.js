@@ -1,13 +1,8 @@
-/*
-DESTINATION PATH:
-server/public/platform-admin/js/broker-integrations.js
-*/
-
 "use strict";
 
 /*
 DESTINATION PATH:
-public/platform/js/broker-integrations.js
+server/public/platform-admin/js/broker-integrations.js
 */
 
 (() => {
@@ -17,16 +12,17 @@ public/platform/js/broker-integrations.js
 
   const state = {
     items:[],
+    tenants:[],
     editingId:""
   };
 
   function token(){
-
-    return (
+    return String(
+      sessionStorage.getItem("staffToken") ||
       sessionStorage.getItem("token") ||
       localStorage.getItem("token") ||
       ""
-    );
+    ).trim();
   }
 
   function headers(json=true){
@@ -44,6 +40,38 @@ public/platform/js/broker-integrations.js
     return h;
   }
 
+  async function api(url, options = {}){
+
+    const res =
+      await fetch(
+        url,
+        {
+          ...options,
+          headers:{
+            ...headers(
+              options.body !== undefined
+            ),
+            ...(options.headers || {})
+          },
+          cache:"no-store"
+        }
+      );
+
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        `Request failed (${res.status})`
+      );
+    }
+
+    return data;
+  }
+
   function boolValue(id){
     return $(id).value === "true";
   }
@@ -53,6 +81,142 @@ public/platform/js/broker-integrations.js
       .toUpperCase()
       .replace(/[^A-Z0-9]/g,"")
       .slice(0,2);
+  }
+
+  function escapeHtml(value){
+
+    return String(value ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function selectedTenant(){
+
+    const id =
+      String(
+        $("tenantSelect")?.value ||
+        ""
+      ).trim();
+
+    return state.tenants.find(
+      row =>
+        String(row?._id || "") === id
+    ) || null;
+  }
+
+  function applySelectedTenant(){
+
+    const tenant =
+      selectedTenant();
+
+    $("tenantId").value =
+      tenant?._id
+        ? String(tenant._id)
+        : "";
+
+    $("tenantSlug").value =
+      tenant?.slug ||
+      "";
+  }
+
+  function renderTenantOptions(){
+
+    const select =
+      $("tenantSelect");
+
+    if(!select){
+      return;
+    }
+
+    const current =
+      String(
+        select.value ||
+        $("tenantId")?.value ||
+        ""
+      ).trim();
+
+    select.innerHTML =
+      `<option value="">Select Company</option>` +
+      state.tenants
+        .map(tenant => {
+
+          const id =
+            String(
+              tenant?._id ||
+              ""
+            );
+
+          const name =
+            tenant?.name ||
+            tenant?.slug ||
+            "Company";
+
+          const enabled =
+            tenant?.enabled !== false;
+
+          return `
+            <option
+              value="${escapeHtml(id)}"
+              ${id === current ? "selected" : ""}
+            >
+              ${escapeHtml(name)}${enabled ? "" : " (Disabled)"}
+            </option>
+          `;
+        })
+        .join("");
+
+    applySelectedTenant();
+  }
+
+  async function loadTenants(){
+
+    const tenants =
+      await api(
+        "/api/platform-admin/tenants"
+      );
+
+    if(!Array.isArray(tenants)){
+      throw new Error(
+        "Invalid companies response"
+      );
+    }
+
+    state.tenants =
+      tenants;
+
+    renderTenantOptions();
+  }
+
+  function tenantName(tenantId, tenantSlug){
+
+    const id =
+      String(
+        tenantId ||
+        ""
+      );
+
+    const slug =
+      String(
+        tenantSlug ||
+        ""
+      ).toLowerCase();
+
+    const tenant =
+      state.tenants.find(row =>
+        String(row?._id || "") === id ||
+        String(row?.slug || "")
+          .toLowerCase() === slug
+      );
+
+    return (
+      tenant?.name ||
+      tenantSlug ||
+      tenantId ||
+      ""
+    );
   }
 
   function showConnectionBox(){
@@ -72,6 +236,44 @@ public/platform/js/broker-integrations.js
 
   function payload(){
 
+    applySelectedTenant();
+
+    const tenant =
+      selectedTenant();
+
+    if(!tenant){
+      throw new Error(
+        "Select a company."
+      );
+    }
+
+    const tenantId =
+      String(
+        tenant._id ||
+        ""
+      ).trim();
+
+    const tenantSlug =
+      String(
+        tenant.slug ||
+        ""
+      ).trim();
+
+    if(!tenantId){
+      throw new Error(
+        "Selected company is missing its Tenant ID."
+      );
+    }
+
+    const brokerName =
+      $("brokerName").value.trim();
+
+    if(!brokerName){
+      throw new Error(
+        "Broker Name is required."
+      );
+    }
+
     const brokerCode =
       upper2(
         $("brokerCode").value
@@ -84,15 +286,10 @@ public/platform/js/broker-integrations.js
     }
 
     return {
-      tenantId:
-        $("tenantId").value.trim(),
+      tenantId,
+      tenantSlug,
 
-      tenantSlug:
-        $("tenantSlug").value.trim(),
-
-      brokerName:
-        $("brokerName").value.trim(),
-
+      brokerName,
       brokerCode,
 
       connectionType:
@@ -214,9 +411,11 @@ public/platform/js/broker-integrations.js
 
     state.editingId = "";
 
+    $("tenantSelect").value = "";
+    $("tenantId").value = "";
+    $("tenantSlug").value = "";
+
     [
-      "tenantId",
-      "tenantSlug",
       "brokerName",
       "brokerCode",
       "apiEndpoint",
@@ -238,10 +437,11 @@ public/platform/js/broker-integrations.js
       "sftpFilePattern",
       "sftpProcessedPath"
     ].forEach(id => {
-      if($(id)) $(id).value = "";
+      if($(id)){
+        $(id).value = "";
+      }
     });
 
-    $("brokerCode").value = "";
     $("connectionType").value = "API";
     $("monthlyFlatFee").value = "0";
     $("featureVisible").value = "true";
@@ -266,6 +466,19 @@ public/platform/js/broker-integrations.js
 
     body.innerHTML = "";
 
+    if(!state.items.length){
+
+      body.innerHTML = `
+        <tr>
+          <td colspan="10">
+            No broker connections configured.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
     for(const item of state.items){
 
       const tr =
@@ -279,7 +492,7 @@ public/platform/js/broker-integrations.js
           : "-";
 
       tr.innerHTML = `
-        <td>${escapeHtml(item.tenantSlug || item.tenantId || "")}</td>
+        <td>${escapeHtml(tenantName(item.tenantId,item.tenantSlug))}</td>
         <td>${escapeHtml(item.brokerName || "")}</td>
         <td><strong>${escapeHtml(item.brokerCode || "")}</strong></td>
         <td>${escapeHtml(item.connectionType || "")}</td>
@@ -289,8 +502,8 @@ public/platform/js/broker-integrations.js
         <td><span class="status ${escapeHtml(item.connectionStatus || "")}">${escapeHtml(item.connectionStatus || "")}</span></td>
         <td>${escapeHtml(lastReceived)}</td>
         <td>
-          <button class="btn btn-light" data-edit="${item._id}">Edit</button>
-          <button class="btn btn-light" data-test="${item._id}">Test</button>
+          <button class="btn btn-light" data-edit="${escapeHtml(item._id)}">Edit</button>
+          <button class="btn btn-light" data-test="${escapeHtml(item._id)}">Test</button>
         </td>
       `;
 
@@ -318,38 +531,16 @@ public/platform/js/broker-integrations.js
       });
   }
 
-  function escapeHtml(value){
-
-    return String(value ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  async function load(){
-
-    const res =
-      await fetch(
-        "/api/platform/broker-integrations",
-        {
-          headers:headers(false)
-        }
-      );
+  async function loadIntegrations(){
 
     const data =
-      await res.json();
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Failed to load integrations"
+      await api(
+        "/api/platform/broker-integrations"
       );
-    }
 
     state.items =
-      data.integrations || [];
+      data.integrations ||
+      [];
 
     render();
   }
@@ -376,15 +567,36 @@ public/platform/js/broker-integrations.js
     state.editingId =
       item._id;
 
-    setValue(
-      "tenantId",
-      item.tenantId
-    );
+    const matchingTenant =
+      state.tenants.find(row =>
+        String(row?._id || "") ===
+          String(item.tenantId || "") ||
+        String(row?.slug || "")
+          .toLowerCase() ===
+          String(item.tenantSlug || "")
+            .toLowerCase()
+      );
 
     setValue(
-      "tenantSlug",
-      item.tenantSlug
+      "tenantSelect",
+      matchingTenant?._id ||
+      item.tenantId ||
+      ""
     );
+
+    applySelectedTenant();
+
+    if(!matchingTenant){
+      setValue(
+        "tenantId",
+        item.tenantId
+      );
+
+      setValue(
+        "tenantSlug",
+        item.tenantSlug
+      );
+    }
 
     setValue(
       "brokerName",
@@ -433,36 +645,36 @@ public/platform/js/broker-integrations.js
       )
     );
 
-    const api =
+    const apiData =
       item.api || {};
 
     setValue(
       "apiEndpoint",
-      api.endpoint
+      apiData.endpoint
     );
 
     setValue(
       "apiAuthType",
-      api.authType || "NONE"
+      apiData.authType || "NONE"
     );
 
     setValue(
       "tokenUrl",
-      api.tokenUrl
+      apiData.tokenUrl
     );
 
     setValue(
       "pollEnabled",
       String(
         Boolean(
-          api.pollEnabled
+          apiData.pollEnabled
         )
       )
     );
 
     setValue(
       "pollMinutes",
-      api.pollMinutes || 15
+      apiData.pollMinutes || 15
     );
 
     const webhook =
@@ -534,10 +746,6 @@ public/platform/js/broker-integrations.js
       )
     );
 
-    /*
-      Secret fields remain blank during editing.
-      The backend keeps the old secret unless a new value is supplied.
-    */
     [
       "apiKey",
       "bearerToken",
@@ -550,7 +758,9 @@ public/platform/js/broker-integrations.js
       "sftpPassword",
       "sftpPrivateKey"
     ].forEach(id => {
-      if($(id)) $(id).value = "";
+      if($(id)){
+        $(id).value = "";
+      }
     });
 
     showConnectionBox();
@@ -568,32 +778,23 @@ public/platform/js/broker-integrations.js
       const body =
         payload();
 
-      const res =
-        await fetch(
+      const data =
+        await api(
           "/api/platform/broker-integrations",
           {
             method:"POST",
-            headers:headers(true),
             body:JSON.stringify(body)
           }
         );
 
-      const data =
-        await res.json();
-
-      if(!res.ok){
-        throw new Error(
-          data.message ||
-          "Failed to save connection"
-        );
-      }
-
       alert(
+        data.message ||
         "Broker connection saved."
       );
 
       clearEditor();
-      await load();
+
+      await loadIntegrations();
 
     }catch(err){
 
@@ -607,43 +808,35 @@ public/platform/js/broker-integrations.js
   async function testConnection(id){
 
     const targetId =
-      id || state.editingId;
+      id ||
+      state.editingId;
 
     if(!targetId){
+
       alert(
         "Save the connection before testing."
       );
+
       return;
     }
 
     try{
 
-      const res =
-        await fetch(
+      const data =
+        await api(
           `/api/platform/broker-integrations/${encodeURIComponent(targetId)}/test`,
           {
             method:"POST",
-            headers:headers(true),
             body:"{}"
           }
         );
-
-      const data =
-        await res.json();
-
-      if(!res.ok){
-        throw new Error(
-          data.message ||
-          "Connection test failed"
-        );
-      }
 
       alert(
         data.result?.message ||
         "Connection configuration passed."
       );
 
-      await load();
+      await loadIntegrations();
 
     }catch(err){
 
@@ -654,16 +847,22 @@ public/platform/js/broker-integrations.js
     }
   }
 
+  $("tenantSelect")
+    ?.addEventListener(
+      "change",
+      applySelectedTenant
+    );
+
   $("connectionType")
-    .addEventListener(
+    ?.addEventListener(
       "change",
       showConnectionBox
     );
 
   $("brokerCode")
-    .addEventListener(
+    ?.addEventListener(
       "input",
-      (event) => {
+      event => {
         event.target.value =
           upper2(
             event.target.value
@@ -672,28 +871,29 @@ public/platform/js/broker-integrations.js
     );
 
   $("saveBtn")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       save
     );
 
   $("testBtn")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       () => testConnection()
     );
 
   $("clearBtn")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       clearEditor
     );
 
   $("newIntegrationBtn")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       () => {
         clearEditor();
+
         window.scrollTo({
           top:0,
           behavior:"smooth"
@@ -701,14 +901,29 @@ public/platform/js/broker-integrations.js
       }
     );
 
-  showConnectionBox();
+  async function init(){
 
-  load().catch(err => {
-    console.error(err);
-    alert(
-      err.message ||
-      "Failed to load broker integrations"
-    );
-  });
+    showConnectionBox();
+
+    try{
+
+      await loadTenants();
+      await loadIntegrations();
+
+    }catch(err){
+
+      console.error(
+        "BROKER INTEGRATIONS INIT ERROR:",
+        err
+      );
+
+      alert(
+        err.message ||
+        "Failed to load Broker Integrations."
+      );
+    }
+  }
+
+  init();
 
 })();

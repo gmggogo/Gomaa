@@ -186,13 +186,16 @@ server/public/platform-admin/broker-integrations.html
 
       <div class="grid">
         <div class="field">
-          <label>Tenant ID</label>
-          <input id="tenantId" placeholder="Tenant ObjectId" />
+          <label>Company</label>
+          <select id="tenantSelect">
+            <option value="">Select Company</option>
+          </select>
+          <input id="tenantId" type="hidden" />
         </div>
 
         <div class="field">
-          <label>Tenant Slug</label>
-          <input id="tenantSlug" placeholder="company-slug" />
+          <label>Company Slug</label>
+          <input id="tenantSlug" readonly placeholder="Selected automatically" />
         </div>
 
         <div class="field">
