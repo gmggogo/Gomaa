@@ -414,9 +414,20 @@ FLOW:
     renderStats();
 
     const shareAllowed =
+      state.capabilities?.sharedServiceEnabled === true ||
       state.capabilities?.sharedServiceFound === true;
 
-    $("shareBtn")?.classList.toggle("hidden",!shareAllowed);
+    /*
+      Trip Split belongs to Broker Operations.
+      The page itself requires Broker.
+      Only the Share action depends on the SHARED service.
+    */
+    $("shareBtn")
+      ?.classList
+      .toggle(
+        "hidden",
+        !shareAllowed
+      );
   }
 
   function selectAll(){

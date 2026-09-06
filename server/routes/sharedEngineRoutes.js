@@ -193,6 +193,43 @@ function numberOr(
     : fallback;
 }
 
+function sharedServiceCode(service){
+  return String(
+    service?.serviceKey ||
+    service?.serviceCode ||
+    service?.serviceType ||
+    service?.suffix ||
+    service?.companySuffix ||
+    service?.reservedSuffix ||
+    service?.title ||
+    service?.name ||
+    service?.serviceName ||
+    ""
+  )
+    .trim()
+    .toUpperCase();
+}
+
+function serviceVisibleAndEnabled(service){
+  if(!service){
+    return false;
+  }
+
+  if(service.featureVisible === false){
+    return false;
+  }
+
+  if(service.active === false){
+    return false;
+  }
+
+  if(service.enabled === false){
+    return false;
+  }
+
+  return true;
+}
+
 async function getCapabilities(
   tenantId
 ){
@@ -204,6 +241,7 @@ async function getCapabilities(
   if(!id){
     return {
       brokerContractEnabled:false,
+      sharedServiceEnabled:false,
       sharedServiceFound:false
     };
   }
@@ -211,7 +249,7 @@ async function getCapabilities(
   let brokerContractEnabled =
     false;
 
-  let sharedServiceFound =
+  let sharedServiceEnabled =
     false;
 
   try{
@@ -245,37 +283,39 @@ async function getCapabilities(
         })
         .lean();
 
-    sharedServiceFound =
+    sharedServiceEnabled =
       services.some(service=>{
         const code =
-          String(
-            service?.serviceKey ||
-            service?.serviceCode ||
-            service?.serviceType ||
-            service?.suffix ||
-            service?.companySuffix ||
-            service?.reservedSuffix ||
-            service?.title ||
-            service?.name ||
-            ""
-          )
-            .trim()
-            .toUpperCase();
+          sharedServiceCode(
+            service
+          );
 
         return (
-          code === "SH" ||
-          code === "SHARED"
+          (
+            code === "SH" ||
+            code === "SHARED" ||
+            code.includes("SHARED")
+          ) &&
+          serviceVisibleAndEnabled(
+            service
+          )
         );
       });
 
   }catch(err){
-    sharedServiceFound =
+    sharedServiceEnabled =
       false;
   }
 
   return {
     brokerContractEnabled,
-    sharedServiceFound
+    sharedServiceEnabled,
+
+    /*
+      Backward-compatible alias used by the current frontend.
+    */
+    sharedServiceFound:
+      sharedServiceEnabled
   };
 }
 

@@ -224,6 +224,10 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
   function applyCapabilities(
     capabilities
   ){
+    /*
+      The Settings page remains available.
+      Only the Broker source section is conditional.
+    */
     const brokerSection =
       $(
         "sharedEngineBrokerSection"
@@ -232,7 +236,7 @@ If Broker Contract is not enabled, sharedEngineBrokerSection is hidden.
     if(brokerSection){
       brokerSection.style.display =
         capabilities
-          ?.brokerContractEnabled
+          ?.brokerContractEnabled === true
           ? ""
           : "none";
     }

@@ -305,7 +305,7 @@ const role=()=>{
       :"ADMIN";
 };
 
-async function externalTripsFeatureEnabled(){
+async function loadSharedBrokerVisibility(){
 
   const token =
     staffSessionValue(
@@ -313,15 +313,20 @@ async function externalTripsFeatureEnabled(){
       "token"
     );
 
+  const fallback = {
+    sharedEnabled:false,
+    brokerEnabled:false
+  };
+
   if(!token){
-    return false;
+    return fallback;
   }
 
   try{
 
     const response =
       await fetch(
-        "/api/external-trips/brokers",
+        "/api/shared-engine/settings",
         {
           cache:"no-store",
           headers:{
@@ -332,7 +337,7 @@ async function externalTripsFeatureEnabled(){
       );
 
     if(!response.ok){
-      return false;
+      return fallback;
     }
 
     const data =
@@ -340,19 +345,26 @@ async function externalTripsFeatureEnabled(){
         .json()
         .catch(()=>({}));
 
-    return (
-      Array.isArray(data?.brokers) &&
-      data.brokers.length > 0
-    );
+    const capabilities =
+      data?.capabilities || {};
+
+    return {
+      sharedEnabled:
+        capabilities.sharedServiceEnabled === true ||
+        capabilities.sharedServiceFound === true,
+
+      brokerEnabled:
+        capabilities.brokerContractEnabled === true
+    };
 
   }catch(err){
 
     console.log(
-      "EXTERNAL TRIPS ACCESS CHECK ERROR:",
+      "SHARED/BROKER VISIBILITY CHECK ERROR:",
       err?.message || err
     );
 
-    return false;
+    return fallback;
   }
 }
 
@@ -375,7 +387,7 @@ const extra=[
 {l:"Taxes",h:"tax-report.html",i:"chart"},
 {g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}
 ];
-const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
+const settings={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"],["Shared Engine","shared-engine-settings.html","car"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
 
@@ -432,52 +444,34 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  let nav=[...core];
 
- const externalEnabled =
-   await externalTripsFeatureEnabled();
+ const visibility =
+   await loadSharedBrokerVisibility();
 
- if(externalEnabled){
-
-   const operationsGroup =
-     nav.find(
-       item =>
-         item?.g === "Operations"
-     );
-
-   if(
-     operationsGroup &&
-     Array.isArray(
-       operationsGroup.items
-     )
-   ){
-
-     const tripsHubIndex =
-       operationsGroup.items.findIndex(
-         item =>
-           item?.[1] === "trips-hub.html"
-       );
-
-     operationsGroup.items.splice(
-        tripsHubIndex >= 0
-          ? tripsHubIndex + 1
-          : 0,
-        0,
-        [
-          "External Trips Hub",
-          "external-trips.html",
-          "list"
-        ],
-        [
-          "Trip Split",
-          "trip-split.html",
-          "list"
-        ]
-      );
-   }
-
+ /*
+   Broker Operations is independent from the normal Operations menu.
+   It exists only when the tenant has an enabled Broker Contract.
+ */
+ if(visibility.brokerEnabled){
    nav.push({
-     l:"External Summary",
-     h:"external-summary.html",
-     i:"chart"
+     g:"Broker Operations",
+     i:"building",
+     items:[
+       [
+         "External Trips Hub",
+         "external-trips.html",
+         "list"
+       ],
+       [
+         "Trip Split",
+         "trip-split.html",
+         "list"
+       ],
+       [
+         "External Summary",
+         "external-summary.html",
+         "chart"
+       ]
+     ]
    });
  }
 
