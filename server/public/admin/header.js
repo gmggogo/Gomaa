@@ -457,16 +457,21 @@ document.addEventListener("DOMContentLoaded",async()=>{
        );
 
      operationsGroup.items.splice(
-       tripsHubIndex >= 0
-         ? tripsHubIndex + 1
-         : 0,
-       0,
-       [
-         "External Trips Hub",
-         "external-trips.html",
-         "list"
-       ]
-     );
+        tripsHubIndex >= 0
+          ? tripsHubIndex + 1
+          : 0,
+        0,
+        [
+          "External Trips Hub",
+          "external-trips.html",
+          "list"
+        ],
+        [
+          "Trip Split",
+          "trip-split.html",
+          "list"
+        ]
+      );
    }
 
    nav.push({

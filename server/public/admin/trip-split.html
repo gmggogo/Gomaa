@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Trip Split</title>
+
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:#f4f6f8;
+      color:#1f2937;
+    }
+
+    #adminHeader{min-height:0}
+
+    .page{
+      width:min(1600px,calc(100% - 28px));
+      margin:18px auto 32px;
+    }
+
+    .page-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:14px;
+      margin-bottom:14px;
+    }
+
+    .page-title{
+      margin:0 0 4px;
+      font-size:24px;
+    }
+
+    .page-sub{
+      color:#6b7280;
+      font-size:13px;
+    }
+
+    .panel{
+      background:#fff;
+      border:1px solid #dfe3e8;
+      border-radius:12px;
+      padding:14px;
+      margin-bottom:14px;
+    }
+
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:end;
+      gap:10px;
+    }
+
+    .filter-field{
+      min-width:180px;
+    }
+
+    .filter-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:700;
+      color:#4b5563;
+    }
+
+    select,input{
+      height:38px;
+      border:1px solid #cfd6dd;
+      border-radius:7px;
+      padding:0 10px;
+      background:#fff;
+      color:#111827;
+    }
+
+    .btn{
+      height:38px;
+      border:0;
+      border-radius:7px;
+      padding:0 14px;
+      font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .btn:disabled{
+      opacity:.48;
+      cursor:not-allowed;
+    }
+
+    .btn-blue{background:#1f4f7a;color:#fff}
+    .btn-green{background:#176b45;color:#fff}
+    .btn-gold{background:#b6892d;color:#fff}
+    .btn-gray{background:#e5e7eb;color:#1f2937}
+    .btn-red{background:#a92d2d;color:#fff}
+    .btn-dark{background:#26323c;color:#fff}
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .stat{
+      background:#fff;
+      border:1px solid #dfe3e8;
+      border-radius:10px;
+      padding:12px;
+    }
+
+    .stat-label{
+      font-size:11px;
+      font-weight:800;
+      color:#6b7280;
+      text-transform:uppercase;
+      letter-spacing:.03em;
+    }
+
+    .stat-value{
+      margin-top:5px;
+      font-size:22px;
+      font-weight:800;
+    }
+
+    .section-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+      font-weight:800;
+    }
+
+    .table-wrap{
+      overflow:auto;
+      border:1px solid #e1e5e9;
+      border-radius:9px;
+    }
+
+    table{
+      width:100%;
+      min-width:1350px;
+      border-collapse:collapse;
+      background:#fff;
+    }
+
+    th,td{
+      padding:7px 8px;
+      border-bottom:1px solid #edf0f2;
+      border-right:1px solid #edf0f2;
+      font-size:11px;
+      vertical-align:top;
+      text-align:left;
+    }
+
+    th{
+      position:sticky;
+      top:0;
+      z-index:1;
+      background:#eef1f4;
+      color:#374151;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    td:last-child,th:last-child{border-right:0}
+    tbody tr:last-child td{border-bottom:0}
+
+    .check-cell{
+      width:34px;
+      text-align:center;
+    }
+
+    .address-cell{
+      min-width:245px;
+      max-width:330px;
+      line-height:1.35;
+    }
+
+    .small-cell{
+      width:90px;
+      white-space:nowrap;
+    }
+
+    .status{
+      display:inline-block;
+      border-radius:999px;
+      padding:3px 7px;
+      font-size:10px;
+      font-weight:800;
+      white-space:nowrap;
+      background:#edf1f4;
+    }
+
+    .status.ready{background:#e1f4e7;color:#146837}
+    .status.shared{background:#e9eef8;color:#294d85}
+    .status.excluded{background:#fde8e8;color:#8d1e1e}
+    .status.confirmed{background:#e1f4e7;color:#146837}
+
+    .group-card{
+      border:1px solid #dce2e7;
+      border-radius:10px;
+      margin-bottom:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .group-head{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      background:#f7f8fa;
+      border-bottom:1px solid #e4e7ea;
+    }
+
+    .group-title{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:800;
+    }
+
+    .group-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      font-size:11px;
+      color:#5b6470;
+    }
+
+    .group-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:7px;
+    }
+
+    .group-actions .btn{
+      height:31px;
+      padding:0 10px;
+      font-size:11px;
+    }
+
+    .route-box{
+      padding:10px 12px;
+      border-top:1px solid #edf0f2;
+      font-size:11px;
+      line-height:1.55;
+      background:#fbfcfd;
+    }
+
+    .empty{
+      padding:28px 12px;
+      text-align:center;
+      color:#6b7280;
+      font-size:13px;
+    }
+
+    .notice{
+      display:none;
+      padding:12px;
+      border-radius:8px;
+      margin-bottom:12px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .notice.show{display:block}
+    .notice.error{background:#fde8e8;color:#8d1e1e}
+    .notice.ok{background:#e1f4e7;color:#146837}
+
+    .hidden{display:none!important}
+
+    dialog{
+      width:min(640px,calc(100% - 24px));
+      border:0;
+      border-radius:12px;
+      padding:0;
+      box-shadow:0 20px 60px rgba(0,0,0,.22);
+    }
+
+    dialog::backdrop{background:rgba(0,0,0,.35)}
+
+    .dialog-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:14px;
+      border-bottom:1px solid #e5e7eb;
+    }
+
+    .dialog-body{
+      padding:14px;
+    }
+
+    .dialog-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .dialog-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .dialog-field input{
+      width:100%;
+    }
+
+    .dialog-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top:14px;
+    }
+
+    @media(max-width:900px){
+      .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+
+    @media(max-width:650px){
+      .page{width:calc(100% - 16px);margin-top:8px}
+      .stats{grid-template-columns:1fr 1fr}
+      .filter-field{min-width:100%;width:100%}
+      .filter-field select{width:100%}
+      .dialog-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+
+<body>
+  <div id="adminHeader"></div>
+
+  <main class="page" id="tripSplitPage">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Trip Split</h1>
+        <div class="page-sub">
+          Prepare broker trips for Dispatch.
+        </div>
+      </div>
+    </div>
+
+    <div id="pageNotice" class="notice"></div>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div class="filter-field">
+          <label>Broker</label>
+          <select id="brokerFilter">
+            <option value="MIXED">Mixed</option>
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label>Day</label>
+          <select id="dayFilter">
+            <option value="ALL">Today & Tomorrow</option>
+            <option value="TODAY">Today</option>
+            <option value="TOMORROW">Tomorrow</option>
+          </select>
+        </div>
+
+        <button id="selectAllBtn" class="btn btn-blue" type="button">
+          Select All
+        </button>
+
+        <button id="shareBtn" class="btn btn-gold" type="button">
+          Share
+        </button>
+
+        <button id="restoreBtn" class="btn btn-gray" type="button">
+          Restore Original
+        </button>
+
+        <button id="confirmAllBtn" class="btn btn-green" type="button">
+          Confirm All
+        </button>
+      </div>
+    </section>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Visible Trips</div>
+        <div id="statVisible" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Selected</div>
+        <div id="statSelected" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Shared Groups</div>
+        <div id="statGroups" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Excluded</div>
+        <div id="statExcluded" class="stat-value">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Confirmed</div>
+        <div id="statConfirmed" class="stat-value">0</div>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="section-title">
+        <span>Original Trips</span>
+        <span id="originalCount">0</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="check-cell"></th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Date</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
+              <th>Passenger</th>
+              <th>Pickup</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Stops</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="originalTripRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="sharedGroupsSection">
+      <div class="section-title">
+        <span>Shared Groups</span>
+        <span id="groupCount">0</span>
+      </div>
+
+      <div id="sharedGroups"></div>
+    </section>
+  </main>
+
+  <dialog id="editDialog">
+    <div class="dialog-head">
+      <strong>Edit Trip</strong>
+      <button id="closeEditBtn" class="btn btn-gray" type="button">Close</button>
+    </div>
+
+    <div class="dialog-body">
+      <div class="dialog-grid">
+        <div class="dialog-field">
+          <label>Pickup Time</label>
+          <input id="editPickupTime" type="time" />
+        </div>
+
+        <div class="dialog-field">
+          <label>Appointment Time</label>
+          <input id="editAppointmentTime" type="time" />
+        </div>
+
+        <div class="dialog-field" style="grid-column:1/-1">
+          <label>Pickup</label>
+          <input id="editPickup" />
+        </div>
+
+        <div class="dialog-field" style="grid-column:1/-1">
+          <label>Drop-off</label>
+          <input id="editDropoff" />
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="saveEditBtn" class="btn btn-blue" type="button">
+          Save
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="js/tripSplit.js"></script>
+</body>
+</html>

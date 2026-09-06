@@ -1981,6 +1981,35 @@ app.use(
   externalSummaryRoutes
 );
 
+/* =========================
+   SHARED ENGINE + TRIP SPLIT
+   Mounted after Trip model registration.
+========================= */
+
+const sharedEngineRoutes =
+  require("./routes/sharedEngineRoutes");
+
+const tripSplitRoutes =
+  require("./routes/tripSplitRoutes");
+
+app.use(
+  "/api/shared-engine",
+  sharedEngineRoutes
+);
+
+app.use(
+  "/api/trip-split",
+  tripSplitRoutes
+);
+
+console.log(
+  "Shared Engine mounted on /api/shared-engine"
+);
+
+console.log(
+  "Trip Split mounted on /api/trip-split"
+);
+
 /*
   Development-only broker test route.
   It is mounted only when explicitly enabled in the environment.
