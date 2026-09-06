@@ -39,9 +39,9 @@ const BrokerIntegration =
     "../models/BrokerIntegration"
   );
 
-const Service =
+const Tenant =
   require(
-    "../models/Service"
+    "../models/Tenant"
   );
 
 const {
@@ -193,41 +193,35 @@ function numberOr(
     : fallback;
 }
 
-function sharedServiceCode(service){
-  return String(
-    service?.serviceKey ||
-    service?.serviceCode ||
-    service?.serviceType ||
-    service?.suffix ||
-    service?.companySuffix ||
-    service?.reservedSuffix ||
-    service?.title ||
-    service?.name ||
-    service?.serviceName ||
-    ""
-  )
-    .trim()
-    .toUpperCase();
-}
+function normalizeServiceCode(
+  value
+){
+  const code =
+    String(
+      value ?? ""
+    )
+      .trim()
+      .toUpperCase()
+      .replace(
+        /[_-]+/g,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      );
 
-function serviceVisibleAndEnabled(service){
-  if(!service){
-    return false;
+  if(
+    code === "SH" ||
+    code === "SHARED" ||
+    code.includes(
+      "SHARED"
+    )
+  ){
+    return "SH";
   }
 
-  if(service.featureVisible === false){
-    return false;
-  }
-
-  if(service.active === false){
-    return false;
-  }
-
-  if(service.enabled === false){
-    return false;
-  }
-
-  return true;
+  return code;
 }
 
 async function getCapabilities(
@@ -276,33 +270,42 @@ async function getCapabilities(
   }
 
   try{
-    const services =
-      await Service
-        .find({
-          tenantId:id
-        })
+    /*
+      Platform Admin Services is the master switch.
+      The selected service cards are stored on Tenant.allowedServices.
+      Do not infer SHARED access from tenant Service documents.
+    */
+    const tenant =
+      await Tenant
+        .findById(
+          id
+        )
+        .select(
+          "allowedServices"
+        )
         .lean();
 
-    sharedServiceEnabled =
-      services.some(service=>{
-        const code =
-          sharedServiceCode(
-            service
-          );
+    const allowedServices =
+      Array.isArray(
+        tenant?.allowedServices
+      )
+        ? tenant.allowedServices
+        : [];
 
-        return (
-          (
-            code === "SH" ||
-            code === "SHARED" ||
-            code.includes("SHARED")
-          ) &&
-          serviceVisibleAndEnabled(
-            service
-          )
-        );
-      });
+    sharedServiceEnabled =
+      allowedServices.some(
+        value =>
+          normalizeServiceCode(
+            value
+          ) === "SH"
+      );
 
   }catch(err){
+    console.log(
+      "SHARED SERVICE CAPABILITY ERROR:",
+      err?.message || err
+    );
+
     sharedServiceEnabled =
       false;
   }
