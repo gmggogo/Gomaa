@@ -1,5 +1,7 @@
 "use strict";
 
+/* GH TRIP SPLIT REJECTION MESSAGE BUILD: 2026-09-06-R3 */
+
 /* GH TRIP SPLIT GEO CACHE BUILD: 2026-09-06-R2 */
 
 /*
@@ -524,6 +526,105 @@ router.get("/bootstrap",async(req,res)=>{
   }
 });
 
+
+function sharedRejectLabel(reason){
+  const map = {
+    GROUP_DISTANCE_EXCEEDED:"Group distance exceeds the configured limit",
+    TIME_WINDOWS_DO_NOT_OVERLAP:"Pickup/appointment time windows do not overlap",
+    PICKUP_WINDOWS_DO_NOT_OVERLAP:"Pickup time windows do not overlap",
+    PICKUP_WINDOW_MISSED:"Calculated pickup misses the allowed pickup window",
+    FIXED_PICKUP_LATE:"Calculated pickup is later than the allowed tolerance",
+    FIXED_PICKUP_TOO_EARLY:"Calculated pickup is earlier than the allowed window",
+    APPOINTMENT_LATE:"The shared route cannot meet the appointment deadline",
+    MAX_EXTRA_MILES_EXCEEDED:"A rider would travel more extra miles than allowed",
+    MAX_EXTRA_MINUTES_EXCEEDED:"A rider would spend more extra ride time than allowed",
+    PASSENGER_ROUTE_ORDER_INVALID:"Pickup/drop-off route order is invalid",
+    DIFFERENT_TRIP_DATES:"Trips are on different dates",
+    MAX_RIDERS_EXCEEDED:"Group exceeds the maximum riders setting",
+    HAS_STOPS:"Trips with stops cannot be shared",
+    SOURCE_DISABLED:"Broker trips are disabled in Shared Engine",
+    MISSING_PICKUP:"Pickup is missing",
+    MISSING_DROPOFF:"Drop-off is missing",
+    MISSING_TRIP_DATE:"Trip date is missing",
+    MISSING_TIME_REFERENCE:"Pickup/appointment time is missing",
+    NO_VALID_SHARED_MATCH:"No valid shared match was found"
+  };
+
+  return map[String(reason || "").trim()] ||
+    String(reason || "Shared group validation failed");
+}
+
+function sharedRejectMessage(result){
+
+  const singles =
+    safeArray(result?.singles);
+
+  const excluded =
+    safeArray(result?.excluded);
+
+  const rows = [];
+
+  for(const item of singles){
+
+    const trip =
+      item?.trip || {};
+
+    const tripName =
+      clean(
+        trip.externalTripId ||
+        trip.brokerTripId ||
+        trip.ghExternalTripNumber ||
+        item.tripId
+      );
+
+    const detail =
+      safeArray(item?.rejectionDetails)[0]?.details ||
+      {};
+
+    let extra = "";
+
+    if(detail?.schedule?.lateByMinutes !== undefined){
+      extra =
+        ` (${detail.schedule.lateByMinutes} min late)`;
+    }else if(detail?.impact?.impact?.extraMinutes !== undefined){
+      extra =
+        ` (${detail.impact.impact.extraMinutes} extra min)`;
+    }else if(detail?.impact?.impact?.extraMiles !== undefined){
+      extra =
+        ` (${detail.impact.impact.extraMiles} extra mi)`;
+    }else if(detail?.pair?.pickupSeparationMiles !== undefined){
+      extra =
+        ` (pickup ${Number(detail.pair.pickupSeparationMiles || 0).toFixed(2)} mi, drop-off ${Number(detail.pair.dropoffSeparationMiles || 0).toFixed(2)} mi)`;
+    }
+
+    rows.push(
+      `${tripName || "Trip"}: ${sharedRejectLabel(item.reason)}${extra}`
+    );
+  }
+
+  for(const item of excluded){
+
+    const trip =
+      item?.trip || {};
+
+    const tripName =
+      clean(
+        trip.externalTripId ||
+        trip.brokerTripId ||
+        trip.ghExternalTripNumber ||
+        item.tripId
+      );
+
+    rows.push(
+      `${tripName || "Trip"}: ${sharedRejectLabel(item.reason)}`
+    );
+  }
+
+  return rows.length
+    ? rows.join(" | ")
+    : "No valid shared group could be created from the selected trips";
+}
+
 router.post("/share",async(req,res)=>{
   try{
     const tenantId = tenantObjectId(req);
@@ -585,6 +686,25 @@ router.post("/share",async(req,res)=>{
       source:"BROKER",
       settings:mergeSettings(settingsDoc || {})
     });
+
+    /*
+      The current Trip Split frontend already shows API errors in the red
+      notice bar. When no group is created, return the exact engine rejection
+      reason instead of the generic "0 shared group(s) created." message.
+    */
+    if(
+      safeArray(result?.groups).length === 0
+    ){
+      return res.status(422).json({
+        success:false,
+        message:sharedRejectMessage(result),
+        diagnostics:{
+          singles:safeArray(result?.singles),
+          excluded:safeArray(result?.excluded),
+          totals:result?.totals || {}
+        }
+      });
+    }
 
     return res.json(result);
   }catch(err){

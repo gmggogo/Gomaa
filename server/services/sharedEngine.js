@@ -1,5 +1,7 @@
 "use strict";
 
+/* GH SHARED ENGINE REJECTION DIAGNOSTICS BUILD: 2026-09-06-R3 */
+
 /* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
 /*
@@ -1362,6 +1364,13 @@ async function planSharedTrips({
     const group =
       [base];
 
+    /*
+      Keep the real validation reasons instead of collapsing every failure
+      into NO_VALID_SHARED_MATCH. Trip Split can then show exactly which rule
+      rejected a proposed pair/group.
+    */
+    const rejectionDetails = [];
+
     while(
       remaining.length &&
       group.length <
@@ -1379,6 +1388,33 @@ async function planSharedTrips({
 
       let added = false;
 
+      /*
+        If ranking removed every candidate because of distance, validate
+        each remaining pair once so the exact rejection reason is preserved.
+      */
+      if(!ranked.length){
+        for(const candidate of remaining){
+          const diagnostic =
+            await validateGroup(
+              [
+                ...group,
+                candidate
+              ],
+              config
+            );
+
+          if(!diagnostic.valid){
+            rejectionDetails.push({
+              candidateTripId:candidate.id,
+              reason:
+                diagnostic.reason ||
+                "GROUP_VALIDATION_FAILED",
+              details:diagnostic
+            });
+          }
+        }
+      }
+
       for(const row of ranked){
         const testGroup =
           [
@@ -1395,6 +1431,14 @@ async function planSharedTrips({
         if(
           !validation.valid
         ){
+          rejectionDetails.push({
+            candidateTripId:row.trip.id,
+            reason:
+              validation.reason ||
+              "GROUP_VALIDATION_FAILED",
+            details:validation
+          });
+
           continue;
         }
 
@@ -1426,10 +1470,17 @@ async function planSharedTrips({
     }
 
     if(group.length < 2){
+
+      const firstRejection =
+        rejectionDetails[0] ||
+        null;
+
       singles.push({
         tripId:base.id,
         reason:
+          firstRejection?.reason ||
           "NO_VALID_SHARED_MATCH",
+        rejectionDetails,
         trip:base.raw
       });
 
