@@ -1,6 +1,6 @@
 "use strict";
 
-/* GH SHARED ENGINE FLEXIBLE APPOINTMENT WAIT BUILD: 2026-09-06-R6 */
+/* GH SHARED ENGINE ROUTE OPTIMIZER BUILD: 2026-09-06-R7 */
 
 /* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
@@ -396,7 +396,7 @@ function between(
   );
 }
 
-function calculateStartMinute(
+function calculateStartWindow(
   trips,
   routePlan,
   routeData,
@@ -409,19 +409,6 @@ function calculateStartMinute(
       routeData
     );
 
-  /*
-    FIX:
-    A fixed pickup time is not a single exact route-start anchor.
-    Each trip has an allowed pickup WINDOW:
-
-      pickupTime - pickupEarlyWindow
-      through
-      pickupTime + pickupLateTolerance
-
-    For shared pickups, all rider windows must overlap.
-    The old code anchored the route to the earliest exact pickup time,
-    which incorrectly rejected valid groups.
-  */
   const lowerBounds = [];
   const upperBounds = [];
 
@@ -445,8 +432,7 @@ function calculateStartMinute(
       pickupIndex >= 0 &&
       trip.pickupMinutes !== null
     ){
-
-      const routeOffset =
+      const pickupOffset =
         n(
           cumulativeMinutes[
             pickupIndex
@@ -459,7 +445,7 @@ function calculateStartMinute(
           settings
             .pickupEarlyWindowMinutes
         ) -
-        routeOffset
+        pickupOffset
       );
 
       upperBounds.push(
@@ -468,7 +454,7 @@ function calculateStartMinute(
           settings
             .pickupLateToleranceMinutes
         ) -
-        routeOffset
+        pickupOffset
       );
     }
 
@@ -476,37 +462,22 @@ function calculateStartMinute(
       dropoffIndex >= 0 &&
       trip.appointmentMinutes !== null
     ){
-
-      const routeOffset =
+      /*
+        Appointment is the HARD latest arrival.
+        Appointment Buffer defines the preferred arrival window before it,
+        but an early route arrival can be delayed by choosing a later start
+        or by waiting before drop-off.
+      */
+      const dropoffOffset =
         n(
           cumulativeMinutes[
             dropoffIndex
           ]
         );
 
-      /*
-        Appointment controls only the LATEST allowed route arrival here.
-
-        Do NOT add Appointment - Buffer as a route-start lower bound.
-        The vehicle may physically reach the destination early and wait
-        until the appointment window opens. Adding that lower bound caused
-        valid pickup windows to be rejected as TIME_WINDOWS_DO_NOT_OVERLAP.
-
-        Example:
-          Pickup window       23:09 - 23:39
-          Appointment         00:10 next day
-          Appointment Buffer  20 min
-          Arrival window      23:50 - 00:10
-
-        A vehicle may leave within the pickup window, arrive at 23:45,
-        then wait until 23:50. That is valid.
-      */
-      const latestDropoff =
-        trip.appointmentMinutes;
-
       upperBounds.push(
-        latestDropoff -
-        routeOffset
+        trip.appointmentMinutes -
+        dropoffOffset
       );
     }
   }
@@ -540,56 +511,20 @@ function calculateStartMinute(
     };
   }
 
-  return earliestStart;
+  return {
+    invalid:false,
+    earliestStart,
+    latestStart
+  };
 }
 
-function simulateSchedule(
+function simulateScheduleFromStart(
   trips,
   routePlan,
   routeData,
-  settings
+  settings,
+  startMinute
 ){
-  const startResult =
-    calculateStartMinute(
-      trips,
-      routePlan,
-      routeData,
-      settings
-    );
-
-  if(startResult === null){
-    return {
-      valid:false,
-      reason:
-        "NO_TIME_REFERENCE"
-    };
-  }
-
-  if(
-    typeof startResult === "object" &&
-    startResult.invalid === true
-  ){
-    return {
-      valid:false,
-      reason:
-        startResult.reason ||
-        "TIME_WINDOWS_DO_NOT_OVERLAP",
-      earliestStart:
-        Number(
-          n(startResult.earliestStart)
-            .toFixed(2)
-        ),
-      latestStart:
-        Number(
-          n(startResult.latestStart)
-            .toFixed(2)
-        )
-    };
-  }
-
-  const startMinute =
-    Number(startResult);
-
   const legs =
     safeArray(
       routeData?.legs
@@ -725,58 +660,6 @@ function simulateSchedule(
               )
           };
         }
-
-        for(
-          const trip of
-          fixedTrips
-        ){
-
-          const lateBy =
-            current -
-            trip.pickupMinutes;
-
-          if(
-            lateBy >
-            n(
-              settings
-                .pickupLateToleranceMinutes
-            )
-          ){
-            return {
-              valid:false,
-              reason:
-                "FIXED_PICKUP_LATE",
-              tripId:trip.id,
-              lateByMinutes:
-                Number(
-                  lateBy.toFixed(2)
-                )
-            };
-          }
-
-          const earlyBy =
-            trip.pickupMinutes -
-            current;
-
-          if(
-            earlyBy >
-            n(
-              settings
-                .pickupEarlyWindowMinutes
-            )
-          ){
-            return {
-              valid:false,
-              reason:
-                "FIXED_PICKUP_TOO_EARLY",
-              tripId:trip.id,
-              earlyByMinutes:
-                Number(
-                  earlyBy.toFixed(2)
-                )
-            };
-          }
-        }
       }
     }
 
@@ -802,6 +685,11 @@ function simulateSchedule(
         const latestAllowedArrival =
           trip.appointmentMinutes;
 
+        /*
+          If this candidate schedule reaches the destination before the
+          appointment window, waiting is allowed. The engine also searches
+          later route-start times first so unnecessary waiting is minimized.
+        */
         if(
           current <
           earliestAllowedArrival
@@ -858,7 +746,8 @@ function simulateSchedule(
     valid:true,
     startMinute:
       Number(
-        startMinute.toFixed(2)
+        Number(startMinute)
+          .toFixed(2)
       ),
     startTime:
       minutesToTime(
@@ -879,6 +768,155 @@ function simulateSchedule(
             startMinute
           ),
     eventTimes
+  };
+}
+
+function simulateSchedule(
+  trips,
+  routePlan,
+  routeData,
+  settings
+){
+  const startWindow =
+    calculateStartWindow(
+      trips,
+      routePlan,
+      routeData,
+      settings
+    );
+
+  if(startWindow === null){
+    return {
+      valid:false,
+      reason:
+        "NO_TIME_REFERENCE"
+    };
+  }
+
+  if(
+    startWindow.invalid === true
+  ){
+    return {
+      valid:false,
+      reason:
+        startWindow.reason ||
+        "TIME_WINDOWS_DO_NOT_OVERLAP",
+      earliestStart:
+        Number(
+          n(
+            startWindow
+              .earliestStart
+          ).toFixed(2)
+        ),
+      latestStart:
+        Number(
+          n(
+            startWindow
+              .latestStart
+          ).toFixed(2)
+        )
+    };
+  }
+
+  const earliestStart =
+    Number(
+      startWindow.earliestStart
+    );
+
+  const latestStart =
+    Number(
+      startWindow.latestStart
+    );
+
+  /*
+    Search the entire allowed route-start window instead of testing only
+    one anchor time. We search from latest to earliest because it minimizes
+    unnecessary waiting while still respecting every appointment deadline.
+  */
+  const candidateStarts = [];
+
+  candidateStarts.push(
+    latestStart
+  );
+
+  for(
+    let minute =
+      Math.floor(latestStart);
+    minute >=
+      Math.ceil(earliestStart);
+    minute -= 1
+  ){
+    candidateStarts.push(
+      minute
+    );
+  }
+
+  candidateStarts.push(
+    earliestStart
+  );
+
+  const uniqueStarts =
+    [...new Set(
+      candidateStarts
+        .map(value=>
+          Number(
+            Number(value)
+              .toFixed(2)
+          )
+        )
+    )];
+
+  let bestFailure = null;
+
+  for(
+    const startMinute of
+    uniqueStarts
+  ){
+    const result =
+      simulateScheduleFromStart(
+        trips,
+        routePlan,
+        routeData,
+        settings,
+        startMinute
+      );
+
+    if(result.valid){
+      return {
+        ...result,
+        startWindow:{
+          earliest:
+            Number(
+              earliestStart.toFixed(2)
+            ),
+          latest:
+            Number(
+              latestStart.toFixed(2)
+            )
+        }
+      };
+    }
+
+    bestFailure =
+      bestFailure ||
+      result;
+  }
+
+  return {
+    valid:false,
+    reason:
+      bestFailure?.reason ||
+      "NO_VALID_START_TIME",
+    earliestStart:
+      Number(
+        earliestStart.toFixed(2)
+      ),
+    latestStart:
+      Number(
+        latestStart.toFixed(2)
+      ),
+    lastFailure:
+      bestFailure
   };
 }
 
@@ -1127,6 +1165,221 @@ async function pairMeta(
   };
 }
 
+function allSamePickup(
+  trips
+){
+  if(!Array.isArray(trips) || !trips.length){
+    return false;
+  }
+
+  const key =
+    trips[0].pickupKey;
+
+  return Boolean(
+    key &&
+    trips.every(
+      trip=>
+        trip.pickupKey === key
+    )
+  );
+}
+
+function permutations(
+  items
+){
+  if(items.length <= 1){
+    return [items];
+  }
+
+  const out = [];
+
+  for(
+    let i = 0;
+    i < items.length;
+    i += 1
+  ){
+    const head =
+      items[i];
+
+    const rest = [
+      ...items.slice(0,i),
+      ...items.slice(i + 1)
+    ];
+
+    for(
+      const tail of
+      permutations(rest)
+    ){
+      out.push([
+        head,
+        ...tail
+      ]);
+    }
+  }
+
+  return out;
+}
+
+function samePickupRouteCandidates(
+  trips,
+  originalBuilt
+){
+  if(
+    !allSamePickup(trips) ||
+    trips.length > 4
+  ){
+    return [
+      originalBuilt
+    ];
+  }
+
+  const pickup =
+    trips[0].pickup;
+
+  const orderedDropoffs =
+    [...trips]
+      .sort((a,b)=>{
+        const aTime =
+          a.appointmentMinutes === null
+            ? Number.MAX_SAFE_INTEGER
+            : a.appointmentMinutes;
+
+        const bTime =
+          b.appointmentMinutes === null
+            ? Number.MAX_SAFE_INTEGER
+            : b.appointmentMinutes;
+
+        return aTime - bTime;
+      });
+
+  const variants =
+    permutations(
+      orderedDropoffs
+    );
+
+  const seen =
+    new Set();
+
+  const candidates = [];
+
+  function addCandidate(candidate){
+
+    const signature =
+      candidate.routePoints
+        .map(addressKey)
+        .join("||");
+
+    if(
+      !signature ||
+      seen.has(signature)
+    ){
+      return;
+    }
+
+    seen.add(signature);
+    candidates.push(candidate);
+  }
+
+  addCandidate(
+    originalBuilt
+  );
+
+  for(
+    const order of variants
+  ){
+    const routePlan = [
+      {
+        type:"pickup",
+        address:pickup,
+        order:1
+      },
+      ...order.map(
+        (trip,index)=>({
+          type:"dropoff",
+          address:trip.dropoff,
+          order:index + 2
+        })
+      )
+    ];
+
+    addCandidate({
+      routeCase:
+        "SAME_PICKUP_OPTIMIZED",
+      routePlan,
+      routePoints:
+        routePlan.map(
+          point=>point.address
+        )
+    });
+  }
+
+  return candidates;
+}
+
+async function validateBuiltRoute(
+  trips,
+  built,
+  settings
+){
+  const routeData =
+    await calculateRoute(
+      built.routePoints
+    );
+
+  const schedule =
+    simulateSchedule(
+      trips,
+      built.routePlan,
+      routeData,
+      settings
+    );
+
+  if(!schedule.valid){
+    return {
+      valid:false,
+      reason:
+        schedule.reason,
+      schedule,
+      routeCase:
+        built.routeCase
+    };
+  }
+
+  const impact =
+    await groupImpactValidation(
+      trips,
+      built.routePlan,
+      routeData,
+      settings
+    );
+
+  if(!impact.valid){
+    return {
+      valid:false,
+      reason:
+        impact.reason,
+      impact,
+      routeCase:
+        built.routeCase
+    };
+  }
+
+  return {
+    valid:true,
+    routeCase:
+      built.routeCase,
+    routePlan:
+      built.routePlan,
+    routePoints:
+      built.routePoints,
+    routeData,
+    schedule,
+    impacts:
+      impact.impacts
+  };
+}
+
+
 async function validateGroup(
   trips,
   settings
@@ -1212,66 +1465,101 @@ async function validateGroup(
     }
   }
 
-  const built =
+  const originalBuilt =
     buildRoutePlan(
       trips
     );
 
-  const routeData =
-    await calculateRoute(
-      built.routePoints
-    );
-
-  const schedule =
-    simulateSchedule(
+  const routeCandidates =
+    samePickupRouteCandidates(
       trips,
-      built.routePlan,
-      routeData,
-      settings
+      originalBuilt
     );
 
-  if(!schedule.valid){
+  const failures = [];
+  const validRoutes = [];
+
+  for(
+    const built of
+    routeCandidates
+  ){
+    const tested =
+      await validateBuiltRoute(
+        trips,
+        built,
+        settings
+      );
+
+    if(!tested.valid){
+      failures.push({
+        routeCase:
+          built.routeCase,
+        routePoints:
+          built.routePoints,
+        reason:
+          tested.reason,
+        details:
+          tested
+      });
+      continue;
+    }
+
+    validRoutes.push(
+      tested
+    );
+  }
+
+  if(!validRoutes.length){
+    const firstFailure =
+      failures[0] ||
+      null;
+
     return {
       valid:false,
       reason:
-        schedule.reason,
-      schedule,
-      routeCase:
-        built.routeCase
+        firstFailure?.reason ||
+        "NO_VALID_SHARED_ROUTE",
+      routeAlternativesTested:
+        routeCandidates.length,
+      failures
     };
   }
 
-  const impact =
-    await groupImpactValidation(
-      trips,
-      built.routePlan,
-      routeData,
-      settings
-    );
+  /*
+    Choose the valid route with the fewest road minutes.
+    Appointment and pickup validity have already been enforced above.
+  */
+  validRoutes.sort(
+    (a,b)=>
+      n(
+        a.routeData?.minutes,
+        Number.MAX_SAFE_INTEGER
+      ) -
+      n(
+        b.routeData?.minutes,
+        Number.MAX_SAFE_INTEGER
+      )
+  );
 
-  if(!impact.valid){
-    return {
-      valid:false,
-      reason:
-        impact.reason,
-      impact,
-      routeCase:
-        built.routeCase
-    };
-  }
+  const best =
+    validRoutes[0];
 
   return {
     valid:true,
     routeCase:
-      built.routeCase,
+      best.routeCase,
     routePlan:
-      built.routePlan,
+      best.routePlan,
     routePoints:
-      built.routePoints,
-    routeData,
-    schedule,
+      best.routePoints,
+    routeData:
+      best.routeData,
+    schedule:
+      best.schedule,
     impacts:
-      impact.impacts,
+      best.impacts,
+    routeAlternativesTested:
+      routeCandidates.length,
     pairDetails,
     priority:
       groupPriorityScore(
