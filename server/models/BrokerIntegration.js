@@ -85,6 +85,25 @@ const BrokerIntegrationSchema = new mongoose.Schema(
       enum:["API","WEBHOOK","SFTP","FILE_IMPORT"]
     },
 
+    environment:{
+      type:String,
+      enum:["SANDBOX","PRODUCTION"],
+      default:"SANDBOX",
+      index:true
+    },
+
+    integrationDirection:{
+      type:String,
+      enum:["INBOUND","OUTBOUND","BOTH"],
+      default:"INBOUND"
+    },
+
+    providerId:{
+      type:String,
+      default:"",
+      trim:true
+    },
+
     connectionStatus:{
       type:String,
       enum:[
@@ -116,6 +135,16 @@ const BrokerIntegrationSchema = new mongoose.Schema(
       clientSecretEncrypted:{ type:String, default:"" },
 
       tokenUrl:{ type:String, default:"" },
+
+      statusEndpoint:{
+        type:String,
+        default:""
+      },
+
+      scope:{
+        type:String,
+        default:""
+      },
 
       headers:{
         type:mongoose.Schema.Types.Mixed,
@@ -154,6 +183,11 @@ const BrokerIntegrationSchema = new mongoose.Schema(
         type:String,
         enum:["NONE","HMAC_SHA256","HMAC_SHA1","CUSTOM"],
         default:"NONE"
+      },
+
+      outboundUrl:{
+        type:String,
+        default:""
       }
     },
 

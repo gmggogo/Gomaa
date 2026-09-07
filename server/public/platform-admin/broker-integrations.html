@@ -278,6 +278,34 @@
         </div>
 
         <div class="field">
+          <label>Environment</label>
+
+          <select id="environment">
+            <option value="SANDBOX">Sandbox / Test</option>
+            <option value="PRODUCTION">Production</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Integration Direction</label>
+
+          <select id="integrationDirection">
+            <option value="INBOUND">Inbound</option>
+            <option value="OUTBOUND">Outbound</option>
+            <option value="BOTH">Both</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Provider / Vendor ID</label>
+
+          <input
+            id="providerId"
+            placeholder="Provided by broker if required"
+          />
+        </div>
+
+        <div class="field">
           <label>Monthly Flat Fee</label>
 
           <input
@@ -427,6 +455,33 @@
             />
           </div>
 
+          <div class="field">
+            <label>Status / Update Endpoint</label>
+
+            <input
+              id="apiStatusEndpoint"
+              placeholder="Optional broker endpoint for trip status updates"
+            />
+          </div>
+
+          <div class="field">
+            <label>OAuth Scope</label>
+
+            <input
+              id="oauthScope"
+              placeholder="Optional"
+            />
+          </div>
+
+          <div class="field">
+            <label>Custom Headers (JSON)</label>
+
+            <textarea
+              id="apiHeaders"
+              placeholder='{"x-provider-id":"12345"}'
+            ></textarea>
+          </div>
+
         </div>
       </div>
 
@@ -476,6 +531,25 @@
               <option value="HMAC_SHA1">HMAC SHA1</option>
               <option value="CUSTOM">Custom</option>
             </select>
+          </div>
+
+          <div class="field">
+            <label>GH Inbound URL</label>
+
+            <input
+              id="webhookFullUrl"
+              readonly
+              placeholder="Generated from Inbound Path"
+            />
+          </div>
+
+          <div class="field">
+            <label>Broker Outbound Webhook URL</label>
+
+            <input
+              id="webhookOutboundUrl"
+              placeholder="Optional broker URL for status updates"
+            />
           </div>
 
         </div>

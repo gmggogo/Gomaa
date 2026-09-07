@@ -234,6 +234,69 @@ server/public/platform-admin/js/broker-integrations.js
       });
   }
 
+  function parseHeaders(){
+
+    const raw =
+      String(
+        $("apiHeaders")?.value ||
+        ""
+      ).trim();
+
+    if(!raw){
+      return {};
+    }
+
+    let parsed;
+
+    try{
+      parsed =
+        JSON.parse(raw);
+    }catch(err){
+      throw new Error(
+        "Custom Headers must be valid JSON."
+      );
+    }
+
+    if(
+      !parsed ||
+      Array.isArray(parsed) ||
+      typeof parsed !== "object"
+    ){
+      throw new Error(
+        "Custom Headers must be a JSON object."
+      );
+    }
+
+    return parsed;
+  }
+
+  function updateWebhookFullUrl(){
+
+    const path =
+      String(
+        $("webhookInboundPath")?.value ||
+        ""
+      ).trim();
+
+    if(!$("webhookFullUrl")){
+      return;
+    }
+
+    if(!path){
+      $("webhookFullUrl").value =
+        "";
+      return;
+    }
+
+    const normalizedPath =
+      path.startsWith("/")
+        ? path
+        : `/${path}`;
+
+    $("webhookFullUrl").value =
+      `${window.location.origin}${normalizedPath}`;
+  }
+
   function payload(){
 
     applySelectedTenant();
@@ -295,6 +358,15 @@ server/public/platform-admin/js/broker-integrations.js
       connectionType:
         $("connectionType").value,
 
+      environment:
+        $("environment").value,
+
+      integrationDirection:
+        $("integrationDirection").value,
+
+      providerId:
+        $("providerId").value.trim(),
+
       monthlyFlatFee:
         Number(
           $("monthlyFlatFee").value ||
@@ -338,6 +410,15 @@ server/public/platform-admin/js/broker-integrations.js
         tokenUrl:
           $("tokenUrl").value.trim(),
 
+        statusEndpoint:
+          $("apiStatusEndpoint").value.trim(),
+
+        scope:
+          $("oauthScope").value.trim(),
+
+        headers:
+          parseHeaders(),
+
         pollEnabled:
           boolValue("pollEnabled"),
 
@@ -359,7 +440,10 @@ server/public/platform-admin/js/broker-integrations.js
           $("signatureHeader").value.trim(),
 
         signatureAlgorithm:
-          $("signatureAlgorithm").value
+          $("signatureAlgorithm").value,
+
+        outboundUrl:
+          $("webhookOutboundUrl").value.trim()
       },
 
       sftp:{
@@ -418,7 +502,11 @@ server/public/platform-admin/js/broker-integrations.js
     [
       "brokerName",
       "brokerCode",
+      "providerId",
       "apiEndpoint",
+      "apiStatusEndpoint",
+      "oauthScope",
+      "apiHeaders",
       "apiKey",
       "bearerToken",
       "apiUsername",
@@ -427,6 +515,8 @@ server/public/platform-admin/js/broker-integrations.js
       "clientSecret",
       "tokenUrl",
       "webhookInboundPath",
+      "webhookFullUrl",
+      "webhookOutboundUrl",
       "webhookSecret",
       "signatureHeader",
       "sftpHost",
@@ -443,6 +533,8 @@ server/public/platform-admin/js/broker-integrations.js
     });
 
     $("connectionType").value = "API";
+    $("environment").value = "SANDBOX";
+    $("integrationDirection").value = "INBOUND";
     $("monthlyFlatFee").value = "0";
     $("featureVisible").value = "true";
     $("enabled").value = "true";
@@ -614,6 +706,21 @@ server/public/platform-admin/js/broker-integrations.js
     );
 
     setValue(
+      "environment",
+      item.environment || "SANDBOX"
+    );
+
+    setValue(
+      "integrationDirection",
+      item.integrationDirection || "INBOUND"
+    );
+
+    setValue(
+      "providerId",
+      item.providerId || ""
+    );
+
+    setValue(
       "monthlyFlatFee",
       item.monthlyFlatFee || 0
     );
@@ -664,6 +771,28 @@ server/public/platform-admin/js/broker-integrations.js
     );
 
     setValue(
+      "apiStatusEndpoint",
+      apiData.statusEndpoint || ""
+    );
+
+    setValue(
+      "oauthScope",
+      apiData.scope || ""
+    );
+
+    setValue(
+      "apiHeaders",
+      apiData.headers &&
+      Object.keys(apiData.headers).length
+        ? JSON.stringify(
+            apiData.headers,
+            null,
+            2
+          )
+        : ""
+    );
+
+    setValue(
       "pollEnabled",
       String(
         Boolean(
@@ -694,6 +823,13 @@ server/public/platform-admin/js/broker-integrations.js
       "signatureAlgorithm",
       webhook.signatureAlgorithm || "NONE"
     );
+
+    setValue(
+      "webhookOutboundUrl",
+      webhook.outboundUrl || ""
+    );
+
+    updateWebhookFullUrl();
 
     const sftp =
       item.sftp || {};
@@ -859,6 +995,12 @@ server/public/platform-admin/js/broker-integrations.js
       showConnectionBox
     );
 
+  $("webhookInboundPath")
+    ?.addEventListener(
+      "input",
+      updateWebhookFullUrl
+    );
+
   $("brokerCode")
     ?.addEventListener(
       "input",
@@ -904,6 +1046,7 @@ server/public/platform-admin/js/broker-integrations.js
   async function init(){
 
     showConnectionBox();
+    updateWebhookFullUrl();
 
     try{
 

@@ -225,6 +225,9 @@ async function upsertIntegration({
   brokerCode,
   brokerName,
   connectionType,
+  environment,
+  integrationDirection,
+  providerId,
   enabled,
   featureVisible,
   billingEnabled,
@@ -318,6 +321,12 @@ async function upsertIntegration({
     tokenUrl:
       clean(api?.tokenUrl),
 
+    statusEndpoint:
+      clean(api?.statusEndpoint),
+
+    scope:
+      clean(api?.scope),
+
     headers:
       api?.headers ||
       oldApi.headers ||
@@ -356,6 +365,11 @@ async function upsertIntegration({
       upper(
         webhook?.signatureAlgorithm ||
         "NONE"
+      ),
+
+    outboundUrl:
+      clean(
+        webhook?.outboundUrl
       )
   };
 
@@ -418,6 +432,23 @@ async function upsertIntegration({
 
     connectionType:
       type,
+
+    environment:
+      ["SANDBOX","PRODUCTION"].includes(
+        upper(environment)
+      )
+        ? upper(environment)
+        : "SANDBOX",
+
+    integrationDirection:
+      ["INBOUND","OUTBOUND","BOTH"].includes(
+        upper(integrationDirection)
+      )
+        ? upper(integrationDirection)
+        : "INBOUND",
+
+    providerId:
+      clean(providerId),
 
     enabled:
       Boolean(enabled),
