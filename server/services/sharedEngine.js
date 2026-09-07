@@ -1,6 +1,6 @@
 "use strict";
 
-/* GH SHARED ENGINE REJECTION DIAGNOSTICS BUILD: 2026-09-06-R3 */
+/* GH SHARED ENGINE APPOINTMENT WINDOW BUILD: 2026-09-06-R4 */
 
 /* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
@@ -477,20 +477,44 @@ function calculateStartMinute(
       trip.appointmentMinutes !== null
     ){
 
-      const latestDropoff =
+      /*
+        Appointment Buffer is an allowed ARRIVAL WINDOW before appointment.
+
+        Example:
+          Appointment = 16:00
+          Buffer      = 30 minutes
+
+        Valid drop-off arrival:
+          15:30 through 16:00
+
+        Therefore the route start must allow arrival no earlier than
+        appointment - buffer and no later than the appointment itself.
+      */
+      const routeOffset =
+        n(
+          cumulativeMinutes[
+            dropoffIndex
+          ]
+        );
+
+      const earliestDropoff =
         trip.appointmentMinutes -
         n(
           settings
             .appointmentBufferMinutes
         );
 
+      const latestDropoff =
+        trip.appointmentMinutes;
+
+      lowerBounds.push(
+        earliestDropoff -
+        routeOffset
+      );
+
       upperBounds.push(
         latestDropoff -
-        n(
-          cumulativeMinutes[
-            dropoffIndex
-          ]
-        )
+        routeOffset
       );
     }
   }
@@ -776,16 +800,35 @@ function simulateSchedule(
           continue;
         }
 
-        const deadline =
+        const earliestAllowedArrival =
           trip.appointmentMinutes -
           n(
             settings
               .appointmentBufferMinutes
           );
 
+        const latestAllowedArrival =
+          trip.appointmentMinutes;
+
+        /*
+          If the vehicle reaches the destination too early, it may wait until
+          the allowed appointment window opens. This keeps the passenger from
+          being dropped off earlier than the configured buffer.
+        */
+        if(
+          current <
+          earliestAllowedArrival
+        ){
+          current =
+            earliestAllowedArrival;
+        }
+
+        /*
+          Arrival after the appointment itself is not allowed.
+        */
         if(
           current >
-          deadline
+          latestAllowedArrival
         ){
           return {
             valid:false,
@@ -802,7 +845,7 @@ function simulateSchedule(
               Number(
                 (
                   current -
-                  deadline
+                  latestAllowedArrival
                 ).toFixed(2)
               )
           };
