@@ -1,20 +1,36 @@
 <!--
 DESTINATION PATH:
 server/public/admin/external-trips.html
+
+EXTERNAL TRIPS HUB REBUILD R1
 -->
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
   <title>External Trips Hub</title>
 
-  <link rel="stylesheet" href="/admin/style.css" />
-  <link rel="stylesheet" href="/admin/header.css" />
+  <link
+    rel="stylesheet"
+    href="/admin/style.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
 
   <style>
-    *{box-sizing:border-box}
+    *{
+      box-sizing:border-box;
+    }
 
     :root{
       --text:#0f172a;
@@ -24,43 +40,49 @@ server/public/admin/external-trips.html
       --blue:#2563eb;
       --blueDark:#1d4ed8;
       --red:#dc2626;
+      --date:#dcecff;
     }
 
     body{
       margin:0;
       background:var(--bg);
       color:var(--text);
-      font-family:Segoe UI,Arial,sans-serif;
+      font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
     }
 
     .page{
       width:100%;
-      padding:18px 22px 30px;
+      padding:12px 16px 28px;
     }
-
 
     .page-head{
       display:flex;
       align-items:center;
       justify-content:center;
-      min-height:84px;
-      margin-bottom:12px;
-      padding:16px 20px;
+      min-height:74px;
+      margin-bottom:10px;
+      padding:13px 18px;
       border:1px solid #e0be5a;
-      border-radius:18px;
-      background:linear-gradient(
-        135deg,
-        #fff8dc 0%,
-        #f8e6ae 48%,
-        #fff4cf 100%
-      );
-      box-shadow:0 8px 22px rgba(146,102,14,.13);
+      border-radius:16px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff8dc 0%,
+          #f8e6ae 48%,
+          #fff4cf 100%
+        );
+      box-shadow:
+        0 8px 22px
+        rgba(146,102,14,.13);
       text-align:center;
     }
 
     .page-title{
       margin:0;
-      font-size:28px;
+      font-size:27px;
       line-height:1.1;
       font-weight:900;
       color:#111827;
@@ -69,7 +91,7 @@ server/public/admin/external-trips.html
     .page-head .sub{
       margin-top:5px;
       color:#64748b;
-      font-size:13px;
+      font-size:12px;
       font-weight:800;
     }
 
@@ -79,20 +101,7 @@ server/public/admin/external-trips.html
       gap:10px;
       align-items:center;
       justify-content:space-between;
-      margin-bottom:12px;
-    }
-
-    .title-wrap h1{
-      margin:0;
-      font-size:26px;
-      font-weight:900;
-    }
-
-    .sub{
-      color:#66717c;
-      font-size:13px;
-      margin-top:4px;
-      font-weight:700;
+      margin-bottom:10px;
     }
 
     .filters{
@@ -101,7 +110,9 @@ server/public/admin/external-trips.html
       flex-wrap:wrap;
     }
 
-    select,input,textarea{
+    select,
+    input,
+    textarea{
       border:1px solid #cbd5e1;
       border-radius:7px;
       padding:9px 10px;
@@ -118,17 +129,40 @@ server/public/admin/external-trips.html
       font-weight:900;
     }
 
-    .btn-primary{background:var(--blue);color:#fff}
-    .btn-primary:hover{background:var(--blueDark)}
-    .btn-light{background:#e8edf2;color:#102d4f}
-    .btn-danger{background:var(--red);color:#fff}
+    .btn-primary{
+      background:var(--blue);
+      color:#fff;
+    }
+
+    .btn-primary:hover{
+      background:var(--blueDark);
+    }
+
+    .btn-light{
+      background:#e8edf2;
+      color:#102d4f;
+    }
+
+    .btn-danger{
+      background:var(--red);
+      color:#fff;
+    }
+
+    #addTripBtn{
+      min-width:132px;
+      min-height:42px;
+      padding:10px 18px;
+      font-size:13px;
+    }
 
     .panel{
       background:#fff;
       border:1px solid var(--border);
       border-radius:14px;
       overflow:hidden;
-      box-shadow:0 8px 22px rgba(15,23,42,.08);
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.08);
     }
 
     .table-wrap{
@@ -142,21 +176,21 @@ server/public/admin/external-trips.html
 
     table{
       width:100%;
-      min-width:1600px;
+      min-width:1550px;
       table-layout:fixed;
       border-collapse:collapse;
       background:#fff;
       border-top:6px solid #000;
     }
 
-    th,td{
+    th,
+    td{
       border:1px solid var(--border);
       padding:5px;
       text-align:center;
-      font-size:10.5px;
+      font-size:10px;
       vertical-align:middle;
       line-height:1.25;
-      box-sizing:border-box;
     }
 
     th{
@@ -164,31 +198,65 @@ server/public/admin/external-trips.html
       color:#fff;
       font-weight:900;
       white-space:nowrap;
-      font-size:10.5px;
     }
 
-    th:nth-child(1),td:nth-child(1){width:92px}
-    th:nth-child(2),td:nth-child(2){width:66px}
-    th:nth-child(3),td:nth-child(3){width:76px}
-    th:nth-child(4),td:nth-child(4){width:74px}
-    th:nth-child(5),td:nth-child(5){width:58px}
-    th:nth-child(6),td:nth-child(6){width:95px}
-    th:nth-child(7),td:nth-child(7){width:90px}
-    th:nth-child(8),td:nth-child(8){width:235px}
-    th:nth-child(9),td:nth-child(9){width:245px}
-    th:nth-child(10),td:nth-child(10){width:235px}
-    th:nth-child(11),td:nth-child(11){width:72px}
-    th:nth-child(12),td:nth-child(12){width:120px}
-    th:nth-child(13),td:nth-child(13){width:78px}
-    th:nth-child(14),td:nth-child(14){width:66px}
-    th:nth-child(15),td:nth-child(15){width:180px}
+    /*
+      15 columns:
+      External Trip, Broker, Broker Trip ID, Pickup Time, Appointment,
+      Passenger, Phone, Pickup, Stops, Drop-off, Service, Notes,
+      Status, Source, Actions.
+    */
+    th:nth-child(1),
+    td:nth-child(1){width:82px}
+
+    th:nth-child(2),
+    td:nth-child(2){width:64px}
+
+    th:nth-child(3),
+    td:nth-child(3){width:78px}
+
+    th:nth-child(4),
+    td:nth-child(4){width:62px}
+
+    th:nth-child(5),
+    td:nth-child(5){width:74px}
+
+    th:nth-child(6),
+    td:nth-child(6){width:92px}
+
+    th:nth-child(7),
+    td:nth-child(7){width:88px}
+
+    th:nth-child(8),
+    td:nth-child(8){width:220px}
+
+    th:nth-child(9),
+    td:nth-child(9){width:235px}
+
+    th:nth-child(10),
+    td:nth-child(10){width:220px}
+
+    th:nth-child(11),
+    td:nth-child(11){width:105px}
+
+    th:nth-child(12),
+    td:nth-child(12){width:110px}
+
+    th:nth-child(13),
+    td:nth-child(13){width:76px}
+
+    th:nth-child(14),
+    td:nth-child(14){width:62px}
+
+    th:nth-child(15),
+    td:nth-child(15){width:88px}
 
     .trip-id{
       font-weight:900;
       color:#1d4ed8;
       white-space:normal;
       overflow-wrap:anywhere;
-      font-size:9.5px;
+      font-size:8.8px;
     }
 
     td:nth-child(8),
@@ -201,7 +269,19 @@ server/public/admin/external-trips.html
       word-break:break-word;
     }
 
-    .address-box{
+    .date-group-row td{
+      padding:8px 12px;
+      background:var(--date);
+      color:#214b76;
+      text-align:left;
+      font-size:12px;
+      font-weight:900;
+      border-top:2px solid #85a9d0;
+      border-bottom:2px solid #85a9d0;
+    }
+
+    .address-box,
+    .gh-stop-box{
       display:block;
       width:100%;
       min-height:28px;
@@ -215,25 +295,28 @@ server/public/admin/external-trips.html
     }
 
     .gh-stop-box{
-      display:block;
-      width:100%;
       margin:0 0 5px;
-      padding:6px 7px;
-      border:1px solid #111;
-      border-radius:4px;
-      background:#fff;
-      color:#1f2937;
-      line-height:1.3;
-      white-space:normal;
-      overflow-wrap:anywhere;
-      box-sizing:border-box;
     }
 
-    .gh-stop-box:last-child{margin-bottom:0}
+    .gh-stop-box:last-child{
+      margin-bottom:0;
+    }
+
+    .service-cell-select{
+      width:100%;
+      min-width:0;
+      height:30px;
+      padding:3px 5px;
+      border:1px solid #9eabb8;
+      border-radius:5px;
+      background:#fff;
+      font-size:9px;
+      font-weight:800;
+    }
 
     .notes{
       white-space:pre-wrap;
-      font-size:9.5px;
+      font-size:9px;
     }
 
     .status{
@@ -244,34 +327,36 @@ server/public/admin/external-trips.html
       padding:4px 6px;
       border-radius:999px;
       background:#edf1f4;
-      font-size:9px;
+      font-size:8px;
       font-weight:900;
       white-space:normal;
       text-align:center;
       overflow-wrap:anywhere;
     }
 
-    .status.TRANSFERRED{background:#ddf3e4;color:#126635}
-    .status.CANCELLED{background:#fde1e1;color:#8a1d1d}
-    .status.ERROR{background:#ffe9d5;color:#8a4b0c}
+    .status.CANCELLED{
+      background:#fde1e1;
+      color:#8a1d1d;
+    }
+
+    .status.ERROR{
+      background:#ffe9d5;
+      color:#8a4b0c;
+    }
 
     .action-stack{
-      display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:5px;
+      display:flex;
+      justify-content:center;
       align-items:center;
+      gap:4px;
     }
 
     .action-stack .btn{
-      width:100%;
-      min-width:0;
-      padding:6px 4px;
-      font-size:9px;
-      border-radius:6px;
-    }
-
-    .action-stack .btn-transfer{
-      grid-column:1/-1;
+      width:auto;
+      min-width:36px;
+      padding:5px 6px;
+      font-size:8px;
+      border-radius:5px;
     }
 
     dialog{
@@ -281,11 +366,14 @@ server/public/admin/external-trips.html
       max-height:90vh;
       overflow:auto;
       padding:0;
-      box-shadow:0 20px 60px rgba(0,0,0,.25);
+      box-shadow:
+        0 20px 60px
+        rgba(0,0,0,.25);
     }
 
     dialog::backdrop{
-      background:rgba(10,20,30,.45);
+      background:
+        rgba(10,20,30,.45);
     }
 
     .modal-head{
@@ -293,14 +381,21 @@ server/public/admin/external-trips.html
       justify-content:space-between;
       align-items:center;
       padding:16px 18px;
-      border-bottom:1px solid #e1e6eb;
+      border-bottom:
+        1px solid #e1e6eb;
     }
 
-    .modal-body{padding:18px}
+    .modal-body{
+      padding:18px;
+    }
 
     .grid{
       display:grid;
-      grid-template-columns:repeat(3,minmax(180px,1fr));
+      grid-template-columns:
+        repeat(
+          3,
+          minmax(180px,1fr)
+        );
       gap:12px;
     }
 
@@ -312,27 +407,64 @@ server/public/admin/external-trips.html
       margin-bottom:5px;
     }
 
-    .field input,.field select,.field textarea{width:100%}
-    .wide{grid-column:1/-1}
+    .field input,
+    .field select,
+    .field textarea{
+      width:100%;
+    }
+
+    .wide{
+      grid-column:1/-1;
+    }
+
+    .stop-input-list{
+      display:grid;
+      gap:7px;
+    }
+
+    .stop-input-row{
+      display:grid;
+      grid-template-columns:
+        minmax(0,1fr)
+        auto;
+      gap:7px;
+      align-items:center;
+    }
+
+    .stop-input-row .btn{
+      min-width:72px;
+    }
 
     .modal-actions{
       display:flex;
       gap:10px;
       justify-content:flex-end;
       padding:16px 18px;
-      border-top:1px solid #e1e6eb;
+      border-top:
+        1px solid #e1e6eb;
     }
 
     @media(max-width:768px){
-      .page{padding:10px 8px 20px}
-      .page-head{
-        min-height:72px;
-        padding:12px;
-        margin-bottom:10px;
+      .page{
+        padding:8px 6px 18px;
       }
-      .page-title{font-size:22px}
-      .page-head .sub{font-size:11px}
-      .grid{grid-template-columns:1fr}
+
+      .page-head{
+        min-height:68px;
+        padding:10px;
+      }
+
+      .page-title{
+        font-size:21px;
+      }
+
+      .page-head .sub{
+        font-size:10px;
+      }
+
+      .grid{
+        grid-template-columns:1fr;
+      }
 
       .filters{
         flex-wrap:nowrap;
@@ -341,47 +473,50 @@ server/public/admin/external-trips.html
       }
 
       table{
-        min-width:1320px;
+        min-width:1260px;
         border-top-width:4px;
       }
 
-      th,td{
-        font-size:8px;
+      th,
+      td{
+        font-size:7.5px;
         padding:3px;
         line-height:1.15;
       }
 
-      th{font-size:7.8px}
+      th{
+        font-size:7.3px;
+      }
 
-      th:nth-child(1),td:nth-child(1){width:70px}
-      th:nth-child(2),td:nth-child(2){width:50px}
-      th:nth-child(3),td:nth-child(3){width:58px}
-      th:nth-child(4),td:nth-child(4){width:58px}
-      th:nth-child(5),td:nth-child(5){width:46px}
-      th:nth-child(6),td:nth-child(6){width:76px}
-      th:nth-child(7),td:nth-child(7){width:72px}
-      th:nth-child(8),td:nth-child(8){width:180px}
-      th:nth-child(9),td:nth-child(9){width:190px}
-      th:nth-child(10),td:nth-child(10){width:180px}
-      th:nth-child(11),td:nth-child(11){width:56px}
-      th:nth-child(12),td:nth-child(12){width:90px}
-      th:nth-child(13),td:nth-child(13){width:62px}
-      th:nth-child(14),td:nth-child(14){width:52px}
-      th:nth-child(15),td:nth-child(15){width:140px}
+      .trip-id{
+        font-size:7px;
+      }
 
-      .trip-id{font-size:7.5px}
-      .address-box,.gh-stop-box{
+      .address-box,
+      .gh-stop-box{
         padding:4px 5px;
         min-height:22px;
-        font-size:8px;
+        font-size:7.5px;
       }
-      .gh-stop-box{margin-bottom:3px}
-      .status{font-size:7px;padding:3px 4px}
-      .action-stack{gap:3px}
-      .action-stack .btn{padding:4px 3px;font-size:7px}
+
+      .status{
+        font-size:6.5px;
+        padding:3px 4px;
+      }
+
+      .action-stack{
+        gap:2px;
+      }
+
+      .action-stack .btn{
+        padding:4px 3px;
+        min-width:30px;
+        font-size:6.5px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <div id="adminHeader"></div>
@@ -390,54 +525,75 @@ server/public/admin/external-trips.html
 
     <div class="page-head">
       <div>
-        <h1 class="page-title">External Trips Hub</h1>
+        <h1 class="page-title">
+          External Trips Hub
+        </h1>
+
         <div class="sub">
-          Broker and manually entered external trips are isolated here before entering the main trip flow.
+          Broker trips stay in the broker workflow before Trip Split and Broker Review.
         </div>
       </div>
     </div>
 
     <div class="toolbar">
+
       <div class="filters">
+
         <select id="brokerFilter">
-          <option value="">All Brokers</option>
+          <option value="">
+            All Brokers
+          </option>
         </select>
 
         <select id="statusFilter">
-          <option value="">All Statuses</option>
+          <option value="">
+            All Statuses
+          </option>
           <option value="RECEIVED">Received</option>
           <option value="READY">Ready</option>
           <option value="HELD">Held</option>
           <option value="UPDATED">Updated</option>
-          <option value="TRANSFERRED">Transferred</option>
           <option value="CANCELLED">Cancelled</option>
           <option value="REJECTED">Rejected</option>
           <option value="ERROR">Error</option>
         </select>
 
-        <input id="dateFilter" type="date" />
+        <input
+          id="dateFilter"
+          type="date"
+        />
 
-        <button class="btn btn-light" id="refreshBtn">
+        <button
+          class="btn btn-light"
+          id="refreshBtn"
+        >
           Refresh
         </button>
+
       </div>
 
-      <button class="btn btn-primary" id="addTripBtn">
+      <button
+        class="btn btn-primary"
+        id="addTripBtn"
+      >
         Add Trip
       </button>
+
     </div>
 
-
     <section class="panel">
+
       <div class="table-wrap">
+
         <table class="external-table">
+
           <thead>
             <tr>
               <th>External Trip</th>
               <th>Broker</th>
               <th>Broker Trip ID</th>
-              <th>Date</th>
-              <th>Time</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
               <th>Passenger</th>
               <th>Phone</th>
               <th>Pickup</th>
@@ -452,19 +608,34 @@ server/public/admin/external-trips.html
           </thead>
 
           <tbody id="tripRows"></tbody>
+
         </table>
+
       </div>
+
     </section>
+
   </main>
 
   <dialog id="tripDialog">
+
     <div class="modal-head">
-      <strong id="dialogTitle">Add External Trip</strong>
-      <button class="btn btn-light" id="closeDialogBtn">Close</button>
+      <strong id="dialogTitle">
+        Add External Trip
+      </strong>
+
+      <button
+        class="btn btn-light"
+        id="closeDialogBtn"
+      >
+        Close
+      </button>
     </div>
 
     <div class="modal-body">
+
       <div class="grid">
+
         <div class="field">
           <label>Broker</label>
           <select id="brokerCode"></select>
@@ -478,29 +649,45 @@ server/public/admin/external-trips.html
         <div class="field">
           <label>Trip Type</label>
           <select id="tripType">
-            <option value="SINGLE">Single</option>
-            <option value="SHARED">Shared</option>
+            <option value="SINGLE">
+              Single
+            </option>
+            <option value="SHARED">
+              Shared
+            </option>
           </select>
         </div>
 
         <div class="field">
           <label>Trip Date</label>
-          <input id="tripDate" type="date" />
+          <input
+            id="tripDate"
+            type="date"
+          />
         </div>
 
         <div class="field">
           <label>Pickup Time</label>
-          <input id="tripTime" type="time" />
+          <input
+            id="tripTime"
+            type="time"
+          />
         </div>
 
         <div class="field">
           <label>Appointment Time</label>
-          <input id="appointmentTime" type="time" />
+          <input
+            id="appointmentTime"
+            type="time"
+          />
         </div>
 
         <div class="field">
           <label>Return Time</label>
-          <input id="returnTime" type="time" />
+          <input
+            id="returnTime"
+            type="time"
+          />
         </div>
 
         <div class="field">
@@ -520,7 +707,7 @@ server/public/admin/external-trips.html
 
         <div class="field">
           <label>Service</label>
-          <input id="serviceKey" />
+          <select id="serviceKey"></select>
         </div>
 
         <div class="field wide">
@@ -530,7 +717,11 @@ server/public/admin/external-trips.html
 
         <div class="field wide">
           <label>Stops</label>
-          <textarea id="stops" placeholder="One stop address per line"></textarea>
+
+          <div
+            id="stopInputs"
+            class="stop-input-list"
+          ></div>
         </div>
 
         <div class="field wide">
@@ -542,21 +733,33 @@ server/public/admin/external-trips.html
           <label>Notes</label>
           <textarea id="notes"></textarea>
         </div>
+
       </div>
+
     </div>
 
     <div class="modal-actions">
-      <button class="btn btn-light" id="cancelDialogBtn">
+
+      <button
+        class="btn btn-light"
+        id="cancelDialogBtn"
+      >
         Cancel
       </button>
 
-      <button class="btn btn-primary" id="saveTripBtn">
+      <button
+        class="btn btn-primary"
+        id="saveTripBtn"
+      >
         Save Trip
       </button>
+
     </div>
+
   </dialog>
 
   <script src="/admin/header.js"></script>
   <script src="/admin/js/external-trips.js"></script>
+
 </body>
 </html>

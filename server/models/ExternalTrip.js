@@ -127,14 +127,14 @@ const ExternalTripSchema = new mongoose.Schema(
 
     serviceKey:{
       type:String,
-      default:"",
+      default:"STANDARD",
       trim:true,
       uppercase:true
     },
 
     serviceName:{
       type:String,
-      default:""
+      default:"Standard"
     },
 
     tripDate:{
@@ -241,7 +241,16 @@ const ExternalTripSchema = new mongoose.Schema(
 
     stops:{
       type:[ExternalStopSchema],
-      default:[]
+      default:[],
+      validate:{
+        validator(value){
+          return (
+            Array.isArray(value) &&
+            value.length <= 5
+          );
+        },
+        message:"External trip supports up to 5 stops"
+      }
     },
 
     passengers:{

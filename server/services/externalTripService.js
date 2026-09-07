@@ -27,6 +27,85 @@ function safeArray(value){
   return Array.isArray(value) ? value : [];
 }
 
+function visibleBrokerPrefix({
+  brokerName,
+  brokerCode
+}){
+  const source =
+    upper(
+      brokerName ||
+      brokerCode
+    )
+      .replace(/[^A-Z0-9]/g,"");
+
+  const prefix =
+    source.slice(0,3);
+
+  if(prefix.length >= 2){
+    return prefix;
+  }
+
+  return (
+    upper(brokerCode)
+      .replace(/[^A-Z0-9]/g,"")
+      .padEnd(3,"X")
+      .slice(0,3)
+  );
+}
+
+function normalizeServiceKey(value){
+  const raw =
+    upper(value)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "ST" ||
+    raw === "STD" ||
+    raw.includes("STANDARD")
+  ){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "SH" ||
+    raw.includes("SHARED")
+  ){
+    return "SHARED";
+  }
+
+  return raw
+    .replace(/\s+/g,"_");
+}
+
+function serviceSuffix(value){
+  const key =
+    normalizeServiceKey(
+      value
+    );
+
+  if(key === "STANDARD"){
+    return "ST";
+  }
+
+  if(key === "SHARED"){
+    return "SH";
+  }
+
+  const compact =
+    key.replace(/[^A-Z0-9]/g,"");
+
+  return (
+    compact.slice(0,2) ||
+    "ST"
+  ).padEnd(2,"X");
+}
+
 function normalizeBrokerCode(value){
 
   const code =
@@ -71,19 +150,31 @@ function createDuplicateKey({
     .digest("hex");
 }
 
-async function nextExternalTripNumber(brokerCode){
+async function nextExternalTripNumber({
+  brokerName,
+  brokerCode,
+  serviceKey
+}){
+
+  const brokerPrefix =
+    visibleBrokerPrefix({
+      brokerName,
+      brokerCode
+    });
 
   const suffix =
-    normalizeBrokerCode(brokerCode);
+    serviceSuffix(
+      serviceKey
+    );
 
   /*
-    Platform-wide sequence:
-    EX-000001-MT
-    EX-000002-MC
-    EX-000003-SR
+    Platform-wide sequence examples:
+    MTM-000001-ST
+    MTM-000002-SH
+    MOD-000003-ST
 
-    This prevents collision with the current main Trip schema where
-    tripNumber is globally unique.
+    The numeric sequence remains platform-wide so ghExternalTripNumber
+    stays unique across the full ExternalTrip collection.
   */
   const count =
     await ExternalTrip.countDocuments({});
@@ -92,7 +183,7 @@ async function nextExternalTripNumber(brokerCode){
     String(count + 1)
       .padStart(6,"0");
 
-  return `EX-${sequence}-${suffix}`;
+  return `${brokerPrefix}-${sequence}-${suffix}`;
 }
 
 function normalizeStop(stop,index){
@@ -269,16 +360,19 @@ function normalizeExternalPayload({
 
     tripType,
 
-    serviceKey:upper(
-      p.serviceKey ||
-      p.serviceCode ||
-      p.serviceType ||
-      p.modeOfTransportation
-    ),
+    serviceKey:
+      normalizeServiceKey(
+        p.serviceKey ||
+        p.serviceCode ||
+        p.serviceType ||
+        p.modeOfTransportation ||
+        "STANDARD"
+      ),
 
     serviceName:clean(
       p.serviceName ||
-      p.modeOfTransportation
+      p.modeOfTransportation ||
+      "Standard"
     ),
 
     tripDate:clean(
@@ -345,7 +439,9 @@ function normalizeExternalPayload({
       safeArray(
         p.stops ||
         p.intermediateStops
-      ).map(
+      )
+      .slice(0,5)
+      .map(
         normalizeStop
       ),
 
@@ -518,9 +614,14 @@ async function createExternalTrip(options){
   for(let attempt=0; attempt<10; attempt++){
 
     normalized.ghExternalTripNumber =
-      await nextExternalTripNumber(
-        normalized.brokerCode
-      );
+      await nextExternalTripNumber({
+        brokerName:
+          normalized.brokerName,
+        brokerCode:
+          normalized.brokerCode,
+        serviceKey:
+          normalized.serviceKey
+      });
 
     try{
 
@@ -640,6 +741,9 @@ async function cancelExternalTrip(existingTrip,brokerStatus="CANCELLED"){
 
 module.exports = {
   normalizeBrokerCode,
+  normalizeServiceKey,
+  serviceSuffix,
+  visibleBrokerPrefix,
   normalizeExternalPayload,
   validateNormalizedTrip,
   createExternalTrip,
