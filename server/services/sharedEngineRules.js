@@ -1,5 +1,7 @@
 "use strict";
 
+/* GH SHARED ENGINE RULES GEO BUILD: 2026-09-06-R1 */
+
 /*
 DESTINATION PATH:
 server/services/sharedEngineRules.js
@@ -369,10 +371,35 @@ function normalizeTrip(trip,index = 0,explicitSource){
     brokerCode:upper(trip?.brokerCode),
     brokerName:clean(trip?.brokerName),
     passengerName:getPassengerName(trip),
+
+    /*
+      Preserve broker/company/reserved coordinates during normalization.
+      Trip Split resolves and saves these on ExternalTrip before the Shared
+      Engine runs. The route planner must receive them instead of dropping
+      them during normalizeTrip().
+    */
     pickup,
     pickupKey:addressKey(pickup),
+    pickupLat:
+      Number.isFinite(Number(trip?.pickupLat))
+        ? Number(trip.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(Number(trip?.pickupLng))
+        ? Number(trip.pickupLng)
+        : null,
+
     dropoff,
     dropoffKey:addressKey(dropoff),
+    dropoffLat:
+      Number.isFinite(Number(trip?.dropoffLat))
+        ? Number(trip.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(Number(trip?.dropoffLng))
+        ? Number(trip.dropoffLng)
+        : null,
+
     tripDate,
     pickupTime,
     pickupMinutes:timeToMinutes(pickupTime),

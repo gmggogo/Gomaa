@@ -1,5 +1,7 @@
 "use strict";
 
+/* GH SHARED ENGINE GEO BRIDGE BUILD: 2026-09-06-R1 */
+
 /*
 DESTINATION PATH:
 server/services/sharedEngine.js
@@ -176,7 +178,13 @@ function passengerFromTrip(
       trip.id,
 
     pickup:trip.pickup,
+    pickupLat:trip.pickupLat,
+    pickupLng:trip.pickupLng,
+
     dropoff:trip.dropoff,
+    dropoffLat:trip.dropoffLat,
+    dropoffLng:trip.dropoffLng,
+
     pickupTime:trip.pickupTime,
     appointmentTime:
       trip.appointmentTime,
