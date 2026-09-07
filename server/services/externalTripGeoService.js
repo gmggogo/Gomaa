@@ -14,6 +14,7 @@ RULES:
 - Save resolved addresses to AddressCache for future broker trips.
 */
 
+const https = require("https");
 const routeMapEngine = require("../utils/routeMapEngine");
 
 let AddressCache = null;
@@ -211,6 +212,42 @@ async function saveAddressCache(
   });
 }
 
+function getGoogleMapsApiKey(){
+
+  return (
+    process.env.GOOGLE_SERVER_KEY ||
+    process.env.GOOGLE_SERVER_API_KEY ||
+    process.env.GOOGLE_MAPS_SERVER_KEY ||
+    process.env.SERVER_GOOGLE_MAPS_KEY ||
+    ""
+  );
+}
+
+function httpsGetJson(url){
+
+  return new Promise((resolve,reject)=>{
+
+    https.get(url,response=>{
+
+      let data = "";
+
+      response.on("data",chunk=>{
+        data += chunk;
+      });
+
+      response.on("end",()=>{
+
+        try{
+          resolve(JSON.parse(data));
+        }catch(err){
+          reject(err);
+        }
+      });
+
+    }).on("error",reject);
+  });
+}
+
 async function geocodeAddress(address){
 
   const fullAddress =
@@ -229,6 +266,9 @@ async function geocodeAddress(address){
     return cached;
   }
 
+  /*
+    First reuse a geocoder already exposed by routeMapEngine when available.
+  */
   const fn =
     routeMapEngine?.geocodeAddress ||
     routeMapEngine?.geocode ||
@@ -236,36 +276,100 @@ async function geocodeAddress(address){
     routeMapEngine?.getLatLng ||
     null;
 
-  if(typeof fn !== "function"){
+  if(typeof fn === "function"){
+
+    try{
+
+      const result =
+        await fn(fullAddress);
+
+      const lat =
+        result?.lat ??
+        result?.latitude ??
+        result?.location?.lat ??
+        result?.geometry?.location?.lat;
+
+      const lng =
+        result?.lng ??
+        result?.lon ??
+        result?.longitude ??
+        result?.location?.lng ??
+        result?.geometry?.location?.lng;
+
+      if(hasValidLatLng(lat,lng)){
+
+        const coords = {
+          lat:Number(lat),
+          lng:Number(lng),
+          source:"route-map-engine-geocode"
+        };
+
+        await saveAddressCache(
+          fullAddress,
+          coords
+        );
+
+        return coords;
+      }
+
+    }catch(err){
+      console.log(
+        "TRIP SPLIT ROUTE ENGINE GEOCODE ERROR:",
+        err.message
+      );
+    }
+  }
+
+  /*
+    routeMapEngine in this project may only expose Directions.
+    Fall back to Google Geocoding API directly instead of rejecting Share.
+  */
+  const apiKey =
+    getGoogleMapsApiKey();
+
+  if(!apiKey){
     throw new Error(
-      "Route geocoder is not available"
+      "Google Maps server key is not configured"
     );
   }
 
-  const result =
-    await fn(fullAddress);
+  const url =
+    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
+    encodeURIComponent(fullAddress) +
+    "&key=" +
+    encodeURIComponent(apiKey);
 
-  const lat =
-    result?.lat ??
-    result?.latitude ??
-    result?.location?.lat ??
-    result?.geometry?.location?.lat;
+  const json =
+    await httpsGetJson(url);
 
-  const lng =
-    result?.lng ??
-    result?.lon ??
-    result?.longitude ??
-    result?.location?.lng ??
-    result?.geometry?.location?.lng;
+  if(
+    json?.status !== "OK" ||
+    !Array.isArray(json.results) ||
+    !json.results.length
+  ){
+    throw new Error(
+      `Address could not be located by Google: ${fullAddress}`
+    );
+  }
 
-  if(!hasValidLatLng(lat,lng)){
-    return null;
+  const location =
+    json.results[0]?.geometry?.location;
+
+  if(
+    !hasValidLatLng(
+      location?.lat,
+      location?.lng
+    )
+  ){
+    throw new Error(
+      `Google returned invalid coordinates for: ${fullAddress}`
+    );
   }
 
   const coords = {
-    lat:Number(lat),
-    lng:Number(lng),
-    source:"trip-split-geocode"
+    lat:Number(location.lat),
+    lng:Number(location.lng),
+    source:"google-geocode"
   };
 
   await saveAddressCache(
