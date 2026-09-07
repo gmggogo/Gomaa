@@ -149,6 +149,43 @@ public/admin/js/external-trips.js
       : "";
   }
 
+
+  function clearTripFilters(){
+
+    $("brokerFilter").value = "";
+    $("statusFilter").value = "";
+    $("dateFilter").value = "";
+  }
+
+  function upsertTripInState(trip){
+
+    if(!trip || !trip._id){
+      return;
+    }
+
+    const index =
+      state.trips.findIndex(
+        item => String(item._id) === String(trip._id)
+      );
+
+    if(index >= 0){
+      state.trips[index] = trip;
+    }else{
+      state.trips.push(trip);
+    }
+
+    state.trips.sort((a,b)=>{
+
+      const aKey =
+        `${a.tripDate || ""} ${a.tripTime || ""} ${a.createdAt || ""}`;
+
+      const bKey =
+        `${b.tripDate || ""} ${b.tripTime || ""} ${b.createdAt || ""}`;
+
+      return aKey.localeCompare(bKey);
+    });
+  }
+
   async function loadBrokers(){
 
     const res =
@@ -265,6 +302,19 @@ public/admin/js/external-trips.js
       $("tripRows");
 
     body.innerHTML = "";
+
+    if(!state.trips.length){
+
+      body.innerHTML = `
+        <tr>
+          <td colspan="15" style="padding:18px;font-weight:800;color:#64748b;">
+            No external trips found.
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
 
     for(const trip of state.trips){
 
@@ -569,6 +619,15 @@ public/admin/js/external-trips.js
       }
 
       $("tripDialog").close();
+
+      if(!editing){
+        clearTripFilters();
+      }
+
+      if(data.trip){
+        upsertTripInState(data.trip);
+        render();
+      }
 
       await loadTrips();
 
