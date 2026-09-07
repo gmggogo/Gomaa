@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Trip Split</title>
+  <!-- GH TRIP SPLIT SHARED FEATURE VISIBILITY BUILD: 2026-09-07-R1 -->
 
   <link rel="stylesheet" href="/admin/style.css" />
   <link rel="stylesheet" href="/admin/header.css" />
@@ -403,7 +404,7 @@
           Select All
         </button>
 
-        <button id="shareBtn" class="btn btn-gold" type="button">
+        <button id="shareBtn" class="btn btn-gold hidden" type="button">
           Share
         </button>
 
@@ -426,7 +427,7 @@
         <div class="stat-label">Selected</div>
         <div id="statSelected" class="stat-value">0</div>
       </div>
-      <div class="stat">
+      <div class="stat hidden" id="sharedGroupsStat">
         <div class="stat-label">Shared Groups</div>
         <div id="statGroups" class="stat-value">0</div>
       </div>
@@ -470,7 +471,7 @@
       </div>
     </section>
 
-    <section class="panel" id="sharedGroupsSection">
+    <section class="panel hidden" id="sharedGroupsSection">
       <div class="section-title">
         <span>Shared Groups</span>
         <span id="groupCount">0</span>

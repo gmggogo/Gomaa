@@ -1,6 +1,7 @@
 "use strict";
 
 /* GH BROKER REVIEW STAGE BUILD: 2026-09-07-R1 */
+/* GH TRIP SPLIT SHARED FEATURE VISIBILITY BUILD: 2026-09-07-R1 */
 
 /*
 DESTINATION PATH:
@@ -33,6 +34,7 @@ const ExternalTrip = require("../models/ExternalTrip");
 const BrokerIntegration = require("../models/BrokerIntegration");
 const SharedEngineSettings = require("../models/SharedEngineSettings");
 const TripSplitState = require("../models/TripSplitState");
+const Tenant = require("../models/Tenant");
 
 const {
   mergeSettings,
@@ -168,23 +170,73 @@ function phoenixDateKey(offsetDays = 0){
   ].join("-");
 }
 
-async function brokerCapabilities(tenantId){
-  const integration = await BrokerIntegration.findOne({
-    tenantId,
-    enabled:true,
-    featureVisible:{$ne:false}
-  }).lean();
+function normalizeServiceCode(value){
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[_-]+/g," ")
+    .replace(/\s+/g," ");
+}
 
-  const settings =
-    await SharedEngineSettings
-      .findOne({tenantId})
-      .lean();
+function isSharedService(value){
+  const code =
+    normalizeServiceCode(value);
+
+  return (
+    code === "SH" ||
+    code === "SHARED" ||
+    code.includes("SHARED")
+  );
+}
+
+async function brokerCapabilities(tenantId){
+  const [integration,tenant] =
+    await Promise.all([
+      BrokerIntegration.findOne({
+        tenantId,
+        enabled:true,
+        featureVisible:{$ne:false}
+      })
+        .select("_id enabled featureVisible")
+        .lean(),
+
+      Tenant.findById(tenantId)
+        .select("allowedServices")
+        .lean()
+    ]);
+
+  const allowedServices =
+    Array.isArray(
+      tenant?.allowedServices
+    )
+      ? tenant.allowedServices
+      : [];
+
+  /*
+    IMPORTANT:
+    Shared availability is a SaaS feature entitlement.
+    It must come from Tenant.allowedServices, NOT from SharedEngineSettings.
+
+    This keeps Broker and Shared independently sellable:
+    - Broker ON + Shared OFF => Trip Split works, Share UI/API is unavailable.
+    - Broker ON + Shared ON  => Share UI/API is available.
+  */
+  const sharedServiceEnabled =
+    allowedServices.some(
+      isSharedService
+    );
 
   return {
-    brokerContractEnabled:Boolean(integration),
+    brokerContractEnabled:
+      Boolean(integration),
+
+    sharedServiceEnabled,
+
+    /*
+      Backward-compatible alias for older frontend code.
+    */
     sharedServiceFound:
-      settings?.enabled !== false &&
-      settings?.sources?.broker?.enabled !== false
+      sharedServiceEnabled
   };
 }
 
@@ -527,6 +579,22 @@ router.get("/bootstrap",async(req,res)=>{
 router.post("/share",async(req,res)=>{
   try{
     const tenantId = tenantObjectId(req);
+
+    const capabilities =
+      await brokerCapabilities(
+        tenantId
+      );
+
+    if(
+      capabilities
+        .sharedServiceEnabled !== true
+    ){
+      return res.status(403).json({
+        success:false,
+        message:
+          "Shared service is not enabled for this company"
+      });
+    }
 
     const tripIds = safeArray(req.body?.tripIds)
       .map(clean)
