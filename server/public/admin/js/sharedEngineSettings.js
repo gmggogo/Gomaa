@@ -5,33 +5,39 @@ DESTINATION PATH:
 server/public/admin/js/sharedEngineSettings.js
 
 PURPOSE:
-Shared Engine Settings UI controller.
-
-VISIBILITY RULES:
-- The whole page requires SHARED enabled by Platform Admin.
-- Company and Reserved remain visible once SHARED exists.
-- Broker section appears only when Broker Contract is enabled.
-- Enabled controls are shown in green.
-- Disabled controls are shown in red.
+Shared Engine preset + custom settings UI.
 */
 
 (function(){
   "use strict";
 
-  function $(
-    id
-  ){
+  const PRESET_DEFAULTS = {
+    LONG:{
+      miles:20,
+      minutes:45
+    },
+
+    MEDIUM:{
+      miles:10,
+      minutes:30
+    },
+
+    SHORT:{
+      miles:5,
+      minutes:15
+    }
+  };
+
+  let activeMode =
+    "LONG";
+
+  function $(id){
     return document
-      .getElementById(
-        id
-      );
+      .getElementById(id);
   }
 
   function token(){
     return (
-      sessionStorage.getItem(
-        "staffToken"
-      ) ||
       localStorage.getItem(
         "token"
       ) ||
@@ -96,32 +102,6 @@ VISIBILITY RULES:
     return data;
   }
 
-  function boolValue(
-    id,
-    fallback = true
-  ){
-    const el =
-      $(id);
-
-    if(!el){
-      return fallback;
-    }
-
-    if(
-      el.type ===
-      "checkbox"
-    ){
-      return el.checked;
-    }
-
-    return (
-      String(
-        el.value
-      ).toLowerCase() ===
-      "true"
-    );
-  }
-
   function numberValue(
     id,
     fallback
@@ -143,30 +123,23 @@ VISIBILITY RULES:
       : fallback;
   }
 
-  function setBoolean(
+  function boolValue(
     id,
-    value
+    fallback = true
   ){
     const el =
       $(id);
 
     if(!el){
-      return;
+      return fallback;
     }
 
-    if(
-      el.type ===
-      "checkbox"
-    ){
-      el.checked =
-        value !== false;
-      return;
-    }
-
-    el.value =
-      value === false
-        ? "false"
-        : "true";
+    return (
+      String(
+        el.value
+      ).toLowerCase() ===
+      "true"
+    );
   }
 
   function setNumber(
@@ -176,14 +149,27 @@ VISIBILITY RULES:
     const el =
       $(id);
 
-    if(!el){
-      return;
+    if(el){
+      el.value =
+        Number(
+          value ?? 0
+        );
     }
+  }
 
-    el.value =
-      Number(
-        value ?? 0
-      );
+  function setBoolean(
+    id,
+    value
+  ){
+    const el =
+      $(id);
+
+    if(el){
+      el.value =
+        value === false
+          ? "false"
+          : "true";
+    }
   }
 
   function setStatus(
@@ -209,68 +195,23 @@ VISIBILITY RULES:
         : "ok";
   }
 
-  function decorateSelect(
-    el
+  function normalizeMode(
+    value
   ){
-    if(!el){
-      return;
-    }
-
-    const value =
+    const mode =
       String(
-        el.value || ""
-      )
-        .trim()
-        .toLowerCase();
+        value ||
+        ""
+      ).toUpperCase();
 
-    el.classList.remove(
-      "state-enabled",
-      "state-disabled"
-    );
-
-    if(
-      value === "true" ||
-      value === "enabled"
-    ){
-      el.classList.add(
-        "state-enabled"
-      );
-      return;
-    }
-
-    if(
-      value === "false" ||
-      value === "disabled"
-    ){
-      el.classList.add(
-        "state-disabled"
-      );
-    }
-  }
-
-  function refreshControlStyles(){
-    document
-      .querySelectorAll(
-        "#sharedEngineSettingsSection select"
-      )
-      .forEach(
-        decorateSelect
-      );
-  }
-
-  function bindSelectColors(){
-    document
-      .querySelectorAll(
-        "#sharedEngineSettingsSection select"
-      )
-      .forEach(el=>{
-        el.addEventListener(
-          "change",
-          ()=>decorateSelect(el)
-        );
-
-        decorateSelect(el);
-      });
+    return [
+      "LONG",
+      "MEDIUM",
+      "SHORT",
+      "CUSTOM"
+    ].includes(mode)
+      ? mode
+      : "LONG";
   }
 
   function applyCapabilities(
@@ -282,10 +223,6 @@ VISIBILITY RULES:
       capabilities
         ?.sharedServiceFound === true;
 
-    /*
-      Platform Admin controls whether the tenant has SHARED.
-      Without SHARED, this page must not remain accessible.
-    */
     if(!sharedEnabled){
       window.location.replace(
         "settings.html"
@@ -294,42 +231,10 @@ VISIBILITY RULES:
       return false;
     }
 
-    /*
-      Once SHARED is available:
-      - Company stays visible.
-      - Reserved stays visible.
-      - Broker appears only if Broker Contract is enabled.
-    */
-    const companyField =
-      $(
-        "sharedEngineCompanyEnabled"
-      )
-        ?.closest(
-          ".settings-field"
-        );
-
-    const reservedField =
-      $(
-        "sharedEngineReservedEnabled"
-      )
-        ?.closest(
-          ".settings-field"
-        );
-
     const brokerSection =
       $(
         "sharedEngineBrokerSection"
       );
-
-    if(companyField){
-      companyField.style.display =
-        "";
-    }
-
-    if(reservedField){
-      reservedField.style.display =
-        "";
-    }
 
     if(brokerSection){
       brokerSection.style.display =
@@ -342,12 +247,151 @@ VISIBILITY RULES:
     return true;
   }
 
+  function selectMode(
+    mode
+  ){
+    activeMode =
+      normalizeMode(
+        mode
+      );
+
+    document
+      .querySelectorAll(
+        "[data-preset-mode]"
+      )
+      .forEach(
+        card=>{
+          card.classList.toggle(
+            "active",
+            card.dataset
+              .presetMode ===
+              activeMode
+          );
+        }
+      );
+
+    const custom =
+      $(
+        "sharedEngineCustomSettings"
+      );
+
+    if(custom){
+      custom.classList.toggle(
+        "hidden",
+        activeMode !==
+          "CUSTOM"
+      );
+    }
+  }
+
   function applySettings(
     settings
   ){
+    const presets =
+      settings?.presets ||
+      {};
+
+    setNumber(
+      "sharedPresetLongMiles",
+      presets?.long?.miles ??
+      PRESET_DEFAULTS
+        .LONG.miles
+    );
+
+    setNumber(
+      "sharedPresetLongMinutes",
+      presets?.long?.minutes ??
+      PRESET_DEFAULTS
+        .LONG.minutes
+    );
+
+    setNumber(
+      "sharedPresetMediumMiles",
+      presets?.medium?.miles ??
+      PRESET_DEFAULTS
+        .MEDIUM.miles
+    );
+
+    setNumber(
+      "sharedPresetMediumMinutes",
+      presets?.medium?.minutes ??
+      PRESET_DEFAULTS
+        .MEDIUM.minutes
+    );
+
+    setNumber(
+      "sharedPresetShortMiles",
+      presets?.short?.miles ??
+      PRESET_DEFAULTS
+        .SHORT.miles
+    );
+
+    setNumber(
+      "sharedPresetShortMinutes",
+      presets?.short?.minutes ??
+      PRESET_DEFAULTS
+        .SHORT.minutes
+    );
+
+    setNumber(
+      "sharedEngineMaxGroupDistanceMiles",
+      settings
+        ?.maxGroupDistanceMiles ??
+        20
+    );
+
+    setNumber(
+      "sharedEngineMaxExtraMiles",
+      settings
+        ?.maxExtraMiles ??
+        10
+    );
+
+    setNumber(
+      "sharedEngineMaxExtraMinutes",
+      settings
+        ?.maxExtraMinutes ??
+        45
+    );
+
+    setNumber(
+      "sharedEngineAppointmentBufferMinutes",
+      settings
+        ?.appointmentBufferMinutes ??
+        60
+    );
+
+    setNumber(
+      "sharedEnginePickupLateToleranceMinutes",
+      settings
+        ?.pickupLateToleranceMinutes ??
+        20
+    );
+
+    setNumber(
+      "sharedEnginePickupEarlyWindowMinutes",
+      settings
+        ?.pickupEarlyWindowMinutes ??
+        30
+    );
+
+    setNumber(
+      "sharedEngineMaxRidersPerGroup",
+      settings
+        ?.maxRidersPerGroup ??
+        4
+    );
+
     setBoolean(
-      "sharedEngineEnabled",
-      settings?.enabled
+      "sharedEngineSamePickupPriority",
+      settings
+        ?.samePickupPriority
+    );
+
+    setBoolean(
+      "sharedEngineSameDropoffPriority",
+      settings
+        ?.sameDropoffPriority
     );
 
     setBoolean(
@@ -371,77 +415,65 @@ VISIBILITY RULES:
         ?.enabled
     );
 
-    setNumber(
-      "sharedEngineMaxGroupDistanceMiles",
-      settings
-        ?.maxGroupDistanceMiles ??
-        10
+    selectMode(
+      settings?.presetMode ||
+      "LONG"
     );
-
-    setNumber(
-      "sharedEngineMaxExtraMiles",
-      settings
-        ?.maxExtraMiles ??
-        10
-    );
-
-    setNumber(
-      "sharedEngineMaxExtraMinutes",
-      settings
-        ?.maxExtraMinutes ??
-        30
-    );
-
-    setNumber(
-      "sharedEngineAppointmentBufferMinutes",
-      settings
-        ?.appointmentBufferMinutes ??
-        10
-    );
-
-    setNumber(
-      "sharedEnginePickupLateToleranceMinutes",
-      settings
-        ?.pickupLateToleranceMinutes ??
-        5
-    );
-
-    setNumber(
-      "sharedEnginePickupEarlyWindowMinutes",
-      settings
-        ?.pickupEarlyWindowMinutes ??
-        20
-    );
-
-    setNumber(
-      "sharedEngineMaxRidersPerGroup",
-      settings
-        ?.maxRidersPerGroup ??
-        4
-    );
-
-    setBoolean(
-      "sharedEngineSamePickupPriority",
-      settings
-        ?.samePickupPriority
-    );
-
-    setBoolean(
-      "sharedEngineSameDropoffPriority",
-      settings
-        ?.sameDropoffPriority
-    );
-
-    refreshControlStyles();
   }
 
   function payload(){
     return {
-      enabled:
-        boolValue(
-          "sharedEngineEnabled",
-          true
-        ),
+      /*
+        Engine is intentionally always on.
+      */
+      enabled:true,
+
+      presetMode:
+        activeMode,
+
+      presets:{
+        long:{
+          miles:
+            numberValue(
+              "sharedPresetLongMiles",
+              20
+            ),
+
+          minutes:
+            numberValue(
+              "sharedPresetLongMinutes",
+              45
+            )
+        },
+
+        medium:{
+          miles:
+            numberValue(
+              "sharedPresetMediumMiles",
+              10
+            ),
+
+          minutes:
+            numberValue(
+              "sharedPresetMediumMinutes",
+              30
+            )
+        },
+
+        short:{
+          miles:
+            numberValue(
+              "sharedPresetShortMiles",
+              5
+            ),
+
+          minutes:
+            numberValue(
+              "sharedPresetShortMinutes",
+              15
+            )
+        }
+      },
 
       sources:{
         company:{
@@ -472,7 +504,7 @@ VISIBILITY RULES:
       maxGroupDistanceMiles:
         numberValue(
           "sharedEngineMaxGroupDistanceMiles",
-          10
+          20
         ),
 
       maxExtraMiles:
@@ -484,25 +516,25 @@ VISIBILITY RULES:
       maxExtraMinutes:
         numberValue(
           "sharedEngineMaxExtraMinutes",
-          30
+          45
         ),
 
       appointmentBufferMinutes:
         numberValue(
           "sharedEngineAppointmentBufferMinutes",
-          10
+          60
         ),
 
       pickupLateToleranceMinutes:
         numberValue(
           "sharedEnginePickupLateToleranceMinutes",
-          5
+          20
         ),
 
       pickupEarlyWindowMinutes:
         numberValue(
           "sharedEnginePickupEarlyWindowMinutes",
-          20
+          30
         ),
 
       maxRidersPerGroup:
@@ -633,6 +665,56 @@ VISIBILITY RULES:
   }
 
   function bind(){
+    document
+      .querySelectorAll(
+        "[data-preset-mode]"
+      )
+      .forEach(
+        card=>{
+          card.addEventListener(
+            "click",
+            event=>{
+              if(
+                event.target
+                  .closest("input")
+              ){
+                return;
+              }
+
+              selectMode(
+                card.dataset
+                  .presetMode
+              );
+            }
+          );
+        }
+      );
+
+    document
+      .querySelectorAll(
+        ".preset-card input"
+      )
+      .forEach(
+        input=>{
+          input.addEventListener(
+            "focus",
+            ()=>{
+              const card =
+                input.closest(
+                  "[data-preset-mode]"
+                );
+
+              if(card){
+                selectMode(
+                  card.dataset
+                    .presetMode
+                );
+              }
+            }
+          );
+        }
+      );
+
     const button =
       $(
         "sharedEngineSaveBtn"
@@ -644,8 +726,6 @@ VISIBILITY RULES:
         save
       );
     }
-
-    bindSelectColors();
   }
 
   document
@@ -660,6 +740,6 @@ VISIBILITY RULES:
   window.SharedEngineSettingsUI = {
     load,
     save,
-    refreshControlStyles
+    selectMode
   };
 })();

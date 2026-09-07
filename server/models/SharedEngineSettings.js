@@ -6,6 +6,12 @@ server/models/SharedEngineSettings.js
 
 PURPOSE:
 Per-tenant Shared Engine settings.
+
+NOTES:
+- Shared Engine is always enabled.
+- Manual / Automatic mode belongs to the Shared page, not here.
+- Presets control Max Group Distance + Max Extra Ride Time.
+- CUSTOM exposes the full advanced settings.
 */
 
 const mongoose =
@@ -24,6 +30,26 @@ const SourceSettingsSchema =
     }
   );
 
+const PresetSchema =
+  new mongoose.Schema(
+    {
+      miles:{
+        type:Number,
+        min:0,
+        required:true
+      },
+
+      minutes:{
+        type:Number,
+        min:0,
+        required:true
+      }
+    },
+    {
+      _id:false
+    }
+  );
+
 const SharedEngineSettingsSchema =
   new mongoose.Schema(
     {
@@ -35,9 +61,50 @@ const SharedEngineSettingsSchema =
         index:true
       },
 
+      /*
+        Kept for backward compatibility only.
+        The API always saves this as true.
+      */
       enabled:{
         type:Boolean,
         default:true
+      },
+
+      presetMode:{
+        type:String,
+        enum:[
+          "LONG",
+          "MEDIUM",
+          "SHORT",
+          "CUSTOM"
+        ],
+        default:"LONG"
+      },
+
+      presets:{
+        long:{
+          type:PresetSchema,
+          default:()=>({
+            miles:20,
+            minutes:45
+          })
+        },
+
+        medium:{
+          type:PresetSchema,
+          default:()=>({
+            miles:10,
+            minutes:30
+          })
+        },
+
+        short:{
+          type:PresetSchema,
+          default:()=>({
+            miles:5,
+            minutes:15
+          })
+        }
       },
 
       sources:{
@@ -65,7 +132,7 @@ const SharedEngineSettingsSchema =
 
       maxGroupDistanceMiles:{
         type:Number,
-        default:10,
+        default:20,
         min:0
       },
 
@@ -77,25 +144,25 @@ const SharedEngineSettingsSchema =
 
       maxExtraMinutes:{
         type:Number,
-        default:30,
+        default:45,
         min:0
       },
 
       appointmentBufferMinutes:{
         type:Number,
-        default:10,
+        default:60,
         min:0
       },
 
       pickupLateToleranceMinutes:{
         type:Number,
-        default:5,
+        default:20,
         min:0
       },
 
       pickupEarlyWindowMinutes:{
         type:Number,
-        default:20,
+        default:30,
         min:0
       },
 

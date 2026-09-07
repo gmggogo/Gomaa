@@ -13,8 +13,9 @@ POST /api/shared-engine/settings
 POST /api/shared-engine/plan
 
 IMPORTANT:
-The plan endpoint returns proposals only.
-It does not modify original trips.
+- Shared Engine is always ON.
+- Presets control Max Group Distance + Max Extra Ride Time.
+- CUSTOM uses the full advanced settings.
 */
 
 const express =
@@ -56,6 +57,23 @@ const {
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
+
+const PRESET_DEFAULTS = {
+  long:{
+    miles:20,
+    minutes:45
+  },
+
+  medium:{
+    miles:10,
+    minutes:30
+  },
+
+  short:{
+    miles:5,
+    minutes:15
+  }
+};
 
 function clean(value){
   return String(value ?? "").trim();
@@ -193,6 +211,121 @@ function numberOr(
     : fallback;
 }
 
+function normalizePresetMode(
+  value
+){
+  const mode =
+    clean(value)
+      .toUpperCase();
+
+  return [
+    "LONG",
+    "MEDIUM",
+    "SHORT",
+    "CUSTOM"
+  ].includes(mode)
+    ? mode
+    : "LONG";
+}
+
+function normalizePreset(
+  value,
+  fallback
+){
+  return {
+    miles:
+      Math.max(
+        0,
+        numberOr(
+          value?.miles,
+          fallback.miles
+        )
+      ),
+
+    minutes:
+      Math.max(
+        0,
+        numberOr(
+          value?.minutes,
+          fallback.minutes
+        )
+      )
+  };
+}
+
+function normalizePresets(
+  presets = {}
+){
+  return {
+    long:
+      normalizePreset(
+        presets.long,
+        PRESET_DEFAULTS.long
+      ),
+
+    medium:
+      normalizePreset(
+        presets.medium,
+        PRESET_DEFAULTS.medium
+      ),
+
+    short:
+      normalizePreset(
+        presets.short,
+        PRESET_DEFAULTS.short
+      )
+  };
+}
+
+function applyPresetToSettings(
+  settings = {}
+){
+  const presets =
+    normalizePresets(
+      settings.presets
+    );
+
+  const presetMode =
+    normalizePresetMode(
+      settings.presetMode
+    );
+
+  if(
+    presetMode === "CUSTOM"
+  ){
+    return {
+      ...settings,
+      enabled:true,
+      presetMode,
+      presets
+    };
+  }
+
+  const selected =
+    presetMode === "MEDIUM"
+      ? presets.medium
+      : presetMode === "SHORT"
+        ? presets.short
+        : presets.long;
+
+  return {
+    ...settings,
+    enabled:true,
+    presetMode,
+    presets,
+
+    /*
+      Presets intentionally control these two limits only.
+      All other advanced rules remain saved and continue to apply.
+    */
+    maxGroupDistanceMiles:
+      selected.miles,
+
+    maxExtraMinutes:
+      selected.minutes
+  };
+}
+
 function normalizeServiceCode(
   value
 ){
@@ -270,11 +403,6 @@ async function getCapabilities(
   }
 
   try{
-    /*
-      Platform Admin Services is the master switch.
-      The selected service cards are stored on Tenant.allowedServices.
-      Do not infer SHARED access from tenant Service documents.
-    */
     const tenant =
       await Tenant
         .findById(
@@ -313,10 +441,6 @@ async function getCapabilities(
   return {
     brokerContractEnabled,
     sharedServiceEnabled,
-
-    /*
-      Backward-compatible alias used by the current frontend.
-    */
     sharedServiceFound:
       sharedServiceEnabled
   };
@@ -343,10 +467,23 @@ async function getSettings(
       })
       .lean();
 
-  return mergeSettings(
-    saved ||
-    DEFAULT_SETTINGS
-  );
+  const base =
+    mergeSettings(
+      saved ||
+      DEFAULT_SETTINGS
+    );
+
+  return applyPresetToSettings({
+    ...base,
+
+    presetMode:
+      saved?.presetMode ||
+      "LONG",
+
+    presets:
+      saved?.presets ||
+      PRESET_DEFAULTS
+  });
 }
 
 router.get(
@@ -421,13 +558,51 @@ router.post(
         req.body ||
         {};
 
+      const presetMode =
+        normalizePresetMode(
+          body.presetMode
+        );
+
+      const presets =
+        normalizePresets(
+          body.presets
+        );
+
+      const customMaxGroupDistance =
+        Math.max(
+          0,
+          numberOr(
+            body
+              .maxGroupDistanceMiles,
+            20
+          )
+        );
+
+      const customMaxExtraMinutes =
+        Math.max(
+          0,
+          numberOr(
+            body
+              .maxExtraMinutes,
+            45
+          )
+        );
+
+      const activePreset =
+        presetMode === "MEDIUM"
+          ? presets.medium
+          : presetMode === "SHORT"
+            ? presets.short
+            : presets.long;
+
       const update = {
-        enabled:
-          body.enabled === undefined
-            ? true
-            : bool(
-                body.enabled
-              ),
+        /*
+          Engine availability is no longer user-configurable here.
+        */
+        enabled:true,
+
+        presetMode,
+        presets,
 
         sources:{
           company:{
@@ -474,14 +649,9 @@ router.post(
         },
 
         maxGroupDistanceMiles:
-          Math.max(
-            0,
-            numberOr(
-              body
-                .maxGroupDistanceMiles,
-              10
-            )
-          ),
+          presetMode === "CUSTOM"
+            ? customMaxGroupDistance
+            : activePreset.miles,
 
         maxExtraMiles:
           Math.max(
@@ -493,13 +663,9 @@ router.post(
           ),
 
         maxExtraMinutes:
-          Math.max(
-            0,
-            numberOr(
-              body.maxExtraMinutes,
-              30
-            )
-          ),
+          presetMode === "CUSTOM"
+            ? customMaxExtraMinutes
+            : activePreset.minutes,
 
         appointmentBufferMinutes:
           Math.max(
@@ -507,7 +673,7 @@ router.post(
             numberOr(
               body
                 .appointmentBufferMinutes,
-              10
+              60
             )
           ),
 
@@ -517,7 +683,7 @@ router.post(
             numberOr(
               body
                 .pickupLateToleranceMinutes,
-              5
+              20
             )
           ),
 
@@ -527,7 +693,7 @@ router.post(
             numberOr(
               body
                 .pickupEarlyWindowMinutes,
-              20
+              30
             )
           ),
 
@@ -598,8 +764,10 @@ router.post(
       return res.json({
         success:true,
         settings:
-          mergeSettings(
-            saved
+          applyPresetToSettings(
+            mergeSettings(
+              saved
+            )
           ),
         capabilities
       });
@@ -676,14 +844,16 @@ router.post(
         );
 
       const settings =
-        mergeSettings({
-          ...savedSettings,
-          ...(
-            req.body
-              ?.settingsOverride ||
-            {}
-          )
-        });
+        applyPresetToSettings(
+          mergeSettings({
+            ...savedSettings,
+            ...(
+              req.body
+                ?.settingsOverride ||
+              {}
+            )
+          })
+        );
 
       const result =
         await planSharedTrips({
