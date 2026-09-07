@@ -64,9 +64,9 @@ const PROFILE_DEFAULTS = {
     maxExtraMiles:10,
     maxExtraMinutes:45,
     appointmentBufferMinutes:60,
-    pickupLateToleranceMinutes:20,
+    pickupLateToleranceMinutes:30,
     pickupEarlyWindowMinutes:30,
-    maxRidersPerGroup:4,
+    maxRidersPerGroup:3,
     samePickupPriority:true,
     sameDropoffPriority:true,
     sources:{
@@ -78,12 +78,12 @@ const PROFILE_DEFAULTS = {
 
   MEDIUM:{
     maxGroupDistanceMiles:10,
-    maxExtraMiles:10,
+    maxExtraMiles:7,
     maxExtraMinutes:30,
-    appointmentBufferMinutes:60,
+    appointmentBufferMinutes:45,
     pickupLateToleranceMinutes:20,
-    pickupEarlyWindowMinutes:30,
-    maxRidersPerGroup:4,
+    pickupEarlyWindowMinutes:20,
+    maxRidersPerGroup:3,
     samePickupPriority:true,
     sameDropoffPriority:true,
     sources:{
@@ -95,12 +95,12 @@ const PROFILE_DEFAULTS = {
 
   SHORT:{
     maxGroupDistanceMiles:5,
-    maxExtraMiles:10,
+    maxExtraMiles:5,
     maxExtraMinutes:15,
-    appointmentBufferMinutes:60,
-    pickupLateToleranceMinutes:20,
-    pickupEarlyWindowMinutes:30,
-    maxRidersPerGroup:4,
+    appointmentBufferMinutes:30,
+    pickupLateToleranceMinutes:15,
+    pickupEarlyWindowMinutes:15,
+    maxRidersPerGroup:3,
     samePickupPriority:true,
     sameDropoffPriority:true,
     sources:{
@@ -627,7 +627,7 @@ router.post(
               20,
               numberOr(
                 body.maxRidersPerGroup,
-                4
+                3
               )
             )
           ),

@@ -17,9 +17,9 @@ Shared Engine preset + custom settings UI.
       maxExtraMiles:10,
       maxExtraMinutes:45,
       appointmentBufferMinutes:60,
-      pickupLateToleranceMinutes:20,
+      pickupLateToleranceMinutes:30,
       pickupEarlyWindowMinutes:30,
-      maxRidersPerGroup:4,
+      maxRidersPerGroup:3,
       samePickupPriority:true,
       sameDropoffPriority:true,
       sources:{
@@ -31,12 +31,12 @@ Shared Engine preset + custom settings UI.
 
     MEDIUM:{
       maxGroupDistanceMiles:10,
-      maxExtraMiles:10,
+      maxExtraMiles:7,
       maxExtraMinutes:30,
-      appointmentBufferMinutes:60,
+      appointmentBufferMinutes:45,
       pickupLateToleranceMinutes:20,
-      pickupEarlyWindowMinutes:30,
-      maxRidersPerGroup:4,
+      pickupEarlyWindowMinutes:20,
+      maxRidersPerGroup:3,
       samePickupPriority:true,
       sameDropoffPriority:true,
       sources:{
@@ -48,12 +48,12 @@ Shared Engine preset + custom settings UI.
 
     SHORT:{
       maxGroupDistanceMiles:5,
-      maxExtraMiles:10,
+      maxExtraMiles:5,
       maxExtraMinutes:15,
-      appointmentBufferMinutes:60,
-      pickupLateToleranceMinutes:20,
-      pickupEarlyWindowMinutes:30,
-      maxRidersPerGroup:4,
+      appointmentBufferMinutes:30,
+      pickupLateToleranceMinutes:15,
+      pickupEarlyWindowMinutes:15,
+      maxRidersPerGroup:3,
       samePickupPriority:true,
       sameDropoffPriority:true,
       sources:{
@@ -487,7 +487,7 @@ Shared Engine preset + custom settings UI.
 
       setNumber(
         "sharedEngineMaxRidersPerGroup",
-        settings?.maxRidersPerGroup ?? 4
+        settings?.maxRidersPerGroup ?? 3
       );
 
       setBoolean(
@@ -575,7 +575,7 @@ Shared Engine preset + custom settings UI.
       maxRidersPerGroup:
         numberValue(
           "sharedEngineMaxRidersPerGroup",
-          4
+          3
         ),
 
       samePickupPriority:

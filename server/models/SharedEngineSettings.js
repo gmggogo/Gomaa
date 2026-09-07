@@ -156,7 +156,7 @@ const SharedEngineSettingsSchema =
 
       pickupLateToleranceMinutes:{
         type:Number,
-        default:20,
+        default:30,
         min:0
       },
 
@@ -168,7 +168,7 @@ const SharedEngineSettingsSchema =
 
       maxRidersPerGroup:{
         type:Number,
-        default:4,
+        default:3,
         min:2,
         max:20
       },
