@@ -1,0 +1,745 @@
+<!--
+DESTINATION PATH:
+server/public/admin/broker-review.html
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Broker Review</title>
+
+  <link
+    rel="stylesheet"
+    href="/admin/style.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
+
+  <style>
+    *{box-sizing:border-box}
+
+    :root{
+      --navy:#163d57;
+      --navy2:#244f6a;
+      --gold:#b58a3a;
+      --bg:#eef4f7;
+      --panel:#fff;
+      --line:#d8e1e7;
+      --text:#13212d;
+      --muted:#687784;
+      --green:#218a61;
+      --red:#c83e3e;
+      --blue:#315f9c;
+    }
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    .page{
+      width:100%;
+      padding:14px 16px 30px;
+    }
+
+    .page-head{
+      background:
+        linear-gradient(
+          135deg,
+          #fff8dc,
+          #f5e3a8,
+          #fff4ce
+        );
+      border:1px solid #dfc56d;
+      border-radius:16px;
+      padding:15px 18px;
+      text-align:center;
+      margin-bottom:12px;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:25px;
+      font-weight:900;
+    }
+
+    .page-sub{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .notice{
+      margin:0 0 10px;
+      padding:9px 12px;
+      border-radius:9px;
+      font-size:12px;
+      font-weight:900;
+      text-align:center;
+    }
+
+    .notice.ok{
+      background:#e6f6ed;
+      border:1px solid #a6d9bd;
+      color:#17623e;
+    }
+
+    .notice.error{
+      background:#fde9e9;
+      border:1px solid #e7b1b1;
+      color:#8f2424;
+    }
+
+    .hidden{
+      display:none!important;
+    }
+
+    .day-tabs{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      margin-bottom:12px;
+    }
+
+    .day-tab{
+      min-width:180px;
+      border:1px solid #b8c7d1;
+      background:#fff;
+      color:#23435a;
+      border-radius:10px;
+      padding:11px 16px;
+      cursor:pointer;
+      font-weight:900;
+    }
+
+    .day-tab.active{
+      background:var(--navy);
+      color:#fff;
+      border-color:var(--navy);
+    }
+
+    .review-toolbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px;
+      margin-bottom:12px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+    }
+
+    .toolbar-left{
+      display:flex;
+      gap:9px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:9px 14px;
+      font-size:11px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .select-btn{
+      background:var(--blue);
+      color:#fff;
+    }
+
+    .confirm-btn{
+      background:var(--green);
+      color:#fff;
+    }
+
+    .edit-btn{
+      background:#315f9c;
+      color:#fff;
+    }
+
+    .delete-btn{
+      background:var(--red);
+      color:#fff;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:
+        repeat(4,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .stat{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:13px;
+    }
+
+    .stat span{
+      display:block;
+      color:#6b7985;
+      font-size:10px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+
+    .stat strong{
+      display:block;
+      margin-top:4px;
+      font-size:24px;
+      font-weight:900;
+    }
+
+    .panel{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+    }
+
+    .table-wrap{
+      width:100%;
+      overflow-x:auto;
+    }
+
+    table{
+      width:100%;
+      min-width:2150px;
+      border-collapse:collapse;
+      table-layout:fixed;
+      border-top:6px solid #111;
+    }
+
+    th,
+    td{
+      border:1px solid #d9e1e7;
+      padding:5px;
+      font-size:9.5px;
+      text-align:center;
+      vertical-align:middle;
+    }
+
+    th{
+      background:#263b4e;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    th:nth-child(1),
+    td:nth-child(1){width:44px}
+
+    th:nth-child(2),
+    td:nth-child(2){width:48px}
+
+    th:nth-child(3),
+    td:nth-child(3){width:90px}
+
+    th:nth-child(4),
+    td:nth-child(4){width:120px}
+
+    th:nth-child(5),
+    td:nth-child(5){width:90px}
+
+    th:nth-child(6),
+    td:nth-child(6){width:130px}
+
+    th:nth-child(7),
+    td:nth-child(7){width:90px}
+
+    th:nth-child(8),
+    td:nth-child(8){width:72px}
+
+    th:nth-child(9),
+    td:nth-child(9){width:90px}
+
+    th:nth-child(10),
+    td:nth-child(10){width:120px}
+
+    th:nth-child(11),
+    td:nth-child(11){width:105px}
+
+    th:nth-child(12),
+    td:nth-child(12){width:240px}
+
+    th:nth-child(13),
+    td:nth-child(13){width:220px}
+
+    th:nth-child(14),
+    td:nth-child(14){width:240px}
+
+    th:nth-child(15),
+    td:nth-child(15){width:90px}
+
+    th:nth-child(16),
+    td:nth-child(16){width:105px}
+
+    th:nth-child(17),
+    td:nth-child(17){width:90px}
+
+    th:nth-child(18),
+    td:nth-child(18){width:120px}
+
+    th:nth-child(19),
+    td:nth-child(19){width:150px}
+
+    .cell-box{
+      display:grid;
+      border:1px solid #111;
+      border-radius:4px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .cell-item{
+      padding:4px 5px;
+      min-height:22px;
+      text-align:left;
+      font-weight:800;
+      line-height:1.25;
+      word-break:break-word;
+    }
+
+    .cell-item + .cell-item{
+      border-top:1px solid #111;
+    }
+
+    .route-box{
+      border:1px solid #111;
+      border-radius:4px;
+      padding:5px 6px;
+      margin-bottom:4px;
+      text-align:left;
+      line-height:1.25;
+      word-break:break-word;
+      background:#fff;
+    }
+
+    .route-box:last-child{
+      margin-bottom:0;
+    }
+
+    .mode{
+      display:inline-flex;
+      border-radius:999px;
+      padding:4px 7px;
+      font-size:8px;
+      font-weight:900;
+    }
+
+    .mode.shared{
+      background:#eee5ff;
+      color:#6035a2;
+    }
+
+    .mode.individual{
+      background:#e4f0ff;
+      color:#275d9f;
+    }
+
+    .status-badge{
+      display:inline-flex;
+      border-radius:999px;
+      padding:4px 7px;
+      background:#e9eef2;
+      color:#263b4e;
+      font-size:8px;
+      font-weight:900;
+    }
+
+    .confirmed-row{
+      background:#edf9f2;
+    }
+
+    .confirmed-check{
+      color:var(--green);
+      font-size:16px;
+      font-weight:900;
+    }
+
+    .actions-cell{
+      display:flex;
+      justify-content:center;
+      gap:5px;
+    }
+
+    .actions-cell .btn{
+      padding:6px 8px;
+      font-size:9px;
+    }
+
+    .empty{
+      padding:30px!important;
+      color:#70808c;
+      font-size:12px!important;
+      font-weight:900;
+    }
+
+    dialog{
+      border:0;
+      border-radius:14px;
+      width:min(760px,94vw);
+      padding:0;
+      box-shadow:0 20px 60px rgba(0,0,0,.3);
+    }
+
+    dialog::backdrop{
+      background:rgba(0,0,0,.42);
+    }
+
+    .modal-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:15px 17px;
+      border-bottom:1px solid #dfe5ea;
+    }
+
+    .modal-title{
+      font-weight:900;
+    }
+
+    .modal-body{
+      padding:17px;
+    }
+
+    .edit-grid{
+      display:grid;
+      grid-template-columns:
+        repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:5px;
+      color:#5c6a75;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .field input,
+    .field textarea{
+      width:100%;
+      border:1px solid #cbd5dc;
+      border-radius:8px;
+      padding:9px 10px;
+      font:inherit;
+    }
+
+    .field textarea{
+      min-height:85px;
+      resize:vertical;
+    }
+
+    .wide{
+      grid-column:1/-1;
+    }
+
+    .route-lock-note{
+      margin:0 0 12px;
+      padding:8px 10px;
+      border-radius:8px;
+      background:#fff4d9;
+      color:#7b5513;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:9px;
+      padding:14px 17px;
+      border-top:1px solid #dfe5ea;
+    }
+
+    @media(max-width:760px){
+      .page{
+        padding:8px 6px 20px;
+      }
+
+      .day-tabs{
+        gap:6px;
+      }
+
+      .day-tab{
+        min-width:0;
+        flex:1;
+        font-size:11px;
+      }
+
+      .review-toolbar{
+        align-items:stretch;
+        flex-direction:column;
+      }
+
+      .toolbar-left{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+      }
+
+      .stats{
+        grid-template-columns:
+          repeat(2,minmax(0,1fr));
+      }
+
+      .edit-grid{
+        grid-template-columns:1fr;
+      }
+
+      .wide{
+        grid-column:auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="page">
+
+    <div class="page-head">
+      <h1 class="page-title">
+        Broker Review
+      </h1>
+
+      <div class="page-sub">
+        Review Today and Tomorrow broker trips before releasing them to Dispatch.
+      </div>
+    </div>
+
+    <div
+      id="notice"
+      class="notice hidden"
+    ></div>
+
+    <div class="day-tabs">
+
+      <button
+        id="todayTab"
+        class="day-tab active"
+        type="button"
+      >
+        Today
+        <span id="todayLabel"></span>
+      </button>
+
+      <button
+        id="tomorrowTab"
+        class="day-tab"
+        type="button"
+      >
+        Tomorrow
+        <span id="tomorrowLabel"></span>
+      </button>
+
+    </div>
+
+    <div class="review-toolbar">
+
+      <div class="toolbar-left">
+        <button
+          id="selectAllBtn"
+          type="button"
+          class="btn select-btn"
+        >
+          Select All
+        </button>
+
+        <button
+          id="confirmSelectedBtn"
+          type="button"
+          class="btn confirm-btn"
+        >
+          Confirm Selected
+        </button>
+      </div>
+
+      <div>
+        <strong>
+          Confirmed trips remain visible here while their Dispatch status changes.
+        </strong>
+      </div>
+
+    </div>
+
+    <section class="stats">
+
+      <div class="stat">
+        <span>Total</span>
+        <strong id="totalCount">0</strong>
+      </div>
+
+      <div class="stat">
+        <span>Waiting Review</span>
+        <strong id="waitingCount">0</strong>
+      </div>
+
+      <div class="stat">
+        <span>Confirmed</span>
+        <strong id="confirmedCount">0</strong>
+      </div>
+
+      <div class="stat">
+        <span>Shared Groups</span>
+        <strong id="sharedCount">0</strong>
+      </div>
+
+    </section>
+
+    <section class="panel">
+
+      <div class="table-wrap">
+
+        <table>
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>#</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Mode</th>
+              <th>Group ID</th>
+              <th>Date</th>
+              <th>Pickup</th>
+              <th>Appointment</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup Address</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Driver</th>
+              <th>Vehicle</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="brokerReviewRows"></tbody>
+        </table>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <dialog id="editDialog">
+
+    <div class="modal-head">
+      <div class="modal-title">
+        Edit Broker Trip
+      </div>
+
+      <button
+        type="button"
+        id="closeEditBtn"
+        class="btn"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <div
+        id="routeLockNote"
+        class="route-lock-note hidden"
+      >
+        Shared route addresses are locked. Change the route from the shared workflow instead.
+      </div>
+
+      <div class="edit-grid">
+
+        <div class="field">
+          <label>Date</label>
+          <input
+            id="editDate"
+            type="date"
+          />
+        </div>
+
+        <div class="field">
+          <label>Pickup Time</label>
+          <input
+            id="editTime"
+            type="time"
+          />
+        </div>
+
+        <div class="field wide">
+          <label>Pickup Address</label>
+          <input id="editPickup" />
+        </div>
+
+        <div class="field wide">
+          <label>Drop-off Address</label>
+          <input id="editDropoff" />
+        </div>
+
+        <div class="field wide">
+          <label>Notes</label>
+          <textarea id="editNotes"></textarea>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        id="cancelEditBtn"
+        type="button"
+        class="btn"
+      >
+        Cancel
+      </button>
+
+      <button
+        id="saveEditBtn"
+        type="button"
+        class="btn confirm-btn"
+      >
+        Save
+      </button>
+
+    </div>
+
+  </dialog>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/broker-review.js"></script>
+
+</body>
+</html>

@@ -5,8 +5,19 @@ DESTINATION PATH:
 server/models/TripSplitState.js
 
 PURPOSE:
-Tracks broker trips that were confirmed from Trip Split directly to Dispatch.
-This avoids reusing the old transferredToTripsHub flag for the new flow.
+Tracks broker trips moved from Trip Split into Broker Review and then Dispatch.
+
+FLOW:
+Trip Split Confirm
+  -> reviewConfirmed = false
+  -> dispatch Trip is created but hidden from Dispatch
+
+Broker Review Confirm Selected
+  -> reviewConfirmed = true
+  -> dispatchSelected = true
+  -> disabled = false
+
+The record remains available for Today / Tomorrow Broker Review tracking.
 */
 
 const mongoose = require("mongoose");
@@ -64,6 +75,10 @@ const TripSplitStateSchema = new mongoose.Schema(
       index:true
     },
 
+    /*
+      "confirmed" means the trip has left Trip Split and entered Broker Review.
+      It does NOT mean it has been released to Dispatch.
+    */
     confirmed:{
       type:Boolean,
       default:false,
@@ -76,6 +91,25 @@ const TripSplitStateSchema = new mongoose.Schema(
     },
 
     confirmedBy:{
+      type:String,
+      default:""
+    },
+
+    /*
+      Broker Review confirmation is the final release to Dispatch.
+    */
+    reviewConfirmed:{
+      type:Boolean,
+      default:false,
+      index:true
+    },
+
+    reviewConfirmedAt:{
+      type:Date,
+      default:null
+    },
+
+    reviewConfirmedBy:{
       type:String,
       default:""
     }
@@ -92,6 +126,14 @@ TripSplitStateSchema.index(
   },
   {
     unique:true
+  }
+);
+
+TripSplitStateSchema.index(
+  {
+    tenantId:1,
+    reviewConfirmed:1,
+    dispatchTripId:1
   }
 );
 

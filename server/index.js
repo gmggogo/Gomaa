@@ -2010,6 +2010,25 @@ console.log(
   "Trip Split mounted on /api/trip-split"
 );
 
+
+/* =========================
+   BROKER REVIEW
+   Trip Split -> Broker Review -> Dispatch
+   Mounted after Trip model registration.
+========================= */
+
+const brokerReviewRoutes =
+  require("./routes/brokerReviewRoutes");
+
+app.use(
+  "/api/broker-review",
+  brokerReviewRoutes
+);
+
+console.log(
+  "Broker Review mounted on /api/broker-review"
+);
+
 /*
   Development-only broker test route.
   It is mounted only when explicitly enabled in the environment.
