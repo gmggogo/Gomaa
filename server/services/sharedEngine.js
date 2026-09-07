@@ -1,6 +1,6 @@
 "use strict";
 
-/* GH SHARED ENGINE APPOINTMENT WINDOW BUILD: 2026-09-06-R4 */
+/* GH SHARED ENGINE CROSS-MIDNIGHT APPOINTMENT BUILD: 2026-09-06-R5 */
 
 /* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
@@ -477,19 +477,6 @@ function calculateStartMinute(
       trip.appointmentMinutes !== null
     ){
 
-      /*
-        Appointment Buffer is an allowed ARRIVAL WINDOW before appointment.
-
-        Example:
-          Appointment = 16:00
-          Buffer      = 30 minutes
-
-        Valid drop-off arrival:
-          15:30 through 16:00
-
-        Therefore the route start must allow arrival no earlier than
-        appointment - buffer and no later than the appointment itself.
-      */
       const routeOffset =
         n(
           cumulativeMinutes[
@@ -810,11 +797,6 @@ function simulateSchedule(
         const latestAllowedArrival =
           trip.appointmentMinutes;
 
-        /*
-          If the vehicle reaches the destination too early, it may wait until
-          the allowed appointment window opens. This keeps the passenger from
-          being dropped off earlier than the configured buffer.
-        */
         if(
           current <
           earliestAllowedArrival
@@ -823,9 +805,6 @@ function simulateSchedule(
             earliestAllowedArrival;
         }
 
-        /*
-          Arrival after the appointment itself is not allowed.
-        */
         if(
           current >
           latestAllowedArrival
@@ -1348,6 +1327,50 @@ function makeGroupId(
   );
 }
 
+
+/* =========================
+   CROSS-MIDNIGHT TIME NORMALIZATION
+
+   Example:
+     Pickup      23:19
+     Appointment 00:10
+
+   The appointment belongs to the following day, so internally it becomes
+   24:10 (1450 minutes) instead of 00:10 (10 minutes).
+
+   This keeps late-night broker trips valid without changing their visible
+   date/time strings.
+========================= */
+
+function normalizeCrossMidnightAppointment(trip){
+
+  if(!trip){
+    return trip;
+  }
+
+  if(
+    trip.pickupMinutes === null ||
+    trip.appointmentMinutes === null
+  ){
+    return trip;
+  }
+
+  if(
+    n(trip.appointmentMinutes) <
+    n(trip.pickupMinutes)
+  ){
+    return {
+      ...trip,
+      appointmentMinutes:
+        n(trip.appointmentMinutes) +
+        1440,
+      appointmentNextDay:true
+    };
+  }
+
+  return trip;
+}
+
 async function planSharedTrips({
   trips,
   source,
@@ -1362,10 +1385,12 @@ async function planSharedTrips({
     safeArray(trips)
       .map(
         (trip,index)=>
-          normalizeTrip(
-            trip,
-            index,
-            source
+          normalizeCrossMidnightAppointment(
+            normalizeTrip(
+              trip,
+              index,
+              source
+            )
           )
       );
 
