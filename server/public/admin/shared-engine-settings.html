@@ -9,6 +9,12 @@
 
   <title>Shared Engine Settings</title>
 
+  <!-- Existing admin header base styles -->
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
+
   <style>
     *{
       box-sizing:border-box;
@@ -29,7 +35,7 @@
         1200px,
         calc(100% - 32px)
       );
-      margin:18px auto 28px;
+      margin:12px auto 28px;
     }
 
     .settings-card{
@@ -65,6 +71,7 @@
     }
 
     .preset-card{
+      position:relative;
       border:2px solid #d9e1e7;
       border-radius:12px;
       padding:14px;
@@ -72,14 +79,38 @@
       cursor:pointer;
       transition:
         border-color .15s ease,
-        box-shadow .15s ease;
+        box-shadow .15s ease,
+        background .15s ease;
     }
 
     .preset-card.active{
-      border-color:#1f4f7a;
+      border-color:#218a61;
+      background:#eaf8f1;
       box-shadow:
         0 0 0 2px
-        rgba(31,79,122,.10);
+        rgba(33,138,97,.12);
+    }
+
+    .preset-card.active::after{
+      content:"ACTIVE";
+      position:absolute;
+      top:10px;
+      right:10px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:58px;
+      height:24px;
+      padding:0 8px;
+      border-radius:999px;
+      background:#218a61;
+      color:#ffffff;
+      font-size:9px;
+      font-weight:900;
+      letter-spacing:.05em;
+      box-shadow:
+        0 2px 6px
+        rgba(0,0,0,.12);
     }
 
     .preset-name{
@@ -87,6 +118,11 @@
       font-weight:900;
       color:#173f5f;
       margin-bottom:4px;
+      padding-right:66px;
+    }
+
+    .preset-card.active .preset-name{
+      color:#176a49;
     }
 
     .preset-desc{
@@ -127,6 +163,47 @@
 
     .preset-field input:focus{
       border-color:#1f4f7a;
+    }
+
+    .preset-field input[readonly]{
+      background:#eef2f5;
+      color:#55616d;
+      cursor:not-allowed;
+    }
+
+    .advanced-toggle-wrap{
+      display:flex;
+      justify-content:center;
+      margin-top:18px;
+    }
+
+    .advanced-toggle{
+      border:1px solid #b9c5ce;
+      background:#ffffff;
+      color:#214763;
+      border-radius:9px;
+      min-height:40px;
+      padding:0 18px;
+      font-size:13px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .advanced-toggle.open{
+      background:#214763;
+      color:#ffffff;
+      border-color:#214763;
+    }
+
+    .custom-settings.readonly-mode{
+      opacity:.78;
+    }
+
+    .custom-settings.readonly-mode input,
+    .custom-settings.readonly-mode select{
+      background:#eef2f5;
+      color:#5d6872;
+      cursor:not-allowed;
     }
 
     .custom-card{
@@ -384,6 +461,7 @@
               <input
                 id="sharedPresetLongMiles"
                 type="number"
+                readonly
                 min="0"
                 step="0.1"
                 value="20"
@@ -396,6 +474,7 @@
               <input
                 id="sharedPresetLongMinutes"
                 type="number"
+                readonly
                 min="0"
                 step="1"
                 value="45"
@@ -425,6 +504,7 @@
               <input
                 id="sharedPresetMediumMiles"
                 type="number"
+                readonly
                 min="0"
                 step="0.1"
                 value="10"
@@ -437,6 +517,7 @@
               <input
                 id="sharedPresetMediumMinutes"
                 type="number"
+                readonly
                 min="0"
                 step="1"
                 value="30"
@@ -466,6 +547,7 @@
               <input
                 id="sharedPresetShortMiles"
                 type="number"
+                readonly
                 min="0"
                 step="0.1"
                 value="5"
@@ -478,6 +560,7 @@
               <input
                 id="sharedPresetShortMinutes"
                 type="number"
+                readonly
                 min="0"
                 step="1"
                 value="15"
@@ -506,14 +589,31 @@
 
       </div>
 
+      <div class="advanced-toggle-wrap">
+        <button
+          id="sharedEngineAdvancedToggle"
+          type="button"
+          class="advanced-toggle"
+        >
+          Show Advanced Settings
+        </button>
+      </div>
+
       <div
         id="sharedEngineCustomSettings"
         class="custom-settings hidden"
       >
 
         <h2 class="custom-title">
-          Custom Settings
+          Advanced Shared Settings
         </h2>
+
+        <p
+          id="sharedEngineAdvancedNote"
+          class="preset-intro"
+        >
+          These settings are view-only for presets. Select Custom to edit them.
+        </p>
 
         <div class="settings-grid">
 

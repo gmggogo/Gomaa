@@ -247,6 +247,62 @@ Shared Engine preset + custom settings UI.
     return true;
   }
 
+  function setAdvancedEditable(
+    editable
+  ){
+    const ids = [
+      "sharedEngineMaxGroupDistanceMiles",
+      "sharedEngineMaxExtraMiles",
+      "sharedEngineMaxExtraMinutes",
+      "sharedEngineAppointmentBufferMinutes",
+      "sharedEnginePickupLateToleranceMinutes",
+      "sharedEnginePickupEarlyWindowMinutes",
+      "sharedEngineMaxRidersPerGroup",
+      "sharedEngineSamePickupPriority",
+      "sharedEngineSameDropoffPriority",
+      "sharedEngineCompanyEnabled",
+      "sharedEngineReservedEnabled",
+      "sharedEngineBrokerEnabled"
+    ];
+
+    ids.forEach(
+      id=>{
+        const el = $(id);
+
+        if(!el){
+          return;
+        }
+
+        el.disabled =
+          editable !== true;
+      }
+    );
+
+    const custom =
+      $(
+        "sharedEngineCustomSettings"
+      );
+
+    if(custom){
+      custom.classList.toggle(
+        "readonly-mode",
+        editable !== true
+      );
+    }
+
+    const note =
+      $(
+        "sharedEngineAdvancedNote"
+      );
+
+    if(note){
+      note.textContent =
+        editable
+          ? "Custom mode is active. Advanced settings can be edited."
+          : "These settings are view-only for presets. Select Custom to edit them.";
+    }
+  }
+
   function selectMode(
     mode
   ){
@@ -270,18 +326,45 @@ Shared Engine preset + custom settings UI.
         }
       );
 
+    setAdvancedEditable(
+      activeMode === "CUSTOM"
+    );
+  }
+
+  function toggleAdvancedSettings(){
     const custom =
       $(
         "sharedEngineCustomSettings"
       );
 
-    if(custom){
-      custom.classList.toggle(
-        "hidden",
-        activeMode !==
-          "CUSTOM"
+    const button =
+      $(
+        "sharedEngineAdvancedToggle"
       );
+
+    if(!custom || !button){
+      return;
     }
+
+    const opening =
+      custom.classList.contains(
+        "hidden"
+      );
+
+    custom.classList.toggle(
+      "hidden",
+      !opening
+    );
+
+    button.classList.toggle(
+      "open",
+      opening
+    );
+
+    button.textContent =
+      opening
+        ? "Hide Advanced Settings"
+        : "Show Advanced Settings";
   }
 
   function applySettings(
@@ -604,6 +687,18 @@ Shared Engine preset + custom settings UI.
   }
 
   async function save(){
+    const advancedToggle =
+      $(
+        "sharedEngineAdvancedToggle"
+      );
+
+    if(advancedToggle){
+      advancedToggle.addEventListener(
+        "click",
+        toggleAdvancedSettings
+      );
+    }
+
     const button =
       $(
         "sharedEngineSaveBtn"
@@ -685,31 +780,6 @@ Shared Engine preset + custom settings UI.
                 card.dataset
                   .presetMode
               );
-            }
-          );
-        }
-      );
-
-    document
-      .querySelectorAll(
-        ".preset-card input"
-      )
-      .forEach(
-        input=>{
-          input.addEventListener(
-            "focus",
-            ()=>{
-              const card =
-                input.closest(
-                  "[data-preset-mode]"
-                );
-
-              if(card){
-                selectMode(
-                  card.dataset
-                    .presetMode
-                );
-              }
             }
           );
         }
