@@ -1,7 +1,5 @@
 "use strict";
 
-/* GH TRIP SPLIT SHARED FEATURE VISIBILITY BUILD: 2026-09-07-R1 */
-
 /*
 DESTINATION PATH:
 server/public/admin/js/tripSplit.js
@@ -143,13 +141,6 @@ FLOW:
     return (
       !hasStops(trip) &&
       trip?.tripSplitConfirmed !== true
-    );
-  }
-
-  function sharedFeatureEnabled(){
-    return (
-      state.capabilities?.sharedServiceEnabled === true ||
-      state.capabilities?.sharedServiceFound === true
     );
   }
 
@@ -419,24 +410,17 @@ FLOW:
   function renderAll(){
     renderBrokerFilter();
     renderOriginalTrips();
+    renderGroups();
+    renderStats();
 
     const shareAllowed =
-      sharedFeatureEnabled();
+      state.capabilities?.sharedServiceEnabled === true ||
+      state.capabilities?.sharedServiceFound === true;
 
     /*
-      Broker and Shared are separate SaaS features.
-
-      Broker enabled:
-      - Trip Split page remains available for normal broker trips.
-
-      Shared enabled:
-      - Share button is visible.
-      - Shared Groups stat is visible.
-      - Shared Groups section is visible.
-
-      Shared disabled:
-      - All Shared-only UI is hidden.
-      - Normal broker review/confirm flow still works.
+      Trip Split belongs to Broker Operations.
+      The page itself requires Broker.
+      Only the Share action depends on the SHARED service.
     */
     $("shareBtn")
       ?.classList
@@ -445,28 +429,17 @@ FLOW:
         !shareAllowed
       );
 
-    $("sharedGroupsStat")
+    /*
+      Restore Original belongs to the Shared feature too.
+      If Shared is not enabled for this tenant, hide it exactly
+      the same way as the Share button.
+    */
+    $("restoreBtn")
       ?.classList
       .toggle(
         "hidden",
         !shareAllowed
       );
-
-    $("sharedGroupsSection")
-      ?.classList
-      .toggle(
-        "hidden",
-        !shareAllowed
-      );
-
-    if(shareAllowed){
-      renderGroups();
-    }else{
-      state.groups = [];
-      state.selectedGroupIds.clear();
-    }
-
-    renderStats();
   }
 
   function selectAll(){
@@ -486,14 +459,6 @@ FLOW:
   }
 
   async function createShare(){
-    if(!sharedFeatureEnabled()){
-      notice(
-        "Shared service is not enabled for this company.",
-        "error"
-      );
-      return;
-    }
-
     const ids = [...state.selectedTripIds];
 
     if(ids.length < 2){
