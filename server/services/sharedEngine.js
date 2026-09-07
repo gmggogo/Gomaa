@@ -1,6 +1,6 @@
 "use strict";
 
-/* GH SHARED ENGINE GEO BRIDGE BUILD: 2026-09-06-R1 */
+/* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
 /*
 DESTINATION PATH:
@@ -407,11 +407,24 @@ function calculateStartMinute(
       routeData
     );
 
-  const fixedAnchors = [];
+  /*
+    FIX:
+    A fixed pickup time is not a single exact route-start anchor.
+    Each trip has an allowed pickup WINDOW:
 
-  const appointmentAnchors = [];
+      pickupTime - pickupEarlyWindow
+      through
+      pickupTime + pickupLateTolerance
+
+    For shared pickups, all rider windows must overlap.
+    The old code anchored the route to the earliest exact pickup time,
+    which incorrectly rejected valid groups.
+  */
+  const lowerBounds = [];
+  const upperBounds = [];
 
   for(const trip of trips){
+
     const pickupIndex =
       routeIndexForTrip(
         routePlan,
@@ -430,13 +443,30 @@ function calculateStartMinute(
       pickupIndex >= 0 &&
       trip.pickupMinutes !== null
     ){
-      fixedAnchors.push(
-        trip.pickupMinutes -
+
+      const routeOffset =
         n(
           cumulativeMinutes[
             pickupIndex
           ]
-        )
+        );
+
+      lowerBounds.push(
+        trip.pickupMinutes -
+        n(
+          settings
+            .pickupEarlyWindowMinutes
+        ) -
+        routeOffset
+      );
+
+      upperBounds.push(
+        trip.pickupMinutes +
+        n(
+          settings
+            .pickupLateToleranceMinutes
+        ) -
+        routeOffset
       );
     }
 
@@ -444,6 +474,7 @@ function calculateStartMinute(
       dropoffIndex >= 0 &&
       trip.appointmentMinutes !== null
     ){
+
       const latestDropoff =
         trip.appointmentMinutes -
         n(
@@ -451,7 +482,7 @@ function calculateStartMinute(
             .appointmentBufferMinutes
         );
 
-      appointmentAnchors.push(
+      upperBounds.push(
         latestDropoff -
         n(
           cumulativeMinutes[
@@ -462,19 +493,36 @@ function calculateStartMinute(
     }
   }
 
-  if(fixedAnchors.length){
-    return Math.min(
-      ...fixedAnchors
-    );
+  if(
+    !lowerBounds.length &&
+    !upperBounds.length
+  ){
+    return null;
   }
 
-  if(appointmentAnchors.length){
-    return Math.min(
-      ...appointmentAnchors
-    );
+  const earliestStart =
+    lowerBounds.length
+      ? Math.max(...lowerBounds)
+      : Math.min(...upperBounds);
+
+  const latestStart =
+    upperBounds.length
+      ? Math.min(...upperBounds)
+      : earliestStart;
+
+  if(
+    earliestStart >
+    latestStart
+  ){
+    return {
+      invalid:true,
+      reason:"TIME_WINDOWS_DO_NOT_OVERLAP",
+      earliestStart,
+      latestStart
+    };
   }
 
-  return null;
+  return earliestStart;
 }
 
 function simulateSchedule(
@@ -483,7 +531,7 @@ function simulateSchedule(
   routeData,
   settings
 ){
-  const startMinute =
+  const startResult =
     calculateStartMinute(
       trips,
       routePlan,
@@ -491,13 +539,38 @@ function simulateSchedule(
       settings
     );
 
-  if(startMinute === null){
+  if(startResult === null){
     return {
       valid:false,
       reason:
         "NO_TIME_REFERENCE"
     };
   }
+
+  if(
+    typeof startResult === "object" &&
+    startResult.invalid === true
+  ){
+    return {
+      valid:false,
+      reason:
+        startResult.reason ||
+        "TIME_WINDOWS_DO_NOT_OVERLAP",
+      earliestStart:
+        Number(
+          n(startResult.earliestStart)
+            .toFixed(2)
+        ),
+      latestStart:
+        Number(
+          n(startResult.latestStart)
+            .toFixed(2)
+        )
+    };
+  }
+
+  const startMinute =
+    Number(startResult);
 
   const legs =
     safeArray(
@@ -555,42 +628,90 @@ function simulateSchedule(
       });
 
     if(type === "pickup"){
-      const fixed =
-        relatedTrips
-          .filter(
-            trip=>
-              trip.pickupMinutes !==
-              null
-          )
-          .map(
-            trip=>
-              trip.pickupMinutes
+
+      const fixedTrips =
+        relatedTrips.filter(
+          trip=>
+            trip.pickupMinutes !==
+            null
+        );
+
+      if(fixedTrips.length){
+
+        const earliestAllowed =
+          Math.max(
+            ...fixedTrips.map(
+              trip=>
+                trip.pickupMinutes -
+                n(
+                  settings
+                    .pickupEarlyWindowMinutes
+                )
+            )
           );
 
-      if(fixed.length){
-        const required =
+        const latestAllowed =
           Math.min(
-            ...fixed
+            ...fixedTrips.map(
+              trip=>
+                trip.pickupMinutes +
+                n(
+                  settings
+                    .pickupLateToleranceMinutes
+                )
+            )
           );
 
         if(
+          earliestAllowed >
+          latestAllowed
+        ){
+          return {
+            valid:false,
+            reason:
+              "PICKUP_WINDOWS_DO_NOT_OVERLAP",
+            earliestAllowed:
+              minutesToTime(
+                earliestAllowed
+              ),
+            latestAllowed:
+              minutesToTime(
+                latestAllowed
+              )
+          };
+        }
+
+        if(
           current <
-          required
+          earliestAllowed
         ){
           current =
-            required;
+            earliestAllowed;
+        }
+
+        if(
+          current >
+          latestAllowed
+        ){
+          return {
+            valid:false,
+            reason:
+              "PICKUP_WINDOW_MISSED",
+            calculatedPickup:
+              minutesToTime(
+                current
+              ),
+            latestAllowed:
+              minutesToTime(
+                latestAllowed
+              )
+          };
         }
 
         for(
           const trip of
-          relatedTrips
+          fixedTrips
         ){
-          if(
-            trip.pickupMinutes ===
-            null
-          ){
-            continue;
-          }
 
           const lateBy =
             current -
