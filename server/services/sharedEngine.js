@@ -1,6 +1,6 @@
 "use strict";
 
-/* GH SHARED ENGINE CROSS-MIDNIGHT APPOINTMENT BUILD: 2026-09-06-R5 */
+/* GH SHARED ENGINE FLEXIBLE APPOINTMENT WAIT BUILD: 2026-09-06-R6 */
 
 /* GH SHARED ENGINE TIMING WINDOW FIX BUILD: 2026-09-06-R2 */
 
@@ -484,20 +484,25 @@ function calculateStartMinute(
           ]
         );
 
-      const earliestDropoff =
-        trip.appointmentMinutes -
-        n(
-          settings
-            .appointmentBufferMinutes
-        );
+      /*
+        Appointment controls only the LATEST allowed route arrival here.
 
+        Do NOT add Appointment - Buffer as a route-start lower bound.
+        The vehicle may physically reach the destination early and wait
+        until the appointment window opens. Adding that lower bound caused
+        valid pickup windows to be rejected as TIME_WINDOWS_DO_NOT_OVERLAP.
+
+        Example:
+          Pickup window       23:09 - 23:39
+          Appointment         00:10 next day
+          Appointment Buffer  20 min
+          Arrival window      23:50 - 00:10
+
+        A vehicle may leave within the pickup window, arrive at 23:45,
+        then wait until 23:50. That is valid.
+      */
       const latestDropoff =
         trip.appointmentMinutes;
-
-      lowerBounds.push(
-        earliestDropoff -
-        routeOffset
-      );
 
       upperBounds.push(
         latestDropoff -
