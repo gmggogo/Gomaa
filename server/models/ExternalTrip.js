@@ -33,7 +33,17 @@ const ExternalPassengerSchema = new mongoose.Schema(
     clientEmail:{ type:String, default:"" },
     memberId:{ type:String, default:"" },
     pickup:{ type:String, default:"" },
+    pickupLat:{ type:Number, default:null },
+    pickupLng:{ type:Number, default:null },
+    pickupGeoKey:{ type:String, default:"" },
+    pickupGeoAddress:{ type:String, default:"" },
+    pickupGeoSource:{ type:String, default:"" },
     dropoff:{ type:String, default:"" },
+    dropoffLat:{ type:Number, default:null },
+    dropoffLng:{ type:Number, default:null },
+    dropoffGeoKey:{ type:String, default:"" },
+    dropoffGeoAddress:{ type:String, default:"" },
+    dropoffGeoSource:{ type:String, default:"" },
     pickupTime:{ type:String, default:"" },
     appointmentTime:{ type:String, default:"" },
     returnTime:{ type:String, default:"" },
@@ -174,7 +184,57 @@ const ExternalTripSchema = new mongoose.Schema(
       default:""
     },
 
+    pickupLat:{
+      type:Number,
+      default:null
+    },
+
+    pickupLng:{
+      type:Number,
+      default:null
+    },
+
+    pickupGeoKey:{
+      type:String,
+      default:""
+    },
+
+    pickupGeoAddress:{
+      type:String,
+      default:""
+    },
+
+    pickupGeoSource:{
+      type:String,
+      default:""
+    },
+
     dropoff:{
+      type:String,
+      default:""
+    },
+
+    dropoffLat:{
+      type:Number,
+      default:null
+    },
+
+    dropoffLng:{
+      type:Number,
+      default:null
+    },
+
+    dropoffGeoKey:{
+      type:String,
+      default:""
+    },
+
+    dropoffGeoAddress:{
+      type:String,
+      default:""
+    },
+
+    dropoffGeoSource:{
       type:String,
       default:""
     },

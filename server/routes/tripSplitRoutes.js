@@ -37,6 +37,10 @@ const {
   planSharedTrips
 } = require("../services/sharedEngine");
 
+const {
+  ensureExternalTripsCoordinates
+} = require("../services/externalTripGeoService");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -233,7 +237,25 @@ function originalTripPayload(externalTrip){
     clientEmail:externalTrip.clientEmail,
 
     pickup:externalTrip.pickup,
+    pickupLat:
+      Number.isFinite(Number(externalTrip.pickupLat))
+        ? Number(externalTrip.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(Number(externalTrip.pickupLng))
+        ? Number(externalTrip.pickupLng)
+        : null,
+
     dropoff:externalTrip.dropoff,
+    dropoffLat:
+      Number.isFinite(Number(externalTrip.dropoffLat))
+        ? Number(externalTrip.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(Number(externalTrip.dropoffLng))
+        ? Number(externalTrip.dropoffLng)
+        : null,
+
     stops:safeArray(externalTrip.stops),
 
     notes:externalTrip.notes,
@@ -258,7 +280,31 @@ function passengerPayload(externalTrip,index){
     clientPhone:externalTrip.clientPhone || "",
     phone:externalTrip.clientPhone || "",
     pickup:externalTrip.pickup || "",
+    pickupLat:
+      Number.isFinite(Number(externalTrip.pickupLat))
+        ? Number(externalTrip.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(Number(externalTrip.pickupLng))
+        ? Number(externalTrip.pickupLng)
+        : null,
+    pickupGeoKey:externalTrip.pickupGeoKey || "",
+    pickupGeoAddress:externalTrip.pickupGeoAddress || "",
+    pickupGeoSource:externalTrip.pickupGeoSource || "",
+
     dropoff:externalTrip.dropoff || "",
+    dropoffLat:
+      Number.isFinite(Number(externalTrip.dropoffLat))
+        ? Number(externalTrip.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(Number(externalTrip.dropoffLng))
+        ? Number(externalTrip.dropoffLng)
+        : null,
+    dropoffGeoKey:externalTrip.dropoffGeoKey || "",
+    dropoffGeoAddress:externalTrip.dropoffGeoAddress || "",
+    dropoffGeoSource:externalTrip.dropoffGeoSource || "",
+
     pickupOrder:0,
     dropoffOrder:0,
     routeOrder:index + 1,
@@ -491,11 +537,41 @@ router.post("/share",async(req,res)=>{
       });
     }
 
-    const trips = await ExternalTrip.find({
+    /*
+      IMPORTANT:
+      Trip Split owns coordinate readiness for broker trips.
+
+      Before the Shared Engine sees a trip:
+      1. Reuse coordinates already bound to the same address.
+      2. Otherwise reuse AddressCache.
+      3. Otherwise geocode the address.
+      4. Persist the resolved coordinates back to ExternalTrip.
+
+      This means repeated broker addresses do not need another Google lookup.
+    */
+    const tripDocs = await ExternalTrip.find({
       _id:{$in:tripIds},
       tenantId,
       status:{$nin:["CANCELLED","REJECTED","ERROR"]}
-    }).lean();
+    });
+
+    if(tripDocs.length !== tripIds.length){
+      return res.status(404).json({
+        success:false,
+        message:"One or more selected broker trips were not found"
+      });
+    }
+
+    await ensureExternalTripsCoordinates(
+      tripDocs
+    );
+
+    const trips =
+      tripDocs.map(trip =>
+        typeof trip.toObject === "function"
+          ? trip.toObject()
+          : trip
+      );
 
     const settingsDoc =
       await SharedEngineSettings
@@ -741,10 +817,29 @@ router.patch("/trips/:id",async(req,res)=>{
 
     if(req.body.pickup !== undefined){
       update.pickup = clean(req.body.pickup);
+
+      /*
+        Address changed: old coordinates must never remain attached
+        to the new pickup text. The next Share will resolve/cache it again.
+      */
+      update.pickupLat = null;
+      update.pickupLng = null;
+      update.pickupGeoKey = "";
+      update.pickupGeoAddress = "";
+      update.pickupGeoSource = "";
     }
 
     if(req.body.dropoff !== undefined){
       update.dropoff = clean(req.body.dropoff);
+
+      /*
+        Address changed: invalidate the old dropoff geo binding.
+      */
+      update.dropoffLat = null;
+      update.dropoffLng = null;
+      update.dropoffGeoKey = "";
+      update.dropoffGeoAddress = "";
+      update.dropoffGeoSource = "";
     }
 
     const trip = await ExternalTrip.findOneAndUpdate(
