@@ -567,7 +567,7 @@ EXTERNAL TRIPS HUB REBUILD R1
       body.innerHTML = `
         <tr>
           <td
-            colspan="15"
+            colspan="16"
             style="padding:18px;font-weight:800;color:#64748b;"
           >
             No external trips found.
@@ -594,7 +594,7 @@ EXTERNAL TRIPS HUB REBUILD R1
         "date-group-row";
 
       dateRow.innerHTML = `
-        <td colspan="15">
+        <td colspan="16">
           Trip Date: ${escapeHtml(date)}
         </td>
       `;
@@ -631,6 +631,10 @@ EXTERNAL TRIPS HUB REBUILD R1
 
           <td>
             ${escapeHtml(trip.appointmentTime || "-")}
+          </td>
+
+          <td>
+            ${escapeHtml(trip.returnTime || "-")}
           </td>
 
           <td>

@@ -201,10 +201,10 @@ EXTERNAL TRIPS HUB REBUILD R1
     }
 
     /*
-      15 columns:
+      16 columns:
       External Trip, Broker, Broker Trip ID, Pickup Time, Appointment,
-      Passenger, Phone, Pickup, Stops, Drop-off, Service, Notes,
-      Status, Source, Actions.
+      Return Time, Passenger, Phone, Pickup, Stops, Drop-off, Service,
+      Notes, Status, Source, Actions.
     */
     th:nth-child(1),
     td:nth-child(1){width:82px}
@@ -222,34 +222,37 @@ EXTERNAL TRIPS HUB REBUILD R1
     td:nth-child(5){width:74px}
 
     th:nth-child(6),
-    td:nth-child(6){width:92px}
+    td:nth-child(6){width:72px}
 
     th:nth-child(7),
-    td:nth-child(7){width:88px}
+    td:nth-child(7){width:92px}
 
     th:nth-child(8),
-    td:nth-child(8){width:220px}
+    td:nth-child(8){width:88px}
 
     th:nth-child(9),
-    td:nth-child(9){width:235px}
+    td:nth-child(9){width:215px}
 
     th:nth-child(10),
-    td:nth-child(10){width:220px}
+    td:nth-child(10){width:230px}
 
     th:nth-child(11),
-    td:nth-child(11){width:105px}
+    td:nth-child(11){width:215px}
 
     th:nth-child(12),
-    td:nth-child(12){width:110px}
+    td:nth-child(12){width:105px}
 
     th:nth-child(13),
-    td:nth-child(13){width:76px}
+    td:nth-child(13){width:110px}
 
     th:nth-child(14),
-    td:nth-child(14){width:62px}
+    td:nth-child(14){width:76px}
 
     th:nth-child(15),
-    td:nth-child(15){width:88px}
+    td:nth-child(15){width:62px}
+
+    th:nth-child(16),
+    td:nth-child(16){width:88px}
 
     .trip-id{
       font-weight:900;
@@ -259,9 +262,9 @@ EXTERNAL TRIPS HUB REBUILD R1
       font-size:8.8px;
     }
 
-    td:nth-child(8),
     td:nth-child(9),
     td:nth-child(10),
+    td:nth-child(11),
     .notes{
       text-align:left;
       white-space:normal;
@@ -594,6 +597,7 @@ EXTERNAL TRIPS HUB REBUILD R1
               <th>Broker Trip ID</th>
               <th>Pickup Time</th>
               <th>Appointment</th>
+              <th>Return Time</th>
               <th>Passenger</th>
               <th>Phone</th>
               <th>Pickup</th>
