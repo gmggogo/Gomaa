@@ -496,11 +496,11 @@ document.addEventListener("DOMContentLoaded",async()=>{
    Broker navigation is visible only when the tenant has an enabled
    Broker Contract.
 
-   Required order:
-   Operations -> Broker Review -> remaining core navigation.
+   Required desktop order:
+   Dashboard -> Operations -> Broker Operations -> remaining core navigation.
 
-   External Summary is no longer inside Broker Operations.
-   It is added under the normal Summary menu below.
+   Broker Review belongs INSIDE Broker Operations.
+   Broker Summary belongs INSIDE the normal Summary menu.
  */
  if(visibility.brokerEnabled){
 
@@ -510,25 +510,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
          item?.g === "Operations"
      );
 
-   const brokerReviewItem = {
-     l:"Broker Review",
-     h:"broker-review.html",
-     i:"doc"
-   };
-
-   if(operationsIndex >= 0){
-     nav.splice(
-       operationsIndex + 1,
-       0,
-       brokerReviewItem
-     );
-   }else{
-     nav.unshift(
-       brokerReviewItem
-     );
-   }
-
-   nav.push({
+   const brokerOperationsItem = {
      g:"Broker Operations",
      i:"building",
      items:[
@@ -541,9 +523,26 @@ document.addEventListener("DOMContentLoaded",async()=>{
          "Trip Split",
          "trip-split.html",
          "list"
+       ],
+       [
+         "Broker Review",
+         "broker-review.html",
+         "doc"
        ]
      ]
-   });
+   };
+
+   if(operationsIndex >= 0){
+     nav.splice(
+       operationsIndex + 1,
+       0,
+       brokerOperationsItem
+     );
+   }else{
+     nav.unshift(
+       brokerOperationsItem
+     );
+   }
  }
 
 
