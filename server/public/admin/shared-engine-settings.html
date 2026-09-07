@@ -43,6 +43,56 @@
       margin:12px auto 28px;
     }
 
+
+    .profile-select-box{
+      position:relative;
+      display:grid;
+      grid-template-columns:minmax(220px,360px) auto;
+      align-items:end;
+      gap:12px;
+      margin-bottom:18px;
+      padding:16px;
+      border:1px solid #d8e0e6;
+      border-radius:12px;
+      background:#fbfcfd;
+    }
+
+    .profile-select-box label{
+      grid-column:1/-1;
+      color:#374151;
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .profile-select-box select{
+      width:100%;
+      height:44px;
+      border:2px solid #218a61;
+      border-radius:9px;
+      padding:0 12px;
+      background:#eaf8f1;
+      color:#176a49;
+      font-size:14px;
+      font-weight:900;
+      outline:none;
+      cursor:pointer;
+    }
+
+    .profile-status{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:76px;
+      height:32px;
+      padding:0 12px;
+      border-radius:999px;
+      background:#218a61;
+      color:#ffffff;
+      font-size:10px;
+      font-weight:900;
+      letter-spacing:.06em;
+    }
+
     .settings-card{
       background:#ffffff;
       border:1px solid #dfe3e8;
@@ -440,184 +490,57 @@
     >
 
       <p class="preset-intro">
-        Select a preset or use Custom for full Shared Engine controls.
-        Preset miles and minutes can be adjusted at any time.
+        Select one Shared Engine profile. The full settings for the selected profile are shown below.
+        Long, Medium, and Short are locked defaults. Custom is fully editable.
       </p>
 
-      <div class="preset-grid">
+      <div class="profile-select-box">
 
-        <div
-          class="preset-card"
-          data-preset-mode="LONG"
-        >
-          <div class="preset-name">
+        <label for="sharedEngineProfileSelect">
+          Shared Engine Profile
+        </label>
+
+        <select id="sharedEngineProfileSelect">
+          <option value="LONG">
             Long Distance
-          </div>
+          </option>
 
-          <div class="preset-desc">
-            Wider grouping range for longer shared trips.
-          </div>
-
-          <div class="preset-values">
-
-            <div class="preset-field">
-              <label>Miles</label>
-
-              <input
-                id="sharedPresetLongMiles"
-                type="number"
-                readonly
-                min="0"
-                step="0.1"
-                value="20"
-              />
-            </div>
-
-            <div class="preset-field">
-              <label>Minutes</label>
-
-              <input
-                id="sharedPresetLongMinutes"
-                type="number"
-                readonly
-                min="0"
-                step="1"
-                value="45"
-              />
-            </div>
-
-          </div>
-        </div>
-
-        <div
-          class="preset-card"
-          data-preset-mode="MEDIUM"
-        >
-          <div class="preset-name">
+          <option value="MEDIUM">
             Medium Distance
-          </div>
+          </option>
 
-          <div class="preset-desc">
-            Balanced range for normal shared-trip grouping.
-          </div>
-
-          <div class="preset-values">
-
-            <div class="preset-field">
-              <label>Miles</label>
-
-              <input
-                id="sharedPresetMediumMiles"
-                type="number"
-                readonly
-                min="0"
-                step="0.1"
-                value="10"
-              />
-            </div>
-
-            <div class="preset-field">
-              <label>Minutes</label>
-
-              <input
-                id="sharedPresetMediumMinutes"
-                type="number"
-                readonly
-                min="0"
-                step="1"
-                value="30"
-              />
-            </div>
-
-          </div>
-        </div>
-
-        <div
-          class="preset-card"
-          data-preset-mode="SHORT"
-        >
-          <div class="preset-name">
+          <option value="SHORT">
             Short Distance
-          </div>
+          </option>
 
-          <div class="preset-desc">
-            Tight grouping range for nearby shared trips.
-          </div>
-
-          <div class="preset-values">
-
-            <div class="preset-field">
-              <label>Miles</label>
-
-              <input
-                id="sharedPresetShortMiles"
-                type="number"
-                readonly
-                min="0"
-                step="0.1"
-                value="5"
-              />
-            </div>
-
-            <div class="preset-field">
-              <label>Minutes</label>
-
-              <input
-                id="sharedPresetShortMinutes"
-                type="number"
-                readonly
-                min="0"
-                step="1"
-                value="15"
-              />
-            </div>
-
-          </div>
-        </div>
+          <option value="CUSTOM">
+            Custom
+          </option>
+        </select>
 
         <div
-          class="preset-card custom-card"
-          data-preset-mode="CUSTOM"
+          id="sharedEngineProfileStatus"
+          class="profile-status"
         >
-          <div class="preset-name">
-            Custom
-          </div>
-
-          <div class="preset-desc">
-            Open all Shared Engine limits, timing rules, priorities, and sources.
-          </div>
-
-          <span class="custom-badge">
-            Advanced Settings
-          </span>
+          ACTIVE
         </div>
 
-      </div>
-
-      <div class="advanced-toggle-wrap">
-        <button
-          id="sharedEngineAdvancedToggle"
-          type="button"
-          class="advanced-toggle"
-        >
-          Show Advanced Settings
-        </button>
       </div>
 
       <div
         id="sharedEngineCustomSettings"
-        class="custom-settings hidden"
+        class="custom-settings readonly-mode"
       >
 
         <h2 class="custom-title">
-          Advanced Shared Settings
+          Shared Engine Settings
         </h2>
 
         <p
           id="sharedEngineAdvancedNote"
           class="preset-intro"
         >
-          These settings are view-only for presets. Select Custom to edit them.
+          Long, Medium, and Short profiles are locked. Select Custom to edit these settings.
         </p>
 
         <div class="settings-grid">

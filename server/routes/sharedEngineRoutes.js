@@ -58,20 +58,56 @@ const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
 
-const PRESET_DEFAULTS = {
-  long:{
-    miles:20,
-    minutes:45
+const PROFILE_DEFAULTS = {
+  LONG:{
+    maxGroupDistanceMiles:20,
+    maxExtraMiles:10,
+    maxExtraMinutes:45,
+    appointmentBufferMinutes:60,
+    pickupLateToleranceMinutes:20,
+    pickupEarlyWindowMinutes:30,
+    maxRidersPerGroup:4,
+    samePickupPriority:true,
+    sameDropoffPriority:true,
+    sources:{
+      company:{enabled:true},
+      reserved:{enabled:true},
+      broker:{enabled:true}
+    }
   },
 
-  medium:{
-    miles:10,
-    minutes:30
+  MEDIUM:{
+    maxGroupDistanceMiles:10,
+    maxExtraMiles:10,
+    maxExtraMinutes:30,
+    appointmentBufferMinutes:60,
+    pickupLateToleranceMinutes:20,
+    pickupEarlyWindowMinutes:30,
+    maxRidersPerGroup:4,
+    samePickupPriority:true,
+    sameDropoffPriority:true,
+    sources:{
+      company:{enabled:true},
+      reserved:{enabled:true},
+      broker:{enabled:true}
+    }
   },
 
-  short:{
-    miles:5,
-    minutes:15
+  SHORT:{
+    maxGroupDistanceMiles:5,
+    maxExtraMiles:10,
+    maxExtraMinutes:15,
+    appointmentBufferMinutes:60,
+    pickupLateToleranceMinutes:20,
+    pickupEarlyWindowMinutes:30,
+    maxRidersPerGroup:4,
+    samePickupPriority:true,
+    sameDropoffPriority:true,
+    sources:{
+      company:{enabled:true},
+      reserved:{enabled:true},
+      broker:{enabled:true}
+    }
   }
 };
 
@@ -228,63 +264,9 @@ function normalizePresetMode(
     : "LONG";
 }
 
-function normalizePreset(
-  value,
-  fallback
-){
-  return {
-    miles:
-      Math.max(
-        0,
-        numberOr(
-          value?.miles,
-          fallback.miles
-        )
-      ),
-
-    minutes:
-      Math.max(
-        0,
-        numberOr(
-          value?.minutes,
-          fallback.minutes
-        )
-      )
-  };
-}
-
-function normalizePresets(
-  presets = {}
-){
-  return {
-    long:
-      normalizePreset(
-        presets.long,
-        PRESET_DEFAULTS.long
-      ),
-
-    medium:
-      normalizePreset(
-        presets.medium,
-        PRESET_DEFAULTS.medium
-      ),
-
-    short:
-      normalizePreset(
-        presets.short,
-        PRESET_DEFAULTS.short
-      )
-  };
-}
-
 function applyPresetToSettings(
   settings = {}
 ){
-  const presets =
-    normalizePresets(
-      settings.presets
-    );
-
   const presetMode =
     normalizePresetMode(
       settings.presetMode
@@ -296,33 +278,21 @@ function applyPresetToSettings(
     return {
       ...settings,
       enabled:true,
-      presetMode,
-      presets
+      presetMode
     };
   }
 
-  const selected =
-    presetMode === "MEDIUM"
-      ? presets.medium
-      : presetMode === "SHORT"
-        ? presets.short
-        : presets.long;
+  const profile =
+    PROFILE_DEFAULTS[
+      presetMode
+    ] ||
+    PROFILE_DEFAULTS.LONG;
 
   return {
     ...settings,
+    ...profile,
     enabled:true,
-    presetMode,
-    presets,
-
-    /*
-      Presets intentionally control these two limits only.
-      All other advanced rules remain saved and continue to apply.
-    */
-    maxGroupDistanceMiles:
-      selected.miles,
-
-    maxExtraMinutes:
-      selected.minutes
+    presetMode
   };
 }
 
@@ -482,7 +452,7 @@ async function getSettings(
 
     presets:
       saved?.presets ||
-      PRESET_DEFAULTS
+      {}
   });
 }
 
@@ -563,95 +533,47 @@ router.post(
           body.presetMode
         );
 
-      const presets =
-        normalizePresets(
-          body.presets
-        );
-
-      const customMaxGroupDistance =
-        Math.max(
-          0,
-          numberOr(
-            body
-              .maxGroupDistanceMiles,
-            20
-          )
-        );
-
-      const customMaxExtraMinutes =
-        Math.max(
-          0,
-          numberOr(
-            body
-              .maxExtraMinutes,
-            45
-          )
-        );
-
-      const activePreset =
-        presetMode === "MEDIUM"
-          ? presets.medium
-          : presetMode === "SHORT"
-            ? presets.short
-            : presets.long;
-
-      const update = {
-        /*
-          Engine availability is no longer user-configurable here.
-        */
+      const customUpdate = {
         enabled:true,
-
         presetMode,
-        presets,
 
         sources:{
           company:{
             enabled:
-              body?.sources
-                ?.company
-                ?.enabled ===
-                undefined
+              body?.sources?.company?.enabled === undefined
                 ? true
                 : bool(
-                    body.sources
-                      .company
-                      .enabled
+                    body.sources.company.enabled
                   )
           },
 
           reserved:{
             enabled:
-              body?.sources
-                ?.reserved
-                ?.enabled ===
-                undefined
+              body?.sources?.reserved?.enabled === undefined
                 ? true
                 : bool(
-                    body.sources
-                      .reserved
-                      .enabled
+                    body.sources.reserved.enabled
                   )
           },
 
           broker:{
             enabled:
-              body?.sources
-                ?.broker
-                ?.enabled ===
-                undefined
+              body?.sources?.broker?.enabled === undefined
                 ? true
                 : bool(
-                    body.sources
-                      .broker
-                      .enabled
+                    body.sources.broker.enabled
                   )
           }
         },
 
         maxGroupDistanceMiles:
-          presetMode === "CUSTOM"
-            ? customMaxGroupDistance
-            : activePreset.miles,
+          Math.max(
+            0,
+            numberOr(
+              body.maxGroupDistanceMiles,
+              20
+            )
+          ),
 
         maxExtraMiles:
           Math.max(
@@ -663,16 +585,19 @@ router.post(
           ),
 
         maxExtraMinutes:
-          presetMode === "CUSTOM"
-            ? customMaxExtraMinutes
-            : activePreset.minutes,
+          Math.max(
+            0,
+            numberOr(
+              body.maxExtraMinutes,
+              45
+            )
+          ),
 
         appointmentBufferMinutes:
           Math.max(
             0,
             numberOr(
-              body
-                .appointmentBufferMinutes,
+              body.appointmentBufferMinutes,
               60
             )
           ),
@@ -681,8 +606,7 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body
-                .pickupLateToleranceMinutes,
+              body.pickupLateToleranceMinutes,
               20
             )
           ),
@@ -691,8 +615,7 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body
-                .pickupEarlyWindowMinutes,
+              body.pickupEarlyWindowMinutes,
               30
             )
           ),
@@ -703,31 +626,24 @@ router.post(
             Math.min(
               20,
               numberOr(
-                body
-                  .maxRidersPerGroup,
+                body.maxRidersPerGroup,
                 4
               )
             )
           ),
 
         samePickupPriority:
-          body
-            .samePickupPriority ===
-            undefined
+          body.samePickupPriority === undefined
             ? true
             : bool(
-                body
-                  .samePickupPriority
+                body.samePickupPriority
               ),
 
         sameDropoffPriority:
-          body
-            .sameDropoffPriority ===
-            undefined
+          body.sameDropoffPriority === undefined
             ? true
             : bool(
-                body
-                  .sameDropoffPriority
+                body.sameDropoffPriority
               ),
 
         updatedBy:
@@ -738,6 +654,18 @@ router.post(
             ""
           )
       };
+
+      const update =
+        presetMode === "CUSTOM"
+          ? customUpdate
+          : {
+              ...customUpdate,
+              ...PROFILE_DEFAULTS[
+                presetMode
+              ],
+              presetMode,
+              enabled:true
+            };
 
       const saved =
         await SharedEngineSettings

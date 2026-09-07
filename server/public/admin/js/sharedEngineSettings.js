@@ -11,20 +11,56 @@ Shared Engine preset + custom settings UI.
 (function(){
   "use strict";
 
-  const PRESET_DEFAULTS = {
+  const PROFILE_DEFAULTS = {
     LONG:{
-      miles:20,
-      minutes:45
+      maxGroupDistanceMiles:20,
+      maxExtraMiles:10,
+      maxExtraMinutes:45,
+      appointmentBufferMinutes:60,
+      pickupLateToleranceMinutes:20,
+      pickupEarlyWindowMinutes:30,
+      maxRidersPerGroup:4,
+      samePickupPriority:true,
+      sameDropoffPriority:true,
+      sources:{
+        company:{enabled:true},
+        reserved:{enabled:true},
+        broker:{enabled:true}
+      }
     },
 
     MEDIUM:{
-      miles:10,
-      minutes:30
+      maxGroupDistanceMiles:10,
+      maxExtraMiles:10,
+      maxExtraMinutes:30,
+      appointmentBufferMinutes:60,
+      pickupLateToleranceMinutes:20,
+      pickupEarlyWindowMinutes:30,
+      maxRidersPerGroup:4,
+      samePickupPriority:true,
+      sameDropoffPriority:true,
+      sources:{
+        company:{enabled:true},
+        reserved:{enabled:true},
+        broker:{enabled:true}
+      }
     },
 
     SHORT:{
-      miles:5,
-      minutes:15
+      maxGroupDistanceMiles:5,
+      maxExtraMiles:10,
+      maxExtraMinutes:15,
+      appointmentBufferMinutes:60,
+      pickupLateToleranceMinutes:20,
+      pickupEarlyWindowMinutes:30,
+      maxRidersPerGroup:4,
+      samePickupPriority:true,
+      sameDropoffPriority:true,
+      sources:{
+        company:{enabled:true},
+        reserved:{enabled:true},
+        broker:{enabled:true}
+      }
     }
   };
 
@@ -278,13 +314,13 @@ Shared Engine preset + custom settings UI.
       }
     );
 
-    const custom =
+    const settingsBox =
       $(
         "sharedEngineCustomSettings"
       );
 
-    if(custom){
-      custom.classList.toggle(
+    if(settingsBox){
+      settingsBox.classList.toggle(
         "readonly-mode",
         editable !== true
       );
@@ -298,291 +334,207 @@ Shared Engine preset + custom settings UI.
     if(note){
       note.textContent =
         editable
-          ? "Custom mode is active. Advanced settings can be edited."
-          : "These settings are view-only for presets. Select Custom to edit them.";
+          ? "Custom profile is active. All settings below can be edited."
+          : "This profile uses locked default settings. Select Custom to edit the values.";
     }
   }
 
-  function selectMode(
+  function applyProfileValues(
     mode
+  ){
+    const profile =
+      PROFILE_DEFAULTS[
+        mode
+      ];
+
+    if(!profile){
+      return;
+    }
+
+    setNumber(
+      "sharedEngineMaxGroupDistanceMiles",
+      profile.maxGroupDistanceMiles
+    );
+
+    setNumber(
+      "sharedEngineMaxExtraMiles",
+      profile.maxExtraMiles
+    );
+
+    setNumber(
+      "sharedEngineMaxExtraMinutes",
+      profile.maxExtraMinutes
+    );
+
+    setNumber(
+      "sharedEngineAppointmentBufferMinutes",
+      profile.appointmentBufferMinutes
+    );
+
+    setNumber(
+      "sharedEnginePickupLateToleranceMinutes",
+      profile.pickupLateToleranceMinutes
+    );
+
+    setNumber(
+      "sharedEnginePickupEarlyWindowMinutes",
+      profile.pickupEarlyWindowMinutes
+    );
+
+    setNumber(
+      "sharedEngineMaxRidersPerGroup",
+      profile.maxRidersPerGroup
+    );
+
+    setBoolean(
+      "sharedEngineSamePickupPriority",
+      profile.samePickupPriority
+    );
+
+    setBoolean(
+      "sharedEngineSameDropoffPriority",
+      profile.sameDropoffPriority
+    );
+
+    setBoolean(
+      "sharedEngineCompanyEnabled",
+      profile.sources.company.enabled
+    );
+
+    setBoolean(
+      "sharedEngineReservedEnabled",
+      profile.sources.reserved.enabled
+    );
+
+    setBoolean(
+      "sharedEngineBrokerEnabled",
+      profile.sources.broker.enabled
+    );
+  }
+
+  function selectMode(
+    mode,
+    options={}
   ){
     activeMode =
       normalizeMode(
         mode
       );
 
-    document
-      .querySelectorAll(
-        "[data-preset-mode]"
-      )
-      .forEach(
-        card=>{
-          card.classList.toggle(
-            "active",
-            card.dataset
-              .presetMode ===
-              activeMode
-          );
-        }
+    const selector =
+      $(
+        "sharedEngineProfileSelect"
       );
+
+    if(selector){
+      selector.value =
+        activeMode;
+    }
+
+    if(
+      activeMode !== "CUSTOM" &&
+      options.keepValues !== true
+    ){
+      applyProfileValues(
+        activeMode
+      );
+    }
 
     setAdvancedEditable(
       activeMode === "CUSTOM"
     );
   }
 
-  function toggleAdvancedSettings(){
-    const custom =
-      $(
-        "sharedEngineCustomSettings"
-      );
-
-    const button =
-      $(
-        "sharedEngineAdvancedToggle"
-      );
-
-    if(!custom || !button){
-      return;
-    }
-
-    const opening =
-      custom.classList.contains(
-        "hidden"
-      );
-
-    custom.classList.toggle(
-      "hidden",
-      !opening
-    );
-
-    button.classList.toggle(
-      "open",
-      opening
-    );
-
-    button.textContent =
-      opening
-        ? "Hide Advanced Settings"
-        : "Show Advanced Settings";
-  }
-
   function applySettings(
     settings
   ){
-    const presets =
-      settings?.presets ||
-      {};
+    const mode =
+      normalizeMode(
+        settings?.presetMode ||
+        "LONG"
+      );
 
-    setNumber(
-      "sharedPresetLongMiles",
-      presets?.long?.miles ??
-      PRESET_DEFAULTS
-        .LONG.miles
-    );
+    if(mode === "CUSTOM"){
+      setNumber(
+        "sharedEngineMaxGroupDistanceMiles",
+        settings?.maxGroupDistanceMiles ?? 20
+      );
 
-    setNumber(
-      "sharedPresetLongMinutes",
-      presets?.long?.minutes ??
-      PRESET_DEFAULTS
-        .LONG.minutes
-    );
+      setNumber(
+        "sharedEngineMaxExtraMiles",
+        settings?.maxExtraMiles ?? 10
+      );
 
-    setNumber(
-      "sharedPresetMediumMiles",
-      presets?.medium?.miles ??
-      PRESET_DEFAULTS
-        .MEDIUM.miles
-    );
+      setNumber(
+        "sharedEngineMaxExtraMinutes",
+        settings?.maxExtraMinutes ?? 45
+      );
 
-    setNumber(
-      "sharedPresetMediumMinutes",
-      presets?.medium?.minutes ??
-      PRESET_DEFAULTS
-        .MEDIUM.minutes
-    );
+      setNumber(
+        "sharedEngineAppointmentBufferMinutes",
+        settings?.appointmentBufferMinutes ?? 60
+      );
 
-    setNumber(
-      "sharedPresetShortMiles",
-      presets?.short?.miles ??
-      PRESET_DEFAULTS
-        .SHORT.miles
-    );
+      setNumber(
+        "sharedEnginePickupLateToleranceMinutes",
+        settings?.pickupLateToleranceMinutes ?? 20
+      );
 
-    setNumber(
-      "sharedPresetShortMinutes",
-      presets?.short?.minutes ??
-      PRESET_DEFAULTS
-        .SHORT.minutes
-    );
+      setNumber(
+        "sharedEnginePickupEarlyWindowMinutes",
+        settings?.pickupEarlyWindowMinutes ?? 30
+      );
 
-    setNumber(
-      "sharedEngineMaxGroupDistanceMiles",
-      settings
-        ?.maxGroupDistanceMiles ??
-        20
-    );
+      setNumber(
+        "sharedEngineMaxRidersPerGroup",
+        settings?.maxRidersPerGroup ?? 4
+      );
 
-    setNumber(
-      "sharedEngineMaxExtraMiles",
-      settings
-        ?.maxExtraMiles ??
-        10
-    );
+      setBoolean(
+        "sharedEngineSamePickupPriority",
+        settings?.samePickupPriority
+      );
 
-    setNumber(
-      "sharedEngineMaxExtraMinutes",
-      settings
-        ?.maxExtraMinutes ??
-        45
-    );
+      setBoolean(
+        "sharedEngineSameDropoffPriority",
+        settings?.sameDropoffPriority
+      );
 
-    setNumber(
-      "sharedEngineAppointmentBufferMinutes",
-      settings
-        ?.appointmentBufferMinutes ??
-        60
-    );
+      setBoolean(
+        "sharedEngineCompanyEnabled",
+        settings?.sources?.company?.enabled
+      );
 
-    setNumber(
-      "sharedEnginePickupLateToleranceMinutes",
-      settings
-        ?.pickupLateToleranceMinutes ??
-        20
-    );
+      setBoolean(
+        "sharedEngineReservedEnabled",
+        settings?.sources?.reserved?.enabled
+      );
 
-    setNumber(
-      "sharedEnginePickupEarlyWindowMinutes",
-      settings
-        ?.pickupEarlyWindowMinutes ??
-        30
-    );
+      setBoolean(
+        "sharedEngineBrokerEnabled",
+        settings?.sources?.broker?.enabled
+      );
 
-    setNumber(
-      "sharedEngineMaxRidersPerGroup",
-      settings
-        ?.maxRidersPerGroup ??
-        4
-    );
+      selectMode(
+        "CUSTOM",
+        {
+          keepValues:true
+        }
+      );
 
-    setBoolean(
-      "sharedEngineSamePickupPriority",
-      settings
-        ?.samePickupPriority
-    );
-
-    setBoolean(
-      "sharedEngineSameDropoffPriority",
-      settings
-        ?.sameDropoffPriority
-    );
-
-    setBoolean(
-      "sharedEngineCompanyEnabled",
-      settings?.sources
-        ?.company
-        ?.enabled
-    );
-
-    setBoolean(
-      "sharedEngineReservedEnabled",
-      settings?.sources
-        ?.reserved
-        ?.enabled
-    );
-
-    setBoolean(
-      "sharedEngineBrokerEnabled",
-      settings?.sources
-        ?.broker
-        ?.enabled
-    );
+      return;
+    }
 
     selectMode(
-      settings?.presetMode ||
-      "LONG"
+      mode
     );
   }
 
   function payload(){
     return {
-      /*
-        Engine is intentionally always on.
-      */
       enabled:true,
-
       presetMode:
         activeMode,
-
-      presets:{
-        long:{
-          miles:
-            numberValue(
-              "sharedPresetLongMiles",
-              20
-            ),
-
-          minutes:
-            numberValue(
-              "sharedPresetLongMinutes",
-              45
-            )
-        },
-
-        medium:{
-          miles:
-            numberValue(
-              "sharedPresetMediumMiles",
-              10
-            ),
-
-          minutes:
-            numberValue(
-              "sharedPresetMediumMinutes",
-              30
-            )
-        },
-
-        short:{
-          miles:
-            numberValue(
-              "sharedPresetShortMiles",
-              5
-            ),
-
-          minutes:
-            numberValue(
-              "sharedPresetShortMinutes",
-              15
-            )
-        }
-      },
-
-      sources:{
-        company:{
-          enabled:
-            boolValue(
-              "sharedEngineCompanyEnabled",
-              true
-            )
-        },
-
-        reserved:{
-          enabled:
-            boolValue(
-              "sharedEngineReservedEnabled",
-              true
-            )
-        },
-
-        broker:{
-          enabled:
-            boolValue(
-              "sharedEngineBrokerEnabled",
-              true
-            )
-        }
-      },
 
       maxGroupDistanceMiles:
         numberValue(
@@ -636,7 +588,33 @@ Shared Engine preset + custom settings UI.
         boolValue(
           "sharedEngineSameDropoffPriority",
           true
-        )
+        ),
+
+      sources:{
+        company:{
+          enabled:
+            boolValue(
+              "sharedEngineCompanyEnabled",
+              true
+            )
+        },
+
+        reserved:{
+          enabled:
+            boolValue(
+              "sharedEngineReservedEnabled",
+              true
+            )
+        },
+
+        broker:{
+          enabled:
+            boolValue(
+              "sharedEngineBrokerEnabled",
+              true
+            )
+        }
+      }
     };
   }
 
@@ -760,30 +738,21 @@ Shared Engine preset + custom settings UI.
   }
 
   function bind(){
-    document
-      .querySelectorAll(
-        "[data-preset-mode]"
-      )
-      .forEach(
-        card=>{
-          card.addEventListener(
-            "click",
-            event=>{
-              if(
-                event.target
-                  .closest("input")
-              ){
-                return;
-              }
+    const selector =
+      $(
+        "sharedEngineProfileSelect"
+      );
 
-              selectMode(
-                card.dataset
-                  .presetMode
-              );
-            }
+    if(selector){
+      selector.addEventListener(
+        "change",
+        ()=>{
+          selectMode(
+            selector.value
           );
         }
       );
+    }
 
     const button =
       $(
