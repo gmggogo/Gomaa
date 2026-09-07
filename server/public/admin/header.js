@@ -1,6 +1,8 @@
 /*
 DESTINATION PATH:
 server/public/admin/header.js
+
+GH HEADER BROKER REVIEW NAV BUILD: 2026-09-07-R1
 */
 
 (function(){
@@ -377,7 +379,6 @@ const core=[
 ];
 const admin=[
 {l:"Add User",h:"users.html",i:"plus"},
-{l:"Summary",h:"summary.html",i:"chart"},
 {l:"Refunds",h:"refunds.html",i:"refund"}
 ];
 const extra=[
@@ -428,7 +429,9 @@ document.addEventListener("DOMContentLoaded",async()=>{
    "external-trips.html":
      "External Trips",
    "external-summary.html":
-     "External Summary"
+     "External Summary",
+   "broker-review.html":
+     "Broker Review"
  };
 
  const pageHeaderTitle =
@@ -490,10 +493,41 @@ document.addEventListener("DOMContentLoaded",async()=>{
    await loadSharedBrokerVisibility();
 
  /*
-   Broker Operations is independent from the normal Operations menu.
-   It exists only when the tenant has an enabled Broker Contract.
+   Broker navigation is visible only when the tenant has an enabled
+   Broker Contract.
+
+   Required order:
+   Operations -> Broker Review -> remaining core navigation.
+
+   External Summary is no longer inside Broker Operations.
+   It is added under the normal Summary menu below.
  */
  if(visibility.brokerEnabled){
+
+   const operationsIndex =
+     nav.findIndex(
+       item=>
+         item?.g === "Operations"
+     );
+
+   const brokerReviewItem = {
+     l:"Broker Review",
+     h:"broker-review.html",
+     i:"doc"
+   };
+
+   if(operationsIndex >= 0){
+     nav.splice(
+       operationsIndex + 1,
+       0,
+       brokerReviewItem
+     );
+   }else{
+     nav.unshift(
+       brokerReviewItem
+     );
+   }
+
    nav.push({
      g:"Broker Operations",
      i:"building",
@@ -507,11 +541,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
          "Trip Split",
          "trip-split.html",
          "list"
-       ],
-       [
-         "External Summary",
-         "external-summary.html",
-         "chart"
        ]
      ]
    });
@@ -539,7 +568,32 @@ document.addEventListener("DOMContentLoaded",async()=>{
    );
  }
 
- if(currentRole!=="DISPATCHER")nav.push(...admin);
+ if(currentRole!=="DISPATCHER"){
+
+   nav.push({
+     g:"Summary",
+     i:"chart",
+     items:[
+       [
+         "Summary",
+         "summary.html",
+         "chart"
+       ],
+       ...(
+         visibility.brokerEnabled
+           ? [[
+               "Broker Summary",
+               "external-summary.html",
+               "chart"
+             ]]
+           : []
+       )
+     ]
+   });
+
+   nav.push(...admin);
+ }
+
  if(currentRole==="SUPER_ADMIN")nav.push(...extra);
  if(currentRole!=="DISPATCHER")nav.push(settings);
  const desktop=document.getElementById("adminDesktopNav");
