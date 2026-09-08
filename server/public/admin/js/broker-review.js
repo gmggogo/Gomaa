@@ -424,7 +424,13 @@ server/public/admin/js/broker-review.js
                 }
               </td>
 
-              <td class="center-cell">${index + 1}</td>
+              <td class="trip-number">
+                ${esc(
+                  trip.ghExternalTripNumber ||
+                  firstExternal.ghExternalTripNumber ||
+                  "-"
+                )}
+              </td>
 
               <td>
                 <strong>
