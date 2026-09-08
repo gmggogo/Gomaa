@@ -1,150 +1,174 @@
+<!--
+DESTINATION PATH:
+server/public/admin/trip-split.html
+-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Trip Split</title>
-  <!-- GH TRIP SPLIT SHARED FEATURE VISIBILITY BUILD: 2026-09-07-R1 -->
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+  />
 
-  <link rel="stylesheet" href="/admin/style.css" />
-  <link rel="stylesheet" href="/admin/header.css" />
+  <title>Trip Split</title>
+
+  <link
+    rel="stylesheet"
+    href="/admin/style.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
 
   <style>
     *{box-sizing:border-box}
+
+    :root{
+      --text:#0f172a;
+      --muted:#64748b;
+      --bg:#f1f5f9;
+      --border:#dbe3ee;
+      --blue:#1f4f7a;
+      --green:#176b45;
+      --greenSoft:#e1f4e7;
+      --gold:#b6892d;
+      --red:#a92d2d;
+    }
+
     body{
       margin:0;
-      font-family:Arial,Helvetica,sans-serif;
-      background:#f4f6f8;
-      color:#1f2937;
+      font-family:Segoe UI,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
     }
 
     #adminHeader{
-      width:100%;
       min-height:0;
     }
 
-    .page-banner{
-      width:100%;
-      background:linear-gradient(180deg,#efe6b8 0%,#e4d99a 100%);
-      border-top:1px solid rgba(0,0,0,.05);
-      border-bottom:1px solid rgba(0,0,0,.08);
-      text-align:center;
-      padding:14px 18px 15px;
-      margin:0 0 16px;
-      box-shadow:0 2px 8px rgba(0,0,0,.04);
-    }
-
-    .page-banner h1{
-      margin:0;
-      color:#7f6200;
-      font-size:20px;
-      font-weight:900;
-      line-height:1.2;
-    }
-
-    .page-banner p{
-      margin:5px 0 0;
-      color:#756b42;
-      font-size:12px;
-      font-weight:700;
-    }
-
     .page{
-      width:min(1600px,calc(100% - 28px));
-      margin:18px auto 32px;
+      width:100%;
+      max-width:none;
+      margin:0;
+      padding:18px 22px 30px;
     }
 
     .page-head{
       display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:14px;
-      margin-bottom:14px;
+      align-items:center;
+      justify-content:center;
+      min-height:84px;
+      margin-bottom:12px;
+      padding:16px 20px;
+      border:1px solid #e0be5a;
+      border-radius:18px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff8dc 0%,
+          #f8e6ae 48%,
+          #fff4cf 100%
+        );
+      box-shadow:
+        0 8px 22px
+        rgba(146,102,14,.13);
+      text-align:center;
     }
 
     .page-title{
-      margin:0 0 4px;
-      font-size:24px;
+      margin:0;
+      font-size:28px;
+      line-height:1.1;
+      font-weight:900;
+      color:#111827;
     }
 
     .page-sub{
-      color:#6b7280;
+      margin-top:5px;
+      color:#64748b;
       font-size:13px;
+      font-weight:800;
     }
 
-    .panel{
+    .notice{
+      display:none;
+      padding:12px;
+      border-radius:8px;
+      margin-bottom:12px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .notice.show{display:block}
+    .notice.error{background:#fde8e8;color:#8d1e1e}
+    .notice.ok{background:#e1f4e7;color:#146837}
+
+    .hidden{
+      display:none!important;
+    }
+
+    .controls-panel{
       background:#fff;
-      border:1px solid #dfe3e8;
-      border-radius:12px;
+      border:1px solid var(--border);
+      border-radius:14px;
       padding:14px;
       margin-bottom:14px;
-    }
-
-    .toolbar{
-      display:flex;
-      flex-direction:column;
-      gap:18px;
-      align-items:stretch;
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.06);
     }
 
     .filter-row{
       display:flex;
       flex-wrap:wrap;
-      align-items:end;
+      align-items:flex-end;
       gap:12px;
     }
 
-    .action-row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:18px;
-      padding-top:4px;
-    }
-
-    .action-left{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      align-items:center;
-    }
-
-    .action-right{
-      margin-left:auto;
-    }
-
     .filter-field{
-      min-width:210px;
-    }
-
-    .filter-field select.green-select{
-      min-width:210px;
-      background:#176b45;
-      color:#fff;
-      border-color:#176b45;
-      font-weight:900;
-    }
-
-    .filter-field select.green-select option{
-      background:#fff;
-      color:#111827;
+      min-width:220px;
     }
 
     .filter-field label{
       display:block;
       margin-bottom:5px;
       font-size:12px;
-      font-weight:700;
+      font-weight:900;
       color:#4b5563;
     }
 
-    select,input{
-      height:38px;
-      border:1px solid #cfd6dd;
-      border-radius:7px;
-      padding:0 10px;
-      background:#fff;
-      color:#111827;
+    .filter-field select{
+      width:100%;
+      height:42px;
+      border:1px solid #15803d;
+      border-radius:8px;
+      padding:0 11px;
+      background:#dcfce7;
+      color:#14532d;
+      font-size:12px;
+      font-weight:900;
+    }
+
+    .action-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-top:18px;
+    }
+
+    .action-left{
+      display:flex;
+      flex-wrap:wrap;
+      gap:9px;
+    }
+
+    .action-right{
+      margin-left:auto;
     }
 
     .btn{
@@ -152,7 +176,7 @@
       border:0;
       border-radius:7px;
       padding:0 14px;
-      font-weight:700;
+      font-weight:800;
       cursor:pointer;
       white-space:nowrap;
     }
@@ -162,16 +186,17 @@
       cursor:not-allowed;
     }
 
-    .btn-blue{background:#1f4f7a;color:#fff}
-    .btn-green{background:#176b45;color:#fff}
-    .btn-gold{background:#b6892d;color:#fff}
+    .btn-blue{background:var(--blue);color:#fff}
+    .btn-green{background:var(--green);color:#fff}
+    .btn-gold{background:var(--gold);color:#fff}
     .btn-gray{background:#e5e7eb;color:#1f2937}
-    .btn-red{background:#a92d2d;color:#fff}
+    .btn-red{background:var(--red);color:#fff}
     .btn-dark{background:#26323c;color:#fff}
 
     .stats{
       display:grid;
-      grid-template-columns:repeat(5,minmax(0,1fr));
+      grid-template-columns:
+        repeat(5,minmax(0,1fr));
       gap:10px;
       margin-bottom:14px;
     }
@@ -181,19 +206,6 @@
       border:1px solid #dfe3e8;
       border-radius:10px;
       padding:12px;
-    }
-
-    .stat.green-stat{
-      background:#e1f4e7;
-      border-color:#9fd3af;
-    }
-
-    .stat.green-stat .stat-label{
-      color:#176b45;
-    }
-
-    .stat.green-stat .stat-value{
-      color:#125a39;
     }
 
     .stat-label{
@@ -207,7 +219,20 @@
     .stat-value{
       margin-top:5px;
       font-size:22px;
-      font-weight:800;
+      font-weight:900;
+    }
+
+    .panel{
+      width:100%;
+      max-width:none;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      margin-bottom:14px;
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.08);
     }
 
     .section-title{
@@ -215,8 +240,10 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:10px;
-      font-weight:800;
+      padding:12px 14px;
+      font-weight:900;
+      border-bottom:1px solid #e5e7eb;
+      background:#fff;
     }
 
     .table-wrap{
@@ -225,56 +252,91 @@
       overflow-x:auto;
       overflow-y:visible;
       -webkit-overflow-scrolling:touch;
-      border:1px solid #e1e5e9;
-      border-radius:9px;
       background:#fff;
     }
 
-    table{
+    .original-table{
       width:100%;
-      min-width:1680px;
+      min-width:1750px;
       table-layout:fixed;
       border-collapse:collapse;
       background:#fff;
       border-top:6px solid #000;
     }
 
-    th,td{
-      border:1px solid #dbe3ee;
+    .original-table th,
+    .original-table td{
+      border:1px solid var(--border);
       padding:5px;
       text-align:center;
       font-size:10px;
       vertical-align:middle;
       line-height:1.25;
+      box-sizing:border-box;
     }
 
-    th{
-      position:sticky;
-      top:0;
-      z-index:1;
+    .original-table th{
       background:#1f2937;
       color:#fff;
       font-weight:900;
       white-space:nowrap;
+      font-size:10px;
     }
 
-    .check-cell{width:38px;text-align:center}
-    th:nth-child(2),td:nth-child(2){width:82px}
-    th:nth-child(3),td:nth-child(3){width:64px}
-    th:nth-child(4),td:nth-child(4){width:78px}
-    th:nth-child(5),td:nth-child(5){width:62px}
-    th:nth-child(6),td:nth-child(6){width:74px}
-    th:nth-child(7),td:nth-child(7){width:72px}
-    th:nth-child(8),td:nth-child(8){width:92px}
-    th:nth-child(9),td:nth-child(9){width:88px}
-    th:nth-child(10),td:nth-child(10){width:215px}
-    th:nth-child(11),td:nth-child(11){width:230px}
-    th:nth-child(12),td:nth-child(12){width:215px}
-    th:nth-child(13),td:nth-child(13){width:105px}
-    th:nth-child(14),td:nth-child(14){width:110px}
-    th:nth-child(15),td:nth-child(15){width:76px}
-    th:nth-child(16),td:nth-child(16){width:62px}
-    th:nth-child(17),td:nth-child(17){width:88px}
+    .original-table th:nth-child(1),
+    .original-table td:nth-child(1){width:38px}
+
+    .original-table th:nth-child(2),
+    .original-table td:nth-child(2){width:88px}
+
+    .original-table th:nth-child(3),
+    .original-table td:nth-child(3){width:66px}
+
+    .original-table th:nth-child(4),
+    .original-table td:nth-child(4){width:82px}
+
+    .original-table th:nth-child(5),
+    .original-table td:nth-child(5){width:62px}
+
+    .original-table th:nth-child(6),
+    .original-table td:nth-child(6){width:72px}
+
+    .original-table th:nth-child(7),
+    .original-table td:nth-child(7){width:72px}
+
+    .original-table th:nth-child(8),
+    .original-table td:nth-child(8){width:96px}
+
+    .original-table th:nth-child(9),
+    .original-table td:nth-child(9){width:88px}
+
+    .original-table th:nth-child(10),
+    .original-table td:nth-child(10){width:220px}
+
+    .original-table th:nth-child(11),
+    .original-table td:nth-child(11){width:235px}
+
+    .original-table th:nth-child(12),
+    .original-table td:nth-child(12){width:220px}
+
+    .original-table th:nth-child(13),
+    .original-table td:nth-child(13){width:92px}
+
+    .original-table th:nth-child(14),
+    .original-table td:nth-child(14){width:120px}
+
+    .original-table th:nth-child(15),
+    .original-table td:nth-child(15){width:78px}
+
+    .original-table th:nth-child(16),
+    .original-table td:nth-child(16){width:66px}
+
+    .original-table th:nth-child(17),
+    .original-table td:nth-child(17){width:92px}
+
+    .check-cell{
+      text-align:center!important;
+    }
 
     .trip-id{
       font-weight:900;
@@ -284,9 +346,14 @@
       font-size:8.8px;
     }
 
+    .small-cell{
+      white-space:nowrap;
+    }
+
     .address-cell,
+    .stops-cell,
     .notes-cell{
-      text-align:left;
+      text-align:left!important;
       white-space:normal;
       overflow-wrap:anywhere;
       word-break:break-word;
@@ -305,41 +372,79 @@
       line-height:1.3;
     }
 
-    .gh-stop-box{margin:0 0 5px}
-    .gh-stop-box:last-child{margin-bottom:0}
+    .gh-stop-box{
+      margin:0 0 5px;
+    }
+
+    .gh-stop-box:last-child{
+      margin-bottom:0;
+    }
 
     .date-group-row td{
-      padding:8px 12px;
-      background:#dcecff;
+      padding:8px 12px!important;
+      background:#dcecff!important;
       color:#214b76;
-      text-align:left;
-      font-size:12px;
+      text-align:left!important;
+      font-size:12px!important;
       font-weight:900;
-      border-top:2px solid #85a9d0;
-      border-bottom:2px solid #85a9d0;
+      border-top:2px solid #85a9d0!important;
+      border-bottom:2px solid #85a9d0!important;
     }
 
     .status{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
       border-radius:999px;
-      padding:3px 7px;
-      font-size:10px;
-      font-weight:800;
-      white-space:nowrap;
-      background:#edf1f4;
+      padding:4px 6px;
+      font-size:8px;
+      font-weight:900;
+      white-space:normal;
+      text-align:center;
     }
 
-    .status.ready{background:#e1f4e7;color:#146837}
-    .status.shared{background:#e9eef8;color:#294d85}
-    .status.excluded{background:#fde8e8;color:#8d1e1e}
-    .status.confirmed{background:#e1f4e7;color:#146837}
+    .status.ready{
+      background:#e1f4e7;
+      color:#146837;
+    }
+
+    .status.shared{
+      background:#e9eef8;
+      color:#294d85;
+    }
+
+    .status.excluded{
+      background:#fde8e8;
+      color:#8d1e1e;
+    }
+
+    .status.confirmed{
+      background:#e1f4e7;
+      color:#146837;
+    }
+
+    .row-actions{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+    }
+
+    .row-actions .btn{
+      height:29px;
+      min-width:36px;
+      padding:0 6px;
+      font-size:8px;
+    }
 
     .group-card{
-      border:1px solid #dce2e7;
-      border-radius:10px;
-      margin-bottom:12px;
-      overflow:hidden;
+      border-bottom:1px solid #dce2e7;
       background:#fff;
+    }
+
+    .group-card:last-child{
+      border-bottom:0;
     }
 
     .group-head{
@@ -380,6 +485,29 @@
       font-size:11px;
     }
 
+    .group-card table{
+      width:100%;
+      min-width:1000px;
+      border-collapse:collapse;
+    }
+
+    .group-card th,
+    .group-card td{
+      padding:7px 8px;
+      border-bottom:1px solid #edf0f2;
+      border-right:1px solid #edf0f2;
+      font-size:11px;
+      vertical-align:middle;
+      text-align:left;
+    }
+
+    .group-card th{
+      background:#eef1f4;
+      color:#374151;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
     .route-box{
       padding:10px 12px;
       border-top:1px solid #edf0f2;
@@ -395,30 +523,19 @@
       font-size:13px;
     }
 
-    .notice{
-      display:none;
-      padding:12px;
-      border-radius:8px;
-      margin-bottom:12px;
-      font-size:13px;
-      font-weight:700;
-    }
-
-    .notice.show{display:block}
-    .notice.error{background:#fde8e8;color:#8d1e1e}
-    .notice.ok{background:#e1f4e7;color:#146837}
-
-    .hidden{display:none!important}
-
     dialog{
       width:min(640px,calc(100% - 24px));
       border:0;
       border-radius:12px;
       padding:0;
-      box-shadow:0 20px 60px rgba(0,0,0,.22);
+      box-shadow:
+        0 20px 60px
+        rgba(0,0,0,.22);
     }
 
-    dialog::backdrop{background:rgba(0,0,0,.35)}
+    dialog::backdrop{
+      background:rgba(0,0,0,.35);
+    }
 
     .dialog-head{
       display:flex;
@@ -448,6 +565,12 @@
 
     .dialog-field input{
       width:100%;
+      height:38px;
+      border:1px solid #cfd6dd;
+      border-radius:7px;
+      padding:0 10px;
+      background:#fff;
+      color:#111827;
     }
 
     .dialog-actions{
@@ -458,108 +581,235 @@
     }
 
     @media(max-width:900px){
-      .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .stats{
+        grid-template-columns:
+          repeat(2,minmax(0,1fr));
+      }
     }
 
     @media(max-width:650px){
-      .page{width:calc(100% - 16px);margin-top:8px}
-      .stats{grid-template-columns:1fr 1fr}
-      .filter-field{min-width:100%;width:100%}
-      .filter-field select{width:100%}
-      .dialog-grid{grid-template-columns:1fr}
+      .page{
+        padding:10px 8px 20px;
+      }
+
+      .page-head{
+        min-height:72px;
+        padding:12px;
+      }
+
+      .page-title{
+        font-size:22px;
+      }
+
+      .filter-field{
+        width:100%;
+        min-width:100%;
+      }
+
+      .action-row{
+        align-items:stretch;
+      }
+
+      .action-left{
+        flex:1;
+      }
+
+      .action-right{
+        margin-left:0;
+      }
+
+      .stats{
+        grid-template-columns:1fr 1fr;
+      }
+
+      .dialog-grid{
+        grid-template-columns:1fr;
+      }
     }
   </style>
 </head>
 
 <body>
+
   <div id="adminHeader"></div>
 
-  <div class="page-banner">
-    <h1>Trip Split</h1>
-    <p>Prepare broker trips for Dispatch.</p>
-  </div>
+  <main
+    class="page"
+    id="tripSplitPage"
+  >
 
-  <main class="page" id="tripSplitPage">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">
+          Trip Split
+        </h1>
 
-    <div id="pageNotice" class="notice"></div>
-
-    <section class="panel">
-      <div class="toolbar">
-
-        <div class="filter-row">
-          <div class="filter-field">
-            <label>Broker</label>
-            <select id="brokerFilter" class="green-select">
-              <option value="MIXED">Mixed</option>
-            </select>
-          </div>
-
-          <div class="filter-field">
-            <label>Day</label>
-            <select id="dayFilter" class="green-select">
-              <option value="ALL">Today & Tomorrow</option>
-              <option value="TODAY">Today</option>
-              <option value="TOMORROW">Tomorrow</option>
-            </select>
-          </div>
+        <div class="page-sub">
+          Prepare broker trips for Dispatch.
         </div>
-
-        <div class="action-row">
-          <div class="action-left">
-            <button id="selectAllBtn" class="btn btn-blue" type="button">
-              Select All
-            </button>
-
-            <button id="shareBtn" class="btn btn-gold hidden" type="button">
-              Share
-            </button>
-
-            <button id="restoreBtn" class="btn btn-gray" type="button">
-              Restore Original
-            </button>
-          </div>
-
-          <div class="action-right">
-            <button id="confirmAllBtn" class="btn btn-green" type="button">
-              Confirm All
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <div class="stats">
-      <div class="stat green-stat">
-        <div class="stat-label">Visible Trips</div>
-        <div id="statVisible" class="stat-value">0</div>
-      </div>
-      <div class="stat green-stat">
-        <div class="stat-label">Selected</div>
-        <div id="statSelected" class="stat-value">0</div>
-      </div>
-      <div class="stat hidden" id="sharedGroupsStat">
-        <div class="stat-label">Shared Groups</div>
-        <div id="statGroups" class="stat-value">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Excluded</div>
-        <div id="statExcluded" class="stat-value">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Confirmed</div>
-        <div id="statConfirmed" class="stat-value">0</div>
       </div>
     </div>
 
+    <div
+      id="pageNotice"
+      class="notice"
+    ></div>
+
+    <section class="controls-panel">
+
+      <div class="filter-row">
+
+        <div class="filter-field">
+          <label>Broker</label>
+
+          <select id="brokerFilter">
+            <option value="MIXED">
+              Mixed
+            </option>
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label>Day</label>
+
+          <select id="dayFilter">
+            <option value="ALL">
+              Today & Tomorrow
+            </option>
+
+            <option value="TODAY">
+              Today
+            </option>
+
+            <option value="TOMORROW">
+              Tomorrow
+            </option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="action-row">
+
+        <div class="action-left">
+
+          <button
+            id="selectAllBtn"
+            class="btn btn-blue"
+            type="button"
+          >
+            Select All
+          </button>
+
+          <button
+            id="shareBtn"
+            class="btn btn-gold"
+            type="button"
+          >
+            Share
+          </button>
+
+          <button
+            id="restoreBtn"
+            class="btn btn-gray"
+            type="button"
+          >
+            Restore Original
+          </button>
+
+        </div>
+
+        <div class="action-right">
+
+          <button
+            id="confirmAllBtn"
+            class="btn btn-green"
+            type="button"
+          >
+            Confirm All
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <div class="stats">
+
+      <div class="stat">
+        <div class="stat-label">
+          Visible Trips
+        </div>
+        <div
+          id="statVisible"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Selected
+        </div>
+        <div
+          id="statSelected"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Shared Groups
+        </div>
+        <div
+          id="statGroups"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Excluded
+        </div>
+        <div
+          id="statExcluded"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Confirmed
+        </div>
+        <div
+          id="statConfirmed"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+    </div>
+
     <section class="panel">
+
       <div class="section-title">
         <span>Original Trips</span>
         <span id="originalCount">0</span>
       </div>
 
       <div class="table-wrap">
-        <table>
+
+        <table class="original-table">
+
           <thead>
             <tr>
               <th class="check-cell"></th>
@@ -581,59 +831,101 @@
               <th>Actions</th>
             </tr>
           </thead>
+
           <tbody id="originalTripRows"></tbody>
+
         </table>
+
       </div>
+
     </section>
 
-    <section class="panel hidden" id="sharedGroupsSection">
+    <section
+      class="panel"
+      id="sharedGroupsSection"
+    >
+
       <div class="section-title">
         <span>Shared Groups</span>
         <span id="groupCount">0</span>
       </div>
 
       <div id="sharedGroups"></div>
+
     </section>
+
   </main>
 
   <dialog id="editDialog">
+
     <div class="dialog-head">
       <strong>Edit Trip</strong>
-      <button id="closeEditBtn" class="btn btn-gray" type="button">Close</button>
+
+      <button
+        id="closeEditBtn"
+        class="btn btn-gray"
+        type="button"
+      >
+        Close
+      </button>
     </div>
 
     <div class="dialog-body">
+
       <div class="dialog-grid">
+
         <div class="dialog-field">
           <label>Pickup Time</label>
-          <input id="editPickupTime" type="time" />
+          <input
+            id="editPickupTime"
+            type="time"
+          />
         </div>
 
         <div class="dialog-field">
           <label>Appointment Time</label>
-          <input id="editAppointmentTime" type="time" />
+          <input
+            id="editAppointmentTime"
+            type="time"
+          />
         </div>
 
-        <div class="dialog-field" style="grid-column:1/-1">
+        <div
+          class="dialog-field"
+          style="grid-column:1/-1"
+        >
           <label>Pickup</label>
           <input id="editPickup" />
         </div>
 
-        <div class="dialog-field" style="grid-column:1/-1">
+        <div
+          class="dialog-field"
+          style="grid-column:1/-1"
+        >
           <label>Drop-off</label>
           <input id="editDropoff" />
         </div>
+
       </div>
 
       <div class="dialog-actions">
-        <button id="saveEditBtn" class="btn btn-blue" type="button">
+
+        <button
+          id="saveEditBtn"
+          class="btn btn-green"
+          type="button"
+        >
           Save
         </button>
+
       </div>
+
     </div>
+
   </dialog>
 
   <script src="/admin/header.js"></script>
   <script src="/admin/js/tripSplit.js"></script>
+
 </body>
 </html>
