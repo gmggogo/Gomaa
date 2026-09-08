@@ -786,7 +786,9 @@ FLOW:
   }
 
   function renderStats(){
-    const individualTrips = visibleTrips();
+    
+    $("statTotalTrips").textContent = visibleTrips().length;
+const individualTrips = visibleTrips();
     const groups = visibleGroups();
     const confirmedTrips = visibleConfirmedTrips();
 
