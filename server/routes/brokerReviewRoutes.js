@@ -261,6 +261,9 @@ function serializeExternal(
 
   return {
     _id:toId(external),
+    ghExternalTripNumber:
+      external.ghExternalTripNumber ||
+      "",
     externalTripId:
       external.externalTripId ||
       "",
@@ -278,6 +281,9 @@ function serializeExternal(
       "",
     appointmentTime:
       external.appointmentTime ||
+      "",
+    returnTime:
+      external.returnTime ||
       "",
     clientName:
       external.clientName ||
@@ -325,6 +331,10 @@ function serializeTrip(
     tripNumber:
       trip.tripNumber ||
       "",
+    ghExternalTripNumber:
+      trip.tripNumber ||
+      trip.ghExternalTripNumber ||
+      "",
     tripDate:
       trip.tripDate ||
       "",
@@ -333,6 +343,9 @@ function serializeTrip(
       "",
     appointmentTime:
       trip.appointmentTime ||
+      "",
+    returnTime:
+      trip.returnTime ||
       "",
     pickup:
       trip.pickup ||
