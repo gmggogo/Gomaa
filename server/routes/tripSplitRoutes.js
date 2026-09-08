@@ -1016,6 +1016,10 @@ function sharedGroupResponse(savedGroup,tripMap){
     tripIds:ids,
     trips,
     tripDate:clean(raw?.tripDate),
+    brokerCode:clean(raw?.brokerCode),
+    brokerName:clean(raw?.brokerName),
+    createdAt:raw?.createdAt || null,
+    updatedAt:raw?.updatedAt || null,
     routePlan:safeArray(raw?.routePlan),
     routePoints:safeArray(raw?.routePoints),
     schedule:
@@ -1086,6 +1090,141 @@ async function restoreOpenGroupsForTrip(
   );
 }
 
+async function buildShareBaselines(tenantId,tripDates){
+  const groups = await SharedTripGroup.find({
+    tenantId,
+    sourceType:"BROKER",
+    tripDate:{$in:tripDates}
+  })
+    .select("tripDate tripIds createdAt")
+    .sort({createdAt:1})
+    .lean();
+
+  if(!groups.length){
+    return [];
+  }
+
+  const allTripIds = [
+    ...new Set(
+      groups.flatMap(group=>
+        safeArray(group?.tripIds).map(id=>String(id))
+      )
+    )
+  ]
+    .filter(id=>mongoose.Types.ObjectId.isValid(id))
+    .map(id=>new mongoose.Types.ObjectId(id));
+
+  const tripRows = allTripIds.length
+    ? await ExternalTrip.find({
+        tenantId,
+        _id:{$in:allTripIds}
+      })
+        .select("_id brokerCode")
+        .lean()
+    : [];
+
+  const brokerByTripId = new Map(
+    tripRows.map(trip=>[
+      String(trip._id),
+      clean(trip.brokerCode)
+    ])
+  );
+
+  const baselineMap = new Map();
+
+  for(const group of groups){
+    const date = clean(group?.tripDate);
+    const createdAt = group?.createdAt
+      ? new Date(group.createdAt)
+      : null;
+
+    if(!date || !createdAt || Number.isNaN(createdAt.getTime())){
+      continue;
+    }
+
+    const brokerCodes = [
+      ...new Set(
+        safeArray(group?.tripIds)
+          .map(id=>brokerByTripId.get(String(id)) || "")
+          .filter(Boolean)
+      )
+    ];
+
+    for(const brokerCode of brokerCodes){
+      const key = `${date}|${brokerCode}`;
+      const current = baselineMap.get(key);
+
+      if(!current || createdAt > current){
+        baselineMap.set(key,createdAt);
+      }
+    }
+  }
+
+  return [...baselineMap.entries()].map(([key,lastSharedAt])=>{
+    const splitAt = key.indexOf("|");
+
+    return {
+      tripDate:key.slice(0,splitAt),
+      brokerCode:key.slice(splitAt + 1),
+      lastSharedAt
+    };
+  });
+}
+
+function markNewTrips(trips,shareBaselines){
+  const exact = new Map();
+  const byDate = new Map();
+
+  for(const row of safeArray(shareBaselines)){
+    const date = clean(row?.tripDate);
+    const broker = clean(row?.brokerCode);
+    const when = row?.lastSharedAt
+      ? new Date(row.lastSharedAt)
+      : null;
+
+    if(!date || !when || Number.isNaN(when.getTime())){
+      continue;
+    }
+
+    exact.set(`${date}|${broker}`,when);
+
+    const current = byDate.get(date);
+    if(!current || when > current){
+      byDate.set(date,when);
+    }
+  }
+
+  return safeArray(trips).map(trip=>{
+    const date = clean(trip?.tripDate);
+    const broker = clean(trip?.brokerCode);
+    const baseline =
+      exact.get(`${date}|${broker}`) ||
+      byDate.get(date) ||
+      null;
+
+    const arrivedRaw =
+      trip?.receivedAt ||
+      trip?.createdAt ||
+      null;
+
+    const arrived = arrivedRaw
+      ? new Date(arrivedRaw)
+      : null;
+
+    const isNewTrip = Boolean(
+      baseline &&
+      arrived &&
+      !Number.isNaN(arrived.getTime()) &&
+      arrived > baseline
+    );
+
+    return {
+      ...trip,
+      isNewTrip
+    };
+  });
+}
+
 router.get("/bootstrap",async(req,res)=>{
   try{
     const tenantId = tenantObjectId(req);
@@ -1114,6 +1253,8 @@ router.get("/bootstrap",async(req,res)=>{
         integrations:[],
         trips:[],
         groups:[],
+        confirmedTrips:[],
+        shareBaselines:[],
         confirmedCount:0,
         capabilities
       });
@@ -1156,23 +1297,35 @@ router.get("/bootstrap",async(req,res)=>{
     const ids = trips.map(t=>t._id);
     const processed = await getProcessedSet(tenantId,ids);
 
-    const openTrips = trips.filter(
+    const confirmedTrips = trips
+      .filter(trip=>processed.has(String(trip._id)))
+      .map(trip=>({
+        externalTripObjectId:String(trip._id),
+        tripDate:clean(trip.tripDate),
+        brokerCode:clean(trip.brokerCode),
+        brokerName:clean(trip.brokerName)
+      }));
+
+    let openTrips = trips.filter(
       trip=>!processed.has(String(trip._id))
     );
 
-    const groups = await loadOpenSharedGroups(
-      tenantId,
-      [today,tomorrow],
-      openTrips
-    );
+    const [groups,shareBaselines] = await Promise.all([
+      loadOpenSharedGroups(
+        tenantId,
+        [today,tomorrow],
+        openTrips
+      ),
+      buildShareBaselines(
+        tenantId,
+        [today,tomorrow]
+      )
+    ]);
 
-    const confirmedCount = await TripSplitState.countDocuments({
-      tenantId,
-      confirmed:true,
-      confirmedAt:{
-        $gte:new Date(Date.now() - (3 * 24 * 60 * 60 * 1000))
-      }
-    });
+    openTrips = markNewTrips(
+      openTrips,
+      shareBaselines
+    );
 
     return res.json({
       success:true,
@@ -1181,7 +1334,9 @@ router.get("/bootstrap",async(req,res)=>{
       integrations,
       trips:openTrips,
       groups,
-      confirmedCount,
+      confirmedTrips,
+      confirmedCount:confirmedTrips.length,
+      shareBaselines,
       capabilities
     });
   }catch(err){

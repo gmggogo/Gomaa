@@ -238,24 +238,46 @@ server/public/admin/trip-split.html
     }
 
     .stat{
-      background:#fff;
-      border:1px solid #dfe3e8;
-      border-radius:10px;
-      padding:12px;
+      min-height:92px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      background:
+        linear-gradient(
+          135deg,
+          #fff7d8 0%,
+          #ecd07a 48%,
+          #fff0b2 100%
+        );
+      border:1px solid #c7a13a;
+      border-radius:14px;
+      padding:14px 12px;
+      text-align:center;
+      box-shadow:
+        0 6px 16px
+        rgba(146,102,14,.15);
     }
 
     .stat-label{
-      font-size:11px;
-      font-weight:800;
-      color:#6b7280;
+      width:100%;
+      font-size:12px;
+      line-height:1.25;
+      font-weight:900;
+      color:#4b3908;
       text-transform:uppercase;
-      letter-spacing:.03em;
+      letter-spacing:.035em;
+      text-align:center;
     }
 
     .stat-value{
-      margin-top:5px;
-      font-size:22px;
+      width:100%;
+      margin-top:7px;
+      font-size:25px;
+      line-height:1;
       font-weight:900;
+      color:#111827;
+      text-align:center;
     }
 
     .panel{
@@ -281,14 +303,18 @@ server/public/admin/trip-split.html
       border-bottom:1px solid rgba(15,23,42,.10);
     }
 
-    .section-tab.individual{
-      background:linear-gradient(90deg,#dbeafe,#bfdbfe,#dbeafe);
-      color:#163f73;
-    }
-
+    .section-tab.individual,
     .section-tab.shared{
-      background:linear-gradient(90deg,#ede9fe,#ddd6fe,#ede9fe);
-      color:#5b2aa8;
+      background:
+        linear-gradient(
+          90deg,
+          #fff3c7 0%,
+          #e7c65f 50%,
+          #fff3c7 100%
+        );
+      color:#3f3007;
+      border-bottom:1px solid #c7a13a;
+      text-align:center;
     }
 
     .section-title{
@@ -837,6 +863,7 @@ server/public/admin/trip-split.html
             id="restoreBtn"
             class="btn btn-restore"
             type="button"
+            disabled
           >
             Restore Original
           </button>
@@ -863,10 +890,34 @@ server/public/admin/trip-split.html
 
       <div class="stat">
         <div class="stat-label">
-          Visible Trips
+          New Trips
         </div>
         <div
-          id="statVisible"
+          id="statNewTrips"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Individual Trips
+        </div>
+        <div
+          id="statIndividual"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Shared Group Trips
+        </div>
+        <div
+          id="statGroups"
           class="stat-value"
         >
           0
@@ -879,30 +930,6 @@ server/public/admin/trip-split.html
         </div>
         <div
           id="statSelected"
-          class="stat-value"
-        >
-          0
-        </div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-label">
-          Shared Groups
-        </div>
-        <div
-          id="statGroups"
-          class="stat-value"
-        >
-          0
-        </div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-label">
-          Excluded
-        </div>
-        <div
-          id="statExcluded"
           class="stat-value"
         >
           0

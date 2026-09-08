@@ -28,6 +28,8 @@ FLOW:
     selectedGroupIds:new Set(),
     capabilities:{},
     editingId:"",
+    confirmedTrips:[],
+    shareBaselines:[],
     confirmedCount:0,
     today:"",
     tomorrow:""
@@ -329,9 +331,68 @@ FLOW:
     );
   }
 
-  function visibleTrips(){
+  function matchesCurrentFilters(item){
     const broker = $("brokerFilter")?.value || "MIXED";
     const day = $("dayFilter")?.value || "ALL";
+    const date = clean(item?.tripDate);
+
+    if(day === "TODAY" && date !== state.today){
+      return false;
+    }
+
+    if(day === "TOMORROW" && date !== state.tomorrow){
+      return false;
+    }
+
+    if(broker !== "MIXED"){
+      const directBroker = clean(item?.brokerCode);
+
+      if(directBroker === broker){
+        return true;
+      }
+
+      const memberTrips = Array.isArray(item?.trips)
+        ? item.trips
+        : [];
+
+      return memberTrips.some(
+        trip=>clean(trip?.brokerCode) === broker
+      );
+    }
+
+    return true;
+  }
+
+  function visibleGroups(){
+    return state.groups.filter(matchesCurrentFilters);
+  }
+
+  function visibleConfirmedTrips(){
+    return state.confirmedTrips.filter(matchesCurrentFilters);
+  }
+
+  function sharedTripCountForCurrentFilter(){
+    const broker = $("brokerFilter")?.value || "MIXED";
+
+    return visibleGroups().reduce((total,group)=>{
+      const trips = Array.isArray(group?.trips)
+        ? group.trips
+        : [];
+
+      if(broker === "MIXED"){
+        return total + (
+          trips.length ||
+          (Array.isArray(group?.tripIds) ? group.tripIds.length : 0)
+        );
+      }
+
+      return total + trips.filter(
+        trip=>clean(trip?.brokerCode) === broker
+      ).length;
+    },0);
+  }
+
+  function visibleTrips(){
     const groupedIds = groupedTripIds();
 
     return state.trips.filter(trip=>{
@@ -339,19 +400,7 @@ FLOW:
         return false;
       }
 
-      if(broker !== "MIXED" && clean(trip.brokerCode) !== broker){
-        return false;
-      }
-
-      if(day === "TODAY" && clean(trip.tripDate) !== state.today){
-        return false;
-      }
-
-      if(day === "TOMORROW" && clean(trip.tripDate) !== state.tomorrow){
-        return false;
-      }
-
-      return true;
+      return matchesCurrentFilters(trip);
     });
   }
 
@@ -588,15 +637,17 @@ FLOW:
     const wrap = $("sharedGroups");
     if(!wrap) return;
 
-    $("groupCount").textContent = state.groups.length;
+    const groups = visibleGroups();
 
-    if(!state.groups.length){
+    $("groupCount").textContent = groups.length;
+
+    if(!groups.length){
       wrap.innerHTML =
         `<div class="empty">No shared groups created yet.</div>`;
       return;
     }
 
-    wrap.innerHTML = state.groups.map(group=>{
+    wrap.innerHTML = groups.map(group=>{
       const selected = state.selectedGroupIds.has(group.groupId);
 
       return `
@@ -625,6 +676,7 @@ FLOW:
                 class="btn btn-restore restore-group-btn"
                 data-id="${escapeHtml(group.groupId)}"
                 type="button"
+                ${selected ? "" : "disabled"}
               >Restore</button>
 
               <button
@@ -710,12 +762,22 @@ FLOW:
           state.selectedGroupIds.delete(id);
         }
 
+        renderGroups();
         renderStats();
       });
     });
 
     wrap.querySelectorAll(".restore-group-btn").forEach(el=>{
-      el.addEventListener("click",()=>restoreGroups([el.dataset.id]));
+      el.addEventListener("click",()=>{
+        const id = clean(el.dataset.id);
+
+        if(!state.selectedGroupIds.has(id)){
+          notice("Select the shared group before restoring it.","error");
+          return;
+        }
+
+        restoreGroups([id]);
+      });
     });
 
     wrap.querySelectorAll(".confirm-group-btn").forEach(el=>{
@@ -724,13 +786,38 @@ FLOW:
   }
 
   function renderStats(){
-    $("statVisible").textContent = visibleTrips().length;
-    $("statSelected").textContent =
-      state.selectedTripIds.size + state.selectedGroupIds.size;
-    $("statGroups").textContent = state.groups.length;
-    $("statExcluded").textContent =
-      visibleTrips().filter(hasStops).length + state.excluded.length;
-    $("statConfirmed").textContent = state.confirmedCount;
+    const individualTrips = visibleTrips();
+    const groups = visibleGroups();
+    const confirmedTrips = visibleConfirmedTrips();
+
+    const visibleTripIdSet = new Set(
+      individualTrips.map(tripId)
+    );
+
+    const visibleGroupIdSet = new Set(
+      groups.map(group=>clean(group.groupId))
+    );
+
+    const selectedTrips = [...state.selectedTripIds]
+      .filter(id=>visibleTripIdSet.has(String(id)))
+      .length;
+
+    const selectedGroups = [...state.selectedGroupIds]
+      .filter(id=>visibleGroupIdSet.has(String(id)))
+      .length;
+
+    $("statNewTrips").textContent =
+      individualTrips.filter(trip=>trip?.isNewTrip === true).length;
+
+    $("statIndividual").textContent = individualTrips.length;
+    $("statGroups").textContent = sharedTripCountForCurrentFilter();
+    $("statSelected").textContent = selectedTrips + selectedGroups;
+    $("statConfirmed").textContent = confirmedTrips.length;
+
+    const restoreButton = $("restoreBtn");
+    if(restoreButton){
+      restoreButton.disabled = selectedGroups < 1;
+    }
   }
 
   function renderAll(){
@@ -1013,7 +1100,13 @@ FLOW:
       state.integrations = Array.isArray(data.integrations) ? data.integrations : [];
       state.today = clean(data.today);
       state.tomorrow = clean(data.tomorrow);
-      state.confirmedCount = Number(data.confirmedCount || 0);
+      state.confirmedTrips = Array.isArray(data.confirmedTrips)
+        ? data.confirmedTrips
+        : [];
+      state.shareBaselines = Array.isArray(data.shareBaselines)
+        ? data.shareBaselines
+        : [];
+      state.confirmedCount = state.confirmedTrips.length;
 
       if(state.capabilities?.brokerContractEnabled !== true){
         $("tripSplitPage")?.classList.add("hidden");
