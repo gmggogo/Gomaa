@@ -175,12 +175,146 @@ FLOW:
     return Array.isArray(trip?.stops) && trip.stops.length > 0;
   }
 
+  function isReturnTrip(trip){
+    const number =
+      clean(
+        trip?.ghExternalTripNumber ||
+        trip?.tripNumber
+      ).toUpperCase();
+
+    return (
+      number.endsWith("-R") ||
+      clean(
+        trip?.brokerStatus
+      ).toUpperCase() === "RETURN" ||
+      trip?.isReturnTrip === true ||
+      clean(
+        trip?.tripLeg
+      ).toUpperCase() === "RETURN"
+    );
+  }
+
+  function isOnCallTrip(trip){
+    const time =
+      clean(
+        trip?.tripTime ||
+        trip?.pickupTime
+      )
+        .toUpperCase()
+        .replace(/\s+/g," ");
+
+    return (
+      isReturnTrip(trip) &&
+      (
+        time === "ON CALL" ||
+        time === "ON-CALL" ||
+        time === "WILL CALL" ||
+        time === "WILL-CALL"
+      )
+    );
+  }
+
+  function addressKey(value){
+    return clean(value)
+      .toLowerCase()
+      .replace(/\s+/g," ");
+  }
+
+  function groupDropoffTime(
+    group,
+    trip
+  ){
+    const events =
+      Array.isArray(
+        group?.schedule
+          ?.eventTimes
+      )
+        ? group.schedule.eventTimes
+        : [];
+
+    const target =
+      addressKey(
+        trip?.dropoff
+      );
+
+    const match =
+      events.find(event=>
+        clean(event?.type)
+          .toLowerCase() ===
+          "dropoff" &&
+        addressKey(
+          event?.address
+        ) === target
+      );
+
+    return clean(
+      match?.time
+    );
+  }
+
+  function timeMinutes(value){
+    const text =
+      clean(value);
+
+    const match =
+      text.match(
+        /^(\d{1,2}):(\d{2})$/
+      );
+
+    if(!match){
+      return null;
+    }
+
+    return (
+      Number(match[1]) * 60 +
+      Number(match[2])
+    );
+  }
+
+  function dropoffComparisonClass(
+    dropoffTime,
+    appointmentTime
+  ){
+    const drop =
+      timeMinutes(
+        dropoffTime
+      );
+
+    const appt =
+      timeMinutes(
+        appointmentTime
+      );
+
+    if(
+      drop === null ||
+      appt === null
+    ){
+      return "";
+    }
+
+    /*
+      Cross-midnight appointments:
+      23:30 pickup -> 00:15 appointment.
+    */
+    const normalizedAppt =
+      appt < drop &&
+      (drop - appt) > 720
+        ? appt + 1440
+        : appt;
+
+    return drop <= normalizedAppt
+      ? "time-ok"
+      : "time-late";
+  }
+
   function tripId(trip){
     return clean(trip?._id || trip?.id);
   }
 
   function tripStatus(trip){
     if(trip?.tripSplitConfirmed === true) return "Confirmed";
+    if(isOnCallTrip(trip)) return "RETURN • ON CALL";
+    if(isReturnTrip(trip)) return "RETURN";
     if(hasStops(trip)) return "Excluded";
     return clean(trip?.status || "Ready");
   }
@@ -209,6 +343,7 @@ FLOW:
   function availableForShare(trip){
     return (
       !hasStops(trip) &&
+      !isOnCallTrip(trip) &&
       trip?.tripSplitConfirmed !== true
     );
   }
@@ -278,7 +413,8 @@ FLOW:
         const id = tripId(trip);
         const excluded = hasStops(trip);
         const confirmed = trip?.tripSplitConfirmed === true;
-        const disabled = excluded || confirmed;
+        const onCall = isOnCallTrip(trip);
+        const disabled = excluded || confirmed || onCall;
         const selected = state.selectedTripIds.has(id);
 
         const statusClass =
@@ -287,7 +423,7 @@ FLOW:
           "ready";
 
         rows.push(`
-          <tr>
+          <tr class="${isReturnTrip(trip) ? "return-trip-row" : ""}">
             <td class="check-cell">
               <input
                 type="checkbox"
@@ -300,6 +436,11 @@ FLOW:
 
             <td class="trip-id">
               ${escapeHtml(trip.ghExternalTripNumber || "-")}
+              ${
+                isReturnTrip(trip)
+                  ? `<span class="return-trip-badge">RETURN</span>`
+                  : ""
+              }
             </td>
 
             <td>
@@ -466,13 +607,13 @@ FLOW:
 
             <div class="group-actions">
               <button
-                class="btn btn-gray restore-group-btn"
+                class="btn btn-restore restore-group-btn"
                 data-id="${escapeHtml(group.groupId)}"
                 type="button"
               >Restore</button>
 
               <button
-                class="btn btn-green confirm-group-btn"
+                class="btn btn-confirm-glow confirm-group-btn"
                 data-id="${escapeHtml(group.groupId)}"
                 type="button"
               >Confirm</button>
@@ -480,30 +621,59 @@ FLOW:
           </div>
 
           <div class="table-wrap" style="border:0;border-radius:0">
-            <table style="min-width:1000px">
+            <table style="min-width:1220px">
               <thead>
                 <tr>
+                  <th class="group-trip-number-head">Trip Number</th>
                   <th>Broker</th>
                   <th>Broker Trip ID</th>
                   <th>Passenger</th>
                   <th>Pickup</th>
                   <th>Drop-off</th>
                   <th>Pickup Time</th>
-                  <th>Appointment</th>
+                  <th class="dropoff-time-head">Drop-off Time</th>
+                  <th class="appointment-head">Appointment</th>
                 </tr>
               </thead>
               <tbody>
-                ${(group.trips || []).map(trip=>`
-                  <tr>
-                    <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
-                    <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
-                    <td>${escapeHtml(trip.clientName || "-")}</td>
-                    <td class="address-cell">${escapeHtml(trip.pickup || "-")}</td>
-                    <td class="address-cell">${escapeHtml(trip.dropoff || "-")}</td>
-                    <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
-                    <td>${escapeHtml(trip.appointmentTime || "-")}</td>
-                  </tr>
-                `).join("")}
+                ${(group.trips || []).map(trip=>{
+                  const calculatedDropoff =
+                    groupDropoffTime(
+                      group,
+                      trip
+                    ) || "-";
+
+                  const appointment =
+                    clean(
+                      trip.appointmentTime
+                    ) || "-";
+
+                  const compareClass =
+                    dropoffComparisonClass(
+                      calculatedDropoff,
+                      appointment
+                    );
+
+                  return `
+                    <tr>
+                      <td class="group-trip-number">
+                        ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
+                      </td>
+                      <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
+                      <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
+                      <td>${escapeHtml(trip.clientName || "-")}</td>
+                      <td>${escapeHtml(trip.pickup || "-")}</td>
+                      <td>${escapeHtml(trip.dropoff || "-")}</td>
+                      <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
+                      <td class="dropoff-time-cell ${compareClass}">
+                        ${escapeHtml(calculatedDropoff)}
+                      </td>
+                      <td class="appointment-cell">
+                        ${escapeHtml(appointment)}
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
               </tbody>
             </table>
           </div>
@@ -714,7 +884,7 @@ FLOW:
 
       state.confirmedCount += Number(result.confirmedCount || groups.length);
 
-      notice("Selected shared group(s) sent directly to Dispatch.","ok");
+      notice("Selected shared group(s) moved to Broker Review.","ok");
       renderAll();
     }catch(err){
       notice(err.message,"error");
@@ -753,7 +923,7 @@ FLOW:
 
       state.confirmedCount += Number(result.confirmedCount || 0);
 
-      notice("All selected trips were sent directly to Dispatch.","ok");
+      notice("All selected trips were moved to Broker Review.","ok");
       renderAll();
     }catch(err){
       notice(err.message,"error");

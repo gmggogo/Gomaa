@@ -61,6 +61,374 @@ function safeArray(value){
   return Array.isArray(value) ? value : [];
 }
 
+function normalizedTimeText(value){
+  return clean(value)
+    .toUpperCase()
+    .replace(/\s+/g," ");
+}
+
+function isOnCallValue(value){
+  const text = normalizedTimeText(value);
+
+  return (
+    text === "ON CALL" ||
+    text === "ON-CALL" ||
+    text === "WILL CALL" ||
+    text === "WILL-CALL"
+  );
+}
+
+function isGeneratedReturnTrip(trip){
+  const number =
+    clean(
+      trip?.ghExternalTripNumber ||
+      trip?.externalTripNumber
+    )
+      .toUpperCase();
+
+  const brokerStatus =
+    upper(
+      trip?.brokerStatus
+    );
+
+  return (
+    number.endsWith("-R") ||
+    brokerStatus === "RETURN"
+  );
+}
+
+function hasReturnRequest(trip){
+  if(isGeneratedReturnTrip(trip)){
+    return false;
+  }
+
+  const value =
+    clean(
+      trip?.returnTime
+    );
+
+  /*
+    A return leg is created only when the inbound trip actually carries
+    return information. A blank Return Time still means "no return requested"
+    because there is no separate return flag in ExternalTrip yet.
+
+    Brokers may send ON CALL / WILL CALL in returnTime. Those values create
+    a RETURN leg with tripTime = ON CALL.
+  */
+  return Boolean(value);
+}
+
+function returnTripNumber(trip){
+  const base =
+    clean(
+      trip?.ghExternalTripNumber ||
+      trip?.externalTripNumber ||
+      trip?.externalTripId
+    );
+
+  return base
+    ? `${base}-R`
+    : "";
+}
+
+function returnExternalTripId(trip){
+  const base =
+    clean(
+      trip?.externalTripId
+    );
+
+  if(base){
+    return `${base}-R`;
+  }
+
+  return `${String(trip?._id || "")}-R`;
+}
+
+function returnTripTime(trip){
+  const value =
+    clean(
+      trip?.returnTime
+    );
+
+  if(!value){
+    return "";
+  }
+
+  if(isOnCallValue(value)){
+    return "ON CALL";
+  }
+
+  return value;
+}
+
+async function ensureReturnTrips(
+  tenantId,
+  sourceTrips
+){
+  const originals =
+    safeArray(sourceTrips)
+      .filter(hasReturnRequest);
+
+  if(!originals.length){
+    return [];
+  }
+
+  const returnTrips = [];
+
+  for(const original of originals){
+    const ghNumber =
+      returnTripNumber(
+        original
+      );
+
+    if(!ghNumber){
+      continue;
+    }
+
+    const extId =
+      returnExternalTripId(
+        original
+      );
+
+    const tripTime =
+      returnTripTime(
+        original
+      ) || "ON CALL";
+
+    const returnNotes =
+      [
+        "RETURN TRIP",
+        clean(original.notes)
+      ]
+        .filter(Boolean)
+        .join(" — ");
+
+    const setOnInsert = {
+      tenantId,
+      tenantSlug:
+        clean(original.tenantSlug),
+      integrationId:
+        original.integrationId || null,
+
+      ghExternalTripNumber:
+        ghNumber,
+
+      brokerCode:
+        original.brokerCode,
+      brokerName:
+        original.brokerName || "",
+
+      externalTripId:
+        extId,
+
+      connectionType:
+        original.connectionType ||
+        "MANUAL",
+
+      source:
+        original.source ||
+        "BROKER",
+
+      tripType:"SINGLE",
+
+      serviceKey:
+        original.serviceKey ||
+        "STANDARD",
+      serviceName:
+        original.serviceName ||
+        "Standard",
+
+      tripDate:
+        original.tripDate ||
+        "",
+
+      tripTime,
+
+      appointmentTime:"",
+      returnTime:"",
+
+      clientName:
+        original.clientName ||
+        "",
+      clientPhone:
+        original.clientPhone ||
+        "",
+      clientEmail:
+        original.clientEmail ||
+        "",
+      memberId:
+        original.memberId ||
+        "",
+
+      /*
+        Return leg reverses the original route.
+      */
+      pickup:
+        original.dropoff ||
+        "",
+      pickupLat:
+        Number.isFinite(
+          Number(
+            original.dropoffLat
+          )
+        )
+          ? Number(original.dropoffLat)
+          : null,
+      pickupLng:
+        Number.isFinite(
+          Number(
+            original.dropoffLng
+          )
+        )
+          ? Number(original.dropoffLng)
+          : null,
+      pickupGeoKey:
+        original.dropoffGeoKey ||
+        "",
+      pickupGeoAddress:
+        original.dropoffGeoAddress ||
+        "",
+      pickupGeoSource:
+        original.dropoffGeoSource ||
+        "",
+
+      dropoff:
+        original.pickup ||
+        "",
+      dropoffLat:
+        Number.isFinite(
+          Number(
+            original.pickupLat
+          )
+        )
+          ? Number(original.pickupLat)
+          : null,
+      dropoffLng:
+        Number.isFinite(
+          Number(
+            original.pickupLng
+          )
+        )
+          ? Number(original.pickupLng)
+          : null,
+      dropoffGeoKey:
+        original.pickupGeoKey ||
+        "",
+      dropoffGeoAddress:
+        original.pickupGeoAddress ||
+        "",
+      dropoffGeoSource:
+        original.pickupGeoSource ||
+        "",
+
+      /*
+        Original intermediate stops are intentionally not copied into
+        the generated return leg.
+      */
+      stops:[],
+      passengers:[],
+
+      notes:
+        returnNotes,
+      brokerNotes:
+        clean(original.brokerNotes),
+
+      status:"RECEIVED",
+      brokerStatus:"RETURN",
+
+      transferEligible:true,
+      transferredToTripsHub:false,
+      transferredTripId:null,
+      transferredAt:null,
+
+      lastBrokerUpdateAt:
+        new Date(),
+      receivedAt:
+        new Date(),
+
+      rawPayload:{
+        generatedBy:"TRIP_SPLIT",
+        generatedReturnTrip:true,
+        parentExternalTripObjectId:
+          String(original._id),
+        parentExternalTripId:
+          clean(original.externalTripId),
+        parentGhExternalTripNumber:
+          clean(original.ghExternalTripNumber),
+        returnTime:
+          tripTime
+      },
+
+      normalizedPayload:{
+        generatedBy:"TRIP_SPLIT",
+        tripLeg:"RETURN",
+        isReturnTrip:true,
+        parentExternalTripObjectId:
+          String(original._id),
+        parentGhExternalTripNumber:
+          clean(original.ghExternalTripNumber)
+      },
+
+      duplicateKey:
+        `RETURN|${String(original._id)}`
+    };
+
+    let returnTrip = null;
+
+    try{
+      returnTrip =
+        await ExternalTrip.findOneAndUpdate(
+          {
+            tenantId,
+            ghExternalTripNumber:
+              ghNumber
+          },
+          {
+            $setOnInsert:
+              setOnInsert
+          },
+          {
+            new:true,
+            upsert:true,
+            setDefaultsOnInsert:true,
+            runValidators:true
+          }
+        )
+        .lean();
+
+    }catch(err){
+      if(err?.code !== 11000){
+        throw err;
+      }
+
+      returnTrip =
+        await ExternalTrip.findOne({
+          tenantId,
+          ghExternalTripNumber:
+            ghNumber
+        })
+        .lean();
+    }
+
+    if(returnTrip){
+      returnTrips.push(
+        returnTrip
+      );
+    }
+  }
+
+  return returnTrips;
+}
+
+function isOnCallReturnTrip(trip){
+  return (
+    isGeneratedReturnTrip(trip) &&
+    isOnCallValue(
+      trip?.tripTime
+    )
+  );
+}
+
 function bearerToken(req){
   const auth = clean(req.headers.authorization);
 
@@ -285,6 +653,34 @@ function originalTripPayload(externalTrip){
 
     tripDate:externalTrip.tripDate,
     tripTime:externalTrip.tripTime,
+    appointmentTime:
+      externalTrip.appointmentTime ||
+      "",
+    returnTime:
+      externalTrip.returnTime ||
+      "",
+
+    /*
+      These fields are harmless on older Trip schemas that ignore unknown
+      properties, while the stable -R trip number and RETURN note remain
+      visible even without schema expansion.
+    */
+    isReturnTrip:
+      isGeneratedReturnTrip(
+        externalTrip
+      ),
+    tripLeg:
+      isGeneratedReturnTrip(
+        externalTrip
+      )
+        ? "RETURN"
+        : "OUTBOUND",
+    parentExternalTripId:
+      clean(
+        externalTrip
+          ?.rawPayload
+          ?.parentExternalTripObjectId
+      ),
 
     clientName:externalTrip.clientName,
     clientPhone:externalTrip.clientPhone,
@@ -534,7 +930,33 @@ router.get("/bootstrap",async(req,res)=>{
       });
     }
 
-    const trips = await ExternalTrip.find({
+    let trips = await ExternalTrip.find({
+      tenantId,
+      tripDate:{$in:[today,tomorrow]},
+      status:{$nin:["CANCELLED","REJECTED","ERROR"]}
+    })
+      .sort({tripDate:1,tripTime:1,brokerCode:1})
+      .lean();
+
+    /*
+      RETURN LEGS ARE CREATED BEFORE ANY SPLIT / SHARE WORK.
+
+      This runs idempotently on bootstrap:
+      MTM-000123-ST -> MTM-000123-ST-R
+
+      The generated return leg is a real ExternalTrip so it follows the same
+      Broker Review / Dispatch pipeline as any other broker trip.
+    */
+    await ensureReturnTrips(
+      tenantId,
+      trips
+    );
+
+    /*
+      Reload so newly-created return legs are immediately visible on the
+      same Trip Split page load.
+    */
+    trips = await ExternalTrip.find({
       tenantId,
       tripDate:{$in:[today,tomorrow]},
       status:{$nin:["CANCELLED","REJECTED","ERROR"]}
@@ -629,6 +1051,17 @@ router.post("/share",async(req,res)=>{
       return res.status(404).json({
         success:false,
         message:"One or more selected broker trips were not found"
+      });
+    }
+
+    if(
+      tripDocs.some(
+        isOnCallReturnTrip
+      )
+    ){
+      return res.status(400).json({
+        success:false,
+        message:"ON CALL return trips cannot be shared until a pickup time is assigned"
       });
     }
 
