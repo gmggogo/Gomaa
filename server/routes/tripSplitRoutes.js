@@ -34,6 +34,7 @@ const ExternalTrip = require("../models/ExternalTrip");
 const BrokerIntegration = require("../models/BrokerIntegration");
 const SharedEngineSettings = require("../models/SharedEngineSettings");
 const TripSplitState = require("../models/TripSplitState");
+const SharedTripGroup = require("../models/SharedTripGroup");
 const Tenant = require("../models/Tenant");
 
 const {
@@ -898,6 +899,193 @@ function sharedTripPayload(group,externalTrips,tenantId){
   };
 }
 
+
+function activeSharedGroupId(group){
+  const existing = clean(group?.groupId);
+
+  if(existing){
+    return existing;
+  }
+
+  return (
+    "SHG-" +
+    Date.now() +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2,8)
+      .toUpperCase()
+  );
+}
+
+function sharedGroupPersistencePayload(
+  group,
+  externalTrips,
+  tenantId,
+  authUser
+){
+  const groupId = activeSharedGroupId(group);
+
+  const tripIds = safeArray(group?.tripIds)
+    .map(clean)
+    .filter(id=>mongoose.Types.ObjectId.isValid(id))
+    .map(id=>new mongoose.Types.ObjectId(id));
+
+  const tripNumbers = externalTrips
+    .map(trip=>clean(
+      trip?.ghExternalTripNumber ||
+      trip?.externalTripNumber ||
+      trip?.externalTripId
+    ))
+    .filter(Boolean);
+
+  const brokerCodes = [
+    ...new Set(
+      externalTrips
+        .map(trip=>clean(trip?.brokerCode))
+        .filter(Boolean)
+    )
+  ];
+
+  const brokerNames = [
+    ...new Set(
+      externalTrips
+        .map(trip=>clean(trip?.brokerName))
+        .filter(Boolean)
+    )
+  ];
+
+  return {
+    tenantId,
+    sourceType:"BROKER",
+    groupId,
+    tripDate:
+      clean(group?.tripDate) ||
+      clean(externalTrips[0]?.tripDate),
+    brokerCode:brokerCodes.join("-"),
+    brokerName:brokerNames.join(" / "),
+    tripIds,
+    tripNumbers,
+    routePlan:safeArray(group?.routePlan),
+    routePoints:safeArray(group?.routePoints),
+    schedule:
+      group?.schedule &&
+      typeof group.schedule === "object"
+        ? group.schedule
+        : {},
+    calculatedFirstPickupTime:
+      clean(group?.calculatedFirstPickupTime),
+    routeMiles:Number(group?.routeMiles || 0),
+    routeMinutes:Number(group?.routeMinutes || 0),
+    polyline:clean(group?.polyline),
+    engineData:{
+      ...group,
+      groupId,
+      tripIds:tripIds.map(String)
+    },
+    status:"OPEN",
+    createdBy:clean(
+      authUser?.email ||
+      authUser?.id ||
+      ""
+    ),
+    restoredAt:null,
+    restoredBy:"",
+    confirmedAt:null,
+    confirmedBy:"",
+    dispatchTripId:null
+  };
+}
+
+function sharedGroupResponse(savedGroup,tripMap){
+  const raw =
+    typeof savedGroup?.toObject === "function"
+      ? savedGroup.toObject()
+      : savedGroup;
+
+  const ids = safeArray(raw?.tripIds)
+    .map(id=>String(id));
+
+  const trips = ids
+    .map(id=>tripMap.get(id))
+    .filter(Boolean);
+
+  return {
+    ...(raw?.engineData || {}),
+    groupId:clean(raw?.groupId),
+    tripIds:ids,
+    trips,
+    tripDate:clean(raw?.tripDate),
+    routePlan:safeArray(raw?.routePlan),
+    routePoints:safeArray(raw?.routePoints),
+    schedule:
+      raw?.schedule &&
+      typeof raw.schedule === "object"
+        ? raw.schedule
+        : {},
+    calculatedFirstPickupTime:
+      clean(raw?.calculatedFirstPickupTime),
+    routeMiles:Number(raw?.routeMiles || 0),
+    routeMinutes:Number(raw?.routeMinutes || 0),
+    polyline:clean(raw?.polyline),
+    persisted:true,
+    status:clean(raw?.status || "OPEN")
+  };
+}
+
+async function loadOpenSharedGroups(
+  tenantId,
+  tripDates,
+  trips
+){
+  const docs = await SharedTripGroup.find({
+    tenantId,
+    sourceType:"BROKER",
+    status:"OPEN",
+    tripDate:{$in:tripDates}
+  })
+    .sort({tripDate:1,createdAt:1})
+    .lean();
+
+  const tripMap = new Map(
+    safeArray(trips)
+      .map(trip=>[
+        String(trip._id),
+        trip
+      ])
+  );
+
+  return docs
+    .map(group=>sharedGroupResponse(group,tripMap))
+    .filter(group=>group.trips.length >= 2);
+}
+
+async function restoreOpenGroupsForTrip(
+  tenantId,
+  externalTripObjectId,
+  authUser
+){
+  await SharedTripGroup.updateMany(
+    {
+      tenantId,
+      sourceType:"BROKER",
+      status:"OPEN",
+      tripIds:externalTripObjectId
+    },
+    {
+      $set:{
+        status:"RESTORED",
+        restoredAt:new Date(),
+        restoredBy:clean(
+          authUser?.email ||
+          authUser?.id ||
+          ""
+        )
+      }
+    }
+  );
+}
+
 router.get("/bootstrap",async(req,res)=>{
   try{
     const tenantId = tenantObjectId(req);
@@ -925,6 +1113,7 @@ router.get("/bootstrap",async(req,res)=>{
         tomorrow,
         integrations:[],
         trips:[],
+        groups:[],
         confirmedCount:0,
         capabilities
       });
@@ -971,6 +1160,12 @@ router.get("/bootstrap",async(req,res)=>{
       trip=>!processed.has(String(trip._id))
     );
 
+    const groups = await loadOpenSharedGroups(
+      tenantId,
+      [today,tomorrow],
+      openTrips
+    );
+
     const confirmedCount = await TripSplitState.countDocuments({
       tenantId,
       confirmed:true,
@@ -985,6 +1180,7 @@ router.get("/bootstrap",async(req,res)=>{
       tomorrow,
       integrations,
       trips:openTrips,
+      groups,
       confirmedCount,
       capabilities
     });
@@ -1076,6 +1272,23 @@ router.post("/share",async(req,res)=>{
           : trip
       );
 
+    const existingOpenGroup =
+      await SharedTripGroup.findOne({
+        tenantId,
+        sourceType:"BROKER",
+        status:"OPEN",
+        tripIds:{$in:tripIds}
+      })
+        .select("groupId")
+        .lean();
+
+    if(existingOpenGroup){
+      return res.status(409).json({
+        success:false,
+        message:"One or more selected trips already belong to a saved shared group"
+      });
+    }
+
     const settingsDoc =
       await SharedEngineSettings
         .findOne({tenantId})
@@ -1087,13 +1300,141 @@ router.post("/share",async(req,res)=>{
       settings:mergeSettings(settingsDoc || {})
     });
 
-    return res.json(result);
+    const tripMap = new Map(
+      trips.map(trip=>[String(trip._id),trip])
+    );
+
+    const persistedGroups = [];
+
+    for(const engineGroup of safeArray(result?.groups)){
+      const groupTripIds = safeArray(engineGroup?.tripIds)
+        .map(clean)
+        .filter(id=>mongoose.Types.ObjectId.isValid(id));
+
+      const groupTrips = groupTripIds
+        .map(id=>tripMap.get(id))
+        .filter(Boolean);
+
+      if(groupTrips.length < 2){
+        continue;
+      }
+
+      const payload = sharedGroupPersistencePayload(
+        engineGroup,
+        groupTrips,
+        tenantId,
+        req.authUser
+      );
+
+      const saved = await SharedTripGroup.findOneAndUpdate(
+        {
+          tenantId,
+          sourceType:"BROKER",
+          groupId:payload.groupId
+        },
+        {$set:payload},
+        {
+          new:true,
+          upsert:true,
+          setDefaultsOnInsert:true,
+          runValidators:true
+        }
+      );
+
+      persistedGroups.push(
+        sharedGroupResponse(
+          saved,
+          tripMap
+        )
+      );
+    }
+
+    return res.json({
+      ...result,
+      groups:persistedGroups
+    });
   }catch(err){
     console.log("TRIP SPLIT SHARE ERROR:",err);
 
     return res.status(500).json({
       success:false,
       message:err.message || "Shared Engine failed"
+    });
+  }
+});
+
+
+router.post("/groups/restore",async(req,res)=>{
+  try{
+    const tenantId = tenantObjectId(req);
+
+    const groupIds = safeArray(req.body?.groupIds)
+      .map(clean)
+      .filter(Boolean);
+
+    if(!groupIds.length){
+      return res.status(400).json({
+        success:false,
+        message:"Select at least one shared group to restore"
+      });
+    }
+
+    const groups = await SharedTripGroup.find({
+      tenantId,
+      sourceType:"BROKER",
+      status:"OPEN",
+      groupId:{$in:groupIds}
+    })
+      .select("groupId tripIds")
+      .lean();
+
+    if(!groups.length){
+      return res.status(404).json({
+        success:false,
+        message:"Saved shared group was not found"
+      });
+    }
+
+    const restoredTripIds = [
+      ...new Set(
+        groups.flatMap(group=>
+          safeArray(group.tripIds)
+            .map(id=>String(id))
+        )
+      )
+    ];
+
+    await SharedTripGroup.updateMany(
+      {
+        tenantId,
+        sourceType:"BROKER",
+        status:"OPEN",
+        groupId:{$in:groupIds}
+      },
+      {
+        $set:{
+          status:"RESTORED",
+          restoredAt:new Date(),
+          restoredBy:clean(
+            req.authUser?.email ||
+            req.authUser?.id ||
+            ""
+          )
+        }
+      }
+    );
+
+    return res.json({
+      success:true,
+      restoredGroupIds:groups.map(group=>group.groupId),
+      restoredTripIds
+    });
+  }catch(err){
+    console.log("TRIP SPLIT RESTORE GROUP ERROR:",err);
+
+    return res.status(500).json({
+      success:false,
+      message:err.message || "Failed to restore shared group"
     });
   }
 });
@@ -1121,7 +1462,39 @@ router.post("/confirm",async(req,res)=>{
     let confirmedCount = 0;
 
     await session.withTransaction(async()=>{
-      for(const group of groups){
+      for(const requestedGroup of groups){
+        let group = requestedGroup;
+
+        const requestedGroupId = clean(requestedGroup?.groupId);
+
+        if(requestedGroupId){
+          const savedGroup = await SharedTripGroup.findOne({
+            tenantId,
+            sourceType:"BROKER",
+            groupId:requestedGroupId,
+            status:"OPEN"
+          })
+            .session(session)
+            .lean();
+
+          if(savedGroup){
+            group = {
+              ...(savedGroup.engineData || {}),
+              groupId:savedGroup.groupId,
+              tripIds:safeArray(savedGroup.tripIds).map(String),
+              tripDate:savedGroup.tripDate || "",
+              routePlan:safeArray(savedGroup.routePlan),
+              routePoints:safeArray(savedGroup.routePoints),
+              schedule:savedGroup.schedule || {},
+              calculatedFirstPickupTime:
+                savedGroup.calculatedFirstPickupTime || "",
+              routeMiles:Number(savedGroup.routeMiles || 0),
+              routeMinutes:Number(savedGroup.routeMinutes || 0),
+              polyline:savedGroup.polyline || ""
+            };
+          }
+        }
+
         const ids = safeArray(group.tripIds)
           .map(clean)
           .filter(id=>mongoose.Types.ObjectId.isValid(id));
@@ -1192,6 +1565,30 @@ router.post("/confirm",async(req,res)=>{
           );
 
           confirmedExternalTripIds.push(String(externalTrip._id));
+        }
+
+        if(clean(group.groupId)){
+          await SharedTripGroup.updateOne(
+            {
+              tenantId,
+              sourceType:"BROKER",
+              groupId:clean(group.groupId),
+              status:"OPEN"
+            },
+            {
+              $set:{
+                status:"CONFIRMED",
+                confirmedAt:new Date(),
+                confirmedBy:clean(
+                  req.authUser?.email ||
+                  req.authUser?.id ||
+                  ""
+                ),
+                dispatchTripId:createdTrip._id
+              }
+            },
+            {session}
+          );
         }
 
         confirmedCount += 1;
@@ -1429,6 +1826,12 @@ router.patch("/trips/:id",async(req,res)=>{
       });
     }
 
+    await restoreOpenGroupsForTrip(
+      tenantId,
+      trip._id,
+      req.authUser
+    );
+
     return res.json({
       success:true,
       trip
@@ -1464,6 +1867,12 @@ router.delete("/trips/:id",async(req,res)=>{
         message:"Confirmed trip cannot be deleted here"
       });
     }
+
+    await restoreOpenGroupsForTrip(
+      tenantId,
+      new mongoose.Types.ObjectId(req.params.id),
+      req.authUser
+    );
 
     const deleted = await ExternalTrip.findOneAndDelete({
       _id:req.params.id,

@@ -271,6 +271,26 @@ server/public/admin/trip-split.html
         rgba(15,23,42,.08);
     }
 
+    .section-tab{
+      width:100%;
+      padding:12px 16px;
+      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.02em;
+      border-bottom:1px solid rgba(15,23,42,.10);
+    }
+
+    .section-tab.individual{
+      background:linear-gradient(90deg,#dbeafe,#bfdbfe,#dbeafe);
+      color:#163f73;
+    }
+
+    .section-tab.shared{
+      background:linear-gradient(90deg,#ede9fe,#ddd6fe,#ede9fe);
+      color:#5b2aa8;
+    }
+
     .section-title{
       display:flex;
       align-items:center;
@@ -815,7 +835,7 @@ server/public/admin/trip-split.html
 
           <button
             id="restoreBtn"
-            class="btn btn-gray"
+            class="btn btn-restore"
             type="button"
           >
             Restore Original
@@ -905,8 +925,12 @@ server/public/admin/trip-split.html
 
     <section class="panel">
 
+      <div class="section-tab individual">
+        Individual Trips
+      </div>
+
       <div class="section-title">
-        <span>Original Trips</span>
+        <span>Trips Not Added to Shared Groups</span>
         <span id="originalCount">0</span>
       </div>
 
@@ -949,8 +973,12 @@ server/public/admin/trip-split.html
       id="sharedGroupsSection"
     >
 
+      <div class="section-tab shared">
+        Shared Group Trips
+      </div>
+
       <div class="section-title">
-        <span>Shared Groups</span>
+        <span>Saved Shared Groups</span>
         <span id="groupCount">0</span>
       </div>
 

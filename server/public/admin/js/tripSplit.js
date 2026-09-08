@@ -319,11 +319,26 @@ FLOW:
     return clean(trip?.status || "Ready");
   }
 
+  function groupedTripIds(){
+    return new Set(
+      state.groups.flatMap(group=>
+        Array.isArray(group?.tripIds)
+          ? group.tripIds.map(String)
+          : []
+      )
+    );
+  }
+
   function visibleTrips(){
     const broker = $("brokerFilter")?.value || "MIXED";
     const day = $("dayFilter")?.value || "ALL";
+    const groupedIds = groupedTripIds();
 
     return state.trips.filter(trip=>{
+      if(groupedIds.has(tripId(trip))){
+        return false;
+      }
+
       if(broker !== "MIXED" && clean(trip.brokerCode) !== broker){
         return false;
       }
@@ -777,12 +792,9 @@ FLOW:
       return;
     }
 
-    const selectedTrips =
-      state.trips.filter(trip=>ids.includes(tripId(trip)));
-
     try{
       $("shareBtn").disabled = true;
-      notice("Building shared groups...","ok");
+      notice("Building and saving shared groups...","ok");
 
       const result = await api("/api/trip-split/share",{
         method:"POST",
@@ -791,29 +803,19 @@ FLOW:
         })
       });
 
-      state.groups = Array.isArray(result.groups) ? result.groups : [];
-      state.excluded = Array.isArray(result.excluded) ? result.excluded : [];
+      state.selectedTripIds.clear();
       state.selectedGroupIds.clear();
 
-      const groupedIds = new Set(
-        state.groups.flatMap(group=>group.tripIds || [])
-      );
+      await load({silent:true});
 
-      state.selectedTripIds.clear();
-
-      selectedTrips.forEach(trip=>{
-        const id = tripId(trip);
-        if(!groupedIds.has(id)){
-          state.selectedTripIds.add(id);
-        }
-      });
+      const createdCount = Array.isArray(result.groups)
+        ? result.groups.length
+        : 0;
 
       notice(
-        `${state.groups.length} shared group(s) created.`,
+        `${createdCount} shared group(s) created and saved.`,
         "ok"
       );
-
-      renderAll();
     }catch(err){
       notice(err.message,"error");
     }finally{
@@ -821,25 +823,30 @@ FLOW:
     }
   }
 
-  function restoreGroups(groupIds){
-    const ids = new Set(groupIds);
+  async function restoreGroups(groupIds){
+    const ids = [...new Set(groupIds.map(clean).filter(Boolean))];
 
-    const restoring =
-      state.groups.filter(group=>ids.has(group.groupId));
+    if(!ids.length){
+      notice("Select at least one shared group to restore.","error");
+      return;
+    }
 
-    restoring.forEach(group=>{
-      (group.tripIds || []).forEach(id=>{
-        state.selectedTripIds.add(String(id));
+    try{
+      await api("/api/trip-split/groups/restore",{
+        method:"POST",
+        body:JSON.stringify({
+          groupIds:ids
+        })
       });
-    });
 
-    state.groups =
-      state.groups.filter(group=>!ids.has(group.groupId));
+      ids.forEach(id=>state.selectedGroupIds.delete(id));
+      state.selectedTripIds.clear();
 
-    groupIds.forEach(id=>state.selectedGroupIds.delete(id));
-
-    notice("Selected group(s) restored to original trips.","ok");
-    renderAll();
+      await load({silent:true});
+      notice("Selected group(s) restored to Individual Trips.","ok");
+    }catch(err){
+      notice(err.message,"error");
+    }
   }
 
   function restoreSelected(){
@@ -866,33 +873,26 @@ FLOW:
       const result = await api("/api/trip-split/confirm",{
         method:"POST",
         body:JSON.stringify({
-          groups
+          groups:groups.map(group=>({
+            groupId:group.groupId
+          }))
         })
       });
 
-      const confirmedIds = new Set(result.confirmedExternalTripIds || []);
+      state.selectedGroupIds.clear();
+      state.selectedTripIds.clear();
 
-      state.trips = state.trips.filter(
-        trip=>!confirmedIds.has(tripId(trip))
-      );
-
-      state.groups = state.groups.filter(
-        group=>!groupIds.includes(group.groupId)
-      );
-
-      groupIds.forEach(id=>state.selectedGroupIds.delete(id));
-
-      state.confirmedCount += Number(result.confirmedCount || groups.length);
-
+      await load({silent:true});
       notice("Selected shared group(s) moved to Broker Review.","ok");
-      renderAll();
     }catch(err){
       notice(err.message,"error");
     }
   }
 
   async function confirmAll(){
-    const payloadGroups = [...state.groups];
+    const payloadGroups = state.groups.map(group=>({
+      groupId:group.groupId
+    }));
 
     const ungroupedIds = [...state.selectedTripIds];
 
@@ -904,7 +904,7 @@ FLOW:
     try{
       $("confirmAllBtn").disabled = true;
 
-      const result = await api("/api/trip-split/confirm",{
+      await api("/api/trip-split/confirm",{
         method:"POST",
         body:JSON.stringify({
           groups:payloadGroups,
@@ -912,19 +912,11 @@ FLOW:
         })
       });
 
-      const confirmedIds = new Set(result.confirmedExternalTripIds || []);
-
-      state.trips =
-        state.trips.filter(trip=>!confirmedIds.has(tripId(trip)));
-
-      state.groups = [];
       state.selectedTripIds.clear();
       state.selectedGroupIds.clear();
 
-      state.confirmedCount += Number(result.confirmedCount || 0);
-
+      await load({silent:true});
       notice("All selected trips were moved to Broker Review.","ok");
-      renderAll();
     }catch(err){
       notice(err.message,"error");
     }finally{
@@ -967,24 +959,13 @@ FLOW:
         }
       );
 
-      state.trips = state.trips.map(trip=>
-        tripId(trip) === state.editingId
-          ? result.trip
-          : trip
-      );
-
-      const affectedGroups = state.groups.filter(group=>
-        (group.tripIds || []).includes(state.editingId)
-      );
-
-      if(affectedGroups.length){
-        restoreGroups(affectedGroups.map(group=>group.groupId));
-      }
-
       $("editDialog").close();
       state.editingId = "";
+      state.selectedTripIds.clear();
+      state.selectedGroupIds.clear();
+
+      await load({silent:true});
       notice("Trip updated. Any affected shared group was restored.","ok");
-      renderAll();
     }catch(err){
       notice(err.message,"error");
     }
@@ -1006,36 +987,29 @@ FLOW:
         {method:"DELETE"}
       );
 
-      const affectedGroups = state.groups.filter(group=>
-        (group.tripIds || []).includes(id)
-      );
+      state.selectedTripIds.clear();
+      state.selectedGroupIds.clear();
 
-      state.groups = state.groups.filter(group=>
-        !(group.tripIds || []).includes(id)
-      );
-
-      affectedGroups.forEach(group=>
-        state.selectedGroupIds.delete(group.groupId)
-      );
-
-      state.trips = state.trips.filter(t=>tripId(t) !== id);
-      state.selectedTripIds.delete(id);
-
+      await load({silent:true});
       notice("Trip deleted.","ok");
-      renderAll();
     }catch(err){
       notice(err.message,"error");
     }
   }
 
-  async function load(){
+  async function load(options = {}){
+    const silent = options?.silent === true;
+
     try{
-      notice("Loading broker trips...","ok");
+      if(!silent){
+        notice("Loading broker trips...","ok");
+      }
 
       const data = await api("/api/trip-split/bootstrap");
 
       state.capabilities = data.capabilities || {};
       state.trips = Array.isArray(data.trips) ? data.trips : [];
+      state.groups = Array.isArray(data.groups) ? data.groups : [];
       state.integrations = Array.isArray(data.integrations) ? data.integrations : [];
       state.today = clean(data.today);
       state.tomorrow = clean(data.tomorrow);
@@ -1047,7 +1021,9 @@ FLOW:
         return;
       }
 
-      notice("");
+      if(!silent){
+        notice("");
+      }
       renderAll();
     }catch(err){
       notice(err.message,"error");
