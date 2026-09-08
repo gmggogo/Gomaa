@@ -254,6 +254,13 @@ server/public/admin/js/broker-review.js
             item?.trip
               ?.appointmentTime ||
             "-"
+          ),
+        returnTime:
+          esc(
+            ex.returnTime ||
+            item?.trip
+              ?.returnTime ||
+            "-"
           )
       };
     }
@@ -285,6 +292,13 @@ server/public/admin/js/broker-review.js
           .map(
             ex=>
               `<div class="cell-item">${esc(ex.appointmentTime || "-")}</div>`
+          )
+          .join(""),
+      returnTime:
+        externals
+          .map(
+            ex=>
+              `<div class="cell-item">${esc(ex.returnTime || "-")}</div>`
           )
           .join("")
     };
@@ -357,7 +371,7 @@ server/public/admin/js/broker-review.js
     if(!list.length){
       body.innerHTML = `
         <tr>
-          <td colspan="19" class="empty">
+          <td colspan="20" class="empty">
             No broker trips for this day.
           </td>
         </tr>
@@ -410,7 +424,7 @@ server/public/admin/js/broker-review.js
                 }
               </td>
 
-              <td>${index + 1}</td>
+              <td class="center-cell">${index + 1}</td>
 
               <td>
                 <strong>
@@ -443,16 +457,22 @@ server/public/admin/js/broker-review.js
                 )}
               </td>
 
-              <td>${esc(itemDate(item))}</td>
-              <td>${esc(itemTime(item))}</td>
+              <td class="center-cell">${esc(itemDate(item))}</td>
+              <td class="center-cell">${esc(itemTime(item))}</td>
 
-              <td>
+              <td class="center-cell">
                 <div class="cell-box">
                   ${p.appointment}
                 </div>
               </td>
 
-              <td>
+              <td class="center-cell">
+                <div class="cell-box">
+                  ${p.returnTime}
+                </div>
+              </td>
+
+              <td class="center-cell">
                 <div class="cell-box">
                   ${p.passenger}
                 </div>
@@ -471,7 +491,7 @@ server/public/admin/js/broker-review.js
                 )}
               </td>
 
-              <td>
+              <td class="stops-cell">
                 ${stopBoxes(
                   trip.stops ||
                   firstExternal.stops
