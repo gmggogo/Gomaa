@@ -787,22 +787,78 @@ router.post("/confirm",async(req,res)=>{
           continue;
         }
 
-        const existingTrip = await Trip.findOne({
-          tenantId,
-          brokerCode:externalTrip.brokerCode,
-          brokerTripId:externalTrip.externalTripId
-        })
-          .session(session);
+        const tripNumber =
+          clean(
+            externalTrip.ghExternalTripNumber ||
+            externalTrip.externalTripNumber ||
+            externalTrip.externalTripId
+          );
+
+        /*
+          Idempotency:
+          ghExternalTripNumber is the stable GH Mobility trip number.
+          Broker Trip ID may be empty, so it cannot be the only duplicate check.
+
+          First look up the exact GH tripNumber. If not found, and the broker
+          supplied an externalTripId, fall back to brokerCode + brokerTripId.
+        */
+        let existingTrip = null;
+
+        if(tripNumber){
+          existingTrip =
+            await Trip.findOne({
+              tenantId,
+              tripNumber
+            })
+              .session(session);
+        }
+
+        if(
+          !existingTrip &&
+          clean(externalTrip.externalTripId)
+        ){
+          existingTrip =
+            await Trip.findOne({
+              tenantId,
+              brokerCode:
+                externalTrip.brokerCode,
+              brokerTripId:
+                externalTrip.externalTripId
+            })
+              .session(session);
+        }
 
         let dispatchTrip = existingTrip;
 
         if(!dispatchTrip){
-          const created = await Trip.create(
-            [originalTripPayload(externalTrip)],
-            {session}
-          );
+          try{
+            const created = await Trip.create(
+              [originalTripPayload(externalTrip)],
+              {session}
+            );
 
-          dispatchTrip = created[0];
+            dispatchTrip = created[0];
+          }catch(err){
+            /*
+              If another request created the same GH tripNumber at the same
+              moment, reuse it instead of failing the whole confirmation.
+            */
+            if(
+              err?.code === 11000 &&
+              tripNumber
+            ){
+              dispatchTrip =
+                await Trip.findOne({
+                  tenantId,
+                  tripNumber
+                })
+                  .session(session);
+            }
+
+            if(!dispatchTrip){
+              throw err;
+            }
+          }
         }else{
           /*
             Trip Split no longer releases directly to Dispatch.
