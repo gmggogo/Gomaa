@@ -786,40 +786,73 @@ FLOW:
   }
 
   function renderStats(){
-    
-    $("statTotalTrips").textContent = visibleTrips().length;
-const individualTrips = visibleTrips();
-    const groups = visibleGroups();
-    const confirmedTrips = visibleConfirmedTrips();
+    const trips = visibleTrips();
 
-    const visibleTripIdSet = new Set(
-      individualTrips.map(tripId)
+    const broker = $("brokerFilter")?.value || "MIXED";
+    const day = $("dayFilter")?.value || "ALL";
+
+    const filteredGroups = state.groups.filter(group=>{
+      const groupTrips = Array.isArray(group.trips) ? group.trips : [];
+
+      if(!groupTrips.length){
+        return true;
+      }
+
+      return groupTrips.some(trip=>{
+        if(
+          broker !== "MIXED" &&
+          clean(trip.brokerCode) !== broker
+        ){
+          return false;
+        }
+
+        if(
+          day === "TODAY" &&
+          clean(trip.tripDate) !== state.today
+        ){
+          return false;
+        }
+
+        if(
+          day === "TOMORROW" &&
+          clean(trip.tripDate) !== state.tomorrow
+        ){
+          return false;
+        }
+
+        return true;
+      });
+    });
+
+    const groupedTripIds = new Set();
+
+    filteredGroups.forEach(group=>{
+      (group.tripIds || []).forEach(id=>{
+        groupedTripIds.add(String(id));
+      });
+    });
+
+    const individualTrips = trips.filter(
+      trip=>!groupedTripIds.has(tripId(trip))
     );
 
-    const visibleGroupIdSet = new Set(
-      groups.map(group=>clean(group.groupId))
-    );
-
-    const selectedTrips = [...state.selectedTripIds]
-      .filter(id=>visibleTripIdSet.has(String(id)))
-      .length;
-
-    const selectedGroups = [...state.selectedGroupIds]
-      .filter(id=>visibleGroupIdSet.has(String(id)))
-      .length;
-
-    $("statNewTrips").textContent =
-      individualTrips.filter(trip=>trip?.isNewTrip === true).length;
-
+    $("statTotalTrips").textContent = trips.length;
     $("statIndividual").textContent = individualTrips.length;
-    $("statGroups").textContent = sharedTripCountForCurrentFilter();
-    $("statSelected").textContent = selectedTrips + selectedGroups;
-    $("statConfirmed").textContent = confirmedTrips.length;
+    $("statGroups").textContent = filteredGroups.reduce(
+      (count,group)=>count + (group.tripIds?.length || 0),
+      0
+    );
+    $("statSelected").textContent =
+      state.selectedTripIds.size + state.selectedGroupIds.size;
+    $("statConfirmed").textContent = state.confirmedCount;
 
-    const restoreButton = $("restoreBtn");
-    if(restoreButton){
-      restoreButton.disabled = selectedGroups < 1;
+    if($("statNewTrips")){
+      $("statNewTrips").textContent =
+        typeof getNewTripsCount === "function"
+          ? getNewTripsCount()
+          : 0;
     }
+  }
   }
 
   function renderAll(){
