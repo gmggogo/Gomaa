@@ -48,6 +48,43 @@ FLOW:
       .replace(/'/g,"&#039;");
   }
 
+  function normalizeStopAddress(stop){
+    if(stop === undefined || stop === null) return "";
+    if(typeof stop === "string") return clean(stop);
+
+    if(typeof stop === "object"){
+      return clean(
+        stop.address ||
+        stop.formattedAddress ||
+        stop.formatted_address ||
+        stop.description ||
+        stop.label ||
+        ""
+      );
+    }
+
+    return clean(stop);
+  }
+
+  function stopBoxes(stops){
+    const items =
+      Array.isArray(stops)
+        ? stops.map(normalizeStopAddress).filter(Boolean).slice(0,5)
+        : [];
+
+    if(!items.length){
+      return `<div class="gh-stop-box"></div>`;
+    }
+
+    return items
+      .map(address=>`<div class="gh-stop-box">${escapeHtml(address)}</div>`)
+      .join("");
+  }
+
+  function addressBox(value){
+    return `<div class="address-box">${escapeHtml(value || "-")}</div>`;
+  }
+
   function token(){
     return (
       localStorage.getItem("token") ||
@@ -183,69 +220,96 @@ FLOW:
 
     if(!trips.length){
       body.innerHTML =
-        `<tr><td colspan="13"><div class="empty">No broker trips for this filter.</div></td></tr>`;
+        `<tr><td colspan="17"><div class="empty">No broker trips for this filter.</div></td></tr>`;
       return;
     }
 
-    body.innerHTML = trips.map(trip=>{
-      const id = tripId(trip);
-      const excluded = hasStops(trip);
-      const confirmed = trip?.tripSplitConfirmed === true;
-      const disabled = excluded || confirmed;
-      const selected = state.selectedTripIds.has(id);
+    const groups = new Map();
 
-      const statusClass =
-        confirmed ? "confirmed" :
-        excluded ? "excluded" :
-        "ready";
+    trips.forEach(trip=>{
+      const date = clean(trip.tripDate) || "No Date";
 
-      return `
-        <tr>
-          <td class="check-cell">
-            <input
-              type="checkbox"
-              class="trip-check"
-              data-id="${escapeHtml(id)}"
-              ${selected ? "checked" : ""}
-              ${disabled ? "disabled" : ""}
-            />
-          </td>
+      if(!groups.has(date)){
+        groups.set(date,[]);
+      }
 
-          <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
-          <td class="small-cell">${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
-          <td class="small-cell">${escapeHtml(trip.tripDate || "-")}</td>
-          <td class="small-cell">${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
-          <td class="small-cell">${escapeHtml(trip.appointmentTime || "-")}</td>
-          <td>${escapeHtml(trip.clientName || "-")}</td>
-          <td class="address-cell">${escapeHtml(trip.pickup || "-")}</td>
-          <td class="address-cell">${escapeHtml(trip.dropoff || "-")}</td>
-          <td>${escapeHtml(trip.serviceKey || trip.serviceName || "-")}</td>
-          <td>${excluded ? escapeHtml(String(trip.stops.length)) : "0"}</td>
-          <td>
-            <span class="status ${statusClass}">
-              ${escapeHtml(tripStatus(trip))}
-            </span>
-          </td>
-          <td>
-            <button
-              class="btn btn-dark edit-trip-btn"
-              data-id="${escapeHtml(id)}"
-              type="button"
-              ${confirmed ? "disabled" : ""}
-              style="height:29px;padding:0 9px;font-size:10px"
-            >Edit</button>
+      groups.get(date).push(trip);
+    });
 
-            <button
-              class="btn btn-red delete-trip-btn"
-              data-id="${escapeHtml(id)}"
-              type="button"
-              ${confirmed ? "disabled" : ""}
-              style="height:29px;padding:0 9px;font-size:10px"
-            >Delete</button>
-          </td>
+    const rows = [];
+
+    for(const [date,dateTrips] of groups.entries()){
+      rows.push(`
+        <tr class="date-group-row">
+          <td colspan="17">Trip Date: ${escapeHtml(date)}</td>
         </tr>
-      `;
-    }).join("");
+      `);
+
+      dateTrips.forEach(trip=>{
+        const id = tripId(trip);
+        const excluded = hasStops(trip);
+        const confirmed = trip?.tripSplitConfirmed === true;
+        const selected = state.selectedTripIds.has(id);
+
+        const statusClass =
+          confirmed ? "confirmed" :
+          excluded ? "excluded" :
+          "ready";
+
+        rows.push(`
+          <tr>
+            <td class="check-cell">
+              <input
+                type="checkbox"
+                class="trip-check"
+                data-id="${escapeHtml(id)}"
+                ${selected ? "checked" : ""}
+                ${confirmed ? "disabled" : ""}
+              />
+            </td>
+
+            <td class="trip-id">${escapeHtml(trip.ghExternalTripNumber || "-")}</td>
+            <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
+            <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
+            <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
+            <td>${escapeHtml(trip.appointmentTime || "-")}</td>
+            <td>${escapeHtml(trip.returnTime || "-")}</td>
+            <td>${escapeHtml(trip.clientName || "-")}</td>
+            <td>${escapeHtml(trip.clientPhone || "-")}</td>
+            <td class="address-cell">${addressBox(trip.pickup)}</td>
+            <td class="address-cell">${stopBoxes(trip.stops)}</td>
+            <td class="address-cell">${addressBox(trip.dropoff)}</td>
+            <td>${escapeHtml(trip.serviceKey || trip.serviceName || "STANDARD")}</td>
+            <td class="notes-cell">${escapeHtml(trip.notes || "-")}</td>
+            <td>
+              <span class="status ${statusClass}">
+                ${escapeHtml(tripStatus(trip))}
+              </span>
+            </td>
+            <td>${escapeHtml(trip.source || "-")}</td>
+            <td>
+              <button
+                class="btn btn-dark edit-trip-btn"
+                data-id="${escapeHtml(id)}"
+                type="button"
+                ${confirmed ? "disabled" : ""}
+                style="height:29px;padding:0 7px;font-size:9px"
+              >Edit</button>
+
+              <button
+                class="btn btn-red delete-trip-btn"
+                data-id="${escapeHtml(id)}"
+                type="button"
+                ${confirmed ? "disabled" : ""}
+                style="height:29px;padding:0 7px;font-size:9px"
+              >Delete</button>
+            </td>
+          </tr>
+        `);
+      });
+    }
+
+    body.innerHTML = rows.join("");
 
     body.querySelectorAll(".trip-check").forEach(el=>{
       el.addEventListener("change",()=>{
@@ -258,6 +322,7 @@ FLOW:
         }
 
         renderStats();
+        updateSelectAllLabel();
       });
     });
 
@@ -407,11 +472,25 @@ FLOW:
     $("statConfirmed").textContent = state.confirmedCount;
   }
 
+  function updateSelectAllLabel(){
+    const button = $("selectAllBtn");
+    if(!button) return;
+
+    const available = visibleTrips().filter(availableForShare);
+
+    const allSelected =
+      available.length > 0 &&
+      available.every(trip=>state.selectedTripIds.has(tripId(trip)));
+
+    button.textContent = allSelected ? "Unselect All" : "Select All";
+  }
+
   function renderAll(){
     renderBrokerFilter();
     renderOriginalTrips();
     renderGroups();
     renderStats();
+    updateSelectAllLabel();
 
     const shareAllowed =
       state.capabilities?.sharedServiceEnabled === true ||
