@@ -1350,20 +1350,28 @@ router.get("/bootstrap",async(req,res)=>{
     const originalTrips =
       openTrips.filter(trip=>{
         const id = String(trip._id);
+        const hasStops =
+          safeArray(trip?.stops).length > 0;
 
         return (
           !groupedIds.has(id) &&
-          !individualIds.has(id)
+          !individualIds.has(id) &&
+          !hasStops
         );
       });
 
     const individualTrips =
       openTrips.filter(trip=>{
         const id = String(trip._id);
+        const hasStops =
+          safeArray(trip?.stops).length > 0;
 
         return (
           !groupedIds.has(id) &&
-          individualIds.has(id)
+          (
+            individualIds.has(id) ||
+            hasStops
+          )
         );
       });
 

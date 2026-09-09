@@ -231,15 +231,15 @@ server/public/admin/trip-split.html
 
     .stats{
       display:grid;
-      grid-template-columns:repeat(7,minmax(118px,1fr));
-      gap:7px;
-      margin-bottom:12px;
+      grid-template-columns:repeat(8,minmax(102px,1fr));
+      gap:6px;
+      margin-bottom:10px;
       overflow-x:auto;
       padding-bottom:2px;
     }
 
     .stat{
-      min-height:68px;
+      min-height:58px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -252,30 +252,28 @@ server/public/admin/trip-split.html
           #fff0b2 100%
         );
       border:1px solid #c7a13a;
-      border-radius:11px;
-      padding:8px 8px;
+      border-radius:9px;
+      padding:6px 6px;
       text-align:center;
-      box-shadow:
-        0 4px 10px
-        rgba(146,102,14,.12);
+      box-shadow:0 3px 8px rgba(146,102,14,.10);
     }
 
     .stat-label{
       width:100%;
-      font-size:9px;
-      line-height:1.15;
+      font-size:8px;
+      line-height:1.1;
       font-weight:900;
       color:#4b3908;
       text-transform:uppercase;
-      letter-spacing:.025em;
+      letter-spacing:.02em;
       text-align:center;
       white-space:nowrap;
     }
 
     .stat-value{
       width:100%;
-      margin-top:4px;
-      font-size:20px;
+      margin-top:3px;
+      font-size:18px;
       line-height:1;
       font-weight:900;
       color:#111827;
@@ -967,7 +965,7 @@ server/public/admin/trip-split.html
 
     @media(max-width:900px){
       .stats{
-        grid-template-columns:repeat(7,minmax(112px,1fr));
+        grid-template-columns:repeat(8,minmax(100px,1fr));
       }
     }
 
@@ -1003,7 +1001,7 @@ server/public/admin/trip-split.html
       }
 
       .stats{
-        grid-template-columns:repeat(7,minmax(108px,1fr));
+        grid-template-columns:repeat(8,minmax(98px,1fr));
       }
 
       .dialog-grid{
@@ -1211,6 +1209,18 @@ server/public/admin/trip-split.html
         </div>
         <div
           id="statActiveBrokers"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          With Stops
+        </div>
+        <div
+          id="statWithStops"
           class="stat-value"
         >
           0

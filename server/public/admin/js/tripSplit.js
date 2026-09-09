@@ -602,7 +602,11 @@ FLOW:
 
             <td>
               <span class="status ready">
-                ${escapeHtml(tripStatus(trip))}
+                ${escapeHtml(
+                  hasStops(trip)
+                    ? "INDIVIDUAL • STOPS"
+                    : tripStatus(trip)
+                )}
               </span>
             </td>
 
@@ -1177,6 +1181,16 @@ FLOW:
     setActiveTab(
       state.activeTab
     );
+
+    const withStops =
+      individuals.filter(
+        trip=>hasStops(trip)
+      ).length;
+
+    if($("statWithStops")){
+      $("statWithStops").textContent =
+        withStops;
+    }
   }
 
   function renderAll(){
