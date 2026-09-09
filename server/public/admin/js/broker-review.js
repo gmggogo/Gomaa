@@ -91,21 +91,6 @@ server/public/admin/js/broker-review.js
       .replaceAll("'","&#039;");
   }
 
-
-  function neutralTripNumber(value){
-    const raw = clean(value).toUpperCase();
-
-    if(!raw){
-      return "";
-    }
-
-    return raw.replace(
-      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
-      (_match,_suffix,returnPart)=>
-        returnPart || ""
-    );
-  }
-
   function normalizeStop(stop){
     if(typeof stop === "string"){
       return clean(stop);
@@ -268,12 +253,7 @@ server/public/admin/js/broker-review.js
 
     return {
       tripNumber:cellItems(externals.map(ex=>
-        neutralTripNumber(
-          ex.ghExternalTripNumber ||
-          ex.tripNumber ||
-          trip.tripNumber ||
-          "-"
-        )
+        ex.ghExternalTripNumber || ex.tripNumber || trip.tripNumber || "-"
       )),
       broker:cellItems(externals.map(ex=>
         ex.brokerName || ex.brokerCode || trip.brokerName || trip.brokerCode || "-"
@@ -520,15 +500,34 @@ server/public/admin/js/broker-review.js
       }).join("");
 
     body.querySelectorAll("[data-select]").forEach(box=>{
-      box.addEventListener("change",()=>{
-        const id = box.dataset.select;
+      const id =
+        String(
+          box.dataset.select ||
+          ""
+        );
+
+      /*
+        Browser form-state restoration can visually preserve a checkbox
+        between Today/Tomorrow renders. The application state is the only
+        source of truth, so force the DOM checkbox to match it.
+      */
+      box.checked =
+        state.selected.has(id);
+
+      const syncSelection = ()=>{
         if(box.checked){
           state.selected.add(id);
         }else{
           state.selected.delete(id);
         }
+
         updateSelectAllButton();
-      });
+      };
+
+      box.addEventListener(
+        "change",
+        syncSelection
+      );
     });
 
     body.querySelectorAll("[data-edit]").forEach(btn=>{
@@ -564,14 +563,22 @@ server/public/admin/js/broker-review.js
         ? "Unselect All"
         : "Select All";
 
+    const visibleSelectedCount =
+      available.filter(
+        item=>
+          state.selected.has(
+            String(item.id)
+          )
+      ).length;
+
     if($("returnToTripSplitBtn")){
       $("returnToTripSplitBtn").disabled =
-        state.selected.size < 1;
+        visibleSelectedCount < 1;
     }
 
     if($("confirmSelectedBtn")){
       $("confirmSelectedBtn").disabled =
-        state.selected.size < 1;
+        visibleSelectedCount < 1;
     }
   }
 
@@ -628,10 +635,33 @@ server/public/admin/js/broker-review.js
     render();
   }
 
+  function selectedVisibleIds(){
+    const visible =
+      new Set(
+        visibleItems()
+          .filter(
+            item=>
+              item.reviewConfirmed !==
+              true
+          )
+          .map(
+            item=>String(item.id)
+          )
+      );
+
+    return [...state.selected]
+      .filter(
+        id=>
+          visible.has(
+            String(id)
+          )
+      );
+  }
+
   async function returnSelectedToTripSplit(){
 
     const ids =
-      [...state.selected];
+      selectedVisibleIds();
 
     if(!ids.length){
       notice(
@@ -692,7 +722,7 @@ server/public/admin/js/broker-review.js
   async function confirmSelected(){
 
     const ids =
-      [...state.selected];
+      selectedVisibleIds();
 
     if(!ids.length){
       notice(

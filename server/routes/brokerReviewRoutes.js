@@ -741,6 +741,64 @@ async function buildItems(
   }
 
   /*
+    BROKER REVIEW STATE CONSISTENCY
+
+    A Broker Review row is considered released only when BOTH are true:
+    - TripSplitState.reviewConfirmed === true
+    - the linked Trip is actually available in Dispatch
+      (dispatchSelected === true and disabled !== true)
+
+    Older/stale rows can contain reviewConfirmed=true while the Trip is still
+    disabled from Dispatch. That makes the frontend show a confirmation check
+    and disables Select All even though the trip was never actually released.
+
+    Repair only that inconsistent state here.
+  */
+  for(const state of states){
+
+    if(state.reviewConfirmed !== true){
+      continue;
+    }
+
+    const dispatchId =
+      clean(
+        state.dispatchTripId
+      );
+
+    const trip =
+      tripMap.get(
+        dispatchId
+      );
+
+    const actuallyReleased =
+      trip &&
+      trip.dispatchSelected === true &&
+      trip.disabled !== true;
+
+    if(actuallyReleased){
+      continue;
+    }
+
+    await TripSplitState.updateOne(
+      {
+        _id:state._id,
+        tenantId
+      },
+      {
+        $set:{
+          reviewConfirmed:false,
+          reviewConfirmedAt:null,
+          reviewConfirmedBy:""
+        }
+      }
+    );
+
+    state.reviewConfirmed = false;
+    state.reviewConfirmedAt = null;
+    state.reviewConfirmedBy = "";
+  }
+
+  /*
     Shared groups have multiple TripSplitState rows pointing to one
     dispatchTripId. Aggregate them into one review card/row.
   */
