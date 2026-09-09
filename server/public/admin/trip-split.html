@@ -67,18 +67,18 @@ server/public/admin/trip-split.html
       min-height:84px;
       margin-bottom:12px;
       padding:16px 20px;
-      border:1px solid #173f63;
+      border:1px solid #e0be5a;
       border-radius:18px;
       background:
         linear-gradient(
           135deg,
-          #173f63 0%,
-          #0f3554 48%,
-          #0b2b45 100%
+          #fff8dc 0%,
+          #f8e6ae 48%,
+          #fff4cf 100%
         );
       box-shadow:
         0 8px 22px
-        rgba(15,53,84,.18);
+        rgba(146,102,14,.13);
       text-align:center;
     }
 
@@ -87,12 +87,12 @@ server/public/admin/trip-split.html
       font-size:28px;
       line-height:1.1;
       font-weight:900;
-      color:#fff;
+      color:#111827;
     }
 
     .page-sub{
       margin-top:5px;
-      color:#dbe7f0;
+      color:#64748b;
       font-size:13px;
       font-weight:800;
     }
@@ -397,20 +397,39 @@ server/public/admin/trip-split.html
     }
 
 
-    .section-title-count-only{
-      justify-content:flex-end;
-      min-height:38px;
-      padding:8px 12px;
-      background:#fafafa;
-      color:#4b5563;
-      font-size:11px;
+
+
+    .panel-section-title{
+      min-height:46px;
+      padding:10px 14px;
+      background:linear-gradient(135deg,#173f63 0%,#0f3554 100%);
+      color:#fff;
+      border-bottom:1px solid #0b2b45;
+      font-size:14px;
+      font-weight:900;
+      text-align:center;
     }
 
-    .section-title-actions-only{
-      justify-content:flex-end;
-      min-height:42px;
-      padding:7px 12px;
-      background:#fafafa;
+    .panel-section-title > span:first-child{
+      flex:1;
+      text-align:center;
+      letter-spacing:.02em;
+    }
+
+    .panel-section-title #originalCount,
+    .panel-section-title #groupCount{
+      min-width:34px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#fff;
+      color:#173f63;
+      text-align:center;
+      font-size:11px;
+      font-weight:900;
+    }
+
+    .panel-section-title .section-actions{
+      margin-left:auto;
     }
 
     .table-wrap{
@@ -1259,7 +1278,8 @@ server/public/admin/trip-split.html
         Original Trips
       </div>
 
-      <div class="section-title section-title-count-only">
+      <div class="section-title panel-section-title">
+        <span>Original Trips</span>
         <span id="originalCount">0</span>
       </div>
 
@@ -1303,7 +1323,8 @@ server/public/admin/trip-split.html
         Individual Trips
       </div>
 
-      <div class="section-title section-title-actions-only">
+      <div class="section-title panel-section-title">
+        <span>Individual Trips</span>
         <div class="section-actions">
           <span id="individualCount">0</span>
 
