@@ -16,7 +16,10 @@ EXTERNAL TRIPS HUB REBUILD R1
       );
 
   const state = {
-    trips:[],
+    
+    newTripsBaselineAt:"",
+    baselineInitialized:false,
+trips:[],
     integrations:[],
     services:[],
     editingId:"",
@@ -374,6 +377,7 @@ EXTERNAL TRIPS HUB REBUILD R1
     state.trips =
       data.trips ||
       [];
+      initializeNewTripsBaseline();
 
     render();
   }
@@ -529,6 +533,80 @@ EXTERNAL TRIPS HUB REBUILD R1
   }
 
 
+
+  function receivedAtMs(trip){
+    const raw =
+      trip?.receivedAt ||
+      trip?.createdAt ||
+      trip?.lastBrokerUpdateAt ||
+      "";
+
+    if(!raw){
+      return 0;
+    }
+
+    const ms =
+      new Date(raw).getTime();
+
+    return Number.isFinite(ms)
+      ? ms
+      : 0;
+  }
+
+  function initializeNewTripsBaseline(){
+    if(state.baselineInitialized){
+      return;
+    }
+
+    const trips =
+      Array.isArray(state.trips)
+        ? state.trips
+        : [];
+
+    let latest = 0;
+
+    trips.forEach(trip=>{
+      latest = Math.max(
+        latest,
+        receivedAtMs(trip)
+      );
+    });
+
+    state.newTripsBaselineAt =
+      latest
+        ? new Date(latest).toISOString()
+        : new Date().toISOString();
+
+    state.baselineInitialized = true;
+  }
+
+  function newTripsCount(){
+    if(!state.baselineInitialized){
+      return 0;
+    }
+
+    const baseline =
+      new Date(
+        state.newTripsBaselineAt
+      ).getTime();
+
+    if(!Number.isFinite(baseline)){
+      return 0;
+    }
+
+    return (
+      Array.isArray(state.trips)
+        ? state.trips
+        : []
+    )
+      .filter(
+        trip =>
+          receivedAtMs(trip) >
+          baseline
+      )
+      .length;
+  }
+
   function renderStats(){
     const trips =
       Array.isArray(state.trips)
@@ -539,19 +617,7 @@ EXTERNAL TRIPS HUB REBUILD R1
       trips.length;
 
     const newTrips =
-      trips.filter(
-        trip => {
-          const status =
-            clean(
-              trip?.status
-            ).toUpperCase();
-
-          return (
-            status === "RECEIVED" ||
-            status === "NEW"
-          );
-        }
-      ).length;
+      newTripsCount();
 
     /*
       Active Brokers means enabled broker integrations for this tenant.
