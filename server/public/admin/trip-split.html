@@ -231,13 +231,15 @@ server/public/admin/trip-split.html
 
     .stats{
       display:grid;
-      grid-template-columns:repeat(6,minmax(0,1fr));
-      gap:10px;
-      margin-bottom:14px;
+      grid-template-columns:repeat(7,minmax(118px,1fr));
+      gap:7px;
+      margin-bottom:12px;
+      overflow-x:auto;
+      padding-bottom:2px;
     }
 
     .stat{
-      min-height:92px;
+      min-height:68px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -250,29 +252,30 @@ server/public/admin/trip-split.html
           #fff0b2 100%
         );
       border:1px solid #c7a13a;
-      border-radius:14px;
-      padding:14px 12px;
+      border-radius:11px;
+      padding:8px 8px;
       text-align:center;
       box-shadow:
-        0 6px 16px
-        rgba(146,102,14,.15);
+        0 4px 10px
+        rgba(146,102,14,.12);
     }
 
     .stat-label{
       width:100%;
-      font-size:12px;
-      line-height:1.25;
+      font-size:9px;
+      line-height:1.15;
       font-weight:900;
       color:#4b3908;
       text-transform:uppercase;
-      letter-spacing:.035em;
+      letter-spacing:.025em;
       text-align:center;
+      white-space:nowrap;
     }
 
     .stat-value{
       width:100%;
-      margin-top:7px;
-      font-size:25px;
+      margin-top:4px;
+      font-size:20px;
       line-height:1;
       font-weight:900;
       color:#111827;
@@ -519,6 +522,92 @@ server/public/admin/trip-split.html
       font-size:8px;
     }
 
+
+    .search-field{
+      flex:1 1 320px;
+      min-width:260px;
+    }
+
+    .search-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:900;
+      color:#4b5563;
+    }
+
+    .search-field input{
+      width:100%;
+      height:42px;
+      border:1px solid #c7a13a;
+      border-radius:8px;
+      padding:0 12px;
+      background:#fffaf0;
+      color:#111827;
+      font-size:12px;
+      font-weight:700;
+      outline:none;
+    }
+
+    .search-field input:focus{
+      border-color:#9d7b20;
+      box-shadow:0 0 0 2px rgba(199,161,58,.15);
+    }
+
+    .section-actions{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      gap:7px;
+    }
+
+    .individual-table{
+      width:100%;
+      min-width:1450px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+    }
+
+    .individual-table th,
+    .individual-table td{
+      border:1px solid var(--border);
+      padding:5px;
+      text-align:center;
+      vertical-align:middle;
+      font-size:10px;
+      line-height:1.25;
+    }
+
+    .individual-table th{
+      background:#1f2937;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .redistribute-btn{
+      background:#1d4ed8;
+      color:#fff;
+    }
+
+    .grouped-source-row td{
+      background:#f3f6fb;
+    }
+
+    .in-group-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px 7px;
+      border-radius:999px;
+      background:#dbeafe;
+      color:#1d4ed8;
+      font-size:8px;
+      font-weight:900;
+    }
+
     .group-card{
       border-bottom:1px solid #dce2e7;
       background:#fff;
@@ -731,8 +820,7 @@ server/public/admin/trip-split.html
 
     @media(max-width:900px){
       .stats{
-        grid-template-columns:
-          repeat(2,minmax(0,1fr));
+        grid-template-columns:repeat(7,minmax(112px,1fr));
       }
     }
 
@@ -768,7 +856,7 @@ server/public/admin/trip-split.html
       }
 
       .stats{
-        grid-template-columns:1fr 1fr;
+        grid-template-columns:repeat(7,minmax(108px,1fr));
       }
 
       .dialog-grid{
@@ -834,6 +922,16 @@ server/public/admin/trip-split.html
               Tomorrow
             </option>
           </select>
+        </div>
+
+        <div class="search-field">
+          <label>Search</label>
+          <input
+            id="tripSearch"
+            type="search"
+            placeholder="Trip #, passenger, broker, phone, pickup, drop-off..."
+            autocomplete="off"
+          />
         </div>
 
       </div>
@@ -974,14 +1072,14 @@ server/public/admin/trip-split.html
 
     </div>
 
-    <section class="panel">
+    <section class="panel" id="originalTripsSection">
 
       <div class="section-tab individual">
-        Individual Trips
+        Original Trips
       </div>
 
       <div class="section-title">
-        <span>Trips Not Added to Shared Groups</span>
+        <span>Original Broker Trips Before Distribution</span>
         <span id="originalCount">0</span>
       </div>
 
@@ -1018,6 +1116,65 @@ server/public/admin/trip-split.html
       </div>
 
     </section>
+
+    <section class="panel" id="individualTripsSection">
+
+      <div class="section-tab individual">
+        Individual Trips
+      </div>
+
+      <div class="section-title">
+        <span>Trips Not Added to Shared Groups</span>
+
+        <div class="section-actions">
+          <span id="individualCount">0</span>
+
+          <button
+            id="redistributeSelectedBtn"
+            class="btn redistribute-btn"
+            type="button"
+          >
+            Re-distribute Selected
+          </button>
+
+          <button
+            id="confirmIndividualBtn"
+            class="btn btn-confirm-glow"
+            type="button"
+          >
+            Confirm Selected
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+
+        <table class="individual-table">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Trip Number</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
+              <th>Passenger</th>
+              <th>Pickup</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody id="individualTripRows"></tbody>
+        </table>
+
+      </div>
+
+    </section>
+
 
     <section
       class="panel"

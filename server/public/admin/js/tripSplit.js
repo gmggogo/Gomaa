@@ -25,6 +25,7 @@ FLOW:
     groups:[],
     excluded:[],
     selectedTripIds:new Set(),
+    selectedIndividualIds:new Set(),
     selectedGroupIds:new Set(),
     capabilities:{},
     editingId:"",
@@ -106,7 +107,7 @@ FLOW:
   function groupedVisibleTrips(){
     const groups = new Map();
 
-    visibleTrips().forEach(trip=>{
+    filteredOriginalTrips().forEach(trip=>{
       const date = clean(trip.tripDate) || "No Date";
 
       if(!groups.has(date)){
@@ -331,6 +332,50 @@ FLOW:
     );
   }
 
+  function searchTextForTrip(trip){
+    const stops =
+      Array.isArray(trip?.stops)
+        ? trip.stops.map(normalizeStopAddress).join(" ")
+        : "";
+
+    return [
+      trip?.ghExternalTripNumber,
+      trip?.tripNumber,
+      trip?.externalTripId,
+      trip?.brokerTripId,
+      trip?.brokerCode,
+      trip?.brokerName,
+      trip?.clientName,
+      trip?.clientPhone,
+      trip?.memberId,
+      trip?.pickup,
+      trip?.dropoff,
+      trip?.serviceName,
+      trip?.serviceKey,
+      trip?.notes,
+      stops
+    ]
+      .map(clean)
+      .join(" ")
+      .toLowerCase();
+  }
+
+  function currentSearch(){
+    return clean(
+      $("tripSearch")?.value
+    ).toLowerCase();
+  }
+
+  function matchesSearch(trip){
+    const query = currentSearch();
+
+    if(!query){
+      return true;
+    }
+
+    return searchTextForTrip(trip).includes(query);
+  }
+
   function matchesCurrentFilters(item){
     const broker = $("brokerFilter")?.value || "MIXED";
     const day = $("dayFilter")?.value || "ALL";
@@ -363,8 +408,37 @@ FLOW:
     return true;
   }
 
+  function filteredOriginalTrips(){
+    return state.trips.filter(trip=>{
+      return (
+        matchesCurrentFilters(trip) &&
+        matchesSearch(trip)
+      );
+    });
+  }
+
   function visibleGroups(){
-    return state.groups.filter(matchesCurrentFilters);
+    const query = currentSearch();
+
+    return state.groups.filter(group=>{
+      if(!matchesCurrentFilters(group)){
+        return false;
+      }
+
+      if(!query){
+        return true;
+      }
+
+      const memberTrips =
+        Array.isArray(group?.trips)
+          ? group.trips
+          : [];
+
+      return (
+        clean(group?.groupId).toLowerCase().includes(query) ||
+        memberTrips.some(matchesSearch)
+      );
+    });
   }
 
   function visibleConfirmedTrips(){
@@ -395,13 +469,17 @@ FLOW:
   function visibleTrips(){
     const groupedIds = groupedTripIds();
 
-    return state.trips.filter(trip=>{
-      if(groupedIds.has(tripId(trip))){
-        return false;
-      }
+    return filteredOriginalTrips().filter(
+      trip=>!groupedIds.has(tripId(trip))
+    );
+  }
 
-      return matchesCurrentFilters(trip);
-    });
+  function groupedOriginalTrips(){
+    const groupedIds = groupedTripIds();
+
+    return filteredOriginalTrips().filter(
+      trip=>groupedIds.has(tripId(trip))
+    );
   }
 
   function availableForShare(trip){
@@ -446,7 +524,9 @@ FLOW:
     const body = $("originalTripRows");
     if(!body) return;
 
-    const trips = visibleTrips();
+    const trips = filteredOriginalTrips();
+    const groupedIds = groupedTripIds();
+
     $("originalCount").textContent = trips.length;
 
     if(!trips.length){
@@ -454,17 +534,28 @@ FLOW:
         `<tr>
           <td colspan="17">
             <div class="empty">
-              No broker trips for this filter.
+              No original trips for this filter.
             </div>
           </td>
         </tr>`;
       return;
     }
 
-    const groups = groupedVisibleTrips();
+    const dateGroups = new Map();
+
+    trips.forEach(trip=>{
+      const date = clean(trip.tripDate) || "No Date";
+
+      if(!dateGroups.has(date)){
+        dateGroups.set(date,[]);
+      }
+
+      dateGroups.get(date).push(trip);
+    });
+
     const rows = [];
 
-    for(const [date,dateTrips] of groups.entries()){
+    for(const [date,dateTrips] of dateGroups.entries()){
       rows.push(`
         <tr class="date-group-row">
           <td colspan="17">
@@ -475,26 +566,47 @@ FLOW:
 
       dateTrips.forEach(trip=>{
         const id = tripId(trip);
-        const excluded = hasStops(trip);
+        const inSharedGroup = groupedIds.has(id);
         const confirmed = trip?.tripSplitConfirmed === true;
-        const onCall = isOnCallTrip(trip);
-        const disabled = excluded || confirmed || onCall;
-        const selected = state.selectedTripIds.has(id);
+        const shareDisabled =
+          inSharedGroup ||
+          confirmed ||
+          !availableForShare(trip);
 
-        const statusClass =
-          confirmed ? "confirmed" :
-          excluded ? "excluded" :
-          "ready";
+        const selected =
+          state.selectedTripIds.has(id);
+
+        let statusLabel = tripStatus(trip);
+        let statusClass = "ready";
+
+        if(inSharedGroup){
+          statusLabel = "IN SHARED GROUP";
+          statusClass = "shared";
+        }else if(confirmed){
+          statusLabel = "CONFIRMED";
+          statusClass = "confirmed";
+        }else if(hasStops(trip) || isOnCallTrip(trip)){
+          statusLabel = "INDIVIDUAL";
+          statusClass = "excluded";
+        }
 
         rows.push(`
-          <tr class="${isReturnTrip(trip) ? "return-trip-row" : ""}">
+          <tr class="${
+            isReturnTrip(trip)
+              ? "return-trip-row"
+              : ""
+          } ${
+            inSharedGroup
+              ? "grouped-source-row"
+              : ""
+          }">
             <td class="check-cell">
               <input
                 type="checkbox"
                 class="trip-check"
                 data-id="${escapeHtml(id)}"
                 ${selected ? "checked" : ""}
-                ${disabled ? "disabled" : ""}
+                ${shareDisabled ? "disabled" : ""}
               />
             </td>
 
@@ -507,63 +619,28 @@ FLOW:
               }
             </td>
 
-            <td>
-              ${escapeHtml(trip.brokerName || trip.brokerCode || "-")}
-            </td>
-
-            <td class="small-cell">
-              ${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}
-            </td>
-
-            <td class="small-cell">
-              ${escapeHtml(trip.tripTime || trip.pickupTime || "-")}
-            </td>
-
-            <td class="small-cell">
-              ${escapeHtml(trip.appointmentTime || "-")}
-            </td>
-
-            <td class="small-cell">
-              ${escapeHtml(trip.returnTime || "-")}
-            </td>
+            <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
+            <td class="small-cell">${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
+            <td class="small-cell">${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
+            <td class="small-cell">${escapeHtml(trip.appointmentTime || "-")}</td>
+            <td class="small-cell">${escapeHtml(trip.returnTime || "-")}</td>
+            <td>${escapeHtml(trip.clientName || "-")}</td>
+            <td>${escapeHtml(trip.clientPhone || "-")}</td>
+            <td class="address-cell">${addressBox(trip.pickup)}</td>
+            <td class="stops-cell">${stopBoxes(trip.stops)}</td>
+            <td class="address-cell">${addressBox(trip.dropoff)}</td>
+            <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
+            <td class="notes-cell">${escapeHtml(trip.notes || "-")}</td>
 
             <td>
-              ${escapeHtml(trip.clientName || "-")}
+              ${
+                inSharedGroup
+                  ? `<span class="in-group-badge">IN SHARED GROUP</span>`
+                  : `<span class="status ${statusClass}">${escapeHtml(statusLabel)}</span>`
+              }
             </td>
 
-            <td>
-              ${escapeHtml(trip.clientPhone || "-")}
-            </td>
-
-            <td class="address-cell">
-              ${addressBox(trip.pickup)}
-            </td>
-
-            <td class="stops-cell">
-              ${stopBoxes(trip.stops)}
-            </td>
-
-            <td class="address-cell">
-              ${addressBox(trip.dropoff)}
-            </td>
-
-            <td>
-              ${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}
-            </td>
-
-            <td class="notes-cell">
-              ${escapeHtml(trip.notes || "-")}
-            </td>
-
-            <td>
-              <span class="status ${statusClass}">
-                ${escapeHtml(tripStatus(trip))}
-              </span>
-            </td>
-
-            <td>
-              ${escapeHtml(trip.source || "BROKER")}
-            </td>
+            <td>${escapeHtml(trip.source || "BROKER")}</td>
 
             <td>
               <div class="row-actions">
@@ -571,7 +648,7 @@ FLOW:
                   class="btn btn-dark edit-trip-btn"
                   data-id="${escapeHtml(id)}"
                   type="button"
-                  ${confirmed ? "disabled" : ""}
+                  ${inSharedGroup || confirmed ? "disabled" : ""}
                 >
                   Edit
                 </button>
@@ -580,7 +657,7 @@ FLOW:
                   class="btn btn-red delete-trip-btn"
                   data-id="${escapeHtml(id)}"
                   type="button"
-                  ${confirmed ? "disabled" : ""}
+                  ${inSharedGroup || confirmed ? "disabled" : ""}
                 >
                   Delete
                 </button>
@@ -785,53 +862,231 @@ FLOW:
     });
   }
 
+  function renderIndividualTrips(){
+    const body = $("individualTripRows");
+    if(!body) return;
+
+    const trips = visibleTrips();
+
+    if($("individualCount")){
+      $("individualCount").textContent =
+        trips.length;
+    }
+
+    if(!trips.length){
+      body.innerHTML = `
+        <tr>
+          <td colspan="13">
+            <div class="empty">
+              No individual trips for this filter.
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    body.innerHTML =
+      trips.map(trip=>{
+        const id = tripId(trip);
+        const selected =
+          state.selectedIndividualIds.has(id);
+
+        return `
+          <tr class="${isReturnTrip(trip) ? "return-trip-row" : ""}">
+            <td>
+              <input
+                type="checkbox"
+                class="individual-check"
+                data-id="${escapeHtml(id)}"
+                ${selected ? "checked" : ""}
+              />
+            </td>
+
+            <td class="trip-id">
+              ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
+              ${
+                isReturnTrip(trip)
+                  ? `<span class="return-trip-badge">RETURN</span>`
+                  : ""
+              }
+            </td>
+
+            <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
+            <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
+            <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
+            <td>${escapeHtml(trip.appointmentTime || "-")}</td>
+            <td>${escapeHtml(trip.clientName || "-")}</td>
+            <td>${addressBox(trip.pickup)}</td>
+            <td>${stopBoxes(trip.stops)}</td>
+            <td>${addressBox(trip.dropoff)}</td>
+            <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
+            <td><span class="status ready">${escapeHtml(tripStatus(trip))}</span></td>
+
+            <td>
+              <button
+                type="button"
+                class="btn redistribute-btn redistribute-one-btn"
+                data-id="${escapeHtml(id)}"
+                ${availableForShare(trip) ? "" : "disabled"}
+              >
+                Re-distribute
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+    body.querySelectorAll(".individual-check").forEach(el=>{
+      el.addEventListener("change",()=>{
+        const id = clean(el.dataset.id);
+
+        if(el.checked){
+          state.selectedIndividualIds.add(id);
+        }else{
+          state.selectedIndividualIds.delete(id);
+        }
+
+        renderStats();
+      });
+    });
+
+    body.querySelectorAll(".redistribute-one-btn").forEach(el=>{
+      el.addEventListener("click",()=>{
+        redistributeIndividuals([clean(el.dataset.id)]);
+      });
+    });
+  }
+
+  function redistributeIndividuals(ids){
+    const eligible =
+      ids
+        .map(id=>state.trips.find(trip=>tripId(trip) === id))
+        .filter(Boolean)
+        .filter(availableForShare);
+
+    if(!eligible.length){
+      notice(
+        "Selected individual trip(s) cannot be re-distributed.",
+        "error"
+      );
+      return;
+    }
+
+    eligible.forEach(trip=>{
+      const id = tripId(trip);
+      state.selectedTripIds.add(id);
+      state.selectedIndividualIds.delete(id);
+    });
+
+    renderOriginalTrips();
+    renderIndividualTrips();
+    renderStats();
+
+    $("originalTripsSection")
+      ?.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
+
+    notice(
+      `${eligible.length} trip(s) selected in Original Trips for re-distribution.`,
+      "ok"
+    );
+  }
+
+  function redistributeSelectedIndividuals(){
+    const ids = [...state.selectedIndividualIds];
+
+    if(!ids.length){
+      notice(
+        "Select at least one individual trip to re-distribute.",
+        "error"
+      );
+      return;
+    }
+
+    redistributeIndividuals(ids);
+  }
+
+  async function confirmSelectedIndividuals(){
+    const ids = [...state.selectedIndividualIds];
+
+    if(!ids.length){
+      notice(
+        "Select at least one individual trip to confirm.",
+        "error"
+      );
+      return;
+    }
+
+    try{
+      $("confirmIndividualBtn").disabled = true;
+
+      await api("/api/trip-split/confirm",{
+        method:"POST",
+        body:JSON.stringify({
+          tripIds:ids
+        })
+      });
+
+      state.selectedIndividualIds.clear();
+      state.selectedTripIds.clear();
+
+      await load({silent:true});
+
+      notice(
+        "Selected individual trip(s) moved to Broker Review.",
+        "ok"
+      );
+    }catch(err){
+      notice(err.message,"error");
+    }finally{
+      $("confirmIndividualBtn").disabled = false;
+    }
+  }
+
   function renderStats(){
-    const individualTrips = visibleTrips();
-    const groups = visibleGroups();
-    const confirmedTrips = visibleConfirmedTrips();
+    const originals =
+      filteredOriginalTrips();
 
-    const individualCount = individualTrips.length;
-    const sharedCount = sharedTripCountForCurrentFilter();
+    const individuals =
+      visibleTrips();
 
-    /*
-      Total Trips = Individual Trips + trips currently inside Shared Groups.
-      New Trips are a subset of Individual Trips, so they are not added again.
-    */
+    const groups =
+      visibleGroups();
+
+    const confirmedTrips =
+      visibleConfirmedTrips();
+
+    const sharedCount =
+      sharedTripCountForCurrentFilter();
+
     $("statTotalTrips").textContent =
-      individualCount + sharedCount;
-
-    const visibleTripIdSet = new Set(
-      individualTrips.map(tripId)
-    );
-
-    const visibleGroupIdSet = new Set(
-      groups.map(group=>clean(group.groupId))
-    );
-
-    const selectedTrips = [...state.selectedTripIds]
-      .filter(id=>visibleTripIdSet.has(String(id)))
-      .length;
-
-    const selectedGroups = [...state.selectedGroupIds]
-      .filter(id=>visibleGroupIdSet.has(String(id)))
-      .length;
+      originals.length;
 
     $("statNewTrips").textContent =
-      individualTrips.filter(trip=>trip?.isNewTrip === true).length;
+      originals.filter(
+        trip=>trip?.isNewTrip === true
+      ).length;
 
-    $("statIndividual").textContent = individualCount;
-    $("statGroups").textContent = sharedCount;
-    $("statSelected").textContent = selectedTrips + selectedGroups;
-    $("statConfirmed").textContent = confirmedTrips.length;
+    $("statIndividual").textContent =
+      individuals.length;
 
-    const restoreButton = $("restoreBtn");
-    if(restoreButton){
-      restoreButton.disabled = selectedGroups < 1;
-    }
+    $("statGroups").textContent =
+      sharedCount;
+
+    $("statSelected").textContent =
+      state.selectedTripIds.size +
+      state.selectedIndividualIds.size +
+      state.selectedGroupIds.size;
+
+    $("statConfirmed").textContent =
+      confirmedTrips.length;
 
     const activeBrokers =
       new Set(
-        trips
+        originals
           .map(trip=>clean(
             trip?.brokerCode ||
             trip?.brokerName
@@ -843,12 +1098,29 @@ FLOW:
       $("statActiveBrokers").textContent =
         activeBrokers;
     }
+
+    const restoreButton = $("restoreBtn");
+    if(restoreButton){
+      restoreButton.disabled =
+        state.selectedGroupIds.size < 1;
+    }
+
+    if($("redistributeSelectedBtn")){
+      $("redistributeSelectedBtn").disabled =
+        state.selectedIndividualIds.size < 1;
+    }
+
+    if($("confirmIndividualBtn")){
+      $("confirmIndividualBtn").disabled =
+        state.selectedIndividualIds.size < 1;
+    }
   }
 
   function renderAll(){
     renderBrokerFilter();
     renderOriginalTrips();
     renderGroups();
+    renderIndividualTrips();
     renderStats();
 
     const shareAllowed =
@@ -881,7 +1153,8 @@ FLOW:
   }
 
   function selectAll(){
-    const available = visibleTrips().filter(availableForShare);
+    const available =
+      filteredOriginalTrips().filter(availableForShare);
 
     const allSelected =
       available.length > 0 &&
@@ -916,6 +1189,7 @@ FLOW:
       });
 
       state.selectedTripIds.clear();
+      state.selectedIndividualIds.clear();
       state.selectedGroupIds.clear();
 
       await load({silent:true});
@@ -1006,7 +1280,10 @@ FLOW:
       groupId:group.groupId
     }));
 
-    const ungroupedIds = [...state.selectedTripIds];
+    const ungroupedIds =
+      [...new Set([
+        ...state.selectedIndividualIds
+      ])];
 
     if(!payloadGroups.length && !ungroupedIds.length){
       notice("Nothing is selected to confirm.","error");
@@ -1025,6 +1302,7 @@ FLOW:
       });
 
       state.selectedTripIds.clear();
+      state.selectedIndividualIds.clear();
       state.selectedGroupIds.clear();
 
       await load({silent:true});
@@ -1151,10 +1429,19 @@ FLOW:
   function bind(){
     $("brokerFilter")?.addEventListener("change",renderAll);
     $("dayFilter")?.addEventListener("change",renderAll);
+    $("tripSearch")?.addEventListener("input",renderAll);
     $("selectAllBtn")?.addEventListener("click",selectAll);
     $("shareBtn")?.addEventListener("click",createShare);
     $("restoreBtn")?.addEventListener("click",restoreSelected);
     $("confirmAllBtn")?.addEventListener("click",confirmAll);
+    $("redistributeSelectedBtn")?.addEventListener(
+      "click",
+      redistributeSelectedIndividuals
+    );
+    $("confirmIndividualBtn")?.addEventListener(
+      "click",
+      confirmSelectedIndividuals
+    );
 
     $("closeEditBtn")?.addEventListener("click",()=>{
       $("editDialog").close();
