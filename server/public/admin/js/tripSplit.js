@@ -828,6 +828,21 @@ FLOW:
     if(restoreButton){
       restoreButton.disabled = selectedGroups < 1;
     }
+
+    const activeBrokers =
+      new Set(
+        trips
+          .map(trip=>clean(
+            trip?.brokerCode ||
+            trip?.brokerName
+          ))
+          .filter(Boolean)
+      ).size;
+
+    if($("statActiveBrokers")){
+      $("statActiveBrokers").textContent =
+        activeBrokers;
+    }
   }
 
   function renderAll(){

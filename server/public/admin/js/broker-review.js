@@ -16,7 +16,9 @@ server/public/admin/js/broker-review.js
     tomorrow:"",
     activeDay:"TODAY",
     selected:new Set(),
-    editingId:""
+    editingId:"",
+    baselineItemIds:new Set(),
+    baselineInitialized:false
   };
 
   function clean(value){
@@ -211,96 +213,82 @@ server/public/admin/js/broker-review.js
     return "WAITING REVIEW";
   }
 
-  function passengerRows(item){
+  function externalList(item){
     const externals =
-      Array.isArray(
-        item.externalTrips
-      )
+      Array.isArray(item?.externalTrips)
         ? item.externalTrips
         : [];
 
-    if(
-      item.processingMode !== "SHARED"
-    ){
-      const ex =
-        externals[0] ||
-        {};
+    return externals.length
+      ? externals
+      : [item?.trip || {}];
+  }
 
-      return {
-        passenger:
-          esc(
-            ex.clientName ||
-            item?.trip
-              ?.clientName ||
-            "-"
-          ),
-        phone:
-          esc(
-            ex.clientPhone ||
-            item?.trip
-              ?.clientPhone ||
-            "-"
-          ),
-        brokerTrip:
-          esc(
-            ex.externalTripId ||
-            item?.trip
-              ?.brokerTripId ||
-            "-"
-          ),
-        appointment:
-          esc(
-            ex.appointmentTime ||
-            item?.trip
-              ?.appointmentTime ||
-            "-"
-          ),
-        returnTime:
-          esc(
-            ex.returnTime ||
-            item?.trip
-              ?.returnTime ||
-            "-"
-          )
-      };
-    }
+  function cellItems(values){
+    return values
+      .map(value=>`<div class="cell-item">${esc(value || "-")}</div>`)
+      .join("");
+  }
+
+  function stopCellItems(externals){
+    return externals
+      .map(ex=>{
+        const stops =
+          Array.isArray(ex?.stops)
+            ? ex.stops.map(normalizeStop).filter(Boolean)
+            : [];
+
+        return `<div class="cell-item">${
+          stops.length
+            ? stops.map(stop=>esc(stop)).join("<br>")
+            : "-"
+        }</div>`;
+      })
+      .join("");
+  }
+
+  function passengerRows(item){
+    const externals = externalList(item);
+    const trip = item?.trip || {};
 
     return {
-      passenger:
-        externals
-          .map(
-            ex=>
-              `<div class="cell-item">${esc(ex.clientName || "-")}</div>`
-          )
-          .join(""),
-      phone:
-        externals
-          .map(
-            ex=>
-              `<div class="cell-item">${esc(ex.clientPhone || "-")}</div>`
-          )
-          .join(""),
-      brokerTrip:
-        externals
-          .map(
-            ex=>
-              `<div class="cell-item">${esc(ex.externalTripId || "-")}</div>`
-          )
-          .join(""),
-      appointment:
-        externals
-          .map(
-            ex=>
-              `<div class="cell-item">${esc(ex.appointmentTime || "-")}</div>`
-          )
-          .join(""),
-      returnTime:
-        externals
-          .map(
-            ex=>
-              `<div class="cell-item">${esc(ex.returnTime || "-")}</div>`
-          )
-          .join("")
+      tripNumber:cellItems(externals.map(ex=>
+        ex.ghExternalTripNumber || ex.tripNumber || trip.tripNumber || "-"
+      )),
+      broker:cellItems(externals.map(ex=>
+        ex.brokerName || ex.brokerCode || trip.brokerName || trip.brokerCode || "-"
+      )),
+      brokerTrip:cellItems(externals.map(ex=>
+        ex.externalTripId || ex.brokerTripId || trip.brokerTripId || "-"
+      )),
+      pickupTime:cellItems(externals.map(ex=>
+        ex.tripTime || ex.pickupTime || trip.tripTime || "-"
+      )),
+      appointment:cellItems(externals.map(ex=>
+        ex.appointmentTime || "-"
+      )),
+      returnTime:cellItems(externals.map(ex=>
+        ex.returnTime || "-"
+      )),
+      passenger:cellItems(externals.map(ex=>
+        ex.clientName || ex.name || "-"
+      )),
+      phone:cellItems(externals.map(ex=>
+        ex.clientPhone || ex.phone || "-"
+      )),
+      pickup:cellItems(externals.map(ex=>
+        ex.pickup || "-"
+      )),
+      stops:stopCellItems(externals),
+      dropoff:cellItems(externals.map(ex=>
+        ex.dropoff || "-"
+      )),
+      service:cellItems(externals.map(ex=>
+        ex.serviceName || ex.serviceKey || trip.serviceKey || "-"
+      )),
+      notes:cellItems(externals.map(ex=>
+        ex.notes || ex.brokerNotes || "-"
+      ))
     };
   }
 
@@ -324,301 +312,205 @@ server/public/admin/js/broker-review.js
       state.tomorrow || "Tomorrow";
   }
 
-  function renderStats(){
+  function itemBrokerCodes(item){
+    return externalList(item)
+      .map(ex=>clean(
+        ex.brokerCode ||
+        ex.brokerName ||
+        item?.trip?.brokerCode ||
+        item?.trip?.brokerName
+      ))
+      .filter(Boolean);
+  }
+
+  function statsForDate(date){
     const list =
-      visibleItems();
+      state.items.filter(item=>itemDate(item) === date);
 
-    $("totalCount").textContent =
-      String(list.length);
+    const shared =
+      list.filter(item=>item.processingMode === "SHARED");
 
-    $("waitingCount").textContent =
-      String(
-        list.filter(
-          item=>
-            item.reviewConfirmed !== true
-        ).length
+    const individual =
+      list.filter(item=>item.processingMode !== "SHARED");
+
+    const sharedTrips =
+      shared.reduce(
+        (count,item)=>count + externalList(item).length,
+        0
       );
 
-    $("confirmedCount").textContent =
-      String(
-        list.filter(
-          item=>
-            item.reviewConfirmed === true
-        ).length
+    const sharedPassengers =
+      shared.reduce(
+        (count,item)=>{
+          const passengerCount =
+            Array.isArray(item?.trip?.passengers)
+              ? item.trip.passengers.length
+              : 0;
+
+          return count + (
+            passengerCount ||
+            externalList(item).length
+          );
+        },
+        0
       );
 
-    $("sharedCount").textContent =
-      String(
-        list.filter(
-          item=>
-            item.processingMode === "SHARED"
-        ).length
-      );
+    const activeBrokers =
+      new Set(
+        list.flatMap(item=>itemBrokerCodes(item))
+      ).size;
+
+    const newTrips =
+      list.filter(item=>
+        state.baselineInitialized &&
+        !state.baselineItemIds.has(String(item.id))
+      ).length;
+
+    return {
+      sharedGroups:shared.length,
+      sharedTrips,
+      sharedPassengers,
+      individualTrips:individual.length,
+      newTrips,
+      activeBrokers
+    };
+  }
+
+  function writeDayStats(prefix,stats){
+    const values = {
+      SharedGroups:stats.sharedGroups,
+      SharedTrips:stats.sharedTrips,
+      SharedPassengers:stats.sharedPassengers,
+      IndividualTrips:stats.individualTrips,
+      NewTrips:stats.newTrips,
+      ActiveBrokers:stats.activeBrokers
+    };
+
+    Object.entries(values).forEach(([suffix,value])=>{
+      const el = $(`${prefix}${suffix}`);
+      if(el){
+        el.textContent = String(value);
+      }
+    });
+  }
+
+  function renderStats(){
+    if($("todayStatsDate")){
+      $("todayStatsDate").textContent =
+        state.today ? `— ${state.today}` : "";
+    }
+
+    if($("tomorrowStatsDate")){
+      $("tomorrowStatsDate").textContent =
+        state.tomorrow ? `— ${state.tomorrow}` : "";
+    }
+
+    writeDayStats("today",statsForDate(state.today));
+    writeDayStats("tomorrow",statsForDate(state.tomorrow));
   }
 
   function renderTable(){
+    const body = $("brokerReviewRows");
+    if(!body) return;
 
-    const body =
-      $("brokerReviewRows");
-
-    if(!body){
-      return;
-    }
-
-    const list =
-      visibleItems();
+    const list = visibleItems();
 
     if(!list.length){
       body.innerHTML = `
         <tr>
-          <td colspan="20" class="empty">
+          <td colspan="21" class="empty">
             No broker trips for this day.
           </td>
         </tr>
       `;
-
       return;
     }
 
     body.innerHTML =
-      list.map(
-        (item,index)=>{
+      list.map(item=>{
+        const trip = item.trip || {};
+        const p = passengerRows(item);
+        const shared = item.processingMode === "SHARED";
+        const status = statusText(item);
+        const canSelect = item.reviewConfirmed !== true;
 
-          const trip =
-            item.trip ||
-            {};
-
-          const firstExternal =
-            item.externalTrips?.[0] ||
-            {};
-
-          const p =
-            passengerRows(item);
-
-          const shared =
-            item.processingMode ===
-            "SHARED";
-
-          const status =
-            statusText(item);
-
-          const canSelect =
-            item.reviewConfirmed !==
-            true;
-
-          return `
-            <tr
-              data-id="${esc(item.id)}"
-              class="${item.reviewConfirmed ? "confirmed-row" : ""}"
-            >
-              <td>
-                ${
-                  canSelect
-                    ? `<input
-                         type="checkbox"
-                         class="row-check"
-                         data-select="${esc(item.id)}"
-                         ${isSelected(item.id) ? "checked" : ""}
-                       >`
-                    : `<span class="confirmed-check">✓</span>`
-                }
-              </td>
-
-              <td class="trip-number">
-                ${esc(
-                  trip.ghExternalTripNumber ||
-                  firstExternal.ghExternalTripNumber ||
-                  "-"
-                )}
-              </td>
-
-              <td>
-                <strong>
-                  ${esc(
-                    trip.brokerName ||
-                    firstExternal.brokerName ||
-                    firstExternal.brokerCode ||
-                    "-"
-                  )}
-                </strong>
-              </td>
-
-              <td>
-                <div class="cell-box">
-                  ${p.brokerTrip}
-                </div>
-              </td>
-
-              <td>
-                <span class="mode ${shared ? "shared" : "individual"}">
-                  ${shared ? "SHARED" : "INDIVIDUAL"}
-                </span>
-              </td>
-
-              <td>
-                ${esc(
-                  item.sharedGroupId ||
-                  trip.groupId ||
-                  "-"
-                )}
-              </td>
-
-              <td class="center-cell">${esc(itemDate(item))}</td>
-              <td class="center-cell">${esc(itemTime(item))}</td>
-
-              <td class="center-cell">
-                <div class="cell-box">
-                  ${p.appointment}
-                </div>
-              </td>
-
-              <td class="center-cell">
-                <div class="cell-box">
-                  ${p.returnTime}
-                </div>
-              </td>
-
-              <td class="center-cell">
-                <div class="cell-box">
-                  ${p.passenger}
-                </div>
-              </td>
-
-              <td>
-                <div class="cell-box">
-                  ${p.phone}
-                </div>
-              </td>
-
-              <td>
-                ${addressBox(
-                  trip.pickup ||
-                  firstExternal.pickup
-                )}
-              </td>
-
-              <td class="stops-cell">
-                ${stopBoxes(
-                  trip.stops ||
-                  firstExternal.stops
-                )}
-              </td>
-
-              <td>
-                ${addressBox(
-                  trip.dropoff ||
-                  firstExternal.dropoff
-                )}
-              </td>
-
-              <td>
-                ${esc(
-                  trip.serviceKey ||
-                  firstExternal.serviceName ||
-                  firstExternal.serviceKey ||
-                  "-"
-                )}
-              </td>
-
-              <td>
-                ${esc(
-                  trip.driverName ||
-                  "-"
-                )}
-              </td>
-
-              <td>
-                ${esc(
-                  trip.vehicleNumber ||
-                  "-"
-                )}
-              </td>
-
-              <td>
-                <span class="status-badge">
-                  ${esc(status)}
-                </span>
-              </td>
-
-              <td>
-                <div class="actions-cell">
-                  <button
-                    type="button"
-                    class="btn edit-btn"
-                    data-edit="${esc(item.id)}"
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    class="btn delete-btn"
-                    data-delete="${esc(item.id)}"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }
-      ).join("");
-
-    body
-      .querySelectorAll(
-        "[data-select]"
-      )
-      .forEach(
-        box=>{
-          box.addEventListener(
-            "change",
-            ()=>{
-              const id =
-                box.dataset.select;
-
-              if(box.checked){
-                state.selected.add(id);
-              }else{
-                state.selected.delete(id);
+        return `
+          <tr
+            data-id="${esc(item.id)}"
+            class="${item.reviewConfirmed ? "confirmed-row" : ""}"
+          >
+            <td>
+              ${
+                canSelect
+                  ? `<input type="checkbox" class="row-check"
+                       data-select="${esc(item.id)}"
+                       ${isSelected(item.id) ? "checked" : ""}>`
+                  : `<span class="confirmed-check">✓</span>`
               }
+            </td>
 
-              updateSelectAllButton();
-            }
-          );
-        }
-      );
+            <td><div class="cell-box">${p.tripNumber}</div></td>
+            <td><div class="cell-box">${p.broker}</div></td>
+            <td><div class="cell-box">${p.brokerTrip}</div></td>
 
-    body
-      .querySelectorAll(
-        "[data-edit]"
-      )
-      .forEach(
-        btn=>{
-          btn.addEventListener(
-            "click",
-            ()=>
-              openEdit(
-                btn.dataset.edit
-              )
-          );
-        }
-      );
+            <td>
+              <span class="mode ${shared ? "shared" : "individual"}">
+                ${shared ? "SHARED" : "INDIVIDUAL"}
+              </span>
+            </td>
 
-    body
-      .querySelectorAll(
-        "[data-delete]"
-      )
-      .forEach(
-        btn=>{
-          btn.addEventListener(
-            "click",
-            ()=>
-              deleteTrip(
-                btn.dataset.delete
-              )
-          );
+            <td>${esc(item.sharedGroupId || trip.groupId || "-")}</td>
+            <td>${esc(itemDate(item))}</td>
+
+            <td><div class="cell-box">${p.pickupTime}</div></td>
+            <td><div class="cell-box">${p.appointment}</div></td>
+            <td><div class="cell-box">${p.returnTime}</div></td>
+            <td><div class="cell-box">${p.passenger}</div></td>
+            <td><div class="cell-box">${p.phone}</div></td>
+            <td><div class="cell-box">${p.pickup}</div></td>
+            <td><div class="cell-box">${p.stops}</div></td>
+            <td><div class="cell-box">${p.dropoff}</div></td>
+            <td><div class="cell-box">${p.service}</div></td>
+            <td><div class="cell-box">${p.notes}</div></td>
+
+            <td>${esc(trip.driverName || "-")}</td>
+            <td>${esc(trip.vehicleNumber || "-")}</td>
+
+            <td>
+              <span class="status-badge">${esc(status)}</span>
+            </td>
+
+            <td>
+              <div class="actions-cell">
+                <button type="button" class="btn edit-btn"
+                  data-edit="${esc(item.id)}">Edit</button>
+                <button type="button" class="btn delete-btn"
+                  data-delete="${esc(item.id)}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+    body.querySelectorAll("[data-select]").forEach(box=>{
+      box.addEventListener("change",()=>{
+        const id = box.dataset.select;
+        if(box.checked){
+          state.selected.add(id);
+        }else{
+          state.selected.delete(id);
         }
-      );
+        updateSelectAllButton();
+      });
+    });
+
+    body.querySelectorAll("[data-edit]").forEach(btn=>{
+      btn.addEventListener("click",()=>openEdit(btn.dataset.edit));
+    });
+
+    body.querySelectorAll("[data-delete]").forEach(btn=>{
+      btn.addEventListener("click",()=>deleteTrip(btn.dataset.delete));
+    });
   }
 
   function updateSelectAllButton(){
@@ -966,6 +858,17 @@ This action cannot be undone.`
         Array.isArray(data.items)
           ? data.items
           : [];
+
+      if(!state.baselineInitialized){
+        state.baselineItemIds =
+          new Set(
+            state.items.map(
+              item=>String(item.id)
+            )
+          );
+
+        state.baselineInitialized = true;
+      }
 
       state.today =
         clean(data.today);
