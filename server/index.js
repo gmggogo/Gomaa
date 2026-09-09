@@ -1403,6 +1403,17 @@ const tripSchema = new mongoose.Schema({
   type: { type: String, default: "company" },
   company: { type: String, default: "" },
 
+  /* =========================
+     BROKER IDENTITY
+     Broker trips stay isolated from Trips Hub / Trips.
+     They enter Dispatch only after Broker Review confirmation.
+  ========================= */
+  brokerId: { type: String, default: "", index: true },
+  brokerName: { type: String, default: "", index: true },
+  brokerCode: { type: String, default: "", index: true },
+  brokerTripId: { type: String, default: "", index: true },
+  externalSource: { type: String, default: "" },
+
   entryName: { type: String, default: "" },
   entryPhone: { type: String, default: "" },
 
@@ -8176,6 +8187,43 @@ res.status(200).json(trip);
 });
 
 /* =========================
+   NON-BROKER TRIP FILTER
+
+   Trips Hub and Trips are the normal GH Mobility booking flow.
+   Any Trip carrying broker identity is excluded from those pages.
+   Broker trips are released only through:
+   External Trips Hub -> Trip Split -> Broker Review -> Dispatch
+========================= */
+
+function nonBrokerTripFilter(){
+  return {
+    $and:[
+      {
+        $or:[
+          { brokerId:{ $exists:false } },
+          { brokerId:null },
+          { brokerId:"" }
+        ]
+      },
+      {
+        $or:[
+          { brokerName:{ $exists:false } },
+          { brokerName:null },
+          { brokerName:"" }
+        ]
+      },
+      {
+        $or:[
+          { brokerCode:{ $exists:false } },
+          { brokerCode:null },
+          { brokerCode:"" }
+        ]
+      }
+    ]
+  };
+}
+
+/* =========================
    TENANT TRIPS - SECURE
    STAGE 1 TEST ENDPOINT
 
@@ -8205,13 +8253,15 @@ app.get(
           req.authUser?.role || ""
         );
 
-      let filter = {};
+      let filter =
+        nonBrokerTripFilter();
 
       if(
         role !== "PLATFORM_ADMIN"
       ){
 
         filter = {
+          ...filter,
           tenantId:
             req.authUser.tenantId
         };
@@ -8251,7 +8301,10 @@ app.get(
 app.get("/api/trips", requireTenantApi, async (req, res) => {
   try {
     const trips = await Trip.find(
-      tenantFilter(req,{})
+      tenantFilter(
+        req,
+        nonBrokerTripFilter()
+      )
     ).sort({ createdAt: -1, _id: -1 });
     res.json(trips);
   } catch (err) {
@@ -8271,7 +8324,10 @@ app.get(
   try{
 
     const filter =
-      tenantFilter(req,{});
+      tenantFilter(
+        req,
+        nonBrokerTripFilter()
+      );
 
     /*
       Company users only see trips belonging to their own

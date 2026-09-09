@@ -655,6 +655,92 @@ async function buildItems(
     );
 
   /*
+    Backfill broker identity on Trip records created before the Trip schema
+    carried broker fields. This keeps old Broker Review rows out of the
+    normal Trips Hub / Trips pages as soon as Broker Review is loaded.
+  */
+  for(const state of states){
+
+    const dispatchId =
+      clean(
+        state.dispatchTripId
+      );
+
+    const trip =
+      tripMap.get(
+        dispatchId
+      );
+
+    const external =
+      externalMap.get(
+        toId(
+          state.externalTripObjectId
+        )
+      );
+
+    if(!trip || !external){
+      continue;
+    }
+
+    const brokerName =
+      clean(
+        external.brokerName ||
+        state.brokerName ||
+        ""
+      );
+
+    const brokerCode =
+      clean(
+        external.brokerCode ||
+        state.brokerCode ||
+        ""
+      );
+
+    const brokerId =
+      clean(
+        external.brokerId ||
+        ""
+      );
+
+    const brokerTripId =
+      clean(
+        external.externalTripId ||
+        ""
+      );
+
+    const needsBackfill =
+      clean(trip.brokerName) !== brokerName ||
+      clean(trip.brokerCode) !== brokerCode ||
+      clean(trip.brokerId) !== brokerId ||
+      clean(trip.brokerTripId) !== brokerTripId ||
+      clean(trip.externalSource) !== "BROKER";
+
+    if(needsBackfill){
+      await Trip.updateOne(
+        {
+          _id:trip._id,
+          tenantId
+        },
+        {
+          $set:{
+            brokerId,
+            brokerName,
+            brokerCode,
+            brokerTripId,
+            externalSource:"BROKER"
+          }
+        }
+      );
+
+      trip.brokerId = brokerId;
+      trip.brokerName = brokerName;
+      trip.brokerCode = brokerCode;
+      trip.brokerTripId = brokerTripId;
+      trip.externalSource = "BROKER";
+    }
+  }
+
+  /*
     Shared groups have multiple TripSplitState rows pointing to one
     dispatchTripId. Aggregate them into one review card/row.
   */
@@ -1233,6 +1319,42 @@ router.post(
 
             const primaryExternal =
               sourceExternalTrips[0];
+
+            /*
+              Persist broker identity on the Trip itself.
+              Trips Hub / Trips use these fields to keep the broker
+              workflow isolated. Dispatch is allowed to receive the Trip
+              only after this Broker Review confirmation.
+            */
+            trip.brokerId =
+              clean(
+                primaryExternal.brokerId ||
+                ""
+              );
+
+            trip.brokerName =
+              clean(
+                primaryExternal.brokerName ||
+                sourceStates[0]?.brokerName ||
+                ""
+              );
+
+            trip.brokerCode =
+              clean(
+                primaryExternal.brokerCode ||
+                sourceStates[0]?.brokerCode ||
+                ""
+              );
+
+            trip.brokerTripId =
+              clean(
+                primaryExternal.externalTripId ||
+                trip.brokerTripId ||
+                ""
+              );
+
+            trip.externalSource =
+              "BROKER";
 
             const finalService =
               shared
