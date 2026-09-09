@@ -564,7 +564,7 @@ server/public/admin/trip-split.html
 
     .individual-table{
       width:100%;
-      min-width:1450px;
+      min-width:1220px;
       table-layout:fixed;
       border-collapse:collapse;
       background:#fff;
@@ -572,20 +572,88 @@ server/public/admin/trip-split.html
 
     .individual-table th,
     .individual-table td{
-      border:1px solid var(--border);
-      padding:5px;
-      text-align:center;
+      padding:9px 8px;
+      border:1px solid #d8e0e7;
+      font-size:11px;
       vertical-align:middle;
-      font-size:10px;
-      line-height:1.25;
+      text-align:center;
+      line-height:1.3;
+      background:#fff;
     }
 
     .individual-table th{
-      background:#1f2937;
-      color:#fff;
+      background:#e8edf2;
+      color:#263746;
       font-weight:900;
       white-space:nowrap;
+      text-align:center;
     }
+
+    .individual-table .individual-trip-number-head{
+      background:#1d4ed8;
+      color:#fff;
+    }
+
+    .individual-table .individual-trip-number{
+      color:#1d4ed8;
+      font-weight:900;
+      overflow-wrap:anywhere;
+    }
+
+    .individual-table .individual-address,
+    .individual-table .individual-stops{
+      text-align:center;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    .individual-table .individual-address .address-box,
+    .individual-table .individual-stops .gh-stop-box{
+      min-height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .individual-table th:nth-child(1),
+    .individual-table td:nth-child(1){width:46px}
+
+    .individual-table th:nth-child(2),
+    .individual-table td:nth-child(2){width:135px}
+
+    .individual-table th:nth-child(3),
+    .individual-table td:nth-child(3){width:90px}
+
+    .individual-table th:nth-child(4),
+    .individual-table td:nth-child(4){width:135px}
+
+    .individual-table th:nth-child(5),
+    .individual-table td:nth-child(5){width:85px}
+
+    .individual-table th:nth-child(6),
+    .individual-table td:nth-child(6){width:90px}
+
+    .individual-table th:nth-child(7),
+    .individual-table td:nth-child(7){width:130px}
+
+    .individual-table th:nth-child(8),
+    .individual-table td:nth-child(8){width:210px}
+
+    .individual-table th:nth-child(9),
+    .individual-table td:nth-child(9){width:210px}
+
+    .individual-table th:nth-child(10),
+    .individual-table td:nth-child(10){width:210px}
+
+    .individual-table th:nth-child(11),
+    .individual-table td:nth-child(11){width:95px}
+
+    .individual-table th:nth-child(12),
+    .individual-table td:nth-child(12){width:95px}
+
+    .individual-table th:nth-child(13),
+    .individual-table td:nth-child(13){width:115px}
 
     .redistribute-btn{
       background:#1d4ed8;
@@ -1153,7 +1221,7 @@ server/public/admin/trip-split.html
           <thead>
             <tr>
               <th>Select</th>
-              <th>Trip Number</th>
+              <th class="individual-trip-number-head">Trip Number</th>
               <th>Broker</th>
               <th>Broker Trip ID</th>
               <th>Pickup Time</th>

@@ -610,7 +610,7 @@ FLOW:
               />
             </td>
 
-            <td class="trip-id">
+            <td class="individual-trip-number">
               ${escapeHtml(trip.ghExternalTripNumber || "-")}
               ${
                 isReturnTrip(trip)
@@ -917,9 +917,9 @@ FLOW:
             <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
             <td>${escapeHtml(trip.appointmentTime || "-")}</td>
             <td>${escapeHtml(trip.clientName || "-")}</td>
-            <td>${addressBox(trip.pickup)}</td>
-            <td>${stopBoxes(trip.stops)}</td>
-            <td>${addressBox(trip.dropoff)}</td>
+            <td class="individual-address">${addressBox(trip.pickup)}</td>
+            <td class="individual-stops">${stopBoxes(trip.stops)}</td>
+            <td class="individual-address">${addressBox(trip.dropoff)}</td>
             <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
             <td><span class="status ready">${escapeHtml(tripStatus(trip))}</span></td>
 
