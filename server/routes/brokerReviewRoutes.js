@@ -743,59 +743,79 @@ async function buildItems(
   /*
     BROKER REVIEW STATE CONSISTENCY
 
-    A Broker Review row is considered released only when BOTH are true:
-    - TripSplitState.reviewConfirmed === true
-    - the linked Trip is actually available in Dispatch
-      (dispatchSelected === true and disabled !== true)
+    TripSplitState.reviewConfirmed is the single source of truth.
 
-    Older/stale rows can contain reviewConfirmed=true while the Trip is still
-    disabled from Dispatch. That makes the frontend show a confirmation check
-    and disables Select All even though the trip was never actually released.
+    - reviewConfirmed:false => waiting in Broker Review
+      => Trip MUST stay out of Dispatch.
+    - reviewConfirmed:true  => released from Broker Review
+      => Trip may stay available in Dispatch.
 
-    Repair only that inconsistent state here.
+    This repairs legacy rows created by older Trip Split versions that
+    accidentally left dispatchSelected=true / disabled=false before
+    Broker Review Confirm Selected was pressed.
   */
-  for(const state of states){
+  const stateRowsByDispatchId =
+    new Map();
 
-    if(state.reviewConfirmed !== true){
+  for(const state of states){
+    const dispatchId =
+      clean(state.dispatchTripId);
+
+    if(!dispatchId){
       continue;
     }
 
-    const dispatchId =
-      clean(
-        state.dispatchTripId
-      );
+    if(!stateRowsByDispatchId.has(dispatchId)){
+      stateRowsByDispatchId.set(dispatchId,[]);
+    }
+
+    stateRowsByDispatchId.get(dispatchId).push(state);
+  }
+
+  for(const [dispatchId,rows] of stateRowsByDispatchId.entries()){
 
     const trip =
-      tripMap.get(
-        dispatchId
-      );
+      tripMap.get(dispatchId);
 
-    const actuallyReleased =
-      trip &&
-      trip.dispatchSelected === true &&
-      trip.disabled !== true;
-
-    if(actuallyReleased){
+    if(!trip){
       continue;
     }
 
-    await TripSplitState.updateOne(
-      {
-        _id:state._id,
-        tenantId
-      },
-      {
-        $set:{
-          reviewConfirmed:false,
-          reviewConfirmedAt:null,
-          reviewConfirmedBy:""
-        }
-      }
-    );
+    /*
+      A shared Broker Review item remains waiting if ANY source row
+      is still waiting review.
+    */
+    const reviewConfirmed =
+      rows.length > 0 &&
+      rows.every(
+        row=>
+          row.reviewConfirmed === true
+      );
 
-    state.reviewConfirmed = false;
-    state.reviewConfirmedAt = null;
-    state.reviewConfirmedBy = "";
+    if(!reviewConfirmed){
+
+      const needsRepair =
+        trip.dispatchSelected === true ||
+        trip.disabled !== true;
+
+      if(needsRepair){
+        await Trip.updateOne(
+          {
+            _id:trip._id,
+            tenantId
+          },
+          {
+            $set:{
+              dispatchSelected:false,
+              disabled:true
+            }
+          }
+        );
+
+        trip.dispatchSelected = false;
+        trip.disabled = true;
+      }
+    }
   }
 
   /*
@@ -840,22 +860,10 @@ async function buildItems(
           trip?.groupId ||
           "",
         reviewConfirmed:
-          (
-            state.reviewConfirmed === true &&
-            trip?.dispatchSelected === true &&
-            trip?.disabled !== true
-          ),
+          state.reviewConfirmed === true,
         reviewConfirmedAt:
-          (
-            state.reviewConfirmed === true &&
-            trip?.dispatchSelected === true &&
-            trip?.disabled !== true
-          )
-            ? (
-                state.reviewConfirmedAt ||
-                null
-              )
-            : null,
+          state.reviewConfirmedAt ||
+          null,
         confirmedAt:
           state.confirmedAt ||
           null,
@@ -891,20 +899,9 @@ async function buildItems(
       All rows in one shared group should be confirmed together.
       If any row is still waiting, the item remains Waiting Review.
     */
-    const itemTrip =
-      tripMap.get(
-        dispatchId
-      ) ||
-      null;
-
-    const actuallyReleased =
-      (
-        state.reviewConfirmed === true &&
-        itemTrip?.dispatchSelected === true &&
-        itemTrip?.disabled !== true
-      );
-
-    if(!actuallyReleased){
+    if(
+      state.reviewConfirmed !== true
+    ){
       item.reviewConfirmed =
         false;
 
@@ -1090,13 +1087,12 @@ router.post(
               );
             }
 
-            const actuallyReleasedToDispatch =
-              (
-                trip.dispatchSelected === true &&
-                trip.disabled !== true
-              );
-
-            if(actuallyReleasedToDispatch){
+            if(
+              states.some(
+                row=>
+                  row.reviewConfirmed === true
+              )
+            ){
               throw new Error(
                 "A trip already released to Dispatch cannot be returned to Trip Split"
               );
