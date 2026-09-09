@@ -443,9 +443,6 @@ server/public/admin/js/broker-review.js
         const released =
           (item.reviewConfirmed === true);
 
-        const canSelect =
-          !released;
-
         return `
           <tr
             data-id="${esc(item.id)}"
@@ -458,11 +455,6 @@ server/public/admin/js/broker-review.js
                 data-select="${esc(item.id)}"
                 ${isSelected(item.id) ? "checked" : ""}
               >
-              ${
-                released
-                  ? `<span class="confirmed-check" title="Released to Dispatch">✓</span>`
-                  : ""
-              }
             </td>
 
             <td><div class="cell-box trip-number-box">${p.tripNumber}</div></td>
@@ -567,22 +559,20 @@ server/public/admin/js/broker-review.js
         ? "Unselect All"
         : "Select All";
 
-    const visibleSelectedCount =
-      available.filter(
-        item=>
-          state.selected.has(
-            String(item.id)
-          )
-      ).length;
+    const selectedVisible =
+      selectedVisibleIds();
+
+    const selectedReturnable =
+      selectedReturnableIds();
 
     if($("returnToTripSplitBtn")){
       $("returnToTripSplitBtn").disabled =
-        visibleSelectedCount < 1;
+        selectedReturnable.length < 1;
     }
 
     if($("confirmSelectedBtn")){
       $("confirmSelectedBtn").disabled =
-        visibleSelectedCount < 1;
+        selectedVisible.length < 1;
     }
   }
 
@@ -652,10 +642,32 @@ server/public/admin/js/broker-review.js
       );
   }
 
+  function selectedReturnableIds(){
+    const returnable =
+      new Set(
+        visibleItems()
+          .filter(
+            item=>
+              item.reviewConfirmed !== true
+          )
+          .map(
+            item=>String(item.id)
+          )
+      );
+
+    return [...state.selected]
+      .filter(
+        id=>
+          returnable.has(
+            String(id)
+          )
+      );
+  }
+
   async function returnSelectedToTripSplit(){
 
     const ids =
-      selectedVisibleIds();
+      selectedReturnableIds();
 
     if(!ids.length){
       notice(
