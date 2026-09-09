@@ -399,37 +399,13 @@ server/public/admin/trip-split.html
 
 
 
-    .panel-section-title{
-      min-height:46px;
-      padding:10px 14px;
-      background:linear-gradient(135deg,#173f63 0%,#0f3554 100%);
-      color:#fff;
-      border-bottom:1px solid #0b2b45;
-      font-size:14px;
-      font-weight:900;
-      text-align:center;
-    }
 
-    .panel-section-title > span:first-child{
-      flex:1;
-      text-align:center;
-      letter-spacing:.02em;
-    }
 
-    .panel-section-title #originalCount,
-    .panel-section-title #groupCount{
-      min-width:34px;
-      padding:4px 8px;
-      border-radius:999px;
-      background:#fff;
-      color:#173f63;
-      text-align:center;
-      font-size:11px;
-      font-weight:900;
-    }
-
-    .panel-section-title .section-actions{
-      margin-left:auto;
+    .section-title-actions-only{
+      min-height:42px;
+      padding:7px 12px;
+      justify-content:flex-end;
+      background:#fafafa;
     }
 
     .table-wrap{
@@ -1278,12 +1254,7 @@ server/public/admin/trip-split.html
         Original Trips
       </div>
 
-      <div class="section-title panel-section-title">
-        <span>Original Trips</span>
-        <span id="originalCount">0</span>
-      </div>
-
-      <div class="table-wrap">
+<div class="table-wrap">
 
         <table class="original-table">
 
@@ -1323,8 +1294,7 @@ server/public/admin/trip-split.html
         Individual Trips
       </div>
 
-      <div class="section-title panel-section-title">
-        <span>Individual Trips</span>
+      <div class="section-title section-title-actions-only">
         <div class="section-actions">
           <span id="individualCount">0</span>
 
