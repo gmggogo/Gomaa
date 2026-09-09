@@ -186,6 +186,25 @@ server/public/admin/broker-review.html
       color:#fff;
     }
 
+    .toolbar-right{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:9px;
+      margin-left:auto;
+    }
+
+    .return-split-btn{
+      background:#6d3fc0;
+      color:#fff;
+      border:1px solid #542b9f;
+      box-shadow:0 3px 8px rgba(84,43,159,.18);
+    }
+
+    .return-split-btn:not(:disabled):hover{
+      background:#5c33a8;
+    }
+
     .edit-btn{
       background:#315f9c;
       color:#fff;
@@ -642,6 +661,17 @@ server/public/admin/broker-review.html
         grid-template-columns:1fr 1fr;
       }
 
+      .toolbar-right{
+        width:100%;
+        margin-left:0;
+        display:grid;
+        gap:8px;
+      }
+
+      .return-split-btn{
+        width:100%;
+      }
+
       .stats{
         grid-template-columns:
           repeat(2,minmax(0,1fr));
@@ -721,10 +751,19 @@ server/public/admin/broker-review.html
         </button>
       </div>
 
-      <div>
+      <div class="toolbar-right">
         <strong>
           Confirmed trips remain visible here while their Dispatch status changes.
         </strong>
+
+        <button
+          id="returnToTripSplitBtn"
+          type="button"
+          class="btn return-split-btn"
+          disabled
+        >
+          Return Selected to Trip Split
+        </button>
       </div>
 
     </div>

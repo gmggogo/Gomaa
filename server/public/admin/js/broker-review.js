@@ -543,6 +543,16 @@ server/public/admin/js/broker-review.js
       allSelected
         ? "Unselect All"
         : "Select All";
+
+    if($("returnToTripSplitBtn")){
+      $("returnToTripSplitBtn").disabled =
+        state.selected.size < 1;
+    }
+
+    if($("confirmSelectedBtn")){
+      $("confirmSelectedBtn").disabled =
+        state.selected.size < 1;
+    }
   }
 
   function render(){
@@ -596,6 +606,67 @@ server/public/admin/js/broker-review.js
     }
 
     render();
+  }
+
+  async function returnSelectedToTripSplit(){
+
+    const ids =
+      [...state.selected];
+
+    if(!ids.length){
+      notice(
+        "Select at least one trip to return.",
+        "error"
+      );
+      return;
+    }
+
+    if(
+      !window.confirm(
+        "Return selected trip(s) to Trip Split?"
+      )
+    ){
+      return;
+    }
+
+    try{
+
+      $("returnToTripSplitBtn").disabled =
+        true;
+
+      const data =
+        await api(
+          "/api/broker-review/return-to-trip-split",
+          {
+            method:"POST",
+            body:
+              JSON.stringify({
+                dispatchTripIds:ids
+              })
+          }
+        );
+
+      state.selected.clear();
+
+      notice(
+        data.message ||
+        "Selected trip(s) returned to Trip Split.",
+        "ok"
+      );
+
+      await load();
+
+    }catch(err){
+
+      notice(
+        err.message,
+        "error"
+      );
+
+    }finally{
+
+      updateSelectAllButton();
+    }
   }
 
   async function confirmSelected(){
@@ -945,6 +1016,12 @@ This action cannot be undone.`
       ?.addEventListener(
         "click",
         confirmSelected
+      );
+
+    $("returnToTripSplitBtn")
+      ?.addEventListener(
+        "click",
+        returnSelectedToTripSplit
       );
 
     $("closeEditBtn")

@@ -31,6 +31,9 @@ const TripSplitState =
 const ExternalTrip =
   require("../models/ExternalTrip");
 
+const SharedTripGroup =
+  require("../models/SharedTripGroup");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -261,9 +264,6 @@ function serializeExternal(
 
   return {
     _id:toId(external),
-    ghExternalTripNumber:
-      external.ghExternalTripNumber ||
-      "",
     externalTripId:
       external.externalTripId ||
       "",
@@ -281,9 +281,6 @@ function serializeExternal(
       "",
     appointmentTime:
       external.appointmentTime ||
-      "",
-    returnTime:
-      external.returnTime ||
       "",
     clientName:
       external.clientName ||
@@ -331,10 +328,6 @@ function serializeTrip(
     tripNumber:
       trip.tripNumber ||
       "",
-    ghExternalTripNumber:
-      trip.tripNumber ||
-      trip.ghExternalTripNumber ||
-      "",
     tripDate:
       trip.tripDate ||
       "",
@@ -343,9 +336,6 @@ function serializeTrip(
       "",
     appointmentTime:
       trip.appointmentTime ||
-      "",
-    returnTime:
-      trip.returnTime ||
       "",
     pickup:
       trip.pickup ||
@@ -680,6 +670,278 @@ router.get(
     }
   }
 );
+
+/* =========================
+   RETURN SELECTED TO TRIP SPLIT
+========================= */
+
+router.post(
+  "/return-to-trip-split",
+  async (req,res)=>{
+
+    const session =
+      await mongoose.startSession();
+
+    try{
+
+      const tenantId =
+        tenantObjectId(req);
+
+      const Trip =
+        getTripModel();
+
+      const ids =
+        [...new Set(
+          safeArray(
+            req.body?.dispatchTripIds
+          )
+            .map(clean)
+            .filter(
+              id=>
+                mongoose.Types.ObjectId
+                  .isValid(id)
+            )
+        )];
+
+      if(!ids.length){
+        return res.status(400).json({
+          success:false,
+          message:"Select at least one trip"
+        });
+      }
+
+      let returnedCount = 0;
+
+      await session.withTransaction(
+        async()=>{
+
+          const trips =
+            await Trip.find({
+              _id:{$in:ids},
+              tenantId
+            })
+              .session(session);
+
+          if(
+            trips.length !==
+            ids.length
+          ){
+            throw new Error(
+              "One or more Broker Review trips were not found"
+            );
+          }
+
+          for(const trip of trips){
+
+            if(
+              executionLocked(
+                trip
+              )
+            ){
+              throw new Error(
+                "A trip that has started or closed cannot be returned to Trip Split"
+              );
+            }
+
+            const states =
+              await TripSplitState.find({
+                tenantId,
+                dispatchTripId:
+                  trip._id,
+                confirmed:true
+              })
+                .session(session);
+
+            if(!states.length){
+              throw new Error(
+                "Trip Split source state was not found"
+              );
+            }
+
+            if(
+              states.some(
+                row=>
+                  row.reviewConfirmed ===
+                  true
+              )
+            ){
+              throw new Error(
+                "A trip already released to Dispatch cannot be returned to Trip Split"
+              );
+            }
+
+            const isShared =
+              states.some(
+                row=>
+                  upper(
+                    row.processingMode
+                  ) ===
+                  "SHARED"
+              );
+
+            if(isShared){
+
+              const groupId =
+                clean(
+                  states.find(
+                    row=>
+                      clean(
+                        row.sharedGroupId
+                      )
+                  )
+                    ?.sharedGroupId
+                ) ||
+                clean(
+                  trip.groupId
+                );
+
+              if(!groupId){
+                throw new Error(
+                  "Shared group link was not found"
+                );
+              }
+
+              const reopened =
+                await SharedTripGroup.findOneAndUpdate(
+                  {
+                    tenantId,
+                    sourceType:"BROKER",
+                    $or:[
+                      {
+                        groupId
+                      },
+                      {
+                        dispatchTripId:
+                          trip._id
+                      }
+                    ]
+                  },
+                  {
+                    $set:{
+                      status:"OPEN",
+                      confirmedAt:null,
+                      confirmedBy:"",
+                      dispatchTripId:null
+                    }
+                  },
+                  {
+                    new:true,
+                    session
+                  }
+                );
+
+              if(!reopened){
+                throw new Error(
+                  "Shared group could not be reopened in Trip Split"
+                );
+              }
+
+              await TripSplitState.updateMany(
+                {
+                  tenantId,
+                  dispatchTripId:
+                    trip._id
+                },
+                {
+                  $set:{
+                    confirmed:false,
+                    confirmedAt:null,
+                    confirmedBy:"",
+                    reviewConfirmed:false,
+                    reviewConfirmedAt:null,
+                    reviewConfirmedBy:"",
+                    dispatchTripId:null
+                  }
+                },
+                {
+                  session
+                }
+              );
+
+            }else{
+
+              /*
+                Individual trip:
+                keep NORMAL state, but mark it unconfirmed so Trip Split
+                places it back in Individual Trips.
+              */
+              await TripSplitState.updateMany(
+                {
+                  tenantId,
+                  dispatchTripId:
+                    trip._id
+                },
+                {
+                  $set:{
+                    processingMode:"NORMAL",
+                    sharedGroupId:"",
+                    confirmed:false,
+                    confirmedAt:null,
+                    confirmedBy:"",
+                    reviewConfirmed:false,
+                    reviewConfirmedAt:null,
+                    reviewConfirmedBy:"",
+                    dispatchTripId:null
+                  }
+                },
+                {
+                  session
+                }
+              );
+            }
+
+            /*
+              The Trip document was created only to represent the item in
+              Broker Review / Dispatch. It has not been released to Dispatch
+              yet, so remove it when returning to Trip Split.
+            */
+            await Trip.deleteOne(
+              {
+                _id:trip._id,
+                tenantId
+              },
+              {
+                session
+              }
+            );
+
+            returnedCount += 1;
+          }
+        }
+      );
+
+      return res.json({
+        success:true,
+        returnedCount,
+        message:
+          `${returnedCount} trip(s) returned to Trip Split.`
+      });
+
+    }catch(err){
+
+      console.log(
+        "BROKER REVIEW RETURN TO TRIP SPLIT ERROR:",
+        err
+      );
+
+      return res.status(
+        Number(
+          err?.statusCode
+        ) || 500
+      ).json({
+        success:false,
+        message:
+          err.message ||
+          "Failed to return selected trips to Trip Split"
+      });
+
+    }finally{
+
+      await session.endSession();
+    }
+  }
+);
+
 
 /* =========================
    CONFIRM SELECTED TO DISPATCH
