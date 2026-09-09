@@ -128,15 +128,23 @@ function hasReturnRequest(trip){
 
 function returnTripNumber(trip){
   const base =
-    clean(
+    neutralTripNumber(
       trip?.ghExternalTripNumber ||
       trip?.externalTripNumber ||
-      trip?.externalTripId
+      trip?.externalTripId,
+      trip?.serviceKey ||
+      trip?.serviceName
     );
 
-  return base
-    ? `${base}-R`
-    : "";
+  if(!base){
+    return "";
+  }
+
+  if(base.endsWith("-R")){
+    return base;
+  }
+
+  return `${base}-R`;
 }
 
 function returnExternalTripId(trip){
@@ -565,6 +573,111 @@ function isSharedService(value){
   );
 }
 
+function serviceSuffix(value){
+  const code =
+    normalizeServiceCode(value);
+
+  if(
+    code === "STANDARD" ||
+    code === "ST"
+  ){
+    return "ST";
+  }
+
+  if(
+    code === "SHARED" ||
+    code === "SH"
+  ){
+    return "SH";
+  }
+
+  if(
+    code === "WHEELCHAIR" ||
+    code === "WHEEL CHAIR" ||
+    code === "WC" ||
+    code === "WH"
+  ){
+    return "WH";
+  }
+
+  if(
+    code === "TAXI" ||
+    code === "TX"
+  ){
+    return "TX";
+  }
+
+  if(
+    code === "LIMO" ||
+    code === "LIMOUSINE" ||
+    code === "LM"
+  ){
+    return "LM";
+  }
+
+  if(code === "XL"){
+    return "XL";
+  }
+
+  const compact =
+    code.replace(/[^A-Z0-9]/g,"");
+
+  return (
+    compact.slice(0,2) ||
+    "ST"
+  ).padEnd(2,"X");
+}
+
+function neutralTripNumber(value,serviceValue=""){
+  const raw =
+    clean(value)
+      .toUpperCase();
+
+  if(!raw){
+    return "";
+  }
+
+  const suffix =
+    serviceSuffix(
+      serviceValue
+    );
+
+  const returnMatch =
+    raw.endsWith("-R");
+
+  const body =
+    returnMatch
+      ? raw.slice(0,-2)
+      : raw;
+
+  const knownSuffixes =
+    new Set([
+      "ST","SH","WH","WC","TX","LM","XL",
+      suffix
+    ]);
+
+  const parts =
+    body.split("-");
+
+  if(
+    parts.length > 1 &&
+    knownSuffixes.has(
+      upper(
+        parts[parts.length - 1]
+      )
+    )
+  ){
+    parts.pop();
+  }
+
+  const base =
+    parts.join("-");
+
+  return returnMatch
+    ? `${base}-R`
+    : base;
+}
+
 async function brokerCapabilities(tenantId){
   const [integration,tenant] =
     await Promise.all([
@@ -640,9 +753,13 @@ function originalTripPayload(externalTrip){
     type:"company",
 
     tripNumber:
-      externalTrip.ghExternalTripNumber ||
-      externalTrip.externalTripNumber ||
-      externalTrip.externalTripId,
+      neutralTripNumber(
+        externalTrip.ghExternalTripNumber ||
+        externalTrip.externalTripNumber ||
+        externalTrip.externalTripId,
+        externalTrip.serviceKey ||
+        externalTrip.serviceName
+      ),
 
     externalSource:"BROKER",
     brokerName:externalTrip.brokerName,
@@ -862,7 +979,7 @@ function sharedTripPayload(group,externalTrips,tenantId){
     isShared:true,
     groupId,
     tripType:"SHARED",
-    sharedSuffix:"SH",
+    sharedSuffix:"",
     sharedSource:"BROKER",
 
     passengers,
@@ -939,11 +1056,15 @@ function sharedGroupPersistencePayload(
     .map(id=>new mongoose.Types.ObjectId(id));
 
   const tripNumbers = externalTrips
-    .map(trip=>clean(
-      trip?.ghExternalTripNumber ||
-      trip?.externalTripNumber ||
-      trip?.externalTripId
-    ))
+    .map(trip=>
+      neutralTripNumber(
+        trip?.ghExternalTripNumber ||
+        trip?.externalTripNumber ||
+        trip?.externalTripId,
+        trip?.serviceKey ||
+        trip?.serviceName
+      )
+    )
     .filter(Boolean);
 
   const brokerCodes = [
@@ -2020,10 +2141,12 @@ router.post("/confirm",async(req,res)=>{
         }
 
         const tripNumber =
-          clean(
+          neutralTripNumber(
             externalTrip.ghExternalTripNumber ||
             externalTrip.externalTripNumber ||
-            externalTrip.externalTripId
+            externalTrip.externalTripId,
+            externalTrip.serviceKey ||
+            externalTrip.serviceName
           );
 
         /*

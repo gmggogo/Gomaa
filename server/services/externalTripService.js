@@ -152,8 +152,7 @@ function createDuplicateKey({
 
 async function nextExternalTripNumber({
   brokerName,
-  brokerCode,
-  serviceKey
+  brokerCode
 }){
 
   const brokerPrefix =
@@ -162,19 +161,17 @@ async function nextExternalTripNumber({
       brokerCode
     });
 
-  const suffix =
-    serviceSuffix(
-      serviceKey
-    );
-
   /*
-    Platform-wide sequence examples:
-    MTM-000001-ST
-    MTM-000002-SH
-    MOD-000003-ST
+    Neutral platform-wide broker trip number.
 
-    The numeric sequence remains platform-wide so ghExternalTripNumber
-    stays unique across the full ExternalTrip collection.
+    External Trips Hub / Trip Split / Broker Review:
+      MTM-000001
+      MOD-000002
+
+    The final service suffix is added ONLY when Broker Review confirms
+    the trip to Dispatch:
+      MTM-000001-ST
+      MTM-000001-SH
   */
   const count =
     await ExternalTrip.countDocuments({});
@@ -183,7 +180,7 @@ async function nextExternalTripNumber({
     String(count + 1)
       .padStart(6,"0");
 
-  return `${brokerPrefix}-${sequence}-${suffix}`;
+  return `${brokerPrefix}-${sequence}`;
 }
 
 function normalizeStop(stop,index){
@@ -618,9 +615,7 @@ async function createExternalTrip(options){
         brokerName:
           normalized.brokerName,
         brokerCode:
-          normalized.brokerCode,
-        serviceKey:
-          normalized.serviceKey
+          normalized.brokerCode
       });
 
     try{

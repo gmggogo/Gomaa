@@ -92,6 +92,53 @@ function normalizeService(value){
   return "STANDARD";
 }
 
+function serviceSuffix(value){
+  const service =
+    normalizeService(value);
+
+  if(service === "STANDARD") return "ST";
+  if(service === "SHARED") return "SH";
+  if(service === "WHEELCHAIR") return "WH";
+  if(service === "TAXI") return "TX";
+  if(service === "LIMO") return "LM";
+  if(service === "XL") return "XL";
+
+  return "ST";
+}
+
+function neutralTripNumber(value){
+  const raw =
+    clean(value)
+      .toUpperCase();
+
+  if(!raw){
+    return "";
+  }
+
+  return raw.replace(
+    /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
+    (_match,_suffix,returnPart)=>
+      returnPart || ""
+  );
+}
+
+function finalTripNumber(value,service){
+  const neutral =
+    neutralTripNumber(value);
+
+  const suffix =
+    serviceSuffix(service);
+
+  if(neutral.endsWith("-R")){
+    return (
+      neutral.slice(0,-2) +
+      `-${suffix}-R`
+    );
+  }
+
+  return `${neutral}-${suffix}`;
+}
+
 function mapStops(externalTrip){
 
   return (
@@ -255,7 +302,10 @@ function buildMainTripPayload(externalTrip){
       EX-000123-MT
     */
     tripNumber:
-      externalTrip.ghExternalTripNumber,
+      finalTripNumber(
+        externalTrip.ghExternalTripNumber,
+        service
+      ),
 
     type:
       isShared
@@ -456,10 +506,23 @@ async function transferExternalTrip({
     tripNumber is globally unique in the current Trip schema,
     so this check is enough to make transfer idempotent.
   */
+  const expectedTripNumber =
+    finalTripNumber(
+      externalTrip.ghExternalTripNumber,
+      (
+        externalTrip.tripType === "SHARED"
+          ? "SHARED"
+          : normalizeService(
+              externalTrip.serviceKey ||
+              externalTrip.serviceName
+            )
+      )
+    );
+
   const existingMainTrip =
     await Trip.findOne({
       tripNumber:
-        externalTrip.ghExternalTripNumber
+        expectedTripNumber
     });
 
   if(existingMainTrip){

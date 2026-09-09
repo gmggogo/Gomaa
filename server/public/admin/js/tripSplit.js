@@ -77,6 +77,27 @@ FLOW:
     return clean(stop);
   }
 
+
+  function neutralTripNumber(value){
+    const raw = clean(value).toUpperCase();
+
+    if(!raw){
+      return "";
+    }
+
+    /*
+      Compatibility with test/history rows created before neutral numbering:
+      MTM-000123-ST   -> MTM-000123
+      MTM-000123-SH   -> MTM-000123
+      MTM-000123-ST-R -> MTM-000123-R
+    */
+    return raw.replace(
+      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
+      (_match,_suffix,returnPart)=>
+        returnPart || ""
+    );
+  }
+
   function addressBox(value){
     return `
       <div class="address-box">
@@ -579,7 +600,7 @@ FLOW:
             </td>
 
             <td class="trip-id">
-              ${escapeHtml(trip.ghExternalTripNumber || "-")}
+              ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || "-"))}
               ${
                 isReturnTrip(trip)
                   ? `<span class="return-trip-badge">RETURN</span>`
@@ -730,6 +751,7 @@ FLOW:
                 class="btn btn-confirm-glow confirm-group-btn"
                 data-id="${escapeHtml(group.groupId)}"
                 type="button"
+                ${selected ? "" : "disabled"}
               >Confirm</button>
             </div>
           </div>
@@ -771,7 +793,7 @@ FLOW:
                   return `
                     <tr>
                       <td class="group-trip-number">
-                        ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
+                        ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || trip.tripNumber || "-"))}
                       </td>
                       <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
                       <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
@@ -828,7 +850,16 @@ FLOW:
     });
 
     wrap.querySelectorAll(".confirm-group-btn").forEach(el=>{
-      el.addEventListener("click",()=>confirmGroups([el.dataset.id]));
+      el.addEventListener("click",()=>{
+        const id = clean(el.dataset.id);
+
+        if(!state.selectedGroupIds.has(id)){
+          notice("Select the shared group before confirming it.","error");
+          return;
+        }
+
+        confirmGroups([id]);
+      });
     });
   }
 
@@ -874,7 +905,7 @@ FLOW:
             </td>
 
             <td class="individual-trip-number">
-              ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
+              ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || trip.tripNumber || "-"))}
               ${
                 isReturnTrip(trip)
                   ? `<span class="return-trip-badge">RETURN</span>`
@@ -1052,6 +1083,83 @@ FLOW:
     confirmIndividualTrips(ids);
   }
 
+  function selectAllIndividuals(){
+    const trips =
+      filteredIndividualTrips();
+
+    const ids =
+      trips.map(tripId);
+
+    if(!ids.length){
+      return;
+    }
+
+    const allSelected =
+      ids.every(id=>
+        state.selectedIndividualIds.has(id)
+      );
+
+    if(allSelected){
+      ids.forEach(id=>
+        state.selectedIndividualIds.delete(id)
+      );
+    }else{
+      ids.forEach(id=>
+        state.selectedIndividualIds.add(id)
+      );
+    }
+
+    renderIndividualTrips();
+    renderStats();
+  }
+
+  function selectAllSharedGroups(){
+    const groups =
+      visibleGroups();
+
+    const ids =
+      groups
+        .map(group=>clean(group.groupId))
+        .filter(Boolean);
+
+    if(!ids.length){
+      return;
+    }
+
+    const allSelected =
+      ids.every(id=>
+        state.selectedGroupIds.has(id)
+      );
+
+    if(allSelected){
+      ids.forEach(id=>
+        state.selectedGroupIds.delete(id)
+      );
+    }else{
+      ids.forEach(id=>
+        state.selectedGroupIds.add(id)
+      );
+    }
+
+    renderGroups();
+    renderStats();
+  }
+
+  function confirmSelectedGroups(){
+    const ids =
+      [...state.selectedGroupIds];
+
+    if(!ids.length){
+      notice(
+        "Select at least one shared group to confirm.",
+        "error"
+      );
+      return;
+    }
+
+    confirmGroups(ids);
+  }
+
   function renderStats(){
     const originals =
       filteredOriginalTrips();
@@ -1092,24 +1200,50 @@ FLOW:
     $("statConfirmed").textContent =
       confirmedTrips.length;
 
-    const activeBrokers =
-      new Set(
-        originals
-          .map(trip=>clean(
+    const activeBrokerCodes = new Set();
+
+    [
+      ...originals,
+      ...individuals
+    ].forEach(trip=>{
+      const code =
+        clean(
+          trip?.brokerCode ||
+          trip?.brokerName
+        );
+
+      if(code){
+        activeBrokerCodes.add(code);
+      }
+    });
+
+    groups.forEach(group=>{
+      const members =
+        Array.isArray(group?.trips)
+          ? group.trips
+          : [];
+
+      members.forEach(trip=>{
+        const code =
+          clean(
             trip?.brokerCode ||
             trip?.brokerName
-          ))
-          .filter(Boolean)
-      ).size;
+          );
+
+        if(code){
+          activeBrokerCodes.add(code);
+        }
+      });
+    });
 
     if($("statActiveBrokers")){
       $("statActiveBrokers").textContent =
-        activeBrokers;
+        activeBrokerCodes.size;
     }
 
-    const restoreButton = $("restoreBtn");
-    if(restoreButton){
-      restoreButton.disabled =
+
+    if($("restoreBtn")){
+      $("restoreBtn").disabled =
         state.selectedGroupIds.size < 1;
     }
 
@@ -1121,6 +1255,63 @@ FLOW:
     if($("confirmIndividualBtn")){
       $("confirmIndividualBtn").disabled =
         state.selectedIndividualIds.size < 1;
+    }
+
+    const visibleIndividualIds =
+      individuals.map(tripId);
+
+    const allIndividualsSelected =
+      visibleIndividualIds.length > 0 &&
+      visibleIndividualIds.every(id=>
+        state.selectedIndividualIds.has(id)
+      );
+
+    if($("individualSelectAllBtn")){
+      $("individualSelectAllBtn").textContent =
+        allIndividualsSelected
+          ? "Unselect All"
+          : "Select All";
+    }
+
+    const visibleSharedIds =
+      groups
+        .map(group=>clean(group.groupId))
+        .filter(Boolean);
+
+    const allSharedSelected =
+      visibleSharedIds.length > 0 &&
+      visibleSharedIds.every(id=>
+        state.selectedGroupIds.has(id)
+      );
+
+    if($("sharedSelectAllBtn")){
+      $("sharedSelectAllBtn").textContent =
+        allSharedSelected
+          ? "Unselect All"
+          : "Select All";
+    }
+
+    if($("confirmSelectedGroupsBtn")){
+      $("confirmSelectedGroupsBtn").disabled =
+        state.selectedGroupIds.size < 1;
+    }
+
+    const visibleOriginalIds =
+      originals
+        .filter(availableForShare)
+        .map(tripId);
+
+    const allOriginalSelected =
+      visibleOriginalIds.length > 0 &&
+      visibleOriginalIds.every(id=>
+        state.selectedTripIds.has(id)
+      );
+
+    if($("selectAllBtn")){
+      $("selectAllBtn").textContent =
+        allOriginalSelected
+          ? "Unselect All"
+          : "Select All";
     }
   }
 
@@ -1245,16 +1436,30 @@ FLOW:
 
   function selectAll(){
     const available =
-      filteredOriginalTrips().filter(availableForShare);
+      filteredOriginalTrips()
+        .filter(
+          trip=>
+            trip?.tripSplitConfirmed !== true &&
+            availableForShare(trip)
+        );
+
+    const ids =
+      available.map(tripId);
 
     const allSelected =
-      available.length > 0 &&
-      available.every(trip=>state.selectedTripIds.has(tripId(trip)));
+      ids.length > 0 &&
+      ids.every(id=>
+        state.selectedTripIds.has(id)
+      );
 
     if(allSelected){
-      available.forEach(trip=>state.selectedTripIds.delete(tripId(trip)));
+      ids.forEach(id=>
+        state.selectedTripIds.delete(id)
+      );
     }else{
-      available.forEach(trip=>state.selectedTripIds.add(tripId(trip)));
+      ids.forEach(id=>
+        state.selectedTripIds.add(id)
+      );
     }
 
     renderAll();
@@ -1320,7 +1525,7 @@ FLOW:
       state.selectedTripIds.clear();
 
       await load({silent:true});
-      notice("Selected group(s) restored to Individual Trips.","ok");
+      notice("Selected group(s) restored to Original Trips.","ok");
     }catch(err){
       notice(err.message,"error");
     }
@@ -1367,9 +1572,16 @@ FLOW:
   }
 
   async function confirmAll(){
-    const payloadGroups = state.groups.map(group=>({
-      groupId:group.groupId
-    }));
+    const payloadGroups =
+      state.groups
+        .filter(group=>
+          state.selectedGroupIds.has(
+            clean(group.groupId)
+          )
+        )
+        .map(group=>({
+          groupId:group.groupId
+        }));
 
     const ungroupedIds =
       [...new Set([
@@ -1553,6 +1765,21 @@ FLOW:
     $("confirmIndividualBtn")?.addEventListener(
       "click",
       confirmSelectedIndividuals
+    );
+
+    $("individualSelectAllBtn")?.addEventListener(
+      "click",
+      selectAllIndividuals
+    );
+
+    $("sharedSelectAllBtn")?.addEventListener(
+      "click",
+      selectAllSharedGroups
+    );
+
+    $("confirmSelectedGroupsBtn")?.addEventListener(
+      "click",
+      confirmSelectedGroups
     );
 
     $("closeEditBtn")?.addEventListener("click",()=>{

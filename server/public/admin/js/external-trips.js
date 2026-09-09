@@ -122,6 +122,27 @@ trips:[],
       .join(" ");
   }
 
+
+  function neutralTripNumber(value){
+    const raw = clean(value).toUpperCase();
+
+    if(!raw){
+      return "";
+    }
+
+    /*
+      Compatibility with test/history rows created before neutral numbering:
+      MTM-000123-ST   -> MTM-000123
+      MTM-000123-SH   -> MTM-000123
+      MTM-000123-ST-R -> MTM-000123-R
+    */
+    return raw.replace(
+      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
+      (_match,_suffix,returnPart)=>
+        returnPart || ""
+    );
+  }
+
   function normalizeStopAddress(
     stop
   ){
@@ -779,7 +800,7 @@ trips:[],
 
         tr.innerHTML = `
           <td class="trip-id">
-            ${escapeHtml(trip.ghExternalTripNumber || "")}
+            ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || ""))}
           </td>
 
           <td>

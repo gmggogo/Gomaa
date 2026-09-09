@@ -1304,6 +1304,14 @@ server/public/admin/trip-split.html
           <span id="individualCount">0</span>
 
           <button
+            id="individualSelectAllBtn"
+            class="btn btn-blue"
+            type="button"
+          >
+            Select All
+          </button>
+
+          <button
             id="redistributeSelectedBtn"
             class="btn redistribute-btn"
             type="button"
@@ -1359,6 +1367,27 @@ server/public/admin/trip-split.html
     >
 
       <span id="groupCount" class="hidden">0</span>
+
+      <div class="section-title section-title-actions-only">
+        <div class="section-actions">
+          <button
+            id="sharedSelectAllBtn"
+            class="btn btn-blue"
+            type="button"
+          >
+            Select All
+          </button>
+
+          <button
+            id="confirmSelectedGroupsBtn"
+            class="btn btn-confirm-glow"
+            type="button"
+            disabled
+          >
+            Confirm Selected
+          </button>
+        </div>
+      </div>
 
       <div id="sharedGroups"></div>
 

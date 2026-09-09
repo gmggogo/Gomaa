@@ -52,6 +52,161 @@ function safeArray(value){
     : [];
 }
 
+function normalizeServiceKey(value){
+  const raw =
+    upper(value)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "ST" ||
+    raw === "STD" ||
+    raw.includes("STANDARD")
+  ){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "SH" ||
+    raw.includes("SHARED")
+  ){
+    return "SHARED";
+  }
+
+  if(
+    raw === "WC" ||
+    raw === "WH" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WHEELCHAIR";
+  }
+
+  if(
+    raw === "TX" ||
+    raw.includes("TAXI")
+  ){
+    return "TAXI";
+  }
+
+  if(
+    raw === "LM" ||
+    raw.includes("LIMO")
+  ){
+    return "LIMO";
+  }
+
+  if(raw === "XL"){
+    return "XL";
+  }
+
+  return raw.replace(/\s+/g,"_");
+}
+
+function serviceSuffix(value){
+  const key =
+    normalizeServiceKey(value);
+
+  if(key === "STANDARD") return "ST";
+  if(key === "SHARED") return "SH";
+  if(key === "WHEELCHAIR") return "WH";
+  if(key === "TAXI") return "TX";
+  if(key === "LIMO") return "LM";
+  if(key === "XL") return "XL";
+
+  const compact =
+    key.replace(/[^A-Z0-9]/g,"");
+
+  return (
+    compact.slice(0,2) ||
+    "ST"
+  ).padEnd(2,"X");
+}
+
+function neutralTripNumber(value,serviceValue=""){
+  const raw =
+    clean(value)
+      .toUpperCase();
+
+  if(!raw){
+    return "";
+  }
+
+  const returnTrip =
+    raw.endsWith("-R");
+
+  const body =
+    returnTrip
+      ? raw.slice(0,-2)
+      : raw;
+
+  const expectedSuffix =
+    serviceSuffix(
+      serviceValue
+    );
+
+  const known =
+    new Set([
+      "ST","SH","WH","WC","TX","LM","XL",
+      expectedSuffix
+    ]);
+
+  const parts =
+    body.split("-");
+
+  if(
+    parts.length > 1 &&
+    known.has(
+      upper(
+        parts[parts.length - 1]
+      )
+    )
+  ){
+    parts.pop();
+  }
+
+  const base =
+    parts.join("-");
+
+  return returnTrip
+    ? `${base}-R`
+    : base;
+}
+
+function finalTripNumber(
+  baseValue,
+  serviceValue
+){
+  const suffix =
+    serviceSuffix(
+      serviceValue
+    );
+
+  const neutral =
+    neutralTripNumber(
+      baseValue,
+      serviceValue
+    );
+
+  if(!neutral){
+    return "";
+  }
+
+  if(neutral.endsWith("-R")){
+    return (
+      neutral.slice(0,-2) +
+      `-${suffix}-R`
+    );
+  }
+
+  return `${neutral}-${suffix}`;
+}
+
 function bearerToken(req){
   const auth =
     clean(
@@ -264,6 +419,10 @@ function serializeExternal(
 
   return {
     _id:toId(external),
+    ghExternalTripNumber:
+      external.ghExternalTripNumber ||
+      external.externalTripNumber ||
+      "",
     externalTripId:
       external.externalTripId ||
       "",
@@ -281,6 +440,9 @@ function serializeExternal(
       "",
     appointmentTime:
       external.appointmentTime ||
+      "",
+    returnTime:
+      external.returnTime ||
       "",
     clientName:
       external.clientName ||
@@ -1014,6 +1176,140 @@ router.post(
             ){
               continue;
             }
+
+            const sourceStates =
+              await TripSplitState.find({
+                tenantId,
+                dispatchTripId:
+                  trip._id,
+                confirmed:true
+              })
+                .session(session)
+                .lean();
+
+            if(!sourceStates.length){
+              throw new Error(
+                "Trip Split source state was not found"
+              );
+            }
+
+            const sourceExternalIds =
+              sourceStates
+                .map(row=>
+                  row.externalTripObjectId
+                )
+                .filter(Boolean);
+
+            const sourceExternalTrips =
+              sourceExternalIds.length
+                ? await ExternalTrip.find({
+                    tenantId,
+                    _id:{
+                      $in:sourceExternalIds
+                    }
+                  })
+                    .sort({
+                      tripDate:1,
+                      tripTime:1,
+                      createdAt:1
+                    })
+                    .session(session)
+                : [];
+
+            if(!sourceExternalTrips.length){
+              throw new Error(
+                "Broker source trip was not found"
+              );
+            }
+
+            const shared =
+              sourceStates.some(
+                row=>
+                  upper(
+                    row.processingMode
+                  ) ===
+                  "SHARED"
+              );
+
+            const primaryExternal =
+              sourceExternalTrips[0];
+
+            const finalService =
+              shared
+                ? "SHARED"
+                : normalizeServiceKey(
+                    primaryExternal.serviceKey ||
+                    primaryExternal.serviceName ||
+                    trip.serviceKey ||
+                    trip.serviceType ||
+                    "STANDARD"
+                  );
+
+            const baseNumber =
+              neutralTripNumber(
+                primaryExternal.ghExternalTripNumber ||
+                primaryExternal.externalTripNumber ||
+                primaryExternal.externalTripId ||
+                trip.tripNumber,
+                primaryExternal.serviceKey ||
+                primaryExternal.serviceName ||
+                finalService
+              );
+
+            const finalizedNumber =
+              finalTripNumber(
+                baseNumber,
+                finalService
+              );
+
+            if(!finalizedNumber){
+              throw new Error(
+                "Unable to finalize trip number"
+              );
+            }
+
+            const duplicateFinalNumber =
+              await Trip.findOne({
+                tenantId,
+                tripNumber:
+                  finalizedNumber,
+                _id:{
+                  $ne:trip._id
+                }
+              })
+                .session(session)
+                .lean();
+
+            if(duplicateFinalNumber){
+              throw new Error(
+                `Trip number ${finalizedNumber} already exists`
+              );
+            }
+
+            trip.tripNumber =
+              finalizedNumber;
+
+            trip.serviceKey =
+              finalService;
+
+            trip.serviceCode =
+              finalService;
+
+            trip.serviceType =
+              finalService;
+
+            trip.isShared =
+              shared;
+
+            trip.tripType =
+              shared
+                ? "SHARED"
+                : "INDIVIDUAL";
+
+            trip.sharedSuffix =
+              shared
+                ? "SH"
+                : "";
 
             trip.dispatchSelected =
               true;

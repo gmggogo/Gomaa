@@ -91,6 +91,21 @@ server/public/admin/js/broker-review.js
       .replaceAll("'","&#039;");
   }
 
+
+  function neutralTripNumber(value){
+    const raw = clean(value).toUpperCase();
+
+    if(!raw){
+      return "";
+    }
+
+    return raw.replace(
+      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
+      (_match,_suffix,returnPart)=>
+        returnPart || ""
+    );
+  }
+
   function normalizeStop(stop){
     if(typeof stop === "string"){
       return clean(stop);
@@ -253,7 +268,12 @@ server/public/admin/js/broker-review.js
 
     return {
       tripNumber:cellItems(externals.map(ex=>
-        ex.ghExternalTripNumber || ex.tripNumber || trip.tripNumber || "-"
+        neutralTripNumber(
+          ex.ghExternalTripNumber ||
+          ex.tripNumber ||
+          trip.tripNumber ||
+          "-"
+        )
       )),
       broker:cellItems(externals.map(ex=>
         ex.brokerName || ex.brokerCode || trip.brokerName || trip.brokerCode || "-"
