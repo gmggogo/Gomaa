@@ -304,6 +304,7 @@ EXTERNAL TRIPS HUB REBUILD R1
       [];
 
     renderBrokerSelectors();
+    renderStats();
   }
 
   async function loadServices(){
@@ -527,6 +528,103 @@ EXTERNAL TRIPS HUB REBUILD R1
       current;
   }
 
+
+  function renderStats(){
+    const trips =
+      Array.isArray(state.trips)
+        ? state.trips
+        : [];
+
+    const totalTrips =
+      trips.length;
+
+    const newTrips =
+      trips.filter(
+        trip => {
+          const status =
+            clean(
+              trip?.status
+            ).toUpperCase();
+
+          return (
+            status === "RECEIVED" ||
+            status === "NEW"
+          );
+        }
+      ).length;
+
+    /*
+      Active Brokers means enabled broker integrations for this tenant.
+      This is intentionally independent from the current trip/date/status
+      filter so the card shows how many broker connections are active.
+    */
+    const activeBrokers =
+      new Set(
+        (Array.isArray(state.integrations)
+          ? state.integrations
+          : []
+        )
+          .map(
+            item =>
+              clean(
+                item?.brokerCode
+              )
+          )
+          .filter(Boolean)
+      ).size;
+
+    const returnTrips =
+      trips.filter(
+        trip =>
+          Boolean(
+            clean(
+              trip?.returnTime
+            )
+          )
+      ).length;
+
+    const withStops =
+      trips.filter(
+        trip =>
+          Array.isArray(
+            trip?.stops
+          ) &&
+          trip.stops.some(
+            stop =>
+              Boolean(
+                normalizeStopAddress(
+                  stop
+                )
+              )
+          )
+      ).length;
+
+    if($("statTotalTrips")){
+      $("statTotalTrips").textContent =
+        totalTrips;
+    }
+
+    if($("statNewTrips")){
+      $("statNewTrips").textContent =
+        newTrips;
+    }
+
+    if($("statActiveBrokers")){
+      $("statActiveBrokers").textContent =
+        activeBrokers;
+    }
+
+    if($("statReturnTrips")){
+      $("statReturnTrips").textContent =
+        returnTrips;
+    }
+
+    if($("statWithStops")){
+      $("statWithStops").textContent =
+        withStops;
+    }
+  }
+
   function groupedTrips(){
     const groups =
       new Map();
@@ -557,6 +655,7 @@ EXTERNAL TRIPS HUB REBUILD R1
   }
 
   function render(){
+    renderStats();
     const body =
       $("tripRows");
 

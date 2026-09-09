@@ -95,6 +95,54 @@ EXTERNAL TRIPS HUB REBUILD R1
       font-weight:800;
     }
 
+
+    .hub-stats{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:10px;
+      margin:0 0 12px;
+    }
+
+    .hub-stat{
+      min-height:78px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:12px 10px;
+      border:1px solid #c9a23a;
+      border-radius:12px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff7d8 0%,
+          #efd88c 48%,
+          #fff0b4 100%
+        );
+      box-shadow:
+        0 6px 16px
+        rgba(146,102,14,.14);
+      text-align:center;
+    }
+
+    .hub-stat-label{
+      color:#4a3a0a;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+      text-align:center;
+    }
+
+    .hub-stat-value{
+      margin-top:5px;
+      color:#111827;
+      font-size:25px;
+      line-height:1;
+      font-weight:900;
+      text-align:center;
+    }
+
     .toolbar{
       display:flex;
       flex-wrap:wrap;
@@ -448,6 +496,24 @@ EXTERNAL TRIPS HUB REBUILD R1
     }
 
     @media(max-width:768px){
+      .hub-stats{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:7px;
+      }
+
+      .hub-stat{
+        min-height:66px;
+        padding:9px 7px;
+      }
+
+      .hub-stat-label{
+        font-size:9px;
+      }
+
+      .hub-stat-value{
+        font-size:21px;
+      }
+
       .page{
         padding:8px 6px 18px;
       }
@@ -537,6 +603,36 @@ EXTERNAL TRIPS HUB REBUILD R1
         </div>
       </div>
     </div>
+
+
+    <section class="hub-stats" aria-label="External trip statistics">
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Total Trips</div>
+        <div class="hub-stat-value" id="statTotalTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">New Trips</div>
+        <div class="hub-stat-value" id="statNewTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Active Brokers</div>
+        <div class="hub-stat-value" id="statActiveBrokers">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Return Trips</div>
+        <div class="hub-stat-value" id="statReturnTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">With Stops</div>
+        <div class="hub-stat-value" id="statWithStops">0</div>
+      </div>
+
+    </section>
 
     <div class="toolbar">
 
