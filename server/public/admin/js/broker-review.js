@@ -450,7 +450,12 @@ server/public/admin/js/broker-review.js
         const p = passengerRows(item);
         const shared = item.processingMode === "SHARED";
         const status = statusText(item);
-        const canSelect = item.reviewConfirmed !== true;
+
+        const released =
+          isActuallyReleased(item);
+
+        const canSelect =
+          !released;
 
         return `
           <tr
