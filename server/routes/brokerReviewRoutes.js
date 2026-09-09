@@ -840,10 +840,22 @@ async function buildItems(
           trip?.groupId ||
           "",
         reviewConfirmed:
-          state.reviewConfirmed === true,
+          (
+            state.reviewConfirmed === true &&
+            trip?.dispatchSelected === true &&
+            trip?.disabled !== true
+          ),
         reviewConfirmedAt:
-          state.reviewConfirmedAt ||
-          null,
+          (
+            state.reviewConfirmed === true &&
+            trip?.dispatchSelected === true &&
+            trip?.disabled !== true
+          )
+            ? (
+                state.reviewConfirmedAt ||
+                null
+              )
+            : null,
         confirmedAt:
           state.confirmedAt ||
           null,
@@ -879,11 +891,25 @@ async function buildItems(
       All rows in one shared group should be confirmed together.
       If any row is still waiting, the item remains Waiting Review.
     */
-    if(
-      state.reviewConfirmed !== true
-    ){
+    const itemTrip =
+      tripMap.get(
+        dispatchId
+      ) ||
+      null;
+
+    const actuallyReleased =
+      (
+        state.reviewConfirmed === true &&
+        itemTrip?.dispatchSelected === true &&
+        itemTrip?.disabled !== true
+      );
+
+    if(!actuallyReleased){
       item.reviewConfirmed =
         false;
+
+      item.reviewConfirmedAt =
+        null;
     }
   }
 
@@ -1064,13 +1090,13 @@ router.post(
               );
             }
 
-            if(
-              states.some(
-                row=>
-                  row.reviewConfirmed ===
-                  true
-              )
-            ){
+            const actuallyReleasedToDispatch =
+              (
+                trip.dispatchSelected === true &&
+                trip.disabled !== true
+              );
+
+            if(actuallyReleasedToDispatch){
               throw new Error(
                 "A trip already released to Dispatch cannot be returned to Trip Split"
               );

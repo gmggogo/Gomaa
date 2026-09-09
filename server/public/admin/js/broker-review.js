@@ -163,6 +163,17 @@ server/public/admin/js/broker-review.js
     );
   }
 
+  function isActuallyReleased(item){
+    const trip =
+      item?.trip ||
+      {};
+
+    return (
+      trip.dispatchSelected === true &&
+      trip.disabled !== true
+    );
+  }
+
   function isSelected(id){
     return state.selected.has(
       String(id)
@@ -196,7 +207,7 @@ server/public/admin/js/broker-review.js
 
   function statusText(item){
     if(
-      item.reviewConfirmed === true
+      isActuallyReleased(item)
     ){
       return (
         clean(
@@ -444,7 +455,7 @@ server/public/admin/js/broker-review.js
         return `
           <tr
             data-id="${esc(item.id)}"
-            class="${item.reviewConfirmed ? "confirmed-row" : ""}"
+            class="${released ? "confirmed-row" : ""}"
           >
             <td>
               ${
@@ -545,8 +556,7 @@ server/public/admin/js/broker-review.js
       visibleItems()
         .filter(
           item=>
-            item.reviewConfirmed !==
-            true
+            !isActuallyReleased(item)
         );
 
     const allSelected =
@@ -641,8 +651,7 @@ server/public/admin/js/broker-review.js
         visibleItems()
           .filter(
             item=>
-              item.reviewConfirmed !==
-              true
+              !isActuallyReleased(item)
           )
           .map(
             item=>String(item.id)
