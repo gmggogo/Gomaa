@@ -62,6 +62,13 @@ function safeArray(value){
   return Array.isArray(value) ? value : [];
 }
 
+function restoredToOriginal(trip){
+  return (
+    trip?.normalizedPayload?.tripSplitRestoredToOriginal === true ||
+    trip?.rawPayload?.tripSplitRestoredToOriginal === true
+  );
+}
+
 function normalizedTimeText(value){
   return clean(value)
     .toUpperCase()
@@ -1353,10 +1360,16 @@ router.get("/bootstrap",async(req,res)=>{
         const hasStops =
           safeArray(trip?.stops).length > 0;
 
+        const restored =
+          restoredToOriginal(trip);
+
         return (
           !groupedIds.has(id) &&
           !individualIds.has(id) &&
-          !hasStops
+          (
+            !hasStops ||
+            restored
+          )
         );
       });
 
@@ -1366,11 +1379,17 @@ router.get("/bootstrap",async(req,res)=>{
         const hasStops =
           safeArray(trip?.stops).length > 0;
 
+        const restored =
+          restoredToOriginal(trip);
+
         return (
           !groupedIds.has(id) &&
           (
             individualIds.has(id) ||
-            hasStops
+            (
+              hasStops &&
+              !restored
+            )
           )
         );
       });
@@ -1463,6 +1482,19 @@ router.post("/share",async(req,res)=>{
         message:"One or more selected broker trips were not found"
       });
     }
+
+    await ExternalTrip.updateMany(
+      {
+        tenantId,
+        _id:{$in:tripDocs.map(doc=>doc._id)}
+      },
+      {
+        $unset:{
+          "normalizedPayload.tripSplitRestoredToOriginal":"",
+          "rawPayload.tripSplitRestoredToOriginal":""
+        }
+      }
+    );
 
     if(
       tripDocs.some(
@@ -1679,18 +1711,39 @@ router.post("/individual/restore",async(req,res)=>{
         new mongoose.Types.ObjectId(id)
       );
 
-    const result =
-      await TripSplitState.deleteMany({
+    /*
+      Remove the persistent INDIVIDUAL state created by Trip Split.
+    */
+    await TripSplitState.deleteMany({
+      tenantId,
+      externalTripObjectId:{$in:objectIds},
+      confirmed:false,
+      processingMode:"NORMAL"
+    });
+
+    /*
+      Trips with stops normally belong to Individual automatically.
+      When an admin explicitly presses Restore, persist an override so
+      bootstrap puts that trip back in Original Trips instead of
+      immediately classifying it as Individual again.
+    */
+    await ExternalTrip.updateMany(
+      {
         tenantId,
-        externalTripObjectId:{$in:objectIds},
-        confirmed:false,
-        processingMode:"NORMAL"
-      });
+        _id:{$in:objectIds}
+      },
+      {
+        $set:{
+          "normalizedPayload.tripSplitRestoredToOriginal":true,
+          "rawPayload.tripSplitRestoredToOriginal":true
+        }
+      }
+    );
 
     return res.json({
       success:true,
       restoredTripIds:tripIds,
-      restoredCount:Number(result.deletedCount || 0)
+      restoredCount:tripIds.length
     });
   }catch(err){
     console.log("TRIP SPLIT RESTORE INDIVIDUAL ERROR:",err);

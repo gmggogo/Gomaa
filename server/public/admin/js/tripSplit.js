@@ -914,6 +914,7 @@ FLOW:
                   type="button"
                   class="btn btn-restore restore-individual-btn"
                   data-id="${escapeHtml(id)}"
+                  ${selected ? "" : "disabled"}
                 >
                   Restore
                 </button>
@@ -922,6 +923,7 @@ FLOW:
                   type="button"
                   class="btn btn-confirm-glow confirm-individual-btn"
                   data-id="${escapeHtml(id)}"
+                  ${selected ? "" : "disabled"}
                 >
                   Confirm
                 </button>
@@ -941,6 +943,7 @@ FLOW:
           state.selectedIndividualIds.delete(id);
         }
 
+        renderIndividualTrips();
         renderStats();
       });
     });
@@ -960,7 +963,12 @@ FLOW:
 
   async function restoreIndividualTrips(ids){
     const tripIds =
-      ids.map(clean).filter(Boolean);
+      ids
+        .map(clean)
+        .filter(Boolean)
+        .filter(id=>
+          state.selectedIndividualIds.has(id)
+        );
 
     if(!tripIds.length){
       notice(
@@ -996,7 +1004,12 @@ FLOW:
 
   async function confirmIndividualTrips(ids){
     const tripIds =
-      ids.map(clean).filter(Boolean);
+      ids
+        .map(clean)
+        .filter(Boolean)
+        .filter(id=>
+          state.selectedIndividualIds.has(id)
+        );
 
     if(!tripIds.length){
       notice(
