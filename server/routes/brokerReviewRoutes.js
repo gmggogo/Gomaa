@@ -34,6 +34,9 @@ const ExternalTrip =
 const SharedTripGroup =
   require("../models/SharedTripGroup");
 
+const DispatchAssignment =
+  require("../models/DispatchAssignment");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -1087,14 +1090,60 @@ router.post(
               );
             }
 
+            /*
+              RETURN SAFETY:
+              Broker Review Confirm alone must NOT make a Scheduled trip
+              impossible to return. The user may have confirmed it by mistake.
+
+              Block only after the trip has actually been sent to a driver,
+              accepted, started, or closed. An unsent assignment is reversible.
+            */
+            const assignment =
+              await DispatchAssignment.findOne({
+                tenantId,
+                tripId:trip._id
+              })
+                .session(session);
+
+            const dispatchStatus =
+              upper(
+                assignment?.dispatchStatus ||
+                ""
+              )
+              .replace(/[\s-]+/g,"_");
+
             if(
-              states.some(
-                row=>
-                  row.reviewConfirmed === true
+              [
+                "SENT",
+                "ACCEPTED",
+                "ON_TRIP",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED",
+                "CANCELED",
+                "NO_SHOW",
+                "NOT_COMPLETED"
+              ].includes(
+                dispatchStatus
               )
             ){
               throw new Error(
-                "A trip already released to Dispatch cannot be returned to Trip Split"
+                "A trip already sent to the driver or already started/closed cannot be returned to Trip Split"
+              );
+            }
+
+            /*
+              Auto/manual assignment that has NOT been sent is safe to remove.
+            */
+            if(assignment){
+              await DispatchAssignment.deleteOne(
+                {
+                  _id:assignment._id,
+                  tenantId
+                },
+                {
+                  session
+                }
               );
             }
 
@@ -1219,9 +1268,19 @@ router.post(
             }
 
             /*
-              The Trip document was created only to represent the item in
-              Broker Review / Dispatch. It has not been released to Dispatch
-              yet, so remove it when returning to Trip Split.
+              Close the Dispatch gate first. This also covers trips that had
+              already been Confirmed in Broker Review but were never sent.
+            */
+            trip.dispatchSelected = false;
+            trip.disabled = true;
+
+            await trip.save({
+              session
+            });
+
+            /*
+              The Trip document exists only for Broker Review / Dispatch.
+              Once returned, Trip Split owns the source again.
             */
             await Trip.deleteOne(
               {

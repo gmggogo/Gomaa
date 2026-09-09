@@ -643,25 +643,7 @@ server/public/admin/js/broker-review.js
   }
 
   function selectedReturnableIds(){
-    const returnable =
-      new Set(
-        visibleItems()
-          .filter(
-            item=>
-              item.reviewConfirmed !== true
-          )
-          .map(
-            item=>String(item.id)
-          )
-      );
-
-    return [...state.selected]
-      .filter(
-        id=>
-          returnable.has(
-            String(id)
-          )
-      );
+    return selectedVisibleIds();
   }
 
   async function returnSelectedToTripSplit(){
