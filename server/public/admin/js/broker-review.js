@@ -452,12 +452,16 @@ server/public/admin/js/broker-review.js
             class="${released ? "confirmed-row" : ""}"
           >
             <td>
+              <input
+                type="checkbox"
+                class="row-check"
+                data-select="${esc(item.id)}"
+                ${isSelected(item.id) ? "checked" : ""}
+              >
               ${
-                canSelect
-                  ? `<input type="checkbox" class="row-check"
-                       data-select="${esc(item.id)}"
-                       ${isSelected(item.id) ? "checked" : ""}>`
-                  : `<span class="confirmed-check">✓</span>`
+                released
+                  ? `<span class="confirmed-check" title="Released to Dispatch">✓</span>`
+                  : ""
               }
             </td>
 
@@ -547,11 +551,7 @@ server/public/admin/js/broker-review.js
   function updateSelectAllButton(){
 
     const available =
-      visibleItems()
-        .filter(
-          item=>
-            item.reviewConfirmed !== true
-        );
+      visibleItems();
 
     const allSelected =
       available.length > 0 &&
@@ -604,12 +604,7 @@ server/public/admin/js/broker-review.js
   function toggleSelectAll(){
 
     const available =
-      visibleItems()
-        .filter(
-          item=>
-            item.reviewConfirmed !==
-            true
-        );
+      visibleItems();
 
     const allSelected =
       available.length > 0 &&
@@ -643,10 +638,6 @@ server/public/admin/js/broker-review.js
     const visible =
       new Set(
         visibleItems()
-          .filter(
-            item=>
-              item.reviewConfirmed !== true
-          )
           .map(
             item=>String(item.id)
           )
@@ -1013,11 +1004,6 @@ This action cannot be undone.`
       const valid =
         new Set(
           state.items
-            .filter(
-              item=>
-                item.reviewConfirmed !==
-                true
-            )
             .map(
               item=>
                 String(item.id)
