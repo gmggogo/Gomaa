@@ -402,10 +402,11 @@ server/public/admin/trip-split.html
 
 
     .section-title-actions-only{
-      min-height:42px;
-      padding:7px 12px;
+      min-height:40px;
+      padding:6px 10px;
       justify-content:flex-end;
-      background:#fafafa;
+      background:#fff;
+      border-bottom:1px solid #e5e7eb;
     }
 
     .table-wrap{
@@ -1250,11 +1251,9 @@ server/public/admin/trip-split.html
 
     <section class="panel" id="originalTripsSection" data-trip-panel="ORIGINAL">
 
-      <div class="section-tab individual">
-        Original Trips
-      </div>
+      <span id="originalCount" class="hidden">0</span>
 
-<div class="table-wrap">
+      <div class="table-wrap">
 
         <table class="original-table">
 
@@ -1289,10 +1288,6 @@ server/public/admin/trip-split.html
     </section>
 
     <section class="panel trip-panel-hidden" id="individualTripsSection" data-trip-panel="INDIVIDUAL">
-
-      <div class="section-tab individual">
-        Individual Trips
-      </div>
 
       <div class="section-title section-title-actions-only">
         <div class="section-actions">
@@ -1351,14 +1346,7 @@ server/public/admin/trip-split.html
       data-trip-panel="SHARED"
     >
 
-      <div class="section-tab shared">
-        Shared Group Trips
-      </div>
-
-      <div class="section-title">
-        <span>Saved Shared Groups</span>
-        <span id="groupCount">0</span>
-      </div>
+      <span id="groupCount" class="hidden">0</span>
 
       <div id="sharedGroups"></div>
 
