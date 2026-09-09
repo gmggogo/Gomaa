@@ -282,6 +282,68 @@ server/public/admin/trip-split.html
       text-align:center;
     }
 
+
+    .split-tabs{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      width:100%;
+      margin:0 0 14px;
+      border:1px solid #c7a13a;
+      border-radius:14px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow:0 6px 16px rgba(15,23,42,.06);
+    }
+
+    .split-tab{
+      min-height:54px;
+      border:0;
+      border-right:1px solid #d7bd6a;
+      background:#fff8df;
+      color:#4a3a0a;
+      font-size:14px;
+      font-weight:900;
+      cursor:pointer;
+      text-align:center;
+    }
+
+    .split-tab:last-child{
+      border-right:0;
+    }
+
+    .split-tab.active{
+      background:linear-gradient(135deg,#f2d97f,#d9b94e);
+      color:#111827;
+      box-shadow:inset 0 -4px 0 #8a6b16;
+    }
+
+    .split-tab.hidden{
+      display:none!important;
+    }
+
+    .split-tabs.two-tabs{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .trip-panel-hidden{
+      display:none!important;
+    }
+
+    .individual-actions{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+
+    .individual-actions .btn{
+      min-width:70px;
+      height:31px;
+      font-size:10px;
+      padding:0 9px;
+    }
+
     .panel{
       width:100%;
       max-width:none;
@@ -1140,7 +1202,37 @@ server/public/admin/trip-split.html
 
     </div>
 
-    <section class="panel" id="originalTripsSection">
+    <div class="split-tabs" id="splitTabs">
+      <button
+        type="button"
+        class="split-tab active"
+        id="originalTabBtn"
+        data-tab="ORIGINAL"
+      >
+        Original Trips
+      </button>
+
+      <button
+        type="button"
+        class="split-tab"
+        id="individualTabBtn"
+        data-tab="INDIVIDUAL"
+      >
+        Individual Trips
+      </button>
+
+      <button
+        type="button"
+        class="split-tab"
+        id="sharedTabBtn"
+        data-tab="SHARED"
+      >
+        Shared Group Trips
+      </button>
+    </div>
+
+
+    <section class="panel" id="originalTripsSection" data-trip-panel="ORIGINAL">
 
       <div class="section-tab individual">
         Original Trips
@@ -1185,7 +1277,7 @@ server/public/admin/trip-split.html
 
     </section>
 
-    <section class="panel" id="individualTripsSection">
+    <section class="panel trip-panel-hidden" id="individualTripsSection" data-trip-panel="INDIVIDUAL">
 
       <div class="section-tab individual">
         Individual Trips
@@ -1202,7 +1294,7 @@ server/public/admin/trip-split.html
             class="btn redistribute-btn"
             type="button"
           >
-            Re-distribute Selected
+            Restore Selected
           </button>
 
           <button
@@ -1232,7 +1324,7 @@ server/public/admin/trip-split.html
               <th>Drop-off</th>
               <th>Service</th>
               <th>Status</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
@@ -1245,8 +1337,9 @@ server/public/admin/trip-split.html
 
 
     <section
-      class="panel"
+      class="panel trip-panel-hidden"
       id="sharedGroupsSection"
+      data-trip-panel="SHARED"
     >
 
       <div class="section-tab shared">

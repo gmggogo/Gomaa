@@ -21,6 +21,8 @@ FLOW:
 (function(){
   const state = {
     trips:[],
+    originalTrips:[],
+    individualTrips:[],
     integrations:[],
     groups:[],
     excluded:[],
@@ -33,7 +35,8 @@ FLOW:
     shareBaselines:[],
     confirmedCount:0,
     today:"",
-    tomorrow:""
+    tomorrow:"",
+    activeTab:"ORIGINAL"
   };
 
   const $ = id => document.getElementById(id);
@@ -409,7 +412,16 @@ FLOW:
   }
 
   function filteredOriginalTrips(){
-    return state.trips.filter(trip=>{
+    return state.originalTrips.filter(trip=>{
+      return (
+        matchesCurrentFilters(trip) &&
+        matchesSearch(trip)
+      );
+    });
+  }
+
+  function filteredIndividualTrips(){
+    return state.individualTrips.filter(trip=>{
       return (
         matchesCurrentFilters(trip) &&
         matchesSearch(trip)
@@ -467,19 +479,7 @@ FLOW:
   }
 
   function visibleTrips(){
-    const groupedIds = groupedTripIds();
-
-    return filteredOriginalTrips().filter(
-      trip=>!groupedIds.has(tripId(trip))
-    );
-  }
-
-  function groupedOriginalTrips(){
-    const groupedIds = groupedTripIds();
-
-    return filteredOriginalTrips().filter(
-      trip=>groupedIds.has(tripId(trip))
-    );
+    return filteredIndividualTrips();
   }
 
   function availableForShare(trip){
@@ -525,8 +525,6 @@ FLOW:
     if(!body) return;
 
     const trips = filteredOriginalTrips();
-    const groupedIds = groupedTripIds();
-
     $("originalCount").textContent = trips.length;
 
     if(!trips.length){
@@ -541,21 +539,19 @@ FLOW:
       return;
     }
 
-    const dateGroups = new Map();
+    const groups = new Map();
 
     trips.forEach(trip=>{
       const date = clean(trip.tripDate) || "No Date";
-
-      if(!dateGroups.has(date)){
-        dateGroups.set(date,[]);
+      if(!groups.has(date)){
+        groups.set(date,[]);
       }
-
-      dateGroups.get(date).push(trip);
+      groups.get(date).push(trip);
     });
 
     const rows = [];
 
-    for(const [date,dateTrips] of dateGroups.entries()){
+    for(const [date,dateTrips] of groups.entries()){
       rows.push(`
         <tr class="date-group-row">
           <td colspan="17">
@@ -566,51 +562,23 @@ FLOW:
 
       dateTrips.forEach(trip=>{
         const id = tripId(trip);
-        const inSharedGroup = groupedIds.has(id);
         const confirmed = trip?.tripSplitConfirmed === true;
-        const shareDisabled =
-          inSharedGroup ||
-          confirmed ||
-          !availableForShare(trip);
-
-        const selected =
-          state.selectedTripIds.has(id);
-
-        let statusLabel = tripStatus(trip);
-        let statusClass = "ready";
-
-        if(inSharedGroup){
-          statusLabel = "IN SHARED GROUP";
-          statusClass = "shared";
-        }else if(confirmed){
-          statusLabel = "CONFIRMED";
-          statusClass = "confirmed";
-        }else if(hasStops(trip) || isOnCallTrip(trip)){
-          statusLabel = "INDIVIDUAL";
-          statusClass = "excluded";
-        }
+        const disabled = confirmed || !availableForShare(trip);
+        const selected = state.selectedTripIds.has(id);
 
         rows.push(`
-          <tr class="${
-            isReturnTrip(trip)
-              ? "return-trip-row"
-              : ""
-          } ${
-            inSharedGroup
-              ? "grouped-source-row"
-              : ""
-          }">
+          <tr class="${isReturnTrip(trip) ? "return-trip-row" : ""}">
             <td class="check-cell">
               <input
                 type="checkbox"
                 class="trip-check"
                 data-id="${escapeHtml(id)}"
                 ${selected ? "checked" : ""}
-                ${shareDisabled ? "disabled" : ""}
+                ${disabled ? "disabled" : ""}
               />
             </td>
 
-            <td class="individual-trip-number">
+            <td class="trip-id">
               ${escapeHtml(trip.ghExternalTripNumber || "-")}
               ${
                 isReturnTrip(trip)
@@ -633,11 +601,9 @@ FLOW:
             <td class="notes-cell">${escapeHtml(trip.notes || "-")}</td>
 
             <td>
-              ${
-                inSharedGroup
-                  ? `<span class="in-group-badge">IN SHARED GROUP</span>`
-                  : `<span class="status ${statusClass}">${escapeHtml(statusLabel)}</span>`
-              }
+              <span class="status ready">
+                ${escapeHtml(tripStatus(trip))}
+              </span>
             </td>
 
             <td>${escapeHtml(trip.source || "BROKER")}</td>
@@ -648,7 +614,7 @@ FLOW:
                   class="btn btn-dark edit-trip-btn"
                   data-id="${escapeHtml(id)}"
                   type="button"
-                  ${inSharedGroup || confirmed ? "disabled" : ""}
+                  ${confirmed ? "disabled" : ""}
                 >
                   Edit
                 </button>
@@ -657,7 +623,7 @@ FLOW:
                   class="btn btn-red delete-trip-btn"
                   data-id="${escapeHtml(id)}"
                   type="button"
-                  ${inSharedGroup || confirmed ? "disabled" : ""}
+                  ${confirmed ? "disabled" : ""}
                 >
                   Delete
                 </button>
@@ -866,7 +832,7 @@ FLOW:
     const body = $("individualTripRows");
     if(!body) return;
 
-    const trips = visibleTrips();
+    const trips = filteredIndividualTrips();
 
     if($("individualCount")){
       $("individualCount").textContent =
@@ -903,7 +869,7 @@ FLOW:
               />
             </td>
 
-            <td class="trip-id">
+            <td class="individual-trip-number">
               ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
               ${
                 isReturnTrip(trip)
@@ -917,21 +883,45 @@ FLOW:
             <td>${escapeHtml(trip.tripTime || trip.pickupTime || "-")}</td>
             <td>${escapeHtml(trip.appointmentTime || "-")}</td>
             <td>${escapeHtml(trip.clientName || "-")}</td>
-            <td class="individual-address">${addressBox(trip.pickup)}</td>
-            <td class="individual-stops">${stopBoxes(trip.stops)}</td>
-            <td class="individual-address">${addressBox(trip.dropoff)}</td>
+
+            <td class="individual-address">
+              ${addressBox(trip.pickup)}
+            </td>
+
+            <td class="individual-stops">
+              ${stopBoxes(trip.stops)}
+            </td>
+
+            <td class="individual-address">
+              ${addressBox(trip.dropoff)}
+            </td>
+
             <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
-            <td><span class="status ready">${escapeHtml(tripStatus(trip))}</span></td>
 
             <td>
-              <button
-                type="button"
-                class="btn redistribute-btn redistribute-one-btn"
-                data-id="${escapeHtml(id)}"
-                ${availableForShare(trip) ? "" : "disabled"}
-              >
-                Re-distribute
-              </button>
+              <span class="status ready">
+                ${escapeHtml(tripStatus(trip))}
+              </span>
+            </td>
+
+            <td>
+              <div class="individual-actions">
+                <button
+                  type="button"
+                  class="btn btn-restore restore-individual-btn"
+                  data-id="${escapeHtml(id)}"
+                >
+                  Restore
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-confirm-glow confirm-individual-btn"
+                  data-id="${escapeHtml(id)}"
+                >
+                  Confirm
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -951,68 +941,60 @@ FLOW:
       });
     });
 
-    body.querySelectorAll(".redistribute-one-btn").forEach(el=>{
+    body.querySelectorAll(".restore-individual-btn").forEach(el=>{
       el.addEventListener("click",()=>{
-        redistributeIndividuals([clean(el.dataset.id)]);
+        restoreIndividualTrips([clean(el.dataset.id)]);
+      });
+    });
+
+    body.querySelectorAll(".confirm-individual-btn").forEach(el=>{
+      el.addEventListener("click",()=>{
+        confirmIndividualTrips([clean(el.dataset.id)]);
       });
     });
   }
 
-  function redistributeIndividuals(ids){
-    const eligible =
-      ids
-        .map(id=>state.trips.find(trip=>tripId(trip) === id))
-        .filter(Boolean)
-        .filter(availableForShare);
+  async function restoreIndividualTrips(ids){
+    const tripIds =
+      ids.map(clean).filter(Boolean);
 
-    if(!eligible.length){
+    if(!tripIds.length){
       notice(
-        "Selected individual trip(s) cannot be re-distributed.",
+        "Select at least one individual trip to restore.",
         "error"
       );
       return;
     }
 
-    eligible.forEach(trip=>{
-      const id = tripId(trip);
-      state.selectedTripIds.add(id);
-      state.selectedIndividualIds.delete(id);
-    });
-
-    renderOriginalTrips();
-    renderIndividualTrips();
-    renderStats();
-
-    $("originalTripsSection")
-      ?.scrollIntoView({
-        behavior:"smooth",
-        block:"start"
+    try{
+      await api("/api/trip-split/individual/restore",{
+        method:"POST",
+        body:JSON.stringify({
+          tripIds
+        })
       });
 
-    notice(
-      `${eligible.length} trip(s) selected in Original Trips for re-distribution.`,
-      "ok"
-    );
-  }
-
-  function redistributeSelectedIndividuals(){
-    const ids = [...state.selectedIndividualIds];
-
-    if(!ids.length){
-      notice(
-        "Select at least one individual trip to re-distribute.",
-        "error"
+      tripIds.forEach(id=>
+        state.selectedIndividualIds.delete(id)
       );
-      return;
-    }
 
-    redistributeIndividuals(ids);
+      await load({silent:true});
+      setActiveTab("ORIGINAL");
+
+      notice(
+        "Selected individual trip(s) restored to Original Trips.",
+        "ok"
+      );
+    }catch(err){
+      notice(err.message,"error");
+    }
   }
 
-  async function confirmSelectedIndividuals(){
-    const ids = [...state.selectedIndividualIds];
+  async function confirmIndividualTrips(ids){
+    const tripIds =
+      ids.map(clean).filter(Boolean);
 
-    if(!ids.length){
+    if(!tripIds.length){
       notice(
         "Select at least one individual trip to confirm.",
         "error"
@@ -1021,17 +1003,16 @@ FLOW:
     }
 
     try{
-      $("confirmIndividualBtn").disabled = true;
-
       await api("/api/trip-split/confirm",{
         method:"POST",
         body:JSON.stringify({
-          tripIds:ids
+          tripIds
         })
       });
 
-      state.selectedIndividualIds.clear();
-      state.selectedTripIds.clear();
+      tripIds.forEach(id=>
+        state.selectedIndividualIds.delete(id)
+      );
 
       await load({silent:true});
 
@@ -1041,9 +1022,17 @@ FLOW:
       );
     }catch(err){
       notice(err.message,"error");
-    }finally{
-      $("confirmIndividualBtn").disabled = false;
     }
+  }
+
+  function restoreSelectedIndividuals(){
+    const ids = [...state.selectedIndividualIds];
+    restoreIndividualTrips(ids);
+  }
+
+  function confirmSelectedIndividuals(){
+    const ids = [...state.selectedIndividualIds];
+    confirmIndividualTrips(ids);
   }
 
   function renderStats(){
@@ -1051,7 +1040,7 @@ FLOW:
       filteredOriginalTrips();
 
     const individuals =
-      visibleTrips();
+      filteredIndividualTrips();
 
     const groups =
       visibleGroups();
@@ -1063,7 +1052,9 @@ FLOW:
       sharedTripCountForCurrentFilter();
 
     $("statTotalTrips").textContent =
-      originals.length;
+      originals.length +
+      individuals.length +
+      sharedCount;
 
     $("statNewTrips").textContent =
       originals.filter(
@@ -1116,12 +1107,85 @@ FLOW:
     }
   }
 
+  function sharedFeatureEnabled(){
+    return (
+      state.capabilities?.sharedServiceEnabled === true ||
+      state.capabilities?.sharedServiceFound === true
+    );
+  }
+
+  function setActiveTab(tab){
+    let next = clean(tab).toUpperCase();
+
+    if(
+      next === "SHARED" &&
+      !sharedFeatureEnabled()
+    ){
+      next = "ORIGINAL";
+    }
+
+    if(!["ORIGINAL","INDIVIDUAL","SHARED"].includes(next)){
+      next = "ORIGINAL";
+    }
+
+    state.activeTab = next;
+
+    document
+      .querySelectorAll(".split-tab")
+      .forEach(btn=>{
+        btn.classList.toggle(
+          "active",
+          clean(btn.dataset.tab).toUpperCase() === next
+        );
+      });
+
+    document
+      .querySelectorAll("[data-trip-panel]")
+      .forEach(panel=>{
+        panel.classList.toggle(
+          "trip-panel-hidden",
+          clean(panel.dataset.tripPanel).toUpperCase() !== next
+        );
+      });
+  }
+
+  function updateTabsVisibility(){
+    const sharedAllowed =
+      sharedFeatureEnabled();
+
+    $("sharedTabBtn")
+      ?.classList
+      .toggle(
+        "hidden",
+        !sharedAllowed
+      );
+
+    $("splitTabs")
+      ?.classList
+      .toggle(
+        "two-tabs",
+        !sharedAllowed
+      );
+
+    if(
+      !sharedAllowed &&
+      state.activeTab === "SHARED"
+    ){
+      state.activeTab = "ORIGINAL";
+    }
+
+    setActiveTab(
+      state.activeTab
+    );
+  }
+
   function renderAll(){
     renderBrokerFilter();
     renderOriginalTrips();
     renderGroups();
     renderIndividualTrips();
     renderStats();
+    updateTabsVisibility();
 
     const shareAllowed =
       state.capabilities?.sharedServiceEnabled === true ||
@@ -1398,7 +1462,20 @@ FLOW:
       const data = await api("/api/trip-split/bootstrap");
 
       state.capabilities = data.capabilities || {};
-      state.trips = Array.isArray(data.trips) ? data.trips : [];
+      state.originalTrips =
+        Array.isArray(data.originalTrips)
+          ? data.originalTrips
+          : [];
+
+      state.individualTrips =
+        Array.isArray(data.individualTrips)
+          ? data.individualTrips
+          : [];
+
+      state.trips = [
+        ...state.originalTrips,
+        ...state.individualTrips
+      ];
       state.groups = Array.isArray(data.groups) ? data.groups : [];
       state.integrations = Array.isArray(data.integrations) ? data.integrations : [];
       state.today = clean(data.today);
@@ -1427,6 +1504,14 @@ FLOW:
   }
 
   function bind(){
+    document
+      .querySelectorAll(".split-tab")
+      .forEach(btn=>{
+        btn.addEventListener("click",()=>{
+          setActiveTab(btn.dataset.tab);
+        });
+      });
+
     $("brokerFilter")?.addEventListener("change",renderAll);
     $("dayFilter")?.addEventListener("change",renderAll);
     $("tripSearch")?.addEventListener("input",renderAll);
@@ -1436,7 +1521,7 @@ FLOW:
     $("confirmAllBtn")?.addEventListener("click",confirmAll);
     $("redistributeSelectedBtn")?.addEventListener(
       "click",
-      redistributeSelectedIndividuals
+      restoreSelectedIndividuals
     );
     $("confirmIndividualBtn")?.addEventListener(
       "click",

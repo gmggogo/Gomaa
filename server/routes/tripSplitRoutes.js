@@ -1252,6 +1252,8 @@ router.get("/bootstrap",async(req,res)=>{
         tomorrow,
         integrations:[],
         trips:[],
+        originalTrips:[],
+        individualTrips:[],
         groups:[],
         confirmedTrips:[],
         shareBaselines:[],
@@ -1268,24 +1270,11 @@ router.get("/bootstrap",async(req,res)=>{
       .sort({tripDate:1,tripTime:1,brokerCode:1})
       .lean();
 
-    /*
-      RETURN LEGS ARE CREATED BEFORE ANY SPLIT / SHARE WORK.
-
-      This runs idempotently on bootstrap:
-      MTM-000123-ST -> MTM-000123-ST-R
-
-      The generated return leg is a real ExternalTrip so it follows the same
-      Broker Review / Dispatch pipeline as any other broker trip.
-    */
     await ensureReturnTrips(
       tenantId,
       trips
     );
 
-    /*
-      Reload so newly-created return legs are immediately visible on the
-      same Trip Split page load.
-    */
     trips = await ExternalTrip.find({
       tenantId,
       tripDate:{$in:[today,tomorrow]},
@@ -1295,7 +1284,20 @@ router.get("/bootstrap",async(req,res)=>{
       .lean();
 
     const ids = trips.map(t=>t._id);
-    const processed = await getProcessedSet(tenantId,ids);
+
+    const [processed,individualStates] =
+      await Promise.all([
+        getProcessedSet(tenantId,ids),
+
+        TripSplitState.find({
+          tenantId,
+          externalTripObjectId:{$in:ids},
+          confirmed:false,
+          processingMode:"NORMAL"
+        })
+          .select("externalTripObjectId")
+          .lean()
+      ]);
 
     const confirmedTrips = trips
       .filter(trip=>processed.has(String(trip._id)))
@@ -1322,17 +1324,65 @@ router.get("/bootstrap",async(req,res)=>{
       )
     ]);
 
+    const groupedIds = new Set(
+      groups.flatMap(group=>
+        safeArray(group?.tripIds).map(String)
+      )
+    );
+
+    const individualIds = new Set(
+      individualStates.map(row=>
+        String(row.externalTripObjectId)
+      )
+    );
+
     openTrips = markNewTrips(
       openTrips,
       shareBaselines
     );
+
+    /*
+      A trip belongs to exactly one Trip Split bucket:
+      ORIGINAL   -> ready for distribution/re-distribution
+      INDIVIDUAL -> engine result not placed in a shared group
+      SHARED     -> stored inside SharedTripGroup
+    */
+    const originalTrips =
+      openTrips.filter(trip=>{
+        const id = String(trip._id);
+
+        return (
+          !groupedIds.has(id) &&
+          !individualIds.has(id)
+        );
+      });
+
+    const individualTrips =
+      openTrips.filter(trip=>{
+        const id = String(trip._id);
+
+        return (
+          !groupedIds.has(id) &&
+          individualIds.has(id)
+        );
+      });
 
     return res.json({
       success:true,
       today,
       tomorrow,
       integrations,
-      trips:openTrips,
+
+      /*
+        Backward-compatible combined open list.
+      */
+      trips:[
+        ...originalTrips,
+        ...individualTrips
+      ],
+
+      originalTrips,
+      individualTrips,
       groups,
       confirmedTrips,
       confirmedCount:confirmedTrips.length,
@@ -1348,6 +1398,7 @@ router.get("/bootstrap",async(req,res)=>{
     });
   }
 });
+
 
 router.post("/share",async(req,res)=>{
   try{
@@ -1504,9 +1555,86 @@ router.post("/share",async(req,res)=>{
       );
     }
 
+    const groupedTripIds = new Set(
+      persistedGroups.flatMap(group=>
+        safeArray(group?.tripIds).map(String)
+      )
+    );
+
+    const individualTripIds =
+      tripIds.filter(id=>
+        !groupedTripIds.has(String(id))
+      );
+
+    /*
+      Trips selected for distribution that are not placed in a Shared Group
+      become persistent INDIVIDUAL trips. They stay there through refresh
+      until Confirm or Restore.
+    */
+    for(const id of individualTripIds){
+      const trip =
+        tripDocs.find(doc=>
+          String(doc._id) === String(id)
+        );
+
+      if(!trip){
+        continue;
+      }
+
+      await TripSplitState.findOneAndUpdate(
+        {
+          tenantId,
+          externalTripObjectId:trip._id
+        },
+        {
+          $set:{
+            externalTripId:trip.externalTripId || "",
+            brokerCode:trip.brokerCode || "",
+            brokerName:trip.brokerName || "",
+            source:"BROKER",
+            processingMode:"NORMAL",
+            sharedGroupId:"",
+            dispatchTripId:null,
+            confirmed:false,
+            confirmedAt:null,
+            confirmedBy:"",
+            reviewConfirmed:false,
+            reviewConfirmedAt:null,
+            reviewConfirmedBy:""
+          }
+        },
+        {
+          upsert:true,
+          new:true,
+          setDefaultsOnInsert:true,
+          runValidators:true
+        }
+      );
+    }
+
+    /*
+      Any trip successfully placed into a Shared Group must not remain in the
+      Individual bucket from an older distribution attempt.
+    */
+    if(groupedTripIds.size){
+      await TripSplitState.deleteMany({
+        tenantId,
+        confirmed:false,
+        processingMode:"NORMAL",
+        externalTripObjectId:{
+          $in:[
+            ...groupedTripIds
+          ]
+            .filter(id=>mongoose.Types.ObjectId.isValid(id))
+            .map(id=>new mongoose.Types.ObjectId(id))
+        }
+      });
+    }
+
     return res.json({
       ...result,
-      groups:persistedGroups
+      groups:persistedGroups,
+      individualTripIds
     });
   }catch(err){
     console.log("TRIP SPLIT SHARE ERROR:",err);
@@ -1514,6 +1642,54 @@ router.post("/share",async(req,res)=>{
     return res.status(500).json({
       success:false,
       message:err.message || "Shared Engine failed"
+    });
+  }
+});
+
+
+
+router.post("/individual/restore",async(req,res)=>{
+  try{
+    const tenantId = tenantObjectId(req);
+
+    const tripIds =
+      safeArray(req.body?.tripIds)
+        .map(clean)
+        .filter(id=>
+          mongoose.Types.ObjectId.isValid(id)
+        );
+
+    if(!tripIds.length){
+      return res.status(400).json({
+        success:false,
+        message:"Select at least one individual trip to restore"
+      });
+    }
+
+    const objectIds =
+      tripIds.map(id=>
+        new mongoose.Types.ObjectId(id)
+      );
+
+    const result =
+      await TripSplitState.deleteMany({
+        tenantId,
+        externalTripObjectId:{$in:objectIds},
+        confirmed:false,
+        processingMode:"NORMAL"
+      });
+
+    return res.json({
+      success:true,
+      restoredTripIds:tripIds,
+      restoredCount:Number(result.deletedCount || 0)
+    });
+  }catch(err){
+    console.log("TRIP SPLIT RESTORE INDIVIDUAL ERROR:",err);
+
+    return res.status(500).json({
+      success:false,
+      message:err.message || "Failed to restore individual trip"
     });
   }
 });
@@ -1693,30 +1869,40 @@ router.post("/confirm",async(req,res)=>{
         const createdTrip = dispatchTrip[0];
 
         for(const externalTrip of externalTrips){
-          await TripSplitState.create(
-            [{
+          await TripSplitState.findOneAndUpdate(
+            {
               tenantId,
-              externalTripObjectId:externalTrip._id,
-              externalTripId:externalTrip.externalTripId || "",
-              brokerCode:externalTrip.brokerCode || "",
-              brokerName:externalTrip.brokerName || "",
-              source:"BROKER",
-              processingMode:"SHARED",
-              sharedGroupId:createdTrip.groupId || group.groupId || "",
-              dispatchTripId:createdTrip._id,
-              confirmed:true,
-              confirmedAt:new Date(),
-              confirmedBy:
-                clean(
-                  req.authUser?.email ||
-                  req.authUser?.id ||
-                  ""
-                ),
-              reviewConfirmed:false,
-              reviewConfirmedAt:null,
-              reviewConfirmedBy:""
-            }],
-            {session}
+              externalTripObjectId:externalTrip._id
+            },
+            {
+              $set:{
+                externalTripId:externalTrip.externalTripId || "",
+                brokerCode:externalTrip.brokerCode || "",
+                brokerName:externalTrip.brokerName || "",
+                source:"BROKER",
+                processingMode:"SHARED",
+                sharedGroupId:createdTrip.groupId || group.groupId || "",
+                dispatchTripId:createdTrip._id,
+                confirmed:true,
+                confirmedAt:new Date(),
+                confirmedBy:
+                  clean(
+                    req.authUser?.email ||
+                    req.authUser?.id ||
+                    ""
+                  ),
+                reviewConfirmed:false,
+                reviewConfirmedAt:null,
+                reviewConfirmedBy:""
+              }
+            },
+            {
+              upsert:true,
+              new:true,
+              setDefaultsOnInsert:true,
+              runValidators:true,
+              session
+            }
           );
 
           confirmedExternalTripIds.push(String(externalTrip._id));
@@ -1854,30 +2040,40 @@ router.post("/confirm",async(req,res)=>{
           await dispatchTrip.save({session});
         }
 
-        await TripSplitState.create(
-          [{
+        await TripSplitState.findOneAndUpdate(
+          {
             tenantId,
-            externalTripObjectId:externalTrip._id,
-            externalTripId:externalTrip.externalTripId || "",
-            brokerCode:externalTrip.brokerCode || "",
-            brokerName:externalTrip.brokerName || "",
-            source:"BROKER",
-            processingMode:"NORMAL",
-            sharedGroupId:"",
-            dispatchTripId:dispatchTrip._id,
-            confirmed:true,
-            confirmedAt:new Date(),
-            confirmedBy:
-              clean(
-                req.authUser?.email ||
-                req.authUser?.id ||
-                ""
-              ),
-            reviewConfirmed:false,
-            reviewConfirmedAt:null,
-            reviewConfirmedBy:""
-          }],
-          {session}
+            externalTripObjectId:externalTrip._id
+          },
+          {
+            $set:{
+              externalTripId:externalTrip.externalTripId || "",
+              brokerCode:externalTrip.brokerCode || "",
+              brokerName:externalTrip.brokerName || "",
+              source:"BROKER",
+              processingMode:"NORMAL",
+              sharedGroupId:"",
+              dispatchTripId:dispatchTrip._id,
+              confirmed:true,
+              confirmedAt:new Date(),
+              confirmedBy:
+                clean(
+                  req.authUser?.email ||
+                  req.authUser?.id ||
+                  ""
+                ),
+              reviewConfirmed:false,
+              reviewConfirmedAt:null,
+              reviewConfirmedBy:""
+            }
+          },
+          {
+            upsert:true,
+            new:true,
+            setDefaultsOnInsert:true,
+            runValidators:true,
+            session
+          }
         );
 
         confirmedExternalTripIds.push(String(externalTrip._id));
