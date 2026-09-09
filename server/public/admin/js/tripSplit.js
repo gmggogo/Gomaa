@@ -77,27 +77,6 @@ FLOW:
     return clean(stop);
   }
 
-
-  function neutralTripNumber(value){
-    const raw = clean(value).toUpperCase();
-
-    if(!raw){
-      return "";
-    }
-
-    /*
-      Compatibility with test/history rows created before neutral numbering:
-      MTM-000123-ST   -> MTM-000123
-      MTM-000123-SH   -> MTM-000123
-      MTM-000123-ST-R -> MTM-000123-R
-    */
-    return raw.replace(
-      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
-      (_match,_suffix,returnPart)=>
-        returnPart || ""
-    );
-  }
-
   function addressBox(value){
     return `
       <div class="address-box">
@@ -600,7 +579,7 @@ FLOW:
             </td>
 
             <td class="trip-id">
-              ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || "-"))}
+              ${escapeHtml(trip.ghExternalTripNumber || "-")}
               ${
                 isReturnTrip(trip)
                   ? `<span class="return-trip-badge">RETURN</span>`
@@ -751,7 +730,6 @@ FLOW:
                 class="btn btn-confirm-glow confirm-group-btn"
                 data-id="${escapeHtml(group.groupId)}"
                 type="button"
-                ${selected ? "" : "disabled"}
               >Confirm</button>
             </div>
           </div>
@@ -793,7 +771,7 @@ FLOW:
                   return `
                     <tr>
                       <td class="group-trip-number">
-                        ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || trip.tripNumber || "-"))}
+                        ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
                       </td>
                       <td>${escapeHtml(trip.brokerName || trip.brokerCode || "-")}</td>
                       <td>${escapeHtml(trip.externalTripId || trip.brokerTripId || "-")}</td>
@@ -850,16 +828,7 @@ FLOW:
     });
 
     wrap.querySelectorAll(".confirm-group-btn").forEach(el=>{
-      el.addEventListener("click",()=>{
-        const id = clean(el.dataset.id);
-
-        if(!state.selectedGroupIds.has(id)){
-          notice("Select the shared group before confirming it.","error");
-          return;
-        }
-
-        confirmGroups([id]);
-      });
+      el.addEventListener("click",()=>confirmGroups([el.dataset.id]));
     });
   }
 
@@ -905,7 +874,7 @@ FLOW:
             </td>
 
             <td class="individual-trip-number">
-              ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || trip.tripNumber || "-"))}
+              ${escapeHtml(trip.ghExternalTripNumber || trip.tripNumber || "-")}
               ${
                 isReturnTrip(trip)
                   ? `<span class="return-trip-badge">RETURN</span>`
@@ -1087,12 +1056,12 @@ FLOW:
     const trips =
       filteredIndividualTrips();
 
-    const ids =
-      trips.map(tripId);
-
-    if(!ids.length){
+    if(!trips.length){
       return;
     }
+
+    const ids =
+      trips.map(tripId);
 
     const allSelected =
       ids.every(id=>
@@ -1117,14 +1086,14 @@ FLOW:
     const groups =
       visibleGroups();
 
+    if(!groups.length){
+      return;
+    }
+
     const ids =
       groups
         .map(group=>clean(group.groupId))
         .filter(Boolean);
-
-    if(!ids.length){
-      return;
-    }
 
     const allSelected =
       ids.every(id=>
@@ -1200,50 +1169,109 @@ FLOW:
     $("statConfirmed").textContent =
       confirmedTrips.length;
 
-    const activeBrokerCodes = new Set();
-
-    [
-      ...originals,
-      ...individuals
-    ].forEach(trip=>{
-      const code =
-        clean(
-          trip?.brokerCode ||
-          trip?.brokerName
-        );
-
-      if(code){
-        activeBrokerCodes.add(code);
-      }
-    });
-
-    groups.forEach(group=>{
-      const members =
-        Array.isArray(group?.trips)
-          ? group.trips
-          : [];
-
-      members.forEach(trip=>{
-        const code =
-          clean(
+    const activeBrokers =
+      new Set(
+        [
+          ...originals,
+          ...individuals,
+          ...groups.flatMap(group=>
+            Array.isArray(group?.trips)
+              ? group.trips
+              : []
+          )
+        ]
+          .map(trip=>clean(
             trip?.brokerCode ||
             trip?.brokerName
-          );
-
-        if(code){
-          activeBrokerCodes.add(code);
-        }
-      });
-    });
+          ))
+          .filter(Boolean)
+      ).size;
 
     if($("statActiveBrokers")){
       $("statActiveBrokers").textContent =
-        activeBrokerCodes.size;
+        activeBrokers;
     }
 
+    const withStops =
+      individuals.filter(
+        trip=>hasStops(trip)
+      ).length;
 
-    if($("restoreBtn")){
-      $("restoreBtn").disabled =
+    if($("statWithStops")){
+      $("statWithStops").textContent =
+        withStops;
+    }
+
+    const visibleOriginalIds =
+      originals
+        .filter(
+          trip=>
+            trip?.tripSplitConfirmed !== true
+        )
+        .map(tripId);
+
+    const visibleIndividualIds =
+      individuals.map(tripId);
+
+    const visibleSharedIds =
+      groups
+        .map(group=>clean(group.groupId))
+        .filter(Boolean);
+
+    const allOriginalSelected =
+      visibleOriginalIds.length > 0 &&
+      visibleOriginalIds.every(id=>
+        state.selectedTripIds.has(id)
+      );
+
+    const allIndividualsSelected =
+      visibleIndividualIds.length > 0 &&
+      visibleIndividualIds.every(id=>
+        state.selectedIndividualIds.has(id)
+      );
+
+    const allSharedSelected =
+      visibleSharedIds.length > 0 &&
+      visibleSharedIds.every(id=>
+        state.selectedGroupIds.has(id)
+      );
+
+    if($("selectAllBtn")){
+      if(state.activeTab === "INDIVIDUAL"){
+        $("selectAllBtn").textContent =
+          allIndividualsSelected
+            ? "Unselect All"
+            : "Select All";
+      }else if(state.activeTab === "SHARED"){
+        $("selectAllBtn").textContent =
+          allSharedSelected
+            ? "Unselect All"
+            : "Select All";
+      }else{
+        $("selectAllBtn").textContent =
+          allOriginalSelected
+            ? "Unselect All"
+            : "Select All";
+      }
+    }
+
+    if($("individualSelectAllBtn")){
+      $("individualSelectAllBtn").textContent =
+        allIndividualsSelected
+          ? "Unselect All"
+          : "Select All";
+    }
+
+    if($("sharedSelectAllBtn")){
+      $("sharedSelectAllBtn").textContent =
+        allSharedSelected
+          ? "Unselect All"
+          : "Select All";
+    }
+
+    const restoreButton = $("restoreBtn");
+    if(restoreButton){
+      restoreButton.disabled =
         state.selectedGroupIds.size < 1;
     }
 
@@ -1257,61 +1285,9 @@ FLOW:
         state.selectedIndividualIds.size < 1;
     }
 
-    const visibleIndividualIds =
-      individuals.map(tripId);
-
-    const allIndividualsSelected =
-      visibleIndividualIds.length > 0 &&
-      visibleIndividualIds.every(id=>
-        state.selectedIndividualIds.has(id)
-      );
-
-    if($("individualSelectAllBtn")){
-      $("individualSelectAllBtn").textContent =
-        allIndividualsSelected
-          ? "Unselect All"
-          : "Select All";
-    }
-
-    const visibleSharedIds =
-      groups
-        .map(group=>clean(group.groupId))
-        .filter(Boolean);
-
-    const allSharedSelected =
-      visibleSharedIds.length > 0 &&
-      visibleSharedIds.every(id=>
-        state.selectedGroupIds.has(id)
-      );
-
-    if($("sharedSelectAllBtn")){
-      $("sharedSelectAllBtn").textContent =
-        allSharedSelected
-          ? "Unselect All"
-          : "Select All";
-    }
-
     if($("confirmSelectedGroupsBtn")){
       $("confirmSelectedGroupsBtn").disabled =
         state.selectedGroupIds.size < 1;
-    }
-
-    const visibleOriginalIds =
-      originals
-        .filter(availableForShare)
-        .map(tripId);
-
-    const allOriginalSelected =
-      visibleOriginalIds.length > 0 &&
-      visibleOriginalIds.every(id=>
-        state.selectedTripIds.has(id)
-      );
-
-    if($("selectAllBtn")){
-      $("selectAllBtn").textContent =
-        allOriginalSelected
-          ? "Unselect All"
-          : "Select All";
     }
   }
 
@@ -1382,19 +1358,7 @@ FLOW:
       state.activeTab = "ORIGINAL";
     }
 
-    setActiveTab(
-      state.activeTab
-    );
-
-    const withStops =
-      individuals.filter(
-        trip=>hasStops(trip)
-      ).length;
-
-    if($("statWithStops")){
-      $("statWithStops").textContent =
-        withStops;
-    }
+    setActiveTab(state.activeTab);
   }
 
   function renderAll(){
@@ -1435,12 +1399,21 @@ FLOW:
   }
 
   function selectAll(){
+    if(state.activeTab === "INDIVIDUAL"){
+      selectAllIndividuals();
+      return;
+    }
+
+    if(state.activeTab === "SHARED"){
+      selectAllSharedGroups();
+      return;
+    }
+
     const available =
       filteredOriginalTrips()
         .filter(
           trip=>
-            trip?.tripSplitConfirmed !== true &&
-            availableForShare(trip)
+            trip?.tripSplitConfirmed !== true
         );
 
     const ids =
@@ -1462,7 +1435,8 @@ FLOW:
       );
     }
 
-    renderAll();
+    renderOriginalTrips();
+    renderStats();
   }
 
   async function createShare(){
@@ -1525,7 +1499,7 @@ FLOW:
       state.selectedTripIds.clear();
 
       await load({silent:true});
-      notice("Selected group(s) restored to Original Trips.","ok");
+      notice("Selected group(s) restored to Individual Trips.","ok");
     }catch(err){
       notice(err.message,"error");
     }
@@ -1572,49 +1546,34 @@ FLOW:
   }
 
   async function confirmAll(){
-    const payloadGroups =
-      state.groups
-        .filter(group=>
-          state.selectedGroupIds.has(
-            clean(group.groupId)
-          )
-        )
-        .map(group=>({
-          groupId:group.groupId
-        }));
+    if(state.activeTab === "INDIVIDUAL"){
+      const ids = [...state.selectedIndividualIds];
 
-    const ungroupedIds =
-      [...new Set([
-        ...state.selectedIndividualIds
-      ])];
+      if(!ids.length){
+        notice("Select at least one individual trip to confirm.","error");
+        return;
+      }
 
-    if(!payloadGroups.length && !ungroupedIds.length){
-      notice("Nothing is selected to confirm.","error");
+      await confirmIndividualTrips(ids);
       return;
     }
 
-    try{
-      $("confirmAllBtn").disabled = true;
+    if(state.activeTab === "SHARED"){
+      const groupIds = [...state.selectedGroupIds];
 
-      await api("/api/trip-split/confirm",{
-        method:"POST",
-        body:JSON.stringify({
-          groups:payloadGroups,
-          tripIds:ungroupedIds
-        })
-      });
+      if(!groupIds.length){
+        notice("Select at least one shared group to confirm.","error");
+        return;
+      }
 
-      state.selectedTripIds.clear();
-      state.selectedIndividualIds.clear();
-      state.selectedGroupIds.clear();
-
-      await load({silent:true});
-      notice("All selected trips were moved to Broker Review.","ok");
-    }catch(err){
-      notice(err.message,"error");
-    }finally{
-      $("confirmAllBtn").disabled = false;
+      await confirmGroups(groupIds);
+      return;
     }
+
+    notice(
+      "Original trips must be distributed to Individual or Shared before confirmation.",
+      "error"
+    );
   }
 
   function openEdit(id){
@@ -1748,6 +1707,7 @@ FLOW:
       .forEach(btn=>{
         btn.addEventListener("click",()=>{
           setActiveTab(btn.dataset.tab);
+          renderStats();
         });
       });
 
