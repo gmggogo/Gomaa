@@ -563,7 +563,7 @@ FLOW:
       dateTrips.forEach(trip=>{
         const id = tripId(trip);
         const confirmed = trip?.tripSplitConfirmed === true;
-        const disabled = confirmed || !availableForShare(trip);
+        const disabled = confirmed;
         const selected = state.selectedTripIds.has(id);
 
         rows.push(`
@@ -718,20 +718,7 @@ FLOW:
               <span>Pickup ${escapeHtml(group.calculatedFirstPickupTime || "-")}</span>
             </div>
 
-            <div class="group-actions">
-              <button
-                class="btn btn-restore restore-group-btn"
-                data-id="${escapeHtml(group.groupId)}"
-                type="button"
-                ${selected ? "" : "disabled"}
-              >Restore</button>
 
-              <button
-                class="btn btn-confirm-glow confirm-group-btn"
-                data-id="${escapeHtml(group.groupId)}"
-                type="button"
-              >Confirm</button>
-            </div>
           </div>
 
           <div class="table-wrap" style="border:0;border-radius:0">
@@ -814,22 +801,6 @@ FLOW:
       });
     });
 
-    wrap.querySelectorAll(".restore-group-btn").forEach(el=>{
-      el.addEventListener("click",()=>{
-        const id = clean(el.dataset.id);
-
-        if(!state.selectedGroupIds.has(id)){
-          notice("Select the shared group before restoring it.","error");
-          return;
-        }
-
-        restoreGroups([id]);
-      });
-    });
-
-    wrap.querySelectorAll(".confirm-group-btn").forEach(el=>{
-      el.addEventListener("click",()=>confirmGroups([el.dataset.id]));
-    });
   }
 
   function renderIndividualTrips(){
@@ -846,7 +817,7 @@ FLOW:
     if(!trips.length){
       body.innerHTML = `
         <tr>
-          <td colspan="13">
+          <td colspan="12">
             <div class="empty">
               No individual trips for this filter.
             </div>
@@ -908,27 +879,6 @@ FLOW:
               </span>
             </td>
 
-            <td>
-              <div class="individual-actions">
-                <button
-                  type="button"
-                  class="btn btn-restore restore-individual-btn"
-                  data-id="${escapeHtml(id)}"
-                  ${selected ? "" : "disabled"}
-                >
-                  Restore
-                </button>
-
-                <button
-                  type="button"
-                  class="btn btn-confirm-glow confirm-individual-btn"
-                  data-id="${escapeHtml(id)}"
-                  ${selected ? "" : "disabled"}
-                >
-                  Confirm
-                </button>
-              </div>
-            </td>
           </tr>
         `;
       }).join("");
@@ -948,17 +898,6 @@ FLOW:
       });
     });
 
-    body.querySelectorAll(".restore-individual-btn").forEach(el=>{
-      el.addEventListener("click",()=>{
-        restoreIndividualTrips([clean(el.dataset.id)]);
-      });
-    });
-
-    body.querySelectorAll(".confirm-individual-btn").forEach(el=>{
-      el.addEventListener("click",()=>{
-        confirmIndividualTrips([clean(el.dataset.id)]);
-      });
-    });
   }
 
   async function restoreIndividualTrips(ids){
@@ -1052,83 +991,6 @@ FLOW:
     confirmIndividualTrips(ids);
   }
 
-  function selectAllIndividuals(){
-    const trips =
-      filteredIndividualTrips();
-
-    if(!trips.length){
-      return;
-    }
-
-    const ids =
-      trips.map(tripId);
-
-    const allSelected =
-      ids.every(id=>
-        state.selectedIndividualIds.has(id)
-      );
-
-    if(allSelected){
-      ids.forEach(id=>
-        state.selectedIndividualIds.delete(id)
-      );
-    }else{
-      ids.forEach(id=>
-        state.selectedIndividualIds.add(id)
-      );
-    }
-
-    renderIndividualTrips();
-    renderStats();
-  }
-
-  function selectAllSharedGroups(){
-    const groups =
-      visibleGroups();
-
-    if(!groups.length){
-      return;
-    }
-
-    const ids =
-      groups
-        .map(group=>clean(group.groupId))
-        .filter(Boolean);
-
-    const allSelected =
-      ids.every(id=>
-        state.selectedGroupIds.has(id)
-      );
-
-    if(allSelected){
-      ids.forEach(id=>
-        state.selectedGroupIds.delete(id)
-      );
-    }else{
-      ids.forEach(id=>
-        state.selectedGroupIds.add(id)
-      );
-    }
-
-    renderGroups();
-    renderStats();
-  }
-
-  function confirmSelectedGroups(){
-    const ids =
-      [...state.selectedGroupIds];
-
-    if(!ids.length){
-      notice(
-        "Select at least one shared group to confirm.",
-        "error"
-      );
-      return;
-    }
-
-    confirmGroups(ids);
-  }
-
   function renderStats(){
     const originals =
       filteredOriginalTrips();
@@ -1171,15 +1033,7 @@ FLOW:
 
     const activeBrokers =
       new Set(
-        [
-          ...originals,
-          ...individuals,
-          ...groups.flatMap(group=>
-            Array.isArray(group?.trips)
-              ? group.trips
-              : []
-          )
-        ]
+        originals
           .map(trip=>clean(
             trip?.brokerCode ||
             trip?.brokerName
@@ -1192,102 +1046,93 @@ FLOW:
         activeBrokers;
     }
 
-    const withStops =
-      individuals.filter(
-        trip=>hasStops(trip)
-      ).length;
+    const selectedCount =
+      state.activeTab === "INDIVIDUAL"
+        ? state.selectedIndividualIds.size
+        : state.activeTab === "SHARED"
+          ? state.selectedGroupIds.size
+          : state.selectedTripIds.size;
 
-    if($("statWithStops")){
-      $("statWithStops").textContent =
-        withStops;
-    }
+    const restoreButton =
+      $("restoreBtn");
 
-    const visibleOriginalIds =
-      originals
-        .filter(
-          trip=>
-            trip?.tripSplitConfirmed !== true
-        )
-        .map(tripId);
-
-    const visibleIndividualIds =
-      individuals.map(tripId);
-
-    const visibleSharedIds =
-      groups
-        .map(group=>clean(group.groupId))
-        .filter(Boolean);
-
-    const allOriginalSelected =
-      visibleOriginalIds.length > 0 &&
-      visibleOriginalIds.every(id=>
-        state.selectedTripIds.has(id)
-      );
-
-    const allIndividualsSelected =
-      visibleIndividualIds.length > 0 &&
-      visibleIndividualIds.every(id=>
-        state.selectedIndividualIds.has(id)
-      );
-
-    const allSharedSelected =
-      visibleSharedIds.length > 0 &&
-      visibleSharedIds.every(id=>
-        state.selectedGroupIds.has(id)
-      );
-
-    if($("selectAllBtn")){
-      if(state.activeTab === "INDIVIDUAL"){
-        $("selectAllBtn").textContent =
-          allIndividualsSelected
-            ? "Unselect All"
-            : "Select All";
-      }else if(state.activeTab === "SHARED"){
-        $("selectAllBtn").textContent =
-          allSharedSelected
-            ? "Unselect All"
-            : "Select All";
-      }else{
-        $("selectAllBtn").textContent =
-          allOriginalSelected
-            ? "Unselect All"
-            : "Select All";
-      }
-    }
-
-    if($("individualSelectAllBtn")){
-      $("individualSelectAllBtn").textContent =
-        allIndividualsSelected
-          ? "Unselect All"
-          : "Select All";
-    }
-
-    if($("sharedSelectAllBtn")){
-      $("sharedSelectAllBtn").textContent =
-        allSharedSelected
-          ? "Unselect All"
-          : "Select All";
-    }
-
-    const restoreButton = $("restoreBtn");
     if(restoreButton){
       restoreButton.disabled =
-        state.selectedGroupIds.size < 1;
+        state.activeTab === "ORIGINAL" ||
+        selectedCount < 1;
     }
 
-    if($("redistributeSelectedBtn")){
-      $("redistributeSelectedBtn").disabled =
-        state.selectedIndividualIds.size < 1;
+    const confirmButton =
+      $("confirmAllBtn");
+
+    if(confirmButton){
+      confirmButton.disabled =
+        selectedCount < 1;
     }
 
-    if($("confirmIndividualBtn")){
-      $("confirmIndividualBtn").disabled =
-        state.selectedIndividualIds.size < 1;
+    const shareButton =
+      $("shareBtn");
+
+    if(shareButton){
+      const eligibleSelected =
+        state.activeTab === "ORIGINAL"
+          ? filteredOriginalTrips()
+              .filter(availableForShare)
+              .filter(trip=>
+                state.selectedTripIds.has(
+                  tripId(trip)
+                )
+              )
+              .length
+          : 0;
+
+      shareButton.disabled =
+        state.activeTab !== "ORIGINAL" ||
+        eligibleSelected < 2;
     }
 
-    if($("confirmSelectedGroupsBtn")){
-      $("confirmSelectedGroupsBtn").disabled =
-        state.selectedGroupIds.size < 1;
+    const selectButton =
+      $("selectAllBtn");
+
+    if(selectButton){
+      let ids = [];
+      let selectedSet = null;
+
+      if(state.activeTab === "INDIVIDUAL"){
+        ids =
+          filteredIndividualTrips()
+            .map(trip=>tripId(trip))
+            .filter(Boolean);
+        selectedSet =
+          state.selectedIndividualIds;
+      }else if(state.activeTab === "SHARED"){
+        ids =
+          visibleGroups()
+            .map(group=>clean(group.groupId))
+            .filter(Boolean);
+        selectedSet =
+          state.selectedGroupIds;
+      }else{
+        ids =
+          filteredOriginalTrips()
+            .filter(
+              trip=>
+                trip?.tripSplitConfirmed !== true
+            )
+            .map(trip=>tripId(trip))
+            .filter(Boolean);
+        selectedSet =
+          state.selectedTripIds;
+      }
+
+      const allSelected =
+        ids.length > 0 &&
+        ids.every(id=>selectedSet.has(id));
+
+      selectButton.textContent =
+        allSelected
+          ? "Unselect All"
+          : "Select All";
     }
   }
 
@@ -1331,6 +1176,8 @@ FLOW:
           clean(panel.dataset.tripPanel).toUpperCase() !== next
         );
       });
+
+    renderStats();
   }
 
   function updateTabsVisibility(){
@@ -1358,7 +1205,19 @@ FLOW:
       state.activeTab = "ORIGINAL";
     }
 
-    setActiveTab(state.activeTab);
+    setActiveTab(
+      state.activeTab
+    );
+
+    const withStops =
+      individuals.filter(
+        trip=>hasStops(trip)
+      ).length;
+
+    if($("statWithStops")){
+      $("statWithStops").textContent =
+        withStops;
+    }
   }
 
   function renderAll(){
@@ -1386,64 +1245,85 @@ FLOW:
       );
 
     /*
-      Restore Original belongs to the Shared feature too.
-      If Shared is not enabled for this tenant, hide it exactly
-      the same way as the Share button.
+      Restore is a common top action for Individual and Shared tabs.
+      It must remain visible even when Shared service is disabled.
     */
     $("restoreBtn")
       ?.classList
-      .toggle(
-        "hidden",
-        !shareAllowed
+      .remove(
+        "hidden"
       );
   }
 
   function selectAll(){
+
+    let ids = [];
+    let selectedSet = null;
+
     if(state.activeTab === "INDIVIDUAL"){
-      selectAllIndividuals();
-      return;
+      ids =
+        filteredIndividualTrips()
+          .map(trip=>tripId(trip))
+          .filter(Boolean);
+
+      selectedSet =
+        state.selectedIndividualIds;
+
+    }else if(state.activeTab === "SHARED"){
+      ids =
+        visibleGroups()
+          .map(group=>clean(group.groupId))
+          .filter(Boolean);
+
+      selectedSet =
+        state.selectedGroupIds;
+
+    }else{
+      ids =
+        filteredOriginalTrips()
+          .filter(
+            trip=>
+              trip?.tripSplitConfirmed !== true
+          )
+          .map(trip=>tripId(trip))
+          .filter(Boolean);
+
+      selectedSet =
+        state.selectedTripIds;
     }
-
-    if(state.activeTab === "SHARED"){
-      selectAllSharedGroups();
-      return;
-    }
-
-    const available =
-      filteredOriginalTrips()
-        .filter(
-          trip=>
-            trip?.tripSplitConfirmed !== true
-        );
-
-    const ids =
-      available.map(tripId);
 
     const allSelected =
       ids.length > 0 &&
-      ids.every(id=>
-        state.selectedTripIds.has(id)
-      );
+      ids.every(id=>selectedSet.has(id));
 
     if(allSelected){
-      ids.forEach(id=>
-        state.selectedTripIds.delete(id)
-      );
+      ids.forEach(id=>selectedSet.delete(id));
     }else{
-      ids.forEach(id=>
-        state.selectedTripIds.add(id)
-      );
+      ids.forEach(id=>selectedSet.add(id));
     }
 
-    renderOriginalTrips();
-    renderStats();
+    renderAll();
   }
 
   async function createShare(){
-    const ids = [...state.selectedTripIds];
+    const eligibleIds =
+      new Set(
+        filteredOriginalTrips()
+          .filter(availableForShare)
+          .map(trip=>tripId(trip))
+      );
+
+    const ids =
+      [...state.selectedTripIds]
+        .filter(id=>eligibleIds.has(id));
+
+    if(state.activeTab !== "ORIGINAL"){
+      notice("Share is available from Original Trips only.","error");
+      return;
+    }
 
     if(ids.length < 2){
-      notice("Select at least two eligible trips.","error");
+      notice("Select at least two eligible original trips to share.","error");
       return;
     }
 
@@ -1506,14 +1386,29 @@ FLOW:
   }
 
   function restoreSelected(){
-    const ids = [...state.selectedGroupIds];
 
-    if(!ids.length){
-      notice("Select at least one shared group to restore.","error");
+    if(state.activeTab === "INDIVIDUAL"){
+      restoreSelectedIndividuals();
       return;
     }
 
-    restoreGroups(ids);
+    if(state.activeTab === "SHARED"){
+      const ids =
+        [...state.selectedGroupIds];
+
+      if(!ids.length){
+        notice("Select at least one shared group to restore.","error");
+        return;
+      }
+
+      restoreGroups(ids);
+      return;
+    }
+
+    notice(
+      "Restore is available from Individual Trips or Shared Group Trips.",
+      "error"
+    );
   }
 
   async function confirmGroups(groupIds){
@@ -1546,34 +1441,57 @@ FLOW:
   }
 
   async function confirmAll(){
+
     if(state.activeTab === "INDIVIDUAL"){
-      const ids = [...state.selectedIndividualIds];
-
-      if(!ids.length){
-        notice("Select at least one individual trip to confirm.","error");
-        return;
-      }
-
-      await confirmIndividualTrips(ids);
+      await confirmSelectedIndividuals();
       return;
     }
 
     if(state.activeTab === "SHARED"){
-      const groupIds = [...state.selectedGroupIds];
+      const ids =
+        [...state.selectedGroupIds];
 
-      if(!groupIds.length){
+      if(!ids.length){
         notice("Select at least one shared group to confirm.","error");
         return;
       }
 
-      await confirmGroups(groupIds);
+      await confirmGroups(ids);
       return;
     }
 
-    notice(
-      "Original trips must be distributed to Individual or Shared before confirmation.",
-      "error"
-    );
+    const tripIds =
+      [...state.selectedTripIds]
+        .filter(Boolean);
+
+    if(!tripIds.length){
+      notice("Select at least one original trip to confirm.","error");
+      return;
+    }
+
+    try{
+      $("confirmAllBtn").disabled = true;
+
+      await api("/api/trip-split/confirm",{
+        method:"POST",
+        body:JSON.stringify({
+          tripIds
+        })
+      });
+
+      state.selectedTripIds.clear();
+
+      await load({silent:true});
+
+      notice(
+        "Selected original trip(s) moved to Broker Review as Individual Trips.",
+        "ok"
+      );
+    }catch(err){
+      notice(err.message,"error");
+    }finally{
+      $("confirmAllBtn").disabled = false;
+    }
   }
 
   function openEdit(id){
@@ -1707,7 +1625,6 @@ FLOW:
       .forEach(btn=>{
         btn.addEventListener("click",()=>{
           setActiveTab(btn.dataset.tab);
-          renderStats();
         });
       });
 
@@ -1718,29 +1635,6 @@ FLOW:
     $("shareBtn")?.addEventListener("click",createShare);
     $("restoreBtn")?.addEventListener("click",restoreSelected);
     $("confirmAllBtn")?.addEventListener("click",confirmAll);
-    $("redistributeSelectedBtn")?.addEventListener(
-      "click",
-      restoreSelectedIndividuals
-    );
-    $("confirmIndividualBtn")?.addEventListener(
-      "click",
-      confirmSelectedIndividuals
-    );
-
-    $("individualSelectAllBtn")?.addEventListener(
-      "click",
-      selectAllIndividuals
-    );
-
-    $("sharedSelectAllBtn")?.addEventListener(
-      "click",
-      selectAllSharedGroups
-    );
-
-    $("confirmSelectedGroupsBtn")?.addEventListener(
-      "click",
-      confirmSelectedGroups
-    );
 
     $("closeEditBtn")?.addEventListener("click",()=>{
       $("editDialog").close();
