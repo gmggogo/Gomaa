@@ -110,27 +110,38 @@ server/public/admin/broker-review.html
     }
 
     .day-tabs{
-      display:flex;
-      gap:10px;
-      justify-content:center;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      width:100%;
       margin-bottom:12px;
+      overflow:hidden;
+      border:1px solid #9fb0bf;
+      border-radius:12px;
+      background:#fff;
     }
 
     .day-tab{
-      min-width:180px;
-      border:1px solid #b8c7d1;
-      background:#fff;
+      width:100%;
+      min-width:0;
+      border:0;
+      background:#f7fafc;
       color:#23435a;
-      border-radius:10px;
-      padding:11px 16px;
+      border-radius:0;
+      padding:14px 12px;
       cursor:pointer;
       font-weight:900;
+      font-size:13px;
+      text-align:center;
+    }
+
+    .day-tab + .day-tab{
+      border-left:1px solid #9fb0bf;
     }
 
     .day-tab.active{
       background:var(--navy);
       color:#fff;
-      border-color:var(--navy);
     }
 
     .review-toolbar{
@@ -518,6 +529,94 @@ server/public/admin/broker-review.html
       border-top:1px solid #dfe5ea;
     }
 
+
+    .panel table{
+      width:100%;
+      min-width:2050px;
+      table-layout:fixed;
+    }
+
+    .panel th,
+    .panel td{
+      text-align:center;
+      vertical-align:middle;
+    }
+
+    .panel th:nth-child(1),
+    .panel td:nth-child(1){width:46px}
+
+    .panel th:nth-child(2),
+    .panel td:nth-child(2){width:120px}
+
+    .panel th:nth-child(3),
+    .panel td:nth-child(3){width:72px}
+
+    .panel th:nth-child(4),
+    .panel td:nth-child(4){width:110px}
+
+    .panel th:nth-child(5),
+    .panel td:nth-child(5){width:72px}
+
+    .panel th:nth-child(6),
+    .panel td:nth-child(6){width:95px}
+
+    .panel th:nth-child(7),
+    .panel td:nth-child(7){width:78px}
+
+    .panel th:nth-child(8),
+    .panel td:nth-child(8){width:72px}
+
+    .panel th:nth-child(9),
+    .panel td:nth-child(9){width:76px}
+
+    .panel th:nth-child(10),
+    .panel td:nth-child(10){width:76px}
+
+    .panel th:nth-child(11),
+    .panel td:nth-child(11){width:120px}
+
+    .panel th:nth-child(12),
+    .panel td:nth-child(12){width:100px}
+
+    .panel th:nth-child(13),
+    .panel td:nth-child(13){width:190px}
+
+    .panel th:nth-child(14),
+    .panel td:nth-child(14){width:180px}
+
+    .panel th:nth-child(15),
+    .panel td:nth-child(15){width:190px}
+
+    .panel th:nth-child(16),
+    .panel td:nth-child(16){width:88px}
+
+    .panel th:nth-child(17),
+    .panel td:nth-child(17){width:155px}
+
+    .panel th:nth-child(18),
+    .panel td:nth-child(18){width:90px}
+
+    .panel th:nth-child(19),
+    .panel td:nth-child(19){width:70px}
+
+    .panel th:nth-child(20),
+    .panel td:nth-child(20){width:78px}
+
+    .panel th:nth-child(21),
+    .panel td:nth-child(21){width:104px}
+
+    .trip-number-box .cell-item{
+      color:#1d4ed8;
+      font-weight:900;
+      background:#eef4ff;
+      border-bottom:1px solid #cad9f3;
+      overflow-wrap:anywhere;
+    }
+
+    .trip-number-box .cell-item:last-child{
+      border-bottom:0;
+    }
+
     @media(max-width:760px){
       .page{
         padding:8px 6px 20px;
@@ -633,30 +732,17 @@ server/public/admin/broker-review.html
     <section class="stats-board">
 
       <div class="stats-day">
-        <div class="stats-day-title">
-          Today <span id="todayStatsDate"></span>
+        <div class="stats-day-title" id="activeStatsTitle">
+          Today
         </div>
-        <div class="stats">
-          <div class="stat"><span>Shared Groups</span><strong id="todaySharedGroups">0</strong></div>
-          <div class="stat"><span>Shared Trips</span><strong id="todaySharedTrips">0</strong></div>
-          <div class="stat"><span>Shared Passengers</span><strong id="todaySharedPassengers">0</strong></div>
-          <div class="stat"><span>Individual Trips</span><strong id="todayIndividualTrips">0</strong></div>
-          <div class="stat"><span>New Trips</span><strong id="todayNewTrips">0</strong></div>
-          <div class="stat"><span>Active Brokers</span><strong id="todayActiveBrokers">0</strong></div>
-        </div>
-      </div>
 
-      <div class="stats-day">
-        <div class="stats-day-title">
-          Tomorrow <span id="tomorrowStatsDate"></span>
-        </div>
         <div class="stats">
-          <div class="stat"><span>Shared Groups</span><strong id="tomorrowSharedGroups">0</strong></div>
-          <div class="stat"><span>Shared Trips</span><strong id="tomorrowSharedTrips">0</strong></div>
-          <div class="stat"><span>Shared Passengers</span><strong id="tomorrowSharedPassengers">0</strong></div>
-          <div class="stat"><span>Individual Trips</span><strong id="tomorrowIndividualTrips">0</strong></div>
-          <div class="stat"><span>New Trips</span><strong id="tomorrowNewTrips">0</strong></div>
-          <div class="stat"><span>Active Brokers</span><strong id="tomorrowActiveBrokers">0</strong></div>
+          <div class="stat"><span>Shared Groups</span><strong id="statSharedGroups">0</strong></div>
+          <div class="stat"><span>Shared Trips</span><strong id="statSharedTrips">0</strong></div>
+          <div class="stat"><span>Shared Passengers</span><strong id="statSharedPassengers">0</strong></div>
+          <div class="stat"><span>Individual Trips</span><strong id="statIndividualTrips">0</strong></div>
+          <div class="stat"><span>New Trips</span><strong id="statNewTrips">0</strong></div>
+          <div class="stat"><span>Active Brokers</span><strong id="statActiveBrokers">0</strong></div>
         </div>
       </div>
 

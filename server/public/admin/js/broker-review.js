@@ -376,18 +376,18 @@ server/public/admin/js/broker-review.js
     };
   }
 
-  function writeDayStats(prefix,stats){
+  function writeActiveStats(stats){
     const values = {
-      SharedGroups:stats.sharedGroups,
-      SharedTrips:stats.sharedTrips,
-      SharedPassengers:stats.sharedPassengers,
-      IndividualTrips:stats.individualTrips,
-      NewTrips:stats.newTrips,
-      ActiveBrokers:stats.activeBrokers
+      statSharedGroups:stats.sharedGroups,
+      statSharedTrips:stats.sharedTrips,
+      statSharedPassengers:stats.sharedPassengers,
+      statIndividualTrips:stats.individualTrips,
+      statNewTrips:stats.newTrips,
+      statActiveBrokers:stats.activeBrokers
     };
 
-    Object.entries(values).forEach(([suffix,value])=>{
-      const el = $(`${prefix}${suffix}`);
+    Object.entries(values).forEach(([id,value])=>{
+      const el = $(id);
       if(el){
         el.textContent = String(value);
       }
@@ -395,18 +395,25 @@ server/public/admin/js/broker-review.js
   }
 
   function renderStats(){
-    if($("todayStatsDate")){
-      $("todayStatsDate").textContent =
-        state.today ? `— ${state.today}` : "";
+    const isToday =
+      state.activeDay === "TODAY";
+
+    const activeDate =
+      isToday
+        ? state.today
+        : state.tomorrow;
+
+    const title =
+      $("activeStatsTitle");
+
+    if(title){
+      title.textContent =
+        `${isToday ? "Today" : "Tomorrow"}${activeDate ? " — " + activeDate : ""}`;
     }
 
-    if($("tomorrowStatsDate")){
-      $("tomorrowStatsDate").textContent =
-        state.tomorrow ? `— ${state.tomorrow}` : "";
-    }
-
-    writeDayStats("today",statsForDate(state.today));
-    writeDayStats("tomorrow",statsForDate(state.tomorrow));
+    writeActiveStats(
+      statsForDate(activeDate)
+    );
   }
 
   function renderTable(){
@@ -449,7 +456,7 @@ server/public/admin/js/broker-review.js
               }
             </td>
 
-            <td><div class="cell-box">${p.tripNumber}</div></td>
+            <td><div class="cell-box trip-number-box">${p.tripNumber}</div></td>
             <td><div class="cell-box">${p.broker}</div></td>
             <td><div class="cell-box">${p.brokerTrip}</div></td>
 
