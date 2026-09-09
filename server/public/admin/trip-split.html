@@ -296,15 +296,17 @@ server/public/admin/trip-split.html
     }
 
     .split-tab{
-      min-height:54px;
+      min-height:62px;
       border:0;
       border-right:1px solid #d7bd6a;
-      background:#fff8df;
-      color:#4a3a0a;
-      font-size:14px;
+      background:linear-gradient(180deg,#fffaf0 0%,#f7e7ad 100%);
+      color:#3f3208;
+      font-size:16px;
       font-weight:900;
+      letter-spacing:.02em;
       cursor:pointer;
       text-align:center;
+      box-shadow:inset 0 -2px 0 rgba(138,107,22,.14);
     }
 
     .split-tab:last-child{
@@ -312,9 +314,11 @@ server/public/admin/trip-split.html
     }
 
     .split-tab.active{
-      background:linear-gradient(135deg,#f2d97f,#d9b94e);
+      background:linear-gradient(135deg,#e6c55a 0%,#cda72e 100%);
       color:#111827;
-      box-shadow:inset 0 -4px 0 #8a6b16;
+      box-shadow:
+        inset 0 -5px 0 #7d6113,
+        0 4px 10px rgba(125,97,19,.18);
     }
 
     .split-tab.hidden{
@@ -390,6 +394,23 @@ server/public/admin/trip-split.html
       font-weight:900;
       border-bottom:1px solid #e5e7eb;
       background:#fff;
+    }
+
+
+    .section-title-count-only{
+      justify-content:flex-end;
+      min-height:38px;
+      padding:8px 12px;
+      background:#fafafa;
+      color:#4b5563;
+      font-size:11px;
+    }
+
+    .section-title-actions-only{
+      justify-content:flex-end;
+      min-height:42px;
+      padding:7px 12px;
+      background:#fafafa;
     }
 
     .table-wrap{
@@ -1238,8 +1259,7 @@ server/public/admin/trip-split.html
         Original Trips
       </div>
 
-      <div class="section-title">
-        <span>Original Broker Trips Before Distribution</span>
+      <div class="section-title section-title-count-only">
         <span id="originalCount">0</span>
       </div>
 
@@ -1283,9 +1303,7 @@ server/public/admin/trip-split.html
         Individual Trips
       </div>
 
-      <div class="section-title">
-        <span>Trips Not Added to Shared Groups</span>
-
+      <div class="section-title section-title-actions-only">
         <div class="section-actions">
           <span id="individualCount">0</span>
 
