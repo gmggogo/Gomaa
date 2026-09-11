@@ -24,8 +24,12 @@ const ExternalTrip =
 const BrokerIntegration =
   require("../models/BrokerIntegration");
 
+const Tenant =
+  require("../models/Tenant");
+
 const {
-  createExternalTrip
+  createExternalTrip,
+  normalizeServiceKey
 } = require("../services/externalTripService");
 
 const JWT_SECRET =
@@ -131,9 +135,7 @@ async function featureEnabled(req,res,next){
         tenantId:
           req.authUser.tenantId,
         enabled:true,
-        featureVisible:{
-          $ne:false
-        }
+        featureVisible:{ $ne:false }
       });
 
     if(!exists){
@@ -175,9 +177,7 @@ router.get(
           tenantId:
             req.authUser.tenantId,
           enabled:true,
-          featureVisible:{
-            $ne:false
-          }
+          featureVisible:{ $ne:false }
         })
         .select(
           "_id brokerName brokerCode connectionType connectionStatus"
@@ -197,6 +197,79 @@ router.get(
       return res.status(500).json({
         success:false,
         message:"Failed to load enabled brokers"
+      });
+    }
+  }
+);
+
+/* =========================
+   TENANT SERVICES
+========================= */
+
+router.get(
+  "/services",
+  async (req,res) => {
+
+    try{
+
+      const tenant =
+        await Tenant.findById(
+          req.authUser.tenantId
+        )
+        .select(
+          "allowedServices"
+        )
+        .lean();
+
+      const allowed =
+        Array.isArray(
+          tenant?.allowedServices
+        )
+          ? tenant.allowedServices
+          : [];
+
+      const serviceKeys =
+        [
+          "STANDARD",
+          ...allowed.map(
+            normalizeServiceKey
+          )
+        ]
+        .filter(Boolean);
+
+      const unique =
+        [...new Set(serviceKeys)];
+
+      const services =
+        unique.map(
+          key => ({
+            key,
+            name:
+              key
+                .toLowerCase()
+                .split("_")
+                .map(
+                  part =>
+                    part
+                      ? part[0]
+                          .toUpperCase() +
+                        part.slice(1)
+                      : ""
+                )
+                .join(" ")
+          })
+        );
+
+      return res.json({
+        success:true,
+        services
+      });
+
+    }catch(err){
+
+      return res.status(500).json({
+        success:false,
+        message:"Failed to load tenant services"
       });
     }
   }
@@ -287,7 +360,7 @@ router.post(
             req.authUser.tenantId,
           brokerCode,
           enabled:true,
-          featureVisible:true
+          featureVisible:{ $ne:false }
         });
 
       if(!integration){
@@ -419,16 +492,55 @@ router.patch(
       for(const key of allowed){
 
         if(
-          Object.prototype
+          !Object.prototype
             .hasOwnProperty
             .call(
               req.body,
               key
             )
         ){
-          trip[key] =
-            req.body[key];
+          continue;
         }
+
+        if(key === "serviceKey"){
+          trip.serviceKey =
+            normalizeServiceKey(
+              req.body.serviceKey ||
+              "STANDARD"
+            );
+
+          continue;
+        }
+
+        if(key === "stops"){
+          const stops =
+            Array.isArray(
+              req.body.stops
+            )
+              ? req.body.stops
+              : [];
+
+          trip.stops =
+            stops.slice(0,5);
+
+          continue;
+        }
+
+        trip[key] =
+          req.body[key];
+      }
+
+      if(!trip.serviceKey){
+        trip.serviceKey =
+          "STANDARD";
+      }
+
+      if(!trip.serviceName){
+        trip.serviceName =
+          trip.serviceKey ===
+          "STANDARD"
+            ? "Standard"
+            : trip.serviceKey;
       }
 
       await trip.save();
