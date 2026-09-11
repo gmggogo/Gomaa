@@ -324,6 +324,36 @@ function mergeServices(saved=[]){
   return [...map.values()];
 }
 
+function filterServicesByAllowed(
+  services,
+  allowedServices
+){
+
+  const allowedSet =
+    new Set(
+      Array.isArray(allowedServices)
+        ? allowedServices
+            .map(
+              normalizeServiceCode
+            )
+            .filter(Boolean)
+        : []
+    );
+
+  return (
+    Array.isArray(services)
+      ? services
+      : []
+  ).filter(
+    service=>
+      allowedSet.has(
+        normalizeServiceCode(
+          service?.serviceKey
+        )
+      )
+  );
+}
+
 router.use(requireStaff);
 
 router.get("/bootstrap",async(req,res)=>{
@@ -406,18 +436,9 @@ router.get("/bootstrap",async(req,res)=>{
         : [];
 
     const visibleCatalog =
-      SERVICE_CATALOG.filter(
-        service=>
-          allowedServices.includes(
-            service.serviceKey
-          )
-      );
-
-    const visibleKeys =
-      new Set(
-        visibleCatalog.map(
-          service=>service.serviceKey
-        )
+      filterServicesByAllowed(
+        SERVICE_CATALOG,
+        allowedServices
       );
 
     const pricingByBroker =
@@ -428,8 +449,11 @@ router.get("/bootstrap",async(req,res)=>{
             {
               ...row,
               services:
-                mergeServices(
-                  row.services
+                filterServicesByAllowed(
+                  mergeServices(
+                    row.services
+                  ),
+                  allowedServices
                 )
             }
           ]
@@ -480,13 +504,10 @@ router.get("/bootstrap",async(req,res)=>{
                   ),
                 active:false,
                 services:
-                  defaultServices()
-                    .filter(
-                      service=>
-                        visibleKeys.has(
-                          service.serviceKey
-                        )
-                    )
+                  filterServicesByAllowed(
+                    defaultServices(),
+                    allowedServices
+                  )
               }
           };
         }
