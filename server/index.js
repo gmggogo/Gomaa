@@ -2040,6 +2040,24 @@ console.log(
   "Broker Review mounted on /api/broker-review"
 );
 
+/* =========================
+   BROKER PRICING
+   Independent broker-only pricing
+   Mounted after broker integrations and Trip registration.
+========================= */
+
+const brokerPricingRoutes =
+  require("./routes/brokerPricingRoutes");
+
+app.use(
+  "/api/broker-pricing",
+  brokerPricingRoutes
+);
+
+console.log(
+  "Broker Pricing mounted on /api/broker-pricing"
+);
+
 /*
   Development-only broker test route.
   It is mounted only when explicitly enabled in the environment.

@@ -381,12 +381,11 @@ const admin=[
 {l:"Add User",h:"users.html",i:"plus"},
 {l:"Refunds",h:"refunds.html",i:"refund"}
 ];
-const extra=[
+const extraBase=[
 {l:"Admin Billing",h:"admin-billing.html",i:"doc"},
 {l:"Payments",h:"payments.html",i:"money"},
 {g:"Payroll",i:"money",items:[["Payroll","payroll.html","money"],["Payroll Summary","payroll-summary.html","chart"]]},
-{l:"Taxes",h:"tax-report.html",i:"chart"},
-{g:"Pricing",i:"tag",items:[["Service Management","service-management.html","doc"],["Facility Pricing Override","facility-pricing-override.html","building"]]}
+{l:"Taxes",h:"tax-report.html",i:"chart"}
 ];
 const settingsBase={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
 
@@ -431,7 +430,9 @@ document.addEventListener("DOMContentLoaded",async()=>{
    "external-summary.html":
      "External Summary",
    "broker-review.html":
-     "Broker Review"
+     "Broker Review",
+   "broker-pricing.html":
+     "Broker Pricing"
  };
 
  const pageHeaderTitle =
@@ -593,7 +594,34 @@ document.addEventListener("DOMContentLoaded",async()=>{
    nav.push(...admin);
  }
 
- if(currentRole==="SUPER_ADMIN")nav.push(...extra);
+ if(currentRole==="SUPER_ADMIN"){
+
+   nav.push(...extraBase);
+
+   const pricingItems = [
+     ["Service Management","service-management.html","doc"],
+     ["Facility Pricing Override","facility-pricing-override.html","building"]
+   ];
+
+   /*
+     Broker Pricing is SUPER_ADMIN only and follows the same
+     Platform Admin Broker capability used by Broker Operations.
+   */
+   if(visibility.brokerEnabled){
+     pricingItems.push([
+       "Broker Pricing",
+       "broker-pricing.html",
+       "money"
+     ]);
+   }
+
+   nav.push({
+     g:"Pricing",
+     i:"tag",
+     items:pricingItems
+   });
+ }
+
  if(currentRole!=="DISPATCHER")nav.push(settings);
  const desktop=document.getElementById("adminDesktopNav");
  const mobile=document.getElementById("mobileSideNav");

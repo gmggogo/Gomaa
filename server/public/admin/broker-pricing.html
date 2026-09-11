@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broker Pricing</title>
+
+  <link rel="stylesheet" href="/admin/style.css">
+  <link rel="stylesheet" href="/admin/header.css">
+
+  <style>
+    *{box-sizing:border-box}
+
+    :root{
+      --navy:#173f59;
+      --gold:#c5a04c;
+      --gold-bg:#fff4cf;
+      --bg:#eef4f7;
+      --panel:#fff;
+      --line:#d7e1e7;
+      --text:#17232d;
+      --muted:#6a7a86;
+      --green:#218a61;
+      --blue:#356da8;
+    }
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:"Segoe UI",Arial,sans-serif;
+    }
+
+    .page{
+      width:100%;
+      padding:14px 16px 30px;
+    }
+
+    .page-head{
+      background:linear-gradient(135deg,#fff8dc,#f1dd9d,#fff4cf);
+      border:1px solid #dfc56d;
+      border-radius:16px;
+      padding:15px 18px;
+      text-align:center;
+      margin-bottom:12px;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:25px;
+      font-weight:900;
+    }
+
+    .page-sub{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns:290px minmax(0,1fr);
+      gap:14px;
+      align-items:start;
+    }
+
+    .sidebar,
+    .main-panel{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+    }
+
+    .sidebar-head{
+      padding:13px;
+      background:var(--navy);
+      color:#fff;
+      font-weight:900;
+      text-align:center;
+    }
+
+    .search-wrap{
+      padding:10px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .search-wrap input{
+      width:100%;
+      border:1px solid #cbd6dd;
+      border-radius:9px;
+      padding:9px 10px;
+      outline:none;
+    }
+
+    .broker-list{
+      max-height:72vh;
+      overflow:auto;
+    }
+
+    .broker-item{
+      padding:12px;
+      border-bottom:1px solid #e5ebef;
+      cursor:pointer;
+      background:#fff;
+    }
+
+    .broker-item:hover{
+      background:#f7fafc;
+    }
+
+    .broker-item.active{
+      background:#e7f0f6;
+      box-shadow:inset 4px 0 0 var(--navy);
+    }
+
+    .broker-row{
+      display:flex;
+      gap:8px;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .broker-name{
+      font-weight:900;
+      font-size:13px;
+    }
+
+    .broker-code{
+      margin-top:3px;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:800;
+    }
+
+    .badge{
+      display:inline-flex;
+      border-radius:999px;
+      padding:4px 7px;
+      font-size:8px;
+      font-weight:900;
+    }
+
+    .badge.active{
+      background:#dff3e9;
+      color:#17643e;
+    }
+
+    .badge.disabled{
+      background:#edf0f2;
+      color:#66727b;
+    }
+
+    .main-content{
+      padding:14px;
+    }
+
+    .selected-box{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:12px 14px;
+      background:#f8fafb;
+      border:1px solid var(--line);
+      border-radius:12px;
+      margin-bottom:12px;
+    }
+
+    .selected-name{
+      font-size:18px;
+      font-weight:900;
+    }
+
+    .toggle-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:15px;
+      padding:12px 14px;
+      border:1px solid #dcc675;
+      border-radius:12px;
+      background:var(--gold-bg);
+      margin-bottom:12px;
+    }
+
+    .toggle-title{
+      font-weight:900;
+    }
+
+    .toggle-sub{
+      margin-top:3px;
+      font-size:11px;
+      color:#695b2a;
+      font-weight:700;
+    }
+
+    .switch{
+      position:relative;
+      display:inline-block;
+      width:54px;
+      height:28px;
+      flex:0 0 auto;
+    }
+
+    .switch input{
+      opacity:0;
+      width:0;
+      height:0;
+    }
+
+    .slider{
+      position:absolute;
+      inset:0;
+      cursor:pointer;
+      background:#aab4bb;
+      transition:.2s;
+      border-radius:999px;
+    }
+
+    .slider:before{
+      content:"";
+      position:absolute;
+      width:22px;
+      height:22px;
+      left:3px;
+      bottom:3px;
+      background:#fff;
+      transition:.2s;
+      border-radius:50%;
+    }
+
+    .switch input:checked + .slider{
+      background:var(--green);
+    }
+
+    .switch input:checked + .slider:before{
+      transform:translateX(26px);
+    }
+
+    .notice{
+      padding:9px 11px;
+      margin-bottom:12px;
+      border-radius:9px;
+      background:#edf4f8;
+      color:#34566d;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .services-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+
+    .service-card{
+      border:1px solid var(--line);
+      border-radius:13px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .service-card.disabled{
+      opacity:.74;
+    }
+
+    .service-card.editing{
+      border-color:#b89131;
+      box-shadow:0 0 0 2px rgba(184,145,49,.12);
+    }
+
+    .service-head{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      padding:11px 12px;
+      background:#f4f7f9;
+      border-bottom:1px solid var(--line);
+    }
+
+    .service-title{
+      font-weight:900;
+      font-size:14px;
+    }
+
+    .service-sub{
+      margin-top:2px;
+      color:var(--muted);
+      font-size:9px;
+      font-weight:800;
+    }
+
+    .service-code{
+      background:var(--navy);
+      color:#fff;
+      border-radius:8px;
+      padding:5px 8px;
+      font-weight:900;
+      font-size:10px;
+    }
+
+    .service-enable-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:9px 12px;
+      border-bottom:1px solid var(--line);
+      background:#fffdf6;
+      font-size:11px;
+      font-weight:900;
+    }
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:9px;
+      padding:12px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:4px;
+      color:#5f6f7a;
+      font-size:9px;
+      font-weight:900;
+    }
+
+    .field input,
+    .field select{
+      width:100%;
+      border:1px solid #ccd7de;
+      border-radius:8px;
+      padding:8px 9px;
+      background:#fff;
+      font:inherit;
+      font-size:11px;
+    }
+
+    .field input:disabled,
+    .field select:disabled{
+      background:#f0f3f5;
+      color:#7a858d;
+    }
+
+    .policy-title{
+      grid-column:1/-1;
+      padding:7px 9px;
+      border-radius:7px;
+      background:#eef3f6;
+      color:#365268;
+      font-size:10px;
+      font-weight:900;
+    }
+
+    .shared-lock{
+      grid-column:1/-1;
+      border:1px solid #d8c8f3;
+      background:#f3edff;
+      color:#6035a2;
+      border-radius:8px;
+      padding:8px;
+      font-size:10px;
+      font-weight:900;
+      text-align:center;
+    }
+
+    .card-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      padding:10px 12px;
+      border-top:1px solid var(--line);
+    }
+
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:8px 13px;
+      cursor:pointer;
+      font-size:10px;
+      font-weight:900;
+    }
+
+    .btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .btn-edit{
+      background:var(--blue);
+      color:#fff;
+    }
+
+    .btn-save{
+      background:var(--green);
+      color:#fff;
+    }
+
+    .btn-locked{
+      background:#e3e8eb;
+      color:#68747c;
+    }
+
+    .empty{
+      padding:26px;
+      color:#71808b;
+      text-align:center;
+      font-weight:900;
+    }
+
+    @media(max-width:1000px){
+      .layout{
+        grid-template-columns:1fr;
+      }
+
+      .broker-list{
+        max-height:260px;
+      }
+    }
+
+    @media(max-width:760px){
+      .page{
+        padding:8px 6px 20px;
+      }
+
+      .services-grid{
+        grid-template-columns:1fr;
+      }
+
+      .form-grid{
+        grid-template-columns:1fr;
+      }
+
+      .policy-title,
+      .shared-lock{
+        grid-column:auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="page">
+
+    <section class="page-head">
+      <h1 class="page-title">Broker Pricing</h1>
+      <div class="page-sub">
+        Independent pricing profiles for broker services.
+      </div>
+    </section>
+
+    <div class="layout">
+
+      <aside class="sidebar">
+
+        <div class="sidebar-head">
+          Brokers
+        </div>
+
+        <div class="search-wrap">
+          <input
+            id="brokerSearch"
+            type="search"
+            placeholder="Search broker..."
+          >
+        </div>
+
+        <div
+          id="brokerList"
+          class="broker-list"
+        ></div>
+
+      </aside>
+
+      <section class="main-panel">
+        <div
+          id="mainContent"
+          class="main-content"
+        >
+          <div class="empty">
+            Select a broker from the left.
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/broker-pricing.js"></script>
+
+</body>
+</html>
