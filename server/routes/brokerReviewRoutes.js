@@ -1895,11 +1895,55 @@ router.post(
         }
       );
 
+      /*
+        FINAL DISPATCH RELEASE SAFETY
+
+        Broker Review confirmation must always leave the selected Trip rows
+        visible to /api/dispatch. The Dispatch API reads only:
+          dispatchSelected:true
+          disabled:false
+
+        Re-assert those two operational flags after the transaction commits.
+        This is intentionally independent from Broker Pricing.
+      */
+      const releaseResult =
+        await Trip.updateMany(
+          {
+            _id:{ $in:ids },
+            tenantId
+          },
+          {
+            $set:{
+              dispatchSelected:true,
+              disabled:false
+            }
+          }
+        );
+
+      const releasedTrips =
+        await Trip.find({
+          _id:{ $in:ids },
+          tenantId,
+          dispatchSelected:true,
+          disabled:false
+        })
+          .select(
+            "_id tripNumber tripDate tripTime dispatchSelected disabled brokerCode brokerName"
+          )
+          .lean();
+
       return res.json({
         success:true,
         confirmedCount,
+        dispatchReleasedCount:
+          releasedTrips.length,
+        dispatchMatchedCount:
+          releaseResult.matchedCount ?? 0,
+        dispatchModifiedCount:
+          releaseResult.modifiedCount ?? 0,
+        releasedTrips,
         message:
-          `${confirmedCount} trip(s) released to Dispatch.`
+          `${releasedTrips.length} trip(s) released to Dispatch.`
       });
 
     }catch(err){
