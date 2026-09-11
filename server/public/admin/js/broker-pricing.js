@@ -396,7 +396,7 @@ server/public/admin/js/broker-pricing.js
       service.shared === true;
 
     return `
-      <article class="service-card ${
+      <article class="service-card service-${key.toLowerCase()} ${
         !state.draftActive
           ? "disabled"
           : editing
