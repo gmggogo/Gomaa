@@ -498,7 +498,17 @@ BROKER SUMMARY
             <td class="col-total">
               ${
                 shared
-                  ? cellBox(passengerTotals(item))
+                  ? `
+                    <div class="cell-box">
+                      ${passengerTotals(item).map(value=>`
+                        <div class="cell-item">${safe(value)}</div>
+                      `).join("")}
+                      <div class="cell-item full-price-item">
+                        <span class="full-price-label">Full Price</span>
+                        <span class="full-price-value">${safe(money(item.total))}</span>
+                      </div>
+                    </div>
+                  `
                   : `<div class="cell-box trip-total-box">
                        <div class="cell-item">${safe(money(item.total))}</div>
                      </div>`
