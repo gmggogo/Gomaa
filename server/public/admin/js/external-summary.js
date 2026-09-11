@@ -380,6 +380,7 @@ BROKER SUMMARY
           <th class="col-passenger-status">Passenger Status</th>
           <th class="col-fees">Fees</th>
           <th class="col-total">Total</th>
+          <th class="col-trip-price">Trip Price</th>
           <th class="col-count">Count</th>
           <th class="col-eye">👁️</th>
         </tr>
@@ -403,7 +404,7 @@ BROKER SUMMARY
           "date-row";
 
         dateRow.innerHTML =
-          `<td colspan="19">Trip Date: ${safe(day)}</td>`;
+          `<td colspan="20">Trip Date: ${safe(day)}</td>`;
 
         tbody.appendChild(dateRow);
 
@@ -498,21 +499,17 @@ BROKER SUMMARY
             <td class="col-total">
               ${
                 shared
-                  ? `
-                    <div class="cell-box">
-                      ${passengerTotals(item).map(value=>`
-                        <div class="cell-item">${safe(value)}</div>
-                      `).join("")}
-                      <div class="cell-item full-price-item">
-                        <span class="full-price-label">Full Price</span>
-                        <span class="full-price-value">${safe(money(item.total))}</span>
-                      </div>
-                    </div>
-                  `
+                  ? cellBox(passengerTotals(item))
                   : `<div class="cell-box trip-total-box">
                        <div class="cell-item">${safe(money(item.total))}</div>
                      </div>`
               }
+            </td>
+
+            <td class="col-trip-price">
+              <div class="cell-box trip-total-box">
+                <div class="cell-item">${safe(money(item.total))}</div>
+              </div>
             </td>
 
             <td class="col-count">
@@ -651,6 +648,10 @@ BROKER SUMMARY
             item.isShared === true
               ? money(p.total || 0)
               : (index === 0 ? money(item.total) : ""),
+          tripPrice:
+            index === 0
+              ? money(item.total)
+              : "",
           count:index === 0 ? item.passengerCount : ""
         });
       });
@@ -677,13 +678,13 @@ BROKER SUMMARY
     const headers = [
       "Trip #","Broker","Broker Trip #","Service","Passenger","Phone",
       "Pickup","Stops","Dropoff","Trip Date","Time","Trip Status",
-      "Miles","Passenger Status","Fees","Total","Count"
+      "Miles","Passenger Status","Fees","Total","Trip Price","Count"
     ];
 
     const keys = [
       "tripNumber","broker","brokerTrip","service","passenger","phone",
       "pickup","stops","dropoff","date","time","tripStatus",
-      "miles","passengerStatus","fee","total","count"
+      "miles","passengerStatus","fee","total","tripPrice","count"
     ];
 
     const csv = [
@@ -708,13 +709,13 @@ BROKER SUMMARY
     const keys = [
       "tripNumber","broker","brokerTrip","service","passenger","phone",
       "pickup","stops","dropoff","date","time","tripStatus",
-      "miles","passengerStatus","fee","total","count"
+      "miles","passengerStatus","fee","total","tripPrice","count"
     ];
 
     const headers = [
       "Trip #","Broker","Broker Trip #","Service","Passenger","Phone",
       "Pickup","Stops","Dropoff","Trip Date","Time","Trip Status",
-      "Miles","Passenger Status","Fees","Total","Count"
+      "Miles","Passenger Status","Fees","Total","Trip Price","Count"
     ];
 
     const html = `
