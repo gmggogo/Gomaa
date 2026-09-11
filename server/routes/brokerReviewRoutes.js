@@ -10,7 +10,8 @@ Broker Review / Broker Schedule API.
 FLOW:
 - Shows Trip Split confirmed broker trips for Today and Tomorrow.
 - Select All / Unselect All is handled by the frontend.
-- Confirm Selected releases selected trips to Dispatch.
+- Confirm Selected freezes Broker Pricing when available, then releases selected trips to Dispatch.
+- Broker Pricing errors never block Dispatch.
 - Trips stay visible here after release and continue showing live Trip status.
 - Edit is allowed until the trip begins execution.
 - Delete requires an explicit warning and is blocked after execution begins.
@@ -1803,18 +1804,47 @@ router.post(
                 : "";
 
             /*
-              FINAL BROKER PRICE LOCK:
-              Confirm in Broker Review is the pricing event.
-              External Summary later reads this saved price and the final
-              driver status. It never recalculates historical trip pricing.
+              BROKER PRICE LOCK + DISPATCH RELEASE
+
+              Pricing belongs to the broker financial flow only.
+              It must NEVER block the operational Dispatch flow.
+
+              If Broker Pricing is configured correctly:
+              - full trip price is frozen on the Trip
+              - cancelFee / noShowFee are frozen on the Trip
+              - Shared passenger pricing is frozen too
+
+              If pricing has a configuration problem:
+              - log the pricing error
+              - STILL release the trip to Dispatch
+              - do not replace broker pricing with Facility or Service
+                Management pricing
             */
-            await priceBrokerTripAtReviewConfirm({
-              tenantId,
-              trip,
-              sourceExternalTrips,
-              finalService,
-              shared
-            });
+            try{
+
+              await priceBrokerTripAtReviewConfirm({
+                tenantId,
+                trip,
+                sourceExternalTrips,
+                finalService,
+                shared
+              });
+
+            }catch(pricingErr){
+
+              console.log(
+                "BROKER PRICING CONFIRM ERROR:",
+                trip.tripNumber,
+                pricingErr?.message ||
+                pricingErr
+              );
+
+              /*
+                IMPORTANT:
+                Dispatch is operational and independent from Broker Pricing.
+                Never throw pricingErr here.
+              */
+            }
 
             trip.dispatchSelected =
               true;
