@@ -1,224 +1,1014 @@
-<!--
-DESTINATION PATH:
-server/public/admin/external-summary.html
--->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>External Summary</title>
+<meta charset="UTF-8">
+<title>External Summary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="/admin/style.css" />
-  <link rel="stylesheet" href="/admin/header.css" />
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
 
-  <style>
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      background:#f5f7f9;
-      color:#1b2732;
-      font-family:Arial,Helvetica,sans-serif;
-    }
-    .page-banner{
-      width:100%;
-      background:linear-gradient(180deg,#efe6b8 0%,#e4d99a 100%);
-      border-top:1px solid rgba(0,0,0,.05);
-      border-bottom:1px solid rgba(0,0,0,.08);
-      text-align:center;
-      padding:14px 18px 15px;
-      margin:0 0 16px;
-      box-shadow:0 2px 8px rgba(0,0,0,.04);
-    }
+<style>
 
-    .page-banner h1{
-      margin:0;
-      color:#7f6200;
-      font-size:20px;
-      font-weight:900;
-      line-height:1.2;
-    }
+*{
+  box-sizing:border-box;
+}
 
-    .page-banner p{
-      margin:5px 0 0;
-      color:#756b42;
-      font-size:12px;
-      font-weight:700;
-    }
+html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
 
-    .page{
-      max-width:1500px;
-      margin:0 auto;
-      padding:0 20px 20px;
-    }
-    .filters{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin:18px 0;
-    }
-    input,select{
-      border:1px solid #cad3db;
-      border-radius:8px;
-      padding:9px 10px;
-      background:#fff;
-      font:inherit;
-    }
-    .btn{
-      border:0;
-      border-radius:8px;
-      padding:10px 14px;
-      background:#0c4154;
-      color:#fff;
-      font-weight:700;
-      cursor:pointer;
-    }
-    .cards{
-      display:grid;
-      grid-template-columns:repeat(5,minmax(150px,1fr));
-      gap:12px;
-      margin-bottom:18px;
-    }
-    .card{
-      background:#fff;
-      border:1px solid #dce3e8;
-      border-radius:10px;
-      padding:16px;
-    }
-    .label{
-      font-size:12px;
-      color:#65717d;
-      font-weight:700;
-      margin-bottom:8px;
-    }
-    .value{
-      font-size:27px;
-      font-weight:900;
-    }
-    .panel{
-      background:#fff;
-      border:1px solid #dce3e8;
-      border-radius:10px;
-      overflow:hidden;
-    }
-    .table-wrap{
-      overflow:auto;
-    }
-    table{
-      width:100%;
-      border-collapse:collapse;
-      min-width:1000px;
-    }
-    th,td{
-      padding:11px 10px;
-      border-bottom:1px solid #e5e9ed;
-      text-align:left;
-      font-size:13px;
-    }
-    th{
-      background:#f3f6f8;
-    }
-    @media(max-width:900px){
-      .cards{grid-template-columns:repeat(2,minmax(140px,1fr))}
-    }
-    @media(max-width:500px){
-      .page{padding:12px}
-      .cards{grid-template-columns:1fr}
-    }
-  </style>
+body{
+  margin:0;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f1f5f9;
+  color:#0f172a;
+}
+
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+.page-body{
+  padding:18px 22px 30px;
+}
+
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-subtitle{
+  margin-top:5px;
+  margin-bottom:0;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
+/* =========================
+   FILTERS
+========================= */
+
+.toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  background:#fff;
+  padding:12px;
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(15,23,42,.08);
+  margin-bottom:14px;
+}
+
+.toolbar input,
+.toolbar select{
+  height:40px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:0 10px;
+  font-size:12px;
+  font-weight:800;
+  background:#fff;
+  color:#0f172a;
+  outline:none;
+}
+
+.toolbar input{
+  min-width:240px;
+  flex:1;
+}
+
+.toolbar select{
+  min-width:120px;
+}
+
+.toolbar input:focus,
+.toolbar select:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+.print-btn{
+  height:40px;
+  border:none;
+  border-radius:10px;
+  padding:0 16px;
+  background:#0f172a;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 6px 16px rgba(15,23,42,.18);
+}
+
+.print-btn:hover{
+  background:#1d4ed8;
+}
+
+.export-btn{
+  background:#166534;
+}
+
+.export-btn:hover{
+  background:#15803d;
+}
+
+/* =========================
+   TOTAL STATS - CLEAN
+========================= */
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.stats-grid.no-shared{
+  grid-template-columns:repeat(5,1fr);
+}
+
+.stat-card{
+  background:#fff;
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 6px 16px rgba(15,23,42,.08);
+  border-left:5px solid #334155;
+  min-height:68px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  overflow:hidden;
+}
+
+.stat-card.big-card{
+  grid-column:span 1;
+}
+
+.stat-card.total{border-left-color:#0f172a;}
+.stat-card.completed{border-left-color:#16a34a;}
+.stat-card.cancelled{border-left-color:#dc2626;}
+.stat-card.noshow{border-left-color:#f59e0b;}
+.stat-card.notcompleted{border-left-color:#64748b;}
+.stat-card.money{border-left-color:#059669;}
+.stat-card.miles{border-left-color:#2563eb;}
+.stat-card.facility{border-left-color:#1d4ed8;}
+.stat-card.gq{border-left-color:#22c55e;}
+.stat-card.reserved{border-left-color:#f59e0b;}
+.stat-card.shared{border-left-color:#7c3aed;}
+
+.stat-number{
+  font-size:19px;
+  font-weight:900;
+  color:#0f172a;
+  line-height:1.05;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.stat-label{
+  margin-top:6px;
+  font-size:9px;
+  color:#475569;
+  font-weight:900;
+  text-transform:uppercase;
+  line-height:1.15;
+  white-space:normal;
+}
+
+/* =========================
+   SERVICE CARDS
+========================= */
+
+.service-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:9px;
+  margin-bottom:14px;
+}
+
+.service-card{
+  background:#fff;
+  border:2px solid transparent;
+  border-radius:12px;
+  padding:10px;
+  cursor:pointer;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  transition:.15s;
+}
+
+.service-card:hover{
+  transform:translateY(-1px);
+  border-color:#93c5fd;
+}
+
+.service-card.active-card{
+  border-color:#2563eb;
+  background:#eff6ff;
+}
+
+.service-card-title{
+  font-size:13px;
+  font-weight:900;
+  margin-bottom:7px;
+  color:#0f172a;
+}
+
+.service-line{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:10.5px;
+  font-weight:800;
+  color:#334155;
+  padding:3px 0;
+  border-bottom:1px dashed #e2e8f0;
+}
+
+.service-line:last-child{
+  border-bottom:none;
+}
+
+.service-line span:last-child{
+  font-weight:900;
+  color:#0f172a;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-wrap{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  margin-bottom:20px;
+}
+
+.summary-table{
+  width:100%;
+  min-width:1880px;
+  table-layout:fixed;
+  border-collapse:collapse;
+  background:#fff;
+  border-top:6px solid #000;
+}
+
+.summary-table th,
+.summary-table td{
+  border:1px solid #dbe3ee;
+  padding:5px;
+  text-align:center;
+  font-size:10.5px;
+  vertical-align:middle;
+  line-height:1.25;
+  box-sizing:border-box;
+}
+
+.summary-table th{
+  background:#1f2937;
+  color:#fff;
+  font-weight:900;
+  white-space:nowrap;
+  font-size:10.5px;
+}
+
+.col-num{width:32px;}
+.col-trip{width:72px;}
+.col-source{width:72px;}
+.col-service{width:78px;}
+.col-date{width:72px;}
+.col-time{width:58px;}
+.col-status{width:112px;}
+.col-miles{width:62px;}
+.col-money{width:78px;}
+.col-passengers{width:58px;}
+.col-eye{width:34px;}
+
+.wide-company{
+  width:112px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.wide-passenger{
+  width:105px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+}
+
+.wide-address{
+  width:230px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10px;
+}
+
+.wide-stops{
+  width:300px;
+  text-align:left!important;
+  white-space:normal;
+  word-break:break-word;
+  font-size:10px;
+}
+
+.wide-stops .cell-item{
+  white-space:nowrap;
+  word-break:normal;
+}
+
+.wide-passenger-status{
+  width:125px;
+  text-align:left!important;
+}
+
+.wide-fees{
+  width:95px;
+  text-align:left!important;
+}
+
+.date-row td{
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  font-weight:900!important;
+  text-align:center!important;
+  padding:6px!important;
+  font-size:13px!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+}
+
+.trip-divider td{
+  border-bottom:3px solid #000!important;
+}
+
+.row-facility td{
+  background:#eaf4ff!important;
+}
+
+.row-getquote td{
+  background:#dcfce7!important;
+}
+
+.row-reserved td{
+  background:#fef3c7!important;
+}
+
+.shared-row td{
+  background:#ede9fe!important;
+}
+
+.completed-row td{
+  box-shadow:inset 0 0 0 9999px rgba(22,163,74,.08);
+}
+
+.cancelled-row td{
+  box-shadow:inset 0 0 0 9999px rgba(220,38,38,.07);
+}
+
+.noshow-row td{
+  box-shadow:inset 0 0 0 9999px rgba(245,158,11,.08);
+}
+
+.notcompleted-row td{
+  box-shadow:inset 0 0 0 9999px rgba(100,116,139,.08);
+}
+
+/* =========================
+   CELL INSIDE CELL
+========================= */
+
+.cell-box{
+  display:grid;
+  border:1px solid #111;
+  background:#fff;
+  width:100%;
+  box-sizing:border-box;
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.cell-item{
+  padding:4px 5px;
+  min-height:21px;
+  font-weight:800;
+  white-space:normal;
+  word-break:break-word;
+  box-sizing:border-box;
+  background:#fff;
+  font-size:10px;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111;
+}
+
+/* =========================
+   PILLS
+========================= */
+
+.trip-number-badge{
+  font-weight:900;
+  color:#1d4ed8;
+  white-space:normal;
+  word-break:break-word;
+  font-size:9.5px;
+}
+
+.source-pill,
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 6px;
+  border-radius:999px;
+  font-size:9.5px;
+  font-weight:900;
+  border:1px solid #cbd5e1;
+  white-space:nowrap;
+}
+
+.source-pill.facility{
+  background:#dbeafe;
+  color:#1e3a8a;
+  border-color:#93c5fd;
+}
+
+.source-pill.gq{
+  background:#dcfce7;
+  color:#14532d;
+  border-color:#86efac;
+}
+
+.source-pill.reserved{
+  background:#fef3c7;
+  color:#92400e;
+  border-color:#fcd34d;
+}
+
+.status-pill.completed{
+  background:#bbf7d0;
+  color:#14532d;
+  border-color:#86efac;
+}
+
+.status-pill.cancelled{
+  background:#fecaca;
+  color:#7f1d1d;
+  border-color:#fca5a5;
+}
+
+.status-pill.noshow{
+  background:#fde68a;
+  color:#78350f;
+  border-color:#fcd34d;
+}
+
+.status-pill.notcompleted{
+  background:#e5e7eb;
+  color:#374151;
+  border-color:#cbd5e1;
+}
+
+.status-pill.mixed{
+  background:#ddd6fe;
+  color:#4c1d95;
+  border-color:#c4b5fd;
+}
+
+/* =========================
+   VIEW MODAL
+========================= */
+
+.eye-btn{
+  border:none;
+  background:transparent;
+  color:#2563eb;
+  width:28px;
+  height:24px;
+  cursor:pointer;
+  font-size:17px;
+  font-weight:900;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+
+.eye-btn:hover{
+  color:#1d4ed8;
+  background:#dbeafe;
+  border-radius:6px;
+}
+
+.view-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+
+.view-box{
+  background:#fff;
+  width:min(760px,96vw);
+  max-height:90vh;
+  overflow:auto;
+  border-radius:15px;
+  box-shadow:0 20px 60px rgba(0,0,0,.28);
+}
+
+.view-head{
+  position:sticky;
+  top:0;
+  background:#2563eb;
+  color:#fff;
+  padding:12px 15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:900;
+  z-index:2;
+}
+
+.view-close{
+  border:none;
+  background:#fff;
+  color:#0f172a;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.view-body{
+  padding:14px;
+  display:grid;
+  gap:8px;
+}
+
+.view-line{
+  display:grid;
+  grid-template-columns:170px 1fr;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  overflow:hidden;
+}
+
+.view-label{
+  background:#f1f5f9;
+  padding:9px;
+  font-weight:900;
+  color:#334155;
+}
+
+.view-value{
+  padding:9px;
+  font-weight:800;
+  color:#0f172a;
+  word-break:break-word;
+  white-space:pre-line;
+}
+
+.empty-state{
+  background:#fff;
+  border-radius:14px;
+  padding:30px;
+  text-align:center;
+  font-weight:900;
+  color:#64748b;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1200px){
+  .stats-grid,
+  .stats-grid.no-shared{
+    grid-template-columns:repeat(4,1fr);
+  }
+
+  .stat-number{
+    font-size:18px;
+  }
+
+  .stat-label{
+    font-size:8.5px;
+  }
+
+  .stat-card.big-card{
+    grid-column:span 1;
+  }
+}
+
+@media(max-width:768px){
+  .page-body{
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-subtitle{
+    font-size:11px;
+  }
+
+  .toolbar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    padding:8px;
+    border-radius:10px;
+  }
+
+  .toolbar input{
+    grid-column:1 / -1;
+  }
+
+  .toolbar input,
+  .toolbar select,
+  .print-btn{
+    width:100%;
+    min-width:0;
+    height:34px;
+    font-size:10.5px;
+    border-radius:8px;
+    padding:0 7px;
+  }
+
+  .stats-grid,
+  .stats-grid.no-shared{
+    grid-template-columns:repeat(2,1fr);
+    gap:7px;
+  }
+
+  .stat-card{
+    min-height:60px;
+    padding:8px 9px;
+    border-radius:10px;
+    border-left-width:4px;
+  }
+
+  .stat-number{
+    font-size:16px;
+  }
+
+  .stat-label{
+    font-size:8px;
+    margin-top:4px;
+  }
+
+  .service-cards{
+    grid-template-columns:repeat(2,1fr);
+    gap:6px;
+  }
+
+  .service-card{
+    padding:7px;
+    border-radius:9px;
+  }
+
+  .service-card-title{
+    font-size:11px;
+    margin-bottom:4px;
+  }
+
+  .service-line{
+    font-size:8.5px;
+    padding:2px 0;
+  }
+
+  .summary-table{
+    min-width:1880px;
+  }
+
+  .summary-table th,
+  .summary-table td{
+    font-size:9px;
+    padding:4px;
+  }
+
+  .cell-item{
+    font-size:8.8px;
+    padding:3px 4px;
+  }
+
+  .source-pill,
+  .status-pill{
+    font-size:8.5px;
+    padding:3px 5px;
+  }
+
+  .view-line{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:420px){
+  .stats-grid,
+  .stats-grid.no-shared{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .service-cards{
+    grid-template-columns:1fr;
+  }
+}
+
+/* =========================
+   PRINT
+========================= */
+
+@media print{
+
+  @page{
+    size:landscape;
+    margin:6mm;
+  }
+
+  html,
+  body{
+    background:#fff!important;
+    color:#000!important;
+    overflow:visible!important;
+  }
+
+  #adminHeader,
+  .toolbar,
+  .service-cards,
+  .page-subtitle,
+  .eye-btn,
+  .col-eye,
+  th.col-eye,
+  td.col-eye{
+    display:none!important;
+  }
+
+  .page-body{
+    padding:10px!important;
+  }
+
+  .page-title{
+    font-size:20px!important;
+    margin-bottom:8px!important;
+  }
+
+  .stats-grid,
+  .stats-grid.no-shared{
+    display:grid!important;
+    grid-template-columns:repeat(5,1fr)!important;
+    gap:5px!important;
+    margin-bottom:8px!important;
+  }
+
+  .stat-card{
+    box-shadow:none!important;
+    border:1px solid #000!important;
+    border-left:4px solid #000!important;
+    border-radius:4px!important;
+    min-height:auto!important;
+    padding:5px!important;
+  }
+
+  .stat-number{
+    font-size:12px!important;
+    color:#000!important;
+  }
+
+  .stat-label{
+    font-size:6px!important;
+    color:#000!important;
+  }
+
+  .table-wrap{
+    box-shadow:none!important;
+    border-radius:0!important;
+    overflow:visible!important;
+  }
+
+  .summary-table{
+    min-width:0!important;
+    width:100%!important;
+    table-layout:fixed!important;
+    border-top:2px solid #000!important;
+  }
+
+  .summary-table th,
+  .summary-table td{
+    font-size:5.8px!important;
+    padding:1.5px!important;
+    color:#000!important;
+    border:1px solid #000!important;
+  }
+
+  .summary-table th{
+    background:#ddd!important;
+    color:#000!important;
+  }
+
+  .cell-box{
+    border:1px solid #000!important;
+    border-radius:0!important;
+  }
+
+  .cell-item{
+    font-size:5.8px!important;
+    padding:1.5px!important;
+    color:#000!important;
+  }
+
+  .date-row td{
+    background:#ddd!important;
+    color:#000!important;
+    border:1px solid #000!important;
+  }
+
+  .source-pill,
+  .status-pill{
+    border:1px solid #000!important;
+    background:#fff!important;
+    color:#000!important;
+    font-size:5.5px!important;
+    padding:1px!important;
+  }
+
+  /* Hide long columns in print only:
+     Pickup / Stops / Dropoff / Eye
+  */
+  .summary-table th:nth-child(7),
+  .summary-table td:nth-child(7),
+  .summary-table th:nth-child(8),
+  .summary-table td:nth-child(8),
+  .summary-table th:nth-child(9),
+  .summary-table td:nth-child(9),
+  .summary-table th:nth-child(18),
+  .summary-table td:nth-child(18){
+    display:none!important;
+  }
+}
+
+.col-broker{width:100px;}
+.col-broker-trip{width:100px;}
+
+@media print{
+  .summary-table th:nth-child(17),
+  .summary-table td:nth-child(17){
+    display:none!important;
+  }
+}
+
+</style>
 </head>
+
 <body>
 
-  <div id="adminHeader"></div>
+<div id="adminHeader"></div>
 
-  <div class="page-banner">
-    <h1>External Summary</h1>
-    <p>Broker activity is reported separately from the main GH Summary.</p>
+<div class="page-body">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">External Summary</h1>
+      <div class="page-subtitle">
+        Closed broker trips financial summary using confirmed broker pricing and final driver status.
+      </div>
+    </div>
   </div>
 
-  <main class="page">
+  <div class="toolbar">
 
-    <div class="filters">
-      <input id="fromDate" type="date" />
-      <input id="toDate" type="date" />
-      <input id="brokerCode" maxlength="2" placeholder="Broker Code" />
-      <button class="btn" id="applyBtn">Apply</button>
-    </div>
+    <input
+      id="searchInput"
+      type="text"
+      placeholder="Search trip, broker, broker trip, passenger, pickup, dropoff...">
 
-    <section class="cards">
-      <div class="card">
-        <div class="label">Total External Trips</div>
-        <div class="value" id="totalTrips">0</div>
-      </div>
+    <select id="brokerFilter">
+      <option value="ALL">All Brokers</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Waiting / Ready</div>
-        <div class="value" id="receivedTrips">0</div>
-      </div>
+    <select id="serviceFilter">
+      <option value="ALL">All Services</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Transferred</div>
-        <div class="value" id="transferredTrips">0</div>
-      </div>
+    <select id="statusFilter">
+      <option value="">All Status</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+      <option value="No Show">No Show</option>
+      <option value="Not Completed">Not Completed</option>
+      <option value="Mixed Closed">Mixed Closed</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Cancelled</div>
-        <div class="value" id="cancelledTrips">0</div>
-      </div>
+    <select id="yearFilter">
+      <option value="">All Years</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Shared Trips</div>
-        <div class="value" id="sharedTrips">0</div>
-      </div>
+    <select id="monthFilter">
+      <option value="">All Months</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Automatic Intake</div>
-        <div class="value" id="automaticTrips">0</div>
-      </div>
+    <select id="dayFilter">
+      <option value="">All Days</option>
+    </select>
 
-      <div class="card">
-        <div class="label">Manual Intake</div>
-        <div class="value" id="manualTrips">0</div>
-      </div>
+    <button
+      id="printBtn"
+      class="print-btn"
+      type="button"
+    >
+      Print
+    </button>
 
-      <div class="card">
-        <div class="label">Rejected</div>
-        <div class="value" id="rejectedTrips">0</div>
-      </div>
+    <button
+      id="csvBtn"
+      class="print-btn export-btn"
+      type="button"
+    >
+      CSV
+    </button>
 
-      <div class="card">
-        <div class="label">Errors</div>
-        <div class="value" id="errorTrips">0</div>
-      </div>
-    </section>
+    <button
+      id="excelBtn"
+      class="print-btn export-btn"
+      type="button"
+    >
+      Excel
+    </button>
 
-    <section class="panel">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Broker</th>
-              <th>Code</th>
-              <th>Total</th>
-              <th>Waiting / Ready</th>
-              <th>Transferred</th>
-              <th>Cancelled</th>
-              <th>Shared</th>
-              <th>Automatic</th>
-              <th>Manual</th>
-              <th>Rejected</th>
-              <th>Errors</th>
-            </tr>
-          </thead>
+  </div>
 
-          <tbody id="summaryRows"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+  <div
+    id="summaryStats"
+    class="stats-grid"
+  ></div>
 
-  <script src="/admin/header.js"></script>
-  <script src="/admin/js/external-summary.js"></script>
+  <div
+    id="serviceCards"
+    class="service-cards"
+  ></div>
+
+  <div id="summaryContent"></div>
+
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/js/external-summary.js"></script>
+
 </body>
 </html>

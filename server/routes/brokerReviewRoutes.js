@@ -37,6 +37,11 @@ const SharedTripGroup =
 const DispatchAssignment =
   require("../models/DispatchAssignment");
 
+const {
+  calculateBrokerPrice,
+  resolveBrokerPricing
+} = require("../services/brokerPricingEngine");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -1331,6 +1336,231 @@ router.post(
 
 
 /* =========================
+   BROKER PRICING SNAPSHOT
+   Price is locked when Broker Review confirms the trip.
+========================= */
+
+function brokerPricingMiles(trip){
+  const direct =
+    Number(
+      trip?.miles ??
+      trip?.distanceMiles ??
+      trip?.totalMiles ??
+      0
+    );
+
+  if(Number.isFinite(direct) && direct > 0){
+    return direct;
+  }
+
+  const meters =
+    Number(
+      trip?.distanceMeters ??
+      trip?.googleRoute?.distanceMeters ??
+      trip?.optimizedRoute?.distanceMeters ??
+      0
+    );
+
+  if(Number.isFinite(meters) && meters > 0){
+    return meters / 1609.344;
+  }
+
+  return 0;
+}
+
+function brokerPricingMinutes(trip){
+  const direct =
+    Number(
+      trip?.estimatedMinutes ??
+      trip?.minutes ??
+      trip?.totalMinutes ??
+      0
+    );
+
+  if(Number.isFinite(direct) && direct > 0){
+    return direct;
+  }
+
+  const seconds =
+    Number(
+      trip?.durationSeconds ??
+      trip?.googleRoute?.durationSeconds ??
+      trip?.optimizedRoute?.durationSeconds ??
+      0
+    );
+
+  if(Number.isFinite(seconds) && seconds > 0){
+    return seconds / 60;
+  }
+
+  return 0;
+}
+
+function brokerStopsCount(trip){
+  return Array.isArray(trip?.stops)
+    ? trip.stops.filter(Boolean).length
+    : 0;
+}
+
+function brokerPassengerCount(trip,externalTrips,shared){
+  if(shared){
+    const fromPassengers =
+      Array.isArray(trip?.passengers)
+        ? trip.passengers.length
+        : 0;
+
+    if(fromPassengers > 0){
+      return fromPassengers;
+    }
+
+    if(Array.isArray(externalTrips) && externalTrips.length){
+      return externalTrips.length;
+    }
+  }
+
+  return 1;
+}
+
+async function priceBrokerTripAtReviewConfirm({
+  tenantId,
+  trip,
+  sourceExternalTrips,
+  finalService,
+  shared
+}){
+
+  const primaryExternal =
+    sourceExternalTrips?.[0] ||
+    {};
+
+  const miles =
+    brokerPricingMiles(trip);
+
+  const minutes =
+    brokerPricingMinutes(trip);
+
+  const stops =
+    brokerStopsCount(trip);
+
+  const passengersCount =
+    brokerPassengerCount(
+      trip,
+      sourceExternalTrips,
+      shared
+    );
+
+  const identity = {
+    tenantId,
+    brokerId:
+      primaryExternal.brokerId ||
+      trip.brokerId ||
+      "",
+    brokerCode:
+      primaryExternal.brokerCode ||
+      trip.brokerCode ||
+      "",
+    brokerName:
+      primaryExternal.brokerName ||
+      trip.brokerName ||
+      "",
+    serviceKey:
+      finalService,
+    miles,
+    minutes,
+    stops,
+    passengersCount
+  };
+
+  const result =
+    await calculateBrokerPrice(
+      identity
+    );
+
+  const resolved =
+    await resolveBrokerPricing(
+      identity
+    );
+
+  const service =
+    resolved?.service ||
+    {};
+
+  trip.priceAmount =
+    Number(result.total || 0);
+
+  trip.finalPrice =
+    Number(result.total || 0);
+
+  trip.pricePerPassenger =
+    Number(
+      result.pricePerPassenger ||
+      (
+        passengersCount > 0
+          ? Number(result.total || 0) /
+            passengersCount
+          : Number(result.total || 0)
+      )
+    );
+
+  trip.cancelFee =
+    Number(
+      service.cancelFee || 0
+    );
+
+  trip.noShowFee =
+    Number(
+      service.noShowFee || 0
+    );
+
+  /*
+    Shared summary works passenger-by-passenger.
+    Freeze each passenger's confirmed broker price and fees now.
+  */
+  if(
+    shared &&
+    Array.isArray(trip.passengers)
+  ){
+
+    trip.passengers.forEach(
+      passenger=>{
+
+        passenger.priceAmount =
+          Number(
+            result.pricePerPassenger ||
+            0
+          );
+
+        passenger.finalPrice =
+          Number(
+            result.pricePerPassenger ||
+            0
+          );
+
+        passenger.cancelFee =
+          Number(
+            service.cancelFee || 0
+          );
+
+        passenger.noShowFee =
+          Number(
+            service.noShowFee || 0
+          );
+      }
+    );
+  }
+
+  return {
+    result,
+    service,
+    miles,
+    minutes,
+    stops,
+    passengersCount
+  };
+}
+
+
+/* =========================
    CONFIRM SELECTED TO DISPATCH
 ========================= */
 
@@ -1571,6 +1801,20 @@ router.post(
               shared
                 ? "SH"
                 : "";
+
+            /*
+              FINAL BROKER PRICE LOCK:
+              Confirm in Broker Review is the pricing event.
+              External Summary later reads this saved price and the final
+              driver status. It never recalculates historical trip pricing.
+            */
+            await priceBrokerTripAtReviewConfirm({
+              tenantId,
+              trip,
+              sourceExternalTrips,
+              finalService,
+              shared
+            });
 
             trip.dispatchSelected =
               true;

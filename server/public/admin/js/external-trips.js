@@ -2,1593 +2,1822 @@
 
 /*
 DESTINATION PATH:
-server/public/admin/js/external-trips.js
+server/public/admin/js/external-summary.js
 
-EXTERNAL TRIPS HUB REBUILD R1
+External Summary:
+- Broker trips only.
+- Price is the saved Broker Review Confirm price.
+- Final status comes from Driver / Dispatch flow.
+- Eye button shows broker-specific extra trip data.
 */
 
-(() => {
+const API_URL =
+  "/api/external-summary";
 
-  const $ =
-    id =>
-      document.getElementById(
-        id
-      );
+const role =
+  String(
+    localStorage.getItem("role") ||
+    sessionStorage.getItem("role") ||
+    ""
+  ).toUpperCase();
 
-  const state = {
-    
-    newTripsBaselineAt:"",
-    baselineInitialized:false,
-trips:[],
-    integrations:[],
-    services:[],
-    editingId:"",
-    stopCount:1
+const token =
+  localStorage.getItem("token") ||
+  sessionStorage.getItem("token") ||
+  sessionStorage.getItem("staffToken") ||
+  "";
+
+if(
+  !token ||
+  ![
+    "SUPER_ADMIN",
+    "ADMIN",
+    "DISPATCHER"
+  ].includes(role)
+){
+  window.location.href =
+    "/login.html";
+}
+
+let allTrips = [];
+let brokers = [];
+let displayItems = [];
+let activeService = "ALL";
+let refreshTimer = null;
+
+const searchInput =
+  document.getElementById(
+    "searchInput"
+  );
+
+const brokerFilter =
+  document.getElementById(
+    "brokerFilter"
+  );
+
+const serviceFilter =
+  document.getElementById(
+    "serviceFilter"
+  );
+
+const statusFilter =
+  document.getElementById(
+    "statusFilter"
+  );
+
+const yearFilter =
+  document.getElementById(
+    "yearFilter"
+  );
+
+const monthFilter =
+  document.getElementById(
+    "monthFilter"
+  );
+
+const dayFilter =
+  document.getElementById(
+    "dayFilter"
+  );
+
+const summaryContent =
+  document.getElementById(
+    "summaryContent"
+  );
+
+const printBtn =
+  document.getElementById(
+    "printBtn"
+  );
+
+const csvBtn =
+  document.getElementById(
+    "csvBtn"
+  );
+
+const excelBtn =
+  document.getElementById(
+    "excelBtn"
+  );
+
+function safe(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function num(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function money(value){
+  return "$" +
+    num(value).toFixed(2);
+}
+
+function cellBox(items){
+
+  const arr =
+    Array.isArray(items)
+      ? items
+      : [items];
+
+  return `
+    <div class="cell-box">
+      ${
+        arr.map(
+          value=>`
+            <div class="cell-item">
+              ${safe(value || "--")}
+            </div>
+          `
+        ).join("")
+      }
+    </div>
+  `;
+}
+
+function stopsDisplay(trip){
+
+  const stops =
+    Array.isArray(trip?.stops)
+      ? trip.stops
+      : [];
+
+  if(!stops.length){
+    return "--";
+  }
+
+  return stops
+    .map(
+      (stop,index)=>
+        `${index + 1}. ${
+          clean(
+            stop?.address ||
+            stop?.formattedAddress ||
+            stop
+          )
+        }`
+    )
+    .filter(Boolean)
+    .join("\n");
+}
+
+function stopItems(trip){
+  const text =
+    stopsDisplay(trip);
+
+  return text === "--"
+    ? ["--"]
+    : text.split("\n");
+}
+
+function statusClass(status){
+
+  if(status === "Completed"){
+    return "completed";
+  }
+
+  if(status === "Cancelled"){
+    return "cancelled";
+  }
+
+  if(status === "No Show"){
+    return "noshow";
+  }
+
+  if(status === "Not Completed"){
+    return "notcompleted";
+  }
+
+  if(status === "Mixed Closed"){
+    return "mixed";
+  }
+
+  return "";
+}
+
+function statusHTML(status){
+  const cls =
+    statusClass(status);
+
+  return `
+    <span class="status-pill ${cls}">
+      ${safe(status || "-")}
+    </span>
+  `;
+}
+
+function serviceNameByCode(code){
+
+  const map = {
+    ST:"Standard",
+    WH:"Wheelchair",
+    SH:"Shared",
+    TX:"Taxi",
+    LM:"Limousine",
+    XL:"XL"
   };
 
-  const MAX_STOPS = 5;
-
-  function token(){
-    return (
-      sessionStorage.getItem("token") ||
-      localStorage.getItem("token") ||
-      ""
-    );
-  }
-
-  function headers(
-    json = true
-  ){
-    const h = {
-      Authorization:
-        `Bearer ${token()}`
-    };
-
-    if(json){
-      h["Content-Type"] =
-        "application/json";
-    }
-
-    return h;
-  }
-
-  function escapeHtml(value){
-    return String(value ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  function clean(value){
-    return String(
-      value ?? ""
-    ).trim();
-  }
-
-  function normalizeServiceKey(
-    value
-  ){
-    const raw =
-      clean(value)
+  return (
+    map[
+      clean(code)
         .toUpperCase()
-        .replace(/[_-]+/g," ")
-        .replace(/\s+/g," ");
+    ] ||
+    clean(code) ||
+    "Service"
+  );
+}
 
-    if(!raw){
-      return "STANDARD";
-    }
+function serviceCodes(){
 
-    if(
-      raw === "ST" ||
-      raw === "STD" ||
-      raw.includes("STANDARD")
-    ){
-      return "STANDARD";
-    }
-
-    if(
-      raw === "SH" ||
-      raw.includes("SHARED")
-    ){
-      return "SHARED";
-    }
-
-    return raw.replace(
-      /\s+/g,
-      "_"
-    );
-  }
-
-  function displayService(
-    value
-  ){
-    return normalizeServiceKey(
-      value
+  return [
+    ...new Set(
+      allTrips
+        .map(
+          trip=>
+            clean(
+              trip.serviceCode
+            ).toUpperCase()
+        )
+        .filter(Boolean)
     )
-      .toLowerCase()
-      .split("_")
-      .map(
-        part =>
-          part
-            ? (
-                part[0]
-                  .toUpperCase() +
-                part.slice(1)
-              )
-            : ""
+  ];
+}
+
+function hasShared(){
+  return serviceCodes()
+    .includes("SH");
+}
+
+function getTripNumber(t){
+  return clean(t?.tripNumber) || "-";
+}
+
+function getAZNow(){
+  return new Date(
+    new Date()
+      .toLocaleString(
+        "en-US",
+        {
+          timeZone:
+            "America/Phoenix"
+        }
       )
-      .join(" ");
-  }
+  );
+}
 
+function dateKey(d){
+  return `${
+    d.getFullYear()
+  }-${
+    String(
+      d.getMonth()+1
+    ).padStart(2,"0")
+  }-${
+    String(
+      d.getDate()
+    ).padStart(2,"0")
+  }`;
+}
 
-  function neutralTripNumber(value){
-    const raw = clean(value).toUpperCase();
+function monthKey(d){
+  return dateKey(d)
+    .slice(0,7);
+}
 
-    if(!raw){
-      return "";
-    }
+function buildQuery(){
 
-    /*
-      Compatibility with test/history rows created before neutral numbering:
-      MTM-000123-ST   -> MTM-000123
-      MTM-000123-SH   -> MTM-000123
-      MTM-000123-ST-R -> MTM-000123-R
-    */
-    return raw.replace(
-      /-(ST|SH|WH|WC|TX|LM|XL)(-R)?$/,
-      (_match,_suffix,returnPart)=>
-        returnPart || ""
+  const params =
+    new URLSearchParams();
+
+  if(
+    brokerFilter?.value &&
+    brokerFilter.value !== "ALL"
+  ){
+    params.set(
+      "brokerCode",
+      brokerFilter.value
     );
   }
 
-  function normalizeStopAddress(
-    stop
+  return params.toString()
+    ? `?${params.toString()}`
+    : "";
+}
+
+async function load(){
+
+  const res =
+    await fetch(
+      `${API_URL}${buildQuery()}`,
+      {
+        cache:"no-store",
+        headers:{
+          Authorization:
+            `Bearer ${token}`
+        }
+      }
+    );
+
+  const data =
+    await res
+      .json()
+      .catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      "Failed to load External Summary"
+    );
+  }
+
+  allTrips =
+    Array.isArray(data.items)
+      ? data.items
+      : [];
+
+  brokers =
+    Array.isArray(data.brokers)
+      ? data.brokers
+      : [];
+
+  renderBrokerFilter();
+  buildDateFilters();
+  renderServiceFilter();
+  applyFilters();
+}
+
+function renderBrokerFilter(){
+
+  if(!brokerFilter){
+    return;
+  }
+
+  const current =
+    brokerFilter.value ||
+    "ALL";
+
+  brokerFilter.innerHTML =
+    `<option value="ALL">All Brokers</option>` +
+    brokers.map(
+      broker=>`
+        <option value="${safe(broker.code)}">
+          ${safe(
+            broker.name ||
+            broker.code
+          )}
+        </option>
+      `
+    ).join("");
+
+  brokerFilter.value =
+    brokers.some(
+      broker=>
+        broker.code === current
+    )
+      ? current
+      : "ALL";
+}
+
+function buildDateFilters(){
+
+  if(
+    !yearFilter ||
+    !monthFilter ||
+    !dayFilter
   ){
-    if(
-      stop === undefined ||
-      stop === null
-    ){
-      return "";
-    }
-
-    if(
-      typeof stop ===
-      "string"
-    ){
-      return stop.trim();
-    }
-
-    if(
-      typeof stop ===
-      "object"
-    ){
-      return clean(
-        stop.address ||
-        stop.formattedAddress ||
-        stop.formatted_address ||
-        stop.description ||
-        stop.label
-      );
-    }
-
-    return clean(stop);
+    return;
   }
 
-  function stopBoxes(stops){
-    const items =
-      Array.isArray(stops)
-        ? stops
-            .map(
-              normalizeStopAddress
-            )
-            .filter(Boolean)
-            .slice(0,MAX_STOPS)
-        : [];
+  const oldYear =
+    yearFilter.value || "";
 
-    /*
-      Always show one stop box, even when the trip has no stop.
-    */
-    if(!items.length){
-      return `
-        <div class="gh-stop-box"></div>
-      `;
+  const oldMonth =
+    monthFilter.value || "";
+
+  const oldDay =
+    dayFilter.value || "";
+
+  const years =
+    new Set();
+
+  allTrips.forEach(
+    trip=>{
+
+      const year =
+        clean(
+          trip.tripDate
+        ).split("-")[0];
+
+      if(year){
+        years.add(year);
+      }
     }
+  );
 
-    return items
-      .map(
-        address => `
-          <div class="gh-stop-box">
-            ${escapeHtml(address)}
-          </div>
-        `
-      )
-      .join("");
-  }
+  yearFilter.innerHTML =
+    `<option value="">All Years</option>`;
 
-  function addressBox(value){
-    return `
-      <div class="address-box">
-        ${escapeHtml(value || "-")}
-      </div>
+  [...years]
+    .sort(
+      (a,b)=>
+        Number(b) -
+        Number(a)
+    )
+    .forEach(
+      year=>{
+
+        yearFilter.innerHTML += `
+          <option value="${safe(year)}">
+            ${safe(year)}
+          </option>
+        `;
+      }
+    );
+
+  monthFilter.innerHTML = `
+    <option value="">All Months</option>
+    <option value="01">January</option>
+    <option value="02">February</option>
+    <option value="03">March</option>
+    <option value="04">April</option>
+    <option value="05">May</option>
+    <option value="06">June</option>
+    <option value="07">July</option>
+    <option value="08">August</option>
+    <option value="09">September</option>
+    <option value="10">October</option>
+    <option value="11">November</option>
+    <option value="12">December</option>
+  `;
+
+  dayFilter.innerHTML =
+    `<option value="">All Days</option>`;
+
+  for(let i=1;i<=31;i++){
+    const day =
+      String(i)
+        .padStart(2,"0");
+
+    dayFilter.innerHTML += `
+      <option value="${day}">
+        ${day}
+      </option>
     `;
   }
 
-  function selectedFilters(){
-    return {
-      brokerCode:
-        $("brokerFilter").value,
-      status:
-        $("statusFilter").value,
-      tripDate:
-        $("dateFilter").value
-    };
+  yearFilter.value =
+    oldYear;
+
+  monthFilter.value =
+    oldMonth;
+
+  dayFilter.value =
+    oldDay;
+}
+
+function renderServiceFilter(){
+
+  if(!serviceFilter){
+    return;
   }
 
-  function queryString(){
-    const filters =
-      selectedFilters();
+  const codes =
+    serviceCodes();
 
-    const params =
-      new URLSearchParams();
+  serviceFilter.innerHTML =
+    `<option value="ALL">All Services</option>`;
 
-    for(
-      const [key,value]
-      of Object.entries(filters)
-    ){
-      if(value){
-        params.set(
-          key,
-          value
-        );
-      }
+  codes.forEach(
+    code=>{
+
+      serviceFilter.innerHTML += `
+        <option value="${safe(code)}">
+          ${safe(serviceNameByCode(code))}
+        </option>
+      `;
     }
+  );
 
-    const raw =
-      params.toString();
-
-    return raw
-      ? `?${raw}`
-      : "";
-  }
-
-  function clearTripFilters(){
-    $("brokerFilter").value =
-      "";
-    $("statusFilter").value =
-      "";
-    $("dateFilter").value =
-      "";
-  }
-
-  function upsertTripInState(
-    trip
+  if(
+    activeService !== "ALL" &&
+    !codes.includes(activeService)
   ){
-    if(
-      !trip ||
-      !trip._id
-    ){
-      return;
-    }
+    activeService = "ALL";
+  }
 
-    const index =
-      state.trips.findIndex(
-        item =>
-          String(item._id) ===
-          String(trip._id)
+  serviceFilter.value =
+    activeService;
+}
+
+function searchableText(trip){
+
+  return [
+    trip.tripNumber,
+    trip.brokerName,
+    trip.brokerCode,
+    trip.brokerTripId,
+    trip.serviceName,
+    trip.serviceCode,
+    trip.passenger,
+    trip.phone,
+    trip.email,
+    trip.pickup,
+    stopsDisplay(trip),
+    trip.dropoff,
+    trip.tripDate,
+    trip.tripTime,
+    trip.status,
+    trip.driverName,
+    trip.vehicleNumber,
+    trip.notes,
+    JSON.stringify(
+      trip.passengers ||
+      []
+    ),
+    JSON.stringify(
+      trip.externalTrips ||
+      []
+    )
+  ].join(" ")
+    .toLowerCase();
+}
+
+function applyFilters(){
+
+  let out =
+    [...allTrips];
+
+  if(
+    activeService !== "ALL"
+  ){
+    out =
+      out.filter(
+        trip=>
+          clean(
+            trip.serviceCode
+          ).toUpperCase() ===
+          activeService
       );
+  }
 
-    if(index >= 0){
-      state.trips[index] =
-        trip;
-    }else{
-      state.trips.push(
+  const query =
+    clean(
+      searchInput?.value
+    ).toLowerCase();
+
+  if(query){
+    out =
+      out.filter(
+        trip=>
+          searchableText(trip)
+            .includes(query)
+      );
+  }
+
+  const status =
+    statusFilter?.value ||
+    "";
+
+  if(status){
+    out =
+      out.filter(
+        trip=>
+          trip.status ===
+          status
+      );
+  }
+
+  const year =
+    yearFilter?.value ||
+    "";
+
+  const month =
+    monthFilter?.value ||
+    "";
+
+  const day =
+    dayFilter?.value ||
+    "";
+
+  if(year){
+    out =
+      out.filter(
+        trip=>
+          clean(
+            trip.tripDate
+          ).split("-")[0] ===
+          year
+      );
+  }
+
+  if(month){
+    out =
+      out.filter(
+        trip=>
+          clean(
+            trip.tripDate
+          ).split("-")[1] ===
+          month
+      );
+  }
+
+  if(day){
+    out =
+      out.filter(
+        trip=>
+          clean(
+            trip.tripDate
+          ).split("-")[2] ===
+          day
+      );
+  }
+
+  displayItems =
+    out.sort(
+      (a,b)=>
+        String(
+          b.tripDate +
+          " " +
+          b.tripTime
+        ).localeCompare(
+          String(
+            a.tripDate +
+            " " +
+            a.tripTime
+          )
+        )
+    );
+
+  render();
+}
+
+function createStats(){
+  return {
+    total:0,
+    today:0,
+    month:0,
+    completed:0,
+    cancelled:0,
+    noshow:0,
+    notCompleted:0,
+    mixed:0,
+    revenue:0,
+    miles:0,
+    shared:0,
+    sharedPassengers:0,
+    individual:0
+  };
+}
+
+function countItem(stats,trip){
+
+  stats.total++;
+
+  const now =
+    getAZNow();
+
+  if(
+    trip.tripDate ===
+    dateKey(now)
+  ){
+    stats.today++;
+  }
+
+  if(
+    clean(trip.tripDate)
+      .slice(0,7) ===
+    monthKey(now)
+  ){
+    stats.month++;
+  }
+
+  stats.revenue +=
+    num(trip.total);
+
+  stats.miles +=
+    num(trip.miles);
+
+  if(trip.status === "Completed"){
+    stats.completed++;
+  }else if(
+    trip.status === "Cancelled"
+  ){
+    stats.cancelled++;
+  }else if(
+    trip.status === "No Show"
+  ){
+    stats.noshow++;
+  }else if(
+    trip.status === "Not Completed"
+  ){
+    stats.notCompleted++;
+  }else if(
+    trip.status === "Mixed Closed"
+  ){
+    stats.mixed++;
+  }
+
+  if(trip.isShared){
+    stats.shared++;
+    stats.sharedPassengers +=
+      Number(
+        trip.passengerCount ||
+        0
+      );
+  }else{
+    stats.individual++;
+  }
+}
+
+function statsFor(
+  list
+){
+  const stats =
+    createStats();
+
+  list.forEach(
+    trip=>
+      countItem(
+        stats,
         trip
-      );
-    }
+      )
+  );
 
-    state.trips.sort(
-      (a,b)=>{
-        const aKey =
-          `${a.tripDate || ""} ${a.tripTime || ""} ${a.createdAt || ""}`;
+  return stats;
+}
 
-        const bKey =
-          `${b.tripDate || ""} ${b.tripTime || ""} ${b.createdAt || ""}`;
+function renderStats(){
 
-        return aKey.localeCompare(
-          bKey
+  const stats =
+    statsFor(
+      displayItems
+    );
+
+  const wrap =
+    document.getElementById(
+      "summaryStats"
+    );
+
+  if(!wrap){
+    return;
+  }
+
+  wrap.classList.toggle(
+    "no-shared",
+    !hasShared()
+  );
+
+  const sharedCards =
+    hasShared()
+      ? `
+          <div class="stat-card shared">
+            <div class="stat-number">
+              ${stats.shared}
+            </div>
+            <div class="stat-label">
+              Shared Trips
+            </div>
+          </div>
+
+          <div class="stat-card shared">
+            <div class="stat-number">
+              ${stats.sharedPassengers}
+            </div>
+            <div class="stat-label">
+              Shared Passengers
+            </div>
+          </div>
+
+          <div class="stat-card total">
+            <div class="stat-number">
+              ${stats.individual}
+            </div>
+            <div class="stat-label">
+              Individual Trips
+            </div>
+          </div>
+        `
+      : "";
+
+  wrap.innerHTML = `
+    <div class="stat-card total">
+      <div class="stat-number">
+        ${stats.total}
+      </div>
+      <div class="stat-label">
+        Total Closed
+      </div>
+    </div>
+
+    <div class="stat-card completed">
+      <div class="stat-number">
+        ${stats.completed}
+      </div>
+      <div class="stat-label">
+        Completed
+      </div>
+    </div>
+
+    <div class="stat-card cancelled">
+      <div class="stat-number">
+        ${stats.cancelled}
+      </div>
+      <div class="stat-label">
+        Cancelled
+      </div>
+    </div>
+
+    <div class="stat-card noshow">
+      <div class="stat-number">
+        ${stats.noshow}
+      </div>
+      <div class="stat-label">
+        No Show
+      </div>
+    </div>
+
+    <div class="stat-card notcompleted">
+      <div class="stat-number">
+        ${stats.notCompleted}
+      </div>
+      <div class="stat-label">
+        Not Completed
+      </div>
+    </div>
+
+    <div class="stat-card money big-card">
+      <div class="stat-number">
+        ${money(stats.revenue)}
+      </div>
+      <div class="stat-label">
+        Broker Revenue
+      </div>
+    </div>
+
+    <div class="stat-card miles">
+      <div class="stat-number">
+        ${stats.miles.toFixed(1)}
+      </div>
+      <div class="stat-label">
+        Total Miles
+      </div>
+    </div>
+
+    ${sharedCards}
+  `;
+}
+
+function statsForService(code){
+
+  const list =
+    code === "ALL"
+      ? displayItems
+      : displayItems.filter(
+          trip=>
+            clean(
+              trip.serviceCode
+            ).toUpperCase() ===
+            code
         );
+
+  return statsFor(list);
+}
+
+function updateServiceCardsLayout(){
+
+  const wrap =
+    document.getElementById(
+      "serviceCards"
+    );
+
+  if(!wrap){
+    return;
+  }
+
+  const count =
+    wrap.querySelectorAll(
+      ".service-card"
+    ).length || 1;
+
+  const cols =
+    Math.min(
+      count,
+      6
+    );
+
+  wrap.style.setProperty(
+    "--service-cols",
+    cols
+  );
+}
+
+function renderServiceCards(){
+
+  const wrap =
+    document.getElementById(
+      "serviceCards"
+    );
+
+  if(!wrap){
+    return;
+  }
+
+  const codes =
+    serviceCodes();
+
+  const cards = [
+    {
+      code:"ALL",
+      title:"ALL"
+    },
+    ...codes.map(
+      code=>({
+        code,
+        title:
+          serviceNameByCode(
+            code
+          )
+      })
+    )
+  ];
+
+  wrap.innerHTML =
+    cards.map(
+      card=>{
+
+        const stats =
+          statsForService(
+            card.code
+          );
+
+        const active =
+          activeService ===
+          card.code
+            ? "active-card"
+            : "";
+
+        return `
+          <div
+            class="service-card ${active}"
+            data-service="${safe(card.code)}"
+          >
+            <div class="service-card-title">
+              ${safe(card.title)}
+            </div>
+
+            <div class="service-line">
+              <span>Total</span>
+              <span>${stats.total}</span>
+            </div>
+
+            <div class="service-line">
+              <span>Revenue</span>
+              <span>${money(stats.revenue)}</span>
+            </div>
+
+            <div class="service-line">
+              <span>Miles</span>
+              <span>${stats.miles.toFixed(1)}</span>
+            </div>
+
+            <div class="service-line">
+              <span>Completed</span>
+              <span>${stats.completed}</span>
+            </div>
+
+            <div class="service-line">
+              <span>No Show</span>
+              <span>${stats.noshow}</span>
+            </div>
+
+            <div class="service-line">
+              <span>Cancelled</span>
+              <span>${stats.cancelled}</span>
+            </div>
+          </div>
+        `;
+      }
+    ).join("");
+
+  wrap
+    .querySelectorAll(
+      ".service-card"
+    )
+    .forEach(
+      card=>{
+
+        card.onclick = ()=>{
+          activeService =
+            card.dataset.service ||
+            "ALL";
+
+          if(serviceFilter){
+            serviceFilter.value =
+              activeService;
+          }
+
+          applyFilters();
+        };
       }
     );
-  }
 
-  async function loadBrokers(){
-    const res =
-      await fetch(
-        "/api/external-trips/brokers",
-        {
-          headers:
-            headers(false)
-        }
-      );
+  updateServiceCardsLayout();
+}
 
-    const data =
-      await res.json();
+function viewLine(
+  label,
+  value
+){
 
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Failed to load enabled brokers"
-      );
-    }
+  return `
+    <div class="view-line">
+      <div class="view-label">
+        ${safe(label)}
+      </div>
+      <div class="view-value">
+        ${safe(value || "--")}
+      </div>
+    </div>
+  `;
+}
 
-    state.integrations =
-      data.brokers ||
-      [];
+function externalBreakdown(trip){
 
-    renderBrokerSelectors();
-    renderStats();
-  }
-
-  async function loadServices(){
-    const res =
-      await fetch(
-        "/api/external-trips/services",
-        {
-          headers:
-            headers(false)
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Failed to load tenant services"
-      );
-    }
-
-    state.services =
-      Array.isArray(
-        data.services
-      )
-        ? data.services
-        : [];
-
-    if(
-      !state.services.some(
-        item =>
-          normalizeServiceKey(
-            item.key
-          ) === "STANDARD"
-      )
-    ){
-      state.services.unshift({
-        key:"STANDARD",
-        name:"Standard"
-      });
-    }
-
-    renderDialogServiceOptions();
-  }
-
-  async function loadTrips(){
-    const res =
-      await fetch(
-        `/api/external-trips${queryString()}`,
-        {
-          headers:
-            headers(false)
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Failed to load external trips"
-      );
-    }
-
-    state.trips =
-      data.trips ||
-      [];
-      initializeNewTripsBaseline();
-
-    render();
-  }
-
-  function renderBrokerSelectors(){
-    const currentFilter =
-      $("brokerFilter").value;
-
-    const currentDialog =
-      $("brokerCode").value;
-
-    $("brokerFilter").innerHTML =
-      `<option value="">All Brokers</option>`;
-
-    $("brokerCode").innerHTML =
-      "";
-
-    for(
-      const item
-      of state.integrations
-    ){
-      const label =
-        `${item.brokerName} (${item.brokerCode})`;
-
-      const filterOption =
-        document.createElement(
-          "option"
-        );
-
-      filterOption.value =
-        item.brokerCode;
-
-      filterOption.textContent =
-        label;
-
-      $("brokerFilter")
-        .appendChild(
-          filterOption
-        );
-
-      const dialogOption =
-        document.createElement(
-          "option"
-        );
-
-      dialogOption.value =
-        item.brokerCode;
-
-      dialogOption.textContent =
-        label;
-
-      $("brokerCode")
-        .appendChild(
-          dialogOption
-        );
-    }
-
-    if(currentFilter){
-      $("brokerFilter").value =
-        currentFilter;
-    }
-
-    if(currentDialog){
-      $("brokerCode").value =
-        currentDialog;
-    }
-  }
-
-  function serviceOptionsHtml(
-    selectedValue
-  ){
-    const selected =
-      normalizeServiceKey(
-        selectedValue ||
-        "STANDARD"
-      );
-
-    const seen =
-      new Set();
-
-    const options = [];
-
-    for(
-      const item
-      of state.services
-    ){
-      const key =
-        normalizeServiceKey(
-          item.key
-        );
-
-      if(
-        !key ||
-        seen.has(key)
-      ){
-        continue;
-      }
-
-      seen.add(key);
-
-      options.push(`
-        <option
-          value="${escapeHtml(key)}"
-          ${key === selected ? "selected" : ""}
-        >
-          ${escapeHtml(item.name || displayService(key))}
-        </option>
-      `);
-    }
-
-    /*
-      If a broker supplied a service name that is not yet in the tenant list,
-      keep it visible for that trip instead of silently losing broker data.
-    */
-    if(
-      selected &&
-      !seen.has(selected)
-    ){
-      options.push(`
-        <option
-          value="${escapeHtml(selected)}"
-          selected
-        >
-          ${escapeHtml(displayService(selected))}
-        </option>
-      `);
-    }
-
-    return options.join("");
-  }
-
-  function renderDialogServiceOptions(){
-    const select =
-      $("serviceKey");
-
-    if(!select){
-      return;
-    }
-
-    const current =
-      normalizeServiceKey(
-        select.value ||
-        "STANDARD"
-      );
-
-    select.innerHTML =
-      serviceOptionsHtml(
-        current
-      );
-
-    select.value =
-      current;
-  }
-
-
-
-  function receivedAtMs(trip){
-    const raw =
-      trip?.receivedAt ||
-      trip?.createdAt ||
-      trip?.lastBrokerUpdateAt ||
-      "";
-
-    if(!raw){
-      return 0;
-    }
-
-    const ms =
-      new Date(raw).getTime();
-
-    return Number.isFinite(ms)
-      ? ms
-      : 0;
-  }
-
-  function initializeNewTripsBaseline(){
-    if(state.baselineInitialized){
-      return;
-    }
-
-    const trips =
-      Array.isArray(state.trips)
-        ? state.trips
-        : [];
-
-    let latest = 0;
-
-    trips.forEach(trip=>{
-      latest = Math.max(
-        latest,
-        receivedAtMs(trip)
-      );
-    });
-
-    state.newTripsBaselineAt =
-      latest
-        ? new Date(latest).toISOString()
-        : new Date().toISOString();
-
-    state.baselineInitialized = true;
-  }
-
-  function newTripsCount(){
-    if(!state.baselineInitialized){
-      return 0;
-    }
-
-    const baseline =
-      new Date(
-        state.newTripsBaselineAt
-      ).getTime();
-
-    if(!Number.isFinite(baseline)){
-      return 0;
-    }
-
-    return (
-      Array.isArray(state.trips)
-        ? state.trips
-        : []
+  const list =
+    Array.isArray(
+      trip.externalTrips
     )
-      .filter(
-        trip =>
-          receivedAtMs(trip) >
-          baseline
-      )
-      .length;
+      ? trip.externalTrips
+      : [];
+
+  if(!list.length){
+    return "--";
   }
 
-  function renderStats(){
-    const trips =
-      Array.isArray(state.trips)
-        ? state.trips
-        : [];
+  return list.map(
+    (ex,index)=>[
+      `${index + 1}. ${ex.clientName || "-"}`,
+      `Broker Trip: ${ex.externalTripId || "-"}`,
+      `Member ID: ${ex.memberId || "-"}`,
+      `Phone: ${ex.clientPhone || "-"}`,
+      `Email: ${ex.clientEmail || "-"}`,
+      `Appointment: ${ex.appointmentTime || "-"}`,
+      `Return Time: ${ex.returnTime || "-"}`,
+      `Pickup: ${ex.pickup || "-"}`,
+      `Stops: ${
+        Array.isArray(ex.stops) &&
+        ex.stops.length
+          ? ex.stops.join(" | ")
+          : "-"
+      }`,
+      `Dropoff: ${ex.dropoff || "-"}`,
+      `Service: ${
+        ex.serviceName ||
+        ex.serviceKey ||
+        "-"
+      }`,
+      `Notes: ${ex.notes || "-"}`
+    ].join("\n")
+  ).join("\n\n");
+}
 
-    const totalTrips =
-      trips.length;
+function passengerBreakdown(trip){
 
-    const newTrips =
-      newTripsCount();
+  const list =
+    Array.isArray(
+      trip.passengers
+    )
+      ? trip.passengers
+      : [];
 
-    /*
-      Active Brokers means enabled broker integrations for this tenant.
-      This is intentionally independent from the current trip/date/status
-      filter so the card shows how many broker connections are active.
-    */
-    const activeBrokers =
-      new Set(
-        (Array.isArray(state.integrations)
-          ? state.integrations
-          : []
-        )
-          .map(
-            item =>
-              clean(
-                item?.brokerCode
-              )
-          )
-          .filter(Boolean)
-      ).size;
-
-    const returnTrips =
-      trips.filter(
-        trip =>
-          Boolean(
-            clean(
-              trip?.returnTime
-            )
-          )
-      ).length;
-
-    const withStops =
-      trips.filter(
-        trip =>
-          Array.isArray(
-            trip?.stops
-          ) &&
-          trip.stops.some(
-            stop =>
-              Boolean(
-                normalizeStopAddress(
-                  stop
-                )
-              )
-          )
-      ).length;
-
-    if($("statTotalTrips")){
-      $("statTotalTrips").textContent =
-        totalTrips;
-    }
-
-    if($("statNewTrips")){
-      $("statNewTrips").textContent =
-        newTrips;
-    }
-
-    if($("statActiveBrokers")){
-      $("statActiveBrokers").textContent =
-        activeBrokers;
-    }
-
-    if($("statReturnTrips")){
-      $("statReturnTrips").textContent =
-        returnTrips;
-    }
-
-    if($("statWithStops")){
-      $("statWithStops").textContent =
-        withStops;
-    }
+  if(!list.length){
+    return "--";
   }
 
-  function groupedTrips(){
-    const groups =
-      new Map();
+  return list.map(
+    (p,index)=>[
+      `${index + 1}. ${p.name || "-"}`,
+      `Phone: ${p.phone || "-"}`,
+      `Email: ${p.email || "-"}`,
+      `Pickup: ${p.pickup || "-"}`,
+      `Dropoff: ${p.dropoff || "-"}`,
+      `Status: ${p.status || "-"}`,
+      `Fees: ${money(p.fee)}`,
+      `Total: ${money(p.total)}`
+    ].join("\n")
+  ).join("\n\n");
+}
 
-    for(
-      const trip
-      of state.trips
-    ){
-      const date =
-        clean(
-          trip.tripDate
-        ) ||
-        "No Date";
+function moneyBreakdown(trip){
 
-      if(!groups.has(date)){
-        groups.set(
-          date,
-          []
-        );
+  return [
+    `Confirmed Trip Price: ${money(trip.finalPrice || trip.priceAmount)}`,
+    `Price Per Passenger: ${money(trip.pricePerPassenger)}`,
+    `Cancel Fee: ${money(trip.cancelFee)}`,
+    `No Show Fee: ${money(trip.noShowFee)}`,
+    `Applied Fee: ${money(trip.fee)}`,
+    `Final Summary Total: ${money(trip.total)}`
+  ].join("\n");
+}
+
+function openExternalSummaryView(id){
+
+  const trip =
+    displayItems.find(
+      item=>
+        String(item.id) ===
+        String(id)
+    );
+
+  if(!trip){
+    return;
+  }
+
+  closeExternalSummaryView();
+
+  const overlay =
+    document.createElement(
+      "div"
+    );
+
+  overlay.id =
+    "externalSummaryViewOverlay";
+
+  overlay.className =
+    "view-overlay";
+
+  overlay.innerHTML = `
+    <div class="view-box">
+
+      <div class="view-head">
+        <div>
+          Broker Trip Details
+        </div>
+
+        <button
+          class="view-close"
+          type="button"
+          onclick="closeExternalSummaryView()"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="view-body">
+        ${viewLine("Trip Number",trip.tripNumber)}
+        ${viewLine("Broker",trip.brokerName)}
+        ${viewLine("Broker Code",trip.brokerCode)}
+        ${viewLine("Broker Trip ID",trip.brokerTripId)}
+        ${viewLine("Service",trip.serviceName)}
+        ${viewLine("Trip Type",trip.isShared ? "Shared" : "Individual")}
+        ${viewLine("Shared Group",trip.groupId)}
+        ${viewLine("Trip Date",trip.tripDate)}
+        ${viewLine("Trip Time",trip.tripTime)}
+        ${viewLine("Appointment",trip.appointmentTime)}
+        ${viewLine("Return Time",trip.returnTime)}
+        ${viewLine("Driver",trip.driverName)}
+        ${viewLine("Vehicle",trip.vehicleNumber)}
+        ${viewLine("Final Status",trip.status)}
+        ${viewLine("Miles",num(trip.miles).toFixed(1))}
+        ${viewLine("Pickup",trip.pickup)}
+        ${viewLine("Stops",stopsDisplay(trip))}
+        ${viewLine("Dropoff",trip.dropoff)}
+        ${viewLine("Passenger Details",passengerBreakdown(trip))}
+        ${viewLine("Broker Source Details",externalBreakdown(trip))}
+        ${viewLine("Pricing Details",moneyBreakdown(trip))}
+        ${viewLine("Ended At Stop",trip.endedAtStop ? "Yes" : "No")}
+        ${viewLine("Stop End Address",trip.stopEndAddress)}
+        ${viewLine("Stop End Miles",trip.stopEndMiles ? num(trip.stopEndMiles).toFixed(1) : "")}
+        ${viewLine("Completion Type",trip.completionType)}
+        ${viewLine("Notes",trip.notes)}
+      </div>
+
+    </div>
+  `;
+
+  overlay.addEventListener(
+    "click",
+    event=>{
+
+      if(event.target === overlay){
+        closeExternalSummaryView();
+      }
+    }
+  );
+
+  document.body
+    .appendChild(
+      overlay
+    );
+}
+
+function closeExternalSummaryView(){
+  document
+    .getElementById(
+      "externalSummaryViewOverlay"
+    )
+    ?.remove();
+}
+
+function rowClass(trip){
+
+  let out =
+    trip.isShared
+      ? "shared-row "
+      : "";
+
+  const cls =
+    statusClass(
+      trip.status
+    );
+
+  if(cls === "completed"){
+    out += "completed-row ";
+  }
+
+  if(cls === "cancelled"){
+    out += "cancelled-row ";
+  }
+
+  if(cls === "noshow"){
+    out += "noshow-row ";
+  }
+
+  if(cls === "notcompleted"){
+    out += "notcompleted-row ";
+  }
+
+  return (
+    out.trim() +
+    " trip-divider"
+  );
+}
+
+function groupByDate(items){
+
+  const groups = {};
+
+  items.forEach(
+    trip=>{
+
+      const key =
+        trip.tripDate ||
+        "Unknown";
+
+      if(!groups[key]){
+        groups[key] = [];
       }
 
-      groups
-        .get(date)
-        .push(trip);
+      groups[key].push(trip);
     }
+  );
 
-    return groups;
+  return groups;
+}
+
+let rowCounter = 1;
+
+function render(){
+
+  rowCounter = 1;
+
+  renderStats();
+  renderServiceCards();
+
+  if(!summaryContent){
+    return;
   }
 
-  function render(){
-    renderStats();
-    const body =
-      $("tripRows");
+  summaryContent.innerHTML = "";
 
-    body.innerHTML =
-      "";
+  if(!displayItems.length){
+    summaryContent.innerHTML =
+      `<div class="empty-state">No Broker Summary Trips Found</div>`;
+    return;
+  }
 
-    if(!state.trips.length){
-      body.innerHTML = `
-        <tr>
-          <td
-            colspan="16"
-            style="padding:18px;font-weight:800;color:#64748b;"
-          >
-            No external trips found.
-          </td>
-        </tr>
-      `;
+  const groups =
+    groupByDate(
+      displayItems
+    );
 
-      return;
-    }
+  const wrap =
+    document.createElement(
+      "div"
+    );
 
-    const groups =
-      groupedTrips();
+  wrap.className =
+    "table-wrap";
 
-    for(
-      const [date,trips]
-      of groups.entries()
-    ){
-      const dateRow =
-        document.createElement(
-          "tr"
-        );
+  const table =
+    document.createElement(
+      "table"
+    );
 
-      dateRow.className =
-        "date-group-row";
+  table.className =
+    "summary-table";
 
-      dateRow.innerHTML = `
-        <td colspan="16">
-          Trip Date: ${escapeHtml(date)}
-        </td>
-      `;
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-broker">Broker</th>
+        <th class="col-broker-trip">Broker Trip #</th>
+        <th class="col-service">Service</th>
+        <th class="wide-passenger">Passenger</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Time</th>
+        <th class="col-status">Trip Status</th>
+        <th class="col-miles">Miles</th>
+        <th class="wide-fees">Fees</th>
+        <th class="col-money">Total</th>
+        <th class="col-passengers">Count</th>
+        <th class="col-eye">👁️</th>
+      </tr>
+    </thead>
 
-      body.appendChild(
-        dateRow
-      );
+    <tbody></tbody>
+  `;
 
-      for(
-        const trip
-        of trips
-      ){
-        const tr =
+  const tbody =
+    table.querySelector(
+      "tbody"
+    );
+
+  Object.keys(groups)
+    .sort(
+      (a,b)=>
+        new Date(b) -
+        new Date(a)
+    )
+    .forEach(
+      day=>{
+
+        const dateRow =
           document.createElement(
             "tr"
           );
 
-        tr.innerHTML = `
-          <td class="trip-id">
-            ${escapeHtml(neutralTripNumber(trip.ghExternalTripNumber || ""))}
-          </td>
+        dateRow.className =
+          "date-row";
 
-          <td>
-            ${escapeHtml(trip.brokerName || trip.brokerCode || "")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.externalTripId || "-")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.tripTime || "")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.appointmentTime || "-")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.returnTime || "-")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.clientName || "")}
-          </td>
-
-          <td>
-            ${escapeHtml(trip.clientPhone || "")}
-          </td>
-
-          <td>
-            ${addressBox(trip.pickup)}
-          </td>
-
-          <td>
-            ${stopBoxes(trip.stops)}
-          </td>
-
-          <td>
-            ${addressBox(trip.dropoff)}
-          </td>
-
-          <td>
-            <select
-              class="service-cell-select"
-              data-service="${escapeHtml(trip._id)}"
-            >
-              ${serviceOptionsHtml(trip.serviceKey || trip.serviceName || "STANDARD")}
-            </select>
-          </td>
-
-          <td class="notes">
-            ${escapeHtml(trip.notes || "")}
-          </td>
-
-          <td>
-            <span
-              class="status ${escapeHtml(trip.status || "")}"
-            >
-              ${escapeHtml(trip.status || "")}
-            </span>
-          </td>
-
-          <td>
-            ${escapeHtml(trip.source || "")}
-          </td>
-
-          <td>
-            <div class="action-stack">
-              <button
-                class="btn btn-light"
-                data-edit="${escapeHtml(trip._id)}"
-              >
-                Edit
-              </button>
-
-              <button
-                class="btn btn-danger"
-                data-delete="${escapeHtml(trip._id)}"
-              >
-                Delete
-              </button>
-            </div>
+        dateRow.innerHTML = `
+          <td colspan="17">
+            Trip Date: ${safe(day)}
           </td>
         `;
 
-        body.appendChild(
-          tr
+        tbody.appendChild(
+          dateRow
         );
-      }
-    }
 
-    body
-      .querySelectorAll(
-        "[data-edit]"
-      )
-      .forEach(
-        btn => {
-          btn.addEventListener(
-            "click",
-            () => {
-              editTrip(
-                btn.dataset.edit
+        groups[day].forEach(
+          trip=>{
+
+            const tr =
+              document.createElement(
+                "tr"
               );
-            }
-          );
-        }
-      );
 
-    body
-      .querySelectorAll(
-        "[data-delete]"
-      )
-      .forEach(
-        btn => {
-          btn.addEventListener(
-            "click",
-            () => {
-              deleteTrip(
-                btn.dataset.delete
-              );
-            }
-          );
-        }
-      );
+            tr.className =
+              rowClass(trip);
 
-    body
-      .querySelectorAll(
-        "[data-service]"
-      )
-      .forEach(
-        select => {
-          select.addEventListener(
-            "change",
-            () => {
-              updateTripService(
-                select.dataset.service,
-                select.value
-              ).catch(
-                err => {
-                  alert(
-                    err.message ||
-                    "Failed to update service"
+            const passengerDisplay =
+              trip.isShared
+                ? (
+                    trip.passengers ||
+                    []
+                  ).map(
+                    p=>
+                      p.name ||
+                      "-"
+                  )
+                : (
+                    trip.passenger ||
+                    "--"
                   );
-                  loadTrips()
-                    .catch(console.error);
-                }
-              );
-            }
-          );
-        }
-      );
-  }
 
-  function renderStopInputs(
-    values = [""]
-  ){
-    const list =
-      $("stopInputs");
+            tr.innerHTML = `
+              <td class="col-num">
+                ${rowCounter++}
+              </td>
 
-    if(!list){
-      return;
+              <td class="col-trip">
+                <span class="trip-number-badge">
+                  ${safe(getTripNumber(trip))}
+                </span>
+              </td>
+
+              <td class="col-broker">
+                ${cellBox(trip.brokerName || trip.brokerCode)}
+              </td>
+
+              <td class="col-broker-trip">
+                ${cellBox(
+                  trip.isShared
+                    ? (
+                        trip.externalTrips ||
+                        []
+                      ).map(
+                        ex=>
+                          ex.externalTripId ||
+                          "-"
+                      )
+                    : (
+                        trip.brokerTripId ||
+                        "-"
+                      )
+                )}
+              </td>
+
+              <td class="col-service">
+                ${cellBox(trip.serviceName)}
+              </td>
+
+              <td class="wide-passenger">
+                ${cellBox(passengerDisplay)}
+              </td>
+
+              <td class="wide-address">
+                ${cellBox(
+                  trip.isShared
+                    ? (
+                        trip.passengers ||
+                        []
+                      ).map(
+                        p=>
+                          p.pickup ||
+                          "-"
+                      )
+                    : (
+                        trip.pickup ||
+                        "--"
+                      )
+                )}
+              </td>
+
+              <td class="wide-stops">
+                ${cellBox(stopItems(trip))}
+              </td>
+
+              <td class="wide-address">
+                ${cellBox(
+                  trip.isShared
+                    ? (
+                        trip.passengers ||
+                        []
+                      ).map(
+                        p=>
+                          p.dropoff ||
+                          "-"
+                      )
+                    : (
+                        trip.dropoff ||
+                        "--"
+                      )
+                )}
+              </td>
+
+              <td class="col-date">
+                ${safe(trip.tripDate || "-")}
+              </td>
+
+              <td class="col-time">
+                ${safe(trip.tripTime || "-")}
+              </td>
+
+              <td class="col-status">
+                ${statusHTML(trip.status)}
+              </td>
+
+              <td class="col-miles">
+                ${num(trip.miles).toFixed(1)}
+              </td>
+
+              <td class="wide-fees">
+                ${cellBox(money(trip.fee))}
+              </td>
+
+              <td class="col-money">
+                <b>${money(trip.total)}</b>
+              </td>
+
+              <td class="col-passengers">
+                ${Number(trip.passengerCount || 1)}
+              </td>
+
+              <td class="col-eye">
+                <button
+                  class="eye-btn"
+                  type="button"
+                  title="View broker trip details"
+                  onclick="openExternalSummaryView('${safe(trip.id)}')"
+                >
+                  👁️
+                </button>
+              </td>
+            `;
+
+            tbody.appendChild(
+              tr
+            );
+          }
+        );
+      }
+    );
+
+  wrap.appendChild(table);
+  summaryContent
+    .appendChild(wrap);
+}
+
+function csvEscape(value){
+  const text =
+    String(value ?? "");
+
+  return `"${text.replace(/"/g,'""')}"`;
+}
+
+function exportCSV(){
+
+  const rows = [[
+    "#",
+    "Trip #",
+    "Broker",
+    "Broker Code",
+    "Broker Trip #",
+    "Service",
+    "Passenger",
+    "Pickup",
+    "Stops",
+    "Dropoff",
+    "Trip Date",
+    "Time",
+    "Trip Status",
+    "Miles",
+    "Fees",
+    "Total",
+    "Count"
+  ]];
+
+  displayItems.forEach(
+    (trip,index)=>{
+
+      rows.push([
+        index + 1,
+        trip.tripNumber,
+        trip.brokerName,
+        trip.brokerCode,
+        trip.brokerTripId,
+        trip.serviceName,
+        trip.passenger,
+        trip.pickup,
+        stopsDisplay(trip),
+        trip.dropoff,
+        trip.tripDate,
+        trip.tripTime,
+        trip.status,
+        num(trip.miles).toFixed(1),
+        num(trip.fee).toFixed(2),
+        num(trip.total).toFixed(2),
+        trip.passengerCount
+      ]);
     }
+  );
 
-    const cleaned =
-      Array.isArray(values)
-        ? values
-            .map(
-              normalizeStopAddress
-            )
-            .slice(0,MAX_STOPS)
-        : [];
+  const content =
+    rows
+      .map(
+        row=>
+          row.map(csvEscape)
+            .join(",")
+      )
+      .join("\n");
 
-    const actual =
-      cleaned.length
-        ? cleaned
-        : [""];
+  const blob =
+    new Blob(
+      [content],
+      {
+        type:
+          "text/csv;charset=utf-8;"
+      }
+    );
 
-    state.stopCount =
-      actual.length;
+  const url =
+    URL.createObjectURL(
+      blob
+    );
 
-    list.innerHTML =
-      actual
-        .map(
-          (value,index) => `
-            <div class="stop-input-row">
-              <input
-                class="stop-input"
-                data-stop-index="${index}"
-                value="${escapeHtml(value)}"
-                placeholder="Stop ${index + 1} address"
-              />
+  const a =
+    document.createElement(
+      "a"
+    );
 
+  a.href = url;
+  a.download =
+    "broker-external-summary.csv";
+
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function exportExcel(){
+
+  const rows =
+    displayItems.map(
+      (trip,index)=>({
+        "#":index + 1,
+        "Trip #":trip.tripNumber,
+        "Broker":trip.brokerName,
+        "Broker Code":trip.brokerCode,
+        "Broker Trip #":trip.brokerTripId,
+        "Service":trip.serviceName,
+        "Passenger":trip.passenger,
+        "Pickup":trip.pickup,
+        "Stops":stopsDisplay(trip),
+        "Dropoff":trip.dropoff,
+        "Trip Date":trip.tripDate,
+        "Time":trip.tripTime,
+        "Trip Status":trip.status,
+        "Miles":num(trip.miles).toFixed(1),
+        "Fees":num(trip.fee).toFixed(2),
+        "Total":num(trip.total).toFixed(2),
+        "Count":trip.passengerCount
+      })
+    );
+
+  const table = `
+    <table border="1">
+      <tr>
+        ${
+          Object.keys(
+            rows[0] || {
+              "Trip #":""
+            }
+          ).map(
+            key=>
+              `<th>${safe(key)}</th>`
+          ).join("")
+        }
+      </tr>
+
+      ${
+        rows.map(
+          row=>`
+            <tr>
               ${
-                index === 0
-                  ? `
-                    <button
-                      type="button"
-                      class="btn btn-light add-stop-btn"
-                      id="addStopBtn"
-                    >
-                      + Stop
-                    </button>
-                  `
-                  : `
-                    <button
-                      type="button"
-                      class="btn btn-danger remove-stop-btn"
-                      data-remove-stop="${index}"
-                    >
-                      Remove
-                    </button>
-                  `
+                Object.values(row)
+                  .map(
+                    value=>
+                      `<td>${safe(value)}</td>`
+                  )
+                  .join("")
               }
-            </div>
+            </tr>
           `
-        )
-        .join("");
+        ).join("")
+      }
+    </table>
+  `;
 
-    $("addStopBtn")
-      ?.addEventListener(
-        "click",
-        () => {
-          if(
-            state.stopCount >=
-            MAX_STOPS
-          ){
-            alert(
-              "Maximum 5 stops."
-            );
-            return;
-          }
-
-          const current =
-            collectStopValues(
-              true
-            );
-
-          current.push("");
-
-          renderStopInputs(
-            current
-          );
-        }
-      );
-
-    list
-      .querySelectorAll(
-        "[data-remove-stop]"
-      )
-      .forEach(
-        btn => {
-          btn.addEventListener(
-            "click",
-            () => {
-              const index =
-                Number(
-                  btn.dataset
-                    .removeStop
-                );
-
-              const current =
-                collectStopValues(
-                  true
-                );
-
-              current.splice(
-                index,
-                1
-              );
-
-              renderStopInputs(
-                current.length
-                  ? current
-                  : [""]
-              );
-            }
-          );
-        }
-      );
-  }
-
-  function collectStopValues(
-    preserveEmpty = false
-  ){
-    const values =
-      [...document
-        .querySelectorAll(
-          ".stop-input"
-        )]
-        .map(
-          input =>
-            clean(
-              input.value
-            )
-        );
-
-    return preserveEmpty
-      ? values
-      : values.filter(Boolean);
-  }
-
-  function clearDialog(){
-    state.editingId =
-      "";
-
-    [
-      "externalTripId",
-      "tripDate",
-      "tripTime",
-      "appointmentTime",
-      "returnTime",
-      "clientName",
-      "clientPhone",
-      "memberId",
-      "pickup",
-      "dropoff",
-      "notes"
-    ].forEach(
-      id => {
-        $(id).value =
-          "";
+  const blob =
+    new Blob(
+      [table],
+      {
+        type:
+          "application/vnd.ms-excel"
       }
     );
 
-    $("tripType").value =
-      "SINGLE";
-
-    renderDialogServiceOptions();
-
-    if($("serviceKey")){
-      $("serviceKey").value =
-        "STANDARD";
-    }
-
-    renderStopInputs(
-      [""]
+  const url =
+    URL.createObjectURL(
+      blob
     );
 
-    $("dialogTitle").textContent =
-      "Add External Trip";
-  }
-
-  function openAdd(){
-    clearDialog();
-
-    if(
-      !state.integrations.length
-    ){
-      alert(
-        "No broker connection is available for this tenant."
-      );
-
-      return;
-    }
-
-    $("tripDialog")
-      .showModal();
-  }
-
-  function editTrip(id){
-    const trip =
-      state.trips.find(
-        x =>
-          String(x._id) ===
-          String(id)
-      );
-
-    if(!trip){
-      return;
-    }
-
-    state.editingId =
-      trip._id;
-
-    $("dialogTitle").textContent =
-      "Edit External Trip";
-
-    $("brokerCode").value =
-      trip.brokerCode ||
-      "";
-
-    $("externalTripId").value =
-      trip.externalTripId ||
-      "";
-
-    $("tripType").value =
-      trip.tripType ||
-      "SINGLE";
-
-    $("tripDate").value =
-      trip.tripDate ||
-      "";
-
-    $("tripTime").value =
-      trip.tripTime ||
-      "";
-
-    $("appointmentTime").value =
-      trip.appointmentTime ||
-      "";
-
-    $("returnTime").value =
-      trip.returnTime ||
-      "";
-
-    $("clientName").value =
-      trip.clientName ||
-      "";
-
-    $("clientPhone").value =
-      trip.clientPhone ||
-      "";
-
-    $("memberId").value =
-      trip.memberId ||
-      "";
-
-    renderDialogServiceOptions();
-
-    $("serviceKey").value =
-      normalizeServiceKey(
-        trip.serviceKey ||
-        trip.serviceName ||
-        "STANDARD"
-      );
-
-    $("pickup").value =
-      trip.pickup ||
-      "";
-
-    renderStopInputs(
-      Array.isArray(
-        trip.stops
-      ) &&
-      trip.stops.length
-        ? trip.stops
-        : [""]
+  const a =
+    document.createElement(
+      "a"
     );
 
-    $("dropoff").value =
-      trip.dropoff ||
-      "";
+  a.href = url;
+  a.download =
+    "broker-external-summary.xls";
 
-    $("notes").value =
-      trip.notes ||
-      "";
+  a.click();
 
-    $("tripDialog")
-      .showModal();
-  }
+  URL.revokeObjectURL(url);
+}
 
-  function brokerNameForCode(
-    code
-  ){
-    const item =
-      state.integrations.find(
-        x =>
-          x.brokerCode ===
-          code
-      );
+searchInput
+  ?.addEventListener(
+    "input",
+    applyFilters
+  );
 
-    return (
-      item?.brokerName ||
-      code
-    );
-  }
-
-  function formPayload(){
-    const brokerCode =
-      $("brokerCode").value;
-
-    const stops =
-      collectStopValues()
-        .slice(
-          0,
-          MAX_STOPS
-        )
-        .map(
-          (address,index) => ({
-            address,
-            sequence:
-              index + 1
-          })
-        );
-
-    return {
-      brokerCode,
-
-      brokerName:
-        brokerNameForCode(
-          brokerCode
-        ),
-
-      externalTripId:
-        $("externalTripId")
-          .value
-          .trim(),
-
-      tripType:
-        $("tripType").value,
-
-      tripDate:
-        $("tripDate").value,
-
-      tripTime:
-        $("tripTime").value,
-
-      appointmentTime:
-        $("appointmentTime").value,
-
-      returnTime:
-        $("returnTime").value,
-
-      clientName:
-        $("clientName")
-          .value
-          .trim(),
-
-      clientPhone:
-        $("clientPhone")
-          .value
-          .trim(),
-
-      memberId:
-        $("memberId")
-          .value
-          .trim(),
-
-      serviceKey:
-        normalizeServiceKey(
-          $("serviceKey").value ||
-          "STANDARD"
-        ),
-
-      serviceName:
-        displayService(
-          $("serviceKey").value ||
-          "STANDARD"
-        ),
-
-      pickup:
-        $("pickup")
-          .value
-          .trim(),
-
-      stops,
-
-      dropoff:
-        $("dropoff")
-          .value
-          .trim(),
-
-      notes:
-        $("notes")
-          .value
-          .trim()
-    };
-  }
-
-  async function saveTrip(){
-    try{
-      const body =
-        formPayload();
-
-      const editing =
-        Boolean(
-          state.editingId
-        );
-
-      const url =
-        editing
-          ? `/api/external-trips/${encodeURIComponent(state.editingId)}`
-          : "/api/external-trips/manual";
-
-      const method =
-        editing
-          ? "PATCH"
-          : "POST";
-
-      const res =
-        await fetch(
-          url,
-          {
-            method,
-            headers:
-              headers(true),
-            body:
-              JSON.stringify(
-                body
-              )
-          }
-        );
-
-      const data =
-        await res.json();
-
-      if(!res.ok){
-        throw new Error(
-          data.message ||
-          "Failed to save external trip"
-        );
-      }
-
-      $("tripDialog")
-        .close();
-
-      if(!editing){
-        clearTripFilters();
-      }
-
-      if(data.trip){
-        upsertTripInState(
-          data.trip
-        );
-
-        render();
-      }
-
-      await loadTrips();
-
-    }catch(err){
-      alert(
-        err.message ||
-        "Failed to save external trip"
-      );
-    }
-  }
-
-  async function updateTripService(
-    id,
-    serviceKey
-  ){
-    const normalized =
-      normalizeServiceKey(
-        serviceKey ||
-        "STANDARD"
-      );
-
-    const res =
-      await fetch(
-        `/api/external-trips/${encodeURIComponent(id)}`,
-        {
-          method:"PATCH",
-          headers:
-            headers(true),
-          body:
-            JSON.stringify({
-              serviceKey:
-                normalized,
-              serviceName:
-                displayService(
-                  normalized
-                )
-            })
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Failed to update service"
-      );
-    }
-
-    if(data.trip){
-      upsertTripInState(
-        data.trip
-      );
-    }
-  }
-
-  async function deleteTrip(id){
-    if(
-      !confirm(
-        "Delete this external trip?"
-      )
-    ){
-      return;
-    }
-
-    const res =
-      await fetch(
-        `/api/external-trips/${encodeURIComponent(id)}`,
-        {
-          method:"DELETE",
-          headers:
-            headers(false)
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(!res.ok){
-      alert(
-        data.message ||
-        "Failed to delete external trip"
-      );
-
-      return;
-    }
-
-    await loadTrips();
-  }
-
-  $("addTripBtn")
-    .addEventListener(
-      "click",
-      openAdd
-    );
-
-  $("closeDialogBtn")
-    .addEventListener(
-      "click",
-      () =>
-        $("tripDialog")
-          .close()
-    );
-
-  $("cancelDialogBtn")
-    .addEventListener(
-      "click",
-      () =>
-        $("tripDialog")
-          .close()
-    );
-
-  $("saveTripBtn")
-    .addEventListener(
-      "click",
-      saveTrip
-    );
-
-  $("refreshBtn")
-    .addEventListener(
-      "click",
-      () => {
-        loadTrips()
-          .catch(
-            console.error
-          );
-      }
-    );
-
-  [
-    "brokerFilter",
-    "statusFilter",
-    "dateFilter"
-  ].forEach(
-    id => {
-      $(id)
-        .addEventListener(
-          "change",
-          () => {
-            loadTrips()
-              .catch(
-                console.error
-              );
-          }
+brokerFilter
+  ?.addEventListener(
+    "change",
+    ()=>{
+      load()
+        .catch(
+          err=>
+            alert(err.message)
         );
     }
   );
 
-  Promise.all([
-    loadBrokers(),
-    loadServices(),
-    loadTrips()
-  ])
-  .then(
-    () => {
-      renderStopInputs(
-        [""]
-      );
+serviceFilter
+  ?.addEventListener(
+    "change",
+    ()=>{
+      activeService =
+        serviceFilter.value ||
+        "ALL";
+
+      applyFilters();
     }
-  )
+  );
+
+statusFilter
+  ?.addEventListener(
+    "change",
+    applyFilters
+  );
+
+yearFilter
+  ?.addEventListener(
+    "change",
+    applyFilters
+  );
+
+monthFilter
+  ?.addEventListener(
+    "change",
+    applyFilters
+  );
+
+dayFilter
+  ?.addEventListener(
+    "change",
+    applyFilters
+  );
+
+printBtn
+  ?.addEventListener(
+    "click",
+    ()=>window.print()
+  );
+
+csvBtn
+  ?.addEventListener(
+    "click",
+    exportCSV
+  );
+
+excelBtn
+  ?.addEventListener(
+    "click",
+    exportExcel
+  );
+
+Object.assign(
+  window,
+  {
+    openExternalSummaryView,
+    closeExternalSummaryView
+  }
+);
+
+load()
   .catch(
-    err => {
-      console.error(err);
+    err=>{
+      console.log(err);
 
-      alert(
-        err.message ||
-        "Failed to load External Trips Hub"
-      );
+      if(summaryContent){
+        summaryContent.innerHTML =
+          `<div class="empty-state">${safe(err.message || "Failed to load External Summary")}</div>`;
+      }
     }
   );
 
-})();
+refreshTimer =
+  setInterval(
+    ()=>{
+      load().catch(()=>{});
+    },
+    15000
+  );
