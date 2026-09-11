@@ -148,7 +148,16 @@ async function resolveBrokerPricing({
             normalizeServiceCode(
               row.serviceKey
             ) === key &&
-            row.enabled === true
+            (
+              row.enabled === true ||
+              row.accessEnabled === true ||
+              row.serviceAccessEnabled === true ||
+              (
+                row.enabled === undefined &&
+                row.accessEnabled === undefined &&
+                row.serviceAccessEnabled === undefined
+              )
+            )
         )
       : null;
 

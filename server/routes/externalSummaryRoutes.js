@@ -184,7 +184,9 @@ function displayStatus(value){
 function tripIsBroker(trip){
   return Boolean(
     clean(trip?.brokerId) ||
-    clean(trip?.brokerName)
+    clean(trip?.brokerName) ||
+    clean(trip?.brokerCode) ||
+    upper(trip?.externalSource) === "BROKER"
   );
 }
 
@@ -814,10 +816,17 @@ async function applyFinalBrokerMoney(trip){
 
   }catch(err){
 
+    trip.brokerPricingError =
+      clean(
+        err?.message ||
+        err ||
+        "Broker pricing failed"
+      );
+
     console.log(
       "EXTERNAL SUMMARY BROKER PRICING WARNING:",
       trip?.tripNumber || trip?._id,
-      err?.message || err
+      trip.brokerPricingError
     );
   }
 
@@ -957,6 +966,8 @@ function serializeTrip(
         ? passengers.length
         : 1,
     passengers,
+    pricingError:
+      clean(trip?.brokerPricingError),
     notes:
       clean(trip?.notes),
     endedAtStop:
