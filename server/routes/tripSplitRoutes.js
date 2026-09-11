@@ -31,6 +31,10 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const ExternalTrip = require("../models/ExternalTrip");
+
+const {
+  ensureExternalTripCoordinates
+} = require("../services/externalTripGeoService");
 const BrokerIntegration = require("../models/BrokerIntegration");
 const SharedEngineSettings = require("../models/SharedEngineSettings");
 const TripSplitState = require("../models/TripSplitState");
@@ -855,7 +859,39 @@ function originalTripPayload(externalTrip){
         ? Number(externalTrip.dropoffLng)
         : null,
 
-    stops:safeArray(externalTrip.stops),
+    stops:
+      safeArray(externalTrip.stops)
+        .map(stop=>
+          clean(
+            stop?.address ||
+            stop
+          )
+        )
+        .filter(Boolean),
+
+    stopCoords:
+      safeArray(externalTrip.stops)
+        .map(stop=>({
+          address:
+            clean(
+              stop?.address ||
+              stop
+            ),
+          lat:
+            Number.isFinite(Number(stop?.lat))
+              ? Number(stop.lat)
+              : null,
+          lng:
+            Number.isFinite(Number(stop?.lng))
+              ? Number(stop.lng)
+              : null
+        }))
+        .filter(
+          stop=>
+            stop.address &&
+            Number.isFinite(stop.lat) &&
+            Number.isFinite(stop.lng)
+        ),
 
     notes:externalTrip.notes,
 
@@ -1434,6 +1470,21 @@ router.get("/bootstrap",async(req,res)=>{
     })
       .sort({tripDate:1,tripTime:1,brokerCode:1})
       .lean();
+
+    /*
+      Coordinate gate:
+      every Individual and Shared source trip must have coordinates
+      before it can be split, reviewed, dispatched or opened by Driver Map.
+      This also repairs legacy ExternalTrip records.
+    */
+    for(const trip of trips){
+      await ensureExternalTripCoordinates(
+        trip,
+        {
+          save:true
+        }
+      );
+    }
 
     const ids = trips.map(t=>t._id);
 
@@ -2379,51 +2430,106 @@ router.patch("/trips/:id",async(req,res)=>{
       });
     }
 
-    const update = {};
+    const trip =
+      await ExternalTrip.findOne({
+        _id:req.params.id,
+        tenantId
+      });
+
+    if(!trip){
+      return res.status(404).json({
+        success:false,
+        message:"Broker trip not found"
+      });
+    }
+
+    const oldPickup =
+      clean(trip.pickup);
+
+    const oldDropoff =
+      clean(trip.dropoff);
+
+    const oldStops =
+      JSON.stringify(
+        safeArray(trip.stops)
+          .map(stop=>
+            clean(
+              stop?.address ||
+              stop
+            )
+          )
+      );
 
     if(req.body.tripTime !== undefined){
-      update.tripTime = clean(req.body.tripTime);
+      trip.tripTime =
+        clean(req.body.tripTime);
     }
 
     if(req.body.appointmentTime !== undefined){
-      update.appointmentTime = clean(req.body.appointmentTime);
+      trip.appointmentTime =
+        clean(req.body.appointmentTime);
     }
 
     if(req.body.pickup !== undefined){
-      update.pickup = clean(req.body.pickup);
-
-      /*
-        Address changed: old coordinates must never remain attached
-        to the new pickup text. The next Share will resolve/cache it again.
-      */
-      update.pickupLat = null;
-      update.pickupLng = null;
-      update.pickupGeoKey = "";
-      update.pickupGeoAddress = "";
-      update.pickupGeoSource = "";
+      trip.pickup =
+        clean(req.body.pickup);
     }
 
     if(req.body.dropoff !== undefined){
-      update.dropoff = clean(req.body.dropoff);
-
-      /*
-        Address changed: invalidate the old dropoff geo binding.
-      */
-      update.dropoffLat = null;
-      update.dropoffLng = null;
-      update.dropoffGeoKey = "";
-      update.dropoffGeoAddress = "";
-      update.dropoffGeoSource = "";
+      trip.dropoff =
+        clean(req.body.dropoff);
     }
 
-    const trip = await ExternalTrip.findOneAndUpdate(
+    if(req.body.stops !== undefined){
+      trip.stops =
+        safeArray(req.body.stops)
+          .map((stop,index)=>({
+            ...(typeof stop === "object" ? stop : {}),
+            address:
+              clean(
+                typeof stop === "string"
+                  ? stop
+                  : stop?.address
+              ),
+            sequence:index + 1
+          }))
+          .filter(stop=>stop.address);
+    }
+
+    const newStops =
+      JSON.stringify(
+        safeArray(trip.stops)
+          .map(stop=>
+            clean(
+              stop?.address ||
+              stop
+            )
+          )
+      );
+
+    /*
+      EDIT COORDINATE RULE:
+      changed address => resolve fresh coordinates immediately.
+      We never leave old lat/lng attached to new text.
+    */
+    await ensureExternalTripCoordinates(
+      trip,
       {
-        _id:req.params.id,
-        tenantId
-      },
-      {$set:update},
-      {new:true}
+        save:false,
+        forcePickup:
+          oldPickup !==
+          clean(trip.pickup),
+        forceDropoff:
+          oldDropoff !==
+          clean(trip.dropoff),
+        forceStops:
+          oldStops !==
+          newStops,
+        forcePassengers:false
+      }
     );
+
+    await trip.save();
 
     if(!trip){
       return res.status(404).json({

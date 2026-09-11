@@ -5,13 +5,15 @@ DESTINATION PATH:
 server/services/externalTripGeoService.js
 
 PURPOSE:
-Resolve and persist ExternalTrip pickup/dropoff coordinates before Trip Split.
+Central coordinate engine for broker/external trips.
 
 RULES:
-- Reuse coordinates only when they are bound to the same address.
-- Reuse AddressCache before calling Google.
-- Save newly resolved coordinates back to ExternalTrip.
-- Save resolved addresses to AddressCache for future broker trips.
+- Every External Trip should carry pickup/dropoff coordinates.
+- Every stop should carry lat/lng.
+- Every passenger pickup/dropoff should carry lat/lng.
+- Reuse AddressCache when possible.
+- Re-geocode only changed/missing/untrusted addresses.
+- Can also repair the Trip object created for Broker Review / Dispatch.
 */
 
 const https = require("https");
@@ -30,6 +32,17 @@ function clean(value){
 }
 
 function normalizeAddress(value){
+  if(value && typeof value === "object"){
+    return clean(
+      value.address ||
+      value.formattedAddress ||
+      value.formatted_address ||
+      value.description ||
+      value.label ||
+      ""
+    ).replace(/\s+/g," ").trim();
+  }
+
   return clean(value)
     .replace(/\s+/g," ")
     .trim();
@@ -43,55 +56,18 @@ function addressKey(value){
 }
 
 function hasValidLatLng(lat,lng){
+  const a = Number(lat);
+  const b = Number(lng);
+
   return (
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng))
+    Number.isFinite(a) &&
+    Number.isFinite(b) &&
+    !(a === 0 && b === 0) &&
+    a >= -90 &&
+    a <= 90 &&
+    b >= -180 &&
+    b <= 180
   );
-}
-
-function geoStillMatches(trip,type){
-
-  const address =
-    type === "pickup"
-      ? normalizeAddress(trip.pickup)
-      : normalizeAddress(trip.dropoff);
-
-  const key =
-    addressKey(address);
-
-  const savedKey =
-    type === "pickup"
-      ? clean(trip.pickupGeoKey)
-      : clean(trip.dropoffGeoKey);
-
-  const savedAddress =
-    type === "pickup"
-      ? normalizeAddress(trip.pickupGeoAddress)
-      : normalizeAddress(trip.dropoffGeoAddress);
-
-  const lat =
-    type === "pickup"
-      ? trip.pickupLat
-      : trip.dropoffLat;
-
-  const lng =
-    type === "pickup"
-      ? trip.pickupLng
-      : trip.dropoffLng;
-
-  if(!address || !hasValidLatLng(lat,lng)){
-    return false;
-  }
-
-  if(savedKey){
-    return savedKey === key;
-  }
-
-  if(savedAddress){
-    return addressKey(savedAddress) === key;
-  }
-
-  return false;
 }
 
 async function lookupAddressCache(address){
@@ -144,10 +120,7 @@ async function lookupAddressCache(address){
   };
 }
 
-async function saveAddressCache(
-  address,
-  coords
-){
+async function saveAddressCache(address,coords){
 
   if(
     !AddressCache ||
@@ -188,7 +161,7 @@ async function saveAddressCache(
         lng:Number(coords.lng),
         source:
           coords.source ||
-          "trip-split-geocode",
+          "external-trip-geocode",
         updatedAt:new Date(),
         lastUsedAt:new Date()
       },
@@ -206,29 +179,26 @@ async function saveAddressCache(
     }
   ).catch(err=>{
     console.log(
-      "TRIP SPLIT ADDRESS CACHE SAVE ERROR:",
-      err.message
+      "EXTERNAL TRIP ADDRESS CACHE SAVE ERROR:",
+      err?.message || err
     );
   });
 }
 
 function getGoogleMapsApiKey(){
-
   return (
     process.env.GOOGLE_SERVER_KEY ||
     process.env.GOOGLE_SERVER_API_KEY ||
     process.env.GOOGLE_MAPS_SERVER_KEY ||
     process.env.SERVER_GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
     ""
   );
 }
 
 function httpsGetJson(url){
-
   return new Promise((resolve,reject)=>{
-
     https.get(url,response=>{
-
       let data = "";
 
       response.on("data",chunk=>{
@@ -236,14 +206,12 @@ function httpsGetJson(url){
       });
 
       response.on("end",()=>{
-
         try{
           resolve(JSON.parse(data));
         }catch(err){
           reject(err);
         }
       });
-
     }).on("error",reject);
   });
 }
@@ -266,9 +234,6 @@ async function geocodeAddress(address){
     return cached;
   }
 
-  /*
-    First reuse a geocoder already exposed by routeMapEngine when available.
-  */
   const fn =
     routeMapEngine?.geocodeAddress ||
     routeMapEngine?.geocode ||
@@ -277,9 +242,7 @@ async function geocodeAddress(address){
     null;
 
   if(typeof fn === "function"){
-
     try{
-
       const result =
         await fn(fullAddress);
 
@@ -297,7 +260,6 @@ async function geocodeAddress(address){
         result?.geometry?.location?.lng;
 
       if(hasValidLatLng(lat,lng)){
-
         const coords = {
           lat:Number(lat),
           lng:Number(lng),
@@ -311,19 +273,14 @@ async function geocodeAddress(address){
 
         return coords;
       }
-
     }catch(err){
       console.log(
-        "TRIP SPLIT ROUTE ENGINE GEOCODE ERROR:",
-        err.message
+        "EXTERNAL TRIP ROUTE GEOCODE ERROR:",
+        err?.message || err
       );
     }
   }
 
-  /*
-    routeMapEngine in this project may only expose Directions.
-    Fall back to Google Geocoding API directly instead of rejecting Share.
-  */
   const apiKey =
     getGoogleMapsApiKey();
 
@@ -380,14 +337,68 @@ async function geocodeAddress(address){
   return coords;
 }
 
-async function ensurePoint(
-  trip,
-  type
-){
+function pointBindingMatches(target,type){
+
+  const address =
+    normalizeAddress(
+      type === "pickup"
+        ? target?.pickup
+        : target?.dropoff
+    );
+
+  const lat =
+    type === "pickup"
+      ? target?.pickupLat
+      : target?.dropoffLat;
+
+  const lng =
+    type === "pickup"
+      ? target?.pickupLng
+      : target?.dropoffLng;
 
   if(
-    geoStillMatches(
-      trip,
+    !address ||
+    !hasValidLatLng(lat,lng)
+  ){
+    return false;
+  }
+
+  const savedKey =
+    clean(
+      type === "pickup"
+        ? target?.pickupGeoKey
+        : target?.dropoffGeoKey
+    );
+
+  const savedAddress =
+    normalizeAddress(
+      type === "pickup"
+        ? target?.pickupGeoAddress
+        : target?.dropoffGeoAddress
+    );
+
+  if(savedKey){
+    return savedKey === addressKey(address);
+  }
+
+  if(savedAddress){
+    return addressKey(savedAddress) === addressKey(address);
+  }
+
+  /*
+    Older Trip documents may not contain geo binding fields.
+    Valid coordinates are trusted unless the caller explicitly forces
+    a refresh after an address edit.
+  */
+  return true;
+}
+
+async function ensureMainPoint(target,type,force=false){
+
+  if(
+    !force &&
+    pointBindingMatches(
+      target,
       type
     )
   ){
@@ -395,9 +406,11 @@ async function ensurePoint(
   }
 
   const address =
-    type === "pickup"
-      ? normalizeAddress(trip.pickup)
-      : normalizeAddress(trip.dropoff);
+    normalizeAddress(
+      type === "pickup"
+        ? target?.pickup
+        : target?.dropoff
+    );
 
   if(!address){
     throw new Error(
@@ -420,63 +433,299 @@ async function ensurePoint(
     addressKey(address);
 
   if(type === "pickup"){
-    trip.pickupLat = coords.lat;
-    trip.pickupLng = coords.lng;
-    trip.pickupGeoKey = key;
-    trip.pickupGeoAddress = address;
-    trip.pickupGeoSource = coords.source;
+    target.pickupLat = coords.lat;
+    target.pickupLng = coords.lng;
+    target.pickupGeoKey = key;
+    target.pickupGeoAddress = address;
+    target.pickupGeoSource = coords.source;
   }else{
-    trip.dropoffLat = coords.lat;
-    trip.dropoffLng = coords.lng;
-    trip.dropoffGeoKey = key;
-    trip.dropoffGeoAddress = address;
-    trip.dropoffGeoSource = coords.source;
+    target.dropoffLat = coords.lat;
+    target.dropoffLng = coords.lng;
+    target.dropoffGeoKey = key;
+    target.dropoffGeoAddress = address;
+    target.dropoffGeoSource = coords.source;
   }
 
   return true;
 }
 
-async function ensureExternalTripCoordinates(
-  trip
+function normalizeStop(stop,index){
+
+  if(typeof stop === "string"){
+    return {
+      address:normalizeAddress(stop),
+      sequence:index + 1
+    };
+  }
+
+  return {
+    ...(stop?.toObject ? stop.toObject() : (stop || {})),
+    address:normalizeAddress(stop),
+    sequence:
+      Number(stop?.sequence || index + 1) ||
+      index + 1
+  };
+}
+
+async function ensureStops(target,force=false){
+
+  const source =
+    Array.isArray(target?.stops)
+      ? target.stops
+      : [];
+
+  const oldCoords =
+    Array.isArray(target?.stopCoords)
+      ? target.stopCoords
+      : [];
+
+  const nextStops = [];
+  const nextStopCoords = [];
+  let changed = false;
+
+  for(let i=0; i<source.length; i++){
+
+    const stop =
+      normalizeStop(
+        source[i],
+        i
+      );
+
+    if(!stop.address){
+      continue;
+    }
+
+    const old =
+      oldCoords.find(
+        row=>
+          addressKey(row?.address) ===
+          addressKey(stop.address)
+      ) ||
+      oldCoords[i] ||
+      null;
+
+    const currentLat =
+      stop.lat ??
+      old?.lat;
+
+    const currentLng =
+      stop.lng ??
+      old?.lng;
+
+    const bindingMatches =
+      (
+        clean(stop.geoKey) &&
+        clean(stop.geoKey) === addressKey(stop.address)
+      ) ||
+      (
+        normalizeAddress(stop.geoAddress) &&
+        addressKey(stop.geoAddress) === addressKey(stop.address)
+      );
+
+    let coords = null;
+
+    if(
+      !force &&
+      hasValidLatLng(currentLat,currentLng) &&
+      (
+        bindingMatches ||
+        (!stop.geoKey && !stop.geoAddress)
+      )
+    ){
+      coords = {
+        lat:Number(currentLat),
+        lng:Number(currentLng),
+        source:
+          stop.geoSource ||
+          old?.source ||
+          "existing-trusted"
+      };
+    }else{
+      coords =
+        await geocodeAddress(
+          stop.address
+        );
+
+      if(!coords){
+        throw new Error(
+          `Stop address could not be located: ${stop.address}`
+        );
+      }
+
+      changed = true;
+    }
+
+    const enriched = {
+      ...stop,
+      lat:Number(coords.lat),
+      lng:Number(coords.lng),
+      geoKey:addressKey(stop.address),
+      geoAddress:stop.address,
+      geoSource:
+        coords.source ||
+        "external-trip-geocode"
+    };
+
+    nextStops.push(enriched);
+
+    nextStopCoords.push({
+      address:stop.address,
+      lat:Number(coords.lat),
+      lng:Number(coords.lng)
+    });
+  }
+
+  target.stops = nextStops;
+  target.stopCoords = nextStopCoords;
+
+  return changed;
+}
+
+async function ensurePassengers(target,force=false){
+
+  if(
+    !Array.isArray(target?.passengers) ||
+    !target.passengers.length
+  ){
+    return false;
+  }
+
+  let changed = false;
+  const next = [];
+
+  for(const source of target.passengers){
+
+    const passenger =
+      source?.toObject
+        ? source.toObject()
+        : { ...source };
+
+    if(passenger.pickup){
+      if(
+        await ensureMainPoint(
+          passenger,
+          "pickup",
+          force
+        )
+      ){
+        changed = true;
+      }
+    }
+
+    if(passenger.dropoff){
+      if(
+        await ensureMainPoint(
+          passenger,
+          "dropoff",
+          force
+        )
+      ){
+        changed = true;
+      }
+    }
+
+    next.push(passenger);
+  }
+
+  target.passengers = next;
+
+  return changed;
+}
+
+async function ensureTripLikeCoordinates(
+  target,
+  options={}
 ){
+
+  if(!target){
+    throw new Error(
+      "Trip is required for coordinate resolution"
+    );
+  }
+
+  const {
+    save=true,
+    forcePickup=false,
+    forceDropoff=false,
+    forceStops=false,
+    forcePassengers=false
+  } = options;
 
   let changed = false;
 
   if(
-    await ensurePoint(
-      trip,
-      "pickup"
+    normalizeAddress(target.pickup) &&
+    await ensureMainPoint(
+      target,
+      "pickup",
+      forcePickup
     )
   ){
     changed = true;
   }
 
   if(
-    await ensurePoint(
-      trip,
-      "dropoff"
+    normalizeAddress(target.dropoff) &&
+    await ensureMainPoint(
+      target,
+      "dropoff",
+      forceDropoff
     )
   ){
     changed = true;
   }
 
-  if(changed){
-    await trip.save();
+  if(
+    await ensureStops(
+      target,
+      forceStops
+    )
+  ){
+    changed = true;
   }
 
-  return trip;
+  if(
+    await ensurePassengers(
+      target,
+      forcePassengers
+    )
+  ){
+    changed = true;
+  }
+
+  if(
+    save &&
+    typeof target.save === "function" &&
+    changed
+  ){
+    await target.save();
+  }
+
+  return target;
+}
+
+async function ensureExternalTripCoordinates(
+  trip,
+  options={}
+){
+  return ensureTripLikeCoordinates(
+    trip,
+    options
+  );
 }
 
 async function ensureExternalTripsCoordinates(
-  trips
+  trips,
+  options={}
 ){
 
   const out = [];
 
-  for(const trip of trips){
+  for(const trip of trips || []){
     out.push(
       await ensureExternalTripCoordinates(
-        trip
+        trip,
+        options
       )
     );
   }
@@ -485,8 +734,11 @@ async function ensureExternalTripsCoordinates(
 }
 
 module.exports = {
+  normalizeAddress,
   addressKey,
   hasValidLatLng,
+  geocodeAddress,
+  ensureTripLikeCoordinates,
   ensureExternalTripCoordinates,
   ensureExternalTripsCoordinates
 };

@@ -15,6 +15,10 @@ The tenant does not need to appear in the visible number.
 const crypto = require("crypto");
 const ExternalTrip = require("../models/ExternalTrip");
 
+const {
+  ensureExternalTripCoordinates
+} = require("./externalTripGeoService");
+
 function clean(value){
   return String(value ?? "").trim();
 }
@@ -25,85 +29,6 @@ function upper(value){
 
 function safeArray(value){
   return Array.isArray(value) ? value : [];
-}
-
-function visibleBrokerPrefix({
-  brokerName,
-  brokerCode
-}){
-  const source =
-    upper(
-      brokerName ||
-      brokerCode
-    )
-      .replace(/[^A-Z0-9]/g,"");
-
-  const prefix =
-    source.slice(0,3);
-
-  if(prefix.length >= 2){
-    return prefix;
-  }
-
-  return (
-    upper(brokerCode)
-      .replace(/[^A-Z0-9]/g,"")
-      .padEnd(3,"X")
-      .slice(0,3)
-  );
-}
-
-function normalizeServiceKey(value){
-  const raw =
-    upper(value)
-      .replace(/[_-]+/g," ")
-      .replace(/\s+/g," ")
-      .trim();
-
-  if(!raw){
-    return "STANDARD";
-  }
-
-  if(
-    raw === "ST" ||
-    raw === "STD" ||
-    raw.includes("STANDARD")
-  ){
-    return "STANDARD";
-  }
-
-  if(
-    raw === "SH" ||
-    raw.includes("SHARED")
-  ){
-    return "SHARED";
-  }
-
-  return raw
-    .replace(/\s+/g,"_");
-}
-
-function serviceSuffix(value){
-  const key =
-    normalizeServiceKey(
-      value
-    );
-
-  if(key === "STANDARD"){
-    return "ST";
-  }
-
-  if(key === "SHARED"){
-    return "SH";
-  }
-
-  const compact =
-    key.replace(/[^A-Z0-9]/g,"");
-
-  return (
-    compact.slice(0,2) ||
-    "ST"
-  ).padEnd(2,"X");
 }
 
 function normalizeBrokerCode(value){
@@ -150,28 +75,19 @@ function createDuplicateKey({
     .digest("hex");
 }
 
-async function nextExternalTripNumber({
-  brokerName,
-  brokerCode
-}){
+async function nextExternalTripNumber(brokerCode){
 
-  const brokerPrefix =
-    visibleBrokerPrefix({
-      brokerName,
-      brokerCode
-    });
+  const suffix =
+    normalizeBrokerCode(brokerCode);
 
   /*
-    Neutral platform-wide broker trip number.
+    Platform-wide sequence:
+    EX-000001-MT
+    EX-000002-MC
+    EX-000003-SR
 
-    External Trips Hub / Trip Split / Broker Review:
-      MTM-000001
-      MOD-000002
-
-    The final service suffix is added ONLY when Broker Review confirms
-    the trip to Dispatch:
-      MTM-000001-ST
-      MTM-000001-SH
+    This prevents collision with the current main Trip schema where
+    tripNumber is globally unique.
   */
   const count =
     await ExternalTrip.countDocuments({});
@@ -180,7 +96,7 @@ async function nextExternalTripNumber({
     String(count + 1)
       .padStart(6,"0");
 
-  return `${brokerPrefix}-${sequence}`;
+  return `EX-${sequence}-${suffix}`;
 }
 
 function normalizeStop(stop,index){
@@ -192,7 +108,12 @@ function normalizeStop(stop,index){
       phone:"",
       notes:"",
       scheduledTime:"",
-      sequence:index + 1
+      sequence:index + 1,
+      lat:null,
+      lng:null,
+      geoKey:"",
+      geoAddress:"",
+      geoSource:""
     };
   }
 
@@ -226,7 +147,21 @@ function normalizeStop(stop,index){
     sequence:Number(
       stop?.sequence ??
       index + 1
-    ) || index + 1
+    ) || index + 1,
+
+    lat:
+      Number.isFinite(Number(stop?.lat))
+        ? Number(stop.lat)
+        : null,
+
+    lng:
+      Number.isFinite(Number(stop?.lng))
+        ? Number(stop.lng)
+        : null,
+
+    geoKey:clean(stop?.geoKey),
+    geoAddress:clean(stop?.geoAddress),
+    geoSource:clean(stop?.geoSource)
   };
 }
 
@@ -266,10 +201,38 @@ function normalizePassenger(passenger){
       passenger?.pickupAddress
     ),
 
+    pickupLat:
+      Number.isFinite(Number(passenger?.pickupLat))
+        ? Number(passenger.pickupLat)
+        : null,
+
+    pickupLng:
+      Number.isFinite(Number(passenger?.pickupLng))
+        ? Number(passenger.pickupLng)
+        : null,
+
+    pickupGeoKey:clean(passenger?.pickupGeoKey),
+    pickupGeoAddress:clean(passenger?.pickupGeoAddress),
+    pickupGeoSource:clean(passenger?.pickupGeoSource),
+
     dropoff:clean(
       passenger?.dropoff ||
       passenger?.dropoffAddress
     ),
+
+    dropoffLat:
+      Number.isFinite(Number(passenger?.dropoffLat))
+        ? Number(passenger.dropoffLat)
+        : null,
+
+    dropoffLng:
+      Number.isFinite(Number(passenger?.dropoffLng))
+        ? Number(passenger.dropoffLng)
+        : null,
+
+    dropoffGeoKey:clean(passenger?.dropoffGeoKey),
+    dropoffGeoAddress:clean(passenger?.dropoffGeoAddress),
+    dropoffGeoSource:clean(passenger?.dropoffGeoSource),
 
     pickupTime:clean(
       passenger?.pickupTime
@@ -357,19 +320,16 @@ function normalizeExternalPayload({
 
     tripType,
 
-    serviceKey:
-      normalizeServiceKey(
-        p.serviceKey ||
-        p.serviceCode ||
-        p.serviceType ||
-        p.modeOfTransportation ||
-        "STANDARD"
-      ),
+    serviceKey:upper(
+      p.serviceKey ||
+      p.serviceCode ||
+      p.serviceType ||
+      p.modeOfTransportation
+    ),
 
     serviceName:clean(
       p.serviceName ||
-      p.modeOfTransportation ||
-      "Standard"
+      p.modeOfTransportation
     ),
 
     tripDate:clean(
@@ -426,19 +386,45 @@ function normalizeExternalPayload({
       primaryPassenger.pickup
     ),
 
+    pickupLat:
+      Number.isFinite(Number(p.pickupLat))
+        ? Number(p.pickupLat)
+        : null,
+
+    pickupLng:
+      Number.isFinite(Number(p.pickupLng))
+        ? Number(p.pickupLng)
+        : null,
+
+    pickupGeoKey:clean(p.pickupGeoKey),
+    pickupGeoAddress:clean(p.pickupGeoAddress),
+    pickupGeoSource:clean(p.pickupGeoSource),
+
     dropoff:clean(
       p.dropoff ||
       p.dropoffAddress ||
       primaryPassenger.dropoff
     ),
 
+    dropoffLat:
+      Number.isFinite(Number(p.dropoffLat))
+        ? Number(p.dropoffLat)
+        : null,
+
+    dropoffLng:
+      Number.isFinite(Number(p.dropoffLng))
+        ? Number(p.dropoffLng)
+        : null,
+
+    dropoffGeoKey:clean(p.dropoffGeoKey),
+    dropoffGeoAddress:clean(p.dropoffGeoAddress),
+    dropoffGeoSource:clean(p.dropoffGeoSource),
+
     stops:
       safeArray(
         p.stops ||
         p.intermediateStops
-      )
-      .slice(0,5)
-      .map(
+      ).map(
         normalizeStop
       ),
 
@@ -601,6 +587,14 @@ async function createExternalTrip(options){
     );
 
   if(duplicate){
+
+    await ensureExternalTripCoordinates(
+      duplicate,
+      {
+        save:true
+      }
+    );
+
     return {
       created:false,
       duplicate:true,
@@ -608,15 +602,24 @@ async function createExternalTrip(options){
     };
   }
 
+  /*
+    Every source reaches this same service:
+    API / WEBHOOK / SFTP / FILE_IMPORT / MANUAL.
+    Coordinates are resolved before the new ExternalTrip is persisted.
+  */
+  await ensureExternalTripCoordinates(
+    normalized,
+    {
+      save:false
+    }
+  );
+
   for(let attempt=0; attempt<10; attempt++){
 
     normalized.ghExternalTripNumber =
-      await nextExternalTripNumber({
-        brokerName:
-          normalized.brokerName,
-        brokerCode:
-          normalized.brokerCode
-      });
+      await nextExternalTripNumber(
+        normalized.brokerCode
+      );
 
     try{
 
@@ -647,6 +650,23 @@ async function createExternalTrip(options){
 }
 
 async function applyBrokerUpdate(existingTrip,payload){
+
+  const oldPickup =
+    clean(existingTrip.pickup);
+
+  const oldDropoff =
+    clean(existingTrip.dropoff);
+
+  const oldStops =
+    JSON.stringify(
+      safeArray(existingTrip.stops)
+        .map(stop=>
+          clean(
+            stop?.address ||
+            stop
+          )
+        )
+    );
 
   const normalized =
     normalizeExternalPayload({
@@ -710,6 +730,34 @@ async function applyBrokerUpdate(existingTrip,payload){
   existingTrip.status =
     "UPDATED";
 
+  const newStops =
+    JSON.stringify(
+      safeArray(existingTrip.stops)
+        .map(stop=>
+          clean(
+            stop?.address ||
+            stop
+          )
+        )
+    );
+
+  await ensureExternalTripCoordinates(
+    existingTrip,
+    {
+      save:false,
+      forcePickup:
+        oldPickup !==
+        clean(existingTrip.pickup),
+      forceDropoff:
+        oldDropoff !==
+        clean(existingTrip.dropoff),
+      forceStops:
+        oldStops !==
+        newStops,
+      forcePassengers:true
+    }
+  );
+
   await existingTrip.save();
 
   return existingTrip;
@@ -736,9 +784,6 @@ async function cancelExternalTrip(existingTrip,brokerStatus="CANCELLED"){
 
 module.exports = {
   normalizeBrokerCode,
-  normalizeServiceKey,
-  serviceSuffix,
-  visibleBrokerPrefix,
   normalizeExternalPayload,
   validateNormalizedTrip,
   createExternalTrip,

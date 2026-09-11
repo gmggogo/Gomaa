@@ -32,6 +32,11 @@ const TripSplitState =
 const ExternalTrip =
   require("../models/ExternalTrip");
 
+const {
+  ensureTripLikeCoordinates,
+  ensureExternalTripCoordinates
+} = require("../services/externalTripGeoService");
+
 const SharedTripGroup =
   require("../models/SharedTripGroup");
 
@@ -410,6 +415,87 @@ function executionLocked(
   ].includes(status);
 }
 
+
+function tripScheduledTimePassed(trip){
+
+  const date =
+    clean(trip?.tripDate);
+
+  const rawTime =
+    clean(trip?.tripTime);
+
+  if(!date || !rawTime){
+    return false;
+  }
+
+  const time =
+    rawTime
+      .replace(/\s+/g," ")
+      .trim();
+
+  let hours = null;
+  let minutes = null;
+
+  const twelve =
+    time.match(
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+    );
+
+  if(twelve){
+    hours = Number(twelve[1]);
+    minutes = Number(twelve[2]);
+
+    if(hours === 12){
+      hours = 0;
+    }
+
+    if(
+      twelve[3]
+        .toUpperCase() === "PM"
+    ){
+      hours += 12;
+    }
+  }else{
+    const twentyFour =
+      time.match(
+        /^(\d{1,2}):(\d{2})/
+      );
+
+    if(twentyFour){
+      hours = Number(twentyFour[1]);
+      minutes = Number(twentyFour[2]);
+    }
+  }
+
+  if(
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes)
+  ){
+    return false;
+  }
+
+  /*
+    Arizona/Phoenix does not observe daylight saving time.
+    Broker operations in this tenant use Arizona time.
+  */
+  const scheduled =
+    new Date(
+      `${date}T` +
+      `${String(hours).padStart(2,"0")}:` +
+      `${String(minutes).padStart(2,"0")}:00-07:00`
+    );
+
+  if(
+    Number.isNaN(
+      scheduled.getTime()
+    )
+  ){
+    return false;
+  }
+
+  return Date.now() >= scheduled.getTime();
+}
+
 function toId(value){
   return String(
     value?._id ||
@@ -468,6 +554,14 @@ function serializeExternal(
     pickup:
       external.pickup ||
       "",
+    pickupLat:
+      Number.isFinite(Number(external.pickupLat))
+        ? Number(external.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(Number(external.pickupLng))
+        ? Number(external.pickupLng)
+        : null,
     stops:
       safeArray(
         external.stops
@@ -475,6 +569,14 @@ function serializeExternal(
     dropoff:
       external.dropoff ||
       "",
+    dropoffLat:
+      Number.isFinite(Number(external.dropoffLat))
+        ? Number(external.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(Number(external.dropoffLng))
+        ? Number(external.dropoffLng)
+        : null,
     serviceKey:
       external.serviceKey ||
       "",
@@ -511,12 +613,32 @@ function serializeTrip(
     pickup:
       trip.pickup ||
       "",
+    pickupLat:
+      Number.isFinite(Number(trip.pickupLat))
+        ? Number(trip.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(Number(trip.pickupLng))
+        ? Number(trip.pickupLng)
+        : null,
     dropoff:
       trip.dropoff ||
       "",
+    dropoffLat:
+      Number.isFinite(Number(trip.dropoffLat))
+        ? Number(trip.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(Number(trip.dropoffLng))
+        ? Number(trip.dropoffLng)
+        : null,
     stops:
       safeArray(
         trip.stops
+      ),
+    stopCoords:
+      safeArray(
+        trip.stopCoords
       ),
     clientName:
       trip.clientName ||
@@ -1804,6 +1926,20 @@ router.post(
                 : "";
 
             /*
+              FINAL COORDINATE GATE
+              Dispatch/Driver must never receive a broker trip without
+              pickup/dropoff/stop/passenger coordinates.
+            */
+            await ensureTripLikeCoordinates(
+              trip,
+              {
+                save:false,
+                forcePassengers:
+                  trip.isShared === true
+              }
+            );
+
+            /*
               BROKER PRICE LOCK + DISPATCH RELEASE
 
               Pricing belongs to the broker financial flow only.
@@ -2021,6 +2157,23 @@ router.patch(
       const isShared =
         trip.isShared === true;
 
+      const oldPickup =
+        clean(trip.pickup);
+
+      const oldDropoff =
+        clean(trip.dropoff);
+
+      const oldStops =
+        JSON.stringify(
+          safeArray(trip.stops)
+            .map(stop=>
+              clean(
+                stop?.address ||
+                stop
+              )
+            )
+        );
+
       if(
         req.body.tripDate !== undefined
       ){
@@ -2074,6 +2227,57 @@ router.patch(
         }
       }
 
+      if(
+        !isShared &&
+        req.body.stops !== undefined
+      ){
+        trip.stops =
+          safeArray(req.body.stops)
+            .map(stop=>
+              clean(
+                typeof stop === "string"
+                  ? stop
+                  : stop?.address
+              )
+            )
+            .filter(Boolean);
+      }
+
+      const newStops =
+        JSON.stringify(
+          safeArray(trip.stops)
+            .map(stop=>
+              clean(
+                stop?.address ||
+                stop
+              )
+            )
+        );
+
+      /*
+        Broker Review Edit must leave a ready-to-drive Trip.
+        Individual address edits receive fresh coordinates immediately.
+        Shared trips keep their locked route, but missing passenger/route
+        coordinates are repaired before Dispatch.
+      */
+      await ensureTripLikeCoordinates(
+        trip,
+        {
+          save:false,
+          forcePickup:
+            !isShared &&
+            oldPickup !== clean(trip.pickup),
+          forceDropoff:
+            !isShared &&
+            oldDropoff !== clean(trip.dropoff),
+          forceStops:
+            !isShared &&
+            oldStops !== newStops,
+          forcePassengers:
+            isShared
+        }
+      );
+
       await trip.save();
 
       const states =
@@ -2115,6 +2319,34 @@ router.patch(
           external.dropoff =
             trip.dropoff ||
             external.dropoff;
+
+          external.stops =
+            safeArray(trip.stops)
+              .map((stop,index)=>({
+                address:
+                  clean(
+                    stop?.address ||
+                    stop
+                  ),
+                sequence:index + 1
+              }))
+              .filter(stop=>stop.address);
+
+          await ensureExternalTripCoordinates(
+            external,
+            {
+              save:false,
+              forcePickup:
+                oldPickup !==
+                clean(trip.pickup),
+              forceDropoff:
+                oldDropoff !==
+                clean(trip.dropoff),
+              forceStops:
+                oldStops !==
+                newStops
+            }
+          );
 
           external.notes =
             trip.notes ||
@@ -2197,6 +2429,22 @@ router.delete(
             const err =
               new Error(
                 "A trip that has started or closed cannot be deleted"
+              );
+
+            err.statusCode =
+              409;
+
+            throw err;
+          }
+
+          if(
+            tripScheduledTimePassed(
+              trip
+            )
+          ){
+            const err =
+              new Error(
+                "A trip whose scheduled time has passed cannot be deleted"
               );
 
             err.statusCode =
