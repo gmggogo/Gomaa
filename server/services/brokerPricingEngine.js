@@ -144,11 +144,16 @@ async function resolveBrokerPricing({
   const service =
     Array.isArray(pricing.services)
       ? pricing.services.find(
-          row=>
-            normalizeServiceCode(
-              row.serviceKey
-            ) === key &&
-            (
+          row=>{
+            const rowKey =
+              normalizeServiceCode(
+                row.serviceKey ||
+                row.serviceName ||
+                row.serviceSuffix ||
+                ""
+              );
+
+            const enabled =
               row.enabled === true ||
               row.accessEnabled === true ||
               row.serviceAccessEnabled === true ||
@@ -156,8 +161,13 @@ async function resolveBrokerPricing({
                 row.enabled === undefined &&
                 row.accessEnabled === undefined &&
                 row.serviceAccessEnabled === undefined
-              )
-            )
+              );
+
+            return (
+              rowKey === key &&
+              enabled
+            );
+          }
         )
       : null;
 

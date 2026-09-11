@@ -177,7 +177,7 @@ body{
 
 .summary-table{
   width:100%;
-  min-width:1960px;
+  min-width:1760px;
   table-layout:fixed;
   border-collapse:collapse;
   background:#fff;
@@ -202,21 +202,21 @@ body{
 }
 
 .col-num{width:32px}
-.col-trip{width:78px}
-.col-broker{width:62px}
-.col-broker-trip{width:88px}
-.col-service{width:72px}
-.col-passenger{width:102px;text-align:left!important}
-.col-phone{width:88px;text-align:left!important}
+.col-trip{width:66px}
+.col-broker{width:50px}
+.col-broker-trip{width:76px}
+.col-service{width:60px}
+.col-passenger{width:92px;text-align:left!important}
+.col-phone{width:78px;text-align:left!important}
 .col-address{width:205px;text-align:left!important}
 .col-stops{width:230px;text-align:left!important}
-.col-date{width:72px}
-.col-time{width:58px}
-.col-status{width:100px}
-.col-miles{width:54px}
-.col-passenger-status{width:105px;text-align:left!important}
-.col-fees{width:78px;text-align:left!important}
-.col-total{width:78px;text-align:left!important}
+.col-date{width:58px}
+.col-time{width:42px}
+.col-status{width:88px}
+.col-miles{width:46px}
+.col-passenger-status{width:94px;text-align:left!important}
+.col-fees{width:70px;text-align:left!important}
+.col-total{width:72px;text-align:left!important}
 .col-count{width:44px}
 .col-eye{width:34px}
 
@@ -391,6 +391,32 @@ body{
   text-align:center;
   font-weight:900;
   color:#64748b;
+}
+
+
+.summary-table .col-date,
+.summary-table .col-time{
+  white-space:nowrap;
+  font-size:9.5px;
+}
+
+.summary-table td.col-broker .cell-item,
+.summary-table td.col-broker-trip .cell-item,
+.summary-table td.col-service .cell-item{
+  padding:3px 4px;
+  font-size:9px;
+  line-height:1.12;
+}
+
+.summary-table td.col-fees .cell-item,
+.summary-table td.col-total .cell-item{
+  text-align:right;
+  white-space:nowrap;
+  padding:3px 4px;
+}
+
+.trip-total-box{
+  font-weight:900;
 }
 
 @media(max-width:1200px){

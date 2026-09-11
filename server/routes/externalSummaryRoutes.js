@@ -395,6 +395,7 @@ function passengerFee(passenger,trip){
     }
 
     return Number(
+      passenger?.feeAmount ??
       passenger?.cancelFee ??
       trip?.cancelFee ??
       0
@@ -403,6 +404,7 @@ function passengerFee(passenger,trip){
 
   if(isNoShow(status)){
     return Number(
+      passenger?.feeAmount ??
       passenger?.noShowFee ??
       trip?.noShowFee ??
       0
@@ -671,7 +673,30 @@ async function applyFinalBrokerMoney(trip){
   const status =
     normalizeStatus(trip.status);
 
-  if(!isClosedStatus(status)){
+  const passengers =
+    Array.isArray(trip?.passengers)
+      ? trip.passengers
+      : [];
+
+  const isShared =
+    trip?.isShared === true ||
+    tripServiceCode(trip) === "SH";
+
+  const hasClosedPassenger =
+    passengers.some(
+      passenger=>
+        isClosedStatus(
+          passengerStatus(
+            passenger,
+            trip
+          )
+        )
+    );
+
+  if(
+    !isClosedStatus(status) &&
+    !hasClosedPassenger
+  ){
     return trip;
   }
 
@@ -679,9 +704,23 @@ async function applyFinalBrokerMoney(trip){
     brokerPricingInput(trip);
 
   /*
-    IMPORTANT:
-    Broker financial summary uses BrokerPricing ONLY.
-    No Facility Pricing and no Service Management fallback.
+    BROKER FINANCIAL RULES
+
+    Pricing source:
+    - BrokerPricing ONLY.
+    - Never Facility Pricing.
+    - Never Service Management.
+
+    Final money:
+    - Completed     -> normal broker fare.
+    - No Show       -> broker noShowFee.
+    - Cancelled     -> broker cancelFee when chargeable.
+    - Not Completed -> 0.
+
+    Shared:
+    - Every passenger is calculated independently by final status.
+    - Up to any number of passengers can exist; the UI shows the first 10.
+    - Trip total is the sum of passenger totals.
   */
   try{
 
@@ -693,28 +732,150 @@ async function applyFinalBrokerMoney(trip){
       );
 
     const cancelFee =
-      positiveNumber(service?.cancelFee);
+      positiveNumber(
+        service?.cancelFee
+      );
 
     const noShowFee =
-      positiveNumber(service?.noShowFee);
+      positiveNumber(
+        service?.noShowFee
+      );
 
-    if(cancelFee > 0){
-      trip.cancelFee = cancelFee;
-    }
+    trip.cancelFee =
+      cancelFee;
 
-    if(noShowFee > 0){
-      trip.noShowFee = noShowFee;
-    }
+    trip.noShowFee =
+      noShowFee;
 
-    if(isCancelled(status)){
+    /*
+      SHARED
+    */
+    if(isShared){
+
+      let fareResult = null;
+
+      const completedCount =
+        passengers.filter(
+          passenger=>
+            isCompleted(
+              passengerStatus(
+                passenger,
+                trip
+              )
+            )
+        ).length;
+
+      if(
+        completedCount > 0 ||
+        isCompleted(status)
+      ){
+        fareResult =
+          await calculateBrokerPrice({
+            ...input,
+            passengersCount:
+              Math.max(
+                1,
+                passengers.length ||
+                input.passengersCount ||
+                1
+              )
+          });
+
+        trip.pricePerPassenger =
+          Number(
+            fareResult?.pricePerPassenger ||
+            0
+          );
+      }
+
+      trip.passengers =
+        passengers.map(
+          passenger=>{
+
+            const pStatus =
+              passengerStatus(
+                passenger,
+                trip
+              );
+
+            let finalAmount = 0;
+            let feeAmount = 0;
+
+            if(isCompleted(pStatus)){
+              finalAmount =
+                positiveNumber(
+                  passenger?.finalPrice ??
+                  passenger?.priceAmount
+                ) ||
+                Number(
+                  fareResult?.pricePerPassenger ||
+                  0
+                );
+            }else if(isNoShow(pStatus)){
+              feeAmount =
+                noShowFee;
+              finalAmount =
+                noShowFee;
+            }else if(isCancelled(pStatus)){
+              feeAmount =
+                cancellationChargeable(
+                  trip,
+                  passenger
+                )
+                  ? cancelFee
+                  : 0;
+              finalAmount =
+                feeAmount;
+            }else if(isNotCompleted(pStatus)){
+              finalAmount = 0;
+            }
+
+            return {
+              ...passenger,
+              cancelFee,
+              noShowFee,
+              feeAmount,
+              priceAmount:
+                Number(finalAmount || 0),
+              finalPrice:
+                Number(finalAmount || 0)
+            };
+          }
+        );
+
+      const total =
+        trip.passengers.reduce(
+          (sum,passenger)=>
+            sum +
+            Number(
+              passenger?.finalPrice ||
+              passenger?.priceAmount ||
+              0
+            ),
+          0
+        );
 
       trip.priceAmount =
+        Number(total || 0);
+
+      trip.finalPrice =
+        Number(total || 0);
+
+      return trip;
+    }
+
+    /*
+      INDIVIDUAL
+    */
+    if(isCancelled(status)){
+
+      const amount =
         cancellationChargeable(trip)
           ? cancelFee
           : 0;
 
-      trip.finalPrice =
-        trip.priceAmount;
+      trip.priceAmount = amount;
+      trip.finalPrice = amount;
 
       return trip;
     }
@@ -756,62 +917,23 @@ async function applyFinalBrokerMoney(trip){
         );
 
       trip.priceAmount =
-        Number(result?.total || 0);
+        Number(
+          result?.total ||
+          0
+        );
 
       trip.finalPrice =
-        Number(result?.total || 0);
+        Number(
+          result?.total ||
+          0
+        );
 
       trip.pricePerPassenger =
         Number(
           result?.pricePerPassenger ||
+          result?.total ||
           0
         );
-
-      if(
-        (
-          trip?.isShared === true ||
-          tripServiceCode(trip) === "SH"
-        ) &&
-        Array.isArray(trip.passengers)
-      ){
-
-        trip.passengers =
-          trip.passengers.map(
-            passenger=>({
-              ...passenger,
-              cancelFee:
-                positiveNumber(
-                  passenger?.cancelFee
-                ) || cancelFee,
-              noShowFee:
-                positiveNumber(
-                  passenger?.noShowFee
-                ) || noShowFee,
-              priceAmount:
-                isCompleted(
-                  passenger?.status ||
-                  trip.status
-                )
-                  ? Number(
-                      passenger?.priceAmount ||
-                      result?.pricePerPassenger ||
-                      0
-                    )
-                  : passenger?.priceAmount,
-              finalPrice:
-                isCompleted(
-                  passenger?.status ||
-                  trip.status
-                )
-                  ? Number(
-                      passenger?.finalPrice ||
-                      result?.pricePerPassenger ||
-                      0
-                    )
-                  : passenger?.finalPrice
-            })
-          );
-      }
     }
 
   }catch(err){

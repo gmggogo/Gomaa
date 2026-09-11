@@ -481,7 +481,6 @@ BROKER SUMMARY
 
             <td class="col-status">
               ${statusHTML(item.status)}
-              ${pricingError ? `<div class="pricing-error">Pricing Error</div>` : ""}
             </td>
 
             <td class="col-miles">
@@ -500,12 +499,9 @@ BROKER SUMMARY
               ${
                 shared
                   ? cellBox(passengerTotals(item))
-                  : cellBox(money(item.total))
-              }
-              ${
-                shared
-                  ? `<div style="margin-top:4px;font-weight:900;">Trip: ${money(item.total)}</div>`
-                  : ""
+                  : `<div class="cell-box trip-total-box">
+                       <div class="cell-item">${safe(money(item.total))}</div>
+                     </div>`
               }
             </td>
 
