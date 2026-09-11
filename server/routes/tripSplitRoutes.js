@@ -734,10 +734,34 @@ async function getProcessedSet(tenantId,tripIds){
     return new Set();
   }
 
+  /*
+    A broker source trip must belong to only ONE stage.
+
+    Once Trip Split has handed the source downstream, it must no longer be
+    returned in Original / Individual / Shared buckets.
+
+    We therefore treat the source as processed when ANY downstream ownership
+    marker exists:
+    - confirmed:true          -> sent from Trip Split to Broker Review
+    - reviewConfirmed:true    -> released by Broker Review
+    - dispatchTripId present  -> a Broker Review / Dispatch Trip already owns it
+
+    This also protects against older/stale state rows where one boolean was
+    reset incorrectly while the downstream Trip still exists.
+  */
   const rows = await TripSplitState.find({
     tenantId,
     externalTripObjectId:{$in:tripIds},
-    confirmed:true
+    $or:[
+      {confirmed:true},
+      {reviewConfirmed:true},
+      {
+        dispatchTripId:{
+          $exists:true,
+          $ne:null
+        }
+      }
+    ]
   })
     .select("externalTripObjectId")
     .lean();
@@ -1421,7 +1445,12 @@ router.get("/bootstrap",async(req,res)=>{
           tenantId,
           externalTripObjectId:{$in:ids},
           confirmed:false,
-          processingMode:"NORMAL"
+          reviewConfirmed:{$ne:true},
+          processingMode:"NORMAL",
+          $or:[
+            {dispatchTripId:null},
+            {dispatchTripId:{$exists:false}}
+          ]
         })
           .select("externalTripObjectId")
           .lean()
@@ -1439,6 +1468,48 @@ router.get("/bootstrap",async(req,res)=>{
     let openTrips = trips.filter(
       trip=>!processed.has(String(trip._id))
     );
+
+    /*
+      Defensive one-bucket invariant:
+      anything already owned by Broker Review / Dispatch is removed before
+      Trip Split builds Original, Individual, or Shared UI buckets.
+    */
+    const downstreamStateRows =
+      await TripSplitState.find({
+        tenantId,
+        externalTripObjectId:{
+          $in:openTrips.map(trip=>trip._id)
+        },
+        $or:[
+          {confirmed:true},
+          {reviewConfirmed:true},
+          {
+            dispatchTripId:{
+              $exists:true,
+              $ne:null
+            }
+          }
+        ]
+      })
+        .select("externalTripObjectId")
+        .lean();
+
+    const downstreamOwnedIds =
+      new Set(
+        downstreamStateRows.map(
+          row=>String(row.externalTripObjectId)
+        )
+      );
+
+    if(downstreamOwnedIds.size){
+      openTrips =
+        openTrips.filter(
+          trip=>
+            !downstreamOwnedIds.has(
+              String(trip._id)
+            )
+        );
+    }
 
     const [groups,shareBaselines] = await Promise.all([
       loadOpenSharedGroups(
