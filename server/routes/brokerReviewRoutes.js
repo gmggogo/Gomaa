@@ -142,6 +142,20 @@ function serviceSuffix(value){
   ).padEnd(2,"X");
 }
 
+function serviceDisplayName(value){
+  const key =
+    normalizeServiceKey(value);
+
+  if(key === "STANDARD") return "Standard";
+  if(key === "SHARED") return "Shared";
+  if(key === "WHEELCHAIR") return "Wheelchair";
+  if(key === "TAXI") return "Taxi";
+  if(key === "LIMO") return "Limo";
+  if(key === "XL") return "XL";
+
+  return clean(value) || "Standard";
+}
+
 function neutralTripNumber(value,serviceValue=""){
   const raw =
     clean(value)
@@ -1768,14 +1782,24 @@ router.post(
             trip.externalSource =
               "BROKER";
 
+            /*
+              SERVICE SOURCE OF TRUTH
+
+              Trip Split / Broker Review selection is authoritative.
+              External broker service data is only a fallback.
+
+              This prevents a Standard trip from being finalized as Taxi
+              just because the original ExternalTrip carried TAXI/TX.
+            */
             const finalService =
               shared
                 ? "SHARED"
                 : normalizeServiceKey(
+                    trip.serviceKey ||
+                    trip.serviceCode ||
+                    trip.serviceType ||
                     primaryExternal.serviceKey ||
                     primaryExternal.serviceName ||
-                    trip.serviceKey ||
-                    trip.serviceType ||
                     "STANDARD"
                   );
 
@@ -1785,8 +1809,6 @@ router.post(
                 primaryExternal.externalTripNumber ||
                 primaryExternal.externalTripId ||
                 trip.tripNumber,
-                primaryExternal.serviceKey ||
-                primaryExternal.serviceName ||
                 finalService
               );
 
@@ -1831,6 +1853,26 @@ router.post(
 
             trip.serviceType =
               finalService;
+
+            trip.serviceName =
+              serviceDisplayName(
+                finalService
+              );
+
+            trip.serviceTitle =
+              serviceDisplayName(
+                finalService
+              );
+
+            trip.serviceSuffix =
+              serviceSuffix(
+                finalService
+              );
+
+            trip.tripNumberSuffix =
+              serviceSuffix(
+                finalService
+              );
 
             trip.isShared =
               shared;
@@ -1915,6 +1957,30 @@ router.post(
             ){
               trip.status =
                 "Scheduled";
+            }
+
+            const expectedSuffix =
+              serviceSuffix(
+                finalService
+              );
+
+            const finalNumberUpper =
+              upper(
+                trip.tripNumber
+              );
+
+            const numberMatchesService =
+              finalNumberUpper.endsWith(
+                `-${expectedSuffix}`
+              ) ||
+              finalNumberUpper.endsWith(
+                `-${expectedSuffix}-R`
+              );
+
+            if(!numberMatchesService){
+              throw new Error(
+                `Trip number/service mismatch: ${trip.tripNumber} does not match ${finalService}`
+              );
             }
 
             await trip.save({
