@@ -14,7 +14,7 @@ FLOW:
 - Broker Pricing errors never block Dispatch.
 - Trips stay visible here after release and continue showing live Trip status.
 - Edit is allowed until the trip begins execution.
-- Delete requires an explicit warning and is blocked after execution begins.
+- Delete stays available in Broker Review even if the scheduled time passed or execution already started.
 
 MOUNT:
 app.use("/api/broker-review", brokerReviewRoutes);
@@ -415,86 +415,6 @@ function executionLocked(
   ].includes(status);
 }
 
-
-function tripScheduledTimePassed(trip){
-
-  const date =
-    clean(trip?.tripDate);
-
-  const rawTime =
-    clean(trip?.tripTime);
-
-  if(!date || !rawTime){
-    return false;
-  }
-
-  const time =
-    rawTime
-      .replace(/\s+/g," ")
-      .trim();
-
-  let hours = null;
-  let minutes = null;
-
-  const twelve =
-    time.match(
-      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
-    );
-
-  if(twelve){
-    hours = Number(twelve[1]);
-    minutes = Number(twelve[2]);
-
-    if(hours === 12){
-      hours = 0;
-    }
-
-    if(
-      twelve[3]
-        .toUpperCase() === "PM"
-    ){
-      hours += 12;
-    }
-  }else{
-    const twentyFour =
-      time.match(
-        /^(\d{1,2}):(\d{2})/
-      );
-
-    if(twentyFour){
-      hours = Number(twentyFour[1]);
-      minutes = Number(twentyFour[2]);
-    }
-  }
-
-  if(
-    !Number.isInteger(hours) ||
-    !Number.isInteger(minutes)
-  ){
-    return false;
-  }
-
-  /*
-    Arizona/Phoenix does not observe daylight saving time.
-    Broker operations in this tenant use Arizona time.
-  */
-  const scheduled =
-    new Date(
-      `${date}T` +
-      `${String(hours).padStart(2,"0")}:` +
-      `${String(minutes).padStart(2,"0")}:00-07:00`
-    );
-
-  if(
-    Number.isNaN(
-      scheduled.getTime()
-    )
-  ){
-    return false;
-  }
-
-  return Date.now() >= scheduled.getTime();
-}
 
 function toId(value){
   return String(
@@ -2421,37 +2341,7 @@ router.delete(
             );
           }
 
-          if(
-            executionLocked(
-              trip
-            )
-          ){
-            const err =
-              new Error(
-                "A trip that has started or closed cannot be deleted"
-              );
 
-            err.statusCode =
-              409;
-
-            throw err;
-          }
-
-          if(
-            tripScheduledTimePassed(
-              trip
-            )
-          ){
-            const err =
-              new Error(
-                "A trip whose scheduled time has passed cannot be deleted"
-              );
-
-            err.statusCode =
-              409;
-
-            throw err;
-          }
 
           const states =
             await TripSplitState.find({
