@@ -1,22 +1,22 @@
-/*
-DESTINATION PATH:
-server/public/admin/js/external-summary.js
-*/
-
 "use strict";
 
 /*
 DESTINATION PATH:
-public/admin/js/external-summary.js
+server/public/admin/js/external-summary.js
+
+BROKER-ONLY FINANCIAL SUMMARY
 */
 
 (() => {
 
-  const $ = (id) =>
-    document.getElementById(id);
+  const $ = id => document.getElementById(id);
+
+  const state = {
+    items:[],
+    brokers:[]
+  };
 
   function token(){
-
     return (
       sessionStorage.getItem("token") ||
       localStorage.getItem("token") ||
@@ -25,189 +25,255 @@ public/admin/js/external-summary.js
   }
 
   function headers(){
-
     return {
-      Authorization:
-        `Bearer ${token()}`
+      Authorization:`Bearer ${token()}`
     };
   }
 
-  function escapeHtml(value){
+  function clean(v){
+    return String(v ?? "").trim();
+  }
 
-    return String(value ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
+  function esc(v){
+    return clean(v)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function num(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function money(v){
+    return "$" + num(v).toFixed(2);
   }
 
   function buildQuery(){
+    const p = new URLSearchParams();
 
-    const params =
-      new URLSearchParams();
+    const from = $("fromDate")?.value || "";
+    const to = $("toDate")?.value || "";
+    const broker = $("brokerFilter")?.value || "";
 
-    const from =
-      $("fromDate").value;
+    if(from) p.set("from",from);
+    if(to) p.set("to",to);
+    if(broker) p.set("brokerCode",broker);
 
-    const to =
-      $("toDate").value;
-
-    const brokerCode =
-      $("brokerCode").value
-        .trim()
-        .toUpperCase()
-        .slice(0,2);
-
-    if(from){
-      params.set(
-        "from",
-        from
-      );
-    }
-
-    if(to){
-      params.set(
-        "to",
-        to
-      );
-    }
-
-    if(brokerCode){
-      params.set(
-        "brokerCode",
-        brokerCode
-      );
-    }
-
-    const raw =
-      params.toString();
-
-    return raw
-      ? `?${raw}`
-      : "";
+    const raw = p.toString();
+    return raw ? `?${raw}` : "";
   }
 
-  function setTotals(totals){
+  function renderBrokerFilter(){
+    const select = $("brokerFilter");
+    if(!select) return;
 
-    $("totalTrips").textContent =
-      totals.total || 0;
+    const current = select.value;
 
-    $("receivedTrips").textContent =
-      totals.received || 0;
+    select.innerHTML =
+      `<option value="">All Brokers</option>` +
+      state.brokers.map(b=>`
+        <option value="${esc(b.code)}">
+          ${esc(b.name || b.code)}
+        </option>
+      `).join("");
 
-    $("transferredTrips").textContent =
-      totals.transferred || 0;
-
-    $("cancelledTrips").textContent =
-      totals.cancelled || 0;
-
-    $("sharedTrips").textContent =
-      totals.shared || 0;
-
-    $("automaticTrips").textContent =
-      totals.automatic || 0;
-
-    $("manualTrips").textContent =
-      totals.manual || 0;
-
-    $("rejectedTrips").textContent =
-      totals.rejected || 0;
-
-    $("errorTrips").textContent =
-      totals.errors || 0;
+    if([...select.options].some(o=>o.value === current)){
+      select.value = current;
+    }
   }
 
-  function renderRows(items){
+  function setStats(){
+    const items = state.items;
 
-    const body =
-      $("summaryRows");
+    const completed =
+      items.filter(x=>x.status === "Completed").length;
 
-    body.innerHTML = "";
+    const cancelled =
+      items.filter(x=>x.status === "Cancelled").length;
 
-    for(const item of items){
+    const noShow =
+      items.filter(x=>x.status === "No Show").length;
 
-      const tr =
-        document.createElement("tr");
+    const notCompleted =
+      items.filter(x=>x.status === "Not Completed").length;
 
-      tr.innerHTML = `
-        <td>${escapeHtml(item._id?.brokerName || item._id?.brokerCode || "")}</td>
-        <td><strong>${escapeHtml(item._id?.brokerCode || "")}</strong></td>
-        <td>${Number(item.total || 0)}</td>
-        <td>${Number(item.received || 0)}</td>
-        <td>${Number(item.transferred || 0)}</td>
-        <td>${Number(item.cancelled || 0)}</td>
-        <td>${Number(item.shared || 0)}</td>
-        <td>${Number(item.automatic || 0)}</td>
-        <td>${Number(item.manual || 0)}</td>
-        <td>${Number(item.rejected || 0)}</td>
-        <td>${Number(item.errors || 0)}</td>
+    const revenue =
+      items.reduce((s,x)=>s + num(x.total),0);
+
+    const miles =
+      items.reduce((s,x)=>s + num(x.miles),0);
+
+    if($("totalTrips")) $("totalTrips").textContent = items.length;
+    if($("completedTrips")) $("completedTrips").textContent = completed;
+    if($("cancelledTrips")) $("cancelledTrips").textContent = cancelled;
+    if($("noShowTrips")) $("noShowTrips").textContent = noShow;
+    if($("notCompletedTrips")) $("notCompletedTrips").textContent = notCompleted;
+    if($("totalRevenue")) $("totalRevenue").textContent = money(revenue);
+    if($("totalMiles")) $("totalMiles").textContent = miles.toFixed(1);
+  }
+
+  function statusClass(status){
+    return clean(status)
+      .toLowerCase()
+      .replace(/\s+/g,"-");
+  }
+
+  function render(){
+    setStats();
+
+    const body = $("summaryRows");
+    if(!body) return;
+
+    if(!state.items.length){
+      body.innerHTML = `
+        <tr>
+          <td colspan="17" class="empty">
+            No broker summary trips found.
+          </td>
+        </tr>
       `;
-
-      body.appendChild(tr);
+      return;
     }
+
+    body.innerHTML = state.items.map((x,index)=>`
+      <tr>
+        <td>${index + 1}</td>
+        <td><strong>${esc(x.tripNumber)}</strong></td>
+        <td>${esc(x.brokerName || x.brokerCode)}</td>
+        <td>${esc(x.brokerTripId || "-")}</td>
+        <td>${esc(x.serviceName || x.serviceCode)}</td>
+        <td>${esc(x.passenger || "-")}</td>
+        <td>${esc(x.pickup || "-")}</td>
+        <td>${esc(Array.isArray(x.stops) && x.stops.length ? x.stops.map((s,i)=>`${i+1}. ${typeof s === "string" ? s : (s?.address || "")}`).join(" | ") : "-")}</td>
+        <td>${esc(x.dropoff || "-")}</td>
+        <td>${esc(x.tripDate || "-")}</td>
+        <td>${esc(x.tripTime || "-")}</td>
+        <td><span class="status ${statusClass(x.status)}">${esc(x.status || "-")}</span></td>
+        <td>${num(x.miles).toFixed(1)}</td>
+        <td>${money(x.fee)}</td>
+        <td><strong>${money(x.total)}</strong></td>
+        <td>${num(x.passengerCount) || 1}</td>
+        <td>
+          <button class="eye-btn" data-id="${esc(x.id)}" type="button" title="View Details">👁️</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function detailLine(label,value){
+    return `
+      <div class="detail-line">
+        <div class="detail-label">${esc(label)}</div>
+        <div class="detail-value">${esc(value || "-")}</div>
+      </div>
+    `;
+  }
+
+  function openDetails(id){
+    const item =
+      state.items.find(x=>String(x.id) === String(id));
+
+    if(!item) return;
+
+    $("detailTitle").textContent =
+      item.tripNumber || "Broker Trip";
+
+    const passengerText =
+      Array.isArray(item.passengers)
+        ? item.passengers.map((p,i)=>
+            `${i+1}. ${p.name || "-"} | ${p.status || "-"} | Fee ${money(p.fee)} | Total ${money(p.total)}`
+          ).join("\n")
+        : "-";
+
+    const externalText =
+      Array.isArray(item.externalTrips)
+        ? item.externalTrips.map((x,i)=>
+            `${i+1}. ${x.ghExternalTripNumber || x.externalTripId || "-"} | ${x.clientName || "-"}`
+          ).join("\n")
+        : "-";
+
+    $("detailBody").innerHTML = [
+      detailLine("Broker",`${item.brokerName || "-"} (${item.brokerCode || "-"})`),
+      detailLine("Broker Trip #",item.brokerTripId),
+      detailLine("Service",item.serviceName || item.serviceCode),
+      detailLine("Status",item.status),
+      detailLine("Miles",num(item.miles).toFixed(1)),
+      detailLine("Fee",money(item.fee)),
+      detailLine("Calculated Total",money(item.total)),
+      detailLine("Locked Price",money(item.finalPrice || item.priceAmount)),
+      detailLine("Cancel Fee",money(item.cancelFee)),
+      detailLine("No Show Fee",money(item.noShowFee)),
+      detailLine("Appointment",item.appointmentTime),
+      detailLine("Return Time",item.returnTime),
+      detailLine("Driver",item.driverName),
+      detailLine("Vehicle",item.vehicleNumber),
+      detailLine("Passengers",passengerText),
+      detailLine("External Source Trips",externalText),
+      detailLine("Notes",item.notes)
+    ].join("");
+
+    $("detailModal")?.classList.add("show");
+  }
+
+  function closeDetails(){
+    $("detailModal")?.classList.remove("show");
   }
 
   async function load(){
-
     const res =
       await fetch(
         `/api/external-summary${buildQuery()}`,
-        {
-          headers:headers()
-        }
+        {headers:headers()}
       );
 
     const data =
-      await res.json();
+      await res.json().catch(()=>({}));
 
-    if(!res.ok){
+    if(!res.ok || data.success === false){
       throw new Error(
         data.message ||
-        "Failed to load external summary"
+        "Failed to load External Summary"
       );
     }
 
-    setTotals(
-      data.totals || {}
-    );
+    state.items =
+      Array.isArray(data.items)
+        ? data.items
+        : [];
 
-    renderRows(
-      data.byBroker || []
-    );
+    state.brokers =
+      Array.isArray(data.brokers)
+        ? data.brokers
+        : [];
+
+    renderBrokerFilter();
+    render();
   }
 
-  $("brokerCode")
-    .addEventListener(
-      "input",
-      (event) => {
-        event.target.value =
-          event.target.value
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g,"")
-            .slice(0,2);
-      }
-    );
+  $("applyBtn")?.addEventListener("click",()=>{
+    load().catch(err=>alert(err.message));
+  });
 
-  $("applyBtn")
-    .addEventListener(
-      "click",
-      () => {
-        load().catch(err => {
-          alert(
-            err.message ||
-            "Failed to load external summary"
-          );
-        });
-      }
-    );
+  $("summaryRows")?.addEventListener("click",e=>{
+    const btn = e.target.closest(".eye-btn");
+    if(btn) openDetails(btn.dataset.id);
+  });
 
-  load().catch(err => {
+  $("closeDetailBtn")?.addEventListener("click",closeDetails);
+
+  $("detailModal")?.addEventListener("click",e=>{
+    if(e.target.id === "detailModal"){
+      closeDetails();
+    }
+  });
+
+  load().catch(err=>{
     console.error(err);
-    alert(
-      err.message ||
-      "Failed to load external summary"
-    );
+    alert(err.message);
   });
 
 })();

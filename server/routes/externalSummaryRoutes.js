@@ -24,6 +24,11 @@ const ExternalTrip =
 const TripSplitState =
   require("../models/TripSplitState");
 
+const {
+  calculateBrokerPrice,
+  resolveBrokerPricing
+} = require("../services/brokerPricingEngine");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -611,6 +616,214 @@ function serializedPassenger(
   };
 }
 
+
+function positiveNumber(value){
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0
+    ? n
+    : 0;
+}
+
+function tripMinutes(trip){
+  return Number(
+    trip?.estimatedMinutes ??
+    (
+      Number(trip?.durationSeconds || 0) > 0
+        ? Number(trip.durationSeconds) / 60
+        : 0
+    )
+  ) || 0;
+}
+
+function brokerPricingInput(trip){
+  const passengers =
+    Array.isArray(trip?.passengers)
+      ? trip.passengers
+      : [];
+
+  return {
+    tenantId:trip?.tenantId,
+    brokerId:trip?.brokerId || null,
+    brokerCode:trip?.brokerCode || "",
+    brokerName:trip?.brokerName || "",
+    serviceKey:tripServiceCode(trip),
+    miles:tripMiles(trip) || Number(trip?.miles || 0) || 0,
+    minutes:tripMinutes(trip),
+    stops:stopsArray(trip).length,
+    passengersCount:
+      Math.max(
+        1,
+        trip?.isShared === true || tripServiceCode(trip) === "SH"
+          ? passengers.length || Number(trip?.passengersCount || 1)
+          : 1
+      )
+  };
+}
+
+async function applyFinalBrokerMoney(trip){
+
+  if(!trip || !tripIsBroker(trip)){
+    return trip;
+  }
+
+  const status =
+    normalizeStatus(trip.status);
+
+  if(!isClosedStatus(status)){
+    return trip;
+  }
+
+  const input =
+    brokerPricingInput(trip);
+
+  /*
+    IMPORTANT:
+    Broker financial summary uses BrokerPricing ONLY.
+    No Facility Pricing and no Service Management fallback.
+  */
+  try{
+
+    const {
+      service
+    } =
+      await resolveBrokerPricing(
+        input
+      );
+
+    const cancelFee =
+      positiveNumber(service?.cancelFee);
+
+    const noShowFee =
+      positiveNumber(service?.noShowFee);
+
+    if(cancelFee > 0){
+      trip.cancelFee = cancelFee;
+    }
+
+    if(noShowFee > 0){
+      trip.noShowFee = noShowFee;
+    }
+
+    if(isCancelled(status)){
+
+      trip.priceAmount =
+        cancellationChargeable(trip)
+          ? cancelFee
+          : 0;
+
+      trip.finalPrice =
+        trip.priceAmount;
+
+      return trip;
+    }
+
+    if(isNoShow(status)){
+
+      trip.priceAmount =
+        noShowFee;
+
+      trip.finalPrice =
+        noShowFee;
+
+      return trip;
+    }
+
+    if(isNotCompleted(status)){
+
+      trip.priceAmount = 0;
+      trip.finalPrice = 0;
+
+      return trip;
+    }
+
+    if(isCompleted(status)){
+
+      const current =
+        positiveNumber(
+          trip.finalPrice ??
+          trip.priceAmount
+        );
+
+      if(current > 0){
+        return trip;
+      }
+
+      const result =
+        await calculateBrokerPrice(
+          input
+        );
+
+      trip.priceAmount =
+        Number(result?.total || 0);
+
+      trip.finalPrice =
+        Number(result?.total || 0);
+
+      trip.pricePerPassenger =
+        Number(
+          result?.pricePerPassenger ||
+          0
+        );
+
+      if(
+        (
+          trip?.isShared === true ||
+          tripServiceCode(trip) === "SH"
+        ) &&
+        Array.isArray(trip.passengers)
+      ){
+
+        trip.passengers =
+          trip.passengers.map(
+            passenger=>({
+              ...passenger,
+              cancelFee:
+                positiveNumber(
+                  passenger?.cancelFee
+                ) || cancelFee,
+              noShowFee:
+                positiveNumber(
+                  passenger?.noShowFee
+                ) || noShowFee,
+              priceAmount:
+                isCompleted(
+                  passenger?.status ||
+                  trip.status
+                )
+                  ? Number(
+                      passenger?.priceAmount ||
+                      result?.pricePerPassenger ||
+                      0
+                    )
+                  : passenger?.priceAmount,
+              finalPrice:
+                isCompleted(
+                  passenger?.status ||
+                  trip.status
+                )
+                  ? Number(
+                      passenger?.finalPrice ||
+                      result?.pricePerPassenger ||
+                      0
+                    )
+                  : passenger?.finalPrice
+            })
+          );
+      }
+    }
+
+  }catch(err){
+
+    console.log(
+      "EXTERNAL SUMMARY BROKER PRICING WARNING:",
+      trip?.tripNumber || trip?._id,
+      err?.message || err
+    );
+  }
+
+  return trip;
+}
+
 function serializeTrip(
   trip,
   externalTrips
@@ -894,6 +1107,17 @@ router.get("/",async(req,res)=>{
                 )
           )
       );
+
+    /*
+      Final broker financial pass:
+      Completed -> Broker Pricing trip price.
+      No Show   -> Broker Pricing no-show fee.
+      Cancelled -> Broker Pricing cancel fee when chargeable.
+      Not Completed -> 0.
+    */
+    for(const trip of closedTrips){
+      await applyFinalBrokerMoney(trip);
+    }
 
     const ids =
       closedTrips.map(

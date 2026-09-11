@@ -1246,6 +1246,16 @@ function getFacilityNameFromUser(u){
   );
 }
 
+
+function isBrokerTrip(t){
+  return Boolean(
+    clean(t?.brokerId) ||
+    clean(t?.brokerName) ||
+    clean(t?.brokerCode) ||
+    clean(t?.externalSource).toUpperCase() === "BROKER"
+  );
+}
+
 async function loadSummaryBundle(){
 
   try{
@@ -1290,12 +1300,20 @@ async function loadSummaryBundle(){
             ? data.data
             : [];
 
+    /*
+      Main Admin Summary is strictly non-broker.
+      Broker trips belong only to External Summary.
+    */
     allTrips =
-      tripList.sort(
-        (a,b)=>
-          getBookedDateObj(b) -
-          getBookedDateObj(a)
-      );
+      tripList
+        .filter(
+          trip=>!isBrokerTrip(trip)
+        )
+        .sort(
+          (a,b)=>
+            getBookedDateObj(b) -
+            getBookedDateObj(a)
+        );
 
     allTrips =
       allTrips.map(t=>{
