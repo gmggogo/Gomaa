@@ -17,6 +17,9 @@ const BrokerIntegration =
 const BrokerPricing =
   require("../models/BrokerPricing");
 
+const Tenant =
+  require("../models/Tenant");
+
 const {
   calculateBrokerPrice,
   normalizeServiceCode
@@ -343,10 +346,16 @@ router.get("/bootstrap",async(req,res)=>{
     }
 
     const [
+      tenant,
       brokers,
       pricingRows
     ] =
       await Promise.all([
+
+        Tenant
+          .findById(tenantId)
+          .select("allowedServices")
+          .lean(),
 
         BrokerIntegration
           .find({
@@ -373,6 +382,43 @@ router.get("/bootstrap",async(req,res)=>{
           })
           .lean()
       ]);
+
+    if(!tenant){
+      return res.status(404).json({
+        success:false,
+        message:"Tenant not found"
+      });
+    }
+
+    const allowedServices =
+      Array.isArray(
+        tenant.allowedServices
+      )
+        ? [
+            ...new Set(
+              tenant.allowedServices
+                .map(
+                  normalizeServiceCode
+                )
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
+    const visibleCatalog =
+      SERVICE_CATALOG.filter(
+        service=>
+          allowedServices.includes(
+            service.serviceKey
+          )
+      );
+
+    const visibleKeys =
+      new Set(
+        visibleCatalog.map(
+          service=>service.serviceKey
+        )
+      );
 
     const pricingByBroker =
       new Map(
@@ -435,6 +481,12 @@ router.get("/bootstrap",async(req,res)=>{
                 active:false,
                 services:
                   defaultServices()
+                    .filter(
+                      service=>
+                        visibleKeys.has(
+                          service.serviceKey
+                        )
+                    )
               }
           };
         }
@@ -444,8 +496,9 @@ router.get("/bootstrap",async(req,res)=>{
       success:true,
       brokers:
         normalizedBrokers,
+      allowedServices,
       serviceCatalog:
-        SERVICE_CATALOG
+        visibleCatalog
     });
 
   }catch(err){
@@ -510,29 +563,53 @@ router.patch("/:brokerId",async(req,res)=>{
       });
     }
 
+    const tenant =
+      await Tenant
+        .findById(tenantId)
+        .select("allowedServices")
+        .lean();
+
+    if(!tenant){
+      return res.status(404).json({
+        success:false,
+        message:"Tenant not found"
+      });
+    }
+
+    const allowedServices =
+      Array.isArray(
+        tenant.allowedServices
+      )
+        ? [
+            ...new Set(
+              tenant.allowedServices
+                .map(
+                  normalizeServiceCode
+                )
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
+    const allowedSet =
+      new Set(
+        allowedServices
+      );
+
     const services =
       mergeServices(
         req.body?.services
+      ).filter(
+        service=>
+          allowedSet.has(
+            service.serviceKey
+          )
       );
 
     const active =
       bool(
         req.body?.active
       );
-
-    if(
-      active &&
-      !services.some(
-        service=>
-          service.enabled === true
-      )
-    ){
-      return res.status(400).json({
-        success:false,
-        message:
-          "Enable at least one service before activating broker pricing"
-      });
-    }
 
     const updatedBy =
       clean(

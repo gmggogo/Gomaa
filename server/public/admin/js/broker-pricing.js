@@ -728,8 +728,8 @@ server/public/admin/js/broker-pricing.js
       <div class="notice">
         ${
           state.draftActive
-            ? "Broker pricing is active. Only services marked ENABLED can be priced for this broker."
-            : "Broker pricing is disabled. Turn it on after configuring at least one service."
+            ? "Broker pricing is active. Click EDIT on any service card to configure or enable it for this broker."
+            : "Broker pricing is disabled. Turn it on, then click EDIT on the service cards you want to configure."
         }
       </div>
 
@@ -943,21 +943,6 @@ server/public/admin/js/broker-pricing.js
       selectedBroker();
 
     if(!broker){
-      return false;
-    }
-
-    if(
-      state.draftActive &&
-      !state.draftServices.some(
-        service=>
-          service.enabled === true
-      )
-    ){
-      if(!silent){
-        alert(
-          "Enable at least one service before activating broker pricing."
-        );
-      }
       return false;
     }
 
