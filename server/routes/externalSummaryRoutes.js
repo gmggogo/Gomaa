@@ -9,7 +9,8 @@ Broker-only financial summary.
 - Reads broker Trips after Broker Review confirmation.
 - Uses price already locked by Broker Review Confirm.
 - Uses final driver status for Completed / Cancelled / No Show / Not Completed.
-- Does not recalculate historical broker prices.
+- Does not replace an existing locked historical broker price.
+- Summary miles use the first stored final distance available on the trip.
 */
 
 const express = require("express");
@@ -245,45 +246,55 @@ function stopsArray(trip){
 }
 
 function tripMiles(trip){
-  if(!isCompleted(trip?.status)){
-    return 0;
+
+  /*
+    SUMMARY MILES
+    Read the final/locked trip distance without recalculating the route.
+    Different trip flows may store the same distance in different fields,
+    so use the first positive value that already exists on the trip.
+  */
+
+  const directMiles = [
+    trip?.stopEndMiles,
+    trip?.stopExecution?.miles,
+    trip?.miles,
+    trip?.tripMiles,
+    trip?.actualMiles,
+    trip?.completedMiles,
+    trip?.routeMiles,
+    trip?.distanceMiles,
+    trip?.routeDistanceMiles,
+    trip?.route?.miles,
+    trip?.routeInfo?.miles,
+    trip?.distance?.miles
+  ];
+
+  for(const value of directMiles){
+    const miles = Number(value);
+
+    if(Number.isFinite(miles) && miles > 0){
+      return miles;
+    }
   }
 
-  if(
-    trip?.endedAtStop === true ||
-    clean(trip?.completionType)
-      .toUpperCase() ===
-      "ENDED_AT_STOP"
-  ){
-    return Number(
-      trip?.stopEndMiles ||
-      trip?.stopExecution?.miles ||
-      0
-    );
+  const meterValues = [
+    trip?.distanceMeters,
+    trip?.routeDistanceMeters,
+    trip?.actualDistanceMeters,
+    trip?.route?.distanceMeters,
+    trip?.routeInfo?.distanceMeters,
+    trip?.distance?.meters
+  ];
+
+  for(const value of meterValues){
+    const meters = Number(value);
+
+    if(Number.isFinite(meters) && meters > 0){
+      return meters / 1609.344;
+    }
   }
 
-  const direct =
-    Number(
-      trip?.miles ||
-      0
-    );
-
-  if(Number.isFinite(direct) && direct > 0){
-    return direct;
-  }
-
-  const meters =
-    Number(
-      trip?.distanceMeters ||
-      0
-    );
-
-  return (
-    Number.isFinite(meters) &&
-    meters > 0
-  )
-    ? meters / 1609.344
-    : 0;
+  return 0;
 }
 
 function cancellationChargeable(trip,passenger=null){
@@ -357,9 +368,9 @@ function tripTotal(trip){
   }
 
   if(isCompleted(trip?.status)){
-    return Number(
-      trip?.finalPrice ??
-      trip?.priceAmount ??
+    return (
+      positiveNumber(trip?.finalPrice) ||
+      positiveNumber(trip?.priceAmount) ||
       0
     );
   }
@@ -437,10 +448,10 @@ function passengerTotal(passenger,trip){
   }
 
   if(isCompleted(status)){
-    return Number(
-      passenger?.finalPrice ??
-      passenger?.priceAmount ??
-      trip?.pricePerPassenger ??
+    return (
+      positiveNumber(passenger?.finalPrice) ||
+      positiveNumber(passenger?.priceAmount) ||
+      positiveNumber(trip?.pricePerPassenger) ||
       0
     );
   }
@@ -803,10 +814,8 @@ async function applyFinalBrokerMoney(trip){
 
             if(isCompleted(pStatus)){
               finalAmount =
-                positiveNumber(
-                  passenger?.finalPrice ??
-                  passenger?.priceAmount
-                ) ||
+                positiveNumber(passenger?.finalPrice) ||
+                positiveNumber(passenger?.priceAmount) ||
                 Number(
                   fareResult?.pricePerPassenger ||
                   0
@@ -902,10 +911,8 @@ async function applyFinalBrokerMoney(trip){
     if(isCompleted(status)){
 
       const current =
-        positiveNumber(
-          trip.finalPrice ??
-          trip.priceAmount
-        );
+        positiveNumber(trip.finalPrice) ||
+        positiveNumber(trip.priceAmount);
 
       if(current > 0){
         return trip;
