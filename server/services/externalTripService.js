@@ -151,23 +151,28 @@ function serviceSuffix(value){
 
 async function nextExternalTripNumber(
   brokerCode,
-  serviceKey,
   sequenceOffset = 0
 ){
 
   const broker =
     normalizeBrokerCode(brokerCode);
 
-  const suffix =
-    serviceSuffix(serviceKey);
-
   /*
-    GH Broker intake number:
-    MT-000001-ST
-    MT-000002-TX
-    MC-000003-XL
+    NEUTRAL BROKER INTAKE NUMBER
 
-    The numeric sequence remains platform-wide so the number stays unique.
+    External Trips / Trip Split / Broker Review before Confirm:
+    MT-000001
+    MC-000002
+
+    The service suffix is NOT attached here because the trip may still
+    return to Trip Split and become Shared.
+
+    Broker Review Confirm is the only place that finalizes the suffix:
+    STANDARD => -ST
+    TAXI     => -TX
+    XL       => -XL
+    SHARED   => -SH
+    etc.
   */
   const count =
     await ExternalTrip.countDocuments({});
@@ -179,7 +184,7 @@ async function nextExternalTripNumber(
       Number(sequenceOffset || 0)
     ).padStart(6,"0");
 
-  return `${broker}-${sequence}-${suffix}`;
+  return `${broker}-${sequence}`;
 }
 
 function replaceExternalTripServiceSuffix(
@@ -728,7 +733,6 @@ async function createExternalTrip(options){
     normalized.ghExternalTripNumber =
       await nextExternalTripNumber(
         normalized.brokerCode,
-        normalized.serviceKey,
         attempt
       );
 
