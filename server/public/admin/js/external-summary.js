@@ -169,12 +169,12 @@ BROKER SUMMARY
 
   function passengerFees(item){
     return visiblePassengers(item)
-      .map((p,i)=>`${i+1}. ${money(p.fee || 0)}`);
+      .map(p=>money(p.fee || 0));
   }
 
   function passengerTotals(item){
     return visiblePassengers(item)
-      .map((p,i)=>`${i+1}. ${money(p.total || 0)}`);
+      .map(p=>money(p.total || 0));
   }
 
   function brokerLabel(item){
