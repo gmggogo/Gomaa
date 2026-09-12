@@ -2085,6 +2085,85 @@ function clearAutomaticCandidateForm(){
   clearLocationMeta(autoSharedDropoff);
 }
 
+function timeToMinutes(value){
+  const text = normalizeText(value);
+  if(!text || !text.includes(":")) return null;
+  const [hourText,minuteText] = text.split(":");
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if(!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return (hours * 60) + minutes;
+}
+
+function formatDisplayTime(value){
+  const text = normalizeText(value);
+  if(!text) return "--";
+  return text;
+}
+
+function automaticGroupMaps(plan = automaticSharedPlan){
+  const groups = Array.isArray(plan?.groups) ? plan.groups : [];
+  const singles = Array.isArray(plan?.singles) ? plan.singles : [];
+  const excluded = Array.isArray(plan?.excluded) ? plan.excluded : [];
+
+  const matchedIds = new Set();
+  const groupIndexById = new Map();
+  const unmatchedReasonById = new Map();
+
+  groups.forEach((group,index)=>{
+    const members = Array.isArray(group?.trips) ? group.trips : [];
+    members.forEach(member=>{
+      const id = String(member?.id || member?.tripId || "").trim();
+      if(!id) return;
+      matchedIds.add(id);
+      groupIndexById.set(id,index);
+    });
+  });
+
+  [...singles,...excluded].forEach(row=>{
+    const id = String(row?.tripId || row?.id || "").trim();
+    if(!id) return;
+    unmatchedReasonById.set(id,row?.reason || "NOT_MATCHED");
+  });
+
+  return {
+    matchedIds,
+    groupIndexById,
+    unmatchedReasonById
+  };
+}
+
+function automaticCandidateStatus(item){
+  const maps = automaticGroupMaps();
+  const id = String(item?.id || "").trim();
+
+  if(id && maps.groupIndexById.has(id)){
+    const groupIndex = maps.groupIndexById.get(id);
+    return {
+      rowClass:"matched",
+      badgeClass:"matched",
+      badgeText:`Matched G${groupIndex + 1}`,
+      noteText:`Matched in Group ${groupIndex + 1}`
+    };
+  }
+
+  if(id && maps.unmatchedReasonById.has(id)){
+    return {
+      rowClass:"unmatched",
+      badgeClass:"unmatched",
+      badgeText:"Not Matched",
+      noteText:"Not Matched"
+    };
+  }
+
+  return {
+    rowClass:"",
+    badgeClass:"pending",
+    badgeText:"Pending",
+    noteText:"Waiting For Build"
+  };
+}
+
 function renderAutomaticSharedList(){
 
   if(!automaticSharedList) return;
@@ -2098,23 +2177,30 @@ function renderAutomaticSharedList(){
     return;
   }
 
-  const rows = automaticSharedCandidates.map((item,index)=>`
-    <div class="auto-share-row">
-      <div class="auto-share-cell">${index + 1}</div>
-      <div class="auto-share-cell">${safeHtml(item.clientName)}</div>
-      <div class="auto-share-cell">${safeHtml(item.clientPhone)}</div>
-      <div class="auto-share-cell">${safeHtml(item.pickup)}</div>
-      <div class="auto-share-cell">${safeHtml(item.dropoff)}</div>
-      <div class="auto-share-cell">${safeHtml(item.tripDate)}</div>
-      <div class="auto-share-cell">${safeHtml(item.tripTime || item.pickupTime || "--")}</div>
-      <div class="auto-share-cell">${safeHtml(item.appointmentTime || "--")}</div>
-      <div class="auto-share-cell">${safeHtml(item.returnTime || "--")}</div>
-      <div class="auto-share-cell">${safeHtml(item.tripLeg || "OUTBOUND")}</div>
-      <div class="auto-share-cell">
-        <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+  const rows = automaticSharedCandidates.map((item,index)=>{
+    const status = automaticCandidateStatus(item);
+    return `
+      <div class="auto-share-row ${status.rowClass}">
+        <div class="auto-share-cell">${index + 1}</div>
+        <div class="auto-share-cell">${safeHtml(item.clientName)}</div>
+        <div class="auto-share-cell">${safeHtml(item.clientPhone)}</div>
+        <div class="auto-share-cell">${safeHtml(item.pickup)}</div>
+        <div class="auto-share-cell">${safeHtml(item.dropoff)}</div>
+        <div class="auto-share-cell">${safeHtml(item.tripDate)}</div>
+        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.tripTime || item.pickupTime))}</div>
+        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.appointmentTime))}</div>
+        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.returnTime))}</div>
+        <div class="auto-share-cell">${safeHtml(item.tripLeg || "OUTBOUND")}</div>
+        <div class="auto-share-cell">
+          <span class="auto-share-status-badge ${status.badgeClass}">${safeHtml(status.badgeText)}</span>
+          <div style="margin-top:5px;">${safeHtml(status.noteText)}</div>
+        </div>
+        <div class="auto-share-cell">
+          <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 
   automaticSharedList.innerHTML = `
     <div class="auto-share-row header">
@@ -2128,6 +2214,7 @@ function renderAutomaticSharedList(){
       <div>Appointment</div>
       <div>Return Time</div>
       <div>Leg</div>
+      <div>Match Status / Note</div>
       <div></div>
     </div>
     ${rows}
@@ -2137,36 +2224,35 @@ function renderAutomaticSharedList(){
     .querySelectorAll("[data-auto-remove]")
     .forEach(button=>{
       button.onclick = ()=>{
-        const id =
-          button.getAttribute(
-            "data-auto-remove"
-          );
+        const id = button.getAttribute("data-auto-remove");
+        const target = automaticCandidateById(id);
+        const pairId = normalizeText(target?.pairId);
 
-        const target =
-          automaticCandidateById(id);
+        const removedIds = new Set(
+          automaticSharedCandidates
+            .filter(item=>{
+              if(pairId){
+                return normalizeText(item?.pairId) === pairId;
+              }
+              return String(item.id) === String(id);
+            })
+            .map(item=>String(item.id))
+        );
 
-        const pairId =
-          normalizeText(target?.pairId);
+        automaticSharedCandidates = automaticSharedCandidates.filter(item=>{
+          if(pairId){
+            return normalizeText(item?.pairId) !== pairId;
+          }
+          return String(item.id) !== String(id);
+        });
 
-        automaticSharedCandidates =
-          automaticSharedCandidates.filter(item=>{
-            if(pairId){
-              return normalizeText(item?.pairId) !== pairId;
-            }
-            return String(item.id) !== String(id);
-          });
-
-        automaticSharedPlan = null;
-        if(submitAutomaticSharedGroupsBtn){
-          submitAutomaticSharedGroupsBtn.disabled = true;
-        }
-
-        if(automaticSharedResult){
-          automaticSharedResult.innerHTML = "";
+        if(automaticSharedPlan){
+          pruneAutomaticPlanIds(removedIds,false);
         }
 
         saveAutomaticSharedDraft();
         renderAutomaticSharedList();
+        renderAutomaticSharedResult(automaticSharedPlan);
       };
     });
 }
@@ -2288,68 +2374,178 @@ function automaticReturnCandidate(outbound){
   };
 }
 
+function appointmentStatusText(trip){
+  const appointmentMinutes = timeToMinutes(trip?.appointmentTime);
+  if(appointmentMinutes === null){
+    return {
+      text:"No Appointment",
+      className:""
+    };
+  }
+
+  const pickupMinutes = timeToMinutes(trip?.pickupTime || trip?.tripTime);
+  if(pickupMinutes === null){
+    return {
+      text:"Appointment Set",
+      className:"auto-share-appointment-risk"
+    };
+  }
+
+  if(pickupMinutes > appointmentMinutes){
+    return {
+      text:"Late Risk",
+      className:"auto-share-appointment-risk"
+    };
+  }
+
+  return {
+    text:"Review Route",
+    className:"auto-share-appointment-ok"
+  };
+}
+
+function pruneAutomaticPlanIds(idSet,markUnmatched = false){
+  if(!automaticSharedPlan || !idSet || !idSet.size){
+    return;
+  }
+
+  const keepTrip = trip=>!idSet.has(String(trip?.id || trip?.tripId || ""));
+
+  const groups = (Array.isArray(automaticSharedPlan.groups) ? automaticSharedPlan.groups : [])
+    .map(group=>({
+      ...group,
+      trips:(Array.isArray(group?.trips) ? group.trips : []).filter(keepTrip)
+    }))
+    .filter(group=>(group.trips || []).length >= 2);
+
+  const singles = (Array.isArray(automaticSharedPlan.singles) ? automaticSharedPlan.singles : [])
+    .filter(row=>!idSet.has(String(row?.tripId || row?.id || "")));
+
+  const excluded = (Array.isArray(automaticSharedPlan.excluded) ? automaticSharedPlan.excluded : [])
+    .filter(row=>!idSet.has(String(row?.tripId || row?.id || "")));
+
+  if(markUnmatched){
+    idSet.forEach(id=>{
+      excluded.push({
+        tripId:id,
+        reason:"RETURNED_TO_ORIGINAL"
+      });
+    });
+  }
+
+  automaticSharedPlan = {
+    ...automaticSharedPlan,
+    groups,
+    singles,
+    excluded
+  };
+}
+
+function bindAutomaticGroupActions(){
+  if(!automaticSharedResult) return;
+
+  automaticSharedResult
+    .querySelectorAll("[data-submit-group-index]")
+    .forEach(button=>{
+      button.onclick = ()=>{
+        const index = Number(button.getAttribute("data-submit-group-index"));
+        submitAutomaticSharedGroup(index);
+      };
+    });
+
+  automaticSharedResult
+    .querySelectorAll("[data-return-group-index]")
+    .forEach(button=>{
+      button.onclick = ()=>{
+        const index = Number(button.getAttribute("data-return-group-index"));
+        returnAutomaticSharedGroupToOriginal(index);
+      };
+    });
+}
+
 function renderAutomaticSharedResult(plan){
 
   if(!automaticSharedResult) return;
 
-  const groups =
-    Array.isArray(plan?.groups)
-      ? plan.groups
-      : [];
+  if(!plan){
+    automaticSharedResult.innerHTML = "";
+    return;
+  }
 
-  const singles =
-    Array.isArray(plan?.singles)
-      ? plan.singles
-      : [];
-
-  const excluded =
-    Array.isArray(plan?.excluded)
-      ? plan.excluded
-      : [];
+  const groups = Array.isArray(plan?.groups) ? plan.groups : [];
+  const singles = Array.isArray(plan?.singles) ? plan.singles : [];
+  const excluded = Array.isArray(plan?.excluded) ? plan.excluded : [];
 
   const groupHtml = groups.map((group,index)=>{
-    const members =
-      Array.isArray(group?.trips)
-        ? group.trips
-        : [];
+    const members = Array.isArray(group?.trips) ? group.trips : [];
+    const warningText = members.some(trip=>normalizeText(trip?.appointmentTime))
+      ? "Warning: Review pickup order and appointment times before submitting this matched group."
+      : "Warning: Review all trip details before submitting this matched group.";
+
+    const memberRows = members.map((trip,memberIndex)=>{
+      const status = appointmentStatusText(trip);
+      return `
+        <div class="auto-share-group-grid body">
+          <div>${memberIndex + 1}</div>
+          <div>${safeHtml(trip.clientName || trip.passengerName || trip.name || "Passenger")}</div>
+          <div>${safeHtml(trip.pickup || "--")}</div>
+          <div>${safeHtml(trip.dropoff || "--")}</div>
+          <div>${safeHtml(trip.tripDate || group.tripDate || "--")}</div>
+          <div>${safeHtml(formatDisplayTime(trip.pickupTime || trip.tripTime || group.calculatedFirstPickupTime || ""))}</div>
+          <div>${safeHtml(formatDisplayTime(trip.appointmentTime))}</div>
+          <div>${safeHtml(trip.tripLeg || group.tripLeg || "OUTBOUND")}</div>
+          <div class="${safeHtml(status.className)}">${safeHtml(status.text)}</div>
+        </div>
+      `;
+    }).join("");
 
     return `
       <div class="auto-share-group">
-        <div class="auto-share-group-title">
-          ${safeHtml(group.tripLeg || "OUTBOUND")} Group ${index + 1} • ${members.length} Passengers
+        <div class="auto-share-group-header">
+          <div>
+            <div class="auto-share-group-title">${safeHtml(group.tripLeg || "OUTBOUND")} Group ${index + 1} • ${members.length} Passengers</div>
+            <div class="auto-share-group-subtitle">Each group has its own submit button. Unmatched trips stay highlighted in the list.</div>
+          </div>
+          <div class="auto-share-group-actions">
+            <button class="btn-green auto-share-group-btn" type="button" data-submit-group-index="${index}">Submit Group</button>
+            <button class="btn-gray auto-share-group-btn" type="button" data-return-group-index="${index}">Return To Original</button>
+          </div>
         </div>
-        <div class="auto-share-group-members">
-          ${members.map((trip,memberIndex)=>`
-            <div>${memberIndex + 1}. ${safeHtml(trip.clientName || trip.passengerName || trip.name || trip.id || "Passenger")}</div>
-          `).join("")}
+
+        <div class="auto-share-warning">${safeHtml(warningText)}</div>
+
+        <div class="auto-share-group-table">
+          <div class="auto-share-group-grid header">
+            <div>#</div>
+            <div>Passenger</div>
+            <div>Pickup</div>
+            <div>Dropoff</div>
+            <div>Date</div>
+            <div>Pickup Time</div>
+            <div>Appointment</div>
+            <div>Leg</div>
+            <div>Check</div>
+          </div>
+          ${memberRows}
         </div>
       </div>
     `;
   }).join("");
 
-  const unmatched = [
-    ...singles.map(row=>({
-      id:row.tripId,
-      reason:row.reason || "NO_VALID_SHARED_MATCH"
-    })),
-    ...excluded.map(row=>({
-      id:row.tripId,
-      reason:row.reason || "NOT_ELIGIBLE"
-    }))
-  ];
-
-  const unmatchedHtml = unmatched.length
+  const unmatchedCount = singles.length + excluded.length;
+  const unmatchedHtml = unmatchedCount
     ? `
       <div class="auto-share-unmatched">
-        ${unmatched.length} candidate(s) are not matched yet and will stay in the Automatic Shared list.
+        ${unmatchedCount} candidate(s) are not matched yet. They stay highlighted in the Automatic Shared list with the note Not Matched.
       </div>
     `
     : "";
 
-  automaticSharedResult.innerHTML =
-    groupHtml || unmatchedHtml
-      ? groupHtml + unmatchedHtml
-      : `<div class="auto-share-unmatched">No Shared groups were created.</div>`;
+  automaticSharedResult.innerHTML = (groupHtml || unmatchedHtml)
+    ? (groupHtml + unmatchedHtml)
+    : `<div class="auto-share-unmatched">No Shared groups were created.</div>`;
+
+  bindAutomaticGroupActions();
 }
 
 async function runAutomaticSharedEngine(){
@@ -2366,15 +2562,13 @@ async function runAutomaticSharedEngine(){
 
   try{
 
-    const outboundTrips =
-      automaticSharedCandidates.filter(
-        item=>String(item?.tripLeg || "OUTBOUND").toUpperCase() !== "RETURN"
-      );
+    const outboundTrips = automaticSharedCandidates.filter(
+      item=>String(item?.tripLeg || "OUTBOUND").toUpperCase() !== "RETURN"
+    );
 
-    const returnTrips =
-      automaticSharedCandidates.filter(
-        item=>String(item?.tripLeg || "").toUpperCase() === "RETURN"
-      );
+    const returnTrips = automaticSharedCandidates.filter(
+      item=>String(item?.tripLeg || "").toUpperCase() === "RETURN"
+    );
 
     async function planLeg(trips,tripLeg){
 
@@ -2400,8 +2594,7 @@ async function runAutomaticSharedEngine(){
         }
       );
 
-      const data =
-        await res.json().catch(()=>({}));
+      const data = await res.json().catch(()=>({}));
 
       if(!res.ok){
         throw new Error(
@@ -2410,13 +2603,12 @@ async function runAutomaticSharedEngine(){
         );
       }
 
-      const groups =
-        Array.isArray(data?.groups)
-          ? data.groups.map(group=>({
-              ...group,
-              tripLeg
-            }))
-          : [];
+      const groups = Array.isArray(data?.groups)
+        ? data.groups.map(group=>({
+            ...group,
+            tripLeg
+          }))
+        : [];
 
       return {
         ...data,
@@ -2426,40 +2618,20 @@ async function runAutomaticSharedEngine(){
       };
     }
 
-    const outboundPlan =
-      await planLeg(outboundTrips,"OUTBOUND");
+    const outboundPlan = await planLeg(outboundTrips,"OUTBOUND");
+    const returnPlan = await planLeg(returnTrips,"RETURN");
 
-    const returnPlan =
-      await planLeg(returnTrips,"RETURN");
-
-    const data = {
+    automaticSharedPlan = {
       success:true,
-      groups:[
-        ...(outboundPlan.groups || []),
-        ...(returnPlan.groups || [])
-      ],
-      singles:[
-        ...(outboundPlan.singles || []),
-        ...(returnPlan.singles || [])
-      ],
-      excluded:[
-        ...(outboundPlan.excluded || []),
-        ...(returnPlan.excluded || [])
-      ],
+      groups:[...(outboundPlan.groups || []), ...(returnPlan.groups || [])],
+      singles:[...(outboundPlan.singles || []), ...(returnPlan.singles || [])],
+      excluded:[...(outboundPlan.excluded || []), ...(returnPlan.excluded || [])],
       outboundPlan,
       returnPlan
     };
 
-    automaticSharedPlan = data;
-    renderAutomaticSharedResult(data);
-
-    const hasGroups =
-      Array.isArray(data?.groups) &&
-      data.groups.length > 0;
-
-    if(submitAutomaticSharedGroupsBtn){
-      submitAutomaticSharedGroupsBtn.disabled = !hasGroups;
-    }
+    renderAutomaticSharedList();
+    renderAutomaticSharedResult(automaticSharedPlan);
 
   }catch(err){
     console.log("AUTO SHARED ENGINE ERROR:",err);
@@ -2499,155 +2671,144 @@ function automaticPassengerFromCandidate(candidate,index){
   };
 }
 
-async function submitAutomaticSharedGroups(){
+async function submitAutomaticSharedGroup(groupIndex){
 
-  const groups =
-    Array.isArray(automaticSharedPlan?.groups)
-      ? automaticSharedPlan.groups
-      : [];
+  const groups = Array.isArray(automaticSharedPlan?.groups)
+    ? automaticSharedPlan.groups
+    : [];
 
-  if(!groups.length){
-    showAlert("Build Shared groups first");
+  const group = groups[groupIndex];
+
+  if(!group){
+    showAlert("Group not found");
     return;
   }
 
-  if(submitAutomaticSharedGroupsBtn){
-    submitAutomaticSharedGroupsBtn.disabled = true;
-    submitAutomaticSharedGroupsBtn.innerText = "Submitting...";
+  if(!confirm("Warning: Submit this matched Shared group now?")){
+    return;
+  }
+
+  const sourceTrips = Array.isArray(group?.trips) ? group.trips : [];
+
+  if(sourceTrips.length < 2){
+    showAlert("This group must contain at least 2 passengers");
+    return;
   }
 
   try{
-    const selected =
-      selectedServicePayload();
+    const selected = selectedServicePayload();
+    const passengers = sourceTrips.map(automaticPassengerFromCandidate);
+    const tripDate = group.tripDate || passengers[0]?.tripDate || "";
+    const tripTime = group.calculatedFirstPickupTime || passengers[0]?.tripTime || "";
+
+    const payload = {
+      company:companyName,
+      companyName,
+      facilityName:companyName,
+      companyId,
+      facilityId:companyId,
+      userId:companyId,
+      type:"company",
+      source:"company",
+      bookingSource:"AUTOMATIC_SHARED",
+      sharedEntryMode:"AUTOMATIC",
+      isShared:true,
+      tripType:"SHARED",
+      serviceKey:selected.serviceKey,
+      serviceCode:selected.serviceCode,
+      serviceType:selected.serviceType,
+      serviceSuffix:selected.serviceSuffix,
+      serviceName:selected.serviceName,
+      serviceId:selected.serviceId,
+      pricingSource:selected.pricingSource,
+      facilityOverrideActive:selected.facilityOverrideActive,
+      entryName:sharedEntryName?.value || entryName?.value || "",
+      entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
+      passengers,
+      passengersCount:passengers.length,
+      totalPassengers:passengers.length,
+      tripDate,
+      tripTime,
+      routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
+      routeSource:"SHARED_ENGINE",
+      notes:`Automatic Shared ${group.tripLeg || "OUTBOUND"}`,
+      status:"Scheduled"
+    };
+
+    const res = await fetch("/api/trips",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(data.message || "Failed to submit this Automatic Shared group");
+    }
 
     const submittedIds = new Set();
-
-    for(const group of groups){
-
-      const sourceTrips =
-        Array.isArray(group?.trips)
-          ? group.trips
-          : [];
-
-      if(sourceTrips.length < 2){
-        continue;
+    sourceTrips.forEach(item=>{
+      if(item?.id){
+        submittedIds.add(String(item.id));
       }
+    });
 
-      const passengers =
-        sourceTrips.map(
-          automaticPassengerFromCandidate
-        );
+    automaticSharedCandidates = automaticSharedCandidates.filter(
+      item=>!submittedIds.has(String(item.id))
+    );
 
-      const tripDate =
-        group.tripDate ||
-        passengers[0]?.tripDate ||
-        "";
-
-      const tripTime =
-        group.calculatedFirstPickupTime ||
-        passengers[0]?.tripTime ||
-        "";
-
-      const payload = {
-        company:companyName,
-        companyName,
-        facilityName:companyName,
-        companyId,
-        facilityId:companyId,
-        userId:companyId,
-        type:"company",
-        source:"company",
-        bookingSource:"AUTOMATIC_SHARED",
-        sharedEntryMode:"AUTOMATIC",
-        isShared:true,
-        tripType:"SHARED",
-        serviceKey:selected.serviceKey,
-        serviceCode:selected.serviceCode,
-        serviceType:selected.serviceType,
-        serviceSuffix:selected.serviceSuffix,
-        serviceName:selected.serviceName,
-        serviceId:selected.serviceId,
-        pricingSource:selected.pricingSource,
-        facilityOverrideActive:selected.facilityOverrideActive,
-        entryName:sharedEntryName?.value || entryName?.value || "",
-        entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
-        passengers,
-        passengersCount:passengers.length,
-        totalPassengers:passengers.length,
-        tripDate,
-        tripTime,
-        routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
-        routeSource:"SHARED_ENGINE",
-        notes:"Automatic Shared",
-        status:"Scheduled"
-      };
-
-      const res = await fetch(
-        "/api/trips",
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            Authorization:"Bearer " + token
-          },
-          body:JSON.stringify(payload)
-        }
-      );
-
-      const data =
-        await res.json().catch(()=>({}));
-
-      if(!res.ok){
-        throw new Error(
-          data.message ||
-          "Failed to submit an Automatic Shared group"
-        );
-      }
-
-      sourceTrips.forEach(item=>{
-        if(item?.id){
-          submittedIds.add(String(item.id));
-        }
-      });
-
-      passengers.forEach(passenger=>{
-        upsertSavedClient({
-          clientName:passenger.clientName,
-          clientPhone:passenger.clientPhone,
-          pickup:passenger.pickup,
-          dropoff:passenger.dropoff
-        });
-      });
-    }
-
-    automaticSharedCandidates =
-      automaticSharedCandidates.filter(
-        item=>!submittedIds.has(String(item.id))
-      );
-
-    automaticSharedPlan = null;
+    pruneAutomaticPlanIds(submittedIds,false);
     saveAutomaticSharedDraft();
+
+    passengers.forEach(passenger=>{
+      upsertSavedClient({
+        clientName:passenger.clientName,
+        clientPhone:passenger.clientPhone,
+        pickup:passenger.pickup,
+        dropoff:passenger.dropoff
+      });
+    });
+
     renderAutomaticSharedList();
-
-    if(automaticSharedResult){
-      automaticSharedResult.innerHTML = `
-        <div class="auto-share-group">
-          <div class="auto-share-group-title">Matched Shared groups submitted successfully.</div>
-        </div>
-      `;
-    }
-
-    showAlert("Automatic Shared Groups Submitted ✔");
+    renderAutomaticSharedResult(automaticSharedPlan);
+    showAlert("Automatic Shared group submitted ✔");
 
   }catch(err){
-    console.log("AUTO SHARED SUBMIT ERROR:",err);
-    showAlert(err.message || "Automatic Shared submit failed");
-  }finally{
-    if(submitAutomaticSharedGroupsBtn){
-      submitAutomaticSharedGroupsBtn.innerText = "Submit Matched Groups";
-      submitAutomaticSharedGroupsBtn.disabled = true;
-    }
+    console.log("AUTO SHARED GROUP SUBMIT ERROR:",err);
+    showAlert(err.message || "Automatic Shared group submit failed");
   }
+}
+
+function returnAutomaticSharedGroupToOriginal(groupIndex){
+  const groups = Array.isArray(automaticSharedPlan?.groups)
+    ? automaticSharedPlan.groups
+    : [];
+
+  const group = groups[groupIndex];
+
+  if(!group){
+    showAlert("Group not found");
+    return;
+  }
+
+  if(!confirm("Return this matched group to the original list?")){
+    return;
+  }
+
+  const sourceTrips = Array.isArray(group?.trips) ? group.trips : [];
+  const ids = new Set(
+    sourceTrips
+      .map(item=>String(item?.id || item?.tripId || "").trim())
+      .filter(Boolean)
+  );
+
+  pruneAutomaticPlanIds(ids,true);
+  renderAutomaticSharedList();
+  renderAutomaticSharedResult(automaticSharedPlan);
 }
 
 if(sharedManualModeBtn){
@@ -2669,46 +2830,26 @@ if(addAutomaticSharedCandidateBtn){
       return;
     }
 
-    const candidate =
-      automaticCandidatePayload();
-
-    const returnCandidate =
-      automaticReturnCandidate(candidate);
+    const candidate = automaticCandidatePayload();
+    const returnCandidate = automaticReturnCandidate(candidate);
 
     if(returnCandidate){
       candidate.pairedCandidateId = returnCandidate.id;
-      automaticSharedCandidates.push(
-        candidate,
-        returnCandidate
-      );
+      automaticSharedCandidates.push(candidate,returnCandidate);
     }else{
       automaticSharedCandidates.push(candidate);
     }
 
     automaticSharedPlan = null;
-
-    if(submitAutomaticSharedGroupsBtn){
-      submitAutomaticSharedGroupsBtn.disabled = true;
-    }
-
-    if(automaticSharedResult){
-      automaticSharedResult.innerHTML = "";
-    }
-
     saveAutomaticSharedDraft();
     renderAutomaticSharedList();
+    renderAutomaticSharedResult(automaticSharedPlan);
     clearAutomaticCandidateForm();
   };
 }
 
 if(runAutomaticSharedEngineBtn){
-  runAutomaticSharedEngineBtn.onclick =
-    runAutomaticSharedEngine;
-}
-
-if(submitAutomaticSharedGroupsBtn){
-  submitAutomaticSharedGroupsBtn.onclick =
-    submitAutomaticSharedGroups;
+  runAutomaticSharedEngineBtn.onclick = runAutomaticSharedEngine;
 }
 
 /* ================= SERVICES ================= */

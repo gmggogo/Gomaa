@@ -386,6 +386,26 @@ button:hover{
   grid-column:1 / -1;
 }
 
+.auto-share-toolbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
+}
+
+.auto-share-toolbar-note{
+  font-size:12px;
+  font-weight:800;
+  color:#475569;
+}
+
+.auto-share-table-wrap,
+.auto-share-result-wrap{
+  overflow-x:auto;
+}
+
 .auto-share-list{
   display:grid;
   gap:10px;
@@ -393,10 +413,10 @@ button:hover{
 
 .auto-share-row{
   display:grid;
-  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.5fr) minmax(160px,1.5fr) 90px 90px 110px 100px 78px 42px;
+  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.45fr) minmax(160px,1.45fr) 100px 96px 110px 100px 92px 170px 42px;
   gap:7px;
   align-items:center;
-  padding:9px;
+  padding:10px;
   border:1px solid #dbe3ec;
   border-radius:12px;
   background:#f8fafc;
@@ -410,9 +430,50 @@ button:hover{
   font-weight:900;
 }
 
+.auto-share-row.matched{
+  border-color:#86efac;
+  background:#f0fdf4;
+}
+
+.auto-share-row.unmatched{
+  border-color:#fdba74;
+  background:#fff7ed;
+}
+
 .auto-share-cell{
   min-width:0;
   overflow-wrap:anywhere;
+}
+
+.auto-share-status-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+
+.auto-share-status-badge.matched{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #86efac;
+}
+
+.auto-share-status-badge.unmatched{
+  background:#ffedd5;
+  color:#9a3412;
+  border:1px solid #fdba74;
+}
+
+.auto-share-status-badge.pending{
+  background:#e2e8f0;
+  color:#334155;
+  border:1px solid #cbd5e1;
 }
 
 .auto-share-remove{
@@ -425,31 +486,104 @@ button:hover{
 }
 
 .auto-share-result{
-  margin-top:12px;
   display:grid;
-  gap:10px;
+  gap:12px;
 }
 
 .auto-share-group{
-  border:2px solid #86efac;
-  background:#f0fdf4;
-  border-radius:13px;
-  padding:12px;
+  border:2px solid #93c5fd;
+  background:#eff6ff;
+  border-radius:15px;
+  padding:14px;
+}
+
+.auto-share-group-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
 }
 
 .auto-share-group-title{
   font-size:13px;
   font-weight:900;
-  color:#166534;
-  margin-bottom:7px;
+  color:#1d4ed8;
+  margin-bottom:5px;
 }
 
-.auto-share-group-members{
-  display:grid;
-  gap:5px;
+.auto-share-group-subtitle{
   font-size:12px;
+  font-weight:800;
+  color:#475569;
+}
+
+.auto-share-group-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.auto-share-group-btn{
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.auto-share-warning{
+  border:1px solid #facc15;
+  background:#fffbeb;
+  color:#92400e;
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+
+.auto-share-group-table{
+  min-width:980px;
+}
+
+.auto-share-group-grid{
+  display:grid;
+  grid-template-columns:44px minmax(130px,1fr) minmax(180px,1.3fr) minmax(180px,1.3fr) 100px 100px 110px 110px 110px;
+  gap:7px;
+  align-items:start;
+  padding:9px 10px;
+  border-radius:12px;
+}
+
+.auto-share-group-grid.header{
+  background:#1e3a8a;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+
+.auto-share-group-grid.body{
+  background:#ffffff;
+  border:1px solid #bfdbfe;
+  margin-top:7px;
+  font-size:11px;
   font-weight:700;
-  color:#334155;
+  color:#1f2937;
+}
+
+.auto-share-group-grid.body + .auto-share-group-grid.body{
+  margin-top:6px;
+}
+
+.auto-share-appointment-ok{
+  color:#166534;
+  font-weight:900;
+}
+
+.auto-share-appointment-risk{
+  color:#b45309;
+  font-weight:900;
 }
 
 .auto-share-unmatched{
@@ -464,14 +598,23 @@ button:hover{
 
 @media(max-width:900px){
   .auto-share-row{
-    grid-template-columns:34px minmax(105px,1fr) minmax(120px,1fr) minmax(145px,1.4fr) minmax(145px,1.4fr) 82px 82px 100px 38px;
-    min-width:1050px;
+    min-width:1540px;
   }
 
-  .auto-share-table-wrap{
-    overflow-x:auto;
+  .auto-share-group-table{
+    min-width:980px;
   }
 }
+
+@media(max-width:768px){
+  .auto-share-toolbar,
+  .auto-share-group-header,
+  .auto-share-group-actions{
+    flex-direction:column;
+    align-items:stretch;
+  }
+}
+
 
 /* ================= MOBILE ================= */
 
@@ -908,22 +1051,22 @@ button:hover{
   <div class="auto-share-form">
     <div class="field-wrap">
       <label class="auto-share-field-label" for="autoSharedClientName">Passenger Name <span class="auto-share-required">*</span></label>
-      <input id="autoSharedClientName" placeholder="Enter passenger name" autocomplete="off">
+      <input id="autoSharedClientName" autocomplete="off">
     </div>
 
     <div class="field-wrap">
       <label class="auto-share-field-label" for="autoSharedClientPhone">Passenger Phone <span class="auto-share-required">*</span></label>
-      <input id="autoSharedClientPhone" placeholder="Enter passenger phone">
+      <input id="autoSharedClientPhone">
     </div>
 
     <div class="field-wrap location-field">
       <label class="auto-share-field-label" for="autoSharedPickup">Pickup Address <span class="auto-share-required">*</span></label>
-      <input id="autoSharedPickup" placeholder="Enter pickup address">
+      <input id="autoSharedPickup">
     </div>
 
     <div class="field-wrap location-field">
       <label class="auto-share-field-label" for="autoSharedDropoff">Dropoff Address <span class="auto-share-required">*</span></label>
-      <input id="autoSharedDropoff" placeholder="Enter dropoff address">
+      <input id="autoSharedDropoff">
     </div>
 
     <div class="field-wrap">
@@ -938,7 +1081,7 @@ button:hover{
 
     <div class="field-wrap auto-share-full">
       <label class="auto-share-field-label" for="autoSharedNotes">Passenger Notes</label>
-      <textarea id="autoSharedNotes" placeholder="Passenger notes"></textarea>
+      <textarea id="autoSharedNotes"></textarea>
     </div>
 
     <div class="field-wrap">
@@ -959,6 +1102,15 @@ button:hover{
 </section>
 
 <section>
+  <div class="auto-share-toolbar">
+    <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
+      Build Shared Groups
+    </button>
+    <div class="auto-share-toolbar-note">
+      Build first, then review each matched group and submit it separately.
+    </div>
+  </div>
+
   <h3>Automatic Shared List</h3>
   <div class="auto-share-table-wrap">
     <div id="automaticSharedList" class="auto-share-list"></div>
@@ -967,16 +1119,8 @@ button:hover{
 
 <section>
   <h3>Shared Engine Result</h3>
-  <div id="automaticSharedResult" class="auto-share-result"></div>
-
-  <div class="actions">
-    <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
-      Build Shared Groups
-    </button>
-
-    <button class="btn-green" id="submitAutomaticSharedGroups" type="button" disabled>
-      Submit Matched Groups
-    </button>
+  <div class="auto-share-result-wrap">
+    <div id="automaticSharedResult" class="auto-share-result"></div>
   </div>
 </section>
 
