@@ -27,6 +27,9 @@ const BrokerIntegration =
 const Tenant =
   require("../models/Tenant");
 
+const TripSplitState =
+  require("../models/TripSplitState");
+
 const {
   createExternalTrip,
   normalizeServiceKey:normalizeExternalServiceKey,
@@ -43,6 +46,162 @@ function clean(value){
 
 function upper(value){
   return clean(value).toUpperCase();
+}
+
+
+function safeArray(value){
+  return Array.isArray(value)
+    ? value
+    : [];
+}
+
+function boolFlag(value){
+  return (
+    value === true ||
+    String(value ?? "").toLowerCase() === "true" ||
+    String(value ?? "").toLowerCase() === "yes" ||
+    String(value ?? "").toLowerCase() === "1"
+  );
+}
+
+function passengerHasFinalConfirmation(passenger){
+  return (
+    boolFlag(passenger?.finalStatusConfirmed) ||
+    boolFlag(passenger?.dispatchFinalConfirmed) ||
+    !!passenger?.finalStatusConfirmedAt ||
+    !!passenger?.dispatchFinalConfirmedAt
+  );
+}
+
+function hasFinalConfirmation(trip){
+  if(!trip){
+    return false;
+  }
+
+  if(
+    boolFlag(trip.finalStatusConfirmed) ||
+    boolFlag(trip.dispatchFinalConfirmed) ||
+    boolFlag(trip.sharedFinalConfirmed) ||
+    boolFlag(trip.finalConfirmed) ||
+    !!trip.finalStatusConfirmedAt ||
+    !!trip.dispatchFinalConfirmedAt ||
+    !!trip.sharedFinalConfirmedAt ||
+    !!trip.finalConfirmedAt
+  ){
+    return true;
+  }
+
+  return safeArray(trip.passengers)
+    .some(passengerHasFinalConfirmation);
+}
+
+async function getFinalConfirmedExternalIdSet(
+  tenantId,
+  externalTrips
+){
+  const rows =
+    safeArray(externalTrips);
+
+  if(!rows.length){
+    return new Set();
+  }
+
+  const Trip =
+    getTripModel();
+
+  const externalIds =
+    rows.map(row=>row._id);
+
+  const states =
+    await TripSplitState.find({
+      tenantId,
+      externalTripObjectId:{
+        $in:externalIds
+      },
+      dispatchTripId:{
+        $exists:true,
+        $ne:null
+      }
+    })
+      .select(
+        "externalTripObjectId dispatchTripId"
+      )
+      .lean();
+
+  const dispatchIds =
+    [...new Set(
+      states
+        .map(row=>clean(row.dispatchTripId))
+        .filter(Boolean)
+    )];
+
+  const directlyTransferredIds =
+    rows
+      .map(row=>clean(row.transferredTripId))
+      .filter(Boolean);
+
+  const allTripIds =
+    [...new Set([
+      ...dispatchIds,
+      ...directlyTransferredIds
+    ])];
+
+  if(!allTripIds.length){
+    return new Set();
+  }
+
+  const finalTrips =
+    await Trip.find({
+      tenantId,
+      _id:{
+        $in:allTripIds
+      }
+    })
+      .select(
+        "_id finalStatusConfirmed dispatchFinalConfirmed sharedFinalConfirmed finalConfirmed finalStatusConfirmedAt dispatchFinalConfirmedAt sharedFinalConfirmedAt finalConfirmedAt passengers"
+      )
+      .lean();
+
+  const finalTripIds =
+    new Set(
+      finalTrips
+        .filter(hasFinalConfirmation)
+        .map(trip=>String(trip._id))
+    );
+
+  if(!finalTripIds.size){
+    return new Set();
+  }
+
+  const result =
+    new Set();
+
+  for(const state of states){
+    if(
+      finalTripIds.has(
+        clean(state.dispatchTripId)
+      )
+    ){
+      result.add(
+        String(state.externalTripObjectId)
+      );
+    }
+  }
+
+  for(const row of rows){
+    if(
+      clean(row.transferredTripId) &&
+      finalTripIds.has(
+        clean(row.transferredTripId)
+      )
+    ){
+      result.add(
+        String(row._id)
+      );
+    }
+  }
+
+  return result;
 }
 
 function getTripModel(){
@@ -754,7 +913,7 @@ router.get(
           );
       }
 
-      const trips =
+      let trips =
         await ExternalTrip.find(
           filter
         )
@@ -764,6 +923,29 @@ router.get(
           createdAt:1
         })
         .lean();
+
+      /*
+        FINAL CONFIRMATION EXIT RULE
+
+        Once the dispatcher performs Final Confirmation, the source trip leaves
+        External Trips Hub regardless of the final result:
+        Completed / Cancelled / No Show / Not Completed.
+      */
+      const finalConfirmedExternalIds =
+        await getFinalConfirmedExternalIdSet(
+          req.authUser.tenantId,
+          trips
+        );
+
+      if(finalConfirmedExternalIds.size){
+        trips =
+          trips.filter(
+            trip=>
+              !finalConfirmedExternalIds.has(
+                String(trip._id)
+              )
+          );
+      }
 
       return res.json({
         success:true,

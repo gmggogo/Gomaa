@@ -69,6 +69,47 @@ function safeArray(value){
     : [];
 }
 
+
+function boolFlag(value){
+  return (
+    value === true ||
+    String(value ?? "").toLowerCase() === "true" ||
+    String(value ?? "").toLowerCase() === "yes" ||
+    String(value ?? "").toLowerCase() === "1"
+  );
+}
+
+function passengerHasFinalConfirmation(passenger){
+  return (
+    boolFlag(passenger?.finalStatusConfirmed) ||
+    boolFlag(passenger?.dispatchFinalConfirmed) ||
+    !!passenger?.finalStatusConfirmedAt ||
+    !!passenger?.dispatchFinalConfirmedAt
+  );
+}
+
+function hasFinalConfirmation(trip){
+  if(!trip){
+    return false;
+  }
+
+  if(
+    boolFlag(trip.finalStatusConfirmed) ||
+    boolFlag(trip.dispatchFinalConfirmed) ||
+    boolFlag(trip.sharedFinalConfirmed) ||
+    boolFlag(trip.finalConfirmed) ||
+    !!trip.finalStatusConfirmedAt ||
+    !!trip.dispatchFinalConfirmedAt ||
+    !!trip.sharedFinalConfirmedAt ||
+    !!trip.finalConfirmedAt
+  ){
+    return true;
+  }
+
+  return safeArray(trip.passengers)
+    .some(passengerHasFinalConfirmation);
+}
+
 function normalizeServiceKey(value){
   const raw =
     upper(value)
@@ -887,6 +928,22 @@ async function buildItems(
   }
 
   /*
+    FINAL CONFIRMATION EXIT RULE
+
+    Once Dispatch Final Confirmation is completed, the trip no longer belongs
+    in Broker Review. This applies to every final result:
+    Completed / Cancelled / No Show / Not Completed.
+
+    Dispatch Review remains the post-confirmation destination.
+  */
+  const finalConfirmedDispatchIds =
+    new Set(
+      dispatchTrips
+        .filter(hasFinalConfirmation)
+        .map(trip=>toId(trip))
+    );
+
+  /*
     Shared groups have multiple TripSplitState rows pointing to one
     dispatchTripId. Aggregate them into one review card/row.
   */
@@ -901,6 +958,10 @@ async function buildItems(
       );
 
     if(!dispatchId){
+      continue;
+    }
+
+    if(finalConfirmedDispatchIds.has(dispatchId)){
       continue;
     }
 

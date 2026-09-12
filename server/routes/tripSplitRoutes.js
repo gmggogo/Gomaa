@@ -66,6 +66,51 @@ function safeArray(value){
   return Array.isArray(value) ? value : [];
 }
 
+
+function boolFlag(value){
+  return (
+    value === true ||
+    String(value ?? "").toLowerCase() === "true" ||
+    String(value ?? "").toLowerCase() === "yes" ||
+    String(value ?? "").toLowerCase() === "1"
+  );
+}
+
+function passengerHasFinalConfirmation(passenger){
+  return (
+    boolFlag(passenger?.finalStatusConfirmed) ||
+    boolFlag(passenger?.dispatchFinalConfirmed) ||
+    !!passenger?.finalStatusConfirmedAt ||
+    !!passenger?.dispatchFinalConfirmedAt
+  );
+}
+
+function hasFinalConfirmation(trip){
+  if(!trip){
+    return false;
+  }
+
+  if(
+    boolFlag(trip.finalStatusConfirmed) ||
+    boolFlag(trip.dispatchFinalConfirmed) ||
+    boolFlag(trip.sharedFinalConfirmed) ||
+    boolFlag(trip.finalConfirmed) ||
+    !!trip.finalStatusConfirmedAt ||
+    !!trip.dispatchFinalConfirmedAt ||
+    !!trip.sharedFinalConfirmedAt ||
+    !!trip.finalConfirmedAt
+  ){
+    return true;
+  }
+
+  return safeArray(trip.passengers)
+    .some(passengerHasFinalConfirmation);
+}
+
+function toId(value){
+  return String(value?._id || value?.id || value || "");
+}
+
 function restoredToOriginal(trip){
   return (
     trip?.normalizedPayload?.tripSplitRestoredToOriginal === true ||
@@ -732,6 +777,86 @@ async function brokerCapabilities(tenantId){
       sharedServiceEnabled
   };
 }
+
+
+async function getFinalConfirmedExternalIdSet(
+  tenantId,
+  externalTripIds
+){
+  if(!externalTripIds.length){
+    return new Set();
+  }
+
+  const Trip =
+    getTripModel();
+
+  const states =
+    await TripSplitState.find({
+      tenantId,
+      externalTripObjectId:{
+        $in:externalTripIds
+      },
+      dispatchTripId:{
+        $exists:true,
+        $ne:null
+      }
+    })
+      .select(
+        "externalTripObjectId dispatchTripId"
+      )
+      .lean();
+
+  if(!states.length){
+    return new Set();
+  }
+
+  const dispatchIds =
+    [...new Set(
+      states
+        .map(row=>clean(row.dispatchTripId))
+        .filter(Boolean)
+    )];
+
+  if(!dispatchIds.length){
+    return new Set();
+  }
+
+  const finalizedTrips =
+    await Trip.find({
+      tenantId,
+      _id:{
+        $in:dispatchIds
+      }
+    })
+      .select(
+        "_id finalStatusConfirmed dispatchFinalConfirmed sharedFinalConfirmed finalConfirmed finalStatusConfirmedAt dispatchFinalConfirmedAt sharedFinalConfirmedAt finalConfirmedAt passengers"
+      )
+      .lean();
+
+  const finalizedDispatchIds =
+    new Set(
+      finalizedTrips
+        .filter(hasFinalConfirmation)
+        .map(trip=>toId(trip))
+    );
+
+  if(!finalizedDispatchIds.size){
+    return new Set();
+  }
+
+  return new Set(
+    states
+      .filter(row=>
+        finalizedDispatchIds.has(
+          clean(row.dispatchTripId)
+        )
+      )
+      .map(row=>
+        String(row.externalTripObjectId)
+      )
+  );
+}
+
 
 async function getProcessedSet(tenantId,tripIds){
   if(!tripIds.length){
@@ -1470,6 +1595,29 @@ router.get("/bootstrap",async(req,res)=>{
     })
       .sort({tripDate:1,tripTime:1,brokerCode:1})
       .lean();
+
+    /*
+      FINAL CONFIRMATION EXIT RULE
+
+      Final-confirmed broker trips must disappear from Trip Split completely,
+      including the Confirmed bucket. Final status may be Completed, Cancelled,
+      No Show or Not Completed.
+    */
+    const finalConfirmedExternalIds =
+      await getFinalConfirmedExternalIdSet(
+        tenantId,
+        trips.map(trip=>trip._id)
+      );
+
+    if(finalConfirmedExternalIds.size){
+      trips =
+        trips.filter(
+          trip=>
+            !finalConfirmedExternalIds.has(
+              String(trip._id)
+            )
+        );
+    }
 
     /*
       Coordinate gate:
