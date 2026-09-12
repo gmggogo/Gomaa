@@ -3342,7 +3342,6 @@ function render(){
         <th class="wide-address">Dropoff</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-return">Return Time</th>
         <th class="col-service">Service</th>
         <th class="wide-notes">Notes</th>
         <th class="col-driver-comment">Driver Comment</th>
@@ -3377,7 +3376,7 @@ function render(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="18">Trip Date: ${safe(day)}</td>`;
+        `<td colspan="17">Trip Date: ${safe(day)}</td>`;
 
       tbody.appendChild(
         dateRow
@@ -3524,14 +3523,6 @@ function renderTripRow(item){
         safe(
           t.tripTime ||
           "--"
-        )
-      )}
-    </td>
-
-    <td class="col-return">
-      ${cellBox(
-        safe(
-          getReturnTime(t)
         )
       )}
     </td>
@@ -3808,18 +3799,6 @@ function renderSharedRow(item){
       )
     );
 
-  const returnTimes =
-    cellBox(
-      numberedPassengerValues(
-        passengers,
-        p=>
-          getPassengerReturnTime(
-            p,
-            first
-          )
-      )
-    );
-
   const services =
     cellBox(
       numberedPassengerValues(
@@ -3939,10 +3918,6 @@ function renderSharedRow(item){
 
     <td class="col-time">
       ${tripTimes}
-    </td>
-
-    <td class="col-return">
-      ${returnTimes}
     </td>
 
     <td class="col-service">

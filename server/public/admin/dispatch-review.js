@@ -2742,7 +2742,6 @@ function render(){
         <th class="wide-notes">Notes</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-return">Return Time</th>
         <th class="col-service">Service</th>
         <th class="wide-passenger-status">Passenger Status</th>
         <th class="col-status">Trip Status</th>
@@ -2760,7 +2759,7 @@ function render(){
 
       const dateRow = document.createElement("tr");
       dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="17">Trip Date: ${safe(day)}</td>`;
+      dateRow.innerHTML = `<td colspan="16">Trip Date: ${safe(day)}</td>`;
       tbody.appendChild(dateRow);
 
       groups[day].forEach(item=>{
@@ -2798,7 +2797,6 @@ function renderTripRow(item){
     <td class="wide-notes">${cellBox(getNotes(t) || "--")}</td>
     <td class="col-date">${cellBox(t.tripDate || "--")}</td>
     <td class="col-time">${cellBox(t.tripTime || "--")}</td>
-    <td class="col-return">${cellBox(getReturnTime(t))}</td>
     <td class="col-service">${cellBox(getServiceTitleByTrip(t))}</td>
     <td class="wide-passenger-status">${cellBox(displayStatus(t.status,t))}</td>
     <td class="col-status">${statusHTML(t.status,t)}</td>
@@ -2879,11 +2877,6 @@ function renderSharedRow(item){
     p=>getPassengerTripTime(p,first)
   );
 
-  const returns = numberedPassengerValues(
-    passengers,
-    p=>getPassengerReturnTime(p)
-  );
-
   const services = numberedPassengerValues(
     passengers,
     p=>getPassengerServiceDisplay(p,first)
@@ -2912,7 +2905,6 @@ function renderSharedRow(item){
     <td class="wide-notes">${cellBox(notes)}</td>
     <td class="col-date">${cellBox(dates)}</td>
     <td class="col-time">${cellBox(times)}</td>
-    <td class="col-return">${cellBox(returns)}</td>
     <td class="col-service">${cellBox(services)}</td>
     <td class="wide-passenger-status">${cellBox(passengerStatuses)}</td>
     <td class="col-status">${statusHTML(groupStatus,first)}</td>
