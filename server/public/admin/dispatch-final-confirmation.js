@@ -699,10 +699,9 @@ function statusValueToLabel(v){
 function statusCellHTML(status,isConfirmed){
   const label = displayStatus(status);
   const cls = statusClass(status);
-  const confirmedClass = isConfirmed ? "confirmed-blue" : cls;
 
   return `
-    <div class="status-box ${confirmedClass}">
+    <div class="status-box ${cls}">
       ${safe(label)}
     </div>
   `;
