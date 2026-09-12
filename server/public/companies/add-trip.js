@@ -265,6 +265,9 @@ const automaticSharedList =
 const automaticSharedResult =
   document.getElementById("automaticSharedResult");
 
+const automaticSharedCounters =
+  document.getElementById("automaticSharedCounters");
+
 const runAutomaticSharedEngineBtn =
   document.getElementById("runAutomaticSharedEngine");
 
@@ -2164,21 +2167,234 @@ function automaticCandidateStatus(item){
   };
 }
 
+function visibleAutomaticCandidates(){
+  if(!automaticSharedPlan){
+    return automaticSharedCandidates;
+  }
+
+  const maps = automaticGroupMaps();
+  return automaticSharedCandidates.filter(item=>{
+    const id = String(item?.id || "").trim();
+    return !maps.matchedIds.has(id);
+  });
+}
+
+function automaticAlternativeServices(){
+  return COMPANY_SERVICES.filter(service=>{
+    const code = resolveServiceCode(service);
+    return code && code !== "SH";
+  });
+}
+
+function automaticServiceOptionHtml(selectedCode=""){
+  const services = automaticAlternativeServices();
+  if(!services.length){
+    return `<option value="">No alternate service</option>`;
+  }
+
+  return services.map(service=>{
+    const code = resolveServiceCode(service);
+    const name = serviceDisplayName(service,code);
+    const selected = code === selectedCode ? " selected" : "";
+    return `<option value="${safeHtml(code)}"${selected}>${safeHtml(name)}</option>`;
+  }).join("");
+}
+
+function servicePayloadFromConfig(service){
+  const serviceKey = resolveServiceCode(service);
+  if(!serviceKey){
+    throw new Error("Service code missing");
+  }
+
+  const serviceName = serviceDisplayName(service,serviceKey);
+  const fromOverride = service.__pricingSource === "FACILITY_OVERRIDE";
+
+  return {
+    service,
+    serviceKey,
+    serviceCode:serviceKey,
+    serviceType:serviceKey,
+    serviceSuffix:serviceKey,
+    serviceName,
+    serviceId:fromOverride ? "" : String(service._id || ""),
+    pricingSource:fromOverride ? "FACILITY_OVERRIDE" : "SERVICE_MANAGEMENT",
+    facilityOverrideActive:fromOverride
+  };
+}
+
+function updateAutomaticSharedCounters(){
+  if(!automaticSharedCounters) return;
+
+  const groups = Array.isArray(automaticSharedPlan?.groups)
+    ? automaticSharedPlan.groups
+    : [];
+
+  const matchedClients = groups.reduce((total,group)=>{
+    return total + (Array.isArray(group?.trips) ? group.trips.length : 0);
+  },0);
+
+  const unmatched = automaticSharedPlan
+    ? visibleAutomaticCandidates().length
+    : 0;
+
+  automaticSharedCounters.innerHTML = `
+    <div class="auto-share-counter"><span>Groups</span><strong>${groups.length}</strong></div>
+    <div class="auto-share-counter"><span>Matched Clients</span><strong>${matchedClients}</strong></div>
+    <div class="auto-share-counter"><span>Not Matched</span><strong>${unmatched}</strong></div>
+  `;
+}
+
+function bindUnmatchedAutomaticActions(){
+  if(!automaticSharedList) return;
+
+  automaticSharedList.querySelectorAll("[data-edit-time]").forEach(button=>{
+    button.onclick = ()=>{
+      const id = button.getAttribute("data-edit-time");
+      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
+      const saveButton = automaticSharedList.querySelector(`[data-save-time="${CSS.escape(id)}"]`);
+      if(input) input.style.display = "inline-block";
+      if(saveButton) saveButton.style.display = "inline-block";
+      button.style.display = "none";
+    };
+  });
+
+  automaticSharedList.querySelectorAll("[data-save-time]").forEach(button=>{
+    button.onclick = async ()=>{
+      const id = button.getAttribute("data-save-time");
+      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
+      const candidate = automaticCandidateById(id);
+      const nextTime = normalizeText(input?.value);
+
+      if(!candidate || !nextTime){
+        showAlert("Pickup Time Required");
+        return;
+      }
+
+      candidate.tripTime = nextTime;
+      candidate.pickupTime = nextTime;
+      automaticSharedPlan = null;
+      saveAutomaticSharedDraft();
+      renderAutomaticSharedList();
+      updateAutomaticSharedCounters();
+      await runAutomaticSharedEngine();
+    };
+  });
+
+  automaticSharedList.querySelectorAll("[data-submit-unmatched]").forEach(button=>{
+    button.onclick = async ()=>{
+      const id = button.getAttribute("data-submit-unmatched");
+      const select = automaticSharedList.querySelector(`[data-service-select="${CSS.escape(id)}"]`);
+      await submitUnmatchedAutomaticCandidate(id,normalizeText(select?.value));
+    };
+  });
+}
+
+async function submitUnmatchedAutomaticCandidate(id,serviceCode){
+  const candidate = automaticCandidateById(id);
+  if(!candidate){
+    showAlert("Trip not found");
+    return;
+  }
+
+  const service = automaticAlternativeServices().find(item=>resolveServiceCode(item) === serviceCode);
+  if(!service){
+    showAlert("Select a service");
+    return;
+  }
+
+  if(!confirm("Warning: Submit this unmatched trip as an individual trip with the selected service?")){
+    return;
+  }
+
+  try{
+    const selected = servicePayloadFromConfig(service);
+
+    const payload = {
+      company:companyName,
+      companyName,
+      facilityName:companyName,
+      companyId,
+      facilityId:companyId,
+      userId:companyId,
+      type:"company",
+      source:"company",
+      bookingSource:"AUTOMATIC_SHARED_UNMATCHED_INDIVIDUAL",
+      tripType:"INDIVIDUAL",
+      isShared:false,
+      serviceKey:selected.serviceKey,
+      serviceCode:selected.serviceCode,
+      serviceType:selected.serviceType,
+      serviceSuffix:selected.serviceSuffix,
+      serviceName:selected.serviceName,
+      serviceId:selected.serviceId,
+      pricingSource:selected.pricingSource,
+      facilityOverrideActive:selected.facilityOverrideActive,
+      entryName:sharedEntryName?.value || entryName?.value || "",
+      entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
+      clientName:candidate.clientName || "",
+      clientPhone:candidate.clientPhone || "",
+      pickup:candidate.pickup || "",
+      dropoff:candidate.dropoff || "",
+      stops:[],
+      pickupLat:candidate.pickupLat ?? null,
+      pickupLng:candidate.pickupLng ?? null,
+      dropoffLat:candidate.dropoffLat ?? null,
+      dropoffLng:candidate.dropoffLng ?? null,
+      tripDate:candidate.tripDate || "",
+      tripTime:candidate.tripTime || candidate.pickupTime || "",
+      appointmentTime:candidate.appointmentTime || "",
+      notes:candidate.notes || "",
+      status:"Scheduled"
+    };
+
+    const res = await fetch("/api/trips",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      throw new Error(data.message || "Failed to submit unmatched trip");
+    }
+
+    automaticSharedCandidates = automaticSharedCandidates.filter(item=>String(item.id) !== String(id));
+    pruneAutomaticPlanIds(new Set([String(id)]),false);
+    saveAutomaticSharedDraft();
+    renderAutomaticSharedList();
+    renderAutomaticSharedResult(automaticSharedPlan);
+    updateAutomaticSharedCounters();
+    showAlert("Trip submitted successfully ✔");
+
+  }catch(err){
+    console.log("UNMATCHED TRIP SUBMIT ERROR:",err);
+    showAlert(err.message || "Failed to submit unmatched trip");
+  }
+}
+
 function renderAutomaticSharedList(){
 
   if(!automaticSharedList) return;
 
-  if(!automaticSharedCandidates.length){
+  const visibleCandidates = visibleAutomaticCandidates();
+
+  if(!visibleCandidates.length){
     automaticSharedList.innerHTML = `
       <div class="auto-share-unmatched">
-        No Automatic Shared candidates yet.
+        ${automaticSharedPlan ? "All current candidates are inside matched groups." : "No Automatic Shared candidates yet."}
       </div>
     `;
+    updateAutomaticSharedCounters();
     return;
   }
 
-  const rows = automaticSharedCandidates.map((item,index)=>{
+  const rows = visibleCandidates.map((item,index)=>{
     const status = automaticCandidateStatus(item);
+    const isUnmatched = status.badgeClass === "unmatched";
+    const serviceOptions = automaticServiceOptionHtml();
     return `
       <div class="auto-share-row ${status.rowClass}">
         <div class="auto-share-cell">${index + 1}</div>
@@ -2196,7 +2412,18 @@ function renderAutomaticSharedList(){
           <div style="margin-top:5px;">${safeHtml(status.noteText)}</div>
         </div>
         <div class="auto-share-cell">
-          <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+          ${isUnmatched ? `
+            <div class="auto-share-unmatched-actions">
+              <button class="btn-orange auto-share-action-btn" type="button" data-edit-time="${safeHtml(item.id)}">Edit Time</button>
+              <input class="auto-share-inline-time" data-time-input="${safeHtml(item.id)}" type="time" value="${safeHtml(item.tripTime || item.pickupTime || "")}" style="display:none;">
+              <button class="btn-blue auto-share-action-btn" type="button" data-save-time="${safeHtml(item.id)}" style="display:none;">Retry Match</button>
+              <select class="auto-share-inline-service" data-service-select="${safeHtml(item.id)}">${serviceOptions}</select>
+              <button class="btn-green auto-share-action-btn" type="button" data-submit-unmatched="${safeHtml(item.id)}">Submit Trip</button>
+              <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+            </div>
+          ` : `
+            <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+          `}
         </div>
       </div>
     `;
@@ -2215,7 +2442,7 @@ function renderAutomaticSharedList(){
       <div>Return Time</div>
       <div>Leg</div>
       <div>Match Status / Note</div>
-      <div></div>
+      <div>Actions</div>
     </div>
     ${rows}
   `;
@@ -2255,6 +2482,9 @@ function renderAutomaticSharedList(){
         renderAutomaticSharedResult(automaticSharedPlan);
       };
     });
+
+  bindUnmatchedAutomaticActions();
+  updateAutomaticSharedCounters();
 }
 
 function safeHtml(value){
@@ -2546,6 +2776,7 @@ function renderAutomaticSharedResult(plan){
     : `<div class="auto-share-unmatched">No Shared groups were created.</div>`;
 
   bindAutomaticGroupActions();
+  updateAutomaticSharedCounters();
 }
 
 async function runAutomaticSharedEngine(){
