@@ -1655,6 +1655,12 @@ passengers: {
       clientName: { type: String, default: "" },
       clientPhone: { type: String, default: "" },
 
+      tripDate: { type: String, default: "" },
+      tripTime: { type: String, default: "" },
+      pickupTime: { type: String, default: "" },
+      appointmentTime: { type: String, default: "" },
+      notes: { type: String, default: "" },
+
 pickup: { type: String, default: "" },
 dropoff: { type: String, default: "" },
       pickupLat: { type: Number, default: null },
@@ -2000,12 +2006,112 @@ app.use(
 const sharedEngineRoutes =
   require("./routes/sharedEngineRoutes");
 
+const {
+  mergeSettings:mergeCompanySharedSettings,
+  planSharedTrips:planCompanySharedTrips
+} = require("./services/sharedEngine");
+
+const SharedEngineSettingsModel =
+  mongoose.models.SharedEngineSettings ||
+  require("./models/SharedEngineSettings");
+
 const tripSplitRoutes =
   require("./routes/tripSplitRoutes");
 
 app.use(
   "/api/shared-engine",
   sharedEngineRoutes
+);
+
+/* =========================
+   COMPANY AUTOMATIC SHARED
+   Company page may plan Shared groups without staff-only Shared Engine access.
+   The endpoint returns proposals only. Saving still uses /api/trips.
+========================= */
+
+app.post(
+  "/api/company-shared/plan",
+  requireTenantApi,
+  async (req,res)=>{
+    try{
+      const role =
+        String(
+          req.authUser?.role || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if(
+        ![
+          "COMPANY",
+          "SUPER_ADMIN",
+          "ADMIN",
+          "DISPATCHER"
+        ].includes(role)
+      ){
+        return res.status(403).json({
+          success:false,
+          message:"Not allowed"
+        });
+      }
+
+      const trips =
+        Array.isArray(req.body?.trips)
+          ? req.body.trips
+          : [];
+
+      if(trips.length < 2){
+        return res.status(400).json({
+          success:false,
+          message:"At least two Shared candidates are required"
+        });
+      }
+
+      const saved =
+        await SharedEngineSettingsModel
+          .findOne({
+            tenantId:req.authUser.tenantId
+          })
+          .lean();
+
+      const settings =
+        mergeCompanySharedSettings(
+          saved || {}
+        );
+
+      if(
+        settings?.enabled === false ||
+        settings?.sources?.company?.enabled === false
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Automatic Shared is disabled for Companies"
+        });
+      }
+
+      const result =
+        await planCompanySharedTrips({
+          source:"COMPANY",
+          trips,
+          settings
+        });
+
+      return res.json(result);
+
+    }catch(err){
+      console.log(
+        "COMPANY AUTOMATIC SHARED PLAN ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          err?.message ||
+          "Automatic Shared planning failed"
+      });
+    }
+  }
 );
 
 app.use(
@@ -7695,6 +7801,27 @@ if (isShared) {
 
       clientPhone:
         normalizeText(p.clientPhone),
+
+      tripDate:
+        normalizeText(p.tripDate || req.body.tripDate),
+
+      tripTime:
+        normalizeText(p.tripTime || p.pickupTime || req.body.tripTime),
+
+      pickupTime:
+        normalizeText(p.pickupTime || p.tripTime || req.body.tripTime),
+
+      appointmentTime:
+        normalizeText(p.appointmentTime),
+
+      notes:
+        normalizeText(p.notes),
+
+      source:
+        normalizeText(p.source || req.body.source || "company"),
+
+      bookingSource:
+        normalizeText(p.bookingSource || req.body.bookingSource),
 
       pickup:
         normalizeText(p.pickup),

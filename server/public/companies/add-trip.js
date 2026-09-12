@@ -216,6 +216,62 @@ const submitSharedBtn =
 const saveSharedDraftBtn =
   document.getElementById("saveSharedDraftBtn");
 
+
+const sharedManualModeBtn =
+  document.getElementById("sharedManualModeBtn");
+
+const sharedAutomaticModeBtn =
+  document.getElementById("sharedAutomaticModeBtn");
+
+const manualSharedModePanel =
+  document.getElementById("manualSharedModePanel");
+
+const automaticSharedModePanel =
+  document.getElementById("automaticSharedModePanel");
+
+const autoSharedClientName =
+  document.getElementById("autoSharedClientName");
+
+const autoSharedClientPhone =
+  document.getElementById("autoSharedClientPhone");
+
+const autoSharedPickup =
+  document.getElementById("autoSharedPickup");
+
+const autoSharedDropoff =
+  document.getElementById("autoSharedDropoff");
+
+const autoSharedDate =
+  document.getElementById("autoSharedDate");
+
+const autoSharedPickupTime =
+  document.getElementById("autoSharedPickupTime");
+
+const autoSharedAppointmentTime =
+  document.getElementById("autoSharedAppointmentTime");
+
+const autoSharedNotes =
+  document.getElementById("autoSharedNotes");
+
+const addAutomaticSharedCandidateBtn =
+  document.getElementById("addAutomaticSharedCandidate");
+
+const automaticSharedList =
+  document.getElementById("automaticSharedList");
+
+const automaticSharedResult =
+  document.getElementById("automaticSharedResult");
+
+const runAutomaticSharedEngineBtn =
+  document.getElementById("runAutomaticSharedEngine");
+
+const submitAutomaticSharedGroupsBtn =
+  document.getElementById("submitAutomaticSharedGroups");
+
+let sharedEntryMode = "MANUAL";
+let automaticSharedCandidates = [];
+let automaticSharedPlan = null;
+
 /* ================= HELPERS ================= */
 
 
@@ -1921,6 +1977,607 @@ function saveSharedDraft(){
 
 if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 
+
+/* ================= AUTOMATIC SHARED ================= */
+
+const AUTO_SHARED_DRAFT_KEY =
+  companyStorageKey("companyAutomaticSharedDraft");
+
+function setSharedEntryMode(mode){
+
+  sharedEntryMode =
+    String(mode || "MANUAL")
+      .toUpperCase() === "AUTOMATIC"
+      ? "AUTOMATIC"
+      : "MANUAL";
+
+  const automatic =
+    sharedEntryMode === "AUTOMATIC";
+
+  if(manualSharedModePanel){
+    manualSharedModePanel.style.display =
+      automatic ? "none" : "block";
+  }
+
+  if(automaticSharedModePanel){
+    automaticSharedModePanel.style.display =
+      automatic ? "block" : "none";
+  }
+
+  if(sharedManualModeBtn){
+    sharedManualModeBtn.classList.toggle(
+      "active",
+      !automatic
+    );
+  }
+
+  if(sharedAutomaticModeBtn){
+    sharedAutomaticModeBtn.classList.toggle(
+      "active",
+      automatic
+    );
+  }
+}
+
+function saveAutomaticSharedDraft(){
+  try{
+    localStorage.setItem(
+      AUTO_SHARED_DRAFT_KEY,
+      JSON.stringify({
+        candidates:automaticSharedCandidates
+      })
+    );
+  }catch(err){
+    console.log("AUTO SHARED DRAFT SAVE ERROR:",err);
+  }
+}
+
+function loadAutomaticSharedDraft(){
+  try{
+    const data =
+      JSON.parse(
+        localStorage.getItem(
+          AUTO_SHARED_DRAFT_KEY
+        ) || "{}"
+      );
+
+    automaticSharedCandidates =
+      Array.isArray(data?.candidates)
+        ? data.candidates
+        : [];
+  }catch(err){
+    automaticSharedCandidates = [];
+  }
+
+  renderAutomaticSharedList();
+}
+
+function automaticCandidateId(){
+  return (
+    "AUTO-" +
+    Date.now().toString(36) +
+    "-" +
+    Math.random().toString(36).slice(2,8)
+  ).toUpperCase();
+}
+
+function automaticCandidateById(id){
+  return automaticSharedCandidates.find(
+    item=>String(item.id) === String(id)
+  ) || null;
+}
+
+function clearAutomaticCandidateForm(){
+  if(autoSharedClientName) autoSharedClientName.value = "";
+  if(autoSharedClientPhone) autoSharedClientPhone.value = "";
+  if(autoSharedPickup) autoSharedPickup.value = "";
+  if(autoSharedDropoff) autoSharedDropoff.value = "";
+  if(autoSharedDate) autoSharedDate.value = "";
+  if(autoSharedPickupTime) autoSharedPickupTime.value = "";
+  if(autoSharedAppointmentTime) autoSharedAppointmentTime.value = "";
+  if(autoSharedNotes) autoSharedNotes.value = "";
+
+  clearLocationMeta(autoSharedPickup);
+  clearLocationMeta(autoSharedDropoff);
+}
+
+function renderAutomaticSharedList(){
+
+  if(!automaticSharedList) return;
+
+  if(!automaticSharedCandidates.length){
+    automaticSharedList.innerHTML = `
+      <div class="auto-share-unmatched">
+        No Automatic Shared candidates yet.
+      </div>
+    `;
+    return;
+  }
+
+  const rows = automaticSharedCandidates.map((item,index)=>`
+    <div class="auto-share-row">
+      <div class="auto-share-cell">${index + 1}</div>
+      <div class="auto-share-cell">${safeHtml(item.clientName)}</div>
+      <div class="auto-share-cell">${safeHtml(item.clientPhone)}</div>
+      <div class="auto-share-cell">${safeHtml(item.pickup)}</div>
+      <div class="auto-share-cell">${safeHtml(item.dropoff)}</div>
+      <div class="auto-share-cell">${safeHtml(item.tripDate)}</div>
+      <div class="auto-share-cell">${safeHtml(item.tripTime || "--")}</div>
+      <div class="auto-share-cell">${safeHtml(item.appointmentTime || "--")}</div>
+      <div class="auto-share-cell">
+        <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+      </div>
+    </div>
+  `).join("");
+
+  automaticSharedList.innerHTML = `
+    <div class="auto-share-row header">
+      <div>#</div>
+      <div>Passenger</div>
+      <div>Phone</div>
+      <div>Pickup</div>
+      <div>Dropoff</div>
+      <div>Date</div>
+      <div>Pickup</div>
+      <div>Appointment</div>
+      <div></div>
+    </div>
+    ${rows}
+  `;
+
+  automaticSharedList
+    .querySelectorAll("[data-auto-remove]")
+    .forEach(button=>{
+      button.onclick = ()=>{
+        const id =
+          button.getAttribute(
+            "data-auto-remove"
+          );
+
+        automaticSharedCandidates =
+          automaticSharedCandidates.filter(
+            item=>String(item.id) !== String(id)
+          );
+
+        automaticSharedPlan = null;
+        if(submitAutomaticSharedGroupsBtn){
+          submitAutomaticSharedGroupsBtn.disabled = true;
+        }
+
+        if(automaticSharedResult){
+          automaticSharedResult.innerHTML = "";
+        }
+
+        saveAutomaticSharedDraft();
+        renderAutomaticSharedList();
+      };
+    });
+}
+
+function safeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function validateAutomaticCandidate(){
+
+  if(!normalizeText(autoSharedClientName?.value)){
+    showAlert("Passenger Name Required");
+    return false;
+  }
+
+  if(!normalizeText(autoSharedClientPhone?.value)){
+    showAlert("Passenger Phone Required");
+    return false;
+  }
+
+  if(!normalizeText(autoSharedPickup?.value)){
+    showAlert("Pickup Required");
+    return false;
+  }
+
+  if(!normalizeText(autoSharedDropoff?.value)){
+    showAlert("Dropoff Required");
+    return false;
+  }
+
+  if(!autoSharedDate?.value){
+    showAlert("Trip Date Required");
+    return false;
+  }
+
+  if(
+    !autoSharedPickupTime?.value &&
+    !autoSharedAppointmentTime?.value
+  ){
+    showAlert("Pickup Time or Appointment Time Required");
+    return false;
+  }
+
+  return true;
+}
+
+function automaticCandidatePayload(){
+
+  const pickupLocation =
+    getLocationMeta(autoSharedPickup);
+
+  const dropoffLocation =
+    getLocationMeta(autoSharedDropoff);
+
+  return {
+    id:automaticCandidateId(),
+    clientName:normalizeText(autoSharedClientName?.value),
+    clientPhone:normalizeText(autoSharedClientPhone?.value),
+    pickup:normalizeText(autoSharedPickup?.value),
+    dropoff:normalizeText(autoSharedDropoff?.value),
+    pickupLat:pickupLocation?.lat ?? null,
+    pickupLng:pickupLocation?.lng ?? null,
+    dropoffLat:dropoffLocation?.lat ?? null,
+    dropoffLng:dropoffLocation?.lng ?? null,
+    tripDate:autoSharedDate?.value || "",
+    tripTime:autoSharedPickupTime?.value || "",
+    pickupTime:autoSharedPickupTime?.value || "",
+    appointmentTime:autoSharedAppointmentTime?.value || "",
+    notes:normalizeText(autoSharedNotes?.value),
+    source:"company",
+    sharedEngineSource:"COMPANY",
+    company:companyName,
+    companyName,
+    facilityName:companyName,
+    status:"Scheduled"
+  };
+}
+
+function renderAutomaticSharedResult(plan){
+
+  if(!automaticSharedResult) return;
+
+  const groups =
+    Array.isArray(plan?.groups)
+      ? plan.groups
+      : [];
+
+  const singles =
+    Array.isArray(plan?.singles)
+      ? plan.singles
+      : [];
+
+  const excluded =
+    Array.isArray(plan?.excluded)
+      ? plan.excluded
+      : [];
+
+  const groupHtml = groups.map((group,index)=>{
+    const members =
+      Array.isArray(group?.trips)
+        ? group.trips
+        : [];
+
+    return `
+      <div class="auto-share-group">
+        <div class="auto-share-group-title">
+          Group ${index + 1} • ${members.length} Passengers
+        </div>
+        <div class="auto-share-group-members">
+          ${members.map((trip,memberIndex)=>`
+            <div>${memberIndex + 1}. ${safeHtml(trip.clientName || trip.passengerName || trip.name || trip.id || "Passenger")}</div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const unmatched = [
+    ...singles.map(row=>({
+      id:row.tripId,
+      reason:row.reason || "NO_VALID_SHARED_MATCH"
+    })),
+    ...excluded.map(row=>({
+      id:row.tripId,
+      reason:row.reason || "NOT_ELIGIBLE"
+    }))
+  ];
+
+  const unmatchedHtml = unmatched.length
+    ? `
+      <div class="auto-share-unmatched">
+        ${unmatched.length} candidate(s) are not matched yet and will stay in the Automatic Shared list.
+      </div>
+    `
+    : "";
+
+  automaticSharedResult.innerHTML =
+    groupHtml || unmatchedHtml
+      ? groupHtml + unmatchedHtml
+      : `<div class="auto-share-unmatched">No Shared groups were created.</div>`;
+}
+
+async function runAutomaticSharedEngine(){
+
+  if(automaticSharedCandidates.length < 2){
+    showAlert("Add at least 2 Automatic Shared candidates");
+    return;
+  }
+
+  if(runAutomaticSharedEngineBtn){
+    runAutomaticSharedEngineBtn.disabled = true;
+    runAutomaticSharedEngineBtn.innerText = "Building...";
+  }
+
+  try{
+    const res = await fetch(
+      "/api/company-shared/plan",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        },
+        body:JSON.stringify({
+          trips:automaticSharedCandidates
+        })
+      }
+    );
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        "Automatic Shared planning failed"
+      );
+    }
+
+    automaticSharedPlan = data;
+    renderAutomaticSharedResult(data);
+
+    const hasGroups =
+      Array.isArray(data?.groups) &&
+      data.groups.length > 0;
+
+    if(submitAutomaticSharedGroupsBtn){
+      submitAutomaticSharedGroupsBtn.disabled = !hasGroups;
+    }
+
+  }catch(err){
+    console.log("AUTO SHARED ENGINE ERROR:",err);
+    showAlert(err.message || "Automatic Shared planning failed");
+  }finally{
+    if(runAutomaticSharedEngineBtn){
+      runAutomaticSharedEngineBtn.disabled = false;
+      runAutomaticSharedEngineBtn.innerText = "Build Shared Groups";
+    }
+  }
+}
+
+function automaticPassengerFromCandidate(candidate,index){
+  return {
+    passengerId:candidate.id || ("AUTO-P" + (index + 1)),
+    clientName:candidate.clientName || "",
+    clientPhone:candidate.clientPhone || "",
+    pickup:candidate.pickup || "",
+    dropoff:candidate.dropoff || "",
+    pickupLat:candidate.pickupLat ?? null,
+    pickupLng:candidate.pickupLng ?? null,
+    dropoffLat:candidate.dropoffLat ?? null,
+    dropoffLng:candidate.dropoffLng ?? null,
+    tripDate:candidate.tripDate || "",
+    tripTime:candidate.tripTime || candidate.pickupTime || "",
+    pickupTime:candidate.pickupTime || candidate.tripTime || "",
+    appointmentTime:candidate.appointmentTime || "",
+    notes:candidate.notes || "",
+    source:"company",
+    bookingSource:"AUTOMATIC_SHARED",
+    status:"Scheduled"
+  };
+}
+
+async function submitAutomaticSharedGroups(){
+
+  const groups =
+    Array.isArray(automaticSharedPlan?.groups)
+      ? automaticSharedPlan.groups
+      : [];
+
+  if(!groups.length){
+    showAlert("Build Shared groups first");
+    return;
+  }
+
+  if(submitAutomaticSharedGroupsBtn){
+    submitAutomaticSharedGroupsBtn.disabled = true;
+    submitAutomaticSharedGroupsBtn.innerText = "Submitting...";
+  }
+
+  try{
+    const selected =
+      selectedServicePayload();
+
+    const submittedIds = new Set();
+
+    for(const group of groups){
+
+      const sourceTrips =
+        Array.isArray(group?.trips)
+          ? group.trips
+          : [];
+
+      if(sourceTrips.length < 2){
+        continue;
+      }
+
+      const passengers =
+        sourceTrips.map(
+          automaticPassengerFromCandidate
+        );
+
+      const tripDate =
+        group.tripDate ||
+        passengers[0]?.tripDate ||
+        "";
+
+      const tripTime =
+        group.calculatedFirstPickupTime ||
+        passengers[0]?.tripTime ||
+        "";
+
+      const payload = {
+        company:companyName,
+        companyName,
+        facilityName:companyName,
+        companyId,
+        facilityId:companyId,
+        userId:companyId,
+        type:"company",
+        source:"company",
+        bookingSource:"AUTOMATIC_SHARED",
+        sharedEntryMode:"AUTOMATIC",
+        isShared:true,
+        tripType:"SHARED",
+        serviceKey:selected.serviceKey,
+        serviceCode:selected.serviceCode,
+        serviceType:selected.serviceType,
+        serviceSuffix:selected.serviceSuffix,
+        serviceName:selected.serviceName,
+        serviceId:selected.serviceId,
+        pricingSource:selected.pricingSource,
+        facilityOverrideActive:selected.facilityOverrideActive,
+        entryName:sharedEntryName?.value || entryName?.value || "",
+        entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
+        passengers,
+        passengersCount:passengers.length,
+        totalPassengers:passengers.length,
+        tripDate,
+        tripTime,
+        routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
+        routeSource:"SHARED_ENGINE",
+        notes:"Automatic Shared",
+        status:"Scheduled"
+      };
+
+      const res = await fetch(
+        "/api/trips",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
+          },
+          body:JSON.stringify(payload)
+        }
+      );
+
+      const data =
+        await res.json().catch(()=>({}));
+
+      if(!res.ok){
+        throw new Error(
+          data.message ||
+          "Failed to submit an Automatic Shared group"
+        );
+      }
+
+      sourceTrips.forEach(item=>{
+        if(item?.id){
+          submittedIds.add(String(item.id));
+        }
+      });
+
+      passengers.forEach(passenger=>{
+        upsertSavedClient({
+          clientName:passenger.clientName,
+          clientPhone:passenger.clientPhone,
+          pickup:passenger.pickup,
+          dropoff:passenger.dropoff
+        });
+      });
+    }
+
+    automaticSharedCandidates =
+      automaticSharedCandidates.filter(
+        item=>!submittedIds.has(String(item.id))
+      );
+
+    automaticSharedPlan = null;
+    saveAutomaticSharedDraft();
+    renderAutomaticSharedList();
+
+    if(automaticSharedResult){
+      automaticSharedResult.innerHTML = `
+        <div class="auto-share-group">
+          <div class="auto-share-group-title">Matched Shared groups submitted successfully.</div>
+        </div>
+      `;
+    }
+
+    showAlert("Automatic Shared Groups Submitted ✔");
+
+  }catch(err){
+    console.log("AUTO SHARED SUBMIT ERROR:",err);
+    showAlert(err.message || "Automatic Shared submit failed");
+  }finally{
+    if(submitAutomaticSharedGroupsBtn){
+      submitAutomaticSharedGroupsBtn.innerText = "Submit Matched Groups";
+      submitAutomaticSharedGroupsBtn.disabled = true;
+    }
+  }
+}
+
+if(sharedManualModeBtn){
+  sharedManualModeBtn.onclick = ()=>{
+    setSharedEntryMode("MANUAL");
+  };
+}
+
+if(sharedAutomaticModeBtn){
+  sharedAutomaticModeBtn.onclick = ()=>{
+    setSharedEntryMode("AUTOMATIC");
+  };
+}
+
+if(addAutomaticSharedCandidateBtn){
+  addAutomaticSharedCandidateBtn.onclick = ()=>{
+
+    if(!validateAutomaticCandidate()){
+      return;
+    }
+
+    const candidate =
+      automaticCandidatePayload();
+
+    automaticSharedCandidates.push(candidate);
+    automaticSharedPlan = null;
+
+    if(submitAutomaticSharedGroupsBtn){
+      submitAutomaticSharedGroupsBtn.disabled = true;
+    }
+
+    if(automaticSharedResult){
+      automaticSharedResult.innerHTML = "";
+    }
+
+    saveAutomaticSharedDraft();
+    renderAutomaticSharedList();
+    clearAutomaticCandidateForm();
+  };
+}
+
+if(runAutomaticSharedEngineBtn){
+  runAutomaticSharedEngineBtn.onclick =
+    runAutomaticSharedEngine;
+}
+
+if(submitAutomaticSharedGroupsBtn){
+  submitAutomaticSharedGroupsBtn.onclick =
+    submitAutomaticSharedGroups;
+}
+
 /* ================= SERVICES ================= */
 
 function defaultStandardService(){
@@ -2826,6 +3483,12 @@ submitSharedBtn.onclick = async function(){
 /* ================= INIT ================= */
 
 bindStaticLocationChoices();
+
+bindCurrentLocationChoice(autoSharedPickup);
+bindCurrentLocationChoice(autoSharedDropoff);
+
+loadAutomaticSharedDraft();
+setSharedEntryMode("MANUAL");
 
 attachLocationChangeReset(
   pickupInput

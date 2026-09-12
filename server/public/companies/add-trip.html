@@ -325,6 +325,142 @@ button:hover{
   color:#64748b;
 }
 
+
+/* ================= SHARED ENTRY MODE ================= */
+
+.shared-mode-switch{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+
+.shared-mode-btn{
+  min-height:74px;
+  border:2px solid #cbd5e1;
+  background:#f8fafc;
+  color:#334155;
+  text-align:left;
+  padding:14px 16px;
+  border-radius:14px;
+}
+
+.shared-mode-btn.active{
+  border-color:#2563eb;
+  background:#eff6ff;
+  color:#1d4ed8;
+}
+
+.shared-mode-title{
+  display:block;
+  font-size:14px;
+  font-weight:900;
+}
+
+.shared-mode-sub{
+  display:block;
+  margin-top:4px;
+  font-size:11px;
+  font-weight:700;
+  color:#64748b;
+}
+
+.auto-share-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+
+.auto-share-full{
+  grid-column:1 / -1;
+}
+
+.auto-share-list{
+  display:grid;
+  gap:10px;
+}
+
+.auto-share-row{
+  display:grid;
+  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.5fr) minmax(160px,1.5fr) 90px 90px 110px 42px;
+  gap:7px;
+  align-items:center;
+  padding:9px;
+  border:1px solid #dbe3ec;
+  border-radius:12px;
+  background:#f8fafc;
+  font-size:11px;
+  font-weight:700;
+}
+
+.auto-share-row.header{
+  background:#0f172a;
+  color:#fff;
+  font-weight:900;
+}
+
+.auto-share-cell{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+.auto-share-remove{
+  width:34px;
+  height:34px;
+  padding:0;
+  border-radius:9px;
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.auto-share-result{
+  margin-top:12px;
+  display:grid;
+  gap:10px;
+}
+
+.auto-share-group{
+  border:2px solid #86efac;
+  background:#f0fdf4;
+  border-radius:13px;
+  padding:12px;
+}
+
+.auto-share-group-title{
+  font-size:13px;
+  font-weight:900;
+  color:#166534;
+  margin-bottom:7px;
+}
+
+.auto-share-group-members{
+  display:grid;
+  gap:5px;
+  font-size:12px;
+  font-weight:700;
+  color:#334155;
+}
+
+.auto-share-unmatched{
+  border:1px solid #fdba74;
+  background:#fff7ed;
+  border-radius:12px;
+  padding:11px;
+  font-size:12px;
+  font-weight:800;
+  color:#9a3412;
+}
+
+@media(max-width:900px){
+  .auto-share-row{
+    grid-template-columns:34px minmax(105px,1fr) minmax(120px,1fr) minmax(145px,1.4fr) minmax(145px,1.4fr) 82px 82px 100px 38px;
+    min-width:1050px;
+  }
+
+  .auto-share-table-wrap{
+    overflow-x:auto;
+  }
+}
+
 /* ================= MOBILE ================= */
 
 @media(max-width:768px){
@@ -390,6 +526,12 @@ button:hover{
   .remove-passenger{
     width:100%;
   }
+
+  .shared-mode-switch,
+  .auto-share-form{
+    grid-template-columns:1fr;
+  }
+
 
   /* ================= INDIVIDUAL TRIP DETAILS - MOBILE ONLY ================= */
 
@@ -663,6 +805,26 @@ button:hover{
 
 <section>
 
+<h3>Shared Entry Mode</h3>
+
+<div class="shared-mode-switch">
+  <button class="shared-mode-btn active" id="sharedManualModeBtn" type="button">
+    <span class="shared-mode-title">Manual Shared</span>
+    <span class="shared-mode-sub">Enter the passengers together in one shared trip.</span>
+  </button>
+
+  <button class="shared-mode-btn" id="sharedAutomaticModeBtn" type="button">
+    <span class="shared-mode-title">Automatic Shared</span>
+    <span class="shared-mode-sub">Add individual Shared candidates and let the Shared Engine build compatible groups.</span>
+  </button>
+</div>
+
+</section>
+
+<div id="manualSharedModePanel">
+
+<section>
+
 <h3>Shared Setup</h3>
 
 <div class="form-grid">
@@ -721,6 +883,81 @@ button:hover{
   >
     Submit Shared
   </button>
+
+</div>
+
+</div>
+
+<div id="automaticSharedModePanel" style="display:none;">
+
+<section>
+  <h3>Add Automatic Shared Candidate</h3>
+
+  <div class="auto-share-form">
+    <div class="field-wrap">
+      <input id="autoSharedClientName" placeholder="Passenger Name" autocomplete="off">
+    </div>
+
+    <div class="field-wrap">
+      <input id="autoSharedClientPhone" placeholder="Passenger Phone">
+    </div>
+
+    <div class="field-wrap location-field">
+      <input id="autoSharedPickup" placeholder="Pickup Address">
+    </div>
+
+    <div class="field-wrap location-field">
+      <input id="autoSharedDropoff" placeholder="Dropoff Address">
+    </div>
+
+    <div class="field-wrap">
+      <label class="mobile-trip-field-label" for="autoSharedDate">Trip Date</label>
+      <input id="autoSharedDate" type="date">
+    </div>
+
+    <div class="field-wrap">
+      <label class="mobile-trip-field-label" for="autoSharedPickupTime">Pickup Time</label>
+      <input id="autoSharedPickupTime" type="time">
+    </div>
+
+    <div class="field-wrap">
+      <label class="mobile-trip-field-label" for="autoSharedAppointmentTime">Appointment Time</label>
+      <input id="autoSharedAppointmentTime" type="time">
+    </div>
+
+    <div class="field-wrap auto-share-full">
+      <textarea id="autoSharedNotes" placeholder="Passenger Notes"></textarea>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-blue" id="addAutomaticSharedCandidate" type="button">
+      + Add To Automatic List
+    </button>
+  </div>
+</section>
+
+<section>
+  <h3>Automatic Shared List</h3>
+  <div class="auto-share-table-wrap">
+    <div id="automaticSharedList" class="auto-share-list"></div>
+  </div>
+</section>
+
+<section>
+  <h3>Shared Engine Result</h3>
+  <div id="automaticSharedResult" class="auto-share-result"></div>
+
+  <div class="actions">
+    <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
+      Build Shared Groups
+    </button>
+
+    <button class="btn-green" id="submitAutomaticSharedGroups" type="button" disabled>
+      Submit Matched Groups
+    </button>
+  </div>
+</section>
 
 </div>
 
