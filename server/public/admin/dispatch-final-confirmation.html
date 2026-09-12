@@ -188,6 +188,9 @@ body{
 .filter-card.rv{
   background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%);
 }
+.filter-card.broker{
+  background:linear-gradient(135deg,#0f766e 0%,#14b8a6 100%);
+}
 
 /* SECOND ROW — light gold with clear black text */
 .stat-card.completed,
@@ -328,7 +331,7 @@ body{
 
 .review-table{
   width:100%!important;
-  min-width:1810px!important;
+  min-width:2780px!important;
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff!important;
@@ -355,10 +358,27 @@ body{
 }
 
 .col-num{width:30px!important;}
-.col-trip{width:76px!important;}
-.col-company{width:105px!important;}
-.col-date{width:82px!important;}
-.col-time{width:58px!important;}
+.col-trip{width:120px!important;}
+.col-company{width:125px!important;}
+.col-broker-trip{width:105px!important;}
+.col-date{width:90px!important;}
+.col-time{width:78px!important;}
+.col-appointment{width:105px!important;}
+.col-return{width:88px!important;}
+.col-service{width:92px!important;}
+.wide-phone{
+  width:120px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+.wide-notes{
+  width:190px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10.5px!important;
+}
 .col-driver-comment{
   width:180px!important;
   text-align:left!important;
@@ -639,9 +659,10 @@ body{
 
 .view-box{
   background:#fff!important;
-  width:min(640px,96vw)!important;
+  width:min(820px,96vw)!important;
+  max-height:92vh!important;
   border-radius:15px!important;
-  overflow:hidden!important;
+  overflow:auto!important;
   box-shadow:0 20px 60px rgba(0,0,0,.28)!important;
 }
 
@@ -695,6 +716,34 @@ body{
   word-break:break-word!important;
   white-space:pre-line!important;
 }
+
+.view-passenger-list{
+  display:grid!important;
+  gap:14px!important;
+  margin-top:6px!important;
+}
+
+.view-passenger-card{
+  border:2px solid #c4b5fd!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+  background:#faf7ff!important;
+}
+
+.view-passenger-title{
+  padding:10px 12px!important;
+  background:#7c3aed!important;
+  color:#fff!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+
+.view-passenger-lines{
+  padding:10px!important;
+  display:grid!important;
+  gap:7px!important;
+}
+
 
 .empty-state{
   background:#fff;
@@ -758,7 +807,7 @@ body{
   }
 
   .review-table{
-    min-width:1810px!important;
+    min-width:2780px!important;
   }
 
   .review-table th,
@@ -800,7 +849,7 @@ body{
       id="searchInput"
       class="search-input"
       type="text"
-      placeholder="Search trip #, facility, passenger, pickup, dropoff"
+      placeholder="Search trip #, broker trip ID, facility, broker, passenger, phone, address"
     >
 
     <select id="yearFilter" class="filter-select">

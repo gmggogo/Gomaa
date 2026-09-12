@@ -12,6 +12,7 @@
 
 const API_URL = "/api/dispatch-final-confirmation";
 const SERVICES_URL = "/api/services/admin";
+const BROKER_CAPABILITY_URL = "/api/shared-engine/settings";
 
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
@@ -43,6 +44,7 @@ let activeSource = "ALL";
 let activeStatus = "ALL";
 let refreshTimer = null;
 let tripCounter = 1;
+let brokerFeatureEnabled = false;
 
 const CONFIRM_HOURS = 12;
 
@@ -337,6 +339,214 @@ function getCompanyDisplay(t){
   return getFacilityName(t) || "--";
 }
 
+function isBrokerTrip(t){
+  return (
+    normalizeText(
+      t?.externalSource
+    ).toUpperCase() === "BROKER" ||
+    normalizeText(
+      t?.sourceType
+    ).toUpperCase() === "BROKER" ||
+    normalizeText(
+      t?.sharedSource
+    ).toUpperCase() === "BROKER" ||
+    Boolean(
+      normalizeText(
+        t?.brokerCode ||
+        t?.brokerName ||
+        t?.brokerTripId
+      )
+    )
+  );
+}
+
+function getBrokerDisplay(t){
+  const name =
+    normalizeText(
+      t?.brokerName
+    );
+
+  const code =
+    normalizeText(
+      t?.brokerCode
+    );
+
+  if(name && code){
+    return `${name} (${code})`;
+  }
+
+  return name || code || "--";
+}
+
+function getAccountDisplay(t){
+  return isBrokerTrip(t)
+    ? getBrokerDisplay(t)
+    : getCompanyDisplay(t);
+}
+
+function getBrokerTripId(t){
+  return normalizeText(
+    t?.brokerTripId ||
+    t?.externalTripId ||
+    ""
+  ) || "--";
+}
+
+function getAppointmentTime(t){
+  return normalizeText(
+    t?.appointmentTime ||
+    ""
+  ) || "--";
+}
+
+function getReturnTime(t){
+  return normalizeText(
+    t?.returnTime ||
+    ""
+  ) || "--";
+}
+
+function getTripServiceDisplay(t){
+  return normalizeText(
+    t?.serviceName ||
+    t?.serviceTitle ||
+    t?.serviceKey ||
+    t?.serviceCode ||
+    t?.serviceType ||
+    ""
+  ) || "--";
+}
+
+function getPassengerTripNumber(p,t){
+  return normalizeText(
+    p?.tripNumber ||
+    p?.ghExternalTripNumber ||
+    p?.externalTripNumber ||
+    p?.externalTripId ||
+    getTripNumber(t)
+  ) || "--";
+}
+
+function getPassengerBrokerTripId(p,t){
+  return normalizeText(
+    p?.brokerTripId ||
+    p?.externalTripId ||
+    t?.brokerTripId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerBrokerDisplay(p,t){
+  const candidate = {
+    brokerName:
+      p?.brokerName ||
+      t?.brokerName,
+    brokerCode:
+      p?.brokerCode ||
+      t?.brokerCode
+  };
+
+  return getBrokerDisplay(
+    candidate
+  );
+}
+
+function getPassengerTripDate(p,t){
+  return normalizeText(
+    p?.tripDate ||
+    t?.tripDate ||
+    ""
+  ) || "--";
+}
+
+function getPassengerTripTime(p,t){
+  return normalizeText(
+    p?.tripTime ||
+    p?.pickupTime ||
+    t?.tripTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerAppointmentTime(p,t){
+  return normalizeText(
+    p?.appointmentTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerReturnTime(p,t){
+  return normalizeText(
+    p?.returnTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerServiceDisplay(p,t){
+  return normalizeText(
+    p?.serviceName ||
+    p?.serviceTitle ||
+    p?.serviceKey ||
+    p?.serviceCode ||
+    t?.serviceName ||
+    t?.serviceKey ||
+    t?.serviceCode ||
+    "Shared"
+  ) || "--";
+}
+
+function getPassengerNotes(p,t){
+  return normalizeText(
+    p?.notes ||
+    p?.brokerNotes ||
+    ""
+  ) || "--";
+}
+
+function getPassengerMemberId(p){
+  return normalizeText(
+    p?.memberId ||
+    p?.medicaidId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerStops(p){
+  const arr =
+    getStops(p)
+      .map(
+        stop=>
+          stopText(stop)
+      )
+      .filter(Boolean);
+
+  if(!arr.length){
+    return "--";
+  }
+
+  return arr
+    .map(
+      (value,index)=>
+        `${index + 1}) ${value}`
+    )
+    .join(" | ");
+}
+
+function numberedPassengerValues(
+  passengers,
+  getter
+){
+  return passengers.map(
+    (passenger,index)=>
+      `${index + 1}. ${safe(
+        getter(
+          passenger,
+          index
+        ) || "--"
+      )}`
+  );
+}
+
 function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
@@ -584,6 +794,11 @@ function serviceEnabled(s){
 ================================ */
 
 function getSourceCode(t){
+
+  if(isBrokerTrip(t)){
+    return "BROKER";
+  }
+
   const raw = [
     t?.source,
     t?.from,
@@ -637,6 +852,7 @@ function getSourceCode(t){
 function sourceLabel(t){
   const code = getSourceCode(t);
 
+  if(code === "BROKER") return "Broker";
   if(code === "RV") return "Reserved";
   if(code === "FACILITY") return "Facility";
 
@@ -877,6 +1093,48 @@ async function loadServices(){
   }
 }
 
+async function loadBrokerCapability(){
+  try{
+
+    const res =
+      await fetch(
+        BROKER_CAPABILITY_URL,
+        {
+          cache:"no-store",
+          headers:
+            token
+              ? {
+                  Authorization:
+                    "Bearer " + token
+                }
+              : {}
+        }
+      );
+
+    if(!res.ok){
+      throw new Error(
+        "Failed broker capability"
+      );
+    }
+
+    const data =
+      await res.json();
+
+    brokerFeatureEnabled =
+      data?.capabilities
+        ?.brokerContractEnabled === true;
+
+  }catch(err){
+
+    brokerFeatureEnabled =
+      false;
+
+    if(activeSource === "BROKER"){
+      activeSource = "ALL";
+    }
+  }
+}
+
 async function loadTrips(){
   try{
 
@@ -1045,12 +1303,17 @@ function searchableText(item){
   return [
     getTripNumber(first),
     getCompanyDisplay(first),
+    getBrokerDisplay(first),
+    first.brokerTripId,
     first.clientName,
     first.name,
+    first.clientPhone,
     first.pickup,
     first.dropoff,
     first.tripDate,
     first.tripTime,
+    first.appointmentTime,
+    first.returnTime,
     first.status,
     getDriverComment(first),
     JSON.stringify(passengers)
@@ -1253,7 +1516,8 @@ function createCounts(){
       ALL:0,
       FACILITY:0,
       GQ:0,
-      RV:0
+      RV:0,
+      BROKER:0
     },
     status:{
       completed:0,
@@ -1448,7 +1712,16 @@ function renderSourceCards(){
       code:"RV",
       label:"Reserved",
       cls:"rv"
-    }
+    },
+    ...(
+      brokerFeatureEnabled
+        ? [{
+            code:"BROKER",
+            label:"Broker",
+            cls:"broker"
+          }]
+        : []
+    )
   ];
 
   sourceCardsWrap.innerHTML =
@@ -1616,6 +1889,156 @@ function viewLine(label,value){
   `;
 }
 
+function viewPassengerCard(
+  passenger,
+  index,
+  trip
+){
+  const title =
+    `Passenger ${index + 1} — ` +
+    getPassengerName(
+      passenger,
+      trip
+    );
+
+  return `
+    <section class="view-passenger-card">
+
+      <div class="view-passenger-title">
+        ${safe(title)}
+      </div>
+
+      <div class="view-passenger-lines">
+        ${viewLine(
+          "Trip Number",
+          getPassengerTripNumber(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Broker",
+          getPassengerBrokerDisplay(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Broker Trip ID",
+          getPassengerBrokerTripId(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Member ID",
+          getPassengerMemberId(
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Passenger",
+          getPassengerName(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Phone",
+          getPassengerPhone(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Email",
+          getEmail(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Pickup",
+          getPickup(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Stops",
+          getPassengerStops(
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Dropoff",
+          getDropoff(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Trip Date",
+          getPassengerTripDate(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Trip Time",
+          getPassengerTripTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Appointment Time",
+          getPassengerAppointmentTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Return Time",
+          getPassengerReturnTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Service",
+          getPassengerServiceDisplay(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Status",
+          displayStatus(
+            passenger.status ||
+            trip.status
+          )
+        )}
+        ${viewLine(
+          "Notes",
+          getPassengerNotes(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Driver Comment",
+          driverCommentDisplay(
+            trip,
+            passenger
+          )
+        )}
+      </div>
+
+    </section>
+  `;
+}
+
 function openFinalView(key){
 
   const item =
@@ -1634,8 +2057,7 @@ function openFinalView(key){
 
   closeFinalView();
 
-  let sharedPassengerBlock =
-    "";
+  let bodyHtml = "";
 
   if(item.kind === "shared"){
 
@@ -1644,21 +2066,177 @@ function openFinalView(key){
         item.group
       );
 
-    sharedPassengerBlock = `
+    bodyHtml = `
+      ${viewLine(
+        "Source",
+        sourceLabel(t)
+      )}
+      ${viewLine(
+        "Broker",
+        isBrokerTrip(t)
+          ? getBrokerDisplay(t)
+          : "--"
+      )}
+      ${viewLine(
+        "Shared Group",
+        t.groupId ||
+        t.sharedGroupId ||
+        getTripNumber(t)
+      )}
+      ${viewLine(
+        "Driver",
+        t.driverName ||
+        t.driver ||
+        "--"
+      )}
+      ${viewLine(
+        "Vehicle",
+        t.vehicleNumber ||
+        t.vehicle ||
+        "--"
+      )}
       ${viewLine(
         "Passengers",
-        passengers
-          .map(
-            (p,i)=>[
-              `${i+1}. ${getPassengerName(p,t)}`,
-              `Phone: ${getPassengerPhone(p,t)}`,
-              `Pickup: ${getPickup(t,p)}`,
-              `Dropoff: ${getDropoff(t,p)}`,
-              `Status: ${displayStatus(p.status || t.status)}`
-            ]
-            .join("\n")
-          )
-          .join("\n\n")
+        String(
+          passengers.length
+        )
+      )}
+
+      <div class="view-passenger-list">
+        ${
+          passengers
+            .map(
+              (passenger,index)=>
+                viewPassengerCard(
+                  passenger,
+                  index,
+                  t
+                )
+            )
+            .join("")
+        }
+      </div>
+
+      ${viewLine(
+        "Entered Page",
+        getEnteredAt(t)
+          ? new Date(
+              getEnteredAt(t)
+            ).toLocaleString()
+          : ""
+      )}
+      ${viewLine(
+        "Confirmed",
+        isSharedConfirmed(t)
+          ? "Yes"
+          : "No"
+      )}
+    `;
+
+  }else{
+
+    bodyHtml = `
+      ${viewLine(
+        "Trip Number",
+        getTripNumber(t)
+      )}
+      ${viewLine(
+        "Source",
+        sourceLabel(t)
+      )}
+      ${viewLine(
+        "Facility / Broker",
+        getAccountDisplay(t)
+      )}
+      ${viewLine(
+        "Broker Trip ID",
+        getBrokerTripId(t)
+      )}
+      ${viewLine(
+        "Entry Name",
+        t.entryName || ""
+      )}
+      ${viewLine(
+        "Entry Phone",
+        t.entryPhone || ""
+      )}
+      ${viewLine(
+        "Client / Passenger",
+        t.clientName ||
+        t.name ||
+        ""
+      )}
+      ${viewLine(
+        "Client Phone",
+        t.clientPhone ||
+        t.phone ||
+        ""
+      )}
+      ${viewLine(
+        "Email",
+        getEmail(t,null)
+      )}
+      ${viewLine(
+        "Pickup",
+        t.pickup || ""
+      )}
+      ${viewLine(
+        "Stops",
+        stopsDisplay(t)
+      )}
+      ${viewLine(
+        "Dropoff",
+        t.dropoff || ""
+      )}
+      ${viewLine(
+        "Trip Date",
+        t.tripDate || ""
+      )}
+      ${viewLine(
+        "Trip Time",
+        t.tripTime || ""
+      )}
+      ${viewLine(
+        "Appointment Time",
+        getAppointmentTime(t)
+      )}
+      ${viewLine(
+        "Return Time",
+        getReturnTime(t)
+      )}
+      ${viewLine(
+        "Service",
+        getTripServiceDisplay(t)
+      )}
+      ${viewLine(
+        "Notes",
+        getNotes(t) || ""
+      )}
+      ${viewLine(
+        "Driver Comment",
+        driverCommentDisplay(t)
+      )}
+      ${viewLine(
+        "Booked Date",
+        getBookedDate(t)
+      )}
+      ${viewLine(
+        "Booked Time",
+        getBookedTime(t)
+      )}
+      ${viewLine(
+        "Entered Page",
+        getEnteredAt(t)
+          ? new Date(
+              getEnteredAt(t)
+            ).toLocaleString()
+          : ""
+      )}
+      ${viewLine(
+        "Confirmed",
+        isTripConfirmed(t)
+          ? "Yes"
+          : "No"
       )}
     `;
   }
@@ -1694,46 +2272,7 @@ function openFinalView(key){
       </div>
 
       <div class="view-body">
-
-        ${viewLine("Trip Number",getTripNumber(t))}
-        ${viewLine("Source",sourceLabel(t))}
-        ${viewLine("Facility",getCompanyDisplay(t))}
-        ${viewLine("Entry Name",t.entryName || "")}
-        ${viewLine("Entry Phone",t.entryPhone || "")}
-        ${viewLine("Client Phone",t.clientPhone || t.phone || "")}
-        ${viewLine("Pickup",t.pickup || "")}
-        ${viewLine("Stops",stopsDisplay(t))}
-        ${viewLine("Dropoff",t.dropoff || "")}
-        ${viewLine("Trip Date",t.tripDate || "")}
-        ${viewLine("Trip Time",t.tripTime || "")}
-        ${viewLine("Notes",getNotes(t) || "")}
-        ${viewLine("Booked Date",getBookedDate(t))}
-        ${viewLine("Booked Time",getBookedTime(t))}
-        ${viewLine(
-          "Entered Page",
-          getEnteredAt(t)
-            ? new Date(
-                getEnteredAt(t)
-              ).toLocaleString()
-            : ""
-        )}
-        ${viewLine(
-          "Confirmed",
-          item.kind === "trip"
-            ? (
-                isTripConfirmed(t)
-                  ? "Yes"
-                  : "No"
-              )
-            : (
-                isSharedConfirmed(t)
-                  ? "Yes"
-                  : "No"
-              )
-        )}
-
-        ${sharedPassengerBlock}
-
+        ${bodyHtml}
       </div>
 
     </div>
@@ -2799,13 +3338,19 @@ function render(){
       <tr>
         <th class="col-num">#</th>
         <th class="col-trip">Trip #</th>
-        <th class="col-company">Facility</th>
+        <th class="col-company">Facility / Broker</th>
+        <th class="col-broker-trip">Broker Trip ID</th>
         <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
         <th class="wide-address">Pickup</th>
         <th class="wide-stops">Stops</th>
         <th class="wide-address">Dropoff</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
+        <th class="col-appointment">Appointment Time</th>
+        <th class="col-return">Return Time</th>
+        <th class="col-service">Service</th>
+        <th class="wide-notes">Notes</th>
         <th class="col-driver-comment">Driver Comment</th>
         <th class="col-status">Status</th>
         <th class="col-actions">Actions</th>
@@ -2838,7 +3383,7 @@ function render(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="13">Trip Date: ${safe(day)}</td>`;
+        `<td colspan="19">Trip Date: ${safe(day)}</td>`;
 
       tbody.appendChild(
         dateRow
@@ -2904,15 +3449,25 @@ function renderTripRow(item){
     </td>
 
     <td class="col-trip">
-      <span class="trip-number-badge">
-        ${safe(getTripNumber(t))}
-      </span>
+      ${cellBox([
+        `<span class="trip-number-badge">${safe(
+          getTripNumber(t)
+        )}</span>`
+      ])}
     </td>
 
     <td class="company-cell">
       ${cellBox(
         safe(
-          getCompanyDisplay(t)
+          getAccountDisplay(t)
+        )
+      )}
+    </td>
+
+    <td class="col-broker-trip">
+      ${cellBox(
+        safe(
+          getBrokerTripId(t)
         )
       )}
     </td>
@@ -2922,6 +3477,16 @@ function renderTripRow(item){
         safe(
           t.clientName ||
           t.name ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="wide-phone">
+      ${cellBox(
+        safe(
+          t.clientPhone ||
+          t.phone ||
           "--"
         )
       )}
@@ -2952,11 +3517,54 @@ function renderTripRow(item){
     </td>
 
     <td class="col-date">
-      ${safe(t.tripDate || "-")}
+      ${cellBox(
+        safe(
+          t.tripDate ||
+          "--"
+        )
+      )}
     </td>
 
     <td class="col-time">
-      ${safe(t.tripTime || "-")}
+      ${cellBox(
+        safe(
+          t.tripTime ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="col-appointment">
+      ${cellBox(
+        safe(
+          getAppointmentTime(t)
+        )
+      )}
+    </td>
+
+    <td class="col-return">
+      ${cellBox(
+        safe(
+          getReturnTime(t)
+        )
+      )}
+    </td>
+
+    <td class="col-service">
+      ${cellBox(
+        safe(
+          getTripServiceDisplay(t)
+        )
+      )}
+    </td>
+
+    <td class="wide-notes">
+      ${cellBox(
+        safe(
+          getNotes(t) ||
+          "--"
+        )
+      )}
     </td>
 
     <td class="col-driver-comment">
@@ -3087,58 +3695,190 @@ function renderSharedRow(item){
   const confirmed =
     isSharedConfirmed(first);
 
+  const tripNumbers =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripNumber(
+            p,
+            first
+          )
+      ).map(value=>
+        `<span class="trip-number-badge">${value}</span>`
+      )
+    );
+
+  const accounts =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          isBrokerTrip(first) ||
+          p?.brokerName ||
+          p?.brokerCode
+            ? getPassengerBrokerDisplay(
+                p,
+                first
+              )
+            : getCompanyDisplay(
+                first
+              )
+      )
+    );
+
+  const brokerTripIds =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerBrokerTripId(
+            p,
+            first
+          )
+      )
+    );
+
   const names =
     cellBox(
-      passengers.map(
-        (p,i)=>
-          `${i+1}. ${safe(
-            getPassengerName(
-              p,
-              first
-            ) ||
-            "--"
-          )}`
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerName(
+            p,
+            first
+          )
+      )
+    );
+
+  const phones =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerPhone(
+            p,
+            first
+          )
       )
     );
 
   const pickups =
     cellBox(
-      passengers.map(
-        (p,i)=>
-          `${i+1}. ${safe(
-            getPickup(
-              first,
-              p
-            ) ||
-            "--"
-          )}`
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPickup(
+            first,
+            p
+          )
+      )
+    );
+
+  const stops =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerStops(
+            p
+          )
       )
     );
 
   const dropoffs =
     cellBox(
-      passengers.map(
-        (p,i)=>
-          `${i+1}. ${safe(
-            getDropoff(
-              first,
-              p
-            ) ||
-            "--"
-          )}`
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getDropoff(
+            first,
+            p
+          )
+      )
+    );
+
+  const tripDates =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripDate(
+            p,
+            first
+          )
+      )
+    );
+
+  const tripTimes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripTime(
+            p,
+            first
+          )
+      )
+    );
+
+  const appointmentTimes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerAppointmentTime(
+            p,
+            first
+          )
+      )
+    );
+
+  const returnTimes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerReturnTime(
+            p,
+            first
+          )
+      )
+    );
+
+  const services =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerServiceDisplay(
+            p,
+            first
+          )
+      )
+    );
+
+  const notes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerNotes(
+            p,
+            first
+          )
       )
     );
 
   const driverComments =
     cellBox(
-      passengers.map(
-        (p,i)=>
-          `${i+1}. ${safe(
-            driverCommentDisplay(
-              first,
-              p
-            )
-          )}`
+      numberedPassengerValues(
+        passengers,
+        p=>
+          driverCommentDisplay(
+            first,
+            p
+          )
       )
     );
 
@@ -3146,7 +3886,8 @@ function renderSharedRow(item){
     isEditing
       ? cellBox(
           passengers.map(
-            p =>
+            (p,i)=>
+              `${i + 1}. ` +
               sharedPassengerStatusEditHTML(
                 item.key,
                 p,
@@ -3156,7 +3897,8 @@ function renderSharedRow(item){
         )
       : cellBox(
           passengers.map(
-            p =>
+            (p,i)=>
+              `${i + 1}. ` +
               statusCellHTML(
                 p.status ||
                 first.status,
@@ -3186,23 +3928,23 @@ function renderSharedRow(item){
     </td>
 
     <td class="col-trip">
-      <span class="trip-number-badge">
-        ${safe(
-          getTripNumber(first)
-        )}
-      </span>
+      ${tripNumbers}
     </td>
 
     <td class="company-cell">
-      ${cellBox(
-        safe(
-          getCompanyDisplay(first)
-        )
-      )}
+      ${accounts}
+    </td>
+
+    <td class="col-broker-trip">
+      ${brokerTripIds}
     </td>
 
     <td class="wide-client">
       ${names}
+    </td>
+
+    <td class="wide-phone">
+      ${phones}
     </td>
 
     <td class="wide-address">
@@ -3210,9 +3952,7 @@ function renderSharedRow(item){
     </td>
 
     <td class="wide-stops">
-      ${cellBox(
-        stopItems(first)
-      )}
+      ${stops}
     </td>
 
     <td class="wide-address">
@@ -3220,17 +3960,27 @@ function renderSharedRow(item){
     </td>
 
     <td class="col-date">
-      ${safe(
-        first.tripDate ||
-        "-"
-      )}
+      ${tripDates}
     </td>
 
     <td class="col-time">
-      ${safe(
-        first.tripTime ||
-        "-"
-      )}
+      ${tripTimes}
+    </td>
+
+    <td class="col-appointment">
+      ${appointmentTimes}
+    </td>
+
+    <td class="col-return">
+      ${returnTimes}
+    </td>
+
+    <td class="col-service">
+      ${services}
+    </td>
+
+    <td class="wide-notes">
+      ${notes}
     </td>
 
     <td class="col-driver-comment">
@@ -3414,8 +4164,10 @@ async function refreshEverything(){
 
   await Promise.all([
     loadServices(),
-    loadTrips()
+    loadBrokerCapability()
   ]);
+
+  await loadTrips();
 }
 
 (async function init(){

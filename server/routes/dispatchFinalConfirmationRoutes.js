@@ -17,6 +17,9 @@ const {
 } = require("../utils/tripEmailEngine");
 
 const Trip = global.Trip || mongoose.models.Trip;
+const ExternalTrip =
+  mongoose.models.ExternalTrip ||
+  require("../models/ExternalTrip");
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -258,6 +261,392 @@ function isSharedTrip(trip){
   );
 }
 
+function rawText(value){
+  return String(value ?? "").trim();
+}
+
+function safeArray(value){
+  return Array.isArray(value)
+    ? value
+    : [];
+}
+
+function externalPassengerObjectId(passenger){
+  const candidates = [
+    passenger?.externalTripObjectId,
+    passenger?.sourceExternalTripId,
+    passenger?.externalTripMongoId,
+    passenger?.passengerId,
+    passenger?._id
+  ];
+
+  for(const value of candidates){
+    const id = rawText(value);
+    if(mongoose.Types.ObjectId.isValid(id)){
+      return id;
+    }
+  }
+
+  return "";
+}
+
+function sharedPassengerTripNumber(value){
+  const raw =
+    rawText(value)
+      .toUpperCase();
+
+  if(!raw){
+    return "";
+  }
+
+  const isReturn =
+    raw.endsWith("-R");
+
+  const withoutReturn =
+    isReturn
+      ? raw.slice(0,-2)
+      : raw;
+
+  const parts =
+    withoutReturn.split("-");
+
+  const knownSuffixes =
+    new Set([
+      "ST",
+      "SH",
+      "WH",
+      "WC",
+      "TX",
+      "LM",
+      "XL"
+    ]);
+
+  if(
+    parts.length > 1 &&
+    knownSuffixes.has(
+      String(
+        parts[parts.length - 1] || ""
+      ).toUpperCase()
+    )
+  ){
+    parts.pop();
+  }
+
+  const base =
+    parts.join("-");
+
+  if(!base){
+    return "";
+  }
+
+  return isReturn
+    ? `${base}-SH-R`
+    : `${base}-SH`;
+}
+
+function externalStopList(externalTrip){
+  return safeArray(
+    externalTrip?.stops
+  );
+}
+
+function enrichSharedPassenger(
+  passenger,
+  externalTrip,
+  parentTrip
+){
+  const current =
+    passenger &&
+    typeof passenger.toObject === "function"
+      ? passenger.toObject()
+      : {
+          ...(passenger || {})
+        };
+
+  if(!externalTrip){
+    return current;
+  }
+
+  const sourceNumber =
+    rawText(
+      externalTrip.ghExternalTripNumber ||
+      externalTrip.externalTripNumber ||
+      externalTrip.externalTripId ||
+      current.ghExternalTripNumber ||
+      current.externalTripNumber ||
+      current.tripNumber
+    );
+
+  const finalNumber =
+    sharedPassengerTripNumber(
+      sourceNumber
+    );
+
+  return {
+    ...current,
+
+    sourceExternalTripId:
+      String(
+        externalTrip._id ||
+        current.sourceExternalTripId ||
+        current.passengerId ||
+        ""
+      ),
+
+    externalTripObjectId:
+      String(
+        externalTrip._id ||
+        current.externalTripObjectId ||
+        ""
+      ),
+
+    tripNumber:
+      finalNumber ||
+      current.tripNumber ||
+      "",
+
+    ghExternalTripNumber:
+      rawText(
+        externalTrip.ghExternalTripNumber ||
+        externalTrip.externalTripNumber ||
+        sourceNumber
+      ),
+
+    externalTripNumber:
+      rawText(
+        externalTrip.externalTripNumber ||
+        externalTrip.ghExternalTripNumber ||
+        sourceNumber
+      ),
+
+    brokerTripId:
+      rawText(
+        externalTrip.externalTripId ||
+        current.brokerTripId
+      ),
+
+    externalTripId:
+      rawText(
+        externalTrip.externalTripId ||
+        current.externalTripId
+      ),
+
+    brokerId:
+      rawText(
+        externalTrip.brokerId ||
+        current.brokerId ||
+        parentTrip?.brokerId
+      ),
+
+    brokerCode:
+      rawText(
+        externalTrip.brokerCode ||
+        current.brokerCode ||
+        parentTrip?.brokerCode
+      ),
+
+    brokerName:
+      rawText(
+        externalTrip.brokerName ||
+        current.brokerName ||
+        parentTrip?.brokerName
+      ),
+
+    memberId:
+      rawText(
+        externalTrip.memberId ||
+        current.memberId
+      ),
+
+    clientName:
+      rawText(
+        externalTrip.clientName ||
+        current.clientName ||
+        current.name
+      ),
+
+    name:
+      rawText(
+        externalTrip.clientName ||
+        current.name ||
+        current.clientName
+      ),
+
+    clientPhone:
+      rawText(
+        externalTrip.clientPhone ||
+        current.clientPhone ||
+        current.phone
+      ),
+
+    phone:
+      rawText(
+        externalTrip.clientPhone ||
+        current.phone ||
+        current.clientPhone
+      ),
+
+    clientEmail:
+      rawText(
+        externalTrip.clientEmail ||
+        current.clientEmail ||
+        current.email
+      ),
+
+    email:
+      rawText(
+        externalTrip.clientEmail ||
+        current.email ||
+        current.clientEmail
+      ),
+
+    tripDate:
+      rawText(
+        externalTrip.tripDate ||
+        current.tripDate ||
+        parentTrip?.tripDate
+      ),
+
+    tripTime:
+      rawText(
+        externalTrip.tripTime ||
+        current.tripTime ||
+        current.pickupTime ||
+        parentTrip?.tripTime
+      ),
+
+    pickupTime:
+      rawText(
+        externalTrip.tripTime ||
+        current.pickupTime ||
+        current.tripTime ||
+        parentTrip?.tripTime
+      ),
+
+    appointmentTime:
+      rawText(
+        externalTrip.appointmentTime ||
+        current.appointmentTime
+      ),
+
+    returnTime:
+      rawText(
+        externalTrip.returnTime ||
+        current.returnTime
+      ),
+
+    pickup:
+      rawText(
+        externalTrip.pickup ||
+        current.pickup ||
+        parentTrip?.pickup
+      ),
+
+    stops:
+      externalStopList(
+        externalTrip
+      ),
+
+    dropoff:
+      rawText(
+        externalTrip.dropoff ||
+        current.dropoff ||
+        parentTrip?.dropoff
+      ),
+
+    serviceKey:
+      rawText(
+        externalTrip.serviceKey ||
+        current.serviceKey ||
+        "SHARED"
+      ),
+
+    serviceName:
+      rawText(
+        externalTrip.serviceName ||
+        current.serviceName ||
+        externalTrip.serviceKey ||
+        current.serviceKey ||
+        "Shared"
+      ),
+
+    notes:
+      rawText(
+        externalTrip.notes ||
+        current.notes
+      ),
+
+    brokerNotes:
+      rawText(
+        externalTrip.brokerNotes ||
+        current.brokerNotes
+      ),
+
+    status:
+      current.status ||
+      parentTrip?.status ||
+      "Scheduled"
+  };
+}
+
+async function buildSharedExternalTripMap(
+  req,
+  trips
+){
+  const ids =
+    new Set();
+
+  safeArray(trips)
+    .filter(isSharedTrip)
+    .forEach(trip=>{
+      safeArray(
+        trip?.passengers
+      ).forEach(passenger=>{
+        const id =
+          externalPassengerObjectId(
+            passenger
+          );
+
+        if(id){
+          ids.add(id);
+        }
+      });
+    });
+
+  if(!ids.size){
+    return new Map();
+  }
+
+  const objectIds =
+    [...ids].map(
+      id=>
+        new mongoose.Types.ObjectId(
+          id
+        )
+    );
+
+  const rows =
+    await ExternalTrip.find(
+      tenantFilter(
+        req,
+        {
+          _id:{
+            $in:objectIds
+          }
+        }
+      )
+    ).lean();
+
+  return new Map(
+    rows.map(
+      row=>[
+        String(row._id),
+        row
+      ]
+    )
+  );
+}
+
 /* =========================
    FINAL CONFIRM MARKER
 ========================= */
@@ -414,7 +803,10 @@ function sharedTripShouldAppear(trip){
    SANITIZE
 ========================= */
 
-function sanitizeTripForFinalPage(trip){
+function sanitizeTripForFinalPage(
+  trip,
+  externalTripMap = null
+){
 
   const obj =
     trip.toObject
@@ -422,10 +814,45 @@ function sanitizeTripForFinalPage(trip){
       : trip;
 
   if(isSharedTrip(obj)){
-    return {
+
+    const enrichedPassengers =
+      safeArray(
+        obj.passengers
+      ).map(passenger=>{
+
+        const sourceId =
+          externalPassengerObjectId(
+            passenger
+          );
+
+        const externalTrip =
+          sourceId &&
+          externalTripMap
+            ? externalTripMap.get(
+                sourceId
+              )
+            : null;
+
+        return enrichSharedPassenger(
+          passenger,
+          externalTrip,
+          obj
+        );
+      });
+
+    const enrichedTrip = {
       ...obj,
+      passengers:
+        enrichedPassengers
+    };
+
+    return {
+      ...enrichedTrip,
       __pageType:"shared",
-      __readyPassengers:getReadySharedPassengers(obj),
+      __readyPassengers:
+        getReadySharedPassengers(
+          enrichedTrip
+        ),
       __finalConfirmed:getSharedFinalConfirmed(obj),
       __finalConfirmedAt:getSharedFinalConfirmedAt(obj),
       __holdHours:HOLD_HOURS
@@ -463,6 +890,12 @@ router.get("/", requireTenantApi, async (req,res)=>{
         createdAt:-1
       });
 
+    const externalTripMap =
+      await buildSharedExternalTripMap(
+        req,
+        trips
+      );
+
     const result = [];
     const saveOps = [];
 
@@ -485,7 +918,10 @@ router.get("/", requireTenantApi, async (req,res)=>{
       }
 
       result.push(
-        sanitizeTripForFinalPage(trip)
+        sanitizeTripForFinalPage(
+          trip,
+          externalTripMap
+        )
       );
     }
 
