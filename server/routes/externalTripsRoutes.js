@@ -28,8 +28,7 @@ const Tenant =
   require("../models/Tenant");
 
 const {
-  createExternalTrip,
-  normalizeServiceKey
+  createExternalTrip
 } = require("../services/externalTripService");
 
 const JWT_SECRET =
@@ -38,6 +37,64 @@ const JWT_SECRET =
 
 function clean(value){
   return String(value ?? "").trim();
+}
+
+function normalizeServiceKey(value){
+
+  const raw =
+    clean(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "ST" ||
+    raw === "STD" ||
+    raw.includes("STANDARD")
+  ){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "SH" ||
+    raw.includes("SHARED")
+  ){
+    return "SHARED";
+  }
+
+  if(
+    raw === "WC" ||
+    raw === "WH" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WHEELCHAIR";
+  }
+
+  if(
+    raw === "TX" ||
+    raw.includes("TAXI")
+  ){
+    return "TAXI";
+  }
+
+  if(
+    raw === "LM" ||
+    raw.includes("LIMO")
+  ){
+    return "LIMO";
+  }
+
+  if(raw === "XL"){
+    return "XL";
+  }
+
+  return raw.replace(/\s+/g,"_");
 }
 
 function bearerToken(req){
