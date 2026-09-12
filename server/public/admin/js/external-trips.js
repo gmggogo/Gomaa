@@ -130,6 +130,56 @@ EXTERNAL TRIPS HUB R5
     };
   }
 
+  function searchedTrips(){
+
+    const query =
+      clean(
+        $("searchInput")?.value
+      )
+        .toLowerCase();
+
+    if(!query){
+      return state.trips;
+    }
+
+    return state.trips.filter(
+      trip=>{
+
+        const stops =
+          Array.isArray(trip.stops)
+            ? trip.stops
+                .map(normalizeStopAddress)
+                .join(" ")
+            : "";
+
+        const haystack = [
+          trip.ghExternalTripNumber,
+          trip.externalTripNumber,
+          trip.externalTripId,
+          trip.brokerName,
+          trip.brokerCode,
+          trip.clientName,
+          trip.clientPhone,
+          trip.memberId,
+          trip.pickup,
+          stops,
+          trip.dropoff,
+          trip.serviceName,
+          trip.serviceKey,
+          trip.status,
+          trip.notes
+        ]
+          .map(value=>
+            clean(value)
+              .toLowerCase()
+          )
+          .join(" ");
+
+        return haystack.includes(query);
+      }
+    );
+  }
+
   function queryString(){
     const params =
       new URLSearchParams();
@@ -429,7 +479,7 @@ EXTERNAL TRIPS HUB R5
 
   function renderStats(){
     const trips =
-      state.trips;
+      searchedTrips();
 
     const brokers =
       new Set(
@@ -494,7 +544,7 @@ EXTERNAL TRIPS HUB R5
     const groups =
       new Map();
 
-    for(const trip of state.trips){
+    for(const trip of searchedTrips()){
       const date =
         clean(trip.tripDate) ||
         "No Date";
@@ -582,7 +632,10 @@ EXTERNAL TRIPS HUB R5
 
     body.innerHTML = "";
 
-    if(!state.trips.length){
+    const visibleTrips =
+      searchedTrips();
+
+    if(!visibleTrips.length){
       const row =
         document.createElement("tr");
 
@@ -829,15 +882,22 @@ EXTERNAL TRIPS HUB R5
       return;
     }
 
-    const cleanValues =
-      values
-        .map(normalizeStopAddress)
-        .filter(Boolean)
-        .slice(0,5);
+    const rawValues =
+      Array.isArray(values)
+        ? values
+            .map(value=>
+              clean(
+                normalizeStopAddress(
+                  value
+                )
+              )
+            )
+            .slice(0,5)
+        : [];
 
     state.stopValues =
-      cleanValues.length
-        ? cleanValues
+      rawValues.length
+        ? rawValues
         : [""];
 
     wrap.innerHTML = "";
@@ -861,17 +921,11 @@ EXTERNAL TRIPS HUB R5
             />
 
             <button
-              class="btn btn-light stop-row-action"
+              class="btn btn-danger stop-remove-btn"
               type="button"
               data-stop-index="${index}"
             >
-              ${
-                index ===
-                state.stopValues.length - 1 &&
-                state.stopValues.length < 5
-                  ? "Add Stop"
-                  : "Remove"
-              }
+              Remove
             </button>
           `;
 
@@ -881,7 +935,7 @@ EXTERNAL TRIPS HUB R5
 
     wrap
       .querySelectorAll(
-        ".stop-row-action"
+        ".stop-remove-btn"
       )
       .forEach(
         button=>{
@@ -895,47 +949,69 @@ EXTERNAL TRIPS HUB R5
                   button.dataset.stopIndex
                 );
 
-              const current =
-                currentStopsFromUI();
+              const raw =
+                [...document.querySelectorAll(
+                  "#stopInputs .stop-address-input"
+                )]
+                  .map(
+                    input=>
+                      clean(
+                        input.value
+                      )
+                  );
 
-              const isLast =
-                index ===
-                state.stopValues.length - 1;
-
-              const canAdd =
-                isLast &&
-                state.stopValues.length < 5;
-
-              if(canAdd){
-                state.stopValues = [
-                  ...current,
-                  ""
-                ];
-              }else{
-                const raw =
-                  [...document.querySelectorAll(
-                    "#stopInputs .stop-address-input"
-                  )]
-                    .map(
-                      input=>
-                        clean(input.value)
-                    );
-
-                raw.splice(index,1);
-
-                state.stopValues =
-                  raw.length
-                    ? raw
-                    : [""];
-              }
+              raw.splice(
+                index,
+                1
+              );
 
               renderStopInputs(
-                state.stopValues
+                raw.length
+                  ? raw
+                  : [""]
               );
             }
           );
         }
       );
+
+    const addButton =
+      $("addStopBtn");
+
+    if(addButton){
+      addButton.disabled =
+        state.stopValues.length >= 5;
+
+      addButton.textContent =
+        state.stopValues.length >= 5
+          ? "Maximum 5 Stops"
+          : `Add Stop (${state.stopValues.length}/5)`;
+    }
+  }
+
+  function addStopRow(){
+
+    const current =
+      [...document.querySelectorAll(
+        "#stopInputs .stop-address-input"
+      )]
+        .map(
+          input=>
+            clean(
+              input.value
+            )
+        );
+
+    if(current.length >= 5){
+      return;
+    }
+
+    renderStopInputs(
+      [
+        ...current,
+        ""
+      ]
+    );
   }
 
   function clearDialog(){
@@ -1388,6 +1464,19 @@ EXTERNAL TRIPS HUB R5
   }
 
   function bindEvents(){
+
+    $("searchInput")
+      ?.addEventListener(
+        "input",
+        render
+      );
+
+    $("addStopBtn")
+      ?.addEventListener(
+        "click",
+        addStopRow
+      );
+
     $("addTripBtn")
       ?.addEventListener(
         "click",

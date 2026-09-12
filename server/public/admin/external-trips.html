@@ -502,6 +502,26 @@ EXTERNAL TRIPS HUB REBUILD R1
       min-width:72px;
     }
 
+    .stop-controls{
+      display:flex;
+      justify-content:flex-start;
+      margin-top:8px;
+    }
+
+    #addStopBtn{
+      min-width:130px;
+    }
+
+    .trip-search-input{
+      min-width:240px;
+    }
+
+    @media(max-width:768px){
+      .trip-search-input{
+        min-width:190px;
+      }
+    }
+
     .modal-actions{
       display:flex;
       gap:10px;
@@ -653,6 +673,14 @@ EXTERNAL TRIPS HUB REBUILD R1
     <div class="toolbar">
 
       <div class="filters">
+
+        <input
+          id="searchInput"
+          class="trip-search-input"
+          type="search"
+          placeholder="Search trips..."
+          autocomplete="off"
+        />
 
         <select id="brokerFilter">
           <option value="">
@@ -826,6 +854,16 @@ EXTERNAL TRIPS HUB REBUILD R1
             id="stopInputs"
             class="stop-input-list"
           ></div>
+
+          <div class="stop-controls">
+            <button
+              id="addStopBtn"
+              class="btn btn-light"
+              type="button"
+            >
+              Add Stop (1/5)
+            </button>
+          </div>
         </div>
 
         <div class="field wide">
