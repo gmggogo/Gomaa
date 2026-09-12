@@ -250,6 +250,9 @@ const autoSharedPickupTime =
 const autoSharedAppointmentTime =
   document.getElementById("autoSharedAppointmentTime");
 
+const autoSharedReturnTime =
+  document.getElementById("autoSharedReturnTime");
+
 const autoSharedNotes =
   document.getElementById("autoSharedNotes");
 
@@ -268,7 +271,7 @@ const runAutomaticSharedEngineBtn =
 const submitAutomaticSharedGroupsBtn =
   document.getElementById("submitAutomaticSharedGroups");
 
-let sharedEntryMode = "MANUAL";
+let sharedEntryMode = "AUTOMATIC";
 let automaticSharedCandidates = [];
 let automaticSharedPlan = null;
 
@@ -2075,6 +2078,7 @@ function clearAutomaticCandidateForm(){
   if(autoSharedDate) autoSharedDate.value = "";
   if(autoSharedPickupTime) autoSharedPickupTime.value = "";
   if(autoSharedAppointmentTime) autoSharedAppointmentTime.value = "";
+  if(autoSharedReturnTime) autoSharedReturnTime.value = "";
   if(autoSharedNotes) autoSharedNotes.value = "";
 
   clearLocationMeta(autoSharedPickup);
@@ -2102,8 +2106,10 @@ function renderAutomaticSharedList(){
       <div class="auto-share-cell">${safeHtml(item.pickup)}</div>
       <div class="auto-share-cell">${safeHtml(item.dropoff)}</div>
       <div class="auto-share-cell">${safeHtml(item.tripDate)}</div>
-      <div class="auto-share-cell">${safeHtml(item.tripTime || "--")}</div>
+      <div class="auto-share-cell">${safeHtml(item.tripTime || item.pickupTime || "--")}</div>
       <div class="auto-share-cell">${safeHtml(item.appointmentTime || "--")}</div>
+      <div class="auto-share-cell">${safeHtml(item.returnTime || "--")}</div>
+      <div class="auto-share-cell">${safeHtml(item.tripLeg || "OUTBOUND")}</div>
       <div class="auto-share-cell">
         <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
       </div>
@@ -2118,8 +2124,10 @@ function renderAutomaticSharedList(){
       <div>Pickup</div>
       <div>Dropoff</div>
       <div>Date</div>
-      <div>Pickup</div>
+      <div>Pickup Time</div>
       <div>Appointment</div>
+      <div>Return Time</div>
+      <div>Leg</div>
       <div></div>
     </div>
     ${rows}
@@ -2134,10 +2142,19 @@ function renderAutomaticSharedList(){
             "data-auto-remove"
           );
 
+        const target =
+          automaticCandidateById(id);
+
+        const pairId =
+          normalizeText(target?.pairId);
+
         automaticSharedCandidates =
-          automaticSharedCandidates.filter(
-            item=>String(item.id) !== String(id)
-          );
+          automaticSharedCandidates.filter(item=>{
+            if(pairId){
+              return normalizeText(item?.pairId) !== pairId;
+            }
+            return String(item.id) !== String(id);
+          });
 
         automaticSharedPlan = null;
         if(submitAutomaticSharedGroupsBtn){
@@ -2190,11 +2207,8 @@ function validateAutomaticCandidate(){
     return false;
   }
 
-  if(
-    !autoSharedPickupTime?.value &&
-    !autoSharedAppointmentTime?.value
-  ){
-    showAlert("Pickup Time or Appointment Time Required");
+  if(!autoSharedPickupTime?.value){
+    showAlert("Pickup Time Required");
     return false;
   }
 
@@ -2209,8 +2223,14 @@ function automaticCandidatePayload(){
   const dropoffLocation =
     getLocationMeta(autoSharedDropoff);
 
+  const id =
+    automaticCandidateId();
+
   return {
-    id:automaticCandidateId(),
+    id,
+    pairId:id,
+    tripLeg:"OUTBOUND",
+    generatedReturn:false,
     clientName:normalizeText(autoSharedClientName?.value),
     clientPhone:normalizeText(autoSharedClientPhone?.value),
     pickup:normalizeText(autoSharedPickup?.value),
@@ -2223,6 +2243,7 @@ function automaticCandidatePayload(){
     tripTime:autoSharedPickupTime?.value || "",
     pickupTime:autoSharedPickupTime?.value || "",
     appointmentTime:autoSharedAppointmentTime?.value || "",
+    returnTime:autoSharedReturnTime?.value || "",
     notes:normalizeText(autoSharedNotes?.value),
     source:"company",
     sharedEngineSource:"COMPANY",
@@ -2230,6 +2251,40 @@ function automaticCandidatePayload(){
     companyName,
     facilityName:companyName,
     status:"Scheduled"
+  };
+}
+
+function automaticReturnCandidate(outbound){
+
+  const returnTime =
+    normalizeText(outbound?.returnTime);
+
+  if(!returnTime){
+    return null;
+  }
+
+  const returnId =
+    automaticCandidateId();
+
+  return {
+    ...outbound,
+    id:returnId,
+    pairId:outbound.pairId || outbound.id,
+    pairedCandidateId:outbound.id,
+    tripLeg:"RETURN",
+    generatedReturn:true,
+    pickup:outbound.dropoff,
+    dropoff:outbound.pickup,
+    pickupLat:outbound.dropoffLat ?? null,
+    pickupLng:outbound.dropoffLng ?? null,
+    dropoffLat:outbound.pickupLat ?? null,
+    dropoffLng:outbound.pickupLng ?? null,
+    tripTime:returnTime,
+    pickupTime:returnTime,
+    appointmentTime:"",
+    returnTime:"",
+    notes:outbound.notes || "",
+    bookingSource:"AUTOMATIC_SHARED_RETURN"
   };
 }
 
@@ -2261,7 +2316,7 @@ function renderAutomaticSharedResult(plan){
     return `
       <div class="auto-share-group">
         <div class="auto-share-group-title">
-          Group ${index + 1} • ${members.length} Passengers
+          ${safeHtml(group.tripLeg || "OUTBOUND")} Group ${index + 1} • ${members.length} Passengers
         </div>
         <div class="auto-share-group-members">
           ${members.map((trip,memberIndex)=>`
@@ -2310,29 +2365,90 @@ async function runAutomaticSharedEngine(){
   }
 
   try{
-    const res = await fetch(
-      "/api/company-shared/plan",
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        },
-        body:JSON.stringify({
-          trips:automaticSharedCandidates
-        })
-      }
-    );
 
-    const data =
-      await res.json().catch(()=>({}));
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        "Automatic Shared planning failed"
+    const outboundTrips =
+      automaticSharedCandidates.filter(
+        item=>String(item?.tripLeg || "OUTBOUND").toUpperCase() !== "RETURN"
       );
+
+    const returnTrips =
+      automaticSharedCandidates.filter(
+        item=>String(item?.tripLeg || "").toUpperCase() === "RETURN"
+      );
+
+    async function planLeg(trips,tripLeg){
+
+      if(!trips.length){
+        return {
+          groups:[],
+          singles:[],
+          excluded:[]
+        };
+      }
+
+      const res = await fetch(
+        "/api/company-shared/plan",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
+          },
+          body:JSON.stringify({
+            trips
+          })
+        }
+      );
+
+      const data =
+        await res.json().catch(()=>({}));
+
+      if(!res.ok){
+        throw new Error(
+          data.message ||
+          `${tripLeg} Automatic Shared planning failed`
+        );
+      }
+
+      const groups =
+        Array.isArray(data?.groups)
+          ? data.groups.map(group=>({
+              ...group,
+              tripLeg
+            }))
+          : [];
+
+      return {
+        ...data,
+        groups,
+        singles:Array.isArray(data?.singles) ? data.singles : [],
+        excluded:Array.isArray(data?.excluded) ? data.excluded : []
+      };
     }
+
+    const outboundPlan =
+      await planLeg(outboundTrips,"OUTBOUND");
+
+    const returnPlan =
+      await planLeg(returnTrips,"RETURN");
+
+    const data = {
+      success:true,
+      groups:[
+        ...(outboundPlan.groups || []),
+        ...(returnPlan.groups || [])
+      ],
+      singles:[
+        ...(outboundPlan.singles || []),
+        ...(returnPlan.singles || [])
+      ],
+      excluded:[
+        ...(outboundPlan.excluded || []),
+        ...(returnPlan.excluded || [])
+      ],
+      outboundPlan,
+      returnPlan
+    };
 
     automaticSharedPlan = data;
     renderAutomaticSharedResult(data);
@@ -2371,6 +2487,11 @@ function automaticPassengerFromCandidate(candidate,index){
     tripTime:candidate.tripTime || candidate.pickupTime || "",
     pickupTime:candidate.pickupTime || candidate.tripTime || "",
     appointmentTime:candidate.appointmentTime || "",
+    returnTime:candidate.returnTime || "",
+    tripLeg:candidate.tripLeg || "OUTBOUND",
+    generatedReturn:candidate.generatedReturn === true,
+    pairId:candidate.pairId || "",
+    pairedCandidateId:candidate.pairedCandidateId || "",
     notes:candidate.notes || "",
     source:"company",
     bookingSource:"AUTOMATIC_SHARED",
@@ -2551,7 +2672,19 @@ if(addAutomaticSharedCandidateBtn){
     const candidate =
       automaticCandidatePayload();
 
-    automaticSharedCandidates.push(candidate);
+    const returnCandidate =
+      automaticReturnCandidate(candidate);
+
+    if(returnCandidate){
+      candidate.pairedCandidateId = returnCandidate.id;
+      automaticSharedCandidates.push(
+        candidate,
+        returnCandidate
+      );
+    }else{
+      automaticSharedCandidates.push(candidate);
+    }
+
     automaticSharedPlan = null;
 
     if(submitAutomaticSharedGroupsBtn){
@@ -3488,7 +3621,7 @@ bindCurrentLocationChoice(autoSharedPickup);
 bindCurrentLocationChoice(autoSharedDropoff);
 
 loadAutomaticSharedDraft();
-setSharedEntryMode("MANUAL");
+setSharedEntryMode("AUTOMATIC");
 
 attachLocationChangeReset(
   pickupInput

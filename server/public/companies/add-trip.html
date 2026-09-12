@@ -135,6 +135,18 @@ section h3{
   display:none;
 }
 
+.auto-share-field-label{
+  display:block;
+  margin:0 0 6px 2px;
+  font-size:12px;
+  font-weight:800;
+  color:#475569;
+}
+
+.auto-share-required{
+  color:#dc2626;
+}
+
 input,
 textarea,
 select{
@@ -381,7 +393,7 @@ button:hover{
 
 .auto-share-row{
   display:grid;
-  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.5fr) minmax(160px,1.5fr) 90px 90px 110px 42px;
+  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.5fr) minmax(160px,1.5fr) 90px 90px 110px 100px 78px 42px;
   gap:7px;
   align-items:center;
   padding:9px;
@@ -808,20 +820,20 @@ button:hover{
 <h3>Shared Entry Mode</h3>
 
 <div class="shared-mode-switch">
-  <button class="shared-mode-btn active" id="sharedManualModeBtn" type="button">
-    <span class="shared-mode-title">Manual Shared</span>
-    <span class="shared-mode-sub">Enter the passengers together in one shared trip.</span>
-  </button>
-
-  <button class="shared-mode-btn" id="sharedAutomaticModeBtn" type="button">
+  <button class="shared-mode-btn active" id="sharedAutomaticModeBtn" type="button">
     <span class="shared-mode-title">Automatic Shared</span>
     <span class="shared-mode-sub">Add individual Shared candidates and let the Shared Engine build compatible groups.</span>
+  </button>
+
+  <button class="shared-mode-btn" id="sharedManualModeBtn" type="button">
+    <span class="shared-mode-title">Manual Shared</span>
+    <span class="shared-mode-sub">Enter the passengers together in one shared trip.</span>
   </button>
 </div>
 
 </section>
 
-<div id="manualSharedModePanel">
+<div id="manualSharedModePanel" style="display:none;">
 
 <section>
 
@@ -888,48 +900,57 @@ button:hover{
 
 </div>
 
-<div id="automaticSharedModePanel" style="display:none;">
+<div id="automaticSharedModePanel">
 
 <section>
   <h3>Add Automatic Shared Candidate</h3>
 
   <div class="auto-share-form">
     <div class="field-wrap">
-      <input id="autoSharedClientName" placeholder="Passenger Name" autocomplete="off">
+      <label class="auto-share-field-label" for="autoSharedClientName">Passenger Name <span class="auto-share-required">*</span></label>
+      <input id="autoSharedClientName" placeholder="Enter passenger name" autocomplete="off">
     </div>
 
     <div class="field-wrap">
-      <input id="autoSharedClientPhone" placeholder="Passenger Phone">
+      <label class="auto-share-field-label" for="autoSharedClientPhone">Passenger Phone <span class="auto-share-required">*</span></label>
+      <input id="autoSharedClientPhone" placeholder="Enter passenger phone">
     </div>
 
     <div class="field-wrap location-field">
-      <input id="autoSharedPickup" placeholder="Pickup Address">
+      <label class="auto-share-field-label" for="autoSharedPickup">Pickup Address <span class="auto-share-required">*</span></label>
+      <input id="autoSharedPickup" placeholder="Enter pickup address">
     </div>
 
     <div class="field-wrap location-field">
-      <input id="autoSharedDropoff" placeholder="Dropoff Address">
+      <label class="auto-share-field-label" for="autoSharedDropoff">Dropoff Address <span class="auto-share-required">*</span></label>
+      <input id="autoSharedDropoff" placeholder="Enter dropoff address">
     </div>
 
     <div class="field-wrap">
-      <label class="mobile-trip-field-label" for="autoSharedDate">Trip Date</label>
+      <label class="auto-share-field-label" for="autoSharedDate">Trip Date <span class="auto-share-required">*</span></label>
       <input id="autoSharedDate" type="date">
     </div>
 
     <div class="field-wrap">
-      <label class="mobile-trip-field-label" for="autoSharedPickupTime">Pickup Time</label>
+      <label class="auto-share-field-label" for="autoSharedPickupTime">Pickup Time <span class="auto-share-required">*</span></label>
       <input id="autoSharedPickupTime" type="time">
     </div>
 
+    <div class="field-wrap auto-share-full">
+      <label class="auto-share-field-label" for="autoSharedNotes">Passenger Notes</label>
+      <textarea id="autoSharedNotes" placeholder="Passenger notes"></textarea>
+    </div>
+
     <div class="field-wrap">
-      <label class="mobile-trip-field-label" for="autoSharedAppointmentTime">Appointment Time</label>
+      <label class="auto-share-field-label" for="autoSharedAppointmentTime">Appointment Time</label>
       <input id="autoSharedAppointmentTime" type="time">
     </div>
 
-    <div class="field-wrap auto-share-full">
-      <textarea id="autoSharedNotes" placeholder="Passenger Notes"></textarea>
+    <div class="field-wrap">
+      <label class="auto-share-field-label" for="autoSharedReturnTime">Return Time</label>
+      <input id="autoSharedReturnTime" type="time">
     </div>
   </div>
-
   <div class="actions">
     <button class="btn-blue" id="addAutomaticSharedCandidate" type="button">
       + Add To Automatic List
