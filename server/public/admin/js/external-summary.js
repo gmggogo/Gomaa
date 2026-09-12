@@ -205,8 +205,8 @@ BROKER SUMMARY
     style.textContent = `
       /* Broker Summary column sizing only */
       .summary-table .col-trip{
-        width:150px !important;
-        min-width:150px !important;
+        width:122px !important;
+        min-width:122px !important;
       }
 
       .summary-table .col-trip .trip-number-badge{
@@ -217,8 +217,8 @@ BROKER SUMMARY
       }
 
       .summary-table .col-broker{
-        width:70px !important;
-        min-width:70px !important;
+        width:62px !important;
+        min-width:62px !important;
       }
 
       .summary-table .col-time{
@@ -226,6 +226,18 @@ BROKER SUMMARY
         min-width:58px !important;
         max-width:58px !important;
         white-space:nowrap !important;
+      }
+
+      .summary-table .col-phone{
+        width:118px !important;
+        min-width:118px !important;
+        white-space:nowrap !important;
+      }
+
+      .summary-table .col-phone .cell-item{
+        white-space:nowrap !important;
+        word-break:normal !important;
+        overflow-wrap:normal !important;
       }
     `;
 
