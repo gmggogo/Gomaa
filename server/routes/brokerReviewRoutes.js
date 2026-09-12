@@ -69,6 +69,33 @@ function safeArray(value){
     : [];
 }
 
+function stopAddress(value){
+
+  if(
+    value &&
+    typeof value === "object"
+  ){
+    return clean(
+      value.address ||
+      value.value ||
+      value.location ||
+      value.name ||
+      value.label ||
+      ""
+    );
+  }
+
+  return clean(value);
+}
+
+function normalizeTripStopsForSave(value){
+
+  return safeArray(value)
+    .map(stopAddress)
+    .filter(Boolean)
+    .slice(0,5);
+}
+
 function normalizeServiceKey(value){
   const raw =
     upper(value)
@@ -2497,6 +2524,16 @@ router.post(
                 `Trip number/service mismatch: ${trip.tripNumber} does not match ${finalService}`
               );
             }
+
+            /*
+              External Trips can keep rich stop objects for the intake UI,
+              but the main Trip schema stores stops as strings.
+              Convert only at the Broker Review -> Dispatch boundary.
+            */
+            trip.stops =
+              normalizeTripStopsForSave(
+                trip.stops
+              );
 
             await trip.save({
               session
