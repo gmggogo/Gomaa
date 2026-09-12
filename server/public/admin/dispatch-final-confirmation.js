@@ -371,10 +371,6 @@ function getBrokerDisplay(t){
       t?.brokerCode
     );
 
-  if(name && code){
-    return `${name} (${code})`;
-  }
-
   return name || code || "--";
 }
 
@@ -3347,7 +3343,6 @@ function render(){
         <th class="wide-address">Dropoff</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
-        <th class="col-appointment">Appointment Time</th>
         <th class="col-return">Return Time</th>
         <th class="col-service">Service</th>
         <th class="wide-notes">Notes</th>
@@ -3383,7 +3378,7 @@ function render(){
         "date-row";
 
       dateRow.innerHTML =
-        `<td colspan="19">Trip Date: ${safe(day)}</td>`;
+        `<td colspan="18">Trip Date: ${safe(day)}</td>`;
 
       tbody.appendChild(
         dateRow
@@ -3530,14 +3525,6 @@ function renderTripRow(item){
         safe(
           t.tripTime ||
           "--"
-        )
-      )}
-    </td>
-
-    <td class="col-appointment">
-      ${cellBox(
-        safe(
-          getAppointmentTime(t)
         )
       )}
     </td>
@@ -3822,18 +3809,6 @@ function renderSharedRow(item){
       )
     );
 
-  const appointmentTimes =
-    cellBox(
-      numberedPassengerValues(
-        passengers,
-        p=>
-          getPassengerAppointmentTime(
-            p,
-            first
-          )
-      )
-    );
-
   const returnTimes =
     cellBox(
       numberedPassengerValues(
@@ -3965,10 +3940,6 @@ function renderSharedRow(item){
 
     <td class="col-time">
       ${tripTimes}
-    </td>
-
-    <td class="col-appointment">
-      ${appointmentTimes}
     </td>
 
     <td class="col-return">
