@@ -299,6 +299,18 @@ function tripMiles(trip){
 
 function cancellationChargeable(trip,passenger=null){
 
+  /*
+    BROKER CANCELLATION FEE RULE
+
+    Charge ONLY when the cancellation is explicitly customer-originated.
+
+    Internal GH cancellations are always free:
+    Driver / Dispatcher / Dispatch / Admin / Super Admin /
+    Platform Admin / Operator / System.
+
+    Unknown or missing cancellation source is also NO FEE.
+  */
+
   const explicit =
     passenger?.cancellationChargeable ??
     trip?.cancellationChargeable;
@@ -307,28 +319,62 @@ function cancellationChargeable(trip,passenger=null){
     return false;
   }
 
-  const role =
-    upper(
-      passenger?.cancelledByRole ||
-      trip?.cancelledByRole ||
-      ""
-    );
+  if(explicit === true){
+    return true;
+  }
 
-  if([
-    "DRIVER",
-    "DISPATCHER",
-    "DISPATCH",
-    "ADMIN",
-    "SUPER_ADMIN",
-    "SUPERADMIN",
-    "PLATFORM_ADMIN",
-    "OPERATOR",
-    "SYSTEM"
-  ].includes(role)){
+  const sourceValues = [
+    passenger?.cancelSource,
+    passenger?.cancellationSource,
+    passenger?.cancelledByRole,
+    passenger?.cancelledByType,
+    passenger?.cancelledBy,
+    trip?.cancelSource,
+    trip?.cancellationSource,
+    trip?.cancelledByRole,
+    trip?.cancelledByType,
+    trip?.cancelledBy
+  ]
+    .map(upper)
+    .filter(Boolean);
+
+  const internalSources =
+    new Set([
+      "DRIVER",
+      "DISPATCHER",
+      "DISPATCH",
+      "ADMIN",
+      "SUPER_ADMIN",
+      "SUPERADMIN",
+      "PLATFORM_ADMIN",
+      "OPERATOR",
+      "SYSTEM",
+      "INTERNAL",
+      "STAFF"
+    ]);
+
+  if(
+    sourceValues.some(
+      value=>
+        internalSources.has(value)
+    )
+  ){
     return false;
   }
 
-  return true;
+  const customerSources =
+    new Set([
+      "CUSTOMER",
+      "CLIENT",
+      "PASSENGER",
+      "RIDER",
+      "MEMBER"
+    ]);
+
+  return sourceValues.some(
+    value=>
+      customerSources.has(value)
+  );
 }
 
 function tripFee(trip){
@@ -841,11 +887,21 @@ async function applyFinalBrokerMoney(trip){
 
             return {
               ...passenger,
-              cancelFee,
+
+              cancelFee:
+                isCancelled(pStatus)
+                  ? Number(feeAmount || 0)
+                  : Number(
+                      passenger?.cancelFee ||
+                      0
+                    ),
+
               noShowFee,
               feeAmount,
+
               priceAmount:
                 Number(finalAmount || 0),
+
               finalPrice:
                 Number(finalAmount || 0)
             };
@@ -883,8 +939,14 @@ async function applyFinalBrokerMoney(trip){
           ? cancelFee
           : 0;
 
-      trip.priceAmount = amount;
-      trip.finalPrice = amount;
+      trip.cancelFee =
+        Number(amount || 0);
+
+      trip.priceAmount =
+        Number(amount || 0);
+
+      trip.finalPrice =
+        Number(amount || 0);
 
       return trip;
     }

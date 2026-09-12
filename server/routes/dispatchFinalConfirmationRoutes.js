@@ -229,11 +229,111 @@ function isFinalStatus(v){
 
 function isCustomerCancellation(trip){
 
-  return (
-    clean(trip?.cancelSource) === "customer" ||
-    clean(trip?.cancelledByRole) === "customer" ||
-    clean(trip?.cancellationSource) === "customer"
+  const values = [
+    trip?.cancelSource,
+    trip?.cancelledByRole,
+    trip?.cancellationSource,
+    trip?.cancelledByType
+  ]
+    .map(
+      value=>
+        clean(value)
+          .toUpperCase()
+    )
+    .filter(Boolean);
+
+  return values.some(
+    value=>
+      [
+        "CUSTOMER",
+        "CLIENT",
+        "PASSENGER",
+        "RIDER",
+        "MEMBER"
+      ].includes(value)
   );
+}
+
+function internalCancelRole(req){
+
+  const role =
+    clean(
+      req?.authUser?.role ||
+      req?.authUser?.userRole ||
+      "DISPATCHER"
+    )
+      .toUpperCase();
+
+  if(
+    [
+      "DRIVER",
+      "DISPATCHER",
+      "DISPATCH",
+      "ADMIN",
+      "SUPER_ADMIN",
+      "SUPERADMIN",
+      "PLATFORM_ADMIN",
+      "OPERATOR",
+      "SYSTEM"
+    ].includes(role)
+  ){
+    return role;
+  }
+
+  return "DISPATCHER";
+}
+
+function markInternalCancellation(
+  target,
+  req,
+  cancelledBy=""
+){
+
+  if(!target){
+    return;
+  }
+
+  target.cancelSource =
+    "DISPATCH";
+
+  target.cancellationSource =
+    "INTERNAL";
+
+  target.cancelledByRole =
+    internalCancelRole(req);
+
+  target.cancelledBy =
+    clean(
+      cancelledBy ||
+      req?.authUser?.email ||
+      req?.authUser?.name ||
+      req?.authUser?.id ||
+      "dispatcher"
+    );
+
+  target.cancellationChargeable =
+    false;
+}
+
+function markCustomerCancellation(
+  target
+){
+
+  if(!target){
+    return;
+  }
+
+  target.cancelSource =
+    "CUSTOMER";
+
+  target.cancellationSource =
+    "CUSTOMER";
+
+  target.cancelledByRole =
+    "CUSTOMER";
+
+  target.cancellationChargeable =
+    true;
 }
 
 function nowDate(){
@@ -1003,24 +1103,23 @@ router.patch("/:id/status", requireTenantApi, async (req,res)=>{
 
     trip.status = status;
 
-    if(
-      status === "Cancelled" &&
-      !String(trip.cancelSource || "").trim()
-    ){
+    if(status === "Cancelled"){
 
       if(isCustomerCancellation(trip)){
 
-        trip.cancelSource = "CUSTOMER";
+        markCustomerCancellation(
+          trip
+        );
 
       }else{
 
-        trip.cancelSource = "DISPATCH";
-        trip.cancelledBy = String(
+        markInternalCancellation(
+          trip,
+          req,
           req.body?.confirmedBy ||
           req.body?.updatedBy ||
-          "dispatcher"
+          ""
         );
-
       }
     }
 
@@ -1166,22 +1265,21 @@ router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
       trip.status === "Cancelled" &&
       isCustomerCancellation(trip);
 
-    if(
-      trip.status === "Cancelled" &&
-      !String(trip.cancelSource || "").trim()
-    ){
+    if(trip.status === "Cancelled"){
 
       if(customerCancellation){
 
-        trip.cancelSource = "CUSTOMER";
+        markCustomerCancellation(
+          trip
+        );
 
       }else{
 
-        trip.cancelSource = "DISPATCH";
-        trip.cancelledBy =
-          confirmedBy ||
-          "dispatcher";
-
+        markInternalCancellation(
+          trip,
+          req,
+          confirmedBy
+        );
       }
     }
 
@@ -1402,8 +1500,33 @@ router.patch("/:id/shared-status", requireTenantApi, async (req,res)=>{
           );
 
         if(nextStatus){
+
           currentPassengers[idx].status =
             nextStatus;
+
+          if(nextStatus === "Cancelled"){
+
+            if(
+              isCustomerCancellation(
+                currentPassengers[idx]
+              )
+            ){
+
+              markCustomerCancellation(
+                currentPassengers[idx]
+              );
+
+            }else{
+
+              markInternalCancellation(
+                currentPassengers[idx],
+                req,
+                req.body?.confirmedBy ||
+                req.body?.updatedBy ||
+                ""
+              );
+            }
+          }
         }
       }
     );
@@ -1508,8 +1631,33 @@ router.patch("/:id/shared-confirm", requireTenantApi, async (req,res)=>{
             );
 
           if(nextStatus){
+
             currentPassengers[idx].status =
               nextStatus;
+
+            if(nextStatus === "Cancelled"){
+
+              if(
+                isCustomerCancellation(
+                  currentPassengers[idx]
+                )
+              ){
+
+                markCustomerCancellation(
+                  currentPassengers[idx]
+                );
+
+              }else{
+
+                markInternalCancellation(
+                  currentPassengers[idx],
+                  req,
+                  req.body?.confirmedBy ||
+                  req.body?.updatedBy ||
+                  ""
+                );
+              }
+            }
           }
         }
       );
