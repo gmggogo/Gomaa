@@ -1374,6 +1374,20 @@ function mapServiceManagementService(s){
     shared:
       shared,
 
+    companyWarningMinutes:
+      num(
+        s.companyWarningMinutes ??
+        s.warningMinutes ??
+        s.cancelWarningMinutes ??
+        120
+      ),
+
+    companyDisableCancel:
+      bool(
+        s.companyDisableCancel ??
+        s.disableCancel
+      ),
+
     __pricingSource:
       "SERVICE_MANAGEMENT"
   };
@@ -1428,52 +1442,56 @@ function selectedServicePayload(){
 
 /* ================= WARNING ================= */
 
+function getServiceWarningMinutes(service = getCurrentServiceConfig()){
+  const rawValues = [
+    service?.companyWarningMinutes,
+    service?.reservedWarningMinutes,
+    service?.warningMinutes,
+    service?.cancelWarningMinutes,
+    service?.warningTimeMinutes
+  ];
+
+  for(const value of rawValues){
+    if(value === undefined || value === null || value === "") continue;
+    const minutes = Number(value);
+    if(Number.isFinite(minutes)) return minutes;
+  }
+
+  return 120;
+}
+
 function checkDynamicWarning(dateValue,timeValue){
 
   if(!dateValue || !timeValue){
     return true;
   }
 
-  const service =
-    getCurrentServiceConfig();
-
-  const warningOn =
-    service.companyDisableCancel !== true &&
-    service.disableCancel !== true;
-
-  if(!warningOn){
-    return true;
-  }
-
-  const warningMinutes =
-    Number(
-      service.companyWarningMinutes ??
-      service.warningMinutes ??
-      120
-    );
+  const service = getCurrentServiceConfig();
+  const warningMinutes = getServiceWarningMinutes(service);
 
   if(warningMinutes <= 0){
     return true;
   }
 
-  const tripDateTime =
-    new Date(`${dateValue}T${timeValue}:00`);
+  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
+  const now = getSystemNow();
 
-  const now =
-    getSystemNow();
+  if(Number.isNaN(tripDateTime.getTime()) || Number.isNaN(now.getTime())){
+    return true;
+  }
 
-  const diff =
-    (tripDateTime - now) / 60000;
+  const diff = (tripDateTime - now) / 60000;
 
-  if(
-    diff > 0 &&
-    diff <= warningMinutes
-  ){
+  if(diff > 0 && diff <= warningMinutes){
+    const serviceName = serviceDisplayName(
+      service,
+      resolveServiceCode(service) || normalizeServiceCode(activeService)
+    );
 
     return confirm(
 `WARNING
 
-This trip is within ${warningMinutes} minutes.
+${serviceName || "Selected service"} trip is within ${warningMinutes} minutes.
 
 Continue anyway?`
     );
@@ -2950,6 +2968,21 @@ async function submitAutomaticSharedGroup(groupIndex){
 
   if(sourceTrips.length < 2){
     showAlert("This group must contain at least 2 passengers");
+    return;
+  }
+
+  const groupDate =
+    group.tripDate ||
+    sourceTrips[0]?.tripDate ||
+    "";
+
+  const groupTime =
+    group.calculatedFirstPickupTime ||
+    sourceTrips[0]?.pickupTime ||
+    sourceTrips[0]?.tripTime ||
+    "";
+
+  if(!checkDynamicWarning(groupDate,groupTime)){
     return;
   }
 

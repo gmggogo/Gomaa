@@ -400,9 +400,9 @@ button:hover{
 .auto-share-build-row{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:center;
   gap:12px;
-  margin-bottom:10px;
+  margin:10px 0 14px;
   flex-wrap:wrap;
 }
 
@@ -410,6 +410,41 @@ button:hover{
   font-size:12px;
   font-weight:800;
   color:#475569;
+}
+
+.auto-share-summary-title{
+  text-align:center;
+  font-size:14px;
+  font-weight:900;
+  color:#075985;
+  margin-bottom:6px;
+  letter-spacing:.2px;
+}
+
+.auto-share-add-row{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:14px;
+}
+
+.auto-share-add-row button,
+.auto-share-build-row button{
+  width:auto;
+  min-width:210px;
+}
+
+.auto-share-result-section{
+  background:#f0f9ff;
+  border:1px solid #bae6fd;
+  box-shadow:0 8px 22px rgba(14,165,233,.10);
+}
+
+.auto-share-result-wrap{
+  background:#eaf7ff;
+  border:1px solid #c7e8fb;
+  border-radius:14px;
+  padding:12px;
 }
 
 .auto-share-counters{
@@ -1242,7 +1277,7 @@ button:hover{
       <input id="autoSharedReturnTime" type="time">
     </div>
   </div>
-  <div class="actions">
+  <div class="auto-share-add-row">
     <button class="btn-blue" id="addAutomaticSharedCandidate" type="button">
       + Add To Automatic List
     </button>
@@ -1251,19 +1286,22 @@ button:hover{
 
 <section>
   <div class="auto-share-toolbar">
+    <div class="auto-share-summary-title">Shared Match Summary</div>
+
     <div class="auto-share-build-row">
       <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
         Build Shared Groups
       </button>
-      <div class="auto-share-toolbar-note">
-        Build first, then review each matched group and submit it separately.
-      </div>
     </div>
 
     <div id="automaticSharedCounters" class="auto-share-counters">
       <div class="auto-share-counter"><span>Groups</span><strong>0</strong></div>
       <div class="auto-share-counter"><span>Matched Clients</span><strong>0</strong></div>
       <div class="auto-share-counter"><span>Not Matched</span><strong>0</strong></div>
+    </div>
+
+    <div class="auto-share-toolbar-note" style="text-align:center;margin-top:9px;">
+      Build first, then review each matched group and submit it separately.
     </div>
   </div>
 
@@ -1273,7 +1311,7 @@ button:hover{
   </div>
 </section>
 
-<section>
+<section class="auto-share-result-section">
   <div class="auto-share-result-title-wrap">
     <div class="auto-share-result-title">Shared Engine Result</div>
   </div>
