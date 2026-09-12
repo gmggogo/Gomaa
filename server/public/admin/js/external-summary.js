@@ -217,17 +217,40 @@ BROKER SUMMARY
       }
 
       .summary-table .col-broker{
-        width:62px !important;
-        min-width:62px !important;
+        width:58px !important;
+        min-width:58px !important;
+      }
+
+      .summary-table .col-broker-trip{
+        width:118px !important;
+        min-width:118px !important;
+      }
+
+      .summary-table .col-broker-trip .cell-item{
+        white-space:normal !important;
+        word-break:normal !important;
+        overflow-wrap:break-word !important;
       }
 
       .summary-table .col-time{
-        width:58px !important;
-        min-width:58px !important;
-        max-width:58px !important;
+        width:50px !important;
+        min-width:50px !important;
+        max-width:50px !important;
         white-space:nowrap !important;
       }
 
+
+      .summary-table .col-service{
+        width:70px !important;
+        min-width:70px !important;
+        max-width:70px !important;
+      }
+
+      .summary-table .col-service .cell-item{
+        white-space:normal !important;
+        word-break:normal !important;
+        overflow-wrap:break-word !important;
+      }
       .summary-table .col-phone{
         width:118px !important;
         min-width:118px !important;
