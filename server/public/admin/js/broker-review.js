@@ -1,4 +1,3 @@
-
 "use strict";
 
 /*
@@ -302,14 +301,30 @@ server/public/admin/js/broker-review.js
       .map(ex=>{
         const stops =
           Array.isArray(ex?.stops)
-            ? ex.stops.map(normalizeStop).filter(Boolean)
+            ? ex.stops
+                .map(normalizeStop)
+                .filter(Boolean)
+                .slice(0,5)
             : [];
 
-        return `<div class="cell-item">${
-          stops.length
-            ? stops.map(stop=>esc(stop)).join("<br>")
-            : "-"
-        }</div>`;
+        return `
+          <div class="cell-item broker-stops-wrap">
+            ${
+              stops.length
+                ? stops
+                    .map(
+                      (stop,index)=>`
+                        <div class="broker-stop-box">
+                          <span class="broker-stop-number">${index + 1}.</span>
+                          <span>${esc(stop)}</span>
+                        </div>
+                      `
+                    )
+                    .join("")
+                : `<div class="broker-stop-box empty-stop">-</div>`
+            }
+          </div>
+        `;
       })
       .join("");
   }
@@ -1217,6 +1232,35 @@ This action cannot be undone.`
 
         .status-badge.in-progress{
           font-weight:900;
+        }
+
+        .broker-stops-wrap{
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+          align-items:stretch;
+        }
+
+        .broker-stop-box{
+          width:100%;
+          box-sizing:border-box;
+          border:1px solid #94a3b8;
+          border-radius:5px;
+          background:#fff;
+          padding:4px 6px;
+          line-height:1.25;
+          text-align:left;
+          white-space:normal;
+          overflow-wrap:anywhere;
+        }
+
+        .broker-stop-number{
+          font-weight:900;
+          margin-right:4px;
+        }
+
+        .broker-stop-box.empty-stop{
+          text-align:center;
         }
 
         @media(max-width:768px){
