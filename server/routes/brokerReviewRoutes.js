@@ -2012,19 +2012,19 @@ router.post(
             /*
               SERVICE SOURCE OF TRUTH
 
-              Trip Split / Broker Review selection is authoritative.
-              External broker service data is only a fallback.
+              Final service is decided only here in Broker Review Confirm.
 
-              This prevents a Standard trip from being finalized as Taxi
-              just because the original ExternalTrip carried TAXI/TX.
+              - Shared group => SHARED
+              - Individual trip => keep the original service that entered
+                through External Trips
+
+              Trip Split must not override the original service for an
+              individual trip.
             */
             const finalService =
               shared
                 ? "SHARED"
                 : normalizeServiceKey(
-                    trip.serviceKey ||
-                    trip.serviceCode ||
-                    trip.serviceType ||
                     primaryExternal.serviceKey ||
                     primaryExternal.serviceName ||
                     "STANDARD"
