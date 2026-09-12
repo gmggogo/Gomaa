@@ -28,7 +28,9 @@ const Tenant =
   require("../models/Tenant");
 
 const {
-  createExternalTrip
+  createExternalTrip,
+  normalizeServiceKey:normalizeExternalServiceKey,
+  replaceExternalTripServiceSuffix
 } = require("../services/externalTripService");
 
 const JWT_SECRET =
@@ -37,6 +39,382 @@ const JWT_SECRET =
 
 function clean(value){
   return String(value ?? "").trim();
+}
+
+function upper(value){
+  return clean(value).toUpperCase();
+}
+
+function getTripModel(){
+
+  const Trip =
+    global.Trip ||
+    mongoose.models.Trip ||
+    null;
+
+  if(!Trip){
+    throw new Error(
+      "Trip model not loaded"
+    );
+  }
+
+  return Trip;
+}
+
+function isFinalOrRunningStatus(value){
+
+  const status =
+    upper(value)
+      .replace(/[\s-]+/g,"_");
+
+  return [
+    "ON_TRIP",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "CANCELLED",
+    "CANCELED",
+    "NO_SHOW",
+    "NOT_COMPLETED"
+  ].includes(status);
+}
+
+function phoenixPickupMillis(trip){
+
+  const date =
+    clean(trip?.tripDate);
+
+  const time =
+    clean(trip?.tripTime);
+
+  if(
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !/^\d{2}:\d{2}(:\d{2})?$/.test(time)
+  ){
+    return null;
+  }
+
+  const normalizedTime =
+    time.length === 5
+      ? `${time}:00`
+      : time;
+
+  const value =
+    new Date(
+      `${date}T${normalizedTime}-07:00`
+    ).getTime();
+
+  return Number.isFinite(value)
+    ? value
+    : null;
+}
+
+function externalReviewTripPayload(
+  externalTrip
+){
+
+  const now =
+    new Date();
+
+  const serviceKey =
+    normalizeServiceKey(
+      externalTrip.serviceKey ||
+      externalTrip.serviceName ||
+      "STANDARD"
+    );
+
+  return {
+    tenantId:
+      externalTrip.tenantId,
+
+    type:"company",
+
+    tripNumber:
+      clean(
+        externalTrip.ghExternalTripNumber ||
+        externalTrip.externalTripNumber ||
+        externalTrip.externalTripId
+      ),
+
+    externalSource:"BROKER",
+    source:"BROKER",
+    bookingSource:"BROKER",
+
+    brokerName:
+      clean(externalTrip.brokerName),
+    brokerCode:
+      clean(externalTrip.brokerCode),
+    brokerTripId:
+      clean(externalTrip.externalTripId),
+
+    serviceKey,
+    serviceCode:serviceKey,
+    serviceType:serviceKey,
+
+    tripDate:
+      clean(externalTrip.tripDate),
+    tripTime:
+      clean(externalTrip.tripTime),
+    appointmentTime:
+      clean(externalTrip.appointmentTime),
+    returnTime:
+      clean(externalTrip.returnTime),
+
+    clientName:
+      clean(externalTrip.clientName),
+    clientPhone:
+      clean(externalTrip.clientPhone),
+    clientEmail:
+      clean(externalTrip.clientEmail),
+    memberId:
+      clean(externalTrip.memberId),
+
+    pickup:
+      clean(externalTrip.pickup),
+    pickupLat:
+      Number.isFinite(
+        Number(externalTrip.pickupLat)
+      )
+        ? Number(externalTrip.pickupLat)
+        : null,
+    pickupLng:
+      Number.isFinite(
+        Number(externalTrip.pickupLng)
+      )
+        ? Number(externalTrip.pickupLng)
+        : null,
+
+    dropoff:
+      clean(externalTrip.dropoff),
+    dropoffLat:
+      Number.isFinite(
+        Number(externalTrip.dropoffLat)
+      )
+        ? Number(externalTrip.dropoffLat)
+        : null,
+    dropoffLng:
+      Number.isFinite(
+        Number(externalTrip.dropoffLng)
+      )
+        ? Number(externalTrip.dropoffLng)
+        : null,
+
+    stops:
+      Array.isArray(externalTrip.stops)
+        ? externalTrip.stops
+        : [],
+
+    notes:
+      clean(externalTrip.notes),
+
+    isShared:false,
+    tripType:"INDIVIDUAL",
+
+    status:"Not Completed",
+    dispatchReviewStatus:"Not Completed",
+
+    dispatchSelected:false,
+    disabled:true,
+
+    finalStatusConfirmed:true,
+    finalStatusConfirmedAt:now,
+
+    dispatchFinalConfirmed:true,
+    dispatchFinalConfirmedAt:now,
+
+    finalConfirmed:true,
+    finalConfirmedAt:now
+  };
+}
+
+async function expireOverdueExternalTrips(
+  tenantId
+){
+
+  const Trip =
+    getTripModel();
+
+  const candidates =
+    await ExternalTrip.find({
+      tenantId,
+      status:{
+        $in:[
+          "RECEIVED",
+          "READY",
+          "HELD",
+          "UPDATED"
+        ]
+      }
+    });
+
+  if(!candidates.length){
+    return 0;
+  }
+
+  const nowMs =
+    Date.now();
+
+  const graceMs =
+    2 * 60 * 60 * 1000;
+
+  let expiredCount = 0;
+
+  for(const externalTrip of candidates){
+
+    const pickupMs =
+      phoenixPickupMillis(
+        externalTrip
+      );
+
+    if(
+      pickupMs === null ||
+      nowMs <
+        pickupMs + graceMs
+    ){
+      continue;
+    }
+
+    const tripNumber =
+      clean(
+        externalTrip.ghExternalTripNumber ||
+        externalTrip.externalTripNumber
+      );
+
+    let reviewTrip = null;
+
+    if(tripNumber){
+      reviewTrip =
+        await Trip.findOne({
+          tenantId,
+          tripNumber
+        });
+    }
+
+    if(
+      !reviewTrip &&
+      clean(
+        externalTrip.externalTripId
+      )
+    ){
+      reviewTrip =
+        await Trip.findOne({
+          tenantId,
+          brokerCode:
+            externalTrip.brokerCode,
+          brokerTripId:
+            externalTrip.externalTripId
+        });
+    }
+
+    if(
+      reviewTrip &&
+      isFinalOrRunningStatus(
+        reviewTrip.status ||
+        reviewTrip.dispatchStatus
+      )
+    ){
+      if(
+        upper(
+          reviewTrip.status ||
+          reviewTrip.dispatchStatus
+        )
+          .replace(/[\s-]+/g,"_") ===
+        "NOT_COMPLETED"
+      ){
+        externalTrip.status =
+          "TRANSFERRED";
+        externalTrip.transferEligible =
+          false;
+        externalTrip.transferredToTripsHub =
+          true;
+        externalTrip.transferredTripId =
+          reviewTrip._id;
+        externalTrip.transferredAt =
+          new Date();
+
+        await externalTrip.save();
+        expiredCount += 1;
+      }
+
+      continue;
+    }
+
+    const confirmedAt =
+      new Date();
+
+    if(!reviewTrip){
+
+      const created =
+        await Trip.create(
+          externalReviewTripPayload(
+            externalTrip
+          )
+        );
+
+      reviewTrip =
+        created;
+
+    }else{
+
+      reviewTrip.status =
+        "Not Completed";
+
+      reviewTrip.dispatchReviewStatus =
+        "Not Completed";
+
+      reviewTrip.dispatchSelected =
+        false;
+
+      reviewTrip.disabled =
+        true;
+
+      reviewTrip.finalStatusConfirmed =
+        true;
+
+      reviewTrip.finalStatusConfirmedAt =
+        confirmedAt;
+
+      reviewTrip.dispatchFinalConfirmed =
+        true;
+
+      reviewTrip.dispatchFinalConfirmedAt =
+        confirmedAt;
+
+      reviewTrip.finalConfirmed =
+        true;
+
+      reviewTrip.finalConfirmedAt =
+        confirmedAt;
+
+      await reviewTrip.save();
+    }
+
+    externalTrip.status =
+      "TRANSFERRED";
+
+    externalTrip.brokerStatus =
+      "NOT_COMPLETED";
+
+    externalTrip.transferEligible =
+      false;
+
+    externalTrip.transferredToTripsHub =
+      true;
+
+    externalTrip.transferredTripId =
+      reviewTrip._id;
+
+    externalTrip.transferredAt =
+      new Date();
+
+    externalTrip.lastBrokerUpdateAt =
+      new Date();
+
+    await externalTrip.save();
+
+    expiredCount += 1;
+  }
+
+  return expiredCount;
 }
 
 function normalizeServiceKey(value){
@@ -342,6 +720,10 @@ router.get(
 
     try{
 
+      await expireOverdueExternalTrips(
+        req.authUser.tenantId
+      );
+
       const filter = {
         tenantId:
           req.authUser.tenantId
@@ -352,6 +734,10 @@ router.get(
           String(
             req.query.status
           ).toUpperCase();
+      }else{
+        filter.status = {
+          $ne:"TRANSFERRED"
+        };
       }
 
       if(req.query.brokerCode){
@@ -560,11 +946,19 @@ router.patch(
         }
 
         if(key === "serviceKey"){
+
           trip.serviceKey =
-            normalizeServiceKey(
+            normalizeExternalServiceKey(
               req.body.serviceKey ||
               "STANDARD"
             );
+
+          trip.ghExternalTripNumber =
+            replaceExternalTripServiceSuffix(
+              trip.ghExternalTripNumber,
+              trip.serviceKey
+            ) ||
+            trip.ghExternalTripNumber;
 
           continue;
         }

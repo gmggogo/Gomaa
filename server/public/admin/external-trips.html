@@ -395,6 +395,22 @@ EXTERNAL TRIPS HUB REBUILD R1
       color:#8a4b0c;
     }
 
+    .trip-row-overdue td{
+      background:#cbd5e1;
+      color:#334155;
+    }
+
+    .trip-row-overdue .address-box,
+    .trip-row-overdue .gh-stop-box{
+      background:#e2e8f0;
+      color:#334155;
+      border-color:#64748b;
+    }
+
+    .trip-row-overdue .trip-id{
+      color:#1e3a8a;
+    }
+
     .action-stack{
       display:flex;
       justify-content:center;
@@ -747,15 +763,8 @@ EXTERNAL TRIPS HUB REBUILD R1
         </div>
 
         <div class="field">
-          <label>Trip Type</label>
-          <select id="tripType">
-            <option value="SINGLE">
-              Single
-            </option>
-            <option value="SHARED">
-              Shared
-            </option>
-          </select>
+          <label>Service</label>
+          <select id="serviceKey"></select>
         </div>
 
         <div class="field">
@@ -803,11 +812,6 @@ EXTERNAL TRIPS HUB REBUILD R1
         <div class="field">
           <label>Member ID</label>
           <input id="memberId" />
-        </div>
-
-        <div class="field">
-          <label>Service</label>
-          <select id="serviceKey"></select>
         </div>
 
         <div class="field wide">
@@ -859,7 +863,7 @@ EXTERNAL TRIPS HUB REBUILD R1
   </dialog>
 
   <script src="/admin/header.js"></script>
-  <script src="/admin/js/external-trips.js"></script>
+  <script src="/admin/js/external-trips.js?v=20260911-1"></script>
 
 </body>
 </html>

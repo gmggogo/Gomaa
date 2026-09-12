@@ -75,28 +75,138 @@ function createDuplicateKey({
     .digest("hex");
 }
 
-async function nextExternalTripNumber(brokerCode){
+function normalizeServiceKey(value){
 
-  const suffix =
+  const raw =
+    upper(value)
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "ST" ||
+    raw === "STD" ||
+    raw.includes("STANDARD")
+  ){
+    return "STANDARD";
+  }
+
+  if(
+    raw === "SH" ||
+    raw.includes("SHARED")
+  ){
+    return "SHARED";
+  }
+
+  if(
+    raw === "WC" ||
+    raw === "WH" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WHEELCHAIR";
+  }
+
+  if(
+    raw === "TX" ||
+    raw.includes("TAXI")
+  ){
+    return "TAXI";
+  }
+
+  if(
+    raw === "LM" ||
+    raw.includes("LIMO")
+  ){
+    return "LIMO";
+  }
+
+  if(raw === "XL"){
+    return "XL";
+  }
+
+  return raw.replace(/\s+/g,"_");
+}
+
+function serviceSuffix(value){
+
+  const key =
+    normalizeServiceKey(value);
+
+  if(key === "STANDARD") return "ST";
+  if(key === "SHARED") return "SH";
+  if(key === "WHEELCHAIR") return "WH";
+  if(key === "TAXI") return "TX";
+  if(key === "LIMO") return "LM";
+  if(key === "XL") return "XL";
+
+  return upper(key)
+    .replace(/[^A-Z0-9]/g,"")
+    .slice(0,2) || "ST";
+}
+
+async function nextExternalTripNumber(
+  brokerCode,
+  serviceKey,
+  sequenceOffset = 0
+){
+
+  const broker =
     normalizeBrokerCode(brokerCode);
 
-  /*
-    Platform-wide sequence:
-    EX-000001-MT
-    EX-000002-MC
-    EX-000003-SR
+  const suffix =
+    serviceSuffix(serviceKey);
 
-    This prevents collision with the current main Trip schema where
-    tripNumber is globally unique.
+  /*
+    GH Broker intake number:
+    MT-000001-ST
+    MT-000002-TX
+    MC-000003-XL
+
+    The numeric sequence remains platform-wide so the number stays unique.
   */
   const count =
     await ExternalTrip.countDocuments({});
 
   const sequence =
-    String(count + 1)
-      .padStart(6,"0");
+    String(
+      count +
+      1 +
+      Number(sequenceOffset || 0)
+    ).padStart(6,"0");
 
-  return `EX-${sequence}-${suffix}`;
+  return `${broker}-${sequence}-${suffix}`;
+}
+
+function replaceExternalTripServiceSuffix(
+  tripNumber,
+  serviceKey
+){
+
+  const value =
+    upper(tripNumber);
+
+  if(!value){
+    return "";
+  }
+
+  const suffix =
+    serviceSuffix(serviceKey);
+
+  const match =
+    value.match(
+      /^([A-Z0-9]{2})-(\d{6})-[A-Z0-9]+(-R)?$/
+    );
+
+  if(!match){
+    return value;
+  }
+
+  return `${match[1]}-${match[2]}-${suffix}${match[3] || ""}`;
 }
 
 function normalizeStop(stop,index){
@@ -273,14 +383,12 @@ function normalizeExternalPayload({
       normalizePassenger
     );
 
+  /*
+    External Trips Hub is intake only.
+    Shared grouping is decided later in Trip Split.
+  */
   const tripType =
-    (
-      p.tripType === "SHARED" ||
-      p.isShared === true ||
-      passengers.length > 1
-    )
-      ? "SHARED"
-      : "SINGLE";
+    "SINGLE";
 
   const primaryPassenger =
     passengers[0] || {};
@@ -320,11 +428,12 @@ function normalizeExternalPayload({
 
     tripType,
 
-    serviceKey:upper(
+    serviceKey:normalizeServiceKey(
       p.serviceKey ||
       p.serviceCode ||
       p.serviceType ||
-      p.modeOfTransportation
+      p.modeOfTransportation ||
+      "STANDARD"
     ),
 
     serviceName:clean(
@@ -618,7 +727,9 @@ async function createExternalTrip(options){
 
     normalized.ghExternalTripNumber =
       await nextExternalTripNumber(
-        normalized.brokerCode
+        normalized.brokerCode,
+        normalized.serviceKey,
+        attempt
       );
 
     try{
@@ -784,6 +895,9 @@ async function cancelExternalTrip(existingTrip,brokerStatus="CANCELLED"){
 
 module.exports = {
   normalizeBrokerCode,
+  normalizeServiceKey,
+  serviceSuffix,
+  replaceExternalTripServiceSuffix,
   normalizeExternalPayload,
   validateNormalizedTrip,
   createExternalTrip,

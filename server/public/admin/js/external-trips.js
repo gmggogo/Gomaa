@@ -519,6 +519,57 @@ EXTERNAL TRIPS HUB R5
     );
   }
 
+  function phoenixPickupMillis(trip){
+
+    const date =
+      clean(trip?.tripDate);
+
+    const time =
+      clean(trip?.tripTime);
+
+    if(
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !/^\d{2}:\d{2}(:\d{2})?$/.test(time)
+    ){
+      return null;
+    }
+
+    const normalizedTime =
+      time.length === 5
+        ? `${time}:00`
+        : time;
+
+    const value =
+      new Date(
+        `${date}T${normalizedTime}-07:00`
+      ).getTime();
+
+    return Number.isFinite(value)
+      ? value
+      : null;
+  }
+
+  function isOverdueWaiting(trip){
+
+    const pickupMs =
+      phoenixPickupMillis(trip);
+
+    if(pickupMs === null){
+      return false;
+    }
+
+    const now =
+      Date.now();
+
+    const graceMs =
+      2 * 60 * 60 * 1000;
+
+    return (
+      now > pickupMs &&
+      now < pickupMs + graceMs
+    );
+  }
+
   function render(){
     renderStats();
 
@@ -570,6 +621,12 @@ EXTERNAL TRIPS HUB R5
       for(const trip of trips){
         const tr =
           document.createElement("tr");
+
+        if(isOverdueWaiting(trip)){
+          tr.classList.add(
+            "trip-row-overdue"
+          );
+        }
 
         tr.innerHTML = `
           <td class="trip-id">
@@ -907,15 +964,11 @@ EXTERNAL TRIPS HUB R5
       }
     );
 
-    if($("tripType")){
-      $("tripType").value =
-        "SINGLE";
-    }
-
     if(
       $("brokerCode") &&
       $("brokerCode").options.length
     ){
+      $("brokerCode").disabled = false;
       $("brokerCode").selectedIndex = 0;
     }
 
@@ -988,17 +1041,17 @@ EXTERNAL TRIPS HUB R5
     if($("brokerCode")){
       $("brokerCode").value =
         clean(trip.brokerCode);
+
+      /*
+        Broker identity is part of the GH trip number.
+        It cannot change after intake creation.
+      */
+      $("brokerCode").disabled = true;
     }
 
     if($("externalTripId")){
       $("externalTripId").value =
         clean(trip.externalTripId);
-    }
-
-    if($("tripType")){
-      $("tripType").value =
-        clean(trip.tripType) ||
-        "SINGLE";
     }
 
     if($("tripDate")){
@@ -1112,11 +1165,11 @@ EXTERNAL TRIPS HUB R5
           $("externalTripId")?.value
         ),
 
-      tripType:
-        clean(
-          $("tripType")?.value
-        ) ||
-        "SINGLE",
+      /*
+        Intake trips stay individual here.
+        Trip Split is the only place that may group them as Shared.
+      */
+      tripType:"SINGLE",
 
       tripDate:
         clean(
@@ -1302,6 +1355,24 @@ EXTERNAL TRIPS HUB R5
       );
 
       await loadTrips();
+
+      /*
+        Keep overdue styling current and let the backend move trips to
+        Dispatch Review automatically when the two-hour grace period ends.
+      */
+      window.setInterval(
+        ()=>{
+          loadTrips()
+            .catch(
+              err=>
+                console.error(
+                  "EXTERNAL TRIPS AUTO REFRESH ERROR:",
+                  err
+                )
+            );
+        },
+        60 * 1000
+      );
 
     }catch(err){
       console.error(
