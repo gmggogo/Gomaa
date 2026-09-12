@@ -181,11 +181,57 @@ BROKER SUMMARY
     const name = clean(item?.brokerName);
     const code = clean(item?.brokerCode);
 
-    if(name && code && name.toUpperCase() !== code.toUpperCase()){
-      return `${name} (${code})`;
+    return name || code || "-";
+  }
+
+  function ensureBrokerSummaryColumnLayout(){
+
+    if(
+      document.getElementById(
+        "brokerSummaryColumnLayoutFix"
+      )
+    ){
+      return;
     }
 
-    return name || code || "-";
+    const style =
+      document.createElement(
+        "style"
+      );
+
+    style.id =
+      "brokerSummaryColumnLayoutFix";
+
+    style.textContent = `
+      /* Broker Summary column sizing only */
+      .summary-table .col-trip{
+        width:150px !important;
+        min-width:150px !important;
+      }
+
+      .summary-table .col-trip .trip-number-badge{
+        white-space:nowrap !important;
+        word-break:normal !important;
+        overflow-wrap:normal !important;
+        display:inline-block !important;
+      }
+
+      .summary-table .col-broker{
+        width:70px !important;
+        min-width:70px !important;
+      }
+
+      .summary-table .col-time{
+        width:58px !important;
+        min-width:58px !important;
+        max-width:58px !important;
+        white-space:nowrap !important;
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
   }
 
   function buildQuery(){
@@ -804,6 +850,8 @@ BROKER SUMMARY
       );
     }
   });
+
+  ensureBrokerSummaryColumnLayout();
 
   load().catch(err=>{
     console.error(err);
