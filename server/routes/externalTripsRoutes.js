@@ -27,6 +27,9 @@ const BrokerIntegration =
 const Tenant =
   require("../models/Tenant");
 
+const TripSplitState =
+  require("../models/TripSplitState");
+
 const {
   createExternalTrip,
   normalizeServiceKey:normalizeExternalServiceKey,
@@ -76,6 +79,171 @@ function isFinalOrRunningStatus(value){
     "NO_SHOW",
     "NOT_COMPLETED"
   ].includes(status);
+}
+
+function bool(value){
+  return (
+    value === true ||
+    String(value).toLowerCase() === "true" ||
+    String(value) === "1"
+  );
+}
+
+function isClosedFinalStatus(value){
+
+  const status =
+    upper(value)
+      .replace(/[\s-]+/g,"_");
+
+  return [
+    "COMPLETED",
+    "CANCELLED",
+    "CANCELED",
+    "NO_SHOW",
+    "NOSHOW",
+    "NOT_COMPLETED"
+  ].includes(status);
+}
+
+function hasFinalConfirmation(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  return (
+    bool(trip.finalStatusConfirmed) ||
+    bool(trip.dispatchFinalConfirmed) ||
+    bool(trip.sharedFinalConfirmed) ||
+    bool(trip.finalConfirmed) ||
+    !!trip.finalStatusConfirmedAt ||
+    !!trip.dispatchFinalConfirmedAt ||
+    !!trip.sharedFinalConfirmedAt ||
+    !!trip.finalConfirmedAt
+  );
+}
+
+async function syncFinalizedExternalTrips(tenantId){
+
+  const Trip =
+    getTripModel();
+
+  /*
+    SOURCE OF TRUTH:
+    TripSplitState connects each ExternalTrip to the Trip that later reaches
+    Final Confirmation. Once that Trip is final-confirmed with a closed final
+    status, the source ExternalTrip must leave External Trips Hub permanently.
+  */
+  const states =
+    await TripSplitState.find({
+      tenantId,
+      confirmed:true,
+      dispatchTripId:{
+        $ne:null
+      }
+    })
+      .select(
+        "externalTripObjectId dispatchTripId"
+      )
+      .lean();
+
+  if(!states.length){
+    return 0;
+  }
+
+  const dispatchTripIds =
+    [
+      ...new Set(
+        states
+          .map(row=>
+            clean(row.dispatchTripId)
+          )
+          .filter(Boolean)
+      )
+    ];
+
+  if(!dispatchTripIds.length){
+    return 0;
+  }
+
+  const trips =
+    await Trip.find({
+      tenantId,
+      _id:{
+        $in:dispatchTripIds
+      }
+    })
+      .select(
+        "_id status dispatchStatus finalStatusConfirmed finalStatusConfirmedAt dispatchFinalConfirmed dispatchFinalConfirmedAt sharedFinalConfirmed sharedFinalConfirmedAt finalConfirmed finalConfirmedAt"
+      )
+      .lean();
+
+  const finalizedTripIds =
+    new Set(
+      trips
+        .filter(trip=>
+          hasFinalConfirmation(trip) &&
+          isClosedFinalStatus(
+            trip.status ||
+            trip.dispatchStatus
+          )
+        )
+        .map(trip=>
+          String(trip._id)
+        )
+    );
+
+  if(!finalizedTripIds.size){
+    return 0;
+  }
+
+  const finalizedLinks =
+    states.filter(state=>
+      finalizedTripIds.has(
+        clean(state.dispatchTripId)
+      ) &&
+      clean(state.externalTripObjectId)
+    );
+
+  if(!finalizedLinks.length){
+    return 0;
+  }
+
+  let updated = 0;
+
+  for(const state of finalizedLinks){
+
+    const result =
+      await ExternalTrip.updateOne(
+        {
+          _id:state.externalTripObjectId,
+          tenantId,
+          status:{
+            $ne:"TRANSFERRED"
+          }
+        },
+        {
+          $set:{
+            status:"TRANSFERRED",
+            transferEligible:false,
+            transferredToTripsHub:true,
+            transferredTripId:
+              state.dispatchTripId,
+            transferredAt:new Date(),
+            lastBrokerUpdateAt:
+              new Date()
+          }
+        }
+      );
+
+    updated +=
+      Number(
+        result?.modifiedCount ||
+        0
+      );
+  }
+
+  return updated;
 }
 
 function phoenixPickupMillis(trip){
@@ -721,6 +889,14 @@ router.get(
     try{
 
       await expireOverdueExternalTrips(
+        req.authUser.tenantId
+      );
+
+      /*
+        Final-confirmed broker trips must not remain in External Trips Hub.
+        This also covers Completed, No Show, Cancelled and Not Completed.
+      */
+      await syncFinalizedExternalTrips(
         req.authUser.tenantId
       );
 
