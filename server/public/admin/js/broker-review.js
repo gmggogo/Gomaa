@@ -1,3 +1,4 @@
+
 "use strict";
 
 /*
@@ -1169,8 +1170,7 @@ This action cannot be undone.`
       );
 
     if(info){
-      info.textContent =
-        "Active trips remain visible here until they reach a final status.";
+      info.remove();
     }
 
     if(
