@@ -13,9 +13,8 @@ POST /api/shared-engine/settings
 POST /api/shared-engine/plan
 
 IMPORTANT:
-- Shared Engine is always ON.
-- Presets control Max Group Distance + Max Extra Ride Time.
-- CUSTOM uses the full advanced settings.
+The plan endpoint returns proposals only.
+It does not modify original trips.
 */
 
 const express =
@@ -57,59 +56,6 @@ const {
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
-
-const PROFILE_DEFAULTS = {
-  LONG:{
-    maxGroupDistanceMiles:20,
-    maxExtraMiles:10,
-    maxExtraMinutes:45,
-    appointmentBufferMinutes:60,
-    pickupLateToleranceMinutes:30,
-    pickupEarlyWindowMinutes:30,
-    maxRidersPerGroup:3,
-    samePickupPriority:true,
-    sameDropoffPriority:true,
-    sources:{
-      company:{enabled:true},
-      reserved:{enabled:true},
-      broker:{enabled:true}
-    }
-  },
-
-  MEDIUM:{
-    maxGroupDistanceMiles:10,
-    maxExtraMiles:7,
-    maxExtraMinutes:30,
-    appointmentBufferMinutes:45,
-    pickupLateToleranceMinutes:20,
-    pickupEarlyWindowMinutes:20,
-    maxRidersPerGroup:3,
-    samePickupPriority:true,
-    sameDropoffPriority:true,
-    sources:{
-      company:{enabled:true},
-      reserved:{enabled:true},
-      broker:{enabled:true}
-    }
-  },
-
-  SHORT:{
-    maxGroupDistanceMiles:5,
-    maxExtraMiles:5,
-    maxExtraMinutes:15,
-    appointmentBufferMinutes:30,
-    pickupLateToleranceMinutes:15,
-    pickupEarlyWindowMinutes:15,
-    maxRidersPerGroup:3,
-    samePickupPriority:true,
-    sameDropoffPriority:true,
-    sources:{
-      company:{enabled:true},
-      reserved:{enabled:true},
-      broker:{enabled:true}
-    }
-  }
-};
 
 function clean(value){
   return String(value ?? "").trim();
@@ -168,7 +114,8 @@ function requireStaff(
       ![
         "SUPER_ADMIN",
         "ADMIN",
-        "DISPATCHER"
+        "DISPATCHER",
+        "COMPANY"
       ].includes(role)
     ){
       return res
@@ -245,55 +192,6 @@ function numberOr(
   return Number.isFinite(num)
     ? num
     : fallback;
-}
-
-function normalizePresetMode(
-  value
-){
-  const mode =
-    clean(value)
-      .toUpperCase();
-
-  return [
-    "LONG",
-    "MEDIUM",
-    "SHORT",
-    "CUSTOM"
-  ].includes(mode)
-    ? mode
-    : "LONG";
-}
-
-function applyPresetToSettings(
-  settings = {}
-){
-  const presetMode =
-    normalizePresetMode(
-      settings.presetMode
-    );
-
-  if(
-    presetMode === "CUSTOM"
-  ){
-    return {
-      ...settings,
-      enabled:true,
-      presetMode
-    };
-  }
-
-  const profile =
-    PROFILE_DEFAULTS[
-      presetMode
-    ] ||
-    PROFILE_DEFAULTS.LONG;
-
-  return {
-    ...settings,
-    ...profile,
-    enabled:true,
-    presetMode
-  };
 }
 
 function normalizeServiceCode(
@@ -373,6 +271,11 @@ async function getCapabilities(
   }
 
   try{
+    /*
+      Platform Admin Services is the master switch.
+      The selected service cards are stored on Tenant.allowedServices.
+      Do not infer SHARED access from tenant Service documents.
+    */
     const tenant =
       await Tenant
         .findById(
@@ -411,6 +314,10 @@ async function getCapabilities(
   return {
     brokerContractEnabled,
     sharedServiceEnabled,
+
+    /*
+      Backward-compatible alias used by the current frontend.
+    */
     sharedServiceFound:
       sharedServiceEnabled
   };
@@ -437,23 +344,10 @@ async function getSettings(
       })
       .lean();
 
-  const base =
-    mergeSettings(
-      saved ||
-      DEFAULT_SETTINGS
-    );
-
-  return applyPresetToSettings({
-    ...base,
-
-    presetMode:
-      saved?.presetMode ||
-      "LONG",
-
-    presets:
-      saved?.presets ||
-      {}
-  });
+  return mergeSettings(
+    saved ||
+    DEFAULT_SETTINGS
+  );
 }
 
 router.get(
@@ -510,6 +404,24 @@ router.post(
     res
   )=>{
     try{
+      const actorRole =
+        String(
+          req.authUser?.role ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if(actorRole === "COMPANY"){
+        return res
+          .status(403)
+          .json({
+            success:false,
+            message:
+              "Company accounts cannot change Shared Engine settings"
+          });
+      }
+
       const tenantId =
         tenantObjectId(
           req.authUser.tenantId
@@ -528,40 +440,54 @@ router.post(
         req.body ||
         {};
 
-      const presetMode =
-        normalizePresetMode(
-          body.presetMode
-        );
-
-      const customUpdate = {
-        enabled:true,
-        presetMode,
+      const update = {
+        enabled:
+          body.enabled === undefined
+            ? true
+            : bool(
+                body.enabled
+              ),
 
         sources:{
           company:{
             enabled:
-              body?.sources?.company?.enabled === undefined
+              body?.sources
+                ?.company
+                ?.enabled ===
+                undefined
                 ? true
                 : bool(
-                    body.sources.company.enabled
+                    body.sources
+                      .company
+                      .enabled
                   )
           },
 
           reserved:{
             enabled:
-              body?.sources?.reserved?.enabled === undefined
+              body?.sources
+                ?.reserved
+                ?.enabled ===
+                undefined
                 ? true
                 : bool(
-                    body.sources.reserved.enabled
+                    body.sources
+                      .reserved
+                      .enabled
                   )
           },
 
           broker:{
             enabled:
-              body?.sources?.broker?.enabled === undefined
+              body?.sources
+                ?.broker
+                ?.enabled ===
+                undefined
                 ? true
                 : bool(
-                    body.sources.broker.enabled
+                    body.sources
+                      .broker
+                      .enabled
                   )
           }
         },
@@ -570,8 +496,9 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body.maxGroupDistanceMiles,
-              20
+              body
+                .maxGroupDistanceMiles,
+              10
             )
           ),
 
@@ -589,7 +516,7 @@ router.post(
             0,
             numberOr(
               body.maxExtraMinutes,
-              45
+              30
             )
           ),
 
@@ -597,8 +524,9 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body.appointmentBufferMinutes,
-              60
+              body
+                .appointmentBufferMinutes,
+              10
             )
           ),
 
@@ -606,8 +534,9 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body.pickupLateToleranceMinutes,
-              20
+              body
+                .pickupLateToleranceMinutes,
+              5
             )
           ),
 
@@ -615,8 +544,9 @@ router.post(
           Math.max(
             0,
             numberOr(
-              body.pickupEarlyWindowMinutes,
-              30
+              body
+                .pickupEarlyWindowMinutes,
+              20
             )
           ),
 
@@ -626,24 +556,31 @@ router.post(
             Math.min(
               20,
               numberOr(
-                body.maxRidersPerGroup,
-                3
+                body
+                  .maxRidersPerGroup,
+                4
               )
             )
           ),
 
         samePickupPriority:
-          body.samePickupPriority === undefined
+          body
+            .samePickupPriority ===
+            undefined
             ? true
             : bool(
-                body.samePickupPriority
+                body
+                  .samePickupPriority
               ),
 
         sameDropoffPriority:
-          body.sameDropoffPriority === undefined
+          body
+            .sameDropoffPriority ===
+            undefined
             ? true
             : bool(
-                body.sameDropoffPriority
+                body
+                  .sameDropoffPriority
               ),
 
         updatedBy:
@@ -654,18 +591,6 @@ router.post(
             ""
           )
       };
-
-      const update =
-        presetMode === "CUSTOM"
-          ? customUpdate
-          : {
-              ...customUpdate,
-              ...PROFILE_DEFAULTS[
-                presetMode
-              ],
-              presetMode,
-              enabled:true
-            };
 
       const saved =
         await SharedEngineSettings
@@ -692,10 +617,8 @@ router.post(
       return res.json({
         success:true,
         settings:
-          applyPresetToSettings(
-            mergeSettings(
-              saved
-            )
+          mergeSettings(
+            saved
           ),
         capabilities
       });
@@ -725,13 +648,40 @@ router.post(
     res
   )=>{
     try{
-      const source =
+      const actorRole =
+        String(
+          req.authUser?.role ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const requestedSource =
         String(
           req.body?.source ||
           ""
         )
           .trim()
           .toUpperCase();
+
+      const source =
+        actorRole === "COMPANY"
+          ? "COMPANY"
+          : requestedSource;
+
+      if(
+        actorRole === "COMPANY" &&
+        requestedSource &&
+        requestedSource !== "COMPANY"
+      ){
+        return res
+          .status(403)
+          .json({
+            success:false,
+            message:
+              "Company accounts can plan COMPANY Shared trips only"
+          });
+      }
 
       if(
         ![
@@ -772,16 +722,14 @@ router.post(
         );
 
       const settings =
-        applyPresetToSettings(
-          mergeSettings({
-            ...savedSettings,
-            ...(
-              req.body
-                ?.settingsOverride ||
-              {}
-            )
-          })
-        );
+        mergeSettings({
+          ...savedSettings,
+          ...(
+            req.body
+              ?.settingsOverride ||
+            {}
+          )
+        });
 
       const result =
         await planSharedTrips({

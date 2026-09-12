@@ -1634,6 +1634,10 @@ stops: { type: [String], default: [] },
   // suffix يظهر في الرقم
   sharedSuffix: { type: String, default: "" },
 
+  /* Company Shared source / entry metadata */
+  sharedSource: { type: String, default: "" },
+  sharedEntryMode: { type: String, default: "" },
+
   // ترتيب الراكب داخل الشير
   passengerIndex: { type: Number, default: 0 },
 
@@ -1659,6 +1663,13 @@ passengers: {
       tripTime: { type: String, default: "" },
       pickupTime: { type: String, default: "" },
       appointmentTime: { type: String, default: "" },
+      returnTime: { type: String, default: "" },
+
+      tripLeg: { type: String, default: "OUTBOUND" },
+      generatedReturn: { type: Boolean, default: false },
+      pairId: { type: String, default: "" },
+      pairedCandidateId: { type: String, default: "" },
+
       notes: { type: String, default: "" },
 
 pickup: { type: String, default: "" },
@@ -2006,15 +2017,6 @@ app.use(
 const sharedEngineRoutes =
   require("./routes/sharedEngineRoutes");
 
-const {
-  mergeSettings:mergeCompanySharedSettings,
-  planSharedTrips:planCompanySharedTrips
-} = require("./services/sharedEngine");
-
-const SharedEngineSettingsModel =
-  mongoose.models.SharedEngineSettings ||
-  require("./models/SharedEngineSettings");
-
 const tripSplitRoutes =
   require("./routes/tripSplitRoutes");
 
@@ -2025,93 +2027,13 @@ app.use(
 
 /* =========================
    COMPANY AUTOMATIC SHARED
-   Company page may plan Shared groups without staff-only Shared Engine access.
-   The endpoint returns proposals only. Saving still uses /api/trips.
+   Reuse the SAME Shared Engine router.
+   COMPANY role is restricted inside sharedEngineRoutes to COMPANY planning only.
 ========================= */
 
-app.post(
-  "/api/company-shared/plan",
-  requireTenantApi,
-  async (req,res)=>{
-    try{
-      const role =
-        String(
-          req.authUser?.role || ""
-        )
-          .trim()
-          .toUpperCase();
-
-      if(
-        ![
-          "COMPANY",
-          "SUPER_ADMIN",
-          "ADMIN",
-          "DISPATCHER"
-        ].includes(role)
-      ){
-        return res.status(403).json({
-          success:false,
-          message:"Not allowed"
-        });
-      }
-
-      const trips =
-        Array.isArray(req.body?.trips)
-          ? req.body.trips
-          : [];
-
-      if(trips.length < 2){
-        return res.status(400).json({
-          success:false,
-          message:"At least two Shared candidates are required"
-        });
-      }
-
-      const saved =
-        await SharedEngineSettingsModel
-          .findOne({
-            tenantId:req.authUser.tenantId
-          })
-          .lean();
-
-      const settings =
-        mergeCompanySharedSettings(
-          saved || {}
-        );
-
-      if(
-        settings?.enabled === false ||
-        settings?.sources?.company?.enabled === false
-      ){
-        return res.status(400).json({
-          success:false,
-          message:"Automatic Shared is disabled for Companies"
-        });
-      }
-
-      const result =
-        await planCompanySharedTrips({
-          source:"COMPANY",
-          trips,
-          settings
-        });
-
-      return res.json(result);
-
-    }catch(err){
-      console.log(
-        "COMPANY AUTOMATIC SHARED PLAN ERROR:",
-        err
-      );
-
-      return res.status(500).json({
-        success:false,
-        message:
-          err?.message ||
-          "Automatic Shared planning failed"
-      });
-    }
-  }
+app.use(
+  "/api/company-shared",
+  sharedEngineRoutes
 );
 
 app.use(
@@ -7814,6 +7736,21 @@ if (isShared) {
       appointmentTime:
         normalizeText(p.appointmentTime),
 
+      returnTime:
+        normalizeText(p.returnTime),
+
+      tripLeg:
+        normalizeText(p.tripLeg || "OUTBOUND"),
+
+      generatedReturn:
+        p.generatedReturn === true,
+
+      pairId:
+        normalizeText(p.pairId),
+
+      pairedCandidateId:
+        normalizeText(p.pairedCandidateId),
+
       notes:
         normalizeText(p.notes),
 
@@ -7941,6 +7878,21 @@ if (isShared) {
           companyName
             ? "COMPANY"
             : "INDIVIDUAL",
+
+        sharedEntryMode:
+          normalizeText(
+            req.body.sharedEntryMode
+          ),
+
+        source:
+          normalizeText(
+            req.body.source
+          ),
+
+        bookingSource:
+          normalizeText(
+            req.body.bookingSource
+          ),
 
         /* COMPANY */
 
