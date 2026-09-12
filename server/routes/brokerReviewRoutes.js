@@ -37,6 +37,9 @@ const {
   ensureExternalTripCoordinates
 } = require("../services/externalTripGeoService");
 
+const sharedEngineGoogleRoutes =
+  require("../services/sharedEngineGoogleRoutes");
+
 const SharedTripGroup =
   require("../models/SharedTripGroup");
 
@@ -1393,6 +1396,230 @@ router.post(
 
 
 /* =========================
+   BROKER ROUTE SNAPSHOT
+   Route miles/minutes are locked before Broker Pricing.
+========================= */
+
+function routeStopAddress(stop){
+  if(typeof stop === "string"){
+    return clean(stop);
+  }
+
+  if(stop && typeof stop === "object"){
+    return clean(
+      stop.address ||
+      stop.formattedAddress ||
+      stop.formatted_address ||
+      stop.description ||
+      stop.label ||
+      ""
+    );
+  }
+
+  return "";
+}
+
+function brokerRoutePoints(trip){
+
+  const stored =
+    safeArray(trip?.routePoints)
+      .map(routeStopAddress)
+      .filter(Boolean);
+
+  if(
+    trip?.isShared === true &&
+    stored.length >= 2
+  ){
+    return stored;
+  }
+
+  const points = [];
+
+  const pickup =
+    clean(trip?.pickup);
+
+  const dropoff =
+    clean(trip?.dropoff);
+
+  if(pickup){
+    points.push(pickup);
+  }
+
+  for(
+    const stop of
+    safeArray(trip?.stops)
+  ){
+    const address =
+      routeStopAddress(stop);
+
+    if(address){
+      points.push(address);
+    }
+  }
+
+  if(dropoff){
+    points.push(dropoff);
+  }
+
+  return points;
+}
+
+async function ensureBrokerRouteSnapshot(trip){
+
+  if(!trip){
+    return null;
+  }
+
+  const currentMiles =
+    brokerPricingMiles(trip);
+
+  const currentMinutes =
+    brokerPricingMinutes(trip);
+
+  /*
+    Keep an already locked valid route.
+    Shared Engine already stores its route during grouping.
+  */
+  if(
+    currentMiles > 0 &&
+    currentMinutes > 0
+  ){
+    return {
+      miles:currentMiles,
+      minutes:currentMinutes,
+      distanceMeters:
+        Number(trip.distanceMeters || 0),
+      durationSeconds:
+        Number(trip.durationSeconds || 0),
+      reused:true
+    };
+  }
+
+  const points =
+    brokerRoutePoints(trip);
+
+  if(points.length < 2){
+    throw new Error(
+      "Broker route requires pickup and dropoff"
+    );
+  }
+
+  const route =
+    await sharedEngineGoogleRoutes
+      .calculateRoute(
+        points,
+        {
+          useCache:true
+        }
+      );
+
+  const miles =
+    Number(route?.miles || 0);
+
+  const minutes =
+    Number(route?.minutes || 0);
+
+  const distanceMeters =
+    Number(
+      route?.distanceMeters ||
+      (
+        miles > 0
+          ? miles * 1609.344
+          : 0
+      )
+    );
+
+  const durationSeconds =
+    Number(
+      route?.durationSeconds ||
+      (
+        minutes > 0
+          ? minutes * 60
+          : 0
+      )
+    );
+
+  if(
+    !Number.isFinite(miles) ||
+    miles <= 0
+  ){
+    throw new Error(
+      "Broker route miles could not be calculated"
+    );
+  }
+
+  trip.miles =
+    Number(miles.toFixed(2));
+
+  trip.distanceMeters =
+    Number(
+      Number(distanceMeters || 0)
+        .toFixed(2)
+    );
+
+  trip.estimatedMinutes =
+    Number(
+      Number(minutes || 0)
+        .toFixed(2)
+    );
+
+  trip.durationSeconds =
+    Number(
+      Number(durationSeconds || 0)
+        .toFixed(2)
+    );
+
+  trip.routePoints =
+    points;
+
+  if(route?.polyline){
+    trip.overviewPolyline =
+      route.polyline;
+
+    if(trip.isShared === true){
+      trip.sharedRoutePolyline =
+        route.polyline;
+    }
+  }
+
+  /*
+    Preserve the normalized route result so later pages can reuse it
+    without calculating a different distance.
+  */
+  trip.googleRoute = {
+    ...(trip.googleRoute &&
+       typeof trip.googleRoute === "object"
+        ? trip.googleRoute
+        : {}),
+    miles:trip.miles,
+    distanceMeters:trip.distanceMeters,
+    estimatedMinutes:trip.estimatedMinutes,
+    durationSeconds:trip.durationSeconds,
+    overviewPolyline:
+      route?.polyline ||
+      trip?.googleRoute?.overviewPolyline ||
+      ""
+  };
+
+  if(trip.isShared === true){
+    trip.sharedRouteMiles =
+      trip.miles;
+
+    trip.sharedRouteMinutes =
+      trip.estimatedMinutes;
+  }
+
+  return {
+    miles:trip.miles,
+    minutes:trip.estimatedMinutes,
+    distanceMeters:trip.distanceMeters,
+    durationSeconds:trip.durationSeconds,
+    reused:false
+  };
+}
+
+
+/* =========================
    BROKER PRICING SNAPSHOT
    Price is locked when Broker Review confirms the trip.
 ========================= */
@@ -1900,6 +2127,36 @@ router.post(
                   trip.isShared === true
               }
             );
+
+            /*
+              ROUTE LOCK
+
+              Individual Broker Trips are created before miles are known.
+              Calculate and freeze the Google road route now, before pricing.
+
+              Shared Trips normally already carry Shared Engine miles; when
+              they do, ensureBrokerRouteSnapshot reuses them.
+            */
+            try{
+
+              await ensureBrokerRouteSnapshot(
+                trip
+              );
+
+            }catch(routeErr){
+
+              console.log(
+                "BROKER ROUTE CONFIRM ERROR:",
+                trip.tripNumber,
+                routeErr?.message ||
+                routeErr
+              );
+
+              /*
+                Route failure must not block Dispatch.
+                Pricing may still use a fixed base/shared/hourly price.
+              */
+            }
 
             /*
               BROKER PRICE LOCK + DISPATCH RELEASE
