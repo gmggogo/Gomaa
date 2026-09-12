@@ -41,6 +41,74 @@ server/public/admin/js/broker-pricing.js
     editingServiceKey:""
   };
 
+  function ensureStatusStyles(){
+
+    if(
+      document.getElementById(
+        "brokerPricingStatusStyles"
+      )
+    ){
+      return;
+    }
+
+    const style =
+      document.createElement(
+        "style"
+      );
+
+    style.id =
+      "brokerPricingStatusStyles";
+
+    style.textContent = `
+      .broker-status-select{
+        font-weight:900 !important;
+        border-width:2px !important;
+      }
+
+      .broker-status-enabled{
+        background:#dcfce7 !important;
+        border-color:#16a34a !important;
+        color:#166534 !important;
+      }
+
+      .broker-status-disabled{
+        background:#fee2e2 !important;
+        border-color:#dc2626 !important;
+        color:#991b1b !important;
+      }
+
+      .shared-stop-contract{
+        grid-column:1 / -1;
+        border:2px solid #cbd5e1;
+        border-radius:12px;
+        padding:12px;
+        background:#f8fafc;
+      }
+
+      .shared-stop-contract.enabled{
+        border-color:#16a34a;
+        background:#f0fdf4;
+      }
+
+      .shared-stop-contract.disabled{
+        border-color:#dc2626;
+        background:#fef2f2;
+      }
+
+      .shared-stop-note{
+        margin-top:7px;
+        font-size:11px;
+        font-weight:800;
+        line-height:1.4;
+        color:#475569;
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
   const $ =
     id=>
       document.getElementById(id);
@@ -312,11 +380,30 @@ server/public/admin/js/broker-pricing.js
     disabled
   ){
 
+    const booleanStatusField =
+      [
+        "enabled",
+        "cancelEnabled",
+        "addStopEnabled",
+        "addStopCustomTimeEnabled",
+        "sharedStopChargeEnabled"
+      ].includes(field);
+
+    const statusClass =
+      booleanStatusField
+        ? (
+            bool(value)
+              ? "broker-status-select broker-status-enabled"
+              : "broker-status-select broker-status-disabled"
+          )
+        : "";
+
     return `
       <div class="field">
         <label>${esc(label)}</label>
 
         <select
+          class="${statusClass}"
           ${disabled ? "disabled" : ""}
           data-field="${esc(field)}"
           data-index="${idx}"
@@ -430,6 +517,11 @@ server/public/admin/js/broker-pricing.js
           <span>Service Access</span>
 
           <select
+            class="broker-status-select ${
+              service.enabled === true
+                ? "broker-status-enabled"
+                : "broker-status-disabled"
+            }"
             data-field="enabled"
             data-index="${idx}"
             ${locked || !state.draftActive ? "disabled" : ""}
@@ -578,8 +670,36 @@ server/public/admin/js/broker-pricing.js
           ${
             shared
               ? `
-                  <div class="shared-lock">
-                    Add Stop is disabled for Shared service.
+                  <div class="shared-stop-contract ${
+                    service.sharedStopChargeEnabled === true
+                      ? "enabled"
+                      : "disabled"
+                  }">
+                    ${selectInput(
+                      idx,
+                      "sharedStopChargeEnabled",
+                      "Shared Stop Charges",
+                      String(
+                        service.sharedStopChargeEnabled === true
+                      ),
+                      [
+                        {
+                          value:"true",
+                          label:"ENABLED"
+                        },
+                        {
+                          value:"false",
+                          label:"DISABLED"
+                        }
+                      ],
+                      locked ||
+                      !state.draftActive
+                    )}
+
+                    <div class="shared-stop-note">
+                      ENABLED: charge the broker Stop Fee only for intermediate shared stops while that rider is onboard.
+                      DISABLED: shared intermediate stops are not billed. Extra shared-route miles are never billed to the rider.
+                    </div>
                   </div>
                 `
               : `
@@ -802,7 +922,8 @@ server/public/admin/js/broker-pricing.js
       "enabled",
       "cancelEnabled",
       "addStopEnabled",
-      "addStopCustomTimeEnabled"
+      "addStopCustomTimeEnabled",
+      "sharedStopChargeEnabled"
     ].includes(field)){
 
       service[field] =
@@ -929,6 +1050,48 @@ server/public/admin/js/broker-pricing.js
                 input.dataset.field,
                 input.value
               );
+
+              if(
+                [
+                  "enabled",
+                  "cancelEnabled",
+                  "addStopEnabled",
+                  "addStopCustomTimeEnabled",
+                  "sharedStopChargeEnabled"
+                ].includes(
+                  input.dataset.field
+                )
+              ){
+                input.classList.add(
+                  "broker-status-select"
+                );
+
+                input.classList.toggle(
+                  "broker-status-enabled",
+                  bool(input.value)
+                );
+
+                input.classList.toggle(
+                  "broker-status-disabled",
+                  !bool(input.value)
+                );
+
+                const contract =
+                  input.closest(
+                    ".shared-stop-contract"
+                  );
+
+                if(contract){
+                  contract.classList.toggle(
+                    "enabled",
+                    bool(input.value)
+                  );
+                  contract.classList.toggle(
+                    "disabled",
+                    !bool(input.value)
+                  );
+                }
+              }
             }
           );
         }
@@ -990,6 +1153,8 @@ server/public/admin/js/broker-pricing.js
   }
 
   async function load(){
+
+    ensureStatusStyles();
 
     if(!token){
       window.location.href =

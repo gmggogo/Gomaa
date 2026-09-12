@@ -121,14 +121,41 @@ async function resolveBrokerPricing({
     );
   }
 
+  const rawFilter = {
+    tenantId:
+      mongoose.Types.ObjectId.isValid(
+        String(tenantId)
+      )
+        ? new mongoose.Types.ObjectId(
+            String(tenantId)
+          )
+        : tenantId,
+    active:true,
+    $or:or.map(condition=>{
+
+      if(
+        condition.brokerId &&
+        mongoose.Types.ObjectId.isValid(
+          String(condition.brokerId)
+        )
+      ){
+        return {
+          brokerId:
+            new mongoose.Types.ObjectId(
+              String(condition.brokerId)
+            )
+        };
+      }
+
+      return condition;
+    })
+  };
+
   const pricing =
-    await BrokerPricing
-      .findOne({
-        tenantId,
-        active:true,
-        $or:or
-      })
-      .lean();
+    await BrokerPricing.collection
+      .findOne(
+        rawFilter
+      );
 
   if(!pricing){
     throw new Error(
@@ -181,7 +208,13 @@ async function resolveBrokerPricing({
     brokerPricing:pricing,
     service:{
       ...service,
-      serviceKey:key
+      serviceKey:key,
+      sharedStopChargeEnabled:
+        key === "SH"
+          ? pricing
+              .sharedStopChargeEnabled ===
+            true
+          : false
     }
   };
 }
@@ -303,49 +336,161 @@ function calculateHourlyPrice(
 function calculateSharedPrice(
   service,
   {
-    passengersCount=1,
-    miles=0,
-    stops=0
+    passengers=[],
+    passengersCount=1
   }={}
 ){
 
-  const passengers =
+  /*
+    BROKER SHARED PRICING
+
+    Financial distance is NEVER the full shared route distance.
+
+    Every passenger is priced from that passenger's own direct
+    Pickup -> Drop-off road distance.
+
+    Other riders' pickup/drop-off detours are operational route miles only
+    and are not billable mileage for this passenger.
+
+    Shared stop fees are broker-specific:
+    - OFF: no shared intermediate stop fee.
+    - ON : charge only the intermediate shared route points encountered
+           while that passenger is onboard.
+  */
+
+  const inputPassengers =
+    Array.isArray(passengers)
+      ? passengers
+      : [];
+
+  const count =
     Math.max(
       1,
+      inputPassengers.length ||
       Math.floor(
         num(passengersCount)
       )
     );
 
-  if(
-    num(service.sharedPrice) > 0
-  ){
-    return {
-      total:
-        money(
-          num(service.sharedPrice) *
-          passengers
-        ),
-      pricePerPassenger:
-        money(service.sharedPrice)
-    };
-  }
+  const sharedStopChargeEnabled =
+    service
+      ?.sharedStopChargeEnabled ===
+    true;
+
+  const fixedSharedPrice =
+    Math.max(
+      0,
+      num(service.sharedPrice)
+    );
+
+  const pricedPassengers =
+    Array.from(
+      {
+        length:count
+      },
+      (_,index)=>{
+
+        const passenger =
+          inputPassengers[index] ||
+          {};
+
+        const passengerMiles =
+          Math.max(
+            0,
+            num(
+              passenger.passengerMiles ??
+              passenger.directMiles ??
+              passenger.miles
+            )
+          );
+
+        const passengerStops =
+          sharedStopChargeEnabled
+            ? Math.max(
+                0,
+                Math.floor(
+                  num(
+                    passenger.sharedStopCount ??
+                    passenger.chargeableSharedStops ??
+                    0
+                  )
+                )
+              )
+            : 0;
+
+        let amount = 0;
+
+        if(fixedSharedPrice > 0){
+
+          amount =
+            fixedSharedPrice +
+            (
+              passengerStops *
+              num(service.stopFee)
+            );
+
+        }else{
+
+          const extraMiles =
+            Math.max(
+              0,
+              passengerMiles -
+              num(service.includedMiles)
+            );
+
+          amount =
+            num(service.baseFare) +
+            (
+              extraMiles *
+              num(service.perMile)
+            ) +
+            (
+              passengerStops *
+              num(service.stopFee)
+            );
+        }
+
+        return {
+          index,
+          passengerMiles:
+            money(passengerMiles),
+          sharedStopCount:
+            passengerStops,
+          baseFare:
+            money(
+              fixedSharedPrice > 0
+                ? fixedSharedPrice
+                : service.baseFare
+            ),
+          stopFee:
+            money(
+              passengerStops *
+              num(service.stopFee)
+            ),
+          total:
+            money(amount)
+        };
+      }
+    );
 
   const total =
-    calculateMileagePrice(
-      service,
-      {
-        miles,
-        stops
-      }
+    money(
+      pricedPassengers.reduce(
+        (sum,row)=>
+          sum + num(row.total),
+        0
+      )
     );
 
   return {
     total,
     pricePerPassenger:
       money(
-        total / passengers
-      )
+        total / count
+      ),
+    sharedStopChargeEnabled,
+    passengers:
+      pricedPassengers
   };
 }
 
@@ -387,6 +532,12 @@ async function calculateBrokerPrice(input={}){
 
     pricePerPassenger =
       shared.pricePerPassenger;
+
+    input.sharedPassengerPrices =
+      shared.passengers || [];
+
+    input.sharedStopChargeEnabled =
+      shared.sharedStopChargeEnabled === true;
 
   }else if(mode === "HOURLY"){
 
@@ -441,6 +592,14 @@ async function calculateBrokerPrice(input={}){
       ),
     total,
     pricePerPassenger,
+    sharedStopChargeEnabled:
+      input.sharedStopChargeEnabled === true,
+    passengerPrices:
+      Array.isArray(
+        input.sharedPassengerPrices
+      )
+        ? input.sharedPassengerPrices
+        : [],
     currency:"USD"
   };
 }

@@ -69,47 +69,6 @@ function safeArray(value){
     : [];
 }
 
-
-function boolFlag(value){
-  return (
-    value === true ||
-    String(value ?? "").toLowerCase() === "true" ||
-    String(value ?? "").toLowerCase() === "yes" ||
-    String(value ?? "").toLowerCase() === "1"
-  );
-}
-
-function passengerHasFinalConfirmation(passenger){
-  return (
-    boolFlag(passenger?.finalStatusConfirmed) ||
-    boolFlag(passenger?.dispatchFinalConfirmed) ||
-    !!passenger?.finalStatusConfirmedAt ||
-    !!passenger?.dispatchFinalConfirmedAt
-  );
-}
-
-function hasFinalConfirmation(trip){
-  if(!trip){
-    return false;
-  }
-
-  if(
-    boolFlag(trip.finalStatusConfirmed) ||
-    boolFlag(trip.dispatchFinalConfirmed) ||
-    boolFlag(trip.sharedFinalConfirmed) ||
-    boolFlag(trip.finalConfirmed) ||
-    !!trip.finalStatusConfirmedAt ||
-    !!trip.dispatchFinalConfirmedAt ||
-    !!trip.sharedFinalConfirmedAt ||
-    !!trip.finalConfirmedAt
-  ){
-    return true;
-  }
-
-  return safeArray(trip.passengers)
-    .some(passengerHasFinalConfirmation);
-}
-
 function normalizeServiceKey(value){
   const raw =
     upper(value)
@@ -928,22 +887,6 @@ async function buildItems(
   }
 
   /*
-    FINAL CONFIRMATION EXIT RULE
-
-    Once Dispatch Final Confirmation is completed, the trip no longer belongs
-    in Broker Review. This applies to every final result:
-    Completed / Cancelled / No Show / Not Completed.
-
-    Dispatch Review remains the post-confirmation destination.
-  */
-  const finalConfirmedDispatchIds =
-    new Set(
-      dispatchTrips
-        .filter(hasFinalConfirmation)
-        .map(trip=>toId(trip))
-    );
-
-  /*
     Shared groups have multiple TripSplitState rows pointing to one
     dispatchTripId. Aggregate them into one review card/row.
   */
@@ -958,10 +901,6 @@ async function buildItems(
       );
 
     if(!dispatchId){
-      continue;
-    }
-
-    if(finalConfirmedDispatchIds.has(dispatchId)){
       continue;
     }
 
@@ -1766,6 +1705,169 @@ function brokerPassengerCount(trip,externalTrips,shared){
   return 1;
 }
 
+function sharedIntermediateStopCount(passenger){
+
+  const pickupOrder =
+    Number(
+      passenger?.pickupOrder ||
+      0
+    );
+
+  const dropoffOrder =
+    Number(
+      passenger?.dropoffOrder ||
+      0
+    );
+
+  if(
+    !Number.isFinite(pickupOrder) ||
+    !Number.isFinite(dropoffOrder) ||
+    pickupOrder <= 0 ||
+    dropoffOrder <= pickupOrder
+  ){
+    return 0;
+  }
+
+  /*
+    Every route point strictly between this rider's pickup and drop-off
+    is an intermediate Shared stop for that rider.
+  */
+  return Math.max(
+    0,
+    Math.floor(
+      dropoffOrder -
+      pickupOrder -
+      1
+    )
+  );
+}
+
+async function prepareSharedPassengerPricingData(trip){
+
+  if(
+    !trip?.isShared ||
+    !Array.isArray(trip.passengers)
+  ){
+    return [];
+  }
+
+  const prepared = [];
+
+  for(
+    let index = 0;
+    index < trip.passengers.length;
+    index += 1
+  ){
+
+    const passenger =
+      trip.passengers[index];
+
+    const pickup =
+      clean(
+        passenger?.pickup
+      );
+
+    const dropoff =
+      clean(
+        passenger?.dropoff
+      );
+
+    if(!pickup || !dropoff){
+      throw new Error(
+        `Shared passenger ${index + 1} requires pickup and drop-off`
+      );
+    }
+
+    /*
+      IMPORTANT:
+      Pricing uses a direct road route for THIS passenger only.
+      It never uses the complete shared group route miles.
+    */
+    const route =
+      await sharedEngineGoogleRoutes
+        .calculateRoute(
+          [
+            pickup,
+            dropoff
+          ],
+          {
+            useCache:true
+          }
+        );
+
+    const passengerMiles =
+      Number(
+        route?.miles ||
+        0
+      );
+
+    const passengerMinutes =
+      Number(
+        route?.minutes ||
+        0
+      );
+
+    if(
+      !Number.isFinite(
+        passengerMiles
+      ) ||
+      passengerMiles <= 0
+    ){
+      throw new Error(
+        `Shared passenger ${index + 1} direct miles could not be calculated`
+      );
+    }
+
+    passenger.passengerMiles =
+      Number(
+        passengerMiles
+          .toFixed(2)
+      );
+
+    passenger.passengerMinutes =
+      Number(
+        passengerMinutes
+          .toFixed(2)
+      );
+
+    passenger.passengerDistanceMeters =
+      Number(
+        (
+          passengerMiles *
+          1609.344
+        ).toFixed(2)
+      );
+
+    passenger.passengerDurationSeconds =
+      Number(
+        (
+          passengerMinutes *
+          60
+        ).toFixed(2)
+      );
+
+    passenger.sharedStopCount =
+      sharedIntermediateStopCount(
+        passenger
+      );
+
+    prepared.push({
+      passengerId:
+        clean(
+          passenger?.passengerId
+        ),
+      passengerMiles:
+        passenger.passengerMiles,
+      passengerMinutes:
+        passenger.passengerMinutes,
+      sharedStopCount:
+        passenger.sharedStopCount
+    });
+  }
+
+  return prepared;
+}
+
 async function priceBrokerTripAtReviewConfirm({
   tenantId,
   trip,
@@ -1794,6 +1896,13 @@ async function priceBrokerTripAtReviewConfirm({
       shared
     );
 
+  const sharedPassengers =
+    shared
+      ? await prepareSharedPassengerPricingData(
+          trip
+        )
+      : [];
+
   const identity = {
     tenantId,
     brokerId:
@@ -1812,8 +1921,19 @@ async function priceBrokerTripAtReviewConfirm({
       finalService,
     miles,
     minutes,
-    stops,
-    passengersCount
+    /*
+      Shared pricing must never use group stops/miles as passenger charges.
+      The engine uses each passenger's passengerMiles and sharedStopCount.
+    */
+    stops:
+      shared
+        ? 0
+        : stops,
+    passengersCount,
+    passengers:
+      shared
+        ? sharedPassengers
+        : []
   };
 
   const result =
@@ -1867,17 +1987,45 @@ async function priceBrokerTripAtReviewConfirm({
   ){
 
     trip.passengers.forEach(
-      passenger=>{
+      (passenger,index)=>{
 
-        passenger.priceAmount =
+        const passengerPrice =
+          Array.isArray(
+            result.passengerPrices
+          )
+            ? result
+                .passengerPrices[
+                  index
+                ] || {}
+            : {};
+
+        const amount =
           Number(
-            result.pricePerPassenger ||
+            passengerPrice.total ||
             0
           );
 
+        passenger.priceAmount =
+          amount;
+
         passenger.finalPrice =
+          amount;
+
+        passenger.passengerMiles =
           Number(
-            result.pricePerPassenger ||
+            passengerPrice
+              .passengerMiles ??
+            passenger
+              .passengerMiles ??
+            0
+          );
+
+        passenger.sharedStopCount =
+          Number(
+            passengerPrice
+              .sharedStopCount ??
+            passenger
+              .sharedStopCount ??
             0
           );
 
@@ -1899,8 +2047,16 @@ async function priceBrokerTripAtReviewConfirm({
     service,
     miles,
     minutes,
-    stops,
-    passengersCount
+    stops:
+      shared
+        ? 0
+        : stops,
+    passengersCount,
+    sharedPassengers,
+    sharedStopChargeEnabled:
+      result
+        .sharedStopChargeEnabled ===
+      true
   };
 }
 

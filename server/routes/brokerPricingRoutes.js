@@ -244,6 +244,12 @@ function normalizeServiceInput(row={}){
             num(row.sharedPrice)
           )
         : 0,
+    sharedStopChargeEnabled:
+      shared
+        ? bool(
+            row.sharedStopChargeEnabled
+          )
+        : false,
     cancelEnabled:
       row.cancelEnabled === undefined
         ? true
@@ -403,14 +409,17 @@ router.get("/bootstrap",async(req,res)=>{
           })
           .lean(),
 
-        BrokerPricing
+        BrokerPricing.collection
           .find({
-            tenantId
+            tenantId:
+              new mongoose.Types.ObjectId(
+                tenantId
+              )
           })
           .sort({
             brokerName:1
           })
-          .lean()
+          .toArray()
       ]);
 
     if(!tenant){
@@ -452,7 +461,15 @@ router.get("/bootstrap",async(req,res)=>{
                 filterServicesByAllowed(
                   mergeServices(
                     row.services
-                  ),
+                  ).map(service=>(
+                    service.serviceKey === "SH"
+                      ? {
+                          ...service,
+                          sharedStopChargeEnabled:
+                            row.sharedStopChargeEnabled === true
+                        }
+                      : service
+                  )),
                   allowedServices
                 )
             }
@@ -617,9 +634,32 @@ router.patch("/:brokerId",async(req,res)=>{
         allowedServices
       );
 
+    const rawServices =
+      Array.isArray(
+        req.body?.services
+      )
+        ? req.body.services
+        : [];
+
+    const sharedInput =
+      rawServices.find(
+        service=>
+          normalizeServiceCode(
+            service?.serviceKey ||
+            service?.serviceName ||
+            service?.serviceSuffix
+          ) === "SH"
+      ) || {};
+
+    const sharedStopChargeEnabled =
+      bool(
+        sharedInput
+          .sharedStopChargeEnabled
+      );
+
     const services =
       mergeServices(
-        req.body?.services
+        rawServices
       ).filter(
         service=>
           allowedSet.has(
@@ -671,6 +711,32 @@ router.patch("/:brokerId",async(req,res)=>{
             setDefaultsOnInsert:true
           }
         );
+
+    /*
+      Broker-specific Shared Stop Charge switch.
+
+      Stored at the BrokerPricing document level so each broker can have
+      a different Shared-stop contract. Raw collection update keeps this
+      compatible with older BrokerPricing schemas.
+    */
+    await BrokerPricing.collection.updateOne(
+      {
+        _id:pricing._id
+      },
+      {
+        $set:{
+          sharedStopChargeEnabled
+        }
+      }
+    );
+
+    pricing.set(
+      "sharedStopChargeEnabled",
+      sharedStopChargeEnabled,
+      {
+        strict:false
+      }
+    );
 
     return res.json({
       success:true,
