@@ -2188,11 +2188,16 @@ function automaticAlternativeServices(){
 
 function automaticServiceOptionHtml(selectedCode=""){
   const services = automaticAlternativeServices();
+
+  const firstOption = selectedCode
+    ? `<option value="">Change Service...</option>`
+    : `<option value="" selected>Change Service...</option>`;
+
   if(!services.length){
-    return `<option value="">No alternate service</option>`;
+    return `<option value="" selected>No alternate service</option>`;
   }
 
-  return services.map(service=>{
+  return firstOption + services.map(service=>{
     const code = resolveServiceCode(service);
     const name = serviceDisplayName(service,code);
     const selected = code === selectedCode ? " selected" : "";
@@ -2280,11 +2285,32 @@ function bindUnmatchedAutomaticActions(){
     };
   });
 
+  automaticSharedList.querySelectorAll("[data-service-select]").forEach(select=>{
+    const id = select.getAttribute("data-service-select");
+    const submitButton = automaticSharedList.querySelector(`[data-submit-unmatched="${CSS.escape(id)}"]`);
+
+    const syncSubmitState = ()=>{
+      if(submitButton){
+        submitButton.disabled = !normalizeText(select.value);
+      }
+    };
+
+    syncSubmitState();
+    select.addEventListener("change",syncSubmitState);
+  });
+
   automaticSharedList.querySelectorAll("[data-submit-unmatched]").forEach(button=>{
     button.onclick = async ()=>{
       const id = button.getAttribute("data-submit-unmatched");
       const select = automaticSharedList.querySelector(`[data-service-select="${CSS.escape(id)}"]`);
-      await submitUnmatchedAutomaticCandidate(id,normalizeText(select?.value));
+      const serviceCode = normalizeText(select?.value);
+
+      if(!serviceCode){
+        showAlert("Change the service before submitting this unmatched trip");
+        return;
+      }
+
+      await submitUnmatchedAutomaticCandidate(id,serviceCode);
     };
   });
 }
@@ -2397,19 +2423,20 @@ function renderAutomaticSharedList(){
     const serviceOptions = automaticServiceOptionHtml();
     return `
       <div class="auto-share-row ${status.rowClass}">
-        <div class="auto-share-cell">${index + 1}</div>
-        <div class="auto-share-cell">${safeHtml(item.clientName)}</div>
-        <div class="auto-share-cell">${safeHtml(item.clientPhone)}</div>
-        <div class="auto-share-cell">${safeHtml(item.pickup)}</div>
-        <div class="auto-share-cell">${safeHtml(item.dropoff)}</div>
-        <div class="auto-share-cell">${safeHtml(item.tripDate)}</div>
-        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.tripTime || item.pickupTime))}</div>
-        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.appointmentTime))}</div>
-        <div class="auto-share-cell">${safeHtml(formatDisplayTime(item.returnTime))}</div>
-        <div class="auto-share-cell">${safeHtml(item.tripLeg || "OUTBOUND")}</div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${index + 1}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientName)}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientPhone)}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.pickup)}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.dropoff)}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripDate)}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.tripTime || item.pickupTime))}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.appointmentTime))}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.returnTime))}</div></div>
+        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripLeg || "OUTBOUND")}</div></div>
         <div class="auto-share-cell">
           <span class="auto-share-status-badge ${status.badgeClass}">${safeHtml(status.badgeText)}</span>
           <div style="margin-top:5px;">${safeHtml(status.noteText)}</div>
+          ${isUnmatched ? `<div class="auto-share-unmatched-guidance">Change pickup time and try Match again, or change the service and Submit Trip.</div>` : ""}
         </div>
         <div class="auto-share-cell">
           ${isUnmatched ? `
@@ -2418,7 +2445,7 @@ function renderAutomaticSharedList(){
               <input class="auto-share-inline-time" data-time-input="${safeHtml(item.id)}" type="time" value="${safeHtml(item.tripTime || item.pickupTime || "")}" style="display:none;">
               <button class="btn-blue auto-share-action-btn" type="button" data-save-time="${safeHtml(item.id)}" style="display:none;">Retry Match</button>
               <select class="auto-share-inline-service" data-service-select="${safeHtml(item.id)}">${serviceOptions}</select>
-              <button class="btn-green auto-share-action-btn" type="button" data-submit-unmatched="${safeHtml(item.id)}">Submit Trip</button>
+              <button class="btn-green auto-share-action-btn" type="button" data-submit-unmatched="${safeHtml(item.id)}" disabled>Submit Trip</button>
               <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
             </div>
           ` : `
@@ -2716,15 +2743,15 @@ function renderAutomaticSharedResult(plan){
       const status = appointmentStatusText(trip);
       return `
         <div class="auto-share-group-grid body">
-          <div>${memberIndex + 1}</div>
-          <div>${safeHtml(trip.clientName || trip.passengerName || trip.name || "Passenger")}</div>
-          <div>${safeHtml(trip.pickup || "--")}</div>
-          <div>${safeHtml(trip.dropoff || "--")}</div>
-          <div>${safeHtml(trip.tripDate || group.tripDate || "--")}</div>
-          <div>${safeHtml(formatDisplayTime(trip.pickupTime || trip.tripTime || group.calculatedFirstPickupTime || ""))}</div>
-          <div>${safeHtml(formatDisplayTime(trip.appointmentTime))}</div>
-          <div>${safeHtml(trip.tripLeg || group.tripLeg || "OUTBOUND")}</div>
-          <div class="${safeHtml(status.className)}">${safeHtml(status.text)}</div>
+          <div><div class="auto-share-data-box">${memberIndex + 1}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(trip.clientName || trip.passengerName || trip.name || "Passenger")}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(trip.pickup || "--")}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(trip.dropoff || "--")}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(trip.tripDate || group.tripDate || "--")}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(formatDisplayTime(trip.pickupTime || trip.tripTime || group.calculatedFirstPickupTime || ""))}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(formatDisplayTime(trip.appointmentTime))}</div></div>
+          <div><div class="auto-share-data-box">${safeHtml(trip.tripLeg || group.tripLeg || "OUTBOUND")}</div></div>
+          <div class="${safeHtml(status.className)}"><div class="auto-share-data-box">${safeHtml(status.text)}</div></div>
         </div>
       `;
     }).join("");

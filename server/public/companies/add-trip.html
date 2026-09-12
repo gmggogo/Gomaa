@@ -393,11 +393,16 @@ button:hover{
 }
 
 .auto-share-toolbar{
+  display:block;
+  margin-bottom:14px;
+}
+
+.auto-share-build-row{
   display:flex;
-  justify-content:space-between;
   align-items:center;
+  justify-content:space-between;
   gap:12px;
-  margin-bottom:12px;
+  margin-bottom:10px;
   flex-wrap:wrap;
 }
 
@@ -407,56 +412,121 @@ button:hover{
   color:#475569;
 }
 
-.auto-share-toolbar-left{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
 .auto-share-counters{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  padding:12px;
+  border:1px solid #7dd3fc;
+  border-radius:14px;
+  background:linear-gradient(135deg,#e0f2fe,#f0f9ff);
+  box-shadow:0 8px 22px rgba(14,165,233,.10);
 }
 
 .auto-share-counter{
-  min-width:112px;
-  padding:8px 11px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  background:#f8fafc;
+  min-height:58px;
+  padding:10px 14px;
+  border:1px solid #bae6fd;
+  border-radius:12px;
+  background:#ffffff;
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
+  box-shadow:0 4px 12px rgba(14,165,233,.08);
 }
 
 .auto-share-counter span{
-  font-size:10px;
+  font-size:11px;
   font-weight:900;
-  color:#475569;
+  color:#0369a1;
   text-transform:uppercase;
+  letter-spacing:.3px;
 }
 
 .auto-share-counter strong{
-  font-size:16px;
-  color:#0f172a;
+  font-size:20px;
+  color:#0c4a6e;
+}
+
+.auto-share-result-title-wrap{
+  display:flex;
+  justify-content:center;
+  margin-bottom:14px;
+}
+
+.auto-share-result-title{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:250px;
+  padding:11px 24px;
+  border-radius:999px;
+  border:1px solid #7dd3fc;
+  background:linear-gradient(135deg,#0284c7,#38bdf8);
+  color:#ffffff;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.2px;
+  box-shadow:0 8px 18px rgba(2,132,199,.18);
 }
 
 .auto-share-unmatched-actions{
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:7px;
   flex-wrap:wrap;
 }
 
 .auto-share-action-btn{
-  padding:7px 9px;
-  border-radius:8px;
+  min-height:34px;
+  padding:7px 11px;
+  border-radius:9px;
   font-size:10px;
   font-weight:900;
   width:auto;
+  box-shadow:0 3px 8px rgba(15,23,42,.10);
+}
+
+.auto-share-action-btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  box-shadow:none;
+  transform:none;
+}
+
+.auto-share-data-box{
+  min-height:36px;
+  padding:7px 8px;
+  border:1px solid #dbeafe;
+  border-radius:9px;
+  background:#ffffff;
+  display:flex;
+  align-items:center;
+  overflow-wrap:anywhere;
+}
+
+.auto-share-row.unmatched .auto-share-data-box{
+  border-color:#fed7aa;
+  background:#fffaf5;
+}
+
+.auto-share-row.matched .auto-share-data-box{
+  border-color:#bbf7d0;
+  background:#fafffb;
+}
+
+.auto-share-unmatched-guidance{
+  margin-top:7px;
+  padding:7px 9px;
+  border-radius:8px;
+  background:#fff7ed;
+  border:1px solid #fdba74;
+  color:#9a3412;
+  font-size:10px;
+  font-weight:900;
+  line-height:1.35;
 }
 
 .auto-share-inline-time,
@@ -681,11 +751,15 @@ button:hover{
 }
 
 @media(max-width:768px){
-  .auto-share-toolbar,
+  .auto-share-build-row,
   .auto-share-group-header,
   .auto-share-group-actions{
     flex-direction:column;
     align-items:stretch;
+  }
+
+  .auto-share-counters{
+    grid-template-columns:1fr;
   }
 }
 
@@ -1177,18 +1251,19 @@ button:hover{
 
 <section>
   <div class="auto-share-toolbar">
-    <div class="auto-share-toolbar-left">
+    <div class="auto-share-build-row">
       <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
         Build Shared Groups
       </button>
-      <div id="automaticSharedCounters" class="auto-share-counters">
-        <div class="auto-share-counter"><span>Groups</span><strong>0</strong></div>
-        <div class="auto-share-counter"><span>Matched Clients</span><strong>0</strong></div>
-        <div class="auto-share-counter"><span>Not Matched</span><strong>0</strong></div>
+      <div class="auto-share-toolbar-note">
+        Build first, then review each matched group and submit it separately.
       </div>
     </div>
-    <div class="auto-share-toolbar-note">
-      Build first, then review each matched group and submit it separately.
+
+    <div id="automaticSharedCounters" class="auto-share-counters">
+      <div class="auto-share-counter"><span>Groups</span><strong>0</strong></div>
+      <div class="auto-share-counter"><span>Matched Clients</span><strong>0</strong></div>
+      <div class="auto-share-counter"><span>Not Matched</span><strong>0</strong></div>
     </div>
   </div>
 
@@ -1199,7 +1274,9 @@ button:hover{
 </section>
 
 <section>
-  <h3>Shared Engine Result</h3>
+  <div class="auto-share-result-title-wrap">
+    <div class="auto-share-result-title">Shared Engine Result</div>
+  </div>
   <div class="auto-share-result-wrap">
     <div id="automaticSharedResult" class="auto-share-result"></div>
   </div>
