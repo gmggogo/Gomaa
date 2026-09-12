@@ -151,6 +151,62 @@ server/public/admin/js/broker-review.js
     );
   }
 
+  function normalizedTripStatus(item){
+
+    return clean(
+      item?.trip?.status ||
+      item?.trip?.dispatchStatus ||
+      ""
+    )
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+
+  function isFinalClosed(item){
+
+    const values = [
+      item?.trip?.status,
+      item?.trip?.dispatchStatus,
+      item?.trip?.finalStatus
+    ]
+      .map(value=>
+        clean(value)
+          .toUpperCase()
+          .replace(/[_-]+/g," ")
+          .replace(/\s+/g," ")
+          .trim()
+      )
+      .filter(Boolean);
+
+    return values.some(status=>
+      [
+        "COMPLETED",
+        "CANCELLED",
+        "CANCELED",
+        "NO SHOW",
+        "NOT COMPLETED",
+        "MIXED CLOSED"
+      ].includes(status)
+    );
+  }
+
+  function isInProgress(item){
+
+    const status =
+      normalizedTripStatus(
+        item
+      );
+
+    return [
+      "ON TRIP",
+      "IN PROGRESS",
+      "PICKED UP",
+      "PICKEDUP"
+    ].includes(status);
+  }
+
   function visibleItems(){
     const wanted =
       state.activeDay === "TODAY"
@@ -159,7 +215,8 @@ server/public/admin/js/broker-review.js
 
     return state.items.filter(
       item=>
-        itemDate(item) === wanted
+        itemDate(item) === wanted &&
+        !isFinalClosed(item)
     );
   }
 
@@ -195,16 +252,25 @@ server/public/admin/js/broker-review.js
   }
 
   function statusText(item){
+
+    if(
+      isInProgress(
+        item
+      )
+    ){
+      return "IN PROGRESS";
+    }
+
     if(
       item.reviewConfirmed === true
     ){
       return (
         clean(
-          item?.trip
-            ?.dispatchStatus
+          item?.trip?.status
         ) ||
         clean(
-          item?.trip?.status
+          item?.trip
+            ?.dispatchStatus
         ) ||
         "CONFIRMED"
       );
@@ -325,7 +391,11 @@ server/public/admin/js/broker-review.js
 
   function statsForDate(date){
     const list =
-      state.items.filter(item=>itemDate(item) === date);
+      state.items.filter(
+        item=>
+          itemDate(item) === date &&
+          !isFinalClosed(item)
+      );
 
     const shared =
       list.filter(item=>item.processingMode === "SHARED");
@@ -446,7 +516,18 @@ server/public/admin/js/broker-review.js
         return `
           <tr
             data-id="${esc(item.id)}"
-            class="${released ? "confirmed-row" : ""}"
+            class="${
+              [
+                released
+                  ? "confirmed-row"
+                  : "",
+                isInProgress(item)
+                  ? "in-progress-row"
+                  : ""
+              ]
+                .filter(Boolean)
+                .join(" ")
+            }"
           >
             <td>
               <input
@@ -485,7 +566,7 @@ server/public/admin/js/broker-review.js
             <td>${esc(trip.vehicleNumber || "-")}</td>
 
             <td>
-              <span class="status-badge">${esc(status)}</span>
+              <span class="status-badge ${isInProgress(item) ? "in-progress" : ""}">${esc(status)}</span>
             </td>
 
             <td>
@@ -1025,6 +1106,142 @@ This action cannot be undone.`
     }
   }
 
+  function setupBrokerReviewToolbar(){
+
+    const toolbar =
+      document.querySelector(
+        ".review-toolbar"
+      );
+
+    const left =
+      document.querySelector(
+        ".toolbar-left"
+      );
+
+    const right =
+      document.querySelector(
+        ".toolbar-right"
+      ) ||
+      toolbar?.querySelector(
+        ":scope > div:not(.toolbar-left)"
+      );
+
+    const selectBtn =
+      $("selectAllBtn");
+
+    const returnBtn =
+      $("returnToTripSplitBtn");
+
+    const confirmBtn =
+      $("confirmSelectedBtn");
+
+    if(
+      left &&
+      selectBtn &&
+      returnBtn
+    ){
+      /*
+        Left side:
+        Select All -> Return Selected to Trip Split
+      */
+      selectBtn.insertAdjacentElement(
+        "afterend",
+        returnBtn
+      );
+    }
+
+    if(
+      right &&
+      confirmBtn
+    ){
+      /*
+        Right side:
+        Confirm Selected
+      */
+      right.appendChild(
+        confirmBtn
+      );
+    }
+
+    const info =
+      right?.querySelector(
+        "strong"
+      );
+
+    if(info){
+      info.textContent =
+        "Active trips remain visible here until they reach a final status.";
+    }
+
+    if(
+      !document.getElementById(
+        "brokerReviewToolbarFixStyles"
+      )
+    ){
+      const style =
+        document.createElement(
+          "style"
+        );
+
+      style.id =
+        "brokerReviewToolbarFixStyles";
+
+      style.textContent = `
+        .review-toolbar{
+          display:flex !important;
+          align-items:center !important;
+          justify-content:space-between !important;
+          gap:12px !important;
+        }
+
+        .review-toolbar .toolbar-left{
+          display:flex !important;
+          align-items:center !important;
+          justify-content:flex-start !important;
+          gap:8px !important;
+          flex-wrap:wrap !important;
+        }
+
+        .review-toolbar .toolbar-right{
+          margin-left:auto !important;
+          display:flex !important;
+          align-items:center !important;
+          justify-content:flex-end !important;
+          gap:10px !important;
+          flex-wrap:wrap !important;
+        }
+
+        .review-toolbar #confirmSelectedBtn{
+          margin-left:auto !important;
+        }
+
+        .status-badge.in-progress{
+          font-weight:900;
+        }
+
+        @media(max-width:768px){
+          .review-toolbar{
+            align-items:stretch !important;
+            flex-direction:column !important;
+          }
+
+          .review-toolbar .toolbar-left,
+          .review-toolbar .toolbar-right{
+            width:100% !important;
+          }
+
+          .review-toolbar .toolbar-right{
+            justify-content:flex-end !important;
+          }
+        }
+      `;
+
+      document.head.appendChild(
+        style
+      );
+    }
+  }
+
   function bind(){
 
     $("todayTab")
@@ -1085,6 +1302,7 @@ This action cannot be undone.`
   document.addEventListener(
     "DOMContentLoaded",
     ()=>{
+      setupBrokerReviewToolbar();
       bind();
       load();
 

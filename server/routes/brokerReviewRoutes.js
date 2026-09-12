@@ -433,6 +433,36 @@ function executionLocked(
 }
 
 
+function brokerReviewFinalClosed(
+  trip
+){
+
+  const values = [
+    trip?.status,
+    trip?.dispatchStatus,
+    trip?.finalStatus
+  ]
+    .map(value=>
+      upper(value)
+        .replace(/[_-]+/g," ")
+        .replace(/\s+/g," ")
+        .trim()
+    )
+    .filter(Boolean);
+
+  return values.some(status=>
+    [
+      "COMPLETED",
+      "CANCELLED",
+      "CANCELED",
+      "NO SHOW",
+      "NOT COMPLETED",
+      "MIXED CLOSED"
+    ].includes(status)
+  );
+}
+
+
 function toId(value){
   return String(
     value?._id ||
@@ -978,8 +1008,19 @@ async function buildItems(
     }
   }
 
+  /*
+    Broker Review lifecycle:
+    - Waiting / Scheduled / Assigned / Accepted stay visible.
+    - Once execution starts, the row stays visible with IN PROGRESS.
+    - Finalized trips leave Broker Review completely.
+  */
   const items =
-    [...itemMap.values()];
+    [...itemMap.values()]
+      .filter(item=>
+        !brokerReviewFinalClosed(
+          item?.trip
+        )
+      );
 
   items.sort((a,b)=>{
     const ad =
