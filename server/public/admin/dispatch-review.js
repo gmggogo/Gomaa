@@ -12,6 +12,7 @@
 const API_URL = "/api/dispatch-review";
 const SERVICES_URL = "/api/services/admin";
 const USERS_URL = "/api/users";
+const BROKER_CAPABILITY_URL = "/api/shared-engine/settings";
 
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
@@ -34,6 +35,7 @@ let activeSource = "ALL";
 let activeFacility = "ALL";
 
 let refreshTimer = null;
+let brokerFeatureEnabled = false;
 
 const CLOSED_HOURS = 10;
 
@@ -1047,6 +1049,152 @@ function getCompanyDisplay(t){
   return getFacilityName(t) || "--";
 }
 
+function isBrokerTrip(t){
+  return (
+    normalizeText(t?.externalSource).toUpperCase() === "BROKER" ||
+    normalizeText(t?.sourceType).toUpperCase() === "BROKER" ||
+    normalizeText(t?.sharedSource).toUpperCase() === "BROKER" ||
+    Boolean(
+      normalizeText(
+        t?.brokerCode ||
+        t?.brokerName ||
+        t?.brokerTripId
+      )
+    )
+  );
+}
+
+function getBrokerDisplay(t){
+  const name = normalizeText(t?.brokerName);
+  const code = normalizeText(t?.brokerCode);
+
+  if(name && code){
+    return `${name} (${code})`;
+  }
+
+  return name || code || "--";
+}
+
+function getAccountDisplay(t){
+  return isBrokerTrip(t)
+    ? getBrokerDisplay(t)
+    : getCompanyDisplay(t);
+}
+
+function getBrokerTripId(t){
+  return normalizeText(
+    t?.brokerTripId ||
+    t?.externalTripId ||
+    ""
+  ) || "--";
+}
+
+function getAppointmentTime(t){
+  return normalizeText(t?.appointmentTime || "") || "--";
+}
+
+function getReturnTime(t){
+  return normalizeText(t?.returnTime || "") || "--";
+}
+
+function getPassengerTripNumber(p,t){
+  return normalizeText(
+    p?.tripNumber ||
+    p?.ghExternalTripNumber ||
+    p?.externalTripNumber ||
+    p?.externalTripId ||
+    getTripNumber(t)
+  ) || "--";
+}
+
+function getPassengerBrokerTripId(p,t){
+  return normalizeText(
+    p?.brokerTripId ||
+    p?.externalTripId ||
+    t?.brokerTripId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerBrokerDisplay(p,t){
+  return getBrokerDisplay({
+    brokerName:p?.brokerName || t?.brokerName,
+    brokerCode:p?.brokerCode || t?.brokerCode
+  });
+}
+
+function getPassengerTripDate(p,t){
+  return normalizeText(p?.tripDate || t?.tripDate || "") || "--";
+}
+
+function getPassengerTripTime(p,t){
+  return normalizeText(
+    p?.tripTime ||
+    p?.pickupTime ||
+    t?.tripTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerAppointmentTime(p){
+  return normalizeText(p?.appointmentTime || "") || "--";
+}
+
+function getPassengerReturnTime(p){
+  return normalizeText(p?.returnTime || "") || "--";
+}
+
+function getPassengerServiceDisplay(p,t){
+  return normalizeText(
+    p?.serviceName ||
+    p?.serviceTitle ||
+    p?.serviceKey ||
+    p?.serviceCode ||
+    t?.serviceName ||
+    t?.serviceKey ||
+    t?.serviceCode ||
+    "Shared"
+  ) || "--";
+}
+
+function getPassengerNotes(p){
+  return normalizeText(
+    p?.notes ||
+    p?.brokerNotes ||
+    ""
+  ) || "--";
+}
+
+function getPassengerMemberId(p){
+  return normalizeText(
+    p?.memberId ||
+    p?.medicaidId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerStops(p){
+  const arr =
+    getStops(p)
+      .map(stop=>stopText(stop))
+      .filter(Boolean);
+
+  if(!arr.length){
+    return "--";
+  }
+
+  return arr
+    .map((value,index)=>`${index + 1}) ${value}`)
+    .join(" | ");
+}
+
+function numberedPassengerValues(passengers,getter){
+  return passengers.map(
+    (passenger,index)=>
+      `${index + 1}. ${getter(passenger,index) || "--"}`
+  );
+}
+
 function getNotes(t){
   return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
 }
@@ -1362,6 +1510,10 @@ function tripMatchesService(t,code){
 
 function getSourceCode(t){
 
+  if(isBrokerTrip(t)){
+    return "BROKER";
+  }
+
   const raw = [
     t?.source,
     t?.from,
@@ -1413,8 +1565,11 @@ function getSourceCode(t){
 }
 
 function sourceHTML(t){
-
   const code = getSourceCode(t);
+
+  if(code === "BROKER"){
+    return `<span class="source-pill broker">Broker</span>`;
+  }
 
   if(code === "RV"){
     return `<span class="source-pill reserved">Reserved</span>`;
@@ -1430,6 +1585,7 @@ function sourceHTML(t){
 function sourceLabel(t){
   const code = getSourceCode(t);
 
+  if(code === "BROKER") return "Broker";
   if(code === "RV") return "Reserved";
   if(code === "FACILITY") return "Facility";
 
@@ -1781,6 +1937,62 @@ async function loadServices(){
   }
 }
 
+async function loadBrokerCapability(){
+  try{
+    const res = await fetch(
+      BROKER_CAPABILITY_URL,
+      {
+        cache:"no-store",
+        headers:
+          token
+            ? {
+                Authorization:"Bearer " + token
+              }
+            : {}
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed broker capability");
+    }
+
+    const data = await res.json();
+
+    brokerFeatureEnabled =
+      data?.capabilities
+        ?.brokerContractEnabled === true;
+
+  }catch(err){
+    brokerFeatureEnabled = false;
+  }
+
+  const sourceFilter =
+    document.getElementById("sourceFilter");
+
+  if(sourceFilter){
+    let option =
+      sourceFilter.querySelector(
+        'option[value="BROKER"]'
+      );
+
+    if(brokerFeatureEnabled && !option){
+      option = document.createElement("option");
+      option.value = "BROKER";
+      option.textContent = "Broker";
+      sourceFilter.appendChild(option);
+    }
+
+    if(!brokerFeatureEnabled && option){
+      if(sourceFilter.value === "BROKER"){
+        sourceFilter.value = "ALL";
+        activeSource = "ALL";
+      }
+
+      option.remove();
+    }
+  }
+}
+
 async function loadTrips(){
 
   try{
@@ -1935,6 +2147,8 @@ function searchableText(item){
     getSourceCode(first),
     sourceLabel(first),
     getFacilityName(first),
+    getBrokerDisplay(first),
+    first.brokerTripId,
     first.entryName,
     first.entryPhone,
     first.entryEmail,
@@ -1946,6 +2160,8 @@ function searchableText(item){
     first.dropoff,
     first.tripDate,
     first.tripTime,
+    first.appointmentTime,
+    first.returnTime,
     first.status,
     JSON.stringify(passengers)
   ].join(" ").toLowerCase();
@@ -1959,6 +2175,17 @@ function filterItems(items,options = {}){
     out = out.filter(item=>{
       const t = item.kind === "trip" ? item.trip : item.group[0];
       return getSourceCode(t) === "GQ";
+    });
+  }
+
+  if(activeSource === "BROKER"){
+    out = out.filter(item=>{
+      const t =
+        item.kind === "trip"
+          ? item.trip
+          : item.group[0];
+
+      return getSourceCode(t) === "BROKER";
     });
   }
 
@@ -2101,6 +2328,7 @@ function createStats(){
     facility:0,
     gq:0,
     reserved:0,
+    broker:0,
     shared:0
   };
 }
@@ -2133,7 +2361,9 @@ function countItem(stats,item){
 
   const src = getSourceCode(first);
 
-  if(src === "RV"){
+  if(src === "BROKER"){
+    stats.broker++;
+  }else if(src === "RV"){
     stats.reserved++;
   }else if(src === "FACILITY"){
     stats.facility++;
@@ -2212,6 +2442,11 @@ function renderStats(){
     <div class="stat-card facility"><div class="stat-number">${stats.facility}</div><div class="stat-label">Facilities</div></div>
     <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Individual</div></div>
     <div class="stat-card reserved"><div class="stat-number">${stats.reserved}</div><div class="stat-label">Reserved</div></div>
+    ${
+      brokerFeatureEnabled
+        ? `<div class="stat-card broker"><div class="stat-number">${stats.broker}</div><div class="stat-label">Broker</div></div>`
+        : ""
+    }
     <div class="stat-card shared"><div class="stat-number">${stats.shared}</div><div class="stat-label">Shared</div></div>
   `;
 }
@@ -2263,6 +2498,11 @@ function renderServiceCards(){
         <div class="service-line"><span>Individual</span><span>${c.gq}</span></div>
         <div class="service-line"><span>Facilities</span><span>${c.facility}</span></div>
         <div class="service-line"><span>Reserved</span><span>${c.reserved}</span></div>
+        ${
+          brokerFeatureEnabled
+            ? `<div class="service-line"><span>Broker</span><span>${c.broker}</span></div>`
+            : ""
+        }
         <div class="service-line"><span>Completed</span><span>${c.completed}</span></div>
         <div class="service-line"><span>Cancelled</span><span>${c.cancelled}</span></div>
         <div class="service-line"><span>No Show</span><span>${c.noshow}</span></div>
@@ -2294,43 +2534,97 @@ function viewLine(label,value){
   `;
 }
 
-function passengerDetailsText(item){
+function viewPassengerCard(passenger,index,trip){
+  const title =
+    `Passenger ${index + 1} — ` +
+    getPassengerName(passenger,trip);
 
-  if(item.kind !== "shared"){
+  return `
+    <section class="view-passenger-card">
+      <div class="view-passenger-title">
+        ${safe(title)}
+      </div>
 
-    const t = item.trip;
-
-    return [
-      `Name: ${t.clientName || t.name || "-"}`,
-      `Phone: ${t.clientPhone || t.phone || "-"}`,
-      `Email: ${getEmail(t,null)}`,
-      `Pickup: ${t.pickup || "-"}`,
-      `Dropoff: ${t.dropoff || "-"}`,
-      `Status: ${displayStatus(t.status,t)}`
-    ].join("\n");
-  }
-
-  const first = item.group[0] || {};
-  const passengers = getClosedPassengers(item.group);
-
-  return passengers.map((p,i)=>[
-    `${i+1}. ${getPassengerName(p,first)}`,
-    `Phone: ${getPassengerPhone(p,first)}`,
-    `Email: ${getEmail(first,p)}`,
-    `Pickup: ${getPickup(first,p)}`,
-    `Dropoff: ${getDropoff(first,p)}`,
-    `Status: ${displayStatus(p.status || first.status,first)}`
-  ].join("\n")).join("\n\n");
+      <div class="view-passenger-lines">
+        ${viewLine("Trip Number",getPassengerTripNumber(passenger,trip))}
+        ${viewLine("Broker",getPassengerBrokerDisplay(passenger,trip))}
+        ${viewLine("Broker Trip ID",getPassengerBrokerTripId(passenger,trip))}
+        ${viewLine("Member ID",getPassengerMemberId(passenger))}
+        ${viewLine("Passenger",getPassengerName(passenger,trip))}
+        ${viewLine("Phone",getPassengerPhone(passenger,trip))}
+        ${viewLine("Email",getEmail(trip,passenger))}
+        ${viewLine("Pickup",getPickup(trip,passenger))}
+        ${viewLine("Stops",getPassengerStops(passenger))}
+        ${viewLine("Dropoff",getDropoff(trip,passenger))}
+        ${viewLine("Trip Date",getPassengerTripDate(passenger,trip))}
+        ${viewLine("Trip Time",getPassengerTripTime(passenger,trip))}
+        ${viewLine("Appointment Time",getPassengerAppointmentTime(passenger))}
+        ${viewLine("Return Time",getPassengerReturnTime(passenger))}
+        ${viewLine("Service",getPassengerServiceDisplay(passenger,trip))}
+        ${viewLine("Passenger Status",displayStatus(passenger.status || trip.status,trip))}
+        ${viewLine("Notes",getPassengerNotes(passenger))}
+      </div>
+    </section>
+  `;
 }
 
 function openReviewView(key){
-
   const item = displayItems.find(x=>x.key === key);
   if(!item) return;
 
-  const t = item.kind === "trip" ? item.trip : item.group[0];
+  const t =
+    item.kind === "trip"
+      ? item.trip
+      : item.group[0];
 
   closeReviewView();
+
+  let bodyHtml = "";
+
+  if(item.kind === "shared"){
+    const passengers =
+      getClosedPassengers(item.group);
+
+    bodyHtml = `
+      ${viewLine("Source",sourceLabel(t))}
+      ${viewLine("Broker",isBrokerTrip(t) ? getBrokerDisplay(t) : "--")}
+      ${viewLine("Shared Group",t.groupId || t.sharedGroupId || getTripNumber(t))}
+      ${viewLine("Trip Status",getGroupStatus(item.group))}
+      ${viewLine("Passengers",String(passengers.length))}
+
+      <div class="view-passenger-list">
+        ${passengers.map(
+          (passenger,index)=>
+            viewPassengerCard(passenger,index,t)
+        ).join("")}
+      </div>
+    `;
+  }else{
+    bodyHtml = `
+      ${viewLine("Trip Number",getTripNumber(t))}
+      ${viewLine("Source",sourceLabel(t))}
+      ${viewLine("Facility / Broker",getAccountDisplay(t))}
+      ${viewLine("Broker Trip ID",getBrokerTripId(t))}
+      ${viewLine("Service",getServiceTitleByTrip(t))}
+      ${viewLine("Entry Name",t.entryName || "")}
+      ${viewLine("Entry Phone",t.entryPhone || "")}
+      ${viewLine("Passenger",t.clientName || t.name || "")}
+      ${viewLine("Phone",t.clientPhone || t.phone || "")}
+      ${viewLine("Client Email",getEmail(t,null))}
+      ${viewLine("Pickup",t.pickup || "")}
+      ${viewLine("Stops",stopsDisplay(t))}
+      ${viewLine("Dropoff",t.dropoff || "")}
+      ${viewLine("Trip Date",t.tripDate || "")}
+      ${viewLine("Trip Time",t.tripTime || "")}
+      ${viewLine("Appointment Time",getAppointmentTime(t))}
+      ${viewLine("Return Time",getReturnTime(t))}
+      ${viewLine("Trip Status",displayStatus(t.status,t))}
+      ${viewLine("Passenger Status",displayStatus(t.status,t))}
+      ${viewLine("Notes",getNotes(t))}
+      ${viewLine("Booked Date",getBookedDate(t))}
+      ${viewLine("Booked Time",getBookedTime(t))}
+    `;
+  }
 
   const overlay = document.createElement("div");
   overlay.id = "reviewViewOverlay";
@@ -2340,32 +2634,23 @@ function openReviewView(key){
     <div class="view-box">
       <div class="view-head">
         <div>Review Details</div>
-        <button class="view-close" type="button" onclick="closeReviewView()">×</button>
+        <button
+          class="view-close"
+          type="button"
+          onclick="closeReviewView()"
+        >×</button>
       </div>
 
       <div class="view-body">
-        ${viewLine("Trip Number",getTripNumber(t))}
-        ${viewLine("Source",sourceLabel(t))}
-        ${viewLine("Service",getServiceTitleByTrip(t))}
-        ${viewLine("Facility",getFacilityName(t))}
-        ${viewLine("Entry Name",t.entryName || "")}
-        ${viewLine("Entry Phone",t.entryPhone || "")}
-        ${viewLine("Client Email",getEmail(t,null))}
-        ${viewLine("Booked Date",getBookedDate(t))}
-        ${viewLine("Booked Time",getBookedTime(t))}
-        ${viewLine("Trip Date",t.tripDate || "")}
-        ${viewLine("Trip Time",t.tripTime || "")}
-        ${viewLine("Trip Status",item.kind === "shared" ? getGroupStatus(item.group) : displayStatus(t.status,t))}
-        ${viewLine("Passenger Status",item.kind === "shared" ? getPassengerStatusLines(item.group).join("\n") : displayStatus(t.status,t))}
-        ${viewLine("Passengers",passengerDetailsText(item))}
-        ${viewLine("Stops",stopsDisplay(t))}
-        ${viewLine("Notes",getNotes(t))}
+        ${bodyHtml}
       </div>
     </div>
   `;
 
   overlay.addEventListener("click",e=>{
-    if(e.target === overlay) closeReviewView();
+    if(e.target === overlay){
+      closeReviewView();
+    }
   });
 
   document.body.appendChild(overlay);
@@ -2388,7 +2673,9 @@ function rowClass(status,trip,itemKind){
 
   if(itemKind === "shared") out += "shared-row ";
 
-  if(src === "RV"){
+  if(src === "BROKER"){
+    out += "row-broker ";
+  }else if(src === "RV"){
     out += "row-reserved ";
   }else if(src === "FACILITY"){
     out += "row-facility ";
@@ -2449,7 +2736,8 @@ function render(){
       <tr>
         <th class="col-num">#</th>
         <th class="col-trip">Trip #</th>
-        <th class="col-company">Company</th>
+        <th class="col-company">Facility / Broker</th>
+        <th class="col-broker-trip">Broker Trip ID</th>
         <th class="wide-client">Client / Passengers</th>
         <th class="wide-phone">Phone</th>
         <th class="wide-address">Pickup</th>
@@ -2458,6 +2746,9 @@ function render(){
         <th class="wide-notes">Notes</th>
         <th class="col-date">Trip Date</th>
         <th class="col-time">Trip Time</th>
+        <th class="col-appointment">Appointment Time</th>
+        <th class="col-return">Return Time</th>
+        <th class="col-service">Service</th>
         <th class="wide-passenger-status">Passenger Status</th>
         <th class="col-status">Trip Status</th>
         <th class="col-eye">👁️</th>
@@ -2474,7 +2765,7 @@ function render(){
 
       const dateRow = document.createElement("tr");
       dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="14">Trip Date: ${safe(day)}</td>`;
+      dateRow.innerHTML = `<td colspan="18">Trip Date: ${safe(day)}</td>`;
       tbody.appendChild(dateRow);
 
       groups[day].forEach(item=>{
@@ -2493,59 +2784,37 @@ function render(){
 }
 
 function renderTripRow(item){
-
   const t = item.trip;
   const tr = document.createElement("tr");
 
-  tr.className = rowClass(t.status,t,"trip");
+  tr.className =
+    rowClass(t.status,t,"trip");
 
   tr.innerHTML = `
     <td class="col-num">${tripCounter++}</td>
-
-    <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
-    </td>
-
-    <td class="company-cell">
-      ${cellBox(getCompanyDisplay(t))}
-    </td>
-
-    <td class="wide-client">
-      ${cellBox(t.clientName || t.name || "--")}
-    </td>
-
-    <td class="wide-phone">
-      ${cellBox(t.clientPhone || t.phone || "--")}
-    </td>
-
-    <td class="wide-address">
-      ${cellBox(t.pickup || "--")}
-    </td>
-
-    <td class="wide-stops">
-      ${cellBox(stopItems(t))}
-    </td>
-
-    <td class="wide-address">
-      ${cellBox(t.dropoff || "--")}
-    </td>
-
-    <td class="wide-notes">
-      ${cellBox(getNotes(t) || "--")}
-    </td>
-
-    <td class="col-date">${safe(t.tripDate || "-")}</td>
-    <td class="col-time">${safe(t.tripTime || "-")}</td>
-   <td class="wide-passenger-status">
-      ${cellBox(displayStatus(t.status,t))}
-    </td>
-    <td class="col-status">
-      ${statusHTML(t.status,t)}
-    </td>
-
-
+    <td class="col-trip">${cellBox([getTripNumber(t)])}</td>
+    <td class="company-cell">${cellBox(getAccountDisplay(t))}</td>
+    <td class="col-broker-trip">${cellBox(getBrokerTripId(t))}</td>
+    <td class="wide-client">${cellBox(t.clientName || t.name || "--")}</td>
+    <td class="wide-phone">${cellBox(t.clientPhone || t.phone || "--")}</td>
+    <td class="wide-address">${cellBox(t.pickup || "--")}</td>
+    <td class="wide-stops">${cellBox(stopItems(t))}</td>
+    <td class="wide-address">${cellBox(t.dropoff || "--")}</td>
+    <td class="wide-notes">${cellBox(getNotes(t) || "--")}</td>
+    <td class="col-date">${cellBox(t.tripDate || "--")}</td>
+    <td class="col-time">${cellBox(t.tripTime || "--")}</td>
+    <td class="col-appointment">${cellBox(getAppointmentTime(t))}</td>
+    <td class="col-return">${cellBox(getReturnTime(t))}</td>
+    <td class="col-service">${cellBox(getServiceTitleByTrip(t))}</td>
+    <td class="wide-passenger-status">${cellBox(displayStatus(t.status,t))}</td>
+    <td class="col-status">${statusHTML(t.status,t)}</td>
     <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openReviewView('${safe(item.key)}')"
+      >👁️</button>
     </td>
   `;
 
@@ -2553,75 +2822,119 @@ function renderTripRow(item){
 }
 
 function renderSharedRow(item){
-
   const group = item.group;
   const first = group[0] || {};
   const passengers = getClosedPassengers(group);
   const groupStatus = getGroupStatus(group);
 
-  const names = passengers.map((p,i)=>
-    `${i+1}. ${getPassengerName(p,first) || "--"}`
+  const tripNumbers = numberedPassengerValues(
+    passengers,
+    p=>getPassengerTripNumber(p,first)
   );
 
-  const phones = passengers.map((p,i)=>
-    `${i+1}. ${getPassengerPhone(p,first) || "--"}`
+  const accounts = numberedPassengerValues(
+    passengers,
+    p=>
+      isBrokerTrip(first) || p?.brokerName || p?.brokerCode
+        ? getPassengerBrokerDisplay(p,first)
+        : getCompanyDisplay(first)
   );
 
-  const pickups = passengers.map((p,i)=>
-    `${i+1}. ${getPickup(first,p) || "--"}`
+  const brokerTripIds = numberedPassengerValues(
+    passengers,
+    p=>getPassengerBrokerTripId(p,first)
   );
 
-  const dropoffs = passengers.map((p,i)=>
-    `${i+1}. ${getDropoff(first,p) || "--"}`
+  const names = numberedPassengerValues(
+    passengers,
+    p=>getPassengerName(p,first)
   );
 
-  const passengerStatuses = passengers.map((p,i)=>
-    `${i+1}. ${displayStatus(p.status || first.status,first)}`
+  const phones = numberedPassengerValues(
+    passengers,
+    p=>getPassengerPhone(p,first)
+  );
+
+  const pickups = numberedPassengerValues(
+    passengers,
+    p=>getPickup(first,p)
+  );
+
+  const stops = numberedPassengerValues(
+    passengers,
+    p=>getPassengerStops(p)
+  );
+
+  const dropoffs = numberedPassengerValues(
+    passengers,
+    p=>getDropoff(first,p)
+  );
+
+  const notes = numberedPassengerValues(
+    passengers,
+    p=>getPassengerNotes(p)
+  );
+
+  const dates = numberedPassengerValues(
+    passengers,
+    p=>getPassengerTripDate(p,first)
+  );
+
+  const times = numberedPassengerValues(
+    passengers,
+    p=>getPassengerTripTime(p,first)
+  );
+
+  const appointments = numberedPassengerValues(
+    passengers,
+    p=>getPassengerAppointmentTime(p)
+  );
+
+  const returns = numberedPassengerValues(
+    passengers,
+    p=>getPassengerReturnTime(p)
+  );
+
+  const services = numberedPassengerValues(
+    passengers,
+    p=>getPassengerServiceDisplay(p,first)
+  );
+
+  const passengerStatuses = numberedPassengerValues(
+    passengers,
+    p=>displayStatus(p.status || first.status,first)
   );
 
   const tr = document.createElement("tr");
 
-  tr.className = rowClass(groupStatus,first,"shared");
+  tr.className =
+    rowClass(groupStatus,first,"shared");
 
   tr.innerHTML = `
     <td class="col-num">${tripCounter++}</td>
-
-    <td class="col-trip">
-      <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
-    </td>
-
-    <td class="company-cell">
-      ${cellBox(getCompanyDisplay(first))}
-    </td>
-
+    <td class="col-trip">${cellBox(tripNumbers)}</td>
+    <td class="company-cell">${cellBox(accounts)}</td>
+    <td class="col-broker-trip">${cellBox(brokerTripIds)}</td>
     <td class="wide-client">${cellBox(names)}</td>
     <td class="wide-phone">${cellBox(phones)}</td>
     <td class="wide-address">${cellBox(pickups)}</td>
-
-    <td class="wide-stops">
-      ${cellBox(stopItems(first))}
-    </td>
-
+    <td class="wide-stops">${cellBox(stops)}</td>
     <td class="wide-address">${cellBox(dropoffs)}</td>
-
-    <td class="wide-notes">
-      ${cellBox(getNotes(first) || "--")}
-    </td>
-
-    <td class="col-date">${safe(first.tripDate || "-")}</td>
-    <td class="col-time">${safe(first.tripTime || "-")}</td>
-
-  <td class="wide-passenger-status">
-      ${cellBox(passengerStatuses)}
-    </td>
-    <td class="col-status">
-      ${statusHTML(groupStatus,first)}
-    </td>
-
-  
-
+    <td class="wide-notes">${cellBox(notes)}</td>
+    <td class="col-date">${cellBox(dates)}</td>
+    <td class="col-time">${cellBox(times)}</td>
+    <td class="col-appointment">${cellBox(appointments)}</td>
+    <td class="col-return">${cellBox(returns)}</td>
+    <td class="col-service">${cellBox(services)}</td>
+    <td class="wide-passenger-status">${cellBox(passengerStatuses)}</td>
+    <td class="col-status">${statusHTML(groupStatus,first)}</td>
     <td class="col-eye">
-      <button class="eye-btn" type="button" title="View" onclick="openReviewView('${safe(item.key)}')">👁️</button>
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openReviewView('${safe(item.key)}')"
+      >👁️</button>
     </td>
   `;
 
@@ -2633,24 +2946,22 @@ function renderSharedRow(item){
 ================================ */
 
 function getExportRows(){
-
   const rows = [];
 
   displayItems.forEach(item=>{
-
     const first =
       item.kind === "trip"
         ? item.trip
         : item.group[0];
 
     if(item.kind === "trip"){
-
       const t = item.trip;
 
       rows.push({
         tripNumber:getTripNumber(t),
         source:sourceLabel(t),
-        facility:getFacilityName(t),
+        account:getAccountDisplay(t),
+        brokerTripId:getBrokerTripId(t),
         service:getServiceTitleByTrip(t),
         passenger:t.clientName || t.name || "",
         phone:t.clientPhone || t.phone || "",
@@ -2660,6 +2971,8 @@ function getExportRows(){
         notes:getNotes(t),
         tripDate:t.tripDate || "",
         tripTime:t.tripTime || "",
+        appointmentTime:getAppointmentTime(t) === "--" ? "" : getAppointmentTime(t),
+        returnTime:getReturnTime(t) === "--" ? "" : getReturnTime(t),
         tripStatus:displayStatus(t.status,t),
         passengerStatus:displayStatus(t.status,t),
         bookedDate:getBookedDate(t),
@@ -2669,31 +2982,34 @@ function getExportRows(){
       return;
     }
 
-    const passengers = getClosedPassengers(item.group);
+    const passengers =
+      getClosedPassengers(item.group);
 
-    passengers.forEach((p,index)=>{
-
+    passengers.forEach(p=>{
       rows.push({
-        tripNumber:index === 0 ? getTripNumber(first) : "",
-        source:index === 0 ? sourceLabel(first) : "",
-        facility:index === 0 ? getFacilityName(first) : "",
-        service:index === 0 ? getServiceTitleByTrip(first) : "",
+        tripNumber:getPassengerTripNumber(p,first),
+        source:sourceLabel(first),
+        account:isBrokerTrip(first)
+          ? getPassengerBrokerDisplay(p,first)
+          : getCompanyDisplay(first),
+        brokerTripId:getPassengerBrokerTripId(p,first),
+        service:getPassengerServiceDisplay(p,first),
         passenger:getPassengerName(p,first),
         phone:getPassengerPhone(p,first),
         pickup:getPickup(first,p),
-        stops:index === 0 ? (stopsDisplay(first) === "--" ? "" : stopsDisplay(first)) : "",
+        stops:getPassengerStops(p) === "--" ? "" : getPassengerStops(p),
         dropoff:getDropoff(first,p),
-        notes:index === 0 ? getNotes(first) : "",
-        tripDate:index === 0 ? first.tripDate || "" : "",
-        tripTime:index === 0 ? first.tripTime || "" : "",
-        tripStatus:index === 0 ? getGroupStatus(item.group) : "",
+        notes:getPassengerNotes(p) === "--" ? "" : getPassengerNotes(p),
+        tripDate:getPassengerTripDate(p,first) === "--" ? "" : getPassengerTripDate(p,first),
+        tripTime:getPassengerTripTime(p,first) === "--" ? "" : getPassengerTripTime(p,first),
+        appointmentTime:getPassengerAppointmentTime(p) === "--" ? "" : getPassengerAppointmentTime(p),
+        returnTime:getPassengerReturnTime(p) === "--" ? "" : getPassengerReturnTime(p),
+        tripStatus:getGroupStatus(item.group),
         passengerStatus:displayStatus(p.status || first.status,first),
-        bookedDate:index === 0 ? getBookedDate(first) : "",
-        bookedTime:index === 0 ? getBookedTime(first) : ""
+        bookedDate:getBookedDate(first),
+        bookedTime:getBookedTime(first)
       });
-
     });
-
   });
 
   return rows;
@@ -2729,7 +3045,8 @@ function exportCSV(){
   const headers = [
     "Trip Number",
     "Source",
-    "Facility",
+    "Facility / Broker",
+    "Broker Trip ID",
     "Service",
     "Passenger",
     "Phone",
@@ -2739,6 +3056,8 @@ function exportCSV(){
     "Notes",
     "Trip Date",
     "Trip Time",
+    "Appointment Time",
+    "Return Time",
     "Trip Status",
     "Passenger Status",
     "Booked Date",
@@ -2748,7 +3067,8 @@ function exportCSV(){
   const keys = [
     "tripNumber",
     "source",
-    "facility",
+    "account",
+    "brokerTripId",
     "service",
     "passenger",
     "phone",
@@ -2758,6 +3078,8 @@ function exportCSV(){
     "notes",
     "tripDate",
     "tripTime",
+    "appointmentTime",
+    "returnTime",
     "tripStatus",
     "passengerStatus",
     "bookedDate",
@@ -2791,7 +3113,8 @@ function exportExcel(){
   const headers = [
     "Trip Number",
     "Source",
-    "Facility",
+    "Facility / Broker",
+    "Broker Trip ID",
     "Service",
     "Passenger",
     "Phone",
@@ -2801,6 +3124,8 @@ function exportExcel(){
     "Notes",
     "Trip Date",
     "Trip Time",
+    "Appointment Time",
+    "Return Time",
     "Trip Status",
     "Passenger Status",
     "Booked Date",
@@ -2810,7 +3135,8 @@ function exportExcel(){
   const keys = [
     "tripNumber",
     "source",
-    "facility",
+    "account",
+    "brokerTripId",
     "service",
     "passenger",
     "phone",
@@ -2820,6 +3146,8 @@ function exportExcel(){
     "notes",
     "tripDate",
     "tripTime",
+    "appointmentTime",
+    "returnTime",
     "tripStatus",
     "passengerStatus",
     "bookedDate",
@@ -2900,7 +3228,8 @@ async function refreshEverything(){
 
   await Promise.all([
     loadServices(),
-    loadFacilities()
+    loadFacilities(),
+    loadBrokerCapability()
   ]);
 
   await loadTrips();

@@ -96,6 +96,7 @@ body{
 .stat-card.company,.stat-card.facility{background:linear-gradient(135deg,#6d28d9,#c026d3);color:#fff;}
 .stat-card.gq{background:linear-gradient(135deg,#16a34a,#4ade80);color:#fff;}
 .stat-card.reserved{background:linear-gradient(135deg,#f59e0b,#fb923c);color:#fff;}
+.stat-card.broker{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;}
 
 .stat-number{
   font-size:25px;
@@ -220,7 +221,7 @@ body{
   width:100%;
   border-collapse:collapse;
   background:#fff;
-  min-width:1800px;
+  min-width:2650px;
 }
 
 .review-table th,
@@ -268,6 +269,27 @@ body{
   max-width:320px;
   text-align:left!important;
 }
+
+.col-broker-trip{
+  width:110px!important;
+  min-width:110px!important;
+}
+
+.col-appointment{
+  width:105px!important;
+  min-width:105px!important;
+}
+
+.col-return{
+  width:90px!important;
+  min-width:90px!important;
+}
+
+.col-service{
+  width:105px!important;
+  min-width:105px!important;
+}
+
 
 .wide-stops .cell-item{
   white-space:nowrap;
@@ -327,6 +349,12 @@ body{
   background:#fef3c7;
   color:#92400e;
   border:1px solid #fcd34d;
+}
+
+.source-pill.broker{
+  background:#ccfbf1;
+  color:#115e59;
+  border:1px solid #5eead4;
 }
 
 .status-pill.completed{
@@ -394,6 +422,33 @@ body{
 .btn-action.btn-view:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
 .btn-action.btn-edit:hover { background: var(--orange); color: #fff; border-color: var(--orange); }
 
+.view-passenger-list{
+  display:grid!important;
+  gap:14px!important;
+  margin-top:6px!important;
+}
+
+.view-passenger-card{
+  border:2px solid #c4b5fd!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+  background:#faf7ff!important;
+}
+
+.view-passenger-title{
+  padding:10px 12px!important;
+  background:#7c3aed!important;
+  color:#fff!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+
+.view-passenger-lines{
+  padding:10px!important;
+  display:grid!important;
+  gap:7px!important;
+}
+
 .empty-state{
   background:#fff;
   padding:22px;
@@ -407,6 +462,7 @@ body{
 .company-name{ color:#1d4ed8; font-size:13px; font-weight:700; }
 .row-company td,.row-facility td{ background:linear-gradient(90deg,#f4ecff,#eadcff) !important; }
 .row-getquote td{ background:linear-gradient(90deg,#e9f9ed,#d8f5df) !important; }
+.row-broker td{ background:linear-gradient(90deg,#ecfeff,#ccfbf1) !important; }
 .completed-row td{ background:#dcfce7 !important; }
 .cancelled-row td{ background:#fee2e2 !important; }
 .noshow-row td{ background:#fef3c7 !important; }
@@ -461,7 +517,7 @@ body{
       <option value="RV">Reserved</option>
     </select>
 
-    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, company, passenger, phone, email, address">
+    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, broker trip ID, company, broker, passenger, phone, email, address">
     <select id="statusFilter" class="filter-select">
       <option value="">All Statuses</option>
       <option value="Completed">Completed</option>
