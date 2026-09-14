@@ -2751,9 +2751,6 @@ function renderAutomaticSharedResult(plan){
 
   const groupHtml = groups.map((group,index)=>{
     const members = Array.isArray(group?.trips) ? group.trips : [];
-    const warningText = members.some(trip=>normalizeText(trip?.appointmentTime))
-      ? "Warning: Review pickup order and appointment times before submitting this matched group."
-      : "Warning: Review all trip details before submitting this matched group.";
 
     const memberRows = members.map((trip,memberIndex)=>{
       const status = appointmentStatusText(trip);
@@ -2777,7 +2774,6 @@ function renderAutomaticSharedResult(plan){
         <div class="auto-share-group-header">
           <div>
             <div class="auto-share-group-title">${safeHtml(group.tripLeg || "OUTBOUND")} Group ${index + 1} • ${members.length} Passengers</div>
-            <div class="auto-share-group-subtitle">Each group has its own submit button. Unmatched trips stay highlighted in the list.</div>
           </div>
           <div class="auto-share-group-actions">
             <button class="btn-green auto-share-group-btn" type="button" data-submit-group-index="${index}">Submit Group</button>
@@ -2785,10 +2781,8 @@ function renderAutomaticSharedResult(plan){
           </div>
         </div>
 
-        <div class="auto-share-warning">${safeHtml(warningText)}</div>
-
         <div class="auto-share-group-table">
-          <div class="auto-share-group-table-title">Group Trips</div>
+          <div class="auto-share-group-table-title">Matched Group Trips</div>
           <div class="auto-share-group-grid header">
             <div>#</div>
             <div>Passenger</div>
