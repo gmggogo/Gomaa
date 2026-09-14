@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       clean(localStorage.getItem("role"))
     );
 
-  if(!token || role !== "PLATFORM_ADMIN"){
+  if(!token || role !== "SUPER_ADMIN"){
     window.location.replace("/login.html");
     return;
   }
