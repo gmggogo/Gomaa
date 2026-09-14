@@ -1565,86 +1565,378 @@ FLOW:
     }
   }
 
-  function ensureEditStopsEditor(){
+  function ensureEditDialogLayout(){
     const dialog =
       $("editDialog");
 
     if(!dialog){
-      return null;
+      return;
     }
 
-    let wrap =
-      $("editStopsEditor");
-
-    if(wrap){
-      return wrap;
+    if(
+      dialog.dataset.tripSplitEditReady ===
+      "true"
+    ){
+      return;
     }
 
-    wrap =
-      document.createElement("div");
+    dialog.dataset.tripSplitEditReady =
+      "true";
 
-    wrap.id =
-      "editStopsEditor";
+    dialog.classList.add(
+      "trip-split-edit-dialog"
+    );
 
-    wrap.style.marginTop =
-      "14px";
+    dialog.innerHTML = `
+      <div class="trip-edit-shell">
 
-    wrap.innerHTML = `
-      <div style="
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        margin-bottom:8px;
-      ">
-        <strong>Stops</strong>
-        <button
-          id="editAddStopBtn"
-          class="btn btn-dark"
-          type="button"
-        >
-          Add Stop
-        </button>
+        <div class="trip-edit-head">
+          <div>
+            <div class="trip-edit-title">
+              Edit Trip
+            </div>
+            <div class="trip-edit-subtitle">
+              Update trip information before Broker Review
+            </div>
+          </div>
+
+          <button
+            id="closeEditBtn"
+            class="trip-edit-close"
+            type="button"
+          >
+            Close
+          </button>
+        </div>
+
+        <div class="trip-edit-body">
+
+          <div class="trip-edit-grid">
+
+            <div class="trip-edit-field">
+              <label for="editPickupTime">
+                Pickup Time
+              </label>
+              <input
+                id="editPickupTime"
+                type="time"
+              />
+            </div>
+
+            <div class="trip-edit-field">
+              <label for="editAppointmentTime">
+                Appointment Time
+              </label>
+              <input
+                id="editAppointmentTime"
+                type="time"
+              />
+            </div>
+
+            <div class="trip-edit-field trip-edit-full">
+              <label for="editPickup">
+                Pickup
+              </label>
+              <input
+                id="editPickup"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="trip-edit-field trip-edit-full">
+              <div class="trip-edit-stops-head">
+                <label>
+                  Stops
+                </label>
+
+                <button
+                  id="editAddStopBtn"
+                  class="trip-edit-add-stop"
+                  type="button"
+                >
+                  + Add Stop
+                </button>
+              </div>
+
+              <div
+                id="editStopRows"
+                class="trip-edit-stop-list"
+              ></div>
+            </div>
+
+            <div class="trip-edit-field trip-edit-full">
+              <label for="editDropoff">
+                Drop-off
+              </label>
+              <input
+                id="editDropoff"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+
+          </div>
+
+          <div class="trip-edit-actions">
+            <button
+              id="cancelEditBtn"
+              class="trip-edit-cancel"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="saveEditBtn"
+              class="trip-edit-save"
+              type="button"
+            >
+              Save Changes
+            </button>
+          </div>
+
+        </div>
+
       </div>
-
-      <div id="editStopRows"></div>
     `;
 
-    const saveButton =
-      $("saveEditBtn");
-
-    const actionWrap =
-      saveButton?.parentElement;
-
-    if(actionWrap){
-      actionWrap.parentElement
-        ?.insertBefore(
-          wrap,
-          actionWrap
+    if(!$("tripSplitEditStyles")){
+      const style =
+        document.createElement(
+          "style"
         );
-    }else{
-      dialog.appendChild(wrap);
-    }
 
-    $("editAddStopBtn")
-      ?.addEventListener(
-        "click",
-        ()=>{
-          const current =
-            readEditStops();
+      style.id =
+        "tripSplitEditStyles";
 
-          if(current.length >= 5){
-            return;
+      style.textContent = `
+        .trip-split-edit-dialog{
+          width:min(820px,calc(100vw - 28px));
+          max-width:820px;
+          padding:0;
+          border:0;
+          border-radius:18px;
+          overflow:hidden;
+          box-shadow:0 24px 70px rgba(15,23,42,.28);
+          background:#fff;
+        }
+
+        .trip-split-edit-dialog::backdrop{
+          background:rgba(15,23,42,.42);
+          backdrop-filter:blur(2px);
+        }
+
+        .trip-edit-shell{
+          width:100%;
+          background:#fff;
+        }
+
+        .trip-edit-head{
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:18px;
+          padding:22px 24px 18px;
+          border-bottom:1px solid #e5e7eb;
+          background:#f8fafc;
+        }
+
+        .trip-edit-title{
+          font-size:20px;
+          font-weight:800;
+          color:#0f172a;
+          line-height:1.2;
+        }
+
+        .trip-edit-subtitle{
+          margin-top:5px;
+          font-size:12px;
+          color:#64748b;
+        }
+
+        .trip-edit-close{
+          min-width:74px;
+          height:38px;
+          border:1px solid #d1d5db;
+          border-radius:9px;
+          background:#fff;
+          color:#334155;
+          font-weight:700;
+          cursor:pointer;
+        }
+
+        .trip-edit-body{
+          padding:22px 24px 24px;
+        }
+
+        .trip-edit-grid{
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          gap:16px;
+        }
+
+        .trip-edit-field{
+          min-width:0;
+        }
+
+        .trip-edit-full{
+          grid-column:1 / -1;
+        }
+
+        .trip-edit-field label{
+          display:block;
+          margin:0 0 7px;
+          font-size:12px;
+          font-weight:800;
+          color:#334155;
+        }
+
+        .trip-edit-field input{
+          width:100%;
+          box-sizing:border-box;
+          min-height:44px;
+          padding:10px 12px;
+          border:1px solid #cbd5e1;
+          border-radius:9px;
+          background:#fff;
+          color:#0f172a;
+          font:inherit;
+          outline:none;
+        }
+
+        .trip-edit-field input:focus{
+          border-color:#64748b;
+          box-shadow:0 0 0 3px rgba(100,116,139,.12);
+        }
+
+        .trip-edit-stops-head{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          margin-bottom:8px;
+        }
+
+        .trip-edit-stops-head label{
+          margin:0;
+        }
+
+        .trip-edit-add-stop{
+          height:34px;
+          padding:0 14px;
+          border:0;
+          border-radius:8px;
+          background:#334155;
+          color:#fff;
+          font-size:12px;
+          font-weight:800;
+          cursor:pointer;
+        }
+
+        .trip-edit-add-stop:disabled{
+          opacity:.5;
+          cursor:not-allowed;
+        }
+
+        .trip-edit-stop-list{
+          display:flex;
+          flex-direction:column;
+          gap:8px;
+        }
+
+        .trip-edit-stop-row{
+          display:grid;
+          grid-template-columns:minmax(0,1fr) auto;
+          gap:8px;
+          align-items:center;
+        }
+
+        .trip-edit-stop-remove{
+          min-width:76px;
+          height:44px;
+          padding:0 12px;
+          border:1px solid #fecaca;
+          border-radius:9px;
+          background:#fff1f2;
+          color:#b91c1c;
+          font-size:12px;
+          font-weight:800;
+          cursor:pointer;
+        }
+
+        .trip-edit-no-stops{
+          padding:11px 12px;
+          border:1px dashed #cbd5e1;
+          border-radius:9px;
+          background:#f8fafc;
+          color:#64748b;
+          font-size:12px;
+        }
+
+        .trip-edit-actions{
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+          margin-top:22px;
+          padding-top:18px;
+          border-top:1px solid #e5e7eb;
+        }
+
+        .trip-edit-cancel,
+        .trip-edit-save{
+          min-width:110px;
+          height:42px;
+          border-radius:9px;
+          font-weight:800;
+          cursor:pointer;
+        }
+
+        .trip-edit-cancel{
+          border:1px solid #d1d5db;
+          background:#fff;
+          color:#334155;
+        }
+
+        .trip-edit-save{
+          border:0;
+          background:#15803d;
+          color:#fff;
+        }
+
+        @media (max-width:640px){
+          .trip-edit-head{
+            padding:18px 16px 14px;
           }
 
-          renderEditStops([
-            ...current,
-            ""
-          ]);
-        }
-      );
+          .trip-edit-body{
+            padding:18px 16px;
+          }
 
-    return wrap;
+          .trip-edit-grid{
+            grid-template-columns:1fr;
+          }
+
+          .trip-edit-full{
+            grid-column:auto;
+          }
+
+          .trip-edit-actions{
+            flex-direction:column-reverse;
+          }
+
+          .trip-edit-cancel,
+          .trip-edit-save{
+            width:100%;
+          }
+        }
+      `;
+
+      document.head.appendChild(
+        style
+      );
+    }
   }
 
   function readEditStops(){
@@ -1659,7 +1951,7 @@ FLOW:
   }
 
   function renderEditStops(stops=[]){
-    ensureEditStopsEditor();
+    ensureEditDialogLayout();
 
     const rows =
       $("editStopRows");
@@ -1671,56 +1963,57 @@ FLOW:
     const values =
       Array.isArray(stops)
         ? stops
-            .map(normalizeStopAddress)
+            .map(value=>
+              typeof value === "string"
+                ? clean(value)
+                : normalizeStopAddress(value)
+            )
             .slice(0,5)
         : [];
 
-    const displayValues =
-      values.length
-        ? values
-        : [""];
+    if(!values.length){
+      rows.innerHTML = `
+        <div class="trip-edit-no-stops">
+          No stops added.
+        </div>
+      `;
+    }else{
+      rows.innerHTML =
+        values
+          .map((value,index)=>`
+            <div class="trip-edit-stop-row">
+              <input
+                class="edit-stop-input"
+                type="text"
+                value="${escapeHtml(value)}"
+                placeholder="Stop ${index + 1} address"
+                autocomplete="off"
+              />
 
-    rows.innerHTML =
-      displayValues
-        .map((value,index)=>`
-          <div style="
-            display:grid;
-            grid-template-columns:minmax(0,1fr) auto;
-            gap:8px;
-            margin-bottom:8px;
-          ">
-            <input
-              class="edit-stop-input"
-              type="text"
-              value="${escapeHtml(value)}"
-              placeholder="Stop ${index + 1}"
-              style="
-                width:100%;
-                box-sizing:border-box;
-              "
-            />
-
-            <button
-              class="btn btn-red edit-remove-stop-btn"
-              type="button"
-              data-index="${index}"
-            >
-              Remove
-            </button>
-          </div>
-        `)
-        .join("");
+              <button
+                class="trip-edit-stop-remove"
+                type="button"
+                data-index="${index}"
+              >
+                Remove
+              </button>
+            </div>
+          `)
+          .join("");
+    }
 
     rows
       .querySelectorAll(
-        ".edit-remove-stop-btn"
+        ".trip-edit-stop-remove"
       )
       .forEach(button=>{
         button.addEventListener(
           "click",
           ()=>{
             const index =
-              Number(button.dataset.index);
+              Number(
+                button.dataset.index
+              );
 
             const current =
               [
@@ -1730,12 +2023,13 @@ FLOW:
               ]
                 .map(input=>clean(input.value));
 
-            current.splice(index,1);
+            current.splice(
+              index,
+              1
+            );
 
             renderEditStops(
-              current.length
-                ? current
-                : [""]
+              current
             );
           }
         );
@@ -1746,9 +2040,42 @@ FLOW:
 
     if(addButton){
       addButton.disabled =
-        displayValues.length >= 5;
+        values.length >= 5;
     }
   }
+
+  function addEditStop(){
+    const current =
+      [
+        ...document.querySelectorAll(
+          "#editStopRows .edit-stop-input"
+        )
+      ]
+        .map(input=>clean(input.value));
+
+    if(current.length >= 5){
+      notice(
+        "Maximum 5 stops.",
+        "error"
+      );
+      return;
+    }
+
+    renderEditStops([
+      ...current,
+      ""
+    ]);
+
+    const inputs =
+      document.querySelectorAll(
+        "#editStopRows .edit-stop-input"
+      );
+
+    inputs[
+      inputs.length - 1
+    ]?.focus();
+  }
+
 
   function openEdit(id){
     const trip = state.trips.find(t=>tripId(t) === id);
@@ -1888,6 +2215,8 @@ FLOW:
   }
 
   function bind(){
+    ensureEditDialogLayout();
+
     document
       .querySelectorAll(".split-tab")
       .forEach(btn=>{
@@ -1904,12 +2233,34 @@ FLOW:
     $("restoreBtn")?.addEventListener("click",restoreSelected);
     $("confirmAllBtn")?.addEventListener("click",confirmAll);
 
-    $("closeEditBtn")?.addEventListener("click",()=>{
-      $("editDialog").close();
+    const closeEditDialog = ()=>{
+      $("editDialog")?.close();
       state.editingId = "";
-    });
+    };
 
-    $("saveEditBtn")?.addEventListener("click",saveEdit);
+    $("closeEditBtn")
+      ?.addEventListener(
+        "click",
+        closeEditDialog
+      );
+
+    $("cancelEditBtn")
+      ?.addEventListener(
+        "click",
+        closeEditDialog
+      );
+
+    $("editAddStopBtn")
+      ?.addEventListener(
+        "click",
+        addEditStop
+      );
+
+    $("saveEditBtn")
+      ?.addEventListener(
+        "click",
+        saveEdit
+      );
   }
 
   document.addEventListener("DOMContentLoaded",()=>{
