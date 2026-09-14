@@ -517,7 +517,271 @@ function scheduleRowIsActiveToday(row){
   return row.days?.[scheduleDayKey()]===true;
 }
 
-async function loadBrokerHubCounts(){
+function externalTripDateKey(t){
+  const raw =
+    clean(
+      t?.tripDate ||
+      t?.date ||
+      t?.serviceDate ||
+      t?.appointmentDate
+    );
+
+  if(
+    /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  ){
+    return raw;
+  }
+
+  return dateKey(raw);
+}
+
+function externalTripStatus(t){
+  return clean(
+    t?.status ||
+    t?.tripStatus ||
+    t?.externalStatus ||
+    ""
+  );
+}
+
+function externalTripMiles(t){
+  return n(
+    t?.miles ||
+    t?.distanceMiles ||
+    t?.routeMiles ||
+    0
+  );
+}
+
+function externalTripPassengerCount(t){
+  if(
+    Array.isArray(t?.passengers) &&
+    t.passengers.length
+  ){
+    return t.passengers.length;
+  }
+
+  return Math.max(
+    1,
+    n(
+      t?.passengerCount ||
+      t?.passengersCount ||
+      t?.totalPassengers ||
+      1
+    )
+  );
+}
+
+function externalTripIsShared(t){
+  return (
+    t?.isShared === true ||
+    clean(t?.tripType)
+      .toUpperCase() === "SHARED" ||
+    clean(t?.serviceKey)
+      .toUpperCase() === "SH" ||
+    clean(t?.serviceCode)
+      .toUpperCase() === "SH" ||
+    clean(t?.serviceType)
+      .toUpperCase() === "SHARED" ||
+    clean(t?.serviceName)
+      .toUpperCase()
+      .includes("SHARED")
+  );
+}
+
+function renderBrokerExternalOperations(
+  trips,
+  services
+){
+  const list =
+    Array.isArray(trips)
+      ? trips
+      : [];
+
+  const today =
+    todayKey();
+
+  const month =
+    monthKey();
+
+  const todayTrips =
+    list.filter(
+      trip=>
+        externalTripDateKey(trip) ===
+        today
+    );
+
+  const monthTrips =
+    list.filter(
+      trip=>
+        externalTripDateKey(trip)
+          .slice(0,7) ===
+        month
+    );
+
+  /*
+    Total Broker trip counts must follow External Trips Hub because
+    broker trips exist there before they become main operational trips.
+    Status counters below can still be zero when the trips are only
+    RECEIVED/READY, which is correct.
+  */
+  if($("brokerTodayTrips")){
+    $("brokerTodayTrips")
+      .textContent=
+      String(todayTrips.length);
+  }
+
+  if($("brokerTodayOnTrip")){
+    $("brokerTodayOnTrip")
+      .textContent=
+      String(
+        todayTrips.filter(
+          trip=>
+            isOnTrip(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerTodayCompleted")){
+    $("brokerTodayCompleted")
+      .textContent=
+      String(
+        todayTrips.filter(
+          trip=>
+            isCompleted(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerTodayCancelled")){
+    $("brokerTodayCancelled")
+      .textContent=
+      String(
+        todayTrips.filter(
+          trip=>
+            isCancelled(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerTodayNoShow")){
+    $("brokerTodayNoShow")
+      .textContent=
+      String(
+        todayTrips.filter(
+          trip=>
+            isNoShow(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerMonthTrips")){
+    $("brokerMonthTrips")
+      .textContent=
+      String(monthTrips.length);
+  }
+
+  if($("brokerMonthCompleted")){
+    $("brokerMonthCompleted")
+      .textContent=
+      String(
+        monthTrips.filter(
+          trip=>
+            isCompleted(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerMonthCancelled")){
+    $("brokerMonthCancelled")
+      .textContent=
+      String(
+        monthTrips.filter(
+          trip=>
+            isCancelled(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerMonthNoShow")){
+    $("brokerMonthNoShow")
+      .textContent=
+      String(
+        monthTrips.filter(
+          trip=>
+            isNoShow(
+              externalTripStatus(trip)
+            )
+        ).length
+      );
+  }
+
+  if($("brokerMonthMiles")){
+    $("brokerMonthMiles")
+      .textContent=
+      monthTrips
+        .reduce(
+          (sum,trip)=>
+            sum +
+            externalTripMiles(trip),
+          0
+        )
+        .toFixed(1);
+  }
+
+  const sharedEnabled =
+    hasSharedService(
+      Array.isArray(services)
+        ? services
+        : []
+    );
+
+  if($("brokerSharedPassengersCard")){
+    $("brokerSharedPassengersCard")
+      .classList.toggle(
+        "hidden",
+        !sharedEnabled
+      );
+  }
+
+  if(
+    sharedEnabled &&
+    $("brokerSharedPassengers")
+  ){
+    $("brokerSharedPassengers")
+      .textContent=
+      String(
+        monthTrips
+          .filter(
+            externalTripIsShared
+          )
+          .reduce(
+            (sum,trip)=>
+              sum +
+              externalTripPassengerCount(
+                trip
+              ),
+            0
+          )
+      );
+  }
+}
+
+async function loadBrokerHubCounts(
+  services=[]
+){
   try{
     const data=
       await getJson(
@@ -540,6 +804,11 @@ async function loadBrokerHubCounts(){
             viewed
           )
       ).length;
+
+    renderBrokerExternalOperations(
+      trips,
+      services
+    );
 
     if($("brokerTotalTrips")){
       $("brokerTotalTrips")
@@ -600,7 +869,9 @@ async function loadBrokerHubCounts(){
   }
 }
 
-async function loadBrokerCounts(){
+async function loadBrokerCounts(
+  services=[]
+){
   /*
     BROKERS card follows the tenant-level Broker capability used by
     Broker Operations / Trip Split.
@@ -626,7 +897,9 @@ async function loadBrokerCounts(){
       $("brokerCount").textContent=String(integrations.length);
     }
 
-    await loadBrokerHubCounts();
+    await loadBrokerHubCounts(
+      services
+    );
 
   }catch(err){
     setBrokerFeatureVisible(false);
@@ -743,7 +1016,7 @@ async function init(){
 
   await Promise.allSettled([
     loadUserCounts(),
-    loadBrokerCounts()
+    loadBrokerCounts(services)
   ]);
 }
 
