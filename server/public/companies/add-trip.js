@@ -2453,8 +2453,6 @@ function renderAutomaticSharedList(){
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripLeg || "OUTBOUND")}</div></div>
         <div class="auto-share-cell">
           <span class="auto-share-status-badge ${status.badgeClass}">${safeHtml(status.badgeText)}</span>
-          <div style="margin-top:5px;">${safeHtml(status.noteText)}</div>
-          ${isUnmatched ? `<div class="auto-share-unmatched-guidance">Change pickup time and try Match again, or change the service and Submit Trip.</div>` : ""}
         </div>
         <div class="auto-share-cell">
           ${isUnmatched ? `
@@ -2486,7 +2484,7 @@ function renderAutomaticSharedList(){
       <div>Appointment</div>
       <div>Return Time</div>
       <div>Leg</div>
-      <div>Match Status / Note</div>
+      <div>Match Status</div>
       <div>Actions</div>
     </div>
     ${rows}
@@ -2790,6 +2788,7 @@ function renderAutomaticSharedResult(plan){
         <div class="auto-share-warning">${safeHtml(warningText)}</div>
 
         <div class="auto-share-group-table">
+          <div class="auto-share-group-table-title">Group Trips</div>
           <div class="auto-share-group-grid header">
             <div>#</div>
             <div>Passenger</div>
@@ -2807,18 +2806,7 @@ function renderAutomaticSharedResult(plan){
     `;
   }).join("");
 
-  const unmatchedCount = singles.length + excluded.length;
-  const unmatchedHtml = unmatchedCount
-    ? `
-      <div class="auto-share-unmatched">
-        ${unmatchedCount} candidate(s) are not matched yet. They stay highlighted in the Automatic Shared list with the note Not Matched.
-      </div>
-    `
-    : "";
-
-  automaticSharedResult.innerHTML = (groupHtml || unmatchedHtml)
-    ? (groupHtml + unmatchedHtml)
-    : `<div class="auto-share-unmatched">No Shared groups were created.</div>`;
+  automaticSharedResult.innerHTML = groupHtml || "";
 
   bindAutomaticGroupActions();
   updateAutomaticSharedCounters();

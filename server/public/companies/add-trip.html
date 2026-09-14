@@ -402,7 +402,7 @@ button:hover{
   align-items:center;
   justify-content:center;
   gap:12px;
-  margin:10px 0 14px;
+  margin:16px 0 4px;
   flex-wrap:wrap;
 }
 
@@ -543,8 +543,8 @@ button:hover{
 }
 
 .auto-share-row.unmatched .auto-share-data-box{
-  border-color:#fed7aa;
-  background:#fffaf5;
+  border-color:#bfdbfe;
+  background:#ffffff;
 }
 
 .auto-share-row.matched .auto-share-data-box{
@@ -552,17 +552,6 @@ button:hover{
   background:#fafffb;
 }
 
-.auto-share-unmatched-guidance{
-  margin-top:7px;
-  padding:7px 9px;
-  border-radius:8px;
-  background:#fff7ed;
-  border:1px solid #fdba74;
-  color:#9a3412;
-  font-size:10px;
-  font-weight:900;
-  line-height:1.35;
-}
 
 .auto-share-inline-time,
 .auto-share-inline-service{
@@ -592,13 +581,13 @@ button:hover{
 
 .auto-share-row{
   display:grid;
-  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.45fr) minmax(160px,1.45fr) 100px 96px 110px 100px 92px 170px minmax(250px,1.5fr);
+  grid-template-columns:44px minmax(110px,1fr) minmax(120px,1.1fr) minmax(160px,1.45fr) minmax(160px,1.45fr) 100px 96px 110px 100px 92px 150px minmax(250px,1.5fr);
   gap:7px;
   align-items:center;
   padding:10px;
-  border:1px solid #dbe3ec;
+  border:1px solid #bfdbfe;
   border-radius:12px;
-  background:#f8fafc;
+  background:#ffffff;
   font-size:11px;
   font-weight:700;
 }
@@ -615,8 +604,8 @@ button:hover{
 }
 
 .auto-share-row.unmatched{
-  border-color:#fdba74;
-  background:#fff7ed;
+  border-color:#93c5fd;
+  background:#eff6ff;
 }
 
 .auto-share-cell{
@@ -724,6 +713,19 @@ button:hover{
 
 .auto-share-group-table{
   min-width:980px;
+}
+
+.auto-share-group-table-title{
+  margin:10px 0 7px;
+  padding:9px 12px;
+  border-radius:10px;
+  background:#dbeafe;
+  border:1px solid #93c5fd;
+  color:#1e3a8a;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.3px;
 }
 
 .auto-share-group-grid{
@@ -1288,20 +1290,16 @@ button:hover{
   <div class="auto-share-toolbar">
     <div class="auto-share-summary-title">Shared Match Summary</div>
 
-    <div class="auto-share-build-row">
-      <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
-        Build Shared Groups
-      </button>
-    </div>
-
     <div id="automaticSharedCounters" class="auto-share-counters">
       <div class="auto-share-counter"><span>Groups</span><strong>0</strong></div>
       <div class="auto-share-counter"><span>Matched Clients</span><strong>0</strong></div>
       <div class="auto-share-counter"><span>Not Matched</span><strong>0</strong></div>
     </div>
 
-    <div class="auto-share-toolbar-note" style="text-align:center;margin-top:9px;">
-      Build first, then review each matched group and submit it separately.
+    <div class="auto-share-build-row">
+      <button class="btn-blue" id="runAutomaticSharedEngine" type="button">
+        Build Shared Groups
+      </button>
     </div>
   </div>
 
