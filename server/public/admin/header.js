@@ -383,7 +383,8 @@ const admin=[
 {l:"Refunds",h:"refunds.html",i:"refund"}
 ];
 const extraBase=[
-{l:"Payments",h:"payments.html",i:"money"},
+{l:"Admin Billing",h:"admin-billing.html",i:"doc"},
+{l:"Platform Payment",h:"payments.html",i:"money"},
 {g:"Payroll",i:"money",items:[["Payroll","payroll.html","money"],["Payroll Summary","payroll-summary.html","chart"]]},
 {l:"Taxes",h:"tax-report.html",i:"chart"}
 ];
