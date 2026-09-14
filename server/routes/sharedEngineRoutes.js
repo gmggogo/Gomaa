@@ -10,6 +10,8 @@ Shared Engine API.
 ENDPOINTS AFTER MOUNT:
 GET  /api/shared-engine/settings
 POST /api/shared-engine/settings
+GET  /api/shared-engine/automatic-state
+PUT  /api/shared-engine/automatic-state
 POST /api/shared-engine/plan
 
 IMPORTANT:
@@ -28,6 +30,65 @@ const mongoose =
 
 const router =
   express.Router();
+
+/* =========================
+   COMPANY AUTOMATIC SHARED STATE
+
+   Persists Automatic Shared candidates + matched groups so a browser refresh
+   does not destroy already-built groups.
+========================= */
+
+const CompanyAutomaticSharedStateSchema =
+  new mongoose.Schema(
+    {
+      tenantId:{
+        type:String,
+        required:true,
+        index:true
+      },
+
+      companyKey:{
+        type:String,
+        required:true,
+        index:true
+      },
+
+      candidates:{
+        type:[mongoose.Schema.Types.Mixed],
+        default:[]
+      },
+
+      plan:{
+        type:mongoose.Schema.Types.Mixed,
+        default:null
+      },
+
+      updatedAt:{
+        type:Date,
+        default:Date.now
+      }
+    },
+    {
+      minimize:false
+    }
+  );
+
+CompanyAutomaticSharedStateSchema.index(
+  {
+    tenantId:1,
+    companyKey:1
+  },
+  {
+    unique:true
+  }
+);
+
+const CompanyAutomaticSharedState =
+  mongoose.models.CompanyAutomaticSharedState ||
+  mongoose.model(
+    "CompanyAutomaticSharedState",
+    CompanyAutomaticSharedStateSchema
+  );
 
 const SharedEngineSettings =
   require(
@@ -59,6 +120,25 @@ const JWT_SECRET =
 
 function clean(value){
   return String(value ?? "").trim();
+}
+
+function companyAutomaticStateKey(req){
+  const auth =
+    req.authUser ||
+    {};
+
+  return clean(
+    auth.companyId ||
+    auth.facilityId ||
+    auth.userId ||
+    auth.id ||
+    auth._id ||
+    auth.email ||
+    auth.username ||
+    auth.name ||
+    auth.companyName ||
+    "COMPANY"
+  ).toLowerCase();
 }
 
 function bearerToken(req){
@@ -636,6 +716,158 @@ router.post(
           message:
             err.message ||
             "Failed to save Shared Engine settings"
+        });
+    }
+  }
+);
+
+/* =========================
+   COMPANY AUTOMATIC SHARED STATE
+========================= */
+
+router.get(
+  "/automatic-state",
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const tenantId =
+        clean(
+          req.authUser?.tenantId
+        );
+
+      const companyKey =
+        companyAutomaticStateKey(
+          req
+        );
+
+      const state =
+        await CompanyAutomaticSharedState
+          .findOne({
+            tenantId,
+            companyKey
+          })
+          .lean();
+
+      return res.json({
+        success:true,
+        state:state
+          ? {
+              candidates:
+                Array.isArray(
+                  state.candidates
+                )
+                  ? state.candidates
+                  : [],
+              plan:
+                state.plan ||
+                null,
+              updatedAt:
+                state.updatedAt ||
+                null
+            }
+          : {
+              candidates:[],
+              plan:null,
+              updatedAt:null
+            }
+      });
+
+    }catch(err){
+      console.log(
+        "COMPANY AUTOMATIC SHARED STATE LOAD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err?.message ||
+            "Failed to load Automatic Shared state"
+        });
+    }
+  }
+);
+
+router.put(
+  "/automatic-state",
+  express.json({
+    limit:"5mb"
+  }),
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const tenantId =
+        clean(
+          req.authUser?.tenantId
+        );
+
+      const companyKey =
+        companyAutomaticStateKey(
+          req
+        );
+
+      const candidates =
+        Array.isArray(
+          req.body?.candidates
+        )
+          ? req.body.candidates
+          : [];
+
+      const plan =
+        req.body?.plan &&
+        typeof req.body.plan === "object"
+          ? req.body.plan
+          : null;
+
+      const saved =
+        await CompanyAutomaticSharedState
+          .findOneAndUpdate(
+            {
+              tenantId,
+              companyKey
+            },
+            {
+              $set:{
+                candidates,
+                plan,
+                updatedAt:
+                  new Date()
+              }
+            },
+            {
+              new:true,
+              upsert:true,
+              setDefaultsOnInsert:true
+            }
+          )
+          .lean();
+
+      return res.json({
+        success:true,
+        updatedAt:
+          saved?.updatedAt ||
+          null
+      });
+
+    }catch(err){
+      console.log(
+        "COMPANY AUTOMATIC SHARED STATE SAVE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err?.message ||
+            "Failed to save Automatic Shared state"
         });
     }
   }

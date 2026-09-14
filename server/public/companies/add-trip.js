@@ -2043,37 +2043,193 @@ function setSharedEntryMode(mode){
   }
 }
 
+function automaticSharedStatePayload(){
+  return {
+    candidates:
+      Array.isArray(
+        automaticSharedCandidates
+      )
+        ? automaticSharedCandidates
+        : [],
+    plan:
+      automaticSharedPlan &&
+      typeof automaticSharedPlan === "object"
+        ? automaticSharedPlan
+        : null
+  };
+}
+
+function saveAutomaticSharedStateToServer(){
+  if(!token){
+    return;
+  }
+
+  fetch(
+    "/api/company-shared/automatic-state",
+    {
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(
+        automaticSharedStatePayload()
+      )
+    }
+  )
+    .then(async res=>{
+      if(!res.ok){
+        const data =
+          await res
+            .json()
+            .catch(()=>({}));
+
+        throw new Error(
+          data.message ||
+          "Automatic Shared state save failed"
+        );
+      }
+    })
+    .catch(err=>{
+      console.log(
+        "AUTO SHARED SERVER STATE SAVE ERROR:",
+        err
+      );
+    });
+}
+
 function saveAutomaticSharedDraft(){
+  const state =
+    automaticSharedStatePayload();
+
   try{
     localStorage.setItem(
       AUTO_SHARED_DRAFT_KEY,
-      JSON.stringify({
-        candidates:automaticSharedCandidates
-      })
+      JSON.stringify(state)
     );
   }catch(err){
-    console.log("AUTO SHARED DRAFT SAVE ERROR:",err);
+    console.log(
+      "AUTO SHARED DRAFT SAVE ERROR:",
+      err
+    );
   }
+
+  saveAutomaticSharedStateToServer();
 }
 
-function loadAutomaticSharedDraft(){
+function applyAutomaticSharedState(data){
+  automaticSharedCandidates =
+    Array.isArray(
+      data?.candidates
+    )
+      ? data.candidates
+      : [];
+
+  automaticSharedPlan =
+    data?.plan &&
+    typeof data.plan === "object"
+      ? data.plan
+      : null;
+
+  renderAutomaticSharedList();
+  renderAutomaticSharedResult(
+    automaticSharedPlan
+  );
+}
+
+async function loadAutomaticSharedDraft(){
+  let localState = {};
+
   try{
-    const data =
+    localState =
       JSON.parse(
         localStorage.getItem(
           AUTO_SHARED_DRAFT_KEY
         ) || "{}"
       );
 
-    automaticSharedCandidates =
-      Array.isArray(data?.candidates)
-        ? data.candidates
-        : [];
+    applyAutomaticSharedState(
+      localState
+    );
+
   }catch(err){
     automaticSharedCandidates = [];
+    automaticSharedPlan = null;
+    renderAutomaticSharedList();
+    renderAutomaticSharedResult(null);
   }
 
-  renderAutomaticSharedList();
+  if(!token){
+    return;
+  }
+
+  try{
+    const res =
+      await fetch(
+        "/api/company-shared/automatic-state",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
+
+    if(
+      res.ok &&
+      data?.success === true &&
+      data?.state
+    ){
+      const serverState =
+        data.state;
+
+      const serverHasState =
+        (
+          Array.isArray(
+            serverState.candidates
+          ) &&
+          serverState.candidates.length
+        ) ||
+        (
+          serverState.plan &&
+          typeof serverState.plan ===
+            "object"
+        );
+
+      if(serverHasState){
+        applyAutomaticSharedState(
+          serverState
+        );
+
+        try{
+          localStorage.setItem(
+            AUTO_SHARED_DRAFT_KEY,
+            JSON.stringify(
+              automaticSharedStatePayload()
+            )
+          );
+        }catch(err){}
+      }else if(
+        Array.isArray(
+          localState?.candidates
+        ) &&
+        localState.candidates.length
+      ){
+        saveAutomaticSharedStateToServer();
+      }
+    }
+
+  }catch(err){
+    console.log(
+      "AUTO SHARED SERVER STATE LOAD ERROR:",
+      err
+    );
+  }
 }
 
 function automaticCandidateId(){
@@ -2295,7 +2451,6 @@ function bindUnmatchedAutomaticActions(){
 
       candidate.tripTime = nextTime;
       candidate.pickupTime = nextTime;
-      automaticSharedPlan = null;
       saveAutomaticSharedDraft();
       renderAutomaticSharedList();
       updateAutomaticSharedCounters();
@@ -2808,8 +2963,62 @@ function renderAutomaticSharedResult(plan){
 
 async function runAutomaticSharedEngine(){
 
-  if(automaticSharedCandidates.length < 2){
-    showAlert("Add at least 2 Automatic Shared candidates");
+  const existingGroups =
+    Array.isArray(
+      automaticSharedPlan?.groups
+    )
+      ? automaticSharedPlan.groups
+      : [];
+
+  const existingMatchedIds =
+    new Set();
+
+  existingGroups.forEach(group=>{
+    (
+      Array.isArray(group?.trips)
+        ? group.trips
+        : []
+    ).forEach(trip=>{
+      const id =
+        String(
+          trip?.id ||
+          trip?.tripId ||
+          ""
+        ).trim();
+
+      if(id){
+        existingMatchedIds.add(id);
+      }
+    });
+  });
+
+  /*
+    IMPORTANT PRIORITY:
+    1) Existing matched groups stay fixed.
+    2) Build NEW groups from currently unmatched trips first.
+    3) Only trips still unmatched after step 2 may try to join an existing group.
+  */
+  const currentlyUnmatched =
+    automaticSharedCandidates
+      .filter(item=>{
+        const id =
+          String(
+            item?.id ||
+            item?.tripId ||
+            ""
+          ).trim();
+
+        return (
+          !id ||
+          !existingMatchedIds.has(id)
+        );
+      });
+
+  if(currentlyUnmatched.length < 1){
+    renderAutomaticSharedList();
+    renderAutomaticSharedResult(
+      automaticSharedPlan
+    );
     return;
   }
 
@@ -2820,39 +3029,40 @@ async function runAutomaticSharedEngine(){
 
   try{
 
-    const outboundTrips = automaticSharedCandidates.filter(
-      item=>String(item?.tripLeg || "OUTBOUND").toUpperCase() !== "RETURN"
-    );
-
-    const returnTrips = automaticSharedCandidates.filter(
-      item=>String(item?.tripLeg || "").toUpperCase() === "RETURN"
-    );
-
-    async function planLeg(trips,tripLeg){
-
+    async function planTrips(
+      trips,
+      tripLeg
+    ){
       if(!trips.length){
         return {
+          success:true,
           groups:[],
           singles:[],
           excluded:[]
         };
       }
 
-      const res = await fetch(
-        "/api/company-shared/plan",
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            Authorization:"Bearer " + token
-          },
-          body:JSON.stringify({
-            trips
-          })
-        }
-      );
+      const res =
+        await fetch(
+          "/api/company-shared/plan",
+          {
+            method:"POST",
+            headers:{
+              "Content-Type":
+                "application/json",
+              Authorization:
+                "Bearer " + token
+            },
+            body:JSON.stringify({
+              trips
+            })
+          }
+        );
 
-      const data = await res.json().catch(()=>({}));
+      const data =
+        await res
+          .json()
+          .catch(()=>({}));
 
       if(!res.ok){
         throw new Error(
@@ -2861,39 +3071,358 @@ async function runAutomaticSharedEngine(){
         );
       }
 
-      const groups = Array.isArray(data?.groups)
-        ? data.groups.map(group=>({
-            ...group,
-            tripLeg
-          }))
-        : [];
-
       return {
         ...data,
-        groups,
-        singles:Array.isArray(data?.singles) ? data.singles : [],
-        excluded:Array.isArray(data?.excluded) ? data.excluded : []
+        groups:
+          Array.isArray(data?.groups)
+            ? data.groups.map(group=>({
+                ...group,
+                tripLeg
+              }))
+            : [],
+        singles:
+          Array.isArray(data?.singles)
+            ? data.singles
+            : [],
+        excluded:
+          Array.isArray(data?.excluded)
+            ? data.excluded
+            : []
       };
     }
 
-    const outboundPlan = await planLeg(outboundTrips,"OUTBOUND");
-    const returnPlan = await planLeg(returnTrips,"RETURN");
+    async function planByLeg(
+      trips
+    ){
+      const outboundTrips =
+        trips.filter(
+          item=>
+            String(
+              item?.tripLeg ||
+              "OUTBOUND"
+            )
+              .toUpperCase() !==
+            "RETURN"
+        );
+
+      const returnTrips =
+        trips.filter(
+          item=>
+            String(
+              item?.tripLeg ||
+              ""
+            )
+              .toUpperCase() ===
+            "RETURN"
+        );
+
+      const outboundPlan =
+        await planTrips(
+          outboundTrips,
+          "OUTBOUND"
+        );
+
+      const returnPlan =
+        await planTrips(
+          returnTrips,
+          "RETURN"
+        );
+
+      return {
+        groups:[
+          ...(outboundPlan.groups || []),
+          ...(returnPlan.groups || [])
+        ],
+        singles:[
+          ...(outboundPlan.singles || []),
+          ...(returnPlan.singles || [])
+        ],
+        excluded:[
+          ...(outboundPlan.excluded || []),
+          ...(returnPlan.excluded || [])
+        ]
+      };
+    }
+
+    /*
+      STEP 1:
+      Build groups ONLY from unmatched trips.
+      This is the key behavior requested by the Company Automatic Shared flow.
+    */
+    const unmatchedPlan =
+      await planByLeg(
+        currentlyUnmatched
+      );
+
+    const newGroups =
+      Array.isArray(
+        unmatchedPlan.groups
+      )
+        ? unmatchedPlan.groups
+        : [];
+
+    const newlyMatchedIds =
+      new Set();
+
+    newGroups.forEach(group=>{
+      (
+        Array.isArray(group?.trips)
+          ? group.trips
+          : []
+      ).forEach(trip=>{
+        const id =
+          String(
+            trip?.id ||
+            trip?.tripId ||
+            ""
+          ).trim();
+
+        if(id){
+          newlyMatchedIds.add(id);
+        }
+      });
+    });
+
+    let stillUnmatched =
+      currentlyUnmatched
+        .filter(item=>{
+          const id =
+            String(
+              item?.id ||
+              item?.tripId ||
+              ""
+            ).trim();
+
+          return (
+            !id ||
+            !newlyMatchedIds.has(id)
+          );
+        });
+
+    /*
+      STEP 2:
+      Only AFTER unmatched-to-unmatched grouping is finished,
+      try each remaining trip against EXISTING groups.
+
+      A trip is attached only when the engine validates the WHOLE existing
+      group plus that trip as one valid group. Existing groups are not broken.
+    */
+    const updatedExistingGroups =
+      existingGroups.map(group=>({
+        ...group,
+        trips:
+          Array.isArray(group?.trips)
+            ? [...group.trips]
+            : []
+      }));
+
+    const finalStillUnmatched = [];
+
+    for(
+      const candidate of
+      stillUnmatched
+    ){
+      let attached = false;
+
+      const candidateLeg =
+        String(
+          candidate?.tripLeg ||
+          "OUTBOUND"
+        )
+          .trim()
+          .toUpperCase();
+
+      for(
+        let groupIndex = 0;
+        groupIndex <
+          updatedExistingGroups.length;
+        groupIndex += 1
+      ){
+        const group =
+          updatedExistingGroups[
+            groupIndex
+          ];
+
+        const groupTrips =
+          Array.isArray(group?.trips)
+            ? group.trips
+            : [];
+
+        if(!groupTrips.length){
+          continue;
+        }
+
+        const groupLeg =
+          String(
+            group?.tripLeg ||
+            groupTrips[0]?.tripLeg ||
+            "OUTBOUND"
+          )
+            .trim()
+            .toUpperCase();
+
+        if(groupLeg !== candidateLeg){
+          continue;
+        }
+
+        const testTrips = [
+          ...groupTrips,
+          candidate
+        ];
+
+        const testPlan =
+          await planTrips(
+            testTrips,
+            candidateLeg
+          );
+
+        const validatedGroup =
+          (
+            Array.isArray(
+              testPlan.groups
+            )
+              ? testPlan.groups
+              : []
+          ).find(testGroup=>{
+            const testIds =
+              new Set(
+                (
+                  Array.isArray(
+                    testGroup?.trips
+                  )
+                    ? testGroup.trips
+                    : []
+                )
+                  .map(item=>
+                    String(
+                      item?.id ||
+                      item?.tripId ||
+                      ""
+                    ).trim()
+                  )
+                  .filter(Boolean)
+              );
+
+            return testTrips.every(item=>{
+              const id =
+                String(
+                  item?.id ||
+                  item?.tripId ||
+                  ""
+                ).trim();
+
+              return (
+                id &&
+                testIds.has(id)
+              );
+            });
+          });
+
+        if(validatedGroup){
+          updatedExistingGroups[
+            groupIndex
+          ] = {
+            ...group,
+            ...validatedGroup,
+            tripLeg:
+              group.tripLeg ||
+              candidateLeg
+          };
+
+          attached = true;
+          break;
+        }
+      }
+
+      if(!attached){
+        finalStillUnmatched.push(
+          candidate
+        );
+      }
+    }
+
+    const unmatchedIds =
+      new Set(
+        finalStillUnmatched
+          .map(item=>
+            String(
+              item?.id ||
+              item?.tripId ||
+              ""
+            ).trim()
+          )
+          .filter(Boolean)
+      );
+
+    const originalReasonRows = [
+      ...(
+        Array.isArray(
+          unmatchedPlan.singles
+        )
+          ? unmatchedPlan.singles
+          : []
+      ),
+      ...(
+        Array.isArray(
+          unmatchedPlan.excluded
+        )
+          ? unmatchedPlan.excluded
+          : []
+      )
+    ];
+
+    const finalExcluded =
+      originalReasonRows
+        .filter(row=>{
+          const id =
+            String(
+              row?.tripId ||
+              row?.id ||
+              ""
+            ).trim();
+
+          return (
+            !id ||
+            unmatchedIds.has(id)
+          );
+        });
 
     automaticSharedPlan = {
       success:true,
-      groups:[...(outboundPlan.groups || []), ...(returnPlan.groups || [])],
-      singles:[...(outboundPlan.singles || []), ...(returnPlan.singles || [])],
-      excluded:[...(outboundPlan.excluded || []), ...(returnPlan.excluded || [])],
-      outboundPlan,
-      returnPlan
+
+      /*
+        Existing groups remain first and stable.
+        New groups created from unmatched trips are appended after them.
+      */
+      groups:[
+        ...updatedExistingGroups,
+        ...newGroups
+      ],
+
+      singles:[],
+      excluded:finalExcluded,
+
+      matchingPriority:
+        "UNMATCHED_FIRST_THEN_EXISTING_GROUPS"
     };
 
+    saveAutomaticSharedDraft();
     renderAutomaticSharedList();
-    renderAutomaticSharedResult(automaticSharedPlan);
+    renderAutomaticSharedResult(
+      automaticSharedPlan
+    );
 
   }catch(err){
-    console.log("AUTO SHARED ENGINE ERROR:",err);
-    showAlert(err.message || "Automatic Shared planning failed");
+    console.log(
+      "AUTO SHARED ENGINE ERROR:",
+      err
+    );
+
+    showAlert(
+      err.message ||
+      "Automatic Shared planning failed"
+    );
+
   }finally{
     if(runAutomaticSharedEngineBtn){
       runAutomaticSharedEngineBtn.disabled = false;
@@ -3080,6 +3609,7 @@ function returnAutomaticSharedGroupToOriginal(groupIndex){
   );
 
   pruneAutomaticPlanIds(ids,true);
+  saveAutomaticSharedDraft();
   renderAutomaticSharedList();
   renderAutomaticSharedResult(automaticSharedPlan);
 }
@@ -3113,7 +3643,6 @@ if(addAutomaticSharedCandidateBtn){
       automaticSharedCandidates.push(candidate);
     }
 
-    automaticSharedPlan = null;
     saveAutomaticSharedDraft();
     renderAutomaticSharedList();
     renderAutomaticSharedResult(automaticSharedPlan);
@@ -4034,7 +4563,7 @@ bindStaticLocationChoices();
 bindCurrentLocationChoice(autoSharedPickup);
 bindCurrentLocationChoice(autoSharedDropoff);
 
-loadAutomaticSharedDraft();
+await loadAutomaticSharedDraft();
 setSharedEntryMode("AUTOMATIC");
 
 attachLocationChangeReset(
