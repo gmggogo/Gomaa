@@ -1271,6 +1271,16 @@ function isOverdueNotCompleted(t){
 function isTripVisibleInHub(t){
   if(!t) return false;
   if(isClosedStatus(t.status)) return false;
+
+  /*
+    FACILITY / COMPANY:
+    Scheduled company trips still belong to Company Review.
+    Trips Hub must receive them only after Company Review confirms them.
+  */
+  if(getSourceCode(t) === "FA"){
+    return statusKey(t.status) === "confirmed";
+  }
+
   return isActiveStatus(t.status);
 }
 
@@ -1712,6 +1722,15 @@ function getGroupStatus(group){
 function isSharedVisibleInHub(group){
   const first = group[0] || {};
   if(isClosedStatus(first.status)) return false;
+
+  /*
+    FACILITY / COMPANY SHARED:
+    A Shared company group also stays in Company Review while Scheduled.
+    It enters Trips Hub only after the group trip itself is Confirmed.
+  */
+  if(getSourceCode(first) === "FA"){
+    return statusKey(first.status) === "confirmed";
+  }
 
   const passengers = getRealPassengersFromGroup(group);
   if(!passengers.length) return isTripVisibleInHub(first);
