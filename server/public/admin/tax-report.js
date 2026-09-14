@@ -42,6 +42,9 @@ let brokerReport = {
   paidTrips:0,
   amount:0,
   miles:0,
+  brokersCount:0,
+  brokers:[],
+  byBroker:[],
   items:[]
 };
 
@@ -154,6 +157,13 @@ function setBrokerVisibility(visible){
         !brokerFeatureEnabled
       );
     });
+
+  document
+    .querySelector(".summary-grid")
+    ?.classList.toggle(
+      "no-broker",
+      !brokerFeatureEnabled
+    );
 }
 
 async function loadBrokerCapability(){
@@ -194,12 +204,179 @@ async function loadBrokerCapability(){
   }
 }
 
+function buildBrokerBreakdown(items,brokers){
+  const map =
+    new Map();
+
+  (Array.isArray(brokers) ? brokers : [])
+    .forEach(broker=>{
+      const code =
+        String(
+          broker?.code || ""
+        ).trim();
+
+      const name =
+        String(
+          broker?.name ||
+          code ||
+          "Broker"
+        ).trim();
+
+      if(!code && !name){
+        return;
+      }
+
+      const key =
+        code || name;
+
+      map.set(key,{
+        code,
+        name,
+        trips:0,
+        amount:0,
+        miles:0
+      });
+    });
+
+  (Array.isArray(items) ? items : [])
+    .forEach(item=>{
+      const code =
+        String(
+          item?.brokerCode || ""
+        ).trim();
+
+      const name =
+        String(
+          item?.brokerName ||
+          code ||
+          "Broker"
+        ).trim();
+
+      const key =
+        code || name;
+
+      if(!map.has(key)){
+        map.set(key,{
+          code,
+          name,
+          trips:0,
+          amount:0,
+          miles:0
+        });
+      }
+
+      const row =
+        map.get(key);
+
+      row.trips += 1;
+      row.amount +=
+        Number(
+          item?.total || 0
+        );
+      row.miles +=
+        Number(
+          item?.miles || 0
+        );
+    });
+
+  return [...map.values()]
+    .filter(row=>
+      row.trips > 0 ||
+      row.amount > 0 ||
+      row.miles > 0
+    )
+    .sort((a,b)=>
+      a.name.localeCompare(b.name)
+    );
+}
+
+function renderBrokers(rows){
+  const body =
+    document.getElementById(
+      "brokerTableBody"
+    );
+
+  if(!body){
+    return;
+  }
+
+  if(!rows.length){
+    body.innerHTML =
+      `<tr><td colspan="4" class="empty">No broker activity in this period.</td></tr>`;
+
+    setText(
+      "brokerTableTripTotal",
+      "0"
+    );
+    setText(
+      "brokerTableAmountTotal",
+      money(0)
+    );
+    setText(
+      "brokerTableMilesTotal",
+      number(0,1)
+    );
+
+    return;
+  }
+
+  body.innerHTML =
+    rows.map(row=>`
+      <tr>
+        <td class="company-cell">${escapeHtml(row.name || row.code || "Broker")}</td>
+        <td>${number(row.trips)}</td>
+        <td>${money(row.amount)}</td>
+        <td>${number(row.miles,1)}</td>
+      </tr>
+    `).join("");
+
+  setText(
+    "brokerTableTripTotal",
+    number(
+      rows.reduce(
+        (sum,row)=>
+          sum +
+          Number(row.trips || 0),
+        0
+      )
+    )
+  );
+
+  setText(
+    "brokerTableAmountTotal",
+    money(
+      rows.reduce(
+        (sum,row)=>
+          sum +
+          Number(row.amount || 0),
+        0
+      )
+    )
+  );
+
+  setText(
+    "brokerTableMilesTotal",
+    number(
+      rows.reduce(
+        (sum,row)=>
+          sum +
+          Number(row.miles || 0),
+        0
+      ),
+      1
+    )
+  );
+}
+
 async function loadBrokerReport(from,to){
   if(brokerFeatureEnabled !== true){
     brokerReport = {
       paidTrips:0,
       amount:0,
       miles:0,
+      brokersCount:0,
+      brokers:[],
+      byBroker:[],
       items:[]
     };
 
@@ -249,6 +426,17 @@ async function loadBrokerReport(from,to){
       ? data.items
       : [];
 
+  const brokers =
+    Array.isArray(data.brokers)
+      ? data.brokers
+      : [];
+
+  const byBroker =
+    buildBrokerBreakdown(
+      items,
+      brokers
+    );
+
   brokerReport = {
     paidTrips:
       items.length,
@@ -269,6 +457,11 @@ async function loadBrokerReport(from,to){
         0
       ),
 
+    brokersCount:
+      byBroker.length,
+
+    brokers,
+    byBroker,
     items
   };
 
@@ -334,8 +527,31 @@ function render(report){
       : 0;
 
   setText(
+    "brokersCount",
+    number(
+      brokerFeatureEnabled
+        ? Number(
+            brokerReport.brokersCount || 0
+          )
+        : 0
+    )
+  );
+
+  setText(
     "brokerPayments",
     money(brokerAmount)
+  );
+
+  renderBrokers(
+    brokerFeatureEnabled
+      ? (
+          Array.isArray(
+            brokerReport.byBroker
+          )
+            ? brokerReport.byBroker
+            : []
+        )
+      : []
   );
 
   setText(
@@ -452,7 +668,17 @@ function render(report){
     broker:{
       paidTrips:brokerTripsValue,
       amount:brokerAmount,
-      miles:brokerMilesValue
+      miles:brokerMilesValue,
+      brokersCount:
+        Number(
+          brokerReport.brokersCount || 0
+        ),
+      byBroker:
+        Array.isArray(
+          brokerReport.byBroker
+        )
+          ? brokerReport.byBroker
+          : []
     },
     summary:{
       ...report.summary,
@@ -677,6 +903,11 @@ function exportExcel(){
 
   if(brokerFeatureEnabled){
     rows.push([
+      "Brokers",
+      currentReport.broker?.brokersCount || 0
+    ]);
+
+    rows.push([
       "Broker Payments",
       currentReport.summary.brokerPayments || 0
     ]);
@@ -709,6 +940,31 @@ function exportExcel(){
         row.tripCount
       ]);
     });
+
+  if(
+    brokerFeatureEnabled &&
+    Array.isArray(
+      currentReport.broker?.byBroker
+    )
+  ){
+    rows.push([]);
+    rows.push([
+      "Broker",
+      "Trips",
+      "Amount",
+      "Miles"
+    ]);
+
+    currentReport.broker.byBroker
+      .forEach(row=>{
+        rows.push([
+          row.name || row.code || "Broker",
+          row.trips || 0,
+          row.amount || 0,
+          row.miles || 0
+        ]);
+      });
+  }
 
   rows.push([]);
   rows.push([
