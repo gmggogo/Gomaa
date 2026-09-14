@@ -499,8 +499,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
    Broker Contract.
 
    Required desktop order:
-   Dashboard -> Operations -> Broker Operations -> Dispatch ->
-   Final Confirmation -> remaining core navigation.
+   Dashboard -> Operations -> Broker Operations -> remaining core navigation.
 
    Broker Review belongs INSIDE Broker Operations.
    Broker Summary belongs INSIDE the normal Summary menu.
