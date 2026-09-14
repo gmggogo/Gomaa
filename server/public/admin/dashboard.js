@@ -33,6 +33,127 @@ function money(v){
   return "$"+n(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function headers(){return {Authorization:"Bearer "+token};}
+
+const BROKER_NEW_WINDOW_MS=2*60*60*1000;
+
+const BROKER_VIEWED_NEW_TRIPS_KEY=
+  "brokerTripsHubViewedNewTrips:"+
+  String(
+    sessionStorage.getItem("staffTenantId")||
+    localStorage.getItem("tenantId")||
+    sessionStorage.getItem("staffTenantSlug")||
+    localStorage.getItem("tenantSlug")||
+    "default"
+  );
+
+let normalDashboardNewCount=0;
+let normalDashboardPendingCount=0;
+let brokerDashboardPendingCount=0;
+
+function externalTripId(t){
+  return clean(
+    t?._id||
+    t?.id||
+    t?.ghExternalTripNumber||
+    t?.externalTripNumber||
+    t?.externalTripId
+  );
+}
+
+function externalTripReceivedAt(t){
+  return new Date(
+    t?.receivedAt||
+    t?.createdAt||
+    t?.updatedAt||
+    0
+  );
+}
+
+function readBrokerViewedNewTrips(){
+  let viewed={};
+
+  try{
+    viewed=JSON.parse(
+      localStorage.getItem(
+        BROKER_VIEWED_NEW_TRIPS_KEY
+      )||"{}"
+    );
+  }catch(err){
+    viewed={};
+  }
+
+  const now=Date.now();
+  let changed=false;
+
+  Object.keys(viewed).forEach(key=>{
+    if(n(viewed[key])<=now){
+      delete viewed[key];
+      changed=true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem(
+      BROKER_VIEWED_NEW_TRIPS_KEY,
+      JSON.stringify(viewed)
+    );
+  }
+
+  return viewed;
+}
+
+function isBrokerHubNewTrip(t,viewed){
+  const d=externalTripReceivedAt(t);
+  const age=Date.now()-d.getTime();
+
+  if(
+    isNaN(d.getTime())||
+    age<0||
+    age>BROKER_NEW_WINDOW_MS
+  ){
+    return false;
+  }
+
+  const id=externalTripId(t);
+  if(!id)return false;
+
+  return !viewed[id];
+}
+
+function publishDashboardAlerts(
+  brokerNewCount=0
+){
+  const newTrips=
+    normalDashboardNewCount+
+    n(brokerNewCount);
+
+  const pendingConfirmation=
+    normalDashboardPendingCount+
+    brokerDashboardPendingCount;
+
+  localStorage.setItem(
+    "dashboardNewTripsCount",
+    String(newTrips)
+  );
+
+  localStorage.setItem(
+    "dashboardPendingConfirmationCount",
+    String(pendingConfirmation)
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "gh-dashboard-alerts",
+      {
+        detail:{
+          newTrips,
+          pendingConfirmation
+        }
+      }
+    )
+  );
+}
+
 async function getJson(url){
   const r=await fetch(url,{headers:headers(),cache:"no-store"});
   const data=await r.json().catch(()=>null);
@@ -249,6 +370,10 @@ function renderTrips(trips,finalTrips,services){
   const normalPendingFinal=pendingFinalCount(normalFinalTrips);
   const brokerPendingFinal=pendingFinalCount(brokerFinalTrips);
 
+  normalDashboardNewCount=normalNewItems.length;
+  normalDashboardPendingCount=normalPendingFinal;
+  brokerDashboardPendingCount=brokerPendingFinal;
+
   /* NORMAL / NON-BROKER */
   $("normalTotalTrips").textContent=normalItems.length;
   $("newTrips").textContent=normalNewItems.length;
@@ -280,11 +405,14 @@ function renderTrips(trips,finalTrips,services){
     $("sharedPassengers").textContent=normalMonthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
   }
 
-  /* BROKER ONLY */
-  $("brokerTotalTrips").textContent=brokerItems.length;
-  $("brokerNewTrips").textContent=brokerNewItems.length;
+  /* BROKER OPERATIONS
+     Total Trips + New Trips are loaded from External Trips Hub.
+     Operational status cards below continue to use confirmed/main Broker trips.
+  */
+  $("brokerTotalTrips").textContent="0";
+  $("brokerNewTrips").textContent="0";
   $("brokerNeedsConfirmation").textContent=brokerPendingFinal;
-  $("brokerNewTripAlert").classList.toggle("is-hot",brokerNewItems.length>0);
+  $("brokerNewTripAlert").classList.remove("is-hot");
   $("brokerConfirmAlert").classList.toggle("is-hot",brokerPendingFinal>0);
 
   $("brokerTodayTrips").textContent=brokerTodayItems.length;
@@ -310,14 +438,12 @@ function renderTrips(trips,finalTrips,services){
     $("brokerSharedPassengers").textContent=brokerMonthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
   }
 
-  localStorage.setItem("dashboardNewTripsCount",String(normalNewItems.length+brokerNewItems.length));
-  localStorage.setItem("dashboardPendingConfirmationCount",String(normalPendingFinal+brokerPendingFinal));
-  window.dispatchEvent(new CustomEvent("gh-dashboard-alerts",{
-    detail:{
-      newTrips:normalNewItems.length+brokerNewItems.length,
-      pendingConfirmation:normalPendingFinal+brokerPendingFinal
-    }
-  }));
+  /*
+    Broker intake New Trips is loaded separately from External Trips Hub.
+    Publish normal alerts now; loadBrokerHubCounts() overwrites the combined
+    New Trips alert as soon as Broker capability is confirmed.
+  */
+  publishDashboardAlerts(0);
 }
 
 function renderServices(services){
@@ -391,6 +517,89 @@ function scheduleRowIsActiveToday(row){
   return row.days?.[scheduleDayKey()]===true;
 }
 
+async function loadBrokerHubCounts(){
+  try{
+    const data=
+      await getJson(
+        "/api/external-trips"
+      );
+
+    const trips=
+      Array.isArray(data?.trips)
+        ? data.trips
+        : [];
+
+    const viewed=
+      readBrokerViewedNewTrips();
+
+    const newCount=
+      trips.filter(
+        trip=>
+          isBrokerHubNewTrip(
+            trip,
+            viewed
+          )
+      ).length;
+
+    if($("brokerTotalTrips")){
+      $("brokerTotalTrips")
+        .textContent=
+        String(trips.length);
+    }
+
+    if($("brokerNewTrips")){
+      $("brokerNewTrips")
+        .textContent=
+        String(newCount);
+    }
+
+    if($("brokerNewTripAlert")){
+      $("brokerNewTripAlert")
+        .classList.toggle(
+          "is-hot",
+          newCount>0
+        );
+    }
+
+    publishDashboardAlerts(
+      newCount
+    );
+
+    return {
+      total:trips.length,
+      newTrips:newCount
+    };
+
+  }catch(err){
+    console.log(
+      "DASHBOARD BROKER HUB COUNT ERROR:",
+      err
+    );
+
+    if($("brokerTotalTrips")){
+      $("brokerTotalTrips")
+        .textContent="0";
+    }
+
+    if($("brokerNewTrips")){
+      $("brokerNewTrips")
+        .textContent="0";
+    }
+
+    if($("brokerNewTripAlert")){
+      $("brokerNewTripAlert")
+        .classList.remove("is-hot");
+    }
+
+    publishDashboardAlerts(0);
+
+    return {
+      total:0,
+      newTrips:0
+    };
+  }
+}
+
 async function loadBrokerCounts(){
   /*
     BROKERS card follows the tenant-level Broker capability used by
@@ -407,6 +616,7 @@ async function loadBrokerCounts(){
 
     if(!brokerEnabled){
       if($("brokerCount")) $("brokerCount").textContent="0";
+      publishDashboardAlerts(0);
       return;
     }
 
@@ -416,10 +626,14 @@ async function loadBrokerCounts(){
       $("brokerCount").textContent=String(integrations.length);
     }
 
+    await loadBrokerHubCounts();
+
   }catch(err){
     setBrokerFeatureVisible(false);
 
     if($("brokerCount")) $("brokerCount").textContent="0";
+
+    publishDashboardAlerts(0);
 
     console.log("DASHBOARD BROKER COUNT ERROR:",err);
   }
