@@ -107,6 +107,77 @@ FLOW:
       .join("");
   }
 
+  function displayTripNotes(trip){
+    if(!trip){
+      return "";
+    }
+
+    /*
+      SOURCE NOTE PRIORITY:
+      show the note received from the original company/source instead of
+      internal/generated labels such as Automatic Shared.
+    */
+    const passengerNotes =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+            .map(passenger=>
+              clean(
+                passenger?.notes ||
+                passenger?.instructions ||
+                passenger?.tripNotes ||
+                passenger?.specialInstructions
+              )
+            )
+            .filter(Boolean)
+        : [];
+
+    const uniquePassengerNotes =
+      [...new Set(passengerNotes)];
+
+    if(uniquePassengerNotes.length){
+      return uniquePassengerNotes.join(" | ");
+    }
+
+    const raw =
+      trip.rawPayload &&
+      typeof trip.rawPayload === "object"
+        ? trip.rawPayload
+        : {};
+
+    const rawPassengerNotes =
+      Array.isArray(raw.passengers)
+        ? raw.passengers
+            .map(passenger=>
+              clean(
+                passenger?.notes ||
+                passenger?.instructions ||
+                passenger?.tripNotes ||
+                passenger?.specialInstructions
+              )
+            )
+            .filter(Boolean)
+        : [];
+
+    const uniqueRawPassengerNotes =
+      [...new Set(rawPassengerNotes)];
+
+    if(uniqueRawPassengerNotes.length){
+      return uniqueRawPassengerNotes.join(" | ");
+    }
+
+    return clean(
+      raw.companyNotes ||
+      raw.facilityNotes ||
+      raw.customerNotes ||
+      raw.tripNotes ||
+      raw.specialInstructions ||
+      raw.driverInstructions ||
+      raw.notes ||
+      trip.brokerNotes ||
+      trip.notes
+    );
+  }
+
   function groupedVisibleTrips(){
     const groups = new Map();
 
@@ -355,7 +426,7 @@ FLOW:
       trip?.dropoff,
       trip?.serviceName,
       trip?.serviceKey,
-      trip?.notes,
+      displayTripNotes(trip),
       stops
     ]
       .map(clean)
@@ -598,7 +669,7 @@ FLOW:
             <td class="stops-cell">${stopBoxes(trip.stops)}</td>
             <td class="address-cell">${addressBox(trip.dropoff)}</td>
             <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
-            <td class="notes-cell">${escapeHtml(trip.notes || "-")}</td>
+            <td class="notes-cell">${escapeHtml(displayTripNotes(trip) || "-")}</td>
 
             <td>
               <span class="status ready">
@@ -1494,6 +1565,191 @@ FLOW:
     }
   }
 
+  function ensureEditStopsEditor(){
+    const dialog =
+      $("editDialog");
+
+    if(!dialog){
+      return null;
+    }
+
+    let wrap =
+      $("editStopsEditor");
+
+    if(wrap){
+      return wrap;
+    }
+
+    wrap =
+      document.createElement("div");
+
+    wrap.id =
+      "editStopsEditor";
+
+    wrap.style.marginTop =
+      "14px";
+
+    wrap.innerHTML = `
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        margin-bottom:8px;
+      ">
+        <strong>Stops</strong>
+        <button
+          id="editAddStopBtn"
+          class="btn btn-dark"
+          type="button"
+        >
+          Add Stop
+        </button>
+      </div>
+
+      <div id="editStopRows"></div>
+    `;
+
+    const saveButton =
+      $("saveEditBtn");
+
+    const actionWrap =
+      saveButton?.parentElement;
+
+    if(actionWrap){
+      actionWrap.parentElement
+        ?.insertBefore(
+          wrap,
+          actionWrap
+        );
+    }else{
+      dialog.appendChild(wrap);
+    }
+
+    $("editAddStopBtn")
+      ?.addEventListener(
+        "click",
+        ()=>{
+          const current =
+            readEditStops();
+
+          if(current.length >= 5){
+            return;
+          }
+
+          renderEditStops([
+            ...current,
+            ""
+          ]);
+        }
+      );
+
+    return wrap;
+  }
+
+  function readEditStops(){
+    return [
+      ...document.querySelectorAll(
+        "#editStopRows .edit-stop-input"
+      )
+    ]
+      .map(input=>clean(input.value))
+      .filter(Boolean)
+      .slice(0,5);
+  }
+
+  function renderEditStops(stops=[]){
+    ensureEditStopsEditor();
+
+    const rows =
+      $("editStopRows");
+
+    if(!rows){
+      return;
+    }
+
+    const values =
+      Array.isArray(stops)
+        ? stops
+            .map(normalizeStopAddress)
+            .slice(0,5)
+        : [];
+
+    const displayValues =
+      values.length
+        ? values
+        : [""];
+
+    rows.innerHTML =
+      displayValues
+        .map((value,index)=>`
+          <div style="
+            display:grid;
+            grid-template-columns:minmax(0,1fr) auto;
+            gap:8px;
+            margin-bottom:8px;
+          ">
+            <input
+              class="edit-stop-input"
+              type="text"
+              value="${escapeHtml(value)}"
+              placeholder="Stop ${index + 1}"
+              style="
+                width:100%;
+                box-sizing:border-box;
+              "
+            />
+
+            <button
+              class="btn btn-red edit-remove-stop-btn"
+              type="button"
+              data-index="${index}"
+            >
+              Remove
+            </button>
+          </div>
+        `)
+        .join("");
+
+    rows
+      .querySelectorAll(
+        ".edit-remove-stop-btn"
+      )
+      .forEach(button=>{
+        button.addEventListener(
+          "click",
+          ()=>{
+            const index =
+              Number(button.dataset.index);
+
+            const current =
+              [
+                ...rows.querySelectorAll(
+                  ".edit-stop-input"
+                )
+              ]
+                .map(input=>clean(input.value));
+
+            current.splice(index,1);
+
+            renderEditStops(
+              current.length
+                ? current
+                : [""]
+            );
+          }
+        );
+      });
+
+    const addButton =
+      $("editAddStopBtn");
+
+    if(addButton){
+      addButton.disabled =
+        displayValues.length >= 5;
+    }
+  }
+
   function openEdit(id){
     const trip = state.trips.find(t=>tripId(t) === id);
     if(!trip) return;
@@ -1508,6 +1764,12 @@ FLOW:
       clean(trip.pickup);
     $("editDropoff").value =
       clean(trip.dropoff);
+
+    renderEditStops(
+      Array.isArray(trip.stops)
+        ? trip.stops
+        : []
+    );
 
     $("editDialog").showModal();
   }
@@ -1524,7 +1786,13 @@ FLOW:
             tripTime:$("editPickupTime").value,
             appointmentTime:$("editAppointmentTime").value,
             pickup:$("editPickup").value.trim(),
-            dropoff:$("editDropoff").value.trim()
+            dropoff:$("editDropoff").value.trim(),
+            stops:
+              readEditStops()
+                .map((address,index)=>({
+                  address,
+                  sequence:index + 1
+                }))
           })
         }
       );

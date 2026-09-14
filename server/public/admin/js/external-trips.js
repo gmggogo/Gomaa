@@ -639,6 +639,85 @@ EXTERNAL TRIPS HUB R5
     );
   }
 
+  function displayTripNotes(trip){
+    if(!trip){
+      return "";
+    }
+
+    /*
+      COMPANY / SOURCE NOTE PRIORITY
+
+      Automatic Shared company trips keep the company's original note
+      on the passenger/candidate record, while the group-level trip can
+      contain an internal label such as "Automatic Shared".
+
+      External Trips Hub must show the note received from the source,
+      not the internal/generated group label.
+    */
+
+    const passengerNotes =
+      Array.isArray(trip.passengers)
+        ? trip.passengers
+            .map(
+              passenger=>
+                clean(
+                  passenger?.notes ||
+                  passenger?.instructions ||
+                  passenger?.tripNotes ||
+                  passenger?.specialInstructions
+                )
+            )
+            .filter(Boolean)
+        : [];
+
+    const uniquePassengerNotes =
+      [...new Set(passengerNotes)];
+
+    if(uniquePassengerNotes.length){
+      return uniquePassengerNotes.join(" | ");
+    }
+
+    const raw =
+      trip.rawPayload &&
+      typeof trip.rawPayload === "object"
+        ? trip.rawPayload
+        : {};
+
+    const rawPassengerNotes =
+      Array.isArray(raw.passengers)
+        ? raw.passengers
+            .map(
+              passenger=>
+                clean(
+                  passenger?.notes ||
+                  passenger?.instructions ||
+                  passenger?.tripNotes ||
+                  passenger?.specialInstructions
+                )
+            )
+            .filter(Boolean)
+        : [];
+
+    const uniqueRawPassengerNotes =
+      [...new Set(rawPassengerNotes)];
+
+    if(uniqueRawPassengerNotes.length){
+      return uniqueRawPassengerNotes.join(" | ");
+    }
+
+    return clean(
+      raw.companyNotes ||
+      raw.facilityNotes ||
+      raw.customerNotes ||
+      raw.tripNotes ||
+      raw.specialInstructions ||
+      raw.driverInstructions ||
+      raw.notes ||
+      trip.brokerNotes ||
+      trip.notes
+    );
+  }
+
   function phoenixPickupMillis(trip){
 
     const date =
@@ -839,8 +918,7 @@ EXTERNAL TRIPS HUB R5
 
           <td class="notes">
             ${escapeHtml(
-              trip.notes ||
-              ""
+              displayTripNotes(trip)
             )}
           </td>
 
@@ -1292,7 +1370,7 @@ EXTERNAL TRIPS HUB R5
 
     if($("notes")){
       $("notes").value =
-        clean(trip.notes);
+        displayTripNotes(trip);
     }
 
     renderStopInputs(
