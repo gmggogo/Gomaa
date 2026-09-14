@@ -3454,7 +3454,7 @@ function automaticPassengerFromCandidate(candidate,index){
     notes:candidate.notes || "",
     source:"company",
     bookingSource:"AUTOMATIC_SHARED",
-    status:"Scheduled"
+    status:"Confirmed"
   };
 }
 
@@ -3534,7 +3534,14 @@ async function submitAutomaticSharedGroup(groupIndex){
       routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
       routeSource:"SHARED_ENGINE",
       notes:`Automatic Shared ${group.tripLeg || "OUTBOUND"}`,
-      status:"Scheduled"
+
+      /*
+        Automatic Shared groups are already reviewed/built by the Company
+        Shared Engine before Submit Group is pressed. They must enter Trip Hub
+        as operationally confirmed, not as a second pending company review.
+      */
+      status:"Confirmed",
+      dispatchSelected:true
     };
 
     const res = await fetch("/api/trips",{
