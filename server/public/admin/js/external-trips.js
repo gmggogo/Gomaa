@@ -27,8 +27,18 @@ EXTERNAL TRIPS HUB R5
     stopValues:[]
   };
 
-  const NEW_BASELINE_KEY =
-    "ghExternalTripsNewBaseline";
+  const NEW_TRIP_WINDOW_MS =
+    2 * 60 * 60 * 1000;
+
+  const VIEWED_NEW_TRIPS_KEY =
+    "brokerTripsHubViewedNewTrips:" +
+    String(
+      sessionStorage.getItem("staffTenantId") ||
+      localStorage.getItem("tenantId") ||
+      sessionStorage.getItem("staffTenantSlug") ||
+      localStorage.getItem("tenantSlug") ||
+      "default"
+    );
 
   function token(){
     return (
@@ -279,7 +289,6 @@ EXTERNAL TRIPS HUB R5
         ? data.trips
         : [];
 
-    ensureNewBaseline();
     render();
   }
 
@@ -392,21 +401,6 @@ EXTERNAL TRIPS HUB R5
     }
   }
 
-  function ensureNewBaseline(){
-    if(
-      sessionStorage.getItem(
-        NEW_BASELINE_KEY
-      )
-    ){
-      return;
-    }
-
-    sessionStorage.setItem(
-      NEW_BASELINE_KEY,
-      new Date().toISOString()
-    );
-  }
-
   function isReturnTrip(trip){
     const number =
       clean(
@@ -437,36 +431,112 @@ EXTERNAL TRIPS HUB R5
     );
   }
 
-  function isNewTrip(trip){
-    const baseline =
-      sessionStorage.getItem(
-        NEW_BASELINE_KEY
-      );
 
-    if(!baseline){
-      return false;
-    }
+  function tripId(trip){
+    return clean(
+      trip?._id ||
+      trip?.id ||
+      trip?.ghExternalTripNumber ||
+      trip?.externalTripNumber ||
+      trip?.externalTripId
+    );
+  }
 
-    const received =
-      trip.receivedAt ||
-      trip.createdAt ||
-      "";
+  function tripReceivedAt(trip){
+    return new Date(
+      trip?.receivedAt ||
+      trip?.createdAt ||
+      trip?.updatedAt ||
+      0
+    );
+  }
 
-    if(!received){
-      return false;
-    }
-
-    const receivedTime =
-      new Date(received).getTime();
-
-    const baselineTime =
-      new Date(baseline).getTime();
+  function isRecentNewTrip(trip){
+    const d = tripReceivedAt(trip);
+    const age = Date.now() - d.getTime();
 
     return (
-      Number.isFinite(receivedTime) &&
-      Number.isFinite(baselineTime) &&
-      receivedTime > baselineTime
+      !Number.isNaN(d.getTime()) &&
+      age >= 0 &&
+      age <= NEW_TRIP_WINDOW_MS
     );
+  }
+
+  function readViewedNewTrips(){
+    let viewed = {};
+
+    try{
+      viewed = JSON.parse(
+        localStorage.getItem(VIEWED_NEW_TRIPS_KEY) ||
+        "{}"
+      );
+    }catch(err){
+      viewed = {};
+    }
+
+    const now = Date.now();
+    let changed = false;
+
+    Object.keys(viewed).forEach(key=>{
+      if(Number(viewed[key] || 0) <= now){
+        delete viewed[key];
+        changed = true;
+      }
+    });
+
+    if(changed){
+      localStorage.setItem(
+        VIEWED_NEW_TRIPS_KEY,
+        JSON.stringify(viewed)
+      );
+    }
+
+    return viewed;
+  }
+
+  function isNewTrip(trip){
+    if(!isRecentNewTrip(trip)){
+      return false;
+    }
+
+    const id = tripId(trip);
+    if(!id){
+      return false;
+    }
+
+    return !readViewedNewTrips()[id];
+  }
+
+  function markTripViewed(trip){
+    if(!trip || !isRecentNewTrip(trip)){
+      return;
+    }
+
+    const id = tripId(trip);
+    if(!id){
+      return;
+    }
+
+    const receivedAt =
+      tripReceivedAt(trip);
+
+    const expiresAt =
+      !Number.isNaN(receivedAt.getTime())
+        ? receivedAt.getTime() + NEW_TRIP_WINDOW_MS
+        : Date.now() + NEW_TRIP_WINDOW_MS;
+
+    const viewed =
+      readViewedNewTrips();
+
+    viewed[id] =
+      expiresAt;
+
+    localStorage.setItem(
+      VIEWED_NEW_TRIPS_KEY,
+      JSON.stringify(viewed)
+    );
+
+    renderStats();
   }
 
   function setStat(id,value){
@@ -675,6 +745,9 @@ EXTERNAL TRIPS HUB R5
         const tr =
           document.createElement("tr");
 
+        tr.dataset.tripId =
+          tripId(trip);
+
         if(isOverdueWaiting(trip)){
           tr.classList.add(
             "trip-row-overdue"
@@ -815,6 +888,33 @@ EXTERNAL TRIPS HUB R5
         body.appendChild(tr);
       }
     }
+
+    body
+      .querySelectorAll(
+        "tr[data-trip-id]"
+      )
+      .forEach(
+        row=>{
+          row.addEventListener(
+            "click",
+            ()=>{
+              const trip =
+                state.trips.find(
+                  item=>
+                    tripId(item) ===
+                    clean(row.dataset.tripId)
+                );
+
+              if(
+                trip &&
+                isNewTrip(trip)
+              ){
+                markTripViewed(trip);
+              }
+            }
+          );
+        }
+      );
 
     body
       .querySelectorAll(
