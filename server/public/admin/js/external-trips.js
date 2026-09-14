@@ -27,18 +27,8 @@ EXTERNAL TRIPS HUB R5
     stopValues:[]
   };
 
-  const NEW_TRIP_WINDOW_MS =
-    2 * 60 * 60 * 1000;
-
-  const VIEWED_NEW_TRIPS_KEY =
-    "brokerTripsHubViewedNewTrips:" +
-    String(
-      sessionStorage.getItem("staffTenantId") ||
-      localStorage.getItem("tenantId") ||
-      sessionStorage.getItem("staffTenantSlug") ||
-      localStorage.getItem("tenantSlug") ||
-      "default"
-    );
+  const NEW_BASELINE_KEY =
+    "ghExternalTripsNewBaseline";
 
   function token(){
     return (
@@ -140,6 +130,56 @@ EXTERNAL TRIPS HUB R5
     };
   }
 
+  function searchedTrips(){
+
+    const query =
+      clean(
+        $("searchInput")?.value
+      )
+        .toLowerCase();
+
+    if(!query){
+      return state.trips;
+    }
+
+    return state.trips.filter(
+      trip=>{
+
+        const stops =
+          Array.isArray(trip.stops)
+            ? trip.stops
+                .map(normalizeStopAddress)
+                .join(" ")
+            : "";
+
+        const haystack = [
+          trip.ghExternalTripNumber,
+          trip.externalTripNumber,
+          trip.externalTripId,
+          trip.brokerName,
+          trip.brokerCode,
+          trip.clientName,
+          trip.clientPhone,
+          trip.memberId,
+          trip.pickup,
+          stops,
+          trip.dropoff,
+          trip.serviceName,
+          trip.serviceKey,
+          trip.status,
+          trip.notes
+        ]
+          .map(value=>
+            clean(value)
+              .toLowerCase()
+          )
+          .join(" ");
+
+        return haystack.includes(query);
+      }
+    );
+  }
+
   function queryString(){
     const params =
       new URLSearchParams();
@@ -239,7 +279,8 @@ EXTERNAL TRIPS HUB R5
         ? data.trips
         : [];
 
-      render();
+    ensureNewBaseline();
+    render();
   }
 
   function renderBrokerSelectors(){
@@ -351,6 +392,21 @@ EXTERNAL TRIPS HUB R5
     }
   }
 
+  function ensureNewBaseline(){
+    if(
+      sessionStorage.getItem(
+        NEW_BASELINE_KEY
+      )
+    ){
+      return;
+    }
+
+    sessionStorage.setItem(
+      NEW_BASELINE_KEY,
+      new Date().toISOString()
+    );
+  }
+
   function isReturnTrip(trip){
     const number =
       clean(
@@ -381,113 +437,36 @@ EXTERNAL TRIPS HUB R5
     );
   }
 
-  function tripId(trip){
-    return clean(
-      trip?._id ||
-      trip?.id ||
-      trip?.ghExternalTripNumber ||
-      trip?.externalTripNumber ||
-      trip?.externalTripId
-    );
-  }
+  function isNewTrip(trip){
+    const baseline =
+      sessionStorage.getItem(
+        NEW_BASELINE_KEY
+      );
 
-  function tripReceivedAt(trip){
-    return new Date(
-      trip?.receivedAt ||
-      trip?.createdAt ||
-      trip?.updatedAt ||
-      0
-    );
-  }
+    if(!baseline){
+      return false;
+    }
 
-  function isRecentNewTrip(trip){
-    const d = tripReceivedAt(trip);
+    const received =
+      trip.receivedAt ||
+      trip.createdAt ||
+      "";
+
+    if(!received){
+      return false;
+    }
+
+    const receivedTime =
+      new Date(received).getTime();
+
+    const baselineTime =
+      new Date(baseline).getTime();
 
     return (
-      !Number.isNaN(d.getTime()) &&
-      Date.now() - d.getTime() >= 0 &&
-      Date.now() - d.getTime() <= NEW_TRIP_WINDOW_MS
+      Number.isFinite(receivedTime) &&
+      Number.isFinite(baselineTime) &&
+      receivedTime > baselineTime
     );
-  }
-
-  function readViewedNewTrips(){
-    let viewed = {};
-
-    try{
-      viewed = JSON.parse(
-        localStorage.getItem(VIEWED_NEW_TRIPS_KEY) ||
-        "{}"
-      );
-    }catch(err){
-      viewed = {};
-    }
-
-    const now = Date.now();
-    let changed = false;
-
-    Object.keys(viewed).forEach(key=>{
-      if(Number(viewed[key] || 0) <= now){
-        delete viewed[key];
-        changed = true;
-      }
-    });
-
-    if(changed){
-      localStorage.setItem(
-        VIEWED_NEW_TRIPS_KEY,
-        JSON.stringify(viewed)
-      );
-    }
-
-    return viewed;
-  }
-
-  function isNewTrip(trip){
-    if(!isRecentNewTrip(trip)){
-      return false;
-    }
-
-    const id = tripId(trip);
-    if(!id){
-      return false;
-    }
-
-    const viewed =
-      readViewedNewTrips();
-
-    return !viewed[id];
-  }
-
-  function markTripViewed(trip){
-    if(!trip || !isRecentNewTrip(trip)){
-      return;
-    }
-
-    const id = tripId(trip);
-    if(!id){
-      return;
-    }
-
-    const receivedAt =
-      tripReceivedAt(trip);
-
-    const expiresAt =
-      !Number.isNaN(receivedAt.getTime())
-        ? receivedAt.getTime() + NEW_TRIP_WINDOW_MS
-        : Date.now() + NEW_TRIP_WINDOW_MS;
-
-    const viewed =
-      readViewedNewTrips();
-
-    viewed[id] =
-      expiresAt;
-
-    localStorage.setItem(
-      VIEWED_NEW_TRIPS_KEY,
-      JSON.stringify(viewed)
-    );
-
-    renderStats();
   }
 
   function setStat(id,value){
@@ -500,7 +479,7 @@ EXTERNAL TRIPS HUB R5
 
   function renderStats(){
     const trips =
-      state.trips;
+      searchedTrips();
 
     const brokers =
       new Set(
@@ -565,7 +544,7 @@ EXTERNAL TRIPS HUB R5
     const groups =
       new Map();
 
-    for(const trip of state.trips){
+    for(const trip of searchedTrips()){
       const date =
         clean(trip.tripDate) ||
         "No Date";
@@ -590,6 +569,57 @@ EXTERNAL TRIPS HUB R5
     );
   }
 
+  function phoenixPickupMillis(trip){
+
+    const date =
+      clean(trip?.tripDate);
+
+    const time =
+      clean(trip?.tripTime);
+
+    if(
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !/^\d{2}:\d{2}(:\d{2})?$/.test(time)
+    ){
+      return null;
+    }
+
+    const normalizedTime =
+      time.length === 5
+        ? `${time}:00`
+        : time;
+
+    const value =
+      new Date(
+        `${date}T${normalizedTime}-07:00`
+      ).getTime();
+
+    return Number.isFinite(value)
+      ? value
+      : null;
+  }
+
+  function isOverdueWaiting(trip){
+
+    const pickupMs =
+      phoenixPickupMillis(trip);
+
+    if(pickupMs === null){
+      return false;
+    }
+
+    const now =
+      Date.now();
+
+    const graceMs =
+      2 * 60 * 60 * 1000;
+
+    return (
+      now > pickupMs &&
+      now < pickupMs + graceMs
+    );
+  }
+
   function render(){
     renderStats();
 
@@ -602,7 +632,10 @@ EXTERNAL TRIPS HUB R5
 
     body.innerHTML = "";
 
-    if(!state.trips.length){
+    const visibleTrips =
+      searchedTrips();
+
+    if(!visibleTrips.length){
       const row =
         document.createElement("tr");
 
@@ -642,8 +675,11 @@ EXTERNAL TRIPS HUB R5
         const tr =
           document.createElement("tr");
 
-        tr.dataset.tripId =
-          tripId(trip);
+        if(isOverdueWaiting(trip)){
+          tr.classList.add(
+            "trip-row-overdue"
+          );
+        }
 
         tr.innerHTML = `
           <td class="trip-id">
@@ -782,33 +818,6 @@ EXTERNAL TRIPS HUB R5
 
     body
       .querySelectorAll(
-        "tr[data-trip-id]"
-      )
-      .forEach(
-        row=>{
-          row.addEventListener(
-            "click",
-            ()=>{
-              const trip =
-                state.trips.find(
-                  item=>
-                    tripId(item) ===
-                    clean(row.dataset.tripId)
-                );
-
-              if(
-                trip &&
-                isNewTrip(trip)
-              ){
-                markTripViewed(trip);
-              }
-            }
-          );
-        }
-      );
-
-    body
-      .querySelectorAll(
         "[data-edit]"
       )
       .forEach(
@@ -873,15 +882,22 @@ EXTERNAL TRIPS HUB R5
       return;
     }
 
-    const cleanValues =
-      values
-        .map(normalizeStopAddress)
-        .filter(Boolean)
-        .slice(0,5);
+    const rawValues =
+      Array.isArray(values)
+        ? values
+            .map(value=>
+              clean(
+                normalizeStopAddress(
+                  value
+                )
+              )
+            )
+            .slice(0,5)
+        : [];
 
     state.stopValues =
-      cleanValues.length
-        ? cleanValues
+      rawValues.length
+        ? rawValues
         : [""];
 
     wrap.innerHTML = "";
@@ -905,17 +921,11 @@ EXTERNAL TRIPS HUB R5
             />
 
             <button
-              class="btn btn-light stop-row-action"
+              class="btn btn-danger stop-remove-btn"
               type="button"
               data-stop-index="${index}"
             >
-              ${
-                index ===
-                state.stopValues.length - 1 &&
-                state.stopValues.length < 5
-                  ? "Add Stop"
-                  : "Remove"
-              }
+              Remove
             </button>
           `;
 
@@ -925,7 +935,7 @@ EXTERNAL TRIPS HUB R5
 
     wrap
       .querySelectorAll(
-        ".stop-row-action"
+        ".stop-remove-btn"
       )
       .forEach(
         button=>{
@@ -939,47 +949,69 @@ EXTERNAL TRIPS HUB R5
                   button.dataset.stopIndex
                 );
 
-              const current =
-                currentStopsFromUI();
+              const raw =
+                [...document.querySelectorAll(
+                  "#stopInputs .stop-address-input"
+                )]
+                  .map(
+                    input=>
+                      clean(
+                        input.value
+                      )
+                  );
 
-              const isLast =
-                index ===
-                state.stopValues.length - 1;
-
-              const canAdd =
-                isLast &&
-                state.stopValues.length < 5;
-
-              if(canAdd){
-                state.stopValues = [
-                  ...current,
-                  ""
-                ];
-              }else{
-                const raw =
-                  [...document.querySelectorAll(
-                    "#stopInputs .stop-address-input"
-                  )]
-                    .map(
-                      input=>
-                        clean(input.value)
-                    );
-
-                raw.splice(index,1);
-
-                state.stopValues =
-                  raw.length
-                    ? raw
-                    : [""];
-              }
+              raw.splice(
+                index,
+                1
+              );
 
               renderStopInputs(
-                state.stopValues
+                raw.length
+                  ? raw
+                  : [""]
               );
             }
           );
         }
       );
+
+    const addButton =
+      $("addStopBtn");
+
+    if(addButton){
+      addButton.disabled =
+        state.stopValues.length >= 5;
+
+      addButton.textContent =
+        state.stopValues.length >= 5
+          ? "Maximum 5 Stops"
+          : `Add Stop (${state.stopValues.length}/5)`;
+    }
+  }
+
+  function addStopRow(){
+
+    const current =
+      [...document.querySelectorAll(
+        "#stopInputs .stop-address-input"
+      )]
+        .map(
+          input=>
+            clean(
+              input.value
+            )
+        );
+
+    if(current.length >= 5){
+      return;
+    }
+
+    renderStopInputs(
+      [
+        ...current,
+        ""
+      ]
+    );
   }
 
   function clearDialog(){
@@ -1008,15 +1040,11 @@ EXTERNAL TRIPS HUB R5
       }
     );
 
-    if($("tripType")){
-      $("tripType").value =
-        "SINGLE";
-    }
-
     if(
       $("brokerCode") &&
       $("brokerCode").options.length
     ){
+      $("brokerCode").disabled = false;
       $("brokerCode").selectedIndex = 0;
     }
 
@@ -1089,17 +1117,17 @@ EXTERNAL TRIPS HUB R5
     if($("brokerCode")){
       $("brokerCode").value =
         clean(trip.brokerCode);
+
+      /*
+        Broker identity is part of the GH trip number.
+        It cannot change after intake creation.
+      */
+      $("brokerCode").disabled = true;
     }
 
     if($("externalTripId")){
       $("externalTripId").value =
         clean(trip.externalTripId);
-    }
-
-    if($("tripType")){
-      $("tripType").value =
-        clean(trip.tripType) ||
-        "SINGLE";
     }
 
     if($("tripDate")){
@@ -1213,11 +1241,11 @@ EXTERNAL TRIPS HUB R5
           $("externalTripId")?.value
         ),
 
-      tripType:
-        clean(
-          $("tripType")?.value
-        ) ||
-        "SINGLE",
+      /*
+        Intake trips stay individual here.
+        Trip Split is the only place that may group them as Shared.
+      */
+      tripType:"SINGLE",
 
       tripDate:
         clean(
@@ -1404,6 +1432,24 @@ EXTERNAL TRIPS HUB R5
 
       await loadTrips();
 
+      /*
+        Keep overdue styling current and let the backend move trips to
+        Dispatch Review automatically when the two-hour grace period ends.
+      */
+      window.setInterval(
+        ()=>{
+          loadTrips()
+            .catch(
+              err=>
+                console.error(
+                  "EXTERNAL TRIPS AUTO REFRESH ERROR:",
+                  err
+                )
+            );
+        },
+        60 * 1000
+      );
+
     }catch(err){
       console.error(
         "EXTERNAL TRIP DELETE ERROR:",
@@ -1418,6 +1464,19 @@ EXTERNAL TRIPS HUB R5
   }
 
   function bindEvents(){
+
+    $("searchInput")
+      ?.addEventListener(
+        "input",
+        render
+      );
+
+    $("addStopBtn")
+      ?.addEventListener(
+        "click",
+        addStopRow
+      );
+
     $("addTripBtn")
       ?.addEventListener(
         "click",
