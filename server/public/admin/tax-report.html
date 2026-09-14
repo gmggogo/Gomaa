@@ -176,6 +176,10 @@ body{
 .summary-value.money{color:var(--green)}
 .summary-value.miles{color:var(--blue)}
 
+.broker-dynamic.hidden{
+  display:none !important;
+}
+
 .section{
   margin:0 20px 20px;
   border:1px solid var(--line);
@@ -388,6 +392,11 @@ tbody tr:hover{
         <div class="summary-value money" id="reservedPayments">$0.00</div>
       </div>
 
+      <div class="summary-card broker-dynamic hidden">
+        <div class="summary-label">Broker Payments</div>
+        <div class="summary-value money" id="brokerPayments">$0.00</div>
+      </div>
+
       <div class="summary-card">
         <div class="summary-label">Total Amount</div>
         <div class="summary-value money" id="totalAmount">$0.00</div>
@@ -448,6 +457,12 @@ tbody tr:hover{
               <td id="reservedTrips">0</td>
               <td id="reservedTableAmount">$0.00</td>
               <td id="reservedMiles">0.0</td>
+            </tr>
+            <tr class="broker-dynamic hidden">
+              <td class="company-cell">Broker</td>
+              <td id="brokerTrips">0</td>
+              <td id="brokerTableAmount">$0.00</td>
+              <td id="brokerMiles">0.0</td>
             </tr>
             <tr class="total-row">
               <td>Total</td>

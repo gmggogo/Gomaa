@@ -36,6 +36,15 @@ const statusMessage =
 
 let currentReport = null;
 
+let brokerFeatureEnabled = false;
+
+let brokerReport = {
+  paidTrips:0,
+  amount:0,
+  miles:0,
+  items:[]
+};
+
 function money(value){
   return new Intl.NumberFormat(
     "en-US",
@@ -133,6 +142,139 @@ function escapeHtml(value){
     .replace(/'/g,"&#039;");
 }
 
+function setBrokerVisibility(visible){
+  brokerFeatureEnabled =
+    visible === true;
+
+  document
+    .querySelectorAll(".broker-dynamic")
+    .forEach(el=>{
+      el.classList.toggle(
+        "hidden",
+        !brokerFeatureEnabled
+      );
+    });
+}
+
+async function loadBrokerCapability(){
+  try{
+    const res =
+      await fetch(
+        "/api/shared-engine/settings",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
+
+    const data =
+      await res.json()
+        .catch(()=>({}));
+
+    const enabled =
+      res.ok &&
+      data?.capabilities
+        ?.brokerContractEnabled === true;
+
+    setBrokerVisibility(enabled);
+
+    return enabled;
+
+  }catch(err){
+    console.log(
+      "TAX BROKER CAPABILITY ERROR:",
+      err
+    );
+
+    setBrokerVisibility(false);
+    return false;
+  }
+}
+
+async function loadBrokerReport(from,to){
+  if(brokerFeatureEnabled !== true){
+    brokerReport = {
+      paidTrips:0,
+      amount:0,
+      miles:0,
+      items:[]
+    };
+
+    return brokerReport;
+  }
+
+  const params =
+    new URLSearchParams();
+
+  if(from){
+    params.set("from",from);
+  }
+
+  if(to){
+    params.set("to",to);
+  }
+
+  const res =
+    await fetch(
+      "/api/external-summary?" +
+      params.toString(),
+      {
+        headers:{
+          Authorization:
+            "Bearer " + token
+        },
+        cache:"no-store"
+      }
+    );
+
+  const data =
+    await res.json()
+      .catch(()=>({}));
+
+  if(
+    !res.ok ||
+    data.success === false
+  ){
+    throw new Error(
+      data.message ||
+      "Failed to load broker tax data"
+    );
+  }
+
+  const items =
+    Array.isArray(data.items)
+      ? data.items
+      : [];
+
+  brokerReport = {
+    paidTrips:
+      items.length,
+
+    amount:
+      items.reduce(
+        (sum,item)=>
+          sum +
+          Number(item?.total || 0),
+        0
+      ),
+
+    miles:
+      items.reduce(
+        (sum,item)=>
+          sum +
+          Number(item?.miles || 0),
+        0
+      ),
+
+    items
+  };
+
+  return brokerReport;
+}
+
 function render(report){
 
   currentReport = report;
@@ -176,14 +318,41 @@ function render(report){
     money(report.summary.reservedPayments)
   );
 
+  const brokerAmount =
+    brokerFeatureEnabled
+      ? Number(brokerReport.amount || 0)
+      : 0;
+
+  const brokerMilesValue =
+    brokerFeatureEnabled
+      ? Number(brokerReport.miles || 0)
+      : 0;
+
+  const brokerTripsValue =
+    brokerFeatureEnabled
+      ? Number(brokerReport.paidTrips || 0)
+      : 0;
+
+  setText(
+    "brokerPayments",
+    money(brokerAmount)
+  );
+
   setText(
     "totalAmount",
-    money(report.summary.totalAmount)
+    money(
+      Number(report.summary.totalAmount || 0) +
+      brokerAmount
+    )
   );
 
   setText(
     "totalMiles",
-    number(report.summary.totalMiles,1)
+    number(
+      Number(report.summary.totalMiles || 0) +
+      brokerMilesValue,
+      1
+    )
   );
 
   renderCompanies(
@@ -236,10 +405,26 @@ function render(report){
   );
 
   setText(
+    "brokerTrips",
+    number(brokerTripsValue)
+  );
+
+  setText(
+    "brokerTableAmount",
+    money(brokerAmount)
+  );
+
+  setText(
+    "brokerMiles",
+    number(brokerMilesValue,1)
+  );
+
+  setText(
     "paidTripsTotal",
     number(
       Number(report.getQuote.paidTrips || 0) +
-      Number(report.reserved.paidTrips || 0)
+      Number(report.reserved.paidTrips || 0) +
+      brokerTripsValue
     )
   );
 
@@ -247,7 +432,8 @@ function render(report){
     "directPaymentsTotal",
     money(
       Number(report.getQuote.amount || 0) +
-      Number(report.reserved.amount || 0)
+      Number(report.reserved.amount || 0) +
+      brokerAmount
     )
   );
 
@@ -255,10 +441,32 @@ function render(report){
     "directMilesTotal",
     number(
       Number(report.getQuote.miles || 0) +
-      Number(report.reserved.miles || 0),
+      Number(report.reserved.miles || 0) +
+      brokerMilesValue,
       1
     )
   );
+
+  currentReport = {
+    ...report,
+    broker:{
+      paidTrips:brokerTripsValue,
+      amount:brokerAmount,
+      miles:brokerMilesValue
+    },
+    summary:{
+      ...report.summary,
+      brokerPayments:brokerAmount,
+      brokerTrips:brokerTripsValue,
+      brokerMiles:brokerMilesValue,
+      totalAmount:
+        Number(report.summary.totalAmount || 0) +
+        brokerAmount,
+      totalMiles:
+        Number(report.summary.totalMiles || 0) +
+        brokerMilesValue
+    }
+  };
 }
 
 async function loadReport(){
@@ -295,8 +503,8 @@ async function loadReport(){
 
   try{
 
-    const res =
-      await fetch(
+    const taxRequest =
+      fetch(
         `${API_URL}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         {
           headers:{
@@ -306,6 +514,20 @@ async function loadReport(){
           cache:"no-store"
         }
       );
+
+    const brokerRequest =
+      loadBrokerReport(
+        from,
+        to
+      );
+
+    const [
+      res
+    ] =
+      await Promise.all([
+        taxRequest,
+        brokerRequest
+      ]);
 
     const data =
       await res.json()
@@ -453,6 +675,13 @@ function exportExcel(){
     currentReport.summary.reservedPayments
   ]);
 
+  if(brokerFeatureEnabled){
+    rows.push([
+      "Broker Payments",
+      currentReport.summary.brokerPayments || 0
+    ]);
+  }
+
   rows.push([
     "Total Amount",
     currentReport.summary.totalAmount
@@ -503,6 +732,15 @@ function exportExcel(){
     currentReport.reserved.miles
   ]);
 
+  if(brokerFeatureEnabled){
+    rows.push([
+      "Broker",
+      currentReport.broker?.paidTrips || 0,
+      currentReport.broker?.amount || 0,
+      currentReport.broker?.miles || 0
+    ]);
+  }
+
   const csv =
     "\ufeff" +
     rows
@@ -550,4 +788,8 @@ document
   );
 
 setDefaultDates();
-loadReport();
+
+(async()=>{
+  await loadBrokerCapability();
+  await loadReport();
+})();
