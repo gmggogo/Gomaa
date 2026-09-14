@@ -167,6 +167,14 @@ function isRefundedTrip(t){
          norm(t?.paymentStatus)==="refunded";
 }
 
+function setBrokerCardsVisible(visible){
+  const brokerCard=$("brokerCountCard");
+  const activeCard=$("activeBrokerCountCard");
+
+  brokerCard?.classList.toggle("hidden",!visible);
+  activeCard?.classList.toggle("hidden",!visible);
+}
+
 function renderRoleVisibility(){
   document.querySelectorAll(".super-only").forEach(el=>el.style.display=isSuper?"":"none");
 
@@ -304,6 +312,67 @@ function scheduleRowIsActiveToday(row){
   return row.days?.[scheduleDayKey()]===true;
 }
 
+async function loadBrokerCounts(){
+  /*
+    Broker cards follow the same tenant-level Broker capability used by
+    Broker Operations / Trip Split.
+
+    - BROKERS: enabled + visible broker integrations returned for this tenant.
+    - ACTIVE BROKERS: distinct brokers that currently have open broker trips
+      in the Trip Split bootstrap data.
+    - If Broker is disabled for the tenant, both cards disappear completely.
+  */
+  try{
+    const data=await getJson("/api/trip-split/bootstrap");
+    const brokerEnabled=data?.capabilities?.brokerContractEnabled===true;
+
+    setBrokerCardsVisible(brokerEnabled);
+
+    if(!brokerEnabled){
+      if($("brokerCount")) $("brokerCount").textContent="0";
+      if($("activeBrokerCount")) $("activeBrokerCount").textContent="0";
+      return;
+    }
+
+    const integrations=Array.isArray(data?.integrations)?data.integrations:[];
+
+    const brokerTrips=
+      Array.isArray(data?.originalTrips)
+        ? data.originalTrips
+        : (
+            Array.isArray(data?.trips)
+              ? data.trips
+              : []
+          );
+
+    const activeBrokerKeys=new Set(
+      brokerTrips
+        .map(t=>clean(t?.brokerCode||t?.brokerName).toUpperCase())
+        .filter(Boolean)
+    );
+
+    if($("brokerCount")){
+      $("brokerCount").textContent=String(integrations.length);
+    }
+
+    if($("activeBrokerCount")){
+      $("activeBrokerCount").textContent=String(activeBrokerKeys.size);
+    }
+
+  }catch(err){
+    /*
+      A disabled Broker feature can reject Broker endpoints.
+      Keep the cards hidden instead of leaving stale/incorrect numbers.
+    */
+    setBrokerCardsVisible(false);
+
+    if($("brokerCount")) $("brokerCount").textContent="0";
+    if($("activeBrokerCount")) $("activeBrokerCount").textContent="0";
+
+    console.log("DASHBOARD BROKER COUNTS ERROR:",err);
+  }
+}
+
 async function loadUserCounts(){
   const roles=["driver","dispatcher"];
 
@@ -404,7 +473,12 @@ async function init(){
   renderServices(services);
   renderTrips(trips,finalTrips,services);
 
-  await Promise.allSettled([loadUserCounts()]);
+  setBrokerCardsVisible(false);
+
+  await Promise.allSettled([
+    loadUserCounts(),
+    loadBrokerCounts()
+  ]);
 }
 
 document.addEventListener("DOMContentLoaded",init);
