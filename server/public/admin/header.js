@@ -372,7 +372,8 @@ async function loadSharedBrokerVisibility(){
 
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
-{g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"],["Dispatch","dispatch.html","car"]]},
+{g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
+{l:"Dispatch",h:"dispatch.html",i:"car"},
 {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
 {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
 {g:"Driver Follow-up",i:"user",items:[["Driver Schedule","driver-schedule.html","calendar"],["Drivers Map","maps.html","map"]]}
@@ -498,7 +499,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
    Broker Contract.
 
    Required desktop order:
-   Dashboard -> Operations -> Broker Operations -> remaining core navigation.
+   Dashboard -> Operations -> Broker Operations -> Dispatch ->
+   Final Confirmation -> remaining core navigation.
 
    Broker Review belongs INSIDE Broker Operations.
    Broker Summary belongs INSIDE the normal Summary menu.
