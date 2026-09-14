@@ -62,7 +62,7 @@ body{
 .section-note{font-size:10px;font-weight:750;color:#7b8996}
 
 .grid{display:grid;gap:12px}
-.alert-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}
+.alert-grid{grid-template-columns:repeat(3,minmax(220px,1fr))}
 .today-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
 .month-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
 .org-grid{grid-template-columns:repeat(5,minmax(130px,1fr))}
@@ -318,7 +318,7 @@ body{
 
 /* ACTION: always balanced */
 .alert-grid{
-  grid-template-columns:repeat(2,minmax(280px,1fr)) !important;
+  grid-template-columns:repeat(3,minmax(240px,1fr)) !important;
 }
 
 /* TODAY: 6 clean equal cards */
@@ -860,6 +860,15 @@ body{
     </div>
 
     <div class="grid alert-grid">
+      <div class="card alert-card">
+        <div>
+          <div class="card-label">Total Trips</div>
+          <div class="card-value" id="normalTotalTrips">0</div>
+          <div class="card-note">Company / Get Quote / Reserved only</div>
+        </div>
+        <div class="alert-icon">#</div>
+      </div>
+
       <div class="card alert-card new" id="newTripAlert">
         <div>
           <div class="card-label">New Trips</div>
@@ -874,6 +883,43 @@ body{
           <div class="card-label">Needs Final Confirmation Today</div>
           <div class="card-value" id="needsConfirmation">0</div>
           <div class="card-note">Completed / final-status trips waiting for confirmation</div>
+        </div>
+        <div class="alert-icon">✓</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROKER ACTION CENTER -->
+  <section class="section broker-dynamic hidden" id="brokerActionSection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Action Center</h2>
+      <div class="section-note">Broker trips only</div>
+    </div>
+
+    <div class="grid alert-grid">
+      <div class="card alert-card">
+        <div>
+          <div class="card-label">Broker Total Trips</div>
+          <div class="card-value" id="brokerTotalTrips">0</div>
+          <div class="card-note">All broker trips</div>
+        </div>
+        <div class="alert-icon">#</div>
+      </div>
+
+      <div class="card alert-card new" id="brokerNewTripAlert">
+        <div>
+          <div class="card-label">Broker New Trips</div>
+          <div class="card-value" id="brokerNewTrips">0</div>
+          <div class="card-note">New broker reservations</div>
+        </div>
+        <div class="alert-icon">✦</div>
+      </div>
+
+      <div class="card alert-card confirm" id="brokerConfirmAlert">
+        <div>
+          <div class="card-label">Broker Needs Final Confirmation Today</div>
+          <div class="card-value" id="brokerNeedsConfirmation">0</div>
+          <div class="card-note">Broker final-status trips waiting for confirmation</div>
         </div>
         <div class="alert-icon">✓</div>
       </div>
@@ -921,6 +967,47 @@ body{
     </div>
   </section>
 
+  <!-- BROKER TODAY -->
+  <section class="section broker-dynamic hidden" id="brokerTodaySection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Today's Operations</h2>
+      <div class="section-note">Broker trips today</div>
+    </div>
+
+    <div class="grid today-grid">
+      <div class="card">
+        <div class="card-label">Broker Trips Today</div>
+        <div class="card-value" id="brokerTodayTrips">0</div>
+        <div class="card-note">Broker trips scheduled today</div>
+      </div>
+      <div class="card teal">
+        <div class="card-label">Broker On Trip</div>
+        <div class="card-value" id="brokerTodayOnTrip">0</div>
+        <div class="card-note">Currently active broker trips</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Broker Completed Today</div>
+        <div class="card-value" id="brokerTodayCompleted">0</div>
+        <div class="card-note">Completed broker trips</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Broker Cancelled Today</div>
+        <div class="card-value" id="brokerTodayCancelled">0</div>
+        <div class="card-note">Cancelled broker trips</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">Broker No Show Today</div>
+        <div class="card-value" id="brokerTodayNoShow">0</div>
+        <div class="card-note">Broker no-show trips</div>
+      </div>
+      <div class="card purple">
+        <div class="card-label">Broker Refunded Today</div>
+        <div class="card-value" id="brokerTodayRefunds">0</div>
+        <div class="card-note">Broker refunds processed today</div>
+      </div>
+    </div>
+  </section>
+
   <!-- MONTH -->
   <section class="section">
     <div class="section-head">
@@ -962,6 +1049,47 @@ body{
     </div>
   </section>
 
+  <!-- BROKER MONTH -->
+  <section class="section broker-dynamic hidden" id="brokerMonthSection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Monthly Reports</h2>
+      <div class="section-note">Current month · Broker trips only</div>
+    </div>
+
+    <div class="grid month-grid">
+      <div class="card">
+        <div class="card-label">Broker Monthly Trips</div>
+        <div class="card-value" id="brokerMonthTrips">0</div>
+        <div class="card-note">All broker trips this month</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Broker Completed</div>
+        <div class="card-value" id="brokerMonthCompleted">0</div>
+        <div class="card-note">Broker completed this month</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Broker Cancelled</div>
+        <div class="card-value" id="brokerMonthCancelled">0</div>
+        <div class="card-note">Broker cancelled this month</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">Broker No Show</div>
+        <div class="card-value" id="brokerMonthNoShow">0</div>
+        <div class="card-note">Broker no-show this month</div>
+      </div>
+      <div class="card navy">
+        <div class="card-label">Broker Monthly Miles</div>
+        <div class="card-value" id="brokerMonthMiles">0.0</div>
+        <div class="card-note">Recorded broker trip miles</div>
+      </div>
+      <div class="card purple hidden" id="brokerSharedPassengersCard">
+        <div class="card-label">Broker Shared Passengers</div>
+        <div class="card-value" id="brokerSharedPassengers">0</div>
+        <div class="card-note">Shown only when Shared service is active</div>
+      </div>
+    </div>
+  </section>
+
   <!-- ORGANIZATION -->
   <section class="section">
     <div class="section-head">
@@ -976,16 +1104,10 @@ body{
         <div class="card-note">Contracted accounts</div>
       </div>
 
-      <div class="card purple hidden" id="brokerCountCard">
+      <div class="card purple broker-dynamic hidden" id="brokerCountCard">
         <div class="card-label">Brokers</div>
         <div class="card-value" id="brokerCount">0</div>
         <div class="card-note">Configured broker connections</div>
-      </div>
-
-      <div class="card green hidden" id="activeBrokerCountCard">
-        <div class="card-label">Active Brokers</div>
-        <div class="card-value" id="activeBrokerCount">0</div>
-        <div class="card-note">Brokers with active trips</div>
       </div>
 
       <div class="card teal">

@@ -74,6 +74,30 @@ function isFinalConfirmed(t){
          !!t?.finalStatusConfirmedAt||
          !!t?.sharedFinalConfirmedAt;
 }
+function isBrokerTrip(t){
+  if(!t)return false;
+
+  const direct=clean(
+    t?.externalSource ||
+    t?.integrationSource ||
+    t?.tripSource ||
+    ""
+  ).toUpperCase();
+
+  if(direct==="BROKER")return true;
+
+  if(clean(t?.brokerCode)||clean(t?.brokerName))return true;
+
+  const sourceText=[
+    t?.source,
+    t?.bookingSource,
+    t?.createdBy,
+    t?.from
+  ].map(clean).join(" ").toUpperCase();
+
+  return sourceText.includes("BROKER");
+}
+
 function isShared(t){
   return t?.isShared===true||
          clean(t?.tripType).toUpperCase()==="SHARED"||
@@ -167,12 +191,10 @@ function isRefundedTrip(t){
          norm(t?.paymentStatus)==="refunded";
 }
 
-function setBrokerCardsVisible(visible){
-  const brokerCard=$("brokerCountCard");
-  const activeCard=$("activeBrokerCountCard");
-
-  brokerCard?.classList.toggle("hidden",!visible);
-  activeCard?.classList.toggle("hidden",!visible);
+function setBrokerFeatureVisible(visible){
+  document
+    .querySelectorAll(".broker-dynamic")
+    .forEach(el=>el.classList.toggle("hidden",!visible));
 }
 
 function renderRoleVisibility(){
@@ -188,57 +210,114 @@ function renderRoleVisibility(){
 }
 
 function renderTrips(trips,finalTrips,services){
-  const items=buildItems(trips);
+  const allTrips=Array.isArray(trips)?trips:[];
+  const allFinalTrips=Array.isArray(finalTrips)?finalTrips:[];
+
+  const normalTrips=allTrips.filter(t=>!isBrokerTrip(t));
+  const brokerTrips=allTrips.filter(isBrokerTrip);
+
+  const normalFinalTrips=allFinalTrips.filter(t=>!isBrokerTrip(t));
+  const brokerFinalTrips=allFinalTrips.filter(isBrokerTrip);
+
+  const normalItems=buildItems(normalTrips);
+  const brokerItems=buildItems(brokerTrips);
+
   const today=todayKey();
   const month=monthKey();
-  const todayItems=items.filter(i=>tripDateKey(i.trip)===today);
-  const monthItems=items.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
 
-  const newItems=items.filter(i=>{
+  const normalTodayItems=normalItems.filter(i=>tripDateKey(i.trip)===today);
+  const normalMonthItems=normalItems.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
+
+  const brokerTodayItems=brokerItems.filter(i=>tripDateKey(i.trip)===today);
+  const brokerMonthItems=brokerItems.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
+
+  const recentItems=items=>items.filter(i=>{
     const d=new Date(i.trip?.bookedAt||i.trip?.createdAt||0);
     return !isNaN(d.getTime())&&(Date.now()-d.getTime()<=2*60*60*1000);
   });
 
-  const pendingFinal=(finalTrips||[]).filter(t=>{
+  const pendingFinalCount=list=>list.filter(t=>{
     const ready=isShared(t)
       ? (Array.isArray(t.passengers)&&t.passengers.some(p=>isFinalStatus(p.status||t.status)))
       : isFinalStatus(t.status);
     return ready && !isFinalConfirmed(t) && tripDateKey(t)===today;
-  });
+  }).length;
 
-  $("newTrips").textContent=newItems.length;
-  $("needsConfirmation").textContent=pendingFinal.length;
-  $("newTripAlert").classList.toggle("is-hot",newItems.length>0);
-  $("confirmAlert").classList.toggle("is-hot",pendingFinal.length>0);
+  const normalNewItems=recentItems(normalItems);
+  const brokerNewItems=recentItems(brokerItems);
 
-  $("todayTrips").textContent=todayItems.length;
-  $("todayOnTrip").textContent=todayItems.filter(i=>statuses(i).some(isOnTrip)).length;
-  $("todayCompleted").textContent=todayItems.filter(i=>statuses(i).some(isCompleted)).length;
-  $("todayCancelled").textContent=todayItems.filter(i=>statuses(i).some(isCancelled)).length;
-  $("todayNoShow").textContent=todayItems.filter(i=>statuses(i).some(isNoShow)).length;
+  const normalPendingFinal=pendingFinalCount(normalFinalTrips);
+  const brokerPendingFinal=pendingFinalCount(brokerFinalTrips);
 
-  $("todayRefunds").textContent=trips.filter(t=>{
+  /* NORMAL / NON-BROKER */
+  $("normalTotalTrips").textContent=normalItems.length;
+  $("newTrips").textContent=normalNewItems.length;
+  $("needsConfirmation").textContent=normalPendingFinal;
+  $("newTripAlert").classList.toggle("is-hot",normalNewItems.length>0);
+  $("confirmAlert").classList.toggle("is-hot",normalPendingFinal>0);
+
+  $("todayTrips").textContent=normalTodayItems.length;
+  $("todayOnTrip").textContent=normalTodayItems.filter(i=>statuses(i).some(isOnTrip)).length;
+  $("todayCompleted").textContent=normalTodayItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("todayCancelled").textContent=normalTodayItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("todayNoShow").textContent=normalTodayItems.filter(i=>statuses(i).some(isNoShow)).length;
+
+  $("todayRefunds").textContent=normalTrips.filter(t=>{
     if(!isRefundedTrip(t))return false;
     const d=refundDate(t);
     return d?dateKey(d)===today:tripDateKey(t)===today;
   }).length;
 
-  $("monthTrips").textContent=monthItems.length;
-  $("monthCompleted").textContent=monthItems.filter(i=>statuses(i).some(isCompleted)).length;
-  $("monthCancelled").textContent=monthItems.filter(i=>statuses(i).some(isCancelled)).length;
-  $("monthNoShow").textContent=monthItems.filter(i=>statuses(i).some(isNoShow)).length;
-  $("monthMiles").textContent=monthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
-
+  $("monthTrips").textContent=normalMonthItems.length;
+  $("monthCompleted").textContent=normalMonthItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("monthCancelled").textContent=normalMonthItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("monthNoShow").textContent=normalMonthItems.filter(i=>statuses(i).some(isNoShow)).length;
+  $("monthMiles").textContent=normalMonthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
 
   const sharedEnabled=hasSharedService(services);
   $("sharedPassengersCard").classList.toggle("hidden",!sharedEnabled);
   if(sharedEnabled){
-    $("sharedPassengers").textContent=monthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
+    $("sharedPassengers").textContent=normalMonthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
   }
 
-  localStorage.setItem("dashboardNewTripsCount",String(newItems.length));
-  localStorage.setItem("dashboardPendingConfirmationCount",String(pendingFinal.length));
-  window.dispatchEvent(new CustomEvent("gh-dashboard-alerts",{detail:{newTrips:newItems.length,pendingConfirmation:pendingFinal.length}}));
+  /* BROKER ONLY */
+  $("brokerTotalTrips").textContent=brokerItems.length;
+  $("brokerNewTrips").textContent=brokerNewItems.length;
+  $("brokerNeedsConfirmation").textContent=brokerPendingFinal;
+  $("brokerNewTripAlert").classList.toggle("is-hot",brokerNewItems.length>0);
+  $("brokerConfirmAlert").classList.toggle("is-hot",brokerPendingFinal>0);
+
+  $("brokerTodayTrips").textContent=brokerTodayItems.length;
+  $("brokerTodayOnTrip").textContent=brokerTodayItems.filter(i=>statuses(i).some(isOnTrip)).length;
+  $("brokerTodayCompleted").textContent=brokerTodayItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("brokerTodayCancelled").textContent=brokerTodayItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("brokerTodayNoShow").textContent=brokerTodayItems.filter(i=>statuses(i).some(isNoShow)).length;
+
+  $("brokerTodayRefunds").textContent=brokerTrips.filter(t=>{
+    if(!isRefundedTrip(t))return false;
+    const d=refundDate(t);
+    return d?dateKey(d)===today:tripDateKey(t)===today;
+  }).length;
+
+  $("brokerMonthTrips").textContent=brokerMonthItems.length;
+  $("brokerMonthCompleted").textContent=brokerMonthItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("brokerMonthCancelled").textContent=brokerMonthItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("brokerMonthNoShow").textContent=brokerMonthItems.filter(i=>statuses(i).some(isNoShow)).length;
+  $("brokerMonthMiles").textContent=brokerMonthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
+
+  $("brokerSharedPassengersCard").classList.toggle("hidden",!sharedEnabled);
+  if(sharedEnabled){
+    $("brokerSharedPassengers").textContent=brokerMonthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
+  }
+
+  localStorage.setItem("dashboardNewTripsCount",String(normalNewItems.length+brokerNewItems.length));
+  localStorage.setItem("dashboardPendingConfirmationCount",String(normalPendingFinal+brokerPendingFinal));
+  window.dispatchEvent(new CustomEvent("gh-dashboard-alerts",{
+    detail:{
+      newTrips:normalNewItems.length+brokerNewItems.length,
+      pendingConfirmation:normalPendingFinal+brokerPendingFinal
+    }
+  }));
 }
 
 function renderServices(services){
@@ -314,62 +393,35 @@ function scheduleRowIsActiveToday(row){
 
 async function loadBrokerCounts(){
   /*
-    Broker cards follow the same tenant-level Broker capability used by
+    BROKERS card follows the tenant-level Broker capability used by
     Broker Operations / Trip Split.
 
     - BROKERS: enabled + visible broker integrations returned for this tenant.
-    - ACTIVE BROKERS: distinct brokers that currently have open broker trips
-      in the Trip Split bootstrap data.
-    - If Broker is disabled for the tenant, both cards disappear completely.
+    - If Broker is disabled for the tenant, every Broker dashboard section disappears completely.
   */
   try{
     const data=await getJson("/api/trip-split/bootstrap");
     const brokerEnabled=data?.capabilities?.brokerContractEnabled===true;
 
-    setBrokerCardsVisible(brokerEnabled);
+    setBrokerFeatureVisible(brokerEnabled);
 
     if(!brokerEnabled){
       if($("brokerCount")) $("brokerCount").textContent="0";
-      if($("activeBrokerCount")) $("activeBrokerCount").textContent="0";
       return;
     }
 
     const integrations=Array.isArray(data?.integrations)?data.integrations:[];
 
-    const brokerTrips=
-      Array.isArray(data?.originalTrips)
-        ? data.originalTrips
-        : (
-            Array.isArray(data?.trips)
-              ? data.trips
-              : []
-          );
-
-    const activeBrokerKeys=new Set(
-      brokerTrips
-        .map(t=>clean(t?.brokerCode||t?.brokerName).toUpperCase())
-        .filter(Boolean)
-    );
-
     if($("brokerCount")){
       $("brokerCount").textContent=String(integrations.length);
     }
 
-    if($("activeBrokerCount")){
-      $("activeBrokerCount").textContent=String(activeBrokerKeys.size);
-    }
-
   }catch(err){
-    /*
-      A disabled Broker feature can reject Broker endpoints.
-      Keep the cards hidden instead of leaving stale/incorrect numbers.
-    */
-    setBrokerCardsVisible(false);
+    setBrokerFeatureVisible(false);
 
     if($("brokerCount")) $("brokerCount").textContent="0";
-    if($("activeBrokerCount")) $("activeBrokerCount").textContent="0";
 
-    console.log("DASHBOARD BROKER COUNTS ERROR:",err);
+    console.log("DASHBOARD BROKER COUNT ERROR:",err);
   }
 }
 
@@ -473,7 +525,7 @@ async function init(){
   renderServices(services);
   renderTrips(trips,finalTrips,services);
 
-  setBrokerCardsVisible(false);
+  setBrokerFeatureVisible(false);
 
   await Promise.allSettled([
     loadUserCounts(),
