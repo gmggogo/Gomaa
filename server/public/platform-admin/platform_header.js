@@ -140,10 +140,23 @@ document.addEventListener(
         "GH Mobility Platform";
     }
 
+    const platformRoleTitle =
+      document.getElementById(
+        "platformRoleTitle"
+      );
+
+    if(platformRoleTitle){
+      platformRoleTitle.textContent =
+        "Platform Admin";
+    }
+
     const platformAdminName =
       String(
         sessionStorage.getItem("staffName") ||
+        sessionStorage.getItem("fullName") ||
         localStorage.getItem("name") ||
+        localStorage.getItem("fullName") ||
+        localStorage.getItem("userName") ||
         "Platform Admin"
       ).trim() ||
       "Platform Admin";

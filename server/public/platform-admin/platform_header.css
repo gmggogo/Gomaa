@@ -140,6 +140,18 @@ body{
     0 2px 5px rgba(21,44,66,.13);
 }
 
+
+.platform-role-title{
+  margin-top:5px;
+  color:#6f541c;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.75px;
+  text-transform:uppercase;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+
 .platform-welcome-box{
   margin-top:8px;
   min-height:22px;
@@ -235,7 +247,6 @@ body{
   display:flex;
   flex-direction:row;
   align-items:center;
-  gap:8px;
   line-height:1;
   white-space:nowrap;
 }
@@ -252,27 +263,6 @@ body{
   font-weight:900;
 }
 
-.platform-admin-profile-text span{
-  position:relative;
-  padding-left:9px;
-
-  color:#765d22;
-  font-family:Arial,Helvetica,sans-serif;
-  font-size:10px;
-  font-weight:900;
-  letter-spacing:.2px;
-}
-
-.platform-admin-profile-text span::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:50%;
-  width:1px;
-  height:16px;
-  transform:translateY(-50%);
-  background:rgba(96,79,38,.36);
-}
 
 #platformTime{
   min-width:114px;
@@ -714,6 +704,12 @@ body{
 
   .platform-title{
     font-size:18px;
+  }
+
+
+  .platform-role-title{
+    font-size:9px;
+    margin-top:3px;
   }
 
   .platform-welcome-box{
