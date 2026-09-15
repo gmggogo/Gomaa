@@ -371,8 +371,9 @@ body{
 .company-table{
   width:100%;
   min-width:1260px;
-  border-collapse:collapse;
-  table-layout:auto;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed;
 }
 
 .company-table th{
@@ -391,14 +392,17 @@ body{
 
   color:#f8fbff;
 
-  border-right:1px solid rgba(255,255,255,.10);
+  border-right:2px solid rgba(255,255,255,.28);
+  border-bottom:2px solid #153550;
 
   font-size:9px;
   font-weight:900;
   text-align:center;
   text-transform:uppercase;
   letter-spacing:.35px;
-  white-space:nowrap;
+  white-space:normal;
+  line-height:1.25;
+  word-break:break-word;
 }
 
 .company-table th:first-child{
@@ -407,24 +411,80 @@ body{
 }
 
 .company-table td{
-  padding:11px 9px;
+  padding:10px 8px;
+  min-height:52px;
+  vertical-align:middle;
 
-  border-right:1px solid #edf2f6;
-  border-bottom:1px solid #e3ebf1;
+  border-right:2px solid #d7e1e9;
+  border-bottom:2px solid #d7e1e9;
 
   color:#2d4256;
   font-size:11px;
   font-weight:800;
   text-align:center;
-  white-space:nowrap;
 
-  background:rgba(255,255,255,.92);
+  white-space:normal;
+  line-height:1.35;
+  overflow:visible;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+
+  background:rgba(255,255,255,.94);
 }
 
 .company-table td:first-child{
   text-align:left;
   padding-left:15px;
 }
+
+.company-table th:first-child,
+.company-table td:first-child{
+  border-left:2px solid #d7e1e9;
+}
+
+.company-table thead th{
+  border-top:2px solid #153550;
+}
+
+.company-table tbody tr:first-child td{
+  border-top:0;
+}
+
+/* Allow each cell to grow when it contains multiple values */
+.company-table td > *{
+  max-width:100%;
+}
+
+.company-table td .broker-list{
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:5px;
+  min-height:28px;
+}
+
+.company-table td .broker-pill{
+  white-space:normal;
+  text-align:center;
+  line-height:1.2;
+}
+
+.company-table td .metric{
+  white-space:normal;
+}
+
+.company-table th:nth-child(1){width:190px;}
+.company-table th:nth-child(2){width:82px;}
+.company-table th:nth-child(3){width:82px;}
+.company-table th:nth-child(4){width:82px;}
+.company-table th:nth-child(5){width:82px;}
+.company-table th:nth-child(6){width:105px;}
+.company-table th:nth-child(7){width:100px;}
+.company-table th:nth-child(8){width:90px;}
+.company-table th:nth-child(9){width:170px;}
+.company-table th:nth-child(10){width:105px;}
+.company-table th:nth-child(11){width:155px;}
+.company-table th:nth-child(12){width:100px;}
 
 .company-table th:nth-child(2){background:linear-gradient(180deg,#3d5f9a,#274579);}
 .company-table th:nth-child(3){background:linear-gradient(180deg,#2b8f8c,#1f6e6d);}
@@ -517,11 +577,12 @@ body{
 .company-copy strong{
   display:block;
   max-width:180px;
-  overflow:hidden;
-  text-overflow:ellipsis;
   color:#0f3558;
   font-size:12px;
   font-weight:900;
+  white-space:normal;
+  line-height:1.25;
+  overflow-wrap:anywhere;
 }
 
 .company-copy small{
@@ -1260,7 +1321,6 @@ body{
       <div class="broker-list">
         ${
           list
-            .slice(0,3)
             .map(item=>{
               const name =
                 clean(
@@ -1278,15 +1338,6 @@ body{
             .join("")
         }
 
-        ${
-          list.length > 3
-            ? `
-              <span class="broker-pill">
-                +${list.length - 3}
-              </span>
-            `
-            : ""
-        }
       </div>
     `;
   }
