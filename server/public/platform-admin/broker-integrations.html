@@ -23,16 +23,113 @@
       padding:22px;
     }
 
+    .page-head{
+      position:relative;
+      overflow:hidden;
+
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+
+      padding:21px 24px;
+      margin-bottom:18px;
+
+      border:1px solid rgba(13,48,80,.30);
+      border-radius:14px;
+
+      background:
+        radial-gradient(
+          circle at 15% 0%,
+          rgba(255,255,255,.20),
+          transparent 32%
+        ),
+        linear-gradient(
+          135deg,
+          #173f66 0%,
+          #0d3155 52%,
+          #294f70 100%
+        );
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 10px 24px rgba(13,48,80,.17);
+    }
+
+    .page-head::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:4px;
+
+      background:
+        linear-gradient(
+          90deg,
+          #7f6425,
+          #d5b85e,
+          #f5e09a,
+          #d5b85e,
+          #7f6425
+        );
+    }
+
     .page-title{
       margin:0;
+      color:#fff;
+      font-family:Georgia,"Times New Roman",serif;
       font-size:28px;
-      font-weight:800;
+      font-weight:900;
+      letter-spacing:.4px;
+      text-align:center;
+    }
+
+    .platform-chip{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+
+      min-width:190px;
+      margin:2px auto 0;
+      padding:8px 18px;
+
+      border:1px solid rgba(255,232,166,.58);
+      border-radius:999px;
+
+      background:
+        linear-gradient(
+          180deg,
+          #f5de96 0%,
+          #d4b35b 48%,
+          #b6892e 100%
+        );
+
+      color:#4b3308;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.5px;
+      text-transform:uppercase;
+
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.65),
+        0 4px 10px rgba(0,0,0,.14);
     }
 
     .page-sub{
-      margin-top:6px;
-      color:#66717c;
+      margin:0;
+      max-width:780px;
+      color:#d9e8f5;
       font-size:13px;
+      font-weight:700;
+      text-align:center;
+    }
+
+    .page-head-actions{
+      display:flex;
+      justify-content:center;
+      margin:0 0 18px;
     }
 
     .panel{
@@ -88,8 +185,26 @@
     }
 
     .btn-primary{
-      background:#0c4154;
+      background:
+        linear-gradient(
+          180deg,
+          #1f537d,
+          #123e63
+        );
       color:#fff;
+      border:1px solid #0f3555;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 3px 8px rgba(13,48,80,.16);
+    }
+
+    .btn-primary:hover{
+      background:
+        linear-gradient(
+          180deg,
+          #2a6596,
+          #184a73
+        );
     }
 
     .btn-light{
@@ -188,6 +303,19 @@
       .page{
         padding:12px;
       }
+
+      .page-head{
+        padding:18px 14px;
+      }
+
+      .page-title{
+        font-size:22px;
+      }
+
+      .platform-chip{
+        min-width:150px;
+        padding:7px 14px;
+      }
     }
   </style>
 </head>
@@ -198,15 +326,21 @@
 
   <main class="page">
 
-    <div class="toolbar">
-      <div>
-        <h1 class="page-title">Broker Integrations</h1>
+    <section class="page-head">
+      <h1 class="page-title">
+        Broker Integrations
+      </h1>
 
-        <div class="page-sub">
-          Configure external broker connections for each company.
-        </div>
+      <div class="platform-chip">
+        Platform
       </div>
 
+      <div class="page-sub">
+        Configure external broker connections for each company.
+      </div>
+    </section>
+
+    <div class="page-head-actions">
       <button
         type="button"
         class="btn btn-primary"
