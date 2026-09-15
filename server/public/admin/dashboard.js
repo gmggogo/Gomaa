@@ -521,9 +521,14 @@ function externalTripDateKey(t){
   const raw =
     clean(
       t?.tripDate ||
-      t?.date ||
       t?.serviceDate ||
-      t?.appointmentDate
+      t?.appointmentDate ||
+      t?.pickupDate ||
+      t?.scheduledDate ||
+      t?.date ||
+      t?.rideDate ||
+      t?.requestedDate ||
+      ""
     );
 
   if(
@@ -540,15 +545,23 @@ function externalTripStatus(t){
     t?.status ||
     t?.tripStatus ||
     t?.externalStatus ||
+    t?.rideStatus ||
+    t?.dispatchStatus ||
+    t?.brokerStatus ||
+    t?.finalStatus ||
     ""
   );
 }
 
 function externalTripMiles(t){
   return n(
+    t?.sharedRouteMiles ||
     t?.miles ||
     t?.distanceMiles ||
     t?.routeMiles ||
+    t?.tripMiles ||
+    t?.totalMiles ||
+    t?.distance ||
     0
   );
 }
@@ -589,198 +602,214 @@ function externalTripIsShared(t){
   );
 }
 
+function brokerStatusKey(value){
+  return norm(value);
+}
+
+function brokerIsCompletedTrip(t){
+  const s=brokerStatusKey(externalTripStatus(t));
+  return isCompleted(s)||["completed","complete","done","finished","dropoff","droppedoff","dropped","ridecompleted"].includes(s);
+}
+
+function brokerIsCancelledTrip(t){
+  const s=brokerStatusKey(externalTripStatus(t));
+  return isCancelled(s)||s.includes("cancelled")||s.includes("canceled");
+}
+
+function brokerIsNoShowTrip(t){
+  const s=brokerStatusKey(externalTripStatus(t));
+  return isNoShow(s)||s.includes("noshow");
+}
+
+function brokerIsOnTripTrip(t){
+  const s=brokerStatusKey(externalTripStatus(t));
+  return isOnTrip(s)||["assigned","sent","accepted","arrived","atpickup","pickup","pickedup","ontrip","inprogress","started","enroute","driverenroute"].includes(s);
+}
+
+function brokerRefundDate(t){
+  return t?.refundedAt||t?.refundDateTime||t?.refundProcessedAt||t?.paymentRefundedAt||t?.refundDate||null;
+}
+
+function brokerIsRefundedTrip(t){
+  return n(t?.refundAmount)>0||
+         n(t?.refundedAmount)>0||
+         t?.refunded===true||
+         t?.refundProcessed===true||
+         norm(t?.paymentStatus)==="refunded"||
+         norm(t?.refundStatus)==="refunded"||
+         norm(t?.refundStatus)==="completed";
+}
+
+function brokerTripIdentity(t){
+  return clean(
+    t?.externalTripId||
+    t?.brokerTripId||
+    t?.ghExternalTripNumber||
+    t?.externalTripNumber||
+    t?.tripNumber||
+    t?._id||
+    t?.id||
+    ""
+  ).toUpperCase();
+}
+
+function mergeBrokerTripRecords(externalTrips,operationalTrips){
+  const map=new Map();
+
+  const add=(trip,priority)=>{
+    if(!trip)return;
+
+    const key=
+      brokerTripIdentity(trip)||
+      [
+        clean(trip?.brokerCode),
+        clean(trip?.brokerName),
+        externalTripDateKey(trip),
+        clean(trip?.tripTime),
+        clean(trip?.clientName)
+      ].join("|").toUpperCase();
+
+    const existing=map.get(key);
+
+    if(!existing||priority>=existing.priority){
+      map.set(key,{
+        trip:{
+          ...(existing?.trip||{}),
+          ...trip
+        },
+        priority
+      });
+    }
+  };
+
+  (Array.isArray(externalTrips)?externalTrips:[]).forEach(trip=>add(trip,1));
+  (Array.isArray(operationalTrips)?operationalTrips:[]).forEach(trip=>add(trip,2));
+
+  return Array.from(map.values()).map(row=>row.trip);
+}
+
 function renderBrokerExternalOperations(
-  trips,
-  services
+  externalTrips,
+  services,
+  operationalTrips=[]
 ){
-  const list =
-    Array.isArray(trips)
-      ? trips
-      : [];
+  const externalList=Array.isArray(externalTrips)?externalTrips:[];
+  const operationalList=Array.isArray(operationalTrips)
+    ? operationalTrips.filter(isBrokerTrip)
+    : [];
 
-  const today =
-    todayKey();
+  const list=mergeBrokerTripRecords(
+    externalList,
+    operationalList
+  );
 
-  const month =
-    monthKey();
+  const today=todayKey();
+  const month=monthKey();
 
-  const todayTrips =
-    list.filter(
-      trip=>
-        externalTripDateKey(trip) ===
-        today
-    );
+  const todayTrips=list.filter(
+    trip=>externalTripDateKey(trip)===today
+  );
 
-  const monthTrips =
-    list.filter(
-      trip=>
-        externalTripDateKey(trip)
-          .slice(0,7) ===
-        month
-    );
+  const monthTrips=list.filter(
+    trip=>externalTripDateKey(trip).slice(0,7)===month
+  );
 
-  /*
-    Total Broker trip counts must follow External Trips Hub because
-    broker trips exist there before they become main operational trips.
-    Status counters below can still be zero when the trips are only
-    RECEIVED/READY, which is correct.
-  */
   if($("brokerTodayTrips")){
-    $("brokerTodayTrips")
-      .textContent=
-      String(todayTrips.length);
+    $("brokerTodayTrips").textContent=String(todayTrips.length);
   }
 
   if($("brokerTodayOnTrip")){
-    $("brokerTodayOnTrip")
-      .textContent=
-      String(
-        todayTrips.filter(
-          trip=>
-            isOnTrip(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerTodayOnTrip").textContent=String(
+      todayTrips.filter(brokerIsOnTripTrip).length
+    );
   }
 
   if($("brokerTodayCompleted")){
-    $("brokerTodayCompleted")
-      .textContent=
-      String(
-        todayTrips.filter(
-          trip=>
-            isCompleted(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerTodayCompleted").textContent=String(
+      todayTrips.filter(brokerIsCompletedTrip).length
+    );
   }
 
   if($("brokerTodayCancelled")){
-    $("brokerTodayCancelled")
-      .textContent=
-      String(
-        todayTrips.filter(
-          trip=>
-            isCancelled(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerTodayCancelled").textContent=String(
+      todayTrips.filter(brokerIsCancelledTrip).length
+    );
   }
 
   if($("brokerTodayNoShow")){
-    $("brokerTodayNoShow")
-      .textContent=
-      String(
-        todayTrips.filter(
-          trip=>
-            isNoShow(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerTodayNoShow").textContent=String(
+      todayTrips.filter(brokerIsNoShowTrip).length
+    );
+  }
+
+  if($("brokerTodayRefunds")){
+    $("brokerTodayRefunds").textContent=String(
+      list.filter(trip=>{
+        if(!brokerIsRefundedTrip(trip))return false;
+        const d=brokerRefundDate(trip);
+        return d
+          ? dateKey(d)===today
+          : externalTripDateKey(trip)===today;
+      }).length
+    );
   }
 
   if($("brokerMonthTrips")){
-    $("brokerMonthTrips")
-      .textContent=
-      String(monthTrips.length);
+    $("brokerMonthTrips").textContent=String(monthTrips.length);
   }
 
   if($("brokerMonthCompleted")){
-    $("brokerMonthCompleted")
-      .textContent=
-      String(
-        monthTrips.filter(
-          trip=>
-            isCompleted(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerMonthCompleted").textContent=String(
+      monthTrips.filter(brokerIsCompletedTrip).length
+    );
   }
 
   if($("brokerMonthCancelled")){
-    $("brokerMonthCancelled")
-      .textContent=
-      String(
-        monthTrips.filter(
-          trip=>
-            isCancelled(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerMonthCancelled").textContent=String(
+      monthTrips.filter(brokerIsCancelledTrip).length
+    );
   }
 
   if($("brokerMonthNoShow")){
-    $("brokerMonthNoShow")
-      .textContent=
-      String(
-        monthTrips.filter(
-          trip=>
-            isNoShow(
-              externalTripStatus(trip)
-            )
-        ).length
-      );
+    $("brokerMonthNoShow").textContent=String(
+      monthTrips.filter(brokerIsNoShowTrip).length
+    );
   }
 
   if($("brokerMonthMiles")){
-    $("brokerMonthMiles")
-      .textContent=
-      monthTrips
-        .reduce(
-          (sum,trip)=>
-            sum +
-            externalTripMiles(trip),
-          0
-        )
-        .toFixed(1);
+    $("brokerMonthMiles").textContent=
+      monthTrips.reduce(
+        (sum,trip)=>sum+externalTripMiles(trip),
+        0
+      ).toFixed(1);
   }
 
-  const sharedEnabled =
-    hasSharedService(
-      Array.isArray(services)
-        ? services
-        : []
-    );
+  const sharedEnabled=hasSharedService(
+    Array.isArray(services)?services:[]
+  );
 
   if($("brokerSharedPassengersCard")){
-    $("brokerSharedPassengersCard")
-      .classList.toggle(
-        "hidden",
-        !sharedEnabled
-      );
+    $("brokerSharedPassengersCard").classList.toggle(
+      "hidden",
+      !sharedEnabled
+    );
   }
 
-  if(
-    sharedEnabled &&
-    $("brokerSharedPassengers")
-  ){
-    $("brokerSharedPassengers")
-      .textContent=
-      String(
-        monthTrips
-          .filter(
-            externalTripIsShared
-          )
-          .reduce(
-            (sum,trip)=>
-              sum +
-              externalTripPassengerCount(
-                trip
-              ),
-            0
-          )
-      );
+  if(sharedEnabled&&$("brokerSharedPassengers")){
+    $("brokerSharedPassengers").textContent=String(
+      monthTrips
+        .filter(externalTripIsShared)
+        .reduce(
+          (sum,trip)=>sum+externalTripPassengerCount(trip),
+          0
+        )
+    );
   }
 }
 
 async function loadBrokerHubCounts(
-  services=[]
+  services=[],
+  operationalTrips=[]
 ){
   try{
     const data=
@@ -807,7 +836,8 @@ async function loadBrokerHubCounts(
 
     renderBrokerExternalOperations(
       trips,
-      services
+      services,
+      operationalTrips
     );
 
     if($("brokerTotalTrips")){
@@ -870,7 +900,8 @@ async function loadBrokerHubCounts(
 }
 
 async function loadBrokerCounts(
-  services=[]
+  services=[],
+  operationalTrips=[]
 ){
   /*
     BROKERS card follows the tenant-level Broker capability used by
@@ -898,7 +929,8 @@ async function loadBrokerCounts(
     }
 
     await loadBrokerHubCounts(
-      services
+      services,
+      operationalTrips
     );
 
   }catch(err){
@@ -1016,7 +1048,10 @@ async function init(){
 
   await Promise.allSettled([
     loadUserCounts(),
-    loadBrokerCounts(services)
+    loadBrokerCounts(
+      services,
+      trips
+    )
   ]);
 }
 
