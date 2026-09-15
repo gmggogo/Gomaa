@@ -1224,6 +1224,255 @@ function renderBrokerCards(
   };
 }
 
+
+function brokerSummaryStatus(item){
+  return clean(item?.status);
+}
+
+function brokerSummaryIsCompleted(item){
+  return brokerSummaryStatus(item)==="Completed";
+}
+
+function brokerSummaryIsCancelled(item){
+  return brokerSummaryStatus(item)==="Cancelled";
+}
+
+function brokerSummaryIsNoShow(item){
+  return brokerSummaryStatus(item)==="No Show";
+}
+
+function brokerSummaryIsOnTrip(item){
+  const s=norm(
+    brokerSummaryStatus(item)
+  );
+
+  return [
+    "ontrip",
+    "accepted",
+    "arrived",
+    "pickup",
+    "pickedup",
+    "inprogress",
+    "started",
+    "enroute",
+    "driverenroute"
+  ].includes(s);
+}
+
+function brokerSummaryPassengerCount(item){
+  if(
+    Array.isArray(item?.passengers) &&
+    item.passengers.length
+  ){
+    return item.passengers.length;
+  }
+
+  return Math.max(
+    1,
+    n(item?.passengerCount || 1)
+  );
+}
+
+function renderBrokerSummaryCards(
+  items,
+  services
+){
+  const list=
+    Array.isArray(items)
+      ? items
+      : [];
+
+  const today=
+    todayKey();
+
+  const month=
+    monthKey();
+
+  const todayItems=
+    list.filter(
+      item=>
+        clean(item?.tripDate) ===
+        today
+    );
+
+  const monthItems=
+    list.filter(
+      item=>
+        clean(item?.tripDate)
+          .slice(0,7) ===
+        month
+    );
+
+  if($("brokerTodayTrips")){
+    $("brokerTodayTrips")
+      .textContent=
+      String(todayItems.length);
+  }
+
+  if($("brokerTodayOnTrip")){
+    $("brokerTodayOnTrip")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsOnTrip
+        ).length
+      );
+  }
+
+  if($("brokerTodayCompleted")){
+    $("brokerTodayCompleted")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsCompleted
+        ).length
+      );
+  }
+
+  if($("brokerTodayCancelled")){
+    $("brokerTodayCancelled")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsCancelled
+        ).length
+      );
+  }
+
+  if($("brokerTodayNoShow")){
+    $("brokerTodayNoShow")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsNoShow
+        ).length
+      );
+  }
+
+  if($("brokerMonthTrips")){
+    $("brokerMonthTrips")
+      .textContent=
+      String(monthItems.length);
+  }
+
+  if($("brokerMonthCompleted")){
+    $("brokerMonthCompleted")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsCompleted
+        ).length
+      );
+  }
+
+  if($("brokerMonthCancelled")){
+    $("brokerMonthCancelled")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsCancelled
+        ).length
+      );
+  }
+
+  if($("brokerMonthNoShow")){
+    $("brokerMonthNoShow")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsNoShow
+        ).length
+      );
+  }
+
+  if($("brokerMonthMiles")){
+    $("brokerMonthMiles")
+      .textContent=
+      monthItems
+        .reduce(
+          (sum,item)=>
+            sum +
+            n(item?.miles),
+          0
+        )
+        .toFixed(1);
+  }
+
+  const sharedEnabled=
+    hasSharedService(
+      Array.isArray(services)
+        ? services
+        : []
+    );
+
+  if($("brokerSharedPassengersCard")){
+    $("brokerSharedPassengersCard")
+      .classList.toggle(
+        "hidden",
+        !sharedEnabled
+      );
+  }
+
+  if(
+    sharedEnabled &&
+    $("brokerSharedPassengers")
+  ){
+    $("brokerSharedPassengers")
+      .textContent=
+      String(
+        monthItems
+          .filter(
+            item=>
+              item?.isShared===true
+          )
+          .reduce(
+            (sum,item)=>
+              sum +
+              brokerSummaryPassengerCount(
+                item
+              ),
+            0
+          )
+      );
+  }
+
+  return {
+    today:todayItems.length,
+    month:monthItems.length
+  };
+}
+
+async function loadBrokerSummaryCards(
+  services=[]
+){
+  const today=
+    todayKey();
+
+  const monthStart=
+    `${monthKey()}-01`;
+
+  const params=
+    new URLSearchParams({
+      from:monthStart,
+      to:today
+    });
+
+  const data=
+    await getJson(
+      `/api/external-summary?${params.toString()}`
+    );
+
+  const items=
+    Array.isArray(data?.items)
+      ? data.items
+      : [];
+
+  return renderBrokerSummaryCards(
+    items,
+    services
+  );
+}
+
 async function loadBrokerHubCounts(
   services=[],
   operationalTrips=[]
@@ -1311,6 +1560,17 @@ async function loadBrokerCounts(
       services,
       operationalTrips
     );
+
+    try{
+      await loadBrokerSummaryCards(
+        services
+      );
+    }catch(summaryErr){
+      console.log(
+        "DASHBOARD BROKER SUMMARY ERROR:",
+        summaryErr
+      );
+    }
 
   }catch(err){
     setBrokerFeatureVisible(false);
