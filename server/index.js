@@ -4767,7 +4767,36 @@ function legacyStaffRole(value){
 }
 
 function normalizeManagedUserRole(value){
-  return String(value || "")
+  const role =
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g,"_");
+
+  if(
+    role === "superadmin" ||
+    role === "super_admin"
+  ){
+    return "SUPER_ADMIN";
+  }
+
+  if(role === "admin") return "admin";
+  if(role === "dispatcher") return "dispatcher";
+  if(role === "driver") return "driver";
+  if(role === "company") return "company";
+
+  return role;
+}
+
+function managedUserRoleKey(value){
+  const role =
+    normalizeManagedUserRole(value);
+
+  if(role === "SUPER_ADMIN"){
+    return "superadmin";
+  }
+
+  return String(role || "")
     .trim()
     .toLowerCase();
 }
@@ -4812,7 +4841,7 @@ async function getTenantUserLimitStatus(
 
   const meta =
     tenantUserLimitMeta[
-      normalizeManagedUserRole(role)
+      managedUserRoleKey(role)
     ];
 
   if(!meta){
@@ -4910,7 +4939,7 @@ function canManageUserRole(req,targetRole){
     );
 
   const role =
-    normalizeManagedUserRole(
+    managedUserRoleKey(
       targetRole
     );
 
