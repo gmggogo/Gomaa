@@ -4802,6 +4802,99 @@ function managedUserRoleKey(value){
 }
 
 /* =========================
+   PRIMARY SUPER ADMIN
+   The first tenant Super Admin is the protected recovery account.
+========================= */
+
+async function ensurePrimarySuperAdminForTenant(tenantId){
+
+  const cleanTenantId =
+    String(tenantId || "").trim();
+
+  if(!cleanTenantId){
+    return null;
+  }
+
+  let primary =
+    await User.findOne({
+      tenantId:cleanTenantId,
+      role:"SUPER_ADMIN",
+      isPrimarySuperAdmin:true
+    });
+
+  if(primary){
+    return primary;
+  }
+
+  const oldest =
+    await User.findOne({
+      tenantId:cleanTenantId,
+      role:"SUPER_ADMIN"
+    })
+    .sort({
+      createdAt:1,
+      _id:1
+    });
+
+  if(!oldest){
+    return null;
+  }
+
+  try{
+    oldest.isPrimarySuperAdmin = true;
+    await oldest.save();
+    return oldest;
+  }catch(err){
+
+    if(err?.code === 11000){
+      return await User.findOne({
+        tenantId:cleanTenantId,
+        role:"SUPER_ADMIN",
+        isPrimarySuperAdmin:true
+      });
+    }
+
+    throw err;
+  }
+}
+
+async function isProtectedPrimarySuperAdmin(user){
+
+  if(
+    !user ||
+    normalizeManagedUserRole(
+      user.role
+    ) !== "SUPER_ADMIN"
+  ){
+    return false;
+  }
+
+  if(user.isPrimarySuperAdmin === true){
+    return true;
+  }
+
+  const primary =
+    await ensurePrimarySuperAdminForTenant(
+      user.tenantId
+    );
+
+  return !!(
+    primary &&
+    String(primary._id) ===
+      String(user._id)
+  );
+}
+
+function denyPrimarySuperAdminChange(res){
+  return res.status(403).json({
+    success:false,
+    code:"PRIMARY_SUPER_ADMIN_PROTECTED",
+    message:
+      "Primary Super Admin cannot be disabled or deleted"
+  });
+}
+
+/* =========================
    TENANT PACKAGE USER LIMITS
    Hard server-side creation caps.
 ========================= */
@@ -4998,6 +5091,17 @@ app.get(
       return denyUserManagement(res);
     }
 
+    if(role === "SUPER_ADMIN"){
+      const tenantId =
+        tenantIdForCreate(req);
+
+      if(tenantId){
+        await ensurePrimarySuperAdminForTenant(
+          tenantId
+        );
+      }
+    }
+
     const users =
       await User.find(
         tenantFilter(
@@ -5121,6 +5225,24 @@ app.post(
         10
       );
 
+    let isPrimarySuperAdmin = false;
+
+    if(role === "SUPER_ADMIN"){
+      const existingPrimary =
+        await ensurePrimarySuperAdminForTenant(
+          tenantId
+        );
+
+      if(
+        !existingPrimary &&
+        normalizeActorRole(
+          req.authUser?.role
+        ) === "PLATFORM_ADMIN"
+      ){
+        isPrimarySuperAdmin = true;
+      }
+    }
+
     const newUser =
       await User.create({
         tenantId,
@@ -5138,6 +5260,8 @@ app.post(
           hashed,
 
         role,
+
+        isPrimarySuperAdmin,
 
         vehicleNumber:
           normalizeText(vehicleNumber),
@@ -5336,6 +5460,14 @@ app.patch(
       return denyUserManagement(res);
     }
 
+    if(
+      await isProtectedPrimarySuperAdmin(
+        user
+      )
+    ){
+      return denyPrimarySuperAdminChange(res);
+    }
+
     user.enabled =
       user.enabled === false;
 
@@ -5391,6 +5523,14 @@ app.delete(
       )
     ){
       return denyUserManagement(res);
+    }
+
+    if(
+      await isProtectedPrimarySuperAdmin(
+        existingUser
+      )
+    ){
+      return denyPrimarySuperAdminChange(res);
     }
 
     await User.deleteOne({

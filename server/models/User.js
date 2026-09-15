@@ -54,6 +54,16 @@ const userSchema = new mongoose.Schema(
     },
 
     /* =========================
+       PRIMARY SUPER ADMIN
+    ========================= */
+
+    isPrimarySuperAdmin: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    /* =========================
        TENANT
     ========================= */
 
@@ -249,6 +259,20 @@ userSchema.index(
     partialFilterExpression: {
       role: "PLATFORM_ADMIN",
       isPrimaryPlatformAdmin: true
+    }
+  }
+);
+
+userSchema.index(
+  {
+    tenantId: 1,
+    isPrimarySuperAdmin: 1
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: "SUPER_ADMIN",
+      isPrimarySuperAdmin: true
     }
   }
 );
