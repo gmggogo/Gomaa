@@ -140,6 +140,34 @@ document.addEventListener(
         "GH Mobility Platform";
     }
 
+    const platformAdminName =
+      String(
+        sessionStorage.getItem("staffName") ||
+        localStorage.getItem("name") ||
+        "Platform Admin"
+      ).trim() ||
+      "Platform Admin";
+
+    const platformAdminNameEl =
+      document.getElementById(
+        "platformAdminName"
+      );
+
+    if(platformAdminNameEl){
+      platformAdminNameEl.textContent =
+        platformAdminName;
+    }
+
+    const platformMobileAdminNameEl =
+      document.getElementById(
+        "platformMobileAdminName"
+      );
+
+    if(platformMobileAdminNameEl){
+      platformMobileAdminNameEl.textContent =
+        platformAdminName;
+    }
+
     function updatePlatformTime(){
 
       const timezone =
