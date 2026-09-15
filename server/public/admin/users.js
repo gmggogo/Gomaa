@@ -328,26 +328,42 @@ async function loadUsers(){
                 Edit
               </button>
 
-              <button
-                class="btn disable"
-                onclick="toggleUser(
-                  '${user._id}'
-                )">
-                ${
-                  user.active !== false &&
-                  user.enabled !== false
-                    ? "Disable"
-                    : "Enable"
-                }
-              </button>
+              ${
+                user.isPrimarySuperAdmin === true
+                  ? `
+                    <span
+                      class="primary-badge"
+                      title="Primary Super Admin is protected and cannot be disabled or deleted">
+                      Primary
+                    </span>
 
-              <button
-                class="btn delete"
-                onclick="deleteUser(
-                  '${user._id}'
-                )">
-                Delete
-              </button>
+                    <span class="protected-label">
+                      Protected
+                    </span>
+                  `
+                  : `
+                    <button
+                      class="btn disable"
+                      onclick="toggleUser(
+                        '${user._id}'
+                      )">
+                      ${
+                        user.active !== false &&
+                        user.enabled !== false
+                          ? "Disable"
+                          : "Enable"
+                      }
+                    </button>
+
+                    <button
+                      class="btn delete"
+                      onclick="deleteUser(
+                        '${user._id}'
+                      )">
+                      Delete
+                    </button>
+                  `
+              }
 
             </div>
           </td>
