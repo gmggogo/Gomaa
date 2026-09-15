@@ -7,6 +7,7 @@
 ========================================================= */
 
 let editId = null;
+let loadedUsers = [];
 
 /* =========================
    SECURITY / ROLE
@@ -259,6 +260,8 @@ async function loadUsers(){
         ? data
         : [];
 
+    loadedUsers = users;
+
     const table =
       document.getElementById(
         "table"
@@ -319,11 +322,7 @@ async function loadUsers(){
               <button
                 class="btn edit"
                 onclick="editUser(
-                  '${user._id}',
-                  ${JSON.stringify(user.name || "")},
-                  ${JSON.stringify(user.username || "")},
-                  ${JSON.stringify(user.email || "")},
-                  ${JSON.stringify(user.phone || "")}
+                  '${user._id}'
                 )">
                 Edit
               </button>
@@ -538,35 +537,49 @@ async function addUser(){
    EDIT USER
 ========================= */
 
-function editUser(
-  id,
-  name,
-  username,
-  email,
-  phone
-){
+function editUser(id){
+
+  const user =
+    loadedUsers.find(
+      row =>
+        String(row?._id || "") ===
+        String(id || "")
+    );
+
+  if(!user){
+
+    alert(
+      "User record is no longer available. Refresh the list and try again."
+    );
+
+    return;
+  }
 
   editId = id;
 
   document.getElementById(
     "name"
-  ).value = name || "";
+  ).value = user.name || "";
 
   document.getElementById(
     "username"
-  ).value = username || "";
+  ).value = user.username || "";
 
   document.getElementById(
     "email"
-  ).value = email || "";
+  ).value = user.email || "";
 
   document.getElementById(
     "phone"
-  ).value = phone || "";
+  ).value = user.phone || "";
 
   document.getElementById(
     "password"
   ).value = "";
+
+  document.getElementById(
+    "name"
+  )?.focus();
 }
 
 /* =========================
