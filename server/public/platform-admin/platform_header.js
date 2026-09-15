@@ -150,57 +150,170 @@ document.addEventListener(
         "Platform Admin";
     }
 
-    const platformAdminName =
-      String(
-        sessionStorage.getItem("staffName") ||
-        sessionStorage.getItem("fullName") ||
-        localStorage.getItem("name") ||
-        localStorage.getItem("fullName") ||
-        localStorage.getItem("userName") ||
+    function cleanPlatformName(value){
+      const name =
+        String(value || "")
+          .trim();
+
+      if(
+        !name ||
+        name.toUpperCase() === "PLATFORM ADMIN" ||
+        name.toUpperCase() === "PLATFORM_ADMIN"
+      ){
+        return "";
+      }
+
+      return name;
+    }
+
+    function nameFromToken(){
+      try{
+        const parts =
+          String(token || "")
+            .split(".");
+
+        if(parts.length < 2){
+          return "";
+        }
+
+        let payload =
+          parts[1]
+            .replace(/-/g,"+")
+            .replace(/_/g,"/");
+
+        while(payload.length % 4){
+          payload += "=";
+        }
+
+        const data =
+          JSON.parse(
+            decodeURIComponent(
+              atob(payload)
+                .split("")
+                .map(
+                  c=>
+                    "%" +
+                    c.charCodeAt(0)
+                      .toString(16)
+                      .padStart(2,"0")
+                )
+                .join("")
+            )
+          );
+
+        return cleanPlatformName(
+          data?.name ||
+          data?.fullName ||
+          data?.username ||
+          ""
+        );
+
+      }catch(err){
+        return "";
+      }
+    }
+
+    function nameFromPage(){
+      const text =
+        String(
+          document.body?.innerText ||
+          ""
+        );
+
+      const match =
+        text.match(
+          /Signed\s+in\s+as\s+(.+?)\s*[—–-]\s*Platform\s+Admin/i
+        );
+
+      return cleanPlatformName(
+        match?.[1] || ""
+      );
+    }
+
+    function resolvePlatformAdminName(){
+      return (
+        cleanPlatformName(
+          sessionStorage.getItem("staffName")
+        ) ||
+        cleanPlatformName(
+          sessionStorage.getItem("fullName")
+        ) ||
+        cleanPlatformName(
+          localStorage.getItem("name")
+        ) ||
+        cleanPlatformName(
+          localStorage.getItem("fullName")
+        ) ||
+        cleanPlatformName(
+          localStorage.getItem("userName")
+        ) ||
+        nameFromToken() ||
+        nameFromPage() ||
         "Platform Admin"
-      ).trim() ||
-      "Platform Admin";
-
-    const platformAdminNameEl =
-      document.getElementById(
-        "platformAdminName"
       );
-
-    if(platformAdminNameEl){
-      platformAdminNameEl.textContent =
-        platformAdminName;
     }
 
-    const platformAdminAvatarEl =
-      document.getElementById(
-        "platformAdminAvatar"
-      );
+    let platformAdminName =
+      resolvePlatformAdminName();
 
-    if(platformAdminAvatarEl){
+    function applyPlatformAdminName(){
 
-      const initials =
-        platformAdminName
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0,2)
-          .map(part=>part[0])
-          .join("")
-          .toUpperCase() ||
-        "PA";
+      platformAdminName =
+        resolvePlatformAdminName();
 
-      platformAdminAvatarEl.textContent =
-        initials;
+      const platformAdminNameEl =
+        document.getElementById(
+          "platformAdminName"
+        );
+
+      if(platformAdminNameEl){
+        platformAdminNameEl.textContent =
+          platformAdminName;
+      }
+
+      const platformAdminAvatarEl =
+        document.getElementById(
+          "platformAdminAvatar"
+        );
+
+      if(platformAdminAvatarEl){
+
+        const initials =
+          platformAdminName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0,2)
+            .map(part=>part[0])
+            .join("")
+            .toUpperCase() ||
+          "PA";
+
+        platformAdminAvatarEl.textContent =
+          initials;
+      }
+
+      const platformMobileAdminNameEl =
+        document.getElementById(
+          "platformMobileAdminName"
+        );
+
+      if(platformMobileAdminNameEl){
+        platformMobileAdminNameEl.textContent =
+          platformAdminName;
+      }
     }
 
-    const platformMobileAdminNameEl =
-      document.getElementById(
-        "platformMobileAdminName"
-      );
+    applyPlatformAdminName();
 
-    if(platformMobileAdminNameEl){
-      platformMobileAdminNameEl.textContent =
-        platformAdminName;
-    }
+    setTimeout(
+      applyPlatformAdminName,
+      250
+    );
+
+    setTimeout(
+      applyPlatformAdminName,
+      1000
+    );
 
     function updatePlatformTime(){
 
