@@ -424,10 +424,8 @@ body{
   text-align:center;
 
   white-space:normal;
-  line-height:1.35;
+  line-height:1.25;
   overflow:visible;
-  word-break:break-word;
-  overflow-wrap:anywhere;
 
   background:rgba(255,255,255,.94);
 }
@@ -456,21 +454,78 @@ body{
 }
 
 .company-table td .broker-list{
-  align-items:center;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
   justify-content:center;
-  flex-wrap:wrap;
   gap:5px;
+  width:100%;
   min-height:28px;
 }
 
 .company-table td .broker-pill{
-  white-space:normal;
+  display:block;
+  width:100%;
+  min-width:0;
+  padding:6px 7px;
+
+  border-radius:6px;
+  border:1px solid #b7d8ce;
+
+  background:#e8f4f1;
+  color:#176b56;
+
   text-align:center;
-  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  font-size:9px;
+  font-weight:900;
+  line-height:1.15;
+}
+
+.company-table td .broker-pill.off{
+  background:#f4f5f6;
+  border-color:#dadddf;
+  color:#818b94;
 }
 
 .company-table td .metric{
-  white-space:normal;
+  white-space:nowrap;
+}
+
+/*
+  Reusable stacked sub-cells.
+  Any future multi-value column can use:
+  .multi-cell > .multi-cell-item
+*/
+.multi-cell{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  width:100%;
+}
+
+.multi-cell-item{
+  display:block;
+  width:100%;
+  padding:6px 7px;
+
+  border:1px solid #cbd8e3;
+  border-radius:6px;
+
+  background:#f7fbff;
+  color:#23445f;
+
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  font-size:9px;
+  font-weight:900;
+  line-height:1.15;
 }
 
 .company-table th:nth-child(1){width:190px;}
@@ -580,9 +635,10 @@ body{
   color:#0f3558;
   font-size:12px;
   font-weight:900;
-  white-space:normal;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   line-height:1.25;
-  overflow-wrap:anywhere;
 }
 
 .company-copy small{
