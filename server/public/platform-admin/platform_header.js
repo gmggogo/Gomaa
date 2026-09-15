@@ -158,6 +158,27 @@ document.addEventListener(
         platformAdminName;
     }
 
+    const platformAdminAvatarEl =
+      document.getElementById(
+        "platformAdminAvatar"
+      );
+
+    if(platformAdminAvatarEl){
+
+      const initials =
+        platformAdminName
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0,2)
+          .map(part=>part[0])
+          .join("")
+          .toUpperCase() ||
+        "PA";
+
+      platformAdminAvatarEl.textContent =
+        initials;
+    }
+
     const platformMobileAdminNameEl =
       document.getElementById(
         "platformMobileAdminName"
