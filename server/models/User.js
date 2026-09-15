@@ -44,6 +44,16 @@ const userSchema = new mongoose.Schema(
     },
 
     /* =========================
+       PLATFORM ADMIN OWNERSHIP
+    ========================= */
+
+    isPrimaryPlatformAdmin: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    /* =========================
        TENANT
     ========================= */
 
@@ -229,6 +239,19 @@ userSchema.index({
   tenantId: 1,
   enabled: 1
 });
+
+userSchema.index(
+  {
+    isPrimaryPlatformAdmin: 1
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: "PLATFORM_ADMIN",
+      isPrimaryPlatformAdmin: true
+    }
+  }
+);
 
 /* =========================
    MODEL

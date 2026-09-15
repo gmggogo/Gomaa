@@ -439,6 +439,66 @@ document.addEventListener(
         });
     }
 
+    async function applyPrimaryPlatformAdminAccess(){
+
+      const nav =
+        document.getElementById(
+          "platformAdminsNavBtn"
+        );
+
+      if(!nav){
+        return false;
+      }
+
+      nav.style.display =
+        "none";
+
+      try{
+
+        const response =
+          await fetch(
+            "/api/platform-admin-management/me",
+            {
+              cache:"no-store",
+              headers:{
+                Authorization:
+                  `Bearer ${token}`
+              }
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              ()=>({})
+            );
+
+        const allowed =
+          response.ok &&
+          data?.isPrimaryPlatformAdmin === true;
+
+        nav.style.display =
+          allowed
+            ? ""
+            : "none";
+
+        return allowed;
+
+      }catch(err){
+
+        console.error(
+          "PLATFORM PRIMARY ACCESS ERROR:",
+          err
+        );
+
+        nav.style.display =
+          "none";
+
+        return false;
+      }
+    }
+
     function buildPlatformMobileMenu(){
 
       const desktopNav =
@@ -465,6 +525,13 @@ document.addEventListener(
           "a.platform-nav-btn"
         )
         .forEach(link=>{
+
+          if(
+            link.dataset.primaryOnly === "true" &&
+            link.style.display === "none"
+          ){
+            return;
+          }
 
           const item =
             document.createElement(
@@ -543,6 +610,7 @@ document.addEventListener(
         "hidden";
     }
 
+    await applyPrimaryPlatformAdminAccess();
     buildPlatformMobileMenu();
     updatePlatformTime();
     updatePlatformWelcome();

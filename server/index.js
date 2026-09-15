@@ -808,6 +808,23 @@ console.log(
   "✅ platformSubscriptionRoutes mounted on /api/platform-subscription"
 );
 
+
+/* =========================
+   PLATFORM ADMIN MANAGEMENT
+========================= */
+
+const platformAdminManagementRoutes =
+  require("./routes/platformAdminManagementRoutes");
+
+app.use(
+  "/api/platform-admin-management",
+  platformAdminManagementRoutes
+);
+
+console.log(
+  "✅ platformAdminManagementRoutes mounted on /api/platform-admin-management"
+);
+
 /* =========================
    PLATFORM STRIPE ACCOUNT
 ========================= */
