@@ -47,48 +47,119 @@ body{
 }
 
 .hero{
+  position:relative;
+  overflow:hidden;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+
+  padding:21px 24px;
+  border:1px solid rgba(13,48,80,.30);
+  border-radius:14px;
+
   background:
-    radial-gradient(circle at top right,rgba(245,181,46,.22),transparent 30%),
-    linear-gradient(135deg,#07152d,#10264a);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:26px;
-  padding:28px 30px;
-  box-shadow:0 18px 45px rgba(15,23,42,.16);
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(255,255,255,.20),
+      transparent 32%
+    ),
+    linear-gradient(
+      135deg,
+      #173f66 0%,
+      #0d3155 52%,
+      #294f70 100%
+    );
+
   color:#fff;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    0 10px 24px rgba(13,48,80,.17);
+}
+
+.hero::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #7f6425,
+      #d5b85e,
+      #f5e09a,
+      #d5b85e,
+      #7f6425
+    );
 }
 
 .hero-row{
+  width:100%;
   display:flex;
-  justify-content:space-between;
+  flex-direction:column;
+  justify-content:center;
   align-items:center;
-  gap:20px;
-  flex-wrap:wrap;
+  gap:10px;
+  text-align:center;
 }
 
 .hero h1{
   margin:0;
-  font-size:34px;
+  color:#fff;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:28px;
   line-height:1.1;
-  font-weight:950;
+  font-weight:900;
+  letter-spacing:.4px;
+  text-align:center;
 }
 
 .hero p{
   max-width:850px;
-  margin:10px 0 0;
-  color:#d6dfed;
-  font-size:14px;
+  margin:0 auto;
+  color:#d9e8f5;
+  font-size:13px;
   font-weight:700;
-  line-height:1.7;
+  line-height:1.6;
+  text-align:center;
 }
 
 .hero-badge{
-  border:1px solid rgba(245,181,46,.38);
-  background:rgba(245,181,46,.12);
-  color:#ffd66d;
-  padding:10px 15px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-width:190px;
+  padding:8px 18px;
+
+  border:1px solid rgba(255,232,166,.58);
   border-radius:999px;
-  font-size:12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f5de96 0%,
+      #d4b35b 48%,
+      #b6892e 100%
+    );
+
+  color:#4b3308;
+
+  font-size:11px;
   font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 4px 10px rgba(0,0,0,.14);
+
   white-space:nowrap;
 }
 
@@ -464,12 +535,17 @@ body{
   }
 
   .hero{
-    border-radius:20px;
-    padding:22px;
+    border-radius:14px;
+    padding:18px 14px;
   }
 
   .hero h1{
-    font-size:27px;
+    font-size:22px;
+  }
+
+  .hero-badge{
+    min-width:150px;
+    padding:7px 14px;
   }
 
   .selector-grid{
@@ -508,18 +584,19 @@ body{
 
   <section class="hero">
     <div class="hero-row">
-      <div>
-        <h1>Tenant Services</h1>
-        <p>
-          Select a company, then choose the services that company is allowed to use.
-          These permissions control Service Management, System Design service cards,
-          Facility Pricing Override, and the public booking experience.
-        </p>
-      </div>
+
+      <h1>Tenant Services</h1>
 
       <div class="hero-badge">
-        PLATFORM ADMIN CONTROL
+        Platform
       </div>
+
+      <p>
+        Select a company, then choose the services that company is allowed to use.
+        These permissions control Service Management, System Design service cards,
+        Facility Pricing Override, and the public booking experience.
+      </p>
+
     </div>
   </section>
 
