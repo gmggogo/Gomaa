@@ -202,18 +202,33 @@ function isBrokerTrip(t){
     t?.externalSource ||
     t?.integrationSource ||
     t?.tripSource ||
+    t?.sharedSource ||
+    t?.routeSource ||
     ""
   ).toUpperCase();
 
-  if(direct==="BROKER")return true;
+  if(
+    direct==="BROKER" ||
+    direct.includes("BROKER")
+  ){
+    return true;
+  }
 
-  if(clean(t?.brokerCode)||clean(t?.brokerName))return true;
+  if(
+    clean(t?.brokerCode) ||
+    clean(t?.brokerName) ||
+    clean(t?.brokerTripId)
+  ){
+    return true;
+  }
 
   const sourceText=[
     t?.source,
     t?.bookingSource,
     t?.createdBy,
-    t?.from
+    t?.from,
+    t?.sharedSource,
+    t?.routeSource
   ].map(clean).join(" ").toUpperCase();
 
   return sourceText.includes("BROKER");
@@ -606,24 +621,98 @@ function brokerStatusKey(value){
   return norm(value);
 }
 
+function brokerTripStatuses(t){
+  const values=[];
+
+  const topStatus=
+    externalTripStatus(t);
+
+  if(topStatus){
+    values.push(topStatus);
+  }
+
+  if(
+    Array.isArray(t?.passengers)
+  ){
+    t.passengers.forEach(
+      passenger=>{
+        const status=
+          clean(
+            passenger?.status ||
+            passenger?.tripStatus ||
+            passenger?.finalStatus ||
+            passenger?.rideStatus ||
+            ""
+          );
+
+        if(status){
+          values.push(status);
+        }
+      }
+    );
+  }
+
+  return values.map(
+    brokerStatusKey
+  );
+}
+
 function brokerIsCompletedTrip(t){
-  const s=brokerStatusKey(externalTripStatus(t));
-  return isCompleted(s)||["completed","complete","done","finished","dropoff","droppedoff","dropped","ridecompleted"].includes(s);
+  const statuses=
+    brokerTripStatuses(t);
+
+  return statuses.some(
+    s=>
+      isCompleted(s) ||
+      [
+        "completed",
+        "complete",
+        "done",
+        "finished",
+        "dropoff",
+        "droppedoff",
+        "dropped",
+        "ridecompleted"
+      ].includes(s)
+  );
 }
 
 function brokerIsCancelledTrip(t){
-  const s=brokerStatusKey(externalTripStatus(t));
-  return isCancelled(s)||s.includes("cancelled")||s.includes("canceled");
+  return brokerTripStatuses(t).some(
+    s=>
+      isCancelled(s) ||
+      s.includes("cancelled") ||
+      s.includes("canceled")
+  );
 }
 
 function brokerIsNoShowTrip(t){
-  const s=brokerStatusKey(externalTripStatus(t));
-  return isNoShow(s)||s.includes("noshow");
+  return brokerTripStatuses(t).some(
+    s=>
+      isNoShow(s) ||
+      s.includes("noshow")
+  );
 }
 
 function brokerIsOnTripTrip(t){
-  const s=brokerStatusKey(externalTripStatus(t));
-  return isOnTrip(s)||["assigned","sent","accepted","arrived","atpickup","pickup","pickedup","ontrip","inprogress","started","enroute","driverenroute"].includes(s);
+  return brokerTripStatuses(t).some(
+    s=>
+      isOnTrip(s) ||
+      [
+        "assigned",
+        "sent",
+        "accepted",
+        "arrived",
+        "atpickup",
+        "pickup",
+        "pickedup",
+        "ontrip",
+        "inprogress",
+        "started",
+        "enroute",
+        "driverenroute"
+      ].includes(s)
+  );
 }
 
 function brokerRefundDate(t){
