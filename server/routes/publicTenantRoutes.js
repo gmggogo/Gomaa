@@ -16,6 +16,70 @@ function clean(value){
   return String(value ?? "").trim();
 }
 
+async function validatePublicGetQuoteZone(
+  tenant,
+  body = {}
+){
+
+  const tenantId =
+    String(
+      tenant?._id ||
+      tenant?.id ||
+      ""
+    ).trim();
+
+  const payload = {
+    ...(body || {}),
+
+    /*
+      Force public quote requests to Get Quote Zone.
+      Client-supplied source/type cannot redirect this validation
+      to Companies or Reserved.
+    */
+    type:"quote",
+    source:"GET_QUOTE",
+    bookingSource:"GET_QUOTE",
+    company:""
+  };
+
+  return await validateTripZone({
+    tenantId,
+    payload,
+    existingTrip:null
+  });
+}
+
+function zoneFailureResponse(
+  res,
+  zoneResult
+){
+
+  return res
+    .status(
+      Number(
+        zoneResult?.statusCode ||
+        422
+      )
+    )
+    .json({
+      success:false,
+      code:
+        zoneResult?.code ||
+        "OUTSIDE_SERVICE_ZONE",
+      message:
+        zoneResult?.message ||
+        "This trip is outside the service zone.",
+      zone:
+        zoneResult?.zone || "",
+      zoneKey:
+        zoneResult?.zoneKey || "",
+      radiusMiles:
+        zoneResult?.radiusMiles ?? null,
+      distanceMiles:
+        zoneResult?.distanceMiles ?? null
+    });
+}
+
 function normalizeServiceKey(value){
 
   const raw =
@@ -641,60 +705,6 @@ function calculateServicePrice(
   };
 }
 
-async function validatePublicGetQuoteZone(
-  tenant,
-  body = {}
-){
-
-  return await validateTripZone({
-    tenantId:
-      tenant?._id,
-
-    payload:{
-      ...(body || {}),
-      type:"quote",
-      source:"GET_QUOTE",
-      bookingSource:"GET_QUOTE"
-    }
-  });
-}
-
-function sendZoneBlocked(
-  res,
-  zoneCheck
-){
-
-  return res
-    .status(
-      Number(
-        zoneCheck?.statusCode
-      ) || 422
-    )
-    .json({
-      success:false,
-
-      code:
-        zoneCheck?.code ||
-        "SERVICE_ZONE_BLOCKED",
-
-      message:
-        zoneCheck?.message ||
-        "Pickup is outside the configured Get Quote Zone.",
-
-      zone:
-        zoneCheck?.zone ||
-        "Get Quote Zone",
-
-      radiusMiles:
-        zoneCheck?.radiusMiles ??
-        null,
-
-      distanceMiles:
-        zoneCheck?.distanceMiles ??
-        null
-    });
-}
-
 async function sendTenantBootstrap(
   req,
   res,
@@ -870,20 +880,6 @@ router.post(
         });
       }
 
-      const zoneCheck =
-        await validatePublicGetQuoteZone(
-          tenant,
-          req.body || {}
-        );
-
-      if(zoneCheck.allowed !== true){
-
-        return sendZoneBlocked(
-          res,
-          zoneCheck
-        );
-      }
-
       const requestedCode =
         normalizeServiceKey(
           req.body?.serviceKey
@@ -934,6 +930,19 @@ router.post(
           message:
             "Service not available"
         });
+      }
+
+      const zoneResult =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body
+        );
+
+      if(zoneResult?.allowed !== true){
+        return zoneFailureResponse(
+          res,
+          zoneResult
+        );
       }
 
       return res.json(
@@ -977,20 +986,6 @@ router.post(
         });
       }
 
-      const zoneCheck =
-        await validatePublicGetQuoteZone(
-          tenant,
-          req.body || {}
-        );
-
-      if(zoneCheck.allowed !== true){
-
-        return sendZoneBlocked(
-          res,
-          zoneCheck
-        );
-      }
-
       const requestedCode =
         normalizeServiceKey(
           req.body?.serviceKey
@@ -1041,6 +1036,19 @@ router.post(
           message:
             "Service not available"
         });
+      }
+
+      const zoneResult =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body
+        );
+
+      if(zoneResult?.allowed !== true){
+        return zoneFailureResponse(
+          res,
+          zoneResult
+        );
       }
 
       return res.json(

@@ -471,6 +471,53 @@ function normalizeStopPoint(stop,index){
   };
 }
 
+function routePathZonePoints(
+  payload = {}
+){
+
+  const path =
+    Array.isArray(payload?.routePath)
+      ? payload.routePath
+      : (
+          Array.isArray(
+            payload?.googleRoute?.routePath
+          )
+            ? payload.googleRoute.routePath
+            : []
+        );
+
+  return path
+    .map((point,index)=>{
+
+      const lat =
+        numberOrNull(
+          point?.lat ??
+          point?.latitude
+        );
+
+      const lng =
+        numberOrNull(
+          point?.lng ??
+          point?.lon ??
+          point?.longitude
+        );
+
+      if(!coordOk(lat,lng)){
+        return null;
+      }
+
+      return {
+        label:`Route Point ${index + 1}`,
+        address:"",
+        lat,
+        lng,
+        routePathPoint:true
+      };
+    })
+    .filter(Boolean);
+}
+
+
 function routeZonePoints(
   payload = {},
   existingTrip = null
@@ -496,9 +543,17 @@ function routeZonePoints(
       : [];
 
   const rawStops =
-    Array.isArray(merged?.stops)
-      ? merged.stops
-      : [];
+    Array.isArray(merged?.routeStops)
+      ? merged.routeStops
+      : (
+          Array.isArray(merged?.stopsData)
+            ? merged.stopsData
+            : (
+                Array.isArray(merged?.stops)
+                  ? merged.stops
+                  : []
+              )
+        );
 
   /*
     The COMPLETE route must stay inside the configured Service Zone:
@@ -777,13 +832,23 @@ async function validateTripZone({
     };
   }
 
-  const points =
+  const requiredPoints =
     routeZonePoints(
       merged,
       existingTrip
     );
 
-  if(!points.length){
+  const routePathPoints =
+    routePathZonePoints(
+      merged
+    );
+
+  const points = [
+    ...requiredPoints,
+    ...routePathPoints
+  ];
+
+  if(!requiredPoints.length){
 
     return {
       allowed:true,
@@ -847,7 +912,9 @@ async function validateTripZone({
         radiusMiles:Number(zone.radiusMiles),
         distanceMiles:Number(miles.toFixed(2)),
         message:
-          `${point.label} is outside the ${zoneLabel(key)}. Maximum service radius: ${Number(zone.radiusMiles)} miles.`
+          point?.routePathPoint === true
+            ? `The trip route leaves the ${zoneLabel(key)}. Maximum service radius: ${Number(zone.radiusMiles)} miles.`
+            : `${point.label} is outside the ${zoneLabel(key)}. Maximum service radius: ${Number(zone.radiusMiles)} miles.`
       };
     }
   }
@@ -867,6 +934,7 @@ module.exports = {
   prepareServiceZone,
   distanceMiles,
   zoneKeyForTrip,
+  routePathZonePoints,
   routeZonePoints,
   validateTripZone
 };

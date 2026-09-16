@@ -2031,45 +2031,37 @@ minutes:mins,
 
 stops:stops,
 
-pickup:
-pickupVal,
+type:"quote",
+source:"GET_QUOTE",
+bookingSource:"GET_QUOTE",
 
-pickupLat:
-calculatedRouteData?.pickupLat ?? null,
+pickup:pickupVal,
+pickupLat:pickupLat,
+pickupLng:pickupLng,
 
-pickupLng:
-calculatedRouteData?.pickupLng ?? null
+dropoff:dropVal,
+dropoffLat:dropoffLat,
+dropoffLng:dropoffLng,
+
+stopsData:
+stopCoords,
+
+/*
+  serviceZoneEngine accepts "stops".
+  Keep numeric stop count as stopsCount for pricing clarity,
+  and send address/coordinate stops under routeStops too.
+*/
+stopsCount:stops,
+routeStops:stopCoords,
+
+routePath:routePath
 
 })
 }
 );
 
 const pricingData =
-await pricingRes.json()
-  .catch(()=>({}));
-
-if(
-  !pricingRes.ok ||
-  pricingData.success === false
-){
-
-  priceBox.classList.add("hidden");
-
-  bookBtn.classList.add("hidden");
-  bookBtn.classList.remove("active");
-
-  distance.innerText = "";
-  stopsCount.innerText = "";
-  time.innerText = "";
-  price.innerText = "$0";
-
-  alert(
-    pricingData.message ||
-    "Unable to calculate this trip."
-  );
-
-  return;
-}
+await pricingRes.json();
 
 /* =========================
 SAVE WARNING POLICY
@@ -2135,6 +2127,21 @@ window.selectedWarningPolicy = {
     : "disabled"
 
 };
+
+if(!pricingRes.ok || !pricingData.success){
+
+bookBtn.classList.add("hidden");
+bookBtn.classList.remove("active");
+priceBox.classList.add("hidden");
+
+alert(
+  pricingData?.message ||
+  "Pricing error"
+);
+
+return;
+
+}
 
 const pricingMode =
 String(
