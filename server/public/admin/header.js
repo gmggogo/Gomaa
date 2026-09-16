@@ -454,9 +454,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
        pageHeaderTitle;
 
      if(currentPageName === "help-center.html"){
+       headerTitle.textContent = "Help Center";
        headerTitle.style.color = "#f6c453";
        headerTitle.style.fontWeight = "900";
        headerTitle.style.textShadow = "0 1px 2px rgba(0,0,0,.25)";
+       headerTitle.style.textAlign = "center";
+       headerTitle.style.width = "100%";
+       headerTitle.style.display = "block";
+       headerTitle.style.letterSpacing = ".2px";
      }
    }
  }
