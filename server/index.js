@@ -37,6 +37,12 @@ app.use(
 
 const SystemDesign =
 require("./models/SystemDesign");
+
+const {
+  validateTripZone
+} = require(
+  "./utils/serviceZoneEngine"
+);
 const serviceRoutes =
 require("./routes/serviceRoutes");
 const driverScheduleRoutes =
@@ -7884,6 +7890,44 @@ const pickup = normalizeText(req.body.pickup);
 const dropoff = normalizeText(req.body.dropoff);
 
 /* =========================
+   SERVICE ZONE VALIDATION
+   Get Quote / Companies / Reserved use independent Zones.
+========================= */
+
+const zoneCheck =
+  await validateTripZone({
+    tenantId,
+    payload:{
+      ...(req.body || {}),
+      type
+    }
+  });
+
+if(zoneCheck.allowed !== true){
+
+  return res
+    .status(
+      Number(zoneCheck.statusCode) ||
+      422
+    )
+    .json({
+      success:false,
+      code:
+        zoneCheck.code ||
+        "SERVICE_ZONE_BLOCKED",
+      message:
+        zoneCheck.message ||
+        "Pickup is outside the configured Service Zone.",
+      zone:
+        zoneCheck.zone || "",
+      radiusMiles:
+        zoneCheck.radiusMiles ?? null,
+      distanceMiles:
+        zoneCheck.distanceMiles ?? null
+    });
+}
+
+/* =========================
    SHARED DATA (FINAL)
 ========================= */
 
@@ -10117,6 +10161,67 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
         message: "Cannot edit completed or cancelled trip"
       });
     }   
+
+    /*
+      Re-check the Zone only when an edit can change the pickup source,
+      pickup coordinates, company/source identity, or shared passengers.
+      Non-route edits on existing trips remain unchanged.
+    */
+    const zoneRelevantUpdate =
+      [
+        "pickup",
+        "pickupLat",
+        "pickupLng",
+        "passengers",
+        "type",
+        "company",
+        "source",
+        "bookingSource"
+      ]
+      .some(key =>
+        Object.prototype.hasOwnProperty.call(
+          req.body || {},
+          key
+        )
+      );
+
+    if(zoneRelevantUpdate){
+
+      const updateZoneCheck =
+        await validateTripZone({
+          tenantId:
+            existing.tenantId,
+          payload:
+            req.body || {},
+          existingTrip:
+            existing
+        });
+
+      if(updateZoneCheck.allowed !== true){
+
+        return res
+          .status(
+            Number(
+              updateZoneCheck.statusCode
+            ) || 422
+          )
+          .json({
+            success:false,
+            code:
+              updateZoneCheck.code ||
+              "SERVICE_ZONE_BLOCKED",
+            message:
+              updateZoneCheck.message ||
+              "Pickup is outside the configured Service Zone.",
+            zone:
+              updateZoneCheck.zone || "",
+            radiusMiles:
+              updateZoneCheck.radiusMiles ?? null,
+            distanceMiles:
+              updateZoneCheck.distanceMiles ?? null
+          });
+      }
+    }
 
     /*
       ==========================================================

@@ -17,6 +17,12 @@ require("../models/SystemDesign");
 const Tenant =
 require("../models/Tenant");
 
+const {
+  prepareServiceZone
+} = require(
+  "../utils/serviceZoneEngine"
+);
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -715,6 +721,49 @@ router.post(
       getAllowedServices(
         tenant
       );
+
+    /*
+      SERVICE ZONES:
+      Save and geocode each source independently.
+      Existing tenants remain unaffected until a Zone is enabled.
+    */
+    for(
+      const zoneKey of [
+        "getQuoteZone",
+        "companiesZone",
+        "reservedZone"
+      ]
+    ){
+
+      if(
+        Object.prototype.hasOwnProperty.call(
+          payload,
+          zoneKey
+        )
+      ){
+
+        try{
+
+          payload[zoneKey] =
+            await prepareServiceZone(
+              payload[zoneKey],
+              design[zoneKey]
+            );
+
+        }catch(zoneErr){
+
+          return res.status(400).json({
+            success:false,
+            code:
+              zoneErr?.code ||
+              "SERVICE_ZONE_SAVE_FAILED",
+            message:
+              zoneErr?.message ||
+              "Unable to save Service Zone"
+          });
+        }
+      }
+    }
 
     if(
       Object.prototype.hasOwnProperty.call(

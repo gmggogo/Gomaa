@@ -118,6 +118,43 @@ timezone:"America/Phoenix",
 region:"",
 
 country:"",
+
+getQuoteZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
+companiesZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
+reservedZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
 invoiceEmail:"",
 
 smtpHost:"",
@@ -556,6 +593,8 @@ async function saveSystemDesign(){
 
     console.log(err);
 
+    throw err;
+
   }
 
 }
@@ -683,6 +722,115 @@ function getAlignValue(id, fallback = "center"){
 }
 
 /* =========================
+SERVICE ZONE HELPERS
+========================= */
+
+function zoneRadiusValue(value){
+
+  const n = Number(value);
+
+  return (
+    Number.isFinite(n) &&
+    n > 0
+  )
+    ? n
+    : 50;
+}
+
+function loadZoneForm(
+  prefix,
+  zone
+){
+
+  const z =
+    zone &&
+    typeof zone === "object"
+      ? zone
+      : {};
+
+  setChecked(
+    `${prefix}Enabled`,
+    z.enabled === true
+  );
+
+  setValue(
+    `${prefix}Country`,
+    z.country || ""
+  );
+
+  setValue(
+    `${prefix}StateProvince`,
+    z.stateProvince || ""
+  );
+
+  setValue(
+    `${prefix}City`,
+    z.city || ""
+  );
+
+  setValue(
+    `${prefix}PostalCode`,
+    z.postalCode || ""
+  );
+
+  setValue(
+    `${prefix}RadiusMiles`,
+    zoneRadiusValue(
+      z.radiusMiles
+    )
+  );
+}
+
+function readZoneForm(
+  prefix,
+  currentZone = {}
+){
+
+  return {
+    enabled:
+      document.getElementById(
+        `${prefix}Enabled`
+      )?.checked === true,
+
+    country:
+      document.getElementById(
+        `${prefix}Country`
+      )?.value || "",
+
+    stateProvince:
+      document.getElementById(
+        `${prefix}StateProvince`
+      )?.value || "",
+
+    city:
+      document.getElementById(
+        `${prefix}City`
+      )?.value || "",
+
+    postalCode:
+      document.getElementById(
+        `${prefix}PostalCode`
+      )?.value || "",
+
+    radiusMiles:
+      zoneRadiusValue(
+        document.getElementById(
+          `${prefix}RadiusMiles`
+        )?.value
+      ),
+
+    centerLat:
+      currentZone?.centerLat ?? null,
+
+    centerLng:
+      currentZone?.centerLng ?? null,
+
+    centerAddress:
+      currentZone?.centerAddress || ""
+  };
+}
+
+/* =========================
 LOAD VALUES
 ========================= */
 
@@ -710,6 +858,21 @@ function loadFormValues(){
   setValue(
     "countryInput",
     systemDesign.country
+  );
+
+  loadZoneForm(
+    "getQuoteZone",
+    systemDesign.getQuoteZone
+  );
+
+  loadZoneForm(
+    "companiesZone",
+    systemDesign.companiesZone
+  );
+
+  loadZoneForm(
+    "reservedZone",
+    systemDesign.reservedZone
   );
 
   setValue(
@@ -1551,6 +1714,24 @@ async function(){
     "countryInput"
   )?.value || "";
 
+  systemDesign.getQuoteZone =
+    readZoneForm(
+      "getQuoteZone",
+      systemDesign.getQuoteZone
+    );
+
+  systemDesign.companiesZone =
+    readZoneForm(
+      "companiesZone",
+      systemDesign.companiesZone
+    );
+
+  systemDesign.reservedZone =
+    readZoneForm(
+      "reservedZone",
+      systemDesign.reservedZone
+    );
+
   systemDesign.invoiceEmail =
   document.getElementById(
     "invoiceEmailInput"
@@ -2045,9 +2226,21 @@ async function(){
     "justify-center"
   );
 
-  await saveSystemDesign();
+  try{
 
-  alert("Saved");
+    await saveSystemDesign();
+
+    alert("Saved");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Save Failed"
+    );
+  }
 
 };
 

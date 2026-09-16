@@ -47,6 +47,65 @@ new mongoose.Schema({
 
 });
 
+
+/* =========================
+SERVICE ZONE
+Each booking source has its own independent operating radius.
+========================= */
+
+const ServiceZoneSchema =
+new mongoose.Schema({
+
+  enabled:{
+    type:Boolean,
+    default:false
+  },
+
+  country:{
+    type:String,
+    default:""
+  },
+
+  stateProvince:{
+    type:String,
+    default:""
+  },
+
+  city:{
+    type:String,
+    default:""
+  },
+
+  postalCode:{
+    type:String,
+    default:""
+  },
+
+  radiusMiles:{
+    type:Number,
+    default:50,
+    min:1
+  },
+
+  centerLat:{
+    type:Number,
+    default:null
+  },
+
+  centerLng:{
+    type:Number,
+    default:null
+  },
+
+  centerAddress:{
+    type:String,
+    default:""
+  }
+
+},{
+  _id:false
+});
+
 /* =========================
 SYSTEM DESIGN
 ========================= */
@@ -88,6 +147,36 @@ country:{
   type:String,
   default:"USA"
 },
+
+  /* =========================
+  SERVICE ZONES
+  Independent limits for Get Quote, Companies and Reserved.
+  ========================= */
+
+  getQuoteZone:{
+    type:ServiceZoneSchema,
+    default:()=>({
+      enabled:false,
+      radiusMiles:50
+    })
+  },
+
+  companiesZone:{
+    type:ServiceZoneSchema,
+    default:()=>({
+      enabled:false,
+      radiusMiles:50
+    })
+  },
+
+  reservedZone:{
+    type:ServiceZoneSchema,
+    default:()=>({
+      enabled:false,
+      radiusMiles:50
+    })
+  },
+
   /* =========================
   LOGOS
   ========================= */

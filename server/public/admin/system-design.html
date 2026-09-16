@@ -368,6 +368,63 @@ MOBILE
 
 }
 
+
+.service-zone-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:18px;
+}
+
+.service-zone-card{
+  background:#f8fbff;
+  border:1px solid #bfdbfe;
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 8px 20px rgba(15,23,42,.06);
+}
+
+.service-zone-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:16px;
+}
+
+.service-zone-title{
+  color:#0f172a;
+  font-size:17px;
+  font-weight:950;
+}
+
+.service-zone-sub{
+  margin-top:3px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.service-zone-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 11px;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+  background:#ffffff;
+  color:#0f172a;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.service-zone-toggle input{
+  width:16px;
+  height:16px;
+  accent-color:#2563eb;
+}
+
 </style>
 
 </head>
@@ -558,6 +615,94 @@ MOBILE
   </div>
 
 </div>
+<!-- =========================
+     SERVICE ZONE SETTINGS
+========================= -->
+
+<div class="section-box">
+
+  <div class="section-title">
+    Service Zone Settings
+  </div>
+
+  <div style="
+    margin-bottom:16px;
+    color:#64748b;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.6;
+  ">
+    Each booking source has its own independent Zone.
+    Radius is measured in every direction from the saved ZIP / Postal Code area.
+    Default radius is 50 miles.
+  </div>
+
+  <div class="service-zone-grid">
+
+    <div class="service-zone-card">
+      <div class="service-zone-head">
+        <div>
+          <div class="service-zone-title">Get Quote Zone</div>
+          <div class="service-zone-sub">Public Get Quote bookings</div>
+        </div>
+        <label class="service-zone-toggle">
+          <input type="checkbox" id="getQuoteZoneEnabled">
+          Enabled
+        </label>
+      </div>
+      <div class="form-grid">
+        <div class="input-group"><label>Country</label><input type="text" id="getQuoteZoneCountry" placeholder="United States"></div>
+        <div class="input-group"><label>State / Province</label><input type="text" id="getQuoteZoneStateProvince" placeholder="Arizona"></div>
+        <div class="input-group"><label>City</label><input type="text" id="getQuoteZoneCity" placeholder="Chandler"></div>
+        <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="getQuoteZonePostalCode" placeholder="85225"></div>
+        <div class="input-group"><label>Radius Miles</label><input type="number" id="getQuoteZoneRadiusMiles" min="1" step="1" value="50"></div>
+      </div>
+    </div>
+
+    <div class="service-zone-card">
+      <div class="service-zone-head">
+        <div>
+          <div class="service-zone-title">Companies Zone</div>
+          <div class="service-zone-sub">Company / facility bookings</div>
+        </div>
+        <label class="service-zone-toggle">
+          <input type="checkbox" id="companiesZoneEnabled">
+          Enabled
+        </label>
+      </div>
+      <div class="form-grid">
+        <div class="input-group"><label>Country</label><input type="text" id="companiesZoneCountry" placeholder="United States"></div>
+        <div class="input-group"><label>State / Province</label><input type="text" id="companiesZoneStateProvince" placeholder="Arizona"></div>
+        <div class="input-group"><label>City</label><input type="text" id="companiesZoneCity" placeholder="Chandler"></div>
+        <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="companiesZonePostalCode" placeholder="85225"></div>
+        <div class="input-group"><label>Radius Miles</label><input type="number" id="companiesZoneRadiusMiles" min="1" step="1" value="50"></div>
+      </div>
+    </div>
+
+    <div class="service-zone-card">
+      <div class="service-zone-head">
+        <div>
+          <div class="service-zone-title">Reserved Zone</div>
+          <div class="service-zone-sub">Reserved / dispatch-added bookings</div>
+        </div>
+        <label class="service-zone-toggle">
+          <input type="checkbox" id="reservedZoneEnabled">
+          Enabled
+        </label>
+      </div>
+      <div class="form-grid">
+        <div class="input-group"><label>Country</label><input type="text" id="reservedZoneCountry" placeholder="United States"></div>
+        <div class="input-group"><label>State / Province</label><input type="text" id="reservedZoneStateProvince" placeholder="Arizona"></div>
+        <div class="input-group"><label>City</label><input type="text" id="reservedZoneCity" placeholder="Chandler"></div>
+        <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="reservedZonePostalCode" placeholder="85225"></div>
+        <div class="input-group"><label>Radius Miles</label><input type="number" id="reservedZoneRadiusMiles" min="1" step="1" value="50"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
 <!-- =========================
      EMAIL SETTINGS
 ========================= -->
