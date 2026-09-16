@@ -685,6 +685,198 @@ const HelpCenter = (()=>{
     $("helpLanguage")?.addEventListener("change",e=>setLanguage(e.target.value));
   }
 
+
+  function applyVisualTheme(){
+
+    const language =
+      $("helpLanguage");
+
+    const pageFilter =
+      $("helpPageFilter");
+
+    const search =
+      $("helpSearch");
+
+    const resultsCard =
+      $("helpResults")
+        ?.closest(".section-card");
+
+    const selectedPage =
+      $("selectedPageCard");
+
+    if(language){
+      language.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#f8d66d 0%,#d99a00 100%)",
+        "important"
+      );
+      language.style.setProperty(
+        "color",
+        "#241900",
+        "important"
+      );
+      language.style.setProperty(
+        "border",
+        "2px solid #b97d00",
+        "important"
+      );
+      language.style.setProperty(
+        "font-weight",
+        "900",
+        "important"
+      );
+      language.style.setProperty(
+        "box-shadow",
+        "0 4px 10px rgba(151,102,0,.20)",
+        "important"
+      );
+    }
+
+    if(pageFilter){
+      pageFilter.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#1685b5 0%,#075f8c 100%)",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "color",
+        "#ffffff",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "border",
+        "2px solid #064f75",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "font-weight",
+        "900",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "box-shadow",
+        "0 4px 10px rgba(7,95,140,.20)",
+        "important"
+      );
+    }
+
+    if(search){
+      search.style.setProperty(
+        "border",
+        "2px solid #d5b24b",
+        "important"
+      );
+      search.style.setProperty(
+        "background",
+        "#ffffff",
+        "important"
+      );
+    }
+
+    if(resultsCard){
+      resultsCard.style.setProperty(
+        "background",
+        "linear-gradient(180deg,#fffdf8 0%,#fff7dc 100%)",
+        "important"
+      );
+      resultsCard.style.setProperty(
+        "border",
+        "1px solid #e2bf55",
+        "important"
+      );
+      resultsCard.style.setProperty(
+        "box-shadow",
+        "0 6px 18px rgba(151,102,0,.10)",
+        "important"
+      );
+    }
+
+    if(selectedPage){
+      selectedPage.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#eaf7ff 0%,#f8fcff 100%)",
+        "important"
+      );
+      selectedPage.style.setProperty(
+        "border",
+        "1px solid #86c7e7",
+        "important"
+      );
+      selectedPage.style.setProperty(
+        "border-left",
+        "6px solid #1679aa",
+        "important"
+      );
+    }
+
+    document
+      .querySelectorAll(
+        ".help-result"
+      )
+      .forEach(
+        (row,index)=>{
+
+          const head =
+            row.querySelector(
+              ".help-result-head"
+            );
+
+          row.style.setProperty(
+            "border",
+            "1px solid #d7bb61",
+            "important"
+          );
+
+          row.style.setProperty(
+            "box-shadow",
+            "0 4px 12px rgba(15,23,42,.05)",
+            "important"
+          );
+
+          if(!head){
+            return;
+          }
+
+          const themes = [
+            [
+              "linear-gradient(90deg,#fff0b8 0%,#fffaf0 100%)",
+              "#d79a00"
+            ],
+            [
+              "linear-gradient(90deg,#e2f4ff 0%,#f8fcff 100%)",
+              "#1685b5"
+            ],
+            [
+              "linear-gradient(90deg,#e6f8ec 0%,#f8fff9 100%)",
+              "#2f9e5b"
+            ],
+            [
+              "linear-gradient(90deg,#eee6ff 0%,#fbf9ff 100%)",
+              "#7b52b9"
+            ]
+          ];
+
+          const theme =
+            themes[
+              index %
+              themes.length
+            ];
+
+          head.style.setProperty(
+            "background",
+            theme[0],
+            "important"
+          );
+
+          head.style.setProperty(
+            "border-left",
+            `5px solid ${theme[1]}`,
+            "important"
+          );
+        }
+      );
+  }
+
   async function init(){
     try{
       state.role = currentRole();
@@ -692,6 +884,23 @@ const HelpCenter = (()=>{
       bind();
       if($("helpLanguage")) $("helpLanguage").value = state.lang;
       setLanguage(state.lang);
+      applyVisualTheme();
+
+      const observer =
+        new MutationObserver(
+          ()=>applyVisualTheme()
+        );
+
+      if($("helpResults")){
+        observer.observe(
+          $("helpResults"),
+          {
+            childList:true,
+            subtree:true
+          }
+        );
+      }
+
     }catch(err){
       console.log("HELP CENTER ERROR:",err);
       if($("helpResultCount")) $("helpResultCount").textContent = "Help Center failed to load.";
