@@ -697,8 +697,144 @@ document.addEventListener("DOMContentLoaded",async()=>{
      color:#241900!important;
      font-weight:900!important;
    }
+
+   @keyframes ghHelpSupportBlink{
+     0%,100%{
+       filter:brightness(1);
+       box-shadow:0 5px 12px rgba(151,102,0,.28);
+     }
+     50%{
+       filter:brightness(1.38);
+       box-shadow:
+         0 0 0 3px rgba(255,220,92,.72),
+         0 0 22px rgba(255,184,0,.95),
+         0 5px 16px rgba(151,102,0,.38);
+     }
+   }
+
+   #adminDesktopNav [data-href="help-center.html"].gh-support-unread,
+   #mobileSideNav [data-href="help-center.html"].gh-support-unread{
+     animation:ghHelpSupportBlink 1s ease-in-out infinite!important;
+     position:relative!important;
+   }
+
+   .gh-support-unread-badge{
+     position:absolute;
+     right:4px;
+     top:3px;
+     min-width:18px;
+     height:18px;
+     padding:0 5px;
+     border-radius:999px;
+     display:flex;
+     align-items:center;
+     justify-content:center;
+     background:#c81e1e;
+     color:#fff;
+     font-size:9px;
+     font-weight:900;
+     line-height:1;
+     z-index:20;
+     box-shadow:0 2px 6px rgba(0,0,0,.22);
+   }
  `;
  document.head.appendChild(helpCenterGoldStyle);
+
+ /* PLATFORM SUPPORT UNREAD — BLINK HELP CENTER BUTTON */
+ function supportUnreadToken(){
+   return String(
+     sessionStorage.getItem("staffToken") ||
+     localStorage.getItem("token") ||
+     ""
+   ).trim();
+ }
+
+ function applySupportUnreadToHelpButton(count){
+   const unread=
+     Math.max(
+       0,
+       Number(count||0)
+     );
+
+   document
+     .querySelectorAll(
+       '[data-href="help-center.html"]'
+     )
+     .forEach(link=>{
+       link.classList.toggle(
+         "gh-support-unread",
+         unread>0
+       );
+
+       link
+         .querySelectorAll(
+           ".gh-support-unread-badge"
+         )
+         .forEach(
+           badge=>badge.remove()
+         );
+
+       if(unread>0){
+         const badge=
+           document.createElement("b");
+
+         badge.className=
+           "gh-support-unread-badge";
+
+         badge.textContent=
+           unread>99
+             ? "99+"
+             : String(unread);
+
+         link.appendChild(badge);
+       }
+     });
+ }
+
+ async function refreshPlatformSupportUnread(){
+   const token=
+     supportUnreadToken();
+
+   if(!token){
+     applySupportUnreadToHelpButton(0);
+     return;
+   }
+
+   try{
+     const response=
+       await fetch(
+         "/api/platform-support/unread-count",
+         {
+           cache:"no-store",
+           headers:{
+             Authorization:
+               "Bearer "+token
+           }
+         }
+       );
+
+     if(!response.ok){
+       return;
+     }
+
+     const data=
+       await response.json();
+
+     applySupportUnreadToHelpButton(
+       data?.count||0
+     );
+
+   }catch(err){
+     /* Keep the existing header working if Support is temporarily unavailable. */
+   }
+ }
+
+ refreshPlatformSupportUnread();
+
+ setInterval(
+   refreshPlatformSupportUnread,
+   12000
+ );
 
 
  /* ALERT BADGES — VISUAL ONLY; EXISTING HEADER SIZE/COLORS ARE UNCHANGED */
