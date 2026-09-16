@@ -733,7 +733,7 @@ const HelpCenter = (()=>{
 
 
   /* =========================
-     PLATFORM SUPPORT
+     PLATFORM SUPPORT SIDE PANEL
   ========================= */
 
   function supportToken(){
@@ -744,27 +744,21 @@ const HelpCenter = (()=>{
     ).trim();
   }
 
-  function supportHeaders(
-    json=false
-  ){
-    const headers = {
+  function supportHeaders(json=false){
+    const result = {
       Authorization:
-        "Bearer " +
-        supportToken()
+        "Bearer " + supportToken()
     };
 
     if(json){
-      headers["Content-Type"] =
+      result["Content-Type"] =
         "application/json";
     }
 
-    return headers;
+    return result;
   }
 
-  async function supportApi(
-    url,
-    options={}
-  ){
+  async function supportApi(url,options={}){
     const response =
       await fetch(
         url,
@@ -795,29 +789,22 @@ const HelpCenter = (()=>{
     return data;
   }
 
-  function supportDate(
-    value
-  ){
+  function supportDate(value){
     if(!value){
       return "";
     }
 
     try{
-      return new Date(
-        value
-      ).toLocaleString();
+      return new Date(value)
+        .toLocaleString();
     }catch(err){
       return "";
     }
   }
 
-  function supportPhoneHtml(
-    value
-  ){
+  function supportPhoneHtml(value){
     const phone =
-      clean(
-        value
-      );
+      clean(value);
 
     if(!phone){
       return "Not Available";
@@ -838,37 +825,27 @@ const HelpCenter = (()=>{
     state.support.identity =
       data.identity || {};
 
-    if($("supportCompanyName")){
-      $("supportCompanyName").textContent =
-        state.support.identity.tenantName ||
-        "-";
-    }
+    $("supportCompanyName").textContent =
+      state.support.identity.tenantName ||
+      "-";
 
-    if($("supportCompanyPhone")){
-      $("supportCompanyPhone").innerHTML =
-        supportPhoneHtml(
-          state.support.identity.companyPhone
-        );
-    }
+    $("supportCompanyPhone").innerHTML =
+      supportPhoneHtml(
+        state.support.identity.companyPhone
+      );
 
-    if($("supportUserName")){
-      $("supportUserName").textContent =
-        state.support.identity.userName ||
-        "-";
-    }
+    $("supportUserName").textContent =
+      state.support.identity.userName ||
+      "-";
 
-    if($("supportUserRole")){
-      $("supportUserRole").textContent =
-        state.support.identity.userRole ||
-        "-";
-    }
+    $("supportUserRole").textContent =
+      state.support.identity.userRole ||
+      "-";
 
-    if($("supportUserPhone")){
-      $("supportUserPhone").innerHTML =
-        supportPhoneHtml(
-          state.support.identity.userPhone
-        );
-    }
+    $("supportUserPhone").innerHTML =
+      supportPhoneHtml(
+        state.support.identity.userPhone
+      );
   }
 
   async function loadSupportUnread(){
@@ -881,10 +858,7 @@ const HelpCenter = (()=>{
       const count =
         Math.max(
           0,
-          Number(
-            data.count ||
-            0
-          )
+          Number(data.count || 0)
         );
 
       const badge =
@@ -903,7 +877,7 @@ const HelpCenter = (()=>{
       );
 
     }catch(err){
-      /* Keep Help Center working even if Support API is not mounted yet. */
+      /* Keep Help Center usable if Support backend is not mounted yet. */
     }
   }
 
@@ -937,20 +911,17 @@ const HelpCenter = (()=>{
         .length
     ){
       host.innerHTML =
-        `<div style="padding:12px;text-align:center;color:#718096;font-size:12px">No support conversations yet.</div>`;
+        `<div style="padding:12px;text-align:center;color:#718096;font-size:11px">No conversations yet.</div>`;
       return;
     }
 
     host.innerHTML =
-      state.support
-        .conversations
+      state.support.conversations
         .map(
           conversation=>`
             <div
               class="support-conversation-item ${
-                String(
-                  conversation._id
-                ) ===
+                String(conversation._id) ===
                 state.support.activeId
                   ? "active"
                   : ""
@@ -974,7 +945,7 @@ const HelpCenter = (()=>{
                   conversation.tenantUnreadCount ||
                   0
                 ) > 0
-                  ? `<div class="support-conversation-meta"><b>${Number(conversation.tenantUnreadCount)} new reply</b></div>`
+                  ? `<div class="support-conversation-meta"><b>${Number(conversation.tenantUnreadCount)} new</b></div>`
                   : ""
               }
             </div>
@@ -1000,9 +971,7 @@ const HelpCenter = (()=>{
       );
   }
 
-  function renderSupportMessages(
-    messages
-  ){
+  function renderSupportMessages(messages){
     const host =
       $("supportMessages");
 
@@ -1042,13 +1011,9 @@ const HelpCenter = (()=>{
       host.scrollHeight;
   }
 
-  async function openSupportConversation(
-    conversationId
-  ){
+  async function openSupportConversation(conversationId){
     const id =
-      clean(
-        conversationId
-      );
+      clean(conversationId);
 
     if(!id){
       return;
@@ -1060,37 +1025,26 @@ const HelpCenter = (()=>{
     const data =
       await supportApi(
         "/api/platform-support/conversations/" +
-        encodeURIComponent(
-          id
-        )
+        encodeURIComponent(id)
       );
 
-    if($("supportChatEmpty")){
-      $("supportChatEmpty")
-        .style.display =
-        "none";
-    }
+    $("supportChatEmpty").style.display =
+      "none";
 
-    if($("supportChatView")){
-      $("supportChatView")
-        .classList
-        .add("show");
-    }
+    $("supportChatView")
+      .classList
+      .add("show");
 
-    if($("supportChatSubject")){
-      $("supportChatSubject").textContent =
-        data.conversation?.subject ||
-        "Support Conversation";
-    }
+    $("supportChatSubject").textContent =
+      data.conversation?.subject ||
+      "Support Conversation";
 
-    if($("supportChatStatus")){
-      $("supportChatStatus").textContent =
-        "Status: " +
-        (
-          data.conversation?.status ||
-          "-"
-        );
-    }
+    $("supportChatStatus").textContent =
+      "Status: " +
+      (
+        data.conversation?.status ||
+        "-"
+      );
 
     renderSupportMessages(
       data.messages ||
@@ -1103,25 +1057,24 @@ const HelpCenter = (()=>{
     ]);
   }
 
-  function showSupportNewModal(){
-    if($("supportNewSubject")){
-      $("supportNewSubject").value =
-        "";
-    }
+  function showSupportNewForm(){
+    $("supportNewSubject").value =
+      "";
 
-    if($("supportNewMessage")){
-      $("supportNewMessage").value =
-        "";
-    }
+    $("supportNewMessage").value =
+      "";
 
-    $("supportNewConversationModal")
-      ?.classList
+    $("supportNewConversationForm")
+      .classList
       .add("show");
+
+    $("supportNewSubject")
+      .focus();
   }
 
-  function hideSupportNewModal(){
-    $("supportNewConversationModal")
-      ?.classList
+  function hideSupportNewForm(){
+    $("supportNewConversationForm")
+      .classList
       .remove("show");
   }
 
@@ -1137,26 +1090,20 @@ const HelpCenter = (()=>{
       );
 
     if(!subject){
-      alert(
-        "Subject is required"
-      );
+      alert("Subject is required");
       return;
     }
 
     if(!message){
-      alert(
-        "Describe your issue"
-      );
+      alert("Describe your issue");
       return;
     }
 
     const button =
       $("supportStartNewBtn");
 
-    if(button){
-      button.disabled =
-        true;
-    }
+    button.disabled =
+      true;
 
     try{
       const data =
@@ -1171,8 +1118,7 @@ const HelpCenter = (()=>{
           }
         );
 
-      hideSupportNewModal();
-
+      hideSupportNewForm();
       await loadSupportList();
 
       if(
@@ -1189,10 +1135,8 @@ const HelpCenter = (()=>{
       );
 
     }finally{
-      if(button){
-        button.disabled =
-          false;
-      }
+      button.disabled =
+        false;
     }
   }
 
@@ -1212,10 +1156,8 @@ const HelpCenter = (()=>{
     const button =
       $("supportSendMessageBtn");
 
-    if(button){
-      button.disabled =
-        true;
-    }
+    button.disabled =
+      true;
 
     try{
       await supportApi(
@@ -1232,10 +1174,8 @@ const HelpCenter = (()=>{
         }
       );
 
-      if($("supportMessageInput")){
-        $("supportMessageInput").value =
-          "";
-      }
+      $("supportMessageInput").value =
+        "";
 
       await openSupportConversation(
         state.support.activeId
@@ -1247,17 +1187,53 @@ const HelpCenter = (()=>{
       );
 
     }finally{
-      if(button){
-        button.disabled =
-          false;
-      }
+      button.disabled =
+        false;
     }
   }
 
-  async function loadSupportPanel(){
-    if(
-      !state.support.loaded
-    ){
+  function bindSupport(){
+    $("supportNewConversationBtn")
+      ?.addEventListener(
+        "click",
+        showSupportNewForm
+      );
+
+    $("supportCancelNewBtn")
+      ?.addEventListener(
+        "click",
+        hideSupportNewForm
+      );
+
+    $("supportStartNewBtn")
+      ?.addEventListener(
+        "click",
+        startSupportConversation
+      );
+
+    $("supportSendMessageBtn")
+      ?.addEventListener(
+        "click",
+        sendSupportMessage
+      );
+
+    $("supportMessageInput")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+            event.preventDefault();
+            sendSupportMessage();
+          }
+        }
+      );
+  }
+
+  async function initSupport(){
+    try{
       await Promise.all([
         loadSupportIdentity(),
         loadSupportList(),
@@ -1266,43 +1242,20 @@ const HelpCenter = (()=>{
 
       state.support.loaded =
         true;
-    }
-  }
-
-  async function openSupportPanel(){
-    const panel =
-      $("platformSupportPanel");
-
-    if(!panel){
-      return;
-    }
-
-    panel.hidden =
-      false;
-
-    try{
-      await loadSupportPanel();
-
-      panel.scrollIntoView({
-        behavior:"smooth",
-        block:"start"
-      });
 
     }catch(err){
-      alert(
-        err.message ||
-        "Platform Support failed to load"
+      console.error(
+        "PLATFORM SUPPORT LOAD:",
+        err
       );
-    }
-  }
 
-  function closeSupportPanel(){
-    const panel =
-      $("platformSupportPanel");
+      const host =
+        $("supportConversationList");
 
-    if(panel){
-      panel.hidden =
-        true;
+      if(host){
+        host.innerHTML =
+          `<div style="padding:12px;color:#b42318;font-size:11px">${escapeHtml(err.message || "Support unavailable")}</div>`;
+      }
     }
   }
 
@@ -1333,78 +1286,12 @@ const HelpCenter = (()=>{
               );
             }
 
-          }catch(err){
-            /* Silent polling failure. */
-          }
+          }catch(err){}
         },
         12000
       );
   }
 
-  function bindSupport(){
-    $("openPlatformSupportBtn")
-      ?.addEventListener(
-        "click",
-        openSupportPanel
-      );
-
-    $("closePlatformSupportBtn")
-      ?.addEventListener(
-        "click",
-        closeSupportPanel
-      );
-
-    $("supportNewConversationBtn")
-      ?.addEventListener(
-        "click",
-        showSupportNewModal
-      );
-
-    $("supportCancelNewBtn")
-      ?.addEventListener(
-        "click",
-        hideSupportNewModal
-      );
-
-    $("supportStartNewBtn")
-      ?.addEventListener(
-        "click",
-        startSupportConversation
-      );
-
-    $("supportSendMessageBtn")
-      ?.addEventListener(
-        "click",
-        sendSupportMessage
-      );
-
-    $("supportMessageInput")
-      ?.addEventListener(
-        "keydown",
-        event=>{
-          if(
-            event.key === "Enter" &&
-            !event.shiftKey
-          ){
-            event.preventDefault();
-            sendSupportMessage();
-          }
-        }
-      );
-
-    $("supportNewConversationModal")
-      ?.addEventListener(
-        "click",
-        event=>{
-          if(
-            event.target ===
-            $("supportNewConversationModal")
-          ){
-            hideSupportNewModal();
-          }
-        }
-      );
-  }
 
   function bind(){
     $("helpSearch")?.addEventListener("input",renderResults);
@@ -1674,7 +1561,7 @@ const HelpCenter = (()=>{
       setLanguage(state.lang);
       applyVisualTheme();
 
-      loadSupportUnread();
+      initSupport();
       startSupportPolling();
 
       const observer =
