@@ -2327,6 +2327,43 @@ async function updateTrip(id,payload){
   return extractTripResponse(data);
 }
 
+
+/*
+  Reserved Zone protection:
+  - Add To Review is validated by POST /api/trips.
+  - Save Edit is validated by PUT /api/trips/:id when pickup data changes.
+  - Confirm performs one final server-side Zone re-check before route calculation.
+
+  Sending the saved pickup back through the existing update endpoint does not
+  calculate a route. It only forces the current Reserved Zone policy to be
+  checked again, including every passenger pickup on Shared trips.
+*/
+async function revalidateReservedZoneBeforeConfirm(trip){
+
+  if(!trip){
+    throw new Error("Trip not found");
+  }
+
+  const id =
+    trip._id ||
+    trip.id ||
+    "";
+
+  if(!id){
+    throw new Error("Trip id missing");
+  }
+
+  return await updateTrip(
+    id,
+    {
+      pickup:
+        normalizeText(
+          trip.pickup
+        )
+    }
+  );
+}
+
 async function deleteTrip(id){
 
   const res =
@@ -4140,6 +4177,22 @@ async function handleConfirmTrip(btn){
   try{
 
     btn.disabled = true;
+    btn.textContent = "Checking Zone...";
+
+    /*
+      Re-check the current Reserved Zone immediately before Confirm.
+      This catches:
+      - a Zone radius/location changed after Add To Review
+      - an old Review trip created before Zone rules were enabled
+      - Shared trips where any passenger pickup is now outside the Zone
+
+      The server remains the source of truth and returns the same Zone
+      error message used by Add To Review / Save Edit.
+    */
+    await revalidateReservedZoneBeforeConfirm(
+      trip
+    );
+
     btn.textContent = "Calculating Route...";
 
     await confirmTripOnServer(id);
