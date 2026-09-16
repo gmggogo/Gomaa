@@ -33,15 +33,17 @@ body{
 }
 
 .help-shell{
-  max-width:1500px;
-  margin:20px auto 60px;
-  padding:0 18px;
+  width:100%;
+  max-width:none;
+  margin:24px 0 60px;
+  padding:0 28px;
 }
 
 .help-support-grid{
+  width:100%;
   display:grid;
-  grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);
-  gap:18px;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:36px;
   align-items:start;
 }
 
@@ -678,6 +680,85 @@ html[dir="rtl"] .help-steps{
   .help-column,
   .support-column{
     min-height:680px;
+  }
+}
+
+
+/* ===== WIDE TWO-PANEL DESKTOP LAYOUT ===== */
+
+.help-column,
+.support-column{
+  width:100%;
+  min-width:0;
+}
+
+.help-hero,
+.section-card,
+.selected-page-card,
+.support-card{
+  width:100%;
+}
+
+/* Left Help Center gets the same navy header language as Platform Support. */
+.help-hero{
+  overflow:hidden;
+  padding:0 20px 20px;
+  background:#ffffff;
+  border:1px solid #cfd8e3;
+}
+
+.help-top{
+  margin:0 -20px 18px;
+  padding:18px 20px;
+  background:linear-gradient(135deg,#0d688f 0%,#084f73 100%);
+  color:#ffffff;
+  align-items:center;
+}
+
+.help-title{
+  color:#ffffff!important;
+  margin-bottom:5px;
+}
+
+.help-sub{
+  color:#e8f4fb!important;
+}
+
+.lang-label{
+  color:#f6fbff!important;
+}
+
+.help-search-row{
+  margin-top:0;
+}
+
+.section-card{
+  min-height:440px;
+}
+
+.support-card{
+  min-height:680px;
+}
+
+/* More breathing room between the two halves */
+@media(min-width:981px){
+  .help-column{
+    padding-right:4px;
+  }
+
+  .support-column{
+    padding-left:4px;
+  }
+}
+
+@media(max-width:980px){
+  .help-shell{
+    padding:0 16px;
+  }
+
+  .help-support-grid{
+    grid-template-columns:1fr;
+    gap:22px;
   }
 }
 
