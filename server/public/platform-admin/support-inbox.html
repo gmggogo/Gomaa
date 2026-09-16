@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Support Inbox</title>
+<style>
+body{margin:0;background:#f4f7fb;color:#172033;font-family:Arial,sans-serif}
+.shell{max-width:1450px;margin:22px auto 60px;padding:0 18px}
+.title{text-align:center;font-size:26px;font-weight:900;margin:0 0 18px}
+.layout{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px}
+.card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;box-shadow:0 5px 16px rgba(15,23,42,.06)}
+.left{padding:14px}
+.filter-row{display:flex;gap:8px;margin-bottom:12px}
+.filter-row select{flex:1;border:1px solid #cbd5e1;border-radius:9px;padding:9px}
+.list{display:flex;flex-direction:column;gap:8px;max-height:690px;overflow:auto}
+.item{border:1px solid #dde5ee;border-radius:11px;padding:11px;cursor:pointer;background:#f9fbfd}
+.item.active{background:#fff5cf;border-color:#d8ac24}
+.item-company{font-weight:900}
+.item-subject{font-size:13px;margin-top:4px}
+.item-meta{font-size:11px;color:#6b7280;margin-top:5px}
+.badge{display:inline-block;background:#d97706;color:#fff;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:900;margin-left:6px}
+.chat{min-height:720px;display:flex;flex-direction:column}
+.head{padding:15px 18px;border-bottom:1px solid #e5eaf0;background:#fff8d9;border-radius:16px 16px 0 0}
+.company-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 18px;margin-top:10px;font-size:13px}
+.company-grid b{color:#6f4b00}
+.status-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.status-row select{border:1px solid #cbd5e1;border-radius:8px;padding:7px}
+.messages{flex:1;padding:18px;overflow:auto;max-height:520px;background:#f8fafc}
+.msg{max-width:78%;padding:11px 13px;border-radius:14px;margin-bottom:11px}
+.msg.tenant{background:#e5f3ff;border:1px solid #b9ddf3;margin-right:auto}
+.msg.platform{background:#fff0b8;border:1px solid #e3c45f;margin-left:auto}
+.meta{font-size:11px;color:#687386;margin-bottom:5px;font-weight:700}
+.text{white-space:pre-wrap;line-height:1.45}
+.composer{display:flex;gap:9px;padding:14px;border-top:1px solid #e5eaf0}
+.composer textarea{flex:1;min-height:72px;border:1px solid #cbd5e1;border-radius:10px;padding:11px;resize:vertical}
+.composer button{width:120px;border:0;border-radius:10px;background:#0f6f9f;color:#fff;font-weight:900;cursor:pointer}
+.empty{display:flex;align-items:center;justify-content:center;min-height:720px;color:#718096;text-align:center}
+a{color:#075f8c}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.company-grid{grid-template-columns:1fr}.msg{max-width:90%}}
+</style>
+</head>
+<body>
+<div id="platformHeader"></div>
+
+<main class="shell">
+  <h1 class="title">Support Inbox</h1>
+
+  <div class="layout">
+    <aside class="card left">
+      <div class="filter-row">
+        <select id="statusFilter">
+          <option value="">All Conversations</option>
+          <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+          <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+          <option value="OPEN">Open</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+      </div>
+
+      <div class="list" id="conversationList"></div>
+    </aside>
+
+    <section class="card">
+      <div id="emptyState" class="empty">
+        Select a company support conversation.
+      </div>
+
+      <div id="chatView" class="chat" style="display:none">
+        <div class="head">
+          <h2 id="subject" style="margin:0"></h2>
+
+          <div class="company-grid">
+            <div><b>Company:</b> <span id="companyName"></span></div>
+            <div><b>Company Phone:</b> <span id="companyPhone"></span></div>
+            <div><b>Opened By:</b> <span id="openedBy"></span></div>
+            <div><b>Role:</b> <span id="openedRole"></span></div>
+            <div><b>User Phone:</b> <span id="openedPhone"></span></div>
+            <div><b>Created:</b> <span id="createdAt"></span></div>
+          </div>
+
+          <div class="status-row">
+            <b>Status:</b>
+            <select id="conversationStatus">
+              <option value="OPEN">Open</option>
+              <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+              <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+              <option value="RESOLVED">Resolved</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="composer">
+          <textarea id="messageInput" placeholder="Reply to the company..."></textarea>
+          <button id="sendBtn" type="button">Reply</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="/platform-admin/platform_header.js"></script>
+<script src="/platform-admin/support-inbox.js"></script>
+</body>
+</html>
