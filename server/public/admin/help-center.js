@@ -34,7 +34,8 @@ const HelpCenter = (()=>{
       for:"for",
       tasks:"help tasks",
       task:"help task",
-      page:"Page"
+      page:"Page",
+      startHelp:"Choose a page or type a task in the search box to see the instructions."
     },
     "es-MX":{
       title:"Centro de ayuda",
@@ -55,7 +56,8 @@ const HelpCenter = (()=>{
       for:"para",
       tasks:"tareas de ayuda",
       task:"tarea de ayuda",
-      page:"Página"
+      page:"Página",
+      startHelp:"Elige una página o escribe una tarea en el buscador para ver las instrucciones."
     },
     ar:{
       title:"مركز المساعدة",
@@ -76,7 +78,8 @@ const HelpCenter = (()=>{
       for:"عن",
       tasks:"مهام مساعدة",
       task:"مهمة مساعدة",
-      page:"الصفحة"
+      page:"الصفحة",
+      startHelp:"اختر صفحة أو اكتب المهمة في البحث لعرض خطوات التنفيذ."
     },
     fr:{
       title:"Centre d’aide",
@@ -97,7 +100,8 @@ const HelpCenter = (()=>{
       for:"pour",
       tasks:"tâches d’aide",
       task:"tâche d’aide",
-      page:"Page"
+      page:"Page",
+      startHelp:"Choisissez une page ou saisissez une tâche dans la recherche pour voir les instructions."
     },
     it:{
       title:"Centro assistenza",
@@ -118,7 +122,8 @@ const HelpCenter = (()=>{
       for:"per",
       tasks:"attività di assistenza",
       task:"attività di assistenza",
-      page:"Pagina"
+      page:"Pagina",
+      startHelp:"Scegli una pagina oppure scrivi un’attività nella ricerca per vedere le istruzioni."
     }
   };
 
@@ -458,16 +463,36 @@ const HelpCenter = (()=>{
   function searchScore(article,query){
     const q = normalizeSearch(query);
     if(!q) return 1;
+
     const words = q.split(" ").filter(Boolean);
+    const title = normalizeSearch(article.title || "");
     const translatedTitle = normalizeSearch(translateText(article.title || ""));
+    const keywords = normalizeSearch((article.keywords || []).join(" "));
     const translatedSteps = normalizeSearch((article.steps || []).map(translateText).join(" "));
     const hay = normalizeSearch(articleText(article) + " " + translatedTitle + " " + translatedSteps);
+
     let score = 0;
-    if(translatedTitle === q) score += 100;
-    if(translatedTitle.includes(q)) score += 50;
+
+    if(title === q || translatedTitle === q) score += 150;
+    if(title.includes(q) || translatedTitle.includes(q)) score += 90;
+    if(keywords.includes(q)) score += 70;
+    if(hay.includes(q)) score += 45;
+
+    let matchedWords = 0;
+
     for(const word of words){
-      if(hay.includes(word)) score += 10;
+      if(title.includes(word) || translatedTitle.includes(word)) score += 25;
+      if(keywords.includes(word)) score += 18;
+      if(hay.includes(word)){
+        score += 8;
+        matchedWords += 1;
+      }
     }
+
+    if(words.length > 1 && matchedWords === words.length){
+      score += 40;
+    }
+
     return score;
   }
 
@@ -497,80 +522,82 @@ const HelpCenter = (()=>{
     $("uiTitle").textContent = t("title");
     $("uiSubtitle").textContent = t("subtitle");
     $("uiLanguageLabel").textContent = t("language");
-    $("uiStandardPagesTitle").textContent = t("standardPages");
-    $("uiStandardPagesSub").textContent = t("standardPagesSub");
-    $("uiBrokerPagesTitle").textContent = t("brokerPages");
-    $("uiBrokerPagesSub").textContent = t("brokerPagesSub");
     $("clearPageFilter").textContent = t("showAll");
     $("helpSearch").placeholder = t("search");
 
     renderPageFilter();
-    renderPages();
+    renderSelectedPage();
     renderResults();
   }
 
   function choosePage(file){
     state.page = file || "";
-    if($("helpPageFilter")) $("helpPageFilter").value = state.page;
-    renderPages();
+    if($("helpPageFilter")){
+      $("helpPageFilter").value = state.page;
+    }
+    renderSelectedPage();
     renderResults();
   }
 
-  function pageCardHtml(page){
-    return `
-      <button class="page-card ${state.page === page.pageFile ? "active" : ""}"
-              type="button" data-page-file="${escapeHtml(page.pageFile)}">
-        <div class="page-id">${escapeHtml(page.pageId)}</div>
-        <div class="page-title">${escapeHtml(translateText(page.pageTitle))}</div>
-        <div class="page-desc">${escapeHtml(pageDescription(page))}</div>
-        <div class="page-tasks">
-          ${Number(page.articleCount || 0)}
-          ${Number(page.articleCount || 0) === 1 ? t("task") : t("tasks")}
-        </div>
-      </button>
-    `;
-  }
+  function renderSelectedPage(){
+    const card = $("selectedPageCard");
+    if(!card) return;
 
-  function bindPageCards(host){
-    host?.querySelectorAll(".page-card").forEach(card=>{
-      card.addEventListener("click",()=>choosePage(card.dataset.pageFile || ""));
-    });
-  }
+    const page = accessiblePages().find(p=>p.pageFile === state.page);
 
-  function renderPages(){
-    const standardHost = $("helpStandardPages");
-    const brokerHost = $("helpBrokerPages");
-    const brokerSection = $("brokerPagesSection");
-
-    if(!standardHost || !brokerHost) return;
-
-    const pages = accessiblePages();
-
-    const standardPages = pages.filter(page=>page.helpGroup !== "BROKER");
-    const brokerPages = pages.filter(page=>page.helpGroup === "BROKER");
-
-    standardHost.innerHTML = standardPages.map(pageCardHtml).join("");
-    brokerHost.innerHTML = brokerPages.map(pageCardHtml).join("");
-
-    bindPageCards(standardHost);
-    bindPageCards(brokerHost);
-
-    if(brokerSection){
-      brokerSection.style.display = brokerPages.length ? "" : "none";
+    if(!page){
+      card.hidden = true;
+      $("selectedPageId").textContent = "";
+      $("selectedPageTitle").textContent = "";
+      $("selectedPageDescription").textContent = "";
+      return;
     }
+
+    card.hidden = false;
+    $("selectedPageId").textContent = page.pageId;
+    $("selectedPageTitle").textContent = translateText(page.pageTitle);
+    $("selectedPageDescription").textContent = pageDescription(page);
   }
 
   function renderPageFilter(){
     const select = $("helpPageFilter");
     if(!select) return;
+
     const pages = accessiblePages();
-    select.innerHTML = `<option value="">${escapeHtml(t("allPages"))}</option>`;
-    pages.forEach(page=>{
-      const option = document.createElement("option");
-      option.value = page.pageFile;
-      option.textContent = `${page.pageId} — ${translateText(page.pageTitle)}`;
-      select.appendChild(option);
-    });
+    const standardPages = pages.filter(p=>p.helpGroup !== "BROKER");
+    const brokerPages = pages.filter(p=>p.helpGroup === "BROKER");
+
+    select.innerHTML = "";
+
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = t("allPages");
+    select.appendChild(all);
+
+    if(standardPages.length){
+      const group = document.createElement("optgroup");
+      group.label = t("standardPages");
+      standardPages.forEach(page=>{
+        const option = document.createElement("option");
+        option.value = page.pageFile;
+        option.textContent = `${page.pageId} — ${translateText(page.pageTitle)}`;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    }
+
+    if(brokerPages.length){
+      const group = document.createElement("optgroup");
+      group.label = t("brokerPages");
+      brokerPages.forEach(page=>{
+        const option = document.createElement("option");
+        option.value = page.pageFile;
+        option.textContent = `${page.pageId} — ${translateText(page.pageTitle)}`;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    }
+
     select.value = state.page;
   }
 
@@ -582,6 +609,12 @@ const HelpCenter = (()=>{
     const results = visibleResults();
     const query = clean($("helpSearch")?.value);
     const selectedPage = accessiblePages().find(p=>p.pageFile === state.page);
+
+    if(!query && !selectedPage){
+      countEl.textContent = "";
+      host.innerHTML = `<div class="help-empty">${escapeHtml(t("startHelp"))}</div>`;
+      return;
+    }
 
     countEl.textContent =
       `${results.length} ${results.length === 1 ? t("result") : t("results")}` +

@@ -19,16 +19,15 @@
   .help-search-row{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;margin-top:18px}
   .help-search,.help-select{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:12px;padding:13px 14px;font-size:16px;background:#fff;color:#172033}
   .help-search:focus,.help-select:focus,.lang-select:focus{outline:3px solid rgba(37,99,235,.14);border-color:#2563eb}
+
+  .selected-page-card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:20px 22px;margin-top:18px}
+  .selected-page-card[hidden]{display:none}
+  .selected-page-id{font-size:12px;font-weight:800;color:#2563eb;margin-bottom:5px}
+  .selected-page-title{margin:0 0 8px;font-size:25px;line-height:1.2;color:#172033}
+  .selected-page-description{margin:0;color:#667085;line-height:1.6;font-size:15px}
+  .results-card{margin-top:18px}
   .section-title{margin:0 0 5px;font-size:20px}
   .section-sub{margin:0 0 15px;color:#667085;font-size:13px}
-  .page-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  .page-card{border:1px solid #dfe6f0;background:#fff;border-radius:14px;padding:14px;text-align:left;cursor:pointer;min-height:145px;transition:.15s ease}
-  .page-card:hover{border-color:#9fb7dd;box-shadow:0 5px 16px rgba(15,23,42,.06);transform:translateY(-1px)}
-  .page-card.active{border-color:#2563eb;background:#eff5ff;box-shadow:0 0 0 2px rgba(37,99,235,.08)}
-  .page-id{font-size:12px;font-weight:800;color:#2563eb}
-  .page-title{font-size:16px;font-weight:800;margin:5px 0 7px}
-  .page-desc{font-size:13px;line-height:1.5;color:#667085}
-  .page-tasks{font-size:12px;color:#475467;margin-top:9px;font-weight:700}
   .results-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
   .help-count{font-size:13px;color:#667085;margin:0}
   .clear-btn{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:8px 11px;cursor:pointer;font-weight:700;color:#344054}
@@ -45,16 +44,15 @@
   .help-warning{margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;color:#9a3412}
   .help-source{margin-top:12px;font-size:12px;color:#64748b}
   .help-empty{padding:30px;text-align:center;color:#667085}
-  html[dir="rtl"] .page-card,
+  html[dir="rtl"] .selected-page-card,
   html[dir="rtl"] .help-result-head{ text-align:right }
   html[dir="rtl"] .help-steps{padding-left:0;padding-right:22px}
-  @media(max-width:1100px){.page-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:1100px){
   @media(max-width:800px){
     .help-top{flex-direction:column}
     .help-search-row{grid-template-columns:1fr}
-    .page-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
-  @media(max-width:560px){.page-grid{grid-template-columns:1fr}}
+  @media(max-width:560px){
 </style>
 </head>
 <body>
@@ -92,19 +90,13 @@
     </div>
   </section>
 
-  <section class="section-card">
-    <h2 id="uiStandardPagesTitle" class="section-title">Admin Pages</h2>
-    <p id="uiStandardPagesSub" class="section-sub">Core Admin pages in the same order used by the Admin header.</p>
-    <div id="helpStandardPages" class="page-grid"></div>
+  <section id="selectedPageCard" class="selected-page-card" hidden>
+    <div id="selectedPageId" class="selected-page-id"></div>
+    <h2 id="selectedPageTitle" class="selected-page-title"></h2>
+    <p id="selectedPageDescription" class="selected-page-description"></p>
   </section>
 
-  <section id="brokerPagesSection" class="section-card">
-    <h2 id="uiBrokerPagesTitle" class="section-title">Broker Operations Pages</h2>
-    <p id="uiBrokerPagesSub" class="section-sub">Broker-only pages are kept separate from the regular Admin workflow.</p>
-    <div id="helpBrokerPages" class="page-grid"></div>
-  </section>
-
-  <section class="section-card">
+  <section class="section-card results-card">
     <div class="results-head">
       <p id="helpResultCount" class="help-count">Loading help...</p>
       <button id="clearPageFilter" class="clear-btn" type="button">Show All Pages</button>
