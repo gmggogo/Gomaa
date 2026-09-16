@@ -1322,41 +1322,25 @@ function checkReservedDynamicWarning(dateValue,timeValue){
 
 function checkTripWarningByTrip(trip){
 
-  if(!trip) return true;
-
-  const service =
-    getServiceByTrip(trip);
-
-  if(!service) return true;
-
-  const pricing =
-    getReservedPricing(service);
-
-  if(pricing.disableCancel === true){
+  if(!trip){
     return true;
   }
 
-  const warningMinutes =
-    Number(pricing.warningMinutes || 120);
+  /*
+    Confirm is the final validation point.
+    Save Edit only stores the edited values; after refresh, Confirm reads
+    the saved trip date/time and applies the same Reserved warning rule
+    used by Add Trip.
+  */
+  const service =
+    getServiceByTrip(trip) ||
+    getCurrentReservedServiceConfig();
 
-  const mins =
-    minutesToTrip(trip);
-
-  if(
-    mins !== null &&
-    mins > 0 &&
-    mins <= warningMinutes
-  ){
-    return confirm(
-`WARNING
-
-This trip is within ${warningMinutes} minutes.
-
-Continue anyway?`
-    );
-  }
-
-  return true;
+  return checkReservedDynamicWarningForService(
+    service,
+    trip.tripDate,
+    trip.tripTime
+  );
 }
 
 
@@ -3664,21 +3648,6 @@ async function handleSaveEdit(btn){
 
   if(dt <= getSystemNow()){
     showAlert("Trip time already passed");
-    return;
-  }
-
-  /*
-    IMPORTANT:
-    Warning is checked against the edited date/time, not the old saved trip.
-    Example: tomorrow -> now must show the Reserved warning before Save.
-  */
-  if(
-    !checkTripWarningForDateTime(
-      trip,
-      nextDate,
-      nextTime
-    )
-  ){
     return;
   }
 
