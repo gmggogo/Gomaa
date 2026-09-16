@@ -119,34 +119,76 @@ const PlatformSupportInbox = (()=>{
       $("conversationList");
 
     if(!state.conversations.length){
-      host.innerHTML =
-        `<div style="padding:20px;text-align:center;color:#718096">No conversations.</div>`;
+      host.innerHTML = `
+        <tr>
+          <td
+            class="support-table-empty"
+            colspan="5">
+            No support conversations.
+          </td>
+        </tr>
+      `;
       return;
     }
 
     host.innerHTML =
       state.conversations
-        .map(row=>`
-          <div class="item ${String(row._id) === state.activeId ? "active" : ""}"
-               data-id="${esc(row._id)}">
-            <div class="item-company">
-              ${esc(row.tenantName || "Company")}
-              ${
-                Number(row.platformUnreadCount || 0) > 0
-                  ? `<span class="badge">${Number(row.platformUnreadCount)}</span>`
-                  : ""
-              }
-            </div>
-            <div class="item-subject">${esc(row.subject)}</div>
-            <div class="item-meta">${esc(row.status || "")}</div>
-            <div class="item-meta">${esc(fmt(row.lastMessageAt))}</div>
-          </div>
-        `)
+        .map(row=>{
+          const unread =
+            Number(
+              row.platformUnreadCount ||
+              0
+            );
+
+          const status =
+            String(
+              row.status ||
+              "OPEN"
+            );
+
+          const statusLabel =
+            status
+              .replaceAll("_"," ");
+
+          return `
+            <tr
+              class="${String(row._id) === state.activeId ? "active" : ""}"
+              data-id="${esc(row._id)}">
+
+              <td class="support-company-cell">
+                ${esc(row.tenantName || "Company")}
+              </td>
+
+              <td class="support-subject-cell">
+                ${esc(row.subject || "-")}
+              </td>
+
+              <td>
+                <span class="support-status ${esc(status)}">
+                  ${esc(statusLabel)}
+                </span>
+              </td>
+
+              <td>
+                ${esc(fmt(row.lastMessageAt))}
+              </td>
+
+              <td>
+                ${
+                  unread > 0
+                    ? `<span class="support-unread-pill">${unread > 99 ? "99+" : unread}</span>`
+                    : `<span class="support-zero">0</span>`
+                }
+              </td>
+
+            </tr>
+          `;
+        })
         .join("");
 
     host
       .querySelectorAll(
-        ".item"
+        "tr[data-id]"
       )
       .forEach(item=>{
         item.addEventListener(
