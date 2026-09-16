@@ -302,7 +302,15 @@ function distanceMiles(
 }
 
 function normalizeType(value){
-  return clean(value).toLowerCase();
+  return clean(value)
+    .toLowerCase()
+    .replace(/[\s_-]+/g,"");
+}
+
+function normalizeSource(value){
+  return clean(value)
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
 }
 
 function zoneKeyForTrip(payload = {}){
@@ -311,38 +319,66 @@ function zoneKeyForTrip(payload = {}){
     normalizeType(payload?.type);
 
   const source =
-    clean(payload?.source).toUpperCase();
+    normalizeSource(payload?.source);
 
   const bookingSource =
-    clean(payload?.bookingSource).toUpperCase();
+    normalizeSource(payload?.bookingSource);
+
+  const from =
+    normalizeSource(payload?.from);
+
+  const tripNumber =
+    clean(payload?.tripNumber).toUpperCase();
 
   const company =
     clean(payload?.company);
 
   if(
     type === "reserved" ||
+    type === "reservation" ||
     source === "RV" ||
-    bookingSource === "RV"
+    source === "RESERVED" ||
+    source === "RESERVATION" ||
+    bookingSource === "RV" ||
+    bookingSource === "RESERVED" ||
+    bookingSource === "RESERVATION" ||
+    tripNumber.startsWith("RV-")
   ){
     return "reservedZone";
   }
 
   if(
     type === "company" ||
+    type === "facility" ||
     !!company ||
     source === "COMPANY" ||
-    bookingSource === "COMPANY"
+    source === "FACILITY" ||
+    bookingSource === "COMPANY" ||
+    bookingSource === "FACILITY"
   ){
     return "companiesZone";
   }
 
   if(
     type === "quote" ||
+    type === "getquote" ||
     type === "individual" ||
     source === "QUOTE" ||
     source === "GET_QUOTE" ||
+    source === "GETQUOTE" ||
+    source === "GQ" ||
+    source === "WEBSITE" ||
+    source === "PUBLIC" ||
     bookingSource === "QUOTE" ||
-    bookingSource === "GET_QUOTE"
+    bookingSource === "GET_QUOTE" ||
+    bookingSource === "GETQUOTE" ||
+    bookingSource === "GQ" ||
+    from === "GET_QUOTE" ||
+    from === "GETQUOTE" ||
+    from === "GQ" ||
+    from === "WEBSITE" ||
+    from === "PUBLIC" ||
+    tripNumber.startsWith("GQ-")
   ){
     return "getQuoteZone";
   }
@@ -367,7 +403,75 @@ function zoneLabel(key){
   return "Service Zone";
 }
 
-function pickupPoints(
+function normalizeStopPoint(stop,index){
+
+  if(
+    stop === null ||
+    stop === undefined
+  ){
+    return null;
+  }
+
+  if(typeof stop === "string"){
+
+    const address =
+      clean(stop);
+
+    return address
+      ? {
+          label:`Stop ${index + 1}`,
+          address,
+          lat:null,
+          lng:null
+        }
+      : null;
+  }
+
+  if(typeof stop !== "object"){
+    return null;
+  }
+
+  const address =
+    clean(
+      stop?.address ||
+      stop?.location ||
+      stop?.stopAddress ||
+      stop?.value ||
+      stop?.name ||
+      ""
+    );
+
+  const lat =
+    numberOrNull(
+      stop?.lat ??
+      stop?.latitude ??
+      stop?.stopLat
+    );
+
+  const lng =
+    numberOrNull(
+      stop?.lng ??
+      stop?.lon ??
+      stop?.longitude ??
+      stop?.stopLng
+    );
+
+  if(
+    !address &&
+    !coordOk(lat,lng)
+  ){
+    return null;
+  }
+
+  return {
+    label:`Stop ${index + 1}`,
+    address,
+    lat,
+    lng
+  };
+}
+
+function routeZonePoints(
   payload = {},
   existingTrip = null
 ){
@@ -391,31 +495,125 @@ function pickupPoints(
       ? merged.passengers
       : [];
 
+  const rawStops =
+    Array.isArray(merged?.stops)
+      ? merged.stops
+      : [];
+
+  /*
+    The COMPLETE route must stay inside the configured Service Zone:
+    Pickup -> every Stop -> Dropoff.
+
+    For Shared trips:
+    every passenger Pickup and Dropoff is validated, and any group-level
+    Stops are validated as well.
+  */
+  const stopPoints =
+    rawStops
+      .map(
+        (stop,index)=>
+          normalizeStopPoint(
+            stop,
+            index
+          )
+      )
+      .filter(Boolean);
+
   if(
     shared &&
     passengers.length
   ){
 
-    return passengers
-      .map((passenger,index)=>({
-        label:`Passenger ${index + 1}`,
-        address:clean(passenger?.pickup),
-        lat:numberOrNull(passenger?.pickupLat),
-        lng:numberOrNull(passenger?.pickupLng)
-      }))
-      .filter(point =>
-        point.address ||
-        coordOk(point.lat,point.lng)
-      );
+    const points = [];
+
+    passengers.forEach(
+      (passenger,index)=>{
+
+        const pickup = {
+          label:`Passenger ${index + 1} Pickup`,
+          address:clean(passenger?.pickup),
+          lat:numberOrNull(passenger?.pickupLat),
+          lng:numberOrNull(passenger?.pickupLng)
+        };
+
+        const dropoff = {
+          label:`Passenger ${index + 1} Dropoff`,
+          address:clean(passenger?.dropoff),
+          lat:numberOrNull(passenger?.dropoffLat),
+          lng:numberOrNull(passenger?.dropoffLng)
+        };
+
+        if(
+          pickup.address ||
+          coordOk(
+            pickup.lat,
+            pickup.lng
+          )
+        ){
+          points.push(pickup);
+        }
+
+        if(
+          dropoff.address ||
+          coordOk(
+            dropoff.lat,
+            dropoff.lng
+          )
+        ){
+          points.push(dropoff);
+        }
+      }
+    );
+
+    return [
+      ...points,
+      ...stopPoints
+    ];
   }
 
-  return [{
+  const pickup = {
     label:"Pickup",
     address:clean(merged?.pickup),
     lat:numberOrNull(merged?.pickupLat),
     lng:numberOrNull(merged?.pickupLng)
-  }];
+  };
+
+  const dropoff = {
+    label:"Dropoff",
+    address:clean(merged?.dropoff),
+    lat:numberOrNull(merged?.dropoffLat),
+    lng:numberOrNull(merged?.dropoffLng)
+  };
+
+  const points = [];
+
+  if(
+    pickup.address ||
+    coordOk(
+      pickup.lat,
+      pickup.lng
+    )
+  ){
+    points.push(pickup);
+  }
+
+  points.push(
+    ...stopPoints
+  );
+
+  if(
+    dropoff.address ||
+    coordOk(
+      dropoff.lat,
+      dropoff.lng
+    )
+  ){
+    points.push(dropoff);
+  }
+
+  return points;
 }
+
 
 async function ensureZoneCenter(
   design,
@@ -456,7 +654,7 @@ async function ensureZoneCenter(
   return zone;
 }
 
-async function resolvePickupPoint(point){
+async function resolveZonePoint(point){
 
   if(coordOk(point?.lat,point?.lng)){
     return {
@@ -580,7 +778,7 @@ async function validateTripZone({
   }
 
   const points =
-    pickupPoints(
+    routeZonePoints(
       merged,
       existingTrip
     );
@@ -590,7 +788,7 @@ async function validateTripZone({
     return {
       allowed:true,
       skipped:true,
-      reason:"PICKUP_MISSING",
+      reason:"ROUTE_POINTS_MISSING",
       zoneKey:key
     };
   }
@@ -598,7 +796,7 @@ async function validateTripZone({
   for(const point of points){
 
     const coords =
-      await resolvePickupPoint(point);
+      await resolveZonePoint(point);
 
     if(
       !coordOk(
@@ -610,7 +808,7 @@ async function validateTripZone({
       return {
         allowed:false,
         statusCode:400,
-        code:"PICKUP_GEOCODE_FAILED",
+        code:"SERVICE_ZONE_POINT_GEOCODE_FAILED",
         message:
           `${point.label} location could not be verified for the ${zoneLabel(key)}.`
       };
@@ -669,5 +867,6 @@ module.exports = {
   prepareServiceZone,
   distanceMiles,
   zoneKeyForTrip,
+  routeZonePoints,
   validateTripZone
 };
