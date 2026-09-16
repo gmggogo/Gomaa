@@ -285,6 +285,543 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
+/* ================= COMPANIES SERVICE ZONE ================= */
+
+let companyZoneGooglePromise = null;
+let companyZoneSettingsCache = null;
+
+function zoneNumber(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function zoneCoordOk(lat,lng){
+  const a = zoneNumber(lat);
+  const b = zoneNumber(lng);
+
+  return (
+    a !== null &&
+    b !== null &&
+    a >= -90 &&
+    a <= 90 &&
+    b >= -180 &&
+    b <= 180 &&
+    !(a === 0 && b === 0)
+  );
+}
+
+function zoneDistanceMiles(a,b){
+
+  if(
+    !zoneCoordOk(a?.lat,a?.lng) ||
+    !zoneCoordOk(b?.lat,b?.lng)
+  ){
+    return null;
+  }
+
+  const toRad =
+    value=>Number(value) * Math.PI / 180;
+
+  const earthMiles = 3958.7613;
+
+  const dLat =
+    toRad(Number(b.lat) - Number(a.lat));
+
+  const dLng =
+    toRad(Number(b.lng) - Number(a.lng));
+
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) *
+    Math.cos(toRad(b.lat)) *
+    Math.sin(dLng / 2) ** 2;
+
+  return (
+    earthMiles *
+    2 *
+    Math.atan2(
+      Math.sqrt(h),
+      Math.sqrt(1 - h)
+    )
+  );
+}
+
+async function loadCompaniesZone(){
+
+  if(companyZoneSettingsCache){
+    return companyZoneSettingsCache;
+  }
+
+  const res =
+    await fetch(
+      "/api/system-design",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        cache:"no-store"
+      }
+    );
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      "Could not load Companies Zone settings."
+    );
+  }
+
+  const raw =
+    data?.companiesZone ||
+    data?.serviceZones?.companiesZone ||
+    {};
+
+  companyZoneSettingsCache = {
+    enabled:
+      raw?.enabled === true ||
+      String(raw?.enabled).toLowerCase() === "true",
+
+    radiusMiles:
+      Math.max(
+        0,
+        Number(
+          raw?.radiusMiles ??
+          raw?.radius ??
+          0
+        ) || 0
+      ),
+
+    centerLat:
+      zoneNumber(
+        raw?.centerLat
+      ),
+
+    centerLng:
+      zoneNumber(
+        raw?.centerLng
+      ),
+
+    centerAddress:
+      normalizeText(
+        raw?.centerAddress ||
+        [
+          raw?.postalCode,
+          raw?.city,
+          raw?.stateProvince,
+          raw?.country
+        ]
+          .filter(Boolean)
+          .join(", ")
+      )
+  };
+
+  return companyZoneSettingsCache;
+}
+
+async function ensureCompanyZoneGoogleLoaded(){
+
+  if(
+    window.google &&
+    google.maps &&
+    google.maps.DirectionsService &&
+    google.maps.Geocoder
+  ){
+    return;
+  }
+
+  if(companyZoneGooglePromise){
+    return companyZoneGooglePromise;
+  }
+
+  companyZoneGooglePromise =
+    new Promise(
+      async (resolve,reject)=>{
+
+        try{
+
+          const configRes =
+            await fetch(
+              "/api/config",
+              {
+                headers:{
+                  Authorization:"Bearer " + token
+                }
+              }
+            );
+
+          const config =
+            await configRes
+              .json()
+              .catch(()=>({}));
+
+          const googleKey =
+            normalizeText(
+              config?.googleKey
+            );
+
+          if(!googleKey){
+            reject(
+              new Error(
+                "Google Maps key is missing."
+              )
+            );
+            return;
+          }
+
+          const existing =
+            document.querySelector(
+              "script[data-company-zone-google='true']"
+            ) ||
+            document.querySelector(
+              "script[data-google-maps='true']"
+            );
+
+          if(existing){
+
+            if(
+              window.google &&
+              google.maps &&
+              google.maps.DirectionsService &&
+              google.maps.Geocoder
+            ){
+              resolve();
+              return;
+            }
+
+            existing.addEventListener(
+              "load",
+              ()=>resolve(),
+              {once:true}
+            );
+
+            existing.addEventListener(
+              "error",
+              ()=>reject(
+                new Error(
+                  "Google Maps failed to load."
+                )
+              ),
+              {once:true}
+            );
+
+            return;
+          }
+
+          const script =
+            document.createElement(
+              "script"
+            );
+
+          script.src =
+            "https://maps.googleapis.com/maps/api/js?key=" +
+            encodeURIComponent(
+              googleKey
+            );
+
+          script.async = true;
+          script.defer = true;
+
+          script.setAttribute(
+            "data-company-zone-google",
+            "true"
+          );
+
+          script.onload =
+            ()=>resolve();
+
+          script.onerror =
+            ()=>reject(
+              new Error(
+                "Google Maps failed to load."
+              )
+            );
+
+          document.head.appendChild(
+            script
+          );
+
+        }catch(err){
+          reject(err);
+        }
+      }
+    );
+
+  return companyZoneGooglePromise;
+}
+
+async function resolveCompaniesZoneCenter(zone){
+
+  if(
+    zoneCoordOk(
+      zone?.centerLat,
+      zone?.centerLng
+    )
+  ){
+    return {
+      lat:Number(zone.centerLat),
+      lng:Number(zone.centerLng)
+    };
+  }
+
+  const address =
+    normalizeText(
+      zone?.centerAddress
+    );
+
+  if(!address){
+    throw new Error(
+      "Companies Zone center is missing."
+    );
+  }
+
+  await ensureCompanyZoneGoogleLoaded();
+
+  return await new Promise(
+    (resolve,reject)=>{
+
+      const geocoder =
+        new google.maps.Geocoder();
+
+      geocoder.geocode(
+        {address},
+        (results,status)=>{
+
+          const location =
+            results?.[0]
+              ?.geometry
+              ?.location;
+
+          if(
+            status !== "OK" ||
+            !location
+          ){
+            reject(
+              new Error(
+                "Companies Zone center could not be located."
+              )
+            );
+            return;
+          }
+
+          resolve({
+            lat:Number(location.lat()),
+            lng:Number(location.lng())
+          });
+        }
+      );
+    }
+  );
+}
+
+async function calculateCompanyZoneRoute(addresses){
+
+  const points =
+    (Array.isArray(addresses)
+      ? addresses
+      : []
+    )
+      .map(normalizeText)
+      .filter(Boolean);
+
+  if(points.length < 2){
+    throw new Error(
+      "Pickup and Dropoff are required for Companies Zone validation."
+    );
+  }
+
+  await ensureCompanyZoneGoogleLoaded();
+
+  const origin =
+    points[0];
+
+  const destination =
+    points[
+      points.length - 1
+    ];
+
+  const waypoints =
+    points
+      .slice(1,-1)
+      .map(address=>({
+        location:address,
+        stopover:true
+      }));
+
+  return await new Promise(
+    (resolve,reject)=>{
+
+      const directions =
+        new google.maps.DirectionsService();
+
+      directions.route(
+        {
+          origin,
+          destination,
+          waypoints,
+          optimizeWaypoints:false,
+          travelMode:
+            google.maps.TravelMode.DRIVING,
+          unitSystem:
+            google.maps.UnitSystem.IMPERIAL
+        },
+        (response,status)=>{
+
+          const route =
+            response?.routes?.[0];
+
+          if(
+            status !== "OK" ||
+            !route
+          ){
+            reject(
+              new Error(
+                "Unable to verify the trip route for Companies Zone."
+              )
+            );
+            return;
+          }
+
+          const routePath =
+            Array.isArray(
+              route.overview_path
+            )
+              ? route.overview_path
+                  .map(point=>({
+                    lat:Number(point.lat()),
+                    lng:Number(point.lng())
+                  }))
+                  .filter(point=>
+                    zoneCoordOk(
+                      point.lat,
+                      point.lng
+                    )
+                  )
+              : [];
+
+          resolve({
+            routePath
+          });
+        }
+      );
+    }
+  );
+}
+
+async function checkCompaniesZoneRoute(
+  addresses,
+  options = {}
+){
+
+  const zone =
+    await loadCompaniesZone();
+
+  if(
+    !zone.enabled ||
+    zone.radiusMiles <= 0
+  ){
+    return true;
+  }
+
+  const center =
+    await resolveCompaniesZoneCenter(
+      zone
+    );
+
+  const routeData =
+    await calculateCompanyZoneRoute(
+      addresses
+    );
+
+  const routePath =
+    Array.isArray(
+      routeData?.routePath
+    )
+      ? routeData.routePath
+      : [];
+
+  if(!routePath.length){
+    throw new Error(
+      "Companies Zone route could not be verified."
+    );
+  }
+
+  let farthestMiles = 0;
+
+  for(const point of routePath){
+
+    const miles =
+      zoneDistanceMiles(
+        center,
+        point
+      );
+
+    if(miles === null){
+      continue;
+    }
+
+    farthestMiles =
+      Math.max(
+        farthestMiles,
+        miles
+      );
+
+    if(
+      miles >
+      zone.radiusMiles
+    ){
+
+      return confirm(
+`WARNING
+
+This trip route leaves the Companies Zone.
+
+Maximum Radius: ${zone.radiusMiles} miles
+Route Point Distance: ${miles.toFixed(2)} miles
+
+Continue anyway?`
+      );
+    }
+  }
+
+  return true;
+}
+
+async function checkCompaniesZoneSharedPassengers(
+  passengers
+){
+
+  const list =
+    Array.isArray(passengers)
+      ? passengers
+      : [];
+
+  for(
+    let index = 0;
+    index < list.length;
+    index += 1
+  ){
+
+    const passenger =
+      list[index] || {};
+
+    const ok =
+      await checkCompaniesZoneRoute(
+        [
+          passenger.pickup,
+          passenger.dropoff
+        ]
+      );
+
+    if(!ok){
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /* ================= SAVED CLIENTS =================
    Tenant-scoped browser cache.
    Zero API requests.
@@ -4235,6 +4772,19 @@ submitTripBtn.onclick = async function(){
         .map(i=>normalizeText(i.value))
         .filter(Boolean);
 
+    const companyZoneOk =
+      await checkCompaniesZoneRoute(
+        [
+          pickupInput.value,
+          ...stops,
+          dropoffInput.value
+        ]
+      );
+
+    if(!companyZoneOk){
+      return;
+    }
+
     const selected =
       selectedServicePayload();
 
@@ -4462,6 +5012,32 @@ submitSharedBtn.onclick = async function(){
 
   if(passengers.length < 2){
     showAlert("Minimum 2 passengers");
+    return;
+  }
+
+  try{
+
+    const companyZoneOk =
+      await checkCompaniesZoneSharedPassengers(
+        passengers
+      );
+
+    if(!companyZoneOk){
+      return;
+    }
+
+  }catch(err){
+
+    console.log(
+      "COMPANIES ZONE CHECK ERROR:",
+      err
+    );
+
+    showAlert(
+      err.message ||
+      "Companies Zone validation failed."
+    );
+
     return;
   }
 

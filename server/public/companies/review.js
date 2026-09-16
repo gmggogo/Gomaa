@@ -459,6 +459,278 @@ function normalizeText(v){
   return String(v ?? "").trim();
 }
 
+/* ================= COMPANIES SERVICE ZONE ================= */
+
+let companyZoneSettingsCache = null;
+
+function zoneNumber(value){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function zoneCoordOk(lat,lng){
+  const a = zoneNumber(lat);
+  const b = zoneNumber(lng);
+
+  return (
+    a !== null &&
+    b !== null &&
+    a >= -90 &&
+    a <= 90 &&
+    b >= -180 &&
+    b <= 180 &&
+    !(a === 0 && b === 0)
+  );
+}
+
+function zoneDistanceMiles(a,b){
+
+  if(
+    !zoneCoordOk(a?.lat,a?.lng) ||
+    !zoneCoordOk(b?.lat,b?.lng)
+  ){
+    return null;
+  }
+
+  const toRad =
+    value=>Number(value) * Math.PI / 180;
+
+  const earthMiles = 3958.7613;
+
+  const dLat =
+    toRad(Number(b.lat) - Number(a.lat));
+
+  const dLng =
+    toRad(Number(b.lng) - Number(a.lng));
+
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) *
+    Math.cos(toRad(b.lat)) *
+    Math.sin(dLng / 2) ** 2;
+
+  return (
+    earthMiles *
+    2 *
+    Math.atan2(
+      Math.sqrt(h),
+      Math.sqrt(1 - h)
+    )
+  );
+}
+
+async function loadCompaniesZone(){
+
+  if(companyZoneSettingsCache){
+    return companyZoneSettingsCache;
+  }
+
+  const res =
+    await fetch(
+      "/api/system-design",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        cache:"no-store"
+      }
+    );
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    throw new Error(
+      data.message ||
+      "Could not load Companies Zone settings."
+    );
+  }
+
+  const raw =
+    data?.companiesZone ||
+    data?.serviceZones?.companiesZone ||
+    {};
+
+  companyZoneSettingsCache = {
+    enabled:
+      raw?.enabled === true ||
+      String(raw?.enabled).toLowerCase() === "true",
+
+    radiusMiles:
+      Math.max(
+        0,
+        Number(
+          raw?.radiusMiles ??
+          raw?.radius ??
+          0
+        ) || 0
+      ),
+
+    centerLat:
+      zoneNumber(
+        raw?.centerLat
+      ),
+
+    centerLng:
+      zoneNumber(
+        raw?.centerLng
+      ),
+
+    centerAddress:
+      normalizeText(
+        raw?.centerAddress ||
+        [
+          raw?.postalCode,
+          raw?.city,
+          raw?.stateProvince,
+          raw?.country
+        ]
+          .filter(Boolean)
+          .join(", ")
+      )
+  };
+
+  return companyZoneSettingsCache;
+}
+
+async function resolveCompaniesZoneCenter(zone){
+
+  if(
+    zoneCoordOk(
+      zone?.centerLat,
+      zone?.centerLng
+    )
+  ){
+    return {
+      lat:Number(zone.centerLat),
+      lng:Number(zone.centerLng)
+    };
+  }
+
+  const address =
+    normalizeText(
+      zone?.centerAddress
+    );
+
+  if(!address){
+    throw new Error(
+      "Companies Zone center is missing."
+    );
+  }
+
+  await ensureGoogleLoaded();
+
+  return await new Promise(
+    (resolve,reject)=>{
+
+      const geocoder =
+        new google.maps.Geocoder();
+
+      geocoder.geocode(
+        {address},
+        (results,status)=>{
+
+          const location =
+            results?.[0]
+              ?.geometry
+              ?.location;
+
+          if(
+            status !== "OK" ||
+            !location
+          ){
+            reject(
+              new Error(
+                "Companies Zone center could not be located."
+              )
+            );
+            return;
+          }
+
+          resolve({
+            lat:Number(location.lat()),
+            lng:Number(location.lng())
+          });
+        }
+      );
+    }
+  );
+}
+
+async function checkCompaniesZoneRouteData(
+  routeData
+){
+
+  const zone =
+    await loadCompaniesZone();
+
+  if(
+    !zone.enabled ||
+    zone.radiusMiles <= 0
+  ){
+    return true;
+  }
+
+  const center =
+    await resolveCompaniesZoneCenter(
+      zone
+    );
+
+  const routePath =
+    Array.isArray(
+      routeData?.routePath
+    )
+      ? routeData.routePath
+      : (
+          Array.isArray(
+            routeData?.googleRoute
+              ?.routePath
+          )
+            ? routeData
+                .googleRoute
+                .routePath
+            : []
+        );
+
+  if(!routePath.length){
+    throw new Error(
+      "Companies Zone route could not be verified."
+    );
+  }
+
+  for(const point of routePath){
+
+    const miles =
+      zoneDistanceMiles(
+        center,
+        point
+      );
+
+    if(miles === null){
+      continue;
+    }
+
+    if(
+      miles >
+      zone.radiusMiles
+    ){
+
+      return confirm(
+`WARNING
+
+This trip route leaves the Companies Zone.
+
+Maximum Radius: ${zone.radiusMiles} miles
+Route Point Distance: ${miles.toFixed(2)} miles
+
+Continue anyway?`
+      );
+    }
+  }
+
+  return true;
+}
+
 function passengerIsActive(p){
   const s = cleanStatus(p?.status);
 
@@ -3475,6 +3747,19 @@ async function handleConfirmTrip(btn){
   const routePoints = buildIndividualRoutePoints(trip);
   const routeData = await calculateRouteMiles(routePoints);
 
+  btn.textContent = "Zone Check...";
+
+  const companyZoneOk =
+    await checkCompaniesZoneRouteData(
+      routeData
+    );
+
+  if(!companyZoneOk){
+    btn.disabled = false;
+    btn.textContent = "Confirm";
+    return;
+  }
+
   btn.textContent = "Pricing...";
 
   const serviceKey =
@@ -3592,6 +3877,40 @@ async function handleConfirmShared(btn){
   }
 
   btn.disabled = true;
+  btn.textContent = "Zone Check...";
+
+  const routePoints =
+    await buildSharedRoutePoints(
+      group
+    );
+
+  if(
+    !Array.isArray(routePoints) ||
+    routePoints.length < 2
+  ){
+    btn.disabled = false;
+    btn.textContent = "Confirm";
+    throw new Error(
+      "Shared route is not ready for Companies Zone validation."
+    );
+  }
+
+  const routeData =
+    await calculateRouteMiles(
+      routePoints
+    );
+
+  const companyZoneOk =
+    await checkCompaniesZoneRouteData(
+      routeData
+    );
+
+  if(!companyZoneOk){
+    btn.disabled = false;
+    btn.textContent = "Confirm";
+    return;
+  }
+
   btn.textContent = "Server Routing...";
 
   await confirmCompanySharedOnServer(first._id);
