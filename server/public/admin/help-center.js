@@ -449,9 +449,55 @@ const HelpCenter = (()=>{
 
   function accessiblePages(){
     const allowed = new Set(accessibleArticles().map(a=>a.pageFile));
+
+    const headerOrder = [
+      "dashboard.html",
+      "trips-hub.html",
+      "trips.html",
+      "dispatch.html",
+      "dispatch-final-confirmation.html",
+      "dispatch-review.html",
+      "driver-schedule.html",
+      "maps.html",
+      "summary.html",
+      "users.html",
+      "refunds.html",
+      "admin-billing.html",
+      "payments.html",
+      "payroll.html",
+      "payroll-summary.html",
+      "tax-report.html",
+      "service-management.html",
+      "facility-pricing-override.html",
+      "system-design.html",
+      "smart-dispatch-engine.html",
+      "shared-engine-settings.html",
+      "external-trips.html",
+      "trip-split.html",
+      "broker-review.html",
+      "external-summary.html",
+      "broker-pricing.html",
+      "dispatch-add-trip.html",
+      "reserved-add-stop.html",
+      "admin-chat.html"
+    ];
+
+    const orderMap =
+      new Map(
+        headerOrder.map(
+          (file,index)=>[
+            file,
+            index
+          ]
+        )
+      );
+
     return (state.index?.pages || [])
       .filter(p=>allowed.has(p.pageFile))
-      .sort((a,b)=>(a.headerOrder ?? 999) - (b.headerOrder ?? 999));
+      .sort((a,b)=>
+        (orderMap.get(a.pageFile) ?? 999) -
+        (orderMap.get(b.pageFile) ?? 999)
+      );
   }
 
   function normalizeSearch(value){
