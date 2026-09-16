@@ -18,7 +18,8 @@
       "articleCount": 2,
       "dataFile": "help-data/ADM-005.json",
       "description": "Shows trip totals, alerts, broker activity, today's operations, and monthly summaries.",
-      "headerOrder": 0
+      "headerOrder": 0,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-027",
@@ -34,7 +35,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-027.json",
       "description": "Central trip hub for adding, finding, filtering, editing, and deleting active trips.",
-      "headerOrder": 1
+      "headerOrder": 1,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-028",
@@ -50,7 +52,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-028.json",
       "description": "Shows active trips, selection tools, individual/shared editing, and preparation for Dispatch.",
-      "headerOrder": 2
+      "headerOrder": 2,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-012",
@@ -66,7 +69,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-012.json",
       "description": "Receives and manages external broker trips before Trip Split.",
-      "headerOrder": 3
+      "headerOrder": 3,
+      "helpGroup": "BROKER"
     },
     {
       "pageId": "ADM-026",
@@ -82,7 +86,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-026.json",
       "description": "Groups broker trips as individual or shared rides and sends confirmed results to Broker Review.",
-      "headerOrder": 4
+      "headerOrder": 4,
+      "helpGroup": "BROKER"
     },
     {
       "pageId": "ADM-004",
@@ -98,7 +103,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-004.json",
       "description": "Reviews broker trips, allows edits, confirms them, or returns them to Trip Split.",
-      "headerOrder": 5
+      "headerOrder": 5,
+      "helpGroup": "BROKER"
     },
     {
       "pageId": "ADM-009",
@@ -114,7 +120,8 @@
       "articleCount": 5,
       "dataFile": "help-data/ADM-009.json",
       "description": "Assigns drivers and vehicles, runs Auto Assign, sends trips, and manages assignments.",
-      "headerOrder": 6
+      "headerOrder": 6,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-007",
@@ -130,7 +137,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-007.json",
       "description": "Reviews trips waiting for final processing and confirms final trip/passenger status.",
-      "headerOrder": 7
+      "headerOrder": 7,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-008",
@@ -146,7 +154,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-008.json",
       "description": "Reviews completed, cancelled, no-show, and not-completed trips with filters and exports.",
-      "headerOrder": 8
+      "headerOrder": 8,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-010",
@@ -162,7 +171,8 @@
       "articleCount": 2,
       "dataFile": "help-data/ADM-010.json",
       "description": "Manages driver availability, work days, schedule information, and assigned service.",
-      "headerOrder": 9
+      "headerOrder": 9,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-014",
@@ -178,7 +188,8 @@
       "articleCount": 1,
       "dataFile": "help-data/ADM-014.json",
       "description": "Shows live driver locations and helps staff find active drivers.",
-      "headerOrder": 10
+      "headerOrder": 10,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-023",
@@ -193,7 +204,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-023.json",
       "description": "Operational reporting with source, facility, service, status, and date filters plus exports.",
-      "headerOrder": 11
+      "headerOrder": 11,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-011",
@@ -208,7 +220,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-011.json",
       "description": "Broker reporting for closed broker trips with filters, print, CSV, and Excel export.",
-      "headerOrder": 12
+      "headerOrder": 12,
+      "helpGroup": "BROKER"
     },
     {
       "pageId": "ADM-029",
@@ -223,7 +236,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-029.json",
       "description": "Creates and manages Super Admin, Admin, Dispatcher, Driver, and Company users.",
-      "headerOrder": 13
+      "headerOrder": 13,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-018",
@@ -238,7 +252,8 @@
       "articleCount": 1,
       "dataFile": "help-data/ADM-018.json",
       "description": "Reviews refund records and available refund processing actions.",
-      "headerOrder": 14
+      "headerOrder": 14,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-001",
@@ -252,7 +267,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-001.json",
       "description": "Manages Stripe connection, tenant billing, invoices, payment status, and company lock/unlock.",
-      "headerOrder": 15
+      "headerOrder": 15,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-015",
@@ -266,7 +282,8 @@
       "articleCount": 1,
       "dataFile": "help-data/ADM-015.json",
       "description": "Reviews SaaS payment status and allows platform invoice payment.",
-      "headerOrder": 16
+      "headerOrder": 16,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-017",
@@ -280,7 +297,8 @@
       "articleCount": 2,
       "dataFile": "help-data/ADM-017.json",
       "description": "Configures payroll periods, schedules, rates, and earnings settings.",
-      "headerOrder": 17
+      "headerOrder": 17,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-016",
@@ -294,7 +312,8 @@
       "articleCount": 1,
       "dataFile": "help-data/ADM-016.json",
       "description": "Summarizes payroll information by Drivers, Dispatchers, Admins, and Super Admins.",
-      "headerOrder": 18
+      "headerOrder": 18,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-025",
@@ -308,7 +327,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-025.json",
       "description": "Generates, saves, prints, and exports company tax reports by date range.",
-      "headerOrder": 19
+      "headerOrder": 19,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-020",
@@ -322,7 +342,8 @@
       "articleCount": 5,
       "dataFile": "help-data/ADM-020.json",
       "description": "Controls service pricing, cancellation rules, warning windows, add-stop policy, and driver timers.",
-      "headerOrder": 20
+      "headerOrder": 20,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-013",
@@ -336,7 +357,8 @@
       "articleCount": 2,
       "dataFile": "help-data/ADM-013.json",
       "description": "Sets company/facility-specific pricing overrides instead of default service pricing.",
-      "headerOrder": 21
+      "headerOrder": 21,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-003",
@@ -350,7 +372,8 @@
       "articleCount": 1,
       "dataFile": "help-data/ADM-003.json",
       "description": "Sets broker-specific service pricing and broker charge rules.",
-      "headerOrder": 22
+      "headerOrder": 22,
+      "helpGroup": "BROKER"
     },
     {
       "pageId": "ADM-024",
@@ -365,7 +388,8 @@
       "articleCount": 5,
       "dataFile": "help-data/ADM-024.json",
       "description": "Tenant-wide branding, timezone, service zones, email/SMTP, booking text, and design settings.",
-      "headerOrder": 23
+      "headerOrder": 23,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-022",
@@ -380,7 +404,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-022.json",
       "description": "Configures Smart Dispatch strategy, limits, driver requirements, balancing, and scoring.",
-      "headerOrder": 24
+      "headerOrder": 24,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-021",
@@ -395,7 +420,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-021.json",
       "description": "Configures Shared grouping rules, rider limits, distance/time tolerance, priorities, and trip sources.",
-      "headerOrder": 25
+      "headerOrder": 25,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-006",
@@ -411,7 +437,8 @@
       "articleCount": 6,
       "dataFile": "help-data/ADM-006.json",
       "description": "Creates individual/shared trips, saves drafts, and prepares trips for review.",
-      "headerOrder": 26
+      "headerOrder": 26,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-019",
@@ -427,7 +454,8 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-019.json",
       "description": "Changes an eligible reserved trip route by adding, editing, or removing stops or drop-off.",
-      "headerOrder": 27
+      "headerOrder": 27,
+      "helpGroup": "STANDARD"
     },
     {
       "pageId": "ADM-002",
@@ -443,7 +471,8 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-002.json",
       "description": "Communicates with drivers and shows online drivers, unread messages, and conversation history.",
-      "headerOrder": 28
+      "headerOrder": 28,
+      "helpGroup": "STANDARD"
     }
   ]
 }

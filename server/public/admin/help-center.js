@@ -19,8 +19,10 @@ const HelpCenter = (()=>{
       title:"Help Center",
       subtitle:"Choose a page or search for the task you need.",
       language:"Language",
-      pages:"Pages",
-      pagesSub:"Pages follow the same order as the Admin header. Select a page to see its tasks.",
+      standardPages:"Admin Pages",
+      standardPagesSub:"Core Admin pages in the same order used by the Admin header.",
+      brokerPages:"Broker Operations Pages",
+      brokerPagesSub:"Broker-only pages are kept separate from the regular Admin workflow.",
       allPages:"All accessible pages",
       showAll:"Show All Pages",
       search:"Example: change pickup time, assign driver, add broker trip...",
@@ -38,8 +40,10 @@ const HelpCenter = (()=>{
       title:"Centro de ayuda",
       subtitle:"Elige una página o busca la tarea que necesitas.",
       language:"Idioma",
-      pages:"Páginas",
-      pagesSub:"Las páginas siguen el mismo orden del encabezado de Admin. Elige una página para ver sus tareas.",
+      standardPages:"Páginas de Admin",
+      standardPagesSub:"Páginas principales de Admin en el mismo orden del encabezado.",
+      brokerPages:"Páginas de Operaciones de Broker",
+      brokerPagesSub:"Las páginas exclusivas de Broker están separadas del flujo normal de Admin.",
       allPages:"Todas las páginas disponibles",
       showAll:"Mostrar todas las páginas",
       search:"Ejemplo: cambiar hora de recogida, asignar conductor, agregar viaje de broker...",
@@ -57,8 +61,10 @@ const HelpCenter = (()=>{
       title:"مركز المساعدة",
       subtitle:"اختر صفحة أو ابحث عن المهمة التي تريد تنفيذها.",
       language:"اللغة",
-      pages:"الصفحات",
-      pagesSub:"الصفحات مرتبة بنفس ترتيب هيدر الأدمن. اختر صفحة لعرض مهامها.",
+      standardPages:"صفحات الأدمن",
+      standardPagesSub:"صفحات الأدمن الأساسية مرتبة بنفس ترتيب الهيدر.",
+      brokerPages:"صفحات عمليات البروكر",
+      brokerPagesSub:"صفحات البروكر منفصلة عن صفحات التشغيل العادية.",
       allPages:"كل الصفحات المتاحة",
       showAll:"عرض كل الصفحات",
       search:"مثال: تغيير وقت البيك أب، تعيين سائق، إضافة رحلة بروكر...",
@@ -76,8 +82,10 @@ const HelpCenter = (()=>{
       title:"Centre d’aide",
       subtitle:"Choisissez une page ou recherchez la tâche dont vous avez besoin.",
       language:"Langue",
-      pages:"Pages",
-      pagesSub:"Les pages suivent le même ordre que l’en-tête Admin. Sélectionnez une page pour voir ses tâches.",
+      standardPages:"Pages Admin",
+      standardPagesSub:"Pages Admin principales dans le même ordre que l’en-tête.",
+      brokerPages:"Pages des opérations Broker",
+      brokerPagesSub:"Les pages réservées au Broker sont séparées du flux Admin normal.",
       allPages:"Toutes les pages accessibles",
       showAll:"Afficher toutes les pages",
       search:"Exemple : modifier l’heure de prise en charge, affecter un chauffeur, ajouter un trajet broker...",
@@ -95,8 +103,10 @@ const HelpCenter = (()=>{
       title:"Centro assistenza",
       subtitle:"Scegli una pagina oppure cerca l’attività di cui hai bisogno.",
       language:"Lingua",
-      pages:"Pagine",
-      pagesSub:"Le pagine seguono lo stesso ordine dell’header Admin. Seleziona una pagina per vedere le attività.",
+      standardPages:"Pagine Admin",
+      standardPagesSub:"Pagine Admin principali nello stesso ordine dell’header.",
+      brokerPages:"Pagine Operazioni Broker",
+      brokerPagesSub:"Le pagine dedicate al Broker sono separate dal normale flusso Admin.",
       allPages:"Tutte le pagine accessibili",
       showAll:"Mostra tutte le pagine",
       search:"Esempio: cambia orario pickup, assegna autista, aggiungi corsa broker...",
@@ -487,8 +497,10 @@ const HelpCenter = (()=>{
     $("uiTitle").textContent = t("title");
     $("uiSubtitle").textContent = t("subtitle");
     $("uiLanguageLabel").textContent = t("language");
-    $("uiPagesTitle").textContent = t("pages");
-    $("uiPagesSub").textContent = t("pagesSub");
+    $("uiStandardPagesTitle").textContent = t("standardPages");
+    $("uiStandardPagesSub").textContent = t("standardPagesSub");
+    $("uiBrokerPagesTitle").textContent = t("brokerPages");
+    $("uiBrokerPagesSub").textContent = t("brokerPagesSub");
     $("clearPageFilter").textContent = t("showAll");
     $("helpSearch").placeholder = t("search");
 
@@ -504,12 +516,8 @@ const HelpCenter = (()=>{
     renderResults();
   }
 
-  function renderPages(){
-    const host = $("helpPages");
-    if(!host) return;
-    const pages = accessiblePages();
-
-    host.innerHTML = pages.map(page=>`
+  function pageCardHtml(page){
+    return `
       <button class="page-card ${state.page === page.pageFile ? "active" : ""}"
               type="button" data-page-file="${escapeHtml(page.pageFile)}">
         <div class="page-id">${escapeHtml(page.pageId)}</div>
@@ -520,11 +528,36 @@ const HelpCenter = (()=>{
           ${Number(page.articleCount || 0) === 1 ? t("task") : t("tasks")}
         </div>
       </button>
-    `).join("");
+    `;
+  }
 
-    host.querySelectorAll(".page-card").forEach(card=>{
+  function bindPageCards(host){
+    host?.querySelectorAll(".page-card").forEach(card=>{
       card.addEventListener("click",()=>choosePage(card.dataset.pageFile || ""));
     });
+  }
+
+  function renderPages(){
+    const standardHost = $("helpStandardPages");
+    const brokerHost = $("helpBrokerPages");
+    const brokerSection = $("brokerPagesSection");
+
+    if(!standardHost || !brokerHost) return;
+
+    const pages = accessiblePages();
+
+    const standardPages = pages.filter(page=>page.helpGroup !== "BROKER");
+    const brokerPages = pages.filter(page=>page.helpGroup === "BROKER");
+
+    standardHost.innerHTML = standardPages.map(pageCardHtml).join("");
+    brokerHost.innerHTML = brokerPages.map(pageCardHtml).join("");
+
+    bindPageCards(standardHost);
+    bindPageCards(brokerHost);
+
+    if(brokerSection){
+      brokerSection.style.display = brokerPages.length ? "" : "none";
+    }
   }
 
   function renderPageFilter(){
