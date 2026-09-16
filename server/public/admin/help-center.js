@@ -686,6 +686,57 @@ const HelpCenter = (()=>{
   }
 
 
+  function forceDropdownText(selectEl){
+
+    if(!selectEl){
+      return;
+    }
+
+    selectEl
+      .querySelectorAll("option")
+      .forEach(option=>{
+        option.style.setProperty(
+          "color",
+          "#172033",
+          "important"
+        );
+
+        option.style.setProperty(
+          "background",
+          "#ffffff",
+          "important"
+        );
+
+        option.style.setProperty(
+          "font-weight",
+          "700",
+          "important"
+        );
+      });
+
+    selectEl
+      .querySelectorAll("optgroup")
+      .forEach(group=>{
+        group.style.setProperty(
+          "color",
+          "#075f8c",
+          "important"
+        );
+
+        group.style.setProperty(
+          "background",
+          "#eef8ff",
+          "important"
+        );
+
+        group.style.setProperty(
+          "font-weight",
+          "900",
+          "important"
+        );
+      });
+  }
+
   function applyVisualTheme(){
 
     const language =
@@ -759,6 +810,14 @@ const HelpCenter = (()=>{
         "important"
       );
     }
+
+    forceDropdownText(
+      language
+    );
+
+    forceDropdownText(
+      pageFilter
+    );
 
     if(search){
       search.style.setProperty(
