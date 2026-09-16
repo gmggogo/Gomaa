@@ -149,25 +149,32 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "title": "Edit a Trip from Trips Hub",
-      "summary": "Edit a Trip from Trips Hub",
+      "title": "Edit Any Trip in Trips Hub",
+      "summary": "Use Trips Hub for full trip editing across the trip list, including trips scheduled farther in the future. This is the broad trip-management edit, not a driver-assignment edit.",
       "keywords": [
         "change trip",
         "dropoff",
+        "edit any trip",
+        "edit future trip",
         "edit trip",
+        "full trip edit",
+        "future trip",
         "modify trip",
         "pickup",
         "time",
+        "trip details",
         "trips hub"
       ],
       "steps": [
         "Open Trips Hub.",
-        "Select the required trip.",
-        "Choose Edit Selected.",
-        "Update the allowed fields.",
-        "Save the edit."
+        "Find the required trip, including a future trip if needed.",
+        "Select the trip and choose Edit Selected.",
+        "Update the allowed trip details such as schedule or trip information.",
+        "Click Save Changes."
       ],
-      "warnings": [],
+      "warnings": [
+        "Trips Hub has the broadest trip-editing scope. Use Dispatch only for driver/vehicle assignment changes."
+      ],
       "sourceFiles": [
         "server/public/admin/trips-hub.html",
         "server/public/admin/header.js",

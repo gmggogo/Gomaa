@@ -148,12 +148,16 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "title": "Edit an Individual Trip",
-      "summary": "Edit an Individual Trip",
+      "title": "Quick Edit Today or Tomorrow Individual Trip",
+      "summary": "Use Trips for faster operational editing of individual trips shown for Today and Tomorrow. It is a shorter day-to-day workflow than searching the full Trips Hub.",
       "keywords": [
         "change trip",
+        "daily trip edit",
         "edit individual trip",
+        "quick edit trip",
         "save trip",
+        "today trip edit",
+        "tomorrow trip edit",
         "trips"
       ],
       "steps": [
@@ -162,7 +166,9 @@
         "Change the allowed trip information.",
         "Save the trip."
       ],
-      "warnings": [],
+      "warnings": [
+        "Trips is focused on Today and Tomorrow operations. Use Trips Hub when the trip is farther in the future."
+      ],
       "sourceFiles": [
         "server/public/admin/trips.html",
         "server/public/admin/header.js",
@@ -225,12 +231,15 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "title": "Edit a Shared Trip",
-      "summary": "Edit a Shared Trip",
+      "title": "Quick Edit Today or Tomorrow Shared Trip",
+      "summary": "Use Trips for faster operational editing of Shared trips shown for Today and Tomorrow.",
       "keywords": [
         "edit shared trip",
+        "quick shared edit",
         "shared group",
         "shared passenger",
+        "today shared edit",
+        "tomorrow shared edit",
         "trips"
       ],
       "steps": [
@@ -239,7 +248,9 @@
         "Update the allowed shared trip information.",
         "Save the shared item."
       ],
-      "warnings": [],
+      "warnings": [
+        "Trips is focused on Today and Tomorrow operations. Use Trips Hub when the trip is farther in the future."
+      ],
       "sourceFiles": [
         "server/public/admin/trips.html",
         "server/public/admin/header.js",
