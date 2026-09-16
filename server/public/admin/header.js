@@ -840,34 +840,203 @@ document.addEventListener("DOMContentLoaded",async()=>{
  /* ALERT BADGES — VISUAL ONLY; EXISTING HEADER SIZE/COLORS ARE UNCHANGED */
  const alertStyle=document.createElement("style");
  alertStyle.textContent=`
- .gh-alert-hot{position:relative!important;box-shadow:0 0 0 2px rgba(255,186,35,.75),0 0 15px rgba(255,176,19,.38)!important}
- .gh-alert-badge{position:absolute;right:4px;top:3px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#ffb11b;color:#172033;font-size:8px;font-weight:900;line-height:1;z-index:5}
+ @keyframes ghHeaderAlertBlink{
+   0%,100%{
+     filter:brightness(1);
+     box-shadow:0 0 0 2px rgba(255,186,35,.45),0 0 10px rgba(255,176,19,.28);
+   }
+   50%{
+     filter:brightness(1.32);
+     box-shadow:
+       0 0 0 3px rgba(255,220,92,.82),
+       0 0 22px rgba(255,176,19,.92),
+       0 5px 14px rgba(151,102,0,.32);
+   }
+ }
+
+ .gh-alert-hot{
+   position:relative!important;
+   animation:ghHeaderAlertBlink 1s ease-in-out infinite!important;
+ }
+
+ .gh-alert-badge{
+   position:absolute;
+   right:4px;
+   top:3px;
+   min-width:18px;
+   height:18px;
+   padding:0 5px;
+   border-radius:999px;
+   display:flex;
+   align-items:center;
+   justify-content:center;
+   background:#ffb11b;
+   color:#172033;
+   font-size:9px;
+   font-weight:900;
+   line-height:1;
+   z-index:10;
+   box-shadow:0 2px 6px rgba(0,0,0,.18);
+ }
  `;
  document.head.appendChild(alertStyle);
 
  function applyHeaderAlerts(detail){
-   const pending=Number(detail?.pendingConfirmation??localStorage.getItem("dashboardPendingConfirmationCount")??0);
-   const fresh=Number(detail?.newTrips??localStorage.getItem("dashboardNewTripsCount")??0);
 
-   const finalLink=document.querySelector('[data-href="dispatch-final-confirmation.html"]');
-   if(finalLink){
-     finalLink.classList.toggle("gh-alert-hot",pending>0);
-     finalLink.querySelector(".gh-alert-badge")?.remove();
-     if(pending>0){
-       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=pending;finalLink.appendChild(b);
+   function n(...values){
+     for(const value of values){
+       const number=Number(value);
+       if(Number.isFinite(number)){
+         return number;
+       }
+     }
+     return 0;
+   }
+
+   function setAlert(element,count){
+     if(!element)return;
+
+     const value=
+       Math.max(
+         0,
+         Number(count||0)
+       );
+
+     element.classList.toggle(
+       "gh-alert-hot",
+       value>0
+     );
+
+     element
+       .querySelectorAll(".gh-alert-badge")
+       .forEach(badge=>badge.remove());
+
+     if(value>0){
+       const badge=
+         document.createElement("span");
+
+       badge.className=
+         "gh-alert-badge";
+
+       badge.textContent=
+         value>99
+           ? "99+"
+           : String(value);
+
+       element.appendChild(badge);
      }
    }
 
-   const opsGroup=[...document.querySelectorAll(".gh-nav-group")].find(g=>g.querySelector('[data-href="trips-hub.html"]'));
-   const opsButton=opsGroup?.querySelector(".gh-nav-group-btn");
-   if(opsButton){
-     opsButton.classList.toggle("gh-alert-hot",fresh>0);
-     opsButton.querySelector(".gh-alert-badge")?.remove();
-     if(fresh>0){
-       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=fresh;opsButton.appendChild(b);
-     }
-   }
+   const operationsCount=
+     n(
+       detail?.newTrips,
+       detail?.operationsNew,
+       detail?.operationsCount,
+       localStorage.getItem("dashboardNewTripsCount"),
+       localStorage.getItem("operationsNewTripsCount"),
+       localStorage.getItem("tripsHubNewCount")
+     );
+
+   const brokerCount=
+     n(
+       detail?.brokerNew,
+       detail?.brokerNewTrips,
+       detail?.brokerOperationsNew,
+       detail?.externalNew,
+       localStorage.getItem("dashboardBrokerNewCount"),
+       localStorage.getItem("brokerNewTripsCount"),
+       localStorage.getItem("externalTripsNewCount")
+     );
+
+   const dispatchCount=
+     n(
+       detail?.dispatchNew,
+       detail?.dispatchCount,
+       detail?.newDispatchTrips,
+       localStorage.getItem("dashboardDispatchNewCount"),
+       localStorage.getItem("dispatchNewTripsCount")
+     );
+
+   const finalCount=
+     n(
+       detail?.pendingConfirmation,
+       detail?.finalConfirmationCount,
+       detail?.finalNew,
+       localStorage.getItem("dashboardPendingConfirmationCount"),
+       localStorage.getItem("finalConfirmationCount")
+     );
+
+   const opsGroup=
+     [...document.querySelectorAll(".gh-nav-group")]
+     .find(
+       group=>
+         group.querySelector(
+           '[data-href="trips-hub.html"]'
+         )
+     );
+
+   setAlert(
+     opsGroup?.querySelector(".gh-nav-group-btn"),
+     operationsCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#mobileSideNav [data-href="trips-hub.html"]'
+     ),
+     operationsCount
+   );
+
+   const brokerGroup=
+     [...document.querySelectorAll(".gh-nav-group")]
+     .find(
+       group=>
+         group.querySelector(
+           '[data-href="external-trips.html"], [data-href="trip-split.html"], [data-href="broker-review.html"]'
+         )
+     );
+
+   setAlert(
+     brokerGroup?.querySelector(".gh-nav-group-btn"),
+     brokerCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#mobileSideNav [data-href="external-trips.html"]'
+     ),
+     brokerCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#adminDesktopNav [data-href="dispatch.html"]'
+     ),
+     dispatchCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#mobileSideNav [data-href="dispatch.html"]'
+     ),
+     dispatchCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#adminDesktopNav [data-href="dispatch-final-confirmation.html"]'
+     ),
+     finalCount
+   );
+
+   setAlert(
+     document.querySelector(
+       '#mobileSideNav [data-href="dispatch-final-confirmation.html"]'
+     ),
+     finalCount
+   );
  }
+
  window.addEventListener("gh-dashboard-alerts",e=>applyHeaderAlerts(e.detail||{}));
  applyHeaderAlerts({});
 
