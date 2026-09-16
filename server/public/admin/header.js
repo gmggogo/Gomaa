@@ -452,6 +452,12 @@ document.addEventListener("DOMContentLoaded",async()=>{
    if(headerTitle){
      headerTitle.textContent =
        pageHeaderTitle;
+
+     if(currentPageName === "help-center.html"){
+       headerTitle.style.color = "#f6c453";
+       headerTitle.style.fontWeight = "900";
+       headerTitle.style.textShadow = "0 1px 2px rgba(0,0,0,.25)";
+     }
    }
  }
 
@@ -671,28 +677,23 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
  document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
 
- /* HELP CENTER — GOLD NAV TILE */
- const helpGoldStyle=document.createElement("style");
- helpGoldStyle.id="gh-help-center-gold-style";
- helpGoldStyle.textContent=`
+ /* HELP CENTER — GOLD ONLY */
+ const helpCenterGoldStyle=document.createElement("style");
+ helpCenterGoldStyle.id="gh-help-center-gold-only";
+ helpCenterGoldStyle.textContent=`
    #adminDesktopNav [data-href="help-center.html"]{
-     background:linear-gradient(180deg,#f6c85f 0%,#d99a00 100%)!important;
+     background:linear-gradient(180deg,#f6c85f 0%,#d79a00 100%)!important;
      color:#241900!important;
-     border-color:#f7d984!important;
-     box-shadow:0 5px 12px rgba(157,105,0,.28)!important;
-   }
-   #adminDesktopNav [data-href="help-center.html"] svg,
-   #mobileSideNav [data-href="help-center.html"] svg{
-     color:#241900!important;
-     stroke:#241900!important;
+     border-color:#f8dc8b!important;
+     box-shadow:0 5px 12px rgba(151,102,0,.28)!important;
    }
    #mobileSideNav [data-href="help-center.html"]{
-     background:linear-gradient(90deg,#f6c85f 0%,#e4aa22 100%)!important;
+     background:linear-gradient(90deg,#f6c85f 0%,#dda416 100%)!important;
      color:#241900!important;
      font-weight:900!important;
    }
  `;
- document.head.appendChild(helpGoldStyle);
+ document.head.appendChild(helpCenterGoldStyle);
 
 
  /* ALERT BADGES — VISUAL ONLY; EXISTING HEADER SIZE/COLORS ARE UNCHANGED */

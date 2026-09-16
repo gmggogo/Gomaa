@@ -150,7 +150,7 @@
       ],
       "requiredFeature": "",
       "title": "Edit Any Trip in Trips Hub",
-      "summary": "Use Trips Hub for full trip editing across the trip list, including trips scheduled farther in the future. This is the broad trip-management edit, not a driver-assignment edit.",
+      "summary": "Trips Hub is the full trip-management edit. Use it to edit a trip even when the trip is scheduled farther in the future.",
       "keywords": [
         "change trip",
         "dropoff",
@@ -168,12 +168,12 @@
       "steps": [
         "Open Trips Hub.",
         "Find the required trip, including a future trip if needed.",
-        "Select the trip and choose Edit Selected.",
-        "Update the allowed trip details such as schedule or trip information.",
+        "Select the trip and click Edit Selected.",
+        "Change the allowed trip details.",
         "Click Save Changes."
       ],
       "warnings": [
-        "Trips Hub has the broadest trip-editing scope. Use Dispatch only for driver/vehicle assignment changes."
+        "Trips Hub is for trip-detail editing across the full trip list. Dispatch Edit is for driver/vehicle assignment only."
       ],
       "sourceFiles": [
         "server/public/admin/trips-hub.html",

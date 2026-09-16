@@ -149,7 +149,7 @@
       ],
       "requiredFeature": "",
       "title": "Quick Edit Today or Tomorrow Individual Trip",
-      "summary": "Use Trips for faster operational editing of individual trips shown for Today and Tomorrow. It is a shorter day-to-day workflow than searching the full Trips Hub.",
+      "summary": "Trips is the faster daily operational edit for Individual trips shown for Today and Tomorrow.",
       "keywords": [
         "change trip",
         "daily trip edit",
@@ -167,7 +167,7 @@
         "Save the trip."
       ],
       "warnings": [
-        "Trips is focused on Today and Tomorrow operations. Use Trips Hub when the trip is farther in the future."
+        "For a trip farther in the future, use Trips Hub."
       ],
       "sourceFiles": [
         "server/public/admin/trips.html",
@@ -232,7 +232,7 @@
       ],
       "requiredFeature": "",
       "title": "Quick Edit Today or Tomorrow Shared Trip",
-      "summary": "Use Trips for faster operational editing of Shared trips shown for Today and Tomorrow.",
+      "summary": "Trips is the faster daily operational edit for Shared trips shown for Today and Tomorrow.",
       "keywords": [
         "edit shared trip",
         "quick shared edit",
@@ -249,7 +249,7 @@
         "Save the shared item."
       ],
       "warnings": [
-        "Trips is focused on Today and Tomorrow operations. Use Trips Hub when the trip is farther in the future."
+        "For a trip farther in the future, use Trips Hub."
       ],
       "sourceFiles": [
         "server/public/admin/trips.html",

@@ -145,7 +145,7 @@
       ],
       "requiredFeature": "",
       "title": "Change Driver or Vehicle Assignment",
-      "summary": "Use Dispatch to change the assigned driver or vehicle. This edit does not change the trip schedule, pickup, drop-off, stops, passenger, or other trip details.",
+      "summary": "Dispatch Edit changes the driver and/or vehicle assignment only. It does not edit the trip time, pickup, drop-off, stops, passenger, or other trip details.",
       "keywords": [
         "assign driver",
         "assignment only",
@@ -161,11 +161,11 @@
         "Open Dispatch.",
         "Select the trip or trips that need an assignment change.",
         "Click Edit Selected.",
-        "Choose the driver and/or vehicle assignment.",
+        "Choose the driver and/or vehicle.",
         "Confirm the assignment change."
       ],
       "warnings": [
-        "Dispatch Edit is assignment-only. To change trip details, use Trips Hub or the operational Trips page as appropriate."
+        "To change trip details, use Trips Hub or Trips according to the trip date."
       ],
       "sourceFiles": [
         "server/public/admin/dispatch.html",
