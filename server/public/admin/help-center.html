@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,22 +7,31 @@
 <link rel="stylesheet" href="/admin/style.css">
 <style>
   body{margin:0;background:#f4f7fb;color:#172033;font-family:Arial,sans-serif}
-  #adminHeader{min-height:0}
-  .help-shell{max-width:1320px;margin:22px auto 60px;padding:0 18px}
-  .help-hero{background:#fff;border:1px solid #dbe3ef;border-radius:18px;padding:24px}
+  .help-shell{max-width:1380px;margin:22px auto 60px;padding:0 18px}
+  .help-hero,.section-card{background:#fff;border:1px solid #dbe3ef;border-radius:18px;padding:22px}
+  .section-card{margin-top:18px}
+  .help-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
   .help-title{margin:0 0 6px;font-size:29px}
   .help-sub{margin:0;color:#667085;line-height:1.55}
-  .help-search-row{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:12px;margin-top:20px}
+  .lang-wrap{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .lang-label{font-size:13px;font-weight:800;color:#475467}
+  .lang-select{min-width:190px;border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;background:#fff;color:#172033}
+  .help-search-row{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;margin-top:18px}
   .help-search,.help-select{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:12px;padding:13px 14px;font-size:16px;background:#fff;color:#172033}
-  .help-search:focus,.help-select:focus{outline:3px solid rgba(37,99,235,.15);border-color:#2563eb}
-  .help-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;color:#64748b;font-size:13px}
-  .help-chip{background:#eef2f7;border:1px solid #dbe3ef;border-radius:999px;padding:5px 9px}
-  .help-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;margin-top:18px}
-  .help-panel{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:16px}
-  .help-module-list{display:flex;flex-direction:column;gap:7px}
-  .help-module-btn{border:0;background:#f8fafc;border-radius:10px;padding:10px 11px;text-align:left;font-weight:700;color:#344054;cursor:pointer}
-  .help-module-btn.active{background:#eaf1ff;color:#174ea6}
-  .help-count{font-size:13px;color:#667085;margin:0 0 12px}
+  .help-search:focus,.help-select:focus,.lang-select:focus{outline:3px solid rgba(37,99,235,.14);border-color:#2563eb}
+  .section-title{margin:0 0 5px;font-size:20px}
+  .section-sub{margin:0 0 15px;color:#667085;font-size:13px}
+  .page-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .page-card{border:1px solid #dfe6f0;background:#fff;border-radius:14px;padding:14px;text-align:left;cursor:pointer;min-height:145px;transition:.15s ease}
+  .page-card:hover{border-color:#9fb7dd;box-shadow:0 5px 16px rgba(15,23,42,.06);transform:translateY(-1px)}
+  .page-card.active{border-color:#2563eb;background:#eff5ff;box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+  .page-id{font-size:12px;font-weight:800;color:#2563eb}
+  .page-title{font-size:16px;font-weight:800;margin:5px 0 7px}
+  .page-desc{font-size:13px;line-height:1.5;color:#667085}
+  .page-tasks{font-size:12px;color:#475467;margin-top:9px;font-weight:700}
+  .results-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+  .help-count{font-size:13px;color:#667085;margin:0}
+  .clear-btn{border:1px solid #cbd5e1;background:#fff;border-radius:9px;padding:8px 11px;cursor:pointer;font-weight:700;color:#344054}
   .help-result{border:1px solid #e2e8f0;border-radius:14px;margin-bottom:12px;overflow:hidden;background:#fff}
   .help-result-head{width:100%;border:0;background:#fff;padding:15px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;gap:15px;align-items:flex-start}
   .help-result-title{font-weight:800;font-size:16px;color:#172033}
@@ -32,48 +41,71 @@
   .help-result.open .help-result-body{display:block}
   .help-result.open .help-chevron{transform:rotate(180deg)}
   .help-chevron{transition:transform .15s ease;font-size:18px}
-  .help-steps{margin:0;padding-left:22px;line-height:1.65}
+  .help-steps{margin:0;padding-left:22px;line-height:1.7}
   .help-warning{margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px;color:#9a3412}
   .help-source{margin-top:12px;font-size:12px;color:#64748b}
   .help-empty{padding:30px;text-align:center;color:#667085}
+  html[dir="rtl"] .page-card,
+  html[dir="rtl"] .help-result-head{ text-align:right }
+  html[dir="rtl"] .help-steps{padding-left:0;padding-right:22px}
+  @media(max-width:1100px){.page-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:800px){
+    .help-top{flex-direction:column}
     .help-search-row{grid-template-columns:1fr}
-    .help-layout{grid-template-columns:1fr}
-    .help-module-list{display:flex;flex-direction:row;overflow:auto;padding-bottom:4px}
-    .help-module-btn{white-space:nowrap}
+    .page-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
+  @media(max-width:560px){.page-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div id="adminHeader"></div>
+
 <main class="help-shell">
+
   <section class="help-hero">
-    <h1 class="help-title">Help Center</h1>
-    <p class="help-sub">Search by task, action, field, or problem. Results are filtered by your role and the modules enabled for this tenant.</p>
+    <div class="help-top">
+      <div>
+        <h1 id="uiTitle" class="help-title">Help Center</h1>
+        <p id="uiSubtitle" class="help-sub">Choose a page or search for the task you need.</p>
+      </div>
+
+      <div class="lang-wrap">
+        <label id="uiLanguageLabel" class="lang-label" for="helpLanguage">Language</label>
+        <select id="helpLanguage" class="lang-select">
+          <option value="en">English</option>
+          <option value="es-MX">Español (México)</option>
+          <option value="ar">العربية</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+    </div>
+
     <div class="help-search-row">
-      <input id="helpSearch" class="help-search" type="search" placeholder="Example: change pickup time, assign driver, add broker trip..." autocomplete="off">
+      <input id="helpSearch" class="help-search" type="search"
+             placeholder="Example: change pickup time, assign driver, add broker trip..."
+             autocomplete="off">
+
       <select id="helpPageFilter" class="help-select" aria-label="Page filter">
         <option value="">All accessible pages</option>
       </select>
     </div>
-    <div class="help-meta">
-      <span class="help-chip" id="helpRoleChip">Role: --</span>
-      <span class="help-chip" id="helpContextChip">Context: All pages</span>
-      <span class="help-chip" id="helpFeatureChip">Features: Core</span>
-    </div>
   </section>
 
-  <div class="help-layout">
-    <aside class="help-panel">
-      <p class="help-count">Modules</p>
-      <div id="helpModules" class="help-module-list"></div>
-    </aside>
+  <section class="section-card">
+    <h2 id="uiPagesTitle" class="section-title">Pages</h2>
+    <p id="uiPagesSub" class="section-sub">Pages follow the same order as the Admin header. Select a page to see its tasks.</p>
+    <div id="helpPages" class="page-grid"></div>
+  </section>
 
-    <section class="help-panel">
+  <section class="section-card">
+    <div class="results-head">
       <p id="helpResultCount" class="help-count">Loading help...</p>
-      <div id="helpResults"></div>
-    </section>
-  </div>
+      <button id="clearPageFilter" class="clear-btn" type="button">Show All Pages</button>
+    </div>
+    <div id="helpResults"></div>
+  </section>
+
 </main>
 
 <script src="/admin/header.js"></script>
