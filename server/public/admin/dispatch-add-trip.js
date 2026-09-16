@@ -1263,17 +1263,18 @@ function getWarningMinutes(service){
 
 /* ================= WARNING ================= */
 
-function checkReservedDynamicWarning(dateValue,timeValue){
+function checkReservedDynamicWarningForService(
+  service,
+  dateValue,
+  timeValue
+){
 
   if(!dateValue || !timeValue){
     return true;
   }
 
-  const service =
-    getCurrentReservedServiceConfig();
-
   const pricing =
-    getReservedPricing(service);
+    getReservedPricing(service || {});
 
   if(pricing.disableCancel === true){
     return true;
@@ -1308,6 +1309,15 @@ Continue anyway?`
   }
 
   return true;
+}
+
+function checkReservedDynamicWarning(dateValue,timeValue){
+
+  return checkReservedDynamicWarningForService(
+    getCurrentReservedServiceConfig(),
+    dateValue,
+    timeValue
+  );
 }
 
 function checkTripWarningByTrip(trip){
@@ -1362,59 +1372,26 @@ function checkTripWarningForDateTime(
   timeValue
 ){
 
-  if(!trip) return true;
+  if(!trip){
+    return true;
+  }
 
+  /*
+    Review Edit Save must use the SAME warning rule as Add Trip,
+    but against the edited trip's own Reserved service.
+    Never bypass the warning just because an older trip is missing
+    an exact serviceId; fall back to the currently loaded Reserved
+    service configuration instead.
+  */
   const service =
-    getServiceByTrip(trip);
+    getServiceByTrip(trip) ||
+    getCurrentReservedServiceConfig();
 
-  if(!service) return true;
-
-  const pricing =
-    getReservedPricing(service);
-
-  if(pricing.disableCancel === true){
-    return true;
-  }
-
-  const warningMinutes =
-    Number(
-      pricing.warningMinutes || 120
-    );
-
-  if(warningMinutes <= 0){
-    return true;
-  }
-
-  const tripDateTime =
-    parseTripDateTime(
-      dateValue,
-      timeValue
-    );
-
-  if(!tripDateTime){
-    return true;
-  }
-
-  const diffMinutes =
-    (
-      tripDateTime.getTime() -
-      getSystemNow().getTime()
-    ) / 60000;
-
-  if(
-    diffMinutes > 0 &&
-    diffMinutes <= warningMinutes
-  ){
-    return confirm(
-`WARNING
-
-This trip is within ${warningMinutes} minutes.
-
-Continue anyway?`
-    );
-  }
-
-  return true;
+  return checkReservedDynamicWarningForService(
+    service,
+    dateValue,
+    timeValue
+  );
 }
 
 /* ================= LOAD SERVICES ================= */
@@ -2325,43 +2302,6 @@ async function updateTrip(id,payload){
   }
 
   return extractTripResponse(data);
-}
-
-
-/*
-  Reserved Zone protection:
-  - Add To Review is validated by POST /api/trips.
-  - Save Edit is validated by PUT /api/trips/:id when pickup data changes.
-  - Confirm performs one final server-side Zone re-check before route calculation.
-
-  Sending the saved pickup back through the existing update endpoint does not
-  calculate a route. It only forces the current Reserved Zone policy to be
-  checked again, including every passenger pickup on Shared trips.
-*/
-async function revalidateReservedZoneBeforeConfirm(trip){
-
-  if(!trip){
-    throw new Error("Trip not found");
-  }
-
-  const id =
-    trip._id ||
-    trip.id ||
-    "";
-
-  if(!id){
-    throw new Error("Trip id missing");
-  }
-
-  return await updateTrip(
-    id,
-    {
-      pickup:
-        normalizeText(
-          trip.pickup
-        )
-    }
-  );
 }
 
 async function deleteTrip(id){
@@ -4177,22 +4117,6 @@ async function handleConfirmTrip(btn){
   try{
 
     btn.disabled = true;
-    btn.textContent = "Checking Zone...";
-
-    /*
-      Re-check the current Reserved Zone immediately before Confirm.
-      This catches:
-      - a Zone radius/location changed after Add To Review
-      - an old Review trip created before Zone rules were enabled
-      - Shared trips where any passenger pickup is now outside the Zone
-
-      The server remains the source of truth and returns the same Zone
-      error message used by Add To Review / Save Edit.
-    */
-    await revalidateReservedZoneBeforeConfirm(
-      trip
-    );
-
     btn.textContent = "Calculating Route...";
 
     await confirmTripOnServer(id);
