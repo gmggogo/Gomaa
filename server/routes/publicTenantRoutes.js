@@ -8,6 +8,10 @@ const Tenant = require("../models/Tenant");
 const SystemDesign = require("../models/SystemDesign");
 const Service = require("../models/Service");
 
+const {
+  validateTripZone
+} = require("../utils/serviceZoneEngine");
+
 function clean(value){
   return String(value ?? "").trim();
 }
@@ -637,6 +641,60 @@ function calculateServicePrice(
   };
 }
 
+async function validatePublicGetQuoteZone(
+  tenant,
+  body = {}
+){
+
+  return await validateTripZone({
+    tenantId:
+      tenant?._id,
+
+    payload:{
+      ...(body || {}),
+      type:"quote",
+      source:"GET_QUOTE",
+      bookingSource:"GET_QUOTE"
+    }
+  });
+}
+
+function sendZoneBlocked(
+  res,
+  zoneCheck
+){
+
+  return res
+    .status(
+      Number(
+        zoneCheck?.statusCode
+      ) || 422
+    )
+    .json({
+      success:false,
+
+      code:
+        zoneCheck?.code ||
+        "SERVICE_ZONE_BLOCKED",
+
+      message:
+        zoneCheck?.message ||
+        "Pickup is outside the configured Get Quote Zone.",
+
+      zone:
+        zoneCheck?.zone ||
+        "Get Quote Zone",
+
+      radiusMiles:
+        zoneCheck?.radiusMiles ??
+        null,
+
+      distanceMiles:
+        zoneCheck?.distanceMiles ??
+        null
+    });
+}
+
 async function sendTenantBootstrap(
   req,
   res,
@@ -812,6 +870,20 @@ router.post(
         });
       }
 
+      const zoneCheck =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body || {}
+        );
+
+      if(zoneCheck.allowed !== true){
+
+        return sendZoneBlocked(
+          res,
+          zoneCheck
+        );
+      }
+
       const requestedCode =
         normalizeServiceKey(
           req.body?.serviceKey
@@ -903,6 +975,20 @@ router.post(
           success:false,
           message:"Company not found"
         });
+      }
+
+      const zoneCheck =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body || {}
+        );
+
+      if(zoneCheck.allowed !== true){
+
+        return sendZoneBlocked(
+          res,
+          zoneCheck
+        );
       }
 
       const requestedCode =

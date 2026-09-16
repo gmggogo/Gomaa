@@ -2029,14 +2029,47 @@ miles:miles,
 
 minutes:mins,
 
-stops:stops
+stops:stops,
+
+pickup:
+pickupVal,
+
+pickupLat:
+calculatedRouteData?.pickupLat ?? null,
+
+pickupLng:
+calculatedRouteData?.pickupLng ?? null
 
 })
 }
 );
 
 const pricingData =
-await pricingRes.json();
+await pricingRes.json()
+  .catch(()=>({}));
+
+if(
+  !pricingRes.ok ||
+  pricingData.success === false
+){
+
+  priceBox.classList.add("hidden");
+
+  bookBtn.classList.add("hidden");
+  bookBtn.classList.remove("active");
+
+  distance.innerText = "";
+  stopsCount.innerText = "";
+  time.innerText = "";
+  price.innerText = "$0";
+
+  alert(
+    pricingData.message ||
+    "Unable to calculate this trip."
+  );
+
+  return;
+}
 
 /* =========================
 SAVE WARNING POLICY
@@ -2102,13 +2135,6 @@ window.selectedWarningPolicy = {
     : "disabled"
 
 };
-
-if(!pricingData.success){
-
-alert("Pricing error");
-return;
-
-}
 
 const pricingMode =
 String(
