@@ -1,0 +1,209 @@
+{
+  "pageId": "ADM-029",
+  "pageTitle": "User Management",
+  "pageFile": "users.html",
+  "module": "User Management",
+  "roles": [
+    "ADMIN",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/users.html",
+    "server/public/admin/header.js",
+    "server/public/admin/users.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings",
+    "/api/users/${currentRole}",
+    "/api/users/${editId}",
+    "/api/users/${id}",
+    "/api/users/${id}/toggle"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "loadUsers",
+    "addUser",
+    "editUser",
+    "deleteUser"
+  ],
+  "articles": [
+    {
+      "id": "ADM-029-T01",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Add a User",
+      "summary": "Add a User",
+      "keywords": [
+        "add user",
+        "new admin",
+        "new company",
+        "new dispatcher",
+        "new driver",
+        "new super admin",
+        "user management",
+        "users"
+      ],
+      "steps": [
+        "Open Add User.",
+        "Choose the user type/role.",
+        "Enter Full Name, Username, Email, Phone, and Password as required.",
+        "Click Save User."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T02",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit a User",
+      "summary": "Edit a User",
+      "keywords": [
+        "change user",
+        "edit user",
+        "update admin",
+        "update dispatcher",
+        "update driver",
+        "user management",
+        "users"
+      ],
+      "steps": [
+        "Open the appropriate role tab.",
+        "Locate the user.",
+        "Click Edit.",
+        "Update the allowed user information.",
+        "Save the changes."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T03",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Delete a User",
+      "summary": "Delete a User",
+      "keywords": [
+        "delete user",
+        "remove user",
+        "user management",
+        "users"
+      ],
+      "steps": [
+        "Open the appropriate role tab.",
+        "Locate the user.",
+        "Click Delete.",
+        "Confirm deletion."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    }
+  ]
+}

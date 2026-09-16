@@ -1,0 +1,323 @@
+{
+  "pageId": "ADM-024",
+  "pageTitle": "System Design",
+  "pageFile": "system-design.html",
+  "module": "System Design",
+  "roles": [
+    "ADMIN",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/system-design.html",
+    "server/public/admin/header.js",
+    "server/public/admin/system-design.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings",
+    "/api/system-design",
+    "/api/system-design/upload"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "loadSystemDesign",
+    "saveSystemDesign",
+    "setupAlignSelect",
+    "loadZoneForm",
+    "loadFormValues",
+    "uploadMainImage",
+    "renderCardsEditor"
+  ],
+  "articles": [
+    {
+      "id": "ADM-024-T01",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Change Company Name or Regional Settings",
+      "summary": "Change Company Name or Regional Settings",
+      "keywords": [
+        "company name",
+        "country",
+        "region",
+        "state",
+        "system design",
+        "timezone"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Edit Company Name, Timezone, Region/State, or Country.",
+        "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T02",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Upload Tenant Logos",
+      "summary": "Upload Tenant Logos",
+      "keywords": [
+        "branding",
+        "driver logo",
+        "main logo",
+        "system design",
+        "upload logo"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Use Upload Main Logo and/or Upload Driver Logo.",
+        "Verify the selected image.",
+        "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T03",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Configure Service Zones",
+      "summary": "Configure Service Zones",
+      "keywords": [
+        "companies zone",
+        "get quote zone",
+        "radius",
+        "reserved zone",
+        "service zone",
+        "system design",
+        "zip"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Locate the required Service Zone.",
+        "Set Enabled, State/Province, City, ZIP/Postal Code, and Radius Miles.",
+        "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T04",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Configure SMTP and Booking Email",
+      "summary": "Configure SMTP and Booking Email",
+      "keywords": [
+        "booking email",
+        "email message",
+        "email subject",
+        "invoice email",
+        "smtp",
+        "system design"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Enter SMTP Host, Port, Email, and Password.",
+        "Set Booking Email Subject/Message and related customer text.",
+        "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T05",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Change Public Branding and About Design",
+      "summary": "Change Public Branding and About Design",
+      "keywords": [
+        "about design",
+        "background color",
+        "branding",
+        "hero image",
+        "system design",
+        "title color"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Update Hero Image, colors, borders, spacing, title text/size/alignment, and available design cards.",
+        "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    }
+  ]
+}

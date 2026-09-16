@@ -1,0 +1,157 @@
+{
+  "pageId": "ADM-013",
+  "pageTitle": "Facility Pricing Override",
+  "pageFile": "facility-pricing-override.html",
+  "module": "Facility Pricing",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/facility-pricing-override.html",
+    "server/public/admin/header.js",
+    "server/public/admin/facility-pricing-override.js"
+  ],
+  "apiDependencies": [
+    "/api/facility-pricing-override",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "getSelectedFacility",
+    "loadAll",
+    "selectInput",
+    "syncLocalOverrideStatus",
+    "editServiceCard",
+    "saveServiceCard",
+    "updateServiceField",
+    "validateBeforeSave",
+    "prepareServicesForSave",
+    "saveOverride",
+    "reloadPage"
+  ],
+  "articles": [
+    {
+      "id": "ADM-013-T01",
+      "pageId": "ADM-013",
+      "pageTitle": "Facility Pricing Override",
+      "pageFile": "facility-pricing-override.html",
+      "module": "Facility Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Create or Edit Facility Pricing Override",
+      "summary": "Create or Edit Facility Pricing Override",
+      "keywords": [
+        "company pricing",
+        "edit override",
+        "facility pricing",
+        "facility pricing override",
+        "pricing override"
+      ],
+      "steps": [
+        "Open Facility Pricing Override.",
+        "Select the facility/company.",
+        "Open the service card in Edit mode.",
+        "Change the override fields.",
+        "Save the service card/override."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/facility-pricing-override.html",
+        "server/public/admin/header.js",
+        "server/public/admin/facility-pricing-override.js"
+      ],
+      "apiDependencies": [
+        "/api/facility-pricing-override",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "getSelectedFacility",
+        "loadAll",
+        "selectInput",
+        "syncLocalOverrideStatus",
+        "editServiceCard",
+        "saveServiceCard",
+        "updateServiceField",
+        "validateBeforeSave",
+        "prepareServicesForSave",
+        "saveOverride",
+        "reloadPage"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-013-T02",
+      "pageId": "ADM-013",
+      "pageTitle": "Facility Pricing Override",
+      "pageFile": "facility-pricing-override.html",
+      "module": "Facility Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Disable or Revert an Override",
+      "summary": "Disable or Revert an Override",
+      "keywords": [
+        "disable override",
+        "facility default pricing",
+        "facility pricing override",
+        "remove override"
+      ],
+      "steps": [
+        "Open the facility and service override.",
+        "Change the override status/values as allowed.",
+        "Save and reload the page to verify the effective pricing source."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/facility-pricing-override.html",
+        "server/public/admin/header.js",
+        "server/public/admin/facility-pricing-override.js"
+      ],
+      "apiDependencies": [
+        "/api/facility-pricing-override",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "getSelectedFacility",
+        "loadAll",
+        "selectInput",
+        "syncLocalOverrideStatus",
+        "editServiceCard",
+        "saveServiceCard",
+        "updateServiceField",
+        "validateBeforeSave",
+        "prepareServicesForSave",
+        "saveOverride",
+        "reloadPage"
+      ],
+      "active": true
+    }
+  ]
+}

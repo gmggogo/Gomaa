@@ -422,6 +422,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
    .toLowerCase();
 
  const pageHeaderTitles = {
+   "help-center.html":
+     "Help Center",
    "shared-engine-settings.html":
      "Shared Engine",
    "trip-split.html":
@@ -622,6 +624,16 @@ document.addEventListener("DOMContentLoaded",async()=>{
      items:pricingItems
    });
  }
+
+ /*
+   Help Center is available to every staff role.
+   Search results are filtered by role and tenant capabilities.
+ */
+ nav.push({
+   l:"Help Center",
+   h:"help-center.html",
+   i:"doc"
+ });
 
  if(currentRole!=="DISPATCHER")nav.push(settings);
  const desktop=document.getElementById("adminDesktopNav");

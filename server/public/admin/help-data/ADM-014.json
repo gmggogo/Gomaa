@@ -1,0 +1,87 @@
+{
+  "pageId": "ADM-014",
+  "pageTitle": "Admin Live Map",
+  "pageFile": "maps.html",
+  "module": "Driver Follow-up",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/maps.html",
+    "server/public/admin/header.js",
+    "server/public/admin/maps.js"
+  ],
+  "apiDependencies": [
+    "/api/admin/live-drivers",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "bindSearch",
+    "loadLiveDrivers"
+  ],
+  "articles": [
+    {
+      "id": "ADM-014-T01",
+      "pageId": "ADM-014",
+      "pageTitle": "Admin Live Map",
+      "pageFile": "maps.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "View Live Drivers",
+      "summary": "View Live Drivers",
+      "keywords": [
+        "admin live map",
+        "driver map",
+        "find driver",
+        "live driver",
+        "location",
+        "maps",
+        "search driver"
+      ],
+      "steps": [
+        "Open Drivers Map.",
+        "Wait for live driver locations to load.",
+        "Use the search control to locate a driver when needed."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/maps.html",
+        "server/public/admin/header.js",
+        "server/public/admin/maps.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/live-drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "bindSearch",
+        "loadLiveDrivers"
+      ],
+      "active": true
+    }
+  ]
+}

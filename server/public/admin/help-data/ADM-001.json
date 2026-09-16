@@ -1,0 +1,294 @@
+{
+  "pageId": "ADM-001",
+  "pageTitle": "Admin Billing Center",
+  "pageFile": "admin-billing.html",
+  "module": "SaaS Billing",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/admin-billing.html",
+    "server/public/admin/header.js",
+    "server/public/admin/admin-billing.js"
+  ],
+  "apiDependencies": [
+    "/api/admin/billing",
+    "/api/admin/billing/${id}/lock",
+    "/api/admin/billing/${id}/mark-paid",
+    "/api/admin/billing/${id}/unlock",
+    "/api/admin/generate-invoice/${id}",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings",
+    "/api/tenant-stripe/connect",
+    "/api/tenant-stripe/dashboard-link",
+    "/api/tenant-stripe/status"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "loadStripeStatus",
+    "connectStripe",
+    "loadBilling",
+    "editBilling",
+    "saveBilling",
+    "lockCompany",
+    "unlockCompany",
+    "applyFilters"
+  ],
+  "articles": [
+    {
+      "id": "ADM-001-T01",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Connect Tenant Stripe",
+      "summary": "Connect Tenant Stripe",
+      "keywords": [
+        "admin billing",
+        "admin billing center",
+        "connect stripe",
+        "stripe connect",
+        "stripe status"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Click Connect Stripe.",
+        "Complete Stripe connection/onboarding.",
+        "Return to Admin Billing and verify the Stripe status."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T02",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Open Stripe Dashboard",
+      "summary": "Open Stripe Dashboard",
+      "keywords": [
+        "admin billing",
+        "admin billing center",
+        "open stripe",
+        "stripe dashboard"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Click Open Stripe Dashboard when the account is connected."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T03",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit Tenant Billing",
+      "summary": "Edit Tenant Billing",
+      "keywords": [
+        "admin billing",
+        "admin billing center",
+        "billing",
+        "edit billing",
+        "invoice",
+        "tenant billing"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Locate the tenant billing record.",
+        "Open Edit Billing.",
+        "Change the permitted billing values.",
+        "Save Billing."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T04",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Lock or Unlock a Company",
+      "summary": "Lock or Unlock a Company",
+      "keywords": [
+        "activate company",
+        "admin billing",
+        "admin billing center",
+        "lock company",
+        "suspend company",
+        "unlock company"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Locate the company.",
+        "Use Lock Company or Unlock Company.",
+        "Verify the updated status."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    }
+  ]
+}

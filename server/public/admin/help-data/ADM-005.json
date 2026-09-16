@@ -1,0 +1,219 @@
+{
+  "pageId": "ADM-005",
+  "pageTitle": "Dashboard",
+  "pageFile": "dashboard.html",
+  "module": "Dashboard",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/dashboard.html",
+    "server/public/admin/header.js",
+    "server/public/admin/dashboard.js"
+  ],
+  "apiDependencies": [
+    "/api/dispatch-final-confirmation",
+    "/api/driver-schedule",
+    "/api/external-summary?${params.toString",
+    "/api/external-trips",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/services/admin",
+    "/api/shared-engine/settings",
+    "/api/trip-split/bootstrap",
+    "/api/trips",
+    "/api/users/"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "isCancelled",
+    "isFinalStatus",
+    "isFinalConfirmed",
+    "statuses",
+    "refundDate",
+    "isRefundedTrip",
+    "scheduleDayKey",
+    "scheduleVehicleKey",
+    "scheduleRowIsActiveToday",
+    "externalTripStatus",
+    "brokerRowStatusValue",
+    "brokerStatusCategory",
+    "brokerRefundDateFromRow",
+    "brokerRowIsRefunded",
+    "createFallbackRow",
+    "brokerSummaryStatus",
+    "brokerSummaryIsCancelled",
+    "loadBrokerSummaryCards",
+    "loadBrokerHubCounts",
+    "loadBrokerCounts",
+    "loadUserCounts"
+  ],
+  "articles": [
+    {
+      "id": "ADM-005-T01",
+      "pageId": "ADM-005",
+      "pageTitle": "Dashboard",
+      "pageFile": "dashboard.html",
+      "module": "Dashboard",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Review Operations Dashboard",
+      "summary": "Review Operations Dashboard",
+      "keywords": [
+        "action center",
+        "counts",
+        "dashboard",
+        "monthly",
+        "operations",
+        "overview",
+        "today"
+      ],
+      "steps": [
+        "Open Dashboard.",
+        "Review Action Center for trips requiring attention.",
+        "Review Today's Operations and Monthly Reports.",
+        "Use Broker sections only when Broker Contract is enabled."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/dashboard.html",
+        "server/public/admin/header.js",
+        "server/public/admin/dashboard.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch-final-confirmation",
+        "/api/driver-schedule",
+        "/api/external-summary?${params.toString",
+        "/api/external-trips",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/trip-split/bootstrap",
+        "/api/trips",
+        "/api/users/"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "isCancelled",
+        "isFinalStatus",
+        "isFinalConfirmed",
+        "statuses",
+        "refundDate",
+        "isRefundedTrip",
+        "scheduleDayKey",
+        "scheduleVehicleKey",
+        "scheduleRowIsActiveToday",
+        "externalTripStatus",
+        "brokerRowStatusValue",
+        "brokerStatusCategory",
+        "brokerRefundDateFromRow",
+        "brokerRowIsRefunded",
+        "createFallbackRow",
+        "brokerSummaryStatus",
+        "brokerSummaryIsCancelled",
+        "loadBrokerSummaryCards",
+        "loadBrokerHubCounts",
+        "loadBrokerCounts",
+        "loadUserCounts"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-005-T02",
+      "pageId": "ADM-005",
+      "pageTitle": "Dashboard",
+      "pageFile": "dashboard.html",
+      "module": "Dashboard",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Review Broker Action Center",
+      "summary": "Review Broker Action Center",
+      "keywords": [
+        "broker action center",
+        "broker count",
+        "dashboard",
+        "external trip",
+        "new broker trip"
+      ],
+      "steps": [
+        "Open Dashboard.",
+        "Locate Broker Action Center.",
+        "Review total/new broker intake and items requiring final processing.",
+        "Open Broker Operations for the related workflow."
+      ],
+      "warnings": [
+        "Broker Contract must be enabled."
+      ],
+      "sourceFiles": [
+        "server/public/admin/dashboard.html",
+        "server/public/admin/header.js",
+        "server/public/admin/dashboard.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch-final-confirmation",
+        "/api/driver-schedule",
+        "/api/external-summary?${params.toString",
+        "/api/external-trips",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/trip-split/bootstrap",
+        "/api/trips",
+        "/api/users/"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "isCancelled",
+        "isFinalStatus",
+        "isFinalConfirmed",
+        "statuses",
+        "refundDate",
+        "isRefundedTrip",
+        "scheduleDayKey",
+        "scheduleVehicleKey",
+        "scheduleRowIsActiveToday",
+        "externalTripStatus",
+        "brokerRowStatusValue",
+        "brokerStatusCategory",
+        "brokerRefundDateFromRow",
+        "brokerRowIsRefunded",
+        "createFallbackRow",
+        "brokerSummaryStatus",
+        "brokerSummaryIsCancelled",
+        "loadBrokerSummaryCards",
+        "loadBrokerHubCounts",
+        "loadBrokerCounts",
+        "loadUserCounts"
+      ],
+      "active": true
+    }
+  ]
+}

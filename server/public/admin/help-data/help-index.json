@@ -1,0 +1,391 @@
+{
+  "version": "2.0",
+  "generatedFrom": "admin.zip",
+  "pageCount": 29,
+  "articleCount": 91,
+  "pages": [
+    {
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-001.json"
+    },
+    {
+      "pageId": "ADM-002",
+      "pageTitle": "Sunbeam Admin Chat",
+      "pageFile": "admin-chat.html",
+      "module": "Driver Communication",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-002.json"
+    },
+    {
+      "pageId": "ADM-003",
+      "pageTitle": "Broker Pricing",
+      "pageFile": "broker-pricing.html",
+      "module": "Broker Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "articleCount": 1,
+      "dataFile": "help-data/ADM-003.json"
+    },
+    {
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-004.json"
+    },
+    {
+      "pageId": "ADM-005",
+      "pageTitle": "Dashboard",
+      "pageFile": "dashboard.html",
+      "module": "Dashboard",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 2,
+      "dataFile": "help-data/ADM-005.json"
+    },
+    {
+      "pageId": "ADM-006",
+      "pageTitle": "Dispatch Add Trip",
+      "pageFile": "dispatch-add-trip.html",
+      "module": "Trip Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 6,
+      "dataFile": "help-data/ADM-006.json"
+    },
+    {
+      "pageId": "ADM-007",
+      "pageTitle": "Dispatch Final Confirmation",
+      "pageFile": "dispatch-final-confirmation.html",
+      "module": "Final Confirmation",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-007.json"
+    },
+    {
+      "pageId": "ADM-008",
+      "pageTitle": "Dispatch Review",
+      "pageFile": "dispatch-review.html",
+      "module": "Dispatch Review",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-008.json"
+    },
+    {
+      "pageId": "ADM-009",
+      "pageTitle": "Dispatch",
+      "pageFile": "dispatch.html",
+      "module": "Dispatch",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 5,
+      "dataFile": "help-data/ADM-009.json"
+    },
+    {
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 2,
+      "dataFile": "help-data/ADM-010.json"
+    },
+    {
+      "pageId": "ADM-011",
+      "pageTitle": "Broker Summary",
+      "pageFile": "external-summary.html",
+      "module": "Broker Reporting",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-011.json"
+    },
+    {
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-012.json"
+    },
+    {
+      "pageId": "ADM-013",
+      "pageTitle": "Facility Pricing Override",
+      "pageFile": "facility-pricing-override.html",
+      "module": "Facility Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 2,
+      "dataFile": "help-data/ADM-013.json"
+    },
+    {
+      "pageId": "ADM-014",
+      "pageTitle": "Admin Live Map",
+      "pageFile": "maps.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 1,
+      "dataFile": "help-data/ADM-014.json"
+    },
+    {
+      "pageId": "ADM-015",
+      "pageTitle": "SaaS Payments - GH Mobility",
+      "pageFile": "payments.html",
+      "module": "Platform Payment",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 1,
+      "dataFile": "help-data/ADM-015.json"
+    },
+    {
+      "pageId": "ADM-016",
+      "pageTitle": "Payroll Summary",
+      "pageFile": "payroll-summary.html",
+      "module": "Payroll",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 1,
+      "dataFile": "help-data/ADM-016.json"
+    },
+    {
+      "pageId": "ADM-017",
+      "pageTitle": "Payroll & Earnings",
+      "pageFile": "payroll.html",
+      "module": "Payroll",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 2,
+      "dataFile": "help-data/ADM-017.json"
+    },
+    {
+      "pageId": "ADM-018",
+      "pageTitle": "Refunds \u2013 Sunbeam",
+      "pageFile": "refunds.html",
+      "module": "Refunds",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 1,
+      "dataFile": "help-data/ADM-018.json"
+    },
+    {
+      "pageId": "ADM-019",
+      "pageTitle": "Add Stop",
+      "pageFile": "reserved-add-stop.html",
+      "module": "Reserved Route Change",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-019.json"
+    },
+    {
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 5,
+      "dataFile": "help-data/ADM-020.json"
+    },
+    {
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-021.json"
+    },
+    {
+      "pageId": "ADM-022",
+      "pageTitle": "Smart Dispatch Engine",
+      "pageFile": "smart-dispatch-engine.html",
+      "module": "Smart Dispatch",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-022.json"
+    },
+    {
+      "pageId": "ADM-023",
+      "pageTitle": "Admin Summary",
+      "pageFile": "summary.html",
+      "module": "Operations Reporting",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-023.json"
+    },
+    {
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 5,
+      "dataFile": "help-data/ADM-024.json"
+    },
+    {
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-025.json"
+    },
+    {
+      "pageId": "ADM-026",
+      "pageTitle": "Trip Split",
+      "pageFile": "trip-split.html",
+      "module": "Broker Trip Split",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-026.json"
+    },
+    {
+      "pageId": "ADM-027",
+      "pageTitle": "Trips Hub",
+      "pageFile": "trips-hub.html",
+      "module": "Trips Hub",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-027.json"
+    },
+    {
+      "pageId": "ADM-028",
+      "pageTitle": "Trips",
+      "pageFile": "trips.html",
+      "module": "Trips",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-028.json"
+    },
+    {
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-029.json"
+    }
+  ]
+}

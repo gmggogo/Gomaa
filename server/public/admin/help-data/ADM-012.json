@@ -1,0 +1,339 @@
+{
+  "pageId": "ADM-012",
+  "pageTitle": "External Trips Hub",
+  "pageFile": "external-trips.html",
+  "module": "Broker Intake",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "BROKER",
+  "sourceFiles": [
+    "server/public/admin/external-trips.html",
+    "server/public/admin/header.js",
+    "server/public/admin/js/external-trips.js"
+  ],
+  "apiDependencies": [
+    "/api/external-trips${queryString",
+    "/api/external-trips/${encodeURIComponent",
+    "/api/external-trips/brokers",
+    "/api/external-trips/manual",
+    "/api/external-trips/services",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "normalizeStopAddress",
+    "addressBox",
+    "selectedFilters",
+    "searchedTrips",
+    "loadBrokers",
+    "loadServices",
+    "loadTrips",
+    "renderBrokerSelectors",
+    "renderServiceSelector",
+    "addStopRow",
+    "openAdd",
+    "editTrip",
+    "formPayload",
+    "validatePayload",
+    "saveTrip",
+    "deleteTrip"
+  ],
+  "articles": [
+    {
+      "id": "ADM-012-T01",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Add a Broker Trip Manually",
+      "summary": "Add a Broker Trip Manually",
+      "keywords": [
+        "add broker trip",
+        "broker trip",
+        "external trip",
+        "external trips",
+        "external trips hub",
+        "manual broker trip"
+      ],
+      "steps": [
+        "Open External Trips Hub.",
+        "Click Add Trip.",
+        "Choose Broker and Service.",
+        "Enter Broker Trip ID, date/times, passenger details, pickup, stops, drop-off, and notes.",
+        "Click Save Trip."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-012-T02",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Add or Remove Broker Trip Stops",
+      "summary": "Add or Remove Broker Trip Stops",
+      "keywords": [
+        "add stop",
+        "broker stop",
+        "external stops",
+        "external trips",
+        "external trips hub",
+        "remove stop"
+      ],
+      "steps": [
+        "Open Add/Edit Trip.",
+        "Use Add Stop to add intermediate stops up to the page limit.",
+        "Remove an unwanted stop before saving.",
+        "Save Trip."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-012-T03",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Edit an External Broker Trip",
+      "summary": "Edit an External Broker Trip",
+      "keywords": [
+        "change broker address",
+        "change broker time",
+        "edit broker trip",
+        "edit external trip",
+        "external trips",
+        "external trips hub"
+      ],
+      "steps": [
+        "Open External Trips Hub.",
+        "Locate the trip.",
+        "Open Edit.",
+        "Change the allowed trip fields.",
+        "Save Trip."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-012-T04",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Filter External Trips",
+      "summary": "Filter External Trips",
+      "keywords": [
+        "error",
+        "external trips",
+        "external trips hub",
+        "filter broker",
+        "held",
+        "ready",
+        "received",
+        "refresh",
+        "rejected",
+        "updated"
+      ],
+      "steps": [
+        "Use Broker, Status, and Search filters.",
+        "Use Refresh when you need the latest intake state."
+      ],
+      "warnings": [
+        "Broker Contract must be enabled."
+      ],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "pageId": "ADM-021",
+  "pageTitle": "Shared Engine Settings",
+  "pageFile": "shared-engine-settings.html",
+  "module": "Shared Engine",
+  "roles": [
+    "ADMIN",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "SHARED",
+  "sourceFiles": [
+    "server/public/admin/shared-engine-settings.html",
+    "server/public/admin/header.js",
+    "server/public/admin/js/sharedEngineSettings.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "setStatus",
+    "setAdvancedEditable",
+    "selectMode",
+    "payload",
+    "load",
+    "save"
+  ],
+  "articles": [
+    {
+      "id": "ADM-021-T01",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "Choose Shared Engine Profile",
+      "summary": "Choose Shared Engine Profile",
+      "keywords": [
+        "custom",
+        "long distance",
+        "medium distance",
+        "shared engine settings",
+        "shared profile",
+        "short distance"
+      ],
+      "steps": [
+        "Open Shared Engine Settings.",
+        "Choose Long Distance, Medium Distance, Short Distance, or Custom.",
+        "Review the populated grouping limits.",
+        "Save Shared Engine."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-021-T02",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "Change Shared Group Limits",
+      "summary": "Change Shared Group Limits",
+      "keywords": [
+        "appointment buffer",
+        "extra ride",
+        "max group distance",
+        "max riders",
+        "pickup tolerance",
+        "shared engine settings"
+      ],
+      "steps": [
+        "Edit Max Group Distance, Max Extra Ride Distance/Time, appointment/pickup tolerances, and Max Riders Per Group.",
+        "Click Save Shared Engine."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-021-T03",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "Configure Shared Priorities",
+      "summary": "Configure Shared Priorities",
+      "keywords": [
+        "grouping priority",
+        "same dropoff",
+        "same pickup",
+        "shared engine settings",
+        "shared priority"
+      ],
+      "steps": [
+        "Set Grouping Priority, Same Pickup Priority, and Same Drop-off Priority.",
+        "Save Shared Engine."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-021-T04",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "Choose Shared Trip Sources",
+      "summary": "Choose Shared Trip Sources",
+      "keywords": [
+        "broker shared",
+        "company shared",
+        "reserved shared",
+        "shared engine settings",
+        "trip sources"
+      ],
+      "steps": [
+        "Enable or disable Company Trips, Reserved Trips, and Broker Trips as required.",
+        "Save Shared Engine."
+      ],
+      "warnings": [
+        "This page is visible only when SHARED is enabled for the tenant."
+      ],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    }
+  ]
+}

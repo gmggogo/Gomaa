@@ -1,0 +1,401 @@
+{
+  "pageId": "ADM-020",
+  "pageTitle": "Service Management",
+  "pageFile": "service-management.html",
+  "module": "Service Management",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/service-management.html",
+    "server/public/admin/header.js",
+    "server/public/admin/service-management.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/services/${id}",
+    "/api/services/admin",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "statusClass",
+    "addStopClass",
+    "optionSelected",
+    "enabledStatusText",
+    "editAttr",
+    "selectField",
+    "onOffSelect",
+    "pricingModeSelect",
+    "hourlyModeSelect",
+    "disableCancelSelect",
+    "addStopBlock",
+    "buildDriverTimerPayload",
+    "enableDriverTimerEdit",
+    "saveDriverTimerService",
+    "loadServices",
+    "enableSectionEdit",
+    "updateVisualSelect",
+    "forceNoAddStopForShared",
+    "buildGetQuotePayload",
+    "buildFacilityPayload",
+    "buildReservedPayload",
+    "saveSectionService"
+  ],
+  "articles": [
+    {
+      "id": "ADM-020-T01",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit Service Pricing",
+      "summary": "Edit Service Pricing",
+      "keywords": [
+        "base fare",
+        "edit service",
+        "hourly",
+        "per mile",
+        "pricing",
+        "service management",
+        "shared price"
+      ],
+      "steps": [
+        "Open Service Management.",
+        "Open Edit for the required service/source section.",
+        "Change the permitted pricing fields.",
+        "Save the service section."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T02",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Change Cancellation Policy",
+      "summary": "Change Cancellation Policy",
+      "keywords": [
+        "cancel policy",
+        "cancellation fee",
+        "disable cancel",
+        "service management",
+        "service policy"
+      ],
+      "steps": [
+        "Open the service/source section in Edit mode.",
+        "Change cancellation settings or cancellation fee.",
+        "Save the section."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T03",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Change Warning Window",
+      "summary": "Change Warning Window",
+      "keywords": [
+        "booking warning",
+        "service management",
+        "warning minutes",
+        "warning window"
+      ],
+      "steps": [
+        "Open the required service/source settings.",
+        "Change Warning Minutes.",
+        "Save the section."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T04",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Configure Add Stop Policy",
+      "summary": "Configure Add Stop Policy",
+      "keywords": [
+        "add stop enabled",
+        "add stop policy",
+        "custom time",
+        "cutoff minutes",
+        "service management"
+      ],
+      "steps": [
+        "Open the required service/source section.",
+        "Enable or disable Add Stop and its supported timing/cutoff settings.",
+        "Save the section."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T05",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit Driver Timer Settings",
+      "summary": "Edit Driver Timer Settings",
+      "keywords": [
+        "driver timer",
+        "service management",
+        "service timer",
+        "timer settings"
+      ],
+      "steps": [
+        "Open the relevant service timer settings.",
+        "Enable timer editing.",
+        "Update the timer values.",
+        "Save Driver Timer settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    }
+  ]
+}
