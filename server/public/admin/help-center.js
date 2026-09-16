@@ -9,7 +9,14 @@ const HelpCenter = (()=>{
     brokerEnabled:false,
     sharedEnabled:false,
     page:"",
-    lang:localStorage.getItem("ghHelpLanguage") || "en"
+    lang:localStorage.getItem("ghHelpLanguage") || "en",
+    support:{
+      loaded:false,
+      identity:null,
+      conversations:[],
+      activeId:"",
+      pollTimer:null
+    }
   };
 
   const $ = id=>document.getElementById(id);
@@ -724,11 +731,687 @@ const HelpCenter = (()=>{
     });
   }
 
+
+  /* =========================
+     PLATFORM SUPPORT
+  ========================= */
+
+  function supportToken(){
+    return String(
+      sessionStorage.getItem("staffToken") ||
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
+  }
+
+  function supportHeaders(
+    json=false
+  ){
+    const headers = {
+      Authorization:
+        "Bearer " +
+        supportToken()
+    };
+
+    if(json){
+      headers["Content-Type"] =
+        "application/json";
+    }
+
+    return headers;
+  }
+
+  async function supportApi(
+    url,
+    options={}
+  ){
+    const response =
+      await fetch(
+        url,
+        {
+          cache:"no-store",
+          ...options,
+          headers:{
+            ...supportHeaders(
+              !!options.body
+            ),
+            ...(options.headers || {})
+          }
+        }
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(
+        data?.message ||
+        "Support request failed"
+      );
+    }
+
+    return data;
+  }
+
+  function supportDate(
+    value
+  ){
+    if(!value){
+      return "";
+    }
+
+    try{
+      return new Date(
+        value
+      ).toLocaleString();
+    }catch(err){
+      return "";
+    }
+  }
+
+  function supportPhoneHtml(
+    value
+  ){
+    const phone =
+      clean(
+        value
+      );
+
+    if(!phone){
+      return "Not Available";
+    }
+
+    return (
+      `<a href="tel:${escapeHtml(phone)}">` +
+      `${escapeHtml(phone)}</a>`
+    );
+  }
+
+  async function loadSupportIdentity(){
+    const data =
+      await supportApi(
+        "/api/platform-support/tenant/me"
+      );
+
+    state.support.identity =
+      data.identity || {};
+
+    if($("supportCompanyName")){
+      $("supportCompanyName").textContent =
+        state.support.identity.tenantName ||
+        "-";
+    }
+
+    if($("supportCompanyPhone")){
+      $("supportCompanyPhone").innerHTML =
+        supportPhoneHtml(
+          state.support.identity.companyPhone
+        );
+    }
+
+    if($("supportUserName")){
+      $("supportUserName").textContent =
+        state.support.identity.userName ||
+        "-";
+    }
+
+    if($("supportUserRole")){
+      $("supportUserRole").textContent =
+        state.support.identity.userRole ||
+        "-";
+    }
+
+    if($("supportUserPhone")){
+      $("supportUserPhone").innerHTML =
+        supportPhoneHtml(
+          state.support.identity.userPhone
+        );
+    }
+  }
+
+  async function loadSupportUnread(){
+    try{
+      const data =
+        await supportApi(
+          "/api/platform-support/unread-count"
+        );
+
+      const count =
+        Math.max(
+          0,
+          Number(
+            data.count ||
+            0
+          )
+        );
+
+      const badge =
+        $("platformSupportUnreadBadge");
+
+      if(!badge){
+        return;
+      }
+
+      badge.textContent =
+        String(count);
+
+      badge.classList.toggle(
+        "show",
+        count > 0
+      );
+
+    }catch(err){
+      /* Keep Help Center working even if Support API is not mounted yet. */
+    }
+  }
+
+  async function loadSupportList(){
+    const data =
+      await supportApi(
+        "/api/platform-support/tenant/conversations"
+      );
+
+    state.support.conversations =
+      Array.isArray(
+        data.conversations
+      )
+        ? data.conversations
+        : [];
+
+    renderSupportList();
+  }
+
+  function renderSupportList(){
+    const host =
+      $("supportConversationList");
+
+    if(!host){
+      return;
+    }
+
+    if(
+      !state.support
+        .conversations
+        .length
+    ){
+      host.innerHTML =
+        `<div style="padding:12px;text-align:center;color:#718096;font-size:12px">No support conversations yet.</div>`;
+      return;
+    }
+
+    host.innerHTML =
+      state.support
+        .conversations
+        .map(
+          conversation=>`
+            <div
+              class="support-conversation-item ${
+                String(
+                  conversation._id
+                ) ===
+                state.support.activeId
+                  ? "active"
+                  : ""
+              }"
+              data-support-id="${escapeHtml(conversation._id)}">
+
+              <div class="support-conversation-title">
+                ${escapeHtml(conversation.subject)}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(conversation.status || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(supportDate(conversation.lastMessageAt))}
+              </div>
+
+              ${
+                Number(
+                  conversation.tenantUnreadCount ||
+                  0
+                ) > 0
+                  ? `<div class="support-conversation-meta"><b>${Number(conversation.tenantUnreadCount)} new reply</b></div>`
+                  : ""
+              }
+            </div>
+          `
+        )
+        .join("");
+
+    host
+      .querySelectorAll(
+        "[data-support-id]"
+      )
+      .forEach(
+        item=>{
+          item.addEventListener(
+            "click",
+            ()=>{
+              openSupportConversation(
+                item.dataset.supportId
+              );
+            }
+          );
+        }
+      );
+  }
+
+  function renderSupportMessages(
+    messages
+  ){
+    const host =
+      $("supportMessages");
+
+    if(!host){
+      return;
+    }
+
+    host.innerHTML =
+      (Array.isArray(messages)
+        ? messages
+        : []
+      )
+        .map(
+          message=>{
+            const platform =
+              message.senderType ===
+              "PLATFORM_ADMIN";
+
+            return `
+              <div class="support-message ${platform ? "platform" : "tenant"}">
+                <div class="support-message-meta">
+                  ${escapeHtml(message.senderName || (platform ? "Platform Admin" : "Staff"))}
+                  · ${escapeHtml(message.senderRole || "")}
+                  · ${escapeHtml(supportDate(message.createdAt))}
+                </div>
+
+                <div class="support-message-text">
+                  ${escapeHtml(message.message)}
+                </div>
+              </div>
+            `;
+          }
+        )
+        .join("");
+
+    host.scrollTop =
+      host.scrollHeight;
+  }
+
+  async function openSupportConversation(
+    conversationId
+  ){
+    const id =
+      clean(
+        conversationId
+      );
+
+    if(!id){
+      return;
+    }
+
+    state.support.activeId =
+      id;
+
+    const data =
+      await supportApi(
+        "/api/platform-support/conversations/" +
+        encodeURIComponent(
+          id
+        )
+      );
+
+    if($("supportChatEmpty")){
+      $("supportChatEmpty")
+        .style.display =
+        "none";
+    }
+
+    if($("supportChatView")){
+      $("supportChatView")
+        .classList
+        .add("show");
+    }
+
+    if($("supportChatSubject")){
+      $("supportChatSubject").textContent =
+        data.conversation?.subject ||
+        "Support Conversation";
+    }
+
+    if($("supportChatStatus")){
+      $("supportChatStatus").textContent =
+        "Status: " +
+        (
+          data.conversation?.status ||
+          "-"
+        );
+    }
+
+    renderSupportMessages(
+      data.messages ||
+      []
+    );
+
+    await Promise.all([
+      loadSupportList(),
+      loadSupportUnread()
+    ]);
+  }
+
+  function showSupportNewModal(){
+    if($("supportNewSubject")){
+      $("supportNewSubject").value =
+        "";
+    }
+
+    if($("supportNewMessage")){
+      $("supportNewMessage").value =
+        "";
+    }
+
+    $("supportNewConversationModal")
+      ?.classList
+      .add("show");
+  }
+
+  function hideSupportNewModal(){
+    $("supportNewConversationModal")
+      ?.classList
+      .remove("show");
+  }
+
+  async function startSupportConversation(){
+    const subject =
+      clean(
+        $("supportNewSubject")?.value
+      );
+
+    const message =
+      clean(
+        $("supportNewMessage")?.value
+      );
+
+    if(!subject){
+      alert(
+        "Subject is required"
+      );
+      return;
+    }
+
+    if(!message){
+      alert(
+        "Describe your issue"
+      );
+      return;
+    }
+
+    const button =
+      $("supportStartNewBtn");
+
+    if(button){
+      button.disabled =
+        true;
+    }
+
+    try{
+      const data =
+        await supportApi(
+          "/api/platform-support/tenant/conversations",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              subject,
+              message
+            })
+          }
+        );
+
+      hideSupportNewModal();
+
+      await loadSupportList();
+
+      if(
+        data.conversation?._id
+      ){
+        await openSupportConversation(
+          data.conversation._id
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      if(button){
+        button.disabled =
+          false;
+      }
+    }
+  }
+
+  async function sendSupportMessage(){
+    const message =
+      clean(
+        $("supportMessageInput")?.value
+      );
+
+    if(
+      !message ||
+      !state.support.activeId
+    ){
+      return;
+    }
+
+    const button =
+      $("supportSendMessageBtn");
+
+    if(button){
+      button.disabled =
+        true;
+    }
+
+    try{
+      await supportApi(
+        "/api/platform-support/conversations/" +
+        encodeURIComponent(
+          state.support.activeId
+        ) +
+        "/messages",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            message
+          })
+        }
+      );
+
+      if($("supportMessageInput")){
+        $("supportMessageInput").value =
+          "";
+      }
+
+      await openSupportConversation(
+        state.support.activeId
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      if(button){
+        button.disabled =
+          false;
+      }
+    }
+  }
+
+  async function loadSupportPanel(){
+    if(
+      !state.support.loaded
+    ){
+      await Promise.all([
+        loadSupportIdentity(),
+        loadSupportList(),
+        loadSupportUnread()
+      ]);
+
+      state.support.loaded =
+        true;
+    }
+  }
+
+  async function openSupportPanel(){
+    const panel =
+      $("platformSupportPanel");
+
+    if(!panel){
+      return;
+    }
+
+    panel.hidden =
+      false;
+
+    try{
+      await loadSupportPanel();
+
+      panel.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
+
+    }catch(err){
+      alert(
+        err.message ||
+        "Platform Support failed to load"
+      );
+    }
+  }
+
+  function closeSupportPanel(){
+    const panel =
+      $("platformSupportPanel");
+
+    if(panel){
+      panel.hidden =
+        true;
+    }
+  }
+
+  function startSupportPolling(){
+    clearInterval(
+      state.support.pollTimer
+    );
+
+    state.support.pollTimer =
+      setInterval(
+        async ()=>{
+          try{
+            await loadSupportUnread();
+
+            if(
+              !state.support.loaded
+            ){
+              return;
+            }
+
+            await loadSupportList();
+
+            if(
+              state.support.activeId
+            ){
+              await openSupportConversation(
+                state.support.activeId
+              );
+            }
+
+          }catch(err){
+            /* Silent polling failure. */
+          }
+        },
+        12000
+      );
+  }
+
+  function bindSupport(){
+    $("openPlatformSupportBtn")
+      ?.addEventListener(
+        "click",
+        openSupportPanel
+      );
+
+    $("closePlatformSupportBtn")
+      ?.addEventListener(
+        "click",
+        closeSupportPanel
+      );
+
+    $("supportNewConversationBtn")
+      ?.addEventListener(
+        "click",
+        showSupportNewModal
+      );
+
+    $("supportCancelNewBtn")
+      ?.addEventListener(
+        "click",
+        hideSupportNewModal
+      );
+
+    $("supportStartNewBtn")
+      ?.addEventListener(
+        "click",
+        startSupportConversation
+      );
+
+    $("supportSendMessageBtn")
+      ?.addEventListener(
+        "click",
+        sendSupportMessage
+      );
+
+    $("supportMessageInput")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+            event.preventDefault();
+            sendSupportMessage();
+          }
+        }
+      );
+
+    $("supportNewConversationModal")
+      ?.addEventListener(
+        "click",
+        event=>{
+          if(
+            event.target ===
+            $("supportNewConversationModal")
+          ){
+            hideSupportNewModal();
+          }
+        }
+      );
+  }
+
   function bind(){
     $("helpSearch")?.addEventListener("input",renderResults);
     $("helpPageFilter")?.addEventListener("change",e=>choosePage(e.target.value || ""));
     $("clearPageFilter")?.addEventListener("click",()=>choosePage(""));
     $("helpLanguage")?.addEventListener("change",e=>setLanguage(e.target.value));
+    bindSupport();
   }
 
 
@@ -990,6 +1673,9 @@ const HelpCenter = (()=>{
       if($("helpLanguage")) $("helpLanguage").value = state.lang;
       setLanguage(state.lang);
       applyVisualTheme();
+
+      loadSupportUnread();
+      startSupportPolling();
 
       const observer =
         new MutationObserver(
