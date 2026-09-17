@@ -347,6 +347,511 @@ function chunk(items,size=MAX_BATCH){
   return out;
 }
 
+function hasStops(trip){
+  return (
+    Array.isArray(trip?.stops) &&
+    trip.stops.length > 0
+  );
+}
+
+function isReturnTrip(trip){
+  const number =
+    upper(
+      trip?.ghExternalTripNumber ||
+      trip?.externalTripNumber ||
+      trip?.tripNumber ||
+      ""
+    );
+
+  const brokerTripId =
+    upper(
+      trip?.externalTripId ||
+      trip?.brokerTripId ||
+      ""
+    );
+
+  const brokerStatus =
+    upper(
+      trip?.brokerStatus ||
+      ""
+    );
+
+  return (
+    number.endsWith("-R") ||
+    brokerTripId.endsWith("-R") ||
+    brokerStatus === "RETURN" ||
+    trip?.isReturnTrip === true ||
+    upper(trip?.tripLeg) === "RETURN"
+  );
+}
+
+function isOnCallReturnTrip(trip){
+  const time =
+    upper(
+      trip?.tripTime ||
+      trip?.pickupTime ||
+      ""
+    )
+      .replace(/\s+/g," ");
+
+  return (
+    isReturnTrip(trip) &&
+    [
+      "ON CALL",
+      "ON-CALL",
+      "WILL CALL",
+      "WILL-CALL"
+    ].includes(time)
+  );
+}
+
+function shareEligibleBrokerTrip(trip){
+  return (
+    !hasStops(trip) &&
+    !isOnCallReturnTrip(trip) &&
+    trip?.tripSplitConfirmed !== true
+  );
+}
+
+async function loadTripSplit(
+  baseUrl,
+  token
+){
+  return await apiRequest(
+    baseUrl,
+    token,
+    "/api/trip-split/bootstrap",
+    "GET"
+  );
+}
+
+async function loadBrokerReview(
+  baseUrl,
+  token
+){
+  return await apiRequest(
+    baseUrl,
+    token,
+    "/api/broker-review/bootstrap",
+    "GET"
+  );
+}
+
+async function processBrokerTripSplit(
+  settings,
+  baseUrl,
+  token
+){
+  const brokerAuto =
+    settings.brokerAutopilot === true;
+
+  const brokerSharedAuto =
+    settings.brokerSharedAutopilot === true;
+
+  if(
+    !brokerAuto &&
+    !brokerSharedAuto
+  ){
+    return {
+      sharedBuilt:0,
+      splitConfirmed:0
+    };
+  }
+
+  let data =
+    await loadTripSplit(
+      baseUrl,
+      token
+    );
+
+  if(
+    data?.capabilities
+      ?.brokerContractEnabled !== true
+  ){
+    return {
+      sharedBuilt:0,
+      splitConfirmed:0
+    };
+  }
+
+  let sharedBuilt = 0;
+  let splitConfirmed = 0;
+  let shareAttemptFailed = false;
+
+  /*
+    BROKER SHARED AUTOPILOT
+
+    Same human sequence as Trip Split:
+      select eligible Original trips -> Share
+
+    The existing Shared Engine decides which selected trips actually form
+    shared groups. Trips not matched by the engine become persistent
+    Individual trips.
+  */
+  if(
+    brokerSharedAuto &&
+    data?.capabilities
+      ?.sharedServiceEnabled === true
+  ){
+    const eligibleOriginals =
+      Array.isArray(
+        data.originalTrips
+      )
+        ? data.originalTrips
+            .filter(
+              shareEligibleBrokerTrip
+            )
+        : [];
+
+    const shareIds =
+      eligibleOriginals
+        .map(
+          trip=>
+            clean(
+              trip?._id ||
+              trip?.id
+            )
+        )
+        .filter(Boolean);
+
+    if(shareIds.length >= 2){
+      try{
+        const result =
+          await apiRequest(
+            baseUrl,
+            token,
+            "/api/trip-split/share",
+            "POST",
+            {
+              tripIds:shareIds
+            }
+          );
+
+        sharedBuilt =
+          Array.isArray(
+            result?.groups
+          )
+            ? result.groups.length
+            : 0;
+
+        /*
+          Reload after Share because the Shared Engine moves records between
+          Original / Individual / Shared buckets.
+        */
+        data =
+          await loadTripSplit(
+            baseUrl,
+            token
+          );
+
+      }catch(err){
+        shareAttemptFailed = true;
+
+        console.log(
+          "AUTOPILOT BROKER SHARE ERROR:",
+          String(
+            settings.tenantId
+          ),
+          err?.message || err
+        );
+      }
+    }
+  }
+
+  /*
+    SHARED GROUP CONFIRM
+
+    Same human command as Trip Split -> Shared tab -> Confirm.
+    Only Broker Shared Autopilot can move shared groups to Broker Review.
+  */
+  if(brokerSharedAuto){
+    const groups =
+      Array.isArray(data?.groups)
+        ? data.groups
+        : [];
+
+    const groupPayload =
+      groups
+        .map(group=>({
+          groupId:
+            clean(
+              group?.groupId
+            )
+        }))
+        .filter(
+          group=>
+            Boolean(
+              group.groupId
+            )
+        );
+
+    if(groupPayload.length){
+      try{
+        const result =
+          await apiRequest(
+            baseUrl,
+            token,
+            "/api/trip-split/confirm",
+            "POST",
+            {
+              groups:
+                groupPayload
+            }
+          );
+
+        splitConfirmed +=
+          Number(
+            result?.confirmedCount ||
+            groupPayload.length
+          );
+
+        data =
+          await loadTripSplit(
+            baseUrl,
+            token
+          );
+
+      }catch(err){
+        console.log(
+          "AUTOPILOT BROKER SHARED SPLIT CONFIRM ERROR:",
+          String(
+            settings.tenantId
+          ),
+          err?.message || err
+        );
+      }
+    }
+  }
+
+  /*
+    NORMAL BROKER AUTOPILOT
+
+    Same human command as Trip Split -> Original / Individual -> Confirm.
+
+    When Shared Autopilot is also Active:
+    - Shared is attempted FIRST.
+    - matched trips have already moved into Shared groups.
+    - unmatched trips are now in Individual.
+    - trips with Stops / ON CALL cannot be shared and may continue normally.
+
+    If the Share request itself failed, share-eligible Original trips are NOT
+    forced through as Individual in this cycle. They remain for the next
+    Shared retry instead of silently bypassing Shared Autopilot.
+  */
+  if(brokerAuto){
+    const originalTrips =
+      Array.isArray(
+        data?.originalTrips
+      )
+        ? data.originalTrips
+        : [];
+
+    const individualTrips =
+      Array.isArray(
+        data?.individualTrips
+      )
+        ? data.individualTrips
+        : [];
+
+    const normalOriginals =
+      originalTrips.filter(
+        trip=>
+          !(
+            brokerSharedAuto &&
+            shareAttemptFailed &&
+            shareEligibleBrokerTrip(
+              trip
+            )
+          )
+      );
+
+    const tripIds =
+      [
+        ...normalOriginals,
+        ...individualTrips
+      ]
+        .map(
+          trip=>
+            clean(
+              trip?._id ||
+              trip?.id
+            )
+        )
+        .filter(Boolean);
+
+    if(tripIds.length){
+      try{
+        const result =
+          await apiRequest(
+            baseUrl,
+            token,
+            "/api/trip-split/confirm",
+            "POST",
+            {
+              tripIds
+            }
+          );
+
+        splitConfirmed +=
+          Number(
+            result?.confirmedCount ||
+            tripIds.length
+          );
+
+      }catch(err){
+        console.log(
+          "AUTOPILOT BROKER NORMAL SPLIT CONFIRM ERROR:",
+          String(
+            settings.tenantId
+          ),
+          err?.message || err
+        );
+      }
+    }
+  }
+
+  return {
+    sharedBuilt,
+    splitConfirmed
+  };
+}
+
+async function processBrokerReview(
+  settings,
+  baseUrl,
+  token
+){
+  const brokerAuto =
+    settings.brokerAutopilot === true;
+
+  const brokerSharedAuto =
+    settings.brokerSharedAutopilot === true;
+
+  if(
+    !brokerAuto &&
+    !brokerSharedAuto
+  ){
+    return {
+      reviewReleased:0
+    };
+  }
+
+  const data =
+    await loadBrokerReview(
+      baseUrl,
+      token
+    );
+
+  const items =
+    Array.isArray(data?.items)
+      ? data.items
+      : [];
+
+  const ids =
+    items
+      .filter(item=>{
+        if(
+          item?.reviewConfirmed === true
+        ){
+          return false;
+        }
+
+        const shared =
+          upper(
+            item?.processingMode
+          ) === "SHARED";
+
+        return shared
+          ? brokerSharedAuto
+          : brokerAuto;
+      })
+      .map(
+        item=>
+          clean(
+            item?.dispatchTripId ||
+            item?.id
+          )
+      )
+      .filter(Boolean);
+
+  if(!ids.length){
+    return {
+      reviewReleased:0
+    };
+  }
+
+  let reviewReleased = 0;
+
+  for(
+    const batch of chunk(ids)
+  ){
+    try{
+      const result =
+        await apiRequest(
+          baseUrl,
+          token,
+          "/api/broker-review/confirm-selected",
+          "POST",
+          {
+            dispatchTripIds:
+              batch
+          }
+        );
+
+      reviewReleased +=
+        Number(
+          result
+            ?.dispatchReleasedCount ||
+          result
+            ?.confirmedCount ||
+          batch.length
+        );
+
+    }catch(err){
+      console.log(
+        "AUTOPILOT BROKER REVIEW CONFIRM ERROR:",
+        String(
+          settings.tenantId
+        ),
+        err?.message || err
+      );
+    }
+  }
+
+  return {
+    reviewReleased
+  };
+}
+
+async function processBrokerPipeline(
+  settings,
+  baseUrl,
+  token
+){
+  const split =
+    await processBrokerTripSplit(
+      settings,
+      baseUrl,
+      token
+    );
+
+  /*
+    Broker Review must be loaded AFTER Trip Split confirmation because
+    Trip Split creates the Dispatch Trip and Review state.
+  */
+  const review =
+    await processBrokerReview(
+      settings,
+      baseUrl,
+      token
+    );
+
+  return {
+    ...split,
+    ...review
+  };
+}
+
 async function dispatchTenant(
   settings,
   baseUrl,
@@ -779,6 +1284,17 @@ async function runCycle(
           settings.tenantId
         );
 
+      /*
+        Broker Autopilot runs the same human Broker Operations sequence first:
+          Trip Split -> Broker Review -> Dispatch
+      */
+      const broker =
+        await processBrokerPipeline(
+          settings,
+          baseUrl,
+          token
+        );
+
       const dispatch =
         await dispatchTenant(
           settings,
@@ -794,6 +1310,9 @@ async function runCycle(
         );
 
       if(
+        broker.sharedBuilt ||
+        broker.splitConfirmed ||
+        broker.reviewReleased ||
         dispatch.assigned ||
         dispatch.sent ||
         final.confirmed
@@ -804,6 +1323,12 @@ async function runCycle(
             settings.tenantId
           ),
           {
+            brokerSharedBuilt:
+              broker.sharedBuilt,
+            brokerSplitConfirmed:
+              broker.splitConfirmed,
+            brokerReviewReleased:
+              broker.reviewReleased,
             assigned:
               dispatch.assigned,
             sent:
