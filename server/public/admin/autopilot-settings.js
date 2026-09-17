@@ -73,17 +73,57 @@ Autopilot Settings page controller.
   }
 
   function applyVisibility(){
-    el("brokerAutopilotCard")
+    const brokerCard =
+      el("brokerAutopilotCard");
+
+    const brokerSharedCard =
+      el("brokerSharedAutopilotCard");
+
+    brokerCard
       ?.classList.toggle(
         "hidden",
         !state.brokerContractEnabled
       );
 
-    el("brokerSharedAutopilotCard")
+    brokerSharedCard
       ?.classList.toggle(
         "hidden",
         !state.brokerSharedAvailable
       );
+
+    const grid =
+      document.querySelector(
+        ".autopilot-grid"
+      );
+
+    if(grid){
+      const visibleCount =
+        [
+          el("companyAutopilotCard"),
+          brokerCard,
+          brokerSharedCard
+        ].filter(
+          card=>
+            card &&
+            !card.classList.contains(
+              "hidden"
+            )
+        ).length;
+
+      grid.classList.remove(
+        "one-card",
+        "two-cards",
+        "three-cards"
+      );
+
+      grid.classList.add(
+        visibleCount === 1
+          ? "one-card"
+          : visibleCount === 2
+            ? "two-cards"
+            : "three-cards"
+      );
+    }
   }
 
   function applyPermissions(){
