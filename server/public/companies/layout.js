@@ -503,6 +503,79 @@ document.head.appendChild(
   companyHelpAlertStyle
 );
 
+let latestCompanySupportUnreadCount =
+  0;
+
+function companyHelpSeenStorageKey(){
+  const scope =
+    String(
+      getCompanyTenantSlug() ||
+      localStorage.getItem("companyTenantId") ||
+      sessionStorage.getItem("companyTenantId") ||
+      "company"
+    )
+      .trim()
+      .toLowerCase();
+
+  return (
+    "companySupportSeenCount:" +
+    scope
+  );
+}
+
+function getCompanySupportSeenCount(){
+  return Math.max(
+    0,
+    Number(
+      sessionStorage.getItem(
+        companyHelpSeenStorageKey()
+      ) ||
+      0
+    )
+  );
+}
+
+function setCompanySupportSeenCount(
+  value
+){
+  sessionStorage.setItem(
+    companyHelpSeenStorageKey(),
+    String(
+      Math.max(
+        0,
+        Number(value || 0)
+      )
+    )
+  );
+}
+
+function clearCompanyHelpAlert(){
+  const helpLink =
+    document.getElementById(
+      "companyHelpNav"
+    );
+
+  if(!helpLink){
+    return;
+  }
+
+  setCompanySupportSeenCount(
+    latestCompanySupportUnreadCount
+  );
+
+  helpLink.classList.remove(
+    "company-help-unread"
+  );
+
+  helpLink
+    .querySelectorAll(
+      ".company-help-badge"
+    )
+    .forEach(
+      badge=>badge.remove()
+    );
+}
+
 async function refreshCompanySupportUnread(){
   const helpLink =
     document.getElementById(
@@ -543,9 +616,27 @@ async function refreshCompanySupportUnread(){
         )
       );
 
+    latestCompanySupportUnreadCount =
+      count;
+
+    if(count === 0){
+      setCompanySupportSeenCount(
+        0
+      );
+    }
+
+    const seenCount =
+      getCompanySupportSeenCount();
+
+    const visibleCount =
+      Math.max(
+        0,
+        count - seenCount
+      );
+
     helpLink.classList.toggle(
       "company-help-unread",
-      count > 0
+      visibleCount > 0
     );
 
     helpLink
@@ -556,7 +647,7 @@ async function refreshCompanySupportUnread(){
         badge=>badge.remove()
       );
 
-    if(count > 0){
+    if(visibleCount > 0){
       const badge =
         document.createElement(
           "b"
@@ -566,9 +657,11 @@ async function refreshCompanySupportUnread(){
         "company-help-badge";
 
       badge.textContent =
-        count > 99
+        visibleCount > 99
           ? "99+"
-          : String(count);
+          : String(
+              visibleCount
+            );
 
       helpLink.appendChild(
         badge
@@ -576,6 +669,20 @@ async function refreshCompanySupportUnread(){
     }
 
   }catch(err){}
+}
+
+const companyHelpNav =
+document.getElementById(
+  "companyHelpNav"
+);
+
+if(companyHelpNav){
+  companyHelpNav.addEventListener(
+    "click",
+    ()=>{
+      clearCompanyHelpAlert();
+    }
+  );
 }
 
 refreshCompanySupportUnread();
