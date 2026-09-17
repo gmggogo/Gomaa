@@ -970,6 +970,39 @@ async function autoAssign(options={}){
   }
 }
 
+async function isCompanyAutopilotActive(){
+  try{
+    const res =
+      await fetch(
+        "/api/autopilot-settings",
+        {
+          cache:"no-store",
+          headers:Store.headers(false)
+        }
+      );
+
+    if(!res.ok){
+      return false;
+    }
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    return (
+      data?.settings?.companyAutopilot === true ||
+      data?.companyAutopilot === true
+    );
+
+  }catch(err){
+    console.log(
+      "COMPANY AUTOPILOT STATUS ERROR:",
+      err?.message || err
+    );
+
+    return false;
+  }
+}
+
 async function autoAssignNewTrips(){
   if(
     SMART.enabled === false ||
@@ -980,7 +1013,78 @@ async function autoAssignNewTrips(){
     return;
   }
 
+  /*
+    Keep the existing Smart Dispatch behavior:
+    automatically assign new trips when Smart Dispatch allows it.
+  */
+  const candidateIds = trips
+    .filter(trip=>
+      !clean(trip.driverId) &&
+      !isSentTrip(trip) &&
+      !isTripInProgress(trip)
+    )
+    .map(trip=>String(trip._id));
+
   await autoAssign({silent:true});
+
+  /*
+    IMPORTANT:
+    Sending to the driver is allowed ONLY when the NEW Company Autopilot
+    setting is Active. When Autopilot is Not Active, Dispatch stops at
+    Assigned exactly like the existing manual workflow.
+  */
+  const autopilotActive =
+    await isCompanyAutopilotActive();
+
+  if(!autopilotActive){
+    return;
+  }
+
+  const newlyAssignedIds = trips
+    .filter(trip=>
+      candidateIds.includes(String(trip._id)) &&
+      clean(trip.driverId) &&
+      !isSentTrip(trip) &&
+      !isTripInProgress(trip)
+    )
+    .map(trip=>String(trip._id));
+
+  if(!newlyAssignedIds.length){
+    return;
+  }
+
+  try{
+    const result =
+      await Store.sendTrips(
+        newlyAssignedIds
+      );
+
+    if(
+      !result ||
+      result.success === false
+    ){
+      console.log(
+        "AUTOPILOT AUTO SEND FAILED:",
+        result?.message ||
+        "Unknown error"
+      );
+
+      return;
+    }
+
+    await loadAll();
+    renderAll();
+
+    toast(
+      `${newlyAssignedIds.length} trip(s) automatically sent by Autopilot`
+    );
+
+  }catch(err){
+    console.log(
+      "AUTOPILOT AUTO SEND ERROR:",
+      err?.message || err
+    );
+  }
 }
 
 async function saveAssignment(trip,driverId,manual=true){

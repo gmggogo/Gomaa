@@ -13,6 +13,7 @@
 const API_URL = "/api/dispatch-final-confirmation";
 const SERVICES_URL = "/api/services/admin";
 const BROKER_CAPABILITY_URL = "/api/shared-engine/settings";
+const AUTOPILOT_SETTINGS_URL = "/api/autopilot-settings";
 
 const role = localStorage.getItem("role") || "";
 const token = localStorage.getItem("token") || "";
@@ -45,6 +46,13 @@ let activeStatus = "ALL";
 let refreshTimer = null;
 let tripCounter = 1;
 let brokerFeatureEnabled = false;
+let autopilotFinalRunning = false;
+
+const autopilotState = {
+  companyAutopilot:false,
+  brokerAutopilot:false,
+  brokerSharedAutopilot:false
+};
 
 const CONFIRM_HOURS = 12;
 
@@ -1127,6 +1135,56 @@ async function loadBrokerCapability(){
     if(activeSource === "BROKER"){
       activeSource = "ALL";
     }
+  }
+}
+
+async function loadAutopilotSettings(){
+  try{
+    const res =
+      await fetch(
+        AUTOPILOT_SETTINGS_URL,
+        {
+          cache:"no-store",
+          headers:
+            token
+              ? {
+                  Authorization:
+                    "Bearer " + token
+                }
+              : {}
+        }
+      );
+
+    if(!res.ok){
+      throw new Error(
+        "Failed Autopilot settings"
+      );
+    }
+
+    const data =
+      await res.json();
+
+    const settings =
+      data?.settings || {};
+
+    autopilotState.companyAutopilot =
+      settings.companyAutopilot === true;
+
+    autopilotState.brokerAutopilot =
+      settings.brokerAutopilot === true;
+
+    autopilotState.brokerSharedAutopilot =
+      settings.brokerSharedAutopilot === true;
+
+  }catch(err){
+    autopilotState.companyAutopilot = false;
+    autopilotState.brokerAutopilot = false;
+    autopilotState.brokerSharedAutopilot = false;
+
+    console.log(
+      "FINAL CONFIRMATION AUTOPILOT SETTINGS ERROR:",
+      err?.message || err
+    );
   }
 }
 
@@ -4022,6 +4080,169 @@ function renderSharedRow(item){
 }
 
 /* ===============================
+   AUTOPILOT FINAL CONFIRMATION
+
+   Uses the SAME confirm endpoints as the manual Confirm buttons.
+
+   Rules:
+   - Normal / Company trip -> Company Autopilot
+   - Broker single trip    -> Broker Autopilot
+   - Broker Shared trip    -> Broker Shared Autopilot
+
+   If the matching Autopilot switch is Not Active, nothing is confirmed
+   automatically and the page remains fully manual.
+================================ */
+
+function autopilotEnabledForTrip(
+  trip,
+  shared=false
+){
+  if(isBrokerTrip(trip)){
+    return shared
+      ? autopilotState
+          .brokerSharedAutopilot === true
+      : autopilotState
+          .brokerAutopilot === true;
+  }
+
+  return (
+    autopilotState
+      .companyAutopilot === true
+  );
+}
+
+async function runAutopilotFinalConfirmation(){
+  if(autopilotFinalRunning){
+    return;
+  }
+
+  const hasAnyAutopilot =
+    autopilotState.companyAutopilot === true ||
+    autopilotState.brokerAutopilot === true ||
+    autopilotState.brokerSharedAutopilot === true;
+
+  if(!hasAnyAutopilot){
+    return;
+  }
+
+  autopilotFinalRunning = true;
+
+  let confirmedCount = 0;
+
+  try{
+    const items =
+      buildDisplayItems(allTrips);
+
+    for(const item of items){
+
+      if(item.kind === "trip"){
+        const trip = item.trip;
+
+        if(
+          !trip ||
+          isTripConfirmed(trip) ||
+          !singleTripReadyForPage(trip) ||
+          !autopilotEnabledForTrip(
+            trip,
+            false
+          )
+        ){
+          continue;
+        }
+
+        const tripId =
+          getTripId(trip);
+
+        if(!tripId){
+          continue;
+        }
+
+        await patchSingleConfirm(
+          tripId,
+          {
+            status:
+              normalizeFinalStatusValue(
+                trip.status
+              ),
+            confirmedBy:
+              "GH Autopilot"
+          }
+        );
+
+        confirmedCount++;
+        continue;
+      }
+
+      const root =
+        item.group?.[0];
+
+      if(
+        !root ||
+        isSharedConfirmed(root) ||
+        !sharedTripReadyForPage(
+          item.group
+        ) ||
+        !autopilotEnabledForTrip(
+          root,
+          true
+        )
+      ){
+        continue;
+      }
+
+      const tripId =
+        getTripId(root);
+
+      if(!tripId){
+        continue;
+      }
+
+      const passengers =
+        Array.isArray(root.passengers)
+          ? root.passengers.map(
+              passenger=>({
+                ...passenger,
+                status:
+                  normalizeFinalStatusValue(
+                    passenger.status ||
+                    root.status
+                  )
+              })
+            )
+          : [];
+
+      await patchSharedConfirm(
+        tripId,
+        {
+          passengers,
+          confirmedBy:
+            "GH Autopilot"
+        }
+      );
+
+      confirmedCount++;
+    }
+
+    if(confirmedCount > 0){
+      await loadTrips();
+
+      console.log(
+        `GH AUTOPILOT FINAL CONFIRMATION: ${confirmedCount} item(s) confirmed`
+      );
+    }
+
+  }catch(err){
+    console.log(
+      "GH AUTOPILOT FINAL CONFIRMATION ERROR:",
+      err?.message || err
+    );
+
+  }finally{
+    autopilotFinalRunning = false;
+  }
+}
+
+/* ===============================
    EVENTS
 ================================ */
 
@@ -4109,10 +4330,17 @@ async function refreshEverything(){
 
   await Promise.all([
     loadServices(),
-    loadBrokerCapability()
+    loadBrokerCapability(),
+    loadAutopilotSettings()
   ]);
 
   await loadTrips();
+
+  /*
+    Final Confirmation stays manual unless the matching Autopilot switch
+    is Active for this trip source.
+  */
+  await runAutopilotFinalConfirmation();
 }
 
 (async function init(){
