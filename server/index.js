@@ -13193,8 +13193,20 @@ app.use(
 );
 
 /* =========================
+   GH AUTOPILOT BACKGROUND WORKER
+========================= */
+
+const {
+  startAutopilotWorker
+} = require("./services/autopilotWorker");
+
+/* =========================
    START SERVER
 ========================= */
 httpServer.listen(PORT, () => {
   console.log("🚀 Server running on port " + PORT);
+
+  startAutopilotWorker({
+    port:PORT
+  });
 });
