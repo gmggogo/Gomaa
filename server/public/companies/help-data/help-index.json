@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "order": [
+    "CH-001",
+    "CH-002",
+    "CH-003",
+    "CH-004",
+    "CH-005",
+    "CH-006"
+  ],
+  "pages": [
+    {
+      "id": "CH-001",
+      "page": "dashboard.html",
+      "name": "Dashboard",
+      "description": "Use the Dashboard to review the company\u2019s current trip activity, monthly performance, service totals, revenue, miles, and billing status.",
+      "file": "CH-001.json"
+    },
+    {
+      "id": "CH-002",
+      "page": "add-trip.html",
+      "name": "Add Trip",
+      "description": "Create Individual or Shared trips. Shared trips support Manual Shared and Automatic Shared modes, including Return Time and Shared Engine grouping.",
+      "file": "CH-002.json"
+    },
+    {
+      "id": "CH-003",
+      "page": "review.html",
+      "name": "Review",
+      "description": "Review company trips before final confirmation, make allowed changes, confirm trips, cancel trips when permitted, and handle route changes such as Add Stop.",
+      "file": "CH-003.json"
+    },
+    {
+      "id": "CH-004",
+      "page": "summary.html",
+      "name": "Summary",
+      "description": "Search and review company trip history, filter by service, view detailed trip information, and export or print reports.",
+      "file": "CH-004.json"
+    },
+    {
+      "id": "CH-005",
+      "page": "payment.html",
+      "name": "Payment",
+      "description": "Review account status, the current invoice, next payment date, billing cycle, available payment methods, and payment history.",
+      "file": "CH-005.json"
+    },
+    {
+      "id": "CH-006",
+      "page": "taxes.html",
+      "name": "Taxes",
+      "description": "Review transportation billing and tax summary information, revenue and status totals, detailed trip rows, and export or print the report.",
+      "file": "CH-006.json"
+    }
+  ]
+}

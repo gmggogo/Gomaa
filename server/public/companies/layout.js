@@ -185,6 +185,10 @@ container.innerHTML = `
         Taxes
       </a>
 
+      <a href="help-center.html" id="companyHelpNav">
+        Help Center
+      </a>
+
       <a
         href="#"
         id="logoutBtn"
@@ -451,6 +455,134 @@ document
     );
 
   }
+);
+
+/* ================= HELP CENTER SUPPORT ALERT ================= */
+
+const companyHelpAlertStyle =
+document.createElement("style");
+
+companyHelpAlertStyle.textContent = `
+@keyframes companyHelpBlink{
+  0%,100%{
+    filter:brightness(1);
+    box-shadow:none;
+  }
+  50%{
+    filter:brightness(1.35);
+    box-shadow:
+      0 0 0 3px rgba(255,220,92,.75),
+      0 0 20px rgba(255,176,19,.9);
+  }
+}
+
+.nav a.company-help-unread{
+  position:relative;
+  animation:companyHelpBlink 1s ease-in-out infinite;
+}
+
+.company-help-badge{
+  position:absolute;
+  right:4px;
+  top:2px;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#c81e1e;
+  color:#fff;
+  font-size:9px;
+  font-weight:900;
+}
+`;
+
+document.head.appendChild(
+  companyHelpAlertStyle
+);
+
+async function refreshCompanySupportUnread(){
+  const helpLink =
+    document.getElementById(
+      "companyHelpNav"
+    );
+
+  if(!helpLink){
+    return;
+  }
+
+  try{
+    const response =
+      await fetch(
+        "/api/company-support/unread-count",
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:
+              "Bearer " +
+              getCompanyToken()
+          }
+        }
+      );
+
+    if(!response.ok){
+      return;
+    }
+
+    const data =
+      await response.json();
+
+    const count =
+      Math.max(
+        0,
+        Number(
+          data?.count ||
+          0
+        )
+      );
+
+    helpLink.classList.toggle(
+      "company-help-unread",
+      count > 0
+    );
+
+    helpLink
+      .querySelectorAll(
+        ".company-help-badge"
+      )
+      .forEach(
+        badge=>badge.remove()
+      );
+
+    if(count > 0){
+      const badge =
+        document.createElement(
+          "b"
+        );
+
+      badge.className =
+        "company-help-badge";
+
+      badge.textContent =
+        count > 99
+          ? "99+"
+          : String(count);
+
+      helpLink.appendChild(
+        badge
+      );
+    }
+
+  }catch(err){}
+}
+
+refreshCompanySupportUnread();
+
+setInterval(
+  refreshCompanySupportUnread,
+  12000
 );
 
 /* ================= START CLOCK ================= */

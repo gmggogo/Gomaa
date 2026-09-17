@@ -807,6 +807,125 @@ html[dir="rtl"] .help-steps{
   font-weight:900;
   cursor:pointer;
 }
+
+.super-admin-support-tabs{
+  width:calc(100% - 56px);
+  margin:20px 28px 0;
+  display:flex;
+  gap:12px;
+  padding:10px;
+  background:#e9eef5;
+  border:1px solid #d6deea;
+  border-radius:14px;
+}
+.super-admin-main-tab{
+  flex:1;
+  position:relative;
+  border:1px solid #cbd5e1;
+  border-radius:11px;
+  padding:12px 14px;
+  background:#fff;
+  color:#334155;
+  font-weight:900;
+  cursor:pointer;
+}
+.super-admin-main-tab.active{
+  background:#0b1933;
+  color:#fff;
+  border-color:#0b1933;
+  box-shadow:0 5px 14px rgba(11,25,51,.18);
+}
+.super-admin-main-badge{
+  display:none;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  margin-left:6px;
+  border-radius:999px;
+  align-items:center;
+  justify-content:center;
+  background:#dc2626;
+  color:#fff;
+  font-size:10px;
+}
+.super-admin-main-badge.show{display:inline-flex}
+body.super-admin-help-mode .help-support-grid{
+  grid-template-columns:1fr!important;
+}
+body.super-admin-help-mode #knowledgeBasePanel,
+body.super-admin-help-mode #platformSupportPanel,
+body.super-admin-help-mode #companySupportPanel{
+  width:100%;
+}
+.company-support-main-panel{
+  width:100%;
+}
+.company-support-filter{
+  padding:14px;
+  border-bottom:1px solid #e5e7eb;
+}
+.company-support-filter select{
+  width:min(360px,100%);
+  min-height:42px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:0 10px;
+  background:#fff;
+  font-weight:800;
+}
+.company-support-grid{
+  display:grid;
+  grid-template-columns:310px minmax(0,1fr);
+  min-height:580px;
+}
+.company-support-list-wrap{
+  border-right:1px solid #e5e7eb;
+  background:#f8fafc;
+}
+.company-support-meta{
+  margin-top:8px;
+  padding:9px 10px;
+  border-radius:9px;
+  background:#eef8ff;
+  border:1px solid #b9ddf3;
+  font-size:11px;
+  line-height:1.5;
+}
+.company-support-status-row{
+  display:flex;
+  gap:8px;
+  margin-top:9px;
+  flex-wrap:wrap;
+}
+.company-support-status-row select,
+.company-support-status-row button{
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  padding:7px 10px;
+  background:#fff;
+  font-weight:800;
+}
+.company-support-status-row button{
+  background:#0f6f9f;
+  color:#fff;
+  border:0;
+  cursor:pointer;
+}
+@media(max-width:900px){
+  .super-admin-support-tabs{
+    width:calc(100% - 20px);
+    margin:14px 10px 0;
+    flex-direction:column;
+  }
+  .company-support-grid{
+    grid-template-columns:1fr;
+  }
+  .company-support-list-wrap{
+    border-right:0;
+    border-bottom:1px solid #e5e7eb;
+  }
+}
+
 </style>
 
 </head>
@@ -817,13 +936,26 @@ html[dir="rtl"] .help-steps{
   <h1>Help Center</h1>
 </div>
 
+<div id="superAdminSupportTabs" class="super-admin-support-tabs" hidden>
+  <button id="companySupportMainTab" class="super-admin-main-tab active" type="button">
+    Company Support
+    <span id="companySupportMainBadge" class="super-admin-main-badge">0</span>
+  </button>
 
+  <button id="platformSupportMainTab" class="super-admin-main-tab" type="button">
+    Platform Support
+  </button>
+
+  <button id="helpKnowledgeMainTab" class="super-admin-main-tab" type="button">
+    Help Center
+  </button>
+</div>
 
 <main class="help-shell">
 
   <div class="help-support-grid">
 
-    <section class="help-column">
+    <section id="knowledgeBasePanel" class="help-column">
 
       <section class="help-hero">
         <div class="help-top">
@@ -886,7 +1018,88 @@ html[dir="rtl"] .help-steps{
 
     </section>
 
-    <aside class="support-column">
+
+    <section id="companySupportPanel" class="company-support-main-panel" hidden>
+
+      <section class="support-card">
+
+        <div class="support-header">
+          <div class="support-header-left">
+            <h2>Company Support</h2>
+            <p>Review support requests from contracted company accounts inside this tenant.</p>
+          </div>
+
+          <span id="companySupportUnreadBadge" class="support-unread">0</span>
+        </div>
+
+        <div class="support-tabs">
+          <button id="companySupportActiveBtn" class="support-tab active" type="button">Active</button>
+          <button id="companySupportHistoryBtn" class="support-tab" type="button">History</button>
+        </div>
+
+        <div class="company-support-filter">
+          <select id="companySupportStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+            <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+            <option value="OPEN">Open</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+        </div>
+
+        <div class="company-support-grid">
+
+          <div class="company-support-list-wrap">
+            <div class="support-list-title">Company Conversations</div>
+            <div id="companySupportList" class="support-conversation-list"></div>
+          </div>
+
+          <section class="support-chat-area">
+
+            <div id="companySupportEmpty" class="support-chat-empty">
+              Select a company support conversation.
+            </div>
+
+            <div id="companySupportChatView" class="support-chat-view">
+
+              <div class="support-chat-head">
+                <h3 id="companySupportSubject"></h3>
+                <p id="companySupportStatus"></p>
+
+                <div id="companySupportCompanyMeta" class="company-support-meta"></div>
+
+                <div class="company-support-status-row">
+                  <select id="companySupportStatusSelect">
+                    <option value="OPEN">Open</option>
+                    <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+                    <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+
+                  <button id="companySupportReopenBtn" type="button" hidden>
+                    Reopen Conversation
+                  </button>
+                </div>
+              </div>
+
+              <div id="companySupportMessages" class="support-messages"></div>
+
+              <div id="companySupportComposer" class="support-composer">
+                <textarea id="companySupportMessageInput" maxlength="5000" placeholder="Reply to the company..."></textarea>
+                <button id="companySupportSendBtn" class="support-send-btn" type="button">Send</button>
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </section>
+
+    </section>
+
+    <aside id="platformSupportPanel" class="support-column">
 
       <section class="support-card">
 

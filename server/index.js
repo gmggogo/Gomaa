@@ -880,6 +880,23 @@ console.log(
   "✅ platformSupportRoutes mounted on /api/platform-support"
 );
 
+
+/* =========================
+   COMPANY -> SUPER ADMIN SUPPORT CHAT
+========================= */
+
+const companySupportRoutes =
+  require("./routes/companySupportRoutes");
+
+app.use(
+  "/api/company-support",
+  companySupportRoutes
+);
+
+console.log(
+  "✅ companySupportRoutes mounted on /api/company-support"
+);
+
 /* =========================
    TENANT VEHICLE PACKAGE LIMIT
    Driver Schedule is the primary vehicle creation source.

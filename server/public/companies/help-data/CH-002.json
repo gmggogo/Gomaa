@@ -1,0 +1,126 @@
+{
+  "id": "CH-002",
+  "page": "add-trip.html",
+  "name": "Add Trip",
+  "description": "Create Individual or Shared trips. Shared trips support Manual Shared and Automatic Shared modes, including Return Time and Shared Engine grouping.",
+  "tasks": [
+    {
+      "id": "CH-002-T01",
+      "title": "Create an Individual trip",
+      "summary": "Enter the entry information, client information, route, trip date/time, notes, then submit the trip.",
+      "steps": [
+        "Open Add Trip.",
+        "Complete Entry Information.",
+        "Complete Client Information.",
+        "Enter Pickup and Dropoff.",
+        "Add Stops when needed.",
+        "Set Trip Date and Trip Time.",
+        "Review Notes.",
+        "Select Submit Trip."
+      ],
+      "keywords": [
+        "add trip",
+        "create an individual trip"
+      ]
+    },
+    {
+      "id": "CH-002-T02",
+      "title": "Add a stop to an Individual trip",
+      "summary": "Use + Add Stop while building the trip route.",
+      "steps": [
+        "Open the Individual trip form.",
+        "Enter Pickup.",
+        "Select + Add Stop.",
+        "Enter the stop address.",
+        "Repeat only when another stop is required.",
+        "Enter Dropoff and continue the trip."
+      ],
+      "keywords": [
+        "add trip",
+        "add a stop to an individual trip"
+      ]
+    },
+    {
+      "id": "CH-002-T03",
+      "title": "Create a Manual Shared trip",
+      "summary": "Use Manual Shared when the company wants to build the Shared passenger group manually.",
+      "steps": [
+        "Open Add Trip.",
+        "Open the Shared section.",
+        "Select Manual Shared.",
+        "Complete Shared Setup.",
+        "Add the passengers.",
+        "Review Notes.",
+        "Save Draft if needed or select Submit Shared."
+      ],
+      "keywords": [
+        "add trip",
+        "create a manual shared trip"
+      ]
+    },
+    {
+      "id": "CH-002-T04",
+      "title": "Create Automatic Shared candidates",
+      "summary": "Add passengers individually and let the Shared Engine find compatible groups.",
+      "steps": [
+        "Open Add Trip.",
+        "Select Automatic Shared.",
+        "Enter Passenger Name and Phone.",
+        "Enter Pickup and Dropoff.",
+        "Set Trip Date and Pickup Time.",
+        "Optionally set Appointment Time, Return Time, and Notes.",
+        "Select Add To Automatic List.",
+        "Repeat for additional passengers."
+      ],
+      "keywords": [
+        "add trip",
+        "create automatic shared candidates"
+      ]
+    },
+    {
+      "id": "CH-002-T05",
+      "title": "Build Automatic Shared groups",
+      "summary": "Run the Shared Engine after candidates have been added.",
+      "steps": [
+        "Review the Automatic Shared List.",
+        "Check the Shared Match Summary.",
+        "Select Build Shared Groups.",
+        "Review the Shared Engine Result before submitting matched groups."
+      ],
+      "keywords": [
+        "add trip",
+        "build automatic shared groups"
+      ]
+    },
+    {
+      "id": "CH-002-T06",
+      "title": "Use Return Time in Automatic Shared",
+      "summary": "Return Time creates a return candidate for later matching.",
+      "steps": [
+        "Add the outbound candidate normally.",
+        "Enter Return Time when a return ride is required.",
+        "Add the candidate to the Automatic List.",
+        "Build Shared Groups when ready.",
+        "Review outbound and return matches separately."
+      ],
+      "keywords": [
+        "add trip",
+        "use return time in automatic shared"
+      ]
+    },
+    {
+      "id": "CH-002-T07",
+      "title": "Save work before submitting",
+      "summary": "Use the available draft action when a Shared trip is not ready to submit.",
+      "steps": [
+        "Complete the available Shared information.",
+        "Select Save Draft.",
+        "Return later to complete the trip before final submission."
+      ],
+      "keywords": [
+        "add trip",
+        "save work before submitting"
+      ]
+    }
+  ]
+}

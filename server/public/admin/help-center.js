@@ -10,6 +10,12 @@ const HelpCenter = (()=>{
     sharedEnabled:false,
     page:"",
     lang:localStorage.getItem("ghHelpLanguage") || "en",
+    companySupport:{
+      scope:"active",
+      conversations:[],
+      activeId:"",
+      pollTimer:null
+    },
     support:{
       loaded:false,
       identity:null,
@@ -1468,6 +1474,635 @@ const HelpCenter = (()=>{
   }
 
 
+
+  /* =========================
+     SUPER ADMIN COMPANY SUPPORT
+  ========================= */
+
+  function currentStaffRole(){
+    return String(
+      sessionStorage.getItem("staffRole") ||
+      localStorage.getItem("role") ||
+      ""
+    )
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
+  }
+
+  async function companySupportApi(url,options={}){
+    return supportApi(
+      url,
+      options
+    );
+  }
+
+  async function loadCompanySupportUnread(){
+    try{
+      const data =
+        await companySupportApi(
+          "/api/company-support/unread-count"
+        );
+
+      const count =
+        Math.max(
+          0,
+          Number(
+            data.count ||
+            0
+          )
+        );
+
+      const badge =
+        $("companySupportMainBadge");
+
+      if(badge){
+        badge.textContent =
+          String(count);
+
+        badge.classList.toggle(
+          "show",
+          count > 0
+        );
+      }
+
+      const panelBadge =
+        $("companySupportUnreadBadge");
+
+      if(panelBadge){
+        panelBadge.textContent =
+          String(count);
+
+        panelBadge.classList.toggle(
+          "show",
+          count > 0
+        );
+      }
+
+    }catch(err){}
+  }
+
+  async function loadCompanySupportList(){
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "scope",
+      state.companySupport.scope
+    );
+
+    const status =
+      clean(
+        $("companySupportStatusFilter")?.value
+      );
+
+    if(status){
+      params.set(
+        "status",
+        status
+      );
+    }
+
+    const data =
+      await companySupportApi(
+        "/api/company-support/super-admin/conversations?" +
+        params.toString()
+      );
+
+    state.companySupport.conversations =
+      Array.isArray(
+        data.conversations
+      )
+        ? data.conversations
+        : [];
+
+    renderCompanySupportList();
+  }
+
+  function renderCompanySupportList(){
+    const host =
+      $("companySupportList");
+
+    if(!host){
+      return;
+    }
+
+    if(
+      !state.companySupport
+        .conversations
+        .length
+    ){
+      host.innerHTML =
+        `<div style="padding:16px;text-align:center;color:#718096;font-size:12px">${
+          state.companySupport.scope === "history"
+            ? "No resolved company support conversations."
+            : "No active company support conversations."
+        }</div>`;
+      return;
+    }
+
+    host.innerHTML =
+      state.companySupport
+        .conversations
+        .map(
+          row=>`
+            <div
+              class="support-conversation-item ${
+                String(row._id) === state.companySupport.activeId
+                  ? "active"
+                  : ""
+              }"
+              data-company-support-id="${escapeHtml(row._id)}">
+
+              <div class="support-conversation-title">
+                ${escapeHtml(row.companyName || "Company")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(row.subject || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(row.status || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(
+                  supportDate(
+                    row.status === "RESOLVED"
+                      ? row.resolvedAt
+                      : row.lastMessageAt
+                  )
+                )}
+              </div>
+
+              ${
+                Number(
+                  row.superAdminUnreadCount ||
+                  0
+                ) > 0
+                  ? `<div class="support-conversation-meta"><b>${Number(row.superAdminUnreadCount)} new</b></div>`
+                  : ""
+              }
+            </div>
+          `
+        )
+        .join("");
+
+    host
+      .querySelectorAll(
+        "[data-company-support-id]"
+      )
+      .forEach(
+        item=>{
+          item.addEventListener(
+            "click",
+            ()=>openCompanySupportConversation(
+              item.dataset.companySupportId
+            )
+          );
+        }
+      );
+  }
+
+  function renderCompanySupportMessages(messages){
+    const host =
+      $("companySupportMessages");
+
+    if(!host){
+      return;
+    }
+
+    host.innerHTML =
+      (messages || [])
+        .map(
+          message=>{
+            const superAdmin =
+              message.senderType ===
+              "SUPER_ADMIN";
+
+            return `
+              <div class="support-message ${superAdmin ? "platform" : "tenant"}">
+                <div class="support-message-meta">
+                  ${escapeHtml(message.senderName || (superAdmin ? "Super Admin" : "Company"))}
+                  · ${escapeHtml(message.senderRole || "")}
+                  · ${escapeHtml(supportDate(message.createdAt))}
+                </div>
+
+                <div class="support-message-text">
+                  ${escapeHtml(message.message)}
+                </div>
+              </div>
+            `;
+          }
+        )
+        .join("");
+
+    host.scrollTop =
+      host.scrollHeight;
+  }
+
+  async function openCompanySupportConversation(id){
+    state.companySupport.activeId =
+      clean(id);
+
+    if(
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    const data =
+      await companySupportApi(
+        "/api/company-support/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        )
+      );
+
+    const conversation =
+      data.conversation ||
+      {};
+
+    $("companySupportEmpty").style.display =
+      "none";
+
+    $("companySupportChatView")
+      .classList
+      .add("show");
+
+    $("companySupportSubject").textContent =
+      conversation.subject ||
+      "Company Support";
+
+    $("companySupportStatus").textContent =
+      "Status: " +
+      (
+        conversation.status ||
+        "-"
+      );
+
+    $("companySupportCompanyMeta").innerHTML =
+      `<b>Company:</b> ${escapeHtml(conversation.companyName || "-")}<br>` +
+      `<b>Company Phone:</b> ${escapeHtml(conversation.companyPhone || "Not Available")}<br>` +
+      `<b>Opened By:</b> ${escapeHtml(conversation.createdByName || "-")} · ${escapeHtml(conversation.createdByRole || "COMPANY")}<br>` +
+      (
+        conversation.status === "RESOLVED"
+          ? `<b>Resolved:</b> ${escapeHtml(supportDate(conversation.resolvedAt))}<br>` +
+            `<b>Resolved By:</b> ${escapeHtml(conversation.resolvedByName || "-")}`
+          : ""
+      );
+
+    const resolved =
+      conversation.status ===
+      "RESOLVED";
+
+    $("companySupportStatusSelect").value =
+      conversation.status ||
+      "OPEN";
+
+    $("companySupportStatusSelect").disabled =
+      resolved;
+
+    $("companySupportReopenBtn").hidden =
+      !resolved;
+
+    $("companySupportComposer").style.display =
+      resolved
+        ? "none"
+        : "flex";
+
+    renderCompanySupportMessages(
+      data.messages ||
+      []
+    );
+
+    await Promise.all([
+      loadCompanySupportList(),
+      loadCompanySupportUnread()
+    ]);
+  }
+
+  async function setCompanySupportScope(scope){
+    state.companySupport.scope =
+      scope === "history"
+        ? "history"
+        : "active";
+
+    state.companySupport.activeId =
+      "";
+
+    $("companySupportActiveBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.companySupport.scope === "active"
+      );
+
+    $("companySupportHistoryBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.companySupport.scope === "history"
+      );
+
+    if($("companySupportStatusFilter")){
+      $("companySupportStatusFilter").value =
+        state.companySupport.scope === "history"
+          ? "RESOLVED"
+          : "";
+    }
+
+    $("companySupportChatView")
+      ?.classList
+      .remove("show");
+
+    if($("companySupportEmpty")){
+      $("companySupportEmpty").style.display =
+        "flex";
+    }
+
+    await loadCompanySupportList();
+  }
+
+  async function changeCompanySupportStatus(status){
+    if(
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    try{
+      await companySupportApi(
+        "/api/company-support/super-admin/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        ) +
+        "/status",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            status
+          })
+        }
+      );
+
+      if(status === "RESOLVED"){
+        await setCompanySupportScope(
+          "history"
+        );
+      }else{
+        await setCompanySupportScope(
+          "active"
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+    }
+  }
+
+  async function sendCompanySupportReply(){
+    const message =
+      clean(
+        $("companySupportMessageInput")?.value
+      );
+
+    if(
+      !message ||
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    const button =
+      $("companySupportSendBtn");
+
+    button.disabled =
+      true;
+
+    try{
+      await companySupportApi(
+        "/api/company-support/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        ) +
+        "/messages",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            message
+          })
+        }
+      );
+
+      $("companySupportMessageInput").value =
+        "";
+
+      await openCompanySupportConversation(
+        state.companySupport.activeId
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      button.disabled =
+        false;
+    }
+  }
+
+  function selectSuperAdminMainTab(tab){
+    if(
+      currentStaffRole() !==
+      "SUPER_ADMIN"
+    ){
+      return;
+    }
+
+    const tabs = {
+      company:{
+        button:
+          $("companySupportMainTab"),
+        panel:
+          $("companySupportPanel")
+      },
+
+      platform:{
+        button:
+          $("platformSupportMainTab"),
+        panel:
+          $("platformSupportPanel")
+      },
+
+      help:{
+        button:
+          $("helpKnowledgeMainTab"),
+        panel:
+          $("knowledgeBasePanel")
+      }
+    };
+
+    Object.values(tabs)
+      .forEach(
+        item=>{
+          item.button
+            ?.classList
+            .remove("active");
+
+          if(item.panel){
+            item.panel.hidden =
+              true;
+          }
+        }
+      );
+
+    const selected =
+      tabs[tab] ||
+      tabs.company;
+
+    selected.button
+      ?.classList
+      .add("active");
+
+    if(selected.panel){
+      selected.panel.hidden =
+        false;
+    }
+  }
+
+  function bindCompanySupport(){
+    $("companySupportMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("company")
+      );
+
+    $("platformSupportMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("platform")
+      );
+
+    $("helpKnowledgeMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("help")
+      );
+
+    $("companySupportActiveBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setCompanySupportScope("active")
+      );
+
+    $("companySupportHistoryBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setCompanySupportScope("history")
+      );
+
+    $("companySupportStatusFilter")
+      ?.addEventListener(
+        "change",
+        loadCompanySupportList
+      );
+
+    $("companySupportStatusSelect")
+      ?.addEventListener(
+        "change",
+        event=>changeCompanySupportStatus(
+          event.target.value
+        )
+      );
+
+    $("companySupportReopenBtn")
+      ?.addEventListener(
+        "click",
+        ()=>changeCompanySupportStatus("OPEN")
+      );
+
+    $("companySupportSendBtn")
+      ?.addEventListener(
+        "click",
+        sendCompanySupportReply
+      );
+
+    $("companySupportMessageInput")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+            event.preventDefault();
+            sendCompanySupportReply();
+          }
+        }
+      );
+  }
+
+  async function initCompanySupportWorkspace(){
+    if(
+      currentStaffRole() !==
+      "SUPER_ADMIN"
+    ){
+      $("companySupportPanel")?.remove();
+      return;
+    }
+
+    document.body
+      .classList
+      .add(
+        "super-admin-help-mode"
+      );
+
+    $("superAdminSupportTabs").hidden =
+      false;
+
+    bindCompanySupport();
+
+    selectSuperAdminMainTab(
+      "company"
+    );
+
+    await Promise.all([
+      loadCompanySupportList(),
+      loadCompanySupportUnread()
+    ]);
+
+    clearInterval(
+      state.companySupport.pollTimer
+    );
+
+    state.companySupport.pollTimer =
+      setInterval(
+        async ()=>{
+          try{
+            await Promise.all([
+              loadCompanySupportList(),
+              loadCompanySupportUnread()
+            ]);
+
+            if(
+              state.companySupport.activeId
+            ){
+              await openCompanySupportConversation(
+                state.companySupport.activeId
+              );
+            }
+          }catch(err){}
+        },
+        12000
+      );
+  }
+
+
   function bind(){
     $("helpSearch")?.addEventListener("input",renderResults);
     $("helpPageFilter")?.addEventListener("change",e=>choosePage(e.target.value || ""));
@@ -1738,6 +2373,7 @@ const HelpCenter = (()=>{
 
       initSupport();
       startSupportPolling();
+      initCompanySupportWorkspace();
 
       const observer =
         new MutationObserver(
