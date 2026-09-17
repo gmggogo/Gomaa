@@ -880,13 +880,37 @@ function firstPositiveMoney(...values){
   return 0;
 }
 
+function hasMoneyValue(value){
+  return (
+    value !== undefined &&
+    value !== null &&
+    clean(value) !== ""
+  );
+}
+
+function firstDefinedMoney(...values){
+
+  for(const value of values){
+
+    if(!hasMoneyValue(value)){
+      continue;
+    }
+
+    return num(value);
+  }
+
+  return 0;
+}
+
 function feeFromService(t,type){
 
   /*
-    Some /api/admin-summary rows contain summaryFee = 0 even when
-    the trip or service has a real Cancel / No Show fee.
+    summaryFee = 0 can mean "not finalized here" on legacy rows, so it
+    may continue to the next saved/configured source.
 
-    A zero summaryFee must not stop the fallback chain.
+    IMPORTANT: configured fee fields are different. If Service Management,
+    Facility Override, Reserved pricing, trip pricing, or a pricing snapshot
+    explicitly stores 0, that zero is a real fee and MUST be preserved.
   */
 
   const s = getServiceByTrip(t) || {};
@@ -898,64 +922,84 @@ function feeFromService(t,type){
       return 0;
     }
 
-    const savedFee = firstPositiveMoney(
-      isCancelledStatus(t?.status) ? t?.summaryFee : null,
-      t?.cancelFee,
-      t?.pricingSnapshot?.cancelFee,
-      t?.priceSnapshot?.cancelFee
-    );
+    const summaryFee =
+      isCancelledStatus(t?.status)
+        ? firstPositiveMoney(t?.summaryFee)
+        : 0;
 
-    if(savedFee > 0){
-      return savedFee;
+    if(summaryFee > 0){
+      return summaryFee;
+    }
+
+    if(hasMoneyValue(t?.cancelFee)){
+      return num(t.cancelFee);
+    }
+
+    if(hasMoneyValue(t?.pricingSnapshot?.cancelFee)){
+      return num(t.pricingSnapshot.cancelFee);
+    }
+
+    if(hasMoneyValue(t?.priceSnapshot?.cancelFee)){
+      return num(t.priceSnapshot.cancelFee);
     }
 
     if(src === "RV"){
-      return firstPositiveMoney(
+      return firstDefinedMoney(
         s?.reservedCancelFee,
         s?.cancelFee
       );
     }
 
     if(src === "FACILITY"){
-      return firstPositiveMoney(
+      return firstDefinedMoney(
         s?.companyCancelFee,
         s?.cancelFee
       );
     }
 
-    return firstPositiveMoney(
+    return firstDefinedMoney(
       s?.cancelFee
     );
   }
 
   if(type === "noshow"){
 
-    const savedFee = firstPositiveMoney(
-      isNoShowStatus(t?.status) ? t?.summaryFee : null,
-      t?.noShowFee,
-      t?.pricingSnapshot?.noShowFee,
-      t?.priceSnapshot?.noShowFee
-    );
+    const summaryFee =
+      isNoShowStatus(t?.status)
+        ? firstPositiveMoney(t?.summaryFee)
+        : 0;
 
-    if(savedFee > 0){
-      return savedFee;
+    if(summaryFee > 0){
+      return summaryFee;
+    }
+
+    if(hasMoneyValue(t?.noShowFee)){
+      return num(t.noShowFee);
+    }
+
+    if(hasMoneyValue(t?.pricingSnapshot?.noShowFee)){
+      return num(t.pricingSnapshot.noShowFee);
+    }
+
+    if(hasMoneyValue(t?.priceSnapshot?.noShowFee)){
+      return num(t.priceSnapshot.noShowFee);
     }
 
     if(src === "RV"){
-      return firstPositiveMoney(
+      return firstDefinedMoney(
         s?.reservedNoShowFee,
         s?.noShowFee
       );
     }
 
     if(src === "FACILITY"){
-      return firstPositiveMoney(
+      return firstDefinedMoney(
         s?.companyNoShowFee,
         s?.noShowFee
       );
     }
 
-    return firstPositiveMoney(
+    return firstDefinedMoney(
       s?.noShowFee
     );
   }
@@ -1023,30 +1067,72 @@ function getPassengerFee(p,t){
       return 0;
     }
 
-    return firstPositiveMoney(
-      p?.summaryFee,
-      p?.cancelFee,
-      p?.pricingSnapshot?.cancelFee,
-      p?.priceSnapshot?.cancelFee,
-      t?.cancelFee,
-      t?.pricingSnapshot?.cancelFee,
-      t?.priceSnapshot?.cancelFee,
-      feeFromService(t,"cancel")
-    );
+    const summaryFee = firstPositiveMoney(p?.summaryFee);
+
+    if(summaryFee > 0){
+      return summaryFee;
+    }
+
+    if(hasMoneyValue(p?.cancelFee)){
+      return num(p.cancelFee);
+    }
+
+    if(hasMoneyValue(p?.pricingSnapshot?.cancelFee)){
+      return num(p.pricingSnapshot.cancelFee);
+    }
+
+    if(hasMoneyValue(p?.priceSnapshot?.cancelFee)){
+      return num(p.priceSnapshot.cancelFee);
+    }
+
+    if(hasMoneyValue(t?.cancelFee)){
+      return num(t.cancelFee);
+    }
+
+    if(hasMoneyValue(t?.pricingSnapshot?.cancelFee)){
+      return num(t.pricingSnapshot.cancelFee);
+    }
+
+    if(hasMoneyValue(t?.priceSnapshot?.cancelFee)){
+      return num(t.priceSnapshot.cancelFee);
+    }
+
+    return feeFromService(t,"cancel");
   }
 
   if(isNoShowStatus(status)){
 
-    return firstPositiveMoney(
-      p?.summaryFee,
-      p?.noShowFee,
-      p?.pricingSnapshot?.noShowFee,
-      p?.priceSnapshot?.noShowFee,
-      t?.noShowFee,
-      t?.pricingSnapshot?.noShowFee,
-      t?.priceSnapshot?.noShowFee,
-      feeFromService(t,"noshow")
-    );
+    const summaryFee = firstPositiveMoney(p?.summaryFee);
+
+    if(summaryFee > 0){
+      return summaryFee;
+    }
+
+    if(hasMoneyValue(p?.noShowFee)){
+      return num(p.noShowFee);
+    }
+
+    if(hasMoneyValue(p?.pricingSnapshot?.noShowFee)){
+      return num(p.pricingSnapshot.noShowFee);
+    }
+
+    if(hasMoneyValue(p?.priceSnapshot?.noShowFee)){
+      return num(p.priceSnapshot.noShowFee);
+    }
+
+    if(hasMoneyValue(t?.noShowFee)){
+      return num(t.noShowFee);
+    }
+
+    if(hasMoneyValue(t?.pricingSnapshot?.noShowFee)){
+      return num(t.pricingSnapshot.noShowFee);
+    }
+
+    if(hasMoneyValue(t?.priceSnapshot?.noShowFee)){
+      return num(t.priceSnapshot.noShowFee);
+    }
+
+    return feeFromService(t,"noshow");
   }
 
   return 0;
