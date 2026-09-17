@@ -17,13 +17,15 @@ body{
 
 .help-page-title-band{
   width:100%;
-  margin:0;
+  margin:18px 0 0;
   padding:15px 18px 14px;
   text-align:center;
   background:linear-gradient(90deg,#fff7d7 0%,#f7e49d 50%,#fff7d7 100%);
   border-top:1px solid #ead37d;
   border-bottom:1px solid #d7bd5c;
   box-shadow:0 3px 10px rgba(151,102,0,.08);
+  position:relative;
+  z-index:1;
 }
 .help-page-title-band h1{
   margin:0;
@@ -773,8 +775,10 @@ html[dir="rtl"] .help-steps{
   border:1px solid #cbd5e1;
   border-radius:9px;
   padding:8px 10px;
-  background:#fff;
-  color:#475569;
+  background:linear-gradient(180deg,#fff8de 0%,#f4dda0 100%);
+  color:#5f4500;
+  border-color:#d0ad42;
+  box-shadow:0 2px 7px rgba(96,72,0,.10);
   font-size:11px;
   font-weight:900;
   cursor:pointer;
@@ -824,10 +828,17 @@ html[dir="rtl"] .help-steps{
   border:1px solid #cbd5e1;
   border-radius:11px;
   padding:12px 14px;
-  background:#fff;
-  color:#334155;
+  background:linear-gradient(180deg,#f7fbff 0%,#e4eef8 100%);
+  color:#22354a;
+  border-color:#9db5cc;
   font-weight:900;
   cursor:pointer;
+  box-shadow:0 2px 7px rgba(34,53,74,.10);
+  transition:filter .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.super-admin-main-tab:hover{
+  filter:brightness(1.025);
+  box-shadow:0 4px 10px rgba(34,53,74,.14);
 }
 .super-admin-main-tab.active{
   background:#0b1933;
