@@ -99,6 +99,24 @@ new mongoose.Schema(
     resolvedBy:{
       type:String,
       default:""
+    },
+
+    resolvedByUserId:{
+      type:String,
+      default:"",
+      trim:true
+    },
+
+    resolvedByName:{
+      type:String,
+      default:"",
+      trim:true
+    },
+
+    resolvedByRole:{
+      type:String,
+      default:"",
+      trim:true
     }
   },
   {

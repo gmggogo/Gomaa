@@ -408,15 +408,35 @@ router.get(
         });
       }
 
+      const scope =
+        clean(
+          req.query?.scope
+        ).toLowerCase();
+
+      const filter = {
+        tenantId:
+          req.authUser.tenantId
+      };
+
+      if(scope === "history"){
+        filter.status =
+          "RESOLVED";
+      }else if(scope === "active"){
+        filter.status = {
+          $ne:"RESOLVED"
+        };
+      }
+
       const rows =
         await Conversation
-          .find({
-            tenantId:
-              req.authUser.tenantId
-          })
-          .sort({
-            lastMessageAt:-1
-          })
+          .find(
+            filter
+          )
+          .sort(
+            scope === "history"
+              ? {resolvedAt:-1,lastMessageAt:-1}
+              : {lastMessageAt:-1}
+          )
           .lean();
 
       res.json({
@@ -716,7 +736,10 @@ router.post(
                   ? "WAITING_FOR_CUSTOMER"
                   : "WAITING_FOR_SUPPORT",
               resolvedAt:null,
-              resolvedBy:""
+              resolvedBy:"",
+              resolvedByUserId:"",
+              resolvedByName:"",
+              resolvedByRole:""
             }
           }
         );
@@ -852,6 +875,155 @@ router.post(
 );
 
 /* =========================
+   TENANT RESOLVE / REOPEN
+   ADMIN + SUPER ADMIN ONLY
+========================= */
+
+router.patch(
+  "/tenant/conversations/:conversationId/status",
+  requireSupportAuth,
+  async (
+    req,
+    res
+  ) => {
+    try{
+      if(isPlatform(req)){
+        return res.status(403).json({
+          success:false,
+          message:"Tenant staff endpoint"
+        });
+      }
+
+      const role =
+        normalizeRole(
+          req.authUser?.role
+        );
+
+      if(
+        ![
+          "ADMIN",
+          "SUPER_ADMIN"
+        ].includes(role)
+      ){
+        return res.status(403).json({
+          success:false,
+          message:"Only Admin or Super Admin can resolve or reopen support conversations"
+        });
+      }
+
+      const status =
+        upper(
+          req.body?.status
+        );
+
+      if(
+        ![
+          "OPEN",
+          "WAITING_FOR_SUPPORT",
+          "RESOLVED"
+        ].includes(status)
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Invalid tenant support status"
+        });
+      }
+
+      if(
+        !mongoose.Types.ObjectId
+          .isValid(
+            req.params.conversationId
+          )
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Invalid conversation id"
+        });
+      }
+
+      const identity =
+        await buildTenantIdentity(
+          req
+        );
+
+      const update = {
+        status
+      };
+
+      if(status === "RESOLVED"){
+        update.resolvedAt =
+          new Date();
+
+        update.resolvedBy =
+          identity.userName ||
+          "Tenant Admin";
+
+        update.resolvedByUserId =
+          identity.userId;
+
+        update.resolvedByName =
+          identity.userName ||
+          "Tenant Admin";
+
+        update.resolvedByRole =
+          identity.userRole;
+
+        update.tenantUnreadCount = 0;
+        update.platformUnreadCount = 0;
+
+      }else{
+        update.resolvedAt = null;
+        update.resolvedBy = "";
+        update.resolvedByUserId = "";
+        update.resolvedByName = "";
+        update.resolvedByRole = "";
+      }
+
+      const conversation =
+        await Conversation
+          .findOneAndUpdate(
+            {
+              _id:
+                req.params.conversationId,
+              tenantId:
+                req.authUser.tenantId
+            },
+            {
+              $set:update
+            },
+            {
+              new:true
+            }
+          )
+          .lean();
+
+      if(!conversation){
+        return res.status(404).json({
+          success:false,
+          message:"Conversation not found"
+        });
+      }
+
+      res.json({
+        success:true,
+        conversation
+      });
+
+    }catch(err){
+      console.error(
+        "SUPPORT TENANT STATUS UPDATE:",
+        err
+      );
+
+      res.status(500).json({
+        success:false,
+        message:"Could not update support status"
+      });
+    }
+  }
+);
+
+/* =========================
    PLATFORM INBOX
 ========================= */
 
@@ -875,6 +1047,11 @@ router.get(
           req.query?.status
         );
 
+      const scope =
+        clean(
+          req.query?.scope
+        ).toLowerCase();
+
       const filter = {};
 
       if(
@@ -889,6 +1066,13 @@ router.get(
       ){
         filter.status =
           status;
+      }else if(scope === "history"){
+        filter.status =
+          "RESOLVED";
+      }else if(scope === "active"){
+        filter.status = {
+          $ne:"RESOLVED"
+        };
       }
 
       const rows =
@@ -896,9 +1080,11 @@ router.get(
           .find(
             filter
           )
-          .sort({
-            lastMessageAt:-1
-          })
+          .sort(
+            scope === "history" || status === "RESOLVED"
+              ? {resolvedAt:-1,lastMessageAt:-1}
+              : {lastMessageAt:-1}
+          )
           .lean();
 
       res.json({
@@ -964,19 +1150,39 @@ router.patch(
         status ===
         "RESOLVED"
       ){
-        update.resolvedAt =
-          new Date();
-
-        update.resolvedBy =
+        const resolverName =
           clean(
             req.authUser?.name ||
             req.authUser?.username ||
             "Platform Admin"
           );
 
+        update.resolvedAt =
+          new Date();
+
+        update.resolvedBy =
+          resolverName;
+
+        update.resolvedByUserId =
+          clean(
+            req.authUser?.id
+          );
+
+        update.resolvedByName =
+          resolverName;
+
+        update.resolvedByRole =
+          "PLATFORM_ADMIN";
+
+        update.tenantUnreadCount = 0;
+        update.platformUnreadCount = 0;
+
       }else{
         update.resolvedAt = null;
         update.resolvedBy = "";
+        update.resolvedByUserId = "";
+        update.resolvedByName = "";
+        update.resolvedByRole = "";
       }
 
       const conversation =

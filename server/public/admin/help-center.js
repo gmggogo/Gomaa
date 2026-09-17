@@ -15,6 +15,7 @@ const HelpCenter = (()=>{
       identity:null,
       conversations:[],
       activeId:"",
+      scope:"active",
       pollTimer:null
     }
   };
@@ -884,7 +885,10 @@ const HelpCenter = (()=>{
   async function loadSupportList(){
     const data =
       await supportApi(
-        "/api/platform-support/tenant/conversations"
+        "/api/platform-support/tenant/conversations?scope=" +
+        encodeURIComponent(
+          state.support.scope
+        )
       );
 
     state.support.conversations =
@@ -911,7 +915,7 @@ const HelpCenter = (()=>{
         .length
     ){
       host.innerHTML =
-        `<div style="padding:12px;text-align:center;color:#718096;font-size:11px">No conversations yet.</div>`;
+        `<div style="padding:12px;text-align:center;color:#718096;font-size:11px">${state.support.scope === "history" ? "No resolved conversations." : "No active conversations."}</div>`;
       return;
     }
 
@@ -937,8 +941,18 @@ const HelpCenter = (()=>{
               </div>
 
               <div class="support-conversation-meta">
-                ${escapeHtml(supportDate(conversation.lastMessageAt))}
+                ${
+                  conversation.status === "RESOLVED"
+                    ? "Resolved: " + escapeHtml(supportDate(conversation.resolvedAt))
+                    : escapeHtml(supportDate(conversation.lastMessageAt))
+                }
               </div>
+
+              ${
+                conversation.status === "RESOLVED"
+                  ? `<div class="support-conversation-meta"><b>By:</b> ${escapeHtml(conversation.resolvedByName || conversation.resolvedBy || "-")}</div>`
+                  : ""
+              }
 
               ${
                 Number(
@@ -1045,6 +1059,66 @@ const HelpCenter = (()=>{
         data.conversation?.status ||
         "-"
       );
+
+    const conversation =
+      data.conversation ||
+      {};
+
+    const resolved =
+      conversation.status ===
+      "RESOLVED";
+
+    const role =
+      String(
+        state.support.identity?.userRole ||
+        ""
+      ).toUpperCase();
+
+    const canManage =
+      role === "ADMIN" ||
+      role === "SUPER_ADMIN" ||
+      role === "SUPERADMIN";
+
+    if($("supportResolvedInfo")){
+      $("supportResolvedInfo").style.display =
+        resolved
+          ? "block"
+          : "none";
+
+      $("supportResolvedInfo").innerHTML =
+        resolved
+          ? `<b>Resolved:</b> ${escapeHtml(supportDate(conversation.resolvedAt))}<br>` +
+            `<b>Resolved By:</b> ${escapeHtml(conversation.resolvedByName || conversation.resolvedBy || "-")}` +
+            `${conversation.resolvedByRole ? ` · ${escapeHtml(conversation.resolvedByRole)}` : ""}`
+          : "";
+    }
+
+    if($("supportResolveBtn")){
+      $("supportResolveBtn").style.display =
+        canManage
+          ? "inline-block"
+          : "none";
+
+      $("supportResolveBtn").textContent =
+        resolved
+          ? "Reopen Conversation"
+          : "Resolve Conversation";
+
+      $("supportResolveBtn").dataset.status =
+        resolved
+          ? "OPEN"
+          : "RESOLVED";
+    }
+
+    if($("supportMessageInput")){
+      $("supportMessageInput").disabled =
+        resolved;
+    }
+
+    if($("supportSendMessageBtn")){
+      $("supportSendMessageBtn").disabled =
+        resolved;
+    }
 
     renderSupportMessages(
       data.messages ||
@@ -1192,7 +1266,108 @@ const HelpCenter = (()=>{
     }
   }
 
+  async function setSupportScope(scope){
+    state.support.scope =
+      scope === "history"
+        ? "history"
+        : "active";
+
+    state.support.activeId = "";
+
+    $("supportActiveTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.support.scope === "active"
+      );
+
+    $("supportHistoryTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.support.scope === "history"
+      );
+
+    if($("supportChatView")){
+      $("supportChatView")
+        .classList
+        .remove("show");
+    }
+
+    if($("supportChatEmpty")){
+      $("supportChatEmpty").style.display =
+        "flex";
+
+      $("supportChatEmpty").textContent =
+        state.support.scope === "history"
+          ? "Select a resolved support conversation."
+          : "Select a conversation or create a new support request.";
+    }
+
+    await loadSupportList();
+  }
+
+  async function changeTenantSupportStatus(){
+    const id =
+      state.support.activeId;
+
+    const status =
+      $("supportResolveBtn")
+        ?.dataset
+        ?.status;
+
+    if(
+      !id ||
+      !status
+    ){
+      return;
+    }
+
+    try{
+      await supportApi(
+        "/api/platform-support/tenant/conversations/" +
+        encodeURIComponent(id) +
+        "/status",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            status
+          })
+        }
+      );
+
+      await setSupportScope(
+        status === "RESOLVED"
+          ? "history"
+          : "active"
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+    }
+  }
+
   function bindSupport(){
+    $("supportActiveTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setSupportScope("active")
+      );
+
+    $("supportHistoryTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setSupportScope("history")
+      );
+
+    $("supportResolveBtn")
+      ?.addEventListener(
+        "click",
+        changeTenantSupportStatus
+      );
+
     $("supportNewConversationBtn")
       ?.addEventListener(
         "click",

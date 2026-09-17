@@ -762,6 +762,51 @@ html[dir="rtl"] .help-steps{
   }
 }
 
+
+.support-tabs{
+  display:flex;
+  gap:7px;
+  padding:0 14px 12px;
+}
+.support-tab{
+  flex:1;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:8px 10px;
+  background:#fff;
+  color:#475569;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+.support-tab.active{
+  background:#0b1933;
+  color:#fff;
+  border-color:#0b1933;
+}
+.support-resolved-info{
+  display:none;
+  margin-top:7px;
+  padding:7px 9px;
+  border-radius:8px;
+  background:#ecfdf3;
+  border:1px solid #bbf7d0;
+  color:#166534;
+  font-size:10px;
+  line-height:1.45;
+}
+.support-resolve-btn{
+  display:none;
+  border:0;
+  border-radius:8px;
+  padding:7px 10px;
+  margin-top:7px;
+  background:#166534;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+}
 </style>
 
 </head>
@@ -894,6 +939,15 @@ html[dir="rtl"] .help-steps{
           </button>
         </div>
 
+        <div class="support-tabs">
+          <button id="supportActiveTabBtn" class="support-tab active" type="button">
+            Active
+          </button>
+          <button id="supportHistoryTabBtn" class="support-tab" type="button">
+            History
+          </button>
+        </div>
+
         <div
           id="supportNewConversationForm"
           class="support-new-form">
@@ -955,6 +1009,18 @@ html[dir="rtl"] .help-steps{
               <div class="support-chat-head">
                 <h3 id="supportChatSubject"></h3>
                 <p id="supportChatStatus"></p>
+
+                <div
+                  id="supportResolvedInfo"
+                  class="support-resolved-info">
+                </div>
+
+                <button
+                  id="supportResolveBtn"
+                  class="support-resolve-btn"
+                  type="button">
+                  Resolve Conversation
+                </button>
               </div>
 
               <div

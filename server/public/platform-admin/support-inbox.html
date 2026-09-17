@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -577,6 +578,68 @@ a{
   background:#fff!important;
 }
 
+
+.history-tabs{
+  display:flex;
+  gap:10px;
+  margin:22px 0 0;
+}
+.history-tab{
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  padding:10px 18px;
+  background:#fff;
+  color:#334155;
+  font-weight:900;
+  cursor:pointer;
+}
+.history-tab.active{
+  background:#0b1933;
+  color:#fff;
+  border-color:#0b1933;
+  box-shadow:0 5px 14px rgba(11,25,51,.16);
+}
+.history-tab .tab-count{
+  display:inline-flex;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  margin-left:6px;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background:#d5b85e;
+  color:#352400;
+  font-size:10px;
+}
+.history-meta{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:11px;
+  background:#eef2f7;
+  border:1px solid #d8e0ea;
+  color:#475569;
+  font-size:12px;
+  line-height:1.55;
+}
+.reopen-btn{
+  border:0;
+  border-radius:10px;
+  padding:8px 13px;
+  background:#0f6f9f;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+.resolved-readonly-note{
+  padding:11px 14px;
+  background:#ecfdf3;
+  color:#166534;
+  border-top:1px solid #bbf7d0;
+  font-size:12px;
+  font-weight:800;
+  text-align:center;
+}
 </style>
 
 </head>
@@ -601,6 +664,18 @@ a{
 
     </div>
   </section>
+
+  <div class="history-tabs">
+    <button id="activeTabBtn" class="history-tab active" type="button">
+      Active Conversations
+      <span id="activeTabCount" class="tab-count">0</span>
+    </button>
+
+    <button id="historyTabBtn" class="history-tab" type="button">
+      Support History
+      <span id="historyTabCount" class="tab-count">0</span>
+    </button>
+  </div>
 
   <div class="layout">
     <aside class="card left" style="grid-column:1/-1">
@@ -657,6 +732,8 @@ a{
             <div><b>Created:</b> <span id="createdAt"></span></div>
           </div>
 
+          <div id="resolvedHistoryMeta" class="history-meta" style="display:none"></div>
+
           <div class="status-row">
             <b>Status:</b>
             <select id="conversationStatus">
@@ -665,12 +742,24 @@ a{
               <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
               <option value="RESOLVED">Resolved</option>
             </select>
+
+            <button
+              id="reopenConversationBtn"
+              class="reopen-btn"
+              type="button"
+              style="display:none">
+              Reopen Conversation
+            </button>
           </div>
         </div>
 
         <div class="messages" id="messages"></div>
 
-        <div class="composer">
+        <div id="resolvedReadonlyNote" class="resolved-readonly-note" style="display:none">
+          This resolved conversation is stored in Support History. Reopen it to send a new reply.
+        </div>
+
+        <div id="supportComposer" class="composer">
           <textarea id="messageInput" placeholder="Reply to the company..."></textarea>
           <button id="sendBtn" type="button">Reply</button>
         </div>

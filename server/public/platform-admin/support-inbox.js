@@ -5,6 +5,7 @@ const PlatformSupportInbox = (()=>{
   const state = {
     conversations:[],
     activeId:"",
+    scope:"active",
     pollTimer:null
   };
 
@@ -90,18 +91,25 @@ const PlatformSupportInbox = (()=>{
       $("statusFilter")?.value ||
       "";
 
-    const query =
-      status
-        ? "?status=" +
-          encodeURIComponent(
-            status
-          )
-        : "";
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "scope",
+      state.scope
+    );
+
+    if(status){
+      params.set(
+        "status",
+        status
+      );
+    }
 
     const data =
       await api(
-        "/api/platform-support/platform/conversations" +
-        query
+        "/api/platform-support/platform/conversations?" +
+        params.toString()
       );
 
     state.conversations =
@@ -112,19 +120,85 @@ const PlatformSupportInbox = (()=>{
         : [];
 
     renderList();
+    await loadScopeCounts();
+  }
+
+  async function loadScopeCounts(){
+    try{
+      const [
+        activeData,
+        historyData
+      ] =
+        await Promise.all([
+          api(
+            "/api/platform-support/platform/conversations?scope=active"
+          ),
+          api(
+            "/api/platform-support/platform/conversations?scope=history"
+          )
+        ]);
+
+      if($("activeTabCount")){
+        $("activeTabCount").textContent =
+          String(
+            activeData.conversations?.length ||
+            0
+          );
+      }
+
+      if($("historyTabCount")){
+        $("historyTabCount").textContent =
+          String(
+            historyData.conversations?.length ||
+            0
+          );
+      }
+
+    }catch(err){}
   }
 
   function renderList(){
     const host =
       $("conversationList");
 
+    const table =
+      host?.closest(
+        "table"
+      );
+
+    const headRow =
+      table?.querySelector(
+        "thead tr"
+      );
+
+    if(headRow){
+      headRow.innerHTML =
+        state.scope === "history"
+          ? `
+            <th>Company</th>
+            <th>Subject</th>
+            <th>Opened By</th>
+            <th>Resolved At</th>
+            <th>Resolved By</th>
+          `
+          : `
+            <th>Company</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Last Message</th>
+            <th>Unread</th>
+          `;
+    }
+
     if(!state.conversations.length){
       host.innerHTML = `
         <tr>
-          <td
-            class="support-table-empty"
-            colspan="5">
-            No support conversations.
+          <td class="support-table-empty" colspan="5">
+            ${
+              state.scope === "history"
+                ? "No resolved support conversations."
+                : "No active support conversations."
+            }
           </td>
         </tr>
       `;
@@ -146,9 +220,36 @@ const PlatformSupportInbox = (()=>{
               "OPEN"
             );
 
-          const statusLabel =
-            status
-              .replaceAll("_"," ");
+          if(state.scope === "history"){
+            return `
+              <tr
+                class="${String(row._id) === state.activeId ? "active" : ""}"
+                data-id="${esc(row._id)}">
+
+                <td class="support-company-cell">
+                  ${esc(row.tenantName || "Company")}
+                </td>
+
+                <td class="support-subject-cell">
+                  ${esc(row.subject || "-")}
+                </td>
+
+                <td>
+                  ${esc(row.createdByName || "-")}
+                  <div class="item-meta">${esc(row.createdByRole || "")}</div>
+                </td>
+
+                <td>
+                  ${esc(fmt(row.resolvedAt))}
+                </td>
+
+                <td>
+                  ${esc(row.resolvedByName || row.resolvedBy || "-")}
+                  <div class="item-meta">${esc(row.resolvedByRole || "")}</div>
+                </td>
+              </tr>
+            `;
+          }
 
           return `
             <tr
@@ -165,7 +266,7 @@ const PlatformSupportInbox = (()=>{
 
               <td>
                 <span class="support-status ${esc(status)}">
-                  ${esc(statusLabel)}
+                  ${esc(status.replaceAll("_"," "))}
                 </span>
               </td>
 
@@ -270,6 +371,48 @@ const PlatformSupportInbox = (()=>{
     $("conversationStatus").value =
       c.status ||
       "OPEN";
+
+    const resolved =
+      c.status ===
+      "RESOLVED";
+
+    if($("resolvedHistoryMeta")){
+      $("resolvedHistoryMeta").style.display =
+        resolved
+          ? "block"
+          : "none";
+
+      $("resolvedHistoryMeta").innerHTML =
+        resolved
+          ? `<b>Resolved:</b> ${esc(fmt(c.resolvedAt))}<br>` +
+            `<b>Resolved By:</b> ${esc(c.resolvedByName || c.resolvedBy || "-")}` +
+            `${c.resolvedByRole ? ` · ${esc(c.resolvedByRole)}` : ""}`
+          : "";
+    }
+
+    if($("reopenConversationBtn")){
+      $("reopenConversationBtn").style.display =
+        resolved
+          ? "inline-block"
+          : "none";
+    }
+
+    if($("supportComposer")){
+      $("supportComposer").style.display =
+        resolved
+          ? "none"
+          : "flex";
+    }
+
+    if($("resolvedReadonlyNote")){
+      $("resolvedReadonlyNote").style.display =
+        resolved
+          ? "block"
+          : "none";
+    }
+
+    $("conversationStatus").disabled =
+      resolved;
 
     renderMessages(
       data.messages || []
@@ -392,7 +535,103 @@ const PlatformSupportInbox = (()=>{
     }
   }
 
+  async function setScope(scope){
+    state.scope =
+      scope === "history"
+        ? "history"
+        : "active";
+
+    state.activeId = "";
+
+    $("activeTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.scope === "active"
+      );
+
+    $("historyTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.scope === "history"
+      );
+
+    if($("statusFilter")){
+      $("statusFilter").value =
+        state.scope === "history"
+          ? "RESOLVED"
+          : "";
+    }
+
+    if($("emptyState")){
+      $("emptyState").style.display =
+        "flex";
+
+      $("emptyState").textContent =
+        state.scope === "history"
+          ? "Select a resolved conversation from Support History."
+          : "Select a company support conversation.";
+    }
+
+    if($("chatView")){
+      $("chatView").style.display =
+        "none";
+    }
+
+    await loadList();
+  }
+
+  async function reopenConversation(){
+    if(!state.activeId){
+      return;
+    }
+
+    try{
+      await api(
+        "/api/platform-support/platform/conversations/" +
+        encodeURIComponent(
+          state.activeId
+        ) +
+        "/status",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            status:"OPEN"
+          })
+        }
+      );
+
+      await setScope(
+        "active"
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+    }
+  }
+
   function bind(){
+    $("activeTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setScope("active")
+      );
+
+    $("historyTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setScope("history")
+      );
+
+    $("reopenConversationBtn")
+      ?.addEventListener(
+        "click",
+        reopenConversation
+      );
+
     $("statusFilter")
       ?.addEventListener(
         "change",
