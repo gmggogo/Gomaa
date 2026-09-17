@@ -16,6 +16,14 @@ let schedule = {};
 let timezone = "America/Phoenix";
 let SMART = {};
 
+let AUTOPILOT = {
+  companyAutopilot:false,
+  brokerAutopilot:false,
+  brokerSharedAutopilot:false
+};
+
+let autopilotSendRunning = false;
+
 let selectedIds = new Set();
 let editMode = false;
 let activeTab = "dispatch";
@@ -228,6 +236,32 @@ function isSharedTrip(t){
     clean(t.tripNumber).toUpperCase().includes("-SH") ||
     (Array.isArray(t.passengers) && t.passengers.length > 0)
   );
+}
+
+function isBrokerTrip(t){
+  return (
+    clean(t?.externalSource).toUpperCase() === "BROKER" ||
+    clean(t?.sourceType).toUpperCase() === "BROKER" ||
+    clean(t?.sharedSource).toUpperCase() === "BROKER" ||
+    Boolean(
+      clean(
+        t?.brokerCode ||
+        t?.brokerName ||
+        t?.brokerTripId ||
+        t?.externalTripId
+      )
+    )
+  );
+}
+
+function autopilotEnabledForTrip(t){
+  if(isBrokerTrip(t)){
+    return isSharedTrip(t)
+      ? AUTOPILOT.brokerSharedAutopilot === true
+      : AUTOPILOT.brokerAutopilot === true;
+  }
+
+  return AUTOPILOT.companyAutopilot === true;
 }
 
 function getTripServiceCode(t){
@@ -656,6 +690,50 @@ async function loadSmartEngine(){
   }
 }
 
+async function loadAutopilotSettings(){
+  try{
+    const res = await fetch(
+      "/api/autopilot-settings",
+      {
+        cache:"no-store",
+        headers:Store.headers(false)
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Autopilot settings load failed");
+    }
+
+    const data = await res.json();
+    const settings = data?.settings || data || {};
+
+    AUTOPILOT = {
+      companyAutopilot:
+        settings.companyAutopilot === true,
+      brokerAutopilot:
+        settings.brokerAutopilot === true,
+      brokerSharedAutopilot:
+        settings.brokerSharedAutopilot === true
+    };
+
+  }catch(err){
+    console.log(
+      "AUTOPILOT SETTINGS LOAD ERROR:",
+      err?.message || err
+    );
+
+    /*
+      Fail closed:
+      if settings cannot be loaded, never auto-send a trip.
+    */
+    AUTOPILOT = {
+      companyAutopilot:false,
+      brokerAutopilot:false,
+      brokerSharedAutopilot:false
+    };
+  }
+}
+
 function hasTimeConflict(driverId,trip){
   if(SMART.enableTimeConflict === false) return false;
 
@@ -970,105 +1048,51 @@ async function autoAssign(options={}){
   }
 }
 
-async function isCompanyAutopilotActive(){
-  try{
-    const res =
-      await fetch(
-        "/api/autopilot-settings",
-        {
-          cache:"no-store",
-          headers:Store.headers(false)
-        }
-      );
-
-    if(!res.ok){
-      return false;
-    }
-
-    const data =
-      await res.json().catch(()=>({}));
-
-    return (
-      data?.settings?.companyAutopilot === true ||
-      data?.companyAutopilot === true
-    );
-
-  }catch(err){
-    console.log(
-      "COMPANY AUTOPILOT STATUS ERROR:",
-      err?.message || err
-    );
-
-    return false;
-  }
-}
-
-async function autoAssignNewTrips(){
-  if(
-    SMART.enabled === false ||
-    SMART.autoAssignNewTrips !== true ||
-    autoAssignRunning ||
-    !trips.some(trip=>!clean(trip.driverId))
-  ){
+async function autoSendAutopilotTrips(){
+  if(autopilotSendRunning){
     return;
   }
 
-  /*
-    Keep the existing Smart Dispatch behavior:
-    automatically assign new trips when Smart Dispatch allows it.
-  */
-  const candidateIds = trips
-    .filter(trip=>
-      !clean(trip.driverId) &&
-      !isSentTrip(trip) &&
-      !isTripInProgress(trip)
-    )
-    .map(trip=>String(trip._id));
+  const hasAnyAutopilot =
+    AUTOPILOT.companyAutopilot === true ||
+    AUTOPILOT.brokerAutopilot === true ||
+    AUTOPILOT.brokerSharedAutopilot === true;
 
-  await autoAssign({silent:true});
+  if(!hasAnyAutopilot){
+    return;
+  }
 
   /*
     IMPORTANT:
-    Sending to the driver is allowed ONLY when the NEW Company Autopilot
-    setting is Active. When Autopilot is Not Active, Dispatch stops at
-    Assigned exactly like the existing manual workflow.
+    Autopilot must perform the same final Dispatch command as:
+      Select -> Send Selected
+
+    It does NOT depend on selectedIds because selectedIds belongs only
+    to the manual page controls.
   */
-  const autopilotActive =
-    await isCompanyAutopilotActive();
-
-  if(!autopilotActive){
-    return;
-  }
-
-  const newlyAssignedIds = trips
-    .filter(trip=>
-      candidateIds.includes(String(trip._id)) &&
-      clean(trip.driverId) &&
-      !isSentTrip(trip) &&
-      !isTripInProgress(trip)
+  const ids = getVisibleActionTrips()
+    .filter(t=>
+      clean(t.driverId) &&
+      !isSentTrip(t) &&
+      !isTripInProgress(t) &&
+      autopilotEnabledForTrip(t)
     )
-    .map(trip=>String(trip._id));
+    .map(t=>String(t._id));
 
-  if(!newlyAssignedIds.length){
+  if(!ids.length){
     return;
   }
+
+  autopilotSendRunning = true;
 
   try{
-    const result =
-      await Store.sendTrips(
-        newlyAssignedIds
-      );
+    const result = await Store.sendTrips(ids);
 
-    if(
-      !result ||
-      result.success === false
-    ){
+    if(!result || result.success === false){
       console.log(
-        "AUTOPILOT AUTO SEND FAILED:",
-        result?.message ||
-        "Unknown error"
+        "AUTOPILOT SEND FAILED:",
+        result?.message || "Unknown error"
       );
-
       return;
     }
 
@@ -1076,15 +1100,47 @@ async function autoAssignNewTrips(){
     renderAll();
 
     toast(
-      `${newlyAssignedIds.length} trip(s) automatically sent by Autopilot`
+      `${ids.length} trip(s) automatically sent by Autopilot`
     );
 
   }catch(err){
     console.log(
-      "AUTOPILOT AUTO SEND ERROR:",
+      "AUTOPILOT SEND ERROR:",
       err?.message || err
     );
+
+  }finally{
+    autopilotSendRunning = false;
   }
+}
+
+async function autoAssignNewTrips(){
+  /*
+    Step 1:
+    Keep the existing Smart Dispatch auto-assignment behavior.
+  */
+  if(
+    SMART.enabled !== false &&
+    SMART.autoAssignNewTrips === true &&
+    !autoAssignRunning &&
+    trips.some(trip=>
+      !clean(trip.driverId) &&
+      !isSentTrip(trip) &&
+      !isTripInProgress(trip)
+    )
+  ){
+    await autoAssign({silent:true});
+  }
+
+  /*
+    Step 2:
+    Whether the trip was assigned just now OR was already assigned,
+    Autopilot performs the Send command when its matching switch is Active.
+
+    This fixes the old problem where already-assigned trips stayed on
+    Dispatch waiting for a manual Select + Send click.
+  */
+  await autoSendAutopilotTrips();
 }
 
 async function saveAssignment(trip,driverId,manual=true){
@@ -2059,7 +2115,11 @@ window.closeTripView = closeTripView;
 /* ================= INIT ================= */
 
 async function refresh(){
-  await loadSmartEngine();
+  await Promise.all([
+    loadSmartEngine(),
+    loadAutopilotSettings()
+  ]);
+
   await loadAll();
 
   /*
