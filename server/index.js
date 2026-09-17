@@ -898,6 +898,22 @@ console.log(
 );
 
 /* =========================
+   AUTOPILOT SETTINGS
+========================= */
+
+const autopilotSettingsRoutes =
+  require("./routes/autopilotSettingsRoutes");
+
+app.use(
+  "/api/autopilot-settings",
+  autopilotSettingsRoutes
+);
+
+console.log(
+  "✅ autopilotSettingsRoutes mounted on /api/autopilot-settings"
+);
+
+/* =========================
    TENANT VEHICLE PACKAGE LIMIT
    Driver Schedule is the primary vehicle creation source.
 ========================= */

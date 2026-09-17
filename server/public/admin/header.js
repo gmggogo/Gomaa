@@ -388,7 +388,7 @@ const extraBase=[
 {g:"Payroll",i:"money",items:[["Payroll","payroll.html","money"],["Payroll Summary","payroll-summary.html","chart"]]},
 {l:"Taxes",h:"tax-report.html",i:"chart"}
 ];
-const settingsBase={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"]]};
+const settingsBase={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"],["Autopilot Mode","autopilot-settings.html","bolt"]]};
 
 document.addEventListener("DOMContentLoaded",async()=>{
 
@@ -426,6 +426,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
      "Help Center",
    "shared-engine-settings.html":
      "Shared Engine",
+   "autopilot-settings.html":
+     "Autopilot Mode",
    "trip-split.html":
      "Trip Split",
    "external-trips.html":
