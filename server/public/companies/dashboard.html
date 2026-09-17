@@ -387,6 +387,57 @@ body{
     break-inside:avoid;
   }
 }
+
+.company-page-shell{
+  padding-top:235px;
+}
+
+.company-page-title{
+  width:calc(100% - 56px);
+  margin:0 28px 0;
+  padding:15px 18px;
+  text-align:center;
+  background:linear-gradient(
+    90deg,
+    #e7f3fb,
+    #d8edf8,
+    #e7f3fb
+  );
+  border:1px solid #a9cfdf;
+  border-radius:12px;
+  color:#0d5d7d;
+  font-size:24px;
+  font-weight:900;
+  box-shadow:
+    0 5px 14px
+    rgba(13,93,125,.08);
+}
+
+.company-page-shell .container{
+  padding-top:24px;
+}
+
+@media(max-width:1000px){
+  .company-page-shell{
+    padding-top:220px;
+  }
+
+  .company-page-title{
+    width:calc(100% - 20px);
+    margin:0 10px;
+  }
+}
+
+@media print{
+  .company-page-shell{
+    padding-top:0 !important;
+  }
+
+  .company-page-title{
+    display:none !important;
+  }
+}
+
 </style>
 </head>
 
@@ -394,7 +445,13 @@ body{
 
 <div id="layoutHeader"></div>
 
-<div class="container">
+<div class="company-page-shell">
+
+  <div class="company-page-title">
+    Dashboard
+  </div>
+
+  <div class="container">
 
   <div class="section-title">Today's Activity</div>
 
@@ -558,6 +615,8 @@ body{
     </div>
 
   </div>
+
+</div>
 
 </div>
 
