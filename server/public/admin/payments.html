@@ -20,7 +20,7 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 .badge.active{background:#dcfce7;color:#166534}.badge.trial{background:#dbeafe;color:#1d4ed8}.badge.past_due{background:#ffedd5;color:#9a3412}.badge.suspended{background:#fee2e2;color:#991b1b}.badge.none{background:#e5e7eb;color:#374151}
 .message{display:none;margin:16px 20px 0;padding:11px 13px;border-radius:8px;font-size:12px;font-weight:850}
 .message.show{display:block}.message.ok{background:#dcfce7;color:#166534}.message.error{background:#fee2e2;color:#991b1b}.message.info{background:#dbeafe;color:#1e40af}
-.summary{display:grid;grid-template-columns:repeat(7,minmax(145px,1fr));gap:12px;padding:20px}
+.summary{display:grid;grid-template-columns:repeat(8,minmax(145px,1fr));gap:12px;padding:20px}
 .card{min-height:106px;padding:15px;border:1px solid #d8e1e8;border-radius:12px;background:linear-gradient(180deg,#fff,#f8fbfd)}
 .label{font-size:11px;font-weight:900;color:#6b7585;text-transform:uppercase}.value{margin-top:12px;font-size:24px;font-weight:950;color:#071a36}.money{color:#137a4a}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 20px 20px}
@@ -29,7 +29,7 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 .methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.method{border:1px solid #cbd5df;border-radius:10px;padding:12px}.method strong{display:block;font-size:12px;margin-bottom:4px}.method span{color:#6c7787;font-size:11px}
 .note{margin-bottom:14px;padding:11px 12px;border-radius:9px;background:#f7fafc;color:#536072;font-size:12px;line-height:1.5}
 .pay{width:100%;min-height:48px;border:0;border-radius:9px;background:linear-gradient(180deg,#cda32d,#a87a0c);color:#fff;font-size:14px;font-weight:950;cursor:pointer}.pay:disabled{opacity:.55;cursor:not-allowed}
-.breakdown{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.breakdown-item{border:1px solid #e2e8f0;border-radius:9px;padding:11px;background:#f8fafc}.breakdown-item span{display:block;font-size:10px;font-weight:850;color:#6b7280;text-transform:uppercase}.breakdown-item strong{display:block;margin-top:6px;font-size:14px;color:#172033}.breakdown-total{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff8da;border-top:1px solid #e6d58d;color:#7a5700;font-weight:950}.history{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:11px 12px;border-bottom:1px solid #e5ebf0;font-size:12px;text-align:left}th{background:#edf3f8;color:#344155;font-weight:900}td.amount{font-weight:900;color:#166534}.empty{padding:28px;text-align:center;color:#798493}
+.breakdown{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.breakdown-item{border:1px solid #e2e8f0;border-radius:9px;padding:11px;background:#f8fafc}.breakdown-item span{display:block;font-size:10px;font-weight:850;color:#6b7280;text-transform:uppercase}.breakdown-item strong{display:block;margin-top:6px;font-size:14px;color:#172033}.breakdown-item.wide-detail{grid-column:span 2}.breakdown-item.wide-detail strong{line-height:1.45;word-break:break-word}.breakdown-total{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff8da;border-top:1px solid #e6d58d;color:#7a5700;font-weight:950}.history{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:11px 12px;border-bottom:1px solid #e5ebf0;font-size:12px;text-align:left}th{background:#edf3f8;color:#344155;font-weight:900}td.amount{font-weight:900;color:#166534}.empty{padding:28px;text-align:center;color:#798493}
 @media(max-width:1150px){.summary{grid-template-columns:repeat(4,1fr)}}@media(max-width:950px){.summary{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.breakdown-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -55,9 +55,10 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
   <div class="summary">
     <div class="card"><div class="label">Plan</div><div class="value" id="planName">--</div></div>
-    <div class="card"><div class="label">Plan Price</div><div class="value money" id="planPrice">$0.00</div></div>
+    <div class="card"><div class="label">Package Price</div><div class="value money" id="planPrice">$0.00</div></div>
     <div class="card"><div class="label">Vehicles</div><div class="value" id="vehicleUsage">--</div></div>
     <div class="card"><div class="label">Services</div><div class="value" id="serviceUsage">--</div></div>
+    <div class="card"><div class="label">Brokers</div><div class="value" id="brokerUsage">--</div></div>
     <div class="card"><div class="label">Amount Due</div><div class="value money" id="invoiceAmount">$0.00</div></div>
     <div class="card"><div class="label">Next Payment</div><div class="value" id="nextPayment">--</div></div>
     <div class="card"><div class="label">Grace Period</div><div class="value" id="gracePeriod">--</div></div>
@@ -91,22 +92,102 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
 
   <section class="breakdown">
-    <div class="panel-title">Billing Breakdown</div>
+    <div class="panel-title">Plan Details & Billing</div>
 
     <div class="breakdown-grid">
       <div class="breakdown-item">
-        <span>Base Package</span>
-        <strong id="basePackageAmount">$0.00</strong>
+        <span>Package Price</span>
+        <strong id="packagePriceAmount">$0.00</strong>
       </div>
 
       <div class="breakdown-item">
-        <span>Actual Vehicles</span>
+        <span>Vehicle Limit</span>
+        <strong id="vehicleLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Vehicles</span>
         <strong id="actualVehicles">0</strong>
       </div>
 
       <div class="breakdown-item">
-        <span>Included Vehicles</span>
-        <strong id="includedVehicles">0</strong>
+        <span>Service Limit</span>
+        <strong id="serviceLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Services</span>
+        <strong id="enabledServices">0</strong>
+      </div>
+
+      <div class="breakdown-item wide-detail">
+        <span>Enabled Services</span>
+        <strong id="enabledServiceNames">--</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Broker Limit</span>
+        <strong id="brokerLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Brokers</span>
+        <strong id="activeBrokers">0</strong>
+      </div>
+
+      <div class="breakdown-item wide-detail">
+        <span>Enabled Brokers</span>
+        <strong id="enabledBrokerNames">--</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Driver Limit</span>
+        <strong id="driverLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Drivers</span>
+        <strong id="activeDrivers">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Dispatcher Limit</span>
+        <strong id="dispatcherLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Dispatchers</span>
+        <strong id="activeDispatchers">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Admin Limit</span>
+        <strong id="adminLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Admins</span>
+        <strong id="activeAdmins">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Super Admin Limit</span>
+        <strong id="superAdminLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Super Admins</span>
+        <strong id="activeSuperAdmins">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Company Limit</span>
+        <strong id="companyLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Companies</span>
+        <strong id="activeCompanies">0</strong>
       </div>
 
       <div class="breakdown-item">
@@ -115,18 +196,8 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
       </div>
 
       <div class="breakdown-item">
-        <span>Enabled Services</span>
-        <strong id="enabledServices">0</strong>
-      </div>
-
-      <div class="breakdown-item">
-        <span>Included Services</span>
-        <strong id="includedServices">0</strong>
-      </div>
-
-      <div class="breakdown-item">
-        <span>Extra Services</span>
-        <strong id="extraServicesLine">0 × $0.00 = $0.00</strong>
+        <span>Extra Brokers</span>
+        <strong id="extraBrokersLine">0 × $0.00 = $0.00</strong>
       </div>
 
       <div class="breakdown-item">
@@ -164,6 +235,6 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 </main>
 
 <script src="/admin/header.js"></script>
-<script src="/admin/payments.js?v=SAAS-USAGE-V1-20260828"></script>
+<script src="/admin/payments.js?v=PLAN-DETAILS-V2-20260917"></script>
 </body>
 </html>

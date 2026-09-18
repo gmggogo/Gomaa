@@ -32,6 +32,7 @@ const E = {
   planPrice:$("planPrice"),
   vehicleUsage:$("vehicleUsage"),
   serviceUsage:$("serviceUsage"),
+  brokerUsage:$("brokerUsage"),
   amount:$("invoiceAmount"),
   next:$("nextPayment"),
   grace:$("gracePeriod"),
@@ -43,13 +44,37 @@ const E = {
   history:$("historyBody"),
   msg:$("messageBox"),
 
-  basePackageAmount:$("basePackageAmount"),
+  packagePriceAmount:$("packagePriceAmount"),
+
+  vehicleLimit:$("vehicleLimit"),
   actualVehicles:$("actualVehicles"),
-  includedVehicles:$("includedVehicles"),
-  extraVehiclesLine:$("extraVehiclesLine"),
+
+  serviceLimit:$("serviceLimit"),
   enabledServices:$("enabledServices"),
-  includedServices:$("includedServices"),
-  extraServicesLine:$("extraServicesLine"),
+  enabledServiceNames:$("enabledServiceNames"),
+
+  brokerLimit:$("brokerLimit"),
+  activeBrokers:$("activeBrokers"),
+  enabledBrokerNames:$("enabledBrokerNames"),
+
+  driverLimit:$("driverLimit"),
+  activeDrivers:$("activeDrivers"),
+
+  dispatcherLimit:$("dispatcherLimit"),
+  activeDispatchers:$("activeDispatchers"),
+
+  adminLimit:$("adminLimit"),
+  activeAdmins:$("activeAdmins"),
+
+  superAdminLimit:$("superAdminLimit"),
+  activeSuperAdmins:$("activeSuperAdmins"),
+
+  companyLimit:$("companyLimit"),
+  activeCompanies:$("activeCompanies"),
+
+  extraVehiclesLine:$("extraVehiclesLine"),
+  extraBrokersLine:$("extraBrokersLine"),
+
   discountAmount:$("discountAmount"),
   creditAmount:$("creditAmount"),
   finalPlanPrice:$("finalPlanPrice")
@@ -107,6 +132,70 @@ async function api(url,options={}){
   return data;
 }
 
+
+function numberValue(...values){
+  for(const value of values){
+    const n = Number(value);
+    if(Number.isFinite(n)){
+      return n;
+    }
+  }
+  return 0;
+}
+
+function enabledServiceNames(data){
+  const p = data?.pricing || {};
+  const u = data?.usage || {};
+  const s = data?.subscription || {};
+
+  const rows =
+    Array.isArray(p.serviceControls) ? p.serviceControls :
+    Array.isArray(u.services) ? u.services :
+    Array.isArray(s.serviceControls) ? s.serviceControls :
+    [];
+
+  const names = rows
+    .filter(row=>row?.accessEnabled !== false)
+    .map(row=>clean(row?.label || row?.key))
+    .filter(Boolean);
+
+  return [...new Set(names)];
+}
+
+function enabledBrokerRows(data){
+  const candidates = [
+    data?.brokers,
+    data?.brokerConnections,
+    data?.usage?.brokers,
+    data?.pricing?.brokerControls,
+    data?.subscription?.brokerControls
+  ];
+
+  for(const rows of candidates){
+    if(Array.isArray(rows)){
+      return rows.filter(row=>
+        row?.enabled !== false &&
+        row?.accessEnabled !== false &&
+        row?.billingEnabled !== false
+      );
+    }
+  }
+
+  return [];
+}
+
+function enabledBrokerNames(data){
+  return enabledBrokerRows(data)
+    .map(row=>clean(
+      row?.brokerName ||
+      row?.name ||
+      row?.label ||
+      row?.brokerCode ||
+      row?.code
+    ))
+    .filter(Boolean);
+}
+
 function render(data){
   current = data;
 
@@ -131,91 +220,252 @@ function render(data){
   E.status.className = "badge " + (map[status] || "none");
   E.status.textContent = status.replace(/_/g," ");
 
-  E.plan.textContent = s.planName || "GH Mobility";
-  E.planPrice.textContent = money(s.planPrice);
-
   const actualVehicles =
-    Number(
-      p.actualVehicles ??
-      u.actualVehicles ??
-      0
+    numberValue(
+      p.actualVehicles,
+      u.actualVehicles
     );
 
-  const includedVehicles =
-    Number(
-      p.includedVehicles ??
-      s.includedVehicles ??
-      0
+  const maxVehicles =
+    numberValue(
+      p.maxVehicles,
+      s.maxVehicles
     );
 
   const enabledServices =
-    Number(
-      p.enabledServices ??
-      u.enabledServices ??
-      0
+    numberValue(
+      p.enabledServices,
+      u.enabledServices
     );
 
-  const includedServices =
-    Number(
-      p.includedServices ??
-      s.includedServices ??
+  const maxServices =
+    numberValue(
+      p.maxServices,
+      s.maxServices
+    );
+
+  const actualBrokers =
+    numberValue(
+      p.actualBrokers,
+      u.actualBrokers,
+      enabledBrokerRows(data).length
+    );
+
+  const maxBrokers =
+    numberValue(
+      p.maxBrokers,
+      s.maxBrokers
+    );
+
+  const actualDrivers =
+    numberValue(
+      p.actualDrivers,
+      u.actualDrivers
+    );
+
+  const maxDrivers =
+    numberValue(
+      p.maxDrivers,
+      s.maxDrivers
+    );
+
+  const actualDispatchers =
+    numberValue(
+      p.actualDispatchers,
+      u.actualDispatchers
+    );
+
+  const maxDispatchers =
+    numberValue(
+      p.maxDispatchers,
+      s.maxDispatchers
+    );
+
+  const actualAdmins =
+    numberValue(
+      p.actualAdmins,
+      u.actualAdmins
+    );
+
+  const maxAdmins =
+    numberValue(
+      p.maxAdmins,
+      s.maxAdmins
+    );
+
+  const actualSuperAdmins =
+    numberValue(
+      p.actualSuperAdmins,
+      u.actualSuperAdmins
+    );
+
+  const maxSuperAdmins =
+    numberValue(
+      p.maxSuperAdmins,
+      s.maxSuperAdmins
+    );
+
+  const actualCompanies =
+    numberValue(
+      p.actualCompanies,
+      u.actualCompanies
+    );
+
+  const maxCompanies =
+    numberValue(
+      p.maxCompanies,
+      s.maxCompanies
+    );
+
+  /*
+    Company-facing package price:
+    all service pricing is bundled into one package total.
+    Internal service-by-service pricing is intentionally not shown here.
+  */
+  const packagePrice =
+    numberValue(p.baseAmount) +
+    numberValue(p.serviceAmount);
+
+  const extraVehicles =
+    numberValue(
+      p.billableExtraVehicles,
+      p.extraVehicles
+    );
+
+  const extraVehiclePrice =
+    numberValue(
+      p.extraVehiclePrice,
+      s.extraVehiclePrice
+    );
+
+  const extraBrokers =
+    numberValue(
+      p.billableExtraBrokers,
+      p.extraBrokers
+    );
+
+  const extraBrokerPrice =
+    numberValue(
+      p.extraBrokerPrice,
+      s.extraBrokerPrice
+    );
+
+  const serviceNames =
+    enabledServiceNames(data);
+
+  const brokerNames =
+    enabledBrokerNames(data);
+
+  E.plan.textContent =
+    s.planName || "GH Mobility";
+
+  E.planPrice.textContent =
+    money(
+      packagePrice ||
+      s.planPrice ||
+      p.finalAmount ||
       0
     );
 
   E.vehicleUsage.textContent =
-    actualVehicles + " / " + includedVehicles;
+    actualVehicles + " / " + maxVehicles;
 
   E.serviceUsage.textContent =
-    enabledServices + " / " + includedServices;
+    enabledServices + " / " + maxServices;
 
-  E.amount.textContent = money(s.amountDue);
-  E.next.textContent = dateText(s.nextBillingDate);
-  E.grace.textContent = Number(s.graceDays || 0) + " days";
-  E.cycle.textContent = s.billingCycle || "--";
-  E.due.textContent = dateText(s.dueDate);
-  E.last.textContent = dateText(s.lastPaymentDate);
-  E.access.textContent = s.locked ? "PAYMENT REQUIRED" : "ACTIVE";
+  E.brokerUsage.textContent =
+    actualBrokers + " / " + maxBrokers;
 
-  const extraVehicles =
-    Number(
-      p.billableExtraVehicles ??
-      p.extraVehicles ??
-      0
-    );
+  E.amount.textContent =
+    money(s.amountDue);
 
-  const extraServices =
-    Number(
-      p.billableExtraServices ??
-      p.extraServices ??
-      0
-    );
+  E.next.textContent =
+    dateText(s.nextBillingDate);
 
-  const extraVehiclePrice =
-    Number(
-      p.extraVehiclePrice ??
-      s.extraVehiclePrice ??
-      0
-    );
+  E.grace.textContent =
+    Number(s.graceDays || 0) + " days";
 
-  const extraServicePrice =
-    Number(
-      p.extraServicePrice ??
-      s.extraServicePrice ??
-      0
-    );
+  E.cycle.textContent =
+    s.billingCycle || "--";
 
-  E.basePackageAmount.textContent =
+  E.due.textContent =
+    dateText(s.dueDate);
+
+  E.last.textContent =
+    dateText(s.lastPaymentDate);
+
+  E.access.textContent =
+    s.locked
+      ? "PAYMENT REQUIRED"
+      : "ACTIVE";
+
+  E.packagePriceAmount.textContent =
     money(
-      p.baseAmount ??
-      s.basePrice ??
+      packagePrice ||
+      s.planPrice ||
+      p.finalAmount ||
       0
     );
+
+  E.vehicleLimit.textContent =
+    maxVehicles;
 
   E.actualVehicles.textContent =
     actualVehicles;
 
-  E.includedVehicles.textContent =
-    includedVehicles;
+  E.serviceLimit.textContent =
+    maxServices;
+
+  E.enabledServices.textContent =
+    enabledServices;
+
+  E.enabledServiceNames.textContent =
+    serviceNames.length
+      ? serviceNames.join(", ")
+      : "--";
+
+  E.brokerLimit.textContent =
+    maxBrokers;
+
+  E.activeBrokers.textContent =
+    actualBrokers;
+
+  E.enabledBrokerNames.textContent =
+    brokerNames.length
+      ? [...new Set(brokerNames)].join(", ")
+      : actualBrokers > 0
+        ? actualBrokers + " active broker" + (actualBrokers === 1 ? "" : "s")
+        : "--";
+
+  E.driverLimit.textContent =
+    maxDrivers;
+
+  E.activeDrivers.textContent =
+    actualDrivers;
+
+  E.dispatcherLimit.textContent =
+    maxDispatchers;
+
+  E.activeDispatchers.textContent =
+    actualDispatchers;
+
+  E.adminLimit.textContent =
+    maxAdmins;
+
+  E.activeAdmins.textContent =
+    actualAdmins;
+
+  E.superAdminLimit.textContent =
+    maxSuperAdmins;
+
+  E.activeSuperAdmins.textContent =
+    actualSuperAdmins;
+
+  E.companyLimit.textContent =
+    maxCompanies;
+
+  E.activeCompanies.textContent =
+    actualCompanies;
 
   E.extraVehiclesLine.textContent =
     extraVehicles +
@@ -224,18 +474,12 @@ function render(data){
     " = " +
     money(p.vehicleAmount || 0);
 
-  E.enabledServices.textContent =
-    enabledServices;
-
-  E.includedServices.textContent =
-    includedServices;
-
-  E.extraServicesLine.textContent =
-    extraServices +
+  E.extraBrokersLine.textContent =
+    extraBrokers +
     " × " +
-    money(extraServicePrice) +
+    money(extraBrokerPrice) +
     " = " +
-    money(p.serviceAmount || 0);
+    money(p.brokerAmount || 0);
 
   E.discountAmount.textContent =
     "-" + money(p.discount || 0);
@@ -247,6 +491,7 @@ function render(data){
     money(
       p.finalAmount ??
       s.planPrice ??
+      s.amountDue ??
       0
     );
 
@@ -256,29 +501,35 @@ function render(data){
   E.pay.disabled = !canPay;
 
   if(canPay){
-    E.pay.textContent = "Pay " + money(amount);
+    E.pay.textContent =
+      "Pay " + money(amount);
   }else if(s.paymentWindowOpensAt){
     E.pay.textContent =
       "Payment opens " +
       dateText(s.paymentWindowOpensAt);
   }else{
-    E.pay.textContent = "No Payment Due";
+    E.pay.textContent =
+      "No Payment Due";
   }
 
-  const rows = Array.isArray(data.history) ? data.history : [];
+  const rows =
+    Array.isArray(data.history)
+      ? data.history
+      : [];
 
-  E.history.innerHTML = rows.length
-    ? rows.map(r=>`
-      <tr>
-        <td>${esc(dateText(r.paidAt || r.createdAt))}</td>
-        <td>${esc(r.invoiceNumber || "--")}</td>
-        <td>${esc(r.billingCycle || "--")}</td>
-        <td>${esc(r.paymentMethod || "--")}</td>
-        <td>${esc(r.status || "--")}</td>
-        <td class="amount">${esc(money(r.amount))}</td>
-      </tr>
-    `).join("")
-    : `<tr><td colspan="6" class="empty">No subscription payments yet.</td></tr>`;
+  E.history.innerHTML =
+    rows.length
+      ? rows.map(r=>`
+          <tr>
+            <td>${esc(dateText(r.paidAt || r.createdAt))}</td>
+            <td>${esc(r.invoiceNumber || "--")}</td>
+            <td>${esc(r.billingCycle || "--")}</td>
+            <td>${esc(r.paymentMethod || "--")}</td>
+            <td>${esc(r.status || "--")}</td>
+            <td class="amount">${esc(money(r.amount))}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="6" class="empty">No subscription payments yet.</td></tr>`;
 
   if(s.locked){
     showMessage(
