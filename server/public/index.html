@@ -780,14 +780,14 @@ body{
   /* Four text sections use a separate compact mobile layout */
   .about,
   .quote-header{
-    width:calc(100% - 28px) !important;
+    width:calc(100% - 24px) !important;
     max-width:680px !important;
-    margin:14px auto 0 !important;
+    margin:12px auto 0 !important;
     padding:18px 16px !important;
-    background:transparent !important;
-    border:0 !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
+    background:#ffffff !important;
+    border:1px solid #dbeafe !important;
+    border-radius:18px !important;
+    box-shadow:0 5px 16px rgba(15,23,42,.07) !important;
   }
 
   .extra-sections{
@@ -799,14 +799,14 @@ body{
   }
 
   .extra-box{
-    width:calc(100% - 28px) !important;
+    width:calc(100% - 24px) !important;
     max-width:680px !important;
-    margin:14px auto 0 !important;
+    margin:12px auto 0 !important;
     padding:18px 16px !important;
-    background:transparent !important;
-    border:0 !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
+    background:#ffffff !important;
+    border:1px solid #dbeafe !important;
+    border-radius:18px !important;
+    box-shadow:0 5px 16px rgba(15,23,42,.07) !important;
   }
 
   /* Smaller mobile titles */
@@ -1782,14 +1782,14 @@ function applyPageTheme(data){
   if(about){
 
     if(window.innerWidth <= 768){
-      about.style.setProperty("background","transparent","important");
-      about.style.setProperty("border","0","important");
-      about.style.setProperty("border-radius","0","important");
-      about.style.setProperty("box-shadow","none","important");
-      about.style.setProperty("padding","24px 20px","important");
-      about.style.setProperty("margin","0","important");
-      about.style.setProperty("width","100%","important");
-      about.style.setProperty("max-width","100%","important");
+      about.style.setProperty("background","#ffffff","important");
+      about.style.setProperty("border","1px solid #dbeafe","important");
+      about.style.setProperty("border-radius","18px","important");
+      about.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
+      about.style.setProperty("padding","18px 16px","important");
+      about.style.setProperty("margin","12px auto 0","important");
+      about.style.setProperty("width","calc(100% - 24px)","important");
+      about.style.setProperty("max-width","680px","important");
     }else{
       about.style.background = data.aboutBg || "#ffffff";
       about.style.border = `1px solid ${data.aboutBorder || "#dbeafe"}`;
@@ -1802,14 +1802,14 @@ function applyPageTheme(data){
   if(quote){
 
     if(window.innerWidth <= 768){
-      quote.style.setProperty("background","transparent","important");
-      quote.style.setProperty("border","0","important");
-      quote.style.setProperty("border-radius","0","important");
-      quote.style.setProperty("box-shadow","none","important");
-      quote.style.setProperty("padding","24px 20px","important");
-      quote.style.setProperty("margin","0","important");
-      quote.style.setProperty("width","100%","important");
-      quote.style.setProperty("max-width","100%","important");
+      quote.style.setProperty("background","#ffffff","important");
+      quote.style.setProperty("border","1px solid #dbeafe","important");
+      quote.style.setProperty("border-radius","18px","important");
+      quote.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
+      quote.style.setProperty("padding","18px 16px","important");
+      quote.style.setProperty("margin","12px auto 0","important");
+      quote.style.setProperty("width","calc(100% - 24px)","important");
+      quote.style.setProperty("max-width","680px","important");
     }else{
       quote.style.background = data.quoteBg || "#ffffff";
       quote.style.border = `1px solid ${data.quoteBorder || "#dbeafe"}`;
@@ -2358,14 +2358,17 @@ function forceMobileHomeLayout(){
 
       box.style.setProperty(
         "padding",
-        "24px 20px",
+        "18px 16px",
         "important"
       );
 
-      box.style.setProperty("background","transparent","important");
-      box.style.setProperty("border","0","important");
-      box.style.setProperty("border-radius","0","important");
-      box.style.setProperty("box-shadow","none","important");
+      box.style.setProperty("background","#ffffff","important");
+      box.style.setProperty("border","1px solid #dbeafe","important");
+      box.style.setProperty("border-radius","18px","important");
+      box.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
+      box.style.setProperty("margin","12px auto 0","important");
+      box.style.setProperty("width","calc(100% - 24px)","important");
+      box.style.setProperty("max-width","680px","important");
 
     });
 
