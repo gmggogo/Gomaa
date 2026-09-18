@@ -692,6 +692,92 @@ async function captureAuthorizedTrip(
 
   try{
 
+    /*
+      Always read the current Stripe state before capture.
+
+      This protects Final Confirmation / Autopilot retries:
+      - if Stripe already captured successfully but Mongo save failed,
+        sync the local trip instead of trying to capture again;
+      - if a route change replaced the authorization PaymentIntent,
+        the capture request below is tied to the CURRENT intent id.
+    */
+    const current =
+      await stripe.paymentIntents.retrieve(
+        intentId
+      );
+
+    if(
+      current.status ===
+      "succeeded"
+    ){
+
+      trip.paymentStatus =
+        "PAID";
+
+      trip.capturedAmount =
+        dollars(
+          current.amount_received ||
+          current.amount ||
+          amountCents
+        );
+
+      trip.paymentCapturedAt =
+        trip.paymentCapturedAt ||
+        new Date();
+
+      trip.paymentFailureCode = "";
+      trip.paymentFailureMessage = "";
+
+      await trip.save();
+
+      return current;
+    }
+
+    if(
+      current.status !==
+      "requires_capture"
+    ){
+
+      const err =
+        new Error(
+          `Payment authorization cannot be captured while Stripe status is ${current.status}`
+        );
+
+      err.code =
+        "PAYMENT_NOT_CAPTURABLE";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    const capturableCents =
+      Number(
+        current.amount_capturable ||
+        current.amount ||
+        0
+      );
+
+    if(
+      amountCents >
+      capturableCents
+    ){
+
+      const err =
+        new Error(
+          `Final payment amount exceeds the active authorization (${dollars(capturableCents)})`
+        );
+
+      err.code =
+        "CAPTURE_AMOUNT_EXCEEDS_AUTHORIZATION";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
     const intent =
       await stripe.paymentIntents.capture(
         intentId,
@@ -715,8 +801,24 @@ async function captureAuthorizedTrip(
           }
         },
         {
+          /*
+            IMPORTANT:
+            Stripe idempotency keys are account-wide and must only be
+            reused for the exact same request.
+
+            The old key used only trip id + amount:
+              trip-capture-<tripId>-<amount>
+
+            If a route change replaced the authorization PaymentIntent
+            with another intent at the same amount, Stripe saw the same
+            key being used for a different capture request and rejected it.
+
+            Include the actual PaymentIntent id (and version the key)
+            so retries of the SAME capture stay idempotent while a
+            replacement authorization always receives a different key.
+          */
           idempotencyKey:
-            `trip-capture-${trip._id}-${amountCents}`
+            `trip-capture-v2-${trip._id}-${intentId}-${amountCents}`
         }
       );
 
@@ -741,6 +843,10 @@ async function captureAuthorizedTrip(
 
   }catch(err){
 
+    /*
+      If the error object came from one of the explicit guards above,
+      preserve the same payment-failure contract used by callers.
+    */
     trip.paymentStatus =
       "CAPTURE_FAILED";
 
