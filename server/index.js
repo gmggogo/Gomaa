@@ -6236,131 +6236,372 @@ async function getBillingServiceMap(trips){
   return map;
 }
 /* =========================
+   BILLING TIMEZONE HELPERS
+   Tenant-scoped from SystemDesign
+========================= */
+
+async function getTenantBillingTimezone(tenantId){
+
+  const design =
+    await SystemDesign
+      .findOne({
+        tenantId
+      })
+      .select("timezone")
+      .lean();
+
+  const timezone =
+    String(
+      design?.timezone ||
+      "America/Phoenix"
+    ).trim();
+
+  try{
+
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone
+      }
+    ).format(
+      new Date()
+    );
+
+    return timezone;
+
+  }catch(err){
+
+    return "America/Phoenix";
+  }
+}
+
+function tenantCalendarKey(
+  date,
+  timezone
+){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone,
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(
+      date
+    );
+
+  const map = {};
+
+  for(const part of parts){
+
+    if(
+      part.type === "year" ||
+      part.type === "month" ||
+      part.type === "day"
+    ){
+      map[part.type] =
+        Number(part.value);
+    }
+  }
+
+  return Date.UTC(
+    map.year,
+    map.month - 1,
+    map.day
+  );
+}
+
+function storedBillingCalendarKey(value){
+
+  if(!value){
+    return null;
+  }
+
+  const date =
+    new Date(value);
+
+  if(
+    Number.isNaN(
+      date.getTime()
+    )
+  ){
+    return null;
+  }
+
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  );
+}
+
+function billingDateFromKey(key){
+
+  if(
+    key === null ||
+    key === undefined
+  ){
+    return null;
+  }
+
+  return new Date(
+    Number(key)
+  );
+}
+
+function addBillingDaysKey(
+  key,
+  days
+){
+
+  return (
+    Number(key) +
+    (
+      Number(days || 0) *
+      24 * 60 * 60 * 1000
+    )
+  );
+}
+
+function addBillingMonthsKey(
+  key,
+  months
+){
+
+  const date =
+    new Date(
+      Number(key)
+    );
+
+  date.setUTCMonth(
+    date.getUTCMonth() +
+    Number(months || 0)
+  );
+
+  return date.getTime();
+}
+
+function billingDateInputToKey(value){
+
+  const raw =
+    String(value || "")
+      .trim();
+
+  if(
+    !/^\d{4}-\d{2}-\d{2}$/.test(raw)
+  ){
+    return null;
+  }
+
+  const [
+    year,
+    month,
+    day
+  ] =
+    raw.split("-")
+      .map(Number);
+
+  const key =
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    );
+
+  const check =
+    new Date(key);
+
+  if(
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ){
+    return null;
+  }
+
+  return key;
+}
+
+
+/* =========================
    BILLING ENGINE FINAL
 ========================= */
 
 async function updateCompanyBilling(company){
 
-  const now = new Date();
+  const timezone =
+    await getTenantBillingTimezone(
+      company.tenantId
+    );
 
-  let nextDate;
+  const realNow =
+    new Date();
 
-  if(company.nextBillingDate){
+  const todayKey =
+    tenantCalendarKey(
+      realNow,
+      timezone
+    );
 
-    nextDate =
-      new Date(company.nextBillingDate);
+  let nextKey =
+    storedBillingCalendarKey(
+      company.nextBillingDate
+    );
 
-  }else{
+  if(nextKey === null){
 
-    nextDate =
-      new Date(now);
-
-    if(company.billingCycle === "WEEKLY"){
-
-      nextDate.setDate(
-        nextDate.getDate() + 7
-      );
-
-    }else{
-
-      nextDate.setMonth(
-        nextDate.getMonth() + 1
-      );
-
-    }
+    nextKey =
+      String(company.billingCycle || "")
+        .toUpperCase() === "WEEKLY"
+        ? addBillingDaysKey(
+            todayKey,
+            7
+          )
+        : addBillingMonthsKey(
+            todayKey,
+            1
+          );
 
     company.nextBillingDate =
-      nextDate;
-
+      billingDateFromKey(
+        nextKey
+      );
   }
 
   const graceDays =
-    Number(company.graceDays || 3);
+    Math.max(
+      0,
+      Number(
+        company.graceDays || 3
+      )
+    );
 
-  const graceMs =
-    graceDays * 24 * 60 * 60 * 1000;
-
-  const diff =
-    nextDate - now;
+  const graceEndKey =
+    addBillingDaysKey(
+      nextKey,
+      graceDays
+    );
 
   const daysLeft =
     Math.ceil(
-      diff / (1000 * 60 * 60 * 24)
+      (
+        nextKey -
+        todayKey
+      ) /
+      (
+        24 * 60 * 60 * 1000
+      )
     );
 
-  const startDate =
-    company.billingStartDate
-      ? new Date(company.billingStartDate)
-      : new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          1,
-          0,
-          0,
-          0
-        );
+  let startKey =
+    storedBillingCalendarKey(
+      company.billingStartDate
+    );
 
-  const endDate =
-    company.billingEndDate
-      ? new Date(company.billingEndDate)
-      : new Date(
-          now.getFullYear(),
-          now.getMonth() + 1,
-          0,
-          23,
-          59,
-          59
-        );
+  let endKey =
+    storedBillingCalendarKey(
+      company.billingEndDate
+    );
 
-  const startKey =
-    startDate.toISOString().split("T")[0];
-
-  const endKey =
-    endDate.toISOString().split("T")[0];
-
-  let billingStatus = "ACTIVE";
-  let billingLocked = false;
-
-  const graceEnd =
+  const todayDate =
     new Date(
-      nextDate.getTime() + graceMs
+      todayKey
     );
 
-  if(
-    now > nextDate &&
-    now <= graceEnd
-  ){
-    billingStatus = "PAST_DUE";
+  if(startKey === null){
+
+    startKey =
+      Date.UTC(
+        todayDate.getUTCFullYear(),
+        todayDate.getUTCMonth(),
+        1
+      );
   }
 
-  if(now > graceEnd){
-    billingStatus = "SUSPENDED";
-    billingLocked = true;
+  if(endKey === null){
+
+    endKey =
+      Date.UTC(
+        todayDate.getUTCFullYear(),
+        todayDate.getUTCMonth() + 1,
+        0
+      );
+  }
+
+  const startDate =
+    billingDateFromKey(
+      startKey
+    );
+
+  const endDate =
+    billingDateFromKey(
+      endKey
+    );
+
+  const startKeyText =
+    startDate
+      .toISOString()
+      .slice(0,10);
+
+  const endKeyText =
+    endDate
+      .toISOString()
+      .slice(0,10);
+
+  let billingStatus =
+    "ACTIVE";
+
+  let billingLocked =
+    false;
+
+  if(
+    todayKey > nextKey &&
+    todayKey <= graceEndKey
+  ){
+    billingStatus =
+      "PAST_DUE";
+  }
+
+  if(
+    todayKey > graceEndKey
+  ){
+    billingStatus =
+      "SUSPENDED";
+
+    billingLocked =
+      true;
   }
 
   const trips =
-  await Trip.find({
+    await Trip.find({
 
-    tenantId:company.tenantId,
+      tenantId:
+        company.tenantId,
 
-    company:{
-      $regex:
-        "^" +
-        String(company.name || "").trim() +
-        "$",
-      $options:"i"
-    },
+      company:{
+        $regex:
+          "^" +
+            String(
+              company.name || ""
+            ).trim() +
+          "$",
+        $options:"i"
+      },
 
-    billingPaid:{
-      $ne:true
-    },
+      billingPaid:{
+        $ne:true
+      },
 
-    tripDate:{
-      $gte:startKey,
-      $lte:endKey
-    }
+      tripDate:{
+        $gte:startKeyText,
+        $lte:endKeyText
+      }
 
-  }).lean();
+    }).lean();
 
   /*
     Load service definitions once for all trips.
@@ -6379,30 +6620,30 @@ async function updateCompanyBilling(company){
 
   const sharedGroups = new Set();
 
-for (const t of trips) {
+  for (const t of trips) {
 
-let service =
-  billingServiceMap.get(
-    billingServiceKey(t)
-  ) || null;
+    let service =
+      billingServiceMap.get(
+        billingServiceKey(t)
+      ) || null;
 
-const isShared =
+    const isShared =
 
-  t.isShared === true ||
+      t.isShared === true ||
 
-  String(t.tripType || "")
-    .toUpperCase()
-    .includes("SHARED") ||
+      String(t.tripType || "")
+        .toUpperCase()
+        .includes("SHARED") ||
 
-  String(service?.serviceKey || "")
-    .toUpperCase()
-    .includes("SHARED") ||
+      String(service?.serviceKey || "")
+        .toUpperCase()
+        .includes("SHARED") ||
 
-  String(t.tripNumber || "")
-    .includes("-SH") ||
+      String(t.tripNumber || "")
+        .includes("-SH") ||
 
-  String(t.groupId || "")
-    .trim() !== "";
+      String(t.groupId || "")
+        .trim() !== "";
 
     const status =
       String(t.status || "")
@@ -6427,315 +6668,292 @@ const isShared =
       }
     }
 
-   /* =========================
-   BILLABLE CHECK
-========================= */
+    const hasPassengerStatuses =
 
-const hasPassengerStatuses =
+      isShared &&
 
-  isShared &&
+      Array.isArray(t.passengers) &&
 
-  Array.isArray(t.passengers) &&
+      t.passengers.some(p=>{
 
-  t.passengers.some(p=>{
+        const s =
+          String(p.status || "")
+            .replace(/\s+/g,"")
+            .toLowerCase()
+            .trim();
 
-    const s =
-      String(p.status || "")
-        .replace(/\s+/g,"")
-        .toLowerCase()
-        .trim();
+        return (
+          s.includes("complete") ||
+          s.includes("cancel") ||
+          s.includes("no")
+        );
 
-    return (
-      s.includes("complete") ||
-      s.includes("cancel") ||
-      s.includes("no")
-    );
+      });
 
-  });
+    const tripBillable =
 
-const tripBillable =
-
-  status.includes("complete") ||
-  status.includes("cancel") ||
-  status.includes("no");
-
-/* 🔥 لو لا الرحلة ولا الركاب billable */
-
-if(
-  !tripBillable &&
-  !hasPassengerStatuses
-){
-  continue;
-}   
- if(isShared){
-
-  sharedGroups.add(
-    String(
-      t.groupId ||
-      t.tripNumber ||
-      t._id
-    )
-  );
-
-}else{
-
-  individualTrips++;
-
-}
-
-/* =========================
-   STATUS COUNTS
-========================= */
-
-if(status.includes("complete")){
-  completedTrips++;
-}
-
-if(status.includes("cancel")){
-  cancelledTrips++;
-}
-
-if(status.includes("no")){
-  noShowTrips++;
-}
-
-/* =========================
-   PRICE
-========================= */
-
-let amount = 0;
-
-if(
-  isShared &&
-  Array.isArray(t.passengers) &&
-  t.passengers.length > 0
-){
-
-  t.passengers.forEach(p=>{
-
-    let ps =
-      String(p.status || "")
-        .replace(/\s+/g,"")
-        .toLowerCase()
-        .trim();
+      status.includes("complete") ||
+      status.includes("cancel") ||
+      status.includes("no");
 
     if(
-      !ps ||
-      ps === "scheduled" ||
-      ps === "booked"
+      !tripBillable &&
+      !hasPassengerStatuses
     ){
-      ps = status;
+      continue;
     }
 
-    if(ps.includes("complete")){
+    if(isShared){
 
-      amount += Number(
-        p.finalPrice ||
-        p.priceAmount ||
-        p.price ||
-        0
+      sharedGroups.add(
+        String(
+          t.groupId ||
+          t.tripNumber ||
+          t._id
+        )
       );
 
-    }else if(ps.includes("cancel")){
+    }else{
 
-      const cancellationChargeable =
-        p?.cancellationChargeable === false ||
-        t?.cancellationChargeable === false
-          ? false
-          : true;
-
-      amount += Number(
-        cancellationChargeable
-          ? (
-              p.finalPrice ||
-              p.cancelFee ||
-              t.cancelFee ||
-              service?.companyCancelFee ||
-              service?.cancelFee ||
-              t.finalPrice ||
-              0
-            )
-          : 0
-      );
-
-    }else if(ps.includes("no")){
-
-      amount += Number(
-        p.noShowFee ||
-        t.noShowFee ||
-        service?.companyNoShowFee ||
-        service?.noShowFee ||
-        0
-      );
-
+      individualTrips++;
     }
 
-  });
+    if(status.includes("complete")){
+      completedTrips++;
+    }
 
-}else{
+    if(status.includes("cancel")){
+      cancelledTrips++;
+    }
 
-  if(status.includes("complete")){
+    if(status.includes("no")){
+      noShowTrips++;
+    }
 
-    amount = Number(
-      t.finalPrice ||
-      t.priceAmount ||
-      t.price ||
-      0
-    );
+    let amount = 0;
 
-  }else if(status.includes("cancel")){
+    if(
+      isShared &&
+      Array.isArray(t.passengers) &&
+      t.passengers.length > 0
+    ){
 
-    amount =
-      t?.cancellationChargeable === false
-        ? 0
-        : Number(
-            t.cancelFee ||
-            service?.companyCancelFee ||
-            service?.cancelFee ||
-            t.finalPrice ||
-            t.priceAmount ||
+      t.passengers.forEach(p=>{
+
+        let ps =
+          String(p.status || "")
+            .replace(/\s+/g,"")
+            .toLowerCase()
+            .trim();
+
+        if(
+          !ps ||
+          ps === "scheduled" ||
+          ps === "booked"
+        ){
+          ps = status;
+        }
+
+        if(ps.includes("complete")){
+
+          amount += Number(
+            p.finalPrice ||
+            p.priceAmount ||
+            p.price ||
             0
           );
 
-  }else if(status.includes("no")){
+        }else if(ps.includes("cancel")){
 
-    amount = Number(
-      t.noShowFee ||
-      service?.companyNoShowFee ||
-      service?.noShowFee ||
-      0
+          const cancellationChargeable =
+            p?.cancellationChargeable === false ||
+            t?.cancellationChargeable === false
+              ? false
+              : true;
+
+          amount += Number(
+            cancellationChargeable
+              ? (
+                  p.finalPrice ||
+                  p.cancelFee ||
+                  t.cancelFee ||
+                  service?.companyCancelFee ||
+                  service?.cancelFee ||
+                  t.finalPrice ||
+                  0
+                )
+              : 0
+          );
+
+        }else if(ps.includes("no")){
+
+          amount += Number(
+            p.noShowFee ||
+            t.noShowFee ||
+            service?.companyNoShowFee ||
+            service?.noShowFee ||
+            0
+          );
+        }
+      });
+
+    }else{
+
+      if(status.includes("complete")){
+
+        amount = Number(
+          t.finalPrice ||
+          t.priceAmount ||
+          t.price ||
+          0
+        );
+
+      }else if(status.includes("cancel")){
+
+        amount =
+          t?.cancellationChargeable === false
+            ? 0
+            : Number(
+                t.cancelFee ||
+                service?.companyCancelFee ||
+                service?.cancelFee ||
+                t.finalPrice ||
+                t.priceAmount ||
+                0
+              );
+
+      }else if(status.includes("no")){
+
+        amount = Number(
+          t.noShowFee ||
+          service?.companyNoShowFee ||
+          service?.noShowFee ||
+          0
+        );
+      }
+    }
+
+    revenue +=
+      Number(
+        amount || 0
+      );
+  }
+
+  let sharedPassengers = 0;
+
+  trips.forEach(t => {
+
+    const isShared =
+      t.isShared === true ||
+      String(t.tripNumber || "").includes("-SH") ||
+      String(t.groupId || "").trim() !== "";
+
+    if(!isShared) return;
+
+    if(
+      Array.isArray(t.passengers) &&
+      t.passengers.length > 0
+    ){
+
+      t.passengers.forEach(p => {
+
+        const s =
+          String(p.status || "")
+            .replace(/\s+/g,"")
+            .toLowerCase()
+            .trim();
+
+        if(
+          s.includes("complete") ||
+          s.includes("cancel") ||
+          s.includes("no")
+        ){
+          sharedPassengers++;
+        }
+      });
+    }
+  });
+
+  const sharedTrips =
+    sharedGroups.size;
+
+  const totalTrips =
+    individualTrips +
+    sharedTrips;
+
+  company.revenue =
+    Number(revenue || 0);
+
+  company.totalTrips =
+    totalTrips;
+
+  company.individualTrips =
+    individualTrips;
+
+  company.sharedTrips =
+    sharedTrips;
+
+  company.completedTrips =
+    completedTrips;
+
+  company.cancelledTrips =
+    cancelledTrips;
+
+  company.noShowTrips =
+    noShowTrips;
+
+  const invoiceAmount =
+    Number(
+      revenue.toFixed(2)
     );
 
-  }
+  await User.findOneAndUpdate(
+    {
+      _id:company._id,
+      tenantId:company.tenantId,
+      role:"company"
+    },
+    {
+      daysLeft,
+      billingStatus,
+      billingLocked,
 
-}
+      billingStartDate:
+        startDate,
 
-revenue += Number(amount || 0);
+      billingEndDate:
+        endDate,
 
-}
+      nextBillingDate:
+        billingDateFromKey(
+          nextKey
+        ),
 
-/* =========================
-   SHARED PASSENGERS
-========================= */
+      totalTrips,
+      individualTrips,
+      sharedTrips,
+      sharedPassengers,
 
-let sharedPassengers = 0;
+      completedTrips,
+      cancelledTrips,
+      noShowTrips,
 
-trips.forEach(t => {
+      revenue:
+        Number(
+          revenue.toFixed(2)
+        ),
 
-  const isShared =
-    t.isShared === true ||
-    String(t.tripNumber || "").includes("-SH") ||
-    String(t.groupId || "").trim() !== "";
-
-  if(!isShared) return;
-
-  if(
-    Array.isArray(t.passengers) &&
-    t.passengers.length > 0
-  ){
-
-    t.passengers.forEach(p => {
-
-      const s =
-        String(p.status || "")
-          .replace(/\s+/g,"")
-          .toLowerCase()
-          .trim();
-
-      if(
-        s.includes("complete") ||
-        s.includes("cancel") ||
-        s.includes("no")
-      ){
-        sharedPassengers++;
-      }
-
-    });
-
-  } else {
-
-    // intentionally empty
-
-  }
-
-});
-
-/* =========================
-   TOTALS
-========================= */
-
-const sharedTrips =
-  sharedGroups.size;
-
-const totalTrips =
-  individualTrips + sharedTrips;
-
-company.revenue =
-  Number(revenue || 0);
-
-company.totalTrips =
-  totalTrips;
-
-company.individualTrips =
-  individualTrips;
-
-company.sharedTrips =
-  sharedTrips;
-
-company.completedTrips =
-  completedTrips;
-
-company.cancelledTrips =
-  cancelledTrips;
-
-company.noShowTrips =
-  noShowTrips;
-
-/* =========================
-   INVOICE AMOUNT
-========================= */
-
-const invoiceAmount =
-  Number(
-    revenue.toFixed(2)
+      invoiceAmount
+    }
   );
 
-await User.findOneAndUpdate(
-  {
+  return await User.findOne({
     _id:company._id,
     tenantId:company.tenantId,
     role:"company"
-  },
-  {
-    daysLeft,
-    billingStatus,
-    billingLocked,
-
-    billingStartDate:startDate,
-    billingEndDate:endDate,
-    nextBillingDate:nextDate,
-
-    totalTrips,
-    individualTrips,
-    sharedTrips,
-    sharedPassengers,
-
-    completedTrips,
-    cancelledTrips,
-    noShowTrips,
-
-    revenue:Number(revenue.toFixed(2)),
-    invoiceAmount:invoiceAmount
-  }
-);
-
-return await User.findOne({
-  _id:company._id,
-  tenantId:company.tenantId,
-  role:"company"
-}).lean();
-
+  }).lean();
 }
+
 
 /* =========================
    LOCK COMPANY
@@ -6839,18 +7057,27 @@ app.put(
   try{
 
     if(!isTenantBillingAdmin(req)){
-      return res.status(403).json({message:"Access denied"});
+      return res.status(403).json({
+        message:"Access denied"
+      });
     }
 
     const filter =
-      adminBillingCompanyFilter(req,req.params.id);
+      adminBillingCompanyFilter(
+        req,
+        req.params.id
+      );
 
     if(!filter){
-      return res.status(404).json({message:"Company not found"});
+      return res.status(404).json({
+        message:"Company not found"
+      });
     }
 
     const user =
-      await User.findOne(filter);
+      await User.findOne(
+        filter
+      );
 
     if(!user){
       return res.status(404).json({
@@ -6858,26 +7085,59 @@ app.put(
       });
     }
 
-    const now = new Date();
-
-    let nextBillingDate = new Date(now);
-
-    if(user.billingCycle === "WEEKLY"){
-      nextBillingDate.setDate(
-        nextBillingDate.getDate() + 7
+    const timezone =
+      await getTenantBillingTimezone(
+        user.tenantId
       );
-    }else{
-      nextBillingDate.setMonth(
-        nextBillingDate.getMonth() + 1
-      );
-    }
 
-    user.billingStatus = "ACTIVE";
-    user.billingLocked = false;
-    user.lastPaymentDate = now;
-    user.billingStartDate = new Date(now.toISOString());
-    user.billingEndDate = new Date(nextBillingDate.toISOString());
-    user.nextBillingDate = new Date(nextBillingDate.toISOString());
+    const realNow =
+      new Date();
+
+    const todayKey =
+      tenantCalendarKey(
+        realNow,
+        timezone
+      );
+
+    const nextBillingKey =
+      String(user.billingCycle || "")
+        .toUpperCase() === "WEEKLY"
+        ? addBillingDaysKey(
+            todayKey,
+            7
+          )
+        : addBillingMonthsKey(
+            todayKey,
+            1
+          );
+
+    const todayDate =
+      billingDateFromKey(
+        todayKey
+      );
+
+    const nextBillingDate =
+      billingDateFromKey(
+        nextBillingKey
+      );
+
+    user.billingStatus =
+      "ACTIVE";
+
+    user.billingLocked =
+      false;
+
+    user.lastPaymentDate =
+      realNow;
+
+    user.billingStartDate =
+      todayDate;
+
+    user.billingEndDate =
+      nextBillingDate;
+
+    user.nextBillingDate =
+      nextBillingDate;
 
     user.invoiceAmount = 0;
     user.revenue = 0;
@@ -6897,13 +7157,18 @@ app.put(
     });
 
   }catch(err){
-    console.log("ADMIN BILLING MARK PAID ERROR:",err);
+
+    console.log(
+      "ADMIN BILLING MARK PAID ERROR:",
+      err
+    );
+
     return res.status(500).json({
       message:"mark paid failed"
     });
   }
-
 });
+
 
 /* =========================
    GENERATE INVOICE
@@ -6948,14 +7213,40 @@ app.put(
       });
     }
 
+    const startKey =
+      billingDateInputToKey(
+        billingStartDate
+      );
+
+    const endKey =
+      billingDateInputToKey(
+        billingEndDate
+      );
+
+    if(
+      startKey === null ||
+      endKey === null ||
+      endKey < startKey
+    ){
+      return res.status(400).json({
+        message:"Invalid billing dates"
+      });
+    }
+
     company.billingStartDate =
-      new Date(billingStartDate + "T12:00:00");
+      billingDateFromKey(
+        startKey
+      );
 
     company.billingEndDate =
-      new Date(billingEndDate + "T12:00:00");
+      billingDateFromKey(
+        endKey
+      );
 
     company.nextBillingDate =
-      new Date(billingEndDate + "T12:00:00");
+      billingDateFromKey(
+        endKey
+      );
 
     company.graceDays =
       Number(graceDays || 3);
@@ -7399,25 +7690,41 @@ app.get(
       });
     }
 
+    const timezone =
+      await getTenantBillingTimezone(
+        company.tenantId
+      );
+
     const now =
-  new Date();
+      new Date();
 
-let nextBillingDate =
-  new Date(now);
+    const tenantTodayKey =
+      tenantCalendarKey(
+        now,
+        timezone
+      );
 
-if(company.billingCycle === "WEEKLY"){
+    const tenantToday =
+      billingDateFromKey(
+        tenantTodayKey
+      );
 
-  nextBillingDate.setDate(
-    nextBillingDate.getDate() + 7
-  );
+    const nextBillingKey =
+      String(company.billingCycle || "")
+        .toUpperCase() === "WEEKLY"
+        ? addBillingDaysKey(
+            tenantTodayKey,
+            7
+          )
+        : addBillingMonthsKey(
+            tenantTodayKey,
+            1
+          );
 
-}else{
-
-  nextBillingDate.setMonth(
-    nextBillingDate.getMonth() + 1
-  );
-
-}
+    const nextBillingDate =
+      billingDateFromKey(
+        nextBillingKey
+      );
 
 /* =========================
    SAVE BILLING HISTORY
@@ -7577,24 +7884,10 @@ company.lastPaymentDate =
 ========================= */
 
 company.billingStartDate =
-  new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0
-  );
+  tenantToday;
 
 company.billingEndDate =
-  new Date(
-    nextBillingDate.getFullYear(),
-    nextBillingDate.getMonth(),
-    nextBillingDate.getDate(),
-    23,
-    59,
-    59
-  );
+  nextBillingDate;
 
 company.nextBillingDate =
   nextBillingDate;
