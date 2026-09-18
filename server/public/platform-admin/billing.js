@@ -801,7 +801,7 @@ document.addEventListener("DOMContentLoaded",()=>{
           </div>
 
           <div class="section-body" id="inlineHistory">
-            <div class="empty-state">Open payment history to load records.</div>
+            <div class="empty-state">Payment history loads automatically when this tab opens.</div>
           </div>
         </div>
       </div>
@@ -1369,15 +1369,40 @@ document.addEventListener("DOMContentLoaded",()=>{
     const item = event.target.closest("[data-company-id]");
     if(!item) return;
 
-    state.selectedId = item.dataset.companyId;
+    const paymentsWasOpen =
+      companyDetail
+        .querySelector(
+          '.detail-tab[data-tab="payments"]'
+        )
+        ?.classList
+        .contains("active") === true;
+
+    state.selectedId =
+      item.dataset.companyId;
+
     renderSidebar();
     renderCompany();
+
+    if(paymentsWasOpen){
+      activateCompanyTab("payments");
+      loadHistory(true);
+    }
   });
 
   companyDetail.addEventListener("click",event=>{
     const tab = event.target.closest("[data-tab]");
     if(tab){
-      activateCompanyTab(tab.dataset.tab);
+      const tabName =
+        tab.dataset.tab || "";
+
+      activateCompanyTab(
+        tabName
+      );
+
+      if(tabName === "payments"){
+        loadHistory(true);
+      }
+
       return;
     }
 

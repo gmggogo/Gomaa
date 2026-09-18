@@ -276,23 +276,29 @@ body{
 
 .company-item{
   width:100%;
-  border:1px solid transparent;
-  background:transparent;
-  padding:10px;
-  border-radius:9px;
-  margin-bottom:5px;
+  border:1px solid #c7d7e7;
+  background:#eaf2fb;
+  padding:11px 10px;
+  border-radius:10px;
+  margin-bottom:7px;
   text-align:left;
   cursor:pointer;
+  transition:.15s ease;
+}
+
+.company-item:nth-child(even){
+  background:#f3f7fc;
 }
 
 .company-item:hover{
-  background:#eef3f8;
+  background:#dbeafe;
+  border-color:#93c5fd;
 }
 
 .company-item.active{
-  background:#fff;
-  border-color:#b9c8d5;
-  box-shadow:0 3px 10px rgba(7,26,54,.08);
+  background:#dbeafe;
+  border-color:#2563eb;
+  box-shadow:0 4px 12px rgba(37,99,235,.16);
 }
 
 .company-item-row{
@@ -303,9 +309,9 @@ body{
 }
 
 .company-item-name{
-  font-size:11px;
+  font-size:12px;
   font-weight:900;
-  color:#172033;
+  color:#12345b;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -1270,7 +1276,7 @@ body{
 </div>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=LIMITS-ACTIVE-CLEAN-V6-20260917"></script>
+<script src="/platform-admin/billing.js?v=AUTO-HISTORY-SIDEBAR-COLOR-20260917"></script>
 
 </body>
 </html>
