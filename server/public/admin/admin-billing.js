@@ -743,24 +743,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
             <div class="company-top">
 
-              <div class="company-box">
+              <div class="company-info-bar">
 
-                <div class="billing-company-title"
-                  style="font-size:22px;font-weight:900;color:#166534;margin-bottom:8px;">
-                  ${c.name || "--"}
+                <div class="company-info-item">
+                  <span class="company-info-label">Company Name</span>
+                  <strong class="company-info-value">
+                    ${c.name || "--"}
+                  </strong>
                 </div>
 
-                <div class="company-small">
-                  ${c.email || "--"}
-                  <br>
-                  ${c.phone || "--"}
-                  <br>
-                  ${c.username || "--"}
+                <div class="company-info-item">
+                  <span class="company-info-label">Email</span>
+                  <strong class="company-info-value">
+                    ${c.email || "--"}
+                  </strong>
+                </div>
+
+                <div class="company-info-item">
+                  <span class="company-info-label">Phone</span>
+                  <strong class="company-info-value">
+                    ${c.phone || "--"}
+                  </strong>
                 </div>
 
               </div>
 
-              <div>
+              <div class="company-status-wrap">
 
                 ${
                   c.billingLocked
