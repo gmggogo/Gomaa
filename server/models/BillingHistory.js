@@ -1,75 +1,152 @@
+"use strict";
+
 const mongoose = require("mongoose");
 
-const billingHistorySchema = new mongoose.Schema({
+const THREE_YEARS_SECONDS =
+  3 * 365 * 24 * 60 * 60;
 
-  tenantId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"Tenant",
-    required:true,
-    index:true
-  },
+const billingHistorySchema =
+  new mongoose.Schema(
+    {
+      tenantId:{
+        type:String,
+        trim:true,
+        index:true,
+        default:""
+      },
 
-  companyId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"User",
-    required:true,
-    index:true
-  },
+      companyId:{
+        type:String,
+        trim:true,
+        required:true,
+        index:true
+      },
 
-  companyName:String,
+      companyName:{
+        type:String,
+        default:""
+      },
 
-  billingStartDate:Date,
-  billingEndDate:Date,
+      companyEmail:{
+        type:String,
+        default:""
+      },
 
-  totalTrips:Number,
-  individualTrips:Number,
-  sharedTrips:Number,
-  sharedPassengers:Number,
+      companyPhone:{
+        type:String,
+        default:""
+      },
 
-  completedTrips:Number,
-  cancelledTrips:Number,
-  noShowTrips:Number,
+      invoiceNumber:{
+        type:String,
+        default:"",
+        index:true
+      },
 
-  revenue:Number,
-  invoiceAmount:Number,
+      billingStartDate:{
+        type:Date,
+        default:null
+      },
 
-  paidDate:Date,
+      billingEndDate:{
+        type:Date,
+        default:null
+      },
 
-  paymentMethod:{
-    type:String,
-    default:""
-  },
+      totalTrips:{
+        type:Number,
+        default:0
+      },
 
-  stripeCheckoutSessionId:{
-    type:String,
-    default:"",
-    index:true
-  },
+      individualTrips:{
+        type:Number,
+        default:0
+      },
 
-  stripePaymentIntentId:{
-    type:String,
-    default:""
-  },
+      sharedTrips:{
+        type:Number,
+        default:0
+      },
 
-  stripeAccountId:{
-    type:String,
-    default:""
-  },
+      sharedPassengers:{
+        type:Number,
+        default:0
+      },
 
-  tripIds:[{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"Trip"
-  }]
+      completedTrips:{
+        type:Number,
+        default:0
+      },
 
-},{
-  timestamps:true
-});
+      cancelledTrips:{
+        type:Number,
+        default:0
+      },
 
-billingHistorySchema.index({
-  tenantId:1,
-  companyId:1,
-  paidDate:-1
-});
+      noShowTrips:{
+        type:Number,
+        default:0
+      },
+
+      revenue:{
+        type:Number,
+        default:0
+      },
+
+      invoiceAmount:{
+        type:Number,
+        default:0
+      },
+
+      paidDate:{
+        type:Date,
+        default:Date.now,
+        index:true
+      },
+
+      paymentMethod:{
+        type:String,
+        default:"STRIPE"
+      },
+
+      stripeCheckoutSessionId:{
+        type:String,
+        default:"",
+        index:true
+      },
+
+      stripePaymentIntentId:{
+        type:String,
+        default:""
+      },
+
+      stripeAccountId:{
+        type:String,
+        default:""
+      },
+
+      tripIds:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Trip"
+      }]
+    },
+    {
+      timestamps:true
+    }
+  );
+
+/*
+  Company payment history retention:
+  MongoDB automatically removes rows about 3 years after paidDate.
+*/
+billingHistorySchema.index(
+  {paidDate:1},
+  {expireAfterSeconds:THREE_YEARS_SECONDS}
+);
+
+billingHistorySchema.index(
+  {tenantId:1,companyId:1,paidDate:-1}
+);
 
 module.exports =
   mongoose.models.BillingHistory ||

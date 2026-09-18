@@ -72,6 +72,8 @@ document.addEventListener("DOMContentLoaded", () => {
   ========================= */
 
   let companies = [];
+  const paymentHistoryCache = new Map();
+  const paymentHistoryFilters = new Map();
   let stripeAccountLinked = false;
   let stripePaymentReady = false;
 
@@ -713,6 +715,287 @@ document.addEventListener("DOMContentLoaded", () => {
 
   }
 
+
+  function historyYearOptions(rows){
+    const years =
+      [...new Set(
+        (Array.isArray(rows) ? rows : [])
+          .map(row=>{
+            const d = new Date(row?.paidDate || row?.createdAt || 0);
+            return Number.isNaN(d.getTime()) ? "" : String(d.getFullYear());
+          })
+          .filter(Boolean)
+      )]
+      .sort((a,b)=>Number(b)-Number(a));
+
+    return [
+      `<option value="">All Years</option>`,
+      ...years.map(y=>`<option value="${y}">${y}</option>`)
+    ].join("");
+  }
+
+  function historyMonthOptions(){
+    return [
+      `<option value="">All Months</option>`,
+      ...months.map((name,index)=>
+        `<option value="${index + 1}">${name}</option>`
+      )
+    ].join("");
+  }
+
+  function historyInvoiceNumber(row){
+    const explicit =
+      String(row?.invoiceNumber || "").trim();
+
+    if(explicit){
+      return explicit;
+    }
+
+    const suffix =
+      String(row?._id || "")
+        .slice(-8)
+        .toUpperCase();
+
+    return suffix
+      ? `GH-COMP-${suffix}`
+      : "--";
+  }
+
+  function filterHistoryRows(companyId,rows){
+    const filter =
+      paymentHistoryFilters.get(String(companyId)) ||
+      {year:"",month:""};
+
+    return (Array.isArray(rows) ? rows : [])
+      .filter(row=>{
+        const d =
+          new Date(
+            row?.paidDate ||
+            row?.createdAt ||
+            0
+          );
+
+        if(Number.isNaN(d.getTime())){
+          return !filter.year && !filter.month;
+        }
+
+        if(
+          filter.year &&
+          String(d.getFullYear()) !==
+          String(filter.year)
+        ){
+          return false;
+        }
+
+        if(
+          filter.month &&
+          String(d.getMonth() + 1) !==
+          String(filter.month)
+        ){
+          return false;
+        }
+
+        return true;
+      });
+  }
+
+  function renderPaymentHistory(companyId){
+    const id = String(companyId || "");
+    const body =
+      document.getElementById(
+        `historyBody-${id}`
+      );
+
+    if(!body) return;
+
+    const rows =
+      paymentHistoryCache.get(id) || [];
+
+    const filtered =
+      filterHistoryRows(id,rows);
+
+    body.innerHTML =
+      filtered.length
+        ? filtered.map(row=>`
+            <tr>
+              <td>${formatDate(row.paidDate || row.createdAt)}</td>
+              <td>${historyInvoiceNumber(row)}</td>
+              <td>
+                ${formatDate(row.billingStartDate)}
+                -
+                ${formatDate(row.billingEndDate)}
+              </td>
+              <td>${Number(row.totalTrips || 0)}</td>
+              <td>${Number(row.completedTrips || 0)}</td>
+              <td>${Number(row.sharedTrips || 0)}</td>
+              <td>${Number(row.noShowTrips || 0)}</td>
+              <td>${String(row.paymentMethod || "STRIPE")}</td>
+              <td class="amount">${money(row.invoiceAmount)}</td>
+              <td>
+                <button
+                  class="history-action"
+                  type="button"
+                  onclick="openHistoryInvoice('${id}','${String(row._id || "")}')"
+                >
+                  Open Invoice
+                </button>
+              </td>
+              <td>
+                <button
+                  class="history-action print"
+                  type="button"
+                  onclick="printHistoryInvoice('${id}','${String(row._id || "")}')"
+                >
+                  Print
+                </button>
+              </td>
+            </tr>
+          `).join("")
+        : `
+          <tr>
+            <td colspan="11" class="history-empty">
+              No payment history found for this period.
+            </td>
+          </tr>
+        `;
+  }
+
+  async function loadPaymentHistory(companyId){
+    const id = String(companyId || "");
+
+    const body =
+      document.getElementById(
+        `historyBody-${id}`
+      );
+
+    if(body){
+      body.innerHTML = `
+        <tr>
+          <td colspan="11" class="history-empty">
+            Loading payment history...
+          </td>
+        </tr>
+      `;
+    }
+
+    try{
+      const res =
+        await fetch(
+          `/api/admin/billing-history/${encodeURIComponent(id)}`,
+          {
+            headers:{
+              Authorization:
+                "Bearer " + token
+            },
+            cache:"no-store"
+          }
+        );
+
+      const data =
+        await safeJson(res);
+
+      if(!res.ok){
+        throw new Error(
+          data.message ||
+          "Unable to load payment history"
+        );
+      }
+
+      const rows =
+        Array.isArray(data.history)
+          ? data.history
+          : [];
+
+      paymentHistoryCache.set(
+        id,
+        rows
+      );
+
+      const yearSelect =
+        document.getElementById(
+          `historyYear-${id}`
+        );
+
+      if(yearSelect){
+        const selected =
+          String(
+            paymentHistoryFilters.get(id)?.year ||
+            ""
+          );
+
+        yearSelect.innerHTML =
+          historyYearOptions(rows);
+
+        yearSelect.value =
+          selected;
+      }
+
+      renderPaymentHistory(id);
+
+    }catch(err){
+      console.log(
+        "PAYMENT HISTORY LOAD ERROR:",
+        err
+      );
+
+      if(body){
+        body.innerHTML = `
+          <tr>
+            <td colspan="11" class="history-empty">
+              ${String(err.message || "Unable to load payment history")}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  window.setHistoryFilter =
+  function setHistoryFilter(
+    companyId,
+    key,
+    value
+  ){
+    const id =
+      String(companyId || "");
+
+    const current =
+      paymentHistoryFilters.get(id) ||
+      {year:"",month:""};
+
+    current[key] =
+      String(value || "");
+
+    paymentHistoryFilters.set(
+      id,
+      current
+    );
+
+    renderPaymentHistory(id);
+  };
+
+  window.openHistoryInvoice =
+  function openHistoryInvoice(
+    companyId,
+    historyId
+  ){
+    window.open(
+      `/admin/invoice.html?id=${encodeURIComponent(companyId)}&historyId=${encodeURIComponent(historyId)}`,
+      "_blank"
+    );
+  };
+
+  window.printHistoryInvoice =
+  function printHistoryInvoice(
+    companyId,
+    historyId
+  ){
+    window.open(
+      `/admin/invoice.html?id=${encodeURIComponent(companyId)}&historyId=${encodeURIComponent(historyId)}&print=1`,
+      "_blank"
+    );
+  };
+
   /* =========================
      RENDER
   ========================= */
@@ -956,11 +1239,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
             </div>
 
+            <section class="payment-history">
+              <div class="payment-history-head">
+                <div class="payment-history-title">
+                  Payment History
+                </div>
+                <div class="payment-history-note">
+                  Retained for 3 years
+                </div>
+              </div>
+
+              <div class="payment-history-tools">
+                <select
+                  class="history-select"
+                  id="historyYear-${c._id}"
+                  onchange="setHistoryFilter('${c._id}','year',this.value)"
+                >
+                  <option value="">All Years</option>
+                </select>
+
+                <select
+                  class="history-select"
+                  id="historyMonth-${c._id}"
+                  onchange="setHistoryFilter('${c._id}','month',this.value)"
+                >
+                  ${historyMonthOptions()}
+                </select>
+              </div>
+
+              <div class="history-table-wrap">
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th>Paid Date</th>
+                      <th>Invoice</th>
+                      <th>Billing Period</th>
+                      <th>Trips</th>
+                      <th>Completed</th>
+                      <th>Shared</th>
+                      <th>No Show</th>
+                      <th>Method</th>
+                      <th>Amount</th>
+                      <th>Invoice</th>
+                      <th>Print</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyBody-${c._id}">
+                    <tr>
+                      <td colspan="11" class="history-empty">
+                        Loading payment history...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
           </div>
 
         `;
 
       }).join("");
+
+    list.forEach(company=>{
+      loadPaymentHistory(
+        company._id
+      );
+    });
 
   }
 
@@ -1225,7 +1570,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const res =
         await fetch(
-          `/api/admin/billing/${id}/mark-paid`,
+          `/api/admin/billing-history/${id}/mark-paid`,
           {
             method:"PUT",
             headers:{
