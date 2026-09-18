@@ -4,6 +4,7 @@ const PlatformSupportInbox = (()=>{
 
   const state = {
     conversations:[],
+    companies:[],
     activeId:"",
     scope:"active",
     pollTimer:null
@@ -84,6 +85,258 @@ const PlatformSupportInbox = (()=>{
     }
 
     return data;
+  }
+
+  function showNewContactStatus(
+    message,
+    type=""
+  ){
+    const box =
+      $("newContactStatus");
+
+    if(!box) return;
+
+    box.textContent =
+      String(
+        message ||
+        ""
+      );
+
+    box.className =
+      "new-contact-message" +
+      (
+        message
+          ? " show"
+          : ""
+      ) +
+      (
+        type
+          ? " " + type
+          : ""
+      );
+  }
+
+  function renderCompanyOptions(){
+    const select =
+      $("newContactTenant");
+
+    if(!select) return;
+
+    const current =
+      select.value;
+
+    select.innerHTML =
+      `<option value="">Select company</option>` +
+      state.companies
+        .map(company=>{
+          const disabledLabel =
+            company.enabled === false
+              ? " (Disabled)"
+              : "";
+
+          return `
+            <option value="${esc(company.tenantId)}">
+              ${esc(company.name || "Company")}${disabledLabel}
+            </option>
+          `;
+        })
+        .join("");
+
+    if(
+      current &&
+      state.companies.some(
+        company=>
+          String(company.tenantId) ===
+          String(current)
+      )
+    ){
+      select.value =
+        current;
+    }
+  }
+
+  async function loadCompanies(){
+    const data =
+      await api(
+        "/api/platform-support/platform/tenants"
+      );
+
+    state.companies =
+      Array.isArray(
+        data.companies
+      )
+        ? data.companies
+        : [];
+
+    renderCompanyOptions();
+  }
+
+  async function openNewContact(){
+    const panel =
+      $("newContactPanel");
+
+    if(!panel) return;
+
+    panel.classList.add(
+      "open"
+    );
+
+    showNewContactStatus("");
+
+    if(!state.companies.length){
+      try{
+        await loadCompanies();
+      }catch(err){
+        showNewContactStatus(
+          err.message,
+          "error"
+        );
+      }
+    }
+
+    $("newContactTenant")
+      ?.focus();
+  }
+
+  function closeNewContact(){
+    $("newContactPanel")
+      ?.classList
+      .remove(
+        "open"
+      );
+
+    showNewContactStatus("");
+  }
+
+  async function createPlatformConversation(){
+    const tenantId =
+      String(
+        $("newContactTenant")?.value ||
+        ""
+      ).trim();
+
+    const subject =
+      String(
+        $("newContactSubject")?.value ||
+        ""
+      ).trim();
+
+    const message =
+      String(
+        $("newContactMessage")?.value ||
+        ""
+      ).trim();
+
+    if(!tenantId){
+      showNewContactStatus(
+        "Select a SaaS company.",
+        "error"
+      );
+      return;
+    }
+
+    if(!subject){
+      showNewContactStatus(
+        "Subject is required.",
+        "error"
+      );
+      $("newContactSubject")
+        ?.focus();
+      return;
+    }
+
+    if(!message){
+      showNewContactStatus(
+        "Message is required.",
+        "error"
+      );
+      $("newContactMessage")
+        ?.focus();
+      return;
+    }
+
+    const button =
+      $("sendNewContactBtn");
+
+    if(button){
+      button.disabled =
+        true;
+    }
+
+    try{
+      const data =
+        await api(
+          "/api/platform-support/platform/conversations",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              tenantId,
+              subject,
+              message
+            })
+          }
+        );
+
+      $("newContactSubject").value =
+        "";
+
+      $("newContactMessage").value =
+        "";
+
+      $("newContactTenant").value =
+        "";
+
+      showNewContactStatus(
+        "Message sent to the company.",
+        "success"
+      );
+
+      state.scope =
+        "active";
+
+      $("activeTabBtn")
+        ?.classList
+        .add(
+          "active"
+        );
+
+      $("historyTabBtn")
+        ?.classList
+        .remove(
+          "active"
+        );
+
+      if($("statusFilter")){
+        $("statusFilter").value =
+          "";
+      }
+
+      await loadList();
+
+      const id =
+        data?.conversation?._id ||
+        "";
+
+      if(id){
+        closeNewContact();
+
+        await openConversation(
+          id
+        );
+      }
+
+    }catch(err){
+      showNewContactStatus(
+        err.message,
+        "error"
+      );
+
+    }finally{
+      if(button){
+        button.disabled =
+          false;
+      }
+    }
   }
 
   async function loadList(){
@@ -614,6 +867,24 @@ const PlatformSupportInbox = (()=>{
   }
 
   function bind(){
+    $("contactCompanyBtn")
+      ?.addEventListener(
+        "click",
+        openNewContact
+      );
+
+    $("cancelNewContactBtn")
+      ?.addEventListener(
+        "click",
+        closeNewContact
+      );
+
+    $("sendNewContactBtn")
+      ?.addEventListener(
+        "click",
+        createPlatformConversation
+      );
+
     $("activeTabBtn")
       ?.addEventListener(
         "click",
@@ -663,6 +934,20 @@ const PlatformSupportInbox = (()=>{
           }
         }
       );
+
+    $("newContactMessage")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            (event.ctrlKey || event.metaKey)
+          ){
+            event.preventDefault();
+            createPlatformConversation();
+          }
+        }
+      );
   }
 
   function startPolling(){
@@ -703,7 +988,13 @@ const PlatformSupportInbox = (()=>{
     }
 
     bind();
-    await loadList();
+
+    await Promise.all([
+      loadList(),
+      loadCompanies()
+        .catch(()=>{})
+    ]);
+
     startPolling();
   }
 

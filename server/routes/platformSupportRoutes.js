@@ -1094,6 +1094,235 @@ router.patch(
 );
 
 /* =========================
+   PLATFORM -> COMPANY CONTACT
+========================= */
+
+router.get(
+  "/platform/tenants",
+  requireSupportAuth,
+  async (
+    req,
+    res
+  ) => {
+    try{
+      if(!isPlatform(req)){
+        return res.status(403).json({
+          success:false,
+          message:"Platform Admin only"
+        });
+      }
+
+      const tenants =
+        await Tenant
+          .find({})
+          .sort({
+            name:1,
+            companyName:1,
+            createdAt:1
+          })
+          .lean();
+
+      const companies =
+        tenants.map(tenant=>({
+          tenantId:
+            String(
+              tenant._id
+            ),
+          name:
+            tenantNameFromRecord(
+              tenant
+            ) ||
+            "Company",
+          slug:
+            clean(
+              tenant.slug
+            ),
+          enabled:
+            tenant.enabled !== false
+        }));
+
+      return res.json({
+        success:true,
+        companies
+      });
+
+    }catch(err){
+      console.error(
+        "SUPPORT PLATFORM TENANT LIST:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Could not load SaaS companies"
+      });
+    }
+  }
+);
+
+router.post(
+  "/platform/conversations",
+  requireSupportAuth,
+  async (
+    req,
+    res
+  ) => {
+    try{
+      if(!isPlatform(req)){
+        return res.status(403).json({
+          success:false,
+          message:"Platform Admin only"
+        });
+      }
+
+      const tenantId =
+        clean(
+          req.body?.tenantId
+        );
+
+      const subject =
+        clean(
+          req.body?.subject
+        );
+
+      const firstMessage =
+        clean(
+          req.body?.message
+        );
+
+      if(
+        !tenantId ||
+        !mongoose.Types.ObjectId
+          .isValid(
+            tenantId
+          )
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Select a valid SaaS company"
+        });
+      }
+
+      if(!subject){
+        return res.status(400).json({
+          success:false,
+          message:"Subject is required"
+        });
+      }
+
+      if(!firstMessage){
+        return res.status(400).json({
+          success:false,
+          message:"Message is required"
+        });
+      }
+
+      const [
+        tenant,
+        systemDesign
+      ] =
+        await Promise.all([
+          getTenantProfile(
+            tenantId
+          ),
+          getSystemDesignProfile(
+            tenantId
+          )
+        ]);
+
+      if(!tenant){
+        return res.status(404).json({
+          success:false,
+          message:"SaaS company not found"
+        });
+      }
+
+      const platformName =
+        clean(
+          req.authUser?.name ||
+          req.authUser?.username ||
+          "Platform Admin"
+        );
+
+      const platformUserId =
+        clean(
+          req.authUser?.id
+        );
+
+      const companyPhone =
+        systemDesignPhoneFromRecord(
+          systemDesign
+        ) ||
+        tenantPhoneFromRecord(
+          tenant
+        );
+
+      const conversation =
+        await Conversation.create({
+          tenantId,
+          tenantName:
+            tenantNameFromRecord(
+              tenant
+            ),
+          companyPhone,
+          subject,
+          status:
+            "WAITING_FOR_CUSTOMER",
+          createdByUserId:
+            platformUserId,
+          createdByName:
+            platformName,
+          createdByRole:
+            "PLATFORM_ADMIN",
+          createdByPhone:"",
+          lastMessageAt:
+            new Date(),
+          lastMessagePreview:
+            firstMessage.slice(
+              0,
+              240
+            ),
+          tenantUnreadCount:1,
+          platformUnreadCount:0
+        });
+
+      await Message.create({
+        conversationId:
+          conversation._id,
+        tenantId,
+        senderType:
+          "PLATFORM_ADMIN",
+        senderUserId:
+          platformUserId,
+        senderName:
+          platformName,
+        senderRole:
+          "PLATFORM_ADMIN",
+        senderPhone:"",
+        message:
+          firstMessage
+      });
+
+      return res.status(201).json({
+        success:true,
+        conversation
+      });
+
+    }catch(err){
+      console.error(
+        "SUPPORT PLATFORM CREATE:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Could not create company support conversation"
+      });
+    }
+  }
+);
+
+/* =========================
    PLATFORM INBOX
 ========================= */
 
