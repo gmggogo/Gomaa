@@ -37,6 +37,203 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 
 .breakdown{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.breakdown-item{border:1px solid #e2e8f0;border-radius:9px;padding:11px;background:#f8fafc}.breakdown-item span{display:block;font-size:10px;font-weight:850;color:#6b7280;text-transform:uppercase}.breakdown-item strong{display:block;margin-top:6px;font-size:14px;color:#172033}.breakdown-item.wide-detail{grid-column:span 2}.breakdown-item.wide-detail strong{line-height:1.45;word-break:break-word}.breakdown-total{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff8da;border-top:1px solid #e6d58d;color:#7a5700;font-weight:950}.history{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:11px 12px;border-bottom:1px solid #e5ebf0;font-size:12px;text-align:left}th{background:#edf3f8;color:#344155;font-weight:900}td.amount{font-weight:900;color:#166534}.empty{padding:28px;text-align:center;color:#798493}
 @media(max-width:1150px){.summary{grid-template-columns:repeat(4,1fr)}}@media(max-width:950px){.summary{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.breakdown-grid{grid-template-columns:1fr}}
+
+
+/* =========================================================
+   SAAS PAYMENTS — TOP VISUAL ALIGNMENT WITH TRIPS
+   Visual only:
+   - Header uses the exact Trips page gold treatment.
+   - Only the TOP summary row typography/spacing is refined.
+   - Lower billing sections are intentionally left unchanged.
+   ========================================================= */
+
+/* Header: same visual language as Trips */
+.head{
+  min-height:84px;
+  padding:16px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+
+  color:#111827;
+
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+
+  border-bottom:1px solid #e0be5a;
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+}
+
+.head h1{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+  letter-spacing:0;
+}
+
+.head .company{
+  margin-top:5px;
+  font-size:13px;
+  line-height:1.2;
+  font-weight:800;
+  color:#475569;
+}
+
+.head .product{
+  margin-top:3px;
+  font-size:10px;
+  line-height:1.1;
+  font-weight:900;
+  letter-spacing:.9px;
+  color:#64748b;
+}
+
+/* Subscription strip */
+.statusbar{
+  min-height:42px;
+  padding:10px 18px;
+}
+
+.statusbar > strong{
+  font-size:11px;
+  line-height:1.15;
+  font-weight:800;
+  color:#475569;
+}
+
+.statusbar .badge{
+  padding:5px 9px;
+  font-size:9px;
+  line-height:1;
+  font-weight:900;
+}
+
+/* TOP SUMMARY ROW ONLY */
+.summary{
+  gap:10px;
+  padding:16px 18px 18px;
+}
+
+.summary .card{
+  min-height:88px;
+  padding:12px 12px 11px;
+  border-radius:10px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.summary .label{
+  font-size:9px;
+  line-height:1.1;
+  font-weight:850;
+  letter-spacing:.28px;
+  color:#667085;
+}
+
+.summary .value{
+  margin-top:8px;
+  font-size:18px;
+  line-height:1.12;
+  font-weight:850;
+  letter-spacing:-.15px;
+  color:#172033;
+  overflow-wrap:anywhere;
+}
+
+.summary .value.money{
+  color:#137a4a;
+}
+
+/* Date is intentionally smaller so it never dominates its card */
+#nextPayment{
+  font-size:16px;
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:-.1px;
+}
+
+/* Keep the remaining top values balanced */
+#planName,
+#vehicleUsage,
+#serviceUsage,
+#brokerUsage,
+#gracePeriod{
+  font-size:17px;
+}
+
+/* Desktop: keep all 8 cards on one clean row */
+@media(min-width:1151px){
+  .summary{
+    grid-template-columns:repeat(8,minmax(0,1fr));
+  }
+}
+
+/* Tablet/mobile */
+@media(max-width:1150px){
+  .summary .value{
+    font-size:17px;
+  }
+
+  #nextPayment{
+    font-size:15px;
+  }
+}
+
+@media(max-width:620px){
+  .head{
+    min-height:72px;
+    padding:12px;
+  }
+
+  .head h1{
+    font-size:22px;
+  }
+
+  .head .company{
+    font-size:11px;
+  }
+
+  .head .product{
+    font-size:9px;
+  }
+
+  .summary{
+    gap:8px;
+    padding:12px;
+  }
+
+  .summary .card{
+    min-height:78px;
+    padding:10px;
+  }
+
+  .summary .label{
+    font-size:8px;
+  }
+
+  .summary .value,
+  #planName,
+  #vehicleUsage,
+  #serviceUsage,
+  #brokerUsage,
+  #gracePeriod{
+    font-size:15px;
+  }
+
+  #nextPayment{
+    font-size:14px;
+  }
+}
+
 </style>
 </head>
 
