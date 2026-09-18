@@ -1198,12 +1198,62 @@ async function settleIndividualTripPayment(
       paymentStatus === "CAPTURE_FAILED" &&
       hasAuthorizationReference
     ){
-      await captureAuthorizedTrip(
-        trip,
-        finalPrice
-      );
+      try{
 
-      return trip;
+        await captureAuthorizedTrip(
+          trip,
+          finalPrice
+        );
+
+        return trip;
+
+      }catch(err){
+
+        const stripeStatus =
+          String(
+            err?.stripeStatus || ""
+          )
+          .trim()
+          .toLowerCase();
+
+        /*
+          Recovery for an authorization that Stripe has already canceled.
+
+          Do NOT create a second authorization for processing/requires_action
+          or any other non-capturable state. Only "canceled" is safe to replace.
+
+          The canceled PaymentIntent id is included in the authorization reason,
+          so retries after a Mongo/network failure reuse the exact same Stripe
+          idempotency key instead of creating repeated holds.
+        */
+        if(
+          err?.code === "PAYMENT_NOT_CAPTURABLE" &&
+          stripeStatus === "canceled"
+        ){
+
+          const canceledIntentId =
+            String(
+              trip.authorizationPaymentIntentId ||
+              trip.paymentIntentId ||
+              ""
+            ).trim();
+
+          await authorizeTripAmount(
+            trip,
+            finalPrice,
+            `FINAL_REAUTH_AFTER_CANCEL_${canceledIntentId}`
+          );
+
+          await captureAuthorizedTrip(
+            trip,
+            finalPrice
+          );
+
+          return trip;
+        }
+
+        throw err;
+      }
     }
 
     if(

@@ -47,6 +47,11 @@ function paymentError(err){
 
   wrapped.paymentFailed = true;
 
+  wrapped.stripeStatus =
+    err?.stripeStatus ||
+    err?.raw?.payment_intent?.status ||
+    "";
+
   return wrapped;
 }
 
@@ -745,6 +750,11 @@ async function captureAuthorizedTrip(
 
       err.code =
         "PAYMENT_NOT_CAPTURABLE";
+
+      err.stripeStatus =
+        String(
+          current.status || ""
+        );
 
       err.paymentFailed =
         true;
