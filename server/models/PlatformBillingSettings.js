@@ -30,6 +30,11 @@ const schema = new mongoose.Schema(
       default:2,
       min:0
     },
+    includedBrokers:{
+      type:Number,
+      default:0,
+      min:0
+    },
 
     /*
       HARD CREATION LIMITS
@@ -90,6 +95,16 @@ const schema = new mongoose.Schema(
     extraServicePrice:{
       type:Number,
       default:15,
+      min:0
+    },
+    extraBrokerPrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+    freeExtraBrokers:{
+      type:Number,
+      default:0,
       min:0
     },
     packageStatus:{

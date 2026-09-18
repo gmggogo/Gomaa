@@ -17,6 +17,8 @@ const router =
 
 const BrokerIntegration =
   require("../models/BrokerIntegration");
+const TenantSubscription =
+  require("../models/TenantSubscription");
 
 const {
   upsertIntegration,
@@ -177,6 +179,39 @@ router.post(
           success:false,
           message:"tenantId, brokerCode, brokerName, and connectionType are required"
         });
+      }
+
+      const existingIntegration =
+        await BrokerIntegration.findOne({
+          tenantId,
+          brokerCode:clean(brokerCode).toUpperCase()
+        });
+
+      if(!existingIntegration){
+        const subscription =
+          await TenantSubscription.findOne({ tenantId });
+
+        const brokerLimit =
+          Math.max(
+            0,
+            Math.floor(
+              Number(subscription?.includedBrokers || 0)
+            )
+          );
+
+        const currentBrokerCount =
+          await BrokerIntegration.countDocuments({ tenantId });
+
+        if(currentBrokerCount >= brokerLimit){
+          return res.status(403).json({
+            success:false,
+            code:"BROKER_LIMIT_REACHED",
+            message:
+              "Broker limit reached. Increase Included Brokers in SaaS Billing before adding another broker.",
+            brokerLimit,
+            currentBrokerCount
+          });
+        }
       }
 
       const integration =

@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const Tenant = require("../models/Tenant");
+const BrokerIntegration = require("../models/BrokerIntegration");
 const TenantSubscriptionPayment =
   require("../models/TenantSubscriptionPayment");
 
@@ -54,6 +55,45 @@ function normalizeControlRows(rows){
     .filter(row=>row.key);
 }
 
+async function getActualBrokerCount(tenantId){
+  return BrokerIntegration.countDocuments({ tenantId });
+}
+
+function applyBrokerPricing(basePricing,subscription,actualBrokers){
+  const pricing = { ...(basePricing || {}) };
+
+  const includedBrokers = whole(subscription?.includedBrokers,0);
+  const freeExtraBrokers = whole(subscription?.freeExtraBrokers,0);
+  const extraBrokerPrice = nonNegative(subscription?.extraBrokerPrice,0);
+  const actual = whole(actualBrokers,0);
+
+  const extraBrokers = Math.max(0,actual - includedBrokers);
+  const billableExtraBrokers = Math.max(0,extraBrokers - freeExtraBrokers);
+  const brokerAmount = Number((billableExtraBrokers * extraBrokerPrice).toFixed(2));
+
+  const hasFinalOverride =
+    subscription?.finalPriceOverride !== undefined &&
+    subscription?.finalPriceOverride !== null &&
+    clean(subscription?.finalPriceOverride) !== "";
+
+  const baseSubtotal = Number(pricing.subtotal || 0);
+  const baseFinal = Number(pricing.finalAmount || 0);
+
+  pricing.actualBrokers = actual;
+  pricing.includedBrokers = includedBrokers;
+  pricing.extraBrokers = extraBrokers;
+  pricing.freeExtraBrokers = freeExtraBrokers;
+  pricing.billableExtraBrokers = billableExtraBrokers;
+  pricing.extraBrokerPrice = extraBrokerPrice;
+  pricing.brokerAmount = brokerAmount;
+  pricing.subtotal = Number((baseSubtotal + brokerAmount).toFixed(2));
+  pricing.finalAmount = hasFinalOverride
+    ? nonNegative(subscription.finalPriceOverride,0)
+    : Number((baseFinal + brokerAmount).toFixed(2));
+
+  return pricing;
+}
+
 function applyCompanyPayload(subscription,body){
   if(body.planName !== undefined){
     subscription.planName =
@@ -75,6 +115,7 @@ function applyCompanyPayload(subscription,body){
     "basePrice",
     "extraVehiclePrice",
     "extraServicePrice",
+    "extraBrokerPrice",
     "discount",
     "credit"
   ].forEach(field=>{
@@ -87,8 +128,10 @@ function applyCompanyPayload(subscription,body){
   [
     "includedVehicles",
     "includedServices",
+    "includedBrokers",
     "freeExtraVehicles",
     "freeExtraServices",
+    "freeExtraBrokers",
     "maxDrivers",
     "maxVehicles",
     "maxAdmins",
@@ -191,6 +234,9 @@ router.put(
       row.includedServices =
         whole(req.body?.includedServices,2);
 
+      row.includedBrokers =
+        whole(req.body?.includedBrokers,0);
+
       row.maxDrivers =
         whole(req.body?.maxDrivers,5);
 
@@ -226,6 +272,12 @@ router.put(
 
       row.extraServicePrice =
         nonNegative(req.body?.extraServicePrice,15);
+
+      row.extraBrokerPrice =
+        nonNegative(req.body?.extraBrokerPrice,0);
+
+      row.freeExtraBrokers =
+        whole(req.body?.freeExtraBrokers,0);
 
       row.packageStatus =
         clean(req.body?.packageStatus)
@@ -280,8 +332,15 @@ router.get(
               tenant.subscriptionStatus || "ACTIVE"
           },
           subscription:data.subscription.toObject(),
-          usage:data.usage,
-          pricing:data.pricing
+          usage:{
+            ...data.usage,
+            actualBrokers:await getActualBrokerCount(tenant._id)
+          },
+          pricing:applyBrokerPricing(
+            data.pricing,
+            data.subscription,
+            await getActualBrokerCount(tenant._id)
+          )
         });
       }
 
@@ -379,9 +438,19 @@ router.get(
           pastDueCompanies += 1;
         }
 
+        const actualBrokers =
+          await getActualBrokerCount(tenant._id);
+
+        const pricingWithBrokers =
+          applyBrokerPricing(
+            data.pricing,
+            subscription,
+            actualBrokers
+          );
+
         const amount =
           Number(
-            data.pricing?.finalAmount ||
+            pricingWithBrokers?.finalAmount ||
             subscription.amount ||
             0
           );
@@ -542,8 +611,15 @@ router.get(
           enabled:tenant.enabled !== false
         },
         subscription:data.subscription,
-        usage:data.usage,
-        pricing:data.pricing
+        usage:{
+          ...data.usage,
+          actualBrokers:await getActualBrokerCount(tenant._id)
+        },
+        pricing:applyBrokerPricing(
+          data.pricing,
+          data.subscription,
+          await getActualBrokerCount(tenant._id)
+        )
       });
 
     }catch(err){
@@ -611,6 +687,11 @@ router.post(
             ? whole(req.body.includedServices)
             : draft.includedServices,
 
+        includedBrokers:
+          req.body?.includedBrokers !== undefined
+            ? whole(req.body.includedBrokers)
+            : draft.includedBrokers,
+
         maxDrivers:
           req.body?.maxDrivers !== undefined
             ? whole(req.body.maxDrivers)
@@ -656,6 +737,11 @@ router.post(
             ? nonNegative(req.body.extraServicePrice)
             : draft.extraServicePrice,
 
+        extraBrokerPrice:
+          req.body?.extraBrokerPrice !== undefined
+            ? nonNegative(req.body.extraBrokerPrice)
+            : draft.extraBrokerPrice,
+
         freeExtraVehicles:
           req.body?.freeExtraVehicles !== undefined
             ? whole(req.body.freeExtraVehicles)
@@ -665,6 +751,11 @@ router.post(
           req.body?.freeExtraServices !== undefined
             ? whole(req.body.freeExtraServices)
             : draft.freeExtraServices,
+
+        freeExtraBrokers:
+          req.body?.freeExtraBrokers !== undefined
+            ? whole(req.body.freeExtraBrokers)
+            : draft.freeExtraBrokers,
 
         discount:
           req.body?.discount !== undefined
@@ -692,10 +783,20 @@ router.post(
             : draft.serviceControls
       });
 
+      const actualBrokers =
+        await getActualBrokerCount(tenant._id);
+
       const pricing =
-        calculatePricing(
+        applyBrokerPricing(
+          calculatePricing(
+            draft,
+            {
+              ...data.usage,
+              actualBrokers
+            }
+          ),
           draft,
-          data.usage
+          actualBrokers
         );
 
       return res.json({
@@ -742,10 +843,20 @@ router.put(
         req.body || {}
       );
 
+      const actualBrokers =
+        await getActualBrokerCount(tenant._id);
+
       const pricing =
-        calculatePricing(
+        applyBrokerPricing(
+          calculatePricing(
+            subscription,
+            {
+              ...data.usage,
+              actualBrokers
+            }
+          ),
           subscription,
-          data.usage
+          actualBrokers
         );
 
       subscription.vehicleControls =
@@ -762,6 +873,9 @@ router.put(
 
       subscription.calculatedServiceAmount =
         pricing.serviceAmount;
+
+      subscription.calculatedBrokerAmount =
+        pricing.brokerAmount;
 
       subscription.calculatedSubtotal =
         pricing.subtotal;

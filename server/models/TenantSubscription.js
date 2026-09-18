@@ -119,6 +119,12 @@ const schema = new mongoose.Schema(
       min:0
     },
 
+    includedBrokers:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
     /*
       HARD PACKAGE LIMITS
       These limits control what tenant users are allowed to create.
@@ -184,6 +190,12 @@ const schema = new mongoose.Schema(
       min:0
     },
 
+    extraBrokerPrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
     freeExtraVehicles:{
       type:Number,
       default:0,
@@ -191,6 +203,12 @@ const schema = new mongoose.Schema(
     },
 
     freeExtraServices:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    freeExtraBrokers:{
       type:Number,
       default:0,
       min:0
@@ -235,6 +253,11 @@ const schema = new mongoose.Schema(
     },
 
     calculatedServiceAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedBrokerAmount:{
       type:Number,
       default:0
     },
