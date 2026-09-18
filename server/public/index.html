@@ -687,27 +687,6 @@ body{
   padding:0 !important;
 }
 
-
-/* ABOUT MOBILE — CENTERED / BALANCED */
-#aboutText{
-  width:92% !important;
-  max-width:640px !important;
-  margin-left:auto !important;
-  margin-right:auto !important;
-  text-align:justify !important;
-  text-align-last:left !important;
-  line-height:1.55 !important;
-}
-
-#aboutTitle{
-  width:92% !important;
-  max-width:640px !important;
-  margin-left:auto !important;
-  margin-right:auto !important;
-  text-align:center !important;
-  text-align-last:center !important;
-}
-
 /* =========================
      SERVICES / CARDS
   ========================= */
@@ -794,6 +773,85 @@ body{
 
 }
 </style>
+
+<style id="gh-mobile-text-layout-v2">
+@media(max-width:768px){
+
+  /* Four text sections use a separate compact mobile layout */
+  .about,
+  .quote-header{
+    width:calc(100% - 28px) !important;
+    max-width:680px !important;
+    margin:14px auto 0 !important;
+    padding:18px 16px !important;
+    background:transparent !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+  }
+
+  .extra-sections{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 0 28px !important;
+    gap:0 !important;
+  }
+
+  .extra-box{
+    width:calc(100% - 28px) !important;
+    max-width:680px !important;
+    margin:14px auto 0 !important;
+    padding:18px 16px !important;
+    background:transparent !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+  }
+
+  /* Smaller mobile titles */
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 12px !important;
+    padding:0 !important;
+    text-align:center !important;
+    text-align-last:center !important;
+    font-size:17px !important;
+    line-height:1.18 !important;
+    font-weight:850 !important;
+    letter-spacing:0 !important;
+    word-spacing:0 !important;
+  }
+
+  /* Natural body text on mobile — no justify spacing */
+  #aboutText,
+  #quoteText,
+  #extra1TextView,
+  #extra2TextView{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    text-align:left !important;
+    text-align-last:left !important;
+    font-size:14px !important;
+    line-height:1.52 !important;
+    font-weight:400 !important;
+    white-space:normal !important;
+    text-wrap:wrap !important;
+    word-spacing:0 !important;
+    letter-spacing:0 !important;
+    word-break:normal !important;
+    overflow-wrap:break-word !important;
+    hyphens:none !important;
+  }
+}
+</style>
+
 
 </head>
 
@@ -1908,7 +1966,7 @@ function renderPage(){
     data.aboutText ||
     "",
     isMobile
-    ? "justify-left"
+    ? "left"
     : (data.aboutTextAlign || "justify-center")
   );
 
@@ -1926,7 +1984,7 @@ function renderPage(){
     data.quoteText ||
     "",
     isMobile
-    ? (data.quoteTextMobileAlign || "left")
+    ? "left"
     : (data.quoteTextAlign || "justify-center")
   );
 
@@ -1968,7 +2026,7 @@ function renderPage(){
     data.extra1Text ||
     "",
     isMobile
-    ? (data.extraBoxTextMobileAlign || "left")
+    ? "left"
     : (data.extraBoxAlign || "justify-center")
   );
 
@@ -1986,7 +2044,7 @@ function renderPage(){
     data.extra2Text ||
     "",
     isMobile
-    ? (data.extraBoxTextMobileAlign || "left")
+    ? "left"
     : (data.extraBoxAlign || "justify-center")
   );
 
@@ -2183,7 +2241,7 @@ function forceMobileHomeLayout(){
   if(about){
     about.style.setProperty(
       "padding",
-      `${data.aboutMobilePadding || 18}px 18px`,
+      `${data.aboutMobilePadding || 18}px`,
       "important"
     );
   }
@@ -2199,43 +2257,43 @@ function forceMobileHomeLayout(){
   const mobileMap = [
     {
       id:"aboutTitle",
-      size:data.aboutTitleMobileSize || 20,
-      align:data.aboutTitleMobileAlign || "center"
+      size:17,
+      align:"center"
     },
     {
       id:"aboutText",
-      size:data.aboutTextMobileSize || 14,
-      align:"justify-left"
+      size:14,
+      align:"left"
     },
     {
       id:"quoteTitle",
-      size:data.quoteTitleMobileSize || 20,
-      align:data.quoteTitleMobileAlign || "center"
+      size:17,
+      align:"center"
     },
     {
       id:"quoteText",
-      size:data.quoteTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.quoteTextMobileAlign || "left")
+      size:14,
+      align:"left"
     },
     {
       id:"extra1TitleView",
-      size:data.extraBoxTitleMobileSize || 20,
-      align:data.extraBoxTitleMobileAlign || "center"
+      size:17,
+      align:"center"
     },
     {
       id:"extra1TextView",
-      size:data.extraBoxTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
+      size:14,
+      align:"left"
     },
     {
       id:"extra2TitleView",
-      size:data.extraBoxTitleMobileSize || 20,
-      align:data.extraBoxTitleMobileAlign || "center"
+      size:17,
+      align:"center"
     },
     {
       id:"extra2TextView",
-      size:data.extraBoxTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.extraBoxTextMobileAlign || "left")
+      size:14,
+      align:"left"
     }
   ];
 
