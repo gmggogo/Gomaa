@@ -687,6 +687,27 @@ body{
   padding:0 !important;
 }
 
+
+/* ABOUT MOBILE — CENTERED / BALANCED */
+#aboutText{
+  width:92% !important;
+  max-width:640px !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  text-align:center !important;
+  text-align-last:center !important;
+  line-height:1.55 !important;
+}
+
+#aboutTitle{
+  width:92% !important;
+  max-width:640px !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  text-align:center !important;
+  text-align-last:center !important;
+}
+
 /* =========================
      SERVICES / CARDS
   ========================= */
@@ -1887,7 +1908,7 @@ function renderPage(){
     data.aboutText ||
     "",
     isMobile
-    ? (data.aboutTextMobileAlign || "left")
+    ? "center"
     : (data.aboutTextAlign || "justify-center")
   );
 
@@ -2162,7 +2183,7 @@ function forceMobileHomeLayout(){
   if(about){
     about.style.setProperty(
       "padding",
-      `${data.aboutMobilePadding || 18}px`,
+      `${data.aboutMobilePadding || 18}px 18px`,
       "important"
     );
   }
@@ -2184,7 +2205,7 @@ function forceMobileHomeLayout(){
     {
       id:"aboutText",
       size:data.aboutTextMobileSize || 14,
-      align:getBalancedMobileAlign(data.aboutTextMobileAlign || "left")
+      align:"center"
     },
     {
       id:"quoteTitle",
