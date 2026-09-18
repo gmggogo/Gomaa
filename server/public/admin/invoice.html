@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +6,6 @@
 <title>Company Invoice - GH Mobility</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<link rel="stylesheet" href="/admin/style.css">
 <style>
 *{box-sizing:border-box}
 body{
@@ -13,10 +13,11 @@ body{
   background:#eef3f9;
   color:#0f172a;
   font-family:Segoe UI,Arial,sans-serif;
+  line-height:1.35;
 }
-.page{
-  width:min(1050px,calc(100% - 28px));
-  margin:24px auto 40px;
+.invoice-page{
+  width:min(980px,calc(100% - 28px));
+  margin:22px auto 36px;
 }
 .actions{
   display:flex;
@@ -67,7 +68,7 @@ body{
   line-height:1.8;
 }
 .meta strong{color:#bfdbfe}
-.body{padding:26px 30px}
+.invoice-body{padding:22px 26px}
 
 .company-strip{
   display:grid;
@@ -102,13 +103,13 @@ body{
   text-align:center;
 }
 
-.section{
+.invoice-section{
   margin-top:18px;
   border:1px solid #dbe4ee;
   border-radius:12px;
   overflow:hidden;
 }
-.section-title{
+.invoice-section-title{
   padding:11px 14px;
   background:#10345c;
   color:#fff;
@@ -116,23 +117,23 @@ body{
   font-weight:900;
   text-align:center;
 }
-.grid{
+.invoice-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(3,minmax(0,1fr));
 }
-.item{
-  padding:14px;
+.invoice-item{
+  padding:12px;
   border-right:1px solid #e5ebf0;
   border-bottom:1px solid #e5ebf0;
-  min-height:82px;
+  min-height:72px;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
   text-align:center;
 }
-.item:nth-child(3n){border-right:0}
-.item span{
+.invoice-item:nth-child(3n){border-right:0}
+.invoice-item span{
   display:block;
   font-size:12px;
   color:#64748b;
@@ -141,10 +142,10 @@ body{
   letter-spacing:.3px;
   text-align:center;
 }
-.item strong{
+.invoice-item strong{
   display:block;
-  margin-top:7px;
-  font-size:21px;
+  margin-top:6px;
+  font-size:18px;
   line-height:1.15;
   font-weight:900;
   text-align:center;
@@ -175,7 +176,7 @@ body{
   font-size:15px;
   font-weight:900;
 }
-.total{
+.invoice-total{
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -186,14 +187,14 @@ body{
   font-weight:950;
   color:#7a5700;
 }
-.footer{
+.invoice-footer{
   padding:18px 30px 26px;
   text-align:center;
   color:#64748b;
   font-size:10px;
   font-weight:700;
 }
-.loading{
+.invoice-loading{
   padding:60px;
   text-align:center;
   font-size:14px;
@@ -203,34 +204,95 @@ body{
 @media(max-width:760px){
   .invoice-head{flex-direction:column}
   .meta{text-align:left}
-  .company-strip,.grid,.billing-grid{grid-template-columns:1fr}
-  .company-item,.item,.billing-item{
+  .company-strip,.invoice-grid,.billing-grid{grid-template-columns:1fr}
+  .company-item,.invoice-item,.billing-item{
     border-right:0;
     border-bottom:1px solid rgba(255,255,255,.22);
   }
 }
-@media print{
-  body{background:#fff}
-  .actions{display:none}
-  .page{width:100%;margin:0}
-  .invoice{border:0;border-radius:0;box-shadow:none}
+
+@page{
+  size:Letter;
+  margin:0.35in;
 }
+
+@media print{
+  html,body{
+    background:#fff !important;
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+  }
+
+  .actions{
+    display:none !important;
+  }
+
+  .invoice-page{
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  .invoice{
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    break-inside:avoid;
+  }
+
+  .invoice-head,
+  .company-strip,
+  .invoice-section,
+  .invoice-total{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .invoice-head{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .company-strip,
+  .invoice-section-title,
+  .invoice-total{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .invoice-body{
+    padding:16px 18px !important;
+  }
+
+  .invoice-item,
+  .billing-item{
+    min-height:60px !important;
+    padding:9px !important;
+  }
+
+  .invoice-footer{
+    padding:12px 18px 0 !important;
+  }
+}
+
 </style>
 </head>
 <body>
-<div id="adminHeader"></div>
-
-<div class="page">
+<div class="invoice-page">
   <div class="actions">
     <button class="action-btn dark" type="button" onclick="window.print()">Print / Save PDF</button>
   </div>
 
   <div class="invoice" id="invoiceRoot">
-    <div class="loading">Loading invoice...</div>
+    <div class="invoice-loading">Loading invoice...</div>
   </div>
 </div>
 
-<script src="/admin/header.js"></script>
 <script>
 "use strict";
 
@@ -437,7 +499,7 @@ async function loadInvoice(){
         </div>
       </div>
 
-      <div class="body">
+      <div class="invoice-body">
 
         <div class="company-strip">
           <div class="company-item">
@@ -456,20 +518,20 @@ async function loadInvoice(){
           </div>
         </div>
 
-        <div class="section">
-          <div class="section-title">Billing Summary</div>
-          <div class="grid">
-            <div class="item"><span>Trips</span><strong>${Number(c.totalTrips || 0)}</strong></div>
-            <div class="item"><span>Completed</span><strong>${Number(c.completedTrips || 0)}</strong></div>
-            <div class="item"><span>Shared</span><strong>${Number(c.sharedTrips || 0)}</strong></div>
-            <div class="item"><span>No Show</span><strong>${Number(c.noShowTrips || 0)}</strong></div>
-            <div class="item"><span>Revenue</span><strong>${esc(money(c.revenue))}</strong></div>
-            <div class="item"><span>Invoice</span><strong>${esc(money(c.invoiceAmount))}</strong></div>
+        <div class="invoice-section">
+          <div class="invoice-section-title">Billing Summary</div>
+          <div class="invoice-grid">
+            <div class="invoice-item"><span>Trips</span><strong>${Number(c.totalTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Completed</span><strong>${Number(c.completedTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Shared</span><strong>${Number(c.sharedTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>No Show</span><strong>${Number(c.noShowTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Revenue</span><strong>${esc(money(c.revenue))}</strong></div>
+            <div class="invoice-item"><span>Invoice</span><strong>${esc(money(c.invoiceAmount))}</strong></div>
           </div>
         </div>
 
-        <div class="section">
-          <div class="section-title">Billing Details</div>
+        <div class="invoice-section">
+          <div class="invoice-section-title">Billing Details</div>
           <div class="billing-grid">
             <div class="billing-item">
               <span>Billing Start</span>
@@ -487,7 +549,7 @@ async function loadInvoice(){
             </div>
           </div>
 
-          <div class="total">
+          <div class="invoice-total">
             <span>Invoice Amount</span>
             <strong>${esc(money(c.invoiceAmount))}</strong>
           </div>
@@ -495,7 +557,7 @@ async function loadInvoice(){
 
       </div>
 
-      <div class="footer">
+      <div class="invoice-footer">
         Generated by GH Mobility Company Billing
       </div>
     `;
@@ -510,7 +572,7 @@ async function loadInvoice(){
   }catch(err){
     console.error("INVOICE LOAD ERROR:",err);
     $root.innerHTML =
-      `<div class="loading">${esc(err.message || "Unable to load invoice")}</div>`;
+      `<div class="invoice-loading">${esc(err.message || "Unable to load invoice")}</div>`;
   }
 }
 
