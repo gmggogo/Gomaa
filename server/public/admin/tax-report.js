@@ -36,6 +36,21 @@ const statusMessage =
 
 let currentReport = null;
 
+
+const immediateCompanyName =
+  String(
+    sessionStorage.getItem("companyName") ||
+    localStorage.getItem("companyName") ||
+    sessionStorage.getItem("tenantName") ||
+    localStorage.getItem("tenantName") ||
+    ""
+  ).trim();
+
+if(immediateCompanyName){
+  setText("reportCompanyName",immediateCompanyName);
+}
+
+
 let brokerFeatureEnabled = false;
 
 let brokerReport = {
@@ -729,8 +744,8 @@ async function loadReport(){
 
   try{
 
-    const taxRequest =
-      fetch(
+    const res =
+      await fetch(
         `${API_URL}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         {
           headers:{
@@ -740,20 +755,6 @@ async function loadReport(){
           cache:"no-store"
         }
       );
-
-    const brokerRequest =
-      loadBrokerReport(
-        from,
-        to
-      );
-
-    const [
-      res
-    ] =
-      await Promise.all([
-        taxRequest,
-        brokerRequest
-      ]);
 
     const data =
       await res.json()
@@ -770,6 +771,24 @@ async function loadReport(){
     }
 
     render(data);
+
+    if(brokerFeatureEnabled === true){
+      loadBrokerReport(
+        from,
+        to
+      )
+        .then(()=>{
+          if(currentReport){
+            render(currentReport);
+          }
+        })
+        .catch(err=>{
+          console.log(
+            "TAX BROKER LOAD ERROR:",
+            err
+          );
+        });
+    }
 
   }catch(err){
 
@@ -1046,6 +1065,73 @@ document
 setDefaultDates();
 
 (async()=>{
-  await loadBrokerCapability();
-  await loadReport();
+  const brokerCapabilityPromise =
+    loadBrokerCapability();
+
+  const from =
+    fromDate.value;
+
+  const to =
+    toDate.value;
+
+  const taxRequest =
+    fetch(
+      `${API_URL}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      {
+        headers:{
+          Authorization:
+            "Bearer " + token
+        },
+        cache:"no-store"
+      }
+    );
+
+  try{
+    const res = await taxRequest;
+
+    const data =
+      await res.json()
+        .catch(()=>({}));
+
+    if(
+      !res.ok ||
+      data.success === false
+    ){
+      throw new Error(
+        data.message ||
+        "Failed to load tax report"
+      );
+    }
+
+    render(data);
+
+  }catch(err){
+    console.error(err);
+    showStatus(
+      err.message ||
+      "Failed to load tax report",
+      "error"
+    );
+  }
+
+  try{
+    const brokerEnabled =
+      await brokerCapabilityPromise;
+
+    if(brokerEnabled === true){
+      await loadBrokerReport(
+        from,
+        to
+      );
+
+      if(currentReport){
+        render(currentReport);
+      }
+    }
+  }catch(err){
+    console.log(
+      "TAX BROKER STARTUP ERROR:",
+      err
+    );
+  }
 })();

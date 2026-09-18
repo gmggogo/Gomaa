@@ -538,8 +538,26 @@ tbody tr:hover{
   </section>
 </main>
 
+
+<script>
+(function(){
+  try{
+    const name =
+      sessionStorage.getItem("companyName") ||
+      localStorage.getItem("companyName") ||
+      sessionStorage.getItem("tenantName") ||
+      localStorage.getItem("tenantName") ||
+      "";
+    if(name){
+      const el = document.getElementById("reportCompanyName");
+      if(el) el.textContent = name;
+    }
+  }catch(err){}
+})();
+</script>
+
 <script src="/admin/header.js"></script>
-<script src="/admin/tax-report.js"></script>
+<script src="/admin/tax-report.js?v=FAST-LOAD-20260918"></script>
 
 </body>
 </html>
