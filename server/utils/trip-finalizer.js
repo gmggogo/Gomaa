@@ -1175,6 +1175,37 @@ async function settleIndividualTripPayment(
          never a second charge.
     */
 
+    const paymentStatus =
+      String(
+        trip.paymentStatus || ""
+      )
+        .trim()
+        .toUpperCase();
+
+    const hasAuthorizationReference =
+      !!(
+        trip.authorizationPaymentIntentId ||
+        trip.paymentIntentId
+      );
+
+    /*
+      CAPTURE_FAILED means Stripe may still have a valid authorization
+      or the prior capture may have succeeded while the local save failed.
+      Retry the same capture first. The capture request is idempotent.
+      Do not create a second authorization just because local status changed.
+    */
+    if(
+      paymentStatus === "CAPTURE_FAILED" &&
+      hasAuthorizationReference
+    ){
+      await captureAuthorizedTrip(
+        trip,
+        finalPrice
+      );
+
+      return trip;
+    }
+
     if(
       !hasActiveAuthorization(trip)
     ){

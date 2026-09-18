@@ -710,9 +710,8 @@ async function captureAuthorizedTrip(
                 amountCents
               ),
 
-            finalizedAt:
-              new Date()
-                .toISOString()
+            settlementSource:
+              "DISPATCH_FINAL_CONFIRMATION"
           }
         },
         {
@@ -801,9 +800,95 @@ async function captureFeeAndReleaseRest(
 
   if(amountCents === 0){
 
+    const current =
+      await stripe.paymentIntents.retrieve(
+        intentId
+      );
+
+    const cancellableStatuses =
+      new Set([
+        "requires_payment_method",
+        "requires_confirmation",
+        "requires_action",
+        "requires_capture"
+      ]);
+
+    if(
+      current.status ===
+      "canceled"
+    ){
+      trip.paymentStatus =
+        "VOIDED";
+
+      trip.authorizedAmount =
+        0;
+
+      await trip.save();
+
+      return current;
+    }
+
+    if(
+      current.status ===
+      "succeeded"
+    ){
+      trip.paymentStatus =
+        "PAID";
+
+      trip.capturedAmount =
+        dollars(
+          current.amount_received ||
+          current.amount ||
+          0
+        );
+
+      trip.paymentCapturedAt =
+        trip.paymentCapturedAt ||
+        new Date();
+
+      await trip.save();
+
+      const err =
+        new Error(
+          "Payment was already captured and cannot be voided automatically"
+        );
+
+      err.code =
+        "PAYMENT_ALREADY_CAPTURED";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    if(
+      !cancellableStatuses.has(
+        current.status
+      )
+    ){
+      const err =
+        new Error(
+          `Payment authorization cannot be voided while Stripe status is ${current.status}`
+        );
+
+      err.code =
+        "PAYMENT_NOT_CANCELLABLE";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
     const intent =
       await stripe.paymentIntents.cancel(
-        intentId
+        intentId,
+        {},
+        {
+          idempotencyKey:
+            `trip-void-${trip._id}-${intentId}`
+        }
       );
 
     trip.paymentStatus =
@@ -840,23 +925,76 @@ async function cancelAuthorization(
       intentId
     );
 
+  const cancellableStatuses =
+    new Set([
+      "requires_payment_method",
+      "requires_confirmation",
+      "requires_action",
+      "requires_capture"
+    ]);
+
   if(
-    intent.status ===
-    "requires_capture"
+    cancellableStatuses.has(
+      intent.status
+    )
   ){
-    await stripe.paymentIntents.cancel(
-      intentId
-    );
+    const cancelled =
+      await stripe.paymentIntents.cancel(
+        intentId,
+        {},
+        {
+          idempotencyKey:
+            `trip-cancel-auth-${trip._id}-${intentId}`
+        }
+      );
+
+    trip.paymentStatus =
+      "VOIDED";
+
+    trip.authorizedAmount =
+      0;
+
+    await trip.save();
+
+    return cancelled;
   }
 
-  trip.paymentStatus =
-    "VOIDED";
+  if(intent.status === "canceled"){
+    trip.paymentStatus =
+      "VOIDED";
 
-  trip.authorizedAmount =
-    0;
+    trip.authorizedAmount =
+      0;
 
-  await trip.save();
+    await trip.save();
 
+    return intent;
+  }
+
+  if(intent.status === "succeeded"){
+    trip.paymentStatus =
+      "PAID";
+
+    trip.capturedAmount =
+      dollars(
+        intent.amount_received ||
+        intent.amount ||
+        0
+      );
+
+    trip.paymentCapturedAt =
+      trip.paymentCapturedAt ||
+      new Date();
+
+    await trip.save();
+
+    return intent;
+  }
+
+  /*
+    Do not mark the trip VOIDED when Stripe says the PaymentIntent
+    is in a non-cancellable state such as processing.
+  */
   return intent;
 }
 
