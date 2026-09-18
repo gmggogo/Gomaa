@@ -24,7 +24,15 @@ document.addEventListener("DOMContentLoaded",()=>{
     const d = new Date(v);
     return Number.isNaN(d.getTime())
       ? "--"
-      : d.toLocaleDateString("en-US");
+      : d.toLocaleDateString(
+          "en-US",
+          {
+            year:"numeric",
+            month:"numeric",
+            day:"numeric",
+            timeZone:"UTC"
+          }
+        );
   };
 
   const normalizeRole = v => clean(v)

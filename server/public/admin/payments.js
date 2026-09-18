@@ -41,7 +41,6 @@ const E = {
   last:$("lastPayment"),
   access:$("accessState"),
   pay:$("payNowBtn"),
-  printCurrent:$("printCurrentInvoiceBtn"),
   history:$("historyBody"),
   msg:$("messageBox"),
 
@@ -96,7 +95,12 @@ function dateText(v){
   if(Number.isNaN(d.getTime())) return "--";
   return d.toLocaleDateString(
     "en-US",
-    {year:"numeric",month:"short",day:"numeric"}
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric",
+      timeZone:"UTC"
+    }
   );
 }
 
@@ -107,247 +111,6 @@ function esc(v){
     .replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
-}
-
-
-function invoiceDateText(v){
-  if(!v) return "--";
-  const d = new Date(v);
-  if(Number.isNaN(d.getTime())) return "--";
-  return d.toLocaleDateString(
-    "en-US",
-    {year:"numeric",month:"long",day:"numeric"}
-  );
-}
-
-function invoiceValue(v,fallback="--"){
-  const s = clean(v);
-  return s || fallback;
-}
-
-function invoiceSnapshotFromCurrent(){
-  if(!current) return null;
-
-  const s = current.subscription || {};
-  const p = current.pricing || {};
-  const u = current.usage || {};
-  const inv = current.currentInvoice || {};
-
-  return {
-    ...inv,
-    companyName:
-      inv.companyName ||
-      current.tenant?.name ||
-      "Company",
-    planName:
-      inv.planName ||
-      s.planName ||
-      "GH Mobility",
-    billingCycle:
-      inv.billingCycle ||
-      s.billingCycle ||
-      "--",
-    billingDueDate:
-      inv.billingDueDate ||
-      s.dueDate ||
-      s.nextBillingDate ||
-      null,
-    packagePrice:Number(
-      inv.packagePrice ??
-      (
-        Number(p.baseAmount || 0) +
-        Number(p.serviceAmount || 0)
-      )
-    ),
-    finalAmount:Number(
-      inv.finalAmount ??
-      p.finalAmount ??
-      s.planPrice ??
-      0
-    ),
-    vehicleLimit:Number(inv.vehicleLimit ?? p.maxVehicles ?? s.maxVehicles ?? 0),
-    activeVehicles:Number(inv.activeVehicles ?? p.actualVehicles ?? u.actualVehicles ?? 0),
-    serviceLimit:Number(inv.serviceLimit ?? p.maxServices ?? s.maxServices ?? 0),
-    activeServices:Number(inv.activeServices ?? p.enabledServices ?? u.enabledServices ?? 0),
-    enabledServices:Array.isArray(inv.enabledServices)
-      ? inv.enabledServices
-      : enabledServiceNames(current),
-    brokerLimit:Number(inv.brokerLimit ?? p.maxBrokers ?? s.maxBrokers ?? 0),
-    activeBrokers:Number(inv.activeBrokers ?? p.actualBrokers ?? u.actualBrokers ?? 0),
-    enabledBrokers:Array.isArray(inv.enabledBrokers)
-      ? inv.enabledBrokers
-      : enabledBrokerNames(current),
-    driverLimit:Number(inv.driverLimit ?? p.maxDrivers ?? s.maxDrivers ?? 0),
-    activeDrivers:Number(inv.activeDrivers ?? p.actualDrivers ?? u.actualDrivers ?? 0),
-    dispatcherLimit:Number(inv.dispatcherLimit ?? p.maxDispatchers ?? s.maxDispatchers ?? 0),
-    activeDispatchers:Number(inv.activeDispatchers ?? p.actualDispatchers ?? u.actualDispatchers ?? 0),
-    adminLimit:Number(inv.adminLimit ?? p.maxAdmins ?? s.maxAdmins ?? 0),
-    activeAdmins:Number(inv.activeAdmins ?? p.actualAdmins ?? u.actualAdmins ?? 0),
-    superAdminLimit:Number(inv.superAdminLimit ?? p.maxSuperAdmins ?? s.maxSuperAdmins ?? 0),
-    activeSuperAdmins:Number(inv.activeSuperAdmins ?? p.actualSuperAdmins ?? u.actualSuperAdmins ?? 0),
-    companyLimit:Number(inv.companyLimit ?? p.maxCompanies ?? s.maxCompanies ?? 0),
-    activeCompanies:Number(inv.activeCompanies ?? p.actualCompanies ?? u.actualCompanies ?? 0),
-    extraVehicles:Number(inv.extraVehicles ?? p.billableExtraVehicles ?? p.extraVehicles ?? 0),
-    extraVehiclePrice:Number(inv.extraVehiclePrice ?? p.extraVehiclePrice ?? 0),
-    extraVehicleAmount:Number(inv.extraVehicleAmount ?? p.vehicleAmount ?? 0),
-    extraBrokers:Number(inv.extraBrokers ?? p.billableExtraBrokers ?? p.extraBrokers ?? 0),
-    extraBrokerPrice:Number(inv.extraBrokerPrice ?? p.extraBrokerPrice ?? 0),
-    extraBrokerAmount:Number(inv.extraBrokerAmount ?? p.brokerAmount ?? 0),
-    discount:Number(inv.discount ?? p.discount ?? 0),
-    credit:Number(inv.credit ?? p.credit ?? 0)
-  };
-}
-
-function printInvoice(snapshot,payment=null){
-  if(!snapshot) return;
-
-  const paid = payment?.status === "PAID";
-  const invoiceNumber =
-    invoiceValue(
-      payment?.invoiceNumber ||
-      snapshot.invoiceNumber,
-      "CURRENT"
-    );
-
-  const invoiceDate =
-    payment?.paidAt ||
-    payment?.createdAt ||
-    snapshot.capturedAt ||
-    new Date();
-
-  const status =
-    payment?.status ||
-    (current?.subscription?.amountDue > 0 ? "DUE" : "CURRENT");
-
-  const method =
-    payment?.paymentMethod ||
-    (paid ? "PAID" : "--");
-
-  const amount =
-    Number(
-      payment?.amount ??
-      snapshot.finalAmount ??
-      0
-    );
-
-  const serviceNames =
-    Array.isArray(snapshot.enabledServices) &&
-    snapshot.enabledServices.length
-      ? snapshot.enabledServices.join(", ")
-      : "--";
-
-  const brokerNames =
-    Array.isArray(snapshot.enabledBrokers) &&
-    snapshot.enabledBrokers.length
-      ? snapshot.enabledBrokers.join(", ")
-      : "--";
-
-  const w = window.open("","_blank","width=980,height=900");
-
-  if(!w){
-    showMessage("Pop-up blocked. Allow pop-ups to print the invoice.","error");
-    return;
-  }
-
-  w.document.write(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Invoice ${esc(invoiceNumber)}</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#eef2f6;font-family:Arial,sans-serif;color:#172033}
-.invoice{width:900px;max-width:calc(100% - 30px);margin:24px auto;background:#fff;border:1px solid #d5dde6}
-.head{padding:28px 32px;background:#0b2747;color:#fff;display:flex;justify-content:space-between;gap:20px}
-.brand h1{margin:0;font-size:28px}.brand div{margin-top:6px;font-size:12px;letter-spacing:1.4px}
-.invoice-meta{text-align:right;font-size:12px;line-height:1.7}
-.body{padding:28px 32px}
-.company{padding:16px;border:1px solid #dbe3ea;background:#f8fafc;margin-bottom:20px}
-.company strong{display:block;font-size:18px;margin-bottom:4px}
-.section{margin-top:18px;border:1px solid #dbe3ea}
-.section-title{padding:10px 12px;background:#10345c;color:#fff;font-weight:800;font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
-.item{padding:12px;border-right:1px solid #e6ebf0;border-bottom:1px solid #e6ebf0}
-.item span{display:block;font-size:9px;color:#64748b;text-transform:uppercase;font-weight:800}
-.item strong{display:block;margin-top:5px;font-size:13px}
-.wide{grid-column:span 3}
-.total{display:flex;justify-content:space-between;padding:16px 18px;background:#fff8da;border-top:2px solid #d6b24e;font-size:18px;font-weight:900;color:#7a5700}
-.footer{padding:18px 32px 28px;color:#64748b;font-size:10px;text-align:center}
-.actions{width:900px;max-width:calc(100% - 30px);margin:0 auto 24px;text-align:right}
-.actions button{border:0;border-radius:8px;padding:10px 16px;background:#0b2747;color:#fff;font-weight:800;cursor:pointer}
-@media print{
-  body{background:#fff}
-  .actions{display:none}
-  .invoice{margin:0;border:0;width:100%;max-width:none}
-}
-</style>
-</head>
-<body>
-<div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
-<div class="invoice">
-  <div class="head">
-    <div class="brand">
-      <h1>GH Mobility</h1>
-      <div>SAAS SUBSCRIPTION INVOICE</div>
-    </div>
-    <div class="invoice-meta">
-      <div><strong>Invoice:</strong> ${esc(invoiceNumber)}</div>
-      <div><strong>Date:</strong> ${esc(invoiceDateText(invoiceDate))}</div>
-      <div><strong>Cycle:</strong> ${esc(snapshot.billingCycle || "--")}</div>
-      <div><strong>Status:</strong> ${esc(status)}</div>
-      <div><strong>Method:</strong> ${esc(method || "--")}</div>
-    </div>
-  </div>
-  <div class="body">
-    <div class="company">
-      <strong>${esc(snapshot.companyName || "Company")}</strong>
-      <div>${esc(snapshot.planName || "GH Mobility")}</div>
-      <div>Due Date: ${esc(invoiceDateText(snapshot.billingDueDate))}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Plan Details</div>
-      <div class="grid">
-        <div class="item"><span>Package Price</span><strong>${esc(money(snapshot.packagePrice || 0))}</strong></div>
-        <div class="item"><span>Vehicle Limit</span><strong>${Number(snapshot.vehicleLimit || 0)}</strong></div>
-        <div class="item"><span>Active Vehicles</span><strong>${Number(snapshot.activeVehicles || 0)}</strong></div>
-        <div class="item"><span>Service Limit</span><strong>${Number(snapshot.serviceLimit || 0)}</strong></div>
-        <div class="item"><span>Active Services</span><strong>${Number(snapshot.activeServices || 0)}</strong></div>
-        <div class="item"><span>Broker Limit</span><strong>${Number(snapshot.brokerLimit || 0)}</strong></div>
-        <div class="item wide"><span>Enabled Services</span><strong>${esc(serviceNames)}</strong></div>
-        <div class="item"><span>Active Brokers</span><strong>${Number(snapshot.activeBrokers || 0)}</strong></div>
-        <div class="item wide"><span>Enabled Brokers</span><strong>${esc(brokerNames)}</strong></div>
-        <div class="item"><span>Driver Limit / Active</span><strong>${Number(snapshot.driverLimit || 0)} / ${Number(snapshot.activeDrivers || 0)}</strong></div>
-        <div class="item"><span>Dispatcher Limit / Active</span><strong>${Number(snapshot.dispatcherLimit || 0)} / ${Number(snapshot.activeDispatchers || 0)}</strong></div>
-        <div class="item"><span>Admin Limit / Active</span><strong>${Number(snapshot.adminLimit || 0)} / ${Number(snapshot.activeAdmins || 0)}</strong></div>
-        <div class="item"><span>Super Admin Limit / Active</span><strong>${Number(snapshot.superAdminLimit || 0)} / ${Number(snapshot.activeSuperAdmins || 0)}</strong></div>
-        <div class="item"><span>Company Limit / Active</span><strong>${Number(snapshot.companyLimit || 0)} / ${Number(snapshot.activeCompanies || 0)}</strong></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Billing</div>
-      <div class="grid">
-        <div class="item"><span>Extra Vehicles</span><strong>${Number(snapshot.extraVehicles || 0)} × ${esc(money(snapshot.extraVehiclePrice || 0))} = ${esc(money(snapshot.extraVehicleAmount || 0))}</strong></div>
-        <div class="item"><span>Extra Brokers</span><strong>${Number(snapshot.extraBrokers || 0)} × ${esc(money(snapshot.extraBrokerPrice || 0))} = ${esc(money(snapshot.extraBrokerAmount || 0))}</strong></div>
-        <div class="item"><span>Discount</span><strong>-${esc(money(snapshot.discount || 0))}</strong></div>
-        <div class="item"><span>Credit</span><strong>-${esc(money(snapshot.credit || 0))}</strong></div>
-      </div>
-      <div class="total">
-        <span>Final Amount</span>
-        <strong>${esc(money(amount))}</strong>
-      </div>
-    </div>
-  </div>
-  <div class="footer">Generated by GH Mobility SaaS Billing</div>
-</div>
-</body>
-</html>
-  `);
-
-  w.document.close();
-  w.focus();
 }
 
 function showMessage(text,type="info"){
@@ -769,16 +532,9 @@ function render(data){
             <td>${esc(r.paymentMethod || "--")}</td>
             <td>${esc(r.status || "--")}</td>
             <td class="amount">${esc(money(r.amount))}</td>
-            <td>
-              ${
-                String(r.status || "").toUpperCase() === "PAID"
-                  ? `<button class="print-invoice-btn small" data-print-payment="${esc(r._id || "")}" type="button">Print</button>`
-                  : "--"
-              }
-            </td>
           </tr>
         `).join("")
-      : `<tr><td colspan="7" class="empty">No subscription payments yet.</td></tr>`;
+      : `<tr><td colspan="6" class="empty">No subscription payments yet.</td></tr>`;
 
   if(s.locked){
     showMessage(
@@ -796,7 +552,7 @@ async function load(){
     console.error("PAYMENTS LOAD ERROR:",err);
     showMessage(err.message || "Unable to load subscription.","error");
     E.history.innerHTML =
-      `<tr><td colspan="7" class="empty">Unable to load payment history.</td></tr>`;
+      `<tr><td colspan="6" class="empty">Unable to load payment history.</td></tr>`;
   }
 }
 
@@ -861,64 +617,6 @@ async function verifyReturn(){
     console.error("VERIFY ERROR:",err);
   }
 }
-
-
-if(E.printCurrent){
-  E.printCurrent.addEventListener("click",()=>{
-    printInvoice(
-      invoiceSnapshotFromCurrent(),
-      null
-    );
-  });
-}
-
-E.history.addEventListener("click",event=>{
-  const btn =
-    event.target.closest("[data-print-payment]");
-
-  if(!btn || !current) return;
-
-  const paymentId =
-    clean(btn.dataset.printPayment);
-
-  const payment =
-    (Array.isArray(current.history) ? current.history : [])
-      .find(row=>
-        String(row?._id || "") === paymentId
-      );
-
-  if(!payment) return;
-
-  let snapshot =
-    payment.invoiceSnapshot &&
-    typeof payment.invoiceSnapshot === "object"
-      ? payment.invoiceSnapshot
-      : null;
-
-  if(!snapshot){
-    snapshot = {
-      companyName:
-        current.tenant?.name ||
-        "Company",
-      planName:
-        current.subscription?.planName ||
-        "GH Mobility",
-      billingCycle:
-        payment.billingCycle ||
-        current.subscription?.billingCycle ||
-        "--",
-      billingDueDate:
-        payment.billingDueDate ||
-        null,
-      packagePrice:Number(payment.amount || 0),
-      finalAmount:Number(payment.amount || 0),
-      enabledServices:[],
-      enabledBrokers:[]
-    };
-  }
-
-  printInvoice(snapshot,payment);
-});
 
 E.pay.addEventListener("click",payNow);
 

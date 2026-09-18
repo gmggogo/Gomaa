@@ -182,7 +182,15 @@ function applyCompanyPayload(subscription,body){
       subscription.dueDate = null;
       subscription.nextBillingDate = null;
     }else{
-      const date = new Date(body.dueDate);
+      const rawDueDate =
+        String(body.dueDate || "")
+          .trim()
+          .slice(0,10);
+
+      const date =
+        /^\d{4}-\d{2}-\d{2}$/.test(rawDueDate)
+          ? new Date(rawDueDate + "T00:00:00.000Z")
+          : new Date(body.dueDate);
 
       if(!Number.isNaN(date.getTime())){
         subscription.dueDate = date;

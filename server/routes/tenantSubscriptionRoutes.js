@@ -10,6 +10,7 @@ const stripe = require("stripe")(
 );
 
 const Tenant = require("../models/Tenant");
+const SystemDesign = require("../models/SystemDesign");
 const TenantSubscription = require("../models/TenantSubscription");
 const TenantSubscriptionPayment = require("../models/TenantSubscriptionPayment");
 const BrokerIntegration = require("../models/BrokerIntegration");
@@ -173,9 +174,80 @@ function validDate(value){
     : date;
 }
 
-function paymentState(subscription,amountOverride=null){
-  const now = new Date();
+function calendarKeyFromStoredDate(value){
+  const date = validDate(value);
 
+  if(!date){
+    return null;
+  }
+
+  return Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  );
+}
+
+async function tenantBillingTimezone(tenantId){
+  const design =
+    await SystemDesign
+      .findOne({
+        tenantId
+      })
+      .select("timezone")
+      .lean();
+
+  const timezone =
+    clean(design?.timezone) ||
+    "America/Phoenix";
+
+  try{
+    new Intl.DateTimeFormat(
+      "en-US",
+      {timeZone:timezone}
+    ).format(new Date());
+
+    return timezone;
+
+  }catch(err){
+    return "America/Phoenix";
+  }
+}
+
+function currentCalendarKey(timezone){
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone,
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(new Date());
+
+  const map = {};
+
+  for(const part of parts){
+    if(
+      part.type === "year" ||
+      part.type === "month" ||
+      part.type === "day"
+    ){
+      map[part.type] =
+        Number(part.value);
+    }
+  }
+
+  return Date.UTC(
+    map.year,
+    map.month - 1,
+    map.day
+  );
+}
+
+function paymentState(subscription,amountOverride=null,timezone="America/Phoenix"){
   const overrideNumber =
     Number(amountOverride);
 
@@ -206,16 +278,20 @@ function paymentState(subscription,amountOverride=null){
     };
   }
 
-  const paymentWindowOpensAt =
-    new Date(
-      dueDate.getTime() -
-      DAY_MS
+  const dueKey =
+    calendarKeyFromStoredDate(
+      dueDate
     );
+
+  const todayKey =
+    currentCalendarKey(timezone);
+
+  const paymentWindowKey =
+    dueKey - DAY_MS;
 
   const canPay =
     planPrice > 0 &&
-    now.getTime() >=
-    paymentWindowOpensAt.getTime();
+    todayKey >= paymentWindowKey;
 
   return {
     planPrice,
@@ -224,7 +300,8 @@ function paymentState(subscription,amountOverride=null){
         ? planPrice
         : 0,
     canPay,
-    paymentWindowOpensAt,
+    paymentWindowOpensAt:
+      new Date(paymentWindowKey),
     billingDueDate:dueDate,
     billingKey:
       dueDate
@@ -328,9 +405,7 @@ async function ensureSubscription(tenantId){
   return row;
 }
 
-function runtime(subscription){
-  const now = new Date();
-
+function runtime(subscription,timezone="America/Phoenix"){
   if(!subscription.dueDate){
     return {
       status:
@@ -340,30 +415,35 @@ function runtime(subscription){
     };
   }
 
-  const due =
-    new Date(
+  const dueKey =
+    calendarKeyFromStoredDate(
       subscription.dueDate
     );
 
-  if(now <= due){
+  const todayKey =
+    currentCalendarKey(timezone);
+
+  if(
+    dueKey === null ||
+    todayKey <= dueKey
+  ){
     return {
       status:"ACTIVE",
       locked:false
     };
   }
 
-  const graceEnd =
-    new Date(due);
+  const graceEndKey =
+    dueKey +
+    (
+      Number(
+        subscription.graceDays ||
+        0
+      ) *
+      DAY_MS
+    );
 
-  graceEnd.setUTCDate(
-    graceEnd.getUTCDate() +
-    Number(
-      subscription.graceDays ||
-      0
-    )
-  );
-
-  if(now <= graceEnd){
+  if(todayKey <= graceEndKey){
     return {
       status:"PAST_DUE",
       locked:false
@@ -733,13 +813,22 @@ router.get(
           brokers
         );
 
+      const timezone =
+        await tenantBillingTimezone(
+          tenant._id
+        );
+
       const state =
-        runtime(subscription);
+        runtime(
+          subscription,
+          timezone
+        );
 
       const billing =
         paymentState(
           subscription,
-          pricing.finalAmount
+          pricing.finalAmount,
+          timezone
         );
 
       if(
@@ -1313,10 +1402,16 @@ router.post(
           brokers
         );
 
+      const timezone =
+        await tenantBillingTimezone(
+          tenant._id
+        );
+
       const billing =
         paymentState(
           subscription,
-          pricing.finalAmount
+          pricing.finalAmount,
+          timezone
         );
 
       const amount =
