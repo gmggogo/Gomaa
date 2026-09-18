@@ -389,7 +389,7 @@ function calculatePricing(subscription,usage){
     extraVehicles - freeExtraVehicles
   );
 
-  const baseAmount =
+  const basePackageAmount =
     subscription.basePackageEnabled === false
       ? 0
       : nonNegative(subscription.basePrice);
@@ -397,14 +397,62 @@ function calculatePricing(subscription,usage){
   const extraVehiclePrice =
     nonNegative(subscription.extraVehiclePrice);
 
-  const fallbackServicePrice =
+  /*
+    The existing extraServicePrice field is the reference price already
+    included in the base package. Each service still keeps its own price
+    in servicePricing.
+
+    Example:
+    Base package = $125
+    Reference service price = $15
+    Selected Included service (WH) = $40
+    Included service adjustment = $25
+    Adjusted base = $150
+  */
+  const referenceServicePrice =
     nonNegative(subscription.extraServicePrice);
 
   const servicePricing = mergeServicePricing(
     serviceControls,
     subscription.servicePricing,
     includedServices,
-    fallbackServicePrice
+    referenceServicePrice
+  );
+
+  const includedServiceRows =
+    servicePricing.filter(row=>{
+      const control = serviceControls.find(x=>
+        clean(x.key).toUpperCase() === row.key
+      );
+
+      return (
+        control?.billingEnabled !== false &&
+        row.included === true
+      );
+    });
+
+  const includedServicePriceTotal =
+    includedServiceRows.reduce(
+      (sum,row)=>sum + nonNegative(row.monthlyPrice),
+      0
+    );
+
+  const includedReferenceTotal =
+    includedServiceRows.length * referenceServicePrice;
+
+  const baseServiceAdjustment =
+    subscription.basePackageEnabled === false
+      ? 0
+      : Number(
+          (
+            includedServicePriceTotal -
+            includedReferenceTotal
+          ).toFixed(2)
+        );
+
+  const baseAmount = Math.max(
+    0,
+    basePackageAmount + baseServiceAdjustment
   );
 
   const billableServiceRows =
@@ -534,9 +582,13 @@ function calculatePricing(subscription,usage){
     billableExtraVehicles,
     billableExtraServices,
 
+    basePackageAmount:Number(basePackageAmount.toFixed(2)),
+    referenceServicePrice:Number(referenceServicePrice.toFixed(2)),
+    includedServicePriceTotal:Number(includedServicePriceTotal.toFixed(2)),
+    baseServiceAdjustment:Number(baseServiceAdjustment.toFixed(2)),
     baseAmount:Number(baseAmount.toFixed(2)),
     extraVehiclePrice:Number(extraVehiclePrice.toFixed(2)),
-    extraServicePrice:Number(fallbackServicePrice.toFixed(2)),
+    extraServicePrice:Number(referenceServicePrice.toFixed(2)),
     vehicleAmount:Number(vehicleAmount.toFixed(2)),
     serviceAmount:Number(serviceAmount.toFixed(2)),
     serviceCharges:serviceCharges.map(row=>({

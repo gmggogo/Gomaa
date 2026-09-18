@@ -685,7 +685,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         <div class="pricing-section-block service-pricing-block">
           <div class="pricing-section-heading">Service Pricing</div>
           <div class="pricing-help">
-            Choose which service is included in the base package. Every other active service uses its own monthly add-on price.
+            Choose the service included in the base package. Its price is compared with the Base Service Reference Price, and only the difference adjusts the base package. Every other active service is charged at its full monthly add-on price.
           </div>
           <input class="included-services" type="hidden" value="${Number(s.includedServices || 0)}">
           <div class="table-wrap">
@@ -720,7 +720,7 @@ document.addEventListener("DOMContentLoaded",()=>{
             </div>
 
             <div class="field">
-              <label>Fallback Service Price</label>
+              <label>Base Service Reference Price</label>
               <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
             </div>
 
@@ -764,7 +764,12 @@ document.addEventListener("DOMContentLoaded",()=>{
         <div class="pricing-section-block billing-breakdown-block">
           <div class="pricing-section-heading">Billing Breakdown</div>
           <div class="price-box">
-            <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
+            <div class="price-line"><span>Base Package</span><strong>${money(p.basePackageAmount ?? s.basePrice ?? 0)}</strong></div>
+            <div class="price-line">
+              <span>Included Service Adjustment</span>
+              <strong>${Number(p.baseServiceAdjustment || 0) >= 0 ? "+" : "-"}${money(Math.abs(Number(p.baseServiceAdjustment || 0)))}</strong>
+            </div>
+            <div class="price-line"><span>Adjusted Base</span><strong>${money(p.baseAmount)}</strong></div>
             <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
             ${
               Array.isArray(p.serviceCharges) && p.serviceCharges.length
@@ -1005,9 +1010,11 @@ document.addEventListener("DOMContentLoaded",()=>{
 
       window.alert(
         [
-          `Base Package: ${money(p.baseAmount)}`,
+          `Base Package: ${money(p.basePackageAmount ?? p.baseAmount)}`,
+          `Included Service Adjustment: ${Number(p.baseServiceAdjustment || 0) >= 0 ? "+" : "-"}${money(Math.abs(Number(p.baseServiceAdjustment || 0)))}`,
+          `Adjusted Base: ${money(p.baseAmount)}`,
           `Extra Vehicles: ${Number(p.billableExtraVehicles || 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
-          `Extra Services: ${Number(p.billableExtraServices || 0)} x ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}`,
+          `Extra Services: ${money(p.serviceAmount)}`,
           `Extra Brokers: ${Number(p.billableExtraBrokers || brokerStats(row).billableExtra || 0)} x ${money(p.extraBrokerPrice ?? brokerStats(row).extraPrice)} = ${money(p.brokerAmount ?? brokerStats(row).amount)}`,
           `Discount: -${money(p.discount)}`,
           `Credit: -${money(p.credit)}`,
