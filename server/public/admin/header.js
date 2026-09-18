@@ -684,6 +684,191 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
  document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
 
+
+ /* =========================================================
+    HEADER ALERT ACKNOWLEDGEMENT
+    Clicking the SAME header button clears its current badge/blink.
+    A later increase in the source count appears as a new alert.
+    State is stored per staff tab + tenant.
+ ========================================================= */
+
+ const headerAlertRawCounts = {
+   help:0,
+   operations:0,
+   broker:0,
+   final:0
+ };
+
+ function headerAlertScope(){
+   return String(
+     sessionStorage.getItem("staffTenantId") ||
+     sessionStorage.getItem("staffTenantSlug") ||
+     localStorage.getItem("tenantId") ||
+     localStorage.getItem("tenantSlug") ||
+     "default"
+   ).trim() || "default";
+ }
+
+ function headerAlertSeenKey(kind){
+   return `ghHeaderAlertSeen:${headerAlertScope()}:${String(kind || "")}`;
+ }
+
+ function readHeaderAlertSeen(kind){
+   const value =
+     Number(
+       sessionStorage.getItem(
+         headerAlertSeenKey(kind)
+       ) || 0
+     );
+
+   return Number.isFinite(value) && value > 0
+     ? value
+     : 0;
+ }
+
+ function writeHeaderAlertSeen(kind,count){
+   sessionStorage.setItem(
+     headerAlertSeenKey(kind),
+     String(
+       Math.max(
+         0,
+         Number(count || 0)
+       )
+     )
+   );
+ }
+
+ function visibleHeaderAlertCount(kind,currentCount){
+   const current =
+     Math.max(
+       0,
+       Number(currentCount || 0)
+     );
+
+   let seen =
+     readHeaderAlertSeen(kind);
+
+   if(current < seen){
+     seen = current;
+     writeHeaderAlertSeen(kind,seen);
+   }
+
+   return Math.max(
+     0,
+     current - seen
+   );
+ }
+
+ function acknowledgeHeaderAlert(kind){
+   const current =
+     Math.max(
+       0,
+       Number(
+         headerAlertRawCounts[kind] || 0
+       )
+     );
+
+   writeHeaderAlertSeen(
+     kind,
+     current
+   );
+
+   if(kind === "help"){
+     applySupportUnreadToHelpButton(0);
+     return;
+   }
+
+   applyHeaderAlerts(
+     window.__GH_LAST_HEADER_ALERT_DETAIL__ || {}
+   );
+ }
+
+ function bindHeaderAlertAcknowledgements(){
+
+   const bindOnce = (element,kind)=>{
+     if(
+       !element ||
+       element.dataset.ghAlertAckBound === "1"
+     ){
+       return;
+     }
+
+     element.dataset.ghAlertAckBound = "1";
+
+     element.addEventListener(
+       "click",
+       ()=>{
+         acknowledgeHeaderAlert(kind);
+       },
+       true
+     );
+   };
+
+   /* Help Center */
+   document
+     .querySelectorAll(
+       '[data-href="help-center.html"]'
+     )
+     .forEach(
+       el=>bindOnce(el,"help")
+     );
+
+   /* Operations */
+   const operationsGroup =
+     [...document.querySelectorAll(".gh-nav-group")]
+       .find(
+         group=>
+           group.querySelector(
+             '[data-href="trips-hub.html"]'
+           )
+       );
+
+   bindOnce(
+     operationsGroup?.querySelector(".gh-nav-group-btn"),
+     "operations"
+   );
+
+   document
+     .querySelectorAll(
+       '#mobileSideNav [data-href="trips-hub.html"]'
+     )
+     .forEach(
+       el=>bindOnce(el,"operations")
+     );
+
+   /* Broker Operations */
+   const brokerGroup =
+     [...document.querySelectorAll(".gh-nav-group")]
+       .find(
+         group=>
+           group.querySelector(
+             '[data-href="external-trips.html"], [data-href="trip-split.html"], [data-href="broker-review.html"]'
+           )
+       );
+
+   bindOnce(
+     brokerGroup?.querySelector(".gh-nav-group-btn"),
+     "broker"
+   );
+
+   document
+     .querySelectorAll(
+       '#mobileSideNav [data-href="external-trips.html"]'
+     )
+     .forEach(
+       el=>bindOnce(el,"broker")
+     );
+
+   /* Final Confirmation */
+   document
+     .querySelectorAll(
+       '[data-href="dispatch-final-confirmation.html"]'
+     )
+     .forEach(
+       el=>bindOnce(el,"final")
+     );
+ }
+
  /* HELP CENTER — GOLD ONLY */
  const helpCenterGoldStyle=document.createElement("style");
  helpCenterGoldStyle.id="gh-help-center-gold-only";
@@ -822,8 +1007,20 @@ document.addEventListener("DOMContentLoaded",async()=>{
      const data=
        await response.json();
 
+     const rawSupportCount =
+       Math.max(
+         0,
+         Number(data?.count || 0)
+       );
+
+     headerAlertRawCounts.help =
+       rawSupportCount;
+
      applySupportUnreadToHelpButton(
-       data?.count||0
+       visibleHeaderAlertCount(
+         "help",
+         rawSupportCount
+       )
      );
 
    }catch(err){
@@ -885,7 +1082,11 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  function applyHeaderAlerts(detail){
 
-   function n(...values){
+   
+   window.__GH_LAST_HEADER_ALERT_DETAIL__ =
+     detail || {};
+
+function n(...values){
      for(const value of values){
        const number=Number(value);
        if(Number.isFinite(number)){
@@ -977,16 +1178,28 @@ document.addEventListener("DOMContentLoaded",async()=>{
          )
      );
 
+   headerAlertRawCounts.operations =
+     Math.max(
+       0,
+       Number(operationsCount || 0)
+     );
+
+   const visibleOperationsCount =
+     visibleHeaderAlertCount(
+       "operations",
+       headerAlertRawCounts.operations
+     );
+
    setAlert(
      opsGroup?.querySelector(".gh-nav-group-btn"),
-     operationsCount
+     visibleOperationsCount
    );
 
    setAlert(
      document.querySelector(
        '#mobileSideNav [data-href="trips-hub.html"]'
      ),
-     operationsCount
+     visibleOperationsCount
    );
 
    const brokerGroup=
@@ -998,16 +1211,28 @@ document.addEventListener("DOMContentLoaded",async()=>{
          )
      );
 
+   headerAlertRawCounts.broker =
+     Math.max(
+       0,
+       Number(brokerCount || 0)
+     );
+
+   const visibleBrokerCount =
+     visibleHeaderAlertCount(
+       "broker",
+       headerAlertRawCounts.broker
+     );
+
    setAlert(
      brokerGroup?.querySelector(".gh-nav-group-btn"),
-     brokerCount
+     visibleBrokerCount
    );
 
    setAlert(
      document.querySelector(
        '#mobileSideNav [data-href="external-trips.html"]'
      ),
-     brokerCount
+     visibleBrokerCount
    );
 
    setAlert(
@@ -1024,22 +1249,39 @@ document.addEventListener("DOMContentLoaded",async()=>{
      dispatchCount
    );
 
+   headerAlertRawCounts.final =
+     Math.max(
+       0,
+       Number(finalCount || 0)
+     );
+
+   const visibleFinalCount =
+     visibleHeaderAlertCount(
+       "final",
+       headerAlertRawCounts.final
+     );
+
    setAlert(
      document.querySelector(
        '#adminDesktopNav [data-href="dispatch-final-confirmation.html"]'
      ),
-     finalCount
+     visibleFinalCount
    );
 
    setAlert(
      document.querySelector(
        '#mobileSideNav [data-href="dispatch-final-confirmation.html"]'
      ),
-     finalCount
+     visibleFinalCount
    );
  }
 
- window.addEventListener("gh-dashboard-alerts",e=>applyHeaderAlerts(e.detail||{}));
+ window.addEventListener(
+   "gh-dashboard-alerts",
+   e=>applyHeaderAlerts(e.detail||{})
+ );
+
+ bindHeaderAlertAcknowledgements();
  applyHeaderAlerts({});
 
  /* PAYROLL SIGN IN — shown only when today's staff schedule is eligible. */
