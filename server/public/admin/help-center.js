@@ -298,6 +298,13 @@ const HelpCenter = (()=>{
       fr:"Configure les règles Shared, limite passagers, tolérances distance/temps, priorités et sources.",
       it:"Configura regole Shared, limite passeggeri, tolleranze distanza/tempo, priorità e origini."
     },
+    "autopilot-settings.html":{
+      "es-MX":"Configura Company Autopilot, Broker Autopilot y Broker Shared Autopilot según las capacidades habilitadas.",
+      ar:"يضبط Company Autopilot وBroker Autopilot وBroker Shared Autopilot حسب الخصائص المفعلة.",
+      fr:"Configure Company Autopilot, Broker Autopilot et Broker Shared Autopilot selon les capacités activées.",
+      it:"Configura Company Autopilot, Broker Autopilot e Broker Shared Autopilot in base alle funzionalità abilitate."
+    },
+
     "dispatch-add-trip.html":{
       "es-MX":"Crea viajes individuales/compartidos, guarda borradores y prepara viajes para revisión.",
       ar:"ينشئ رحلات فردية أو مشتركة ويحفظ المسودات ويجهز الرحلات للمراجعة.",
@@ -485,6 +492,7 @@ const HelpCenter = (()=>{
       "facility-pricing-override.html",
       "system-design.html",
       "smart-dispatch-engine.html",
+      "autopilot-settings.html",
       "shared-engine-settings.html",
       "external-trips.html",
       "trip-split.html",

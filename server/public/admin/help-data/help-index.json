@@ -1,8 +1,8 @@
 {
   "version": "2.0",
   "generatedFrom": "admin.zip",
-  "pageCount": 29,
-  "articleCount": 91,
+  "pageCount": 30,
+  "articleCount": 95,
   "pages": [
     {
       "pageId": "ADM-005",
@@ -241,7 +241,7 @@
     },
     {
       "pageId": "ADM-018",
-      "pageTitle": "Refunds \u2013 Sunbeam",
+      "pageTitle": "Refunds – Sunbeam",
       "pageFile": "refunds.html",
       "module": "Refunds",
       "roles": [
@@ -408,6 +408,22 @@
       "helpGroup": "STANDARD"
     },
     {
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "module": "Autopilot",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 4,
+      "dataFile": "help-data/ADM-030.json",
+      "description": "Controls Company Autopilot, Broker Autopilot, and Broker Shared Autopilot, with options shown according to enabled capabilities.",
+      "headerOrder": 25,
+      "helpGroup": "STANDARD"
+    },
+    {
       "pageId": "ADM-021",
       "pageTitle": "Shared Engine Settings",
       "pageFile": "shared-engine-settings.html",
@@ -420,7 +436,7 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-021.json",
       "description": "Configures Shared grouping rules, rider limits, distance/time tolerance, priorities, and trip sources.",
-      "headerOrder": 25,
+      "headerOrder": 26,
       "helpGroup": "STANDARD"
     },
     {
@@ -437,7 +453,7 @@
       "articleCount": 6,
       "dataFile": "help-data/ADM-006.json",
       "description": "Creates individual/shared trips, saves drafts, and prepares trips for review.",
-      "headerOrder": 26,
+      "headerOrder": 27,
       "helpGroup": "STANDARD"
     },
     {
@@ -454,7 +470,7 @@
       "articleCount": 4,
       "dataFile": "help-data/ADM-019.json",
       "description": "Changes an eligible reserved trip route by adding, editing, or removing stops or drop-off.",
-      "headerOrder": 27,
+      "headerOrder": 28,
       "helpGroup": "STANDARD"
     },
     {
@@ -471,7 +487,7 @@
       "articleCount": 3,
       "dataFile": "help-data/ADM-002.json",
       "description": "Communicates with drivers and shows online drivers, unread messages, and conversation history.",
-      "headerOrder": 28,
+      "headerOrder": 29,
       "helpGroup": "STANDARD"
     }
   ]

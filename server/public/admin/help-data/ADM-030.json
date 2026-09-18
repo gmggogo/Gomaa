@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "pageId": "ADM-030",
+  "pageTitle": "Autopilot Settings",
+  "pageFile": "autopilot-settings.html",
+  "module": "Autopilot",
+  "articles": [
+    {
+      "id": "ADM-030-001",
+      "active": true,
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Turn Company Autopilot On or Off",
+      "summary": "Controls the Company Autopilot mode for the tenant.",
+      "keywords": [
+        "autopilot",
+        "company autopilot",
+        "automatic",
+        "company trips",
+        "on",
+        "off"
+      ],
+      "steps": [
+        "Open Autopilot Settings.",
+        "Locate Company Autopilot.",
+        "Choose On to activate Company Autopilot or Off to disable it.",
+        "Review the status label and verify that the page shows the intended state.",
+        "Click Save Settings to save the change."
+      ],
+      "warnings": [
+        "If the page is in View Only mode, the On/Off controls and Save Settings button cannot be changed."
+      ]
+    },
+    {
+      "id": "ADM-030-002",
+      "active": true,
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Turn Broker Autopilot On or Off",
+      "summary": "Controls Broker Autopilot when a broker contract is enabled for the tenant.",
+      "keywords": [
+        "autopilot",
+        "broker autopilot",
+        "broker",
+        "automatic broker",
+        "on",
+        "off"
+      ],
+      "steps": [
+        "Open Autopilot Settings.",
+        "Locate Broker Autopilot.",
+        "Choose On to activate Broker Autopilot or Off to disable it.",
+        "Click Save Settings.",
+        "Verify that the saved status matches the selected mode."
+      ],
+      "warnings": [
+        "Broker Autopilot is shown only when the tenant has an enabled broker contract."
+      ]
+    },
+    {
+      "id": "ADM-030-003",
+      "active": true,
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Turn Broker Shared Autopilot On or Off",
+      "summary": "Controls automatic broker shared processing when Broker Shared is available.",
+      "keywords": [
+        "autopilot",
+        "broker shared autopilot",
+        "shared",
+        "broker shared",
+        "automatic grouping"
+      ],
+      "steps": [
+        "Open Autopilot Settings.",
+        "Locate Broker Shared Autopilot.",
+        "Choose On to activate it or Off to disable it.",
+        "Click Save Settings.",
+        "Verify the saved status after the page refreshes the settings."
+      ],
+      "warnings": [
+        "Broker Shared Autopilot is shown only when Broker Shared is available for the tenant."
+      ]
+    },
+    {
+      "id": "ADM-030-004",
+      "active": true,
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Understand Autopilot Visibility and View Only Mode",
+      "summary": "Explains why some Autopilot cards may be hidden and why controls may be disabled.",
+      "keywords": [
+        "autopilot",
+        "view only",
+        "permissions",
+        "hidden",
+        "broker contract",
+        "shared service",
+        "capabilities"
+      ],
+      "steps": [
+        "Open Autopilot Settings.",
+        "Check which Autopilot cards are visible.",
+        "Company Autopilot remains available as the base Autopilot option.",
+        "Broker Autopilot appears only when the broker contract capability is enabled.",
+        "Broker Shared Autopilot appears only when Broker Shared is available.",
+        "If Save Settings shows View Only, the current user can review the settings but cannot change them."
+      ],
+      "warnings": []
+    }
+  ]
+}
