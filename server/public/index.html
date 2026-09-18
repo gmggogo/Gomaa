@@ -595,97 +595,76 @@ body{
   }
 
   /* =========================
-     TEXT BOXES
+     MOBILE TEXT SECTIONS
+     Single source of truth for all four homepage text boxes.
   ========================= */
 
-.about,
-.quote-header{
-  width:100% !important;
-  max-width:100% !important;
-  margin:0 !important;
-  padding:24px 20px !important;
-  background:transparent !important;
-  border:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-}
+  .about,
+  .quote-header,
+  .extra-box{
+    width:calc(100% - 20px) !important;
+    max-width:680px !important;
+    margin:10px auto 0 !important;
+    padding:16px 14px !important;
+    background:#ffffff !important;
+    border:1px solid #dbeafe !important;
+    border-radius:16px !important;
+    box-shadow:0 3px 10px rgba(15,23,42,.05) !important;
+  }
 
-.extra-sections{
-  width:100% !important;
-  max-width:100% !important;
-  margin:0 !important;
-  padding:0 0 40px !important;
-  gap:0 !important;
-}
+  .extra-sections{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 0 24px !important;
+    gap:0 !important;
+  }
 
-.extra-box{
-  width:100% !important;
-  max-width:100% !important;
-  margin:0 !important;
-  padding:24px 20px !important;
-  background:transparent !important;
-  border:0 !important;
-  border-radius:0 !important;
-  box-shadow:none !important;
-}
-  /* =========================
-     MOBILE TITLES
-  ========================= */
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView,
+  .about h2,
+  .quote-header h2,
+  .extra-box h3{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 10px !important;
+    padding:0 !important;
+    text-align:center !important;
+    text-align-last:center !important;
+    direction:ltr !important;
+    unicode-bidi:normal !important;
+    font-size:17px !important;
+    line-height:1.2 !important;
+    font-weight:850 !important;
+    letter-spacing:0 !important;
+    word-spacing:0 !important;
+  }
 
-#aboutTitle,
-#quoteTitle,
-#extra1TitleView,
-#extra2TitleView,
-.about h2,
-.quote-header h2,
-.extra-box h3{
-  text-align:center !important;
-  text-align-last:center !important;
-
-  direction:ltr !important;
-  unicode-bidi:normal !important;
-
-  line-height:1.15 !important;
-  font-weight:900 !important;
-  font-size:19px !important;
-
-  word-spacing:normal !important;
-  letter-spacing:0 !important;
-
-  margin:0 0 14px 0 !important;
-  padding:0 !important;
-}
-
-  /* =========================
-     MOBILE AUTO TEXT
-  ========================= */
-#aboutText,
-#quoteText,
-#extra1TextView,
-#extra2TextView{
-  width:100% !important;
-  max-width:100% !important;
-
-  text-align:left !important;
-  text-align-last:left !important;
-
-  direction:ltr !important;
-  unicode-bidi:normal !important;
-
-  line-height:1.45 !important;
-  font-weight:400 !important;
-
-  white-space:normal !important;
-  text-wrap:wrap !important;
-  word-spacing:normal !important;
-  letter-spacing:0 !important;
-  word-break:normal !important;
-  overflow-wrap:break-word !important;
-  hyphens:none !important;
-
-  margin:0 !important;
-  padding:0 !important;
-}
+  #aboutText,
+  #quoteText,
+  #extra1TextView,
+  #extra2TextView{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    text-align:left !important;
+    text-align-last:left !important;
+    direction:ltr !important;
+    unicode-bidi:normal !important;
+    font-size:14px !important;
+    line-height:1.5 !important;
+    font-weight:400 !important;
+    white-space:normal !important;
+    text-wrap:wrap !important;
+    word-spacing:0 !important;
+    letter-spacing:0 !important;
+    word-break:normal !important;
+    overflow-wrap:break-word !important;
+    hyphens:none !important;
+  }
 
 /* =========================
      SERVICES / CARDS
@@ -773,85 +752,6 @@ body{
 
 }
 </style>
-
-<style id="gh-mobile-text-layout-v2">
-@media(max-width:768px){
-
-  /* Four text sections use a separate compact mobile layout */
-  .about,
-  .quote-header{
-    width:calc(100% - 24px) !important;
-    max-width:680px !important;
-    margin:12px auto 0 !important;
-    padding:18px 16px !important;
-    background:#ffffff !important;
-    border:1px solid #dbeafe !important;
-    border-radius:18px !important;
-    box-shadow:0 5px 16px rgba(15,23,42,.07) !important;
-  }
-
-  .extra-sections{
-    width:100% !important;
-    max-width:100% !important;
-    margin:0 !important;
-    padding:0 0 28px !important;
-    gap:0 !important;
-  }
-
-  .extra-box{
-    width:calc(100% - 24px) !important;
-    max-width:680px !important;
-    margin:12px auto 0 !important;
-    padding:18px 16px !important;
-    background:#ffffff !important;
-    border:1px solid #dbeafe !important;
-    border-radius:18px !important;
-    box-shadow:0 5px 16px rgba(15,23,42,.07) !important;
-  }
-
-  /* Smaller mobile titles */
-  #aboutTitle,
-  #quoteTitle,
-  #extra1TitleView,
-  #extra2TitleView{
-    width:100% !important;
-    max-width:100% !important;
-    margin:0 0 12px !important;
-    padding:0 !important;
-    text-align:center !important;
-    text-align-last:center !important;
-    font-size:17px !important;
-    line-height:1.18 !important;
-    font-weight:850 !important;
-    letter-spacing:0 !important;
-    word-spacing:0 !important;
-  }
-
-  /* Natural body text on mobile — no justify spacing */
-  #aboutText,
-  #quoteText,
-  #extra1TextView,
-  #extra2TextView{
-    width:100% !important;
-    max-width:100% !important;
-    margin:0 !important;
-    padding:0 !important;
-    text-align:left !important;
-    text-align-last:left !important;
-    font-size:14px !important;
-    line-height:1.52 !important;
-    font-weight:400 !important;
-    white-space:normal !important;
-    text-wrap:wrap !important;
-    word-spacing:0 !important;
-    letter-spacing:0 !important;
-    word-break:normal !important;
-    overflow-wrap:break-word !important;
-    hyphens:none !important;
-  }
-}
-</style>
-
 
 </head>
 
@@ -1659,48 +1559,51 @@ setInterval(
 
 function applyExtraBoxesTheme(data){
 
-  const isMobile =
-  window.innerWidth <= 768;
+  if(window.innerWidth <= 768){
+    return;
+  }
 
   const extraTitleAlign =
-  isMobile
-  ? (data.extraBoxTitleMobileAlign || "center")
-  : (data.extraBoxAlign || "justify-center");
+    data.extraBoxAlign || "justify-center";
 
   const extraTextAlign =
-  isMobile
-  ? (data.extraBoxTextMobileAlign || "left")
-  : (data.extraBoxAlign || "justify-center");
+    data.extraBoxAlign || "justify-center";
 
   document
   .querySelectorAll(".extra-box")
   .forEach(box=>{
 
-    if(isMobile){
-      box.style.setProperty("background","transparent","important");
-      box.style.setProperty("border","0","important");
-      box.style.setProperty("border-radius","0","important");
-      box.style.setProperty("padding","24px 20px","important");
-      box.style.setProperty("box-shadow","none","important");
-      box.style.setProperty("margin","0","important");
-      box.style.setProperty("width","100%","important");
-      box.style.setProperty("max-width","100%","important");
-    }else{
-      box.style.setProperty("background",data.extraBoxBg || "#ffffff","important");
-      box.style.setProperty(
-        "border",
-        `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,
-        "important"
-      );
-      box.style.setProperty("border-radius",`${data.extraBoxRadius || 32}px`,"important");
-      box.style.setProperty("padding",`${data.extraBoxPadding || 70}px`,"important");
-      box.style.setProperty(
-        "box-shadow",
-        data.extraBoxShadow ? "0 8px 22px rgba(15,23,42,.06)" : "none",
-        "important"
-      );
-    }
+    box.style.setProperty(
+      "background",
+      data.extraBoxBg || "#ffffff",
+      "important"
+    );
 
+    box.style.setProperty(
+      "border",
+      `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "border-radius",
+      `${data.extraBoxRadius || 32}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "padding",
+      `${data.extraBoxPadding || 70}px`,
+      "important"
+    );
+
+    box.style.setProperty(
+      "box-shadow",
+      data.extraBoxShadow
+        ? "0 8px 22px rgba(15,23,42,.06)"
+        : "none",
+      "important"
+    );
   });
 
   document
@@ -1715,9 +1618,7 @@ function applyExtraBoxesTheme(data){
 
     title.style.setProperty(
       "font-size",
-      isMobile
-      ? `${data.extraBoxTitleMobileSize || 20}px`
-      : `${data.extraBoxTitleSize || 42}px`,
+      `${data.extraBoxTitleSize || 42}px`,
       "important"
     );
 
@@ -1726,7 +1627,6 @@ function applyExtraBoxesTheme(data){
       title.innerText,
       extraTitleAlign
     );
-
   });
 
   document
@@ -1741,9 +1641,7 @@ function applyExtraBoxesTheme(data){
 
     text.style.setProperty(
       "font-size",
-      isMobile
-      ? `${data.extraBoxTextMobileSize || 14}px`
-      : `${data.extraBoxTextSize || 22}px`,
+      `${data.extraBoxTextSize || 22}px`,
       "important"
     );
 
@@ -1752,10 +1650,9 @@ function applyExtraBoxesTheme(data){
       text.innerText,
       extraTextAlign
     );
-
   });
-
 }
+
 
 /* =========================
    PAGE THEME
@@ -1779,43 +1676,35 @@ function applyPageTheme(data){
   const quote =
   document.querySelector(".quote-header");
 
-  if(about){
+  if(about && window.innerWidth > 768){
 
-    if(window.innerWidth <= 768){
-      about.style.setProperty("background","#ffffff","important");
-      about.style.setProperty("border","1px solid #dbeafe","important");
-      about.style.setProperty("border-radius","18px","important");
-      about.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
-      about.style.setProperty("padding","18px 16px","important");
-      about.style.setProperty("margin","12px auto 0","important");
-      about.style.setProperty("width","calc(100% - 24px)","important");
-      about.style.setProperty("max-width","680px","important");
-    }else{
-      about.style.background = data.aboutBg || "#ffffff";
-      about.style.border = `1px solid ${data.aboutBorder || "#dbeafe"}`;
-      about.style.borderRadius = `${data.aboutRadius || 32}px`;
-      about.style.padding = `${data.aboutPadding || 70}px`;
-    }
+    about.style.background =
+      data.aboutBg || "#ffffff";
+
+    about.style.border =
+      `1px solid ${data.aboutBorder || "#dbeafe"}`;
+
+    about.style.borderRadius =
+      `${data.aboutRadius || 32}px`;
+
+    about.style.padding =
+      `${data.aboutPadding || 70}px`;
 
   }
 
-  if(quote){
+  if(quote && window.innerWidth > 768){
 
-    if(window.innerWidth <= 768){
-      quote.style.setProperty("background","#ffffff","important");
-      quote.style.setProperty("border","1px solid #dbeafe","important");
-      quote.style.setProperty("border-radius","18px","important");
-      quote.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
-      quote.style.setProperty("padding","18px 16px","important");
-      quote.style.setProperty("margin","12px auto 0","important");
-      quote.style.setProperty("width","calc(100% - 24px)","important");
-      quote.style.setProperty("max-width","680px","important");
-    }else{
-      quote.style.background = data.quoteBg || "#ffffff";
-      quote.style.border = `1px solid ${data.quoteBorder || "#dbeafe"}`;
-      quote.style.borderRadius = `${data.quoteRadius || 32}px`;
-      quote.style.padding = `${data.quotePadding || 70}px`;
-    }
+    quote.style.background =
+      data.quoteBg || "#ffffff";
+
+    quote.style.border =
+      `1px solid ${data.quoteBorder || "#dbeafe"}`;
+
+    quote.style.borderRadius =
+      `${data.quoteRadius || 32}px`;
+
+    quote.style.padding =
+      `${data.quotePadding || 70}px`;
 
   }
 
@@ -1836,10 +1725,10 @@ function applyPageTheme(data){
     aboutTitle.style.color =
     data.aboutTitleColor || "#1e3a6d";
 
-    aboutTitle.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.aboutTitleMobileSize || 20}px`
-    : `${data.aboutTitleSize || 60}px`;
+    if(window.innerWidth > 768){
+      aboutTitle.style.fontSize =
+        `${data.aboutTitleSize || 60}px`;
+    }
 
   }
 
@@ -1848,10 +1737,10 @@ function applyPageTheme(data){
     aboutText.style.color =
     data.aboutTextColor || "#6b7280";
 
-    aboutText.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.aboutTextMobileSize || 14}px`
-    : `${data.aboutTextSize || 25}px`;
+    if(window.innerWidth > 768){
+      aboutText.style.fontSize =
+        `${data.aboutTextSize || 25}px`;
+    }
 
   }
 
@@ -1860,10 +1749,10 @@ function applyPageTheme(data){
     quoteTitle.style.color =
     data.quoteTitleColor || "#1e3a6d";
 
-    quoteTitle.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.quoteTitleMobileSize || 20}px`
-    : `${data.quoteTitleSize || 70}px`;
+    if(window.innerWidth > 768){
+      quoteTitle.style.fontSize =
+        `${data.quoteTitleSize || 70}px`;
+    }
 
   }
 
@@ -1872,10 +1761,10 @@ function applyPageTheme(data){
     quoteText.style.color =
     data.quoteTextColor || "#6b7280";
 
-    quoteText.style.fontSize =
-    window.innerWidth <= 768
-    ? `${data.quoteTextMobileSize || 14}px`
-    : `${data.quoteTextSize || 24}px`;
+    if(window.innerWidth > 768){
+      quoteText.style.fontSize =
+        `${data.quoteTextSize || 24}px`;
+    }
 
   }
 
@@ -1957,7 +1846,7 @@ function renderPage(){
     data.aboutTitle ||
     "Professional Transportation Across Arizona",
     isMobile
-    ? (data.aboutTitleMobileAlign || "center")
+    ? "center"
     : (data.aboutTitleAlign || "center")
   );
 
@@ -1975,7 +1864,7 @@ function renderPage(){
     data.quoteTitle ||
     "",
     isMobile
-    ? (data.quoteTitleMobileAlign || "center")
+    ? "center"
     : (data.quoteTitleAlign || "center")
   );
 
@@ -2017,7 +1906,7 @@ function renderPage(){
     data.extra1Title ||
     "",
     isMobile
-    ? (data.extraBoxTitleMobileAlign || "center")
+    ? "center"
     : (data.extraBoxAlign || "justify-center")
   );
 
@@ -2035,7 +1924,7 @@ function renderPage(){
     data.extra2Title ||
     "",
     isMobile
-    ? (data.extraBoxTitleMobileAlign || "center")
+    ? "center"
     : (data.extraBoxAlign || "justify-center")
   );
 
@@ -2084,8 +1973,6 @@ function renderPage(){
 updateServicesLayout();
 
   updateLangButtons();
-
-  forceMobileHomeLayout();
 
   if(currentLang === "es"){
 
@@ -2226,152 +2113,7 @@ function getBalancedMobileAlign(value){
 }
 
 function forceMobileHomeLayout(){
-
-  if(window.innerWidth > 768) return;
-
-  const data =
-    Branding.data || {};
-
-  const about =
-    document.querySelector(".about");
-
-  const quote =
-    document.querySelector(".quote-header");
-
-  if(about){
-    about.style.setProperty(
-      "padding",
-      `${data.aboutMobilePadding || 18}px`,
-      "important"
-    );
-  }
-
-  if(quote){
-    quote.style.setProperty(
-      "padding",
-      "24px 20px",
-      "important"
-    );
-  }
-
-  const mobileMap = [
-    {
-      id:"aboutTitle",
-      size:17,
-      align:"center"
-    },
-    {
-      id:"aboutText",
-      size:14,
-      align:"left"
-    },
-    {
-      id:"quoteTitle",
-      size:17,
-      align:"center"
-    },
-    {
-      id:"quoteText",
-      size:14,
-      align:"left"
-    },
-    {
-      id:"extra1TitleView",
-      size:17,
-      align:"center"
-    },
-    {
-      id:"extra1TextView",
-      size:14,
-      align:"left"
-    },
-    {
-      id:"extra2TitleView",
-      size:17,
-      align:"center"
-    },
-    {
-      id:"extra2TextView",
-      size:14,
-      align:"left"
-    }
-  ];
-
-  mobileMap.forEach(item=>{
-
-    const el =
-      document.getElementById(item.id);
-
-    if(!el) return;
-
-    applyWordText(
-      item.id,
-      el.innerText,
-      item.align
-    );
-
-    el.style.setProperty(
-      "font-size",
-      `${item.size}px`,
-      "important"
-    );
-
-    el.style.setProperty(
-      "line-height",
-      item.id.includes("Title")
-        ? "1.2"
-        : "1.5",
-      "important"
-    );
-
-    el.style.setProperty(
-      "word-spacing",
-      "0",
-      "important"
-    );
-
-    el.style.setProperty(
-      "letter-spacing",
-      "0",
-      "important"
-    );
-
-    if(!item.id.includes("Title")){
-      el.style.setProperty(
-        "white-space",
-        "normal",
-        "important"
-      );
-
-      el.style.setProperty(
-        "text-wrap",
-        "wrap",
-        "important"
-      );
-    }
-
-  });
-
-  document
-    .querySelectorAll(".extra-box")
-    .forEach(box=>{
-
-      box.style.setProperty(
-        "padding",
-        "18px 16px",
-        "important"
-      );
-
-      box.style.setProperty("background","#ffffff","important");
-      box.style.setProperty("border","1px solid #dbeafe","important");
-      box.style.setProperty("border-radius","18px","important");
-      box.style.setProperty("box-shadow","0 5px 16px rgba(15,23,42,.07)","important");
-      box.style.setProperty("margin","12px auto 0","important");
-      box.style.setProperty("width","calc(100% - 24px)","important");
-      box.style.setProperty("max-width","680px","important");
-
-    });
-
+  return;
 }
 /* =========================
    SERVICES LAYOUT

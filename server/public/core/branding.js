@@ -641,13 +641,16 @@ window.Branding = {
     const d =
       this.data || {};
 
-    const isMobile =
-      window.innerWidth <= 768;
+    if(window.innerWidth <= 768){
+      /*
+        Mobile homepage box layout belongs to index.html only.
+        Branding does not write mobile box layout, sizing or alignment.
+      */
+      return;
+    }
 
     const extraAlign =
-      isMobile
-        ? (d.extraBoxTextMobileAlign || "left")
-        : (d.extraBoxAlign || "justify-center");
+      d.extraBoxAlign || "justify-center";
 
     document
       .querySelectorAll(".extra-box")
@@ -675,9 +678,7 @@ window.Branding = {
 
         box.style.setProperty(
           "padding",
-          isMobile
-            ? `${d.extraBoxMobilePadding || 18}px`
-            : `${d.extraBoxPadding || 40}px`,
+          `${d.extraBoxPadding || 40}px`,
           "important"
         );
 
@@ -688,7 +689,6 @@ window.Branding = {
             : "none",
           "important"
         );
-
       });
 
     document
@@ -705,20 +705,15 @@ window.Branding = {
 
         title.style.setProperty(
           "font-size",
-          isMobile
-            ? `${d.extraBoxTitleMobileSize || 20}px`
-            : `${d.extraBoxTitleSize || 42}px`,
+          `${d.extraBoxTitleSize || 42}px`,
           "important"
         );
 
         this.applyWordElement(
           title,
           title.innerText,
-          isMobile
-            ? (d.extraBoxTitleMobileAlign || "center")
-            : (d.extraBoxAlign || "justify-center")
+          extraAlign
         );
-
       });
 
     document
@@ -737,20 +732,15 @@ window.Branding = {
 
         text.style.setProperty(
           "font-size",
-          isMobile
-            ? `${d.extraBoxTextMobileSize || 14}px`
-            : `${d.extraBoxTextSize || 22}px`,
+          `${d.extraBoxTextSize || 22}px`,
           "important"
         );
 
         this.applyWordElement(
           text,
           text.innerText,
-          isMobile
-            ? (d.extraBoxTextMobileAlign || "left")
-            : (d.extraBoxAlign || "justify-center")
+          extraAlign
         );
-
       });
 
   },
