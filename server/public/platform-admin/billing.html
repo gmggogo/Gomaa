@@ -404,7 +404,7 @@ body{
 
 .summary-grid{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(5,minmax(0,1fr));
   gap:10px;
   padding:16px 18px;
   border-bottom:1px solid var(--line);
@@ -431,6 +431,65 @@ body{
   margin-top:6px;
   font-size:18px;
   color:var(--navy);
+}
+
+
+.broker-card{
+  border-color:#c8b36a;
+  background:linear-gradient(180deg,#fffdf5,#fff9dc);
+  box-shadow:inset 0 3px 0 #d3ad35;
+}
+
+.broker-card strong{color:#7a5700}
+
+.broker-section{
+  border-color:#d9c06a;
+  box-shadow:0 6px 18px rgba(122,87,0,.08);
+}
+
+.broker-section .section-title{
+  background:linear-gradient(135deg,#173f66 0%,#0d3155 62%,#8b6b18 100%);
+}
+
+.section-count{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:84px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,232,166,.4);
+  color:#fff4c7;
+  font-size:9px;
+  font-weight:950;
+}
+
+.broker-note{
+  margin-top:10px;
+  padding:9px 11px;
+  border:1px solid #e8d894;
+  border-radius:8px;
+  background:#fffaf0;
+  color:#725718;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+.broker-field{
+  padding:9px;
+  border:1px solid #ead99b;
+  border-radius:9px;
+  background:#fffdf6;
+}
+
+.broker-price-line{
+  color:#6f5200;
+  background:linear-gradient(90deg,rgba(224,182,61,.10),transparent);
+  margin:0 -6px;
+  padding-left:6px;
+  padding-right:6px;
 }
 
 .detail-tabs{
@@ -969,6 +1028,7 @@ body{
           <div class="field"><label>Base Price</label><input id="dBasePrice" type="number" min="0" step="0.01" disabled></div>
           <div class="field"><label>Included Vehicles</label><input id="dIncludedVehicles" type="number" min="0" disabled></div>
           <div class="field"><label>Included Services</label><input id="dIncludedServices" type="number" min="0" disabled></div>
+          <div class="field broker-field"><label>Included Brokers</label><input id="dIncludedBrokers" type="number" min="0" disabled></div>
 
           <div class="field"><label>Driver Limit</label><input id="dMaxDrivers" type="number" min="0" disabled></div>
           <div class="field"><label>Vehicle Limit</label><input id="dMaxVehicles" type="number" min="0" disabled></div>
@@ -988,6 +1048,7 @@ body{
 
           <div class="field"><label>Extra Vehicle Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
           <div class="field"><label>Extra Service Price</label><input id="dExtraServicePrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field broker-field"><label>Extra Broker Price</label><input id="dExtraBrokerPrice" type="number" min="0" step="0.01" disabled></div>
 
           <div class="field">
             <label>Package Status</label>
@@ -999,7 +1060,7 @@ body{
         </div>
 
         <div class="limit-note">
-          Creation limits are hard caps. Tenant users cannot create resources above these limits until Platform Admin increases the limit or changes the tenant package.
+          Creation limits are hard caps. Included Brokers and Extra Broker Price control automatic broker billing. Each company can connect multiple brokers; only billing-active broker connections are counted toward SaaS billing.
         </div>
 
         <div class="actions">
@@ -1026,7 +1087,7 @@ body{
 </div>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=PACKAGE-LIMITS-V1-20260905"></script>
+<script src="/platform-admin/billing.js?v=BROKER-BILLING-V2-20260917"></script>
 
 </body>
 </html>

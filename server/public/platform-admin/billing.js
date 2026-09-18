@@ -1,4 +1,7 @@
+
 "use strict";
+
+/* GH Mobility SaaS Billing - Broker Billing UI V2 */
 
 document.addEventListener("DOMContentLoaded",()=>{
 
@@ -49,7 +52,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     selectedId:"",
     filter:"",
     search:"",
-    defaultBackup:null
+    defaultBackup:null,
+    brokers:[]
   };
 
   const messageBox = document.getElementById("messageBox");
@@ -136,6 +140,80 @@ document.addEventListener("DOMContentLoaded",()=>{
     return state.companies.find(
       row=>String(row.tenant?.id) === String(state.selectedId)
     ) || null;
+  }
+
+  function tenantBrokers(tenant){
+    const id = clean(tenant?.id || tenant?._id);
+    const slug = clean(tenant?.slug).toLowerCase();
+
+    return state.brokers.filter(item=>{
+      const itemId = clean(item?.tenantId);
+      const itemSlug = clean(item?.tenantSlug).toLowerCase();
+      return (id && itemId === id) || (slug && itemSlug === slug);
+    });
+  }
+
+  function brokerStats(row){
+    const list = tenantBrokers(row?.tenant);
+    const actual = list.length;
+    const billingActive = list.filter(x=>x?.billingEnabled !== false).length;
+    const included = Number(row?.subscription?.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0);
+    const extraPrice = Number(row?.subscription?.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0);
+    const freeExtra = Number(row?.subscription?.freeExtraBrokers ?? 0);
+    const billableExtra = Math.max(0,billingActive - included - freeExtra);
+    const amount = billableExtra * extraPrice;
+
+    return {list,actual,billingActive,included,extraPrice,freeExtra,billableExtra,amount};
+  }
+
+  function mergeBrokerPricing(pricing,row){
+    const p = pricing || {};
+    const b = brokerStats(row);
+    const backendHasBrokerAmount = p.brokerAmount !== undefined && p.brokerAmount !== null;
+    const brokerAmount = backendHasBrokerAmount ? Number(p.brokerAmount || 0) : b.amount;
+    const backendFinal = Number(p.finalAmount || 0);
+    const finalAmount = backendHasBrokerAmount ? backendFinal : backendFinal + brokerAmount;
+
+    return {
+      ...p,
+      brokerAmount,
+      finalAmount,
+      actualBrokers:b.actual,
+      billingActiveBrokers:b.billingActive,
+      includedBrokers:Number(p.includedBrokers ?? b.included),
+      billableExtraBrokers:Number(p.billableExtraBrokers ?? b.billableExtra),
+      extraBrokerPrice:Number(p.extraBrokerPrice ?? b.extraPrice)
+    };
+  }
+
+  function pricingWithBrokers(row){
+    return mergeBrokerPricing(row?.pricing || {},row);
+  }
+
+  async function loadBrokers(){
+    try{
+      const data = await api('/api/platform/broker-integrations');
+      state.brokers = Array.isArray(data?.integrations) ? data.integrations : [];
+    }catch(err){
+      state.brokers = [];
+      console.warn('Broker billing usage could not be loaded:',err);
+    }
+  }
+
+  function brokerUsageRows(row){
+    const list = brokerStats(row).list;
+    if(!list.length){
+      return `<tr><td colspan="4">No broker connections found.</td></tr>`;
+    }
+
+    return list.map(item=>`
+      <tr>
+        <td>${esc(item.brokerName || item.brokerCode || 'Broker')}</td>
+        <td><strong>${esc(item.brokerCode || '--')}</strong></td>
+        <td><span class="badge ${item.enabled === false ? 'disabled' : 'active'}">${item.enabled === false ? 'Disabled' : 'Active'}</span></td>
+        <td><span class="badge ${item.billingEnabled === false ? 'disabled' : 'active'}">${item.billingEnabled === false ? 'Free / Off' : 'Billable'}</span></td>
+      </tr>
+    `).join('');
   }
 
   function renderSidebar(){
@@ -236,7 +314,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 
     const t = row.tenant || {};
     const s = row.subscription || {};
-    const p = row.pricing || {};
+    const p = pricingWithBrokers(row);
     const status = companyStatus(row);
     const enabled = t.enabled !== false;
 
@@ -277,6 +355,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           <strong>${Number(p.enabledServices || 0)} / ${Number(p.includedServices || 0)}</strong>
         </div>
 
+        <div class="summary-card broker-card">
+          <span>Brokers</span>
+          <strong>${Number(p.billingActiveBrokers || 0)} / ${Number(p.includedBrokers || 0)}</strong>
+        </div>
+
         <div class="summary-card">
           <span>Next Payment</span>
           <strong>${dateText(s.nextBillingDate || s.dueDate)}</strong>
@@ -304,6 +387,8 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="info"><span>Base Price</span><strong>${money(s.basePrice)}</strong></div>
               <div class="info"><span>Extra Vehicle Price</span><strong>${money(s.extraVehiclePrice)}</strong></div>
               <div class="info"><span>Extra Service Price</span><strong>${money(s.extraServicePrice)}</strong></div>
+              <div class="info"><span>Included Brokers</span><strong>${Number(s.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0)}</strong></div>
+              <div class="info"><span>Extra Broker Price</span><strong>${money(s.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0)}</strong></div>
             </div>
           </div>
         </div>
@@ -319,6 +404,7 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="info"><span>Dispatchers</span><strong>${Number(p.actualDispatchers || 0)} / ${Number(p.maxDispatchers || 0)}</strong></div>
               <div class="info"><span>Companies</span><strong>${Number(p.actualCompanies || 0)} / ${Number(p.maxCompanies || 0)}</strong></div>
               <div class="info"><span>Services</span><strong>${Number(p.enabledServices || 0)} / ${Number(p.maxServices || 0)}</strong></div>
+              <div class="info"><span>Brokers</span><strong>${Number(p.actualBrokers || 0)} connected</strong></div>
             </div>
           </div>
         </div>
@@ -360,6 +446,27 @@ document.addEventListener("DOMContentLoaded",()=>{
                 ${usageRows(p.serviceControls,"service")}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="section broker-section">
+          <div class="section-title">
+            <span>Broker Connections</span>
+            <span class="section-count">${Number(p.billingActiveBrokers || 0)} billable</span>
+          </div>
+          <div class="section-body table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Broker</th>
+                  <th>Code</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                </tr>
+              </thead>
+              <tbody>${brokerUsageRows(row)}</tbody>
+            </table>
+            <div class="broker-note">Broker access and billing switches are managed from Broker Integrations. SaaS Billing reads the active broker count automatically.</div>
           </div>
         </div>
 
@@ -426,6 +533,11 @@ document.addEventListener("DOMContentLoaded",()=>{
                 <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
               </div>
 
+              <div class="field broker-field">
+                <label>Included Brokers</label>
+                <input class="included-brokers" type="number" min="0" value="${Number(s.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0)}" disabled>
+              </div>
+
               <div class="field">
                 <label>Driver Limit</label>
                 <input class="max-drivers" type="number" min="0" value="${Number(s.maxDrivers || 0)}" disabled>
@@ -471,6 +583,11 @@ document.addEventListener("DOMContentLoaded",()=>{
                 <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
               </div>
 
+              <div class="field broker-field">
+                <label>Extra Broker Price</label>
+                <input class="extra-broker-price" type="number" min="0" step="0.01" value="${Number(s.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0)}" disabled>
+              </div>
+
               <div class="field">
                 <label>Free Extra Vehicles</label>
                 <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
@@ -479,6 +596,11 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="field">
                 <label>Free Extra Services</label>
                 <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
+              </div>
+
+              <div class="field broker-field">
+                <label>Free Extra Brokers</label>
+                <input class="free-extra-brokers" type="number" min="0" value="${Number(s.freeExtraBrokers || 0)}" disabled>
               </div>
 
               <div class="field">
@@ -512,6 +634,7 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
               <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
               <div class="price-line"><span>Extra Services</span><strong>${Number(p.billableExtraServices || 0)} × ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}</strong></div>
+              <div class="price-line broker-price-line"><span>Extra Brokers</span><strong>${Number(p.billableExtraBrokers || 0)} × ${money(p.extraBrokerPrice)} = ${money(p.brokerAmount)}</strong></div>
               <div class="price-line"><span>Discount</span><strong>-${money(p.discount)}</strong></div>
               <div class="price-line"><span>Credit</span><strong>-${money(p.credit)}</strong></div>
               <div class="price-total"><span>Final Amount</span><strong>${money(p.finalAmount)}</strong></div>
@@ -617,6 +740,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       basePrice:Number(q(".base-price")?.value || 0),
       includedVehicles:Number(q(".included-vehicles")?.value || 0),
       includedServices:Number(q(".included-services")?.value || 0),
+      includedBrokers:Number(q(".included-brokers")?.value || 0),
       maxDrivers:Number(q(".max-drivers")?.value || 0),
       maxVehicles:Number(q(".max-vehicles")?.value || 0),
       maxAdmins:Number(q(".max-admins")?.value || 0),
@@ -626,8 +750,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       maxServices:Number(q(".max-services")?.value || 0),
       extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
       extraServicePrice:Number(q(".extra-service-price")?.value || 0),
+      extraBrokerPrice:Number(q(".extra-broker-price")?.value || 0),
       freeExtraVehicles:Number(q(".free-extra-vehicles")?.value || 0),
       freeExtraServices:Number(q(".free-extra-services")?.value || 0),
+      freeExtraBrokers:Number(q(".free-extra-brokers")?.value || 0),
       discount:Number(q(".discount")?.value || 0),
       credit:Number(q(".credit")?.value || 0),
       finalPriceOverride:override === "" ? null : Number(override),
@@ -710,13 +836,14 @@ document.addEventListener("DOMContentLoaded",()=>{
         }
       );
 
-      const p = result.pricing || {};
+      const p = mergeBrokerPricing(result.pricing || {},row);
 
       window.alert(
         [
           `Base Package: ${money(p.baseAmount)}`,
           `Extra Vehicles: ${Number(p.billableExtraVehicles || 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
           `Extra Services: ${Number(p.billableExtraServices || 0)} x ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}`,
+          `Extra Brokers: ${Number(p.billableExtraBrokers || brokerStats(row).billableExtra || 0)} x ${money(p.extraBrokerPrice ?? brokerStats(row).extraPrice)} = ${money(p.brokerAmount ?? brokerStats(row).amount)}`,
           `Discount: -${money(p.discount)}`,
           `Credit: -${money(p.credit)}`,
           `Final Amount: ${money(p.finalAmount)}`
@@ -934,6 +1061,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     "dBasePrice",
     "dIncludedVehicles",
     "dIncludedServices",
+    "dIncludedBrokers",
     "dMaxDrivers",
     "dMaxVehicles",
     "dMaxAdmins",
@@ -944,6 +1072,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     "dBillingCycle",
     "dExtraVehiclePrice",
     "dExtraServicePrice",
+    "dExtraBrokerPrice",
     "dPackageStatus"
   ];
 
@@ -964,6 +1093,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("dBasePrice").value = Number(row.basePrice || 0);
     document.getElementById("dIncludedVehicles").value = Number(row.includedVehicles || 0);
     document.getElementById("dIncludedServices").value = Number(row.includedServices || 0);
+    document.getElementById("dIncludedBrokers").value = Number(row.includedBrokers || 0);
     document.getElementById("dMaxDrivers").value = Number(row.maxDrivers ?? 5);
     document.getElementById("dMaxVehicles").value = Number(row.maxVehicles ?? row.includedVehicles ?? 5);
     document.getElementById("dMaxAdmins").value = Number(row.maxAdmins ?? 2);
@@ -974,6 +1104,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
     document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
     document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
+    document.getElementById("dExtraBrokerPrice").value = Number(row.extraBrokerPrice || 0);
     document.getElementById("dPackageStatus").value = row.packageStatus || "ACTIVE";
 
     const badge = document.getElementById("defaultPackageBadge");
@@ -990,6 +1121,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       basePrice:Number(document.getElementById("dBasePrice").value || 0),
       includedVehicles:Number(document.getElementById("dIncludedVehicles").value || 0),
       includedServices:Number(document.getElementById("dIncludedServices").value || 0),
+      includedBrokers:Number(document.getElementById("dIncludedBrokers").value || 0),
       maxDrivers:Number(document.getElementById("dMaxDrivers").value || 0),
       maxVehicles:Number(document.getElementById("dMaxVehicles").value || 0),
       maxAdmins:Number(document.getElementById("dMaxAdmins").value || 0),
@@ -1000,6 +1132,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       billingCycle:document.getElementById("dBillingCycle").value,
       extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
       extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),
+      extraBrokerPrice:Number(document.getElementById("dExtraBrokerPrice").value || 0),
       packageStatus:document.getElementById("dPackageStatus").value
     };
   }
@@ -1012,6 +1145,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 
       state.defaultPackage = data.defaultPackage || null;
       state.companies = Array.isArray(data.companies) ? data.companies : [];
+      await loadBrokers();
 
       if(
         preserveSelection &&
