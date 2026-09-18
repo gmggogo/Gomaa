@@ -21,6 +21,10 @@ const User =
   mongoose.models.User ||
   require("../models/User");
 
+const SystemDesign =
+  mongoose.models.SystemDesign ||
+  require("../models/SystemDesign");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -181,6 +185,50 @@ async function getTenantProfile(
     .lean();
 }
 
+async function getSystemDesignProfile(
+  tenantId
+){
+  if(
+    !tenantId ||
+    !mongoose.Types.ObjectId
+      .isValid(
+        tenantId
+      )
+  ){
+    return null;
+  }
+
+  /*
+    Company Phone must come from the same tenant's
+    System Design -> Contact & Footer -> Phone Number.
+  */
+  let design =
+    await SystemDesign
+      .findOne({
+        tenantId
+      })
+      .lean();
+
+  /*
+    Backward compatibility for an older single-tenant
+    SystemDesign record that may not have tenantId yet.
+  */
+  if(!design){
+    design =
+      await SystemDesign
+        .findOne({
+          $or:[
+            {tenantId:{$exists:false}},
+            {tenantId:null},
+            {tenantId:""}
+          ]
+        })
+        .lean();
+  }
+
+  return design;
+}
+
 function tenantNameFromRecord(
   tenant
 ){
@@ -206,6 +254,21 @@ function tenantPhoneFromRecord(
     tenant?.contactPhone ||
     tenant?.supportPhone ||
     tenant?.mobile ||
+    ""
+  );
+}
+
+function systemDesignPhoneFromRecord(
+  design
+){
+  return clean(
+    design?.phoneNumber ||
+    design?.contactPhone ||
+    design?.companyPhone ||
+    design?.phone ||
+    design?.businessPhone ||
+    design?.supportPhone ||
+    design?.mobile ||
     ""
   );
 }
@@ -276,7 +339,8 @@ async function buildTenantIdentity(
 
   const [
     tenant,
-    user
+    user,
+    systemDesign
   ] =
     await Promise.all([
       getTenantProfile(
@@ -284,6 +348,9 @@ async function buildTenantIdentity(
       ),
       getCurrentUserProfile(
         req
+      ),
+      getSystemDesignProfile(
+        tenantId
       )
     ]);
 
@@ -294,6 +361,9 @@ async function buildTenantIdentity(
         tenant
       ),
     companyPhone:
+      systemDesignPhoneFromRecord(
+        systemDesign
+      ) ||
       tenantPhoneFromRecord(
         tenant
       ),
