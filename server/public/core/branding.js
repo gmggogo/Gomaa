@@ -642,10 +642,6 @@ window.Branding = {
       this.data || {};
 
     if(window.innerWidth <= 768){
-      /*
-        Mobile homepage box layout belongs to index.html only.
-        Branding does not write mobile box layout, sizing or alignment.
-      */
       return;
     }
 
@@ -692,9 +688,7 @@ window.Branding = {
       });
 
     document
-      .querySelectorAll(
-        ".extra-box h2, .extra-box h3"
-      )
+      .querySelectorAll(".extra-box h2, .extra-box h3")
       .forEach(title=>{
 
         title.style.setProperty(
@@ -720,9 +714,9 @@ window.Branding = {
       .querySelectorAll(".extra-box p, .extra-box div")
       .forEach(text=>{
 
-        if(
-          text.classList.contains("extra-box")
-        ) return;
+        if(text.classList.contains("extra-box")){
+          return;
+        }
 
         text.style.setProperty(
           "color",
