@@ -85,21 +85,82 @@ function formatMoney(value){
 
 }
 
+function getBillingTimezone(){
+
+  return String(
+    localStorage.getItem("systemTimezone") ||
+    localStorage.getItem("appTimezone") ||
+    sessionStorage.getItem("staffCompat:systemTimezone") ||
+    sessionStorage.getItem("staffCompat:appTimezone") ||
+    "America/Phoenix"
+  ).trim();
+
+}
+
+function calendarDateKey(value){
+
+  if(!value) return null;
+
+  const d =
+    new Date(value);
+
+  if(Number.isNaN(d.getTime())){
+    return null;
+  }
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:getBillingTimezone(),
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(d);
+
+  const map = {};
+
+  for(const part of parts){
+
+    if(
+      part.type === "year" ||
+      part.type === "month" ||
+      part.type === "day"
+    ){
+      map[part.type] =
+        Number(part.value);
+    }
+
+  }
+
+  return Date.UTC(
+    map.year,
+    map.month - 1,
+    map.day
+  );
+
+}
+
 function formatDate(value){
 
   if(!value) return "--";
 
-  const d = new Date(value);
+  const d =
+    new Date(value);
 
-  if(isNaN(d.getTime()))
+  if(Number.isNaN(d.getTime())){
     return "--";
+  }
 
   return d.toLocaleDateString(
     "en-US",
     {
       year:"numeric",
       month:"short",
-      day:"numeric"
+      day:"numeric",
+      timeZone:getBillingTimezone()
     }
   );
 
@@ -107,24 +168,30 @@ function formatDate(value){
 
 function daysUntil(dateValue){
 
-  if(!dateValue)
+  if(!dateValue){
     return null;
+  }
 
-  const due =
-    new Date(dateValue);
+  const dueKey =
+    calendarDateKey(
+      dateValue
+    );
 
-  if(isNaN(due.getTime()))
+  const todayKey =
+    calendarDateKey(
+      new Date()
+    );
+
+  if(
+    dueKey === null ||
+    todayKey === null
+  ){
     return null;
-
-  const now =
-    new Date();
-
-  const diff =
-    due.getTime() -
-    now.getTime();
+  }
 
   return Math.ceil(
-    diff / (1000 * 60 * 60 * 24)
+    (dueKey - todayKey) /
+    (1000 * 60 * 60 * 24)
   );
 
 }

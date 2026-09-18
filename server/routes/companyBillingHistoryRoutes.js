@@ -14,6 +14,9 @@ const User =
 const Trip =
   require("../models/Trip");
 
+const SystemDesign =
+  require("../models/SystemDesign");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -26,6 +29,144 @@ function normalizeRole(v){
   return clean(v)
     .toUpperCase()
     .replace(/[\s-]+/g,"_");
+}
+
+async function tenantTimezone(tenantId){
+
+  const design =
+    await SystemDesign
+      .findOne({
+        tenantId
+      })
+      .select("timezone")
+      .lean();
+
+  const timezone =
+    clean(design?.timezone) ||
+    "America/Phoenix";
+
+  try{
+
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone
+      }
+    ).format(
+      new Date()
+    );
+
+    return timezone;
+
+  }catch(err){
+
+    return "America/Phoenix";
+
+  }
+
+}
+
+function dateKeyInTimezone(
+  date,
+  timezone
+){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:timezone,
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(date);
+
+  const map = {};
+
+  for(const part of parts){
+
+    if(
+      part.type === "year" ||
+      part.type === "month" ||
+      part.type === "day"
+    ){
+      map[part.type] =
+        Number(part.value);
+    }
+
+  }
+
+  return Date.UTC(
+    map.year,
+    map.month - 1,
+    map.day
+  );
+
+}
+
+function dateFromTenantKey(
+  key
+){
+
+  const d =
+    new Date(key);
+
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate()
+    )
+  );
+
+}
+
+function addTenantCalendarDays(
+  date,
+  days,
+  timezone
+){
+
+  const key =
+    dateKeyInTimezone(
+      date,
+      timezone
+    );
+
+  return new Date(
+    key +
+    (
+      Number(days || 0) *
+      24 * 60 * 60 * 1000
+    )
+  );
+
+}
+
+function addTenantCalendarMonths(
+  date,
+  months,
+  timezone
+){
+
+  const key =
+    dateKeyInTimezone(
+      date,
+      timezone
+    );
+
+  const d =
+    new Date(key);
+
+  d.setUTCMonth(
+    d.getUTCMonth() +
+    Number(months || 0)
+  );
+
+  return d;
+
 }
 
 function auth(req,res,next){
@@ -145,11 +286,22 @@ router.get(
         });
       }
 
-      const cutoff =
-        new Date();
+      const timezone =
+        await tenantTimezone(
+          req.billingAuth.tenantId
+        );
 
-      cutoff.setFullYear(
-        cutoff.getFullYear() - 3
+      const todayKey =
+        dateKeyInTimezone(
+          new Date(),
+          timezone
+        );
+
+      const cutoff =
+        new Date(todayKey);
+
+      cutoff.setUTCFullYear(
+        cutoff.getUTCFullYear() - 3
       );
 
       const rows =
@@ -289,12 +441,28 @@ router.put(
         });
       }
 
-      const now =
+      const timezone =
+        await tenantTimezone(
+          company.tenantId
+        );
+
+      const realNow =
         new Date();
+
+      const tenantTodayKey =
+        dateKeyInTimezone(
+          realNow,
+          timezone
+        );
+
+      const tenantToday =
+        new Date(
+          tenantTodayKey
+        );
 
       const invoiceNumber =
         "GH-COMP-" +
-        now
+        realNow
           .getTime()
           .toString(36)
           .toUpperCase() +
@@ -360,7 +528,7 @@ router.put(
           Number(company.revenue || 0),
         invoiceAmount:
           Number(company.invoiceAmount || 0),
-        paidDate:now,
+        paidDate:realNow,
         paymentMethod:"MANUAL",
         tripIds:
           billableTrips.map(
@@ -377,20 +545,29 @@ router.put(
         }
       );
 
-      let nextBillingDate =
-        new Date(now);
+      let nextBillingDate;
 
       if(
         String(company.billingCycle || "")
           .toUpperCase() === "WEEKLY"
       ){
-        nextBillingDate.setDate(
-          nextBillingDate.getDate() + 7
-        );
+
+        nextBillingDate =
+          addTenantCalendarDays(
+            tenantToday,
+            7,
+            timezone
+          );
+
       }else{
-        nextBillingDate.setMonth(
-          nextBillingDate.getMonth() + 1
-        );
+
+        nextBillingDate =
+          addTenantCalendarMonths(
+            tenantToday,
+            1,
+            timezone
+          );
+
       }
 
       company.billingStatus =
@@ -400,16 +577,16 @@ router.put(
         false;
 
       company.lastPaymentDate =
-        now;
+        realNow;
 
       company.billingStartDate =
-        new Date(now);
+        tenantToday;
 
       company.billingEndDate =
-        new Date(nextBillingDate);
+        nextBillingDate;
 
       company.nextBillingDate =
-        new Date(nextBillingDate);
+        nextBillingDate;
 
       company.invoiceAmount = 0;
       company.revenue = 0;
