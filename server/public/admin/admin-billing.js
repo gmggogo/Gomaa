@@ -1332,16 +1332,14 @@ document.addEventListener("DOMContentLoaded", () => {
                   class="company-list-item ${active ? "active" : ""}"
                   onclick="selectBillingCompany('${c._id}')"
                 >
-                  <span class="company-list-name">
-                    ${c.name || "--"}
-                  </span>
+                  <span class="company-list-row">
+                    <span class="company-list-name">
+                      ${c.name || "--"}
+                    </span>
 
-                  <span class="company-list-email">
-                    ${c.email || "--"}
-                  </span>
-
-                  <span class="company-list-status ${c.billingLocked ? "locked" : ""}">
-                    ${c.billingLocked ? "LOCKED" : "ACTIVE"}
+                    <span class="company-list-status ${c.billingLocked ? "disabled" : ""}">
+                      ${c.billingLocked ? "DISABLED" : "ACTIVE"}
+                    </span>
                   </span>
                 </button>
               `;
