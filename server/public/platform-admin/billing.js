@@ -463,9 +463,9 @@ document.addEventListener("DOMContentLoaded",()=>{
               <div class="info"><span>Billing Cycle</span><strong>${esc(s.billingCycle || "--")}</strong></div>
               <div class="info"><span>Package Price</span><strong>${money(p.baseAmount)}</strong></div>
               <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
-              <div class="info"><span>Included Vehicles</span><strong>${Number(s.includedVehicles || 0)}</strong></div>
-              <div class="info"><span>Included Services</span><strong>${Number(s.includedServices || 0)}</strong></div>
-              <div class="info"><span>Included Brokers</span><strong>${includedBrokerCount}</strong></div>
+              <div class="info"><span>Vehicle Limit</span><strong>${Number(p.maxVehicles || 0)}</strong></div>
+              <div class="info"><span>Service Limit</span><strong>${Number(p.maxServices || 0)}</strong></div>
+              <div class="info"><span>Broker Limit</span><strong>${maxBrokerCount}</strong></div>
               <div class="info"><span>Grace Period</span><strong>${Number(s.graceDays ?? 0)} days</strong></div>
             </div>
           </div>
@@ -478,21 +478,19 @@ document.addEventListener("DOMContentLoaded",()=>{
               <thead>
                 <tr>
                   <th>Resource</th>
-                  <th>Included</th>
                   <th>Allowed Limit</th>
                   <th>Actual Active</th>
-                  <th>Above Included</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td>Vehicles</td><td>${Number(s.includedVehicles || 0)}</td><td>${Number(p.maxVehicles || 0)}</td><td>${Number(p.actualVehicles || 0)}</td><td>${Math.max(0,Number(p.actualVehicles || 0)-Number(s.includedVehicles || 0))}</td></tr>
-                <tr><td>Drivers</td><td>${Number(p.maxDrivers || 0)}</td><td>${Number(p.maxDrivers || 0)}</td><td>${Number(p.actualDrivers || 0)}</td><td>--</td></tr>
-                <tr><td>Dispatchers</td><td>${Number(p.maxDispatchers || 0)}</td><td>${Number(p.maxDispatchers || 0)}</td><td>${Number(p.actualDispatchers || 0)}</td><td>--</td></tr>
-                <tr><td>Admins</td><td>${Number(p.maxAdmins || 0)}</td><td>${Number(p.maxAdmins || 0)}</td><td>${Number(p.actualAdmins || 0)}</td><td>--</td></tr>
-                <tr><td>Super Admins</td><td>${Number(p.maxSuperAdmins || 0)}</td><td>${Number(p.maxSuperAdmins || 0)}</td><td>${Number(p.actualSuperAdmins || 0)}</td><td>--</td></tr>
-                <tr><td>Companies</td><td>${Number(p.maxCompanies || 0)}</td><td>${Number(p.maxCompanies || 0)}</td><td>${Number(p.actualCompanies || 0)}</td><td>--</td></tr>
-                <tr><td>Services</td><td>${Number(s.includedServices || 0)}</td><td>${Number(p.maxServices || 0)}</td><td>${Number(p.enabledServices || 0)}</td><td>${Math.max(0,Number(p.enabledServices || 0)-Number(s.includedServices || 0))}</td></tr>
-                <tr><td>Brokers</td><td>${includedBrokerCount}</td><td>${maxBrokerCount}</td><td>${Number(p.actualBrokers || 0)}</td><td>${Math.max(0,Number(p.actualBrokers || 0)-includedBrokerCount)}</td></tr>
+                <tr><td>Vehicles</td><td>${Number(p.maxVehicles || 0)}</td><td>${Number(p.actualVehicles || 0)}</td></tr>
+                <tr><td>Drivers</td><td>${Number(p.maxDrivers || 0)}</td><td>${Number(p.actualDrivers || 0)}</td></tr>
+                <tr><td>Dispatchers</td><td>${Number(p.maxDispatchers || 0)}</td><td>${Number(p.actualDispatchers || 0)}</td></tr>
+                <tr><td>Admins</td><td>${Number(p.maxAdmins || 0)}</td><td>${Number(p.actualAdmins || 0)}</td></tr>
+                <tr><td>Super Admins</td><td>${Number(p.maxSuperAdmins || 0)}</td><td>${Number(p.actualSuperAdmins || 0)}</td></tr>
+                <tr><td>Companies</td><td>${Number(p.maxCompanies || 0)}</td><td>${Number(p.actualCompanies || 0)}</td></tr>
+                <tr><td>Services</td><td>${Number(p.maxServices || 0)}</td><td>${Number(p.enabledServices || 0)}</td></tr>
+                <tr><td>Brokers</td><td>${maxBrokerCount}</td><td>${Number(p.actualBrokers || 0)}</td></tr>
               </tbody>
             </table>
           </div>
@@ -616,14 +614,9 @@ document.addEventListener("DOMContentLoaded",()=>{
         </div>
 
         <div class="pricing-section-block">
-          <div class="pricing-section-heading">Package Included & Allowed Limits</div>
+          <div class="pricing-section-heading">Allowed Limits</div>
 
           <div class="grid-4 pricing-grid">
-            <div class="field">
-              <label>Included Vehicles</label>
-              <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
-            </div>
-
             <div class="field">
               <label>Vehicle Limit</label>
               <input class="max-vehicles" type="number" min="0" value="${Number(s.maxVehicles || 0)}" disabled>
@@ -660,15 +653,13 @@ document.addEventListener("DOMContentLoaded",()=>{
             </div>
 
             <div class="field broker-field">
-              <label>Included Brokers</label>
-              <input class="included-brokers" type="number" min="0" value="${includedBrokerCount}" disabled>
-            </div>
-
-            <div class="field broker-field">
               <label>Broker Limit</label>
               <input class="max-brokers" type="number" min="0" value="${maxBrokerCount}" disabled>
             </div>
           </div>
+
+          <input class="included-vehicles" type="hidden" value="${Number(s.includedVehicles || 0)}">
+          <input class="included-brokers" type="hidden" value="${includedBrokerCount}">
 
           <div class="live-count-strip">
             <span>Active Vehicles <strong>${Number(p.actualVehicles || 0)}</strong></span>
