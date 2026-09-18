@@ -436,6 +436,55 @@ tbody tr:nth-child(even) td{
     grid-template-columns:1fr;
   }
 }
+
+
+/* =========================================================
+   PAYROLL SUMMARY — PERSON NAME TYPOGRAPHY FIX
+   Visual only. Keeps all existing IDs and JS behavior.
+========================================================= */
+
+/* Names in the left people list */
+.person-name{
+  width:100%;
+  display:block;
+  text-align:center;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:0;
+  color:#172033;
+}
+
+/* Selected person's name / Payroll History title */
+.detail-title{
+  width:100%;
+  margin:0 0 13px;
+  text-align:center;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-size:22px;
+  line-height:1.2;
+  font-weight:750;
+  letter-spacing:0;
+  color:#172033;
+}
+
+/* Keep the small helper line centered below the selected name */
+.detail-sub{
+  text-align:center;
+}
+
+/* Mobile balance */
+@media(max-width:900px){
+  .person-name{
+    font-size:13px;
+  }
+
+  .detail-title{
+    font-size:19px;
+  }
+}
+
 </style>
 </head>
 
