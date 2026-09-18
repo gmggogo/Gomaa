@@ -73,6 +73,11 @@ const schema = new mongoose.Schema(
     paidAt:{
       type:Date,
       default:null
+    },
+
+    invoiceSnapshot:{
+      type:mongoose.Schema.Types.Mixed,
+      default:null
     }
   },
   {timestamps:true}

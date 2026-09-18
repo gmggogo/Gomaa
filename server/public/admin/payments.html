@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,6 +30,11 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 .methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.method{border:1px solid #cbd5df;border-radius:10px;padding:12px}.method strong{display:block;font-size:12px;margin-bottom:4px}.method span{color:#6c7787;font-size:11px}
 .note{margin-bottom:14px;padding:11px 12px;border-radius:9px;background:#f7fafc;color:#536072;font-size:12px;line-height:1.5}
 .pay{width:100%;min-height:48px;border:0;border-radius:9px;background:linear-gradient(180deg,#cda32d,#a87a0c);color:#fff;font-size:14px;font-weight:950;cursor:pointer}.pay:disabled{opacity:.55;cursor:not-allowed}
+.invoice-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.print-invoice-btn{min-height:36px;border:0;border-radius:8px;padding:0 13px;background:#10345c;color:#fff;font-size:11px;font-weight:900;cursor:pointer}
+.print-invoice-btn:hover{background:#071a36}
+.print-invoice-btn.small{min-height:30px;padding:0 10px;font-size:10px}
+
 .breakdown{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.breakdown-item{border:1px solid #e2e8f0;border-radius:9px;padding:11px;background:#f8fafc}.breakdown-item span{display:block;font-size:10px;font-weight:850;color:#6b7280;text-transform:uppercase}.breakdown-item strong{display:block;margin-top:6px;font-size:14px;color:#172033}.breakdown-item.wide-detail{grid-column:span 2}.breakdown-item.wide-detail strong{line-height:1.45;word-break:break-word}.breakdown-total{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff8da;border-top:1px solid #e6d58d;color:#7a5700;font-weight:950}.history{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:11px 12px;border-bottom:1px solid #e5ebf0;font-size:12px;text-align:left}th{background:#edf3f8;color:#344155;font-weight:900}td.amount{font-weight:900;color:#166534}.empty{padding:28px;text-align:center;color:#798493}
 @media(max-width:1150px){.summary{grid-template-columns:repeat(4,1fr)}}@media(max-width:950px){.summary{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.breakdown-grid{grid-template-columns:1fr}}
 </style>
@@ -73,6 +79,9 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
         <div class="info-row"><span>Due Date</span><span id="dueDate">--</span></div>
         <div class="info-row"><span>Last Payment</span><span id="lastPayment">--</span></div>
         <div class="info-row"><span>Account Access</span><span id="accessState">--</span></div>
+        <div class="invoice-actions">
+          <button class="print-invoice-btn" id="printCurrentInvoiceBtn" type="button">Print Invoice</button>
+        </div>
       </div>
     </section>
 
@@ -222,10 +231,10 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Date</th><th>Invoice</th><th>Cycle</th><th>Method</th><th>Status</th><th>Amount</th></tr>
+          <tr><th>Date</th><th>Invoice</th><th>Cycle</th><th>Method</th><th>Status</th><th>Amount</th><th>Invoice</th></tr>
         </thead>
         <tbody id="historyBody">
-          <tr><td colspan="6" class="empty">Loading payment history...</td></tr>
+          <tr><td colspan="7" class="empty">Loading payment history...</td></tr>
         </tbody>
       </table>
     </div>
@@ -235,6 +244,6 @@ body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#
 </main>
 
 <script src="/admin/header.js"></script>
-<script src="/admin/payments.js?v=PLAN-DETAILS-LIVE-USAGE-V3-20260917"></script>
+<script src="/admin/payments.js?v=PRINT-INVOICE-V1-20260917"></script>
 </body>
 </html>

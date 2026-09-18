@@ -392,6 +392,207 @@ function addCycle(date,cycle){
   return next;
 }
 
+
+function cleanServiceNames(pricing,usage){
+  const rows =
+    Array.isArray(pricing?.serviceControls)
+      ? pricing.serviceControls
+      : Array.isArray(usage?.services)
+        ? usage.services
+        : [];
+
+  return [
+    ...new Set(
+      rows
+        .filter(row=>row?.accessEnabled !== false)
+        .map(row=>
+          clean(
+            row?.label ||
+            row?.key
+          )
+        )
+        .filter(Boolean)
+    )
+  ];
+}
+
+function cleanBrokerNames(brokers){
+  return [
+    ...new Set(
+      (Array.isArray(brokers) ? brokers : [])
+        .map(row=>
+          clean(
+            row?.brokerName ||
+            row?.brokerCode
+          )
+        )
+        .filter(Boolean)
+    )
+  ];
+}
+
+function buildInvoiceSnapshot({
+  tenant,
+  subscription,
+  pricing,
+  usage,
+  brokers,
+  billing,
+  invoiceNumber=""
+}){
+  const packagePrice =
+    Number(pricing?.baseAmount || 0) +
+    Number(pricing?.serviceAmount || 0);
+
+  return {
+    invoiceNumber:clean(invoiceNumber),
+    companyName:
+      tenant?.name ||
+      tenant?.branding?.companyName ||
+      "Company",
+    planName:
+      subscription?.planName ||
+      "GH Mobility",
+    billingCycle:
+      subscription?.billingCycle ||
+      "ANNUAL",
+    billingDueDate:
+      billing?.billingDueDate ||
+      subscription?.nextBillingDate ||
+      subscription?.dueDate ||
+      null,
+    packagePrice:Number(packagePrice.toFixed(2)),
+    finalAmount:Number(
+      (
+        pricing?.finalAmount ??
+        billing?.planPrice ??
+        subscription?.amount ??
+        0
+      )
+    ),
+    vehicleLimit:Number(
+      pricing?.maxVehicles ??
+      subscription?.maxVehicles ??
+      0
+    ),
+    activeVehicles:Number(
+      pricing?.actualVehicles ??
+      usage?.actualVehicles ??
+      0
+    ),
+    serviceLimit:Number(
+      pricing?.maxServices ??
+      subscription?.maxServices ??
+      0
+    ),
+    activeServices:Number(
+      pricing?.enabledServices ??
+      usage?.enabledServices ??
+      0
+    ),
+    enabledServices:
+      cleanServiceNames(pricing,usage),
+    brokerLimit:Number(
+      pricing?.maxBrokers ??
+      subscription?.maxBrokers ??
+      0
+    ),
+    activeBrokers:Number(
+      pricing?.actualBrokers ??
+      0
+    ),
+    enabledBrokers:
+      cleanBrokerNames(brokers),
+    driverLimit:Number(
+      pricing?.maxDrivers ??
+      subscription?.maxDrivers ??
+      0
+    ),
+    activeDrivers:Number(
+      pricing?.actualDrivers ??
+      usage?.actualDrivers ??
+      0
+    ),
+    dispatcherLimit:Number(
+      pricing?.maxDispatchers ??
+      subscription?.maxDispatchers ??
+      0
+    ),
+    activeDispatchers:Number(
+      pricing?.actualDispatchers ??
+      usage?.actualDispatchers ??
+      0
+    ),
+    adminLimit:Number(
+      pricing?.maxAdmins ??
+      subscription?.maxAdmins ??
+      0
+    ),
+    activeAdmins:Number(
+      pricing?.actualAdmins ??
+      usage?.actualAdmins ??
+      0
+    ),
+    superAdminLimit:Number(
+      pricing?.maxSuperAdmins ??
+      subscription?.maxSuperAdmins ??
+      0
+    ),
+    activeSuperAdmins:Number(
+      pricing?.actualSuperAdmins ??
+      usage?.actualSuperAdmins ??
+      0
+    ),
+    companyLimit:Number(
+      pricing?.maxCompanies ??
+      subscription?.maxCompanies ??
+      0
+    ),
+    activeCompanies:Number(
+      pricing?.actualCompanies ??
+      usage?.actualCompanies ??
+      0
+    ),
+    extraVehicles:Number(
+      pricing?.billableExtraVehicles ??
+      pricing?.extraVehicles ??
+      0
+    ),
+    extraVehiclePrice:Number(
+      pricing?.extraVehiclePrice ??
+      subscription?.extraVehiclePrice ??
+      0
+    ),
+    extraVehicleAmount:Number(
+      pricing?.vehicleAmount || 0
+    ),
+    extraBrokers:Number(
+      pricing?.billableExtraBrokers ??
+      pricing?.extraBrokers ??
+      0
+    ),
+    extraBrokerPrice:Number(
+      pricing?.extraBrokerPrice ??
+      subscription?.extraBrokerPrice ??
+      0
+    ),
+    extraBrokerAmount:Number(
+      pricing?.brokerAmount || 0
+    ),
+    discount:Number(
+      pricing?.discount ??
+      subscription?.discount ??
+      0
+    ),
+    credit:Number(
+      pricing?.credit ??
+      subscription?.credit ??
+      0
+    ),
+    capturedAt:new Date()
+  };
+}
+
 async function markPaid(subscription,payment,session){
   if(payment.status === "PAID") return;
 
@@ -550,6 +751,27 @@ router.get(
 
         await subscription.save();
       }
+
+      const currentPayment =
+        await TenantSubscriptionPayment
+          .findOne({
+            tenantId:tenant._id,
+            billingKey:billing.billingKey
+          })
+          .lean();
+
+      const currentInvoice =
+        buildInvoiceSnapshot({
+          tenant,
+          subscription,
+          pricing,
+          usage,
+          brokers,
+          billing,
+          invoiceNumber:
+            currentPayment?.invoiceNumber ||
+            ""
+        });
 
       const history =
         await TenantSubscriptionPayment
@@ -1030,6 +1252,8 @@ router.get(
 
         brokers,
 
+        currentInvoice,
+
         history
       });
 
@@ -1073,6 +1297,9 @@ router.post(
 
       const subscription =
         pricingData.subscription;
+
+      const usage =
+        pricingData.usage || {};
 
       const brokers =
         await getActiveBillingBrokers(
@@ -1252,6 +1479,19 @@ router.post(
 
       const invoiceNumber =
         payment.invoiceNumber;
+
+      payment.invoiceSnapshot =
+        buildInvoiceSnapshot({
+          tenant,
+          subscription,
+          pricing,
+          usage,
+          brokers,
+          billing,
+          invoiceNumber
+        });
+
+      await payment.save();
 
       const session =
         await stripe.checkout.sessions.create({
