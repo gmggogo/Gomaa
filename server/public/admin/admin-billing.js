@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ========================= */
 
   let companies = [];
+  let selectedCompanyId = "";
   const paymentHistoryCache = new Map();
   const paymentHistoryFilters = new Map();
   let stripeAccountLinked = false;
@@ -693,6 +694,16 @@ document.addEventListener("DOMContentLoaded", () => {
             ? data.companies
             : [];
 
+      if(
+        selectedCompanyId &&
+        !companies.some(c=>
+          String(c._id) ===
+          String(selectedCompanyId)
+        )
+      ){
+        selectedCompanyId = "";
+      }
+
       render(companies);
 
     }catch(err){
@@ -846,7 +857,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   type="button"
                   onclick="printHistoryInvoice('${id}','${String(row._id || "")}')"
                 >
-                  Print
+                  Print / PDF
                 </button>
               </td>
             </tr>
@@ -1000,6 +1011,267 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER
   ========================= */
 
+  function companyDetailMarkup(c){
+
+    return `
+      <div class="company-card">
+
+        <div class="company-top">
+
+          <div class="company-info-bar">
+
+            <div class="company-info-item">
+              <span class="company-info-label">Company Name</span>
+              <strong class="company-info-value">
+                ${c.name || "--"}
+              </strong>
+            </div>
+
+            <div class="company-info-item">
+              <span class="company-info-label">Email</span>
+              <strong class="company-info-value">
+                ${c.email || "--"}
+              </strong>
+            </div>
+
+            <div class="company-info-item">
+              <span class="company-info-label">Phone</span>
+              <strong class="company-info-value">
+                ${c.phone || "--"}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="company-status-wrap">
+
+            ${
+              c.billingLocked
+                ? `
+                  <span class="badge locked">
+                    LOCKED
+                  </span>
+                `
+                : `
+                  <span class="badge active">
+                    ACTIVE
+                  </span>
+                `
+            }
+
+          </div>
+
+        </div>
+
+        <div class="stats-grid">
+
+          <div class="stat-box">
+            <div class="stat-label">Trips</div>
+            <div class="stat-value">${c.totalTrips || 0}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value">${c.completedTrips || 0}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">Shared</div>
+            <div class="stat-value">${c.sharedTrips || 0}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">No Show</div>
+            <div class="stat-value">${c.noShowTrips || 0}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-value">${money(c.revenue)}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">Invoice</div>
+            <div class="stat-value">${money(c.invoiceAmount)}</div>
+          </div>
+
+        </div>
+
+        <div class="billing-grid">
+
+          <div class="field">
+            <label>Billing Start</label>
+            <input
+              type="date"
+              class="small-input"
+              id="start-${c._id}"
+              value="${toInputDate(c.billingStartDate)}"
+              disabled
+            >
+          </div>
+
+          <div class="field">
+            <label>Billing End</label>
+            <input
+              type="date"
+              class="small-input"
+              id="end-${c._id}"
+              value="${toInputDate(c.billingEndDate)}"
+              disabled
+            >
+          </div>
+
+          <div class="field">
+            <label>Grace Days</label>
+            <input
+              type="number"
+              class="small-input"
+              id="grace-${c._id}"
+              value="${c.graceDays || 3}"
+              disabled
+            >
+          </div>
+
+          <div class="field">
+            <label>Last Payment</label>
+            <input
+              type="text"
+              class="small-input"
+              value="${formatDate(c.lastPaymentDate)}"
+              disabled
+            >
+          </div>
+
+        </div>
+
+        <div class="btn-row">
+
+          <button
+            class="btn btn-blue"
+            onclick="editBilling('${c._id}')"
+            id="editBtn-${c._id}"
+          >
+            Edit
+          </button>
+
+          <button
+            class="btn btn-green"
+            onclick="saveBilling('${c._id}')"
+            id="saveBtn-${c._id}"
+            style="display:none;"
+          >
+            Save
+          </button>
+
+          <div class="current-invoice-actions">
+            <button
+              class="btn btn-dark"
+              onclick="openInvoice('${c._id}')"
+            >
+              Open Invoice
+            </button>
+
+            <button
+              class="btn btn-blue"
+              onclick="printCurrentInvoice('${c._id}')"
+            >
+              Print / PDF
+            </button>
+          </div>
+
+          <button
+            class="btn btn-yellow"
+            onclick="markPaid('${c._id}')"
+          >
+            Mark Paid
+          </button>
+
+          <button
+            class="btn btn-red"
+            onclick="lockCompany('${c._id}')"
+          >
+            Lock
+          </button>
+
+          <button
+            class="btn btn-green"
+            onclick="unlockCompany('${c._id}')"
+          >
+            Unlock
+          </button>
+
+        </div>
+
+        <section class="payment-history">
+          <div class="payment-history-head">
+            <div class="payment-history-title">
+              Payment History
+            </div>
+            <div class="payment-history-note">
+              Retained for 3 years
+            </div>
+          </div>
+
+          <div class="payment-history-tools">
+            <select
+              class="history-select"
+              id="historyYear-${c._id}"
+              onchange="setHistoryFilter('${c._id}','year',this.value)"
+            >
+              <option value="">All Years</option>
+            </select>
+
+            <select
+              class="history-select"
+              id="historyMonth-${c._id}"
+              onchange="setHistoryFilter('${c._id}','month',this.value)"
+            >
+              ${historyMonthOptions()}
+            </select>
+          </div>
+
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Paid Date</th>
+                  <th>Invoice</th>
+                  <th>Billing Period</th>
+                  <th>Trips</th>
+                  <th>Completed</th>
+                  <th>Shared</th>
+                  <th>No Show</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Invoice</th>
+                  <th>Print / PDF</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody-${c._id}">
+                <tr>
+                  <td colspan="11" class="history-empty">
+                    Loading payment history...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    `;
+  }
+
+  window.selectBillingCompany =
+  function selectBillingCompany(id){
+
+    selectedCompanyId =
+      String(id || "");
+
+    applyFilters();
+
+  };
+
   function render(list){
 
     if(!container){
@@ -1007,6 +1279,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if(!list.length){
+
+      selectedCompanyId = "";
 
       container.innerHTML = `
         <div class="empty">
@@ -1017,295 +1291,87 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    container.innerHTML =
-      list.map(c=>{
+    const selectedExists =
+      list.some(c=>
+        String(c._id) ===
+        String(selectedCompanyId)
+      );
 
-        return `
+    if(!selectedExists){
+      selectedCompanyId =
+        String(list[0]._id || "");
+    }
 
-          <div class="company-card">
+    const selected =
+      list.find(c=>
+        String(c._id) ===
+        String(selectedCompanyId)
+      ) || list[0];
 
-            <div class="company-top">
+    container.innerHTML = `
+      <div class="billing-workspace">
 
-              <div class="company-info-bar">
+        <aside class="company-sidebar">
 
-                <div class="company-info-item">
-                  <span class="company-info-label">Company Name</span>
-                  <strong class="company-info-value">
+          <div class="company-sidebar-head">
+            <strong>Companies</strong>
+            <span>${list.length} available</span>
+          </div>
+
+          <div class="company-list">
+
+            ${list.map(c=>{
+
+              const active =
+                String(c._id) ===
+                String(selectedCompanyId);
+
+              return `
+                <button
+                  type="button"
+                  class="company-list-item ${active ? "active" : ""}"
+                  onclick="selectBillingCompany('${c._id}')"
+                >
+                  <span class="company-list-name">
                     ${c.name || "--"}
-                  </strong>
-                </div>
+                  </span>
 
-                <div class="company-info-item">
-                  <span class="company-info-label">Email</span>
-                  <strong class="company-info-value">
+                  <span class="company-list-email">
                     ${c.email || "--"}
-                  </strong>
-                </div>
+                  </span>
 
-                <div class="company-info-item">
-                  <span class="company-info-label">Phone</span>
-                  <strong class="company-info-value">
-                    ${c.phone || "--"}
-                  </strong>
-                </div>
+                  <span class="company-list-status ${c.billingLocked ? "locked" : ""}">
+                    ${c.billingLocked ? "LOCKED" : "ACTIVE"}
+                  </span>
+                </button>
+              `;
 
-              </div>
-
-              <div class="company-status-wrap">
-
-                ${
-                  c.billingLocked
-
-                    ? `
-                      <span class="badge locked">
-                        LOCKED
-                      </span>
-                    `
-
-                    : `
-                      <span class="badge active">
-                        ACTIVE
-                      </span>
-                    `
-                }
-
-              </div>
-
-            </div>
-
-            <div class="stats-grid">
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Trips
-                </div>
-                <div class="stat-value">
-                  ${c.totalTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Completed
-                </div>
-                <div class="stat-value">
-                  ${c.completedTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Shared
-                </div>
-                <div class="stat-value">
-                  ${c.sharedTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  No Show
-                </div>
-                <div class="stat-value">
-                  ${c.noShowTrips || 0}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Revenue
-                </div>
-                <div class="stat-value">
-                  ${money(c.revenue)}
-                </div>
-              </div>
-
-              <div class="stat-box">
-                <div class="stat-label">
-                  Invoice
-                </div>
-                <div class="stat-value">
-                  ${money(c.invoiceAmount)}
-                </div>
-              </div>
-
-            </div>
-
-            <div class="billing-grid">
-
-              <div class="field">
-                <label>
-                  Billing Start
-                </label>
-
-                <input
-                  type="date"
-                  class="small-input"
-                  id="start-${c._id}"
-                  value="${toInputDate(c.billingStartDate)}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Billing End
-                </label>
-
-                <input
-                  type="date"
-                  class="small-input"
-                  id="end-${c._id}"
-                  value="${toInputDate(c.billingEndDate)}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Grace Days
-                </label>
-
-                <input
-                  type="number"
-                  class="small-input"
-                  id="grace-${c._id}"
-                  value="${c.graceDays || 3}"
-                  disabled
-                >
-              </div>
-
-              <div class="field">
-                <label>
-                  Last Payment
-                </label>
-
-                <input
-                  type="text"
-                  class="small-input"
-                  value="${formatDate(c.lastPaymentDate)}"
-                  disabled
-                >
-              </div>
-
-            </div>
-
-            <div class="btn-row">
-
-              <button
-                class="btn btn-blue"
-                onclick="editBilling('${c._id}')"
-                id="editBtn-${c._id}"
-              >
-                Edit
-              </button>
-
-              <button
-                class="btn btn-green"
-                onclick="saveBilling('${c._id}')"
-                id="saveBtn-${c._id}"
-                style="display:none;"
-              >
-                Save
-              </button>
-
-              <button
-                class="btn btn-dark"
-                onclick="openInvoice('${c._id}')"
-              >
-                Open Invoice
-              </button>
-
-              <button
-                class="btn btn-yellow"
-                onclick="markPaid('${c._id}')"
-              >
-                Mark Paid
-              </button>
-
-              <button
-                class="btn btn-red"
-                onclick="lockCompany('${c._id}')"
-              >
-                Lock
-              </button>
-
-              <button
-                class="btn btn-green"
-                onclick="unlockCompany('${c._id}')"
-              >
-                Unlock
-              </button>
-
-            </div>
-
-            <section class="payment-history">
-              <div class="payment-history-head">
-                <div class="payment-history-title">
-                  Payment History
-                </div>
-                <div class="payment-history-note">
-                  Retained for 3 years
-                </div>
-              </div>
-
-              <div class="payment-history-tools">
-                <select
-                  class="history-select"
-                  id="historyYear-${c._id}"
-                  onchange="setHistoryFilter('${c._id}','year',this.value)"
-                >
-                  <option value="">All Years</option>
-                </select>
-
-                <select
-                  class="history-select"
-                  id="historyMonth-${c._id}"
-                  onchange="setHistoryFilter('${c._id}','month',this.value)"
-                >
-                  ${historyMonthOptions()}
-                </select>
-              </div>
-
-              <div class="history-table-wrap">
-                <table class="history-table">
-                  <thead>
-                    <tr>
-                      <th>Paid Date</th>
-                      <th>Invoice</th>
-                      <th>Billing Period</th>
-                      <th>Trips</th>
-                      <th>Completed</th>
-                      <th>Shared</th>
-                      <th>No Show</th>
-                      <th>Method</th>
-                      <th>Amount</th>
-                      <th>Invoice</th>
-                      <th>Print</th>
-                    </tr>
-                  </thead>
-                  <tbody id="historyBody-${c._id}">
-                    <tr>
-                      <td colspan="11" class="history-empty">
-                        Loading payment history...
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            }).join("")}
 
           </div>
 
-        `;
+        </aside>
 
-      }).join("");
+        <main class="company-detail">
+          ${
+            selected
+              ? companyDetailMarkup(selected)
+              : `
+                <div class="company-detail-empty">
+                  Select a company to view billing details.
+                </div>
+              `
+          }
+        </main>
 
-    list.forEach(company=>{
+      </div>
+    `;
+
+    if(selected){
       loadPaymentHistory(
-        company._id
+        selected._id
       );
-    });
+    }
 
   }
 
@@ -1444,6 +1510,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.open(
       `/admin/invoice.html?id=${id}`,
+      "_blank"
+    );
+
+  };
+
+  window.printCurrentInvoice =
+  function printCurrentInvoice(id){
+
+    window.open(
+      `/admin/invoice.html?id=${encodeURIComponent(id)}&print=1`,
       "_blank"
     );
 
