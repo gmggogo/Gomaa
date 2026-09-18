@@ -17,6 +17,97 @@ const MAX_BATCH = 20;
 let workerTimer = null;
 let workerRunning = false;
 
+/*
+  Final Confirmation retry protection.
+
+  The worker runs every 15 seconds, but a Stripe payment failure must not
+  cause the same trip to hit Final Confirmation every cycle.
+
+  - inFlight: prevents duplicate requests inside the current process.
+  - retryAfter: adds a cooldown after failures.
+*/
+const FINAL_CONFIRM_PAYMENT_RETRY_MS =
+  5 * 60 * 1000;
+
+const FINAL_CONFIRM_GENERIC_RETRY_MS =
+  60 * 1000;
+
+const finalConfirmInFlight =
+  global.__ghAutopilotFinalConfirmInFlight ||
+  new Set();
+
+const finalConfirmRetryAfter =
+  global.__ghAutopilotFinalConfirmRetryAfter ||
+  new Map();
+
+global.__ghAutopilotFinalConfirmInFlight =
+  finalConfirmInFlight;
+
+global.__ghAutopilotFinalConfirmRetryAfter =
+  finalConfirmRetryAfter;
+
+function finalConfirmKey(
+  tenantId,
+  tripId
+){
+  return (
+    String(tenantId || "") +
+    ":" +
+    String(tripId || "")
+  );
+}
+
+function finalConfirmRetryReady(
+  key
+){
+  const retryAt =
+    Number(
+      finalConfirmRetryAfter.get(key) ||
+      0
+    );
+
+  if(!retryAt){
+    return true;
+  }
+
+  if(Date.now() >= retryAt){
+    finalConfirmRetryAfter.delete(
+      key
+    );
+    return true;
+  }
+
+  return false;
+}
+
+function scheduleFinalConfirmRetry(
+  key,
+  err
+){
+  const code =
+    upper(
+      err?.data?.code ||
+      ""
+    );
+
+  const paymentFailure =
+    Number(err?.status || 0) === 402 ||
+    code.includes("PAYMENT") ||
+    code.includes("CAPTURE");
+
+  const delay =
+    paymentFailure
+      ? FINAL_CONFIRM_PAYMENT_RETRY_MS
+      : FINAL_CONFIRM_GENERIC_RETRY_MS;
+
+  finalConfirmRetryAfter.set(
+    key,
+    Date.now() + delay
+  );
+
+  return delay;
+}
+
 function clean(v){
   return String(v ?? "").trim();
 }
@@ -1159,6 +1250,27 @@ async function finalConfirmTenant(
         continue;
       }
 
+      const sharedConfirmKey =
+        finalConfirmKey(
+          settings.tenantId,
+          `shared:${id}`
+        );
+
+      if(
+        finalConfirmInFlight.has(
+          sharedConfirmKey
+        ) ||
+        !finalConfirmRetryReady(
+          sharedConfirmKey
+        )
+      ){
+        continue;
+      }
+
+      finalConfirmInFlight.add(
+        sharedConfirmKey
+      );
+
       try{
         await apiRequest(
           baseUrl,
@@ -1171,14 +1283,32 @@ async function finalConfirmTenant(
           }
         );
 
+        finalConfirmRetryAfter.delete(
+          sharedConfirmKey
+        );
+
         confirmedCount++;
 
       }catch(err){
+
+        const retryDelay =
+          scheduleFinalConfirmRetry(
+            sharedConfirmKey,
+            err
+          );
+
         console.log(
           "AUTOPILOT SHARED FINAL CONFIRM ERROR:",
           String(settings.tenantId),
           id,
-          err?.message || err
+          err?.message || err,
+          `(retry in ${Math.round(retryDelay / 1000)}s)`
+        );
+
+      }finally{
+
+        finalConfirmInFlight.delete(
+          sharedConfirmKey
         );
       }
 
@@ -1202,6 +1332,27 @@ async function finalConfirmTenant(
       continue;
     }
 
+    const confirmKey =
+      finalConfirmKey(
+        settings.tenantId,
+        id
+      );
+
+    if(
+      finalConfirmInFlight.has(
+        confirmKey
+      ) ||
+      !finalConfirmRetryReady(
+        confirmKey
+      )
+    ){
+      continue;
+    }
+
+    finalConfirmInFlight.add(
+      confirmKey
+    );
+
     try{
       await apiRequest(
         baseUrl,
@@ -1215,14 +1366,52 @@ async function finalConfirmTenant(
         }
       );
 
+      finalConfirmRetryAfter.delete(
+        confirmKey
+      );
+
       confirmedCount++;
 
     }catch(err){
-      console.log(
-        "AUTOPILOT FINAL CONFIRM ERROR:",
-        String(settings.tenantId),
-        id,
-        err?.message || err
+
+      /*
+        409 means another request is already settling this trip.
+        Do not treat it as a payment failure and do not spam the log.
+      */
+      if(
+        Number(err?.status || 0) === 409 &&
+        upper(
+          err?.data?.code ||
+          ""
+        ) === "FINAL_CONFIRM_IN_PROGRESS"
+      ){
+        finalConfirmRetryAfter.set(
+          confirmKey,
+          Date.now() +
+            FINAL_CONFIRM_GENERIC_RETRY_MS
+        );
+
+      }else{
+
+        const retryDelay =
+          scheduleFinalConfirmRetry(
+            confirmKey,
+            err
+          );
+
+        console.log(
+          "AUTOPILOT FINAL CONFIRM ERROR:",
+          String(settings.tenantId),
+          id,
+          err?.message || err,
+          `(retry in ${Math.round(retryDelay / 1000)}s)`
+        );
+      }
+
+    }finally{
+
+      finalConfirmInFlight.delete(
+        confirmKey
       );
     }
   }

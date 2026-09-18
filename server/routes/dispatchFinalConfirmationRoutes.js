@@ -156,6 +156,87 @@ function tenantFilter(
 const HOLD_HOURS = 12;
 
 /* =========================
+   FINAL CONFIRM PROCESS LOCK
+   Prevents Autopilot + manual dispatcher from settling
+   the same trip at the same time in this server process.
+========================= */
+
+const FINAL_CONFIRM_LOCK_MS =
+  2 * 60 * 1000;
+
+const finalConfirmLocks =
+  global.__ghFinalConfirmLocks ||
+  new Map();
+
+global.__ghFinalConfirmLocks =
+  finalConfirmLocks;
+
+function acquireFinalConfirmLock(
+  req,
+  res,
+  next
+){
+  const id =
+    String(
+      req.params?.id ||
+      ""
+    ).trim();
+
+  if(!id){
+    return next();
+  }
+
+  const now =
+    Date.now();
+
+  const existingUntil =
+    Number(
+      finalConfirmLocks.get(id) ||
+      0
+    );
+
+  if(existingUntil > now){
+    return res.status(409).json({
+      success:false,
+      code:"FINAL_CONFIRM_IN_PROGRESS",
+      message:
+        "This trip final confirmation is already being processed."
+    });
+  }
+
+  finalConfirmLocks.set(
+    id,
+    now + FINAL_CONFIRM_LOCK_MS
+  );
+
+  let released = false;
+
+  const release = ()=>{
+    if(released){
+      return;
+    }
+
+    released = true;
+
+    finalConfirmLocks.delete(
+      id
+    );
+  };
+
+  res.once(
+    "finish",
+    release
+  );
+
+  res.once(
+    "close",
+    release
+  );
+
+  return next();
+}
+
+/* =========================
    HELPERS
 ========================= */
 
@@ -1183,7 +1264,11 @@ router.patch("/:id/status", requireTenantApi, async (req,res)=>{
    MONEY IS SETTLED HERE
 ========================= */
 
-router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
+router.patch(
+  "/:id/confirm",
+  requireTenantApi,
+  acquireFinalConfirmLock,
+  async (req,res)=>{
 
   try{
 
@@ -1425,6 +1510,12 @@ router.patch("/:id/confirm", requireTenantApi, async (req,res)=>{
       err?.paymentFailed ? 402 : 500
     ).json({
       success:false,
+      code:
+        err?.code ||
+        "",
+      stripeStatus:
+        err?.stripeStatus ||
+        "",
       message:
         err?.message ||
         "Failed to confirm trip"
