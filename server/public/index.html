@@ -694,8 +694,8 @@ body{
   max-width:640px !important;
   margin-left:auto !important;
   margin-right:auto !important;
-  text-align:center !important;
-  text-align-last:center !important;
+  text-align:justify !important;
+  text-align-last:left !important;
   line-height:1.55 !important;
 }
 
@@ -1908,7 +1908,7 @@ function renderPage(){
     data.aboutText ||
     "",
     isMobile
-    ? "center"
+    ? "justify-left"
     : (data.aboutTextAlign || "justify-center")
   );
 
@@ -2205,7 +2205,7 @@ function forceMobileHomeLayout(){
     {
       id:"aboutText",
       size:data.aboutTextMobileSize || 14,
-      align:"center"
+      align:"justify-left"
     },
     {
       id:"quoteTitle",
