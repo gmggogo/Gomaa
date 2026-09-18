@@ -135,11 +135,21 @@ async function api(url,options={}){
 
 function numberValue(...values){
   for(const value of values){
+    if(
+      value === null ||
+      value === undefined ||
+      clean(value) === ""
+    ){
+      continue;
+    }
+
     const n = Number(value);
+
     if(Number.isFinite(n)){
       return n;
     }
   }
+
   return 0;
 }
 
@@ -323,8 +333,13 @@ function render(data){
     Internal service-by-service pricing is intentionally not shown here.
   */
   const packagePrice =
-    numberValue(p.baseAmount) +
-    numberValue(p.serviceAmount);
+    numberValue(
+      p.baseAmount,
+      s.basePrice
+    ) +
+    numberValue(
+      p.serviceAmount
+    );
 
   const extraVehicles =
     numberValue(

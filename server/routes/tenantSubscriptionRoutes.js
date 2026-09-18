@@ -12,6 +12,7 @@ const stripe = require("stripe")(
 const Tenant = require("../models/Tenant");
 const TenantSubscription = require("../models/TenantSubscription");
 const TenantSubscriptionPayment = require("../models/TenantSubscriptionPayment");
+const BrokerIntegration = require("../models/BrokerIntegration");
 const {
   ensureTenantPricing
 } = require("../utils/saasPricingEngine");
@@ -35,6 +36,133 @@ function clean(v){
   return String(v ?? "").trim();
 }
 
+function nonNegative(v,fallback=0){
+  const n = Number(v);
+  return Number.isFinite(n)
+    ? Math.max(0,n)
+    : Math.max(0,Number(fallback) || 0);
+}
+
+function whole(v,fallback=0){
+  return Math.max(
+    0,
+    Math.floor(nonNegative(v,fallback))
+  );
+}
+
+async function getActiveBillingBrokers(tenantId){
+  return BrokerIntegration.find({
+    tenantId,
+    enabled:{ $ne:false },
+    billingEnabled:{ $ne:false }
+  })
+  .select("brokerName brokerCode enabled billingEnabled")
+  .sort({brokerName:1,brokerCode:1})
+  .lean();
+}
+
+function applyBrokerPricing(basePricing,subscription,brokers){
+  const pricing = { ...(basePricing || {}) };
+
+  const list =
+    Array.isArray(brokers)
+      ? brokers
+      : [];
+
+  const actualBrokers =
+    list.length;
+
+  const includedBrokers =
+    whole(subscription?.includedBrokers,0);
+
+  const freeExtraBrokers =
+    whole(subscription?.freeExtraBrokers,0);
+
+  const extraBrokerPrice =
+    nonNegative(subscription?.extraBrokerPrice,0);
+
+  const extraBrokers =
+    Math.max(
+      0,
+      actualBrokers - includedBrokers
+    );
+
+  const billableExtraBrokers =
+    Math.max(
+      0,
+      extraBrokers - freeExtraBrokers
+    );
+
+  const brokerAmount =
+    Number(
+      (
+        billableExtraBrokers *
+        extraBrokerPrice
+      ).toFixed(2)
+    );
+
+  const hasFinalOverride =
+    subscription?.finalPriceOverride !== undefined &&
+    subscription?.finalPriceOverride !== null &&
+    clean(subscription?.finalPriceOverride) !== "";
+
+  const baseFinal =
+    Number(pricing.finalAmount || 0);
+
+  const baseSubtotal =
+    Number(pricing.subtotal || 0);
+
+  pricing.actualBrokers =
+    actualBrokers;
+
+  pricing.includedBrokers =
+    includedBrokers;
+
+  pricing.extraBrokers =
+    extraBrokers;
+
+  pricing.freeExtraBrokers =
+    freeExtraBrokers;
+
+  pricing.billableExtraBrokers =
+    billableExtraBrokers;
+
+  pricing.extraBrokerPrice =
+    extraBrokerPrice;
+
+  pricing.brokerAmount =
+    brokerAmount;
+
+  pricing.maxBrokers =
+    whole(
+      subscription?.maxBrokers,
+      includedBrokers
+    );
+
+  pricing.subtotal =
+    Number(
+      (
+        baseSubtotal +
+        brokerAmount
+      ).toFixed(2)
+    );
+
+  pricing.finalAmount =
+    hasFinalOverride
+      ? nonNegative(
+          subscription.finalPriceOverride,
+          0
+        )
+      : Number(
+          (
+            baseFinal +
+            brokerAmount
+          ).toFixed(2)
+        );
+
+  return pricing;
+}
+
 function validDate(value){
   if(!value) return null;
 
@@ -45,14 +173,21 @@ function validDate(value){
     : date;
 }
 
-function paymentState(subscription){
+function paymentState(subscription,amountOverride=null){
   const now = new Date();
 
+  const overrideNumber =
+    Number(amountOverride);
+
   const planPrice =
-    Number(
-      subscription.amount ||
-      0
-    );
+    Number.isFinite(overrideNumber) &&
+    amountOverride !== null &&
+    amountOverride !== undefined
+      ? Math.max(0,overrideNumber)
+      : Number(
+          subscription.amount ||
+          0
+        );
 
   const dueDate =
     validDate(
@@ -382,17 +517,29 @@ router.get(
       const subscription =
         pricingData.subscription;
 
-      const pricing =
-        pricingData.pricing || {};
-
       const usage =
         pricingData.usage || {};
+
+      const brokers =
+        await getActiveBillingBrokers(
+          tenant._id
+        );
+
+      const pricing =
+        applyBrokerPricing(
+          pricingData.pricing || {},
+          subscription,
+          brokers
+        );
 
       const state =
         runtime(subscription);
 
       const billing =
-        paymentState(subscription);
+        paymentState(
+          subscription,
+          pricing.finalAmount
+        );
 
       if(
         subscription.status !==
@@ -504,6 +651,72 @@ router.get(
               0
             ),
 
+          includedBrokers:
+            Number(
+              subscription.includedBrokers ||
+              0
+            ),
+
+          extraBrokerPrice:
+            Number(
+              subscription.extraBrokerPrice ||
+              0
+            ),
+
+          freeExtraBrokers:
+            Number(
+              subscription.freeExtraBrokers ||
+              0
+            ),
+
+          maxVehicles:
+            Number(
+              subscription.maxVehicles ||
+              0
+            ),
+
+          maxServices:
+            Number(
+              subscription.maxServices ||
+              0
+            ),
+
+          maxBrokers:
+            Number(
+              subscription.maxBrokers ||
+              0
+            ),
+
+          maxDrivers:
+            Number(
+              subscription.maxDrivers ||
+              0
+            ),
+
+          maxDispatchers:
+            Number(
+              subscription.maxDispatchers ||
+              0
+            ),
+
+          maxAdmins:
+            Number(
+              subscription.maxAdmins ||
+              0
+            ),
+
+          maxSuperAdmins:
+            Number(
+              subscription.maxSuperAdmins ||
+              0
+            ),
+
+          maxCompanies:
+            Number(
+              subscription.maxCompanies ||
+              0
+            ),
+
           discount:
             Number(
               subscription.discount ||
@@ -520,17 +733,66 @@ router.get(
         usage:{
           actualVehicles:
             Number(
-              usage.actualVehicles ||
-              pricing.actualVehicles ||
+              usage.actualVehicles ??
+              pricing.actualVehicles ??
               0
             ),
 
           enabledServices:
             Number(
-              usage.enabledServices ||
-              pricing.enabledServices ||
+              usage.enabledServices ??
+              pricing.enabledServices ??
               0
-            )
+            ),
+
+          actualDrivers:
+            Number(
+              usage.actualDrivers ??
+              pricing.actualDrivers ??
+              0
+            ),
+
+          actualDispatchers:
+            Number(
+              usage.actualDispatchers ??
+              pricing.actualDispatchers ??
+              0
+            ),
+
+          actualAdmins:
+            Number(
+              usage.actualAdmins ??
+              pricing.actualAdmins ??
+              0
+            ),
+
+          actualSuperAdmins:
+            Number(
+              usage.actualSuperAdmins ??
+              pricing.actualSuperAdmins ??
+              0
+            ),
+
+          actualCompanies:
+            Number(
+              usage.actualCompanies ??
+              pricing.actualCompanies ??
+              0
+            ),
+
+          actualBrokers:
+            Number(
+              pricing.actualBrokers ||
+              0
+            ),
+
+          services:
+            Array.isArray(usage.services)
+              ? usage.services
+              : [],
+
+          brokers:
+            brokers
         },
 
         pricing:{
@@ -624,6 +886,140 @@ router.get(
               0
             ),
 
+          actualDrivers:
+            Number(
+              pricing.actualDrivers ||
+              usage.actualDrivers ||
+              0
+            ),
+
+          actualDispatchers:
+            Number(
+              pricing.actualDispatchers ||
+              usage.actualDispatchers ||
+              0
+            ),
+
+          actualAdmins:
+            Number(
+              pricing.actualAdmins ||
+              usage.actualAdmins ||
+              0
+            ),
+
+          actualSuperAdmins:
+            Number(
+              pricing.actualSuperAdmins ||
+              usage.actualSuperAdmins ||
+              0
+            ),
+
+          actualCompanies:
+            Number(
+              pricing.actualCompanies ||
+              usage.actualCompanies ||
+              0
+            ),
+
+          maxVehicles:
+            Number(
+              pricing.maxVehicles ||
+              subscription.maxVehicles ||
+              0
+            ),
+
+          maxServices:
+            Number(
+              pricing.maxServices ||
+              subscription.maxServices ||
+              0
+            ),
+
+          maxBrokers:
+            Number(
+              pricing.maxBrokers ||
+              subscription.maxBrokers ||
+              0
+            ),
+
+          maxDrivers:
+            Number(
+              pricing.maxDrivers ||
+              subscription.maxDrivers ||
+              0
+            ),
+
+          maxDispatchers:
+            Number(
+              pricing.maxDispatchers ||
+              subscription.maxDispatchers ||
+              0
+            ),
+
+          maxAdmins:
+            Number(
+              pricing.maxAdmins ||
+              subscription.maxAdmins ||
+              0
+            ),
+
+          maxSuperAdmins:
+            Number(
+              pricing.maxSuperAdmins ||
+              subscription.maxSuperAdmins ||
+              0
+            ),
+
+          maxCompanies:
+            Number(
+              pricing.maxCompanies ||
+              subscription.maxCompanies ||
+              0
+            ),
+
+          actualBrokers:
+            Number(
+              pricing.actualBrokers ||
+              0
+            ),
+
+          includedBrokers:
+            Number(
+              pricing.includedBrokers ||
+              subscription.includedBrokers ||
+              0
+            ),
+
+          extraBrokers:
+            Number(
+              pricing.extraBrokers ||
+              0
+            ),
+
+          billableExtraBrokers:
+            Number(
+              pricing.billableExtraBrokers ||
+              0
+            ),
+
+          extraBrokerPrice:
+            Number(
+              pricing.extraBrokerPrice ||
+              subscription.extraBrokerPrice ||
+              0
+            ),
+
+          brokerAmount:
+            Number(
+              pricing.brokerAmount ||
+              0
+            ),
+
+          serviceControls:
+            Array.isArray(pricing.serviceControls)
+              ? pricing.serviceControls
+              : [],
+
           finalAmount:
             Number(
               pricing.finalAmount ||
@@ -631,6 +1027,8 @@ router.get(
               0
             )
         },
+
+        brokers,
 
         history
       });
@@ -668,13 +1066,31 @@ router.post(
         });
       }
 
+      const pricingData =
+        await ensureTenantPricing(
+          tenant
+        );
+
       const subscription =
-        await ensureSubscription(
+        pricingData.subscription;
+
+      const brokers =
+        await getActiveBillingBrokers(
           tenant._id
         );
 
+      const pricing =
+        applyBrokerPricing(
+          pricingData.pricing || {},
+          subscription,
+          brokers
+        );
+
       const billing =
-        paymentState(subscription);
+        paymentState(
+          subscription,
+          pricing.finalAmount
+        );
 
       const amount =
         billing.amountDue;
