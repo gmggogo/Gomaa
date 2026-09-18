@@ -26,6 +26,31 @@ const controlSchema = new mongoose.Schema(
   {_id:false}
 );
 
+const servicePricingSchema = new mongoose.Schema(
+  {
+    key:{
+      type:String,
+      required:true,
+      trim:true
+    },
+    label:{
+      type:String,
+      default:"",
+      trim:true
+    },
+    included:{
+      type:Boolean,
+      default:false
+    },
+    monthlyPrice:{
+      type:Number,
+      default:0,
+      min:0
+    }
+  },
+  {_id:false}
+);
+
 const schema = new mongoose.Schema(
   {
     tenantId:{
@@ -44,7 +69,7 @@ const schema = new mongoose.Schema(
     billingCycle:{
       type:String,
       enum:["MONTHLY","ANNUAL"],
-      default:"ANNUAL"
+      default:"MONTHLY"
     },
 
     amount:{
@@ -96,6 +121,11 @@ const schema = new mongoose.Schema(
       default:false
     },
 
+    limitsInitialized:{
+      type:Boolean,
+      default:false
+    },
+
     basePackageEnabled:{
       type:Boolean,
       default:true
@@ -125,57 +155,52 @@ const schema = new mongoose.Schema(
       min:0
     },
 
-    /*
-      HARD PACKAGE LIMITS
-      These limits control what tenant users are allowed to create.
-      Existing pricing fields stay independent so billing logic is unchanged.
-    */
-
     maxDrivers:{
       type:Number,
-      default:5,
+      default:0,
       min:0
     },
 
     maxVehicles:{
       type:Number,
-      default:5,
+      default:0,
       min:0
     },
 
     maxAdmins:{
       type:Number,
-      default:2,
+      default:0,
       min:0
     },
 
     maxSuperAdmins:{
       type:Number,
-      default:2,
+      default:0,
       min:0
     },
 
     maxDispatchers:{
       type:Number,
-      default:2,
+      default:0,
       min:0
     },
 
     maxCompanies:{
       type:Number,
-      default:3,
+      default:0,
       min:0
     },
 
     maxServices:{
       type:Number,
-      default:2,
+      default:0,
       min:0
     },
 
-    limitsInitialized:{
-      type:Boolean,
-      default:false
+    maxBrokers:{
+      type:Number,
+      default:0,
+      min:0
     },
 
     extraVehiclePrice:{
@@ -239,6 +264,11 @@ const schema = new mongoose.Schema(
 
     serviceControls:{
       type:[controlSchema],
+      default:[]
+    },
+
+    servicePricing:{
+      type:[servicePricingSchema],
       default:[]
     },
 

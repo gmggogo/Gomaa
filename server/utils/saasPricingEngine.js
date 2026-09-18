@@ -47,19 +47,22 @@ async function getDefaultPackage(){
     row = await PlatformBillingSettings.create({
       key:"DEFAULT_PACKAGE",
       packageName:"GH Mobility Starter",
-      basePrice:99,
+      basePrice:125,
       includedVehicles:5,
-      includedServices:2,
+      includedServices:1,
+      includedBrokers:1,
       maxDrivers:5,
       maxVehicles:5,
       maxAdmins:2,
       maxSuperAdmins:2,
       maxDispatchers:2,
-      maxCompanies:3,
-      maxServices:2,
+      maxCompanies:2,
+      maxServices:1,
+      maxBrokers:1,
       billingCycle:"MONTHLY",
-      extraVehiclePrice:10,
+      extraVehiclePrice:25,
       extraServicePrice:15,
+      extraBrokerPrice:0,
       packageStatus:"ACTIVE"
     });
   }
@@ -268,6 +271,57 @@ async function getTenantUsage(tenant){
   };
 }
 
+
+function normalizeServicePricing(rows){
+  const map = new Map();
+
+  (Array.isArray(rows) ? rows : []).forEach(row=>{
+    const key = clean(row?.key).toUpperCase();
+    if(!key) return;
+
+    map.set(key,{
+      key,
+      label:clean(row?.label) || key,
+      included:row?.included === true,
+      monthlyPrice:nonNegative(row?.monthlyPrice)
+    });
+  });
+
+  return map;
+}
+
+function mergeServicePricing(serviceControls,savedRows,includedSlots,fallbackPrice){
+  const saved = normalizeServicePricing(savedRows);
+  let remainingIncluded = whole(includedSlots);
+
+  const rows = (Array.isArray(serviceControls) ? serviceControls : []).map(control=>{
+    const key = clean(control?.key).toUpperCase();
+    const old = saved.get(key);
+
+    let included = old ? old.included === true : false;
+
+    if(!old && control?.billingEnabled !== false && remainingIncluded > 0){
+      included = true;
+      remainingIncluded -= 1;
+    }
+
+    if(old?.included === true && remainingIncluded > 0){
+      remainingIncluded -= 1;
+    }
+
+    return {
+      key,
+      label:clean(control?.label) || key,
+      included,
+      monthlyPrice:old
+        ? nonNegative(old.monthlyPrice)
+        : nonNegative(fallbackPrice)
+    };
+  });
+
+  return rows;
+}
+
 function calculatePricing(subscription,usage){
   const vehicleControls = mergeControls(
     usage.vehicles,
@@ -309,7 +363,7 @@ function calculatePricing(subscription,usage){
     whole(subscription.maxDispatchers,2);
 
   const maxCompanies =
-    whole(subscription.maxCompanies,3);
+    whole(subscription.maxCompanies,2);
 
   const maxServices =
     whole(
@@ -317,27 +371,22 @@ function calculatePricing(subscription,usage){
       includedServices
     );
 
+  const maxBrokers =
+    whole(
+      subscription.maxBrokers,
+      whole(subscription.includedBrokers,1)
+    );
+
   const extraVehicles = Math.max(
     0,
     billedVehicles - includedVehicles
   );
 
-  const extraServices = Math.max(
-    0,
-    billedServices - includedServices
-  );
-
   const freeExtraVehicles = whole(subscription.freeExtraVehicles);
-  const freeExtraServices = whole(subscription.freeExtraServices);
 
   const billableExtraVehicles = Math.max(
     0,
     extraVehicles - freeExtraVehicles
-  );
-
-  const billableExtraServices = Math.max(
-    0,
-    extraServices - freeExtraServices
   );
 
   const baseAmount =
@@ -348,14 +397,74 @@ function calculatePricing(subscription,usage){
   const extraVehiclePrice =
     nonNegative(subscription.extraVehiclePrice);
 
-  const extraServicePrice =
+  const fallbackServicePrice =
     nonNegative(subscription.extraServicePrice);
+
+  const servicePricing = mergeServicePricing(
+    serviceControls,
+    subscription.servicePricing,
+    includedServices,
+    fallbackServicePrice
+  );
+
+  const billableServiceRows =
+    servicePricing.filter(row=>{
+      const control = serviceControls.find(x=>
+        clean(x.key).toUpperCase() === row.key
+      );
+
+      return (
+        control?.billingEnabled !== false &&
+        row.included !== true
+      );
+    });
+
+  const extraServices =
+    billableServiceRows.length;
+
+  const freeExtraServices =
+    whole(subscription.freeExtraServices);
+
+  const billableExtraServices =
+    Math.max(
+      0,
+      extraServices - freeExtraServices
+    );
+
+  let remainingFreeServices =
+    freeExtraServices;
+
+  const serviceCharges =
+    billableServiceRows.map(row=>{
+      const free = remainingFreeServices > 0;
+
+      if(free){
+        remainingFreeServices -= 1;
+      }
+
+      const amount =
+        free
+          ? 0
+          : nonNegative(row.monthlyPrice);
+
+      return {
+        key:row.key,
+        label:row.label,
+        included:false,
+        free,
+        monthlyPrice:nonNegative(row.monthlyPrice),
+        amount
+      };
+    });
 
   const vehicleAmount =
     billableExtraVehicles * extraVehiclePrice;
 
   const serviceAmount =
-    billableExtraServices * extraServicePrice;
+    serviceCharges.reduce(
+      (sum,row)=>sum + nonNegative(row.amount),
+      0
+    );
 
   const discount = nonNegative(subscription.discount);
   const credit = nonNegative(subscription.credit);
@@ -408,6 +517,7 @@ function calculatePricing(subscription,usage){
     maxDispatchers,
     maxCompanies,
     maxServices,
+    maxBrokers,
 
     includedVehicles,
     includedServices,
@@ -426,9 +536,14 @@ function calculatePricing(subscription,usage){
 
     baseAmount:Number(baseAmount.toFixed(2)),
     extraVehiclePrice:Number(extraVehiclePrice.toFixed(2)),
-    extraServicePrice:Number(extraServicePrice.toFixed(2)),
+    extraServicePrice:Number(fallbackServicePrice.toFixed(2)),
     vehicleAmount:Number(vehicleAmount.toFixed(2)),
     serviceAmount:Number(serviceAmount.toFixed(2)),
+    serviceCharges:serviceCharges.map(row=>({
+      ...row,
+      monthlyPrice:Number(row.monthlyPrice.toFixed(2)),
+      amount:Number(row.amount.toFixed(2))
+    })),
     discount:Number(discount.toFixed(2)),
     credit:Number(credit.toFixed(2)),
     subtotal:Number(subtotal.toFixed(2)),
@@ -436,7 +551,8 @@ function calculatePricing(subscription,usage){
     finalAmount:Number(finalAmount.toFixed(2)),
 
     vehicleControls,
-    serviceControls
+    serviceControls,
+    servicePricing
   };
 }
 
@@ -486,11 +602,17 @@ async function ensureTenantPricing(tenant){
     subscription.includedServices =
       whole(defaults.includedServices);
 
+    subscription.includedBrokers =
+      whole(defaults.includedBrokers,1);
+
     subscription.extraVehiclePrice =
       nonNegative(defaults.extraVehiclePrice);
 
     subscription.extraServicePrice =
       nonNegative(defaults.extraServicePrice);
+
+    subscription.extraBrokerPrice =
+      nonNegative(defaults.extraBrokerPrice);
 
     subscription.pricingInitialized = true;
     subscription.pricingUpdatedAt = new Date();
@@ -527,7 +649,13 @@ async function ensureTenantPricing(tenant){
     subscription.maxServices =
       whole(
         defaults.maxServices,
-        defaults.includedServices ?? 2
+        defaults.includedServices ?? 1
+      );
+
+    subscription.maxBrokers =
+      whole(
+        defaults.maxBrokers,
+        defaults.includedBrokers ?? 1
       );
 
     subscription.limitsInitialized = true;
@@ -539,6 +667,7 @@ async function ensureTenantPricing(tenant){
 
   subscription.vehicleControls = pricing.vehicleControls;
   subscription.serviceControls = pricing.serviceControls;
+  subscription.servicePricing = pricing.servicePricing;
 
   subscription.calculatedBaseAmount = pricing.baseAmount;
   subscription.calculatedVehicleAmount = pricing.vehicleAmount;

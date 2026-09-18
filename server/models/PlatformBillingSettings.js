@@ -17,7 +17,7 @@ const schema = new mongoose.Schema(
     },
     basePrice:{
       type:Number,
-      default:99,
+      default:125,
       min:0
     },
     includedVehicles:{
@@ -27,12 +27,12 @@ const schema = new mongoose.Schema(
     },
     includedServices:{
       type:Number,
-      default:2,
+      default:1,
       min:0
     },
     includedBrokers:{
       type:Number,
-      default:0,
+      default:1,
       min:0
     },
 
@@ -73,13 +73,19 @@ const schema = new mongoose.Schema(
 
     maxCompanies:{
       type:Number,
-      default:3,
+      default:2,
       min:0
     },
 
     maxServices:{
       type:Number,
-      default:2,
+      default:1,
+      min:0
+    },
+
+    maxBrokers:{
+      type:Number,
+      default:1,
       min:0
     },
     billingCycle:{
@@ -89,7 +95,7 @@ const schema = new mongoose.Schema(
     },
     extraVehiclePrice:{
       type:Number,
-      default:10,
+      default:25,
       min:0
     },
     extraServicePrice:{

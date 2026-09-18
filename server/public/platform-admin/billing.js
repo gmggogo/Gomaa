@@ -303,6 +303,80 @@ document.addEventListener("DOMContentLoaded",()=>{
     `).join("");
   }
 
+  function servicePricingRows(row,p,s){
+    const controls = Array.isArray(p.serviceControls) ? p.serviceControls : [];
+    const saved = Array.isArray(s.servicePricing) ? s.servicePricing : [];
+
+    if(!controls.length){
+      return `<tr><td colspan="5">No active services found for this company.</td></tr>`;
+    }
+
+    const savedMap = new Map(
+      saved.map(item=>[
+        clean(item?.key).toUpperCase(),
+        item
+      ])
+    );
+
+    let remainingIncluded = Number(s.includedServices || 0);
+
+    return controls.map(control=>{
+      const key = clean(control.key).toUpperCase();
+      const old = savedMap.get(key);
+
+      let included = old?.included === true;
+
+      if(!old && control.billingEnabled !== false && remainingIncluded > 0){
+        included = true;
+        remainingIncluded -= 1;
+      }else if(old?.included === true && remainingIncluded > 0){
+        remainingIncluded -= 1;
+      }
+
+      const monthlyPrice = Number(
+        old?.monthlyPrice ??
+        s.extraServicePrice ??
+        0
+      );
+
+      const active = control.accessEnabled !== false;
+      const billing = control.billingEnabled !== false;
+
+      return `
+        <tr
+          class="service-price-row"
+          data-service-key="${esc(key)}"
+          data-service-label="${esc(control.label || key)}"
+        >
+          <td><strong>${esc(control.label || key)}</strong></td>
+          <td>
+            <label class="toggle ${included ? "on" : "off"}">
+              <input
+                class="service-included-toggle"
+                type="checkbox"
+                ${included ? "checked" : ""}
+                disabled
+              >
+              <span>${included ? "Included" : "Add-on"}</span>
+            </label>
+          </td>
+          <td><span class="badge ${active ? "active" : "disabled"}">${active ? "Active" : "Disabled"}</span></td>
+          <td><span class="badge ${billing ? "active" : "disabled"}">${billing ? "Billable" : "Off"}</span></td>
+          <td>
+            <input
+              class="service-monthly-price service-price-input"
+              type="number"
+              min="0"
+              step="0.01"
+              value="${Number.isFinite(monthlyPrice) ? monthlyPrice : 0}"
+              disabled
+            >
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
   function renderCompany(){
     const row = selectedCompany();
 
@@ -318,14 +392,20 @@ document.addEventListener("DOMContentLoaded",()=>{
     const status = companyStatus(row);
     const enabled = t.enabled !== false;
 
+    const includedBrokerCount =
+      Number(s.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0);
+
+    const maxBrokerCount =
+      Number(s.maxBrokers ?? state.defaultPackage?.maxBrokers ?? includedBrokerCount);
+
     companyDetail.innerHTML = `
-      <div class="company-header">
-        <div class="company-title">
+      <div class="company-header company-header-centered">
+        <div class="company-title company-title-centered">
           <h2>${esc(t.name || "Company")}</h2>
           <p>${esc(t.slug || "")}</p>
         </div>
 
-        <div class="company-actions">
+        <div class="company-actions company-actions-corner">
           <span class="badge ${badgeClass(status)}">${esc(status)}</span>
 
           <button
@@ -347,17 +427,17 @@ document.addEventListener("DOMContentLoaded",()=>{
 
         <div class="summary-card">
           <span>Vehicles</span>
-          <strong>${Number(p.actualVehicles || 0)} / ${Number(p.includedVehicles || 0)}</strong>
+          <strong>${Number(p.actualVehicles || 0)} / ${Number(p.maxVehicles || 0)}</strong>
         </div>
 
         <div class="summary-card">
           <span>Services</span>
-          <strong>${Number(p.enabledServices || 0)} / ${Number(p.includedServices || 0)}</strong>
+          <strong>${Number(p.enabledServices || 0)} / ${Number(p.maxServices || 0)}</strong>
         </div>
 
         <div class="summary-card broker-card">
-          <span>Brokers</span>
-          <strong>${Number(p.billingActiveBrokers || 0)} / ${Number(p.includedBrokers || 0)}</strong>
+          <span>Active Brokers</span>
+          <strong>${Number(p.actualBrokers || 0)} / ${maxBrokerCount}</strong>
         </div>
 
         <div class="summary-card">
@@ -366,7 +446,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         </div>
       </div>
 
-      <div class="detail-tabs">
+      <div class="detail-tabs detail-tabs-centered">
         <button class="detail-tab active" data-tab="overview" type="button">Overview</button>
         <button class="detail-tab" data-tab="usage" type="button">Usage & Access</button>
         <button class="detail-tab" data-tab="pricing" type="button">Pricing</button>
@@ -381,31 +461,40 @@ document.addEventListener("DOMContentLoaded",()=>{
             <div class="grid-4">
               <div class="info"><span>Plan</span><strong>${esc(s.planName || "--")}</strong></div>
               <div class="info"><span>Billing Cycle</span><strong>${esc(s.billingCycle || "--")}</strong></div>
-              <div class="info"><span>Last Payment</span><strong>${dateText(s.lastPaymentDate)}</strong></div>
-              <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
-              <div class="info"><span>Grace Period</span><strong>${Number(s.graceDays ?? 0)} days</strong></div>
               <div class="info"><span>Base Price</span><strong>${money(s.basePrice)}</strong></div>
-              <div class="info"><span>Extra Vehicle Price</span><strong>${money(s.extraVehiclePrice)}</strong></div>
-              <div class="info"><span>Extra Service Price</span><strong>${money(s.extraServicePrice)}</strong></div>
-              <div class="info"><span>Included Brokers</span><strong>${Number(s.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0)}</strong></div>
-              <div class="info"><span>Extra Broker Price</span><strong>${money(s.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0)}</strong></div>
+              <div class="info"><span>Next Payment</span><strong>${dateText(s.nextBillingDate || s.dueDate)}</strong></div>
+              <div class="info"><span>Included Vehicles</span><strong>${Number(s.includedVehicles || 0)}</strong></div>
+              <div class="info"><span>Included Services</span><strong>${Number(s.includedServices || 0)}</strong></div>
+              <div class="info"><span>Included Brokers</span><strong>${includedBrokerCount}</strong></div>
+              <div class="info"><span>Grace Period</span><strong>${Number(s.graceDays ?? 0)} days</strong></div>
             </div>
           </div>
         </div>
 
         <div class="section">
-          <div class="section-title">Package Creation Limits</div>
-          <div class="section-body">
-            <div class="grid-4">
-              <div class="info"><span>Drivers</span><strong>${Number(p.actualDrivers || 0)} / ${Number(p.maxDrivers || 0)}</strong></div>
-              <div class="info"><span>Vehicles</span><strong>${Number(p.actualVehicles || 0)} / ${Number(p.maxVehicles || 0)}</strong></div>
-              <div class="info"><span>Admins</span><strong>${Number(p.actualAdmins || 0)} / ${Number(p.maxAdmins || 0)}</strong></div>
-              <div class="info"><span>Super Admins</span><strong>${Number(p.actualSuperAdmins || 0)} / ${Number(p.maxSuperAdmins || 0)}</strong></div>
-              <div class="info"><span>Dispatchers</span><strong>${Number(p.actualDispatchers || 0)} / ${Number(p.maxDispatchers || 0)}</strong></div>
-              <div class="info"><span>Companies</span><strong>${Number(p.actualCompanies || 0)} / ${Number(p.maxCompanies || 0)}</strong></div>
-              <div class="info"><span>Services</span><strong>${Number(p.enabledServices || 0)} / ${Number(p.maxServices || 0)}</strong></div>
-              <div class="info"><span>Brokers</span><strong>${Number(p.actualBrokers || 0)} connected</strong></div>
-            </div>
+          <div class="section-title">Live Usage vs Allowed Limits</div>
+          <div class="section-body table-wrap">
+            <table class="table usage-limit-table">
+              <thead>
+                <tr>
+                  <th>Resource</th>
+                  <th>Included</th>
+                  <th>Allowed Limit</th>
+                  <th>Actual Active</th>
+                  <th>Above Included</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Vehicles</td><td>${Number(s.includedVehicles || 0)}</td><td>${Number(p.maxVehicles || 0)}</td><td>${Number(p.actualVehicles || 0)}</td><td>${Math.max(0,Number(p.actualVehicles || 0)-Number(s.includedVehicles || 0))}</td></tr>
+                <tr><td>Drivers</td><td>${Number(p.maxDrivers || 0)}</td><td>${Number(p.maxDrivers || 0)}</td><td>${Number(p.actualDrivers || 0)}</td><td>--</td></tr>
+                <tr><td>Dispatchers</td><td>${Number(p.maxDispatchers || 0)}</td><td>${Number(p.maxDispatchers || 0)}</td><td>${Number(p.actualDispatchers || 0)}</td><td>--</td></tr>
+                <tr><td>Admins</td><td>${Number(p.maxAdmins || 0)}</td><td>${Number(p.maxAdmins || 0)}</td><td>${Number(p.actualAdmins || 0)}</td><td>--</td></tr>
+                <tr><td>Super Admins</td><td>${Number(p.maxSuperAdmins || 0)}</td><td>${Number(p.maxSuperAdmins || 0)}</td><td>${Number(p.actualSuperAdmins || 0)}</td><td>--</td></tr>
+                <tr><td>Companies</td><td>${Number(p.maxCompanies || 0)}</td><td>${Number(p.maxCompanies || 0)}</td><td>${Number(p.actualCompanies || 0)}</td><td>--</td></tr>
+                <tr><td>Services</td><td>${Number(s.includedServices || 0)}</td><td>${Number(p.maxServices || 0)}</td><td>${Number(p.enabledServices || 0)}</td><td>${Math.max(0,Number(p.enabledServices || 0)-Number(s.includedServices || 0))}</td></tr>
+                <tr><td>Brokers</td><td>${includedBrokerCount}</td><td>${maxBrokerCount}</td><td>${Number(p.actualBrokers || 0)}</td><td>${Math.max(0,Number(p.actualBrokers || 0)-includedBrokerCount)}</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -452,7 +541,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         <div class="section broker-section">
           <div class="section-title">
             <span>Broker Connections</span>
-            <span class="section-count">${Number(p.billingActiveBrokers || 0)} billable</span>
+            <span class="section-count">${Number(p.actualBrokers || 0)} active</span>
           </div>
           <div class="section-body table-wrap">
             <table class="table">
@@ -466,7 +555,7 @@ document.addEventListener("DOMContentLoaded",()=>{
               </thead>
               <tbody>${brokerUsageRows(row)}</tbody>
             </table>
-            <div class="broker-note">Broker access and billing switches are managed from Broker Integrations. SaaS Billing reads the active broker count automatically.</div>
+            <div class="broker-note">Only enabled, billing-active broker connections are counted automatically for SaaS billing.</div>
           </div>
         </div>
 
@@ -480,173 +569,224 @@ document.addEventListener("DOMContentLoaded",()=>{
 
       <div class="panel" data-panel="pricing">
 
-        <div class="section">
-          <div class="section-title">Company Pricing</div>
-
-          <div class="section-body">
-
-            <div class="grid-3">
-
-              <div class="field">
-                <label>Package Name</label>
-                <input class="plan-name" value="${esc(s.planName || "")}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Billing Cycle</label>
-                <select class="cycle" disabled>
-                  <option value="MONTHLY" ${s.billingCycle === "MONTHLY" ? "selected" : ""}>Monthly</option>
-                  <option value="ANNUAL" ${s.billingCycle === "ANNUAL" ? "selected" : ""}>Annual</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label>Subscription Status</label>
-                <select class="status" disabled>
-                  <option value="ACTIVE" ${s.status === "ACTIVE" ? "selected" : ""}>Active</option>
-                  <option value="TRIAL" ${s.status === "TRIAL" ? "selected" : ""}>Trial</option>
-                  <option value="PAST_DUE" ${s.status === "PAST_DUE" ? "selected" : ""}>Past Due</option>
-                  <option value="SUSPENDED" ${s.status === "SUSPENDED" ? "selected" : ""}>Suspended</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label>Base Package Enabled</label>
-                <select class="base-enabled" disabled>
-                  <option value="true" ${s.basePackageEnabled !== false ? "selected" : ""}>Active</option>
-                  <option value="false" ${s.basePackageEnabled === false ? "selected" : ""}>Disabled</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label>Custom Base Price</label>
-                <input class="base-price" type="number" min="0" step="0.01" value="${Number(s.basePrice || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Included Vehicles</label>
-                <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Included Services</label>
-                <input class="included-services" type="number" min="0" value="${Number(s.includedServices || 0)}" disabled>
-              </div>
-
-              <div class="field broker-field">
-                <label>Included Brokers</label>
-                <input class="included-brokers" type="number" min="0" value="${Number(s.includedBrokers ?? state.defaultPackage?.includedBrokers ?? 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Driver Limit</label>
-                <input class="max-drivers" type="number" min="0" value="${Number(s.maxDrivers || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Vehicle Limit</label>
-                <input class="max-vehicles" type="number" min="0" value="${Number(s.maxVehicles || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Admin Limit</label>
-                <input class="max-admins" type="number" min="0" value="${Number(s.maxAdmins || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Super Admin Limit</label>
-                <input class="max-super-admins" type="number" min="0" value="${Number(s.maxSuperAdmins || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Dispatcher Limit</label>
-                <input class="max-dispatchers" type="number" min="0" value="${Number(s.maxDispatchers || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Company Limit</label>
-                <input class="max-companies" type="number" min="0" value="${Number(s.maxCompanies || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Service Limit</label>
-                <input class="max-services" type="number" min="0" value="${Number(s.maxServices || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Extra Vehicle Price</label>
-                <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Extra Service Price</label>
-                <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
-              </div>
-
-              <div class="field broker-field">
-                <label>Extra Broker Price</label>
-                <input class="extra-broker-price" type="number" min="0" step="0.01" value="${Number(s.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Free Extra Vehicles</label>
-                <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Free Extra Services</label>
-                <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
-              </div>
-
-              <div class="field broker-field">
-                <label>Free Extra Brokers</label>
-                <input class="free-extra-brokers" type="number" min="0" value="${Number(s.freeExtraBrokers || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Discount</label>
-                <input class="discount" type="number" min="0" step="0.01" value="${Number(s.discount || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Credit</label>
-                <input class="credit" type="number" min="0" step="0.01" value="${Number(s.credit || 0)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Final Price Override</label>
-                <input class="final-override" type="number" min="0" step="0.01" value="${s.finalPriceOverride === null || s.finalPriceOverride === undefined ? "" : Number(s.finalPriceOverride)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Grace Days</label>
-                <input class="grace-days" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
-              </div>
-
-              <div class="field">
-                <label>Due Date</label>
-                <input class="due-date" type="date" value="${s.dueDate ? new Date(s.dueDate).toISOString().slice(0,10) : ""}" disabled>
-              </div>
-
+        <div class="pricing-section-block">
+          <div class="pricing-section-heading">Package & Subscription</div>
+          <div class="grid-3 pricing-grid">
+            <div class="field">
+              <label>Package Name</label>
+              <input class="plan-name" value="${esc(s.planName || "")}" disabled>
             </div>
 
-            <div class="price-box">
-              <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
-              <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
-              <div class="price-line"><span>Extra Services</span><strong>${Number(p.billableExtraServices || 0)} × ${money(p.extraServicePrice)} = ${money(p.serviceAmount)}</strong></div>
-              <div class="price-line broker-price-line"><span>Extra Brokers</span><strong>${Number(p.billableExtraBrokers || 0)} × ${money(p.extraBrokerPrice)} = ${money(p.brokerAmount)}</strong></div>
-              <div class="price-line"><span>Discount</span><strong>-${money(p.discount)}</strong></div>
-              <div class="price-line"><span>Credit</span><strong>-${money(p.credit)}</strong></div>
-              <div class="price-total"><span>Final Amount</span><strong>${money(p.finalAmount)}</strong></div>
+            <div class="field">
+              <label>Billing Cycle</label>
+              <select class="cycle" disabled>
+                <option value="MONTHLY" ${s.billingCycle === "MONTHLY" ? "selected" : ""}>Monthly</option>
+                <option value="ANNUAL" ${s.billingCycle === "ANNUAL" ? "selected" : ""}>Annual</option>
+              </select>
             </div>
 
-            <div class="actions">
-              <button class="btn primary" data-action="edit-pricing" type="button">Edit</button>
-              <button class="btn blue" data-action="preview-pricing" type="button">Preview Price</button>
-              <button class="btn gold" data-action="save-pricing" type="button" disabled>Save Pricing</button>
-              <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
+            <div class="field">
+              <label>Subscription Status</label>
+              <select class="status" disabled>
+                <option value="ACTIVE" ${s.status === "ACTIVE" ? "selected" : ""}>Active</option>
+                <option value="TRIAL" ${s.status === "TRIAL" ? "selected" : ""}>Trial</option>
+                <option value="PAST_DUE" ${s.status === "PAST_DUE" ? "selected" : ""}>Past Due</option>
+                <option value="SUSPENDED" ${s.status === "SUSPENDED" ? "selected" : ""}>Suspended</option>
+              </select>
             </div>
 
+            <div class="field">
+              <label>Base Package Enabled</label>
+              <select class="base-enabled" disabled>
+                <option value="true" ${s.basePackageEnabled !== false ? "selected" : ""}>Active</option>
+                <option value="false" ${s.basePackageEnabled === false ? "selected" : ""}>Disabled</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Base Package Price</label>
+              <input class="base-price" type="number" min="0" step="0.01" value="${Number(s.basePrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Due Date</label>
+              <input class="due-date" type="date" value="${s.dueDate ? new Date(s.dueDate).toISOString().slice(0,10) : ""}" disabled>
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-section-block">
+          <div class="pricing-section-heading">Package Included & Allowed Limits</div>
+
+          <div class="grid-4 pricing-grid">
+            <div class="field">
+              <label>Included Vehicles</label>
+              <input class="included-vehicles" type="number" min="0" value="${Number(s.includedVehicles || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Vehicle Limit</label>
+              <input class="max-vehicles" type="number" min="0" value="${Number(s.maxVehicles || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Driver Limit</label>
+              <input class="max-drivers" type="number" min="0" value="${Number(s.maxDrivers || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Dispatcher Limit</label>
+              <input class="max-dispatchers" type="number" min="0" value="${Number(s.maxDispatchers || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Admin Limit</label>
+              <input class="max-admins" type="number" min="0" value="${Number(s.maxAdmins || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Super Admin Limit</label>
+              <input class="max-super-admins" type="number" min="0" value="${Number(s.maxSuperAdmins || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Company Limit</label>
+              <input class="max-companies" type="number" min="0" value="${Number(s.maxCompanies || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Service Limit</label>
+              <input class="max-services" type="number" min="0" value="${Number(s.maxServices || 0)}" disabled>
+            </div>
+
+            <div class="field broker-field">
+              <label>Included Brokers</label>
+              <input class="included-brokers" type="number" min="0" value="${includedBrokerCount}" disabled>
+            </div>
+
+            <div class="field broker-field">
+              <label>Broker Limit</label>
+              <input class="max-brokers" type="number" min="0" value="${maxBrokerCount}" disabled>
+            </div>
+          </div>
+
+          <div class="live-count-strip">
+            <span>Active Vehicles <strong>${Number(p.actualVehicles || 0)}</strong></span>
+            <span>Active Drivers <strong>${Number(p.actualDrivers || 0)}</strong></span>
+            <span>Active Dispatchers <strong>${Number(p.actualDispatchers || 0)}</strong></span>
+            <span>Active Admins <strong>${Number(p.actualAdmins || 0)}</strong></span>
+            <span>Active Super Admins <strong>${Number(p.actualSuperAdmins || 0)}</strong></span>
+            <span>Active Companies <strong>${Number(p.actualCompanies || 0)}</strong></span>
+            <span>Active Services <strong>${Number(p.enabledServices || 0)}</strong></span>
+            <span>Active Brokers <strong>${Number(p.actualBrokers || 0)}</strong></span>
+          </div>
+        </div>
+
+        <div class="pricing-section-block service-pricing-block">
+          <div class="pricing-section-heading">Service Pricing</div>
+          <div class="pricing-help">
+            Choose which service is included in the base package. Every other active service uses its own monthly add-on price.
+          </div>
+          <input class="included-services" type="hidden" value="${Number(s.includedServices || 0)}">
+          <div class="table-wrap">
+            <table class="table service-pricing-table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Base Package</th>
+                  <th>Access</th>
+                  <th>Billing</th>
+                  <th>Monthly Add-on Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${servicePricingRows(row,p,s)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pricing-section-block">
+          <div class="pricing-section-heading">Extra Unit Pricing & Adjustments</div>
+          <div class="grid-4 pricing-grid">
+            <div class="field">
+              <label>Extra Vehicle Price</label>
+              <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
+            </div>
+
+            <div class="field broker-field">
+              <label>Extra Broker Price</label>
+              <input class="extra-broker-price" type="number" min="0" step="0.01" value="${Number(s.extraBrokerPrice ?? state.defaultPackage?.extraBrokerPrice ?? 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Fallback Service Price</label>
+              <input class="extra-service-price" type="number" min="0" step="0.01" value="${Number(s.extraServicePrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Free Extra Vehicles</label>
+              <input class="free-extra-vehicles" type="number" min="0" value="${Number(s.freeExtraVehicles || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Free Extra Services</label>
+              <input class="free-extra-services" type="number" min="0" value="${Number(s.freeExtraServices || 0)}" disabled>
+            </div>
+
+            <div class="field broker-field">
+              <label>Free Extra Brokers</label>
+              <input class="free-extra-brokers" type="number" min="0" value="${Number(s.freeExtraBrokers || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Discount</label>
+              <input class="discount" type="number" min="0" step="0.01" value="${Number(s.discount || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Credit</label>
+              <input class="credit" type="number" min="0" step="0.01" value="${Number(s.credit || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Final Price Override</label>
+              <input class="final-override" type="number" min="0" step="0.01" value="${s.finalPriceOverride === null || s.finalPriceOverride === undefined ? "" : Number(s.finalPriceOverride)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Grace Days</label>
+              <input class="grace-days" type="number" min="0" max="60" value="${Number(s.graceDays ?? 3)}" disabled>
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-section-block billing-breakdown-block">
+          <div class="pricing-section-heading">Billing Breakdown</div>
+          <div class="price-box">
+            <div class="price-line"><span>Base Package</span><strong>${money(p.baseAmount)}</strong></div>
+            <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
+            ${
+              Array.isArray(p.serviceCharges) && p.serviceCharges.length
+                ? p.serviceCharges.map(item=>`
+                    <div class="price-line">
+                      <span>${esc(item.label || item.key)}${item.free ? " (Free Extra)" : ""}</span>
+                      <strong>${money(item.amount)}</strong>
+                    </div>
+                  `).join("")
+                : `<div class="price-line"><span>Extra Services</span><strong>${money(p.serviceAmount)}</strong></div>`
+            }
+            <div class="price-line broker-price-line"><span>Extra Brokers</span><strong>${Number(p.billableExtraBrokers || 0)} × ${money(p.extraBrokerPrice)} = ${money(p.brokerAmount)}</strong></div>
+            <div class="price-line"><span>Discount</span><strong>-${money(p.discount)}</strong></div>
+            <div class="price-line"><span>Credit</span><strong>-${money(p.credit)}</strong></div>
+            <div class="price-total"><span>Final Amount</span><strong>${money(p.finalAmount)}</strong></div>
+          </div>
+
+          <div class="actions pricing-actions">
+            <button class="btn primary" data-action="edit-pricing" type="button">Edit</button>
+            <button class="btn blue" data-action="preview-pricing" type="button">Preview Price</button>
+            <button class="btn gold" data-action="save-pricing" type="button" disabled>Save Pricing</button>
+            <button class="btn gray" data-action="cancel-company" type="button" disabled>Cancel</button>
           </div>
         </div>
 
@@ -674,6 +814,12 @@ document.addEventListener("DOMContentLoaded",()=>{
       input.addEventListener("change",()=>{
         const label = input.closest(".toggle");
         const text = label.querySelector("span");
+
+        if(input.classList.contains("service-included-toggle")){
+          label.className = input.checked ? "toggle on" : "toggle off";
+          text.textContent = input.checked ? "Included" : "Add-on";
+          return;
+        }
 
         if(input.classList.contains("billing-toggle")){
           if(input.checked){
@@ -727,10 +873,27 @@ document.addEventListener("DOMContentLoaded",()=>{
     }));
   }
 
+  function readServicePricing(){
+    return [
+      ...companyDetail.querySelectorAll(".service-price-row")
+    ].map(row=>({
+      key:clean(row.dataset.serviceKey).toUpperCase(),
+      label:clean(row.dataset.serviceLabel),
+      included:
+        row.querySelector(".service-included-toggle")?.checked === true,
+      monthlyPrice:Number(
+        row.querySelector(".service-monthly-price")?.value || 0
+      )
+    })).filter(row=>row.key);
+  }
+
   function readCompanyForm(){
     const q = selector => companyDetail.querySelector(selector);
 
     const override = clean(q(".final-override")?.value);
+    const servicePricing = readServicePricing();
+    const includedServiceCount =
+      servicePricing.filter(row=>row.included).length;
 
     return {
       planName:clean(q(".plan-name")?.value),
@@ -739,7 +902,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       basePackageEnabled:q(".base-enabled")?.value === "true",
       basePrice:Number(q(".base-price")?.value || 0),
       includedVehicles:Number(q(".included-vehicles")?.value || 0),
-      includedServices:Number(q(".included-services")?.value || 0),
+      includedServices:includedServiceCount,
       includedBrokers:Number(q(".included-brokers")?.value || 0),
       maxDrivers:Number(q(".max-drivers")?.value || 0),
       maxVehicles:Number(q(".max-vehicles")?.value || 0),
@@ -748,6 +911,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       maxDispatchers:Number(q(".max-dispatchers")?.value || 0),
       maxCompanies:Number(q(".max-companies")?.value || 0),
       maxServices:Number(q(".max-services")?.value || 0),
+      maxBrokers:Number(q(".max-brokers")?.value || 0),
       extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
       extraServicePrice:Number(q(".extra-service-price")?.value || 0),
       extraBrokerPrice:Number(q(".extra-broker-price")?.value || 0),
@@ -760,7 +924,8 @@ document.addEventListener("DOMContentLoaded",()=>{
       graceDays:Number(q(".grace-days")?.value || 0),
       dueDate:q(".due-date")?.value || null,
       vehicleControls:readControls("vehicle"),
-      serviceControls:readControls("service")
+      serviceControls:readControls("service"),
+      servicePricing
     };
   }
 
@@ -1069,6 +1234,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     "dMaxDispatchers",
     "dMaxCompanies",
     "dMaxServices",
+    "dMaxBrokers",
     "dBillingCycle",
     "dExtraVehiclePrice",
     "dExtraServicePrice",
@@ -1100,7 +1266,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("dMaxSuperAdmins").value = Number(row.maxSuperAdmins ?? 2);
     document.getElementById("dMaxDispatchers").value = Number(row.maxDispatchers ?? 2);
     document.getElementById("dMaxCompanies").value = Number(row.maxCompanies ?? 3);
-    document.getElementById("dMaxServices").value = Number(row.maxServices ?? row.includedServices ?? 2);
+    document.getElementById("dMaxServices").value = Number(row.maxServices ?? row.includedServices ?? 1);
+    document.getElementById("dMaxBrokers").value = Number(row.maxBrokers ?? row.includedBrokers ?? 1);
     document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
     document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
     document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
@@ -1129,6 +1296,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       maxDispatchers:Number(document.getElementById("dMaxDispatchers").value || 0),
       maxCompanies:Number(document.getElementById("dMaxCompanies").value || 0),
       maxServices:Number(document.getElementById("dMaxServices").value || 0),
+      maxBrokers:Number(document.getElementById("dMaxBrokers").value || 0),
       billingCycle:document.getElementById("dBillingCycle").value,
       extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
       extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),

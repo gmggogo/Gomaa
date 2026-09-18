@@ -56,7 +56,11 @@ function normalizeControlRows(rows){
 }
 
 async function getActualBrokerCount(tenantId){
-  return BrokerIntegration.countDocuments({ tenantId });
+  return BrokerIntegration.countDocuments({
+    tenantId,
+    enabled:{ $ne:false },
+    billingEnabled:{ $ne:false }
+  });
 }
 
 function applyBrokerPricing(basePricing,subscription,actualBrokers){
@@ -92,6 +96,17 @@ function applyBrokerPricing(basePricing,subscription,actualBrokers){
     : Number((baseFinal + brokerAmount).toFixed(2));
 
   return pricing;
+}
+
+function normalizeServicePricingRows(rows){
+  return (Array.isArray(rows) ? rows : [])
+    .map(row=>({
+      key:clean(row?.key).toUpperCase(),
+      label:clean(row?.label) || clean(row?.key).toUpperCase(),
+      included:row?.included === true,
+      monthlyPrice:nonNegative(row?.monthlyPrice)
+    }))
+    .filter(row=>row.key);
 }
 
 function applyCompanyPayload(subscription,body){
@@ -138,7 +153,8 @@ function applyCompanyPayload(subscription,body){
     "maxSuperAdmins",
     "maxDispatchers",
     "maxCompanies",
-    "maxServices"
+    "maxServices",
+    "maxBrokers"
   ].forEach(field=>{
     if(body[field] !== undefined){
       subscription[field] =
@@ -185,6 +201,14 @@ function applyCompanyPayload(subscription,body){
       normalizeControlRows(body.serviceControls);
   }
 
+  if(Array.isArray(body.servicePricing)){
+    subscription.servicePricing =
+      normalizeServicePricingRows(body.servicePricing);
+
+    subscription.includedServices =
+      subscription.servicePricing.filter(row=>row.included).length;
+  }
+
   subscription.pricingInitialized = true;
   subscription.limitsInitialized = true;
   subscription.pricingUpdatedAt = new Date();
@@ -226,16 +250,16 @@ router.put(
         "GH Mobility Starter";
 
       row.basePrice =
-        nonNegative(req.body?.basePrice,99);
+        nonNegative(req.body?.basePrice,125);
 
       row.includedVehicles =
         whole(req.body?.includedVehicles,5);
 
       row.includedServices =
-        whole(req.body?.includedServices,2);
+        whole(req.body?.includedServices,1);
 
       row.includedBrokers =
-        whole(req.body?.includedBrokers,0);
+        whole(req.body?.includedBrokers,1);
 
       row.maxDrivers =
         whole(req.body?.maxDrivers,5);
@@ -256,12 +280,18 @@ router.put(
         whole(req.body?.maxDispatchers,2);
 
       row.maxCompanies =
-        whole(req.body?.maxCompanies,3);
+        whole(req.body?.maxCompanies,2);
 
       row.maxServices =
         whole(
           req.body?.maxServices,
-          row.includedServices || 2
+          row.includedServices || 1
+        );
+
+      row.maxBrokers =
+        whole(
+          req.body?.maxBrokers,
+          row.includedBrokers || 1
         );
 
       row.billingCycle =
@@ -727,6 +757,16 @@ router.post(
             ? whole(req.body.maxServices)
             : draft.maxServices,
 
+        maxBrokers:
+          req.body?.maxBrokers !== undefined
+            ? whole(req.body.maxBrokers)
+            : draft.maxBrokers,
+
+        servicePricing:
+          Array.isArray(req.body?.servicePricing)
+            ? normalizeServicePricingRows(req.body.servicePricing)
+            : draft.servicePricing,
+
         extraVehiclePrice:
           req.body?.extraVehiclePrice !== undefined
             ? nonNegative(req.body.extraVehiclePrice)
@@ -782,6 +822,11 @@ router.post(
             ? normalizeControlRows(req.body.serviceControls)
             : draft.serviceControls
       });
+
+      if(Array.isArray(draft.servicePricing)){
+        draft.includedServices =
+          draft.servicePricing.filter(row=>row.included === true).length;
+      }
 
       const actualBrokers =
         await getActualBrokerCount(tenant._id);
@@ -864,6 +909,9 @@ router.put(
 
       subscription.serviceControls =
         pricing.serviceControls;
+
+      subscription.servicePricing =
+        pricing.servicePricing;
 
       subscription.calculatedBaseAmount =
         pricing.baseAmount;

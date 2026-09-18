@@ -845,6 +845,188 @@ body{
   padding:15px;
 }
 
+
+/* =========================
+   COMPANY BILLING LAYOUT V3
+========================= */
+
+.company-header-centered{
+  position:relative;
+  min-height:88px;
+  justify-content:center;
+  text-align:center;
+  background:linear-gradient(180deg,#ffffff,#f8fbfd);
+}
+
+.company-title-centered{
+  width:100%;
+  text-align:center;
+  padding:0 190px;
+}
+
+.company-title-centered h2{
+  font-size:22px;
+  letter-spacing:.2px;
+}
+
+.company-actions-corner{
+  position:absolute;
+  right:18px;
+  top:50%;
+  transform:translateY(-50%);
+}
+
+.detail-tabs-centered{
+  justify-content:center;
+  gap:10px;
+  padding:13px 18px;
+  background:#f8fafc;
+}
+
+.detail-tabs-centered .detail-tab{
+  min-width:138px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:10px 15px;
+  background:#fff;
+  color:#475569;
+  box-shadow:0 2px 5px rgba(15,23,42,.05);
+}
+
+.detail-tabs-centered .detail-tab.active{
+  color:#fff;
+  border-color:var(--navy2);
+  border-bottom-color:var(--navy2);
+  background:linear-gradient(180deg,var(--navy2),var(--navy));
+  box-shadow:0 5px 13px rgba(11,39,71,.18);
+}
+
+.pricing-section-block{
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  overflow:hidden;
+  margin-bottom:15px;
+}
+
+.pricing-section-heading{
+  padding:11px 14px;
+  background:linear-gradient(180deg,#173f66,#0b2747);
+  color:#fff;
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.2px;
+}
+
+.pricing-section-block .pricing-grid{
+  padding:14px;
+}
+
+.pricing-section-block .table-wrap{
+  padding:0 14px 14px;
+}
+
+.pricing-help{
+  margin:12px 14px;
+  padding:10px 12px;
+  border:1px solid #bfdbfe;
+  border-radius:8px;
+  background:#eff6ff;
+  color:#1e3a8a;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+.live-count-strip{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  padding:0 14px 14px;
+}
+
+.live-count-strip span{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:9px 10px;
+  border:1px solid #dbe3ea;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.live-count-strip strong{
+  color:var(--navy);
+  font-size:14px;
+}
+
+.service-pricing-table{
+  min-width:760px;
+}
+
+.service-price-input{
+  width:140px;
+  height:34px;
+  border:1px solid #bcc9d3;
+  border-radius:7px;
+  padding:0 9px;
+  font-weight:800;
+}
+
+.service-price-input:disabled{
+  background:#eef2f6;
+  color:#6b7280;
+}
+
+.billing-breakdown-block .price-box{
+  margin:14px;
+}
+
+.pricing-actions{
+  padding:0 14px 14px;
+  justify-content:center;
+}
+
+.usage-limit-table{
+  min-width:760px;
+}
+
+@media(max-width:980px){
+  .company-title-centered{
+    padding:0 12px;
+  }
+
+  .company-actions-corner{
+    position:static;
+    transform:none;
+    justify-content:center;
+    margin-top:10px;
+  }
+
+  .company-header-centered{
+    flex-direction:column;
+  }
+
+  .live-count-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:650px){
+  .detail-tabs-centered .detail-tab{
+    min-width:calc(50% - 6px);
+  }
+
+  .live-count-strip{
+    grid-template-columns:1fr;
+  }
+}
+
 @media(max-width:1180px){
   .workspace{grid-template-columns:240px minmax(0,1fr)}
   .summary-grid,.grid-4{grid-template-columns:repeat(2,1fr)}
@@ -1037,6 +1219,7 @@ body{
           <div class="field"><label>Dispatcher Limit</label><input id="dMaxDispatchers" type="number" min="0" disabled></div>
           <div class="field"><label>Company Limit</label><input id="dMaxCompanies" type="number" min="0" disabled></div>
           <div class="field"><label>Service Limit</label><input id="dMaxServices" type="number" min="0" disabled></div>
+          <div class="field broker-field"><label>Broker Limit</label><input id="dMaxBrokers" type="number" min="0" disabled></div>
 
           <div class="field">
             <label>Billing Cycle</label>
@@ -1060,7 +1243,7 @@ body{
         </div>
 
         <div class="limit-note">
-          Creation limits are hard caps. Included Brokers and Extra Broker Price control automatic broker billing. Each company can connect multiple brokers; only billing-active broker connections are counted toward SaaS billing.
+          Creation limits are hard caps. Live usage is pulled automatically from the company. Vehicles, services and brokers above the included package quantity are added to billing automatically after Platform Admin increases the allowed limit. Each additional service can have its own monthly price.
         </div>
 
         <div class="actions">
@@ -1087,7 +1270,7 @@ body{
 </div>
 
 <script src="/platform-admin/platform_header.js"></script>
-<script src="/platform-admin/billing.js?v=BROKER-BILLING-V2-20260917"></script>
+<script src="/platform-admin/billing.js?v=PACKAGE-USAGE-SERVICE-PRICING-V3-20260917"></script>
 
 </body>
 </html>
