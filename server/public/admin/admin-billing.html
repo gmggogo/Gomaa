@@ -964,6 +964,588 @@ body{
   }
 }
 
+
+
+/* =====================================================
+   GH MOBILITY — PROFESSIONAL BILLING UI POLISH
+   Visual-only override. Keeps all existing IDs/JS behavior.
+   Gold page header matches the Trips page.
+===================================================== */
+
+/* PAGE + TYPOGRAPHY */
+body{
+  background:#f1f5f9;
+  color:#0f172a;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.45;
+}
+
+.page-body{
+  max-width:1950px;
+  width:100%;
+  margin:0 auto;
+  padding:18px 22px 48px;
+}
+
+/* GOLD HEADER — EXACT VISUAL LANGUAGE FROM TRIPS */
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:14px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+  letter-spacing:-.35px;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  line-height:1.35;
+  font-weight:800;
+  color:#64748b;
+}
+
+/* STRIPE PANEL */
+.stripe-panel{
+  background:#fff;
+  border:1px solid #dbe4ee;
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(15,23,42,.07);
+  padding:18px 20px;
+  margin-bottom:16px;
+}
+
+.stripe-title{
+  font-size:17px;
+  line-height:1.2;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.stripe-sub{
+  margin-top:2px;
+  font-size:12px;
+  line-height:1.35;
+  font-weight:600;
+  color:#64748b;
+}
+
+.stripe-status,
+.stripe-btn{
+  width:170px;
+  height:42px;
+  min-height:42px;
+  border-radius:10px;
+  font-size:11px;
+  letter-spacing:.15px;
+  font-weight:900;
+}
+
+/* FILTERS */
+.filters{
+  display:grid;
+  grid-template-columns:minmax(260px,1fr) 180px 180px 160px;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.input,
+.select{
+  width:100%;
+  height:46px;
+  border:1px solid #cbd5e1;
+  border-radius:11px;
+  background:#fff;
+  padding:0 13px;
+  color:#0f172a;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:650;
+  outline:none;
+  box-shadow:0 1px 2px rgba(15,23,42,.03);
+}
+
+.input::placeholder{
+  color:#94a3b8;
+}
+
+.input:focus,
+.select:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.10);
+}
+
+/* MASTER / DETAIL */
+.billing-workspace{
+  display:grid;
+  grid-template-columns:265px minmax(0,1fr);
+  gap:16px;
+  align-items:start;
+}
+
+.company-sidebar{
+  position:sticky;
+  top:12px;
+  background:#fff;
+  border:1px solid #d6e0ea;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 8px 24px rgba(15,23,42,.07);
+  max-height:calc(100vh - 150px);
+}
+
+.company-sidebar-head{
+  padding:14px 14px 13px;
+  background:linear-gradient(135deg,#0f2f52,#123e6c);
+  color:#fff;
+  text-align:center;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+
+.company-sidebar-head strong{
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.15px;
+}
+
+.company-sidebar-head span{
+  margin-top:3px;
+  font-size:10px;
+  font-weight:700;
+  color:#cfe3f8;
+}
+
+.company-list{
+  padding:8px;
+}
+
+.company-list-item{
+  width:100%;
+  margin-bottom:7px;
+  padding:11px 10px;
+  border:1px solid #d8e4f0;
+  border-radius:10px;
+  background:#edf4fb;
+  cursor:pointer;
+  text-align:left;
+  transition:background .15s ease,border-color .15s ease,box-shadow .15s ease,transform .15s ease;
+}
+
+.company-list-item:nth-child(even){
+  background:#f5f8fc;
+}
+
+.company-list-item:hover{
+  background:#e3effc;
+  border-color:#9dc2ef;
+  transform:translateY(-1px);
+}
+
+.company-list-item.active{
+  background:#dbeafe;
+  border-color:#2563eb;
+  box-shadow:0 5px 14px rgba(37,99,235,.12);
+}
+
+.company-list-name{
+  font-size:13px;
+  line-height:1.25;
+  font-weight:900;
+  color:#16324f;
+}
+
+.company-list-item.active .company-list-name{
+  color:#1d4ed8;
+}
+
+.company-list-status{
+  min-width:64px;
+  height:23px;
+  padding:0 8px;
+  font-size:9px;
+  font-weight:950;
+}
+
+/* COMPANY CARD */
+.company-card{
+  background:#fff;
+  border:1px solid #dbe4ee;
+  border-radius:18px;
+  box-shadow:0 8px 26px rgba(15,23,42,.07);
+  padding:22px;
+}
+
+.company-top{
+  min-height:88px;
+  margin-bottom:16px;
+}
+
+/* COMPANY IDENTITY BAR */
+.company-info-bar{
+  width:min(980px,100%);
+  border-radius:14px;
+  border:1px solid #174aa7;
+  background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 55%,#1e40af 100%);
+  box-shadow:0 8px 20px rgba(37,99,235,.16);
+}
+
+.company-info-item{
+  padding:14px 18px;
+}
+
+.company-info-label{
+  margin-bottom:5px;
+  font-size:10px;
+  line-height:1.2;
+  font-weight:900;
+  letter-spacing:.65px;
+  color:#dbeafe;
+}
+
+.company-info-value{
+  font-size:16px;
+  line-height:1.3;
+  font-weight:900;
+  color:#fff;
+}
+
+/* STATUS */
+.badge{
+  padding:8px 13px;
+  border-radius:999px;
+  font-size:10px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.15px;
+  border:1px solid transparent;
+}
+
+.badge.active,
+.active.badge{
+  background:#dcfce7;
+  color:#166534;
+  border-color:#86efac;
+}
+
+.badge.locked,
+.locked.badge{
+  background:#fee2e2;
+  color:#991b1b;
+  border-color:#fca5a5;
+}
+
+/* STAT CARDS */
+.stats-grid{
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.stat-box{
+  min-height:86px;
+  padding:14px 10px;
+  border:1px solid #dbe5ef;
+  border-radius:14px;
+  background:linear-gradient(180deg,#fbfdff 0%,#f4f8fc 100%);
+  box-shadow:0 3px 10px rgba(15,23,42,.04);
+}
+
+.stat-label{
+  margin-bottom:6px;
+  font-size:10px;
+  line-height:1.25;
+  font-weight:900;
+  letter-spacing:.45px;
+  color:#64748b;
+}
+
+.stat-value{
+  font-size:23px;
+  line-height:1.05;
+  font-weight:900;
+  color:#10243e;
+}
+
+/* BILLING FIELDS */
+.billing-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.field{
+  gap:6px;
+}
+
+.field label{
+  font-size:10px;
+  line-height:1.2;
+  font-weight:900;
+  letter-spacing:.35px;
+  text-transform:uppercase;
+  color:#64748b;
+}
+
+.small-input{
+  height:44px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:0 12px;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:700;
+  color:#0f172a;
+  background:#fff;
+  outline:none;
+}
+
+.small-input:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.10);
+}
+
+.small-input:disabled{
+  background:#f3f6fa;
+  color:#475569;
+  opacity:1;
+}
+
+/* BUTTONS */
+.btn-row{
+  gap:8px;
+}
+
+.btn{
+  min-height:38px;
+  border:none;
+  border-radius:9px;
+  padding:0 14px;
+  font-family:inherit;
+  font-size:11px;
+  line-height:1;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 3px 8px rgba(15,23,42,.07);
+  transition:transform .12s ease,box-shadow .12s ease,filter .12s ease;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 5px 12px rgba(15,23,42,.10);
+  filter:brightness(.99);
+}
+
+.btn-blue{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn-dark{
+  background:#111827;
+  color:#fff;
+}
+
+.btn-green{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #86efac;
+}
+
+.btn-red{
+  background:#fee2e2;
+  color:#991b1b;
+  border:1px solid #fca5a5;
+}
+
+.btn-yellow{
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fde68a;
+}
+
+/* PAYMENT HISTORY */
+.payment-history{
+  margin-top:18px;
+  border:1px solid #dbe4ee;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(15,23,42,.04);
+}
+
+.payment-history-head{
+  min-height:44px;
+  padding:11px 14px;
+  background:linear-gradient(135deg,#0f2f52,#123e6c);
+}
+
+.payment-history-title{
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.15px;
+}
+
+.payment-history-note{
+  font-size:10px;
+  font-weight:700;
+  color:#cfe3f8;
+}
+
+.payment-history-tools{
+  gap:8px;
+  padding:9px 12px;
+  background:#f8fafc;
+}
+
+.history-select{
+  height:34px;
+  border-radius:8px;
+  font-size:10px;
+  font-weight:800;
+}
+
+.history-table th,
+.history-table td{
+  padding:9px 10px;
+  font-size:10.5px;
+}
+
+.history-table th{
+  background:#edf3f8;
+  color:#334155;
+  font-size:10px;
+  letter-spacing:.25px;
+}
+
+.history-table td{
+  color:#334155;
+  font-weight:650;
+}
+
+.history-action{
+  min-height:29px;
+  border-radius:7px;
+  padding:0 9px;
+  font-size:9.5px;
+}
+
+/* EMPTY STATES */
+.empty,
+.company-detail-empty{
+  color:#64748b;
+  font-size:13px;
+  font-weight:800;
+}
+
+.empty{
+  padding:42px 24px;
+  border:1px solid #dbe4ee;
+  border-radius:16px;
+  box-shadow:0 6px 18px rgba(15,23,42,.05);
+}
+
+/* RESPONSIVE */
+@media(max-width:1200px){
+  .stats-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+
+  .billing-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:900px){
+  .filters{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .billing-workspace{
+    grid-template-columns:1fr;
+  }
+
+  .company-sidebar{
+    position:relative;
+    top:auto;
+    max-height:260px;
+  }
+}
+
+@media(max-width:768px){
+  .page-body{
+    padding:10px 8px 28px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+
+  .company-card{
+    padding:14px;
+    border-radius:15px;
+  }
+
+  .company-info-value{
+    font-size:14px;
+  }
+}
+
+@media(max-width:600px){
+  .filters{
+    grid-template-columns:1fr;
+  }
+
+  .stats-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .billing-grid{
+    grid-template-columns:1fr;
+  }
+
+  .stripe-actions{
+    width:100%;
+  }
+
+  .stripe-status,
+  .stripe-btn{
+    width:100%;
+  }
+
+  .company-info-bar{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 </head>
 
