@@ -25,7 +25,7 @@ const liveDriverSchema = new mongoose.Schema({
   lat:{ type:Number, required:true },
   lng:{ type:Number, required:true },
   online:{ type:Boolean, default:true },
-  lastSeen:{ type:Date, default:Date.now, index:true }
+  lastSeen:{ type:Date, default:Date.now }
 
 },{ timestamps:true });
 

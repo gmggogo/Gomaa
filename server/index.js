@@ -1453,7 +1453,7 @@ app.use(
 ========================= */
 const tripSchema = new mongoose.Schema({
 
-  tripNumber: { type: String, unique: true, sparse: true },
+  tripNumber: { type: String },
 
   /* =========================
      MULTI-TENANT OWNER

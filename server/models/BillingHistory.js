@@ -100,8 +100,7 @@ const billingHistorySchema =
 
       paidDate:{
         type:Date,
-        default:Date.now,
-        index:true
+        default:Date.now
       },
 
       paymentMethod:{

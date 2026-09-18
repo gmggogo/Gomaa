@@ -8,9 +8,7 @@ const tenantPaymentAccountSchema =
       tenantId:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Tenant",
-        required:true,
-        unique:true,
-        index:true
+        required:true
       },
 
       stripeAccountId:{

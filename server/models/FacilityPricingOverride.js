@@ -248,8 +248,7 @@ const facilityPricingOverrideSchema =
       facilityId:{
         type:
           mongoose.Schema.Types.ObjectId,
-        required:true,
-        index:true
+        required:true
       },
 
       facilityName:{

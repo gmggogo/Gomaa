@@ -49,8 +49,7 @@ const userSchema = new mongoose.Schema(
 
     isPrimaryPlatformAdmin: {
       type: Boolean,
-      default: false,
-      index: true
+      default: false
     },
 
     /* =========================
