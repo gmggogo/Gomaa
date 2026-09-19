@@ -165,7 +165,7 @@ async function loadTenantBranding(
 
     const res =
       await fetch(
-        `/api/public-tenant/${encodeURIComponent(slug)}`,
+        `/api/public/tenant/${encodeURIComponent(slug)}`,
         {
           method:"GET",
           headers:{
