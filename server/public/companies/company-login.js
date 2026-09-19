@@ -13,9 +13,13 @@ function cleanTenantSlug(v){
 }
 
 /*
-  GH FACILITIES TEST SWITCHER
-  Example from DevTools:
+  GH FACILITIES TRANSPORTATION COMPANY SWITCHER
+
+  Run once:
   ghdelete("sunbeam")
+
+  The selected transportation company is persisted in localStorage,
+  so closing/reopening the Facilities app keeps the same tenant.
 */
 window.ghdelete = function(slug){
 
@@ -26,8 +30,20 @@ window.ghdelete = function(slug){
     return;
   }
 
-  sessionStorage.removeItem("companyTenantSlug");
-  localStorage.removeItem("companyTenantSlug");
+  localStorage.setItem(
+    "ghFacilitiesTenantSlug",
+    tenant
+  );
+
+  sessionStorage.setItem(
+    "companyTenantSlug",
+    tenant
+  );
+
+  localStorage.setItem(
+    "companyTenantSlug",
+    tenant
+  );
 
   const url = new URL(window.location.href);
 
@@ -38,12 +54,6 @@ window.ghdelete = function(slug){
 };
 
 function resolveTenantSlug(){
-
-  /*
-    SECURITY:
-    Company login must come from an explicit tenant URL.
-    Never fall back to an old tenant saved in storage.
-  */
 
   const params =
     new URLSearchParams(
@@ -56,30 +66,57 @@ function resolveTenantSlug(){
       params.get("tenantSlug")
     );
 
-  if(!fromUrl){
-    return "";
+  const savedFacilitiesTenant =
+    cleanTenantSlug(
+      localStorage.getItem(
+        "ghFacilitiesTenantSlug"
+      )
+    );
+
+  /*
+    Explicit URL wins and becomes the persistent
+    transportation company for GH Mobility Facilities.
+  */
+  if(fromUrl){
+
+    localStorage.setItem(
+      "ghFacilitiesTenantSlug",
+      fromUrl
+    );
+
+    sessionStorage.setItem(
+      "companyTenantSlug",
+      fromUrl
+    );
+
+    localStorage.setItem(
+      "companyTenantSlug",
+      fromUrl
+    );
+
+    return fromUrl;
   }
 
   /*
-    Replace any stale company tenant with
-    the tenant explicitly selected by the current link.
+    On a later app launch the Electron start URL has no ?tenant=.
+    Restore the transportation company selected previously.
   */
-  sessionStorage.removeItem(
-    "companyTenantSlug"
-  );
+  if(savedFacilitiesTenant){
 
-  sessionStorage.setItem(
-    "companyTenantSlug",
-    fromUrl
-  );
+    sessionStorage.setItem(
+      "companyTenantSlug",
+      savedFacilitiesTenant
+    );
 
-  /* Compatibility mirror only. */
-  localStorage.setItem(
-    "companyTenantSlug",
-    fromUrl
-  );
+    localStorage.setItem(
+      "companyTenantSlug",
+      savedFacilitiesTenant
+    );
 
-  return fromUrl;
+    return savedFacilitiesTenant;
+  }
+
+  return "";
 }
 
 const tenantSlug = resolveTenantSlug();
@@ -99,76 +136,162 @@ form.addEventListener("submit",async function(e){
   }
 
   if(!tenantSlug){
-    errorBox.innerText = "Company login link required.";
+    errorBox.innerText = "Transportation company selection required.";
     return;
   }
 
   try{
+
     const response = await fetch("/api/auth/login",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({username,password,tenantSlug})
+      body:JSON.stringify({
+        username,
+        password,
+        tenantSlug
+      })
     });
 
-    const data = await response.json().catch(()=>({}));
+    const data =
+      await response.json().catch(()=>({}));
 
     if(!response.ok){
-      errorBox.innerText = data.message || "Invalid credentials.";
+      errorBox.innerText =
+        data.message ||
+        "Invalid credentials.";
       return;
     }
 
-    if(String(data?.user?.role || "").toLowerCase() !== "company"){
-      errorBox.innerText = "This account is not a company account.";
+    if(
+      String(
+        data?.user?.role || ""
+      ).toLowerCase() !== "company"
+    ){
+      errorBox.innerText =
+        "This account is not a company account.";
       return;
     }
 
     if(
       data.user.tenantSlug &&
-      cleanTenantSlug(data.user.tenantSlug) !== tenantSlug
+      cleanTenantSlug(
+        data.user.tenantSlug
+      ) !== tenantSlug
     ){
-      errorBox.innerText = "This account does not belong to this company.";
+      errorBox.innerText =
+        "This account does not belong to this transportation company.";
       return;
     }
 
-    /*
-      TAB-SAFE COMPANY SESSION
-      sessionStorage is authoritative for this company tab.
-    */
     const companySession = {
       token:data.token || "",
       role:"company",
       name:data.user.name || "",
       tenantId:data.user.tenantId || "",
-      tenantSlug:data.user.tenantSlug || tenantSlug,
+      tenantSlug:
+        data.user.tenantSlug ||
+        tenantSlug,
       userId:data.user.id || "",
-      facilityId:data.user.facilityId || data.user.companyId || data.user.id || ""
+      facilityId:
+        data.user.facilityId ||
+        data.user.companyId ||
+        data.user.id ||
+        ""
     };
 
-    sessionStorage.setItem("companyToken",companySession.token);
-    sessionStorage.setItem("companyRole",companySession.role);
-    sessionStorage.setItem("companyName",companySession.name);
-    sessionStorage.setItem("companyTenantId",companySession.tenantId);
-    sessionStorage.setItem("companyTenantSlug",companySession.tenantSlug);
-    sessionStorage.setItem("companyUserId",companySession.userId);
-    sessionStorage.setItem("companyFacilityId",companySession.facilityId);
+    sessionStorage.setItem(
+      "companyToken",
+      companySession.token
+    );
+
+    sessionStorage.setItem(
+      "companyRole",
+      companySession.role
+    );
+
+    sessionStorage.setItem(
+      "companyName",
+      companySession.name
+    );
+
+    sessionStorage.setItem(
+      "companyTenantId",
+      companySession.tenantId
+    );
+
+    sessionStorage.setItem(
+      "companyTenantSlug",
+      companySession.tenantSlug
+    );
+
+    sessionStorage.setItem(
+      "companyUserId",
+      companySession.userId
+    );
+
+    sessionStorage.setItem(
+      "companyFacilityId",
+      companySession.facilityId
+    );
+
+    localStorage.setItem(
+      "companyToken",
+      companySession.token
+    );
+
+    localStorage.setItem(
+      "companyRole",
+      companySession.role
+    );
+
+    localStorage.setItem(
+      "companyName",
+      companySession.name
+    );
+
+    localStorage.setItem(
+      "companyTenantId",
+      companySession.tenantId
+    );
+
+    localStorage.setItem(
+      "companyTenantSlug",
+      companySession.tenantSlug
+    );
+
+    localStorage.setItem(
+      "companyUserId",
+      companySession.userId
+    );
+
+    localStorage.setItem(
+      "companyFacilityId",
+      companySession.facilityId
+    );
 
     /*
-      Compatibility mirror for existing company page scripts.
-      company header will restore this tab's values on focus.
+      Keep the selected transportation company persistent
+      independently from the logged-in organization session.
     */
-    localStorage.setItem("companyToken",companySession.token);
-    localStorage.setItem("companyRole",companySession.role);
-    localStorage.setItem("companyName",companySession.name);
-    localStorage.setItem("companyTenantId",companySession.tenantId);
-    localStorage.setItem("companyTenantSlug",companySession.tenantSlug);
-    localStorage.setItem("companyUserId",companySession.userId);
-    localStorage.setItem("companyFacilityId",companySession.facilityId);
+    localStorage.setItem(
+      "ghFacilitiesTenantSlug",
+      companySession.tenantSlug
+    );
 
-    window.location.replace("/companies/dashboard.html");
+    window.location.replace(
+      "/companies/dashboard.html"
+    );
 
   }catch(err){
-    console.error("Login error:",err);
-    errorBox.innerText = "Server error. Please try again.";
+
+    console.error(
+      "Login error:",
+      err
+    );
+
+    errorBox.innerText =
+      "Server error. Please try again.";
+
   }
 
 });

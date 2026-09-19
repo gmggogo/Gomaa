@@ -4,9 +4,7 @@
 
 <meta charset="UTF-8">
 
-<title>
-Organization Login | Sunbeam
-</title>
+<title>GH Mobility Facilities</title>
 
 <meta
 name="viewport"
@@ -22,7 +20,8 @@ content="width=device-width, initial-scale=1.0">
 
   <img
   class="app-logo"
-  alt="Company Logo">
+  src="/assets/logo.png"
+  alt="GH Mobility Facilities">
 
   <div
   class="datetime"
@@ -72,30 +71,28 @@ content="width=device-width, initial-scale=1.0">
 
 </div>
 
-<!-- BRANDING -->
-
+<!-- BRANDING IS USED FOR TENANT DATA/TIMEZONE ONLY.
+     APP NAME/LOGO REMAIN GH MOBILITY FACILITIES. -->
 <script src="/core/branding.js"></script>
 
 <script>
 
-/* =========================
-DEFAULT LOGO
-========================= */
+function enforceFacilitiesBranding(){
 
-if(!localStorage.getItem("appLogo")){
+  document.title = "GH Mobility Facilities";
 
-  localStorage.setItem(
-    "appLogo",
-    "/assets/logo.png"
-  );
+  const logo = document.querySelector(".app-logo");
+
+  if(logo){
+    logo.src = "/assets/logo.png";
+    logo.alt = "GH Mobility Facilities";
+  }
 
 }
 
-/* =========================
-CLOCK
-========================= */
-
 function updateOrganizationClock(){
+
+  enforceFacilitiesBranding();
 
   const el =
     document.getElementById(
@@ -160,27 +157,23 @@ function updateOrganizationClock(){
 
 }
 
-/* =========================
-START CLOCK
-========================= */
-
 async function startOrganizationClock(){
+
+  enforceFacilitiesBranding();
 
   if(window.Branding){
 
     try{
-
       await Branding.load();
-
     }
-
     catch(err){
-
       console.log(err);
-
     }
 
   }
+
+  /* Branding.load() may replace the logo/title, so force app identity again. */
+  enforceFacilitiesBranding();
 
   updateOrganizationClock();
 
