@@ -549,11 +549,66 @@ window.addEventListener(
   }
 );
 
-// GH Desktop manual company reset command.
-window.ghdelete = function(){
-  localStorage.removeItem("tenantSlug");
-  localStorage.removeItem("loginCompanyLogo");
-  localStorage.removeItem("loginCompanyName");
+// GH Desktop manual company reset / switch command.
+//
+// Usage:
+//   ghdelete()            -> forget current company and return to GH Mobility.
+//   ghdelete("walmart")   -> forget current company and bind login to Walmart.
+//   ghdelete("sunbeam")   -> switch back to Sunbeam.
+window.ghdelete = async function(nextTenantSlug = ""){
+
+  const slug =
+    cleanText(nextTenantSlug)
+      .toLowerCase();
+
+  // Remove the current company/session binding first.
+  localStorage.removeItem(
+    GH_TENANT_SLUG_KEY
+  );
+
+  localStorage.removeItem(
+    GH_COMPANY_LOGO_KEY
+  );
+
+  localStorage.removeItem(
+    GH_COMPANY_NAME_KEY
+  );
+
   sessionStorage.clear();
+
+  // No new company supplied: return to the generic GH login.
+  if(!slug){
+    location.reload();
+    return true;
+  }
+
+  // Validate the new company and cache its branding before binding login to it.
+  const branding =
+    await loadTenantBranding(
+      slug,
+      {
+        apply:false
+      }
+    );
+
+  if(!branding){
+
+    // Do not leave an invalid company bound to the app.
+    localStorage.removeItem(
+      GH_TENANT_SLUG_KEY
+    );
+
+    console.error(
+      `GHDELETE: company "${slug}" was not found or could not be loaded.`
+    );
+
+    applyLoginBranding();
+
+    return false;
+  }
+
+  // loadTenantBranding() already saved tenantSlug, company name and logo.
   location.reload();
+
+  return true;
 };
