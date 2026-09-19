@@ -496,3 +496,132 @@ table textarea{
     font-size:9px !important;
   }
 }
+
+
+/* =========================================================
+   GH MOBILITY — NAV / DROPDOWN FIX PASS
+   Keeps existing JS behavior and only repairs layout.
+   ========================================================= */
+
+/* Allow dropdown menus to escape the nav row instead of being clipped */
+.gh-admin-header .gh-nav-shell,
+.gh-admin-header .gh-nav{
+  overflow:visible !important;
+}
+
+.gh-admin-header .gh-nav-group{
+  position:relative !important;
+  overflow:visible !important;
+  z-index:20 !important;
+}
+
+/* Normal nav buttons: center icon and text cleanly */
+.gh-admin-header .gh-nav-tile,
+.gh-admin-header .gh-nav-group-btn{
+  position:relative !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:2px !important;
+  min-height:44px !important;
+  padding:5px 7px !important;
+  line-height:1.05 !important;
+}
+
+/* Do not force weird icon widths inherited from earlier responsive rules */
+.gh-admin-header .gh-nav-tile .gh-icon,
+.gh-admin-header .gh-nav-group-btn .gh-icon{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  margin:0 !important;
+  font-size:15px !important;
+  line-height:1 !important;
+}
+
+.gh-admin-header .gh-nav-tile svg,
+.gh-admin-header .gh-nav-group-btn svg{
+  width:16px !important;
+  height:16px !important;
+  flex:0 0 16px !important;
+}
+
+/* Keep the dropdown arrow in the top-right corner instead of beside the icon */
+.gh-admin-header .gh-nav-group-btn .gh-caret,
+.gh-admin-header .gh-caret{
+  position:absolute !important;
+  right:6px !important;
+  top:50% !important;
+  margin:0 !important;
+  transform:translateY(-50%) !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  z-index:2 !important;
+}
+
+.gh-admin-header .gh-nav-group.open .gh-caret{
+  transform:translateY(-50%) rotate(180deg) !important;
+}
+
+/* Restore dropdown geometry. Existing JS only needs to toggle .open */
+.gh-admin-header .gh-nav-menu{
+  position:absolute !important;
+  top:calc(100% + 6px) !important;
+  left:0 !important;
+  right:auto !important;
+  min-width:190px !important;
+  width:max-content !important;
+  max-width:280px !important;
+  z-index:99999 !important;
+  overflow:visible !important;
+}
+
+/* If the original stylesheet uses the open class to reveal the menu,
+   force visibility without changing click handlers. */
+.gh-admin-header .gh-nav-group.open > .gh-nav-menu{
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  pointer-events:auto !important;
+}
+
+.gh-admin-header .gh-nav-menu a{
+  display:block !important;
+  width:100% !important;
+  min-width:170px !important;
+  padding:9px 12px !important;
+  font-size:11px !important;
+  line-height:1.2 !important;
+  white-space:nowrap !important;
+  text-align:left !important;
+}
+
+/* Closed menus stay non-interactive if the project uses CSS visibility */
+.gh-admin-header .gh-nav-group:not(.open) > .gh-nav-menu{
+  pointer-events:none;
+}
+
+/* Laptop sizing — compact but readable */
+@media (max-width:1366px){
+  .gh-admin-header .gh-nav-tile,
+  .gh-admin-header .gh-nav-group-btn{
+    min-height:42px !important;
+    padding:4px 6px !important;
+    font-size:8.5px !important;
+  }
+
+  .gh-admin-header .gh-nav-tile .gh-icon,
+  .gh-admin-header .gh-nav-group-btn .gh-icon{
+    font-size:14px !important;
+  }
+
+  .gh-admin-header .gh-nav-tile svg,
+  .gh-admin-header .gh-nav-group-btn svg{
+    width:14px !important;
+    height:14px !important;
+  }
+}
