@@ -7,11 +7,11 @@ server/models/AutopilotSettings.js
 PURPOSE:
 Per-tenant GH Mobility Autopilot settings.
 
-IMPORTANT:
-- This file stores control switches only.
-- It does not execute Dispatch, Broker Trip Split, Shared Engine,
-  Final Confirmation, or Driver Schedule logic.
-- Existing manual operations remain available when Autopilot is active.
+ARCHITECTURE:
+- Operation = normal company operation engine.
+- Broker Operation = broker operation engine.
+- Share Service = broker shared grouping feature only; not a separate engine.
+- Final Confirmation has an independent switch under each operation engine.
 */
 
 const mongoose = require("mongoose");
@@ -26,20 +26,39 @@ const AutopilotSettingsSchema = new mongoose.Schema(
       index:true
     },
 
-    companyAutopilot:{
+    operationEnabled:{
       type:Boolean,
       default:false
     },
 
-    brokerAutopilot:{
+    operationFinalConfirmation:{
       type:Boolean,
       default:false
     },
 
-    brokerSharedAutopilot:{
+    brokerOperationEnabled:{
       type:Boolean,
       default:false
     },
+
+    brokerFinalConfirmation:{
+      type:Boolean,
+      default:false
+    },
+
+    shareServiceEnabled:{
+      type:Boolean,
+      default:false
+    },
+
+    /*
+      Legacy compatibility fields.
+      Keep them temporarily so existing saved tenant settings and any older
+      process during a rolling deploy do not break. New code uses the fields above.
+    */
+    companyAutopilot:{type:Boolean,default:false},
+    brokerAutopilot:{type:Boolean,default:false},
+    brokerSharedAutopilot:{type:Boolean,default:false},
 
     updatedBy:{
       type:String,

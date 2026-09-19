@@ -8,9 +8,9 @@ PURPOSE:
 Read and save per-tenant Autopilot switches.
 
 VISIBILITY RULES:
-- Company Autopilot is always available to eligible tenant staff.
-- Broker Autopilot is available only when an enabled Broker Contract exists.
-- Broker Shared Autopilot is available only when Broker Contract + SHARED service exist.
+- Operation is always available to eligible tenant staff.
+- Broker Operation is available only when an enabled Broker Contract exists.
+- Share Service is available only when Broker Contract + SHARED service exist.
 
 SECURITY:
 - Tenant identity comes from the signed JWT.
@@ -179,15 +179,35 @@ async function getSavedSettings(tenantId){
       .findOne({ tenantId })
       .lean();
 
+  /*
+    Backward-compatible read:
+    old saved switches are used only when the new field is not present.
+  */
+  const operationEnabled =
+    typeof row?.operationEnabled === "boolean"
+      ? row.operationEnabled
+      : row?.companyAutopilot === true;
+
+  const brokerOperationEnabled =
+    typeof row?.brokerOperationEnabled === "boolean"
+      ? row.brokerOperationEnabled
+      : row?.brokerAutopilot === true;
+
+  const shareServiceEnabled =
+    typeof row?.shareServiceEnabled === "boolean"
+      ? row.shareServiceEnabled
+      : row?.brokerSharedAutopilot === true;
+
   return {
-    companyAutopilot:
-      row?.companyAutopilot === true,
+    operationEnabled,
+    operationFinalConfirmation:
+      row?.operationFinalConfirmation === true,
 
-    brokerAutopilot:
-      row?.brokerAutopilot === true,
+    brokerOperationEnabled,
+    brokerFinalConfirmation:
+      row?.brokerFinalConfirmation === true,
 
-    brokerSharedAutopilot:
-      row?.brokerSharedAutopilot === true,
+    shareServiceEnabled,
 
     updatedAt:
       row?.updatedAt || null,
@@ -259,28 +279,56 @@ router.post(
           req.authUser.tenantId
         );
 
-      const requestedCompany =
-        req.body?.companyAutopilot === true;
+      const requestedOperation =
+        req.body?.operationEnabled === true;
 
-      const requestedBroker =
-        req.body?.brokerAutopilot === true;
+      const requestedOperationFinal =
+        req.body?.operationFinalConfirmation === true;
 
-      const requestedBrokerShared =
-        req.body?.brokerSharedAutopilot === true;
+      const requestedBrokerOperation =
+        req.body?.brokerOperationEnabled === true;
+
+      const requestedBrokerFinal =
+        req.body?.brokerFinalConfirmation === true;
+
+      const requestedShareService =
+        req.body?.shareServiceEnabled === true;
+
+      const brokerOperationEnabled =
+        capabilities.brokerContractEnabled
+          ? requestedBrokerOperation
+          : false;
+
+      const brokerFinalConfirmation =
+        capabilities.brokerContractEnabled
+          ? requestedBrokerFinal
+          : false;
+
+      const shareServiceEnabled =
+        capabilities.brokerSharedAvailable
+          ? requestedShareService
+          : false;
 
       const update = {
+        operationEnabled:
+          requestedOperation,
+
+        operationFinalConfirmation:
+          requestedOperationFinal,
+
+        brokerOperationEnabled,
+
+        brokerFinalConfirmation,
+
+        shareServiceEnabled,
+
+        /* Keep legacy fields synchronized during migration. */
         companyAutopilot:
-          requestedCompany,
-
+          requestedOperation,
         brokerAutopilot:
-          capabilities.brokerContractEnabled
-            ? requestedBroker
-            : false,
-
+          brokerOperationEnabled,
         brokerSharedAutopilot:
-          capabilities.brokerSharedAvailable
-            ? requestedBrokerShared
-            : false,
+          shareServiceEnabled,
 
         updatedBy:
           req.authUser.name ||
@@ -309,12 +357,16 @@ router.post(
       return res.json({
         success:true,
         settings:{
-          companyAutopilot:
-            saved?.companyAutopilot === true,
-          brokerAutopilot:
-            saved?.brokerAutopilot === true,
-          brokerSharedAutopilot:
-            saved?.brokerSharedAutopilot === true,
+          operationEnabled:
+            saved?.operationEnabled === true,
+          operationFinalConfirmation:
+            saved?.operationFinalConfirmation === true,
+          brokerOperationEnabled:
+            saved?.brokerOperationEnabled === true,
+          brokerFinalConfirmation:
+            saved?.brokerFinalConfirmation === true,
+          shareServiceEnabled:
+            saved?.shareServiceEnabled === true,
           updatedAt:
             saved?.updatedAt || null,
           updatedBy:

@@ -205,6 +205,49 @@
       box-shadow:0 0 0 3px rgba(30,58,138,.16);
     }
 
+    .sub-control{
+      margin-top:18px;
+      padding-top:16px;
+      border-top:1px solid #e2ebf3;
+    }
+
+    .sub-control-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+    }
+
+    .sub-control-title{
+      margin:0;
+      color:#17324a;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .sub-control-desc{
+      margin:4px 0 0;
+      color:#64748b;
+      font-size:12px;
+      font-weight:600;
+      line-height:1.4;
+    }
+
+    .sub-control .autopilot-actions{
+      margin-top:0;
+    }
+
+    .share-service-wrap{
+      margin-top:18px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .share-service-wrap .autopilot-card{
+      width:min(100%,720px);
+    }
+
     .capability-note{
       margin-top:12px;
       min-height:18px;
@@ -307,71 +350,100 @@
 
     <div id="autopilotNotice" class="notice" role="status" aria-live="polite"></div>
 
-    <section class="autopilot-grid" aria-label="Autopilot controls">
+    <section class="autopilot-grid" id="operationGrid" aria-label="Autopilot operation controls">
 
-      <article class="autopilot-card" id="companyAutopilotCard">
+      <article class="autopilot-card" id="operationCard">
         <div class="autopilot-card-head">
           <div>
-            <h2 class="autopilot-card-title">Company Autopilot</h2>
+            <h2 class="autopilot-card-title">Operation</h2>
             <p class="autopilot-card-desc">
-              Automatic operating command for normal Trips Hub workflow.
+              Automatic operating command for normal company trips.
             </p>
           </div>
-          <span class="status-pill inactive" id="companyAutopilotStatus">Not Active</span>
+          <span class="status-pill inactive" id="operationStatus">Not Active</span>
         </div>
 
         <div class="autopilot-card-body">
-          <p class="autopilot-rule">Normal company trips stay in their current workflow.</p>
+          <p class="autopilot-rule">Controls the normal company trip workflow and dispatch automation.</p>
           <p class="autopilot-rule">Manual edits and staff intervention remain available.</p>
           <div class="autopilot-actions">
-            <button class="mode-btn on" id="companyAutopilotOn" type="button">Active</button>
-            <button class="mode-btn off" id="companyAutopilotOff" type="button">Not Active</button>
+            <button class="mode-btn on" id="operationOn" type="button">Active</button>
+            <button class="mode-btn off" id="operationOff" type="button">Not Active</button>
+          </div>
+
+          <div class="sub-control">
+            <div class="sub-control-head">
+              <div>
+                <h3 class="sub-control-title">Final Confirmation</h3>
+                <p class="sub-control-desc">Automatically final-confirms completed/closed company trips.</p>
+              </div>
+              <span class="status-pill inactive" id="operationFinalConfirmationStatus">OFF</span>
+            </div>
+            <div class="autopilot-actions">
+              <button class="mode-btn on" id="operationFinalConfirmationOn" type="button">ON</button>
+              <button class="mode-btn off" id="operationFinalConfirmationOff" type="button">OFF</button>
+            </div>
           </div>
         </div>
       </article>
 
-      <article class="autopilot-card hidden" id="brokerAutopilotCard">
+      <article class="autopilot-card hidden" id="brokerOperationCard">
         <div class="autopilot-card-head">
           <div>
-            <h2 class="autopilot-card-title">Broker Autopilot</h2>
+            <h2 class="autopilot-card-title">Broker Operation</h2>
             <p class="autopilot-card-desc">
               Automatic operating command for enabled Broker Operations.
             </p>
           </div>
-          <span class="status-pill inactive" id="brokerAutopilotStatus">Not Active</span>
+          <span class="status-pill inactive" id="brokerOperationStatus">Not Active</span>
         </div>
 
         <div class="autopilot-card-body">
           <p class="autopilot-rule">Shown only when the tenant has an active Broker Contract.</p>
-          <p class="autopilot-rule">Broker workflow remains available for manual review and changes.</p>
+          <p class="autopilot-rule">Controls Broker Review, Dispatch, and the normal broker workflow.</p>
           <div class="autopilot-actions">
-            <button class="mode-btn on" id="brokerAutopilotOn" type="button">Active</button>
-            <button class="mode-btn off" id="brokerAutopilotOff" type="button">Not Active</button>
+            <button class="mode-btn on" id="brokerOperationOn" type="button">Active</button>
+            <button class="mode-btn off" id="brokerOperationOff" type="button">Not Active</button>
+          </div>
+
+          <div class="sub-control">
+            <div class="sub-control-head">
+              <div>
+                <h3 class="sub-control-title">Final Confirmation</h3>
+                <p class="sub-control-desc">Automatically final-confirms closed Broker trips, including shared Broker trips.</p>
+              </div>
+              <span class="status-pill inactive" id="brokerFinalConfirmationStatus">OFF</span>
+            </div>
+            <div class="autopilot-actions">
+              <button class="mode-btn on" id="brokerFinalConfirmationOn" type="button">ON</button>
+              <button class="mode-btn off" id="brokerFinalConfirmationOff" type="button">OFF</button>
+            </div>
           </div>
         </div>
       </article>
 
-      <article class="autopilot-card hidden" id="brokerSharedAutopilotCard">
+    </section>
+
+    <section class="share-service-wrap hidden" id="shareServiceWrap" aria-label="Share Service control">
+      <article class="autopilot-card" id="shareServiceCard">
         <div class="autopilot-card-head">
           <div>
-            <h2 class="autopilot-card-title">Broker Shared Autopilot</h2>
+            <h2 class="autopilot-card-title">Share Service</h2>
             <p class="autopilot-card-desc">
-              Automatic command for Broker Shared preparation and grouping.
+              Automatic shared-ride grouping feature for Broker trips.
             </p>
           </div>
-          <span class="status-pill inactive" id="brokerSharedAutopilotStatus">Not Active</span>
+          <span class="status-pill inactive" id="shareServiceStatus">Not Active</span>
         </div>
-
         <div class="autopilot-card-body">
           <p class="autopilot-rule">Shown only when Broker Contract and SHARED service are both active.</p>
-          <p class="autopilot-rule">Uses the existing Shared Engine workflow; this switch only controls automation.</p>
+          <p class="autopilot-rule">This feature only controls Shared Engine grouping; it is not a separate operation engine.</p>
           <div class="autopilot-actions">
-            <button class="mode-btn on" id="brokerSharedAutopilotOn" type="button">Active</button>
-            <button class="mode-btn off" id="brokerSharedAutopilotOff" type="button">Not Active</button>
+            <button class="mode-btn on" id="shareServiceOn" type="button">Active</button>
+            <button class="mode-btn off" id="shareServiceOff" type="button">Not Active</button>
           </div>
         </div>
       </article>
-
     </section>
 
     <section class="autopilot-footer">

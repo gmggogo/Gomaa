@@ -181,28 +181,62 @@ function isBrokerTrip(trip){
   );
 }
 
-function autopilotEnabledForTrip(
+function settingValue(settings,newKey,legacyKey){
+  if(typeof settings?.[newKey] === "boolean"){
+    return settings[newKey] === true;
+  }
+  return settings?.[legacyKey] === true;
+}
+
+function operationEnabled(settings){
+  return settingValue(
+    settings,
+    "operationEnabled",
+    "companyAutopilot"
+  );
+}
+
+function brokerOperationEnabled(settings){
+  return settingValue(
+    settings,
+    "brokerOperationEnabled",
+    "brokerAutopilot"
+  );
+}
+
+function shareServiceEnabled(settings){
+  return settingValue(
+    settings,
+    "shareServiceEnabled",
+    "brokerSharedAutopilot"
+  );
+}
+
+function finalConfirmationEnabledForTrip(
   settings,
   trip
 ){
   if(isBrokerTrip(trip)){
-    if(isSharedTrip(trip)){
-      return (
-        settings
-          .brokerSharedAutopilot === true
-      );
-    }
-
-    return (
-      settings
-        .brokerAutopilot === true
-    );
+    return settings?.brokerFinalConfirmation === true;
   }
 
-  return (
-    settings
-      .companyAutopilot === true
-  );
+  return settings?.operationFinalConfirmation === true;
+}
+
+function autopilotEnabledForTrip(
+  settings,
+  trip
+){
+  /*
+    There are only two operation engines.
+    Shared Broker trips remain Broker Operation trips.
+    Share Service controls grouping only.
+  */
+  if(isBrokerTrip(trip)){
+    return brokerOperationEnabled(settings);
+  }
+
+  return operationEnabled(settings);
 }
 
 function finalStatus(status){
@@ -534,14 +568,14 @@ async function processBrokerTripSplit(
   token
 ){
   const brokerAuto =
-    settings.brokerAutopilot === true;
+    brokerOperationEnabled(settings);
 
-  const brokerSharedAuto =
-    settings.brokerSharedAutopilot === true;
+  const shareAuto =
+    shareServiceEnabled(settings);
 
   if(
     !brokerAuto &&
-    !brokerSharedAuto
+    !shareAuto
   ){
     return {
       sharedBuilt:0,
@@ -570,7 +604,7 @@ async function processBrokerTripSplit(
   let shareAttemptFailed = false;
 
   /*
-    BROKER SHARED AUTOPILOT
+    SHARE SERVICE
 
     Same human sequence as Trip Split:
       select eligible Original trips -> Share
@@ -580,7 +614,7 @@ async function processBrokerTripSplit(
     Individual trips.
   */
   if(
-    brokerSharedAuto &&
+    shareAuto &&
     data?.capabilities
       ?.sharedServiceEnabled === true
   ){
@@ -653,9 +687,9 @@ async function processBrokerTripSplit(
     SHARED GROUP CONFIRM
 
     Same human command as Trip Split -> Shared tab -> Confirm.
-    Only Broker Shared Autopilot can move shared groups to Broker Review.
+    Broker Operation moves existing shared groups to Broker Review; Share Service only builds the groups.
   */
-  if(brokerSharedAuto){
+  if(brokerAuto){
     const groups =
       Array.isArray(data?.groups)
         ? data.groups
@@ -719,7 +753,7 @@ async function processBrokerTripSplit(
 
     Same human command as Trip Split -> Original / Individual -> Confirm.
 
-    When Shared Autopilot is also Active:
+    When Share Service is also Active:
     - Shared is attempted FIRST.
     - matched trips have already moved into Shared groups.
     - unmatched trips are now in Individual.
@@ -727,7 +761,7 @@ async function processBrokerTripSplit(
 
     If the Share request itself failed, share-eligible Original trips are NOT
     forced through as Individual in this cycle. They remain for the next
-    Shared retry instead of silently bypassing Shared Autopilot.
+    Share Service retry instead of silently bypassing grouping.
   */
   if(brokerAuto){
     const originalTrips =
@@ -748,7 +782,7 @@ async function processBrokerTripSplit(
       originalTrips.filter(
         trip=>
           !(
-            brokerSharedAuto &&
+            shareAuto &&
             shareAttemptFailed &&
             shareEligibleBrokerTrip(
               trip
@@ -813,15 +847,9 @@ async function processBrokerReview(
   token
 ){
   const brokerAuto =
-    settings.brokerAutopilot === true;
+    brokerOperationEnabled(settings);
 
-  const brokerSharedAuto =
-    settings.brokerSharedAutopilot === true;
-
-  if(
-    !brokerAuto &&
-    !brokerSharedAuto
-  ){
+  if(!brokerAuto){
     return {
       reviewReleased:0
     };
@@ -847,14 +875,7 @@ async function processBrokerReview(
           return false;
         }
 
-        const shared =
-          upper(
-            item?.processingMode
-          ) === "SHARED";
-
-        return shared
-          ? brokerSharedAuto
-          : brokerAuto;
+        return brokerAuto;
       })
       .map(
         item=>
@@ -1220,7 +1241,7 @@ async function finalConfirmTenant(
 
   for(const trip of trips){
     if(
-      !autopilotEnabledForTrip(
+      !finalConfirmationEnabledForTrip(
         settings,
         trip
       )
@@ -1446,15 +1467,16 @@ async function runCycle(
     const settingsRows =
       await AutopilotSettings.find({
         $or:[
-          {
-            companyAutopilot:true
-          },
-          {
-            brokerAutopilot:true
-          },
-          {
-            brokerSharedAutopilot:true
-          }
+          { operationEnabled:true },
+          { brokerOperationEnabled:true },
+          { shareServiceEnabled:true },
+          { operationFinalConfirmation:true },
+          { brokerFinalConfirmation:true },
+
+          /* Legacy compatibility while old saved settings are migrated. */
+          { companyAutopilot:true },
+          { brokerAutopilot:true },
+          { brokerSharedAutopilot:true }
         ]
       }).lean();
 
