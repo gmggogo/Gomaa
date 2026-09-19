@@ -56,23 +56,27 @@ function calculateZoomFactor(win) {
 
   const { width, height } = win.getContentBounds();
 
-  // Fit GH Mobility automatically to common laptop/desktop screen sizes.
-  // Width is the main factor; height provides a small extra correction.
+  /*
+    GH Mobility adaptive desktop zoom.
+    The app automatically scales itself for laptop, desktop and larger displays.
+    Width is the main factor and height adds a small correction.
+  */
   let zoom = 1.0;
 
-  if (width <= 1100) zoom = 0.68;
-  else if (width <= 1280) zoom = 0.74;
-  else if (width <= 1366) zoom = 0.80;
-  else if (width <= 1440) zoom = 0.84;
-  else if (width <= 1536) zoom = 0.88;
-  else if (width <= 1600) zoom = 0.92;
-  else if (width <= 1920) zoom = 0.97;
+  if (width <= 1100) zoom = 0.64;
+  else if (width <= 1280) zoom = 0.68;
+  else if (width <= 1366) zoom = 0.72;
+  else if (width <= 1440) zoom = 0.76;
+  else if (width <= 1536) zoom = 0.80;
+  else if (width <= 1600) zoom = 0.84;
+  else if (width <= 1920) zoom = 0.88;
+  else if (width <= 2560) zoom = 0.96;
   else zoom = 1.0;
 
   if (height <= 720) zoom -= 0.04;
   else if (height <= 800) zoom -= 0.02;
 
-  return Math.max(0.65, Math.min(1.0, zoom));
+  return Math.max(0.60, Math.min(1.0, zoom));
 }
 
 function applyDesktopFit(win) {
