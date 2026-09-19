@@ -63,20 +63,20 @@ function calculateZoomFactor(win) {
   */
   let zoom = 1.0;
 
-  if (width <= 1100) zoom = 0.64;
-  else if (width <= 1280) zoom = 0.68;
-  else if (width <= 1366) zoom = 0.72;
-  else if (width <= 1440) zoom = 0.76;
-  else if (width <= 1536) zoom = 0.80;
-  else if (width <= 1600) zoom = 0.84;
-  else if (width <= 1920) zoom = 0.88;
-  else if (width <= 2560) zoom = 0.96;
-  else zoom = 1.0;
+  if (width <= 1100) zoom = 0.52;
+  else if (width <= 1280) zoom = 0.56;
+  else if (width <= 1366) zoom = 0.60;
+  else if (width <= 1440) zoom = 0.62;
+  else if (width <= 1536) zoom = 0.64;
+  else if (width <= 1600) zoom = 0.66;
+  else if (width <= 1920) zoom = 0.70;
+  else if (width <= 2560) zoom = 0.82;
+  else zoom = 0.92;
 
-  if (height <= 720) zoom -= 0.04;
+  if (height <= 720) zoom -= 0.03;
   else if (height <= 800) zoom -= 0.02;
 
-  return Math.max(0.60, Math.min(1.0, zoom));
+  return Math.max(0.50, Math.min(0.92, zoom));
 }
 
 function applyDesktopFit(win) {
