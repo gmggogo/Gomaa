@@ -40,6 +40,14 @@ let allTrips = [];
 let services = [];
 let displayItems = [];
 
+/*
+  Performance cache:
+  build the page-ready item list once after trips are loaded.
+  Filters and counters reuse the same object references instead of
+  rebuilding shared groups repeatedly.
+*/
+let baseDisplayItems = [];
+
 let activeSource = "ALL";
 let activeStatus = "ALL";
 let refreshTimer = null;
@@ -1191,6 +1199,13 @@ async function loadTrips(){
       return t;
     });
 
+    /*
+      Rebuild the expensive base list only when fresh trip data arrives.
+      Search, status filters and counters reuse this cache.
+    */
+    baseDisplayItems =
+      buildDisplayItems(allTrips);
+
     buildDateFilters();
     applyFilters();
 
@@ -1199,6 +1214,7 @@ async function loadTrips(){
     console.log(err);
 
     allTrips = [];
+    baseDisplayItems = [];
     displayItems = [];
 
     render();
@@ -1211,13 +1227,58 @@ async function loadTrips(){
 
 function buildDisplayItems(trips){
   const items = [];
-  const usedShared = new Set();
+  const sharedGroupsByKey = new Map();
+
+  /*
+    PERFORMANCE:
+    Build every shared group once.
+
+    The old implementation called getSharedGroups(trips) again from inside
+    the main trips loop, which repeatedly scanned and sorted the full trip
+    list. With a large history that becomes very expensive.
+
+    This pass is O(n) for grouping, plus one small sort per shared group.
+  */
+  trips.forEach(t=>{
+
+    if(!isSharedTrip(t)){
+      return;
+    }
+
+    const key =
+      getSharedKey(t);
+
+    if(!sharedGroupsByKey.has(key)){
+      sharedGroupsByKey.set(
+        key,
+        []
+      );
+    }
+
+    sharedGroupsByKey
+      .get(key)
+      .push(t);
+  });
+
+  sharedGroupsByKey
+    .forEach(group=>{
+
+      group.sort(
+        (a,b)=>
+          Number(a.passengerIndex || 0) -
+          Number(b.passengerIndex || 0)
+      );
+    });
+
+  const usedShared =
+    new Set();
 
   trips.forEach(t=>{
 
     if(isSharedTrip(t)){
 
-      const key = getSharedKey(t);
+      const key =
+        getSharedKey(t);
 
       if(usedShared.has(key)){
         return;
@@ -1226,11 +1287,7 @@ function buildDisplayItems(trips){
       usedShared.add(key);
 
       const group =
-        getSharedGroups(trips)
-        .find(
-          g =>
-            getSharedKey(g[0]) === key
-        ) ||
+        sharedGroupsByKey.get(key) ||
         [t];
 
       if(
@@ -1434,15 +1491,18 @@ function filterItems(items){
 }
 
 function applyFilters(){
-  const baseItems =
-    buildDisplayItems(allTrips);
-
+  /*
+    baseDisplayItems contains the same trip object references as allTrips,
+    so status edits are reflected immediately without rebuilding groups.
+  */
   publishUnreadFinalCount(
-    baseItems
+    baseDisplayItems
   );
 
   displayItems =
-    filterItems(baseItems);
+    filterItems(
+      baseDisplayItems
+    );
 
   render();
 }
@@ -1594,7 +1654,7 @@ function getCounts(){
     createCounts();
 
   const items =
-    buildDisplayItems(allTrips)
+    baseDisplayItems
     .filter(item=>{
 
       const y =
@@ -1678,13 +1738,16 @@ function getCounts(){
    TOP CARDS
 ================================ */
 
-function renderSourceCards(){
+function renderSourceCards(
+  counts = null
+){
 
   if(!sourceCardsWrap){
     return;
   }
 
-  const counts =
+  counts =
+    counts ||
     getCounts();
 
   const cards = [
@@ -1765,13 +1828,16 @@ function renderSourceCards(){
     });
 }
 
-function renderStatusCards(){
+function renderStatusCards(
+  counts = null
+){
 
   if(!statusCardsWrap){
     return;
   }
 
-  const counts =
+  counts =
+    counts ||
     getCounts();
 
   const cards = [
@@ -3310,8 +3376,15 @@ function render(){
 
   tripCounter = 1;
 
-  renderSourceCards();
-  renderStatusCards();
+  /*
+    Counters used to be calculated separately by each card section.
+    Calculate them once per render and share the result.
+  */
+  const counts =
+    getCounts();
+
+  renderSourceCards(counts);
+  renderStatusCards(counts);
 
   if(!finalContent){
     return;
@@ -4148,7 +4221,7 @@ async function refreshEverything(){
   refreshTimer =
     setInterval(
       refreshEverything,
-      30000
+      60000
     );
 
 })();
