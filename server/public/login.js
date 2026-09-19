@@ -548,3 +548,12 @@ window.addEventListener(
       });
   }
 );
+
+// GH Desktop manual company reset command.
+window.ghdelete = function(){
+  localStorage.removeItem("tenantSlug");
+  localStorage.removeItem("loginCompanyLogo");
+  localStorage.removeItem("loginCompanyName");
+  sessionStorage.clear();
+  location.reload();
+};
