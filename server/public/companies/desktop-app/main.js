@@ -71,6 +71,7 @@ function createWindow() {
   const appUrl = config.appUrl || "https://sunbeam-933q.onrender.com/companies/company-login.html";
 
   const win = new BrowserWindow({
+    title: "GH Mobility Facilities",
     width: 1440,
     height: 900,
     minWidth: 1000,
@@ -95,10 +96,32 @@ function createWindow() {
     win.show();
   });
 
-  win.webContents.on("dom-ready", () => applyDesktopFit(win));
-  win.webContents.on("did-finish-load", () => applyDesktopFit(win));
-  win.webContents.on("did-navigate", () => applyDesktopFit(win));
-  win.webContents.on("did-navigate-in-page", () => applyDesktopFit(win));
+  function lockFacilitiesWindowTitle() {
+    if (!win || win.isDestroyed()) return;
+    win.setTitle("GH Mobility Facilities");
+  }
+
+  win.on("page-title-updated", (event) => {
+    event.preventDefault();
+    lockFacilitiesWindowTitle();
+  });
+
+  win.webContents.on("dom-ready", () => {
+    applyDesktopFit(win);
+    lockFacilitiesWindowTitle();
+  });
+  win.webContents.on("did-finish-load", () => {
+    applyDesktopFit(win);
+    lockFacilitiesWindowTitle();
+  });
+  win.webContents.on("did-navigate", () => {
+    applyDesktopFit(win);
+    lockFacilitiesWindowTitle();
+  });
+  win.webContents.on("did-navigate-in-page", () => {
+    applyDesktopFit(win);
+    lockFacilitiesWindowTitle();
+  });
 
   win.on("resize", () => applyDesktopFit(win));
   win.on("maximize", () => applyDesktopFit(win));
