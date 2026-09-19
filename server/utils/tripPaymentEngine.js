@@ -677,12 +677,185 @@ async function changeAuthorizedAmount(
   }
 }
 
+
+async function recoverCanceledAuthorizationForFinalCapture(
+  trip,
+  amountCents,
+  canceledIntentId
+){
+
+  if(
+    !trip.stripeCustomerId ||
+    !trip.stripePaymentMethodId
+  ){
+    const err =
+      new Error(
+        "Customer payment method is missing for authorization recovery"
+      );
+
+    err.code =
+      "PAYMENT_METHOD_MISSING";
+
+    err.paymentFailed =
+      true;
+
+    throw err;
+  }
+
+  const stripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const replacement =
+    await stripe.paymentIntents.create(
+      {
+        amount:
+          amountCents,
+
+        currency:
+          "usd",
+
+        customer:
+          trip.stripeCustomerId,
+
+        payment_method:
+          trip.stripePaymentMethodId,
+
+        capture_method:
+          "manual",
+
+        confirm:
+          true,
+
+        off_session:
+          true,
+
+        payment_method_types:[
+          "card"
+        ],
+
+        transfer_data:
+          tenantTransferData(
+            stripeAccountId
+          ),
+
+        metadata:{
+          tenantId:
+            String(
+              trip.tenantId || ""
+            ),
+
+          tenantSlug:
+            String(
+              trip.tenantSlug || ""
+            ),
+
+          stripeAccountId,
+
+          tripId:
+            String(
+              trip._id
+            ),
+
+          tripNumber:
+            String(
+              trip.tripNumber || ""
+            ),
+
+          purpose:
+            "FINAL_CAPTURE_RECOVERY",
+
+          replacesCanceledIntent:
+            String(
+              canceledIntentId || ""
+            )
+        }
+      },
+      {
+        /*
+          IMPORTANT:
+          Never reuse the original authorization idempotency key here.
+          The original PaymentIntent may already be canceled and Stripe
+          would return that same canceled intent again.
+
+          Tying the recovery key to the canceled PaymentIntent makes retries
+          of this exact recovery safe while allowing a genuinely new hold.
+        */
+        idempotencyKey:
+          `trip-final-recovery-${trip._id}-${canceledIntentId}-${amountCents}`
+      }
+    );
+
+  if(
+    replacement.status !==
+    "requires_capture"
+  ){
+    const err =
+      new Error(
+        `Replacement authorization failed: ${replacement.status}`
+      );
+
+    err.code =
+      "RECOVERY_AUTHORIZATION_FAILED";
+
+    err.stripeStatus =
+      String(
+        replacement.status || ""
+      );
+
+    err.paymentFailed =
+      true;
+
+    throw err;
+  }
+
+  /*
+    Save the new PaymentIntent immediately, before Final Confirmation
+    attempts capture. This also repairs trips that still point to an old
+    canceled authorization after a route-change replacement.
+  */
+  trip.authorizationPaymentIntentId =
+    replacement.id;
+
+  trip.paymentIntentId =
+    replacement.id;
+
+  trip.authorizedAmount =
+    dollars(
+      replacement.amount_capturable ||
+      replacement.amount
+    );
+
+  trip.paymentStatus =
+    "AUTHORIZED";
+
+  trip.paymentAuthorizedAt =
+    new Date();
+
+  trip.authorizationExpiresAt =
+    replacement.capture_before
+      ? new Date(
+          replacement.capture_before *
+          1000
+        )
+      : null;
+
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+
+  await trip.save();
+
+  return replacement;
+}
+
+
 async function captureAuthorizedTrip(
   trip,
   finalAmount
 ){
 
-  const intentId =
+  let intentId =
     trip.authorizationPaymentIntentId ||
     trip.paymentIntentId;
 
@@ -706,10 +879,36 @@ async function captureAuthorizedTrip(
       - if a route change replaced the authorization PaymentIntent,
         the capture request below is tied to the CURRENT intent id.
     */
-    const current =
+    let current =
       await stripe.paymentIntents.retrieve(
         intentId
       );
+
+    /*
+      A canceled PaymentIntent cannot be captured.
+
+      This can happen when a previous route-change replacement successfully
+      created a new authorization but the trip record still references the
+      older authorization, or when an authorization was intentionally
+      canceled before Final Confirmation.
+
+      Re-authorize the FINAL amount using the saved card, persist the new
+      PaymentIntent id, then continue through the normal capture path.
+    */
+    if(
+      current.status ===
+      "canceled"
+    ){
+      current =
+        await recoverCanceledAuthorizationForFinalCapture(
+          trip,
+          amountCents,
+          intentId
+        );
+
+      intentId =
+        current.id;
+    }
 
     if(
       current.status ===
@@ -1138,6 +1337,7 @@ module.exports = {
   confirmSavedPaymentMethod,
   authorizeTripAmount,
   changeAuthorizedAmount,
+  recoverCanceledAuthorizationForFinalCapture,
   captureAuthorizedTrip,
   captureFeeAndReleaseRest,
   cancelAuthorization,

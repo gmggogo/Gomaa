@@ -2341,8 +2341,27 @@ async function patchSingleConfirm(
   );
 
   if(!res.ok){
+
+    let message =
+      "Single confirm failed";
+
+    try{
+
+      const data =
+        await res.json();
+
+      message =
+        data?.message ||
+        data?.error ||
+        data?.details ||
+        message;
+
+    }catch{
+      // Keep the default message.
+    }
+
     throw new Error(
-      "Single confirm failed"
+      message
     );
   }
 
@@ -2694,6 +2713,7 @@ async function confirmSingleTrip(key){
     console.log(err);
 
     alert(
+      err?.message ||
       "Failed to confirm trip."
     );
   }
