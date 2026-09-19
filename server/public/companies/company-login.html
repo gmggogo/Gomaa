@@ -1,73 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<title>GH Mobility Facilities</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>
+Organization Login | Sunbeam
+</title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
 <link rel="stylesheet" href="/companies/company-login.css">
+
 </head>
 
 <body>
 
-<div class="facility-shell">
+<div class="top-section">
 
-  <div class="brand-area">
+  <img
+  class="app-logo"
+  alt="Company Logo">
 
-    <img
-      class="facility-logo"
-      src="/companies/desktop-app/assets/gh-mobility-facilities.png"
-      alt="GH Mobility Facilities">
-
-    <div class="tenant-line">
-      <span class="tenant-label">Transportation Company</span>
-      <strong id="transportCompanyName">Select Company</strong>
-    </div>
-
-    <div class="datetime" id="datetime"></div>
-
-  </div>
-
-  <div class="login-card">
-
-    <div class="card-kicker">FACILITY ACCESS</div>
-
-    <h1>Facility Login</h1>
-
-    <p class="login-subtitle">
-      Sign in to the facility account connected to this transportation company.
-    </p>
-
-    <form id="loginForm">
-
-      <input
-        type="text"
-        id="username"
-        placeholder="Username"
-        autocomplete="username"
-        required>
-
-      <input
-        type="password"
-        id="password"
-        placeholder="Password"
-        autocomplete="current-password"
-        required>
-
-      <button type="submit">
-        Login
-      </button>
-
-    </form>
-
-    <div id="errorMessage" class="error"></div>
-
-    <div id="tenantHint" class="tenant-hint"></div>
+  <div
+  class="datetime"
+  id="datetime">
 
   </div>
 
 </div>
 
+<div class="login-card">
+
+  <h1>
+
+    Organization Login
+
+  </h1>
+
+  <form id="loginForm">
+
+    <input
+    type="text"
+    id="username"
+    placeholder="Username"
+    autocomplete="username"
+    required>
+
+    <input
+    type="password"
+    id="password"
+    placeholder="Password"
+    autocomplete="current-password"
+    required>
+
+    <button type="submit">
+
+      Login
+
+    </button>
+
+  </form>
+
+  <div
+  id="errorMessage"
+  class="error">
+
+  </div>
+
+</div>
+
+<!-- BRANDING -->
+
 <script src="/core/branding.js"></script>
+
+<script>
+
+/* =========================
+DEFAULT LOGO
+========================= */
+
+if(!localStorage.getItem("appLogo")){
+
+  localStorage.setItem(
+    "appLogo",
+    "/assets/logo.png"
+  );
+
+}
+
+/* =========================
+CLOCK
+========================= */
+
+function updateOrganizationClock(){
+
+  const el =
+    document.getElementById(
+      "datetime"
+    );
+
+  if(!el) return;
+
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone: timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone: timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML =
+
+    `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#e2e8f0;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#facc15;
+    ">
+      ${time}
+    </div>
+    `;
+
+}
+
+/* =========================
+START CLOCK
+========================= */
+
+async function startOrganizationClock(){
+
+  if(window.Branding){
+
+    try{
+
+      await Branding.load();
+
+    }
+
+    catch(err){
+
+      console.log(err);
+
+    }
+
+  }
+
+  updateOrganizationClock();
+
+  setInterval(
+    updateOrganizationClock,
+    1000
+  );
+
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  startOrganizationClock
+);
+
+</script>
+
 <script src="/companies/company-login.js"></script>
 
 </body>
