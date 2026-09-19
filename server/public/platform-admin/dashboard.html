@@ -160,7 +160,7 @@ body{
 
 .summary-grid{
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(7,minmax(0,1fr));
   gap:12px;
   margin-bottom:18px;
 }
@@ -202,6 +202,10 @@ body{
 
 .summary-card:nth-child(6){
   background:linear-gradient(145deg,#fff0f2,#ffd7dc);
+}
+
+.summary-card:nth-child(7){
+  background:linear-gradient(145deg,#eefaf2,#d8f1e1);
 }
 
 .summary-card::before{
@@ -901,6 +905,12 @@ body{
       <div class="summary-note">Enabled company services</div>
     </div>
 
+    <div class="summary-card green">
+      <div class="summary-label">Broker Connections</div>
+      <div class="summary-value" id="summaryBrokers">0</div>
+      <div class="summary-note">Active broker integrations across companies</div>
+    </div>
+
     <div class="summary-card red">
       <div class="summary-label">Billing Alerts</div>
       <div class="summary-value" id="summaryBillingAlerts">0</div>
@@ -1090,6 +1100,11 @@ body{
     services:
       document.getElementById(
         "summaryServices"
+      ),
+
+    brokers:
+      document.getElementById(
+        "summaryBrokers"
       ),
 
     billingAlerts:
@@ -1531,6 +1546,17 @@ body{
         0
       );
 
+    const totalBrokers =
+      companyRows.reduce(
+        (sum,row)=>
+          sum + (
+            Array.isArray(row.brokers)
+              ? row.brokers.length
+              : 0
+          ),
+        0
+      );
+
     const billingAlerts =
       companyRows.filter(
         row=>{
@@ -1564,6 +1590,9 @@ body{
 
     E.services.textContent =
       String(totalServices);
+
+    E.brokers.textContent =
+      String(totalBrokers);
 
     E.billingAlerts.textContent =
       String(billingAlerts);
