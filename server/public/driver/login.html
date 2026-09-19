@@ -4,7 +4,7 @@
 
 <meta charset="UTF-8">
 
-<title>Driver Login</title>
+<title>GH Mobility Driver</title>
 
 <meta
 name="viewport"
@@ -12,15 +12,17 @@ content="width=device-width, initial-scale=1.0">
 
 <link
 rel="manifest"
-href="install.json">
+href="manifest.json">
 
 <link
 rel="apple-touch-icon"
-href="sunbeamllc.jpeg">
+href="apple-touch-icon.png">
 
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GH Mobility Driver">
 <meta
 name="theme-color"
-content="#0f172a">
+content="#29a8ff">
 
 <style>
 
@@ -421,10 +423,7 @@ async function loadDriverTenantBranding(){
       );
     }
 
-    document.title =
-      companyName
-        ? `${companyName} Driver Login`
-        : "Driver Login";
+    document.title = "GH Mobility Driver";
 
   }catch(err){
 
