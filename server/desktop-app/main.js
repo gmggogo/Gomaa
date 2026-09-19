@@ -57,33 +57,72 @@ function calculateZoomFactor(win) {
   const { width, height } = win.getContentBounds();
 
   /*
-    GH Mobility adaptive desktop zoom.
-    The app automatically scales itself for laptop, desktop and larger displays.
-    Width is the main factor and height adds a small correction.
+    GH Mobility desktop-only auto zoom.
+
+    The web pages remain untouched.
+    Electron scales the WHOLE page to fit a comfortable virtual workspace.
+
+    This behaves like pressing browser Zoom Out, but automatically:
+    - smaller laptop window  -> stronger zoom out
+    - normal desktop monitor -> moderate zoom out
+    - large monitor          -> closer to 100%
   */
-  let zoom = 1.0;
+  const TARGET_LAYOUT_WIDTH = 2000;
+  const TARGET_LAYOUT_HEIGHT = 1050;
 
-  if (width <= 1100) zoom = 0.52;
-  else if (width <= 1280) zoom = 0.56;
-  else if (width <= 1366) zoom = 0.60;
-  else if (width <= 1440) zoom = 0.62;
-  else if (width <= 1536) zoom = 0.64;
-  else if (width <= 1600) zoom = 0.66;
-  else if (width <= 1920) zoom = 0.70;
-  else if (width <= 2560) zoom = 0.82;
-  else zoom = 0.92;
+  const widthZoom =
+    width / TARGET_LAYOUT_WIDTH;
 
-  if (height <= 720) zoom -= 0.03;
-  else if (height <= 800) zoom -= 0.02;
+  const heightZoom =
+    height / TARGET_LAYOUT_HEIGHT;
 
-  return Math.max(0.50, Math.min(0.92, zoom));
+  let zoom =
+    Math.min(
+      widthZoom,
+      heightZoom,
+      1
+    );
+
+  /*
+    Keep the UI readable while still fitting the full GH layout.
+    0.56 = 56% minimum
+    0.94 = 94% maximum
+  */
+  zoom =
+    Math.max(
+      0.56,
+      Math.min(
+        0.94,
+        zoom
+      )
+    );
+
+  return Number(
+    zoom.toFixed(2)
+  );
 }
 
 function applyDesktopFit(win) {
   if (!win || win.isDestroyed()) return;
 
-  const zoom = calculateZoomFactor(win);
-  win.webContents.setZoomFactor(zoom);
+  const zoom =
+    calculateZoomFactor(win);
+
+  try {
+    win.webContents.setZoomLevel(0);
+    win.webContents.setZoomFactor(zoom);
+
+    console.log(
+      "GH DESKTOP AUTO ZOOM:",
+      zoom,
+      win.getContentBounds()
+    );
+  } catch (error) {
+    console.error(
+      "Could not apply GH desktop zoom:",
+      error
+    );
+  }
 }
 
 function forceAppTitle(win) {
@@ -150,6 +189,11 @@ function createMainWindow() {
     forceAppTitle(mainWindow);
     mainWindow.show();
     mainWindow.focus();
+  });
+
+  mainWindow.webContents.on("dom-ready", () => {
+    applyDesktopFit(mainWindow);
+    forceAppTitle(mainWindow);
   });
 
   mainWindow.webContents.on("did-finish-load", () => {
