@@ -337,3 +337,162 @@ canvas{
     overflow:visible !important;
   }
 }
+
+
+/* =========================================================
+   GH MOBILITY — COMPACT LAPTOP PASS
+   Fixes:
+   1) Smaller nav icons/text inside Admin/Super Admin buttons
+   2) More compact tables for Summary / Dispatch Review /
+      Dispatch Final Confirmation and similar admin tables
+   ========================================================= */
+
+/* ---------- ADMIN / SUPER ADMIN NAV: smaller content ---------- */
+.gh-admin-header .gh-nav-tile,
+.gh-admin-header .gh-nav-group-btn{
+  min-height:42px !important;
+  padding:4px 4px !important;
+  font-size:8.5px !important;
+  line-height:1.05 !important;
+}
+
+.gh-admin-header .gh-nav-tile .gh-icon,
+.gh-admin-header .gh-nav-group-btn .gh-icon{
+  font-size:13px !important;
+  width:15px !important;
+  height:15px !important;
+  margin-bottom:1px !important;
+}
+
+.gh-admin-header .gh-nav-tile svg,
+.gh-admin-header .gh-nav-group-btn svg{
+  width:15px !important;
+  height:15px !important;
+}
+
+.gh-admin-header .gh-caret{
+  font-size:10px !important;
+  margin-left:2px !important;
+}
+
+.gh-admin-header .gh-nav-tile span,
+.gh-admin-header .gh-nav-group-btn span{
+  line-height:1.05 !important;
+}
+
+/* ---------- COMMON ADMIN TABLE COMPACTION ---------- */
+table{
+  font-size:11px !important;
+}
+
+table th,
+table td{
+  padding:5px 6px !important;
+  line-height:1.15 !important;
+  vertical-align:middle !important;
+}
+
+table th{
+  font-size:10px !important;
+  white-space:nowrap !important;
+}
+
+table td{
+  font-size:10.5px !important;
+}
+
+table input,
+table select,
+table textarea,
+table button{
+  font-size:10px !important;
+  min-height:28px !important;
+  padding:4px 6px !important;
+}
+
+table input,
+table select,
+table textarea{
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* Keep wide operational tables inside their own scroll area */
+.table-wrap,
+.table-wrapper,
+.responsive-table,
+.table-container,
+.summary-table-wrap,
+.dispatch-table-wrap,
+.review-table-wrap,
+.final-confirmation-table-wrap,
+[class*="table-wrap"],
+[class*="table-wrapper"],
+[class*="table-container"]{
+  width:100% !important;
+  max-width:100% !important;
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+
+/* Desktop/laptop table width: compact but readable */
+@media (min-width:901px) and (max-width:1600px){
+  table{
+    width:100% !important;
+    min-width:760px !important;
+  }
+
+  table th,
+  table td{
+    padding:4px 5px !important;
+  }
+
+  table th{
+    font-size:9px !important;
+  }
+
+  table td{
+    font-size:9.5px !important;
+  }
+
+  table input,
+  table select,
+  table textarea,
+  table button{
+    font-size:9px !important;
+    min-height:26px !important;
+    padding:3px 5px !important;
+  }
+}
+
+/* Smaller laptop */
+@media (max-width:1366px){
+  .gh-admin-header .gh-nav-tile,
+  .gh-admin-header .gh-nav-group-btn{
+    min-height:40px !important;
+    padding:3px 3px !important;
+    font-size:7.8px !important;
+  }
+
+  .gh-admin-header .gh-nav-tile .gh-icon,
+  .gh-admin-header .gh-nav-group-btn .gh-icon,
+  .gh-admin-header .gh-nav-tile svg,
+  .gh-admin-header .gh-nav-group-btn svg{
+    width:13px !important;
+    height:13px !important;
+    font-size:12px !important;
+  }
+
+  table{
+    min-width:700px !important;
+  }
+
+  table th{
+    font-size:8.5px !important;
+  }
+
+  table td{
+    font-size:9px !important;
+  }
+}
