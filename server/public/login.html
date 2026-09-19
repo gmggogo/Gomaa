@@ -1,249 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta charset="UTF-8">
-
 <meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
+  name="viewport"
+  content="width=device-width, initial-scale=1.0">
 
-<title id="pageTitle">
-Staff Login
-</title>
+<title>GH Mobility</title>
 
 <style>
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  width:100%;
+  min-height:100%;
+}
 
 body{
-
   margin:0;
-
   min-height:100vh;
-
   display:flex;
-
   justify-content:center;
-
   align-items:center;
-
   background:
-  radial-gradient(
-    circle at center,
-    #1e3cff 0%,
-    #001b7a 100%
-  );
-
-  font-family:
-  Arial,
-  sans-serif;
-
+    radial-gradient(
+      circle at center,
+      #1e3cff 0%,
+      #001b7a 100%
+    );
+  font-family:Arial,sans-serif;
   padding:20px;
-
 }
-
-/* LOGIN CARD */
 
 .login-card{
-
   width:360px;
-
   max-width:100%;
-
   padding:40px 30px;
-
   border-radius:20px;
-
-  background:
-  rgba(255,255,255,0.05);
-
+  background:rgba(255,255,255,0.05);
   backdrop-filter:blur(10px);
-
-  box-shadow:
-  0 0 40px rgba(0,0,0,0.4);
-
+  box-shadow:0 0 40px rgba(0,0,0,0.4);
   text-align:center;
-
   display:flex;
-
   flex-direction:column;
-
   align-items:center;
-
 }
-
-/* LOGO */
 
 .logo{
-
   width:150px;
-
   max-height:110px;
-
   margin-bottom:18px;
-
   object-fit:contain;
-
 }
-
-/* TITLE */
 
 .title{
-
   color:#ffffff;
-
   font-size:20px;
-
   letter-spacing:2px;
-
   margin-bottom:10px;
-
   font-weight:bold;
-
 }
-
-/* COMPANY NAME */
 
 .company-name{
-
   min-height:18px;
-
   margin-top:-3px;
   margin-bottom:8px;
-
   color:#facc15;
-
   font-size:13px;
-
   font-weight:800;
-
   letter-spacing:.3px;
-
 }
-
-/* TIME */
 
 .az-time{
-
   font-size:12px;
-
   color:#ddd;
-
   margin-bottom:25px;
-
   min-height:16px;
-
   line-height:1.6;
-
 }
-
-/* INPUTS */
 
 .login-card input{
-
   width:100%;
-
   padding:12px;
-
   margin-bottom:15px;
-
   border:none;
-
   border-radius:8px;
-
   font-size:14px;
-
   outline:none;
-
   text-align:center;
-
 }
 
-/* BUTTON */
-
 .login-card button{
-
   width:100%;
-
   padding:12px;
-
   border:none;
-
   border-radius:8px;
-
   background:#facc15;
-
   color:#000;
-
   font-weight:bold;
-
   cursor:pointer;
-
   transition:0.3s;
-
   font-size:15px;
-
 }
 
 .login-card button:hover{
-
   background:#ffdd33;
-
 }
 
 #msg{
-
   margin-top:10px;
-
   color:white;
-
   font-size:13px;
-
+  min-height:18px;
 }
 
-/* MOBILE */
-
 @media (max-width:480px){
-
   body{
-
     align-items:flex-start;
-
     padding-top:60px;
-
   }
 
   .login-card{
-
     width:100%;
-
     padding:30px 20px;
-
   }
 
   .logo{
-
     width:135px;
-
     max-height:100px;
-
   }
 
   .title{
-
     font-size:18px;
-
   }
 
   .login-card input{
-
     font-size:15px;
-
   }
-
 }
-
 </style>
-
 </head>
 
 <body>
@@ -251,17 +149,17 @@ body{
 <div class="login-card">
 
   <img
-  id="staffTenantLogo"
-  class="logo app-logo"
-  alt="Company Logo">
+    id="ghMobilityLogo"
+    class="logo"
+    src="/assets/gh-mobility.png"
+    alt="GH Mobility Logo">
 
   <div class="title">
     STAFF LOGIN
   </div>
 
-  <div
-    id="staffTenantName"
-    class="company-name">
+  <div class="company-name">
+    GH Mobility
   </div>
 
   <div
@@ -272,14 +170,18 @@ body{
   <input
     type="text"
     id="username"
-    placeholder="Username">
+    placeholder="Username"
+    autocomplete="username">
 
   <input
     type="password"
     id="password"
-    placeholder="Password">
+    placeholder="Password"
+    autocomplete="current-password">
 
-  <button onclick="login()">
+  <button
+    type="button"
+    onclick="login()">
     Sign In
   </button>
 
@@ -287,355 +189,15 @@ body{
 
 </div>
 
-<script src="/core/branding.js"></script>
-
 <script>
-
-/* =========================================================
-   STAFF LOGIN TENANT BRANDING
-   Uses the same tenant resolution as staff login.js
-========================================================= */
-
-function cleanTenantSlugForBranding(value){
-
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function tenantSlugForBranding(){
-
-  /*
-    IMPORTANT:
-    /login.html is shared by all tenants.
-    We must resolve the CURRENT tenant before Branding.load().
-    Order:
-    1) ?tenant=sony
-    2) opener page (/sony)
-    3) referrer page (/sony)
-    4) current tenant path if applicable
-    5) same-tab session fallback
-  */
-
-  const reserved =
-    new Set([
-      "admin",
-      "dispatcher",
-      "driver",
-      "company",
-      "platform-admin",
-      "booking",
-      "api",
-      "core",
-      "assets",
-      "uploads",
-      "login.html",
-      "login"
-    ]);
-
-  function slugFromPath(pathname){
-
-    const firstPart =
-      cleanTenantSlugForBranding(
-        String(pathname || "")
-          .split("/")
-          .filter(Boolean)[0]
-      );
-
-    if(
-      firstPart &&
-      !reserved.has(firstPart) &&
-      !firstPart.includes(".")
-    ){
-      return firstPart;
-    }
-
-    return "";
-  }
-
-  function saveSlug(slug){
-
-    slug =
-      cleanTenantSlugForBranding(slug);
-
-    if(!slug){
-      return "";
-    }
-
-    /*
-      Replace any stale tenant from another company.
-      This is what was causing Sony login to show Cover All.
-    */
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      slug
-    );
-
-    localStorage.setItem(
-      "tenantSlug",
-      slug
-    );
-
-    return slug;
-  }
-
-  /* 1) Explicit query */
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const querySlug =
-    cleanTenantSlugForBranding(
-      params.get("tenant") ||
-      params.get("tenantSlug")
-    );
-
-  if(querySlug){
-    return saveSlug(querySlug);
-  }
-
-  /* 2) Page that opened this login window/tab */
-  try{
-
-    if(
-      window.opener &&
-      window.opener.location &&
-      window.opener.location.origin ===
-        window.location.origin
-    ){
-
-      const openerSlug =
-        slugFromPath(
-          window.opener.location.pathname
-        );
-
-      if(openerSlug){
-        return saveSlug(openerSlug);
-      }
-    }
-
-  }catch(err){
-
-    console.log(
-      "LOGIN OPENER TENANT ERROR:",
-      err
-    );
-  }
-
-  /* 3) Referrer */
-  try{
-
-    if(document.referrer){
-
-      const ref =
-        new URL(
-          document.referrer
-        );
-
-      if(
-        ref.origin ===
-        window.location.origin
-      ){
-
-        const refSlug =
-          slugFromPath(
-            ref.pathname
-          );
-
-        if(refSlug){
-          return saveSlug(refSlug);
-        }
-      }
-    }
-
-  }catch(err){
-
-    console.log(
-      "LOGIN REFERRER TENANT ERROR:",
-      err
-    );
-  }
-
-  /* 4) Current pathname, if login is ever mounted under a tenant */
-  const pathSlug =
-    slugFromPath(
-      window.location.pathname
-    );
-
-  if(pathSlug){
-    return saveSlug(pathSlug);
-  }
-
-  /* 5) Same-tab fallback only */
-  return cleanTenantSlugForBranding(
-    sessionStorage.getItem(
-      "loginTenantSlug"
-    )
-  );
-}
-
-/* =========================
-   APPLY TENANT BRANDING
-========================= */
-
-async function loadStaffTenantBranding(){
-
-  const resolvedTenantSlug =
-    tenantSlugForBranding();
-
-  /*
-    Keep Branding's tenant lookup synchronized with Staff Login.
-    A stale Cover All value must never override a newly resolved Sony tenant.
-  */
-  if(resolvedTenantSlug){
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      resolvedTenantSlug
-    );
-    localStorage.setItem(
-      "tenantSlug",
-      resolvedTenantSlug
-    );
-  }
-
-  let data = {};
-
-  try{
-
-    if(
-      window.Branding &&
-      typeof Branding.load === "function"
-    ){
-
-      await Branding.load();
-
-      data =
-        Branding.data || {};
-
-      /*
-        If Branding had an old cached tenant, force the exact tenant
-        selected for this Staff Login.
-      */
-      if(
-        resolvedTenantSlug &&
-        cleanTenantSlugForBranding(
-          data.tenantSlug
-        ) !==
-        cleanTenantSlugForBranding(
-          resolvedTenantSlug
-        )
-      ){
-
-        const tenantRes =
-          await fetch(
-            "/api/public/tenant/" +
-            encodeURIComponent(
-              resolvedTenantSlug
-            )
-          );
-
-        if(tenantRes.ok){
-
-          const exactTenant =
-            await tenantRes.json();
-
-          data = {
-            ...data,
-            ...exactTenant,
-            tenantSlug:
-              exactTenant.tenantSlug ||
-              resolvedTenantSlug
-          };
-
-          if(window.Branding){
-            Branding.data = data;
-          }
-        }
-      }
-    }
-
-  }catch(err){
-
-    console.log(
-      "STAFF LOGIN BRANDING ERROR:",
-      err
-    );
-  }
-
-  const companyName =
-    data.companyName ||
-    localStorage.getItem(
-      "companyName"
-    ) ||
-    "";
-
-  const mainLogo =
-    data.mainLogo ||
-    (
-      typeof window.Branding?.getMainLogo === "function"
-        ? window.Branding.getMainLogo()
-        : ""
-    ) ||
-    localStorage.getItem(
-      "appLogo"
-    ) ||
-    "/assets/logo.png";
-
-  const logo =
-    document.getElementById(
-      "staffTenantLogo"
-    );
-
-  const nameEl =
-    document.getElementById(
-      "staffTenantName"
-    );
-
-  if(logo){
-    logo.src = mainLogo;
-  }
-
-  if(nameEl){
-    nameEl.textContent =
-      companyName;
-  }
-
-  if(companyName){
-
-    document.title =
-      companyName + " Staff Login";
-
-    localStorage.setItem(
-      "companyName",
-      companyName
-    );
-  }
-
-  if(mainLogo){
-
-    localStorage.setItem(
-      "appLogo",
-      mainLogo
-    );
-  }
-}
-
-/* =========================
-   CLOCK
-========================= */
-
 function updateStaffClock(){
 
   const el =
-    document.getElementById(
-      "azTime"
-    );
+    document.getElementById("azTime");
 
   if(!el) return;
 
   const timezone =
-    window.Branding?.data?.timezone ||
     "America/Phoenix";
 
   const now =
@@ -685,26 +247,19 @@ function updateStaffClock(){
   `;
 }
 
-async function initStaffLoginBranding(){
-
-  await loadStaffTenantBranding();
-
-  updateStaffClock();
-
-  setInterval(
-    updateStaffClock,
-    1000
-  );
-}
-
 window.addEventListener(
   "DOMContentLoaded",
-  initStaffLoginBranding
+  () => {
+    document.title = "GH Mobility";
+    updateStaffClock();
+    setInterval(
+      updateStaffClock,
+      1000
+    );
+  }
 );
-
 </script>
 
-<!-- KEEP CURRENT WORKING STAFF LOGIN LOGIC -->
 <script src="login.js"></script>
 
 </body>

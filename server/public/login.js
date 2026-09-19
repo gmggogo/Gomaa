@@ -1,103 +1,7 @@
 /* =====================
-   STAFF LOGIN
-   TENANT AWARE
+   GH MOBILITY STAFF LOGIN
+   GENERAL / MULTI-TENANT
 ===================== */
-
-function cleanTenantSlug(value){
-
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-
-}
-
-function tenantSlugFromPage(){
-
-  /* 1) Explicit query: /admin/login.html?tenant=sony */
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const querySlug =
-    cleanTenantSlug(
-      params.get("tenant") ||
-      params.get("tenantSlug")
-    );
-
-  if(querySlug){
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      querySlug
-    );
-    return querySlug;
-  }
-
-  /* 2) Referrer: user clicked Staff Login from /sony or /cover-all */
-  try{
-
-    if(document.referrer){
-
-      const ref =
-        new URL(
-          document.referrer
-        );
-
-      if(
-        ref.origin ===
-        window.location.origin
-      ){
-
-        const firstPart =
-          cleanTenantSlug(
-            ref.pathname
-              .split("/")
-              .filter(Boolean)[0]
-          );
-
-        const reserved =
-          new Set([
-            "admin",
-            "dispatcher",
-            "driver",
-            "company",
-            "platform-admin",
-            "booking",
-            "api",
-            "core",
-            "assets",
-            "uploads"
-          ]);
-
-        if(
-          firstPart &&
-          !reserved.has(firstPart) &&
-          !firstPart.includes(".")
-        ){
-          sessionStorage.setItem(
-            "loginTenantSlug",
-            firstPart
-          );
-          return firstPart;
-        }
-      }
-    }
-
-  }catch(err){
-    console.log(
-      "TENANT REFERRER ERROR:",
-      err
-    );
-  }
-
-  /* 3) Same-tab fallback */
-  return cleanTenantSlug(
-    sessionStorage.getItem(
-      "loginTenantSlug"
-    )
-  );
-
-}
 
 async function login(){
 
@@ -126,14 +30,19 @@ async function login(){
     return;
   }
 
-  const tenantSlug =
-    tenantSlugFromPage();
-
   msg.innerText =
     "Signing in...";
 
   try{
 
+    /*
+      IMPORTANT:
+      This is the general GH Mobility login.
+
+      No tenantSlug is selected by the page.
+      The backend authenticates the account first,
+      then returns the user's tenantId / tenantSlug.
+    */
     const res =
       await fetch(
         "/api/auth/login",
@@ -147,14 +56,18 @@ async function login(){
 
           body:JSON.stringify({
             username,
-            password,
-            tenantSlug
+            password
           })
         }
       );
 
-    const data =
-      await res.json();
+    let data = {};
+
+    try{
+      data = await res.json();
+    }catch(parseError){
+      data = {};
+    }
 
     if(!res.ok){
 
@@ -165,22 +78,29 @@ async function login(){
       return;
     }
 
-    /*
-      TAB-SAFE STAFF SESSION
-      sessionStorage is unique per browser tab, so Admin and Dispatcher
-      can stay logged in at the same time in different tabs.
+    if(
+      !data.user ||
+      !data.user.role
+    ){
 
-      localStorage is updated only as a compatibility mirror because
-      some existing admin pages still read token/role/name from it.
-    */
+      msg.innerText =
+        "Invalid login response";
+
+      return;
+    }
+
     const staffSession = {
       token:data.token || "",
       role:data.user.role || "",
       name:data.user.name || "",
       tenantId:data.user.tenantId || "",
-      tenantSlug:data.user.tenantSlug || tenantSlug || ""
+      tenantSlug:data.user.tenantSlug || ""
     };
 
+    /*
+      Keep staff authentication tab-safe.
+      Each Electron/web tab stores its own staff session.
+    */
     sessionStorage.setItem(
       "staffToken",
       staffSession.token
@@ -207,13 +127,21 @@ async function login(){
     );
 
     /*
-      IMPORTANT:
-      Do NOT copy staff auth into localStorage.
-      localStorage is shared across browser tabs and was the reason
-      Admin and Dispatcher were replacing each other.
-
-      Every staff login now lives only in this tab's sessionStorage.
+      Keep tenant identity available to the existing
+      branding/system pages AFTER successful login only.
     */
+    if(staffSession.tenantSlug){
+
+      sessionStorage.setItem(
+        "loginTenantSlug",
+        staffSession.tenantSlug
+      );
+
+      localStorage.setItem(
+        "tenantSlug",
+        staffSession.tenantSlug
+      );
+    }
 
     if(
       data.user.role ===
@@ -265,7 +193,37 @@ async function login(){
 
     msg.innerText =
       "Server error";
-
   }
-
 }
+
+/* Allow Enter to submit the form. */
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+
+    const username =
+      document.getElementById(
+        "username"
+      );
+
+    const password =
+      document.getElementById(
+        "password"
+      );
+
+    [username,password]
+      .filter(Boolean)
+      .forEach((input) => {
+
+        input.addEventListener(
+          "keydown",
+          (event) => {
+
+            if(event.key === "Enter"){
+              login();
+            }
+          }
+        );
+      });
+  }
+);
