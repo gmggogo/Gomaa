@@ -1,29 +1,3 @@
-TARGET PATH:
-server/public/companies/header.js
-
-================ FILE CONTENT ================
-
-(function ensureGhResponsiveStyles(){
-  const href = "/css/gh-responsive.css";
-
-  if(
-    document.querySelector(
-      'link[data-gh-responsive="true"]'
-    )
-  ){
-    return;
-  }
-
-  const link =
-    document.createElement("link");
-
-  link.rel = "stylesheet";
-  link.href = href;
-  link.dataset.ghResponsive = "true";
-
-  document.head.appendChild(link);
-})();
-
 function companySessionValue(key){
   return String(
     sessionStorage.getItem(key) ||
