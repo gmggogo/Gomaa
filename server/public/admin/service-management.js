@@ -1730,6 +1730,48 @@ function renderCard(section,service){
 
 function renderServices(){
 
+  // Keep one consistent service order across every Service Management section.
+  // Known services use the order below; future services are appended afterward.
+  const serviceOrder = [
+    "STANDARD",
+    "LIMOUSINE",
+    "WHEELCHAIR",
+    "TAXI",
+    "SHARED",
+    "XL"
+  ];
+
+  const getServiceOrderIndex = (service) => {
+    const values = [
+      service?.title,
+      service?.name,
+      service?.serviceKey,
+      service?.key,
+      service?.code,
+      service?.serviceCode
+    ].map(upper);
+
+    for(let i = 0; i < serviceOrder.length; i++){
+      if(values.some(value => value === serviceOrder[i])){
+        return i;
+      }
+    }
+
+    return serviceOrder.length;
+  };
+
+  services.sort((a,b)=>{
+    const aIndex = getServiceOrderIndex(a);
+    const bIndex = getServiceOrderIndex(b);
+
+    if(aIndex !== bIndex){
+      return aIndex - bIndex;
+    }
+
+    return clean(a?.title || a?.name || a?.serviceKey)
+      .localeCompare(clean(b?.title || b?.name || b?.serviceKey));
+  });
+
   if(bookingHoursServicesGrid){
     bookingHoursServicesGrid.innerHTML = "";
 
