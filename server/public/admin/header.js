@@ -1356,7 +1356,14 @@ function n(...values){
    }
  }
 
- await setupPayrollSignIn();
+ /*
+   Payroll Sign In is non-critical UI.
+   Do not block the shared Admin header (and therefore every Admin page)
+   while the payroll status API is responding.
+ */
+ setupPayrollSignIn().catch(err=>{
+   console.log("PAYROLL SIGN IN ASYNC ERROR:",err);
+ });
 
  const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
  function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
