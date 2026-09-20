@@ -1244,8 +1244,8 @@ function bookingHoursRow(service,section){
           value="${esc(rule.from)}"
           data-booking-edit="${service._id}"
           data-booking-time="${service._id}-${section.key}"
-          ${custom ? "" : "disabled"}
-          class="${custom ? "" : "booking-time-locked"}"
+          disabled
+          class="booking-time-locked"
         >
       </div>
 
@@ -1257,8 +1257,8 @@ function bookingHoursRow(service,section){
           value="${esc(rule.to)}"
           data-booking-edit="${service._id}"
           data-booking-time="${service._id}-${section.key}"
-          ${custom ? "" : "disabled"}
-          class="${custom ? "" : "booking-time-locked"}"
+          disabled
+          class="booking-time-locked"
         >
       </div>
 
@@ -1393,12 +1393,12 @@ function updateBookingHoursRow(serviceId,sectionKey){
 
   fromEl.classList.toggle(
     "booking-time-locked",
-    !custom
+    fromEl.disabled
   );
 
   toEl.classList.toggle(
     "booking-time-locked",
-    !custom
+    toEl.disabled
   );
 }
 
