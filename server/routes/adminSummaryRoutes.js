@@ -1713,11 +1713,15 @@ router.get("/", requireTenantApi, async (req,res)=>{
             "-overviewPolyline " +
             "-sharedRouteMeta"
           )
+          /*
+            Keep this sort aligned with the existing compound Trip index:
+            { tenantId: 1, tripDate: -1, tripTime: -1 }.
+            Adding bookedAt/createdAt here forces MongoDB to do an extra
+            in-memory sort after reading the tenant trips.
+          */
           .sort({
             tripDate:-1,
-            tripTime:-1,
-            bookedAt:-1,
-            createdAt:-1
+            tripTime:-1
           })
           .lean(),
 

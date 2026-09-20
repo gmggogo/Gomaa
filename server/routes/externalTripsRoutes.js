@@ -209,41 +209,48 @@ async function syncFinalizedExternalTrips(tenantId){
     return 0;
   }
 
-  let updated = 0;
+  const changedAt =
+    new Date();
 
-  for(const state of finalizedLinks){
-
-    const result =
-      await ExternalTrip.updateOne(
-        {
+  const operations =
+    finalizedLinks.map(state=>({
+      updateOne:{
+        filter:{
           _id:state.externalTripObjectId,
           tenantId,
           status:{
             $ne:"TRANSFERRED"
           }
         },
-        {
+        update:{
           $set:{
             status:"TRANSFERRED",
             transferEligible:false,
             transferredToTripsHub:true,
             transferredTripId:
               state.dispatchTripId,
-            transferredAt:new Date(),
+            transferredAt:changedAt,
             lastBrokerUpdateAt:
-              new Date()
+              changedAt
           }
         }
-      );
+      }
+    }));
 
-    updated +=
-      Number(
-        result?.modifiedCount ||
-        0
-      );
+  if(!operations.length){
+    return 0;
   }
 
-  return updated;
+  const result =
+    await ExternalTrip.bulkWrite(
+      operations,
+      { ordered:false }
+    );
+
+  return Number(
+    result?.modifiedCount ||
+    0
+  );
 }
 
 function phoenixPickupMillis(trip){
@@ -426,6 +433,70 @@ async function expireOverdueExternalTrips(
 
   let expiredCount = 0;
 
+  /*
+    PERFORMANCE:
+    Load possible review Trips in two batched queries instead of doing
+    one or two Trip.findOne() calls for every ExternalTrip candidate.
+  */
+  const tripNumbers =
+    [...new Set(
+      candidates
+        .map(row=>
+          clean(
+            row.ghExternalTripNumber ||
+            row.externalTripNumber
+          )
+        )
+        .filter(Boolean)
+    )];
+
+  const brokerPairs =
+    candidates
+      .map(row=>({
+        brokerCode:clean(row.brokerCode),
+        brokerTripId:clean(row.externalTripId)
+      }))
+      .filter(row=>
+        row.brokerCode &&
+        row.brokerTripId
+      );
+
+  const [
+    tripsByNumber,
+    tripsByBroker
+  ] = await Promise.all([
+    tripNumbers.length
+      ? Trip.find({
+          tenantId,
+          tripNumber:{ $in:tripNumbers }
+        })
+      : Promise.resolve([]),
+
+    brokerPairs.length
+      ? Trip.find({
+          tenantId,
+          $or:brokerPairs
+        })
+      : Promise.resolve([])
+  ]);
+
+  const reviewByNumber =
+    new Map(
+      tripsByNumber.map(trip=>[
+        clean(trip.tripNumber),
+        trip
+      ])
+    );
+
+  const reviewByBroker =
+    new Map(
+      tripsByBroker.map(trip=>[
+        clean(trip.brokerCode) + "::" +
+        clean(trip.brokerTripId),
+        trip
+      ])
+    );
+
   for(const externalTrip of candidates){
 
     const pickupMs =
@@ -447,15 +518,12 @@ async function expireOverdueExternalTrips(
         externalTrip.externalTripNumber
       );
 
-    let reviewTrip = null;
-
-    if(tripNumber){
-      reviewTrip =
-        await Trip.findOne({
-          tenantId,
-          tripNumber
-        });
-    }
+    let reviewTrip =
+      tripNumber
+        ? reviewByNumber.get(
+            tripNumber
+          ) || null
+        : null;
 
     if(
       !reviewTrip &&
@@ -464,13 +532,11 @@ async function expireOverdueExternalTrips(
       )
     ){
       reviewTrip =
-        await Trip.findOne({
-          tenantId,
-          brokerCode:
-            externalTrip.brokerCode,
-          brokerTripId:
-            externalTrip.externalTripId
-        });
+        reviewByBroker.get(
+          clean(externalTrip.brokerCode) +
+          "::" +
+          clean(externalTrip.externalTripId)
+        ) || null;
     }
 
     if(
