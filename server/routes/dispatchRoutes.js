@@ -1531,7 +1531,11 @@ router.get("/",requireTenantApi,async(req,res)=>{
     const Trip = TripModel();
     const [trips,drivers,scheduleRows] = await Promise.all([
       Trip.find(tenantFilter(req,{dispatchSelected:true,disabled:false}))
-        .sort({tripDate:1,tripTime:1,createdAt:1}).lean(),
+        // Dispatch needs the operational trip data, but it does not need the
+        // large cached Google/route payloads just to render the page.
+        .select("-googleRoute -optimizedRoute -routePath -routePoints -overviewPolyline -sharedRouteMeta")
+        .sort({tripDate:1,tripTime:1,createdAt:1})
+        .lean(),
       User.find(tenantFilter(req,driverUserFilter())).sort({name:1}).lean(),
       DriverSchedule.find(tenantFilter(req)).lean()
     ]);
@@ -1539,14 +1543,32 @@ router.get("/",requireTenantApi,async(req,res)=>{
     const tripIds = trips.map(t=>t._id);
     const tenantId = requestTenantId(req,trips[0] || null);
 
-    if(tenantId){
-      for(const trip of trips){
-        await migrateLegacyAssignmentTenant(trip,tenantId);
-      }
+    /*
+      Legacy tenant migration must never run once per trip during a page GET.
+      Repair all legacy assignments for the trips on this page in one Mongo
+      operation. Normal tenant-aware rows are untouched.
+    */
+    if(tenantId && tripIds.length){
+      await DispatchAssignment.collection.updateMany(
+        {
+          tripId:{$in:tripIds},
+          $or:[
+            {tenantId:{$exists:false}},
+            {tenantId:null}
+          ]
+        },
+        {
+          $set:{
+            tenantId:new mongoose.Types.ObjectId(String(tenantId))
+          }
+        }
+      );
     }
 
     const assignments = tripIds.length
-      ? await DispatchAssignment.find({tripId:{$in:tripIds}}).lean()
+      ? await DispatchAssignment.find(
+          tenantFilter(req,{tripId:{$in:tripIds}})
+        ).lean()
       : [];
     const assignmentMap = new Map(
       assignments.map(a=>[String(a.tripId),a])
