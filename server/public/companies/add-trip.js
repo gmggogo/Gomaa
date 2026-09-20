@@ -1977,6 +1977,90 @@ function selectedServicePayload(){
   };
 }
 
+
+/* ================= BOOKING HOURS - FACILITY FRONTEND ================= */
+
+function normalizeCompanyBookingMode(value){
+  const mode = String(value || "24_HOURS").trim().toUpperCase().replace(/[\s-]+/g,"_");
+  if(mode === "CUSTOM") return "CUSTOM";
+  if(mode === "DISABLED") return "DISABLED";
+  return "24_HOURS";
+}
+
+function companyBookingMinutes(value){
+  const match = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if(!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function companyBookingRule(service,forceOverride=false){
+  const hours = service?.bookingHours || {};
+  const useOverride = forceOverride === true || service?.__pricingSource === "FACILITY_OVERRIDE";
+  return useOverride
+    ? (hours.facilityOverride || null)
+    : (hours.facility || null);
+}
+
+function companyBookingTimeAllowed(service,timeValue,forceOverride=false){
+  const rule = companyBookingRule(service,forceOverride);
+  if(!rule) return true;
+
+  const mode = normalizeCompanyBookingMode(rule.mode);
+  if(mode === "DISABLED") return false;
+  if(mode === "24_HOURS") return true;
+
+  const tripMinutes = companyBookingMinutes(timeValue);
+  const fromMinutes = companyBookingMinutes(rule.from);
+  const toMinutes = companyBookingMinutes(rule.to);
+
+  if(tripMinutes === null || fromMinutes === null || toMinutes === null){
+    return true;
+  }
+
+  if(fromMinutes <= toMinutes){
+    return tripMinutes >= fromMinutes && tripMinutes <= toMinutes;
+  }
+
+  return tripMinutes >= fromMinutes || tripMinutes <= toMinutes;
+}
+
+function assertCompanyBookingHours(service,dateValue,timeValue,forceOverride=false){
+  if(!dateValue || !timeValue) return true;
+  if(companyBookingTimeAllowed(service,timeValue,forceOverride)) return true;
+  throw new Error("This booking is outside the company's business hours.");
+}
+
+async function attachCompanyBookingHoursToOverrideServices(services){
+  const list = Array.isArray(services) ? services : [];
+  if(!list.length) return list;
+
+  try{
+    const res = await fetch("/api/services?company=true",{
+      headers:{ Authorization:"Bearer " + token }
+    });
+    if(!res.ok) return list;
+
+    const base = await res.json().catch(()=>[]);
+    if(!Array.isArray(base)) return list;
+
+    const byCode = new Map();
+    base.forEach(item=>{
+      const code = resolveServiceCode(item);
+      if(code) byCode.set(code,item);
+    });
+
+    return list.map(item=>{
+      const baseService = byCode.get(resolveServiceCode(item));
+      return baseService?.bookingHours
+        ? { ...item, bookingHours:baseService.bookingHours }
+        : item;
+    });
+  }catch(err){
+    console.log("BOOKING HOURS LOAD ERROR:",err);
+    return list;
+  }
+}
+
 /* ================= WARNING ================= */
 
 function getServiceWarningMinutes(service = getCurrentServiceConfig()){
@@ -3045,6 +3129,13 @@ async function submitUnmatchedAutomaticCandidate(id,serviceCode){
   try{
     const selected = servicePayloadFromConfig(service);
 
+    assertCompanyBookingHours(
+      selected.service,
+      candidate.tripDate || "",
+      candidate.tripTime || candidate.pickupTime || "",
+      selected.facilityOverrideActive === true
+    );
+
     const payload = {
       company:companyName,
       companyName,
@@ -4040,6 +4131,13 @@ async function submitAutomaticSharedGroup(groupIndex){
     const tripDate = group.tripDate || passengers[0]?.tripDate || "";
     const tripTime = group.calculatedFirstPickupTime || passengers[0]?.tripTime || "";
 
+    assertCompanyBookingHours(
+      selected.service,
+      tripDate,
+      tripTime,
+      selected.facilityOverrideActive === true
+    );
+
     const payload = {
       company:companyName,
       companyName,
@@ -4308,6 +4406,9 @@ async function loadCompanyServices(){
         override.services
           .map(mapFacilityOverrideService)
           .filter(s=>s.serviceKey);
+
+      COMPANY_SERVICES =
+        await attachCompanyBookingHoursToOverrideServices(COMPANY_SERVICES);
 
       console.log(
         "ADD TRIP SERVICES FROM ACTIVE FACILITY OVERRIDE:",
@@ -4788,6 +4889,13 @@ submitTripBtn.onclick = async function(){
     const selected =
       selectedServicePayload();
 
+    assertCompanyBookingHours(
+      selected.service,
+      tripDate.value,
+      tripTime.value,
+      selected.facilityOverrideActive === true
+    );
+
     console.log("===== DEBUG SELECTED SERVICE BEFORE CREATE =====");
     console.log("activeService:", activeService);
     console.log("activeSuffix:", activeSuffix);
@@ -5048,6 +5156,13 @@ submitSharedBtn.onclick = async function(){
 
     const selected =
       selectedServicePayload();
+
+    assertCompanyBookingHours(
+      selected.service,
+      sharedDate.value,
+      sharedTime.value,
+      selected.facilityOverrideActive === true
+    );
 
     const sharedTrip = {
       company:companyName,

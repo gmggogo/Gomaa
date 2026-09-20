@@ -1175,6 +1175,99 @@ function getServerSharedRoutePoints(group){
   return [];
 }
 
+
+/* ================= BOOKING HOURS - FACILITY REVIEW ================= */
+
+function normalizeCompanyBookingMode(value){
+  const mode = String(value || "24_HOURS").trim().toUpperCase().replace(/[\s-]+/g,"_");
+  if(mode === "CUSTOM") return "CUSTOM";
+  if(mode === "DISABLED") return "DISABLED";
+  return "24_HOURS";
+}
+
+function companyBookingMinutes(value){
+  const match = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if(!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function companyBookingRule(service,forceOverride=false){
+  const hours = service?.bookingHours || {};
+  const useOverride = forceOverride === true || service?.__pricingSource === "FACILITY_OVERRIDE";
+  return useOverride
+    ? (hours.facilityOverride || null)
+    : (hours.facility || null);
+}
+
+function companyBookingTimeAllowed(service,timeValue,forceOverride=false){
+  const rule = companyBookingRule(service,forceOverride);
+  if(!rule) return true;
+
+  const mode = normalizeCompanyBookingMode(rule.mode);
+  if(mode === "DISABLED") return false;
+  if(mode === "24_HOURS") return true;
+
+  const tripMinutes = companyBookingMinutes(timeValue);
+  const fromMinutes = companyBookingMinutes(rule.from);
+  const toMinutes = companyBookingMinutes(rule.to);
+
+  if(tripMinutes === null || fromMinutes === null || toMinutes === null){
+    return true;
+  }
+
+  if(fromMinutes <= toMinutes){
+    return tripMinutes >= fromMinutes && tripMinutes <= toMinutes;
+  }
+
+  return tripMinutes >= fromMinutes || tripMinutes <= toMinutes;
+}
+
+function assertCompanyBookingHours(service,dateValue,timeValue,forceOverride=false){
+  if(!dateValue || !timeValue) return true;
+  if(companyBookingTimeAllowed(service,timeValue,forceOverride)) return true;
+  throw new Error("This booking is outside the company's business hours.");
+}
+
+async function attachCompanyBookingHoursToReviewOverrideServices(services){
+  const list = Array.isArray(services) ? services : [];
+  if(!list.length) return list;
+
+  try{
+    const res = await fetch("/api/services?company=true",{
+      headers:{ Authorization:"Bearer " + token }
+    });
+    if(!res.ok) return list;
+
+    const base = await res.json().catch(()=>[]);
+    if(!Array.isArray(base)) return list;
+
+    const byCode = new Map();
+    base.forEach(item=>{
+      const code = normalizeServiceCode(
+        item?.serviceKey || item?.serviceCode || item?.serviceType ||
+        item?.serviceSuffix || item?.companySuffix || item?.suffix ||
+        item?.serviceName || item?.title || item?.name || ""
+      );
+      if(code) byCode.set(code,item);
+    });
+
+    return list.map(item=>{
+      const code = normalizeServiceCode(
+        item?.serviceKey || item?.serviceCode || item?.serviceType ||
+        item?.serviceSuffix || item?.companySuffix || item?.suffix ||
+        item?.serviceName || item?.title || item?.name || ""
+      );
+      const baseService = byCode.get(code);
+      return baseService?.bookingHours
+        ? { ...item, bookingHours:baseService.bookingHours }
+        : item;
+    });
+  }catch(err){
+    console.log("BOOKING HOURS LOAD ERROR:",err);
+    return list;
+  }
+}
+
 /* ================= SERVICES ================= */
 
 async function loadServices(){
@@ -1388,6 +1481,9 @@ async function loadServices(){
               "FACILITY_OVERRIDE"
           };
         });
+
+      COMPANY_SERVICES =
+        await attachCompanyBookingHoursToReviewOverrideServices(COMPANY_SERVICES);
 
       console.log(
         "COMPANY SERVICES FROM FACILITY OVERRIDE:",
@@ -3301,9 +3397,19 @@ async function handleSaveTrip(btn){
   );
 
   const service = getServiceByTrip(trip);
+  const nextTripDate = payload.tripDate ?? trip.tripDate;
+  const nextTripTime = payload.tripTime ?? trip.tripTime;
+
+  assertCompanyBookingHours(
+    service,
+    nextTripDate,
+    nextTripTime,
+    trip.facilityOverrideActive === true || trip.pricingSource === "FACILITY_OVERRIDE"
+  );
+
   const mins = minutesToTrip({
-    tripDate:payload.tripDate ?? trip.tripDate,
-    tripTime:payload.tripTime ?? trip.tripTime
+    tripDate:nextTripDate,
+    tripTime:nextTripTime
   });
 
   if(
@@ -3505,9 +3611,19 @@ async function handleSaveShared(btn){
   );
 
   const service = getServiceByTrip(group[0]);
+  const nextTripDate = payload.tripDate ?? group[0].tripDate;
+  const nextTripTime = payload.tripTime ?? group[0].tripTime;
+
+  assertCompanyBookingHours(
+    service,
+    nextTripDate,
+    nextTripTime,
+    group[0].facilityOverrideActive === true || group[0].pricingSource === "FACILITY_OVERRIDE"
+  );
+
   const mins = minutesToTrip({
-    tripDate:payload.tripDate ?? group[0].tripDate,
-    tripTime:payload.tripTime ?? group[0].tripTime
+    tripDate:nextTripDate,
+    tripTime:nextTripTime
   });
 
   if(
