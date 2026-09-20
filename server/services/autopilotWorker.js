@@ -993,11 +993,37 @@ async function dispatchTenant(
         $in:dates
       }
     })
+    .select([
+      "_id",
+      "tripDate",
+      "tripTime",
+      "createdAt",
+      "serviceKey",
+      "serviceCode",
+      "serviceType",
+      "tripType",
+      "service",
+      "isShared",
+      "shared",
+      "sharedTrip",
+      "type",
+      "groupId",
+      "tripNumber",
+      "passengers",
+      "externalSource",
+      "sourceType",
+      "sharedSource",
+      "brokerCode",
+      "brokerName",
+      "brokerTripId",
+      "externalTripId"
+    ].join(" "))
     .sort({
       tripDate:1,
       tripTime:1,
       createdAt:1
     })
+    .limit(MAX_BATCH * 2)
     .lean();
 
   const controlledTrips =
@@ -1221,20 +1247,96 @@ async function finalConfirmTenant(
     );
 
   /*
-    Final Confirmation is intentionally not date-limited.
-    When a driver closes an older active trip, Autopilot should still
-    process that final status.
+    Final Confirmation must only inspect the live Final Confirmation queue.
+
+    IMPORTANT:
+    - Do NOT scan the tenant's full Trip history every worker cycle.
+    - A trip enters this queue only after the driver has produced a final
+      status (Completed / Cancelled / No Show / Not Completed).
+    - Already-final-confirmed trips are excluded in MongoDB, before results
+      reach Node.js.
+    - This is intentionally NOT date-limited: an active trip may finish late,
+      but old completed/confirmed history must never be reloaded here.
   */
+  const operationFinalEnabled =
+    settings?.operationFinalConfirmation === true;
+
+  const brokerFinalEnabled =
+    settings?.brokerFinalConfirmation === true;
+
+  if(
+    !operationFinalEnabled &&
+    !brokerFinalEnabled
+  ){
+    return {
+      confirmed:0
+    };
+  }
+
+  const finalStatusPattern =
+    /^(?:COMPLETED?|CANCEL(?:LED|ED)?|NO[\s_-]?SHOW|NOT[\s_-]?COMPLETED?)$/i;
+
   const trips =
     await Trip.find({
       tenantId,
       disabled:{
         $ne:true
-      }
+      },
+      $or:[
+        {
+          status:{
+            $regex:finalStatusPattern
+          },
+          finalStatusConfirmed:{
+            $ne:true
+          },
+          finalStatusConfirmedAt:null,
+          dispatchFinalConfirmedAt:null
+        },
+        {
+          "passengers.status":{
+            $regex:finalStatusPattern
+          },
+          sharedFinalConfirmed:{
+            $ne:true
+          },
+          sharedFinalConfirmedAt:null,
+          dispatchFinalConfirmedAt:null
+        }
+      ]
     })
+    .select([
+      "_id",
+      "status",
+      "passengers.status",
+      "serviceKey",
+      "serviceCode",
+      "serviceType",
+      "tripType",
+      "service",
+      "isShared",
+      "shared",
+      "sharedTrip",
+      "type",
+      "groupId",
+      "tripNumber",
+      "externalSource",
+      "sourceType",
+      "sharedSource",
+      "brokerCode",
+      "brokerName",
+      "brokerTripId",
+      "externalTripId",
+      "finalStatusConfirmed",
+      "finalStatusConfirmedAt",
+      "dispatchFinalConfirmedAt",
+      "sharedFinalConfirmed",
+      "sharedFinalConfirmedAt"
+    ].join(" "))
     .sort({
       updatedAt:1
     })
+    .limit(MAX_BATCH * 2)
     .lean();
 
   let confirmedCount = 0;
