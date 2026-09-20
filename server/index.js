@@ -8941,64 +8941,94 @@ app.get(
 
       }
 
-      const explainStart = Date.now();
-
-      const explainResult =
-        await Trip.find(filter)
-        .sort({
-          createdAt:-1,
-          _id:-1
-        })
-        .lean()
-        .explain("executionStats");
-
-      const executionStats =
-        explainResult?.executionStats || {};
-
-      const winningPlan =
-        explainResult?.queryPlanner?.winningPlan || {};
-
-      const findStage = (plan, wanted) => {
-        if(!plan || typeof plan !== "object"){
-          return null;
-        }
-
-        if(plan.stage === wanted){
-          return plan;
-        }
-
-        for(const value of Object.values(plan)){
-          if(value && typeof value === "object"){
-            const found = findStage(value, wanted);
-
-            if(found){
-              return found;
-            }
-          }
-        }
-
-        return null;
-      };
-
-      const ixscan =
-        findStage(winningPlan, "IXSCAN");
-
-      const collscan =
-        findStage(winningPlan, "COLLSCAN");
-
-      console.log(
-        "[EXPLAIN TEST] tenant-trips",
-        "| time=" + (Date.now() - explainStart) + "ms",
-        "| nReturned=" + (executionStats.nReturned ?? "n/a"),
-        "| docsExamined=" + (executionStats.totalDocsExamined ?? "n/a"),
-        "| keysExamined=" + (executionStats.totalKeysExamined ?? "n/a"),
-        "| executionTimeMillis=" + (executionStats.executionTimeMillis ?? "n/a"),
-        "| stage=" + (collscan ? "COLLSCAN" : (ixscan ? "IXSCAN" : (winningPlan.stage || "UNKNOWN"))),
-        "| index=" + (ixscan?.indexName || "none")
-      );
-
       const trips =
         await Trip.find(filter)
+        .select(`
+          _id
+          tripNumber
+          tenantId
+          tenantSlug
+          type
+          company
+
+          brokerId
+          brokerName
+          brokerCode
+          brokerTripId
+          externalSource
+
+          entryName
+          entryPhone
+          clientName
+          clientPhone
+          clientEmail
+
+          priceAmount
+          finalPrice
+
+          miles
+          estimatedMinutes
+          durationSeconds
+          distanceMeters
+
+          vehicleTypeFromQuote
+          serviceType
+          serviceKey
+          serviceCode
+
+          pickup
+          dropoff
+          stops
+
+          pickupLat
+          pickupLng
+          dropoffLat
+          dropoffLng
+          stopCoords
+
+          isShared
+          groupId
+          tripType
+          sharedSuffix
+          sharedSource
+          sharedEntryMode
+          passengerIndex
+          totalPassengers
+          passengers
+
+          paymentStatus
+
+          tripDate
+          tripTime
+          notes
+
+          dispatchSelected
+          disabled
+          driverId
+          driverName
+          vehicle
+          driverAddress
+          dispatchNote
+          status
+
+          reminderSent
+
+          routeChangePending
+          routeChangeStatus
+
+          finalPageEnteredAt
+          dispatchFinalPageEnteredAt
+          finalStatusConfirmed
+          finalStatusConfirmedAt
+          dispatchFinalConfirmedAt
+          sharedFinalConfirmed
+          sharedFinalConfirmedAt
+          finalStatusConfirmedBy
+          historyAt
+
+          bookedAt
+          createdAt
+        `)
         .sort({
           createdAt:-1,
           _id:-1
