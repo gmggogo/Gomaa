@@ -1321,39 +1321,13 @@ router.get("/",async(req,res)=>{
       );
 
     /*
-      Final broker financial pass:
-      Completed -> Broker Pricing trip price.
-      No Show   -> Broker Pricing no-show fee.
-      Cancelled -> Broker Pricing cancel fee when chargeable.
-      Not Completed -> 0.
+      PERFORMANCE / READ-ONLY SUMMARY:
+      Broker Review / trip close already locks the historical broker money.
+      Dashboard and Tax Report must only READ the stored finalPrice /
+      priceAmount / passenger amounts and fees. Re-running Broker Pricing here
+      made every summary refresh perform pricing database work for every closed
+      trip, causing multi-second waits and Pending requests.
     */
-    /*
-      PERFORMANCE:
-      The old code priced every closed trip one-by-one. A report containing N
-      trips therefore waited for N broker-pricing database calls serially.
-      Keep the exact same pricing logic, but process a small bounded batch in
-      parallel so one slow trip does not serialize the whole report.
-    */
-    const PRICING_BATCH_SIZE = 8;
-
-    for(
-      let i = 0;
-      i < closedTrips.length;
-      i += PRICING_BATCH_SIZE
-    ){
-      const batch =
-        closedTrips.slice(
-          i,
-          i + PRICING_BATCH_SIZE
-        );
-
-      await Promise.all(
-        batch.map(
-          trip=>
-            applyFinalBrokerMoney(trip)
-        )
-      );
-    }
 
     const ids =
       closedTrips.map(
