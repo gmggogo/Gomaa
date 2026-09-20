@@ -626,8 +626,28 @@ router.get("/", requireTenantApi, async (req,res)=>{
     const Trip =
       getTripModel();
 
+    const confirmationFilter = {
+      $or:[
+        {finalStatusConfirmed:true},
+        {dispatchFinalConfirmed:true},
+        {sharedFinalConfirmed:true},
+        {finalConfirmed:true},
+        {finalStatusConfirmedAt:{$exists:true,$ne:null}},
+        {dispatchFinalConfirmedAt:{$exists:true,$ne:null}},
+        {sharedFinalConfirmedAt:{$exists:true,$ne:null}},
+        {finalConfirmedAt:{$exists:true,$ne:null}},
+        {"passengers.finalStatusConfirmed":true},
+        {"passengers.dispatchFinalConfirmed":true},
+        {"passengers.finalStatusConfirmedAt":{$exists:true,$ne:null}},
+        {"passengers.dispatchFinalConfirmedAt":{$exists:true,$ne:null}}
+      ]
+    };
+
     const trips =
-      await Trip.find(tenantFilter(req))
+      await Trip.find(tenantFilter(req,confirmationFilter))
+        .select(
+          "-googleRoute -optimizedRoute -routePath -routePoints -overviewPolyline -sharedRouteMeta"
+        )
         .sort({
           tripDate:-1,
           tripTime:-1,
