@@ -418,6 +418,64 @@ const serviceSchema = new mongoose.Schema({
   reservedAddStopCutoffMinutes:{
     type:Number,
     default:0
+  },
+
+  /* =========================
+     BOOKING HOURS BY SOURCE
+     24_HOURS / CUSTOM / DISABLED
+  ========================= */
+
+  bookingHours:{
+
+    getQuote:{
+      mode:{
+        type:String,
+        enum:["24_HOURS","CUSTOM","DISABLED"],
+        default:"24_HOURS"
+      },
+      from:{ type:String, default:"00:00" },
+      to:{ type:String, default:"23:59" }
+    },
+
+    facility:{
+      mode:{
+        type:String,
+        enum:["24_HOURS","CUSTOM","DISABLED"],
+        default:"24_HOURS"
+      },
+      from:{ type:String, default:"00:00" },
+      to:{ type:String, default:"23:59" }
+    },
+
+    reserved:{
+      mode:{
+        type:String,
+        enum:["24_HOURS","CUSTOM","DISABLED"],
+        default:"24_HOURS"
+      },
+      from:{ type:String, default:"00:00" },
+      to:{ type:String, default:"23:59" }
+    },
+
+    facilityOverride:{
+      mode:{
+        type:String,
+        enum:["24_HOURS","CUSTOM","DISABLED"],
+        default:"24_HOURS"
+      },
+      from:{ type:String, default:"00:00" },
+      to:{ type:String, default:"23:59" }
+    },
+
+    broker:{
+      mode:{
+        type:String,
+        enum:["24_HOURS","CUSTOM","DISABLED"],
+        default:"24_HOURS"
+      },
+      from:{ type:String, default:"00:00" },
+      to:{ type:String, default:"23:59" }
+    }
   }
 
 },{

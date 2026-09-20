@@ -5,6 +5,7 @@ const router = express.Router();
 
 const Service = require("../models/Service");
 const Tenant = require("../models/Tenant");
+const BrokerIntegration = require("../models/BrokerIntegration");
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -766,6 +767,84 @@ function normalizePricingPayload(payload){
   return out;
 }
 
+/* =========================
+   BOOKING HOURS
+========================= */
+
+const BOOKING_HOUR_SOURCES = [
+  "getQuote",
+  "facility",
+  "reserved",
+  "facilityOverride",
+  "broker"
+];
+
+function safeBookingTime(value,fallback){
+
+  const text = clean(value);
+
+  if(/^([01]\\d|2[0-3]):[0-5]\\d$/.test(text)){
+    return text;
+  }
+
+  return fallback;
+}
+
+function normalizeBookingHourRule(value){
+
+  const source =
+    value && typeof value === "object"
+      ? value
+      : {};
+
+  const requestedMode =
+    upper(source.mode || "24_HOURS");
+
+  const mode =
+    ["24_HOURS","CUSTOM","DISABLED"].includes(requestedMode)
+      ? requestedMode
+      : "24_HOURS";
+
+  return {
+    mode,
+    from:safeBookingTime(source.from,"00:00"),
+    to:safeBookingTime(source.to,"23:59")
+  };
+}
+
+function normalizeBookingHoursPayload(payload){
+
+  const out = { ...payload };
+
+  if(
+    !Object.prototype.hasOwnProperty.call(
+      out,
+      "bookingHours"
+    )
+  ){
+    return out;
+  }
+
+  const incoming =
+    out.bookingHours &&
+    typeof out.bookingHours === "object"
+      ? out.bookingHours
+      : {};
+
+  const normalized = {};
+
+  for(const source of BOOKING_HOUR_SOURCES){
+    normalized[source] =
+      normalizeBookingHourRule(
+        incoming[source]
+      );
+  }
+
+  out.bookingHours = normalized;
+
+  return out;
+}
+
 function isSharedAfterUpdate(current,payload){
 
   return (
@@ -871,6 +950,52 @@ router.get(
     return res.status(500).json({
       success:false,
       message:"Failed To Load Services"
+    });
+  }
+});
+
+/* =========================
+   BOOKING HOURS CONTEXT
+   /api/services/booking-hours-context
+========================= */
+
+router.get(
+  "/booking-hours-context",
+  requireTenantApi,
+  async (req,res)=>{
+
+  try{
+
+    if(
+      req.authUser?.role ===
+      "PLATFORM_ADMIN"
+    ){
+      return res.json({
+        success:true,
+        brokerEnabled:true
+      });
+    }
+
+    const brokerEnabled =
+      Boolean(
+        await BrokerIntegration.exists({
+          tenantId:req.authUser.tenantId,
+          enabled:true
+        })
+      );
+
+    return res.json({
+      success:true,
+      brokerEnabled
+    });
+
+  }catch(err){
+
+    console.log(err);
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed To Load Booking Hours Context"
     });
   }
 });
@@ -1056,9 +1181,14 @@ router.put(
         driverNormalized
       );
 
+    const bookingHoursNormalized =
+      normalizeBookingHoursPayload(
+        pricingNormalized
+      );
+
     const payload =
       lockAddStopForShared(
-        pricingNormalized,
+        bookingHoursNormalized,
         current
       );
 

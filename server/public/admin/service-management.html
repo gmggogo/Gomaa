@@ -629,6 +629,117 @@ body{
 }
 
 /* =========================
+   BOOKING HOURS
+========================= */
+
+.booking-hours-card::before{
+  background:#7c3aed;
+}
+
+.badge-booking-hours{
+  background:#ede9fe;
+  color:#5b21b6;
+  border-color:#ddd6fe;
+}
+
+.booking-hours-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.booking-hours-row{
+  display:grid;
+  grid-template-columns:minmax(150px,1.15fr) minmax(150px,1fr) minmax(125px,.85fr) minmax(125px,.85fr);
+  gap:12px;
+  align-items:end;
+  padding:14px;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:#f8fafc;
+}
+
+.booking-hours-source{
+  align-self:center;
+  font-size:14px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.booking-hours-field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.booking-hours-field label{
+  font-size:12px;
+  font-weight:900;
+  color:#64748b;
+}
+
+.booking-hours-field select,
+.booking-hours-field input{
+  width:100%;
+  min-height:48px;
+  border:1px solid #cbd5e1;
+  border-radius:14px;
+  padding:11px 12px;
+  background:#fff;
+  font-size:14px;
+  font-weight:800;
+  outline:none;
+}
+
+.booking-hours-field select:disabled,
+.booking-hours-field input:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+.booking-mode-24{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:2px solid #16a34a !important;
+}
+
+.booking-mode-custom{
+  background:#f59e0b !important;
+  color:#fff !important;
+  border:2px solid #f59e0b !important;
+}
+
+.booking-mode-disabled{
+  background:#dc2626 !important;
+  color:#fff !important;
+  border:2px solid #dc2626 !important;
+}
+
+.booking-mode-24 option,
+.booking-mode-custom option,
+.booking-mode-disabled option{
+  color:#000;
+  background:#fff;
+}
+
+.booking-time-locked{
+  background:#e5e7eb !important;
+  color:#64748b !important;
+}
+
+@media(max-width:900px){
+  .booking-hours-row{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:560px){
+  .booking-hours-row{
+    grid-template-columns:1fr;
+  }
+}
+
+/* =========================
    HELPERS
 ========================= */
 
@@ -788,6 +899,34 @@ body{
   <div
     class="services-grid"
     id="reservedServicesGrid"
+  ></div>
+
+  <hr class="section-divider">
+
+  <!-- =========================
+       SERVICE BOOKING HOURS
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Service Booking Hours
+      </div>
+
+      <div class="section-subtitle">
+        Set booking availability separately for each enabled service and booking source.
+        Use 24 Hours, Custom Hours, or Disabled. Custom Hours can cross midnight.
+      </div>
+    </div>
+
+    <div class="section-badge badge-booking-hours">
+      Booking Availability
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="bookingHoursServicesGrid"
   ></div>
 
 </div>

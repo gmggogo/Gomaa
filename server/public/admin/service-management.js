@@ -35,11 +35,15 @@ document.getElementById("reservedServicesGrid");
 const driverServicesGrid =
 document.getElementById("driverServicesGrid");
 
+const bookingHoursServicesGrid =
+document.getElementById("bookingHoursServicesGrid");
+
 /* =========================
    STATE
 ========================= */
 
 let services = [];
+let brokerBookingEnabled = false;
 
 /* =========================
    HELPERS
@@ -1134,6 +1138,432 @@ function reservedFields(service){
 }
 
 /* =========================
+   SERVICE BOOKING HOURS
+========================= */
+
+const bookingHourSections = [
+  { key:"getQuote", label:"Get Quote" },
+  { key:"facility", label:"Facility" },
+  { key:"reserved", label:"Reserved" },
+  { key:"facilityOverride", label:"Facility Override" },
+  { key:"broker", label:"Broker", brokerOnly:true }
+];
+
+function bookingRule(service,key){
+
+  const rule =
+    service?.bookingHours?.[key] || {};
+
+  const mode =
+    ["24_HOURS","CUSTOM","DISABLED"].includes(
+      upper(rule.mode)
+    )
+      ? upper(rule.mode)
+      : "24_HOURS";
+
+  return {
+    mode,
+    from:clean(rule.from) || "00:00",
+    to:clean(rule.to) || "23:59"
+  };
+}
+
+function bookingFieldId(serviceId,section,name){
+  return `booking-${section}-${name}-${serviceId}`;
+}
+
+function bookingModeClass(mode){
+
+  if(mode === "CUSTOM"){
+    return "booking-mode-custom";
+  }
+
+  if(mode === "DISABLED"){
+    return "booking-mode-disabled";
+  }
+
+  return "booking-mode-24";
+}
+
+function bookingHoursRow(service,section){
+
+  const rule =
+    bookingRule(service,section.key);
+
+  const modeId =
+    bookingFieldId(
+      service._id,
+      section.key,
+      "mode"
+    );
+
+  const fromId =
+    bookingFieldId(
+      service._id,
+      section.key,
+      "from"
+    );
+
+  const toId =
+    bookingFieldId(
+      service._id,
+      section.key,
+      "to"
+    );
+
+  const custom =
+    rule.mode === "CUSTOM";
+
+  return `
+    <div class="booking-hours-row">
+
+      <div class="booking-hours-source">
+        ${esc(section.label)}
+      </div>
+
+      <div class="booking-hours-field">
+        <label>Availability</label>
+        <select
+          id="${modeId}"
+          class="${bookingModeClass(rule.mode)}"
+          data-booking-edit="${service._id}"
+          data-booking-mode="${service._id}-${section.key}"
+          disabled
+          onchange="updateBookingHoursRow('${service._id}','${section.key}')"
+        >
+          <option value="24_HOURS" ${rule.mode === "24_HOURS" ? "selected" : ""}>24 Hours</option>
+          <option value="CUSTOM" ${rule.mode === "CUSTOM" ? "selected" : ""}>Custom</option>
+          <option value="DISABLED" ${rule.mode === "DISABLED" ? "selected" : ""}>Disabled</option>
+        </select>
+      </div>
+
+      <div class="booking-hours-field">
+        <label>From</label>
+        <input
+          id="${fromId}"
+          type="time"
+          value="${esc(rule.from)}"
+          data-booking-edit="${service._id}"
+          data-booking-time="${service._id}-${section.key}"
+          ${custom ? "" : "disabled"}
+          class="${custom ? "" : "booking-time-locked"}"
+        >
+      </div>
+
+      <div class="booking-hours-field">
+        <label>To</label>
+        <input
+          id="${toId}"
+          type="time"
+          value="${esc(rule.to)}"
+          data-booking-edit="${service._id}"
+          data-booking-time="${service._id}-${section.key}"
+          ${custom ? "" : "disabled"}
+          class="${custom ? "" : "booking-time-locked"}"
+        >
+      </div>
+
+    </div>
+  `;
+}
+
+function renderBookingHoursCard(service){
+
+  const card =
+    document.createElement("div");
+
+  card.className =
+    "service-card booking-hours-card";
+
+  const rows =
+    bookingHourSections
+      .filter(section =>
+        !section.brokerOnly ||
+        brokerBookingEnabled
+      )
+      .map(section =>
+        bookingHoursRow(
+          service,
+          section
+        )
+      )
+      .join("");
+
+  card.innerHTML = `
+
+    <div class="service-top">
+
+      <div class="service-info">
+
+        <div class="service-icon">
+          ${service.icon || "🚘"}
+        </div>
+
+        <div>
+          <div class="service-name">
+            ${esc(service.title || service.name || "")}
+          </div>
+
+          <div class="service-status">
+            Booking Hours • ${esc(service.serviceKey || "")}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="warning-box warning-blue">
+      Configure when this service can be booked from each booking section.
+    </div>
+
+    <div class="booking-hours-list">
+      ${rows}
+    </div>
+
+    <div class="buttons">
+      <button
+        class="edit-btn"
+        onclick="enableBookingHoursEdit('${service._id}')"
+      >
+        EDIT
+      </button>
+
+      <button
+        class="save-btn"
+        onclick="saveBookingHours('${service._id}')"
+      >
+        SAVE
+      </button>
+    </div>
+  `;
+
+  return card;
+}
+
+function updateBookingHoursRow(serviceId,sectionKey){
+
+  const modeEl =
+    document.getElementById(
+      bookingFieldId(
+        serviceId,
+        sectionKey,
+        "mode"
+      )
+    );
+
+  const fromEl =
+    document.getElementById(
+      bookingFieldId(
+        serviceId,
+        sectionKey,
+        "from"
+      )
+    );
+
+  const toEl =
+    document.getElementById(
+      bookingFieldId(
+        serviceId,
+        sectionKey,
+        "to"
+      )
+    );
+
+  if(!modeEl || !fromEl || !toEl){
+    return;
+  }
+
+  modeEl.classList.remove(
+    "booking-mode-24",
+    "booking-mode-custom",
+    "booking-mode-disabled"
+  );
+
+  modeEl.classList.add(
+    bookingModeClass(modeEl.value)
+  );
+
+  const editable =
+    modeEl.disabled === false;
+
+  const custom =
+    modeEl.value === "CUSTOM";
+
+  fromEl.disabled =
+    !(editable && custom);
+
+  toEl.disabled =
+    !(editable && custom);
+
+  fromEl.classList.toggle(
+    "booking-time-locked",
+    !custom
+  );
+
+  toEl.classList.toggle(
+    "booking-time-locked",
+    !custom
+  );
+}
+
+function enableBookingHoursEdit(serviceId){
+
+  const fields =
+    document.querySelectorAll(
+      `[data-booking-edit="${serviceId}"]`
+    );
+
+  fields.forEach(el=>{
+    el.disabled = false;
+  });
+
+  bookingHourSections
+    .filter(section =>
+      !section.brokerOnly ||
+      brokerBookingEnabled
+    )
+    .forEach(section =>
+      updateBookingHoursRow(
+        serviceId,
+        section.key
+      )
+    );
+}
+
+function readBookingHoursPayload(serviceId){
+
+  const bookingHours = {};
+
+  bookingHourSections.forEach(section=>{
+
+    const existingService =
+      services.find(
+        item =>
+          String(item._id) ===
+          String(serviceId)
+      );
+
+    const existing =
+      bookingRule(
+        existingService,
+        section.key
+      );
+
+    const modeEl =
+      document.getElementById(
+        bookingFieldId(
+          serviceId,
+          section.key,
+          "mode"
+        )
+      );
+
+    const fromEl =
+      document.getElementById(
+        bookingFieldId(
+          serviceId,
+          section.key,
+          "from"
+        )
+      );
+
+    const toEl =
+      document.getElementById(
+        bookingFieldId(
+          serviceId,
+          section.key,
+          "to"
+        )
+      );
+
+    bookingHours[section.key] = {
+      mode:modeEl?.value || existing.mode,
+      from:fromEl?.value || existing.from,
+      to:toEl?.value || existing.to
+    };
+  });
+
+  return {
+    bookingHours
+  };
+}
+
+async function saveBookingHours(serviceId){
+
+  try{
+
+    const payload =
+      readBookingHoursPayload(
+        serviceId
+      );
+
+    const res =
+      await fetch(
+        `/api/services/${serviceId}`,
+        {
+          method:"PUT",
+          headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
+          },
+          body:JSON.stringify(payload)
+        }
+      );
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    if(
+      !res.ok ||
+      data.success === false
+    ){
+      alert(
+        data.message ||
+        "Booking Hours Save Failed"
+      );
+      return;
+    }
+
+    alert("Booking Hours Saved");
+
+    await loadServices();
+
+  }catch(err){
+    console.log(err);
+    alert("Booking Hours Save Failed");
+  }
+}
+
+async function loadBookingHoursContext(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/services/booking-hours-context",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res.json().catch(()=>({}));
+
+    brokerBookingEnabled =
+      res.ok &&
+      data.success !== false &&
+      data.brokerEnabled === true;
+
+  }catch(err){
+    console.log(err);
+    brokerBookingEnabled = false;
+  }
+}
+
+/* =========================
    CARD RENDER
 ========================= */
 
@@ -1300,6 +1730,16 @@ function renderCard(section,service){
 
 function renderServices(){
 
+  if(bookingHoursServicesGrid){
+    bookingHoursServicesGrid.innerHTML = "";
+
+    services.forEach(service=>{
+      bookingHoursServicesGrid.appendChild(
+        renderBookingHoursCard(service)
+      );
+    });
+  }
+
   if(driverServicesGrid){
     driverServicesGrid.innerHTML = "";
 
@@ -1362,6 +1802,8 @@ async function loadServices(){
     if(!Array.isArray(services)){
       services = [];
     }
+
+    await loadBookingHoursContext();
 
     renderServices();
 
@@ -1876,7 +2318,10 @@ Object.assign(window,{
   toggleSectionService,
   updateVisualSelect,
   enableDriverTimerEdit,
-  saveDriverTimerService
+  saveDriverTimerService,
+  enableBookingHoursEdit,
+  saveBookingHours,
+  updateBookingHoursRow
 });
 
 /* =========================

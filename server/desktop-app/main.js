@@ -2,6 +2,117 @@ const { app, BrowserWindow, shell, dialog, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
+
+
+// GH Mobility: Electron text-input recovery.
+// On affected Windows/Electron systems, keydown/keyup can continue while
+// Chromium stops producing beforeinput/input. This watchdog only acts when
+// that exact failure is detected, so normal typing is untouched.
+function installTextInputRecovery(win) {
+  if (!win || win.isDestroyed()) return;
+
+  const script = `
+    (() => {
+      if (window.__ghTextInputRecoveryInstalled) return;
+      window.__ghTextInputRecoveryInstalled = true;
+
+      let textEventSerial = 0;
+
+      const NON_TEXT_INPUT_TYPES = new Set([
+        'hidden', 'checkbox', 'radio', 'button', 'submit', 'reset',
+        'file', 'image', 'range', 'color', 'date', 'datetime-local',
+        'month', 'week', 'time'
+      ]);
+
+      // Covers all normal text-entry controls, including email/tel/search/url,
+      // without requiring a hard-coded allow-list for future text fields.
+      const isEditable = (el) => {
+        if (!el || el.disabled || el.readOnly) return false;
+        if (el.isContentEditable) return true;
+        if (el instanceof HTMLTextAreaElement) return true;
+        if (!(el instanceof HTMLInputElement)) return false;
+
+        const type = String(el.type || 'text').toLowerCase();
+        return !NON_TEXT_INPUT_TYPES.has(type);
+      };
+
+      document.addEventListener('beforeinput', () => { textEventSerial++; }, true);
+      document.addEventListener('input', () => { textEventSerial++; }, true);
+
+      document.addEventListener('keydown', (event) => {
+        if (event.defaultPrevented || event.isComposing) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (typeof event.key !== 'string' || event.key.length !== 1) return;
+
+        const el = document.activeElement;
+        if (!isEditable(el)) return;
+
+        const serialAtKeydown = textEventSerial;
+        const valueAtKeydown = 'value' in el ? String(el.value ?? '') : String(el.textContent ?? '');
+        const key = event.key;
+
+        setTimeout(() => {
+          // Native Chromium text input worked; leave it completely alone.
+          if (textEventSerial !== serialAtKeydown) return;
+          if (document.activeElement !== el || !isEditable(el)) return;
+
+          const currentValue = 'value' in el ? String(el.value ?? '') : String(el.textContent ?? '');
+          if (currentValue !== valueAtKeydown) return;
+
+          try {
+            const before = new InputEvent('beforeinput', {
+              bubbles: true,
+              cancelable: true,
+              inputType: 'insertText',
+              data: key
+            });
+            if (!el.dispatchEvent(before)) return;
+
+            // execCommand uses Chromium's own editing path and works for focused
+            // text controls that do not expose selectionStart, notably type=email.
+            let inserted = false;
+            try {
+              inserted = document.execCommand('insertText', false, key) === true;
+            } catch (_) {}
+
+            if (inserted) return;
+
+            if (el.isContentEditable) return;
+
+            // Fallback for controls that expose a normal caret API.
+            let start = null;
+            let end = null;
+            try {
+              if (typeof el.selectionStart === 'number') start = el.selectionStart;
+              if (typeof el.selectionEnd === 'number') end = el.selectionEnd;
+            } catch (_) {}
+
+            if (start != null && end != null && typeof el.setRangeText === 'function') {
+              el.setRangeText(key, start, end, 'end');
+            } else {
+              // email/number and future text-entry input types may not expose
+              // selectionStart. In recovery mode only, append to the current value.
+              el.value = currentValue + key;
+            }
+
+            el.dispatchEvent(new InputEvent('input', {
+              bubbles: true,
+              inputType: 'insertText',
+              data: key
+            }));
+          } catch (error) {
+            console.error('GH text input recovery failed:', error);
+          }
+        }, 35);
+      }, true);
+    })();
+  `;
+
+  win.webContents.executeJavaScript(script, true).catch((error) => {
+    console.error('Could not install GH text input recovery:', error);
+  });
+}
+
 const APP_TITLE = "GH Mobility";
 const CONFIG_PATH = path.join(__dirname, "config.json");
 
@@ -221,6 +332,7 @@ function createMainWindow() {
   });
 
   mainWindow.webContents.on("dom-ready", () => {
+    installTextInputRecovery(mainWindow);
     applyDesktopFit(mainWindow);
     forceAppTitle(mainWindow);
   });
