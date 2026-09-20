@@ -8941,7 +8941,61 @@ app.get(
 
       }
 
-      const dbStart = Date.now();
+      const explainStart = Date.now();
+
+      const explainResult =
+        await Trip.find(filter)
+        .sort({
+          createdAt:-1,
+          _id:-1
+        })
+        .lean()
+        .explain("executionStats");
+
+      const executionStats =
+        explainResult?.executionStats || {};
+
+      const winningPlan =
+        explainResult?.queryPlanner?.winningPlan || {};
+
+      const findStage = (plan, wanted) => {
+        if(!plan || typeof plan !== "object"){
+          return null;
+        }
+
+        if(plan.stage === wanted){
+          return plan;
+        }
+
+        for(const value of Object.values(plan)){
+          if(value && typeof value === "object"){
+            const found = findStage(value, wanted);
+
+            if(found){
+              return found;
+            }
+          }
+        }
+
+        return null;
+      };
+
+      const ixscan =
+        findStage(winningPlan, "IXSCAN");
+
+      const collscan =
+        findStage(winningPlan, "COLLSCAN");
+
+      console.log(
+        "[EXPLAIN TEST] tenant-trips",
+        "| time=" + (Date.now() - explainStart) + "ms",
+        "| nReturned=" + (executionStats.nReturned ?? "n/a"),
+        "| docsExamined=" + (executionStats.totalDocsExamined ?? "n/a"),
+        "| keysExamined=" + (executionStats.totalKeysExamined ?? "n/a"),
+        "| executionTimeMillis=" + (executionStats.executionTimeMillis ?? "n/a"),
+        "| stage=" + (collscan ? "COLLSCAN" : (ixscan ? "IXSCAN" : (winningPlan.stage || "UNKNOWN"))),
+        "| index=" + (ixscan?.indexName || "none")
+      );
 
       const trips =
         await Trip.find(filter)
@@ -8950,10 +9004,6 @@ app.get(
           _id:-1
         })
         .lean();
-
-      console.log(
-        `[DB TEST] tenant-trips Trip.find = ${Date.now() - dbStart}ms | rows=${trips.length}`
-      );
 
       return res.json(trips);
 
