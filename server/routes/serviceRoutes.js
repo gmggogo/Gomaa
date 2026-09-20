@@ -775,8 +775,7 @@ const BOOKING_HOUR_SOURCES = [
   "getQuote",
   "facility",
   "reserved",
-  "facilityOverride",
-  "broker"
+  "facilityOverride"
 ];
 
 function safeBookingTime(value,fallback){

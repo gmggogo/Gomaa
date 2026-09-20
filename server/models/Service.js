@@ -465,16 +465,6 @@ const serviceSchema = new mongoose.Schema({
       },
       from:{ type:String, default:"00:00" },
       to:{ type:String, default:"23:59" }
-    },
-
-    broker:{
-      mode:{
-        type:String,
-        enum:["24_HOURS","CUSTOM","DISABLED"],
-        default:"24_HOURS"
-      },
-      from:{ type:String, default:"00:00" },
-      to:{ type:String, default:"23:59" }
     }
   }
 

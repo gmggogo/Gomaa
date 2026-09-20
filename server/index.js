@@ -8031,6 +8031,346 @@ app.get(
 });
 
 /* =========================
+   SERVICE BOOKING HOURS
+   Enforced server-side for:
+   GET QUOTE / FACILITY / RESERVED / FACILITY OVERRIDE
+   Broker trips are intentionally excluded.
+========================= */
+
+const BOOKING_HOURS_ERROR_MESSAGE =
+  "This booking is outside the company's business hours.";
+
+function bookingHoursTimeToMinutes(value){
+
+  const text =
+    String(value || "")
+      .trim()
+      .toUpperCase();
+
+  let match =
+    text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+
+  if(match){
+
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const meridiem = match[3];
+
+    if(
+      hour < 1 ||
+      hour > 12 ||
+      minute < 0 ||
+      minute > 59
+    ){
+      return null;
+    }
+
+    if(hour === 12){
+      hour = 0;
+    }
+
+    if(meridiem === "PM"){
+      hour += 12;
+    }
+
+    return (hour * 60) + minute;
+  }
+
+  match =
+    text.match(/^(\d{1,2}):(\d{2})$/);
+
+  if(!match){
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if(
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ){
+    return null;
+  }
+
+  return (hour * 60) + minute;
+}
+
+function bookingHoursRuleAllowsTime(rule,tripTime){
+
+  const source =
+    rule && typeof rule === "object"
+      ? rule
+      : {};
+
+  const mode =
+    String(source.mode || "24_HOURS")
+      .trim()
+      .toUpperCase();
+
+  if(mode === "24_HOURS"){
+    return true;
+  }
+
+  if(mode === "DISABLED"){
+    return false;
+  }
+
+  if(mode !== "CUSTOM"){
+    return true;
+  }
+
+  const tripMinutes =
+    bookingHoursTimeToMinutes(
+      tripTime
+    );
+
+  const fromMinutes =
+    bookingHoursTimeToMinutes(
+      source.from
+    );
+
+  const toMinutes =
+    bookingHoursTimeToMinutes(
+      source.to
+    );
+
+  if(
+    tripMinutes === null ||
+    fromMinutes === null ||
+    toMinutes === null
+  ){
+    return false;
+  }
+
+  /* Same-day window, for example 08:00 -> 18:00. */
+  if(fromMinutes <= toMinutes){
+    return (
+      tripMinutes >= fromMinutes &&
+      tripMinutes <= toMinutes
+    );
+  }
+
+  /* Overnight window, for example 20:00 -> 08:00. */
+  return (
+    tripMinutes >= fromMinutes ||
+    tripMinutes <= toMinutes
+  );
+}
+
+async function hasFacilityBookingOverride({
+  tenantId,
+  companyName,
+  serviceCode
+}){
+
+  const cleanCompany =
+    normalizeText(companyName);
+
+  if(!cleanCompany){
+    return false;
+  }
+
+  const overrideOr = [
+    {
+      facilityName:{
+        $regex:
+          "^" +
+          billingEscapeRegex(cleanCompany) +
+          "$",
+        $options:"i"
+      }
+    }
+  ];
+
+  try{
+
+    const facilityUser =
+      await User.findOne({
+        tenantId,
+        role:{
+          $in:["company","facility"]
+        },
+        name:{
+          $regex:
+            "^" +
+            billingEscapeRegex(cleanCompany) +
+            "$",
+          $options:"i"
+        }
+      })
+      .select("_id")
+      .lean();
+
+    if(facilityUser?._id){
+      overrideOr.push({
+        facilityId:
+          facilityUser._id
+      });
+    }
+
+  }catch(err){
+
+    console.log(
+      "BOOKING HOURS FACILITY USER RESOLVE ERROR:",
+      err?.message || err
+    );
+  }
+
+  const override =
+    await FacilityPricingOverride
+      .findOne({
+        tenantId,
+        active:true,
+        $or:overrideOr
+      })
+      .sort({
+        updatedAt:-1,
+        createdAt:-1
+      })
+      .lean();
+
+  if(
+    !override ||
+    !Array.isArray(override.services)
+  ){
+    return false;
+  }
+
+  const normalizedService =
+    normalizeTenantServiceCode(
+      serviceCode
+    );
+
+  return override.services.some(
+    service =>
+      billingOverrideServiceEnabled(service) &&
+      normalizeTenantServiceCode(
+        billingOverrideServiceCode(service)
+      ) === normalizedService
+  );
+}
+
+async function resolveTripBookingHoursSource({
+  req,
+  tenantId,
+  type,
+  companyName,
+  serviceCode
+}){
+
+  /* Public individual booking = Get Quote. */
+  if(
+    !req.authUser &&
+    type === "individual"
+  ){
+    return "getQuote";
+  }
+
+  /* Company/facility booking. */
+  if(type === "company"){
+
+    const overrideActive =
+      await hasFacilityBookingOverride({
+        tenantId,
+        companyName,
+        serviceCode
+      });
+
+    return overrideActive
+      ? "facilityOverride"
+      : "facility";
+  }
+
+  /* Logged-in non-company trip creation uses Reserved hours. */
+  return "reserved";
+}
+
+async function validateTripBookingHours({
+  req,
+  tenantId,
+  type,
+  companyName,
+  serviceCode,
+  tripTime
+}){
+
+  const normalizedService =
+    normalizeTenantServiceCode(
+      serviceCode
+    );
+
+  if(!normalizedService){
+    return {
+      allowed:false,
+      source:"",
+      message:
+        BOOKING_HOURS_ERROR_MESSAGE
+    };
+  }
+
+  const service =
+    await Service.findOne({
+      tenantId,
+      serviceKey:normalizedService
+    })
+    .select(
+      "serviceKey bookingHours"
+    )
+    .lean();
+
+  /*
+    Legacy tenants may not have the Service document yet.
+    Preserve existing booking behavior instead of blocking them.
+  */
+  if(!service){
+    return {
+      allowed:true,
+      source:"",
+      legacy:true
+    };
+  }
+
+  const source =
+    await resolveTripBookingHoursSource({
+      req,
+      tenantId,
+      type,
+      companyName,
+      serviceCode:normalizedService
+    });
+
+  const rule =
+    service?.bookingHours?.[source] ||
+    {
+      mode:"24_HOURS",
+      from:"00:00",
+      to:"23:59"
+    };
+
+  return {
+    allowed:
+      bookingHoursRuleAllowsTime(
+        rule,
+        tripTime
+      ),
+    source,
+    mode:
+      String(rule.mode || "24_HOURS")
+        .trim()
+        .toUpperCase(),
+    from:
+      String(rule.from || "00:00"),
+    to:
+      String(rule.to || "23:59"),
+    message:
+      BOOKING_HOURS_ERROR_MESSAGE
+  };
+}
+
+/* =========================
    CREATE TRIP (FINAL + SHARED)
 ========================= */
 app.post("/api/trips", optionalTenantApi, async (req, res) => {
@@ -8199,6 +8539,42 @@ if(
       "This service is not enabled for this organization"
   });
 
+}
+
+/* =========================
+   SERVICE BOOKING HOURS CHECK
+   Broker intake does not use this /api/trips booking gate.
+========================= */
+
+const bookingHoursCheck =
+  await validateTripBookingHours({
+    req,
+    tenantId,
+    type,
+    companyName,
+    serviceCode:
+      requestedServiceCode,
+    tripTime:
+      req.body.tripTime
+  });
+
+if(bookingHoursCheck.allowed !== true){
+
+  return res.status(422).json({
+    success:false,
+    code:
+      "BOOKING_OUTSIDE_BUSINESS_HOURS",
+    message:
+      BOOKING_HOURS_ERROR_MESSAGE,
+    bookingSource:
+      bookingHoursCheck.source || "",
+    availability:
+      bookingHoursCheck.mode || "",
+    from:
+      bookingHoursCheck.from || "",
+    to:
+      bookingHoursCheck.to || ""
+  });
 }
 
 /* =========================
