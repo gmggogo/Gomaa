@@ -1288,8 +1288,18 @@ router.get("/",async(req,res)=>{
       }
     }
 
+    /*
+      PERFORMANCE:
+      External Summary does not use the stored Google/route geometry payloads.
+      Excluding them prevents large Trip documents from being transferred from
+      MongoDB on every Dashboard / Tax Report summary request.
+    */
     const trips =
       await Trip.find(filter)
+        .select(
+          "-googleRoute -optimizedRoute -routePath -routePoints " +
+          "-overviewPolyline -sharedRouteMeta"
+        )
         .sort({
           tripDate:-1,
           tripTime:-1,
@@ -1317,8 +1327,32 @@ router.get("/",async(req,res)=>{
       Cancelled -> Broker Pricing cancel fee when chargeable.
       Not Completed -> 0.
     */
-    for(const trip of closedTrips){
-      await applyFinalBrokerMoney(trip);
+    /*
+      PERFORMANCE:
+      The old code priced every closed trip one-by-one. A report containing N
+      trips therefore waited for N broker-pricing database calls serially.
+      Keep the exact same pricing logic, but process a small bounded batch in
+      parallel so one slow trip does not serialize the whole report.
+    */
+    const PRICING_BATCH_SIZE = 8;
+
+    for(
+      let i = 0;
+      i < closedTrips.length;
+      i += PRICING_BATCH_SIZE
+    ){
+      const batch =
+        closedTrips.slice(
+          i,
+          i + PRICING_BATCH_SIZE
+        );
+
+      await Promise.all(
+        batch.map(
+          trip=>
+            applyFinalBrokerMoney(trip)
+        )
+      );
     }
 
     const ids =
@@ -1335,6 +1369,9 @@ router.get("/",async(req,res)=>{
             },
             reviewConfirmed:true
           })
+            .select(
+              "dispatchTripId externalTripObjectId reviewConfirmed"
+            )
             .lean()
         : [];
 
@@ -1353,7 +1390,14 @@ router.get("/",async(req,res)=>{
             _id:{
               $in:externalIds
             }
-          }).lean()
+          })
+            .select(
+              "externalTripId ghExternalTripNumber externalTripNumber " +
+              "brokerCode brokerName memberId clientName clientPhone " +
+              "clientEmail tripDate tripTime appointmentTime returnTime " +
+              "pickup stops dropoff serviceKey serviceName notes"
+            )
+            .lean()
         : [];
 
     const externalMap =
