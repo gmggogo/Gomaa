@@ -1516,9 +1516,34 @@ async function saveBookingHours(serviceId){
       return;
     }
 
-    alert("Booking Hours Saved");
+    const savedService =
+      data?.service && typeof data.service === "object"
+        ? data.service
+        : null;
 
-    await loadServices();
+    if(!savedService || !savedService.bookingHours){
+      alert("Booking Hours Save Failed: server did not return saved booking hours");
+      return;
+    }
+
+    const index = services.findIndex(
+      item => String(item._id) === String(serviceId)
+    );
+
+    if(index >= 0){
+      services[index] = savedService;
+    }
+
+    if(bookingHoursServicesGrid){
+      bookingHoursServicesGrid.innerHTML = "";
+      services.forEach(service=>{
+        bookingHoursServicesGrid.appendChild(
+          renderBookingHoursCard(service)
+        );
+      });
+    }
+
+    alert("Booking Hours Saved");
 
   }catch(err){
     console.log(err);
