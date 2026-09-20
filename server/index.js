@@ -783,37 +783,6 @@ app.use(express.urlencoded({
   limit:"50mb"
 }));
 
-/* =========================
-   TEMP API PERFORMANCE TEST
-   Remove after diagnosis
-========================= */
-app.use((req, res, next) => {
-  if (!req.originalUrl.startsWith("/api/")) {
-    return next();
-  }
-
-  const startedAt = process.hrtime.bigint();
-
-  res.on("finish", () => {
-    const endedAt = process.hrtime.bigint();
-    const durationMs = Number(endedAt - startedAt) / 1_000_000;
-    const time = Math.round(durationMs);
-
-    if (time >= 500) {
-      console.log(
-        `[SLOW API] ${req.method} ${req.originalUrl} | ${res.statusCode} | ${time}ms`
-      );
-    } else {
-      console.log(
-        `[API TIME] ${req.method} ${req.originalUrl} | ${res.statusCode} | ${time}ms`
-      );
-    }
-  });
-
-  next();
-});
-
-
 
 /* =========================
    GH MOBILITY SaaS BILLING
@@ -8972,6 +8941,8 @@ app.get(
 
       }
 
+      const dbStart = Date.now();
+
       const trips =
         await Trip.find(filter)
         .sort({
@@ -8979,6 +8950,10 @@ app.get(
           _id:-1
         })
         .lean();
+
+      console.log(
+        `[DB TEST] tenant-trips Trip.find = ${Date.now() - dbStart}ms | rows=${trips.length}`
+      );
 
       return res.json(trips);
 
