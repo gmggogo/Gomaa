@@ -56,25 +56,59 @@ function calculateZoomFactor(win) {
 
   const { width, height } = win.getContentBounds();
 
+  const currentUrl =
+    String(
+      win.webContents.getURL() || ""
+    ).toLowerCase();
+
   /*
-    GH Mobility desktop-only auto zoom.
+    GH Mobility desktop-only page-aware zoom.
 
-    The web pages remain untouched.
-    Electron scales the WHOLE page to fit a comfortable virtual workspace.
-
-    This behaves like pressing browser Zoom Out, but automatically:
-    - smaller laptop window  -> stronger zoom out
-    - normal desktop monitor -> moderate zoom out
-    - large monitor          -> closer to 100%
+    Login stays larger and easier to use.
+    Internal admin/platform pages keep the smaller scale that
+    fits the full navigation and dashboards on laptop screens.
   */
-  const TARGET_LAYOUT_WIDTH = 2000;
-  const TARGET_LAYOUT_HEIGHT = 1050;
+
+  const isLogin =
+    currentUrl.includes("/login.html") ||
+    currentUrl.includes("/company-login.html");
+
+  const isAdmin =
+    currentUrl.includes("/admin/");
+
+  const isPlatformAdmin =
+    currentUrl.includes("/platform-admin/");
+
+  const isCompany =
+    currentUrl.includes("/companies/");
+
+  let targetWidth = 2900;
+  let targetHeight = 1250;
+  let minZoom = 0.47;
+  let maxZoom = 0.88;
+
+  if (isLogin) {
+    targetWidth = 1700;
+    targetHeight = 980;
+    minZoom = 0.72;
+    maxZoom = 0.86;
+  } else if (isPlatformAdmin || isAdmin) {
+    targetWidth = 2900;
+    targetHeight = 1250;
+    minZoom = 0.47;
+    maxZoom = 0.88;
+  } else if (isCompany) {
+    targetWidth = 2450;
+    targetHeight = 1180;
+    minZoom = 0.52;
+    maxZoom = 0.90;
+  }
 
   const widthZoom =
-    width / TARGET_LAYOUT_WIDTH;
+    width / targetWidth;
 
   const heightZoom =
-    height / TARGET_LAYOUT_HEIGHT;
+    height / targetHeight;
 
   let zoom =
     Math.min(
@@ -83,16 +117,11 @@ function calculateZoomFactor(win) {
       1
     );
 
-  /*
-    Keep the UI readable while still fitting the full GH layout.
-    0.56 = 56% minimum
-    0.94 = 94% maximum
-  */
   zoom =
     Math.max(
-      0.56,
+      minZoom,
       Math.min(
-        0.94,
+        maxZoom,
         zoom
       )
     );
@@ -211,30 +240,8 @@ function createMainWindow() {
     forceAppTitle(mainWindow);
   });
 
-  let resizeTimer = null;
-
-  mainWindow.on("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      applyDesktopFit(mainWindow);
-      forceAppTitle(mainWindow);
-    }, 120);
-  });
-
-  mainWindow.on("maximize", () => {
-    setTimeout(() => {
-      applyDesktopFit(mainWindow);
-      forceAppTitle(mainWindow);
-    }, 120);
-  });
-
-  mainWindow.on("move", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      applyDesktopFit(mainWindow);
-      forceAppTitle(mainWindow);
-    }, 120);
-  });
+  // Zoom is applied only when a page loads/navigates.
+  // Do not re-apply it on resize/move/maximize while the user is typing.
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isInternalUrl(url)) {

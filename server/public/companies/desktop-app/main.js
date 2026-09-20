@@ -1,3 +1,4 @@
+
 const { app, BrowserWindow, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -25,7 +26,6 @@ function isAllowedUrl(rawUrl) {
 
 function calculateZoomFactor(win) {
   if (!win || win.isDestroyed()) return 1;
-
   const { width, height } = win.getContentBounds();
   const currentUrl = String(win.webContents.getURL() || "").toLowerCase();
 
@@ -47,10 +47,8 @@ function calculateZoomFactor(win) {
 
   const widthZoom = width / targetWidth;
   const heightZoom = height / targetHeight;
-
   let zoom = Math.min(widthZoom, heightZoom, 1);
   zoom = Math.max(minZoom, Math.min(maxZoom, zoom));
-
   return Number(zoom.toFixed(2));
 }
 
@@ -71,7 +69,6 @@ function createWindow() {
   const appUrl = config.appUrl || "https://sunbeam-933q.onrender.com/companies/company-login.html";
 
   const win = new BrowserWindow({
-    title: "GH Mobility Facilities",
     width: 1440,
     height: 900,
     minWidth: 1000,
@@ -96,37 +93,13 @@ function createWindow() {
     win.show();
   });
 
-  function lockFacilitiesWindowTitle() {
-    if (!win || win.isDestroyed()) return;
-    win.setTitle("GH Mobility Facilities");
-  }
+  win.webContents.on("dom-ready", () => applyDesktopFit(win));
+  win.webContents.on("did-finish-load", () => applyDesktopFit(win));
+  win.webContents.on("did-navigate", () => applyDesktopFit(win));
+  win.webContents.on("did-navigate-in-page", () => applyDesktopFit(win));
 
-  win.on("page-title-updated", (event) => {
-    event.preventDefault();
-    lockFacilitiesWindowTitle();
-  });
+  // Do not re-apply zoom on resize/maximize while the user is typing.
 
-  win.webContents.on("dom-ready", () => {
-    applyDesktopFit(win);
-    lockFacilitiesWindowTitle();
-  });
-  win.webContents.on("did-finish-load", () => {
-    applyDesktopFit(win);
-    lockFacilitiesWindowTitle();
-  });
-  win.webContents.on("did-navigate", () => {
-    applyDesktopFit(win);
-    lockFacilitiesWindowTitle();
-  });
-  win.webContents.on("did-navigate-in-page", () => {
-    applyDesktopFit(win);
-    lockFacilitiesWindowTitle();
-  });
-
-  win.on("resize", () => applyDesktopFit(win));
-  win.on("maximize", () => applyDesktopFit(win));
-
-  // Keep normal GH Mobility web navigation inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedUrl(url)) {
       win.loadURL(url);
@@ -155,16 +128,11 @@ function createWindow() {
 app.whenReady().then(() => {
   app.setAppUserModelId("com.ghmobility.facilities");
   createWindow();
-
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });

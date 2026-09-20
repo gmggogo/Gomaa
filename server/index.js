@@ -2024,6 +2024,9 @@ tripSchema.index({ tenantId: 1, createdAt: -1 });
 tripSchema.index({ tenantId: 1, tripDate: -1, tripTime: -1 });
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
+/* Background trip maintenance reads by calendar date across tenants. */
+tripSchema.index({ tripDate: 1 });
+tripSchema.index({ reminderSent: 1, tripDate: 1 });
 tripSchema.index({ dispatchSelected: 1, disabled: 1, tripDate: 1, tripTime: 1 });
 tripSchema.index({ driverId: 1, status: 1, tripDate: 1, tripTime: 1 });
 
@@ -13291,20 +13294,72 @@ function parseTripDateTime(
 }
 
 /* =========================
-   TRIP REMINDER
+   TRIP REMINDER + OLD TRIP MAINTENANCE
+
+   PERFORMANCE SAFETY:
+   - Never allow overlapping maintenance cycles.
+   - Reminder scan is limited to today + tomorrow only.
+   - Old-trip scan is limited to dates up to today.
+   - Read only the fields needed for the scan.
+   - Old-trip writes are batched with bulkWrite.
+
+   Existing behavior is preserved:
+   - Reminder still sends only within 120 minutes.
+   - Company trips are still skipped by reminder logic.
+   - Trips 10+ hours old still become Not Completed and pricing/route totals reset.
 ========================= */
 
+let tripMaintenanceRunning = false;
+
+function maintenanceDateKey(date){
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
 setInterval(async () => {
+
+  if(tripMaintenanceRunning){
+    return;
+  }
+
+  tripMaintenanceRunning = true;
 
   try {
 
     const now =
       getSystemNow();
 
+    const todayKey =
+      maintenanceDateKey(now);
+
+    const tomorrow =
+      new Date(now.getTime());
+
+    tomorrow.setDate(
+      tomorrow.getDate() + 1
+    );
+
+    const tomorrowKey =
+      maintenanceDateKey(tomorrow);
+
+    /* =========================
+       TRIP REMINDER
+    ========================= */
+
     const trips =
       await Trip.find({
 
         reminderSent:false,
+
+        tripDate:{
+          $in:[
+            todayKey,
+            tomorrowKey
+          ]
+        },
 
         clientEmail:{
           $ne:""
@@ -13318,7 +13373,11 @@ setInterval(async () => {
           ]
         }
 
-      });
+      })
+      .select(
+        "_id company type tripDate tripTime"
+      )
+      .lean();
 
     for(const trip of trips){
 
@@ -13404,75 +13463,105 @@ setInterval(async () => {
 
     }
 
+    /* =========================
+       AUTO CLOSE OLD TRIPS
+    ========================= */
+
+    const oldTrips =
+      await Trip.find({
+
+        tripDate:{
+          $lte:todayKey
+        },
+
+        status:{
+          $nin:[
+            "Completed",
+            "Cancelled",
+            "No Show",
+            "Not Completed"
+          ]
+        }
+
+      })
+      .select(
+        "_id tripDate tripTime"
+      )
+      .lean();
+
+    const oldTripUpdates = [];
+
+    for(const trip of oldTrips){
+
+      try{
+
+        const tripDateTime =
+          parseTripDateTime(
+            trip.tripDate,
+            trip.tripTime
+          );
+
+        if(!tripDateTime){
+          continue;
+        }
+
+        const diffHours =
+          (now - tripDateTime) /
+          (1000 * 60 * 60);
+
+        if(diffHours >= 10){
+
+          oldTripUpdates.push({
+            updateOne:{
+              filter:{
+                _id:trip._id
+              },
+              update:{
+                $set:{
+                  status:"Not Completed",
+                  priceAmount:0,
+                  finalPrice:0,
+                  miles:0,
+                  distanceMeters:0,
+                  durationSeconds:0,
+                  estimatedMinutes:0
+                }
+              }
+            }
+          });
+
+        }
+
+      }catch(innerErr){
+
+        console.log(
+          "AUTO CLOSE TRIP ERROR:",
+          innerErr?.message || innerErr
+        );
+
+      }
+
+    }
+
+    if(oldTripUpdates.length){
+      await Trip.bulkWrite(
+        oldTripUpdates,
+        { ordered:false }
+      );
+    }
+
   }catch(err){
 
     console.log(
-      err.message
+      "TRIP MAINTENANCE ERROR:",
+      err?.message || err
     );
 
-  }
+  }finally{
 
-/* =========================
-   AUTO CLOSE OLD TRIPS
-========================= */
-
-const now = getSystemNow();
-
-const oldTrips = await Trip.find({
-
-  status:{
-    $nin:[
-      "Completed",
-      "Cancelled",
-      "No Show",
-      "Not Completed"
-    ]
-  }
-
-});
-
-for(const trip of oldTrips){
-
-  try{
-
-    const tripDateTime =
-      parseTripDateTime(
-        trip.tripDate,
-        trip.tripTime
-      );
-
-    if(!tripDateTime){
-      continue;
-    }
-
- const diffHours =
-  (now - tripDateTime) /
-  (1000 * 60 * 60);
-
-if(diffHours >= 10){
-
-  await Trip.findByIdAndUpdate(
-    trip._id,
-    {
-      status:"Not Completed",
-      priceAmount:0,
-      finalPrice:0,
-      miles:0,
-      distanceMeters:0,
-      durationSeconds:0,
-      estimatedMinutes:0
-    }
-  );
-
-}
-
-  }catch(err){
-
-    console.log(err);
+    tripMaintenanceRunning = false;
 
   }
-
-}
 
 }, 60000);
  
