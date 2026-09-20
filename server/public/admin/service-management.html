@@ -642,18 +642,26 @@ body{
   border-color:#ddd6fe;
 }
 
+.booking-hours-grid{
+  grid-template-columns:repeat(auto-fit,minmax(560px,1fr));
+}
+
+.booking-hours-card{
+  padding:22px;
+}
+
 .booking-hours-list{
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap:14px;
 }
 
 .booking-hours-row{
   display:grid;
-  grid-template-columns:minmax(105px,.9fr) minmax(125px,1fr) minmax(105px,.85fr) minmax(105px,.85fr);
-  gap:8px;
+  grid-template-columns:minmax(150px,1.2fr) minmax(125px,.85fr) minmax(125px,.85fr);
+  gap:10px;
   align-items:end;
-  padding:12px 10px;
+  padding:14px;
   border:1px solid #e2e8f0;
   border-radius:18px;
   background:#f8fafc;
@@ -661,10 +669,12 @@ body{
 }
 
 .booking-hours-source{
-  align-self:center;
-  min-width:0;
-  overflow-wrap:anywhere;
-  font-size:14px;
+  grid-column:1/-1;
+  padding-bottom:9px;
+  margin-bottom:1px;
+  border-bottom:1px solid #e2e8f0;
+  font-size:15px;
+  line-height:1.2;
   font-weight:900;
   color:#0f172a;
 }
@@ -677,23 +687,25 @@ body{
 }
 
 .booking-hours-field label{
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
   color:#64748b;
+  white-space:nowrap;
 }
 
 .booking-hours-field select,
 .booking-hours-field input{
   width:100%;
-  min-height:48px;
+  min-width:0;
+  height:46px;
+  min-height:46px;
   border:1px solid #cbd5e1;
-  border-radius:14px;
-  padding:11px 12px;
+  border-radius:13px;
+  padding:8px 10px;
   background:#fff;
-  font-size:13px;
+  font-size:12px;
   font-weight:800;
   outline:none;
-  min-width:0;
 }
 
 .booking-hours-field select:disabled,
@@ -732,15 +744,29 @@ body{
   color:#64748b !important;
 }
 
-@media(max-width:900px){
-  .booking-hours-row{
-    grid-template-columns:1fr 1fr;
+.booking-hours-card .warning-box{
+  font-size:12px;
+  padding:11px 13px;
+  margin-bottom:14px;
+}
+
+.booking-hours-card .buttons{
+  margin-top:18px;
+}
+
+@media(max-width:1250px){
+  .booking-hours-grid{
+    grid-template-columns:1fr;
   }
 }
 
-@media(max-width:560px){
+@media(max-width:620px){
   .booking-hours-row{
     grid-template-columns:1fr;
+  }
+
+  .booking-hours-source{
+    grid-column:1;
   }
 }
 
@@ -759,43 +785,6 @@ body{
   line-height:1.6;
 }
 
-
-/* Booking Hours compact card layout v3 */
-.booking-hours-grid{grid-template-columns:repeat(auto-fit,minmax(650px,1fr))!important;}
-.booking-hours-card{padding:20px!important;}
-.booking-hours-card .service-name{font-size:23px!important;}
-.booking-hours-card .booking-hours-row{
-  display:grid!important;
-  grid-template-columns:minmax(135px,1.2fr) minmax(145px,1.25fr) minmax(115px,.9fr) minmax(115px,.9fr)!important;
-  gap:8px!important;
-  align-items:end!important;
-  width:100%!important;
-  min-width:0!important;
-}
-.booking-hours-card .booking-hours-row>*{min-width:0!important;}
-.booking-hours-card .booking-hours-source{font-size:12px!important;word-break:normal!important;white-space:nowrap!important;}
-.booking-hours-card .field{min-width:0!important;}
-.booking-hours-card .field label{font-size:10px!important;white-space:nowrap!important;}
-.booking-hours-card .field input,
-.booking-hours-card .field select{
-  min-width:0!important;
-  width:100%!important;
-  min-height:44px!important;
-  height:44px!important;
-  padding:8px 9px!important;
-  font-size:11px!important;
-  border-radius:12px!important;
-}
-.booking-hours-card .warning-box{font-size:12px!important;padding:11px 13px!important;margin-bottom:14px!important;}
-.booking-hours-card .buttons{margin-top:18px!important;}
-@media(max-width:1400px){
- .booking-hours-grid{grid-template-columns:1fr!important;}
-}
-@media(max-width:620px){
- .booking-hours-grid{grid-template-columns:1fr!important;}
- .booking-hours-card .booking-hours-row{grid-template-columns:1fr 1fr!important;}
- .booking-hours-card .booking-hours-source{grid-column:1/-1!important;}
-}
 
 </style>
 

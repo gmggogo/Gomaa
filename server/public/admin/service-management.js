@@ -1145,8 +1145,7 @@ const bookingHourSections = [
   { key:"getQuote", label:"Get Quote" },
   { key:"facility", label:"Facility" },
   { key:"reserved", label:"Reserved" },
-  { key:"facilityOverride", label:"Facility Override" },
-  { key:"broker", label:"Broker", brokerOnly:true }
+  { key:"facilityOverride", label:"Facility Override" }
 ];
 
 function bookingRule(service,key){
@@ -1277,10 +1276,6 @@ function renderBookingHoursCard(service){
 
   const rows =
     bookingHourSections
-      .filter(section =>
-        !section.brokerOnly ||
-        brokerBookingEnabled
-      )
       .map(section =>
         bookingHoursRow(
           service,
@@ -1419,10 +1414,6 @@ function enableBookingHoursEdit(serviceId){
   });
 
   bookingHourSections
-    .filter(section =>
-      !section.brokerOnly ||
-      brokerBookingEnabled
-    )
     .forEach(section =>
       updateBookingHoursRow(
         serviceId,
