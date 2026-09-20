@@ -1064,12 +1064,46 @@ router.get("/", requireTenantApi, async (req,res)=>{
       });
     }
 
-    const trips = await Trip.find(tenantFilter(req))
-      .sort({
-        tripDate:-1,
-        tripTime:-1,
-        createdAt:-1
-      });
+    /*
+      FINAL PAGE PERFORMANCE
+
+      Do not load every trip for the tenant. Only trips whose trip status or
+      passenger status can be a final status are candidates for this page.
+      This keeps the existing JS final-status rules as the final authority,
+      while allowing MongoDB to discard unrelated trips before they reach Node.
+    */
+    const finalStatusRegex =
+      /(completed|complete|cancel|no[\s_-]*show|not[\s_-]*completed|not[\s_-]*complete)/i;
+
+    const candidateFilter =
+      tenantFilter(
+        req,
+        {
+          $or:[
+            { status:finalStatusRegex },
+            {
+              passengers:{
+                $elemMatch:{
+                  status:finalStatusRegex
+                }
+              }
+            }
+          ]
+        }
+      );
+
+    const trips =
+      await Trip.find(candidateFilter)
+        /* Large cached route payloads are not used by Final Confirmation UI. */
+        .select(
+          "-googleRoute -optimizedRoute -routePath -routePoints -overviewPolyline -sharedRouteMeta"
+        )
+        .sort({
+          tripDate:-1,
+          tripTime:-1,
+          createdAt:-1
+        })
+        .lean();
 
     const externalTripMap =
       await buildSharedExternalTripMap(
@@ -1078,7 +1112,7 @@ router.get("/", requireTenantApi, async (req,res)=>{
       );
 
     const result = [];
-    const saveOps = [];
+    const stampOps = [];
 
     for(const trip of trips){
 
@@ -1091,11 +1125,39 @@ router.get("/", requireTenantApi, async (req,res)=>{
         continue;
       }
 
-      const stamped =
-        ensurePageEntryStamp(trip);
+      /*
+        Preserve the original page-entry behavior without calling trip.save()
+        once per trip. All required stamps are written in one Mongo bulk call.
+      */
+      const enteredAt =
+        getEnteredAt(trip);
 
-      if(stamped){
-        saveOps.push(trip.save());
+      if(!enteredAt){
+
+        const now = nowDate();
+
+        trip.finalPageEnteredAt = now;
+        trip.dispatchFinalPageEnteredAt = now;
+        trip.enteredFinalConfirmationAt = now;
+
+        stampOps.push({
+          updateOne:{
+            filter:tenantFilter(
+              req,
+              {
+                _id:trip._id,
+                finalPageEnteredAt:null,
+                dispatchFinalPageEnteredAt:null
+              }
+            ),
+            update:{
+              $set:{
+                finalPageEnteredAt:now,
+                dispatchFinalPageEnteredAt:now
+              }
+            }
+          }
+        });
       }
 
       result.push(
@@ -1106,8 +1168,11 @@ router.get("/", requireTenantApi, async (req,res)=>{
       );
     }
 
-    if(saveOps.length){
-      await Promise.all(saveOps);
+    if(stampOps.length){
+      await Trip.bulkWrite(
+        stampOps,
+        { ordered:false }
+      );
     }
 
     return res.json({
