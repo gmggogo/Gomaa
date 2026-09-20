@@ -1485,9 +1485,7 @@ async function saveBookingHours(serviceId){
   try{
 
     const payload =
-      readBookingHoursPayload(
-        serviceId
-      );
+      readBookingHoursPayload(serviceId);
 
     const res =
       await fetch(
@@ -1505,14 +1503,8 @@ async function saveBookingHours(serviceId){
     const data =
       await res.json().catch(()=>({}));
 
-    if(
-      !res.ok ||
-      data.success === false
-    ){
-      alert(
-        data.message ||
-        "Booking Hours Save Failed"
-      );
+    if(!res.ok || data.success === false){
+      alert(data.message || "Booking Hours Save Failed");
       return;
     }
 
@@ -1526,6 +1518,24 @@ async function saveBookingHours(serviceId){
       return;
     }
 
+    /*
+      Verify the exact values returned by MongoDB before changing the UI.
+      Never silently replace the user's selected time with defaults.
+    */
+    for(const section of bookingHourSections){
+      const sent = payload.bookingHours?.[section.key] || {};
+      const stored = bookingRule(savedService,section.key);
+
+      if(
+        upper(sent.mode) !== stored.mode ||
+        clean(sent.from) !== stored.from ||
+        clean(sent.to) !== stored.to
+      ){
+        alert("Booking Hours Save Failed: saved values do not match the selected values");
+        return;
+      }
+    }
+
     const index = services.findIndex(
       item => String(item._id) === String(serviceId)
     );
@@ -1534,14 +1544,28 @@ async function saveBookingHours(serviceId){
       services[index] = savedService;
     }
 
-    if(bookingHoursServicesGrid){
-      bookingHoursServicesGrid.innerHTML = "";
-      services.forEach(service=>{
-        bookingHoursServicesGrid.appendChild(
-          renderBookingHoursCard(service)
-        );
-      });
-    }
+    /* Lock the existing controls without rebuilding the card. */
+    bookingHourSections.forEach(section=>{
+      const modeEl = document.getElementById(
+        bookingFieldId(serviceId,section.key,"mode")
+      );
+      const fromEl = document.getElementById(
+        bookingFieldId(serviceId,section.key,"from")
+      );
+      const toEl = document.getElementById(
+        bookingFieldId(serviceId,section.key,"to")
+      );
+
+      if(modeEl) modeEl.disabled = true;
+      if(fromEl){
+        fromEl.disabled = true;
+        fromEl.classList.add("booking-time-locked");
+      }
+      if(toEl){
+        toEl.disabled = true;
+        toEl.classList.add("booking-time-locked");
+      }
+    });
 
     alert("Booking Hours Saved");
 

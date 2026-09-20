@@ -782,7 +782,7 @@ function safeBookingTime(value,fallback){
 
   const text = clean(value);
 
-  if(/^([01]\\d|2[0-3]):[0-5]\\d$/.test(text)){
+  if(/^([01]\d|2[0-3]):[0-5]\d$/.test(text)){
     return text;
   }
 
@@ -1211,11 +1211,34 @@ router.put(
         req.body.tenantId;
     }
 
+    /*
+      Booking Hours are written with explicit Mongo dot paths.
+      This prevents the nested bookingHours object from being replaced,
+      defaulted, or lost by a partial service update.
+    */
+    const updateSet = { ...payload };
+
+    if(
+      payload.bookingHours &&
+      typeof payload.bookingHours === "object"
+    ){
+      const hours = payload.bookingHours;
+      delete updateSet.bookingHours;
+
+      for(const source of BOOKING_HOUR_SOURCES){
+        const rule = normalizeBookingHourRule(hours[source]);
+
+        updateSet[`bookingHours.${source}.mode`] = rule.mode;
+        updateSet[`bookingHours.${source}.from`] = rule.from;
+        updateSet[`bookingHours.${source}.to`] = rule.to;
+      }
+    }
+
     const updated =
       await Service.findOneAndUpdate(
         filter,
         {
-          $set:payload
+          $set:updateSet
         },
         {
           new:true,
