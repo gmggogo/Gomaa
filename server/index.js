@@ -2022,20 +2022,6 @@ createdAt: { type: Date, default: Date.now }
 tripSchema.index({ tripNumber: 1 }, { unique: true, sparse: true });
 tripSchema.index({ tenantId: 1, createdAt: -1 });
 tripSchema.index({ tenantId: 1, tripDate: -1, tripTime: -1 });
-
-/* Final Confirmation performance indexes */
-tripSchema.index({
-  tenantId: 1,
-  dispatchFinalPageEnteredAt: 1,
-  finalStatusConfirmed: 1,
-  createdAt: -1
-});
-
-tripSchema.index({
-  tenantId: 1,
-  sharedFinalConfirmed: 1,
-  createdAt: -1
-});
 tripSchema.index({ company: 1 });
 tripSchema.index({ createdAt: -1 });
 /* Background trip maintenance reads by calendar date across tenants. */
@@ -9078,11 +9064,27 @@ app.get("/api/trips", requireTenantApi, async (req, res) => {
         req,
         nonBrokerTripFilter()
       )
-    ).sort({ createdAt: -1, _id: -1 });
-    res.json(trips);
+    )
+      /*
+        The Admin dashboard does not use stored route geometry.
+        These fields can make Trip documents very large and were causing
+        /api/trips to spend most of its time reading/transferring data.
+      */
+      .select(
+        "-googleRoute " +
+        "-optimizedRoute " +
+        "-routePath " +
+        "-routePoints " +
+        "-overviewPolyline " +
+        "-sharedRouteMeta"
+      )
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+
+    return res.json(trips);
   } catch (err) {
     console.log(err);
-    res.status(500).json({ message: "Error loading trips" });
+    return res.status(500).json({ message: "Error loading trips" });
   }
 });
 

@@ -1064,10 +1064,25 @@ router.get("/", requireTenantApi, async (req,res)=>{
       });
     }
 
-    const trips = await Trip.find(tenantFilter(req))
+    /*
+      Only final-state trips can ever appear on this page.
+      Filter them in MongoDB instead of loading every Trip for the tenant
+      and rejecting almost all of them in Node.js.
+    */
+    const finalStatusRegex =
+      /^(completed?|cancel(?:led|ed)?|no[ _-]?show|not[ _-]?completed?)$/i;
+
+    const trips = await Trip.find(
+      tenantFilter(req,{
+        $or:[
+          { status:finalStatusRegex },
+          { "passengers.status":finalStatusRegex }
+        ]
+      })
+    )
       /*
         Final Confirmation does not render stored route geometry.
-        Avoid transferring the largest Trip fields from MongoDB.
+        Avoid reading/transferring the largest Trip fields from MongoDB.
       */
       .select(
         "-googleRoute " +
@@ -1077,13 +1092,11 @@ router.get("/", requireTenantApi, async (req,res)=>{
         "-overviewPolyline " +
         "-sharedRouteMeta"
       )
-      /*
-        Match the existing tenant/date/time compound index.
-      */
       .sort({
         tripDate:-1,
         tripTime:-1
-      });
+      })
+      .lean();
 
     const externalTripMap =
       await buildSharedExternalTripMap(
