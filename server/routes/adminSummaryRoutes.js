@@ -1699,6 +1699,20 @@ router.get("/", requireTenantApi, async (req,res)=>{
       await Promise.all([
 
         Trip.find(tenantFilter(req))
+          /*
+            PERFORMANCE:
+            Admin Summary never reads the stored map/route geometry below.
+            Excluding these large fields keeps ALL pricing, passenger, status,
+            service, facility, stop and mileage data required by Summary.
+          */
+          .select(
+            "-googleRoute " +
+            "-optimizedRoute " +
+            "-routePath " +
+            "-routePoints " +
+            "-overviewPolyline " +
+            "-sharedRouteMeta"
+          )
           .sort({
             tripDate:-1,
             tripTime:-1,
