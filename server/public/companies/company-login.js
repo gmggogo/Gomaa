@@ -1,3 +1,7 @@
+ORIGINAL PROJECT PATH: public/companies/company-login.js
+RESTORE AS: company-login.js
+================================================================================
+
 document.addEventListener("DOMContentLoaded",function(){
 
 const form = document.getElementById("loginForm");

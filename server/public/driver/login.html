@@ -1,3 +1,7 @@
+ORIGINAL PROJECT PATH: public/driver/login.html
+RESTORE AS: driver-login.html
+================================================================================
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -384,12 +388,8 @@ async function loadDriverTenantBranding(){
     */
     await Branding.load();
 
-    const mainLogo =
-      (
-        typeof Branding.getMainLogo === "function"
-          ? Branding.getMainLogo()
-          : Branding.data?.mainLogo
-      ) ||
+    const loginLogo =
+      Branding.data?.driverLogo ||
       "/assets/logo.png";
 
     const companyName =
@@ -402,19 +402,15 @@ async function loadDriverTenantBranding(){
 
     if(logo){
       logo.src =
-        mainLogo;
+        loginLogo;
     }
 
     /*
       Keep the tenant branding cached for the Driver App
       after successful login / redirect.
     */
-    if(mainLogo){
-      localStorage.setItem(
-        "appLogo",
-        mainLogo
-      );
-    }
+    /* Login Logo is used only on the login screen.
+       Do not overwrite appLogo; the Driver App keeps using Main Logo. */
 
     if(companyName){
       localStorage.setItem(

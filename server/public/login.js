@@ -1,3 +1,7 @@
+ORIGINAL PROJECT PATH: public/login.js
+RESTORE AS: login.js
+================================================================================
+
 /* =====================
    GH MOBILITY STAFF LOGIN
    GENERAL / MULTI-TENANT
@@ -204,7 +208,7 @@ async function loadTenantBranding(
 
     const logoUrl =
       cleanText(
-        data?.design?.mainLogo
+        data?.design?.driverLogo
       );
 
     saveTenantBranding({

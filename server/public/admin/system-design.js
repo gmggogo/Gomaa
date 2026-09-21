@@ -1,3 +1,7 @@
+ORIGINAL PROJECT PATH: public/admin/system-design.js
+RESTORE AS: system-design.js
+================================================================================
+
 // =========================================
 // FILE: public/admin/system-design.js
 // COMPLETE SYSTEM DESIGN ENGINE
