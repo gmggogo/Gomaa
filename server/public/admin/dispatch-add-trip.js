@@ -1253,6 +1253,160 @@ function getReservedPricing(service){
   };
 }
 
+/* ================= RESERVED BOOKING HOURS ================= */
+
+const RESERVED_BOOKING_HOURS_ERROR =
+  "This booking is outside the company's business hours.";
+
+function normalizeReservedBookingMode(value){
+
+  const mode =
+    normalizeText(value || "24_HOURS")
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
+
+  if(mode === "CUSTOM") return "CUSTOM";
+  if(mode === "DISABLED") return "DISABLED";
+
+  return "24_HOURS";
+}
+
+function reservedBookingMinutes(value){
+
+  const text =
+    normalizeText(value).toUpperCase();
+
+  let match =
+    text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+
+  if(match){
+
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const meridiem = match[3];
+
+    if(
+      hour < 1 ||
+      hour > 12 ||
+      minute < 0 ||
+      minute > 59
+    ){
+      return null;
+    }
+
+    if(hour === 12){
+      hour = 0;
+    }
+
+    if(meridiem === "PM"){
+      hour += 12;
+    }
+
+    return (hour * 60) + minute;
+  }
+
+  match =
+    text.match(/^(\d{1,2}):(\d{2})$/);
+
+  if(!match){
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if(
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ){
+    return null;
+  }
+
+  return (hour * 60) + minute;
+}
+
+function getReservedBookingHoursRule(service){
+
+  const hours =
+    service?.bookingHours &&
+    typeof service.bookingHours === "object"
+      ? service.bookingHours
+      : {};
+
+  return (
+    hours.reserved &&
+    typeof hours.reserved === "object"
+      ? hours.reserved
+      : null
+  );
+}
+
+function reservedBookingTimeAllowed(service,timeValue){
+
+  const rule =
+    getReservedBookingHoursRule(service);
+
+  /*
+    Older Service records without Booking Hours keep the historical
+    Reserved behavior. The server remains the authoritative validator.
+  */
+  if(!rule){
+    return true;
+  }
+
+  const mode =
+    normalizeReservedBookingMode(rule.mode);
+
+  if(mode === "24_HOURS"){
+    return true;
+  }
+
+  if(mode === "DISABLED"){
+    return false;
+  }
+
+  const tripMinutes =
+    reservedBookingMinutes(timeValue);
+
+  const fromMinutes =
+    reservedBookingMinutes(rule.from);
+
+  const toMinutes =
+    reservedBookingMinutes(rule.to);
+
+  if(
+    tripMinutes === null ||
+    fromMinutes === null ||
+    toMinutes === null
+  ){
+    return false;
+  }
+
+  if(fromMinutes <= toMinutes){
+    return (
+      tripMinutes >= fromMinutes &&
+      tripMinutes <= toMinutes
+    );
+  }
+
+  return (
+    tripMinutes >= fromMinutes ||
+    tripMinutes <= toMinutes
+  );
+}
+
+function assertReservedBookingHours(service,timeValue){
+
+  if(reservedBookingTimeAllowed(service,timeValue)){
+    return true;
+  }
+
+  showAlert(RESERVED_BOOKING_HOURS_ERROR);
+  return false;
+}
+
 function warningEnabled(service){
   return getReservedPricing(service).disableCancel !== true;
 }
@@ -2425,6 +2579,13 @@ submitTripBtn?.addEventListener("click",async ()=>{
     return;
   }
 
+  if(!assertReservedBookingHours(
+    getCurrentReservedServiceConfig(),
+    tripTime.value
+  )){
+    return;
+  }
+
   if(!checkReservedDynamicWarning(tripDate.value,tripTime.value)){
     return;
   }
@@ -2440,7 +2601,13 @@ submitTripBtn?.addEventListener("click",async ()=>{
 
     localStorage.removeItem("dispatchTripDraft");
 
-    await refreshReview();
+    /*
+      The trip is already safely created at this point. Refresh Review in the
+      background so a slow list request cannot keep the Add Trip button waiting.
+    */
+    refreshReview().catch(err=>{
+      console.error("ADD TRIP REVIEW REFRESH ERROR:",err);
+    });
 
     showAddPage();
 
@@ -2462,6 +2629,13 @@ submitTripBtn?.addEventListener("click",async ()=>{
 submitSharedBtn?.addEventListener("click",async ()=>{
 
   if(!validateSharedTrip()){
+    return;
+  }
+
+  if(!assertReservedBookingHours(
+    getCurrentReservedServiceConfig(),
+    sharedTime.value
+  )){
     return;
   }
 
@@ -2492,7 +2666,9 @@ submitSharedBtn?.addEventListener("click",async ()=>{
 
     localStorage.removeItem("dispatchSharedDraft");
 
-    await refreshReview();
+    refreshReview().catch(err=>{
+      console.error("ADD SHARED REVIEW REFRESH ERROR:",err);
+    });
 
     showAddPage();
 
@@ -4092,7 +4268,13 @@ async function handleConfirmTrip(btn){
 
     btn.textContent = "Confirmed";
 
-    await refreshReview();
+    /*
+      Confirm already succeeded on the server. Do not make the user wait for
+      the Review list request before showing success.
+    */
+    refreshReview().catch(err=>{
+      console.error("CONFIRM REVIEW REFRESH ERROR:",err);
+    });
 
     showAlert("RV Trip Confirmed ✔");
 

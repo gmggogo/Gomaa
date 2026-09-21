@@ -1304,21 +1304,43 @@ async function resolveIndividualRouteForDirections(
     );
   }
 
+  /*
+    Resolve independent route addresses in parallel.
+    The old version waited for pickup, every stop, and dropoff one-by-one.
+    Route order is preserved by Promise.all, while network/geocode latency
+    is paid once for the slowest point instead of once per point.
+  */
+  const resolvedResults =
+    await Promise.all(
+      addresses.map(async (rawAddress,index)=>{
+
+        const address =
+          normalizePossibleAddress(rawAddress);
+
+        const coords =
+          await geocodeAddressWithRetry(
+            address,
+            stats,
+            2
+          );
+
+        return {
+          index,
+          address,
+          coords
+        };
+      })
+    );
+
   const resolved = [];
 
-  for(let index = 0; index < addresses.length; index += 1){
+  for(const item of resolvedResults){
 
-    const address =
-      normalizePossibleAddress(
-        addresses[index]
-      );
-
-    const coords =
-      await geocodeAddressWithRetry(
-        address,
-        stats,
-        2
-      );
+    const {
+      index,
+      address,
+      coords
+    } = item;
 
     if(!coords){
 
@@ -3088,34 +3110,19 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
     await updatedTrip.save();
 
     /*
-      A confirmed trip enters Dispatch and receives an eligible driver now.
-      Confirm must remain successful when no driver is currently eligible.
+      Return Confirm success as soon as the confirmed trip is safely saved.
+      Auto assignment is intentionally started after the response so Smart
+      Dispatch cannot keep the Confirm button waiting. The assignment logic
+      itself is unchanged and still runs for every successful Confirm.
     */
-    let autoAssignment = null;
+    const autoAssignment = {
+      success:true,
+      assigned:false,
+      pending:true,
+      reason:"AUTO_ASSIGNMENT_RUNNING"
+    };
 
-    try{
-      autoAssignment =
-        await dispatchRoutes.autoAssignTripById(
-          updatedTrip._id,
-          req.authUser?.id
-            ? String(req.authUser.id)
-            : "SYSTEM_CONFIRM",
-          req.authUser?.tenantId || null
-        );
-    }catch(autoAssignError){
-      console.log(
-        "RESERVED CONFIRM AUTO ASSIGN ERROR:",
-        autoAssignError
-      );
-
-      autoAssignment = {
-        success:false,
-        assigned:false,
-        reason:autoAssignError.message || "Auto assignment failed"
-      };
-    }
-
-    return res.json({
+    const responsePayload = {
       success:true,
       trip:updatedTrip,
       autoAssignment,
@@ -3132,7 +3139,29 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
         routeReused
           ? "SAVED_ROUTE_REUSED"
           : prepared.routeCase || prepared.routeMeta?.mode || "ROUTE_CALCULATED"
+    };
+
+    res.json(responsePayload);
+
+    setImmediate(async ()=>{
+
+      try{
+        await dispatchRoutes.autoAssignTripById(
+          updatedTrip._id,
+          req.authUser?.id
+            ? String(req.authUser.id)
+            : "SYSTEM_CONFIRM",
+          req.authUser?.tenantId || null
+        );
+      }catch(autoAssignError){
+        console.log(
+          "RESERVED CONFIRM AUTO ASSIGN ERROR:",
+          autoAssignError
+        );
+      }
     });
+
+    return;
 
   }catch(err){
 
