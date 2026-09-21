@@ -299,6 +299,51 @@ th{
   cursor:pointer;
 }
 
+.delete-btn{
+  border-color:#d83a3a;
+  background:#fff5f5;
+  color:#b42318;
+  margin-left:7px;
+}
+
+.replacement-box{
+  display:none;
+  margin-bottom:22px;
+  border:2px solid #b42318;
+}
+
+.replacement-box.show{
+  display:block;
+}
+
+.replacement-warning{
+  margin:0 0 18px;
+  padding:12px 14px;
+  border-radius:10px;
+  background:#fff3f2;
+  color:#912018;
+  font-size:14px;
+  font-weight:800;
+}
+
+.replacement-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.cancel-btn{
+  min-height:46px;
+  border:1px solid #cfd5df;
+  border-radius:10px;
+  padding:0 18px;
+  background:#fff;
+  color:#333;
+  font-size:15px;
+  font-weight:800;
+  cursor:pointer;
+}
+
 .empty{
   text-align:center;
   color:#7a8290;
@@ -480,6 +525,53 @@ th{
 
       </div>
 
+    </div>
+
+  </section>
+
+  <!-- =========================
+       REPLACE + DELETE SUPER ADMIN
+  ========================= -->
+
+  <section id="replacementBox" class="card replacement-box">
+
+    <h2 class="section-title">
+      Create Replacement Super Admin
+    </h2>
+
+    <p id="replacementWarning" class="replacement-warning">
+      A replacement Super Admin must be created successfully before the old account can be deleted.
+    </p>
+
+    <div class="grid">
+      <div>
+        <label>Name</label>
+        <input id="replacementName" type="text" autocomplete="off">
+      </div>
+      <div>
+        <label>Username</label>
+        <input id="replacementUsername" type="text" autocomplete="off">
+      </div>
+      <div>
+        <label>Email</label>
+        <input id="replacementEmail" type="email" autocomplete="off">
+      </div>
+      <div>
+        <label>Phone</label>
+        <input id="replacementPhone" type="text" autocomplete="off">
+      </div>
+      <div class="full">
+        <label>Password</label>
+        <input id="replacementPassword" type="password" minlength="8" autocomplete="new-password">
+      </div>
+      <div class="full replacement-actions">
+        <button id="replaceDeleteBtn" class="primary" onclick="replaceAndDeleteAdmin()">
+          Create New & Delete Old
+        </button>
+        <button class="cancel-btn" type="button" onclick="cancelReplacement()">
+          Cancel
+        </button>
+      </div>
     </div>
 
   </section>
@@ -865,6 +957,13 @@ async function loadAdmins(){
 
               </button>
 
+              <button
+                class="small-btn delete-btn"
+                onclick="startReplacement('${a._id}', '${escapeJs(a.name || a.username || "Super Admin")}')"
+              >
+                Delete
+              </button>
+
             </td>
 
           </tr>
@@ -1020,7 +1119,7 @@ async function toggleAdmin(
   try{
 
     await api(
-      `/api/platform-admin/super-admins/${userId}/toggle`,
+      `/api/platform-admin/super-admins/${userId}/toggle?tenantId=${encodeURIComponent(document.getElementById("tenantSelect").value)}`,
       {
         method:"PATCH"
       }
@@ -1039,8 +1138,81 @@ async function toggleAdmin(
 }
 
 /* =========================================
+   REPLACE + DELETE SUPER ADMIN
+========================================= */
+
+let replacementTargetId = "";
+
+function startReplacement(userId, adminName){
+  replacementTargetId = String(userId || "");
+  const box = document.getElementById("replacementBox");
+  const warning = document.getElementById("replacementWarning");
+  warning.textContent =
+    `Create a new Super Admin for this company before deleting ${adminName}. The old account will remain until the new account is created successfully.`;
+  box.classList.add("show");
+  box.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function cancelReplacement(){
+  replacementTargetId = "";
+  document.getElementById("replacementBox").classList.remove("show");
+  ["replacementName","replacementUsername","replacementEmail","replacementPhone","replacementPassword"]
+    .forEach(id => document.getElementById(id).value = "");
+}
+
+async function replaceAndDeleteAdmin(){
+  const tenantId = document.getElementById("tenantSelect").value;
+  const name = document.getElementById("replacementName").value.trim();
+  const username = document.getElementById("replacementUsername").value.trim();
+  const email = document.getElementById("replacementEmail").value.trim();
+  const phone = document.getElementById("replacementPhone").value.trim();
+  const password = document.getElementById("replacementPassword").value;
+
+  if(!tenantId || !replacementTargetId || !name || !username || !password){
+    showMessage("Enter Name, Username and Password for the replacement Super Admin.", false);
+    return;
+  }
+
+  if(password.length < 8){
+    showMessage("Password must be at least 8 characters.", false);
+    return;
+  }
+
+  const btn = document.getElementById("replaceDeleteBtn");
+  btn.disabled = true;
+  btn.textContent = "Replacing...";
+
+  try{
+    const data = await api(
+      `/api/platform-admin/tenants/${tenantId}/super-admins/${replacementTargetId}/replace`,
+      {
+        method:"POST",
+        body:JSON.stringify({name, username, email, phone, password})
+      }
+    );
+
+    showMessage(data.message || "Super Admin replaced successfully", true);
+    cancelReplacement();
+    await loadAdmins();
+  }catch(err){
+    showMessage(err.message, false);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Create New & Delete Old";
+  }
+}
+
+/* =========================================
    HELPERS
 ========================================= */
+
+function escapeJs(value){
+  return String(value ?? "")
+    .replaceAll("\\","\\\\")
+    .replaceAll("'","\\'")
+    .replaceAll("\n"," ")
+    .replaceAll("\r"," ");
+}
 
 function escapeHtml(value){
 

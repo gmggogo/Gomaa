@@ -826,6 +826,146 @@ router.patch(
 
 
 /* =========================================
+   REPLACE + DELETE SUPER ADMIN
+   - Creates replacement in SAME tenant first
+   - Deletes ONLY the selected old SUPER_ADMIN
+   - If replacement creation fails, old admin remains
+========================================= */
+
+router.post(
+  "/tenants/:tenantId/super-admins/:userId/replace",
+  async (req,res)=>{
+
+    let replacementAdmin = null;
+
+    try{
+      const tenantId = clean(req.params.tenantId);
+      const userId = clean(req.params.userId);
+
+      if(
+        !mongoose.Types.ObjectId.isValid(tenantId) ||
+        !mongoose.Types.ObjectId.isValid(userId)
+      ){
+        return res.status(400).json({ message:"Invalid tenantId or userId" });
+      }
+
+      const tenant = await Tenant.findById(tenantId);
+      if(!tenant){
+        return res.status(404).json({ message:"Tenant not found" });
+      }
+
+      const oldAdmin = await User.findOne({
+        _id:userId,
+        tenantId:tenant._id,
+        role:"SUPER_ADMIN"
+      });
+      if(!oldAdmin){
+        return res.status(404).json({ message:"Super Admin not found in this company" });
+      }
+
+      const name = clean(req.body?.name);
+      const username = clean(req.body?.username);
+      const email = clean(req.body?.email);
+      const phone = clean(req.body?.phone);
+      const password = String(req.body?.password || "");
+
+      if(!name || !username || !password){
+        return res.status(400).json({ message:"name, username and password are required" });
+      }
+      if(password.length < 8){
+        return res.status(400).json({ message:"Password must be at least 8 characters" });
+      }
+
+      const exists = await User.findOne({
+        tenantId:tenant._id,
+        username,
+        _id:{$ne:oldAdmin._id}
+      }).lean();
+      if(exists){
+        return res.status(409).json({ message:"Username already exists" });
+      }
+
+      const hashed = await bcrypt.hash(password,10);
+
+      replacementAdmin = await User.create({
+        name,
+        username,
+        password:hashed,
+        email,
+        phone,
+        role:"SUPER_ADMIN",
+        tenantId:tenant._id,
+        active:true,
+        enabled:true
+      });
+
+      if(!replacementAdmin?._id){
+        return res.status(500).json({
+          message:"Replacement Super Admin could not be created. Old account was not deleted."
+        });
+      }
+
+      const deleteResult = await User.deleteOne({
+        _id:oldAdmin._id,
+        tenantId:tenant._id,
+        role:"SUPER_ADMIN"
+      });
+
+      if(Number(deleteResult?.deletedCount || 0) !== 1){
+        await User.deleteOne({
+          _id:replacementAdmin._id,
+          tenantId:tenant._id,
+          role:"SUPER_ADMIN"
+        });
+        replacementAdmin = null;
+        return res.status(500).json({
+          message:"Old Super Admin could not be deleted. No replacement was kept."
+        });
+      }
+
+      return res.status(201).json({
+        success:true,
+        message:"Replacement Super Admin created and old Super Admin deleted",
+        admin:{
+          id:replacementAdmin._id,
+          name:replacementAdmin.name,
+          username:replacementAdmin.username,
+          email:replacementAdmin.email,
+          phone:replacementAdmin.phone,
+          role:replacementAdmin.role,
+          tenantId:replacementAdmin.tenantId,
+          active:replacementAdmin.active !== false,
+          enabled:replacementAdmin.enabled !== false
+        }
+      });
+
+    }catch(err){
+      console.error("REPLACE SUPER ADMIN ERROR:",err);
+
+      if(replacementAdmin?._id){
+        try{
+          await User.deleteOne({
+            _id:replacementAdmin._id,
+            role:"SUPER_ADMIN"
+          });
+        }catch(rollbackErr){
+          console.error("REPLACEMENT SUPER ADMIN ROLLBACK ERROR:",rollbackErr);
+        }
+      }
+
+      if(err?.code === 11000){
+        return res.status(409).json({ message:"Username already exists" });
+      }
+
+      return res.status(500).json({
+        message:err?.message || "Unable to replace Super Admin"
+      });
+    }
+  }
+);
+
+
+/* =========================================
    PERMANENT DELETE TENANT
    PLATFORM_ADMIN ONLY
 
