@@ -465,6 +465,36 @@ function isSharedService(s){
    FROM SERVICE MANAGEMENT
 ========================= */
 
+const BOOKING_HOUR_MODES = ["24_HOURS","CUSTOM","DISABLED"];
+
+function safeBookingHourMode(value){
+  const mode = upper(value || "24_HOURS");
+  return BOOKING_HOUR_MODES.includes(mode)
+    ? mode
+    : "24_HOURS";
+}
+
+function safeBookingTime(value,fallback){
+  const time = String(value || "").trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+    ? time
+    : fallback;
+}
+
+function normalizeBookingHourRule(rule){
+  return {
+    mode:safeBookingHourMode(rule?.mode),
+    from:safeBookingTime(rule?.from,"00:00"),
+    to:safeBookingTime(rule?.to,"23:59")
+  };
+}
+
+function getFacilityOverrideBookingHours(s){
+  return normalizeBookingHourRule(
+    s?.bookingHours?.facilityOverride
+  );
+}
+
 function serviceDefaultPricing(s){
 
   const serviceKey =
@@ -613,7 +643,11 @@ function serviceDefaultPricing(s){
             s?.companyAddStopCutoffMinutes ??
             s?.addStopCutoffMinutes ??
             0
-          )
+          ),
+
+    bookingHours:{
+      facilityOverride:getFacilityOverrideBookingHours(s)
+    }
   };
 }
 
