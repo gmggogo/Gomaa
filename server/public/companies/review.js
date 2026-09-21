@@ -4426,6 +4426,8 @@ window.ReviewApp = {
 /* ================= LOAD ================= */
 async function autoApplyAddStopRequests(){
 
+  let changed = false;
+
   const candidates =
     trips.filter(t=>{
       const req = getActiveAddStopRequest(t);
@@ -4438,7 +4440,7 @@ async function autoApplyAddStopRequests(){
     });
 
   if(!candidates.length){
-    return;
+    return false;
   }
 
   for(const trip of candidates){
@@ -4584,6 +4586,8 @@ const billableStopsCount =
         routeChangeStatus:"COMPLETED"
       });
 
+      changed = true;
+
       console.log("AUTO ADD STOP APPLIED:", trip.tripNumber, "$" + total);
 
     }catch(err){
@@ -4598,6 +4602,8 @@ const billableStopsCount =
 
   }
 
+  return changed;
+
 }
 async function refreshData(){
 
@@ -4606,9 +4612,11 @@ async function refreshData(){
 
   trips = await fetchTrips();
 
-  await autoApplyAddStopRequests();
+  const addStopChanged = await autoApplyAddStopRequests();
 
-  trips = await fetchTrips();
+  if(addStopChanged){
+    trips = await fetchTrips();
+  }
 
   render();
 }
