@@ -9512,6 +9512,14 @@ app.get(
 
     const trips =
       await Trip.find(filter)
+        .select(
+          "-googleRoute " +
+          "-optimizedRoute " +
+          "-routePath " +
+          "-routePoints " +
+          "-overviewPolyline " +
+          "-sharedRouteMeta"
+        )
         .sort({
           createdAt:-1,
           _id:-1
@@ -9589,6 +9597,14 @@ app.get(
 
     const trips =
       await Trip.find(filter)
+        .select(
+          "-googleRoute " +
+          "-optimizedRoute " +
+          "-routePath " +
+          "-routePoints " +
+          "-overviewPolyline " +
+          "-sharedRouteMeta"
+        )
         .sort({
           createdAt:-1,
           _id:-1
