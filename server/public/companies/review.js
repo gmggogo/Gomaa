@@ -832,15 +832,26 @@ function getAZNow(){
 
 async function loadSystemRegion(){
   try{
-    const res = await fetch("/api/system-design");
-    const data = await res.json();
+    const res = await fetch("/api/system-design",{
+      headers:{
+        Authorization:"Bearer " + token
+      },
+      cache:"no-store"
+    });
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      console.warn("SYSTEM DESIGN LOAD FAILED:", res.status, data);
+      return;
+    }
 
     SYSTEM_REGION = data?.region || "";
     SYSTEM_COUNTRY = data?.country || "";
     SYSTEM_TIMEZONE = data?.timezone || "America/Phoenix";
 
   }catch(err){
-    console.log(err);
+    console.log("SYSTEM DESIGN LOAD ERROR:", err);
   }
 }
 
@@ -4605,29 +4616,63 @@ const billableStopsCount =
   return changed;
 
 }
-async function refreshData(){
+let reviewRefreshInFlight = false;
 
+async function refreshTripsOnly(){
+
+  if(reviewRefreshInFlight){
+    return;
+  }
+
+  reviewRefreshInFlight = true;
+
+  try{
+
+    trips = await fetchTrips();
+
+    const addStopChanged = await autoApplyAddStopRequests();
+
+    /*
+      A second trips request is only needed when the automatic
+      Add Stop workflow actually changed server data.
+    */
+    if(addStopChanged){
+      trips = await fetchTrips();
+    }
+
+    render();
+
+  }catch(err){
+
+    console.error("REVIEW TRIPS REFRESH ERROR:", err);
+
+  }finally{
+
+    reviewRefreshInFlight = false;
+
+  }
+}
+
+async function initialReviewLoad(){
+
+  /*
+    System settings and company services are configuration data.
+    Load them once when Review opens instead of reloading them
+    every 30 seconds with the trips polling.
+  */
   await loadSystemRegion();
   await loadServices();
 
-  trips = await fetchTrips();
-
-  const addStopChanged = await autoApplyAddStopRequests();
-
-  if(addStopChanged){
-    trips = await fetchTrips();
-  }
-
-  render();
+  await refreshTripsOnly();
 }
 
-await refreshData();
+await initialReviewLoad();
 
 setInterval(async()=>{
   const hasEditing = trips.some(t=>t.__editing);
   if(hasEditing) return;
 
-  await refreshData();
+  await refreshTripsOnly();
 },30000);
 
 });
