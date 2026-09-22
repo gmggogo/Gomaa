@@ -1,0 +1,247 @@
+{
+  "pageId": "ADM-004",
+  "pageTitle": "Broker Review",
+  "pageFile": "broker-review.html",
+  "module": "Broker Operations",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "BROKER",
+  "sourceFiles": [
+    "server/public/admin/broker-review.html",
+    "server/public/admin/header.js",
+    "server/public/admin/js/broker-review.js"
+  ],
+  "apiDependencies": [
+    "/api/broker-review/bootstrap",
+    "/api/broker-review/confirm-selected",
+    "/api/broker-review/return-to-trip-split",
+    "/api/broker-review/trips/${encodeURIComponent",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "addressBox",
+    "normalizedTripStatus",
+    "isSelected",
+    "statusText",
+    "updateSelectAllButton",
+    "toggleSelectAll",
+    "selectedVisibleIds",
+    "selectedReturnableIds",
+    "returnSelectedToTripSplit",
+    "confirmSelected",
+    "openEdit",
+    "saveEdit",
+    "deleteTrip",
+    "load"
+  ],
+  "articles": [
+    {
+      "id": "ADM-004-T01",
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Edit a Broker Review Trip",
+      "summary": "Edit a Broker Review Trip",
+      "keywords": [
+        "broker review",
+        "change address",
+        "change pickup time",
+        "edit broker review",
+        "notes"
+      ],
+      "steps": [
+        "Open Broker Review.",
+        "Locate the trip.",
+        "Open Edit.",
+        "Change the allowed date/time/address/notes fields.",
+        "Click Save."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/broker-review.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/broker-review.js"
+      ],
+      "apiDependencies": [
+        "/api/broker-review/bootstrap",
+        "/api/broker-review/confirm-selected",
+        "/api/broker-review/return-to-trip-split",
+        "/api/broker-review/trips/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "addressBox",
+        "normalizedTripStatus",
+        "isSelected",
+        "statusText",
+        "updateSelectAllButton",
+        "toggleSelectAll",
+        "selectedVisibleIds",
+        "selectedReturnableIds",
+        "returnSelectedToTripSplit",
+        "confirmSelected",
+        "openEdit",
+        "saveEdit",
+        "deleteTrip",
+        "load"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-004-T02",
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Confirm Broker Trips",
+      "summary": "Confirm Broker Trips",
+      "keywords": [
+        "broker confirm",
+        "broker review",
+        "confirm broker trip",
+        "confirm selected"
+      ],
+      "steps": [
+        "Select the ready broker trips.",
+        "Click Confirm Selected.",
+        "Verify the trips move forward in the broker workflow."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/broker-review.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/broker-review.js"
+      ],
+      "apiDependencies": [
+        "/api/broker-review/bootstrap",
+        "/api/broker-review/confirm-selected",
+        "/api/broker-review/return-to-trip-split",
+        "/api/broker-review/trips/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "addressBox",
+        "normalizedTripStatus",
+        "isSelected",
+        "statusText",
+        "updateSelectAllButton",
+        "toggleSelectAll",
+        "selectedVisibleIds",
+        "selectedReturnableIds",
+        "returnSelectedToTripSplit",
+        "confirmSelected",
+        "openEdit",
+        "saveEdit",
+        "deleteTrip",
+        "load"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-004-T03",
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "Return Trips to Trip Split",
+      "summary": "Return Trips to Trip Split",
+      "keywords": [
+        "broker review",
+        "regroup broker trip",
+        "return to trip split",
+        "send back"
+      ],
+      "steps": [
+        "Select the trips that require regrouping/correction.",
+        "Click Return Selected to Trip Split.",
+        "Verify they are available again in Trip Split."
+      ],
+      "warnings": [
+        "Broker Contract must be enabled."
+      ],
+      "sourceFiles": [
+        "server/public/admin/broker-review.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/broker-review.js"
+      ],
+      "apiDependencies": [
+        "/api/broker-review/bootstrap",
+        "/api/broker-review/confirm-selected",
+        "/api/broker-review/return-to-trip-split",
+        "/api/broker-review/trips/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "addressBox",
+        "normalizedTripStatus",
+        "isSelected",
+        "statusText",
+        "updateSelectAllButton",
+        "toggleSelectAll",
+        "selectedVisibleIds",
+        "selectedReturnableIds",
+        "returnSelectedToTripSplit",
+        "confirmSelected",
+        "openEdit",
+        "saveEdit",
+        "deleteTrip",
+        "load"
+      ],
+      "active": true
+    }
+  ]
+}

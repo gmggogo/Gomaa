@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Admin Dashboard</title>
+
+<link rel="stylesheet" href="/platform-admin/platform_header.css">
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+:root{
+  --ink:#0b2948;
+  --muted:#61758a;
+  --line:rgba(28,67,104,.17);
+  --panel:rgba(255,255,255,.90);
+  --navy:#123d68;
+  --navy-dark:#082949;
+  --gold:#b88a2d;
+  --green:#16835b;
+  --yellow:#a36d08;
+  --orange:#c65d0c;
+  --red:#b4232d;
+  --red-dark:#7d1720;
+}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--ink);
+}
+
+#platformHeader{
+  width:100%;
+}
+
+.page{
+  width:min(1480px,calc(100% - 34px));
+  margin:24px auto 52px;
+}
+
+/* =========================================================
+   PAGE TITLE HEADER
+========================================================= */
+
+.page-head{
+  position:relative;
+  overflow:hidden;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:10px;
+
+  padding:21px 24px;
+  margin-bottom:18px;
+
+  border:1px solid rgba(13,48,80,.30);
+  border-radius:14px;
+
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(255,255,255,.20),
+      transparent 32%
+    ),
+    linear-gradient(
+      135deg,
+      #173f66 0%,
+      #0d3155 52%,
+      #294f70 100%
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    0 10px 24px rgba(13,48,80,.17);
+}
+
+.page-head::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:4px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #7f6425,
+      #d5b85e,
+      #f5e09a,
+      #d5b85e,
+      #7f6425
+    );
+}
+
+.page-head-copy{
+  min-width:0;
+  width:100%;
+  text-align:center;
+}
+
+.page-head h1{
+  margin:0;
+  color:#fff;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:28px;
+  font-weight:900;
+  letter-spacing:.4px;
+}
+
+.page-head p{
+  margin:7px auto 0;
+  max-width:780px;
+  color:#d9e8f5;
+  font-size:13px;
+  font-weight:700;
+  text-align:center;
+}
+
+.page-head-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-width:190px;
+  margin:2px auto 0;
+  padding:8px 18px;
+
+  border:1px solid rgba(255,232,166,.58);
+  border-radius:999px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f5de96 0%,
+      #d4b35b 48%,
+      #b6892e 100%
+    );
+
+  color:#4b3308;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.65),
+    0 4px 10px rgba(0,0,0,.14);
+}
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.summary-card{
+  position:relative;
+  overflow:hidden;
+
+  min-height:108px;
+  padding:16px;
+
+  background:linear-gradient(145deg,#ffffff,#eef7ff);
+  border:1px solid var(--line);
+  border-radius:12px;
+
+  box-shadow:
+    0 7px 18px rgba(13,48,80,.10);
+}
+
+.summary-card:nth-child(1){
+  background:linear-gradient(145deg,#eef6ff,#d9eaff);
+}
+
+.summary-card:nth-child(2){
+  background:linear-gradient(145deg,#eefcf4,#d8f4e5);
+}
+
+.summary-card:nth-child(3){
+  background:linear-gradient(145deg,#fff6e8,#ffe0aa);
+}
+
+.summary-card:nth-child(4){
+  background:linear-gradient(145deg,#f6edff,#e5d6ff);
+}
+
+.summary-card:nth-child(5){
+  background:linear-gradient(145deg,#eafcfc,#cff4f4);
+}
+
+.summary-card:nth-child(6){
+  background:linear-gradient(145deg,#fff0f2,#ffd7dc);
+}
+
+.summary-card:nth-child(7){
+  background:linear-gradient(145deg,#eefaf2,#d8f1e1);
+}
+
+.summary-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:5px;
+  background:#6c8eae;
+}
+
+.summary-card.green::before{background:#29966b}
+.summary-card.gold::before{background:#c59a39}
+.summary-card.purple::before{background:#785db1}
+.summary-card.teal::before{background:#278f98}
+.summary-card.red::before{background:#c44b50}
+
+.summary-label{
+  color:#66788a;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.55px;
+}
+
+.summary-value{
+  margin-top:9px;
+  color:#102f50;
+  font-size:30px;
+  line-height:1;
+  font-weight:900;
+}
+
+.summary-note{
+  margin-top:7px;
+  color:#7c8c9b;
+  font-size:10px;
+  font-weight:700;
+}
+
+/* =========================================================
+   CONTROL BAR
+========================================================= */
+
+.control-panel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+
+  margin-bottom:12px;
+  padding:12px;
+
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.82);
+}
+
+.search-box{
+  flex:1 1 360px;
+  max-width:520px;
+}
+
+.search-box input{
+  width:100%;
+  height:40px;
+  padding:0 13px;
+
+  border:1px solid #a9bfd3;
+  border-radius:8px;
+
+  background:#fff;
+  color:#173652;
+
+  font-size:12px;
+  font-weight:700;
+  outline:none;
+}
+
+.search-box input:focus{
+  border-color:#426f99;
+  box-shadow:0 0 0 3px rgba(66,111,153,.12);
+}
+
+.legend{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+}
+
+.legend-item{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+
+  color:#5f7182;
+  font-size:10px;
+  font-weight:800;
+}
+
+.legend-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  border:1px solid rgba(0,0,0,.12);
+}
+
+.legend-dot.safe{background:#4aaa7b}
+.legend-dot.watch{background:#e3b347}
+.legend-dot.soon{background:#e98432}
+.legend-dot.due{background:#cf4048}
+
+/* =========================================================
+   COMPANY TABLE
+========================================================= */
+
+.company-panel{
+  overflow:hidden;
+
+  border:1px solid var(--line);
+  border-radius:14px;
+
+  background:rgba(255,255,255,.90);
+
+  box-shadow:
+    0 10px 26px rgba(13,48,80,.10);
+}
+
+.panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+
+  padding:14px 17px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f8fcff,
+      #e8f3fb
+    );
+
+  border-bottom:1px solid var(--line);
+}
+
+.panel-head h2{
+  margin:0;
+  color:#173c61;
+  font-size:16px;
+  font-weight:900;
+}
+
+.panel-head span{
+  color:#748697;
+  font-size:10px;
+  font-weight:800;
+}
+
+.table-wrap{
+  overflow:auto;
+}
+
+.company-table{
+  width:100%;
+  min-width:1260px;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed;
+}
+
+.company-table th{
+  position:sticky;
+  top:0;
+  z-index:1;
+
+  padding:11px 9px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #2d4f6d,
+      #193b59
+    );
+
+  color:#f8fbff;
+
+  border-right:2px solid rgba(255,255,255,.28);
+  border-bottom:2px solid #153550;
+
+  font-size:9px;
+  font-weight:900;
+  text-align:center;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+  white-space:normal;
+  line-height:1.25;
+  word-break:break-word;
+}
+
+.company-table th:first-child{
+  text-align:left;
+  padding-left:15px;
+}
+
+.company-table td{
+  padding:10px 8px;
+  min-height:52px;
+  vertical-align:middle;
+
+  border-right:2px solid #d7e1e9;
+  border-bottom:2px solid #d7e1e9;
+
+  color:#2d4256;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+
+  white-space:normal;
+  line-height:1.25;
+  overflow:visible;
+
+  background:rgba(255,255,255,.94);
+}
+
+.company-table td:first-child{
+  text-align:left;
+  padding-left:15px;
+}
+
+.company-table th:first-child,
+.company-table td:first-child{
+  border-left:2px solid #d7e1e9;
+}
+
+.company-table thead th{
+  border-top:2px solid #153550;
+}
+
+.company-table tbody tr:first-child td{
+  border-top:0;
+}
+
+/* Allow each cell to grow when it contains multiple values */
+.company-table td > *{
+  max-width:100%;
+}
+
+.company-table td .broker-list{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  gap:5px;
+  width:100%;
+  min-height:28px;
+}
+
+.company-table td .broker-pill{
+  display:block;
+  width:100%;
+  min-width:0;
+  padding:6px 7px;
+
+  border-radius:6px;
+  border:1px solid #b7d8ce;
+
+  background:#e8f4f1;
+  color:#176b56;
+
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  font-size:9px;
+  font-weight:900;
+  line-height:1.15;
+}
+
+.company-table td .broker-pill.off{
+  background:#f4f5f6;
+  border-color:#dadddf;
+  color:#818b94;
+}
+
+.company-table td .metric{
+  white-space:nowrap;
+}
+
+/*
+  Reusable stacked sub-cells.
+  Any future multi-value column can use:
+  .multi-cell > .multi-cell-item
+*/
+.multi-cell{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  width:100%;
+}
+
+.multi-cell-item{
+  display:block;
+  width:100%;
+  padding:6px 7px;
+
+  border:1px solid #cbd8e3;
+  border-radius:6px;
+
+  background:#f7fbff;
+  color:#23445f;
+
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  font-size:9px;
+  font-weight:900;
+  line-height:1.15;
+}
+
+.company-table th:nth-child(1){width:190px;}
+.company-table th:nth-child(2){width:82px;}
+.company-table th:nth-child(3){width:82px;}
+.company-table th:nth-child(4){width:82px;}
+.company-table th:nth-child(5){width:82px;}
+.company-table th:nth-child(6){width:105px;}
+.company-table th:nth-child(7){width:100px;}
+.company-table th:nth-child(8){width:90px;}
+.company-table th:nth-child(9){width:170px;}
+.company-table th:nth-child(10){width:105px;}
+.company-table th:nth-child(11){width:155px;}
+.company-table th:nth-child(12){width:100px;}
+
+.company-table th:nth-child(2){background:linear-gradient(180deg,#3d5f9a,#274579);}
+.company-table th:nth-child(3){background:linear-gradient(180deg,#2b8f8c,#1f6e6d);}
+.company-table th:nth-child(4){background:linear-gradient(180deg,#8f58b0,#6d3f8b);}
+.company-table th:nth-child(5){background:linear-gradient(180deg,#c48c2e,#996714);}
+.company-table th:nth-child(6){background:linear-gradient(180deg,#b85b86,#8f3f66);}
+.company-table th:nth-child(7){background:linear-gradient(180deg,#4b88b2,#2f658d);}
+.company-table th:nth-child(8){background:linear-gradient(180deg,#6e78b7,#4b5594);}
+.company-table th:nth-child(9){background:linear-gradient(180deg,#4da36b,#2f7f50);}
+.company-table th:nth-child(10){background:linear-gradient(180deg,#927a43,#705b2d);}
+.company-table th:nth-child(11){background:linear-gradient(180deg,#c66c3f,#9e4f28);}
+.company-table th:nth-child(12){background:linear-gradient(180deg,#bd4d5f,#953444);}
+
+.company-table td:nth-child(2){background:#eef4ff;}
+.company-table td:nth-child(3){background:#eaf9f8;}
+.company-table td:nth-child(4){background:#f5efff;}
+.company-table td:nth-child(5){background:#fff8ea;}
+.company-table td:nth-child(6){background:#fff0f7;}
+.company-table td:nth-child(7){background:#eef8ff;}
+.company-table td:nth-child(8){background:#f1f3ff;}
+.company-table td:nth-child(9){background:#eefaf2;}
+.company-table td:nth-child(10){background:#fbf7ea;}
+.company-table td:nth-child(11){background:#fff4ee;}
+.company-table td:nth-child(12){background:#fff1f3;}
+
+.company-table tbody tr:hover td:first-child{background:#f3faff;}
+.company-table tbody tr:hover td:nth-child(2){background:#e2edff;}
+.company-table tbody tr:hover td:nth-child(3){background:#def4f2;}
+.company-table tbody tr:hover td:nth-child(4){background:#ebe1ff;}
+.company-table tbody tr:hover td:nth-child(5){background:#fff0cf;}
+.company-table tbody tr:hover td:nth-child(6){background:#ffe3f0;}
+.company-table tbody tr:hover td:nth-child(7){background:#deeffb;}
+.company-table tbody tr:hover td:nth-child(8){background:#e3e8ff;}
+.company-table tbody tr:hover td:nth-child(9){background:#dcf2e4;}
+.company-table tbody tr:hover td:nth-child(10){background:#f4edcf;}
+.company-table tbody tr:hover td:nth-child(11){background:#ffe7dc;}
+.company-table tbody tr:hover td:nth-child(12){background:#ffdfe4;}
+
+.metric{
+  border-width:1px;
+}
+
+.company-table td:nth-child(2) .metric{background:#dce8ff;border-color:#b8c9ee;color:#244477;}
+.company-table td:nth-child(3) .metric{background:#d8f1ef;border-color:#acd4d1;color:#185f61;}
+.company-table td:nth-child(4) .metric{background:#eadfff;border-color:#ceb9f2;color:#5d3580;}
+.company-table td:nth-child(5) .metric{background:#ffefc9;border-color:#e7ca80;color:#87590d;}
+.company-table td:nth-child(6) .metric{background:#ffdce9;border-color:#efb0cb;color:#8d2f63;}
+.company-table td:nth-child(7) .metric{background:#d9efff;border-color:#aed2ef;color:#235d88;}
+.company-table td:nth-child(8) .metric{background:#dfe4ff;border-color:#bac2ef;color:#404e98;}
+
+.company-table tbody tr:hover td{
+  background:#f3faff;
+}
+
+.company-name{
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.company-mark{
+  width:31px;
+  height:31px;
+  flex:0 0 31px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border-radius:8px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #dcecf8,
+      #a8cbe4
+    );
+
+  color:#153f65;
+  border:1px solid #9dbbd1;
+
+  font-size:10px;
+  font-weight:900;
+}
+
+.company-copy{
+  min-width:0;
+}
+
+.company-copy strong{
+  display:block;
+  max-width:180px;
+  color:#0f3558;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.25;
+}
+
+.company-copy small{
+  display:block;
+  margin-top:3px;
+  color:#7c8c9b;
+  font-size:9px;
+  font-weight:700;
+}
+
+.metric{
+  display:inline-flex;
+  min-width:36px;
+  align-items:center;
+  justify-content:center;
+
+  padding:5px 8px;
+
+  border:1px solid #d2dfe9;
+  border-radius:7px;
+
+  background:#f6fbff;
+  color:#1c476d;
+
+  font-size:11px;
+  font-weight:900;
+}
+
+.broker-list{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:4px;
+}
+
+.broker-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+
+  padding:4px 7px;
+  border-radius:999px;
+
+  background:#e8f4f1;
+  border:1px solid #b7d8ce;
+  color:#176b56;
+
+  font-size:9px;
+  font-weight:900;
+}
+
+.broker-pill.off{
+  background:#f4f5f6;
+  border-color:#dadddf;
+  color:#818b94;
+}
+
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-width:76px;
+  padding:5px 8px;
+
+  border-radius:999px;
+
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.25px;
+}
+
+.status-pill.active{
+  background:#e1f4e9;
+  color:#176b46;
+  border:1px solid #b4ddc5;
+}
+
+.status-pill.past-due{
+  background:#fff0d8;
+  color:#8a5100;
+  border:1px solid #efc782;
+}
+
+.status-pill.suspended,
+.status-pill.disabled{
+  background:#fde5e7;
+  color:#9d2029;
+  border:1px solid #efb5ba;
+}
+
+.payment-cell{
+  min-width:155px;
+}
+
+.payment-date{
+  font-weight:900;
+  color:#1e3e5c;
+}
+
+.payment-days{
+  margin-top:4px;
+  font-size:9px;
+  font-weight:900;
+}
+
+.payment-safe .payment-days{color:#25805f}
+.payment-watch .payment-days{color:#a36d08}
+.payment-soon .payment-days{color:#bd5208}
+.payment-due .payment-days{color:#aa1f28}
+
+.company-table tr.payment-watch td{
+  background:#fffdf5;
+}
+
+.company-table tr.payment-soon td{
+  background:#fff7ed;
+}
+
+.company-table tr.payment-due td{
+  background:#fff0f1;
+}
+
+.company-table tr.payment-due td:first-child{
+  box-shadow:inset 5px 0 0 #c7353e;
+}
+
+.empty-row{
+  padding:34px!important;
+  color:#788999!important;
+  text-align:center!important;
+  font-size:12px!important;
+}
+
+.loading{
+  position:relative;
+}
+
+.loading::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(236,248,255,.50);
+  pointer-events:none;
+}
+
+/* =========================================================
+   SESSION / FOOTER
+========================================================= */
+
+.status{
+  margin-top:14px;
+  padding:11px 14px;
+
+  background:rgba(255,255,255,.72);
+  border:1px solid var(--line);
+  border-radius:10px;
+
+  color:#657789;
+  font-size:10px;
+  font-weight:700;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:1200px){
+  .summary-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:760px){
+  .page{
+    width:min(100% - 18px,1480px);
+    margin-top:14px;
+  }
+
+  .page-head{
+    align-items:center;
+    flex-direction:column;
+    padding:18px;
+  }
+
+  .page-head h1{
+    font-size:22px;
+    text-align:center;
+  }
+
+  .summary-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .control-panel{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .search-box{
+    max-width:none;
+  }
+
+  .legend{
+    justify-content:flex-start;
+  }
+}
+
+@media(max-width:460px){
+  .summary-grid{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="platformHeader"></div>
+
+<main class="page">
+
+  <section class="page-head">
+    <div class="page-head-copy">
+      <h1>Platform Admin Dashboard</h1>
+      <div class="page-head-badge">Platform</div>
+      <p>SaaS companies, platform capacity, broker connections and subscription billing.</p>
+    </div>
+  </section>
+
+  <section class="summary-grid">
+
+    <div class="summary-card">
+      <div class="summary-label">Contracted Companies</div>
+      <div class="summary-value" id="summaryCompanies">0</div>
+      <div class="summary-note">Tenant companies on the platform</div>
+    </div>
+
+    <div class="summary-card green">
+      <div class="summary-label">Active Companies</div>
+      <div class="summary-value" id="summaryActiveCompanies">0</div>
+      <div class="summary-note">Currently enabled subscriptions</div>
+    </div>
+
+    <div class="summary-card gold">
+      <div class="summary-label">Vehicles</div>
+      <div class="summary-value" id="summaryVehicles">0</div>
+      <div class="summary-note">Total vehicles across companies</div>
+    </div>
+
+    <div class="summary-card purple">
+      <div class="summary-label">Drivers</div>
+      <div class="summary-value" id="summaryDrivers">0</div>
+      <div class="summary-note">Total driver accounts</div>
+    </div>
+
+    <div class="summary-card teal">
+      <div class="summary-label">Enabled Services</div>
+      <div class="summary-value" id="summaryServices">0</div>
+      <div class="summary-note">Enabled company services</div>
+    </div>
+
+    <div class="summary-card green">
+      <div class="summary-label">Broker Connections</div>
+      <div class="summary-value" id="summaryBrokers">0</div>
+      <div class="summary-note">Active broker integrations across companies</div>
+    </div>
+
+    <div class="summary-card red">
+      <div class="summary-label">Billing Alerts</div>
+      <div class="summary-value" id="summaryBillingAlerts">0</div>
+      <div class="summary-note">Due within 7 days or past due</div>
+    </div>
+
+  </section>
+
+  <section class="control-panel">
+
+    <div class="search-box">
+      <input
+        id="companySearch"
+        type="search"
+        autocomplete="off"
+        placeholder="Search company, slug, broker or billing status..."
+      >
+    </div>
+
+    <div class="legend">
+      <span class="legend-item">
+        <i class="legend-dot safe"></i>
+        More than 7 days
+      </span>
+
+      <span class="legend-item">
+        <i class="legend-dot watch"></i>
+        4–7 days
+      </span>
+
+      <span class="legend-item">
+        <i class="legend-dot soon"></i>
+        1–3 days
+      </span>
+
+      <span class="legend-item">
+        <i class="legend-dot due"></i>
+        Due / Past Due
+      </span>
+    </div>
+
+  </section>
+
+  <section class="company-panel" id="companyPanel">
+
+    <div class="panel-head">
+      <h2>Company Operations & Subscription Overview</h2>
+      <span id="tableCount">Loading companies...</span>
+    </div>
+
+    <div class="table-wrap">
+
+      <table class="company-table">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Services</th>
+            <th>Vehicles</th>
+            <th>Drivers</th>
+            <th>Admins</th>
+            <th>Super Admins</th>
+            <th>Dispatchers</th>
+            <th>Companies</th>
+            <th>Broker</th>
+            <th>Billing Cycle</th>
+            <th>Next Payment</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody id="companyTableBody">
+          <tr>
+            <td class="empty-row" colspan="12">
+              Loading platform companies...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+  </section>
+
+  <div class="status" id="sessionInfo">
+    Platform Admin session active.
+  </div>
+
+</main>
+
+<script src="/platform-admin/platform_header.js"></script>
+
+<script>
+(function(){
+
+  "use strict";
+
+  const clean =
+    value =>
+      String(value ?? "").trim();
+
+  const token =
+    clean(
+      sessionStorage.getItem("staffToken") ||
+      localStorage.getItem("token")
+    );
+
+  const role =
+    clean(
+      sessionStorage.getItem("staffRole") ||
+      localStorage.getItem("role")
+    )
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
+
+  if(
+    !token ||
+    role !== "PLATFORM_ADMIN"
+  ){
+    window.location.replace(
+      "/login.html"
+    );
+    return;
+  }
+
+  const name =
+    clean(
+      sessionStorage.getItem("staffName") ||
+      localStorage.getItem("name")
+    );
+
+  const sessionInfo =
+    document.getElementById(
+      "sessionInfo"
+    );
+
+  if(
+    sessionInfo &&
+    name
+  ){
+    sessionInfo.textContent =
+      "Signed in as " +
+      name +
+      " — Platform Admin";
+  }
+
+  const E = {
+    body:
+      document.getElementById(
+        "companyTableBody"
+      ),
+
+    count:
+      document.getElementById(
+        "tableCount"
+      ),
+
+    search:
+      document.getElementById(
+        "companySearch"
+      ),
+
+    panel:
+      document.getElementById(
+        "companyPanel"
+      ),
+
+    companies:
+      document.getElementById(
+        "summaryCompanies"
+      ),
+
+    active:
+      document.getElementById(
+        "summaryActiveCompanies"
+      ),
+
+    vehicles:
+      document.getElementById(
+        "summaryVehicles"
+      ),
+
+    drivers:
+      document.getElementById(
+        "summaryDrivers"
+      ),
+
+    services:
+      document.getElementById(
+        "summaryServices"
+      ),
+
+    brokers:
+      document.getElementById(
+        "summaryBrokers"
+      ),
+
+    billingAlerts:
+      document.getElementById(
+        "summaryBillingAlerts"
+      )
+  };
+
+  let companyRows = [];
+
+  function esc(value){
+    return clean(value)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function num(value){
+    const n =
+      Number(value);
+
+    return Number.isFinite(n)
+      ? n
+      : 0;
+  }
+
+  function companyId(row){
+    return clean(
+      row?.tenant?.id ||
+      row?.tenant?._id ||
+      row?.tenantId
+    );
+  }
+
+  async function api(
+    url,
+    options={}
+  ){
+    const res =
+      await fetch(
+        url,
+        {
+          ...options,
+          headers:{
+            ...(options.headers || {}),
+            Authorization:
+              "Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
+
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data?.message ||
+        `Request failed (${res.status})`
+      );
+    }
+
+    return data;
+  }
+
+  function dateText(value){
+    if(!value){
+      return "--";
+    }
+
+    const d =
+      new Date(value);
+
+    if(
+      Number.isNaN(
+        d.getTime()
+      )
+    ){
+      return "--";
+    }
+
+    return d.toLocaleDateString(
+      "en-US",
+      {
+        year:"numeric",
+        month:"short",
+        day:"numeric"
+      }
+    );
+  }
+
+  function dayStart(value){
+    const d =
+      new Date(value);
+
+    if(
+      Number.isNaN(
+        d.getTime()
+      )
+    ){
+      return null;
+    }
+
+    return new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate()
+    );
+  }
+
+  function paymentState(row){
+
+    const s =
+      row?.subscription || {};
+
+    const rawStatus =
+      clean(
+        s.status ||
+        row?.tenant?.subscriptionStatus ||
+        "ACTIVE"
+      )
+        .toUpperCase();
+
+    const dueRaw =
+      s.nextBillingDate ||
+      s.dueDate ||
+      null;
+
+    if(!dueRaw){
+      return {
+        date:null,
+        days:null,
+        css:"payment-safe",
+        label:"No date"
+      };
+    }
+
+    const due =
+      dayStart(dueRaw);
+
+    const today =
+      dayStart(new Date());
+
+    if(
+      !due ||
+      !today
+    ){
+      return {
+        date:dueRaw,
+        days:null,
+        css:"payment-safe",
+        label:"--"
+      };
+    }
+
+    const days =
+      Math.ceil(
+        (
+          due.getTime() -
+          today.getTime()
+        ) /
+        86400000
+      );
+
+    if(
+      rawStatus === "PAST_DUE" ||
+      rawStatus === "SUSPENDED" ||
+      days <= 0
+    ){
+      return {
+        date:dueRaw,
+        days,
+        css:"payment-due",
+        label:
+          days < 0
+            ? `${Math.abs(days)} day(s) overdue`
+            : "Due today"
+      };
+    }
+
+    if(days <= 3){
+      return {
+        date:dueRaw,
+        days,
+        css:"payment-soon",
+        label:`${days} day(s) left`
+      };
+    }
+
+    if(days <= 7){
+      return {
+        date:dueRaw,
+        days,
+        css:"payment-watch",
+        label:`${days} day(s) left`
+      };
+    }
+
+    return {
+      date:dueRaw,
+      days,
+      css:"payment-safe",
+      label:`${days} day(s) left`
+    };
+  }
+
+  function statusInfo(row){
+
+    const enabled =
+      row?.tenant?.enabled !== false;
+
+    const status =
+      enabled
+        ? clean(
+            row?.subscription?.status ||
+            row?.tenant
+              ?.subscriptionStatus ||
+            "ACTIVE"
+          ).toUpperCase()
+        : "DISABLED";
+
+    const cls =
+      status === "ACTIVE"
+        ? "active"
+        : status === "PAST_DUE"
+          ? "past-due"
+          : status === "SUSPENDED"
+            ? "suspended"
+            : status === "DISABLED"
+              ? "disabled"
+              : "active";
+
+    return {
+      status,
+      cls
+    };
+  }
+
+  function initials(name){
+    return clean(name)
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0,2)
+      .map(x=>x[0])
+      .join("")
+      .toUpperCase() ||
+      "GH";
+  }
+
+  function brokerInfoFor(
+    row,
+    allIntegrations
+  ){
+    const id =
+      companyId(row);
+
+    const integrations =
+      allIntegrations.filter(
+        item=>
+          clean(
+            item?.tenantId
+          ) === id
+      );
+
+    return integrations;
+  }
+
+  function brokerHtml(list){
+
+    if(!list.length){
+      return `
+        <div class="broker-list">
+          <span class="broker-pill off">
+            None
+          </span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="broker-list">
+        ${
+          list
+            .map(item=>{
+              const name =
+                clean(
+                  item?.brokerName ||
+                  item?.brokerCode ||
+                  "Broker"
+                );
+
+              return `
+                <span class="broker-pill">
+                  ${esc(name)}
+                </span>
+              `;
+            })
+            .join("")
+        }
+
+      </div>
+    `;
+  }
+
+  function metric(value){
+    return `
+      <span class="metric">
+        ${num(value)}
+      </span>
+    `;
+  }
+
+  function normalizedRow(
+    row,
+    integrations
+  ){
+    const tenant =
+      row?.tenant || {};
+
+    const usage =
+      row?.usage || {};
+
+    const pricing =
+      row?.pricing || {};
+
+    const subscription =
+      row?.subscription || {};
+
+    const brokers =
+      brokerInfoFor(
+        row,
+        integrations
+      );
+
+    return {
+      raw:row,
+      tenant,
+      subscription,
+      pricing,
+      usage,
+      brokers,
+
+      name:
+        clean(
+          tenant.name
+        ) ||
+        "Company",
+
+      slug:
+        clean(
+          tenant.slug
+        ),
+
+      services:
+        num(
+          pricing.enabledServices ??
+          usage.enabledServices ??
+          subscription.enabledServices
+        ),
+
+      vehicles:
+        num(
+          pricing.actualVehicles ??
+          usage.actualVehicles ??
+          subscription.actualVehicles
+        ),
+
+      drivers:
+        num(
+          pricing.actualDrivers ??
+          usage.actualDrivers ??
+          subscription.actualDrivers
+        ),
+
+      admins:
+        num(
+          pricing.actualAdmins ??
+          usage.actualAdmins ??
+          subscription.actualAdmins
+        ),
+
+      superAdmins:
+        num(
+          pricing.actualSuperAdmins ??
+          usage.actualSuperAdmins ??
+          subscription.actualSuperAdmins
+        ),
+
+      dispatchers:
+        num(
+          pricing.actualDispatchers ??
+          usage.actualDispatchers ??
+          subscription.actualDispatchers
+        ),
+
+      companies:
+        num(
+          pricing.actualCompanies ??
+          usage.actualCompanies ??
+          subscription.actualCompanies
+        )
+    };
+  }
+
+  function updateSummary(){
+
+    const total =
+      companyRows.length;
+
+    const active =
+      companyRows.filter(
+        row=>
+          statusInfo(row.raw)
+            .status === "ACTIVE"
+      ).length;
+
+    const totalVehicles =
+      companyRows.reduce(
+        (sum,row)=>
+          sum + row.vehicles,
+        0
+      );
+
+    const totalDrivers =
+      companyRows.reduce(
+        (sum,row)=>
+          sum + row.drivers,
+        0
+      );
+
+    const totalServices =
+      companyRows.reduce(
+        (sum,row)=>
+          sum + row.services,
+        0
+      );
+
+    const totalBrokers =
+      companyRows.reduce(
+        (sum,row)=>
+          sum + (
+            Array.isArray(row.brokers)
+              ? row.brokers.length
+              : 0
+          ),
+        0
+      );
+
+    const billingAlerts =
+      companyRows.filter(
+        row=>{
+          const state =
+            paymentState(
+              row.raw
+            );
+
+          return (
+            state.css ===
+              "payment-watch" ||
+            state.css ===
+              "payment-soon" ||
+            state.css ===
+              "payment-due"
+          );
+        }
+      ).length;
+
+    E.companies.textContent =
+      String(total);
+
+    E.active.textContent =
+      String(active);
+
+    E.vehicles.textContent =
+      String(totalVehicles);
+
+    E.drivers.textContent =
+      String(totalDrivers);
+
+    E.services.textContent =
+      String(totalServices);
+
+    E.brokers.textContent =
+      String(totalBrokers);
+
+    E.billingAlerts.textContent =
+      String(billingAlerts);
+  }
+
+  function render(){
+
+    const q =
+      clean(
+        E.search?.value
+      ).toLowerCase();
+
+    const visible =
+      companyRows.filter(
+        row=>{
+
+          const status =
+            statusInfo(
+              row.raw
+            ).status;
+
+          const brokerText =
+            row.brokers
+              .map(
+                item=>
+                  clean(
+                    item?.brokerName ||
+                    item?.brokerCode
+                  )
+              )
+              .join(" ");
+
+          const haystack =
+            [
+              row.name,
+              row.slug,
+              status,
+              brokerText,
+              row.subscription
+                ?.billingCycle
+            ]
+              .join(" ")
+              .toLowerCase();
+
+          return (
+            !q ||
+            haystack.includes(q)
+          );
+        }
+      );
+
+    E.count.textContent =
+      `${visible.length} of ${companyRows.length} companies`;
+
+    if(!visible.length){
+      E.body.innerHTML =
+        `
+          <tr>
+            <td
+              class="empty-row"
+              colspan="12"
+            >
+              No companies match the current search.
+            </td>
+          </tr>
+        `;
+      return;
+    }
+
+    E.body.innerHTML =
+      visible
+        .map(row=>{
+
+          const pay =
+            paymentState(
+              row.raw
+            );
+
+          const status =
+            statusInfo(
+              row.raw
+            );
+
+          return `
+            <tr class="${pay.css}">
+
+              <td>
+                <div class="company-name">
+
+                  <div class="company-mark">
+                    ${esc(initials(row.name))}
+                  </div>
+
+                  <div class="company-copy">
+                    <strong>
+                      ${esc(row.name)}
+                    </strong>
+                    <small>
+                      ${esc(row.slug || "No slug")}
+                    </small>
+                  </div>
+
+                </div>
+              </td>
+
+              <td>${metric(row.services)}</td>
+              <td>${metric(row.vehicles)}</td>
+              <td>${metric(row.drivers)}</td>
+              <td>${metric(row.admins)}</td>
+              <td>${metric(row.superAdmins)}</td>
+              <td>${metric(row.dispatchers)}</td>
+              <td>${metric(row.companies)}</td>
+
+              <td>
+                ${brokerHtml(row.brokers)}
+              </td>
+
+              <td>
+                ${esc(
+                  row.subscription
+                    ?.billingCycle ||
+                  "--"
+                )}
+              </td>
+
+              <td class="payment-cell ${pay.css}">
+                <div class="payment-date">
+                  ${esc(
+                    dateText(
+                      pay.date
+                    )
+                  )}
+                </div>
+                <div class="payment-days">
+                  ${esc(pay.label)}
+                </div>
+              </td>
+
+              <td>
+                <span class="status-pill ${status.cls}">
+                  ${esc(
+                    status.status
+                      .replace(/_/g," ")
+                  )}
+                </span>
+              </td>
+
+            </tr>
+          `;
+        })
+        .join("");
+  }
+
+  async function loadDashboard(){
+
+    E.panel.classList.add(
+      "loading"
+    );
+
+    try{
+
+      const [
+        billingResult,
+        brokerResult
+      ] =
+        await Promise.allSettled([
+          api(
+            "/api/platform-subscription/bootstrap"
+          ),
+          api(
+            "/api/platform/broker-integrations"
+          )
+        ]);
+
+      if(
+        billingResult.status !==
+        "fulfilled"
+      ){
+        throw billingResult.reason;
+      }
+
+      const billing =
+        billingResult.value || {};
+
+      const integrations =
+        brokerResult.status ===
+          "fulfilled" &&
+        Array.isArray(
+          brokerResult.value
+            ?.integrations
+        )
+          ? brokerResult.value
+              .integrations
+          : [];
+
+      const companies =
+        Array.isArray(
+          billing.companies
+        )
+          ? billing.companies
+          : [];
+
+      companyRows =
+        companies.map(
+          row=>
+            normalizedRow(
+              row,
+              integrations
+            )
+        );
+
+      updateSummary();
+      render();
+
+    }catch(err){
+
+      console.error(
+        "PLATFORM DASHBOARD ERROR:",
+        err
+      );
+
+      E.body.innerHTML =
+        `
+          <tr>
+            <td
+              class="empty-row"
+              colspan="12"
+            >
+              Unable to load Platform Dashboard data.
+            </td>
+          </tr>
+        `;
+
+      E.count.textContent =
+        "Unable to load companies";
+
+    }finally{
+
+      E.panel.classList.remove(
+        "loading"
+      );
+    }
+  }
+
+  E.search?.addEventListener(
+    "input",
+    render
+  );
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    loadDashboard
+  );
+
+})();
+</script>
+
+</body>
+</html>

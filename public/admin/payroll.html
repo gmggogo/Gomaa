@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Payroll & Earnings</title>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:#eef3f8;
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:#0f2747;
+}
+
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+.payroll-page{
+  max-width:1900px;
+  width:100%;
+  margin:0 auto;
+  padding:18px 22px 80px;
+}
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
+
+/* =========================
+   PAY PERIOD
+========================= */
+
+.period-card{
+  max-width:920px;
+  margin:0 auto 18px;
+  padding:15px 18px;
+  background:#fff;
+  border:1px solid rgba(212,169,0,.30);
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(15,39,71,.07);
+}
+
+.period-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.period-label{
+  color:#64748b;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.period-value{
+  margin-top:4px;
+  color:#0f2747;
+  font-size:20px;
+  font-weight:900;
+}
+
+.period-zone{
+  margin-top:3px;
+  color:#718096;
+  font-size:11px;
+  font-weight:700;
+}
+
+.period-edit{
+  display:none;
+  grid-template-columns:1fr 1fr auto auto;
+  gap:8px;
+  align-items:end;
+  margin-top:13px;
+}
+
+.period-edit.show{
+  display:grid;
+}
+
+/* =========================
+   TABS
+========================= */
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:9px;
+  flex-wrap:wrap;
+  margin-bottom:17px;
+}
+
+.tab-btn{
+  min-width:130px;
+  padding:11px 16px;
+  border:1px solid rgba(212,169,0,.50);
+  border-radius:14px;
+  background:linear-gradient(180deg,#fff,#edf3f9);
+  color:#0f2747;
+  box-shadow:0 5px 14px rgba(15,39,71,.07);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.tab-btn.active{
+  background:linear-gradient(180deg,#173f70,#0f2747);
+  color:#ffd21f;
+  border-color:#d4a900;
+}
+
+/* =========================
+   SUMMARY
+========================= */
+
+.summary-row{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:17px;
+}
+
+.summary-card{
+  min-width:180px;
+  padding:12px 16px;
+  background:#fff;
+  border:1px solid rgba(212,169,0,.25);
+  border-radius:15px;
+  text-align:center;
+  box-shadow:0 6px 18px rgba(15,39,71,.06);
+}
+
+.summary-card span{
+  display:block;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.summary-card b{
+  display:block;
+  margin-top:4px;
+  color:#0f2747;
+  font-size:20px;
+  font-weight:900;
+}
+
+.summary-card.money b{
+  color:#15803d;
+}
+
+/* =========================
+   TABLE
+========================= */
+
+.table-card{
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #dfe7f0;
+  border-radius:20px;
+  box-shadow:0 10px 28px rgba(15,39,71,.08);
+}
+
+.table-wrap{
+  width:100%;
+  overflow:auto;
+}
+
+table{
+  width:100%;
+  min-width:1220px;
+  border-collapse:collapse;
+}
+
+thead th{
+  padding:11px 9px;
+  background:#0f2747;
+  color:#fff;
+  text-align:left;
+  white-space:nowrap;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+tbody td{
+  padding:9px;
+  border-bottom:1px solid #e5ebf2;
+  background:#fff;
+  vertical-align:middle;
+  font-size:12px;
+}
+
+tbody tr:nth-child(even) td{
+  background:#fbfdff;
+}
+
+.name-cell{
+  min-width:170px;
+  color:#0f2747;
+  font-weight:900;
+  background:linear-gradient(90deg,#fff7cf,#fff) !important;
+  border-left:4px solid #d4a900;
+}
+
+.rate-input{
+  width:82px;
+  height:34px;
+  padding:0 7px;
+  border:1px solid #cbd6e2;
+  border-radius:8px;
+  background:#fff;
+  text-align:center;
+  font-size:12px;
+  font-weight:800;
+}
+
+.rate-input:disabled{
+  background:#eef2f6;
+  color:#58697b;
+}
+
+.enable-wrap{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-weight:900;
+}
+
+.enable-wrap input{
+  width:18px;
+  height:18px;
+  accent-color:#145cff;
+}
+
+.enable-wrap input:disabled{
+  opacity:.55;
+}
+
+.enable-wrap .enable-status{
+  display:inline-flex;
+  min-width:72px;
+  align-items:center;
+  justify-content:center;
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:1000;
+  letter-spacing:.25px;
+}
+
+.enable-wrap .enable-status.is-enabled{
+  color:#08752f;
+  background:#dcfce7;
+  border:1px solid #56c978;
+}
+
+.enable-wrap .enable-status.is-disabled{
+  color:#b42318;
+  background:#fee2e2;
+  border:1px solid #ef7b73;
+}
+
+.schedule-summary{
+  min-width:155px;
+  color:#53657a;
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+.actions{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+}
+
+.primary-btn,
+.soft-btn,
+.edit-btn,
+.save-btn,
+.schedule-btn{
+  min-height:34px;
+  padding:0 11px;
+  border:0;
+  border-radius:9px;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.primary-btn,
+.save-btn{
+  background:#145cff;
+  color:#fff;
+}
+
+.soft-btn,
+.edit-btn{
+  background:#e8eef6;
+  color:#0f2747;
+}
+
+.schedule-btn{
+  background:#0f2747;
+  color:#ffd21f;
+}
+
+button:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+}
+
+/* =========================
+   SCHEDULE MODAL
+========================= */
+
+.modal{
+  position:fixed;
+  inset:0;
+  z-index:6000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(5,20,40,.58);
+}
+
+.modal.show{
+  display:flex;
+}
+
+.modal-card{
+  width:min(720px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  padding:20px;
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 25px 70px rgba(0,0,0,.25);
+}
+
+.modal-title{
+  color:#0f2747;
+  font-size:21px;
+  font-weight:900;
+}
+
+.modal-name{
+  margin-top:3px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
+.days-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+  margin-top:16px;
+}
+
+.day-row{
+  display:grid;
+  grid-template-columns:auto 1fr 100px;
+  gap:9px;
+  align-items:center;
+  padding:10px 11px;
+  border:1px solid #dfe7f0;
+  border-radius:12px;
+  background:#f8fbff;
+}
+
+.day-row input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  accent-color:#145cff;
+}
+
+.day-name{
+  color:#0f2747;
+  font-size:12px;
+  font-weight:900;
+}
+
+.day-hours{
+  width:100%;
+  height:36px;
+  padding:0 8px;
+  border:1px solid #cbd6e2;
+  border-radius:8px;
+  text-align:center;
+  font-weight:800;
+}
+
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:16px;
+}
+
+.help{
+  margin-top:13px;
+  padding:10px 12px;
+  border-radius:11px;
+  background:#fff8d9;
+  color:#665300;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+@media(max-width:900px){
+
+  .payroll-page{
+    padding:10px 8px 60px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+
+  .period-edit{
+    grid-template-columns:1fr;
+  }
+
+  .days-grid{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<main class="payroll-page">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Payroll & Earnings</h1>
+      <div class="page-sub">Company pay periods, staff schedules, hours and earnings</div>
+    </div>
+  </div>
+
+  <section class="period-card">
+
+    <div class="period-top">
+
+      <div>
+        <div class="period-label">
+          Current Company Pay Period
+        </div>
+
+        <div
+          class="period-value"
+          id="currentPeriod">
+          Loading...
+        </div>
+
+        <div
+          class="period-zone"
+          id="timezoneText">
+        </div>
+      </div>
+
+      <button
+        class="soft-btn"
+        id="editPeriodBtn"
+        type="button">
+        Edit Pay Period
+      </button>
+
+    </div>
+
+    <div
+      class="period-edit"
+      id="periodEdit">
+
+      <label>
+        START DATE
+        <input
+          type="date"
+          id="periodFrom">
+      </label>
+
+      <label>
+        END DATE
+        <input
+          type="date"
+          id="periodTo">
+      </label>
+
+      <button
+        class="primary-btn"
+        id="savePeriodBtn"
+        type="button">
+        Save Period
+      </button>
+
+      <button
+        class="soft-btn"
+        id="cancelPeriodBtn"
+        type="button">
+        Cancel
+      </button>
+
+    </div>
+
+  </section>
+
+  <section class="tabs">
+
+    <button
+      class="tab-btn active"
+      data-type="driver"
+      type="button">
+      Drivers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="dispatcher"
+      type="button">
+      Dispatchers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="admin"
+      type="button">
+      Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="super_admin"
+      type="button">
+      Super Admins
+    </button>
+
+  </section>
+
+  <section class="summary-row">
+
+    <div class="summary-card">
+      <span>People</span>
+      <b id="peopleCount">0</b>
+    </div>
+
+    <div class="summary-card">
+      <span>Total Hours</span>
+      <b id="allHours">0 H 00 MIN</b>
+    </div>
+
+    <div class="summary-card money">
+      <span>Total Earnings</span>
+      <b id="allDue">$0.00</b>
+    </div>
+
+  </section>
+
+  <section class="table-card">
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead id="payrollHead"></thead>
+
+        <tbody id="payrollBody">
+          <tr>
+            <td>Loading...</td>
+          </tr>
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
+</main>
+
+<!-- STAFF SCHEDULE MODAL -->
+<div
+  class="modal"
+  id="scheduleModal">
+
+  <div class="modal-card">
+
+    <div class="modal-title">
+      Work Schedule
+    </div>
+
+    <div
+      class="modal-name"
+      id="schedulePersonName">
+    </div>
+
+    <input
+      type="hidden"
+      id="schedulePersonId">
+
+    <div class="days-grid" id="daysGrid">
+
+      <div class="day-row">
+        <input type="checkbox" id="day-sun">
+        <div class="day-name">Sunday</div>
+        <input class="day-hours" type="number" id="hours-sun" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-mon">
+        <div class="day-name">Monday</div>
+        <input class="day-hours" type="number" id="hours-mon" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-tue">
+        <div class="day-name">Tuesday</div>
+        <input class="day-hours" type="number" id="hours-tue" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-wed">
+        <div class="day-name">Wednesday</div>
+        <input class="day-hours" type="number" id="hours-wed" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-thu">
+        <div class="day-name">Thursday</div>
+        <input class="day-hours" type="number" id="hours-thu" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-fri">
+        <div class="day-name">Friday</div>
+        <input class="day-hours" type="number" id="hours-fri" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+      <div class="day-row">
+        <input type="checkbox" id="day-sat">
+        <div class="day-name">Saturday</div>
+        <input class="day-hours" type="number" id="hours-sat" min="0" max="24" step="0.25" placeholder="Hours">
+      </div>
+
+    </div>
+
+    <div class="help">
+      If Payroll Sign In is enabled for this person, the SIGN IN button appears in the header only on checked work days. One successful SIGN IN credits the hours entered for that day. No Sign Out is required.
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="soft-btn"
+        id="cancelScheduleBtn"
+        type="button">
+        Cancel
+      </button>
+
+      <button
+        class="primary-btn"
+        id="saveScheduleBtn"
+        type="button">
+        Save Schedule
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script src="header.js"></script>
+<script src="payroll.js"></script>
+
+</body>
+</html>

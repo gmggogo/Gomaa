@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0">
+
+<title>GH Mobility</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  width:100%;
+  min-height:100%;
+}
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:
+    radial-gradient(
+      circle at center,
+      #1e3cff 0%,
+      #001b7a 100%
+    );
+  font-family:Arial,sans-serif;
+  padding:20px;
+}
+
+.login-card{
+  width:360px;
+  max-width:100%;
+  padding:40px 30px;
+  border-radius:20px;
+  background:rgba(255,255,255,0.05);
+  backdrop-filter:blur(10px);
+  box-shadow:0 0 40px rgba(0,0,0,0.4);
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+.logo{
+  width:150px;
+  max-height:110px;
+  margin-bottom:18px;
+  object-fit:contain;
+}
+
+.title{
+  color:#ffffff;
+  font-size:20px;
+  letter-spacing:2px;
+  margin-bottom:10px;
+  font-weight:bold;
+}
+
+.company-name{
+  min-height:18px;
+  margin-top:-3px;
+  margin-bottom:8px;
+  color:#facc15;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.3px;
+}
+
+.az-time{
+  font-size:12px;
+  color:#ddd;
+  margin-bottom:25px;
+  min-height:16px;
+  line-height:1.6;
+}
+
+.login-card input{
+  width:100%;
+  padding:12px;
+  margin-bottom:15px;
+  border:none;
+  border-radius:8px;
+  font-size:14px;
+  outline:none;
+  text-align:center;
+}
+
+.login-card button{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:#facc15;
+  color:#000;
+  font-weight:bold;
+  cursor:pointer;
+  transition:0.3s;
+  font-size:15px;
+}
+
+.login-card button:hover{
+  background:#ffdd33;
+}
+
+#msg{
+  margin-top:10px;
+  color:white;
+  font-size:13px;
+  min-height:18px;
+}
+
+@media (max-width:480px){
+  body{
+    align-items:flex-start;
+    padding-top:60px;
+  }
+
+  .login-card{
+    width:100%;
+    padding:30px 20px;
+  }
+
+  .logo{
+    width:135px;
+    max-height:100px;
+  }
+
+  .title{
+    font-size:18px;
+  }
+
+  .login-card input{
+    font-size:15px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="login-card">
+
+  <img
+    id="ghMobilityLogo"
+    class="logo"
+    src="/assets/gh-mobility.png"
+    alt="GH Mobility Logo">
+
+  <div class="title">
+    STAFF LOGIN
+  </div>
+
+  <div
+    id="companyName"
+    class="company-name">
+    GH Mobility
+  </div>
+
+  <div
+    id="azTime"
+    class="az-time">
+  </div>
+
+  <input
+    type="text"
+    id="username"
+    placeholder="Username"
+    autocomplete="username">
+
+  <input
+    type="password"
+    id="password"
+    placeholder="Password"
+    autocomplete="current-password">
+
+  <button
+    type="button"
+    onclick="login()">
+    Sign In
+  </button>
+
+  <div id="msg"></div>
+
+</div>
+
+<script>
+function updateStaffClock(){
+
+  const el =
+    document.getElementById("azTime");
+
+  if(!el) return;
+
+  const timezone =
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone:timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone:timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML = `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#e2e8f0;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#facc15;
+    ">
+      ${time}
+    </div>
+  `;
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    document.title = "GH Mobility";
+    updateStaffClock();
+    setInterval(
+      updateStaffClock,
+      1000
+    );
+  }
+);
+</script>
+
+<script src="login.js"></script>
+
+</body>
+</html>

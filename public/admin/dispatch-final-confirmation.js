@@ -1,0 +1,4227 @@
+/* ==========================================================================
+   DISPATCH FINAL CONFIRMATION
+   Admin / SuperAdmin / Dispatcher
+   Final page before Dispatch Review
+
+   Added:
+   - RETURN TO DRIVER for SINGLE trips
+   - Reopens a closed trip if driver closed it by mistake
+   - Uses server endpoint:
+       PATCH /api/dispatch-final-confirmation/:id/return-to-driver
+   ========================================================================== */
+
+const API_URL = "/api/dispatch-final-confirmation";
+const SERVICES_URL = "/api/services/admin";
+const BROKER_CAPABILITY_URL = "/api/shared-engine/settings";
+
+const role = localStorage.getItem("role") || "";
+const token = localStorage.getItem("token") || "";
+const adminName =
+  localStorage.getItem("name") ||
+  localStorage.getItem("fullName") ||
+  localStorage.getItem("username") ||
+  role ||
+  "dispatcher";
+
+const tenantId =
+  localStorage.getItem("tenantId") ||
+  localStorage.getItem("tenantSlug") ||
+  "default";
+
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+/* ===============================
+   STATE
+================================ */
+
+let allTrips = [];
+let services = [];
+let displayItems = [];
+
+/*
+  Performance cache:
+  build the page-ready item list once after trips are loaded.
+  Filters and counters reuse the same object references instead of
+  rebuilding shared groups repeatedly.
+*/
+let baseDisplayItems = [];
+
+let activeSource = "ALL";
+let activeStatus = "ALL";
+let refreshTimer = null;
+let tripCounter = 1;
+let brokerFeatureEnabled = false;
+
+const CONFIRM_HOURS = 12;
+
+const VIEWED_FINAL_ITEMS_KEY =
+  "finalConfirmationViewedItems:" +
+  String(tenantId);
+
+const editingSingles = new Set();
+const editingShared = new Set();
+
+/* ===============================
+   ELEMENTS
+================================ */
+
+const sourceCardsWrap = document.getElementById("sourceCards");
+const statusCardsWrap = document.getElementById("statusCards");
+const searchInput = document.getElementById("searchInput");
+const yearFilter = document.getElementById("yearFilter");
+const monthFilter = document.getElementById("monthFilter");
+const finalContent = document.getElementById("finalContent");
+
+/* ===============================
+   HELPERS
+================================ */
+
+function authHeaders(){
+  return token
+    ? {
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      }
+    : {
+        "Content-Type":"application/json"
+      };
+}
+
+function safe(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+function readViewedFinalItems(){
+  try{
+    const value = JSON.parse(
+      localStorage.getItem(
+        VIEWED_FINAL_ITEMS_KEY
+      ) ||
+      "{}"
+    );
+
+    return value && typeof value === "object"
+      ? value
+      : {};
+
+  }catch(err){
+    return {};
+  }
+}
+
+function markFinalItemViewed(item){
+  if(!item){
+    return;
+  }
+
+  const viewed =
+    readViewedFinalItems();
+
+  viewed[String(item.key)] =
+    Date.now();
+
+  localStorage.setItem(
+    VIEWED_FINAL_ITEMS_KEY,
+    JSON.stringify(viewed)
+  );
+}
+
+function publishUnreadFinalCount(items){
+  const pendingItems =
+    items.filter(item=>
+      item.kind === "trip"
+        ? isTripNotConfirmed(item.trip)
+        : isSharedNotConfirmed(item.group[0])
+    );
+
+  const activeKeys =
+    new Set(
+      pendingItems.map(
+        item=>String(item.key)
+      )
+    );
+
+  const viewed =
+    readViewedFinalItems();
+
+  let changed = false;
+
+  Object.keys(viewed).forEach(key=>{
+    if(!activeKeys.has(key)){
+      delete viewed[key];
+      changed = true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem(
+      VIEWED_FINAL_ITEMS_KEY,
+      JSON.stringify(viewed)
+    );
+  }
+
+  const unreadCount =
+    pendingItems.filter(
+      item=>!viewed[String(item.key)]
+    ).length;
+
+  localStorage.setItem(
+    "dashboardPendingConfirmationCount",
+    String(unreadCount)
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "gh-dashboard-alerts",
+      {
+        detail:{
+          pendingConfirmation:unreadCount,
+          newTrips:Number(
+            localStorage.getItem(
+              "dashboardNewTripsCount"
+            ) ||
+            0
+          )
+        }
+      }
+    )
+  );
+}
+
+function normalizeText(v){
+  return String(v ?? "").trim();
+}
+
+function cleanStatus(v){
+  return String(v || "")
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g," ")
+    .toLowerCase()
+    .trim();
+}
+
+function compactStatus(v){
+  return cleanStatus(v).replace(/\s+/g,"");
+}
+
+function getTripNumber(t){
+  return String(t?.tripNumber || t?.bookingNumber || t?.id || t?._id || "-");
+}
+
+function parseTripDateTime(t){
+  if(!t || !t.tripDate) return null;
+
+  const date = String(t.tripDate || "").trim();
+  let time = String(t.tripTime || "00:00").trim();
+
+  if(!time) time = "00:00";
+
+  let d = new Date(`${date}T${time}`);
+
+  if(isNaN(d)) d = new Date(`${date} ${time}`);
+  if(isNaN(d)) return null;
+
+  return d;
+}
+
+function getBookedDateObj(t){
+  return new Date(
+    t?.bookedAt ||
+    t?.createdAt ||
+    t?.updatedAt ||
+    t?.tripDate ||
+    Date.now()
+  );
+}
+
+function formatDateObj(d){
+  if(!d || isNaN(d)) return "-";
+  return d.toLocaleDateString();
+}
+
+function formatTimeObj(d){
+  if(!d || isNaN(d)) return "-";
+
+  return d.toLocaleTimeString([],{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function getBookedDate(t){
+  return formatDateObj(getBookedDateObj(t));
+}
+
+function getBookedTime(t){
+  return formatTimeObj(getBookedDateObj(t));
+}
+
+function getHoursDiff(fromDate){
+  const d = new Date(fromDate);
+
+  if(isNaN(d)) return 0;
+
+  return (Date.now() - d.getTime()) / (1000 * 60 * 60);
+}
+
+function isOlderThanHours(dateValue,hours){
+  if(!dateValue) return false;
+  return getHoursDiff(dateValue) >= hours;
+}
+
+function getTripDateKey(t){
+  return t?.tripDate || "Unknown";
+}
+
+function stopText(stop,seen=new Set()){
+  if(stop === undefined || stop === null) return "";
+
+  if(typeof stop === "string") return normalizeText(stop);
+  if(typeof stop === "number") return String(stop);
+  if(typeof stop !== "object") return "";
+
+  if(seen.has(stop)) return "";
+  seen.add(stop);
+
+  const candidates = [
+    stop.formattedAddress,
+    stop.formatted_address,
+    stop.description,
+    stop.label,
+    stop.placeName,
+    stop.name,
+    stop.address,
+    stop.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
+}
+
+function getStops(t){
+  if(Array.isArray(t?.stops)) return t.stops;
+  if(Array.isArray(t?.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t?.extraStops)) return t.extraStops;
+  return [];
+}
+
+function stopsDisplay(t){
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
+
+  if(!arr.length) return "--";
+
+  return arr
+    .map((x,i)=>`${i+1}. ${x}`)
+    .join("\n");
+}
+
+function stopItems(t){
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
+  return arr.length
+    ? arr.map((value,index)=>safe(`${index+1}. ${value}`))
+    : ["--"];
+}
+
+function getFacilityName(t){
+  return normalizeText(
+    t?.facilityName ||
+    t?.organizationName ||
+    t?.customerCompany ||
+    t?.companyName ||
+    t?.company ||
+    ""
+  );
+}
+
+function getCompanyDisplay(t){
+  return getFacilityName(t) || "--";
+}
+
+function isBrokerTrip(t){
+  return (
+    normalizeText(
+      t?.externalSource
+    ).toUpperCase() === "BROKER" ||
+    normalizeText(
+      t?.sourceType
+    ).toUpperCase() === "BROKER" ||
+    normalizeText(
+      t?.sharedSource
+    ).toUpperCase() === "BROKER" ||
+    Boolean(
+      normalizeText(
+        t?.brokerCode ||
+        t?.brokerName ||
+        t?.brokerTripId
+      )
+    )
+  );
+}
+
+function getBrokerDisplay(t){
+  const name =
+    normalizeText(
+      t?.brokerName
+    );
+
+  const code =
+    normalizeText(
+      t?.brokerCode
+    );
+
+  return name || code || "--";
+}
+
+function getAccountDisplay(t){
+  return isBrokerTrip(t)
+    ? getBrokerDisplay(t)
+    : getCompanyDisplay(t);
+}
+
+function getBrokerTripId(t){
+  return normalizeText(
+    t?.brokerTripId ||
+    t?.externalTripId ||
+    ""
+  ) || "--";
+}
+
+function getAppointmentTime(t){
+  return normalizeText(
+    t?.appointmentTime ||
+    ""
+  ) || "--";
+}
+
+function getReturnTime(t){
+  return normalizeText(
+    t?.returnTime ||
+    ""
+  ) || "--";
+}
+
+function getTripServiceDisplay(t){
+  return normalizeText(
+    t?.serviceName ||
+    t?.serviceTitle ||
+    t?.serviceKey ||
+    t?.serviceCode ||
+    t?.serviceType ||
+    ""
+  ) || "--";
+}
+
+function getPassengerTripNumber(p,t){
+  return normalizeText(
+    p?.tripNumber ||
+    p?.ghExternalTripNumber ||
+    p?.externalTripNumber ||
+    p?.externalTripId ||
+    getTripNumber(t)
+  ) || "--";
+}
+
+function getPassengerBrokerTripId(p,t){
+  return normalizeText(
+    p?.brokerTripId ||
+    p?.externalTripId ||
+    t?.brokerTripId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerBrokerDisplay(p,t){
+  const candidate = {
+    brokerName:
+      p?.brokerName ||
+      t?.brokerName,
+    brokerCode:
+      p?.brokerCode ||
+      t?.brokerCode
+  };
+
+  return getBrokerDisplay(
+    candidate
+  );
+}
+
+function getPassengerTripDate(p,t){
+  return normalizeText(
+    p?.tripDate ||
+    t?.tripDate ||
+    ""
+  ) || "--";
+}
+
+function getPassengerTripTime(p,t){
+  return normalizeText(
+    p?.tripTime ||
+    p?.pickupTime ||
+    t?.tripTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerAppointmentTime(p,t){
+  return normalizeText(
+    p?.appointmentTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerReturnTime(p,t){
+  return normalizeText(
+    p?.returnTime ||
+    ""
+  ) || "--";
+}
+
+function getPassengerServiceDisplay(p,t){
+  return normalizeText(
+    p?.serviceName ||
+    p?.serviceTitle ||
+    p?.serviceKey ||
+    p?.serviceCode ||
+    t?.serviceName ||
+    t?.serviceKey ||
+    t?.serviceCode ||
+    "Shared"
+  ) || "--";
+}
+
+function getPassengerNotes(p,t){
+  return normalizeText(
+    p?.notes ||
+    p?.brokerNotes ||
+    ""
+  ) || "--";
+}
+
+function getPassengerMemberId(p){
+  return normalizeText(
+    p?.memberId ||
+    p?.medicaidId ||
+    ""
+  ) || "--";
+}
+
+function getPassengerStops(p){
+  const arr =
+    getStops(p)
+      .map(
+        stop=>
+          stopText(stop)
+      )
+      .filter(Boolean);
+
+  if(!arr.length){
+    return "--";
+  }
+
+  return arr
+    .map(
+      (value,index)=>
+        `${index + 1}) ${value}`
+    )
+    .join(" | ");
+}
+
+function numberedPassengerValues(
+  passengers,
+  getter
+){
+  return passengers.map(
+    (passenger,index)=>
+      `${index + 1}. ${safe(
+        getter(
+          passenger,
+          index
+        ) || "--"
+      )}`
+  );
+}
+
+function getNotes(t){
+  return t?.notes ?? t?.tripNotes ?? t?.note ?? "";
+}
+
+
+/*
+  DRIVER COMMENT ONLY
+  Driver Map saves the written reason here:
+    Cancel  -> cancelReason
+    No Show -> noShowReason
+    End At Stop -> stopEndReason / stopExecution.reason
+
+  This does NOT replace the normal client/trip Notes.
+*/
+function getDriverComment(t,p=null){
+
+  const status =
+    p?.status ||
+    t?.status ||
+    "";
+
+  const endedAtStop =
+    t?.endedAtStop === true ||
+    normalizeText(t?.completionType)
+      .toUpperCase() === "ENDED_AT_STOP" ||
+    Boolean(t?.stopEndAt) ||
+    Boolean(t?.stopExecution?.endedAt);
+
+  if(endedAtStop){
+    return normalizeText(
+      t?.stopEndReason ||
+      t?.stopExecution?.reason ||
+      ""
+    );
+  }
+
+  if(isNoShowStatus(status)){
+    return normalizeText(
+      p?.noShowReason ||
+      t?.noShowReason ||
+      ""
+    );
+  }
+
+  if(isCancelledStatus(status)){
+    return normalizeText(
+      p?.cancelReason ||
+      t?.cancelReason ||
+      ""
+    );
+  }
+
+  return "";
+}
+
+function driverCommentDisplay(t,p=null){
+  return getDriverComment(t,p) || "--";
+}
+
+function cellBox(items){
+  const arr = Array.isArray(items) ? items : [items];
+
+  return `
+    <div class="cell-box">
+      ${arr.map(v=>`
+        <div class="cell-item">${v || "--"}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+/* ===============================
+   STATUS ENGINE
+================================ */
+
+function isCompletedStatus(status){
+  const s = cleanStatus(status);
+  return s === "completed" || s === "complete";
+}
+
+function isCancelledStatus(status){
+  return cleanStatus(status).includes("cancel");
+}
+
+function isNoShowStatus(status){
+  const s = cleanStatus(status);
+  return s.includes("no show") || s.includes("noshow");
+}
+
+function isNotCompletedStatus(status){
+  const s = cleanStatus(status);
+  const c = compactStatus(status);
+
+  return (
+    s === "not completed" ||
+    c === "notcompleted" ||
+    s.includes("not complete")
+  );
+}
+
+function displayStatus(status){
+  if(isCompletedStatus(status)) return "Completed";
+  if(isCancelledStatus(status)) return "Cancelled";
+  if(isNoShowStatus(status)) return "No Show";
+  if(isNotCompletedStatus(status)) return "Not Completed";
+  return status || "-";
+}
+
+function statusClass(status){
+  const label = displayStatus(status);
+
+  if(label === "Completed") return "completed";
+  if(label === "Cancelled") return "cancelled";
+  if(label === "No Show") return "noshow";
+  if(label === "Not Completed") return "notcompleted";
+
+  return "";
+}
+
+function isAllowedFinalStatus(status){
+  return (
+    isCompletedStatus(status) ||
+    isCancelledStatus(status) ||
+    isNoShowStatus(status) ||
+    isNotCompletedStatus(status)
+  );
+}
+
+function normalizeFinalStatusValue(status){
+  if(isCompletedStatus(status)) return "Completed";
+  if(isCancelledStatus(status)) return "Cancelled";
+  if(isNoShowStatus(status)) return "No Show";
+  if(isNotCompletedStatus(status)) return "Not Completed";
+  return "Completed";
+}
+
+function getStatusOptionValue(status){
+  const label = normalizeFinalStatusValue(status);
+
+  if(label === "Completed") return "completed";
+  if(label === "Cancelled") return "cancelled";
+  if(label === "No Show") return "noshow";
+
+  return "notcompleted";
+}
+
+function statusValueToLabel(v){
+  if(v === "completed") return "Completed";
+  if(v === "cancelled") return "Cancelled";
+  if(v === "noshow") return "No Show";
+  return "Not Completed";
+}
+
+function statusCellHTML(status,isConfirmed){
+  const label = displayStatus(status);
+  const cls = statusClass(status);
+
+  return `
+    <div class="status-box ${cls}">
+      ${safe(label)}
+    </div>
+  `;
+}
+
+/* ===============================
+   ENTERED PAGE / CONFIRM ENGINE
+================================ */
+
+function getEnteredAt(t){
+  return (
+    t?.finalPageEnteredAt ||
+    t?.dispatchFinalPageEnteredAt ||
+    t?.enteredFinalConfirmationAt ||
+    t?.updatedAt ||
+    t?.createdAt ||
+    t?.bookedAt ||
+    null
+  );
+}
+
+function isTripConfirmed(t){
+  return (
+    t?.finalStatusConfirmed === true ||
+    !!t?.finalStatusConfirmedAt ||
+    !!t?.dispatchFinalConfirmedAt
+  );
+}
+
+function getTripConfirmedAt(t){
+  return (
+    t?.finalStatusConfirmedAt ||
+    t?.dispatchFinalConfirmedAt ||
+    null
+  );
+}
+
+function isSharedConfirmed(t){
+  return (
+    t?.sharedFinalConfirmed === true ||
+    !!t?.sharedFinalConfirmedAt ||
+    t?.finalStatusConfirmed === true ||
+    !!t?.finalStatusConfirmedAt ||
+    !!t?.dispatchFinalConfirmedAt
+  );
+}
+
+function getSharedConfirmedAt(t){
+  return (
+    t?.sharedFinalConfirmedAt ||
+    t?.finalStatusConfirmedAt ||
+    t?.dispatchFinalConfirmedAt ||
+    null
+  );
+}
+
+function isTripNotConfirmed(t){
+  return !isTripConfirmed(t);
+}
+
+function isSharedNotConfirmed(t){
+  return !isSharedConfirmed(t);
+}
+
+/* ===============================
+   SERVICE ENGINE
+================================ */
+
+function extractServices(data){
+  if(Array.isArray(data)) return data;
+  if(Array.isArray(data?.services)) return data.services;
+  if(Array.isArray(data?.data)) return data.data;
+  if(Array.isArray(data?.items)) return data.items;
+  if(Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+function serviceEnabled(s){
+  if(!s) return false;
+  return s.enabled === true || s.companyEnabled === true;
+}
+
+/* ===============================
+   SOURCE ENGINE
+================================ */
+
+function getSourceCode(t){
+
+  if(isBrokerTrip(t)){
+    return "BROKER";
+  }
+
+  const raw = [
+    t?.source,
+    t?.from,
+    t?.bookingSource,
+    t?.createdBy,
+    t?.type,
+    t?.tripType,
+    t?.reservationStatus,
+    t?.reservationType,
+    t?.sourceType,
+    t?.tripNumber,
+    t?.isReserved ? "reserved" : "",
+    t?.reserved ? "reserved" : "",
+    t?.reservationId ? "reserved" : ""
+  ].join(" ").toLowerCase();
+
+  if(
+    raw.includes("reserved") ||
+    raw.includes("reservation") ||
+    raw.includes("-rv") ||
+    raw.includes(" rv") ||
+    raw === "rv"
+  ){
+    return "RV";
+  }
+
+  if(
+    raw.includes("quote") ||
+    raw.includes("gq") ||
+    raw.includes("website") ||
+    raw.includes("public")
+  ){
+    return "GQ";
+  }
+
+  if(getFacilityName(t)){
+    return "FACILITY";
+  }
+
+  if(
+    raw.includes("company") ||
+    raw.includes("facility") ||
+    raw.includes("portal")
+  ){
+    return "FACILITY";
+  }
+
+  return "GQ";
+}
+
+function sourceLabel(t){
+  const code = getSourceCode(t);
+
+  if(code === "BROKER") return "Broker";
+  if(code === "RV") return "Reserved";
+  if(code === "FACILITY") return "Facility";
+
+  return "Get Quote";
+}
+
+/* ===============================
+   DRIVER-REPORTED ENGINE
+================================ */
+
+function tripDriverReportedFinal(t){
+  return (
+    t?.driverReportedFinalStatus === true ||
+    t?.finalStatusFromDriver === true ||
+    t?.driverFinalStatusReported === true ||
+    t?.reportedByDriver === true
+  );
+}
+
+function passengerDriverReportedFinal(p,trip){
+  return (
+    p?.driverReportedFinalStatus === true ||
+    p?.finalStatusFromDriver === true ||
+    p?.driverFinalStatusReported === true ||
+    p?.reportedByDriver === true ||
+    tripDriverReportedFinal(trip)
+  );
+}
+
+/* ===============================
+   PASSENGER ENGINE
+================================ */
+
+function getEmail(t,p){
+  return (
+    p?.clientEmail ||
+    p?.passengerEmail ||
+    p?.email ||
+    t?.clientEmail ||
+    t?.passengerEmail ||
+    t?.email ||
+    t?.entryEmail ||
+    "-"
+  );
+}
+
+function getPassengerName(p,t){
+  return (
+    p?.clientName ||
+    p?.passengerName ||
+    p?.name ||
+    t?.clientName ||
+    t?.name ||
+    "-"
+  );
+}
+
+function getPassengerPhone(p,t){
+  return (
+    p?.clientPhone ||
+    p?.passengerPhone ||
+    p?.phone ||
+    t?.clientPhone ||
+    t?.phone ||
+    "-"
+  );
+}
+
+function getPickup(t,p){
+  return p?.pickup || t?.pickup || "-";
+}
+
+function getDropoff(t,p){
+  return p?.dropoff || t?.dropoff || "-";
+}
+
+/* ===============================
+   SHARED ENGINE
+================================ */
+
+function isSharedTrip(t){
+  return (
+    t?.isShared === true ||
+    String(t?.tripType || "").toUpperCase() === "SHARED" ||
+    String(t?.type || "").toLowerCase() === "shared" ||
+    normalizeText(t?.tripNumber).toUpperCase().includes("-SH") ||
+    (Array.isArray(t?.passengers) && t.passengers.length > 0)
+  );
+}
+
+function getSharedKey(t){
+  return (
+    normalizeText(t?.groupId) ||
+    normalizeText(t?.tripNumber) ||
+    String(t?._id || t?.id)
+  );
+}
+
+function getRealPassengersFromGroup(group){
+  const first = group[0] || {};
+
+  if(Array.isArray(first.passengers) && first.passengers.length){
+    return first.passengers.map((p,idx)=>({
+      ...p,
+      __idx: idx
+    }));
+  }
+
+  return group.map((t,i)=>({
+    __idx:i,
+    passengerId:"P" + (i + 1),
+    name:t.name || t.clientName || "",
+    phone:t.phone || t.clientPhone || "",
+    email:t.email || t.clientEmail || "",
+    clientName:t.clientName || t.name || "",
+    clientPhone:t.clientPhone || t.phone || "",
+    clientEmail:t.clientEmail || t.email || "",
+    pickup:t.pickup || "",
+    dropoff:t.dropoff || "",
+    status:t.status || "Scheduled"
+  }));
+}
+
+function getSharedGroups(list = allTrips){
+  const map = {};
+
+  list
+    .filter(isSharedTrip)
+    .forEach(t=>{
+      const key = getSharedKey(t);
+
+      if(!map[key]){
+        map[key] = [];
+      }
+
+      map[key].push(t);
+    });
+
+  return Object.values(map).map(group =>
+    group.sort((a,b)=>
+      Number(a.passengerIndex || 0) -
+      Number(b.passengerIndex || 0)
+    )
+  );
+}
+
+function groupPassengersReadyForPage(group){
+  const first = group[0] || {};
+  const passengers = getRealPassengersFromGroup(group);
+
+  return passengers.filter(p=>{
+    const st = p.status || first.status;
+    return isAllowedFinalStatus(st);
+  });
+}
+
+/* ===============================
+   PAGE INCLUSION ENGINE
+================================ */
+
+function singleTripReadyForPage(t){
+
+  if(!t || isSharedTrip(t)){
+    return false;
+  }
+
+  return isAllowedFinalStatus(t.status);
+}
+
+function sharedTripReadyForPage(group){
+  return groupPassengersReadyForPage(group).length > 0;
+}
+
+function singleTripShouldShow(t){
+
+  if(!singleTripReadyForPage(t)){
+    return false;
+  }
+
+  if(isTripConfirmed(t)){
+    return !isOlderThanHours(
+      getTripConfirmedAt(t),
+      CONFIRM_HOURS
+    );
+  }
+
+  return true;
+}
+
+function sharedTripShouldShow(first,group){
+
+  if(!sharedTripReadyForPage(group)){
+    return false;
+  }
+
+  if(isSharedConfirmed(first)){
+    return !isOlderThanHours(
+      getSharedConfirmedAt(first),
+      CONFIRM_HOURS
+    );
+  }
+
+  return true;
+}
+
+/* ===============================
+   API LOADERS
+================================ */
+
+async function loadServices(){
+  try{
+
+    const res = await fetch(
+      SERVICES_URL,
+      {
+        headers:
+          token
+            ? {
+                Authorization:"Bearer " + token
+              }
+            : {}
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed services");
+    }
+
+    const data = await res.json();
+
+    services =
+      extractServices(data)
+      .filter(serviceEnabled);
+
+  }catch(err){
+
+    services = [];
+  }
+}
+
+async function loadBrokerCapability(){
+  try{
+
+    const res =
+      await fetch(
+        BROKER_CAPABILITY_URL,
+        {
+          cache:"no-store",
+          headers:
+            token
+              ? {
+                  Authorization:
+                    "Bearer " + token
+                }
+              : {}
+        }
+      );
+
+    if(!res.ok){
+      throw new Error(
+        "Failed broker capability"
+      );
+    }
+
+    const data =
+      await res.json();
+
+    brokerFeatureEnabled =
+      data?.capabilities
+        ?.brokerContractEnabled === true;
+
+  }catch(err){
+
+    brokerFeatureEnabled =
+      false;
+
+    if(activeSource === "BROKER"){
+      activeSource = "ALL";
+    }
+  }
+}
+
+async function loadTrips(){
+  try{
+
+    const res = await fetch(
+      API_URL,
+      {
+        headers:
+          token
+            ? {
+                Authorization:"Bearer " + token
+              }
+            : {}
+      }
+    );
+
+    if(!res.ok){
+      throw new Error("Failed trips");
+    }
+
+    const data = await res.json();
+
+    const trips =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data?.trips)
+          ? data.trips
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
+
+    allTrips =
+      trips.sort(
+        (a,b)=>
+          getBookedDateObj(b) -
+          getBookedDateObj(a)
+      );
+
+    allTrips = allTrips.map(t=>{
+
+      if(
+        !t.company ||
+        t.company === "Sunbeam Transportation"
+      ){
+
+        const facilityName =
+          t.companyName ||
+          t.facilityName ||
+          t.organizationName ||
+          t.customerCompany ||
+          "";
+
+        if(facilityName){
+          t.company = facilityName;
+        }
+      }
+
+      return t;
+    });
+
+    /*
+      Rebuild the expensive base list only when fresh trip data arrives.
+      Search, status filters and counters reuse this cache.
+    */
+    baseDisplayItems =
+      buildDisplayItems(allTrips);
+
+    buildDateFilters();
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    allTrips = [];
+    baseDisplayItems = [];
+    displayItems = [];
+
+    render();
+  }
+}
+
+/* ===============================
+   DISPLAY ITEMS
+================================ */
+
+function buildDisplayItems(trips){
+  const items = [];
+  const sharedGroupsByKey = new Map();
+
+  /*
+    PERFORMANCE:
+    Build every shared group once.
+
+    The old implementation called getSharedGroups(trips) again from inside
+    the main trips loop, which repeatedly scanned and sorted the full trip
+    list. With a large history that becomes very expensive.
+
+    This pass is O(n) for grouping, plus one small sort per shared group.
+  */
+  trips.forEach(t=>{
+
+    if(!isSharedTrip(t)){
+      return;
+    }
+
+    const key =
+      getSharedKey(t);
+
+    if(!sharedGroupsByKey.has(key)){
+      sharedGroupsByKey.set(
+        key,
+        []
+      );
+    }
+
+    sharedGroupsByKey
+      .get(key)
+      .push(t);
+  });
+
+  sharedGroupsByKey
+    .forEach(group=>{
+
+      group.sort(
+        (a,b)=>
+          Number(a.passengerIndex || 0) -
+          Number(b.passengerIndex || 0)
+      );
+    });
+
+  const usedShared =
+    new Set();
+
+  trips.forEach(t=>{
+
+    if(isSharedTrip(t)){
+
+      const key =
+        getSharedKey(t);
+
+      if(usedShared.has(key)){
+        return;
+      }
+
+      usedShared.add(key);
+
+      const group =
+        sharedGroupsByKey.get(key) ||
+        [t];
+
+      if(
+        !sharedTripShouldShow(
+          group[0],
+          group
+        )
+      ){
+        return;
+      }
+
+      items.push({
+        kind:"shared",
+        key,
+        date:
+          parseTripDateTime(group[0]) ||
+          getBookedDateObj(group[0]),
+        tripDate:
+          getTripDateKey(group[0]),
+        group
+      });
+
+      return;
+    }
+
+    if(!singleTripShouldShow(t)){
+      return;
+    }
+
+    items.push({
+      kind:"trip",
+      key:
+        String(
+          t._id ||
+          t.id ||
+          getTripNumber(t)
+        ),
+      date:
+        parseTripDateTime(t) ||
+        getBookedDateObj(t),
+      tripDate:
+        getTripDateKey(t),
+      trip:t
+    });
+  });
+
+  return items.sort(
+    (a,b)=>b.date-a.date
+  );
+}
+
+function searchableText(item){
+  const first =
+    item.kind === "trip"
+      ? item.trip
+      : item.group[0];
+
+  const passengers =
+    item.kind === "shared"
+      ? getRealPassengersFromGroup(
+          item.group
+        )
+      : [];
+
+  return [
+    getTripNumber(first),
+    getCompanyDisplay(first),
+    getBrokerDisplay(first),
+    first.brokerTripId,
+    first.clientName,
+    first.name,
+    first.clientPhone,
+    first.pickup,
+    first.dropoff,
+    first.tripDate,
+    first.tripTime,
+    first.appointmentTime,
+    first.returnTime,
+    first.status,
+    getDriverComment(first),
+    JSON.stringify(passengers)
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function itemMatchesStatusFilter(item){
+
+  if(activeStatus === "ALL"){
+    return true;
+  }
+
+  if(item.kind === "trip"){
+
+    const t = item.trip;
+
+    if(activeStatus === "notconfirmed"){
+      return isTripNotConfirmed(t);
+    }
+
+    return (
+      statusClass(t.status) ===
+      activeStatus
+    );
+  }
+
+  const first =
+    item.group[0];
+
+  const readyPassengers =
+    groupPassengersReadyForPage(
+      item.group
+    );
+
+  if(activeStatus === "notconfirmed"){
+    return isSharedNotConfirmed(first);
+  }
+
+  return readyPassengers.some(
+    p =>
+      statusClass(
+        p.status ||
+        first.status
+      ) === activeStatus
+  );
+}
+
+function filterItems(items){
+  let out = [...items];
+
+  if(activeSource !== "ALL"){
+
+    out = out.filter(item=>{
+
+      const t =
+        item.kind === "trip"
+          ? item.trip
+          : item.group[0];
+
+      return (
+        getSourceCode(t) ===
+        activeSource
+      );
+    });
+  }
+
+  out =
+    out.filter(
+      item =>
+        itemMatchesStatusFilter(item)
+    );
+
+  const q =
+    searchInput
+      ? searchInput.value
+          .toLowerCase()
+          .trim()
+      : "";
+
+  if(q){
+
+    out =
+      out.filter(
+        item =>
+          searchableText(item)
+          .includes(q)
+      );
+  }
+
+  const y =
+    yearFilter?.value || "";
+
+  const m =
+    monthFilter?.value || "";
+
+  if(y){
+
+    out =
+      out.filter(
+        item =>
+          String(
+            item.tripDate || ""
+          )
+          .split("-")[0] === y
+      );
+  }
+
+  if(m){
+
+    out =
+      out.filter(
+        item =>
+          String(
+            item.tripDate || ""
+          )
+          .split("-")[1] === m
+      );
+  }
+
+  return out;
+}
+
+function applyFilters(){
+  /*
+    baseDisplayItems contains the same trip object references as allTrips,
+    so status edits are reflected immediately without rebuilding groups.
+  */
+  publishUnreadFinalCount(
+    baseDisplayItems
+  );
+
+  displayItems =
+    filterItems(
+      baseDisplayItems
+    );
+
+  render();
+}
+
+/* ===============================
+   DATE FILTERS
+================================ */
+
+function buildDateFilters(){
+
+  if(!yearFilter || !monthFilter){
+    return;
+  }
+
+  const oldYear =
+    yearFilter.value || "";
+
+  const oldMonth =
+    monthFilter.value || "";
+
+  const years =
+    new Set();
+
+  allTrips.forEach(t=>{
+
+    if(t.tripDate){
+
+      const y =
+        String(t.tripDate)
+        .split("-")[0];
+
+      if(y){
+        years.add(y);
+      }
+    }
+  });
+
+  yearFilter.innerHTML =
+    `<option value="">All Years</option>`;
+
+  [...years]
+    .sort(
+      (a,b)=>
+        Number(b)-Number(a)
+    )
+    .forEach(y=>{
+
+      yearFilter.innerHTML +=
+        `<option value="${safe(y)}">${safe(y)}</option>`;
+    });
+
+  yearFilter.value =
+    oldYear;
+
+  monthFilter.value =
+    oldMonth;
+}
+
+/* ===============================
+   COUNTS
+================================ */
+
+function createCounts(){
+  return {
+    source:{
+      ALL:0,
+      FACILITY:0,
+      GQ:0,
+      RV:0,
+      BROKER:0
+    },
+    status:{
+      completed:0,
+      cancelled:0,
+      noshow:0,
+      notcompleted:0,
+      notconfirmed:0
+    }
+  };
+}
+
+function countTripInto(counts,t){
+
+  counts.source.ALL++;
+
+  counts.source[
+    getSourceCode(t)
+  ] =
+    (
+      counts.source[
+        getSourceCode(t)
+      ] ||
+      0
+    ) +
+    1;
+
+  if(isTripNotConfirmed(t)){
+    counts.status.notconfirmed++;
+  }
+
+  const cls =
+    statusClass(t.status);
+
+  if(cls){
+    counts.status[cls]++;
+  }
+}
+
+function countSharedInto(
+  counts,
+  first,
+  group
+){
+
+  counts.source.ALL++;
+
+  counts.source[
+    getSourceCode(first)
+  ] =
+    (
+      counts.source[
+        getSourceCode(first)
+      ] ||
+      0
+    ) +
+    1;
+
+  if(isSharedNotConfirmed(first)){
+    counts.status.notconfirmed++;
+  }
+
+  groupPassengersReadyForPage(group)
+    .forEach(p=>{
+
+      const cls =
+        statusClass(
+          p.status ||
+          first.status
+        );
+
+      if(cls){
+        counts.status[cls]++;
+      }
+    });
+}
+
+function getCounts(){
+  const counts =
+    createCounts();
+
+  const items =
+    baseDisplayItems
+    .filter(item=>{
+
+      const y =
+        yearFilter?.value || "";
+
+      const m =
+        monthFilter?.value || "";
+
+      const q =
+        searchInput
+          ? searchInput.value
+              .toLowerCase()
+              .trim()
+          : "";
+
+      if(
+        y &&
+        String(item.tripDate || "")
+          .split("-")[0] !== y
+      ){
+        return false;
+      }
+
+      if(
+        m &&
+        String(item.tripDate || "")
+          .split("-")[1] !== m
+      ){
+        return false;
+      }
+
+      if(
+        q &&
+        !searchableText(item)
+          .includes(q)
+      ){
+        return false;
+      }
+
+      if(activeSource !== "ALL"){
+
+        const t =
+          item.kind === "trip"
+            ? item.trip
+            : item.group[0];
+
+        if(
+          getSourceCode(t) !==
+          activeSource
+        ){
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+  items.forEach(item=>{
+
+    if(item.kind === "trip"){
+
+      countTripInto(
+        counts,
+        item.trip
+      );
+
+    }else{
+
+      countSharedInto(
+        counts,
+        item.group[0],
+        item.group
+      );
+    }
+  });
+
+  return counts;
+}
+
+/* ===============================
+   TOP CARDS
+================================ */
+
+function renderSourceCards(
+  counts = null
+){
+
+  if(!sourceCardsWrap){
+    return;
+  }
+
+  counts =
+    counts ||
+    getCounts();
+
+  const cards = [
+    {
+      code:"ALL",
+      label:"All",
+      cls:"all"
+    },
+    {
+      code:"FACILITY",
+      label:"Facility",
+      cls:"facility"
+    },
+    {
+      code:"GQ",
+      label:"Get Quote",
+      cls:"gq"
+    },
+    {
+      code:"RV",
+      label:"Reserved",
+      cls:"rv"
+    },
+    ...(
+      brokerFeatureEnabled
+        ? [{
+            code:"BROKER",
+            label:"Broker",
+            cls:"broker"
+          }]
+        : []
+    )
+  ];
+
+  sourceCardsWrap.innerHTML =
+    cards.map(card=>{
+
+      const active =
+        activeSource === card.code
+          ? "active"
+          : "";
+
+      return `
+        <div
+          class="filter-card ${card.cls} ${active}"
+          data-source="${safe(card.code)}"
+        >
+          <div class="card-number">
+            ${counts.source[card.code] || 0}
+          </div>
+
+          <div class="card-label">
+            ${safe(card.label)}
+          </div>
+
+          <div class="card-sub">
+            Click to filter
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  sourceCardsWrap
+    .querySelectorAll(
+      ".filter-card"
+    )
+    .forEach(card=>{
+
+      card.onclick = ()=>{
+
+        activeSource =
+          card.dataset.source ||
+          "ALL";
+
+        applyFilters();
+      };
+    });
+}
+
+function renderStatusCards(
+  counts = null
+){
+
+  if(!statusCardsWrap){
+    return;
+  }
+
+  counts =
+    counts ||
+    getCounts();
+
+  const cards = [
+    {
+      code:"completed",
+      label:"Completed",
+      cls:"completed"
+    },
+    {
+      code:"cancelled",
+      label:"Cancelled",
+      cls:"cancelled"
+    },
+    {
+      code:"noshow",
+      label:"No Show",
+      cls:"noshow"
+    },
+    {
+      code:"notcompleted",
+      label:"Not Completed",
+      cls:"notcompleted"
+    },
+    {
+      code:"notconfirmed",
+      label:"Not Confirmed",
+      cls:"notconfirmed",
+      alert:
+        counts.status
+          .notconfirmed > 0
+    }
+  ];
+
+  statusCardsWrap.innerHTML =
+    cards.map(card=>{
+
+      const active =
+        activeStatus === card.code
+          ? "active"
+          : "";
+
+      const alert =
+        card.alert
+          ? "alert"
+          : "";
+
+      return `
+        <div
+          class="stat-card clickable ${card.cls} ${active} ${alert}"
+          data-status="${safe(card.code)}"
+        >
+          <div class="card-number">
+            ${counts.status[card.code] || 0}
+          </div>
+
+          <div class="card-label">
+            ${safe(card.label)}
+          </div>
+
+          <div class="card-sub">
+            ${
+              card.code ===
+              "notconfirmed"
+                ? "Trips still waiting confirmation"
+                : "Click to filter"
+            }
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  statusCardsWrap
+    .querySelectorAll(
+      ".stat-card.clickable"
+    )
+    .forEach(card=>{
+
+      card.onclick = ()=>{
+
+        const next =
+          card.dataset.status ||
+          "ALL";
+
+        activeStatus =
+          activeStatus === next
+            ? "ALL"
+            : next;
+
+        applyFilters();
+      };
+    });
+}
+
+/* ===============================
+   MODAL
+================================ */
+
+function viewLine(label,value){
+  return `
+    <div class="view-line">
+      <div class="view-label">
+        ${safe(label)}
+      </div>
+
+      <div class="view-value">
+        ${safe(value || "--")}
+      </div>
+    </div>
+  `;
+}
+
+function viewPassengerCard(
+  passenger,
+  index,
+  trip
+){
+  const title =
+    `Passenger ${index + 1} — ` +
+    getPassengerName(
+      passenger,
+      trip
+    );
+
+  return `
+    <section class="view-passenger-card">
+
+      <div class="view-passenger-title">
+        ${safe(title)}
+      </div>
+
+      <div class="view-passenger-lines">
+        ${viewLine(
+          "Trip Number",
+          getPassengerTripNumber(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Broker",
+          getPassengerBrokerDisplay(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Broker Trip ID",
+          getPassengerBrokerTripId(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Member ID",
+          getPassengerMemberId(
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Passenger",
+          getPassengerName(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Phone",
+          getPassengerPhone(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Email",
+          getEmail(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Pickup",
+          getPickup(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Stops",
+          getPassengerStops(
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Dropoff",
+          getDropoff(
+            trip,
+            passenger
+          )
+        )}
+        ${viewLine(
+          "Trip Date",
+          getPassengerTripDate(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Trip Time",
+          getPassengerTripTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Appointment Time",
+          getPassengerAppointmentTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Return Time",
+          getPassengerReturnTime(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Service",
+          getPassengerServiceDisplay(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Status",
+          displayStatus(
+            passenger.status ||
+            trip.status
+          )
+        )}
+        ${viewLine(
+          "Notes",
+          getPassengerNotes(
+            passenger,
+            trip
+          )
+        )}
+        ${viewLine(
+          "Driver Comment",
+          driverCommentDisplay(
+            trip,
+            passenger
+          )
+        )}
+      </div>
+
+    </section>
+  `;
+}
+
+function openFinalView(key){
+
+  const item =
+    displayItems.find(
+      x=>x.key === key
+    );
+
+  if(!item){
+    return;
+  }
+
+  const t =
+    item.kind === "trip"
+      ? item.trip
+      : item.group[0];
+
+  closeFinalView();
+
+  let bodyHtml = "";
+
+  if(item.kind === "shared"){
+
+    const passengers =
+      groupPassengersReadyForPage(
+        item.group
+      );
+
+    bodyHtml = `
+      ${viewLine(
+        "Source",
+        sourceLabel(t)
+      )}
+      ${viewLine(
+        "Broker",
+        isBrokerTrip(t)
+          ? getBrokerDisplay(t)
+          : "--"
+      )}
+      ${viewLine(
+        "Shared Group",
+        t.groupId ||
+        t.sharedGroupId ||
+        getTripNumber(t)
+      )}
+      ${viewLine(
+        "Driver",
+        t.driverName ||
+        t.driver ||
+        "--"
+      )}
+      ${viewLine(
+        "Vehicle",
+        t.vehicleNumber ||
+        t.vehicle ||
+        "--"
+      )}
+      ${viewLine(
+        "Passengers",
+        String(
+          passengers.length
+        )
+      )}
+
+      <div class="view-passenger-list">
+        ${
+          passengers
+            .map(
+              (passenger,index)=>
+                viewPassengerCard(
+                  passenger,
+                  index,
+                  t
+                )
+            )
+            .join("")
+        }
+      </div>
+
+      ${viewLine(
+        "Entered Page",
+        getEnteredAt(t)
+          ? new Date(
+              getEnteredAt(t)
+            ).toLocaleString()
+          : ""
+      )}
+      ${viewLine(
+        "Confirmed",
+        isSharedConfirmed(t)
+          ? "Yes"
+          : "No"
+      )}
+    `;
+
+  }else{
+
+    bodyHtml = `
+      ${viewLine(
+        "Trip Number",
+        getTripNumber(t)
+      )}
+      ${viewLine(
+        "Source",
+        sourceLabel(t)
+      )}
+      ${viewLine(
+        "Facility / Broker",
+        getAccountDisplay(t)
+      )}
+      ${viewLine(
+        "Broker Trip ID",
+        getBrokerTripId(t)
+      )}
+      ${viewLine(
+        "Entry Name",
+        t.entryName || ""
+      )}
+      ${viewLine(
+        "Entry Phone",
+        t.entryPhone || ""
+      )}
+      ${viewLine(
+        "Client / Passenger",
+        t.clientName ||
+        t.name ||
+        ""
+      )}
+      ${viewLine(
+        "Client Phone",
+        t.clientPhone ||
+        t.phone ||
+        ""
+      )}
+      ${viewLine(
+        "Email",
+        getEmail(t,null)
+      )}
+      ${viewLine(
+        "Pickup",
+        t.pickup || ""
+      )}
+      ${viewLine(
+        "Stops",
+        stopsDisplay(t)
+      )}
+      ${viewLine(
+        "Dropoff",
+        t.dropoff || ""
+      )}
+      ${viewLine(
+        "Trip Date",
+        t.tripDate || ""
+      )}
+      ${viewLine(
+        "Trip Time",
+        t.tripTime || ""
+      )}
+      ${viewLine(
+        "Appointment Time",
+        getAppointmentTime(t)
+      )}
+      ${viewLine(
+        "Return Time",
+        getReturnTime(t)
+      )}
+      ${viewLine(
+        "Service",
+        getTripServiceDisplay(t)
+      )}
+      ${viewLine(
+        "Notes",
+        getNotes(t) || ""
+      )}
+      ${viewLine(
+        "Driver Comment",
+        driverCommentDisplay(t)
+      )}
+      ${viewLine(
+        "Booked Date",
+        getBookedDate(t)
+      )}
+      ${viewLine(
+        "Booked Time",
+        getBookedTime(t)
+      )}
+      ${viewLine(
+        "Entered Page",
+        getEnteredAt(t)
+          ? new Date(
+              getEnteredAt(t)
+            ).toLocaleString()
+          : ""
+      )}
+      ${viewLine(
+        "Confirmed",
+        isTripConfirmed(t)
+          ? "Yes"
+          : "No"
+      )}
+    `;
+  }
+
+  const overlay =
+    document.createElement(
+      "div"
+    );
+
+  overlay.id =
+    "finalViewOverlay";
+
+  overlay.className =
+    "view-overlay";
+
+  overlay.innerHTML = `
+    <div class="view-box">
+
+      <div class="view-head">
+
+        <div>
+          Final Confirmation Details
+        </div>
+
+        <button
+          class="view-close"
+          type="button"
+          onclick="closeFinalView()"
+        >
+          ×
+        </button>
+
+      </div>
+
+      <div class="view-body">
+        ${bodyHtml}
+      </div>
+
+    </div>
+  `;
+
+  overlay.addEventListener(
+    "click",
+    e=>{
+
+      if(e.target === overlay){
+        closeFinalView();
+      }
+    }
+  );
+
+  document.body.appendChild(
+    overlay
+  );
+}
+
+function closeFinalView(){
+
+  document
+    .getElementById(
+      "finalViewOverlay"
+    )
+    ?.remove();
+}
+
+/* ===============================
+   API PATCH HELPERS
+================================ */
+
+async function patchSingleStatus(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/status`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error(
+      "Single status patch failed"
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+async function patchSingleConfirm(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/confirm`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+
+    let message =
+      "Single confirm failed";
+
+    try{
+
+      const data =
+        await res.json();
+
+      message =
+        data?.message ||
+        data?.error ||
+        data?.details ||
+        message;
+
+    }catch{
+      // Keep the default message.
+    }
+
+    throw new Error(
+      message
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+async function patchSharedStatus(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/shared-status`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error(
+      "Shared status patch failed"
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+async function patchSharedConfirm(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/shared-confirm`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+    throw new Error(
+      "Shared confirm failed"
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+/* ===============================
+   RETURN TO DRIVER
+================================ */
+
+async function patchReturnToDriver(
+  tripId,
+  body
+){
+
+  const res = await fetch(
+    `${API_URL}/${encodeURIComponent(tripId)}/return-to-driver`,
+    {
+      method:"PATCH",
+      headers:authHeaders(),
+      body:JSON.stringify(body)
+    }
+  );
+
+  if(!res.ok){
+
+    let message = "";
+
+    try{
+
+      const data =
+        await res.json();
+
+      message =
+        data?.message ||
+        data?.error ||
+        "";
+
+    }catch{
+      message = "";
+    }
+
+    throw new Error(
+      message ||
+      "Return to driver failed"
+    );
+  }
+
+  return await res
+    .json()
+    .catch(()=>null);
+}
+
+/* ===============================
+   FINDERS
+================================ */
+
+function getTripId(t){
+  return t?._id || t?.id;
+}
+
+function findLiveTripByKey(key){
+  return allTrips.find(
+    t =>
+      String(
+        t._id ||
+        t.id ||
+        getTripNumber(t)
+      ) === key
+  );
+}
+
+function findLiveSharedRootByKey(key){
+  return allTrips.find(
+    t =>
+      getSharedKey(t) === key
+  );
+}
+
+/* ===============================
+   ACTIONS
+================================ */
+
+function beginEditSingle(key){
+  editingSingles.add(key);
+  render();
+}
+
+function beginEditShared(key){
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
+    return;
+  }
+
+  editingShared.add(key);
+  render();
+}
+
+function cancelEditSingle(key){
+
+  editingSingles.delete(key);
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(t?.__draftStatus){
+    delete t.__draftStatus;
+  }
+
+  render();
+}
+
+function cancelEditShared(key){
+
+  editingShared.delete(key);
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(root?.__draftPassengers){
+    delete root.__draftPassengers;
+  }
+
+  render();
+}
+
+async function returnSingleTripToDriver(
+  key
+){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  const status =
+    displayStatus(t.status);
+
+  const ok =
+    window.confirm(
+      `Return trip ${getTripNumber(t)} to the driver?
+
+Current status: ${status}
+
+No final confirmation will be applied. The trip will become active again for the assigned driver.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+
+    const tripId =
+      getTripId(t);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    await patchReturnToDriver(
+      tripId,
+      {
+        returnedBy:adminName,
+        reason:
+          "Dispatcher returned trip to driver from Final Confirmation"
+      }
+    );
+
+    editingSingles.delete(key);
+
+    if(t.__draftStatus){
+      delete t.__draftStatus;
+    }
+
+    /*
+      Reload from server.
+      Because status is now active/InProgress,
+      singleTripReadyForPage() will return false
+      and the trip disappears from Final Confirmation.
+    */
+    await loadTrips();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Failed to return trip to driver."
+    );
+  }
+}
+
+async function confirmSingleTrip(key){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  const ok = window.confirm(
+    `Confirm trip ${getTripNumber(t)}?\n\nThis will approve the final status and finalize any applicable payment.`
+  );
+
+  if(!ok){
+    return;
+  }
+
+  const newStatus =
+    t.__draftStatus ||
+    t.status ||
+    "Completed";
+
+  try{
+
+    const tripId =
+      getTripId(t);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSingleConfirm(
+        tripId,
+        {
+          status:
+            statusValueToLabel(
+              getStatusOptionValue(
+                newStatus
+              )
+            ),
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    t.status =
+      savedTrip.status ||
+      statusValueToLabel(
+        getStatusOptionValue(
+          newStatus
+        )
+      );
+
+    t.finalStatusConfirmed =
+      true;
+
+    t.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      new Date().toISOString();
+
+    t.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      t.finalStatusConfirmedAt;
+
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      t.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      t.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
+
+    editingSingles.delete(key);
+
+    delete t.__draftStatus;
+
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Failed to confirm trip."
+    );
+  }
+}
+
+async function saveSingleEdit(key){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  if(
+    t.__draftStatus ===
+    "__RETURN_TO_DRIVER__"
+  ){
+
+    await returnSingleTripToDriver(
+      key
+    );
+
+    return;
+  }
+
+  const newStatus =
+    t.__draftStatus ||
+    t.status ||
+    "Completed";
+
+  const wasConfirmed =
+    isTripConfirmed(t);
+
+  try{
+
+    const tripId =
+      getTripId(t);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSingleStatus(
+        tripId,
+        {
+          status:
+            statusValueToLabel(
+              getStatusOptionValue(
+                newStatus
+              )
+            ),
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    t.status =
+      savedTrip.status ||
+      statusValueToLabel(
+        getStatusOptionValue(
+          newStatus
+        )
+      );
+
+    t.finalStatusConfirmed =
+      savedTrip.finalStatusConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.finalStatusConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt;
+
+    t.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      t.finalStatusConfirmedAt ||
+      null;
+
+    t.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      t.dispatchFinalConfirmedAt ||
+      null;
+
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      t.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      t.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
+
+    editingSingles.delete(key);
+
+    delete t.__draftStatus;
+
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      "Failed to edit trip."
+    );
+  }
+}
+
+async function confirmSharedTrip(key){
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
+    return;
+  }
+
+  const ok = window.confirm(
+    `Confirm shared trip ${getTripNumber(root)}?\n\nThis will approve the final shared statuses.`
+  );
+
+  if(!ok){
+    return;
+  }
+
+  const passengers =
+    Array.isArray(root.passengers)
+      ? root.passengers.map(
+          (p,idx)=>{
+
+            const draft =
+              root.__draftPassengers?.[idx];
+
+            const nextStatus =
+              draft ||
+              p.status ||
+              "Completed";
+
+            return {
+              ...p,
+              status:
+                statusValueToLabel(
+                  getStatusOptionValue(
+                    nextStatus
+                  )
+                )
+            };
+          }
+        )
+      : [];
+
+  try{
+
+    const tripId =
+      getTripId(root);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSharedConfirm(
+        tripId,
+        {
+          passengers,
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    root.passengers =
+      savedTrip.passengers ||
+      passengers;
+
+    root.sharedFinalConfirmed =
+      true;
+
+    root.sharedFinalConfirmedAt =
+      savedTrip.sharedFinalConfirmedAt ||
+      savedTrip.finalStatusConfirmedAt ||
+      new Date().toISOString();
+
+    root.finalStatusConfirmed =
+      true;
+
+    root.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      root.sharedFinalConfirmedAt;
+
+    root.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      root.sharedFinalConfirmedAt;
+
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      root.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      root.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
+
+    editingShared.delete(key);
+
+    delete root.__draftPassengers;
+
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      "Failed to confirm shared trip."
+    );
+  }
+}
+
+async function saveSharedEdit(key){
+
+  const root =
+    findLiveSharedRootByKey(key);
+
+  if(!root){
+    return;
+  }
+
+  /*
+    HARD LOCK:
+    once a shared trip is final-confirmed, it can no longer
+    be edited from Final Confirmation.
+  */
+  if(isSharedConfirmed(root)){
+    editingShared.delete(key);
+
+    if(root.__draftPassengers){
+      delete root.__draftPassengers;
+    }
+
+    render();
+    return;
+  }
+
+  const wasConfirmed =
+    isSharedConfirmed(root);
+
+  const passengers =
+    Array.isArray(root.passengers)
+      ? root.passengers.map(
+          (p,idx)=>{
+
+            const draft =
+              root.__draftPassengers?.[idx];
+
+            const nextStatus =
+              draft ||
+              p.status ||
+              "Completed";
+
+            return {
+              ...p,
+              status:
+                statusValueToLabel(
+                  getStatusOptionValue(
+                    nextStatus
+                  )
+                )
+            };
+          }
+        )
+      : [];
+
+  try{
+
+    const tripId =
+      getTripId(root);
+
+    if(!tripId){
+      throw new Error(
+        "Missing trip id"
+      );
+    }
+
+    const res =
+      await patchSharedStatus(
+        tripId,
+        {
+          passengers,
+          confirmedBy:
+            adminName
+        }
+      );
+
+    const savedTrip =
+      res?.trip || {};
+
+    root.passengers =
+      savedTrip.passengers ||
+      passengers;
+
+    root.sharedFinalConfirmed =
+      savedTrip.sharedFinalConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.sharedFinalConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt ||
+      !!savedTrip.finalStatusConfirmedAt;
+
+    root.sharedFinalConfirmedAt =
+      savedTrip.sharedFinalConfirmedAt ||
+      root.sharedFinalConfirmedAt ||
+      null;
+
+    root.finalStatusConfirmed =
+      savedTrip.finalStatusConfirmed === true ||
+      wasConfirmed ||
+      !!savedTrip.finalStatusConfirmedAt ||
+      !!savedTrip.dispatchFinalConfirmedAt;
+
+    root.finalStatusConfirmedAt =
+      savedTrip.finalStatusConfirmedAt ||
+      root.finalStatusConfirmedAt ||
+      null;
+
+    root.dispatchFinalConfirmedAt =
+      savedTrip.dispatchFinalConfirmedAt ||
+      root.dispatchFinalConfirmedAt ||
+      null;
+
+    if(
+      savedTrip.finalPageEnteredAt
+    ){
+      root.finalPageEnteredAt =
+        savedTrip.finalPageEnteredAt;
+    }
+
+    if(
+      savedTrip.dispatchFinalPageEnteredAt
+    ){
+      root.dispatchFinalPageEnteredAt =
+        savedTrip.dispatchFinalPageEnteredAt;
+    }
+
+    editingShared.delete(key);
+
+    delete root.__draftPassengers;
+
+    applyFilters();
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      "Failed to edit shared trip."
+    );
+  }
+}
+
+function handleSingleStatusChange(
+  key,
+  value
+){
+
+  const t =
+    findLiveTripByKey(key);
+
+  if(!t){
+    return;
+  }
+
+  if(
+    value ===
+    "returntodriver"
+  ){
+
+    if(isTripConfirmed(t)){
+      return;
+    }
+
+    t.__draftStatus =
+      "__RETURN_TO_DRIVER__";
+
+    return;
+  }
+
+  t.__draftStatus =
+    statusValueToLabel(value);
+}
+
+function handleSharedPassengerStatusChange(
+  groupKey,
+  idx,
+  value
+){
+
+  const root =
+    findLiveSharedRootByKey(
+      groupKey
+    );
+
+  if(
+    !root ||
+    isSharedConfirmed(root)
+  ){
+    return;
+  }
+
+  if(
+    !root.__draftPassengers
+  ){
+    root.__draftPassengers = {};
+  }
+
+  root.__draftPassengers[idx] =
+    statusValueToLabel(value);
+}
+
+/* ===============================
+   TABLE ENGINE
+================================ */
+
+function rowSourceClass(t){
+
+  const src =
+    getSourceCode(t);
+
+  if(src === "FACILITY"){
+    return "row-facility";
+  }
+
+  if(src === "RV"){
+    return "row-rv";
+  }
+
+  return "row-gq";
+}
+
+function rowOverdueClass(item){
+
+  if(item.kind === "trip"){
+    return isTripNotConfirmed(
+      item.trip
+    )
+      ? "pending-overdue"
+      : "";
+  }
+
+  return isSharedNotConfirmed(
+    item.group[0]
+  )
+    ? "pending-overdue"
+    : "";
+}
+
+function rowConfirmedClass(item){
+
+  if(item.kind === "trip"){
+    return isTripConfirmed(
+      item.trip
+    )
+      ? "confirmed-row"
+      : "";
+  }
+
+  return isSharedConfirmed(
+    item.group[0]
+  )
+    ? "confirmed-row confirmed-shared-head"
+    : "";
+}
+
+function groupByTripDate(items){
+
+  const groups = {};
+
+  items.forEach(item=>{
+
+    const key =
+      item.tripDate ||
+      "Unknown";
+
+    if(!groups[key]){
+      groups[key] = [];
+    }
+
+    groups[key].push(item);
+  });
+
+  return groups;
+}
+
+function singleStatusEditHTML(item){
+
+  const t = item.trip;
+
+  const current =
+    getStatusOptionValue(
+      t.__draftStatus ||
+      t.status
+    );
+
+  const confirmed =
+    isTripConfirmed(t);
+
+  const isReturnDraft =
+    t.__draftStatus ===
+    "__RETURN_TO_DRIVER__";
+
+  return `
+    <select
+      class="status-select"
+      onchange="handleSingleStatusChange('${safe(item.key)}', this.value)"
+    >
+      <option value="completed" ${!isReturnDraft && current === "completed" ? "selected" : ""}>Completed</option>
+      <option value="cancelled" ${!isReturnDraft && current === "cancelled" ? "selected" : ""}>Cancelled</option>
+      <option value="noshow" ${!isReturnDraft && current === "noshow" ? "selected" : ""}>No Show</option>
+      <option value="notcompleted" ${!isReturnDraft && current === "notcompleted" ? "selected" : ""}>Not Completed</option>
+
+      <option
+        value="returntodriver"
+        ${isReturnDraft ? "selected" : ""}
+        ${confirmed ? "disabled" : ""}
+      >
+        Return To Driver
+      </option>
+    </select>
+  `;
+}
+
+function sharedPassengerStatusEditHTML(
+  groupKey,
+  p,
+  trip
+){
+
+  const idx =
+    Number(p.__idx || 0);
+
+  const root =
+    findLiveSharedRootByKey(
+      groupKey
+    );
+
+  const draft =
+    root?.__draftPassengers?.[idx];
+
+  const current =
+    getStatusOptionValue(
+      draft ||
+      p.status ||
+      trip.status
+    );
+
+  const confirmed =
+    isSharedConfirmed(root);
+
+  return `
+    <select
+      class="status-select"
+      onchange="handleSharedPassengerStatusChange('${safe(groupKey)}', ${idx}, this.value)"
+      ${confirmed ? "disabled" : ""}
+    >
+      <option value="completed" ${current === "completed" ? "selected" : ""}>Completed</option>
+      <option value="cancelled" ${current === "cancelled" ? "selected" : ""}>Cancelled</option>
+      <option value="noshow" ${current === "noshow" ? "selected" : ""}>No Show</option>
+      <option value="notcompleted" ${current === "notcompleted" ? "selected" : ""}>Not Completed</option>
+    </select>
+  `;
+}
+
+function render(){
+
+  tripCounter = 1;
+
+  /*
+    Counters used to be calculated separately by each card section.
+    Calculate them once per render and share the result.
+  */
+  const counts =
+    getCounts();
+
+  renderSourceCards(counts);
+  renderStatusCards(counts);
+
+  if(!finalContent){
+    return;
+  }
+
+  finalContent.innerHTML = "";
+
+  if(!displayItems.length){
+
+    finalContent.innerHTML =
+      `<div class="empty-state">No Final Confirmation Trips Found</div>`;
+
+    return;
+  }
+
+  const groups =
+    groupByTripDate(
+      displayItems
+    );
+
+  const wrap =
+    document.createElement(
+      "div"
+    );
+
+  wrap.className =
+    "table-wrap";
+
+  const table =
+    document.createElement(
+      "table"
+    );
+
+  table.className =
+    "review-table";
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-num">#</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-company">Facility / Broker</th>
+        <th class="col-broker-trip">Broker Trip ID</th>
+        <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Trip Time</th>
+        <th class="col-service">Service</th>
+        <th class="wide-notes">Notes</th>
+        <th class="col-driver-comment">Driver Comment</th>
+        <th class="col-status">Status</th>
+        <th class="col-actions">Actions</th>
+        <th class="col-eye">👁️</th>
+      </tr>
+    </thead>
+
+    <tbody></tbody>
+  `;
+
+  const tbody =
+    table.querySelector(
+      "tbody"
+    );
+
+  Object.keys(groups)
+    .sort(
+      (a,b)=>
+        new Date(b) -
+        new Date(a)
+    )
+    .forEach(day=>{
+
+      const dateRow =
+        document.createElement(
+          "tr"
+        );
+
+      dateRow.className =
+        "date-row";
+
+      dateRow.innerHTML =
+        `<td colspan="17">Trip Date: ${safe(day)}</td>`;
+
+      tbody.appendChild(
+        dateRow
+      );
+
+      groups[day]
+        .forEach(item=>{
+
+          if(
+            item.kind === "trip"
+          ){
+
+            tbody.appendChild(
+              renderTripRow(item)
+            );
+
+          }else{
+
+            tbody.appendChild(
+              renderSharedRow(item)
+            );
+          }
+        });
+    });
+
+  wrap.appendChild(table);
+
+  finalContent.appendChild(
+    wrap
+  );
+}
+
+function renderTripRow(item){
+
+  const t =
+    item.trip;
+
+  const isEditing =
+    editingSingles.has(
+      item.key
+    );
+
+  const confirmed =
+    isTripConfirmed(t);
+
+  const tr =
+    document.createElement(
+      "tr"
+    );
+
+  tr.className = [
+    rowSourceClass(t),
+    rowConfirmedClass(item),
+    rowOverdueClass(item),
+    "trip-divider"
+  ]
+    .join(" ")
+    .trim();
+
+  tr.innerHTML = `
+    <td class="col-num">
+      ${tripCounter++}
+    </td>
+
+    <td class="col-trip">
+      ${cellBox([
+        `<span class="trip-number-badge">${safe(
+          getTripNumber(t)
+        )}</span>`
+      ])}
+    </td>
+
+    <td class="company-cell">
+      ${cellBox(
+        safe(
+          getAccountDisplay(t)
+        )
+      )}
+    </td>
+
+    <td class="col-broker-trip">
+      ${cellBox(
+        safe(
+          getBrokerTripId(t)
+        )
+      )}
+    </td>
+
+    <td class="wide-client">
+      ${cellBox(
+        safe(
+          t.clientName ||
+          t.name ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="wide-phone">
+      ${cellBox(
+        safe(
+          t.clientPhone ||
+          t.phone ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="wide-address">
+      ${cellBox(
+        safe(
+          t.pickup ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="wide-stops">
+      ${cellBox(
+        stopItems(t)
+      )}
+    </td>
+
+    <td class="wide-address">
+      ${cellBox(
+        safe(
+          t.dropoff ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="col-date">
+      ${cellBox(
+        safe(
+          t.tripDate ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="col-time">
+      ${cellBox(
+        safe(
+          t.tripTime ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="col-service">
+      ${cellBox(
+        safe(
+          getTripServiceDisplay(t)
+        )
+      )}
+    </td>
+
+    <td class="wide-notes">
+      ${cellBox(
+        safe(
+          getNotes(t) ||
+          "--"
+        )
+      )}
+    </td>
+
+    <td class="col-driver-comment">
+      ${cellBox(
+        safe(
+          driverCommentDisplay(t)
+        )
+      )}
+    </td>
+
+    <td class="col-status">
+      ${
+        isEditing
+          ? singleStatusEditHTML(
+              item
+            )
+          : statusCellHTML(
+              t.__draftStatus ||
+              t.status,
+              confirmed
+            )
+      }
+    </td>
+
+    <td class="col-actions">
+
+      <div class="actions-wrap">
+
+        ${
+          isEditing
+            ? `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="saveSingleEdit('${safe(item.key)}')"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn-action"
+                type="button"
+                onclick="cancelEditSingle('${safe(item.key)}')"
+              >
+                Cancel
+              </button>
+            `
+            : `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="beginEditSingle('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
+                type="button"
+                onclick="confirmSingleTrip('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
+              >
+                ${
+                  confirmed
+                    ? "Confirmed"
+                    : "Confirm"
+                }
+              </button>
+            `
+        }
+
+      </div>
+
+    </td>
+
+    <td class="col-eye">
+
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openFinalView('${safe(item.key)}')"
+      >
+        👁️
+      </button>
+
+    </td>
+  `;
+
+  tr.addEventListener(
+    "click",
+    event=>{
+      if(
+        event.target.closest(
+          "button, select, input, textarea, a"
+        )
+      ){
+        return;
+      }
+
+      markFinalItemViewed(item);
+      applyFilters();
+    }
+  );
+
+  return tr;
+}
+
+function renderSharedRow(item){
+
+  const group =
+    item.group;
+
+  const first =
+    group[0] || {};
+
+  const passengers =
+    groupPassengersReadyForPage(
+      group
+    );
+
+  const isEditing =
+    editingShared.has(
+      item.key
+    );
+
+  const confirmed =
+    isSharedConfirmed(first);
+
+  const tripNumbers =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripNumber(
+            p,
+            first
+          )
+      ).map(value=>
+        `<span class="trip-number-badge">${value}</span>`
+      )
+    );
+
+  const accounts =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          isBrokerTrip(first) ||
+          p?.brokerName ||
+          p?.brokerCode
+            ? getPassengerBrokerDisplay(
+                p,
+                first
+              )
+            : getCompanyDisplay(
+                first
+              )
+      )
+    );
+
+  const brokerTripIds =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerBrokerTripId(
+            p,
+            first
+          )
+      )
+    );
+
+  const names =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerName(
+            p,
+            first
+          )
+      )
+    );
+
+  const phones =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerPhone(
+            p,
+            first
+          )
+      )
+    );
+
+  const pickups =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPickup(
+            first,
+            p
+          )
+      )
+    );
+
+  const stops =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerStops(
+            p
+          )
+      )
+    );
+
+  const dropoffs =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getDropoff(
+            first,
+            p
+          )
+      )
+    );
+
+  const tripDates =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripDate(
+            p,
+            first
+          )
+      )
+    );
+
+  const tripTimes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerTripTime(
+            p,
+            first
+          )
+      )
+    );
+
+  const services =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerServiceDisplay(
+            p,
+            first
+          )
+      )
+    );
+
+  const notes =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          getPassengerNotes(
+            p,
+            first
+          )
+      )
+    );
+
+  const driverComments =
+    cellBox(
+      numberedPassengerValues(
+        passengers,
+        p=>
+          driverCommentDisplay(
+            first,
+            p
+          )
+      )
+    );
+
+  const statusBox =
+    isEditing
+      ? cellBox(
+          passengers.map(
+            (p,i)=>
+              `${i + 1}. ` +
+              sharedPassengerStatusEditHTML(
+                item.key,
+                p,
+                first
+              )
+          )
+        )
+      : cellBox(
+          passengers.map(
+            (p,i)=>
+              `${i + 1}. ` +
+              statusCellHTML(
+                p.status ||
+                first.status,
+                confirmed
+              )
+          )
+        );
+
+  const tr =
+    document.createElement(
+      "tr"
+    );
+
+  tr.className = [
+    "shared-row",
+    rowSourceClass(first),
+    rowConfirmedClass(item),
+    rowOverdueClass(item),
+    "trip-divider"
+  ]
+    .join(" ")
+    .trim();
+
+  tr.innerHTML = `
+    <td class="col-num">
+      ${tripCounter++}
+    </td>
+
+    <td class="col-trip">
+      ${tripNumbers}
+    </td>
+
+    <td class="company-cell">
+      ${accounts}
+    </td>
+
+    <td class="col-broker-trip">
+      ${brokerTripIds}
+    </td>
+
+    <td class="wide-client">
+      ${names}
+    </td>
+
+    <td class="wide-phone">
+      ${phones}
+    </td>
+
+    <td class="wide-address">
+      ${pickups}
+    </td>
+
+    <td class="wide-stops">
+      ${stops}
+    </td>
+
+    <td class="wide-address">
+      ${dropoffs}
+    </td>
+
+    <td class="col-date">
+      ${tripDates}
+    </td>
+
+    <td class="col-time">
+      ${tripTimes}
+    </td>
+
+    <td class="col-service">
+      ${services}
+    </td>
+
+    <td class="wide-notes">
+      ${notes}
+    </td>
+
+    <td class="col-driver-comment">
+      ${driverComments}
+    </td>
+
+    <td class="col-status">
+      ${statusBox}
+    </td>
+
+    <td class="col-actions">
+
+      <div class="actions-wrap">
+
+        ${
+          isEditing
+            ? `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="saveSharedEdit('${safe(item.key)}')"
+              >
+                Save
+              </button>
+
+              <button
+                class="btn-action"
+                type="button"
+                onclick="cancelEditShared('${safe(item.key)}')"
+              >
+                Cancel
+              </button>
+            `
+            : `
+              <button
+                class="btn-action btn-edit"
+                type="button"
+                onclick="beginEditShared('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn-action ${confirmed ? "btn-confirmed" : "btn-confirm"}"
+                type="button"
+                onclick="confirmSharedTrip('${safe(item.key)}')"
+                ${confirmed ? "disabled" : ""}
+              >
+                ${
+                  confirmed
+                    ? "Confirmed"
+                    : "Confirm"
+                }
+              </button>
+            `
+        }
+
+      </div>
+
+    </td>
+
+    <td class="col-eye">
+
+      <button
+        class="eye-btn"
+        type="button"
+        title="View"
+        onclick="openFinalView('${safe(item.key)}')"
+      >
+        👁️
+      </button>
+
+    </td>
+  `;
+
+  tr.addEventListener(
+    "click",
+    event=>{
+      if(
+        event.target.closest(
+          "button, select, input, textarea, a"
+        )
+      ){
+        return;
+      }
+
+      markFinalItemViewed(item);
+      applyFilters();
+    }
+  );
+
+  return tr;
+}
+
+/* ===============================
+   EVENTS
+================================ */
+
+searchInput?.addEventListener(
+  "input",
+  applyFilters
+);
+
+yearFilter?.addEventListener(
+  "change",
+  applyFilters
+);
+
+monthFilter?.addEventListener(
+  "change",
+  applyFilters
+);
+
+Object.assign(
+  window,
+  {
+    openFinalView,
+    closeFinalView,
+
+    beginEditSingle,
+    beginEditShared,
+
+    cancelEditSingle,
+    cancelEditShared,
+
+    confirmSingleTrip,
+    confirmSharedTrip,
+
+    saveSingleEdit,
+    saveSharedEdit,
+
+    returnSingleTripToDriver,
+
+    handleSingleStatusChange,
+    handleSharedPassengerStatusChange
+  }
+);
+
+
+/* ===============================
+   DISABLED FINAL ACTIONS STYLE
+================================ */
+(function ensureFinalActionDisabledStyle(){
+
+  if(
+    document.getElementById(
+      "finalActionDisabledStyle"
+    )
+  ){
+    return;
+  }
+
+  const style =
+    document.createElement(
+      "style"
+    );
+
+  style.id =
+    "finalActionDisabledStyle";
+
+  style.textContent = `
+    .btn-action:disabled{
+      opacity:.45 !important;
+      cursor:not-allowed !important;
+      box-shadow:none !important;
+      pointer-events:none !important;
+    }
+  `;
+
+  document.head.appendChild(
+    style
+  );
+})();
+
+/* ===============================
+   INIT
+================================ */
+
+async function refreshEverything(){
+
+  await Promise.all([
+    loadServices(),
+    loadBrokerCapability()
+  ]);
+
+  await loadTrips();
+}
+
+(async function init(){
+
+  await refreshEverything();
+
+  if(refreshTimer){
+    clearInterval(
+      refreshTimer
+    );
+  }
+
+  refreshTimer =
+    setInterval(
+      refreshEverything,
+      60000
+    );
+
+})();

@@ -1,0 +1,145 @@
+{
+  "pageId": "ADM-017",
+  "pageTitle": "Payroll & Earnings",
+  "pageFile": "payroll.html",
+  "module": "Payroll",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/payroll.html",
+    "server/public/admin/header.js",
+    "server/public/admin/payroll.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/people?${query.toString",
+    "/api/payroll/period",
+    "/api/payroll/profile/driver/${encodeURIComponent",
+    "/api/payroll/staff-schedule/${currentType}/${encodeURIComponent",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "loadPeriod",
+    "loadPayroll",
+    "scheduleSummary"
+  ],
+  "articles": [
+    {
+      "id": "ADM-017-T01",
+      "pageId": "ADM-017",
+      "pageTitle": "Payroll & Earnings",
+      "pageFile": "payroll.html",
+      "module": "Payroll",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit Pay Period",
+      "summary": "Edit Pay Period",
+      "keywords": [
+        "edit payroll period",
+        "end date",
+        "pay period",
+        "payroll",
+        "payroll & earnings",
+        "start date"
+      ],
+      "steps": [
+        "Open Payroll & Earnings.",
+        "Click Edit Pay Period.",
+        "Set Start Date and End Date.",
+        "Click Save Period."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/payroll.html",
+        "server/public/admin/header.js",
+        "server/public/admin/payroll.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/people?${query.toString",
+        "/api/payroll/period",
+        "/api/payroll/profile/driver/${encodeURIComponent",
+        "/api/payroll/staff-schedule/${currentType}/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadPeriod",
+        "loadPayroll",
+        "scheduleSummary"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-017-T02",
+      "pageId": "ADM-017",
+      "pageTitle": "Payroll & Earnings",
+      "pageFile": "payroll.html",
+      "module": "Payroll",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Save Payroll Schedule",
+      "summary": "Save Payroll Schedule",
+      "keywords": [
+        "admin pay",
+        "dispatcher pay",
+        "driver pay",
+        "payroll",
+        "payroll & earnings",
+        "payroll schedule",
+        "save schedule"
+      ],
+      "steps": [
+        "Open the required role section.",
+        "Update the available payroll schedule/rate settings.",
+        "Click Save Schedule."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/payroll.html",
+        "server/public/admin/header.js",
+        "server/public/admin/payroll.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/people?${query.toString",
+        "/api/payroll/period",
+        "/api/payroll/profile/driver/${encodeURIComponent",
+        "/api/payroll/staff-schedule/${currentType}/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadPeriod",
+        "loadPayroll",
+        "scheduleSummary"
+      ],
+      "active": true
+    }
+  ]
+}

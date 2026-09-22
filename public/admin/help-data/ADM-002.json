@@ -1,0 +1,184 @@
+{
+  "pageId": "ADM-002",
+  "pageTitle": "Sunbeam Admin Chat",
+  "pageFile": "admin-chat.html",
+  "module": "Driver Communication",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/admin-chat.html",
+    "server/public/admin/admin-chat.js"
+  ],
+  "apiDependencies": [
+    "/api/driver-chat/admin/online-drivers",
+    "/api/driver-chat/admin/unread",
+    "/api/driver-chat/messages",
+    "/api/driver-chat/read"
+  ],
+  "sourceFunctions": [
+    "normalizeMessages",
+    "senderType",
+    "updateTotalBadge",
+    "loadOnlineDrivers",
+    "loadUnread",
+    "loadMessages",
+    "renderMessages",
+    "sendMessage"
+  ],
+  "articles": [
+    {
+      "id": "ADM-002-T01",
+      "pageId": "ADM-002",
+      "pageTitle": "Sunbeam Admin Chat",
+      "pageFile": "admin-chat.html",
+      "module": "Driver Communication",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Open a Driver Conversation",
+      "summary": "Open a Driver Conversation",
+      "keywords": [
+        "admin chat",
+        "conversation",
+        "driver chat",
+        "messages",
+        "open chat",
+        "sunbeam admin chat",
+        "unread"
+      ],
+      "steps": [
+        "Open Admin Chat.",
+        "Select the driver from the conversation/driver list.",
+        "Review the loaded messages and unread state."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-chat.html",
+        "server/public/admin/admin-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-chat/admin/online-drivers",
+        "/api/driver-chat/admin/unread",
+        "/api/driver-chat/messages",
+        "/api/driver-chat/read"
+      ],
+      "sourceFunctions": [
+        "normalizeMessages",
+        "senderType",
+        "updateTotalBadge",
+        "loadOnlineDrivers",
+        "loadUnread",
+        "loadMessages",
+        "renderMessages",
+        "sendMessage"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-002-T02",
+      "pageId": "ADM-002",
+      "pageTitle": "Sunbeam Admin Chat",
+      "pageFile": "admin-chat.html",
+      "module": "Driver Communication",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Send a Driver Message",
+      "summary": "Send a Driver Message",
+      "keywords": [
+        "admin chat",
+        "chat",
+        "driver message",
+        "send message",
+        "sunbeam admin chat"
+      ],
+      "steps": [
+        "Open the driver's conversation.",
+        "Type the message.",
+        "Click Send.",
+        "Verify the message appears in the conversation."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-chat.html",
+        "server/public/admin/admin-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-chat/admin/online-drivers",
+        "/api/driver-chat/admin/unread",
+        "/api/driver-chat/messages",
+        "/api/driver-chat/read"
+      ],
+      "sourceFunctions": [
+        "normalizeMessages",
+        "senderType",
+        "updateTotalBadge",
+        "loadOnlineDrivers",
+        "loadUnread",
+        "loadMessages",
+        "renderMessages",
+        "sendMessage"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-002-T03",
+      "pageId": "ADM-002",
+      "pageTitle": "Sunbeam Admin Chat",
+      "pageFile": "admin-chat.html",
+      "module": "Driver Communication",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Review Online Drivers",
+      "summary": "Review Online Drivers",
+      "keywords": [
+        "admin chat",
+        "chat status",
+        "driver online",
+        "online driver",
+        "sunbeam admin chat"
+      ],
+      "steps": [
+        "Open Admin Chat.",
+        "Review the online driver list/status.",
+        "Open the required driver's conversation."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-chat.html",
+        "server/public/admin/admin-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-chat/admin/online-drivers",
+        "/api/driver-chat/admin/unread",
+        "/api/driver-chat/messages",
+        "/api/driver-chat/read"
+      ],
+      "sourceFunctions": [
+        "normalizeMessages",
+        "senderType",
+        "updateTotalBadge",
+        "loadOnlineDrivers",
+        "loadUnread",
+        "loadMessages",
+        "renderMessages",
+        "sendMessage"
+      ],
+      "active": true
+    }
+  ]
+}

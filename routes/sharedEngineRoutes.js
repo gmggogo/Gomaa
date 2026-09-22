@@ -1,0 +1,996 @@
+"use strict";
+
+/*
+DESTINATION PATH:
+server/routes/sharedEngineRoutes.js
+
+PURPOSE:
+Shared Engine API.
+
+ENDPOINTS AFTER MOUNT:
+GET  /api/shared-engine/settings
+POST /api/shared-engine/settings
+GET  /api/shared-engine/automatic-state
+PUT  /api/shared-engine/automatic-state
+POST /api/shared-engine/plan
+
+IMPORTANT:
+The plan endpoint returns proposals only.
+It does not modify original trips.
+*/
+
+const express =
+  require("express");
+
+const jwt =
+  require("jsonwebtoken");
+
+const mongoose =
+  require("mongoose");
+
+const router =
+  express.Router();
+
+/* =========================
+   COMPANY AUTOMATIC SHARED STATE
+
+   Persists Automatic Shared candidates + matched groups so a browser refresh
+   does not destroy already-built groups.
+========================= */
+
+const CompanyAutomaticSharedStateSchema =
+  new mongoose.Schema(
+    {
+      tenantId:{
+        type:String,
+        required:true,
+        index:true
+      },
+
+      companyKey:{
+        type:String,
+        required:true,
+        index:true
+      },
+
+      candidates:{
+        type:[mongoose.Schema.Types.Mixed],
+        default:[]
+      },
+
+      plan:{
+        type:mongoose.Schema.Types.Mixed,
+        default:null
+      },
+
+      updatedAt:{
+        type:Date,
+        default:Date.now
+      }
+    },
+    {
+      minimize:false
+    }
+  );
+
+CompanyAutomaticSharedStateSchema.index(
+  {
+    tenantId:1,
+    companyKey:1
+  },
+  {
+    unique:true
+  }
+);
+
+const CompanyAutomaticSharedState =
+  mongoose.models.CompanyAutomaticSharedState ||
+  mongoose.model(
+    "CompanyAutomaticSharedState",
+    CompanyAutomaticSharedStateSchema
+  );
+
+const SharedEngineSettings =
+  require(
+    "../models/SharedEngineSettings"
+  );
+
+const BrokerIntegration =
+  require(
+    "../models/BrokerIntegration"
+  );
+
+const Tenant =
+  require(
+    "../models/Tenant"
+  );
+
+const {
+  DEFAULT_SETTINGS,
+  mergeSettings,
+  planSharedTrips
+} =
+  require(
+    "../services/sharedEngine"
+  );
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function companyAutomaticStateKey(req){
+  const auth =
+    req.authUser ||
+    {};
+
+  return clean(
+    auth.companyId ||
+    auth.facilityId ||
+    auth.userId ||
+    auth.id ||
+    auth._id ||
+    auth.email ||
+    auth.username ||
+    auth.name ||
+    auth.companyName ||
+    "COMPANY"
+  ).toLowerCase();
+}
+
+function bearerToken(req){
+  const auth =
+    clean(
+      req.headers.authorization
+    );
+
+  if(
+    !auth
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return auth
+    .slice(7)
+    .trim();
+}
+
+function requireStaff(
+  req,
+  res,
+  next
+){
+  const token =
+    bearerToken(req);
+
+  if(!token){
+    return res
+      .status(401)
+      .json({
+        success:false,
+        message:"Access Denied"
+      });
+  }
+
+  try{
+    const decoded =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    const role =
+      String(
+        decoded.role ||
+        ""
+      ).toUpperCase();
+
+    if(
+      ![
+        "SUPER_ADMIN",
+        "ADMIN",
+        "DISPATCHER",
+        "COMPANY"
+      ].includes(role)
+    ){
+      return res
+        .status(403)
+        .json({
+          success:false,
+          message:"Not allowed"
+        });
+    }
+
+    if(!decoded.tenantId){
+      return res
+        .status(403)
+        .json({
+          success:false,
+          message:"Tenant Required"
+        });
+    }
+
+    req.authUser =
+      decoded;
+
+    next();
+
+  }catch(err){
+    return res
+      .status(401)
+      .json({
+        success:false,
+        message:"Invalid Token"
+      });
+  }
+}
+
+router.use(
+  requireStaff
+);
+
+function tenantObjectId(
+  tenantId
+){
+  const value =
+    clean(tenantId);
+
+  if(
+    !mongoose.Types
+      .ObjectId
+      .isValid(value)
+  ){
+    return null;
+  }
+
+  return new mongoose.Types
+    .ObjectId(value);
+}
+
+function bool(value){
+  return (
+    value === true ||
+    String(value)
+      .toLowerCase() ===
+      "true" ||
+    String(value) === "1"
+  );
+}
+
+function numberOr(
+  value,
+  fallback
+){
+  const num =
+    Number(value);
+
+  return Number.isFinite(num)
+    ? num
+    : fallback;
+}
+
+function normalizeServiceCode(
+  value
+){
+  const code =
+    String(
+      value ?? ""
+    )
+      .trim()
+      .toUpperCase()
+      .replace(
+        /[_-]+/g,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      );
+
+  if(
+    code === "SH" ||
+    code === "SHARED" ||
+    code.includes(
+      "SHARED"
+    )
+  ){
+    return "SH";
+  }
+
+  return code;
+}
+
+async function getCapabilities(
+  tenantId
+){
+  const id =
+    tenantObjectId(
+      tenantId
+    );
+
+  if(!id){
+    return {
+      brokerContractEnabled:false,
+      sharedServiceEnabled:false,
+      sharedServiceFound:false
+    };
+  }
+
+  let brokerContractEnabled =
+    false;
+
+  let sharedServiceEnabled =
+    false;
+
+  try{
+    const broker =
+      await BrokerIntegration
+        .findOne({
+          tenantId:id,
+          enabled:true,
+          featureVisible:{
+            $ne:false
+          }
+        })
+        .select(
+          "_id enabled featureVisible"
+        )
+        .lean();
+
+    brokerContractEnabled =
+      Boolean(broker);
+
+  }catch(err){
+    brokerContractEnabled =
+      false;
+  }
+
+  try{
+    /*
+      Platform Admin Services is the master switch.
+      The selected service cards are stored on Tenant.allowedServices.
+      Do not infer SHARED access from tenant Service documents.
+    */
+    const tenant =
+      await Tenant
+        .findById(
+          id
+        )
+        .select(
+          "allowedServices"
+        )
+        .lean();
+
+    const allowedServices =
+      Array.isArray(
+        tenant?.allowedServices
+      )
+        ? tenant.allowedServices
+        : [];
+
+    sharedServiceEnabled =
+      allowedServices.some(
+        value =>
+          normalizeServiceCode(
+            value
+          ) === "SH"
+      );
+
+  }catch(err){
+    console.log(
+      "SHARED SERVICE CAPABILITY ERROR:",
+      err?.message || err
+    );
+
+    sharedServiceEnabled =
+      false;
+  }
+
+  return {
+    brokerContractEnabled,
+    sharedServiceEnabled,
+
+    /*
+      Backward-compatible alias used by the current frontend.
+    */
+    sharedServiceFound:
+      sharedServiceEnabled
+  };
+}
+
+async function getSettings(
+  tenantId
+){
+  const id =
+    tenantObjectId(
+      tenantId
+    );
+
+  if(!id){
+    throw new Error(
+      "Invalid tenant"
+    );
+  }
+
+  const saved =
+    await SharedEngineSettings
+      .findOne({
+        tenantId:id
+      })
+      .lean();
+
+  return mergeSettings(
+    saved ||
+    DEFAULT_SETTINGS
+  );
+}
+
+router.get(
+  "/settings",
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const tenantId =
+        req.authUser.tenantId;
+
+      const [
+        settings,
+        capabilities
+      ] =
+        await Promise.all([
+          getSettings(
+            tenantId
+          ),
+          getCapabilities(
+            tenantId
+          )
+        ]);
+
+      return res.json({
+        success:true,
+        settings,
+        capabilities
+      });
+
+    }catch(err){
+      console.log(
+        "SHARED ENGINE SETTINGS GET ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err.message ||
+            "Failed to load Shared Engine settings"
+        });
+    }
+  }
+);
+
+router.post(
+  "/settings",
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const actorRole =
+        String(
+          req.authUser?.role ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if(actorRole === "COMPANY"){
+        return res
+          .status(403)
+          .json({
+            success:false,
+            message:
+              "Company accounts cannot change Shared Engine settings"
+          });
+      }
+
+      const tenantId =
+        tenantObjectId(
+          req.authUser.tenantId
+        );
+
+      if(!tenantId){
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:"Invalid tenant"
+          });
+      }
+
+      const body =
+        req.body ||
+        {};
+
+      const update = {
+        enabled:
+          body.enabled === undefined
+            ? true
+            : bool(
+                body.enabled
+              ),
+
+        sources:{
+          company:{
+            enabled:
+              body?.sources
+                ?.company
+                ?.enabled ===
+                undefined
+                ? true
+                : bool(
+                    body.sources
+                      .company
+                      .enabled
+                  )
+          },
+
+          reserved:{
+            enabled:
+              body?.sources
+                ?.reserved
+                ?.enabled ===
+                undefined
+                ? true
+                : bool(
+                    body.sources
+                      .reserved
+                      .enabled
+                  )
+          },
+
+          broker:{
+            enabled:
+              body?.sources
+                ?.broker
+                ?.enabled ===
+                undefined
+                ? true
+                : bool(
+                    body.sources
+                      .broker
+                      .enabled
+                  )
+          }
+        },
+
+        maxGroupDistanceMiles:
+          Math.max(
+            0,
+            numberOr(
+              body
+                .maxGroupDistanceMiles,
+              10
+            )
+          ),
+
+        maxExtraMiles:
+          Math.max(
+            0,
+            numberOr(
+              body.maxExtraMiles,
+              10
+            )
+          ),
+
+        maxExtraMinutes:
+          Math.max(
+            0,
+            numberOr(
+              body.maxExtraMinutes,
+              30
+            )
+          ),
+
+        appointmentBufferMinutes:
+          Math.max(
+            0,
+            numberOr(
+              body
+                .appointmentBufferMinutes,
+              10
+            )
+          ),
+
+        pickupLateToleranceMinutes:
+          Math.max(
+            0,
+            numberOr(
+              body
+                .pickupLateToleranceMinutes,
+              5
+            )
+          ),
+
+        pickupEarlyWindowMinutes:
+          Math.max(
+            0,
+            numberOr(
+              body
+                .pickupEarlyWindowMinutes,
+              20
+            )
+          ),
+
+        maxRidersPerGroup:
+          Math.max(
+            2,
+            Math.min(
+              20,
+              numberOr(
+                body
+                  .maxRidersPerGroup,
+                4
+              )
+            )
+          ),
+
+        samePickupPriority:
+          body
+            .samePickupPriority ===
+            undefined
+            ? true
+            : bool(
+                body
+                  .samePickupPriority
+              ),
+
+        sameDropoffPriority:
+          body
+            .sameDropoffPriority ===
+            undefined
+            ? true
+            : bool(
+                body
+                  .sameDropoffPriority
+              ),
+
+        updatedBy:
+          clean(
+            req.authUser?.email ||
+            req.authUser?.id ||
+            req.authUser?._id ||
+            ""
+          )
+      };
+
+      const saved =
+        await SharedEngineSettings
+          .findOneAndUpdate(
+            {
+              tenantId
+            },
+            {
+              $set:update
+            },
+            {
+              new:true,
+              upsert:true,
+              setDefaultsOnInsert:true
+            }
+          )
+          .lean();
+
+      const capabilities =
+        await getCapabilities(
+          tenantId
+        );
+
+      return res.json({
+        success:true,
+        settings:
+          mergeSettings(
+            saved
+          ),
+        capabilities
+      });
+
+    }catch(err){
+      console.log(
+        "SHARED ENGINE SETTINGS SAVE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err.message ||
+            "Failed to save Shared Engine settings"
+        });
+    }
+  }
+);
+
+/* =========================
+   COMPANY AUTOMATIC SHARED STATE
+========================= */
+
+router.get(
+  "/automatic-state",
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const tenantId =
+        clean(
+          req.authUser?.tenantId
+        );
+
+      const companyKey =
+        companyAutomaticStateKey(
+          req
+        );
+
+      const state =
+        await CompanyAutomaticSharedState
+          .findOne({
+            tenantId,
+            companyKey
+          })
+          .lean();
+
+      return res.json({
+        success:true,
+        state:state
+          ? {
+              candidates:
+                Array.isArray(
+                  state.candidates
+                )
+                  ? state.candidates
+                  : [],
+              plan:
+                state.plan ||
+                null,
+              updatedAt:
+                state.updatedAt ||
+                null
+            }
+          : {
+              candidates:[],
+              plan:null,
+              updatedAt:null
+            }
+      });
+
+    }catch(err){
+      console.log(
+        "COMPANY AUTOMATIC SHARED STATE LOAD ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err?.message ||
+            "Failed to load Automatic Shared state"
+        });
+    }
+  }
+);
+
+router.put(
+  "/automatic-state",
+  express.json({
+    limit:"5mb"
+  }),
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const tenantId =
+        clean(
+          req.authUser?.tenantId
+        );
+
+      const companyKey =
+        companyAutomaticStateKey(
+          req
+        );
+
+      const candidates =
+        Array.isArray(
+          req.body?.candidates
+        )
+          ? req.body.candidates
+          : [];
+
+      const plan =
+        req.body?.plan &&
+        typeof req.body.plan === "object"
+          ? req.body.plan
+          : null;
+
+      const saved =
+        await CompanyAutomaticSharedState
+          .findOneAndUpdate(
+            {
+              tenantId,
+              companyKey
+            },
+            {
+              $set:{
+                candidates,
+                plan,
+                updatedAt:
+                  new Date()
+              }
+            },
+            {
+              new:true,
+              upsert:true,
+              setDefaultsOnInsert:true
+            }
+          )
+          .lean();
+
+      return res.json({
+        success:true,
+        updatedAt:
+          saved?.updatedAt ||
+          null
+      });
+
+    }catch(err){
+      console.log(
+        "COMPANY AUTOMATIC SHARED STATE SAVE ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err?.message ||
+            "Failed to save Automatic Shared state"
+        });
+    }
+  }
+);
+
+router.post(
+  "/plan",
+  async (
+    req,
+    res
+  )=>{
+    try{
+      const actorRole =
+        String(
+          req.authUser?.role ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const requestedSource =
+        String(
+          req.body?.source ||
+          ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const source =
+        actorRole === "COMPANY"
+          ? "COMPANY"
+          : requestedSource;
+
+      if(
+        actorRole === "COMPANY" &&
+        requestedSource &&
+        requestedSource !== "COMPANY"
+      ){
+        return res
+          .status(403)
+          .json({
+            success:false,
+            message:
+              "Company accounts can plan COMPANY Shared trips only"
+          });
+      }
+
+      if(
+        ![
+          "COMPANY",
+          "RESERVED",
+          "BROKER"
+        ].includes(source)
+      ){
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "source must be COMPANY, RESERVED, or BROKER"
+          });
+      }
+
+      const trips =
+        Array.isArray(
+          req.body?.trips
+        )
+          ? req.body.trips
+          : [];
+
+      if(!trips.length){
+        return res
+          .status(400)
+          .json({
+            success:false,
+            message:
+              "At least one trip is required"
+          });
+      }
+
+      const savedSettings =
+        await getSettings(
+          req.authUser.tenantId
+        );
+
+      const settings =
+        mergeSettings({
+          ...savedSettings,
+          ...(
+            req.body
+              ?.settingsOverride ||
+            {}
+          )
+        });
+
+      const result =
+        await planSharedTrips({
+          trips,
+          source,
+          settings
+        });
+
+      return res.json(
+        result
+      );
+
+    }catch(err){
+      console.log(
+        "SHARED ENGINE PLAN ERROR:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+          success:false,
+          message:
+            err.message ||
+            "Shared Engine failed"
+        });
+    }
+  }
+);
+
+module.exports =
+  router;

@@ -1,0 +1,2090 @@
+console.log("driver trips ONE BY ONE");
+
+function safeParse(value,fallback=null){
+  try{
+    return JSON.parse(value);
+  }catch{
+    return fallback;
+  }
+}
+
+const user =
+  safeParse(
+    localStorage.getItem("loggedDriver"),
+    null
+  ) ||
+  safeParse(
+    localStorage.getItem("user"),
+    null
+  );
+
+function getDriverToken(){
+
+  return String(
+    localStorage.getItem("driverToken") ||
+    localStorage.getItem("token") ||
+    user?.token ||
+    ""
+  ).trim();
+}
+
+function driverLoginUrl(){
+
+  const slug =
+    String(
+      user?.tenantSlug ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  return slug
+    ? `login.html?tenant=${encodeURIComponent(slug)}`
+    : "login.html";
+}
+
+if(!user){
+  location.href = driverLoginUrl();
+}
+
+const driverId = user?._id || user?.id;
+
+const container =
+  document.getElementById("container");
+
+const todayTripCount =
+  document.getElementById("todayTripCount");
+
+const tomorrowTripCount =
+  document.getElementById("tomorrowTripCount");
+
+const completedTripCount =
+  document.getElementById("completedTripCount");
+
+const noShowTripCount =
+  document.getElementById("noShowTripCount");
+
+const cancelledTripCount =
+  document.getElementById("cancelledTripCount");
+
+const tripAlert =
+  document.getElementById("tripAlert");
+
+const tripAlertText =
+  document.getElementById("tripAlertText");
+
+const todayDate =
+  document.getElementById("todayDate");
+
+/*
+  Keep the eye/details panel open across the 5-second auto refresh.
+  Without this, render() rebuilds the card and closes the panel.
+*/
+let openDetailsTripId = "";
+let openNoteTripId = "";
+
+/* =========================
+   HELPERS
+========================= */
+
+function clean(v){
+  return String(v ?? "").trim();
+}
+
+function firstValue(...values){
+  for(const value of values){
+    if(
+      value !== undefined &&
+      value !== null &&
+      clean(value) !== ""
+    ){
+      return value;
+    }
+  }
+  return "";
+}
+
+function esc(v){
+  return clean(v)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+/* =========================
+   PHOENIX DATE / TIME
+========================= */
+
+function getPhoenixDateKey(){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:"America/Phoenix",
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(
+      new Date()
+    );
+
+  const y =
+    parts.find(p=>p.type==="year")?.value;
+
+  const m =
+    parts.find(p=>p.type==="month")?.value;
+
+  const d =
+    parts.find(p=>p.type==="day")?.value;
+
+  return `${y}-${m}-${d}`;
+}
+
+function getNow(){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:"America/Phoenix"
+      }
+    )
+  );
+}
+
+function getTripDate(t){
+
+  const date =
+    firstValue(
+      t.tripDate,
+      t.date,
+      t.serviceDate
+    );
+
+  const time =
+    firstValue(
+      t.tripTime,
+      t.time,
+      t.pickupTime,
+      t.scheduledTime,
+      "00:00"
+    );
+
+  return new Date(
+    `${date}T${time}`
+  );
+}
+
+function isExpired(t){
+
+  const date =
+    getTripDate(t);
+
+  if(isNaN(date)){
+    return false;
+  }
+
+  return (
+    (getNow() - date) /
+    (1000 * 60 * 60)
+  ) >= 6;
+}
+
+function isTodayTrip(t){
+
+  return getTripDateKey(t) ===
+    getPhoenixDateKey();
+}
+
+function addDaysToDateKey(dateKey, days){
+
+  const d =
+    new Date(`${dateKey}T12:00:00`);
+
+  if(isNaN(d)){
+    return "";
+  }
+
+  d.setDate(
+    d.getDate() + days
+  );
+
+  return d.toISOString().slice(0,10);
+}
+
+function getTripDateKey(t){
+
+  return clean(
+    firstValue(
+      t.tripDate,
+      t.date,
+      t.serviceDate
+    )
+  );
+}
+
+function getTomorrowDateKey(){
+
+  return addDaysToDateKey(
+    getPhoenixDateKey(),
+    1
+  );
+}
+
+function isTomorrowTrip(t){
+
+  return getTripDateKey(t) ===
+    getTomorrowDateKey();
+}
+
+function isWithinExecutionWindow(t){
+
+  const tripDate =
+    getTripDate(t);
+
+  if(
+    !tripDate ||
+    isNaN(tripDate)
+  ){
+    return false;
+  }
+
+  const diffMs =
+    tripDate.getTime() -
+    getNow().getTime();
+
+  return diffMs <= (2 * 60 * 60 * 1000);
+}
+
+function formatTime(t){
+
+  const raw =
+    clean(
+      firstValue(
+        t.tripTime,
+        t.time,
+        t.pickupTime,
+        t.scheduledTime
+      )
+    );
+
+  const m =
+    raw.match(
+      /^(\d{1,2}):(\d{2})/
+    );
+
+  if(!m){
+    return esc(raw || "--:--");
+  }
+
+  let h =
+    Number(m[1]);
+
+  const ap =
+    h >= 12
+      ? "PM"
+      : "AM";
+
+  h =
+    h % 12 ||
+    12;
+
+  return `${h}:${m[2]} ${ap}`;
+}
+
+function formatTripDate(t){
+  const raw = clean(firstValue(t.tripDate,t.date,t.serviceDate));
+  if(!raw) return "-";
+  const d = new Date(`${raw}T12:00:00`);
+  if(isNaN(d)) return raw;
+  return new Intl.DateTimeFormat("en-US",{
+    month:"short",
+    day:"numeric",
+    year:"numeric"
+  }).format(d);
+}
+
+function updateTodayLabel(){
+
+  if(!todayDate){
+    return;
+  }
+
+  todayDate.textContent =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:"America/Phoenix",
+        month:"short",
+        day:"numeric"
+      }
+    )
+    .format(
+      new Date()
+    );
+}
+
+/* =========================
+   STATUS
+========================= */
+
+function rawStatus(t){
+
+  /*
+    IMPORTANT:
+    dispatchStatus may stay SENT / ASSIGNED after Driver Map finishes.
+    A terminal trip status must always win so the trip disappears and
+    the Completed / No Show / Canceled counters update immediately.
+  */
+
+  const tripStatus =
+    clean(t?.status)
+    .toUpperCase()
+    .replace(/[\s_-]+/g,"");
+
+  if(
+    tripStatus === "COMPLETED" ||
+    tripStatus === "CANCELLED" ||
+    tripStatus === "CANCELED" ||
+    tripStatus === "NOSHOW" ||
+    tripStatus === "NOTCOMPLETED"
+  ){
+    return tripStatus;
+  }
+
+  return clean(
+    firstValue(
+      t.dispatchStatus,
+      t.status,
+      "Scheduled"
+    )
+  )
+  .toUpperCase()
+  .replace(/[\s_-]+/g,"");
+}
+
+function getStatus(t){
+
+  const s =
+    rawStatus(t);
+
+  if(s === "NOSHOW"){
+    return "NoShow";
+  }
+
+  if(
+    s === "INPROGRESS" ||
+    s === "ONTRIP"
+  ){
+    return "OnTrip";
+  }
+
+  if(s === "ARRIVED"){
+    return "Arrived";
+  }
+
+  if(
+    s === "SCHEDULED" ||
+    s === "ASSIGNED" ||
+    s === "SENT" ||
+    s === "ACCEPTED"
+  ){
+    return "Dispatched";
+  }
+
+  if(s === "COMPLETED"){
+    return "Completed";
+  }
+
+  if(
+    s === "CANCELLED" ||
+    s === "CANCELED"
+  ){
+    return "Cancelled";
+  }
+
+  if(s === "NOTCOMPLETED"){
+    return "NotCompleted";
+  }
+
+  return clean(
+    firstValue(
+      t.dispatchStatus,
+      t.status,
+      "Dispatched"
+    )
+  );
+}
+
+function finalStatusKey(v){
+
+  return clean(v)
+    .toUpperCase()
+    .replace(/[\s_-]+/g,"");
+}
+
+function isFinalStatusValue(v){
+
+  const s =
+    finalStatusKey(v);
+
+  return (
+    s === "COMPLETED" ||
+    s === "COMPLETE" ||
+    s === "CANCELLED" ||
+    s === "CANCELED" ||
+    s === "NOSHOW" ||
+    s === "NOTCOMPLETED"
+  );
+}
+
+function sharedPassengersAllFinal(t){
+
+  if(!isShared(t)){
+    return false;
+  }
+
+  const passengers =
+    getSharedPassengers(t);
+
+  if(!passengers.length){
+    return false;
+  }
+
+  return passengers.every(
+    p =>
+      isFinalStatusValue(
+        firstValue(
+          p?.status,
+          p?.tripStatus,
+          p?.dispatchStatus
+        )
+      )
+  );
+}
+
+function isClosedTrip(t){
+
+  /*
+    IMPORTANT:
+    Do NOT use firstValue(dispatchStatus,status) here.
+    dispatchStatus can still be SENT / ASSIGNED while status is already
+    Completed / Cancelled / No Show.
+
+    A terminal value in EITHER field closes the trip.
+  */
+
+  if(
+    isFinalStatusValue(
+      t?.status
+    )
+  ){
+    return true;
+  }
+
+  if(
+    isFinalStatusValue(
+      t?.dispatchStatus
+    )
+  ){
+    return true;
+  }
+
+  /*
+    SHARED:
+    Even if the parent trip status is stale, hide the trip when every
+    passenger is final in any mixture of Completed / Cancelled / No Show.
+  */
+  if(
+    isShared(t) &&
+    sharedPassengersAllFinal(t)
+  ){
+    return true;
+  }
+
+  return false;
+}
+
+function canShowAsCurrentTrip(t){
+
+  if(!t){
+    return false;
+  }
+
+  if(isClosedTrip(t)){
+    return false;
+  }
+
+  const status =
+    getStatus(t);
+
+  return ![
+    "Completed",
+    "Cancelled",
+    "NoShow",
+    "NotCompleted"
+  ].includes(status);
+}
+
+function isCompletedTrip(t){
+  return rawStatus(t) === "COMPLETED";
+}
+
+function isNoShowTrip(t){
+  return rawStatus(t) === "NOSHOW";
+}
+
+function isCancelledTrip(t){
+  const s = rawStatus(t);
+  return s === "CANCELLED" || s === "CANCELED";
+}
+
+function isActive(status){
+
+  return (
+    status === "OnTrip" ||
+    status === "Arrived"
+  );
+}
+
+function getClass(status){
+
+  if(status === "Completed"){
+    return "trip-completed";
+  }
+
+  if(status === "Cancelled"){
+    return "trip-cancelled";
+  }
+
+  if(status === "NoShow"){
+    return "trip-noshow";
+  }
+
+  if(isActive(status)){
+    return "trip-active";
+  }
+
+  return "";
+}
+
+
+function getExecutionStatus(t){
+
+  const s =
+    rawStatus(t);
+
+  if(s === "COMPLETED"){
+    return {
+      key:"completed",
+      label:"Completed"
+    };
+  }
+
+  if(
+    s === "CANCELLED" ||
+    s === "CANCELED"
+  ){
+    return {
+      key:"cancelled",
+      label:"Canceled"
+    };
+  }
+
+  if(s === "NOSHOW"){
+    return {
+      key:"noshow",
+      label:"No Show"
+    };
+  }
+
+  if(s === "NOTCOMPLETED"){
+    return {
+      key:"notcompleted",
+      label:"Not Completed"
+    };
+  }
+
+  if(
+    s === "INPROGRESS" ||
+    s === "ONTRIP"
+  ){
+    return {
+      key:"ontrip",
+      label:"On Trip"
+    };
+  }
+
+  if(s === "ARRIVED"){
+    return {
+      key:"arrived",
+      label:"Arrived"
+    };
+  }
+
+  if(s === "ACCEPTED"){
+    return {
+      key:"accepted",
+      label:"Accepted"
+    };
+  }
+
+  return {
+    key:"upcoming",
+    label:"Upcoming"
+  };
+}
+
+function getTripCountdown(t){
+
+  const tripDate =
+    getTripDate(t);
+
+  if(
+    !tripDate ||
+    isNaN(tripDate)
+  ){
+    return "";
+  }
+
+  const diffMs =
+    tripDate.getTime() -
+    getNow().getTime();
+
+  if(diffMs <= 0){
+    return "Ready";
+  }
+
+  const totalMinutes =
+    Math.ceil(
+      diffMs / 60000
+    );
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  if(hours > 0){
+    return `${String(hours).padStart(2,"0")}h ${String(minutes).padStart(2,"0")}m`;
+  }
+
+  return `${String(minutes).padStart(2,"0")}m`;
+}
+
+function executionStatusHtml(t){
+
+  const status =
+    getExecutionStatus(t);
+
+  const countdown =
+    status.key === "upcoming"
+      ? getTripCountdown(t)
+      : "";
+
+  return `
+    <div class="execution-status-box">
+
+      <div class="execution-status-left">
+
+        <span class="execution-status-title">
+          Trip Status:
+        </span>
+
+        <span class="execution-status-pill execution-${esc(status.key)}">
+          ${esc(status.label)}
+        </span>
+
+      </div>
+
+      ${
+        status.key === "upcoming"
+          ? `
+            <div class="execution-countdown">
+              <span>
+                ${
+                  countdown === "Ready"
+                    ? "Trip"
+                    : "Trip starts in"
+                }
+              </span>
+
+              <strong>
+                ${esc(countdown)}
+              </strong>
+            </div>
+          `
+          : ""
+      }
+
+    </div>
+  `;
+}
+
+/* =========================
+   SERVICE
+   Shared ONLY when actual service = SH
+========================= */
+
+function normalizeServiceCode(v){
+
+  const raw =
+    clean(v)
+      .toUpperCase()
+      .replace(/[_\s-]+/g,"");
+
+  if(["WH","WC","WHEELCHAIR"].includes(raw)){
+    return "WH";
+  }
+
+  if(["SH","SHARED"].includes(raw)){
+    return "SH";
+  }
+
+  if(["ST","STANDARD","X"].includes(raw)){
+    return "ST";
+  }
+
+  if(["LM","LIMO","LIMOUSINE"].includes(raw)){
+    return "LM";
+  }
+
+  if(["TX","TAXI"].includes(raw)){
+    return "TX";
+  }
+
+  if(raw === "XL"){
+    return "XL";
+  }
+
+  return raw;
+}
+
+function getServiceCode(t){
+
+  const direct =
+    firstValue(
+      t.serviceCode,
+      t.serviceKey,
+      t.serviceType,
+      t.vehicleTypeFromQuote,
+      t.serviceName,
+      t.service
+    );
+
+  const normalized =
+    normalizeServiceCode(
+      direct
+    );
+
+  if(normalized){
+    return normalized;
+  }
+
+  const tripNo =
+    clean(
+      firstValue(
+        t.tripNumber,
+        t.tripNo
+      )
+    )
+    .toUpperCase();
+
+  const match =
+    tripNo.match(
+      /-(WH|WC|SH|ST|LM|TX|XL)$/
+    );
+
+  if(match){
+    return normalizeServiceCode(
+      match[1]
+    );
+  }
+
+  const tripType =
+    normalizeServiceCode(
+      t.tripType
+    );
+
+  if(tripType === "SH"){
+    return "SH";
+  }
+
+  return "";
+}
+
+function getServiceTitle(t){
+
+  const code =
+    getServiceCode(t);
+
+  if(code === "WH") return "Wheelchair";
+  if(code === "SH") return "Shared";
+  if(code === "ST") return "Standard";
+  if(code === "LM") return "Limousine";
+  if(code === "TX") return "Taxi";
+  if(code === "XL") return "XL";
+
+  return clean(
+    firstValue(
+      t.serviceName,
+      t.serviceType,
+      t.serviceCode,
+      t.serviceKey,
+      t.vehicleTypeFromQuote,
+      "Trip"
+    )
+  );
+}
+
+function isShared(t){
+  return getServiceCode(t) === "SH";
+}
+
+/* =========================
+   TRIP DATA
+========================= */
+
+const getPassenger =
+  t => clean(
+    firstValue(
+      t.clientName,
+      t.passengerName,
+      t.memberName,
+      t.patientName,
+      t.riderName,
+      t.name,
+      "Passenger"
+    )
+  );
+
+const getPhone =
+  t => clean(
+    firstValue(
+      t.clientPhone,
+      t.passengerPhone,
+      t.memberPhone,
+      t.phone
+    )
+  );
+
+const getPickup =
+  t => clean(
+    firstValue(
+      t.pickupAddress,
+      t.pickup,
+      t.fromAddress,
+      t.originAddress,
+      t.origin
+    )
+  );
+
+const getDropoff =
+  t => clean(
+    firstValue(
+      t.dropoffAddress,
+      t.dropoff,
+      t.toAddress,
+      t.destinationAddress,
+      t.destination
+    )
+  );
+
+const getTripNo =
+  t => clean(
+    firstValue(
+      t.tripNumber,
+      t.tripNo,
+      t.reservationNumber,
+      t.confirmationNumber,
+      t._id,
+      t.id
+    )
+  );
+
+const getNotes =
+  t => clean(
+    firstValue(
+      t.driverNotes,
+      t.notes,
+      t.tripNotes,
+      t.note
+    )
+  );
+
+const getDispatchNote =
+  t => clean(
+    firstValue(
+      t.dispatchNote,
+      t.assignmentNote
+    )
+  );
+
+function getVisibleNote(t){
+  return clean(
+    firstValue(
+      t.dispatchNote,
+      t.assignmentNote,
+      t.driverNotes,
+      t.notes,
+      t.tripNotes,
+      t.note,
+      "No notes"
+    )
+  );
+}
+
+function getTripNoteCount(t){
+
+  let count = 0;
+
+  const tripNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    );
+
+  if(tripNote){
+    count += 1;
+  }
+
+  const passengers =
+    getSharedPassengers(t);
+
+  passengers.forEach(p=>{
+    if(passengerNoteValue(p)){
+      count += 1;
+    }
+  });
+
+  return count;
+}
+
+
+/* =========================
+   SHARED
+========================= */
+
+function getSharedPassengers(t){
+
+  return Array.isArray(t.passengers)
+    ? t.passengers
+    : [];
+}
+
+function sharedStops(t){
+
+  const passengers =
+    getSharedPassengers(t);
+
+  const stops = [];
+
+  passengers.forEach((p,index)=>{
+
+    const passengerName =
+      clean(
+        firstValue(
+          p.clientName,
+          p.name,
+          `Passenger ${index + 1}`
+        )
+      );
+
+    const pickupOrder =
+      Number(
+        p.pickupOrder || 0
+      );
+
+    const dropoffOrder =
+      Number(
+        p.dropoffOrder || 0
+      );
+
+    if(clean(p.pickup)){
+
+      stops.push({
+        order:
+          pickupOrder > 0
+            ? pickupOrder
+            : null,
+
+        fallback:
+          index * 2 + 1,
+
+        type:"pickup",
+
+        passenger:
+          passengerName,
+
+        address:
+          clean(p.pickup)
+      });
+    }
+
+    if(clean(p.dropoff)){
+
+      stops.push({
+        order:
+          dropoffOrder > 0
+            ? dropoffOrder
+            : null,
+
+        fallback:
+          index * 2 + 2,
+
+        type:"dropoff",
+
+        passenger:
+          passengerName,
+
+        address:
+          clean(p.dropoff)
+      });
+    }
+
+  });
+
+  const hasRealOrder =
+    stops.some(
+      s =>
+        Number.isFinite(s.order) &&
+        s.order > 0
+    );
+
+  return stops.sort((a,b)=>{
+
+    if(hasRealOrder){
+
+      const ao =
+        a.order || 9999;
+
+      const bo =
+        b.order || 9999;
+
+      if(ao !== bo){
+        return ao - bo;
+      }
+    }
+
+    return a.fallback - b.fallback;
+  });
+}
+
+/* =========================
+   EYE DETAILS
+   Passenger information only
+========================= */
+
+function passengerNameValue(p,index=0){
+  return clean(
+    firstValue(
+      p?.clientName,
+      p?.passengerName,
+      p?.memberName,
+      p?.patientName,
+      p?.riderName,
+      p?.name,
+      `Passenger ${index + 1}`
+    )
+  );
+}
+
+function passengerPhoneValue(p){
+  return clean(
+    firstValue(
+      p?.clientPhone,
+      p?.passengerPhone,
+      p?.memberPhone,
+      p?.patientPhone,
+      p?.riderPhone,
+      p?.phone,
+      p?.mobile,
+      p?.phoneNumber
+    )
+  );
+}
+
+function passengerPickupValue(p,t=null){
+  return clean(
+    firstValue(
+      p?.pickupAddress,
+      p?.pickup,
+      p?.fromAddress,
+      p?.originAddress,
+      p?.origin,
+      t ? getPickup(t) : ""
+    )
+  );
+}
+
+function passengerDropoffValue(p,t=null){
+  return clean(
+    firstValue(
+      p?.dropoffAddress,
+      p?.dropoff,
+      p?.toAddress,
+      p?.destinationAddress,
+      p?.destination,
+      t ? getDropoff(t) : ""
+    )
+  );
+}
+
+function passengerNoteValue(p){
+  return clean(
+    firstValue(
+      p?.driverNotes,
+      p?.notes,
+      p?.tripNotes,
+      p?.note
+    )
+  );
+}
+
+function passengerDetailCard(p,index,t){
+
+  const name =
+    passengerNameValue(p,index);
+
+  const phone =
+    passengerPhoneValue(p);
+
+  const pickup =
+    passengerPickupValue(p,t);
+
+  const dropoff =
+    passengerDropoffValue(p,t);
+
+  const note =
+    passengerNoteValue(p);
+
+  return `
+    <div class="eye-passenger-card">
+
+      <div class="eye-passenger-head">
+
+        <div class="eye-passenger-number">
+          ${index + 1}
+        </div>
+
+        <div class="eye-passenger-name">
+          ${esc(name || `Passenger ${index + 1}`)}
+        </div>
+
+        ${
+          phone
+            ? `
+              <a
+                class="eye-phone-btn"
+                href="tel:${esc(phone)}"
+                aria-label="Call ${esc(name || `Passenger ${index + 1}`)}"
+              >
+                ${phoneIcon()}
+              </a>
+            `
+            : ""
+        }
+
+      </div>
+
+      <div class="eye-detail-line">
+        <span>Phone</span>
+        <strong>
+          ${
+            phone
+              ? `<a class="eye-phone-text" href="tel:${esc(phone)}">${esc(phone)}</a>`
+              : "-"
+          }
+        </strong>
+      </div>
+
+      <div class="eye-detail-line">
+        <span>Pickup</span>
+        <strong>${esc(pickup || "-")}</strong>
+      </div>
+
+      <div class="eye-detail-line">
+        <span>Dropoff</span>
+        <strong>${esc(dropoff || "-")}</strong>
+      </div>
+
+      ${
+        note
+          ? `
+            <div class="eye-passenger-note">
+              <span>Passenger Note</span>
+              <strong>${esc(note)}</strong>
+            </div>
+          `
+          : ""
+      }
+
+    </div>
+  `;
+}
+
+function buildExtraHtml(t){
+
+  let passengers =
+    isShared(t)
+      ? getSharedPassengers(t)
+      : [];
+
+  /*
+    Individual trips may not have a passengers array,
+    so build one passenger from the trip itself.
+  */
+  if(!passengers.length){
+
+    passengers = [{
+      clientName:getPassenger(t),
+      clientPhone:getPhone(t),
+      pickup:getPickup(t),
+      dropoff:getDropoff(t),
+      notes:getNotes(t)
+    }];
+  }
+
+  const passengerHtml =
+    passengers
+      .map(
+        (p,index)=>
+          passengerDetailCard(
+            p,
+            index,
+            isShared(t) ? null : t
+          )
+      )
+      .join("");
+
+  const tripNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    );
+
+  return `
+    <div class="eye-details-title">
+      Passenger Details
+    </div>
+
+    <div class="eye-passengers-list">
+      ${passengerHtml}
+    </div>
+
+    ${
+      tripNote
+        ? `
+          <div class="eye-trip-note">
+            <div class="eye-trip-note-title">
+              Trip Note
+            </div>
+
+            <div class="eye-trip-note-text">
+              ${esc(tripNote)}
+            </div>
+          </div>
+        `
+        : ""
+    }
+  `;
+}
+
+/* =========================
+   ACTIONS
+========================= */
+
+function openTrip(id, locked = false){
+
+  if(locked){
+    alert(
+      "This trip will open 2 hours before pickup time."
+    );
+    return;
+  }
+
+  location.href =
+    `map.html?tripId=${encodeURIComponent(id)}`;
+}
+
+function toggleNote(id){
+
+  const box =
+    document.getElementById(
+      `note-${id}`
+    );
+
+  if(!box){
+    return;
+  }
+
+  const willOpen =
+    !box.classList.contains("open");
+
+  box.classList.toggle("open");
+
+  openNoteTripId =
+    willOpen
+      ? String(id)
+      : "";
+}
+
+function toggleExtra(id){
+
+  const panel =
+    document.getElementById(
+      `extra-${id}`
+    );
+
+  if(!panel){
+    return;
+  }
+
+  const willOpen =
+    !panel.classList.contains("open");
+
+  panel.classList.toggle("open");
+
+  openDetailsTripId =
+    willOpen
+      ? String(id)
+      : "";
+}
+
+/* =========================
+   ICONS
+========================= */
+
+const phoneIcon =
+  () => `
+    <svg viewBox="0 0 24 24">
+      <path d="M6.5 3.5 9 8l-1.7 1.7c.9 2 2.5 3.6 4.5 4.5l1.7-1.7 4.5 2.5c.5.3.7.8.5 1.4l-.7 3c-.1.5-.6.9-1.1.9C9.5 20.3 3.7 14.5 3.7 7.3c0-.5.4-1 .9-1.1l3-.7c.5-.1 1.1.1 1.4.5z"/>
+    </svg>
+  `;
+
+const eyeIcon =
+  () => `
+    <svg viewBox="0 0 24 24">
+      <path d="M12 5C6.5 5 2.3 9.1 1 12c1.3 2.9 5.5 7 11 7s9.7-4.1 11-7c-1.3-2.9-5.5-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2.1A1.9 1.9 0 1 0 12 10a1.9 1.9 0 0 0 0 3.9z"/>
+    </svg>
+  `;
+
+/* =========================
+   ROUTE VIEW
+   ADDRESS IS DISPLAY ONLY
+========================= */
+
+function normalRoute(t){
+
+  return `
+    <div class="route">
+
+      <div class="address-row">
+        <div class="marker pickup">P</div>
+
+        <div>
+          <div class="address-label">
+            Pickup
+          </div>
+
+          <div class="address-text">
+            ${esc(getPickup(t) || "-")}
+          </div>
+        </div>
+      </div>
+
+      <div class="address-row">
+        <div class="marker dropoff">D</div>
+
+        <div>
+          <div class="address-label">
+            Dropoff
+          </div>
+
+          <div class="address-text">
+            ${esc(getDropoff(t) || "-")}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function sharedRoute(t){
+
+  const stops =
+    sharedStops(t);
+
+  if(!stops.length){
+
+    return `
+      <div class="shared-route">
+
+        <div class="shared-head">
+          <strong>Shared Route</strong>
+          <span>No route stops</span>
+        </div>
+
+      </div>
+    `;
+  }
+
+  return `
+    <div class="shared-route">
+
+      <div class="shared-head">
+        <strong>Shared Route</strong>
+        <span>${stops.length} stops</span>
+      </div>
+
+      ${
+        stops
+          .map((stop,index)=>`
+
+            <div class="shared-stop">
+
+              <div class="stop-number">
+                ${index + 1}
+              </div>
+
+              <div>
+
+                <div class="stop-top">
+
+                  <span class="stop-type ${stop.type}">
+                    ${
+                      stop.type === "pickup"
+                        ? "PICKUP"
+                        : "DROPOFF"
+                    }
+                  </span>
+
+                  <span class="stop-name">
+                    ${esc(stop.passenger)}
+                  </span>
+
+                </div>
+
+                <div class="stop-address">
+                  ${esc(stop.address || "-")}
+                </div>
+
+              </div>
+
+            </div>
+
+          `)
+          .join("")
+      }
+
+    </div>
+  `;
+}
+
+/* =========================
+   CURRENT TRIP CARD
+========================= */
+
+function card(t, options = {}){
+
+  if(
+    !canShowAsCurrentTrip(t)
+  ){
+    return "";
+  }
+
+  const status = getStatus(t);
+  const previewLocked =
+    options.previewLocked === true;
+  const shared = isShared(t);
+  const passenger = getPassenger(t);
+  const serviceTitle = getServiceTitle(t);
+  const serviceCode = getServiceCode(t);
+  const noteText = getVisibleNote(t);
+
+  const hasImportantNote =
+    clean(
+      firstValue(
+        t.dispatchNote,
+        t.assignmentNote,
+        t.driverNotes,
+        t.notes,
+        t.tripNotes,
+        t.note
+      )
+    ) !== "";
+
+  const noteCount =
+    getTripNoteCount(t);
+
+  const id = clean(t._id || t.id);
+
+  const safeId =
+    id.replace(/[^a-zA-Z0-9_-]/g,"") ||
+    Math.random().toString(36).slice(2);
+
+  const initials =
+    passenger
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0,2)
+      .map(x=>x[0].toUpperCase())
+      .join("") || "P";
+
+  const stops = shared ? sharedStops(t) : [];
+
+  const passengerCount =
+    shared
+      ? Math.max(
+          getSharedPassengers(t).length,
+          Math.ceil(stops.length / 2)
+        )
+      : 1;
+
+  const firstPickup =
+    shared
+      ? (
+          stops.find(s=>s.type === "pickup")?.address ||
+          getPickup(t) ||
+          "-"
+        )
+      : (getPickup(t) || "-");
+
+  const lastDropoff =
+    shared
+      ? (
+          [...stops].reverse().find(s=>s.type === "dropoff")?.address ||
+          getDropoff(t) ||
+          "-"
+        )
+      : (getDropoff(t) || "-");
+
+  return `
+    <article class="trip-card ${getClass(status)}">
+
+      <div class="trip-meta-grid">
+
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Time</div>
+          <div class="trip-meta-value">${formatTime(t)}</div>
+        </div>
+
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Date</div>
+          <div class="trip-meta-value">${esc(formatTripDate(t))}</div>
+        </div>
+
+        <div class="trip-meta-box">
+          <div class="trip-meta-label">Trip #</div>
+          <div class="trip-meta-value">${esc(getTripNo(t) || "-")}</div>
+        </div>
+
+      </div>
+
+      ${
+        status === "Dispatched"
+          ? ""
+          : `
+            <div class="current-status-row">
+              <div class="current-status-pill status-${esc(status)}">
+                ${esc(status)}
+              </div>
+            </div>
+          `
+      }
+
+      <div class="trip-summary-row">
+
+        <div class="avatar">
+          ${shared ? "SH" : esc(initials)}
+        </div>
+
+        <div class="passenger-data">
+
+          <div class="passenger-name">
+            ${shared ? "Shared Trip" : esc(serviceTitle)}
+          </div>
+
+          <div class="passenger-sub">
+            ${
+              shared
+                ? "Follow server route order"
+                : `${esc(serviceTitle)}${serviceCode ? ` (${esc(serviceCode)})` : ""}`
+            }
+          </div>
+
+        </div>
+
+        ${
+          shared
+            ? `
+              <div class="shared-count">
+                <strong>${passengerCount}</strong>
+                <span>Passengers</span>
+                <small>${stops.length} Stops</small>
+              </div>
+            `
+            : ""
+        }
+
+        <button
+          class="eye-btn summary-eye-btn"
+          type="button"
+          onclick="toggleExtra('${safeId}')"
+          aria-label="View all trip information"
+          title="View all trip information"
+        >
+          ${eyeIcon()}
+        </button>
+
+      </div>
+
+      <div
+        class="extra-panel summary-extra-panel ${openDetailsTripId === safeId ? "open" : ""}"
+        id="extra-${safeId}"
+      >
+        <div class="summary-extra-head">
+          <span>Passenger Details</span>
+
+          <button
+            class="summary-extra-close"
+            type="button"
+            onclick="toggleExtra('${safeId}')"
+            aria-label="Close passenger details"
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        ${buildExtraHtml(t)}
+      </div>
+
+      ${executionStatusHtml(t)}
+
+      <div class="compact-route">
+
+        <div class="compact-route-row">
+
+          <div class="route-pin pickup"></div>
+
+          <div class="compact-route-data">
+
+            <div class="compact-route-label">
+              Pickup
+              ${shared ? `<span>(1st Stop)</span>` : ""}
+            </div>
+
+            <div class="compact-route-address">
+              ${esc(firstPickup)}
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="compact-route-row">
+
+          <div class="route-pin dropoff"></div>
+
+          <div class="compact-route-data">
+
+            <div class="compact-route-label">
+              Dropoff
+              ${shared ? `<span>(Last Stop)</span>` : ""}
+            </div>
+
+            <div class="compact-route-address">
+              ${esc(lastDropoff)}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div
+        class="note-box ${openNoteTripId === safeId ? "open" : ""}"
+        id="note-${safeId}"
+      >
+
+        <button
+          class="note-toggle"
+          type="button"
+          onclick="toggleNote('${safeId}')"
+        >
+          <span class="note-box-label">
+            ${hasImportantNote ? "IMPORTANT NOTE" : "NOTE"}
+          </span>
+
+          ${
+            noteCount > 0
+              ? `<span class="note-count">${noteCount}</span>`
+              : ""
+          }
+        </button>
+
+        <div class="note-box-text">
+          ${esc(noteText)}
+        </div>
+
+      </div>
+
+      <button
+        class="notification-btn ${previewLocked ? "locked" : ""}"
+        type="button"
+        onclick='openTrip(${JSON.stringify(id)}, ${previewLocked ? "true" : "false"})'
+      >
+        Go To Notification
+      </button>
+
+    </article>
+  `;
+}
+
+/* =========================
+   HEADER COUNTERS
+========================= */
+
+function updateHeader(
+  todayTrips,
+  tomorrowTrips,
+  completedTrips,
+  noShowTrips,
+  cancelledTrips,
+  remainingTrips,
+  currentTrip
+){
+
+  if(todayTripCount){
+    todayTripCount.textContent = String(todayTrips.length);
+  }
+
+  if(tomorrowTripCount){
+    tomorrowTripCount.textContent = String(tomorrowTrips.length);
+  }
+
+  if(completedTripCount){
+    completedTripCount.textContent = String(completedTrips.length);
+  }
+
+  if(noShowTripCount){
+    noShowTripCount.textContent = String(noShowTrips.length);
+  }
+
+  if(cancelledTripCount){
+    cancelledTripCount.textContent = String(cancelledTrips.length);
+  }
+
+  if(currentTrip && remainingTrips.length){
+
+    tripAlert?.classList.remove("done");
+
+    if(tripAlertText){
+      tripAlertText.textContent =
+        remainingTrips.length > 1
+          ? "YOU HAVE A TRIP"
+          : (
+              isTomorrowTrip(currentTrip)
+                ? "TOMORROW TRIP PREVIEW"
+                : "YOU HAVE YOUR LAST TRIP"
+            );
+    }
+
+  }else{
+
+    tripAlert?.classList.add("done");
+
+    if(tripAlertText){
+      tripAlertText.textContent =
+        todayTrips.length
+          ? "NO MORE ACTIVE TRIPS"
+          : "NO TRIPS TODAY";
+    }
+
+  }
+
+}
+
+/* =========================
+   RENDER ONE TRIP ONLY
+========================= */
+
+function render(trips){
+
+  const todayTrips =
+    trips
+      .filter(isTodayTrip)
+      .filter(
+        t =>
+          !isExpired(t) ||
+          isClosedTrip(t)
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  const tomorrowTrips =
+    trips
+      .filter(isTomorrowTrip)
+      .filter(
+        t => !isClosedTrip(t)
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  const completedTrips =
+    todayTrips.filter(
+      isCompletedTrip
+    );
+
+  const noShowTrips =
+    todayTrips.filter(isNoShowTrip);
+
+  const cancelledTrips =
+    todayTrips.filter(isCancelledTrip);
+
+  const remainingTrips =
+    todayTrips
+      .filter(
+        canShowAsCurrentTrip
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  const tomorrowPreviewTrips =
+    tomorrowTrips
+      .filter(
+        canShowAsCurrentTrip
+      )
+      .sort(
+        (a,b)=>
+          getTripDate(a) -
+          getTripDate(b)
+      );
+
+  /*
+    The driver sees ONE trip only.
+    Today's available work has priority.
+    If no current today trip is waiting, show the first tomorrow trip
+    as a locked preview so the driver can plan the next day.
+  */
+  const currentTrip =
+    remainingTrips[0] ||
+    tomorrowPreviewTrips[0] ||
+    null;
+
+  if(currentTrip){
+
+    const currentId =
+      clean(
+        currentTrip._id ||
+        currentTrip.id
+      )
+      .replace(
+        /[^a-zA-Z0-9_-]/g,
+        ""
+      );
+
+    if(
+      openDetailsTripId &&
+      openDetailsTripId !== currentId
+    ){
+      openDetailsTripId = "";
+    }
+
+    if(
+      openNoteTripId &&
+      openNoteTripId !== currentId
+    ){
+      openNoteTripId = "";
+    }
+
+  }else{
+    openDetailsTripId = "";
+    openNoteTripId = "";
+  }
+
+  updateHeader(
+    todayTrips,
+    tomorrowTrips,
+    completedTrips,
+    noShowTrips,
+    cancelledTrips,
+    remainingTrips,
+    currentTrip
+  );
+
+  if(currentTrip){
+
+    const previewLocked =
+      isTomorrowTrip(currentTrip) &&
+      !isWithinExecutionWindow(currentTrip);
+
+    container.innerHTML =
+      card(
+        currentTrip,
+        {
+          previewLocked
+        }
+      );
+
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="empty">
+
+      <strong>
+        ${
+          todayTrips.length
+            ? "All Trips Completed"
+            : "No Trips Today"
+        }
+      </strong>
+
+      <br>
+
+      ${
+        todayTrips.length
+          ? "There are no more trips waiting for you."
+          : "New dispatched trips will appear here automatically."
+      }
+
+    </div>
+  `;
+}
+
+/* =========================
+   LOAD
+========================= */
+
+async function loadTrips(){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/driver/my-trips/${encodeURIComponent(driverId)}`,
+        {
+          cache:"no-store",
+          headers:{
+            "Cache-Control":"no-cache",
+            ...(getDriverToken()
+              ? {
+                  Authorization:`Bearer ${getDriverToken()}`,
+                  "x-access-token":getDriverToken()
+                }
+              : {})
+          }
+        }
+      );
+
+    if(!res.ok){
+
+      throw new Error(
+        `HTTP ${res.status}`
+      );
+    }
+
+    const data =
+      await res.json();
+
+    const trips =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data?.trips)
+          ? data.trips
+          : [];
+
+    render(trips);
+
+  }catch(err){
+
+    console.error(
+      "DRIVER TRIPS LOAD ERROR:",
+      err
+    );
+
+    if(todayTripCount){
+      todayTripCount.textContent = "0";
+    }
+
+    if(tomorrowTripCount){
+      tomorrowTripCount.textContent = "0";
+    }
+
+    if(completedTripCount){
+      completedTripCount.textContent = "0";
+    }
+
+    if(noShowTripCount){
+      noShowTripCount.textContent = "0";
+    }
+
+    if(cancelledTripCount){
+      cancelledTripCount.textContent = "0";
+    }
+
+    tripAlert
+      ?.classList
+      .add("done");
+
+    if(tripAlertText){
+      tripAlertText.textContent =
+        "TRIPS CONNECTION ERROR";
+    }
+
+    container.innerHTML = `
+      <div class="empty">
+        <strong>Error loading trips</strong>
+        <br>
+        Please try again.
+      </div>
+    `;
+  }
+}
+
+/* =========================
+   START
+========================= */
+
+updateTodayLabel();
+
+loadTrips();
+
+setInterval(
+  loadTrips,
+  5000
+);

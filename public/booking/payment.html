@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="/core/branding.js"></script>
+  <title>Confirm Booking</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff}
+    .box{width:100%;max-width:390px;background:#111827;border-radius:18px;padding:28px;text-align:center;box-shadow:0 15px 35px rgba(0,0,0,.45)}
+    .spinner{width:48px;height:48px;margin:0 auto 18px;border:5px solid #334155;border-top-color:#22c55e;border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    h2{margin:0 0 10px}.msg{color:#cbd5e1;font-size:14px;line-height:1.5}.success{color:#22c55e}.error{color:#f87171}
+    button{width:100%;margin-top:18px;padding:14px;border:0;border-radius:10px;background:#22c55e;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div id="spinner" class="spinner"></div>
+    <h2 id="title">Opening secure payment...</h2>
+    <div id="message" class="msg">You’ll continue on Stripe.</div>
+    <button id="retryBtn" style="display:none">Continue</button>
+  </div>
+
+<script>
+(async function(){
+  "use strict";
+
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get("tripId");
+  const sessionId = params.get("session_id");
+  const cancelled = params.get("cancelled") === "1";
+  const saved = params.get("saved") === "1";
+
+  const tenantSlug =
+    String(
+      params.get("tenant") ||
+      params.get("tenantSlug") ||
+      localStorage.getItem("tenantSlug") ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(tenantSlug){
+    localStorage.setItem(
+      "tenantSlug",
+      tenantSlug
+    );
+  }
+
+  const spinner = document.getElementById("spinner");
+  const title = document.getElementById("title");
+  const message = document.getElementById("message");
+  const retryBtn = document.getElementById("retryBtn");
+
+
+  async function loadTenantBranding(){
+
+    if(
+      !window.Branding ||
+      !tenantSlug
+    ){
+      return;
+    }
+
+    try{
+
+      await Branding.load();
+
+      const companyName =
+        Branding.getCompanyName?.() ||
+        Branding.tenant?.name ||
+        "";
+
+      if(companyName){
+
+        document.title =
+          `Confirm Booking – ${companyName}`;
+
+      }
+
+    }catch(err){
+
+      console.log(
+        "PAYMENT BRANDING ERROR:",
+        err
+      );
+    }
+  }
+
+  function error(text){
+    spinner.style.display="none";
+    title.textContent="Unable to continue";
+    message.className="msg error";
+    message.textContent=text;
+    retryBtn.style.display="block";
+  }
+
+  function success(){
+    spinner.style.display="none";
+    title.textContent="Booking Confirmed";
+    title.className="success";
+    message.textContent="Your booking is confirmed.";
+    retryBtn.style.display="none";
+  }
+
+  async function confirmTripForDispatch(){
+    const res = await fetch(
+      "/api/payment-success",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          tripId
+        })
+      }
+    );
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      throw new Error(
+        data.message ||
+        "Booking confirmation failed"
+      );
+    }
+  }
+
+  async function openStripe(){
+    title.textContent="Opening secure payment...";
+    message.textContent="You’ll continue on Stripe.";
+    spinner.style.display="block";
+    retryBtn.style.display="none";
+
+    const res = await fetch(
+      `/api/trip-payment/${encodeURIComponent(tripId)}/checkout-session`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          tenantSlug
+        })
+      }
+    );
+
+    const data = await res.json().catch(()=>({}));
+
+    if(!res.ok || data.success === false){
+      throw new Error(data.message || "Could not open Stripe");
+    }
+
+    if(data.alreadySaved){
+      await confirmTripForDispatch();
+      success();
+      return;
+    }
+
+    if(!data.checkoutUrl){
+      throw new Error("Stripe link is missing");
+    }
+
+    location.replace(data.checkoutUrl);
+  }
+
+  retryBtn.onclick=()=>{
+    openStripe().catch(err=>error(err.message));
+  };
+
+  await loadTenantBranding();
+
+  if(!tripId){
+    error("Missing trip ID");
+    return;
+  }
+
+  try{
+    if(saved){
+      success();
+      return;
+    }
+
+    if(sessionId){
+      title.textContent="Confirming booking...";
+      message.textContent="Please wait.";
+
+      const res = await fetch(
+        `/api/trip-payment/${encodeURIComponent(tripId)}/checkout-success`,
+        {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({sessionId})
+        }
+      );
+
+      const data = await res.json().catch(()=>({}));
+
+      if(!res.ok || data.success === false){
+        throw new Error(data.message || "Booking confirmation failed");
+      }
+
+      await confirmTripForDispatch();
+      success();
+      return;
+    }
+
+    if(cancelled){
+      spinner.style.display="none";
+      title.textContent="Payment not completed";
+      message.textContent="You can continue whenever you’re ready.";
+      retryBtn.style.display="block";
+      return;
+    }
+
+    await openStripe();
+
+  }catch(err){
+    error(err.message || "Unable to continue");
+  }
+})();
+</script>
+</body>
+</html>

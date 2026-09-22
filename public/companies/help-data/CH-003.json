@@ -1,0 +1,102 @@
+{
+  "id": "CH-003",
+  "page": "review.html",
+  "name": "Review",
+  "description": "Review company trips before final confirmation, make allowed changes, confirm trips, cancel trips when permitted, and handle route changes such as Add Stop.",
+  "tasks": [
+    {
+      "id": "CH-003-T01",
+      "title": "Review a trip before confirmation",
+      "summary": "Open the trip and verify passenger, route, date, time, service, and price information before confirming.",
+      "steps": [
+        "Open Review.",
+        "Locate the trip.",
+        "Open the trip details.",
+        "Verify the trip information.",
+        "Confirm only after the information is correct."
+      ],
+      "keywords": [
+        "review",
+        "review a trip before confirmation"
+      ]
+    },
+    {
+      "id": "CH-003-T02",
+      "title": "Edit a trip in Review",
+      "summary": "Use the Review edit action for changes that are still allowed before confirmation.",
+      "steps": [
+        "Locate the trip in Review.",
+        "Select Edit.",
+        "Update the allowed fields.",
+        "Save the changes.",
+        "Review the trip again before confirmation."
+      ],
+      "keywords": [
+        "review",
+        "edit a trip in review"
+      ]
+    },
+    {
+      "id": "CH-003-T03",
+      "title": "Confirm a trip",
+      "summary": "Confirm the trip after the final review is complete.",
+      "steps": [
+        "Locate the reviewed trip.",
+        "Verify route, date, time, service, and price.",
+        "Select Confirm.",
+        "Verify the trip leaves the review workflow as expected."
+      ],
+      "keywords": [
+        "review",
+        "confirm a trip"
+      ]
+    },
+    {
+      "id": "CH-003-T04",
+      "title": "Cancel a trip",
+      "summary": "Use Cancel only when the trip is eligible for cancellation under the active service rules.",
+      "steps": [
+        "Open the trip in Review.",
+        "Select Cancel.",
+        "Read any cancellation warning or fee information.",
+        "Confirm the cancellation only when correct."
+      ],
+      "keywords": [
+        "review",
+        "cancel a trip"
+      ]
+    },
+    {
+      "id": "CH-003-T05",
+      "title": "Add a stop to an existing trip",
+      "summary": "Use the Add Stop workflow when the service allows route changes.",
+      "steps": [
+        "Open the required trip.",
+        "Choose the Add Stop action.",
+        "Enter the new stop.",
+        "Confirm Add Stop.",
+        "Return to Review.",
+        "Verify the route and updated price before confirmation."
+      ],
+      "keywords": [
+        "review",
+        "add a stop to an existing trip"
+      ]
+    },
+    {
+      "id": "CH-003-T06",
+      "title": "Review Shared trips",
+      "summary": "Shared trips may contain multiple passengers; verify the passenger group and route before confirmation.",
+      "steps": [
+        "Open the Shared trip.",
+        "Review every passenger.",
+        "Check pickup/dropoff order and Shared route details.",
+        "Confirm only after the group is correct."
+      ],
+      "keywords": [
+        "review",
+        "review shared trips"
+      ]
+    }
+  ]
+}

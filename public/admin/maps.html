@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Live Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<link rel="stylesheet" href="/admin/maps.css">
+
+<style>
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#020617;
+  font-family:Arial, sans-serif;
+  overflow:hidden;
+}
+
+#adminHeader{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:10000;
+}
+
+.map-page{
+  position:absolute;
+  top:80px;
+  left:0;
+  right:0;
+  bottom:0;
+  background:#020617;
+}
+
+#map{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:1;
+}
+
+.map-title-box{
+  position:fixed;
+  top:92px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:9998;
+  background:rgba(15,23,42,.92);
+  color:white;
+  padding:8px 18px;
+  border-radius:999px;
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+  text-align:center;
+  pointer-events:none;
+}
+
+.map-title-box h2{
+  margin:0;
+  font-size:14px;
+  color:#facc15;
+  font-weight:900;
+}
+
+.map-title-box span{
+  display:block;
+  font-size:11px;
+  color:#cbd5e1;
+  margin-top:2px;
+  font-weight:700;
+}
+
+@media(max-width:800px){
+  .map-page{ top:75px; }
+
+  .map-title-box{
+    top:84px;
+    padding:6px 12px;
+  }
+
+  .map-title-box h2{ font-size:12px; }
+  .map-title-box span{ font-size:10px; }
+}
+</style>
+
+<style>
+/* =========================
+   DRIVERS LIST POSITION FIX
+   Move the Leaflet control/list to the left and below the fixed admin header.
+   Map geometry and header are untouched.
+========================= */
+
+.leaflet-top.leaflet-right{
+  top:72px !important;
+  right:auto !important;
+  left:12px !important;
+}
+
+.leaflet-top.leaflet-right .leaflet-control{
+  margin-right:0 !important;
+  margin-left:0 !important;
+}
+
+@media(max-width:800px){
+
+  .leaflet-top.leaflet-right{
+    top:68px !important;
+    left:8px !important;
+    right:auto !important;
+  }
+
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="map-title-box">
+  <h2 class="company-name">Sunbeam Transportation</h2>
+  <span>LIVE DRIVERS MAP</span>
+</div>
+
+<div class="map-page">
+  <div id="map"></div>
+</div>
+
+<script>
+/* =========================
+   SECURITY - TAB SAFE
+========================= */
+
+function staffValue(sessionKey, legacyKey){
+  return String(
+    sessionStorage.getItem(sessionKey) ||
+    localStorage.getItem(legacyKey) ||
+    ""
+  ).trim();
+}
+
+const token =
+  staffValue("staffToken","token");
+
+const role =
+  staffValue("staffRole","role")
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+
+const allowed =
+  role === "SUPER_ADMIN" ||
+  role === "SUPERADMIN" ||
+  role === "ADMIN" ||
+  role === "DISPATCHER";
+
+if(!token || !allowed){
+  window.location.replace("/login.html");
+}else{
+  /*
+    Keep legacy admin scripts/header working in this tab.
+  */
+  localStorage.setItem("token",token);
+  localStorage.setItem(
+    "role",
+    staffValue("staffRole","role")
+  );
+
+  const staffName =
+    staffValue("staffName","name");
+
+  const tenantId =
+    staffValue("staffTenantId","tenantId");
+
+  const tenantSlug =
+    staffValue("staffTenantSlug","tenantSlug");
+
+  if(staffName){
+    localStorage.setItem("name",staffName);
+  }
+
+  if(tenantId){
+    localStorage.setItem("tenantId",tenantId);
+  }
+
+  if(tenantSlug){
+    localStorage.setItem("tenantSlug",tenantSlug);
+  }
+}
+
+/* =========================
+   ADMIN HEADER
+========================= */
+
+/*
+  header.js loads header.html itself and builds all desktop/mobile buttons.
+  Load it normally before DOMContentLoaded instead of injecting it after
+  DOMContentLoaded, otherwise its DOMContentLoaded handler never runs.
+*/
+</script>
+
+<script src="/admin/header.js"></script>
+
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/admin/maps.js"></script>
+
+</body>
+</html>

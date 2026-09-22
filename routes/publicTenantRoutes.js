@@ -1,0 +1,1429 @@
+"use strict";
+
+const express = require("express");
+
+const router = express.Router();
+
+const Tenant = require("../models/Tenant");
+const SystemDesign = require("../models/SystemDesign");
+const Service = require("../models/Service");
+const BookingDataConfig = require("../models/BookingDataConfig");
+
+const {
+  normalizeServiceCode,
+  getServiceGateKey,
+  getServiceOperationalCode
+} = require("../utils/serviceIdentityResolver");
+
+const {
+  validateTripZone
+} = require("../utils/serviceZoneEngine");
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+async function validatePublicGetQuoteZone(
+  tenant,
+  body = {}
+){
+
+  const tenantId =
+    String(
+      tenant?._id ||
+      tenant?.id ||
+      ""
+    ).trim();
+
+  const payload = {
+    ...(body || {}),
+
+    /*
+      Force public quote requests to Get Quote Zone.
+      Client-supplied source/type cannot redirect this validation
+      to Companies or Reserved.
+    */
+    type:"quote",
+    source:"GET_QUOTE",
+    bookingSource:"GET_QUOTE",
+    company:""
+  };
+
+  return await validateTripZone({
+    tenantId,
+    payload,
+    existingTrip:null
+  });
+}
+
+function zoneFailureResponse(
+  res,
+  zoneResult
+){
+
+  return res
+    .status(
+      Number(
+        zoneResult?.statusCode ||
+        422
+      )
+    )
+    .json({
+      success:false,
+      code:
+        zoneResult?.code ||
+        "OUTSIDE_SERVICE_ZONE",
+      message:
+        zoneResult?.message ||
+        "This trip is outside the service zone.",
+      zone:
+        zoneResult?.zone || "",
+      zoneKey:
+        zoneResult?.zoneKey || "",
+      radiusMiles:
+        zoneResult?.radiusMiles ?? null,
+      distanceMiles:
+        zoneResult?.distanceMiles ?? null
+    });
+}
+
+function normalizeServiceKey(value){
+
+  const raw =
+    clean(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw) return "";
+
+  if(raw === "ST" || raw === "STANDARD" || raw.includes("STANDARD")){
+    return "ST";
+  }
+
+  if(
+    raw === "WH" ||
+    raw === "WC" ||
+    raw === "WHEELCHAIR" ||
+    raw === "WHEEL CHAIR" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(raw === "SH" || raw === "SHARED" || raw.includes("SHARED")){
+    return "SH";
+  }
+
+  if(
+    raw === "LM" ||
+    raw === "LIMO" ||
+    raw === "LIMOUSINE" ||
+    raw.includes("LIMOUSINE") ||
+    raw.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(raw === "TX" || raw === "TAXI" || raw.includes("TAXI")){
+    return "TX";
+  }
+
+  if(raw === "XL" || raw === "XL SERVICE" || raw.startsWith("XL ")){
+    return "XL";
+  }
+
+  return raw.replace(/\s+/g,"");
+}
+
+function serviceCardKey(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.key,
+    service?.code,
+    service?.suffix,
+    service?.companySuffix,
+    service?.reservedSuffix,
+    service?.title,
+    service?.title_en,
+    service?.titleEs,
+    service?.title_es,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    const key =
+      normalizeServiceKey(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"].includes(key) ||
+      /^CUSTOM[1-4]$/.test(key) ||
+      /^[A-Z]{2}$/.test(key)
+    ){
+      return key;
+    }
+  }
+
+  return "";
+}
+
+function publicDesignObject(design,tenant){
+
+  const data =
+    design?.toObject
+      ? design.toObject()
+      : (design || {});
+
+  const allowedServices =
+    Array.isArray(tenant?.allowedServices)
+      ? tenant.allowedServices
+          .map(normalizeServiceKey)
+          .filter(Boolean)
+      : [];
+
+  const allowedSet =
+    new Set(allowedServices);
+
+  const designServices =
+    Array.isArray(data.services)
+      ? data.services
+      : [];
+
+  const services =
+    designServices
+      .map(service=>{
+
+        const serviceKey =
+          serviceCardKey(service);
+
+        return {
+          ...service,
+          serviceKey
+        };
+      })
+      .filter(service=>
+        service.serviceKey &&
+        allowedSet.has(service.serviceKey)
+      );
+
+  const safe = {
+    ...data,
+
+    companyName:
+      data.companyName ||
+      tenant?.branding?.companyName ||
+      tenant?.name ||
+      "",
+
+    mainLogo:
+      data.mainLogo ||
+      tenant?.branding?.logo ||
+      "",
+
+    timezone:
+      data.timezone ||
+      tenant?.timezone ||
+      "America/Phoenix",
+
+    services
+  };
+
+  delete safe._id;
+  delete safe.__v;
+  delete safe.tenantId;
+  delete safe.createdAt;
+  delete safe.updatedAt;
+
+  return safe;
+}
+
+async function findPublicTenantBySlug(slug){
+
+  const cleanSlug =
+    clean(slug)
+      .toLowerCase();
+
+  if(!cleanSlug){
+    return null;
+  }
+
+  return await Tenant.findOne({
+    slug:cleanSlug,
+    enabled:true,
+    subscriptionStatus:{
+      $in:["ACTIVE","TRIAL"]
+    }
+  }).lean();
+}
+
+async function resolveDefaultTenant(){
+
+  /*
+    Root "/" must stay the main Sunbeam site.
+
+    Priority:
+    1) DEFAULT_TENANT_SLUG from Render env
+    2) tenant slug "sunbeam"
+    3) first active tenant as a safety fallback
+  */
+
+  const envSlug =
+    clean(
+      process.env.DEFAULT_TENANT_SLUG
+    )
+    .toLowerCase();
+
+  if(envSlug){
+
+    const tenant =
+      await findPublicTenantBySlug(
+        envSlug
+      );
+
+    if(tenant){
+      return tenant;
+    }
+  }
+
+  const sunbeam =
+    await findPublicTenantBySlug(
+      "sunbeam"
+    );
+
+  if(sunbeam){
+    return sunbeam;
+  }
+
+  return await Tenant.findOne({
+    enabled:true,
+    subscriptionStatus:{
+      $in:["ACTIVE","TRIAL"]
+    }
+  })
+  .sort({createdAt:1})
+  .lean();
+}
+
+
+function numberValue(value,fallback=0){
+
+  const num =
+    Number(value);
+
+  return Number.isFinite(num)
+    ? num
+    : fallback;
+}
+
+function getServiceCode(service){
+  return getServiceOperationalCode(service);
+}
+
+function publicService(service){
+
+  return {
+    _id:service._id,
+    serviceIdentity:
+      getServiceGateKey(service),
+    serviceKey:
+      getServiceCode(service),
+    serviceCode:
+      getServiceCode(service),
+    customSlot:
+      Number(service?.customSlot || 0) || null,
+
+    title:
+      service.title || "",
+
+    titleEs:
+      service.titleEs || "",
+
+    icon:
+      service.icon || "🚘",
+
+    iconKey:service.iconKey || "",
+    serviceCategory:service.serviceCategory || "PASSENGER",
+    vehicleCategory:service.vehicleCategory || "GENERIC",
+    requiresCDL:service.requiresCDL === true,
+    cdlClass:service.cdlClass || "",
+    minimumVehicleCapacityLb:numberValue(service.minimumVehicleCapacityLb),
+    requiresLiftGate:service.requiresLiftGate === true,
+    refrigeratedRequired:service.refrigeratedRequired === true,
+    hazmatRequired:service.hazmatRequired === true,
+
+    enabled:
+      service.enabled === true,
+
+    showPricingCard:
+      service.showPricingCard !== false,
+
+    pricingMode:
+      service.pricingMode || "MILE",
+
+    baseFare:
+      numberValue(service.baseFare),
+
+    includedMiles:
+      numberValue(service.includedMiles),
+
+    perMile:
+      numberValue(service.perMile),
+
+    hourlyRate:
+      numberValue(service.hourlyRate),
+
+    hourlyBillingMode:
+      service.hourlyBillingMode || "FULL",
+
+    initialDurationMinutes:
+      numberValue(
+        service.initialDurationMinutes
+      ),
+
+    initialPrice:
+      numberValue(
+        service.initialPrice
+      ),
+
+    stopFee:
+      numberValue(service.stopFee),
+
+    noShowFee:
+      numberValue(service.noShowFee),
+
+    sharedPrice:
+      numberValue(service.sharedPrice),
+
+    warningEnabled:
+      service.warningEnabled !== false,
+
+    warningMinutes:
+      numberValue(
+        service.warningMinutes
+      ),
+
+    cancelFee:
+      numberValue(
+        service.cancelFee
+      ),
+
+    disableCancel:
+      service.disableCancel === true
+  };
+}
+
+async function getTenantServices(tenant){
+
+  const allowed =
+    new Set(
+      (
+        Array.isArray(
+          tenant?.allowedServices
+        )
+          ? tenant.allowedServices
+          : []
+      )
+      .map(normalizeServiceCode)
+      .filter(Boolean)
+    );
+
+  if(!allowed.size){
+    return [];
+  }
+
+  const rows =
+    await Service.find({
+      tenantId:tenant._id
+    })
+    .sort({
+      createdAt:1
+    })
+    .lean();
+
+  return rows
+    .filter(service =>
+      service.enabled === true &&
+      allowed.has(getServiceGateKey(service))
+    )
+    .map(publicService);
+}
+
+async function resolveTenantForPublicRequest(
+  req,
+  slug
+){
+
+  if(
+    slug &&
+    slug !== "default"
+  ){
+    return await findPublicTenantBySlug(
+      slug
+    );
+  }
+
+  return await resolveDefaultTenant();
+}
+
+function calculateServicePrice(
+  service,
+  body={}
+){
+
+  const code =
+    getServiceCode(service);
+
+  const pricingMode =
+    String(
+      service.pricingMode || ""
+    )
+    .trim()
+    .toUpperCase();
+
+  const miles =
+    Math.max(
+      0,
+      numberValue(body.miles)
+    );
+
+  const minutes =
+    Math.max(
+      0,
+      numberValue(body.minutes)
+    );
+
+  const stops =
+    Math.max(
+      0,
+      numberValue(body.stops)
+    );
+
+  const passengersCount =
+    Math.max(
+      1,
+      numberValue(
+        body.passengersCount,
+        1
+      )
+    );
+
+  const baseFare =
+    numberValue(service.baseFare);
+
+  const includedMiles =
+    numberValue(
+      service.includedMiles
+    );
+
+  const perMile =
+    numberValue(service.perMile);
+
+  const stopFee =
+    numberValue(service.stopFee);
+
+  const sharedPrice =
+    numberValue(
+      service.sharedPrice
+    );
+
+  const hourlyRate =
+    numberValue(
+      service.hourlyRate
+    );
+
+  const initialDurationMinutes =
+    Math.max(
+      0,
+      numberValue(
+        service.initialDurationMinutes
+      )
+    );
+
+  const initialPrice =
+    Math.max(
+      0,
+      numberValue(
+        service.initialPrice
+      )
+    );
+
+  const hourlyBillingMode =
+    String(
+      service.hourlyBillingMode ||
+      "FULL"
+    )
+    .trim()
+    .toUpperCase();
+
+  let total = 0;
+
+  if(pricingMode === "HOURLY"){
+
+    if(
+      code === "LM" &&
+      initialDurationMinutes > 0
+    ){
+
+      if(
+        minutes <=
+        initialDurationMinutes
+      ){
+        total =
+          initialPrice;
+      }else{
+
+        const extraMinutes =
+          minutes -
+          initialDurationMinutes;
+
+        const extraHours =
+          hourlyBillingMode ===
+          "QUARTER"
+            ? Math.ceil(
+                extraMinutes / 15
+              ) / 4
+            : Math.ceil(
+                extraMinutes / 60
+              );
+
+        total =
+          initialPrice +
+          (
+            extraHours *
+            hourlyRate
+          );
+      }
+
+    }else{
+
+      const hours =
+        hourlyBillingMode ===
+        "QUARTER"
+          ? Math.max(
+              1,
+              Math.ceil(
+                minutes / 15
+              ) / 4
+            )
+          : Math.max(
+              1,
+              Math.ceil(
+                minutes / 60
+              )
+            );
+
+      total =
+        hours *
+        hourlyRate;
+    }
+
+  }else if(
+    pricingMode === "SHARED"
+  ){
+
+    if(sharedPrice > 0){
+
+      total =
+        (
+          sharedPrice *
+          passengersCount
+        ) +
+        (
+          stops *
+          stopFee
+        );
+
+    }else{
+
+      const includedTotal =
+        passengersCount *
+        includedMiles;
+
+      total =
+        (
+          passengersCount *
+          baseFare
+        ) +
+        (
+          Math.max(
+            0,
+            miles -
+            includedTotal
+          ) *
+          perMile
+        ) +
+        (
+          Math.max(
+            0,
+            passengersCount - 1
+          ) *
+          stopFee
+        );
+    }
+
+  }else{
+
+    total =
+      baseFare +
+      (
+        Math.max(
+          0,
+          miles -
+          includedMiles
+        ) *
+        perMile
+      ) +
+      (
+        stops *
+        stopFee
+      );
+  }
+
+  return {
+    success:true,
+    serviceKey:code,
+    pricingMode,
+    total:
+      Number(
+        total.toFixed(2)
+      ),
+
+    disableCancel:
+      service.disableCancel === true,
+
+    service:
+      publicService(service)
+  };
+}
+
+async function sendTenantBootstrap(
+  req,
+  res,
+  tenant
+){
+
+  if(!tenant){
+
+    return res.status(404).json({
+      success:false,
+      message:"Company not found"
+    });
+  }
+
+  const design =
+    await SystemDesign.findOne({
+      tenantId:tenant._id
+    }).lean();
+
+  const publicDesign =
+    publicDesignObject(
+      design || {},
+      tenant
+    );
+
+  return res.json({
+    success:true,
+
+    tenant:{
+      id:tenant._id,
+      name:tenant.name,
+      slug:tenant.slug,
+      timezone:
+        tenant.timezone ||
+        "America/Phoenix",
+      allowedServices:
+        Array.isArray(tenant.allowedServices)
+          ? tenant.allowedServices
+          : []
+    },
+
+    design:
+      publicDesign
+  });
+}
+
+
+/* =========================================
+   PUBLIC GET QUOTE BOOKING DATA
+   Read-only public configuration only.
+   Does NOT change pricing / routing / booking logic.
+========================================= */
+
+const GET_QUOTE_BOOKING_FIELD_CATALOG = {
+  appointmentTime:{
+    label:"Appointment Time",
+    fieldType:"TIME"
+  },
+
+  returnTime:{
+    label:"Return Time",
+    fieldType:"TIME"
+  },
+
+  clientEmail:{
+    label:"Passenger Email",
+    fieldType:"EMAIL"
+  },
+
+  memberId:{
+    label:"Member ID",
+    fieldType:"TEXT"
+  },
+
+  serviceType:{
+    label:"Service Type",
+    fieldType:"TEXT"
+  },
+
+  tripType:{
+    label:"Trip Type",
+    fieldType:"TEXT"
+  },
+
+  company:{
+    label:"Company / Facility Name",
+    fieldType:"TEXT"
+  },
+
+  entryName:{
+    label:"Data Entry Name",
+    fieldType:"TEXT"
+  },
+
+  entryPhone:{
+    label:"Data Entry Phone",
+    fieldType:"PHONE"
+  },
+
+  brokerName:{
+    label:"Broker Name",
+    fieldType:"TEXT"
+  },
+
+  brokerCode:{
+    label:"Broker Code",
+    fieldType:"TEXT"
+  },
+
+  brokerTripId:{
+    label:"Broker Trip ID",
+    fieldType:"TEXT"
+  },
+
+  externalSource:{
+    label:"External Source",
+    fieldType:"TEXT"
+  },
+
+  brokerNotes:{
+    label:"Broker Notes",
+    fieldType:"LONG_TEXT"
+  },
+
+  totalPassengers:{
+    label:"Total Passengers",
+    fieldType:"NUMBER"
+  }
+};
+
+function publicGetQuoteBookingFields(config){
+
+  const standard =
+    Array.isArray(config?.standardFields)
+      ? config.standardFields
+      : [];
+
+  const custom =
+    Array.isArray(config?.customFields)
+      ? config.customFields
+      : [];
+
+  const standardFields =
+    standard
+      .filter(item =>
+        item?.matrix?.getQuote?.showField === true
+      )
+      .map(item=>{
+
+        const key =
+          clean(item?.key);
+
+        const catalog =
+          GET_QUOTE_BOOKING_FIELD_CATALOG[key] ||
+          {};
+
+        return {
+          source:"STANDARD",
+          key,
+          label:
+            clean(catalog.label) ||
+            key,
+          fieldType:
+            clean(catalog.fieldType)
+              .toUpperCase() ||
+            "TEXT",
+          required:
+            item?.matrix?.getQuote?.required === true,
+          placeholder:"",
+          options:[]
+        };
+      })
+      .filter(item => item.key);
+
+  const customFields =
+    custom
+      .filter(item =>
+        item?.matrix?.getQuote?.showField === true &&
+        clean(item?.label)
+      )
+      .map(item=>({
+        source:"CUSTOM",
+        slot:
+          Number(item?.slot) || null,
+        key:
+          `CUSTOM_${Number(item?.slot) || 0}`,
+        label:
+          clean(item?.label),
+        fieldType:
+          clean(item?.fieldType)
+            .toUpperCase() ||
+          "TEXT",
+        required:
+          item?.matrix?.getQuote?.required === true,
+        placeholder:
+          clean(item?.placeholder),
+        options:
+          Array.isArray(item?.options)
+            ? item.options
+                .map(clean)
+                .filter(Boolean)
+            : []
+      }));
+
+  return [
+    ...standardFields,
+    ...customFields
+  ];
+}
+
+async function sendPublicGetQuoteBookingData(
+  res,
+  tenant
+){
+
+  if(!tenant){
+
+    return res.status(404).json({
+      success:false,
+      message:"Company not found"
+    });
+  }
+
+  const config =
+    await BookingDataConfig
+      .findOne({
+        tenantId:tenant._id
+      })
+      .select({
+        standardFields:1,
+        customFields:1,
+        updatedAt:1
+      })
+      .lean();
+
+  return res.json({
+    success:true,
+
+    tenant:{
+      id:tenant._id,
+      name:tenant.name,
+      slug:tenant.slug
+    },
+
+    fields:
+      publicGetQuoteBookingFields(
+        config || {}
+      ),
+
+    updatedAt:
+      config?.updatedAt ||
+      null
+  });
+}
+
+router.get(
+  "/default/booking-data/get-quote",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await resolveDefaultTenant();
+
+      return await sendPublicGetQuoteBookingData(
+        res,
+        tenant
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC DEFAULT GET QUOTE BOOKING DATA ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed To Load Booking Data"
+      });
+    }
+  }
+);
+
+router.get(
+  "/:slug/booking-data/get-quote",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await findPublicTenantBySlug(
+          req.params.slug
+        );
+
+      return await sendPublicGetQuoteBookingData(
+        res,
+        tenant
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC TENANT GET QUOTE BOOKING DATA ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed To Load Booking Data"
+      });
+    }
+  }
+);
+
+/* =========================================
+   PUBLIC GET QUOTE SERVICES
+========================================= */
+
+router.get(
+  "/default/services",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await resolveDefaultTenant();
+
+      if(!tenant){
+
+        return res.status(404).json({
+          success:false,
+          message:"Company not found"
+        });
+      }
+
+      const services =
+        await getTenantServices(
+          tenant
+        );
+
+      return res.json({
+        success:true,
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug,
+          timezone:
+            tenant.timezone ||
+            "America/Phoenix"
+        },
+        services
+      });
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC DEFAULT SERVICES ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed To Load Services"
+      });
+    }
+  }
+);
+
+router.get(
+  "/:slug/services",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await findPublicTenantBySlug(
+          req.params.slug
+        );
+
+      if(!tenant){
+
+        return res.status(404).json({
+          success:false,
+          message:"Company not found"
+        });
+      }
+
+      const services =
+        await getTenantServices(
+          tenant
+        );
+
+      return res.json({
+        success:true,
+        tenant:{
+          id:tenant._id,
+          name:tenant.name,
+          slug:tenant.slug,
+          timezone:
+            tenant.timezone ||
+            "America/Phoenix"
+        },
+        services
+      });
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC TENANT SERVICES ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Failed To Load Services"
+      });
+    }
+  }
+);
+
+/* =========================================
+   PUBLIC GET QUOTE CALCULATE
+========================================= */
+
+router.post(
+  "/default/calculate",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await resolveDefaultTenant();
+
+      if(!tenant){
+
+        return res.status(404).json({
+          success:false,
+          message:"Company not found"
+        });
+      }
+
+      const requestedCode =
+        normalizeServiceKey(
+          req.body?.serviceKey
+        );
+
+      const allowed =
+        new Set(
+          (
+            tenant.allowedServices ||
+            []
+          )
+          .map(normalizeServiceKey)
+        );
+
+      if(
+        !allowed.has(
+          requestedCode
+        )
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Service is not enabled for this company"
+        });
+      }
+
+      const services =
+        await Service.find({
+          tenantId:tenant._id
+        })
+        .lean();
+
+      const service =
+        services.find(
+          item =>
+            getServiceCode(item) ===
+            requestedCode
+        );
+
+      if(
+        !service ||
+        service.enabled !== true
+      ){
+
+        return res.status(404).json({
+          success:false,
+          message:
+            "Service not available"
+        });
+      }
+
+      const zoneResult =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body
+        );
+
+      if(zoneResult?.allowed !== true){
+        return zoneFailureResponse(
+          res,
+          zoneResult
+        );
+      }
+
+      return res.json(
+        calculateServicePrice(
+          service,
+          req.body
+        )
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC DEFAULT CALCULATE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Pricing Failed"
+      });
+    }
+  }
+);
+
+router.post(
+  "/:slug/calculate",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await findPublicTenantBySlug(
+          req.params.slug
+        );
+
+      if(!tenant){
+
+        return res.status(404).json({
+          success:false,
+          message:"Company not found"
+        });
+      }
+
+      const requestedCode =
+        normalizeServiceKey(
+          req.body?.serviceKey
+        );
+
+      const allowed =
+        new Set(
+          (
+            tenant.allowedServices ||
+            []
+          )
+          .map(normalizeServiceKey)
+        );
+
+      if(
+        !allowed.has(
+          requestedCode
+        )
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Service is not enabled for this company"
+        });
+      }
+
+      const services =
+        await Service.find({
+          tenantId:tenant._id
+        })
+        .lean();
+
+      const service =
+        services.find(
+          item =>
+            getServiceCode(item) ===
+            requestedCode
+        );
+
+      if(
+        !service ||
+        service.enabled !== true
+      ){
+
+        return res.status(404).json({
+          success:false,
+          message:
+            "Service not available"
+        });
+      }
+
+      const zoneResult =
+        await validatePublicGetQuoteZone(
+          tenant,
+          req.body
+        );
+
+      if(zoneResult?.allowed !== true){
+        return zoneFailureResponse(
+          res,
+          zoneResult
+        );
+      }
+
+      return res.json(
+        calculateServicePrice(
+          service,
+          req.body
+        )
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC TENANT CALCULATE ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Pricing Failed"
+      });
+    }
+  }
+);
+
+/* =========================================
+   DEFAULT PUBLIC TENANT
+   Used for the existing root homepage.
+
+   With multiple tenants, set:
+   DEFAULT_TENANT_SLUG=sunbeam
+========================================= */
+
+router.get(
+  "/default",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await resolveDefaultTenant();
+
+      if(!tenant){
+
+        return res.status(400).json({
+          success:false,
+          message:
+            "Tenant slug required. Set DEFAULT_TENANT_SLUG or use ?tenant=<slug>."
+        });
+      }
+
+      return await sendTenantBootstrap(
+        req,
+        res,
+        tenant
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC DEFAULT TENANT ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Failed To Load Company"
+      });
+    }
+
+  }
+);
+
+/* =========================================
+   PUBLIC TENANT BY SLUG
+========================================= */
+
+router.get(
+  "/:slug",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await findPublicTenantBySlug(
+          req.params.slug
+        );
+
+      return await sendTenantBootstrap(
+        req,
+        res,
+        tenant
+      );
+
+    }catch(err){
+
+      console.error(
+        "PUBLIC TENANT ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:"Failed To Load Company"
+      });
+    }
+
+  }
+);
+
+module.exports = router;

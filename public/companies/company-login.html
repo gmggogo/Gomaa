@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<title>GH Mobility Facilities</title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/companies/company-login.css">
+
+</head>
+
+<body>
+
+<div class="top-section">
+
+  <img
+  class="app-logo"
+  src="/assets/logo.png"
+  alt="GH Mobility Facilities">
+
+  <div
+  class="datetime"
+  id="datetime">
+
+  </div>
+
+</div>
+
+<div class="login-card">
+
+  <h1>
+
+    Organization Login
+
+  </h1>
+
+  <form id="loginForm">
+
+    <input
+    type="text"
+    id="username"
+    placeholder="Username"
+    autocomplete="username"
+    required>
+
+    <input
+    type="password"
+    id="password"
+    placeholder="Password"
+    autocomplete="current-password"
+    required>
+
+    <button type="submit">
+
+      Login
+
+    </button>
+
+  </form>
+
+  <div
+  id="errorMessage"
+  class="error">
+
+  </div>
+
+</div>
+
+<!-- BRANDING IS USED FOR TENANT DATA/TIMEZONE ONLY.
+     APP NAME/LOGO REMAIN GH MOBILITY FACILITIES. -->
+<script src="/core/branding.js"></script>
+
+<script>
+
+function enforceFacilitiesBranding(){
+
+  document.title = "GH Mobility Facilities";
+
+  const logo = document.querySelector(".app-logo");
+
+  if(logo){
+    logo.src =
+      window.Branding?.data?.driverLogo ||
+      "/assets/logo.png";
+    logo.alt = "GH Mobility Facilities";
+  }
+
+}
+
+function updateOrganizationClock(){
+
+  enforceFacilitiesBranding();
+
+  const el =
+    document.getElementById(
+      "datetime"
+    );
+
+  if(!el) return;
+
+  const timezone =
+
+    window.Branding?.data?.timezone ||
+
+    "America/Phoenix";
+
+  const now =
+    new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-US",
+      {
+        timeZone: timezone,
+        weekday:"short",
+        month:"short",
+        day:"numeric",
+        year:"numeric"
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        timeZone: timezone,
+        hour:"numeric",
+        minute:"2-digit",
+        second:"2-digit",
+        hour12:true
+      }
+    );
+
+  el.innerHTML =
+
+    `
+    <div style="
+      font-size:13px;
+      font-weight:700;
+      color:#e2e8f0;
+      margin-bottom:4px;
+    ">
+      ${date}
+    </div>
+
+    <div style="
+      font-size:18px;
+      font-weight:900;
+      color:#facc15;
+    ">
+      ${time}
+    </div>
+    `;
+
+}
+
+async function startOrganizationClock(){
+
+  enforceFacilitiesBranding();
+
+  if(window.Branding){
+
+    try{
+      await Branding.load();
+    }
+    catch(err){
+      console.log(err);
+    }
+
+  }
+
+  /* Branding.load() may replace the logo/title, so force app identity again. */
+  enforceFacilitiesBranding();
+
+  updateOrganizationClock();
+
+  setInterval(
+    updateOrganizationClock,
+    1000
+  );
+
+}
+
+window.addEventListener(
+  "DOMContentLoaded",
+  startOrganizationClock
+);
+
+</script>
+
+<script src="/companies/company-login.js"></script>
+
+</body>
+</html>

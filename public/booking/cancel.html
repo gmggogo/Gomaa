@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+Cancel Trip
+</title>
+
+<script src="/core/branding.js"></script>
+
+<style>
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+
+  margin:0;
+
+  min-height:100vh;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  padding:20px;
+
+  font-family:
+  'Segoe UI',
+  Arial,
+  sans-serif;
+
+  background:
+  linear-gradient(
+    135deg,
+    #0f172a,
+    #145cff
+  );
+
+  color:#fff;
+
+}
+
+.box{
+
+  width:100%;
+
+  max-width:450px;
+
+  background:#ffffff;
+
+  color:#0f172a;
+
+  border-radius:28px;
+
+  padding:35px 28px;
+
+  text-align:center;
+
+  box-shadow:
+  0 20px 50px rgba(0,0,0,.25);
+
+}
+
+.logo{
+
+  width:120px;
+
+  height:120px;
+
+  object-fit:contain;
+
+  margin:auto auto 20px;
+
+  display:block;
+
+}
+
+h2{
+
+  margin:0 0 14px;
+
+  font-size:30px;
+
+  font-weight:900;
+
+}
+
+.company-name{
+
+  font-size:16px;
+
+  color:#475569;
+
+  margin-bottom:20px;
+
+}
+
+.msg{
+
+  margin:20px 0;
+
+  font-size:15px;
+
+  line-height:1.7;
+
+  font-weight:600;
+
+}
+
+.trip-box{
+
+  background:#f8fafc;
+
+  border:1px solid #dbeafe;
+
+  border-radius:20px;
+
+  padding:18px;
+
+  margin-top:20px;
+
+  text-align:left;
+
+  display:none;
+
+}
+
+.trip-item{
+
+  margin-bottom:12px;
+
+  font-size:14px;
+
+  line-height:1.5;
+
+}
+
+.trip-item b{
+
+  color:#145cff;
+
+}
+
+button{
+
+  width:100%;
+
+  padding:16px;
+
+  border:none;
+
+  border-radius:18px;
+
+  font-size:15px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+  transition:.2s;
+
+}
+
+button:hover{
+  transform:translateY(-2px);
+}
+
+.confirm{
+
+  background:#dc2626;
+
+  color:#fff;
+
+  margin-top:20px;
+
+}
+
+.cancel{
+
+  background:#e2e8f0;
+
+  color:#0f172a;
+
+  margin-top:12px;
+
+}
+
+.success{
+  color:#16a34a;
+}
+
+.error{
+  color:#dc2626;
+}
+
+.warning{
+  color:#d97706;
+}
+
+.loading{
+  color:#145cff;
+}
+
+.hidden{
+  display:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+
+  <img
+    id="companyLogo"
+    class="logo"
+    src=""
+  >
+
+  <h2 id="cancelTitle">
+    Cancel Trip
+  </h2>
+
+  <div
+    id="companyName"
+    class="company-name"
+  >
+    Transportation Service
+  </div>
+
+  <div
+    id="msg"
+    class="msg"
+  >
+    Loading your trip...
+  </div>
+
+  <div
+    id="tripBox"
+    class="trip-box"
+  >
+
+    <div class="trip-item">
+      <b>Trip Number:</b>
+      <span id="tripNumber"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Passenger:</b>
+      <span id="passengerName"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Service:</b>
+      <span id="serviceName"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Pickup:</b>
+      <span id="pickupText"></span>
+    </div>
+
+    <div
+      id="stopsRow"
+      class="trip-item"
+      style="display:none"
+    >
+      <b>Stops:</b>
+      <span id="stopsText"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Dropoff:</b>
+      <span id="dropoffText"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Date:</b>
+      <span id="tripDate"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Time:</b>
+      <span id="tripTime"></span>
+    </div>
+
+    <div class="trip-item">
+      <b>Amount:</b>
+      $<span id="tripAmount"></span>
+    </div>
+
+  </div>
+
+  <div
+    id="actions"
+    class="hidden"
+  >
+
+    <button
+      class="confirm"
+      onclick="confirmCancel()"
+    >
+      Confirm Cancellation
+    </button>
+
+    <button
+      class="cancel"
+      onclick="goBack()"
+    >
+      Go Back
+    </button>
+
+  </div>
+
+</div>
+
+<script>
+
+const params =
+new URLSearchParams(
+  window.location.search
+);
+
+const token =
+params.get("token");
+
+let currentTrip = null;
+let currentTenantSlug = "";
+let cancellationInProgress = false;
+let cancellationSubmitted = false;
+
+const cancellationStorageKey =
+  "cancelTripSubmitted:" +
+  String(token || "");
+
+/* =========================
+   BRANDING
+========================= */
+
+async function applyTenantBranding(
+  tenantSlug = ""
+){
+
+  try{
+
+    currentTenantSlug =
+      String(
+        tenantSlug ||
+        currentTenantSlug ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    if(currentTenantSlug){
+
+      localStorage.setItem(
+        "tenantSlug",
+        currentTenantSlug
+      );
+
+    }
+
+    if(window.Branding){
+
+      await Branding.load();
+
+      const companyName =
+        Branding.getCompanyName?.() ||
+        Branding.tenant?.name ||
+        "Transportation Service";
+
+      document.title =
+        `Cancel Trip – ${companyName}`;
+
+      document.getElementById(
+        "companyName"
+      ).innerText =
+        companyName;
+
+      const logo =
+        Branding.data?.mainLogo ||
+        Branding.data?.driverLogo ||
+        "";
+
+      const logoEl =
+        document.getElementById(
+          "companyLogo"
+        );
+
+      if(logo){
+        logoEl.src = logo;
+        logoEl.style.display = "block";
+      }else{
+        logoEl.style.display = "none";
+      }
+    }
+
+  }catch(err){
+
+    console.log(
+      "CANCEL BRANDING ERROR:",
+      err
+    );
+
+  }
+}
+
+/* =========================
+   HELPERS
+========================= */
+
+function showSuccess(text){
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="success">${text}</span>`;
+
+}
+
+function showError(text){
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="error">${text}</span>`;
+
+}
+
+function showWarning(text){
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="warning">${text}</span>`;
+
+}
+
+function showLoading(text){
+
+  document.getElementById(
+    "msg"
+  ).innerHTML =
+  `<span class="loading">${text}</span>`;
+
+}
+
+function goBack(){
+  window.history.back();
+}
+
+function firstValue(...values){
+  for(const value of values){
+    if(
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    ){
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function stopAddress(stop){
+  if(typeof stop === "string"){
+    return stop.trim();
+  }
+
+  return String(
+    stop?.address ||
+    stop?.stopAddress ||
+    stop?.formattedAddress ||
+    ""
+  ).trim();
+}
+
+function renderTripDetails(data){
+  document.getElementById(
+    "tripBox"
+  ).style.display = "block";
+
+  document.getElementById(
+    "tripNumber"
+  ).innerText =
+    firstValue(
+      data.tripNumber,
+      data.number,
+      "--"
+    );
+
+  document.getElementById(
+    "passengerName"
+  ).innerText =
+    firstValue(
+      data.clientName,
+      data.passengerName,
+      data.name,
+      "--"
+    );
+
+  document.getElementById(
+    "serviceName"
+  ).innerText =
+    firstValue(
+      data.serviceName,
+      data.serviceTitle,
+      data.serviceType,
+      data.serviceCode,
+      "--"
+    );
+
+  document.getElementById(
+    "pickupText"
+  ).innerText =
+    firstValue(
+      data.pickup,
+      data.pickupAddress,
+      "--"
+    );
+
+  document.getElementById(
+    "dropoffText"
+  ).innerText =
+    firstValue(
+      data.dropoff,
+      data.dropoffAddress,
+      "--"
+    );
+
+  document.getElementById(
+    "tripDate"
+  ).innerText =
+    firstValue(data.tripDate,"--");
+
+  document.getElementById(
+    "tripTime"
+  ).innerText =
+    firstValue(data.tripTime,"--");
+
+  const amount = Number(
+    firstValue(
+      data.priceAmount,
+      data.finalPrice,
+      data.totalPrice,
+      data.price,
+      0
+    )
+  );
+
+  document.getElementById(
+    "tripAmount"
+  ).innerText =
+    Number.isFinite(amount)
+      ? amount.toFixed(2)
+      : "0.00";
+
+  const stops = Array.isArray(data.stops)
+    ? data.stops
+        .map(stopAddress)
+        .filter(Boolean)
+    : [];
+
+  const stopsRow =
+    document.getElementById("stopsRow");
+
+  if(stops.length){
+    document.getElementById(
+      "stopsText"
+    ).innerText =
+      stops
+        .map((stop,index)=>
+          `${index + 1}. ${stop}`
+        )
+        .join("\n");
+
+    stopsRow.style.display = "flex";
+  }else{
+    stopsRow.style.display = "none";
+  }
+}
+
+/* =========================
+   LOAD TRIP
+========================= */
+
+async function checkTrip(){
+
+  if(!token){
+
+    showError(
+      "Invalid cancellation link."
+    );
+
+    return;
+
+  }
+
+  try{
+
+    showLoading(
+      "Checking your trip..."
+    );
+
+    const res =
+    await fetch(
+      "/api/cancel-trip-check",
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
+
+        body:JSON.stringify({
+          token
+        })
+
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!res.ok){
+
+      showError(
+        data.message ||
+        "Unable to load trip."
+      );
+
+      return;
+
+    }
+
+    currentTrip = data;
+
+    currentTenantSlug =
+      String(
+        data.tenantSlug ||
+        data.tenant?.slug ||
+        params.get("tenant") ||
+        ""
+      )
+      .trim()
+      .toLowerCase();
+
+    await applyTenantBranding(
+      currentTenantSlug
+    );
+
+    renderTripDetails(data);
+
+    if(data.alreadyCancelled){
+
+      cancellationSubmitted = true;
+
+      showWarning(
+        "This trip has already been cancelled."
+      );
+
+      document.getElementById(
+        "actions"
+      ).classList.add("hidden");
+
+      return;
+
+    }
+
+    if(
+      sessionStorage.getItem(
+        cancellationStorageKey
+      ) === "1"
+    ){
+      cancellationSubmitted = true;
+
+      showWarning(
+        "A cancellation request has already been submitted."
+      );
+
+      document.getElementById(
+        "actions"
+      ).classList.add("hidden");
+
+      return;
+    }
+
+    if(Number(data.fee || 0) > 0){
+
+      showWarning(
+        `A $${Number(data.fee).toFixed(2)} cancellation fee will apply.`
+      );
+
+    }else{
+
+      showSuccess(
+        "You are eligible for a full refund."
+      );
+
+    }
+
+    document.getElementById(
+      "actions"
+    ).classList.remove(
+      "hidden"
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+    showError(
+      "Server error."
+    );
+
+  }
+
+}
+
+/* =========================
+   CONFIRM CANCEL
+========================= */
+
+async function confirmCancel(){
+
+  if(
+    cancellationInProgress ||
+    cancellationSubmitted
+  ){
+    return;
+  }
+
+  const confirmButton =
+    document.querySelector(
+      "#actions .confirm"
+    );
+
+  cancellationInProgress = true;
+  cancellationSubmitted = true;
+
+  sessionStorage.setItem(
+    cancellationStorageKey,
+    "1"
+  );
+
+  if(confirmButton){
+    confirmButton.disabled = true;
+    confirmButton.innerText =
+      "Cancellation Submitted";
+  }
+
+  try{
+
+    showLoading(
+      "Cancelling trip..."
+    );
+
+    const res =
+    await fetch(
+      "/api/cancel-trip",
+      {
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json"
+        },
+
+        body:JSON.stringify({
+          token
+        })
+
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!res.ok){
+
+      showError(
+        data.message ||
+        "Cancellation failed."
+      );
+
+      return;
+
+    }
+
+    if(Number(data.fee || 0) > 0){
+
+      showWarning(
+        `Trip cancelled successfully. $${data.fee} fee applied.`
+      );
+
+    }else{
+
+      showSuccess(
+        "Trip cancelled successfully. Full refund issued."
+      );
+
+    }
+
+    document.getElementById(
+      "actions"
+    ).classList.add(
+      "hidden"
+    );
+
+  }catch(err){
+
+    console.log(err);
+
+    showError(
+      "The cancellation request was submitted. Please refresh this page to verify its status."
+    );
+
+  }
+
+}
+
+/* =========================
+   START
+========================= */
+
+applyTenantBranding(
+  params.get("tenant") ||
+  params.get("tenantSlug") ||
+  localStorage.getItem("tenantSlug") ||
+  ""
+).finally(
+  checkTrip
+);
+
+</script>
+
+</body>
+</html>

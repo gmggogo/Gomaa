@@ -1,0 +1,85 @@
+{
+  "pageId": "ADM-015",
+  "pageTitle": "SaaS Payments - GH Mobility",
+  "pageFile": "payments.html",
+  "module": "Platform Payment",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/payments.html",
+    "server/public/admin/header.js",
+    "server/public/admin/payments.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings",
+    "/api/tenant-subscription"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "showMessage",
+    "load",
+    "payNow"
+  ],
+  "articles": [
+    {
+      "id": "ADM-015-T01",
+      "pageId": "ADM-015",
+      "pageTitle": "SaaS Payments - GH Mobility",
+      "pageFile": "payments.html",
+      "module": "Platform Payment",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Pay SaaS Invoice",
+      "summary": "Pay SaaS Invoice",
+      "keywords": [
+        "pay invoice",
+        "pay now",
+        "payments",
+        "platform payment",
+        "saas payment",
+        "saas payments - gh mobility"
+      ],
+      "steps": [
+        "Open Platform Payment.",
+        "Review the current invoice/payment state.",
+        "Click Pay Now when payment is due.",
+        "Complete the payment flow."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/payments.html",
+        "server/public/admin/header.js",
+        "server/public/admin/payments.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-subscription"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showMessage",
+        "load",
+        "payNow"
+      ],
+      "active": true
+    }
+  ]
+}

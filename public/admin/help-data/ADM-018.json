@@ -1,0 +1,75 @@
+{
+  "pageId": "ADM-018",
+  "pageTitle": "Refunds \u2013 Sunbeam",
+  "pageFile": "refunds.html",
+  "module": "Refunds",
+  "roles": [
+    "ADMIN",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/refunds.html",
+    "server/public/admin/header.js"
+  ],
+  "apiDependencies": [
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest"
+  ],
+  "articles": [
+    {
+      "id": "ADM-018-T01",
+      "pageId": "ADM-018",
+      "pageTitle": "Refunds \u2013 Sunbeam",
+      "pageFile": "refunds.html",
+      "module": "Refunds",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Review Refunds",
+      "summary": "Review Refunds",
+      "keywords": [
+        "customer refund",
+        "refund",
+        "refund status",
+        "refunds",
+        "refunds \u2013 sunbeam"
+      ],
+      "steps": [
+        "Open Refunds.",
+        "Review the available refund records/statuses.",
+        "Open the required refund item for its available action."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/refunds.html",
+        "server/public/admin/header.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest"
+      ],
+      "active": true
+    }
+  ]
+}

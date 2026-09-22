@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Data</title>
+
+<link rel="stylesheet" href="platform_header.css">
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  font-family:"Segoe UI",Arial,sans-serif;
+  background:#f1f5f9;
+  color:#0f172a;
+}
+
+#platformHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+}
+
+.page{
+  width:min(1720px,calc(100% - 28px));
+  margin:0 auto;
+  padding:30px 0 70px;
+}
+
+.hero{
+  position:relative;
+  overflow:hidden;
+  padding:21px 24px;
+  border:1px solid rgba(13,48,80,.30);
+  border-radius:15px;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(255,255,255,.20),transparent 30%),
+    linear-gradient(135deg,#173f66 0%,#0d3155 55%,#294f70 100%);
+  color:#fff;
+  text-align:center;
+  box-shadow:0 10px 24px rgba(13,48,80,.15);
+}
+
+.hero::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:4px;
+  background:linear-gradient(90deg,#7f6425,#d5b85e,#f5e09a,#d5b85e,#7f6425);
+}
+
+.hero h1{
+  margin:0;
+  font:900 29px/1.2 Georgia,"Times New Roman",serif;
+}
+
+.hero p{
+  margin:7px auto 0;
+  max-width:1040px;
+  color:#dbeafe;
+  font-size:13px;
+  font-weight:700;
+}
+
+.card{
+  margin-top:18px;
+  background:#fff;
+  border:1px solid #dbe3ee;
+  border-radius:17px;
+  box-shadow:0 10px 28px rgba(15,23,42,.07);
+  overflow:hidden;
+}
+
+.card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:14px 17px;
+  background:#0f172a;
+  color:#fff;
+}
+
+.card-head h2{
+  margin:0;
+  font-size:14px;
+  font-weight:900;
+}
+
+.card-body{padding:16px}
+
+.tenant-row{
+  display:grid;
+  grid-template-columns:minmax(260px,1fr) auto;
+  gap:10px;
+  align-items:end;
+}
+
+.label{
+  display:block;
+  margin-bottom:6px;
+  color:#475569;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.25px;
+}
+
+select,input,textarea,button{font:inherit}
+
+.tenant-row select,
+.custom-name,
+.custom-type,
+.custom-options,
+.custom-placeholder{
+  width:100%;
+  min-height:38px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  padding:7px 9px;
+  background:#fff;
+  color:#0f172a;
+  font-size:12px;
+  font-weight:700;
+  outline:none;
+}
+
+.tenant-row select:focus,
+.custom-name:focus,
+.custom-type:focus,
+.custom-options:focus,
+.custom-placeholder:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.10);
+}
+
+.btn{
+  min-height:40px;
+  border:none;
+  border-radius:9px;
+  padding:0 15px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+.btn-dark{background:#334155;color:#fff}
+.btn-edit{background:#2563eb;color:#fff}
+.btn-cancel{background:#e2e8f0;color:#334155}
+.btn-save{background:#16a34a;color:#fff}
+
+.tenant-summary{
+  display:none;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #bfdbfe;
+  border-radius:9px;
+  background:#eff6ff;
+  color:#1e3a8a;
+  font-size:12px;
+  font-weight:800;
+}
+
+.tenant-summary.show{display:block}
+
+.matrix-card{
+  margin-top:18px;
+}
+
+.matrix-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.matrix-top .note{
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.source-legend{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.legend-chip{
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid transparent;
+}
+
+.legend-gq{
+  background:#dbeafe;
+  color:#1d4ed8;
+  border-color:#93c5fd;
+}
+.legend-fa{
+  background:#dcfce7;
+  color:#15803d;
+  border-color:#86efac;
+}
+.legend-rv{
+  background:#ffedd5;
+  color:#c2410c;
+  border-color:#fdba74;
+}
+.legend-br{
+  background:#f3e8ff;
+  color:#7e22ce;
+  border-color:#d8b4fe;
+}
+
+.table-shell{
+  margin-top:14px;
+  overflow:auto;
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+}
+
+.matrix{
+  width:100%;
+  min-width:1480px;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.matrix th,
+.matrix td{
+  border-right:1px solid #dbe3ee;
+  border-bottom:1px solid #e8edf3;
+}
+
+.matrix th:last-child,
+.matrix td:last-child{
+  border-right:none;
+}
+
+.matrix tr:last-child td{
+  border-bottom:none;
+}
+
+.matrix thead th{
+  position:sticky;
+  top:0;
+  z-index:4;
+  padding:9px 8px;
+  text-align:center;
+  font-size:11px;
+  font-weight:900;
+}
+
+.field-head{
+  min-width:310px;
+  background:#0f172a;
+  color:#fff;
+  text-align:left!important;
+}
+
+.gq-head{
+  min-width:210px;
+  background:linear-gradient(180deg,#60a5fa 0%,#2563eb 100%);
+  color:#fff;
+}
+
+.fa-head{
+  min-width:330px;
+  background:linear-gradient(180deg,#4ade80 0%,#16a34a 100%);
+  color:#fff;
+}
+
+.rv-head{
+  min-width:330px;
+  background:linear-gradient(180deg,#fb923c 0%,#ea580c 100%);
+  color:#fff;
+}
+
+.br-head{
+  min-width:230px;
+  background:linear-gradient(180deg,#a855f7 0%,#7e22ce 100%);
+  color:#fff;
+}
+
+.sub{
+  display:flex;
+  justify-content:center;
+  gap:5px;
+  margin-top:5px;
+  opacity:.95;
+  font-size:9px;
+  font-weight:800;
+}
+
+.section-row td{
+  padding:0!important;
+  border-right:none!important;
+  background:#fff!important;
+}
+
+.section-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border-top:2px solid #cbd5e1;
+  border-bottom:1px solid #cbd5e1;
+  background:linear-gradient(90deg,#f8fafc,#eef2f7);
+}
+
+.section-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.section-title span{
+  color:#64748b;
+  font-size:10px;
+  font-weight:700;
+}
+
+.section-toggle{
+  border:1px solid #cbd5e1;
+  border-radius:7px;
+  background:#fff;
+  color:#334155;
+  padding:5px 10px;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.field-cell{
+  padding:8px 10px;
+  background:#fff;
+  vertical-align:middle;
+}
+
+.field-name{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  font-size:12px;
+  font-weight:900;
+}
+
+.field-meta{
+  margin-top:3px;
+  color:#64748b;
+  font-size:10px;
+  font-weight:700;
+}
+
+.lock{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:52px;
+  padding:3px 6px;
+  border-radius:999px;
+  background:#e2e8f0;
+  color:#475569;
+  font-size:9px;
+  font-weight:900;
+}
+
+.source-cell{
+  padding:7px 6px;
+  vertical-align:middle;
+}
+
+.source-cell.gq{background:#eff6ff}
+.source-cell.fa{background:#f0fdf4}
+.source-cell.rv{background:#fff7ed}
+.source-cell.br{background:#faf5ff}
+
+.control-grid{
+  display:grid;
+  gap:6px;
+  align-items:center;
+}
+
+.control-grid.gq-grid{
+  grid-template-columns:1fr 1fr;
+}
+
+.control-grid.fa-grid,
+.control-grid.rv-grid{
+  grid-template-columns:repeat(4,1fr);
+}
+
+.control-grid.br-grid{
+  grid-template-columns:1fr 1fr;
+}
+
+.control{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:31px;
+  padding:4px 6px;
+  border:1px solid rgba(148,163,184,.55);
+  border-radius:7px;
+  background:rgba(255,255,255,.75);
+  font-size:9px;
+  font-weight:900;
+  color:#334155;
+  white-space:nowrap;
+}
+
+.control input{
+  width:15px;
+  height:15px;
+  margin:0;
+  accent-color:#2563eb;
+}
+
+.control.disabled{
+  opacity:.48;
+}
+
+.fixed-state{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:31px;
+  border:1px dashed rgba(71,85,105,.35);
+  border-radius:7px;
+  background:rgba(255,255,255,.50);
+  color:#475569;
+  font-size:10px;
+  font-weight:900;
+}
+
+.custom-editor{
+  display:grid;
+  grid-template-columns:minmax(110px,1.1fr) 105px;
+  gap:5px;
+}
+
+.custom-editor .custom-options,
+.custom-editor .custom-placeholder{
+  grid-column:1 / -1;
+}
+
+.custom-slot{
+  display:inline-flex;
+  margin-bottom:5px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:#0f172a;
+  color:#fff;
+  font-size:9px;
+  font-weight:900;
+}
+
+.readonly-mode .editable-control,
+.readonly-mode .custom-editor{
+  pointer-events:none;
+  opacity:.65;
+}
+
+.message{
+  display:none;
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius:9px;
+  font-size:11px;
+  font-weight:800;
+}
+
+.message.show{display:block}
+.message.success{
+  background:#ecfdf5;
+  border:1px solid #a7f3d0;
+  color:#065f46;
+}
+.message.error{
+  background:#fef2f2;
+  border:1px solid #fecaca;
+  color:#991b1b;
+}
+
+.actions{
+  margin-top:15px;
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+.hidden-section{display:none!important}
+
+@media(max-width:800px){
+  .tenant-row{grid-template-columns:1fr}
+  .actions{flex-direction:column}
+  .actions .btn{width:100%}
+}
+</style>
+</head>
+
+<body>
+
+<div id="platformHeader"></div>
+
+<main class="page">
+
+  <section class="hero">
+    <h1>Booking Data</h1>
+    <p>
+      Fixed booking fields stay locked. Optional standard fields can be enabled per source.
+      Ten custom slots can be named for anything a company needs.
+    </p>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Company / Tenant</h2>
+      <button id="refreshBtn" class="btn btn-dark" type="button">Refresh</button>
+    </div>
+
+    <div class="card-body">
+      <div class="tenant-row">
+        <div>
+          <label class="label" for="tenantSelect">Select Company</label>
+          <select id="tenantSelect">
+            <option value="">Select a company...</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="tenantSummary" class="tenant-summary"></div>
+    </div>
+  </section>
+
+  <section id="matrixCard" class="card matrix-card" style="display:none;">
+    <div class="card-head">
+      <h2>Booking Data Configuration</h2>
+
+      <div>
+        <button id="editBtn" class="btn btn-edit" type="button">Edit</button>
+      </div>
+    </div>
+
+    <div id="matrixBody" class="card-body readonly-mode">
+
+      <div class="matrix-top">
+        <div class="note">
+          Basic fields are locked. Facility/Reserved: Field and Eye cannot be selected together.
+          Broker: choose Column or Eye.
+        </div>
+
+        <div class="source-legend">
+          <span class="legend-chip legend-gq">Get Quote</span>
+          <span class="legend-chip legend-fa">Facilities</span>
+          <span class="legend-chip legend-rv">Reserved</span>
+          <span class="legend-chip legend-br">Broker</span>
+        </div>
+      </div>
+
+      <div class="table-shell">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th class="field-head">
+                Field / Label
+              </th>
+
+              <th class="gq-head">
+                Get Quote
+                <div class="sub">
+                  <span>Booking Form Only</span>
+                </div>
+              </th>
+
+              <th class="fa-head">
+                Facilities
+                <div class="sub">
+                  <span>Field</span>
+                  <span>Column</span>
+                  <span>Eye</span>
+                </div>
+              </th>
+
+              <th class="rv-head">
+                Reserved
+                <div class="sub">
+                  <span>Field</span>
+                  <span>Column</span>
+                  <span>Eye</span>
+                </div>
+              </th>
+
+              <th class="br-head">
+                Broker
+                <div class="sub">
+                  <span>Column / Eye</span>
+                </div>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody id="matrixRows"></tbody>
+        </table>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div class="actions">
+        <button id="resetBtn" class="btn btn-cancel" type="button" disabled>Reset Changes</button>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<script src="platform_header.js"></script>
+<script>
+if(typeof loadPlatformHeader === "function"){
+  loadPlatformHeader("Booking Data");
+}
+</script>
+
+<script src="booking-data.js"></script>
+
+</body>
+</html>

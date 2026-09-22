@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+  <title>Platform Admins | GH Mobility</title>
+
+  <link
+    rel="stylesheet"
+    href="/platform-admin/platform_header.css">
+
+  <style>
+    *{
+      box-sizing:border-box;
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Arial,Helvetica,sans-serif;
+      color:#16354d;
+      background:
+        linear-gradient(
+          180deg,
+          #dff3ff 0%,
+          #eef8ff 100%
+        );
+    }
+
+    .page-shell{
+      width:min(1450px,calc(100% - 28px));
+      margin:22px auto 42px;
+    }
+
+    .page-header{
+      position:relative;
+      overflow:hidden;
+      padding:22px 24px;
+      border:1px solid #173d60;
+      border-radius:16px;
+      background:
+        linear-gradient(
+          135deg,
+          #0f2f4c 0%,
+          #173f62 50%,
+          #0d2943 100%
+        );
+      color:#fff;
+      text-align:center;
+      box-shadow:
+        0 12px 28px rgba(19,54,83,.22);
+    }
+
+    .page-header h1{
+      margin:0;
+      font-size:25px;
+      font-weight:900;
+    }
+
+    .page-header p{
+      margin:7px 0 0;
+      color:#cfe1ef;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .gold-chip{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:150px;
+      min-height:28px;
+      padding:5px 14px;
+      margin-bottom:9px;
+      border:1px solid #d7ae50;
+      border-radius:999px;
+      background:
+        linear-gradient(
+          180deg,
+          #f4d98c,
+          #bd8b2d
+        );
+      color:#412b08;
+      font-size:10px;
+      font-weight:900;
+      letter-spacing:.8px;
+      text-transform:uppercase;
+    }
+
+    .primary-note{
+      margin-top:14px;
+      padding:12px 15px;
+      border:1px solid #d8b55a;
+      border-radius:12px;
+      background:#fff8df;
+      color:#6b4a0a;
+      font-size:12px;
+      font-weight:800;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:
+        minmax(320px,420px)
+        minmax(0,1fr);
+      gap:16px;
+      margin-top:16px;
+    }
+
+    .panel{
+      overflow:hidden;
+      border:1px solid #c7d9e7;
+      border-radius:15px;
+      background:#fff;
+      box-shadow:
+        0 8px 22px rgba(32,72,104,.11);
+    }
+
+    .panel-title{
+      padding:14px 16px;
+      border-bottom:1px solid #dbe6ee;
+      background:
+        linear-gradient(
+          180deg,
+          #f8fcff,
+          #edf6fb
+        );
+      color:#123c5d;
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .panel-body{
+      padding:17px;
+    }
+
+    .field{
+      margin-bottom:13px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:5px;
+      color:#314e65;
+      font-size:10px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.45px;
+    }
+
+    .field input{
+      width:100%;
+      min-height:42px;
+      padding:9px 11px;
+      border:1px solid #bfd0dd;
+      border-radius:9px;
+      outline:none;
+      background:#fbfdff;
+      color:#17384f;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .field input:focus{
+      border-color:#3477a7;
+      box-shadow:
+        0 0 0 3px rgba(52,119,167,.12);
+    }
+
+    .create-btn{
+      width:100%;
+      min-height:43px;
+      border:1px solid #0f5d43;
+      border-radius:10px;
+      background:
+        linear-gradient(
+          180deg,
+          #2ba46f,
+          #18764f
+        );
+      color:#fff;
+      font-size:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .create-btn:disabled{
+      opacity:.55;
+      cursor:wait;
+    }
+
+    .message{
+      display:none;
+      margin-top:12px;
+      padding:10px 11px;
+      border-radius:9px;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .message.show{
+      display:block;
+    }
+
+    .message.ok{
+      border:1px solid #9bd6b5;
+      background:#ecfbf2;
+      color:#17623c;
+    }
+
+    .message.error{
+      border:1px solid #efb1b1;
+      background:#fff0f0;
+      color:#a42626;
+    }
+
+    .table-wrap{
+      width:100%;
+      overflow:auto;
+    }
+
+    table{
+      width:100%;
+      min-width:780px;
+      border-collapse:collapse;
+    }
+
+    th{
+      padding:11px 9px;
+      border-right:1px solid rgba(255,255,255,.17);
+      border-bottom:2px solid #163852;
+      background:
+        linear-gradient(
+          180deg,
+          #315d7f,
+          #1f4664
+        );
+      color:#fff;
+      font-size:9px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.35px;
+      text-align:center;
+    }
+
+    td{
+      padding:11px 9px;
+      border-right:1px solid #dce5ec;
+      border-bottom:1px solid #dce5ec;
+      color:#29465c;
+      font-size:11px;
+      font-weight:800;
+      text-align:center;
+      background:#fff;
+    }
+
+    tbody tr:nth-child(even) td{
+      background:#f8fbfd;
+    }
+
+    .admin-cell{
+      text-align:left;
+    }
+
+    .admin-cell strong{
+      display:block;
+      color:#103b5c;
+      font-size:12px;
+      font-weight:900;
+    }
+
+    .admin-cell small{
+      display:block;
+      margin-top:3px;
+      color:#758795;
+      font-size:9px;
+      font-weight:700;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:72px;
+      padding:5px 8px;
+      border-radius:999px;
+      font-size:9px;
+      font-weight:900;
+    }
+
+    .primary{
+      border:1px solid #d9b458;
+      background:#fff3c7;
+      color:#765008;
+    }
+
+    .secondary{
+      border:1px solid #b8c8d5;
+      background:#edf4f8;
+      color:#486175;
+    }
+
+    .active{
+      border:1px solid #a9dabe;
+      background:#e9f8ef;
+      color:#176a3e;
+    }
+
+    .disabled{
+      border:1px solid #efb6b6;
+      background:#fff0f0;
+      color:#a32828;
+    }
+
+    .actions{
+      display:flex;
+      justify-content:center;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+
+    .action-btn{
+      min-height:30px;
+      padding:5px 9px;
+      border-radius:7px;
+      font-size:9px;
+      font-weight:900;
+      cursor:pointer;
+    }
+
+    .toggle{
+      border:1px solid #c59a35;
+      background:#fff3cd;
+      color:#6d4b06;
+    }
+
+    .delete{
+      border:1px solid #d79292;
+      background:#fff0f0;
+      color:#9b2626;
+    }
+
+    .protected{
+      color:#8b6a20;
+      font-size:9px;
+      font-weight:900;
+    }
+
+    .empty{
+      padding:30px 12px;
+      color:#7b8b97;
+      text-align:center;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    @media(max-width:900px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .page-shell{
+        width:min(100% - 18px,1450px);
+      }
+
+      .page-header h1{
+        font-size:21px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="platformHeader"></div>
+
+  <main class="page-shell">
+
+    <section class="page-header">
+
+      <div class="gold-chip">
+        Primary Access
+      </div>
+
+      <h1>
+        Platform Admin Management
+      </h1>
+
+      <p>
+        Create and manage GH Mobility Platform Admin accounts.
+      </p>
+
+    </section>
+
+    <div class="primary-note">
+      This page is restricted to the original Primary Platform Admin.
+      The Primary account cannot be disabled or deleted.
+    </div>
+
+    <section class="grid">
+
+      <div class="panel">
+
+        <div class="panel-title">
+          Add Platform Admin
+        </div>
+
+        <div class="panel-body">
+
+          <form id="platformAdminForm">
+
+            <div class="field">
+              <label for="adminName">
+                Full Name
+              </label>
+              <input
+                id="adminName"
+                autocomplete="name"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="adminUsername">
+                Username
+              </label>
+              <input
+                id="adminUsername"
+                autocomplete="username"
+                required>
+            </div>
+
+            <div class="field">
+              <label for="adminEmail">
+                Email
+              </label>
+              <input
+                id="adminEmail"
+                type="email"
+                autocomplete="email">
+            </div>
+
+            <div class="field">
+              <label for="adminPassword">
+                Password
+              </label>
+              <input
+                id="adminPassword"
+                type="password"
+                minlength="8"
+                autocomplete="new-password"
+                required>
+            </div>
+
+            <button
+              type="submit"
+              class="create-btn"
+              id="createBtn">
+              Create Platform Admin
+            </button>
+
+            <div
+              id="formMessage"
+              class="message">
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+
+      <div class="panel">
+
+        <div class="panel-title">
+          Platform Admin Accounts
+        </div>
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Admin</th>
+                <th>Username</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="platformAdminRows">
+              <tr>
+                <td colspan="6" class="empty">
+                  Loading Platform Admins...
+                </td>
+              </tr>
+            </tbody>
+
+          </table>
+
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="/platform-admin/platform_header.js"></script>
+
+  <script>
+    (()=>{
+
+      "use strict";
+
+      const API =
+        "/api/platform-admin-management";
+
+      function token(){
+        return String(
+          sessionStorage.getItem(
+            "staffToken"
+          ) ||
+          localStorage.getItem(
+            "token"
+          ) ||
+          ""
+        ).trim();
+      }
+
+      function esc(value){
+        return String(value ?? "")
+          .replace(/&/g,"&amp;")
+          .replace(/</g,"&lt;")
+          .replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;")
+          .replace(/'/g,"&#039;");
+      }
+
+      async function request(
+        url,
+        options = {}
+      ){
+
+        const response =
+          await fetch(
+            url,
+            {
+              cache:"no-store",
+              ...options,
+              headers:{
+                "Content-Type":
+                  "application/json",
+                Authorization:
+                  `Bearer ${token()}`,
+                ...(
+                  options.headers ||
+                  {}
+                )
+              }
+            }
+          );
+
+        const data =
+          await response
+            .json()
+            .catch(
+              ()=>({})
+            );
+
+        if(!response.ok){
+          const error =
+            new Error(
+              data.message ||
+              `Request failed (${response.status})`
+            );
+
+          error.status =
+            response.status;
+
+          throw error;
+        }
+
+        return data;
+      }
+
+      function showMessage(
+        text,
+        type
+      ){
+
+        const box =
+          document.getElementById(
+            "formMessage"
+          );
+
+        box.textContent =
+          text || "";
+
+        box.className =
+          `message show ${type}`;
+      }
+
+      function clearMessage(){
+
+        const box =
+          document.getElementById(
+            "formMessage"
+          );
+
+        box.textContent =
+          "";
+
+        box.className =
+          "message";
+      }
+
+      function formatDate(value){
+
+        if(!value){
+          return "—";
+        }
+
+        const date =
+          new Date(value);
+
+        if(
+          Number.isNaN(
+            date.getTime()
+          )
+        ){
+          return "—";
+        }
+
+        return date.toLocaleDateString(
+          "en-US",
+          {
+            month:"short",
+            day:"numeric",
+            year:"numeric"
+          }
+        );
+      }
+
+      async function verifyPrimary(){
+
+        try{
+
+          const data =
+            await request(
+              `${API}/me`
+            );
+
+          if(
+            data.isPrimaryPlatformAdmin !==
+            true
+          ){
+            window.location.replace(
+              "/platform-admin/dashboard.html"
+            );
+
+            return false;
+          }
+
+          return true;
+
+        }catch(err){
+
+          window.location.replace(
+            "/platform-admin/dashboard.html"
+          );
+
+          return false;
+        }
+      }
+
+      async function loadAdmins(){
+
+        const body =
+          document.getElementById(
+            "platformAdminRows"
+          );
+
+        body.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty">
+              Loading Platform Admins...
+            </td>
+          </tr>
+        `;
+
+        try{
+
+          const data =
+            await request(
+              API
+            );
+
+          const rows =
+            Array.isArray(
+              data.platformAdmins
+            )
+              ? data.platformAdmins
+              : [];
+
+          if(!rows.length){
+
+            body.innerHTML = `
+              <tr>
+                <td colspan="6" class="empty">
+                  No Platform Admin accounts found.
+                </td>
+              </tr>
+            `;
+
+            return;
+          }
+
+          body.innerHTML =
+            rows.map(admin=>{
+
+              const isPrimary =
+                admin.isPrimaryPlatformAdmin ===
+                true;
+
+              const enabled =
+                admin.enabled !== false &&
+                admin.active !== false;
+
+              return `
+                <tr>
+
+                  <td class="admin-cell">
+                    <strong>
+                      ${esc(admin.name || "Platform Admin")}
+                    </strong>
+
+                    <small>
+                      ${esc(admin.email || "No email")}
+                    </small>
+                  </td>
+
+                  <td>
+                    ${esc(admin.username || "—")}
+                  </td>
+
+                  <td>
+                    <span class="badge ${isPrimary ? "primary" : "secondary"}">
+                      ${isPrimary ? "Primary" : "Platform Admin"}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="badge ${enabled ? "active" : "disabled"}">
+                      ${enabled ? "Active" : "Disabled"}
+                    </span>
+                  </td>
+
+                  <td>
+                    ${esc(formatDate(admin.createdAt))}
+                  </td>
+
+                  <td>
+
+                    ${
+                      isPrimary
+                        ? `
+                          <span class="protected">
+                            Protected
+                          </span>
+                        `
+                        : `
+                          <div class="actions">
+
+                            <button
+                              type="button"
+                              class="action-btn toggle"
+                              data-action="toggle"
+                              data-id="${esc(admin.id)}">
+                              ${enabled ? "Disable" : "Enable"}
+                            </button>
+
+                            <button
+                              type="button"
+                              class="action-btn delete"
+                              data-action="delete"
+                              data-id="${esc(admin.id)}"
+                              data-name="${esc(admin.name || admin.username || "Platform Admin")}">
+                              Delete
+                            </button>
+
+                          </div>
+                        `
+                    }
+
+                  </td>
+
+                </tr>
+              `;
+            })
+            .join("");
+
+        }catch(err){
+
+          if(err.status === 403){
+            window.location.replace(
+              "/platform-admin/dashboard.html"
+            );
+            return;
+          }
+
+          body.innerHTML = `
+            <tr>
+              <td colspan="6" class="empty">
+                ${esc(err.message || "Unable to load Platform Admins")}
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      document
+        .getElementById(
+          "platformAdminForm"
+        )
+        .addEventListener(
+          "submit",
+          async event=>{
+
+            event.preventDefault();
+            clearMessage();
+
+            const button =
+              document.getElementById(
+                "createBtn"
+              );
+
+            const payload = {
+              name:
+                document.getElementById(
+                  "adminName"
+                ).value.trim(),
+
+              username:
+                document.getElementById(
+                  "adminUsername"
+                ).value.trim(),
+
+              email:
+                document.getElementById(
+                  "adminEmail"
+                ).value.trim(),
+
+              password:
+                document.getElementById(
+                  "adminPassword"
+                ).value
+            };
+
+            try{
+
+              button.disabled =
+                true;
+
+              await request(
+                API,
+                {
+                  method:"POST",
+                  body:
+                    JSON.stringify(
+                      payload
+                    )
+                }
+              );
+
+              showMessage(
+                "Platform Admin created successfully.",
+                "ok"
+              );
+
+              event.target.reset();
+
+              await loadAdmins();
+
+            }catch(err){
+
+              showMessage(
+                err.message ||
+                "Unable to create Platform Admin",
+                "error"
+              );
+
+            }finally{
+
+              button.disabled =
+                false;
+            }
+          }
+        );
+
+      document
+        .getElementById(
+          "platformAdminRows"
+        )
+        .addEventListener(
+          "click",
+          async event=>{
+
+            const button =
+              event.target.closest(
+                "button[data-action]"
+              );
+
+            if(!button){
+              return;
+            }
+
+            const id =
+              String(
+                button.dataset.id ||
+                ""
+              ).trim();
+
+            const action =
+              String(
+                button.dataset.action ||
+                ""
+              ).trim();
+
+            if(!id){
+              return;
+            }
+
+            if(action === "toggle"){
+
+              button.disabled =
+                true;
+
+              try{
+
+                await request(
+                  `${API}/${encodeURIComponent(id)}/toggle`,
+                  {
+                    method:"PATCH"
+                  }
+                );
+
+                await loadAdmins();
+
+              }catch(err){
+
+                alert(
+                  err.message ||
+                  "Unable to update Platform Admin"
+                );
+
+                button.disabled =
+                  false;
+              }
+
+              return;
+            }
+
+            if(action === "delete"){
+
+              const name =
+                String(
+                  button.dataset.name ||
+                  "this Platform Admin"
+                );
+
+              if(
+                !confirm(
+                  `Delete ${name}?`
+                )
+              ){
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              try{
+
+                await request(
+                  `${API}/${encodeURIComponent(id)}`,
+                  {
+                    method:"DELETE"
+                  }
+                );
+
+                await loadAdmins();
+
+              }catch(err){
+
+                alert(
+                  err.message ||
+                  "Unable to delete Platform Admin"
+                );
+
+                button.disabled =
+                  false;
+              }
+            }
+          }
+        );
+
+      document.addEventListener(
+        "DOMContentLoaded",
+        async ()=>{
+
+          const allowed =
+            await verifyPrimary();
+
+          if(!allowed){
+            return;
+          }
+
+          await loadAdmins();
+        }
+      );
+
+    })();
+  </script>
+
+</body>
+</html>

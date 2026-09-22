@@ -1,0 +1,2247 @@
+/* ===============================
+   ADMIN TRIPS V5 CLEAN
+   Same Trips Hub Shared Layout
+   Eye View + Nested Cells
+   Select / Unselect Buttons
+================================ */
+
+const API = "/api/trips";
+const TENANT_TRIPS_API = "/api/tenant-trips/today-tomorrow";
+const SERVICES_API = "/api/services/admin";
+
+const container = document.getElementById("tripsContainer");
+const statsCards = document.getElementById("statsCards");
+const serviceCards = document.getElementById("serviceCards");
+
+const role = localStorage.getItem("role") || "";
+const token = localStorage.getItem("token") || "";
+
+if(!token || !["SUPER_ADMIN","admin","dispatcher"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+let trips = [];
+let services = [];
+let displayItems = [];
+let activeService = "ALL";
+let SYSTEM_TIMEZONE = "America/Phoenix";
+let editingKey = null;
+let autoSelectRunning = false;
+
+const dispatchDeselectedStorageKey =
+  "tripsDispatchDeselected:" +
+  clean(localStorage.getItem("loginTenantSlug") || "default");
+
+const selectedMap = new WeakMap();
+
+/* ===============================
+   STYLE FIX
+================================ */
+
+(function injectTripsStyle(){
+
+  document.getElementById("admin-trips-clean-style")?.remove();
+
+  const s = document.createElement("style");
+  s.id = "admin-trips-clean-style";
+
+  s.innerHTML = `
+
+.admin-trips-top{
+  position:sticky;
+  top:0;
+  z-index:800;
+  background:#f1f5f9;
+  padding:0 0 8px;
+  border-bottom:1px solid #cbd5e1;
+}
+
+/* ===============================
+   STATS
+================================ */
+
+.stats-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important;
+  gap:12px!important;
+  margin:0 0 12px!important;
+}
+
+.stat-card{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  min-height:92px!important;
+  border:1px solid rgba(255,255,255,.30)!important;
+  border-left:0!important;
+  border-radius:15px!important;
+  padding:12px 10px!important;
+  text-align:center!important;
+  box-shadow:
+    0 9px 20px rgba(15,23,42,.17),
+    inset 0 1px 0 rgba(255,255,255,.24)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+
+.stat-card::before{
+  content:"";
+  position:absolute;
+  width:118px;
+  height:118px;
+  border-radius:50%;
+  right:-35px;
+  top:-42px;
+  background:rgba(255,255,255,.13);
+  z-index:-1;
+}
+
+.stat-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    125deg,
+    rgba(255,255,255,.18) 0%,
+    rgba(255,255,255,.04) 38%,
+    rgba(255,255,255,0) 62%
+  );
+  pointer-events:none;
+  z-index:-1;
+}
+
+/* TOTAL */
+.stat-card:nth-child(1){
+  background:linear-gradient(135deg,#075fe8 0%,#13a4ff 100%)!important;
+}
+
+/* TODAY */
+.stat-card:nth-child(2){
+  background:linear-gradient(135deg,#f472b6 0%,#ec4899 55%,#db2777 100%)!important;
+}
+
+/* TOMORROW */
+.stat-card:nth-child(3){
+  background:linear-gradient(135deg,#0891b2 0%,#22d3ee 100%)!important;
+}
+
+/* FACILITY */
+.stat-card:nth-child(4){
+  background:linear-gradient(135deg,#6d28d9 0%,#8b5cf6 52%,#c026d3 100%)!important;
+}
+
+/* GET QUOTE */
+.stat-card:nth-child(5){
+  background:linear-gradient(135deg,#11983f 0%,#39c65d 100%)!important;
+}
+
+/* RESERVED */
+.stat-card:nth-child(6){
+  background:linear-gradient(135deg,#f27a00 0%,#ffad16 100%)!important;
+}
+
+.stat-label{
+  width:100%!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  color:#fff!important;
+  letter-spacing:.3px!important;
+  text-transform:uppercase!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22)!important;
+}
+
+.stat-value{
+  width:100%!important;
+  font-size:26px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  color:#fff!important;
+  margin-top:5px!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.22)!important;
+}
+
+/* ===============================
+   SERVICE CARDS
+================================ */
+
+.service-strip{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;
+  gap:8px!important;
+  overflow:visible!important;
+  padding-bottom:0!important;
+  margin-bottom:11px!important;
+}
+
+.service-card{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
+  border:1px solid #d1a92e!important;
+  color:#111827!important;
+  border-radius:13px!important;
+  padding:8px 7px!important;
+  cursor:pointer!important;
+  font-weight:900!important;
+  box-shadow:
+    0 7px 16px rgba(15,23,42,.12),
+    inset 0 1px 0 rgba(255,255,255,.28)!important;
+  text-align:center!important;
+  min-height:78px!important;
+  min-width:0!important;
+}
+
+.service-card::before{
+  content:"";
+  position:absolute;
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  right:-35px;
+  top:-38px;
+  background:rgba(255,255,255,.16);
+  z-index:-1;
+}
+
+.service-card.active{
+  background:linear-gradient(135deg,#f8e7a2 0%,#e8c75d 52%,#f4dc86 100%)!important;
+  color:#111827!important;
+  border:3px solid #0f172a!important;
+  outline:none!important;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.9),
+    0 10px 24px rgba(15,23,42,.18)!important;
+}
+
+.service-name{
+  font-size:12px!important;
+  line-height:1.1!important;
+  margin-bottom:4px!important;
+  font-weight:900!important;
+  color:#111827!important;
+}
+
+.service-total{
+  font-size:22px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  margin:4px 0!important;
+  color:#111827!important;
+}
+
+.service-mini{
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr)!important;
+  gap:4px!important;
+  margin-top:6px!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  color:#111827!important;
+}
+
+.service-card.active .service-mini{
+  color:#111827!important;
+}
+
+/* ===============================
+   SELECTION BAR
+================================ */
+
+.selection-bar{
+  display:flex!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  margin:0!important;
+}
+
+.select-btn{
+  border:none!important;
+  border-radius:9px!important;
+  padding:8px 13px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+  color:#fff!important;
+  background:#0f172a!important;
+  box-shadow:0 4px 10px rgba(15,23,42,.12)!important;
+}
+
+.select-btn:hover{
+  background:#2563eb!important;
+}
+
+.select-btn.active{
+  background:#16a34a!important;
+}
+
+/* ===============================
+   TABLE
+================================ */
+
+.table-scroll{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  -webkit-overflow-scrolling:touch!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 8px 22px rgba(15,23,42,.08)!important;
+  margin-bottom:22px!important;
+}
+
+.trip-table{
+  width:100%!important;
+  min-width:1880px!important;
+  table-layout:fixed!important;
+  border-collapse:collapse!important;
+  background:#fff!important;
+  border-top:6px solid #000!important;
+  font-size:11px!important;
+}
+
+.trip-table th,
+.trip-table td{
+  border:1px solid #dbe3ee!important;
+  padding:5px!important;
+  text-align:center!important;
+  vertical-align:middle!important;
+  line-height:1.25!important;
+  box-sizing:border-box!important;
+  position:relative!important;
+  overflow:visible!important;
+}
+
+.trip-table th{
+  background:#1f2937!important;
+  color:#fff!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+  font-size:11px!important;
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
+}
+
+.trip-table td{
+  font-size:11px!important;
+}
+
+.trip-table tbody tr td{
+  border-bottom:3px solid #000!important;
+}
+
+/* ===============================
+   COLUMN SIZES
+================================ */
+
+.col-dispatch{
+  width:62px!important;
+  min-width:62px!important;
+  max-width:62px!important;
+}
+
+.col-num{
+  width:30px!important;
+  min-width:30px!important;
+  max-width:30px!important;
+}
+
+.col-trip{
+  width:76px!important;
+  min-width:76px!important;
+  max-width:76px!important;
+}
+
+.col-company{
+  width:100px!important;
+  min-width:100px!important;
+  max-width:100px!important;
+}
+
+.col-date{
+  width:82px!important;
+  min-width:82px!important;
+  max-width:82px!important;
+}
+
+.col-time{
+  width:58px!important;
+  min-width:58px!important;
+  max-width:58px!important;
+}
+
+.col-status{
+  width:76px!important;
+  min-width:76px!important;
+  max-width:76px!important;
+}
+
+.col-eye{
+  width:34px!important;
+  min-width:34px!important;
+  max-width:34px!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+
+.col-actions{
+  width:130px!important;
+  min-width:130px!important;
+  max-width:130px!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+
+.wide-client{
+  width:120px!important;
+  min-width:120px!important;
+  max-width:120px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+
+.wide-phone{
+  width:115px!important;
+  min-width:115px!important;
+  max-width:115px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+
+.wide-address{
+  width:230px!important;
+  min-width:230px!important;
+  max-width:230px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10.5px!important;
+}
+
+.wide-stops{
+  width:240px!important;
+  min-width:240px!important;
+  max-width:240px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10.5px!important;
+}
+
+.wide-stops .cell-item{
+  white-space:nowrap!important;
+  word-break:normal!important;
+}
+
+.wide-notes{
+  width:260px!important;
+  min-width:260px!important;
+  max-width:260px!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+
+.company-cell{
+  width:100px!important;
+  min-width:100px!important;
+  max-width:100px!important;
+  font-weight:800!important;
+  word-break:break-word!important;
+  text-align:left!important;
+}
+
+/* ===============================
+   GROUP TITLE
+================================ */
+
+.group-title{
+  margin:12px 0 0!important;
+  padding:5px 8px!important;
+  background:#bfdbfe!important;
+  color:#1e3a8a!important;
+  border-top:2px solid #60a5fa!important;
+  border-bottom:2px solid #60a5fa!important;
+  border-radius:8px 8px 0 0!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  letter-spacing:.3px!important;
+}
+
+/* ===============================
+   CELL BOX SAME TRIPS HUB
+================================ */
+
+.cell-box{
+  display:grid!important;
+  border:1px solid #111!important;
+  background:#fff!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+  border-radius:4px!important;
+  overflow:hidden!important;
+}
+
+.cell-item{
+  padding:4px 5px!important;
+  min-height:22px!important;
+  font-weight:700!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  box-sizing:border-box!important;
+  background:#fff!important;
+  font-size:10.5px!important;
+}
+
+.cell-item + .cell-item{
+  border-top:1px solid #111!important;
+}
+
+.cell-item .edit-field,
+.cell-item .edit-area{
+  margin:0!important;
+  min-width:70px!important;
+}
+
+/* ===============================
+   INPUTS
+================================ */
+
+.edit-field,
+.edit-area{
+  width:100%!important;
+  min-width:70px!important;
+  padding:5px!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:6px!important;
+  font-size:10.5px!important;
+  font-weight:700!important;
+  box-sizing:border-box!important;
+  font-family:inherit!important;
+  background:#fff!important;
+}
+
+.edit-area{
+  min-height:45px!important;
+  resize:vertical!important;
+  white-space:pre-line!important;
+}
+
+/* ===============================
+   BADGES
+================================ */
+
+.trip-number-badge{
+  font-weight:900!important;
+  color:#1d4ed8!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  font-size:10px!important;
+}
+
+.status-pill{
+  display:inline-flex!important;
+  padding:4px 6px!important;
+  border-radius:999px!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+  border:1px solid #cbd5e1!important;
+  white-space:nowrap!important;
+}
+
+.status-pill.confirmed{
+  background:#bbf7d0!important;
+  color:#14532d!important;
+  border:1px solid #86efac!important;
+}
+
+.status-pill.paid{
+  background:#dbeafe!important;
+  color:#1d4ed8!important;
+  border:1px solid #93c5fd!important;
+}
+
+/* ===============================
+   ROW COLORS
+================================ */
+
+.row-facility td{background:#dbeafe!important;}
+.row-gq td{background:#dcfce7!important;}
+.row-rv td{background:#fef3c7!important;}
+.row-shared td{background:#ede9fe!important;}
+
+/* ===============================
+   EYE BUTTON
+================================ */
+
+.eye-btn{
+  border:none!important;
+  background:transparent!important;
+  color:#2563eb!important;
+  width:30px!important;
+  height:24px!important;
+  cursor:pointer!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  line-height:1!important;
+  padding:0!important;
+}
+
+.eye-btn:hover{
+  color:#1d4ed8!important;
+  background:#dbeafe!important;
+  border-radius:6px!important;
+}
+
+/* ===============================
+   VIEW MODAL
+================================ */
+
+.hub-view-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:15px;
+}
+
+.hub-view-box{
+  background:#fff;
+  width:min(520px,96vw);
+  border-radius:15px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.28);
+}
+
+.hub-view-head{
+  background:#2563eb;
+  color:#fff;
+  padding:12px 15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:900;
+}
+
+.hub-view-close{
+  border:none;
+  background:#fff;
+  color:#0f172a;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.hub-view-body{
+  padding:14px;
+  display:grid;
+  gap:8px;
+}
+
+.view-line{
+  display:grid;
+  grid-template-columns:150px 1fr;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  overflow:hidden;
+}
+
+.view-label{
+  background:#f1f5f9;
+  padding:9px;
+  font-weight:900;
+  color:#334155;
+}
+
+.view-value{
+  padding:9px;
+  font-weight:800;
+  color:#0f172a;
+  word-break:break-word;
+  white-space:pre-line;
+}
+
+/* ===============================
+   ACTIONS
+================================ */
+
+.actions{
+  display:flex!important;
+  flex-direction:row!important;
+  gap:6px!important;
+  justify-content:center!important;
+  align-items:center!important;
+  flex-wrap:nowrap!important;
+  width:100%!important;
+  margin:0!important;
+}
+
+.btn{
+  border:none!important;
+  width:56px!important;
+  padding:5px 0!important;
+  border-radius:7px!important;
+  cursor:pointer!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  text-align:center!important;
+}
+
+.btn-edit{
+  background:#2563eb!important;
+  color:#fff!important;
+}
+
+.btn-delete{
+  background:#dc2626!important;
+  color:#fff!important;
+}
+
+.dispatch-check:checked{
+  accent-color:#16a34a!important;
+}
+
+/* ===============================
+   AUTOCOMPLETE
+================================ */
+
+.input-wrap{
+  position:relative!important;
+  width:100%!important;
+}
+
+.suggestions{
+  position:absolute!important;
+  top:100%!important;
+  left:0!important;
+  right:0!important;
+  background:#fff!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:10px!important;
+  z-index:99999!important;
+  max-height:220px!important;
+  overflow:auto!important;
+  box-shadow:0 12px 24px rgba(0,0,0,.15)!important;
+  margin-top:4px!important;
+  text-align:left!important;
+}
+
+.option{
+  padding:10px 12px!important;
+  cursor:pointer!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+  border-bottom:1px solid #eef2f7!important;
+  background:#fff!important;
+  color:#111827!important;
+}
+
+.option:last-child{
+  border-bottom:none!important;
+}
+
+.option:hover{
+  background:#eff6ff!important;
+}
+
+.option.disabled{
+  background:#f8fafc!important;
+  color:#64748b!important;
+  cursor:default!important;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+
+@media(max-width:768px){
+  .trip-table{
+    min-width:1880px!important;
+  }
+
+  .trip-table th,
+  .trip-table td{
+    font-size:10px!important;
+    padding:4px!important;
+  }
+
+  .cell-item{
+    font-size:9.5px!important;
+    padding:3px 4px!important;
+  }
+
+  .wide-address,
+  .wide-stops{
+    font-size:9.5px!important;
+  }
+
+  .service-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .view-line{
+    grid-template-columns:1fr;
+  }
+}
+
+`;
+
+  document.head.appendChild(s);
+
+})();
+
+/* ===============================
+   HELPERS
+================================ */
+
+function safe(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+function clean(v){ return String(v ?? "").trim(); }
+function upper(v){ return clean(v).toUpperCase(); }
+
+function cssEscape(v){
+  if(window.CSS && typeof CSS.escape === "function")
+    return CSS.escape(String(v));
+  return String(v).replace(/"/g,'\\"');
+}
+
+function authHeaders(json=false){
+  return {
+    ...(json ? {"Content-Type":"application/json"} : {}),
+    ...(token ? {Authorization:"Bearer " + token} : {})
+  };
+}
+
+function cellBox(items){
+  const arr = Array.isArray(items) ? items : [items];
+
+  return `
+    <div class="cell-box">
+      ${arr.map(v=>`
+        <div class="cell-item">${v || "--"}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function inputCell(value,field,type="text"){
+  return `<input class="edit-field" data-field="${field}" type="${type}" value="${safe(value)}">`;
+}
+
+function areaCell(value,field){
+  return `<textarea class="edit-area" data-field="${field}">${safe(value)}</textarea>`;
+}
+
+function serviceCodeFromValue(v){
+  const x = upper(v).replace(/\s+/g,"");
+  if(["ST","STANDARD","X"].includes(x)) return "ST";
+  if(["XL"].includes(x)) return "XL";
+  if(["TX","TAXI"].includes(x)) return "TX";
+  if(["LM","LIMO","LIMOUSINE"].includes(x)) return "LM";
+  if(["WH","WHEELCHAIR"].includes(x)) return "WH";
+  if(["SH","SHARED"].includes(x)) return "SH";
+  return x || "ST";
+}
+
+function isServiceVisible(s){
+  if(!s) return false;
+
+  return (
+    s.enabled === true ||
+    s.companyEnabled === true ||
+    s.reservedEnabled === true
+  );
+}
+
+function getServiceCodeFromService(s){
+  return serviceCodeFromValue(
+    s.customServiceCode || s.serviceCode || s.serviceKey || s.serviceType ||
+    s.key || s.code || s.companySuffix || s.suffix ||
+    s.name || s.title
+  );
+}
+
+function getServiceTitle(s){
+  return s.title || s.name || s.serviceName || getServiceCodeFromService(s);
+}
+
+function isSharedTrip(t){
+  return (
+    t.isShared === true ||
+    upper(t.tripType) === "SHARED" ||
+    upper(t.type) === "SHARED" ||
+    upper(t.serviceKey) === "SHARED" ||
+    upper(t.serviceKey) === "SH" ||
+    upper(t.tripNumber).includes("-SH") ||
+    clean(t.groupId) !== "" ||
+    (Array.isArray(t.passengers) && t.passengers.length > 0)
+  );
+}
+
+function getTripServiceCode(t){
+  if(isSharedTrip(t)) return "SH";
+
+  return serviceCodeFromValue(
+    t.serviceKey ||
+    t.serviceCode ||
+    t.serviceType ||
+    t.serviceSuffix ||
+    t.vehicleTypeFromQuote ||
+    t.vehicle ||
+    ""
+  );
+}
+
+function getServiceTitleByTrip(t){
+  const code = getTripServiceCode(t);
+  const s = services.find(x=>getServiceCodeFromService(x) === code);
+  return s ? getServiceTitle(s) : code;
+}
+
+function getEnabledServiceCodes(){
+  return new Set(
+    services
+      .filter(isServiceVisible)
+      .map(getServiceCodeFromService)
+      .filter(Boolean)
+  );
+}
+
+function isTripAllowedByService(t){
+  const enabled = getEnabledServiceCodes();
+  if(!enabled.size) return true;
+  return enabled.has(getTripServiceCode(t));
+}
+
+function getTripKind(t){
+  const raw = [
+    t.type,
+    t.source,
+    t.bookingSource,
+    t.createdBy,
+    t.from,
+    t.tripType,
+    t.reservationStatus,
+    t.tripNumber,
+    t.company ? "facility" : ""
+  ].join(" ").toLowerCase();
+
+  if(raw.includes("reserved") || raw.includes("reservation") || raw.includes("rv")) return "RV";
+  if(raw.includes("quote") || raw.includes("gq") || raw.includes("website") || raw.includes("public")) return "GQ";
+  if(raw.includes("company") || raw.includes("facility") || raw.includes("portal") || t.company) return "FA";
+  return "GQ";
+}
+
+function rowClass(item){
+  const k = getTripKind(item.trip);
+
+  let cls = "";
+
+  if(k === "RV"){
+    cls = "row-rv";
+  }else if(k === "FA"){
+    cls = "row-facility";
+  }else{
+    cls = "row-gq";
+  }
+
+  if(item.kind === "shared"){
+    cls += " row-shared";
+  }
+
+  return cls;
+}
+
+function getTripNumber(t){
+  return clean(t.tripNumber || t.bookingNumber || t.id || t._id || "-");
+}
+
+function getEmail(t,p=null){
+  return p?.clientEmail || p?.passengerEmail || p?.email ||
+    t?.clientEmail || t?.passengerEmail || t?.entryEmail || t?.email || "";
+}
+
+function getNotes(t){
+  return t.notes ?? t.tripNotes ?? t.note ?? "";
+}
+
+function getBookedDateObj(t){
+  return new Date(t?.bookedAt || t?.createdAt || t?.updatedAt || Date.now());
+}
+
+function formatDateObj(d){
+  return (!d || isNaN(d)) ? "-" : d.toLocaleDateString();
+}
+
+function formatTimeObj(d){
+  return (!d || isNaN(d)) ? "-" : d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+}
+
+function getBookedDate(t){ return formatDateObj(getBookedDateObj(t)); }
+function getBookedTime(t){ return formatTimeObj(getBookedDateObj(t)); }
+
+function stopText(s,seen=new Set()){
+  if(s === undefined || s === null) return "";
+
+  if(typeof s === "string") return clean(s);
+  if(typeof s === "number") return String(s);
+  if(typeof s !== "object") return "";
+
+  if(seen.has(s)) return "";
+  seen.add(s);
+
+  const candidates = [
+    s.formattedAddress,
+    s.formatted_address,
+    s.description,
+    s.label,
+    s.placeName,
+    s.name,
+    s.address,
+    s.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
+}
+
+function getStops(t){
+  if(Array.isArray(t.stops)) return t.stops;
+  if(Array.isArray(t.stopAddresses)) return t.stopAddresses;
+  if(Array.isArray(t.extraStops)) return t.extraStops;
+  return [];
+}
+
+function stopsPlain(t){
+  return getStops(t).map(stop=>stopText(stop)).filter(Boolean).join("\n");
+}
+
+function stopsDisplay(t){
+  const arr = getStops(t).map(stop=>stopText(stop)).filter(Boolean);
+  if(!arr.length) return "--";
+  return arr.map(x=>safe(x));
+}
+
+function parseStopsText(v){
+  return clean(v)
+    .split("\n")
+    .map(x=>x.trim())
+    .filter(Boolean)
+    .map(address=>({address}));
+}
+
+function statusKey(v){
+  return String(v || "")
+    .replace(/[_-]/g," ")
+    .replace(/\s+/g,"")
+    .toLowerCase()
+    .trim();
+}
+
+function getStatusClass(status){
+  const s = statusKey(status);
+  if(s === "confirmed") return "confirmed";
+  if(s === "paid") return "paid";
+  return "";
+}
+
+function isDispatchStatus(v){
+  const s = String(v || "")
+    .toLowerCase()
+    .replace(/[_-]/g," ")
+    .trim();
+
+  return s === "confirmed" || s === "paid";
+}
+
+/* ===============================
+   TIMEZONE
+================================ */
+
+async function loadSystemTimezone(){
+  try{
+    const res = await fetch("/api/system-design",{headers:authHeaders()});
+    if(!res.ok) return;
+
+    const data = await res.json();
+    SYSTEM_TIMEZONE =
+      data.timezone ||
+      data.systemTimezone ||
+      data?.settings?.timezone ||
+      "America/Phoenix";
+  }catch(err){
+    SYSTEM_TIMEZONE = "America/Phoenix";
+  }
+}
+
+function getSystemDateParts(offsetDays=0){
+  const now = new Date();
+
+  const parts = new Intl.DateTimeFormat("en-CA",{
+    timeZone:SYSTEM_TIMEZONE,
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit"
+  }).formatToParts(now);
+
+  const y = Number(parts.find(p=>p.type==="year")?.value);
+  const m = Number(parts.find(p=>p.type==="month")?.value);
+  const d = Number(parts.find(p=>p.type==="day")?.value);
+
+  const base = new Date(y,m-1,d);
+  base.setDate(base.getDate()+offsetDays);
+
+  return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(base.getDate()).padStart(2,"0")}`;
+}
+
+function todayKey(){ return getSystemDateParts(0); }
+function tomorrowKey(){ return getSystemDateParts(1); }
+
+function isTodayTrip(t){ return clean(t.tripDate) === todayKey(); }
+function isTomorrowTrip(t){ return clean(t.tripDate) === tomorrowKey(); }
+
+/* ===============================
+   SHARED GROUP ENGINE
+================================ */
+
+function getSharedKey(t){
+  return clean(t.groupId) || clean(t.tripNumber) || String(t._id || t.id || "");
+}
+
+function getRealPassengersFromGroup(group){
+  const first = group[0] || {};
+
+  if(Array.isArray(first.passengers) && first.passengers.length){
+    return first.passengers;
+  }
+
+  return group.map((t,i)=>({
+    passengerId:"P" + (i+1),
+    name:t.clientName || t.name || "",
+    clientName:t.clientName || t.name || "",
+    phone:t.clientPhone || t.phone || "",
+    clientPhone:t.clientPhone || t.phone || "",
+    email:t.clientEmail || t.email || "",
+    clientEmail:t.clientEmail || t.email || "",
+    pickup:t.pickup || "",
+    dropoff:t.dropoff || "",
+    status:t.status || "Scheduled"
+  }));
+}
+
+function getGroupStatus(group){
+  const passengers = getRealPassengersFromGroup(group);
+
+  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("confirm")))
+    return "Confirmed";
+
+  if(passengers.some(p=>String(p.status || "").toLowerCase().includes("paid")))
+    return "Paid";
+
+  return group[0]?.status || "Scheduled";
+}
+
+function buildDisplayItems(list){
+  const items = [];
+  const usedShared = new Set();
+  const sharedMap = {};
+
+  list.filter(isSharedTrip).forEach(t=>{
+    const key = getSharedKey(t);
+    if(!sharedMap[key]) sharedMap[key] = [];
+    sharedMap[key].push(t);
+  });
+
+  list.forEach(t=>{
+    if(isSharedTrip(t)){
+      const key = getSharedKey(t);
+
+      if(usedShared.has(key))
+        return;
+
+      usedShared.add(key);
+
+      const group = (sharedMap[key] || [t]).sort((a,b)=>
+        Number(a.passengerIndex || 0) - Number(b.passengerIndex || 0)
+      );
+
+      items.push({
+        kind:"shared",
+        key,
+        trip:group[0],
+        group
+      });
+
+      return;
+    }
+
+    items.push({
+      kind:"trip",
+      key:String(t._id || t.id),
+      trip:t
+    });
+  });
+
+  return items;
+}
+
+/* ===============================
+   FILTERS
+================================ */
+
+function isDispatchTrip(t){
+
+  if(isDispatchStatus(t.status))
+    return true;
+
+  /*
+    Get Quote now saves the card through Stripe SetupIntent without charging.
+    Older trips can therefore remain Booked/Scheduled even though checkout
+    finished successfully. Only treat those trips as dispatch-ready when the
+    server confirms that checkout/card setup was completed.
+  */
+  const currentStatus = statusKey(t.status);
+  const paymentStatus = String(t.paymentStatus || "").toUpperCase();
+  const getQuoteReady =
+    getTripKind(t) === "GQ" &&
+    (
+      t.dispatchSelected === true ||
+      !!clean(t.stripePaymentMethodId) ||
+      ["PAYMENT_METHOD_SAVED","AUTHORIZED","PAID"].includes(paymentStatus)
+    );
+
+  if(
+    getQuoteReady &&
+    (currentStatus === "booked" || currentStatus === "scheduled")
+  ){
+    return true;
+  }
+
+  if(isSharedTrip(t) && Array.isArray(t.passengers)){
+    return t.passengers.some(p=>isDispatchStatus(p.status || t.status));
+  }
+
+  return false;
+}
+
+function baseTrips(){
+
+  const sharedKeysToKeep = new Set();
+
+  trips.forEach(t=>{
+
+    if(!isSharedTrip(t))
+      return;
+
+    if(t.disabled === true)
+      return;
+
+    if(!isTripAllowedByService(t))
+      return;
+
+    if(!isTodayTrip(t) && !isTomorrowTrip(t))
+      return;
+
+    if(isDispatchTrip(t)){
+      sharedKeysToKeep.add(getSharedKey(t));
+    }
+
+  });
+
+  return trips.filter(t=>{
+
+    if(t.disabled === true)
+      return false;
+
+    if(!isTripAllowedByService(t))
+      return false;
+
+    if(!isTodayTrip(t) && !isTomorrowTrip(t))
+      return false;
+
+    if(isSharedTrip(t)){
+      return sharedKeysToKeep.has(getSharedKey(t));
+    }
+
+    return isDispatchTrip(t);
+
+  });
+
+}
+
+function currentItems(){
+  let items = buildDisplayItems(baseTrips());
+
+  if(activeService !== "ALL"){
+    items = items.filter(item=>getTripServiceCode(item.trip) === activeService);
+  }
+
+  return items;
+}
+
+/* ===============================
+   STATS
+================================ */
+
+function countKinds(items){
+  const out = {total:0,fa:0,gq:0,rv:0};
+
+  items.forEach(item=>{
+    out.total++;
+    const k = getTripKind(item.trip);
+    if(k === "FA") out.fa++;
+    else if(k === "RV") out.rv++;
+    else out.gq++;
+  });
+
+  return out;
+}
+
+function renderStats(){
+  const allItems = currentItems();
+
+  const total = allItems.length;
+  const today = allItems.filter(item=>isTodayTrip(item.trip)).length;
+  const tomorrow = allItems.filter(item=>isTomorrowTrip(item.trip)).length;
+  const fa = allItems.filter(item=>getTripKind(item.trip)==="FA").length;
+  const gq = allItems.filter(item=>getTripKind(item.trip)==="GQ").length;
+  const rv = allItems.filter(item=>getTripKind(item.trip)==="RV").length;
+
+  const data = [
+    ["TOTAL TRIPS", total],
+    ["TODAY TRIPS", today],
+    ["TOMORROW TRIPS", tomorrow],
+    ["FACILITY", fa],
+    ["GET QUOTE", gq],
+    ["RESERVED", rv]
+  ];
+
+  statsCards.innerHTML = data.map(x=>`
+    <div class="stat-card">
+      <div class="stat-label">${safe(x[0])}</div>
+      <div class="stat-value">${x[1]}</div>
+    </div>
+  `).join("");
+}
+
+function renderServiceCards(){
+  const allItems = currentItems();
+  const visible = services.filter(isServiceVisible);
+  const cards = [];
+
+  cards.push({code:"ALL", title:"ALL", ...countKinds(allItems)});
+
+  visible.forEach(s=>{
+    const code = getServiceCodeFromService(s);
+    const serviceItems = allItems.filter(item=>getTripServiceCode(item.trip) === code);
+
+    cards.push({
+      code,
+      title:getServiceTitle(s),
+      ...countKinds(serviceItems)
+    });
+  });
+
+  const used = new Set();
+
+  const unique = cards.filter(c=>{
+    if(used.has(c.code)) return false;
+    used.add(c.code);
+    return true;
+  });
+
+  serviceCards.innerHTML = unique.map(c=>`
+    <div class="service-card ${activeService===c.code ? "active" : ""}"
+      onclick="setActiveService('${safe(c.code)}')">
+      <div class="service-name">${safe(c.title)}</div>
+      <div class="service-total">${c.total}</div>
+      <div class="service-mini">
+        <span>FA ${c.fa}</span>
+        <span>GQ ${c.gq}</span>
+        <span>RV ${c.rv}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function setActiveService(code){
+  activeService = code || "ALL";
+  editingKey = null;
+  renderAll();
+}
+
+/* ===============================
+   SELECTION
+================================ */
+
+function itemSelected(item){
+  if(item.kind === "trip") return item.trip.dispatchSelected === true;
+  return item.group.some(t=>t.dispatchSelected === true);
+}
+
+function allSelected(items){
+  return items.length > 0 && items.every(item=>itemSelected(item));
+}
+
+function getItemTripIds(item){
+  const group = item?.kind === "shared" ? item.group : [item?.trip];
+
+  return group
+    .map(t=>clean(t?._id || t?.id))
+    .filter(Boolean);
+}
+
+function getManuallyDeselectedTripIds(){
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem(dispatchDeselectedStorageKey) || "[]"
+    );
+
+    return new Set(Array.isArray(saved) ? saved.map(clean).filter(Boolean) : []);
+  }catch(err){
+    return new Set();
+  }
+}
+
+function rememberManualSelection(item,val){
+  const saved = getManuallyDeselectedTripIds();
+
+  getItemTripIds(item).forEach(tripId=>{
+    if(val) saved.delete(tripId);
+    else saved.add(tripId);
+  });
+
+  localStorage.setItem(
+    dispatchDeselectedStorageKey,
+    JSON.stringify([...saved])
+  );
+}
+
+function itemWasManuallyDeselected(item){
+  const saved = getManuallyDeselectedTripIds();
+  return getItemTripIds(item).some(tripId=>saved.has(tripId));
+}
+
+function updateSelectionButtons(){
+  const all = currentItems();
+  const today = all.filter(item=>isTodayTrip(item.trip));
+  const tomorrow = all.filter(item=>isTomorrowTrip(item.trip));
+
+  const bAll = document.getElementById("selectAllBtn");
+  const bToday = document.getElementById("selectTodayBtn");
+  const bTomorrow = document.getElementById("selectTomorrowBtn");
+
+  if(bAll){
+    const selected = allSelected(all);
+    bAll.innerText = selected ? "Unselect All" : "Select All";
+    bAll.classList.toggle("active",selected);
+  }
+
+  if(bToday){
+    const selected = allSelected(today);
+    bToday.innerText = selected ? "Unselect Today" : "Select Today";
+    bToday.classList.toggle("active",selected);
+  }
+
+  if(bTomorrow){
+    const selected = allSelected(tomorrow);
+    bTomorrow.innerText = selected ? "Unselect Tomorrow" : "Select Tomorrow";
+    bTomorrow.classList.toggle("active",selected);
+  }
+}
+
+async function setItemSelected(item,val){
+  const group = item.kind === "shared" ? item.group : [item.trip];
+
+  const results = await Promise.all(group.map(async t=>{
+
+    const tripId = String(t._id || t.id || "").trim();
+
+    if(!tripId){
+      throw new Error("Trip id is missing");
+    }
+
+    const res = await fetch("/api/dispatch/" + tripId + "/selection",{
+      method:"PATCH",
+      headers:authHeaders(true),
+      body:JSON.stringify({dispatchSelected:val})
+    });
+
+    let data = {};
+
+    try{
+      data = await res.json();
+    }catch(err){
+      data = {};
+    }
+
+    if(!res.ok || data.success === false){
+      throw new Error(data.message || "Dispatch selection was not saved");
+    }
+
+    t.dispatchSelected = data.dispatchSelected === true;
+    return data;
+  }));
+
+  return results;
+}
+
+async function bulkSetSelected(items,val){
+  try{
+    await Promise.all(items.map(async item=>{
+      await setItemSelected(item,val);
+      rememberManualSelection(item,val);
+    }));
+    await loadTrips();
+  }catch(err){
+    console.error("DISPATCH SELECT:",err);
+    alert("❌ " + (err.message || "Dispatch selection was not saved"));
+    await loadTrips();
+  }
+}
+
+function toggleSelectAll(){
+  const items = currentItems();
+  bulkSetSelected(items,!allSelected(items));
+}
+
+function toggleSelectToday(){
+  const items = currentItems().filter(item=>isTodayTrip(item.trip));
+  bulkSetSelected(items,!allSelected(items));
+}
+
+function toggleSelectTomorrow(){
+  const items = currentItems().filter(item=>isTomorrowTrip(item.trip));
+  bulkSetSelected(items,!allSelected(items));
+}
+
+async function sendDispatchItem(key,val){
+  const item = displayItems.find(x=>x.key === key);
+  if(!item) return;
+
+  try{
+    await setItemSelected(item,val);
+    rememberManualSelection(item,val);
+    updateSelectionButtons();
+  }catch(err){
+    console.error("DISPATCH SELECT:",err);
+    alert("❌ " + (err.message || "Dispatch selection was not saved"));
+    await loadTrips();
+  }
+}
+
+/* ===============================
+   VIEW MODAL
+================================ */
+
+function viewLine(label,value){
+  return `
+    <div class="view-line">
+      <div class="view-label">${safe(label)}</div>
+      <div class="view-value">${safe(value || "--")}</div>
+    </div>
+  `;
+}
+
+function openTripView(key){
+  const item = displayItems.find(x=>x.key === key);
+  if(!item) return;
+
+  const t = item.kind === "shared" ? item.group[0] : item.trip;
+
+  closeTripView();
+
+  const overlay = document.createElement("div");
+  overlay.id = "hubViewOverlay";
+  overlay.className = "hub-view-overlay";
+
+  overlay.innerHTML = `
+    <div class="hub-view-box">
+      <div class="hub-view-head">
+        <div>Reservation Details</div>
+        <button class="hub-view-close" type="button" onclick="closeTripView()">×</button>
+      </div>
+
+      <div class="hub-view-body">
+        ${viewLine("Service",getServiceTitleByTrip(t))}
+        ${viewLine("Entry Name",t.entryName || "")}
+        ${viewLine("Entry Phone",t.entryPhone || "")}
+        ${viewLine("Client Email",getEmail(t))}
+        ${viewLine("Booked Date",getBookedDate(t))}
+        ${viewLine("Booked Time",getBookedTime(t))}
+      </div>
+    </div>
+  `;
+
+  overlay.addEventListener("click",e=>{
+    if(e.target === overlay) closeTripView();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+function closeTripView(){
+  document.getElementById("hubViewOverlay")?.remove();
+}
+
+/* ===============================
+   AUTOCOMPLETE
+================================ */
+
+async function searchAddress(q){
+  const query = clean(q);
+  if(query.length < 3) return [];
+
+  try{
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=us`
+    );
+
+    if(!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+
+  }catch(err){
+    return [];
+  }
+}
+
+function ensureWrapped(input){
+  if(!input) return null;
+  if(input.parentElement?.classList.contains("input-wrap")) return input.parentElement;
+
+  const wrap = document.createElement("div");
+  wrap.className = "input-wrap";
+  input.parentNode.insertBefore(wrap,input);
+  wrap.appendChild(input);
+  return wrap;
+}
+
+function renderSuggestions(box,results){
+  if(!results.length){
+    box.innerHTML = `<div class="option disabled">No results</div>`;
+    return;
+  }
+
+  box.innerHTML = results.map(r=>`
+    <div class="option"
+      data-address="${safe(r.display_name)}"
+      data-lat="${safe(r.lat)}"
+      data-lng="${safe(r.lon)}">
+      ${safe(r.display_name)}
+    </div>
+  `).join("");
+}
+
+function attachAutocomplete(input){
+  if(!input) return;
+
+  const wrap = ensureWrapped(input);
+  let old = wrap.querySelector(".suggestions");
+  if(old) old.remove();
+
+  const box = document.createElement("div");
+  box.className = "suggestions";
+  wrap.appendChild(box);
+
+  let timer = null;
+  input.setAttribute("autocomplete","off");
+
+  input.addEventListener("input",()=>{
+    selectedMap.set(input,null);
+    clearTimeout(timer);
+
+    const q = clean(input.value);
+
+    if(q.length < 3){
+      box.innerHTML = "";
+      return;
+    }
+
+    timer = setTimeout(async()=>{
+      renderSuggestions(box,await searchAddress(q));
+    },250);
+  });
+
+  box.addEventListener("click",e=>{
+    const el = e.target.closest(".option");
+    if(!el || el.classList.contains("disabled")) return;
+
+    const obj = {
+      address:el.dataset.address,
+      lat:Number(el.dataset.lat),
+      lng:Number(el.dataset.lng)
+    };
+
+    input.value = obj.address;
+    selectedMap.set(input,obj);
+    box.innerHTML = "";
+  });
+
+  input.addEventListener("blur",()=>{
+    setTimeout(()=>box.innerHTML="",180);
+  });
+}
+
+/* ===============================
+   AUTO SELECT NEW DISPATCH TRIPS
+================================ */
+
+/*
+  Every eligible trip that enters this Trips page is automatically
+  selected for the next Dispatch step, regardless of source:
+  Facility / Get Quote / Reserved.
+
+  This uses the existing dispatch selection endpoint, so the check
+  is persisted on the server and is not only visual.
+*/
+async function autoSelectIncomingTrips(){
+
+  if(autoSelectRunning){
+    return;
+  }
+
+  autoSelectRunning = true;
+
+  try{
+    const eligibleItems = buildDisplayItems(baseTrips());
+
+    const pending = eligibleItems.filter(item=>
+      !itemSelected(item) &&
+      !itemWasManuallyDeselected(item)
+    );
+
+    if(!pending.length){
+      return;
+    }
+
+    const CONCURRENCY = 5;
+    let cursor = 0;
+
+    async function worker(){
+
+      while(cursor < pending.length){
+
+        const item = pending[cursor++];
+
+        try{
+          await setItemSelected(item,true);
+        }catch(err){
+          console.error(
+            "AUTO DISPATCH SELECT FAILED:",
+            item?.key,
+            err
+          );
+        }
+      }
+    }
+
+    await Promise.all(
+      Array.from(
+        {
+          length:Math.min(
+            CONCURRENCY,
+            pending.length
+          )
+        },
+        ()=>worker()
+      )
+    );
+
+  }finally{
+    autoSelectRunning = false;
+  }
+}
+
+/* ===============================
+   LOAD
+================================ */
+
+async function loadServices(){
+  try{
+    const res = await fetch(SERVICES_API,{headers:authHeaders()});
+    const data = await res.json();
+    services = Array.isArray(data) ? data : [];
+  }catch(err){
+    services = [];
+  }
+}
+
+async function loadTrips(){
+  try{
+    const res = await fetch(TENANT_TRIPS_API,{headers:authHeaders()});
+    const data = await res.json();
+    trips = Array.isArray(data) ? data : [];
+  }catch(err){
+    trips = [];
+  }
+
+  /*
+    Auto-select every eligible trip before drawing the page.
+    The endpoint already persists dispatchSelected.
+  */
+  await autoSelectIncomingTrips();
+
+  renderAll();
+}
+
+/* ===============================
+   RENDER
+================================ */
+
+function sortByTime(a,b){
+  return clean(a.trip.tripTime).localeCompare(clean(b.trip.tripTime)) ||
+         getTripNumber(a.trip).localeCompare(getTripNumber(b.trip));
+}
+
+function renderAll(){
+  renderStats();
+  renderServiceCards();
+  renderTrips();
+  updateSelectionButtons();
+}
+
+function renderTrips(){
+  container.innerHTML = "";
+
+  displayItems = currentItems();
+
+  const today = displayItems.filter(item=>isTodayTrip(item.trip)).sort(sortByTime);
+  const tomorrow = displayItems.filter(item=>isTomorrowTrip(item.trip)).sort(sortByTime);
+
+  drawGroup("Today – " + todayKey(),today);
+  drawGroup("Tomorrow – " + tomorrowKey(),tomorrow);
+}
+
+function drawGroup(title,list){
+  const header = document.createElement("div");
+  header.className = "group-title";
+  header.innerText = title;
+  container.appendChild(header);
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "table-scroll";
+
+  const table = document.createElement("table");
+  table.className = "trip-table";
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-dispatch">Dispatch</th>
+        <th class="col-num">#</th>
+        <th class="col-trip">Trip #</th>
+        <th class="col-company">Company</th>
+        <th class="wide-client">Client / Passengers</th>
+        <th class="wide-phone">Phone</th>
+        <th class="wide-address">Pickup</th>
+        <th class="wide-stops">Stops</th>
+        <th class="wide-address">Dropoff</th>
+        <th class="wide-notes">Notes</th>
+        <th class="col-date">Trip Date</th>
+        <th class="col-time">Trip Time</th>
+        <th class="col-status">Status</th>
+        <th class="col-eye">👁️</th>
+        <th class="col-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector("tbody");
+
+  if(!list.length){
+    const row = document.createElement("tr");
+    row.innerHTML = `<td colspan="15" style="text-align:center;padding:20px;font-weight:900;">No Trips</td>`;
+    tbody.appendChild(row);
+  }else{
+    list.forEach((item,i)=>{
+      tbody.appendChild(item.kind === "shared" ? renderSharedRow(item,i+1) : renderTripRow(item,i+1));
+    });
+  }
+
+  wrapper.appendChild(table);
+  container.appendChild(wrapper);
+}
+
+function renderTripRow(item,num){
+  const t = item.trip;
+  const editing = editingKey === item.key;
+
+  const tr = document.createElement("tr");
+  tr.className = rowClass(item);
+  tr.dataset.key = item.key;
+  tr.dataset.tripId = t._id;
+
+  tr.innerHTML = `
+    <td class="col-dispatch">
+      <input class="dispatch-check" type="checkbox"
+        ${itemSelected(item) ? "checked" : ""}
+        onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
+    </td>
+
+    <td class="col-num">${num}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${safe(getTripNumber(t))}</span>
+    </td>
+
+    <td class="company-cell">
+      ${editing ? cellBox(inputCell(t.company || "","company")) : cellBox(safe(t.company || "--"))}
+    </td>
+
+    <td class="wide-client">
+      ${editing ? cellBox(inputCell(t.clientName || t.name || "","clientName")) : cellBox(safe(t.clientName || t.name || "--"))}
+    </td>
+
+    <td class="wide-phone">
+      ${editing ? cellBox(inputCell(t.clientPhone || t.phone || "","clientPhone")) : cellBox(safe(t.clientPhone || t.phone || "--"))}
+    </td>
+
+    <td class="wide-address">
+      ${editing ? cellBox(areaCell(t.pickup || "","pickup")) : cellBox(safe(t.pickup || "--"))}
+    </td>
+
+    <td class="wide-stops">
+      ${editing
+        ? cellBox(
+            getStops(t).length
+              ? getStops(t).map(stop=>areaCell(stopText(stop),"stopsText"))
+              : areaCell(stopsPlain(t),"stopsText")
+          )
+        : cellBox(stopsDisplay(t))}
+    </td>
+
+    <td class="wide-address">
+      ${editing ? cellBox(areaCell(t.dropoff || "","dropoff")) : cellBox(safe(t.dropoff || "--"))}
+    </td>
+
+    <td class="wide-notes">
+      ${editing ? cellBox(areaCell(getNotes(t),"notes")) : cellBox(safe(getNotes(t) || "--"))}
+    </td>
+
+    <td class="col-date">
+      ${editing ? inputCell(t.tripDate || "","tripDate","date") : safe(t.tripDate || "")}
+    </td>
+
+    <td class="col-time">
+      ${editing ? inputCell(t.tripTime || "","tripTime","time") : safe(t.tripTime || "")}
+    </td>
+
+    <td class="col-status">
+      <span class="status-pill ${getStatusClass(t.status)}">${safe(t.status || "Scheduled")}</span>
+    </td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
+    </td>
+
+    <td class="col-actions">
+      <div class="actions">
+        <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
+        <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+      </div>
+    </td>
+  `;
+
+  return tr;
+}
+
+function renderSharedRow(item,num){
+  const first = item.trip;
+  const passengers = getRealPassengersFromGroup(item.group);
+  const editing = editingKey === item.key;
+  const groupStatus = getGroupStatus(item.group);
+
+  const names = editing
+    ? cellBox(passengers.map((p,i)=>inputCell(p.name || p.clientName || "",`p_${i}_name`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.name || p.clientName || "--")}`));
+
+  const phones = editing
+    ? cellBox(passengers.map((p,i)=>inputCell(p.phone || p.clientPhone || "",`p_${i}_phone`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.phone || p.clientPhone || "--")}`));
+
+  const pickups = editing
+    ? cellBox(passengers.map((p,i)=>areaCell(p.pickup || "",`p_${i}_pickup`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.pickup || "--")}`));
+
+  const dropoffs = editing
+    ? cellBox(passengers.map((p,i)=>areaCell(p.dropoff || "",`p_${i}_dropoff`)))
+    : cellBox(passengers.map((p,i)=>`${i+1}. ${safe(p.dropoff || "--")}`));
+
+  const tr = document.createElement("tr");
+  tr.className = rowClass(item);
+  tr.dataset.key = item.key;
+
+  tr.innerHTML = `
+    <td class="col-dispatch">
+      <input class="dispatch-check" type="checkbox"
+        ${itemSelected(item) ? "checked" : ""}
+        onchange="sendDispatchItem('${safe(item.key)}',this.checked)">
+    </td>
+
+    <td class="col-num">${num}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${safe(getTripNumber(first))}</span>
+    </td>
+
+    <td class="company-cell">
+      ${editing ? cellBox(inputCell(first.company || "","company")) : cellBox(safe(first.company || "--"))}
+    </td>
+
+    <td class="wide-client">${names}</td>
+    <td class="wide-phone">${phones}</td>
+    <td class="wide-address">${pickups}</td>
+
+    <td class="wide-stops">
+      ${cellBox("Route optimized per passenger")}
+    </td>
+
+    <td class="wide-address">${dropoffs}</td>
+
+    <td class="wide-notes">
+      ${editing ? cellBox(areaCell(getNotes(first),"notes")) : cellBox(safe(getNotes(first) || "--"))}
+    </td>
+
+    <td class="col-date">
+      ${editing ? inputCell(first.tripDate || "","tripDate","date") : safe(first.tripDate || "")}
+    </td>
+
+    <td class="col-time">
+      ${editing ? inputCell(first.tripTime || "","tripTime","time") : safe(first.tripTime || "")}
+    </td>
+
+    <td class="col-status">
+      <span class="status-pill ${getStatusClass(groupStatus)}">${safe(groupStatus)}</span>
+    </td>
+
+    <td class="col-eye">
+      <button class="eye-btn" type="button" title="View" onclick="openTripView('${safe(item.key)}')">👁️</button>
+    </td>
+
+    <td class="col-actions">
+      <div class="actions">
+        <button class="btn btn-edit" onclick="editItem('${safe(item.key)}',this)">${editing ? "Save" : "Edit"}</button>
+        <button class="btn btn-delete" onclick="deleteItem('${safe(item.key)}')">Delete</button>
+      </div>
+    </td>
+  `;
+
+  return tr;
+}
+
+/* ===============================
+   EDIT / SAVE
+================================ */
+
+function parseTripDateTime(dateStr,timeStr){
+  if(!dateStr || !timeStr) return null;
+  const dt = new Date(`${dateStr}T${timeStr}:00`);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function getSystemNow(){
+  return new Date(new Date().toLocaleString("en-US",{timeZone:SYSTEM_TIMEZONE}));
+}
+
+function isFutureTrip(dateStr,timeStr){
+  const dt = parseTripDateTime(dateStr,timeStr);
+  if(!dt) return false;
+  return dt > getSystemNow();
+}
+
+async function editItem(key,btn){
+  const item = displayItems.find(x=>x.key === key);
+  const row = btn.closest("tr");
+
+  if(!item || !row) return;
+
+  if(editingKey !== key){
+    editingKey = key;
+    renderTrips();
+
+    setTimeout(()=>{
+      const freshRow = document.querySelector(`tr[data-key="${cssEscape(key)}"]`);
+      freshRow?.querySelectorAll(`[data-field="pickup"],[data-field="dropoff"]`).forEach(attachAutocomplete);
+    },50);
+
+    return;
+  }
+
+  if(item.kind === "shared") await saveSharedItem(item,row);
+  else await saveSingleItem(item,row);
+}
+
+async function saveSingleItem(item,row){
+  const t = item.trip;
+
+  const payload = {
+    company: row.querySelector(`[data-field="company"]`)?.value || "",
+    clientName: row.querySelector(`[data-field="clientName"]`)?.value || "",
+    clientPhone: row.querySelector(`[data-field="clientPhone"]`)?.value || "",
+    pickup: row.querySelector(`[data-field="pickup"]`)?.value || "",
+    dropoff: row.querySelector(`[data-field="dropoff"]`)?.value || "",
+    tripDate: row.querySelector(`[data-field="tripDate"]`)?.value || "",
+    tripTime: row.querySelector(`[data-field="tripTime"]`)?.value || "",
+    notes: row.querySelector(`[data-field="notes"]`)?.value || "",
+    stops: [...row.querySelectorAll(`[data-field="stopsText"]`)]
+      .map(stopInput=>clean(stopInput.value))
+      .filter(Boolean)
+      .map(address=>({address}))
+  };
+
+  if(!isFutureTrip(payload.tripDate,payload.tripTime)){
+    alert("❌ Cannot save trip in the past");
+    return;
+  }
+
+  const pickupInput = row.querySelector(`[data-field="pickup"]`);
+  const dropoffInput = row.querySelector(`[data-field="dropoff"]`);
+  const pickupSelected = selectedMap.get(pickupInput);
+  const dropoffSelected = selectedMap.get(dropoffInput);
+
+  if(pickupSelected){
+    payload.pickup = pickupSelected.address;
+    payload.pickupLat = pickupSelected.lat;
+    payload.pickupLng = pickupSelected.lng;
+  }
+
+  if(dropoffSelected){
+    payload.dropoff = dropoffSelected.address;
+    payload.dropoffLat = dropoffSelected.lat;
+    payload.dropoffLng = dropoffSelected.lng;
+  }
+
+  await fetch(API + "/" + t._id,{
+    method:"PUT",
+    headers:authHeaders(true),
+    body:JSON.stringify(payload)
+  });
+
+  editingKey = null;
+  await loadTrips();
+}
+
+async function saveSharedItem(item,row){
+  const first = item.trip;
+  const oldPassengers = getRealPassengersFromGroup(item.group);
+
+  const passengers = oldPassengers.map((p,i)=>({
+    ...p,
+    name: row.querySelector(`[data-field="p_${i}_name"]`)?.value || "",
+    clientName: row.querySelector(`[data-field="p_${i}_name"]`)?.value || "",
+    phone: row.querySelector(`[data-field="p_${i}_phone"]`)?.value || "",
+    clientPhone: row.querySelector(`[data-field="p_${i}_phone"]`)?.value || "",
+    pickup: row.querySelector(`[data-field="p_${i}_pickup"]`)?.value || "",
+    dropoff: row.querySelector(`[data-field="p_${i}_dropoff"]`)?.value || "",
+    status:p.status || first.status || "Scheduled"
+  }));
+
+  const payload = {
+    company: row.querySelector(`[data-field="company"]`)?.value || "",
+    tripDate: row.querySelector(`[data-field="tripDate"]`)?.value || "",
+    tripTime: row.querySelector(`[data-field="tripTime"]`)?.value || "",
+    notes: row.querySelector(`[data-field="notes"]`)?.value || "",
+    isShared:true,
+    tripType:"SHARED",
+    passengers,
+    totalPassengers:passengers.length
+  };
+
+  if(!isFutureTrip(payload.tripDate,payload.tripTime)){
+    alert("❌ Cannot save trip in the past");
+    return;
+  }
+
+  await Promise.all(item.group.map(t=>
+    fetch(API + "/" + t._id,{
+      method:"PUT",
+      headers:authHeaders(true),
+      body:JSON.stringify(payload)
+    })
+  ));
+
+  editingKey = null;
+  await loadTrips();
+}
+
+/* ===============================
+   DELETE
+================================ */
+
+async function deleteItem(key){
+  const item = displayItems.find(x=>x.key === key);
+  if(!item) return;
+
+  if(!confirm("Delete trip?")) return;
+
+  const group = item.kind === "shared" ? item.group : [item.trip];
+
+  await Promise.all(group.map(t=>
+    fetch(API + "/" + t._id,{
+      method:"DELETE",
+      headers:authHeaders()
+    })
+  ));
+
+  editingKey = null;
+  await loadTrips();
+}
+
+/* ===============================
+   GLOBALS
+================================ */
+
+Object.assign(window,{
+  setActiveService,
+  toggleSelectAll,
+  toggleSelectToday,
+  toggleSelectTomorrow,
+  sendDispatchItem,
+  editItem,
+  deleteItem,
+  openTripView,
+  closeTripView
+});
+
+/* ===============================
+   START
+================================ */
+
+(async function start(){
+  await loadSystemTimezone();
+  await loadServices();
+  await loadTrips();
+})();

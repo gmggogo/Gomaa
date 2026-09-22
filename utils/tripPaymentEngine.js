@@ -1,0 +1,1345 @@
+"use strict";
+
+const Stripe = require("stripe");
+
+const TenantPaymentAccount =
+  require("../models/TenantPaymentAccount");
+
+const stripe =
+  Stripe(
+    process.env.STRIPE_SECRET_KEY
+  );
+
+function cents(value){
+  const amount = Number(value);
+  if(!Number.isFinite(amount) || amount < 0){
+    throw new Error("Invalid payment amount");
+  }
+  return Math.round(amount * 100);
+}
+
+function dollars(value){
+  return Number(
+    (
+      Number(value || 0) / 100
+    ).toFixed(2)
+  );
+}
+
+function paymentError(err){
+  const message =
+    err?.raw?.message ||
+    err?.message ||
+    "Payment authorization failed";
+
+  const wrapped =
+    new Error(message);
+
+  wrapped.code =
+    err?.code ||
+    err?.raw?.code ||
+    "PAYMENT_FAILED";
+
+  wrapped.declineCode =
+    err?.decline_code ||
+    err?.raw?.decline_code ||
+    "";
+
+  wrapped.paymentFailed = true;
+
+  wrapped.stripeStatus =
+    err?.stripeStatus ||
+    err?.raw?.payment_intent?.status ||
+    "";
+
+  return wrapped;
+}
+
+/* =========================
+   TENANT STRIPE DESTINATION
+========================= */
+
+async function getTenantStripeAccountId(
+  trip
+){
+
+  const tenantId =
+    String(
+      trip?.tenantId || ""
+    ).trim();
+
+  if(!tenantId){
+    throw new Error(
+      "Trip tenant is missing"
+    );
+  }
+
+  const paymentAccount =
+    await TenantPaymentAccount
+      .findOne({
+        tenantId
+      })
+      .lean();
+
+  if(
+    !paymentAccount ||
+    !paymentAccount.stripeAccountId
+  ){
+    throw new Error(
+      "Stripe is not connected for this organization"
+    );
+  }
+
+  if(
+    paymentAccount.connected !== true ||
+    paymentAccount.chargesEnabled !== true
+  ){
+    throw new Error(
+      "Stripe onboarding is not complete for this organization"
+    );
+  }
+
+  return String(
+    paymentAccount.stripeAccountId
+  );
+}
+
+function tenantTransferData(
+  stripeAccountId
+){
+
+  return {
+    destination:
+      String(stripeAccountId)
+  };
+}
+
+/* =========================
+   CUSTOMER
+   Customer/card stays on the SaaS platform.
+   Actual trip charges transfer to tenant Stripe.
+========================= */
+
+async function ensureStripeCustomer(trip){
+
+  if(trip.stripeCustomerId){
+    return trip.stripeCustomerId;
+  }
+
+  const customer =
+    await stripe.customers.create({
+      name:
+        String(
+          trip.clientName || ""
+        ).trim() || undefined,
+
+      email:
+        String(
+          trip.clientEmail || ""
+        ).trim() || undefined,
+
+      phone:
+        String(
+          trip.clientPhone || ""
+        ).trim() || undefined,
+
+      metadata:{
+        tenantId:
+          String(
+            trip.tenantId || ""
+          ),
+
+        tenantSlug:
+          String(
+            trip.tenantSlug || ""
+          ),
+
+        tripId:
+          String(trip._id),
+
+        tripNumber:
+          String(
+            trip.tripNumber || ""
+          )
+      }
+    });
+
+  trip.stripeCustomerId =
+    customer.id;
+
+  await trip.save();
+
+  return customer.id;
+}
+
+async function createTripSetupIntent(trip){
+
+  const customerId =
+    await ensureStripeCustomer(
+      trip
+    );
+
+  /*
+    Validate that tenant has finished Stripe onboarding
+    before accepting a card for a new Get Quote booking.
+  */
+  await getTenantStripeAccountId(
+    trip
+  );
+
+  const setupIntent =
+    await stripe.setupIntents.create({
+      customer:
+        customerId,
+
+      usage:
+        "off_session",
+
+      payment_method_types:[
+        "card"
+      ],
+
+      metadata:{
+        tenantId:
+          String(
+            trip.tenantId || ""
+          ),
+
+        tenantSlug:
+          String(
+            trip.tenantSlug || ""
+          ),
+
+        tripId:
+          String(trip._id),
+
+        tripNumber:
+          String(
+            trip.tripNumber || ""
+          )
+      }
+    });
+
+  trip.setupIntentId =
+    setupIntent.id;
+
+  trip.paymentStatus =
+    "SETUP_PENDING";
+
+  await trip.save();
+
+  return setupIntent;
+}
+
+async function confirmSavedPaymentMethod(
+  trip,
+  setupIntentId
+){
+
+  const setupIntent =
+    await stripe.setupIntents.retrieve(
+      setupIntentId
+    );
+
+  if(
+    setupIntent.status !==
+    "succeeded"
+  ){
+    throw new Error(
+      "Card setup has not completed"
+    );
+  }
+
+  if(
+    String(
+      setupIntent.metadata?.tripId ||
+      ""
+    ) !== String(trip._id)
+  ){
+    throw new Error(
+      "Card setup does not belong to this trip"
+    );
+  }
+
+  if(
+    setupIntent.metadata?.tenantId &&
+    String(
+      setupIntent.metadata.tenantId
+    ) !==
+    String(
+      trip.tenantId || ""
+    )
+  ){
+    throw new Error(
+      "Card setup tenant mismatch"
+    );
+  }
+
+  trip.stripeCustomerId =
+    String(
+      setupIntent.customer ||
+      trip.stripeCustomerId ||
+      ""
+    );
+
+  trip.stripePaymentMethodId =
+    String(
+      setupIntent.payment_method ||
+      ""
+    );
+
+  trip.setupIntentId =
+    setupIntent.id;
+
+  trip.paymentStatus =
+    "PAYMENT_METHOD_SAVED";
+
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+  trip.paymentRequiredEmailSentAt = null;
+
+  await trip.save();
+
+  return trip;
+}
+
+/* =========================
+   AUTHORIZE
+   Charge is created on SaaS platform,
+   proceeds are routed to tenant Stripe.
+========================= */
+
+async function authorizeTripAmount(
+  trip,
+  amount,
+  reason = "TRIP_AUTHORIZATION"
+){
+
+  const amountCents =
+    cents(amount);
+
+  if(amountCents <= 0){
+    throw new Error(
+      "Authorization amount must be greater than zero"
+    );
+  }
+
+  if(
+    !trip.stripeCustomerId ||
+    !trip.stripePaymentMethodId
+  ){
+    throw new Error(
+      "Customer payment method is missing"
+    );
+  }
+
+  const stripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  try{
+
+    const intent =
+      await stripe.paymentIntents.create(
+        {
+          amount:
+            amountCents,
+
+          currency:
+            "usd",
+
+          customer:
+            trip.stripeCustomerId,
+
+          payment_method:
+            trip.stripePaymentMethodId,
+
+          capture_method:
+            "manual",
+
+          confirm:
+            true,
+
+          off_session:
+            true,
+
+          payment_method_types:[
+            "card"
+          ],
+
+          transfer_data:
+            tenantTransferData(
+              stripeAccountId
+            ),
+
+          metadata:{
+            tenantId:
+              String(
+                trip.tenantId || ""
+              ),
+
+            tenantSlug:
+              String(
+                trip.tenantSlug || ""
+              ),
+
+            stripeAccountId,
+
+            tripId:
+              String(trip._id),
+
+            tripNumber:
+              String(
+                trip.tripNumber || ""
+              ),
+
+            purpose:
+              reason
+          }
+        },
+        {
+          idempotencyKey:
+            `trip-auth-${trip._id}-${amountCents}-${reason}`
+        }
+      );
+
+    if(
+      intent.status !==
+      "requires_capture"
+    ){
+      throw new Error(
+        `Unexpected authorization status: ${intent.status}`
+      );
+    }
+
+    trip.authorizationPaymentIntentId =
+      intent.id;
+
+    trip.paymentIntentId =
+      intent.id;
+
+    trip.authorizedAmount =
+      dollars(
+        intent.amount_capturable ||
+        intent.amount
+      );
+
+    trip.paymentStatus =
+      "AUTHORIZED";
+
+    trip.paymentAuthorizedAt =
+      new Date();
+
+    trip.authorizationExpiresAt =
+      intent.capture_before
+        ? new Date(
+            intent.capture_before *
+            1000
+          )
+        : null;
+
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+    trip.paymentRequiredEmailSentAt = null;
+
+    await trip.save();
+
+    return intent;
+
+  }catch(err){
+
+    trip.paymentStatus =
+      "PAYMENT_REQUIRED";
+
+    trip.paymentFailureCode =
+      err?.code ||
+      err?.raw?.code ||
+      "PAYMENT_FAILED";
+
+    trip.paymentFailureMessage =
+      err?.message ||
+      "Authorization failed";
+
+    await trip.save();
+
+    throw paymentError(err);
+
+  }
+}
+
+async function changeAuthorizedAmount(
+  trip,
+  newAmount
+){
+
+  const newCents =
+    cents(newAmount);
+
+  const intentId =
+    trip.authorizationPaymentIntentId ||
+    trip.paymentIntentId;
+
+  if(
+    !intentId ||
+    trip.paymentStatus !== "AUTHORIZED"
+  ){
+    return authorizeTripAmount(
+      trip,
+      newAmount,
+      "ROUTE_CHANGE"
+    );
+  }
+
+  const current =
+    await stripe.paymentIntents.retrieve(
+      intentId
+    );
+
+  if(
+    current.status !==
+    "requires_capture"
+  ){
+    throw new Error(
+      "The existing authorization is no longer active"
+    );
+  }
+
+  const oldCents =
+    Number(
+      current.amount || 0
+    );
+
+  if(newCents === oldCents){
+    return current;
+  }
+
+  try{
+
+    let updated;
+
+    if(newCents > oldCents){
+
+      const stripeAccountId =
+        await getTenantStripeAccountId(
+          trip
+        );
+
+      updated =
+        await stripe.paymentIntents.create(
+          {
+            amount:newCents,
+            currency:"usd",
+
+            customer:
+              trip.stripeCustomerId,
+
+            payment_method:
+              trip.stripePaymentMethodId,
+
+            capture_method:"manual",
+            confirm:true,
+            off_session:true,
+
+            payment_method_types:[
+              "card"
+            ],
+
+            transfer_data:
+              tenantTransferData(
+                stripeAccountId
+              ),
+
+            metadata:{
+              tenantId:
+                String(
+                  trip.tenantId || ""
+                ),
+
+              tenantSlug:
+                String(
+                  trip.tenantSlug || ""
+                ),
+
+              stripeAccountId,
+
+              tripId:
+                String(trip._id),
+
+              tripNumber:
+                String(
+                  trip.tripNumber || ""
+                ),
+
+              purpose:
+                "ROUTE_CHANGE_REPLACEMENT"
+            }
+          },
+          {
+            idempotencyKey:
+              `trip-replacement-auth-${trip._id}-${newCents}`
+          }
+        );
+
+      if(
+        updated.status !==
+        "requires_capture"
+      ){
+        throw new Error(
+          `Replacement authorization failed: ${updated.status}`
+        );
+      }
+
+      await stripe.paymentIntents.cancel(
+        intentId
+      );
+
+      trip.authorizationPaymentIntentId =
+        updated.id;
+
+      trip.paymentIntentId =
+        updated.id;
+
+      trip.routeChangeAuthorizedAmount = null;
+      trip.routeChangeFinalAmount = null;
+
+    }else{
+
+      /*
+        Stripe does not allow changing the amount of a PaymentIntent
+        after it has reached requires_capture.
+
+        When the new trip price is LOWER, keep the existing authorization
+        in place and capture only the lower final amount later.
+
+        captureAuthorizedTrip() already uses amount_to_capture, so Stripe
+        will capture the new lower trip price and release the unused
+        remainder of the authorization.
+      */
+      updated = current;
+
+      trip.routeChangeAuthorizedAmount =
+        dollars(
+          current.amount_capturable ||
+          current.amount
+        );
+
+      trip.routeChangeFinalAmount =
+        dollars(newCents);
+
+    }
+
+    if(
+      updated.status !==
+      "requires_capture"
+    ){
+      throw new Error(
+        `Authorization update failed: ${updated.status}`
+      );
+    }
+
+    /*
+      Keep authorizedAmount equal to the amount actually held by Stripe.
+      For a decreased trip price, the lower final price remains on the trip
+      and is used later by captureAuthorizedTrip().
+    */
+    trip.authorizedAmount =
+      dollars(
+        updated.amount_capturable ||
+        updated.amount
+      );
+
+    trip.paymentStatus =
+      "AUTHORIZED";
+
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+
+    await trip.save();
+
+    return updated;
+
+  }catch(err){
+
+    trip.paymentFailureCode =
+      err?.code ||
+      err?.raw?.code ||
+      "AUTH_UPDATE_FAILED";
+
+    trip.paymentFailureMessage =
+      err?.message ||
+      "New trip price was declined";
+
+    await trip.save();
+
+    throw paymentError(err);
+
+  }
+}
+
+
+async function recoverCanceledAuthorizationForFinalCapture(
+  trip,
+  amountCents,
+  canceledIntentId
+){
+
+  if(
+    !trip.stripeCustomerId ||
+    !trip.stripePaymentMethodId
+  ){
+    const err =
+      new Error(
+        "Customer payment method is missing for authorization recovery"
+      );
+
+    err.code =
+      "PAYMENT_METHOD_MISSING";
+
+    err.paymentFailed =
+      true;
+
+    throw err;
+  }
+
+  const stripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const replacement =
+    await stripe.paymentIntents.create(
+      {
+        amount:
+          amountCents,
+
+        currency:
+          "usd",
+
+        customer:
+          trip.stripeCustomerId,
+
+        payment_method:
+          trip.stripePaymentMethodId,
+
+        capture_method:
+          "manual",
+
+        confirm:
+          true,
+
+        off_session:
+          true,
+
+        payment_method_types:[
+          "card"
+        ],
+
+        transfer_data:
+          tenantTransferData(
+            stripeAccountId
+          ),
+
+        metadata:{
+          tenantId:
+            String(
+              trip.tenantId || ""
+            ),
+
+          tenantSlug:
+            String(
+              trip.tenantSlug || ""
+            ),
+
+          stripeAccountId,
+
+          tripId:
+            String(
+              trip._id
+            ),
+
+          tripNumber:
+            String(
+              trip.tripNumber || ""
+            ),
+
+          purpose:
+            "FINAL_CAPTURE_RECOVERY",
+
+          replacesCanceledIntent:
+            String(
+              canceledIntentId || ""
+            )
+        }
+      },
+      {
+        /*
+          IMPORTANT:
+          Never reuse the original authorization idempotency key here.
+          The original PaymentIntent may already be canceled and Stripe
+          would return that same canceled intent again.
+
+          Tying the recovery key to the canceled PaymentIntent makes retries
+          of this exact recovery safe while allowing a genuinely new hold.
+        */
+        idempotencyKey:
+          `trip-final-recovery-${trip._id}-${canceledIntentId}-${amountCents}`
+      }
+    );
+
+  if(
+    replacement.status !==
+    "requires_capture"
+  ){
+    const err =
+      new Error(
+        `Replacement authorization failed: ${replacement.status}`
+      );
+
+    err.code =
+      "RECOVERY_AUTHORIZATION_FAILED";
+
+    err.stripeStatus =
+      String(
+        replacement.status || ""
+      );
+
+    err.paymentFailed =
+      true;
+
+    throw err;
+  }
+
+  /*
+    Save the new PaymentIntent immediately, before Final Confirmation
+    attempts capture. This also repairs trips that still point to an old
+    canceled authorization after a route-change replacement.
+  */
+  trip.authorizationPaymentIntentId =
+    replacement.id;
+
+  trip.paymentIntentId =
+    replacement.id;
+
+  trip.authorizedAmount =
+    dollars(
+      replacement.amount_capturable ||
+      replacement.amount
+    );
+
+  trip.paymentStatus =
+    "AUTHORIZED";
+
+  trip.paymentAuthorizedAt =
+    new Date();
+
+  trip.authorizationExpiresAt =
+    replacement.capture_before
+      ? new Date(
+          replacement.capture_before *
+          1000
+        )
+      : null;
+
+  trip.paymentFailureCode = "";
+  trip.paymentFailureMessage = "";
+
+  await trip.save();
+
+  return replacement;
+}
+
+
+async function captureAuthorizedTrip(
+  trip,
+  finalAmount
+){
+
+  let intentId =
+    trip.authorizationPaymentIntentId ||
+    trip.paymentIntentId;
+
+  if(!intentId){
+    throw new Error(
+      "Trip authorization is missing"
+    );
+  }
+
+  const amountCents =
+    cents(finalAmount);
+
+  try{
+
+    /*
+      Always read the current Stripe state before capture.
+
+      This protects Final Confirmation / Autopilot retries:
+      - if Stripe already captured successfully but Mongo save failed,
+        sync the local trip instead of trying to capture again;
+      - if a route change replaced the authorization PaymentIntent,
+        the capture request below is tied to the CURRENT intent id.
+    */
+    let current =
+      await stripe.paymentIntents.retrieve(
+        intentId
+      );
+
+    /*
+      A canceled PaymentIntent cannot be captured.
+
+      This can happen when a previous route-change replacement successfully
+      created a new authorization but the trip record still references the
+      older authorization, or when an authorization was intentionally
+      canceled before Final Confirmation.
+
+      Re-authorize the FINAL amount using the saved card, persist the new
+      PaymentIntent id, then continue through the normal capture path.
+    */
+    if(
+      current.status ===
+      "canceled"
+    ){
+      current =
+        await recoverCanceledAuthorizationForFinalCapture(
+          trip,
+          amountCents,
+          intentId
+        );
+
+      intentId =
+        current.id;
+    }
+
+    if(
+      current.status ===
+      "succeeded"
+    ){
+
+      trip.paymentStatus =
+        "PAID";
+
+      trip.capturedAmount =
+        dollars(
+          current.amount_received ||
+          current.amount ||
+          amountCents
+        );
+
+      trip.paymentCapturedAt =
+        trip.paymentCapturedAt ||
+        new Date();
+
+      trip.paymentFailureCode = "";
+      trip.paymentFailureMessage = "";
+
+      await trip.save();
+
+      return current;
+    }
+
+    if(
+      current.status !==
+      "requires_capture"
+    ){
+
+      const err =
+        new Error(
+          `Payment authorization cannot be captured while Stripe status is ${current.status}`
+        );
+
+      err.code =
+        "PAYMENT_NOT_CAPTURABLE";
+
+      err.stripeStatus =
+        String(
+          current.status || ""
+        );
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    const capturableCents =
+      Number(
+        current.amount_capturable ||
+        current.amount ||
+        0
+      );
+
+    if(
+      amountCents >
+      capturableCents
+    ){
+
+      const err =
+        new Error(
+          `Final payment amount exceeds the active authorization (${dollars(capturableCents)})`
+        );
+
+      err.code =
+        "CAPTURE_AMOUNT_EXCEEDS_AUTHORIZATION";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    const intent =
+      await stripe.paymentIntents.capture(
+        intentId,
+        {
+          amount_to_capture:
+            amountCents,
+
+          metadata:{
+            tenantId:
+              String(
+                trip.tenantId || ""
+              ),
+
+            finalTripAmount:
+              String(
+                amountCents
+              ),
+
+            settlementSource:
+              "DISPATCH_FINAL_CONFIRMATION"
+          }
+        },
+        {
+          /*
+            IMPORTANT:
+            Stripe idempotency keys are account-wide and must only be
+            reused for the exact same request.
+
+            The old key used only trip id + amount:
+              trip-capture-<tripId>-<amount>
+
+            If a route change replaced the authorization PaymentIntent
+            with another intent at the same amount, Stripe saw the same
+            key being used for a different capture request and rejected it.
+
+            Include the actual PaymentIntent id (and version the key)
+            so retries of the SAME capture stay idempotent while a
+            replacement authorization always receives a different key.
+          */
+          idempotencyKey:
+            `trip-capture-v2-${trip._id}-${intentId}-${amountCents}`
+        }
+      );
+
+    trip.paymentStatus =
+      "PAID";
+
+    trip.capturedAmount =
+      dollars(
+        intent.amount_received ||
+        amountCents
+      );
+
+    trip.paymentCapturedAt =
+      new Date();
+
+    trip.paymentFailureCode = "";
+    trip.paymentFailureMessage = "";
+
+    await trip.save();
+
+    return intent;
+
+  }catch(err){
+
+    /*
+      If the error object came from one of the explicit guards above,
+      preserve the same payment-failure contract used by callers.
+    */
+    trip.paymentStatus =
+      "CAPTURE_FAILED";
+
+    trip.paymentFailureCode =
+      err?.code ||
+      err?.raw?.code ||
+      "CAPTURE_FAILED";
+
+    trip.paymentFailureMessage =
+      err?.message ||
+      "Final payment capture failed";
+
+    await trip.save();
+
+    throw paymentError(err);
+
+  }
+}
+
+async function captureFeeAndReleaseRest(
+  trip,
+  fee,
+  reason
+){
+
+  const amountCents =
+    cents(fee);
+
+  const intentId =
+    trip.authorizationPaymentIntentId ||
+    trip.paymentIntentId;
+
+  if(!intentId){
+
+    if(amountCents === 0){
+
+      trip.paymentStatus =
+        "VOIDED";
+
+      await trip.save();
+
+      return null;
+    }
+
+    return authorizeTripAmount(
+      trip,
+      fee,
+      reason
+    ).then(
+      ()=>
+        captureAuthorizedTrip(
+          trip,
+          fee
+        )
+    );
+  }
+
+  if(amountCents === 0){
+
+    const current =
+      await stripe.paymentIntents.retrieve(
+        intentId
+      );
+
+    const cancellableStatuses =
+      new Set([
+        "requires_payment_method",
+        "requires_confirmation",
+        "requires_action",
+        "requires_capture"
+      ]);
+
+    if(
+      current.status ===
+      "canceled"
+    ){
+      trip.paymentStatus =
+        "VOIDED";
+
+      trip.authorizedAmount =
+        0;
+
+      await trip.save();
+
+      return current;
+    }
+
+    if(
+      current.status ===
+      "succeeded"
+    ){
+      trip.paymentStatus =
+        "PAID";
+
+      trip.capturedAmount =
+        dollars(
+          current.amount_received ||
+          current.amount ||
+          0
+        );
+
+      trip.paymentCapturedAt =
+        trip.paymentCapturedAt ||
+        new Date();
+
+      await trip.save();
+
+      const err =
+        new Error(
+          "Payment was already captured and cannot be voided automatically"
+        );
+
+      err.code =
+        "PAYMENT_ALREADY_CAPTURED";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    if(
+      !cancellableStatuses.has(
+        current.status
+      )
+    ){
+      const err =
+        new Error(
+          `Payment authorization cannot be voided while Stripe status is ${current.status}`
+        );
+
+      err.code =
+        "PAYMENT_NOT_CANCELLABLE";
+
+      err.paymentFailed =
+        true;
+
+      throw err;
+    }
+
+    const intent =
+      await stripe.paymentIntents.cancel(
+        intentId,
+        {},
+        {
+          idempotencyKey:
+            `trip-void-${trip._id}-${intentId}`
+        }
+      );
+
+    trip.paymentStatus =
+      "VOIDED";
+
+    trip.authorizedAmount =
+      0;
+
+    await trip.save();
+
+    return intent;
+  }
+
+  return captureAuthorizedTrip(
+    trip,
+    fee
+  );
+}
+
+async function cancelAuthorization(
+  trip
+){
+
+  const intentId =
+    trip.authorizationPaymentIntentId ||
+    trip.paymentIntentId;
+
+  if(!intentId){
+    return null;
+  }
+
+  const intent =
+    await stripe.paymentIntents.retrieve(
+      intentId
+    );
+
+  const cancellableStatuses =
+    new Set([
+      "requires_payment_method",
+      "requires_confirmation",
+      "requires_action",
+      "requires_capture"
+    ]);
+
+  if(
+    cancellableStatuses.has(
+      intent.status
+    )
+  ){
+    const cancelled =
+      await stripe.paymentIntents.cancel(
+        intentId,
+        {},
+        {
+          idempotencyKey:
+            `trip-cancel-auth-${trip._id}-${intentId}`
+        }
+      );
+
+    trip.paymentStatus =
+      "VOIDED";
+
+    trip.authorizedAmount =
+      0;
+
+    await trip.save();
+
+    return cancelled;
+  }
+
+  if(intent.status === "canceled"){
+    trip.paymentStatus =
+      "VOIDED";
+
+    trip.authorizedAmount =
+      0;
+
+    await trip.save();
+
+    return intent;
+  }
+
+  if(intent.status === "succeeded"){
+    trip.paymentStatus =
+      "PAID";
+
+    trip.capturedAmount =
+      dollars(
+        intent.amount_received ||
+        intent.amount ||
+        0
+      );
+
+    trip.paymentCapturedAt =
+      trip.paymentCapturedAt ||
+      new Date();
+
+    await trip.save();
+
+    return intent;
+  }
+
+  /*
+    Do not mark the trip VOIDED when Stripe says the PaymentIntent
+    is in a non-cancellable state such as processing.
+  */
+  return intent;
+}
+
+function hasActiveAuthorization(
+  trip
+){
+
+  return (
+    trip?.paymentStatus ===
+      "AUTHORIZED" &&
+    !!(
+      trip.authorizationPaymentIntentId ||
+      trip.paymentIntentId
+    )
+  );
+}
+
+module.exports = {
+  stripe,
+
+  getTenantStripeAccountId,
+
+  ensureStripeCustomer,
+  createTripSetupIntent,
+  confirmSavedPaymentMethod,
+  authorizeTripAmount,
+  changeAuthorizedAmount,
+  recoverCanceledAuthorizationForFinalCapture,
+  captureAuthorizedTrip,
+  captureFeeAndReleaseRest,
+  cancelAuthorization,
+  hasActiveAuthorization
+};

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GH Mobility Driver</title>
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GH Mobility Driver" />
+  <meta name="theme-color" content="#0f172a" />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="driver.css" />
+</head>
+
+<body class="driver-dashboard-page">
+
+  <main class="dashboard-shell">
+
+    <header class="driver-header">
+
+      <div class="driver-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 12a4.4 4.4 0 1 0 0-8.8 4.4 4.4 0 0 0 0 8.8zm-7.3 8.2c.5-4.1 3-6.5 7.3-6.5s6.8 2.4 7.3 6.5c.1.7-.4 1.3-1.1 1.3H5.8c-.7 0-1.2-.6-1.1-1.3z"/>
+        </svg>
+      </div>
+
+      <div class="driver-info">
+        <div class="driver-name" id="driverName">Driver</div>
+        <div class="driver-role">Driver</div>
+      </div>
+
+      <div class="driver-logo-box">
+        <img class="logo app-logo" alt="Company Logo" />
+      </div>
+
+    </header>
+
+    <div class="dashboard-middle">
+
+      <div class="company-name-wrap">
+        <div class="dashboard-company company-name">
+          SUNBEAM
+        </div>
+      </div>
+
+      <section class="status-pill" aria-label="Driver status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-label">Status:</span>
+        <span class="status-value">ONLINE</span>
+      </section>
+
+      <section class="dashboard-content">
+        <div class="dashboard-grid">
+
+        <button
+          class="dashboard-card wide-card trips-card"
+          id="cardTrips"
+          type="button"
+        >
+          <span class="dashboard-card-title">Trips</span>
+        </button>
+
+        <button
+          class="dashboard-card small-card"
+          id="cardMap"
+          type="button"
+        >
+          <span class="dashboard-card-title">Live Map</span>
+        </button>
+
+        <button
+          class="dashboard-card small-card"
+          id="cardHistory"
+          type="button"
+        >
+          <span class="dashboard-card-title">Trip History</span>
+        </button>
+
+        <button
+          class="dashboard-card small-card"
+          id="cardHours"
+          type="button"
+        >
+          <span class="dashboard-card-title">Work Hours</span>
+        </button>
+
+        <button
+          class="dashboard-card small-card"
+          id="cardEarnings"
+          type="button"
+        >
+          <span class="dashboard-card-title">Earnings</span>
+        </button>
+
+        <button
+          class="dashboard-card wide-card summary-card"
+          id="cardSummary"
+          type="button"
+        >
+          <span class="dashboard-card-title summary-title">
+            Earnings Summary
+          </span>
+        </button>
+
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <div id="driverNav"></div>
+
+  <script src="/core/branding.js"></script>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      if (window.Branding) {
+        await window.Branding.load();
+      }
+    });
+  </script>
+
+  <script src="driver-nav.js"></script>
+  <script src="dashboard.js" defer></script>
+  <script src="/driver/location.js"></script>
+
+</body>
+</html>

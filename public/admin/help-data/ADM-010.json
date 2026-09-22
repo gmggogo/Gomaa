@@ -1,0 +1,164 @@
+{
+  "pageId": "ADM-010",
+  "pageTitle": "Driver Schedule",
+  "pageFile": "driver-schedule.html",
+  "module": "Driver Follow-up",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/driver-schedule.html",
+    "server/public/admin/header.js",
+    "server/public/admin/driver-schedule.js"
+  ],
+  "apiDependencies": [
+    "/api/driver-schedule",
+    "/api/drivers",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/services/admin",
+    "/api/shared-engine/settings",
+    "/api/system-design"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "loadSystem",
+    "loadDrivers",
+    "loadServices",
+    "loadSchedule",
+    "save",
+    "editDriver",
+    "saveDriver",
+    "updateService"
+  ],
+  "articles": [
+    {
+      "id": "ADM-010-T01",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Edit Driver Schedule",
+      "summary": "Edit Driver Schedule",
+      "keywords": [
+        "active driver",
+        "driver schedule",
+        "edit driver schedule",
+        "service",
+        "work days"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Select a driver.",
+        "Open Edit.",
+        "Set active status, work days, schedule details, and service assignment as available.",
+        "Save Driver."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T02",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Change Driver Service",
+      "summary": "Change Driver Service",
+      "keywords": [
+        "change service",
+        "driver schedule",
+        "driver service",
+        "update service"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Select the driver.",
+        "Change the assigned service.",
+        "Save the update."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    }
+  ]
+}

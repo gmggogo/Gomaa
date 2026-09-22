@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+GH Mobility
+</title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<link
+rel="icon"
+href="/assets/app-icon.png">
+
+<link
+rel="apple-touch-icon"
+href="/assets/app-icon.png">
+
+<style>
+
+/* =========================
+   GLOBAL
+========================= */
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden !important;
+}
+
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#f3f4f6;
+  color:#0f172a;
+}
+
+/* =========================
+   WORD TEXT ENGINE
+   Word-like justify / center / right / left
+========================= */
+
+.gh-word-text{
+  display:block !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+
+  white-space:pre-line !important;
+  overflow-wrap:break-word !important;
+  word-break:normal !important;
+
+  line-height:1.9 !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+
+.gh-word-text *{
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  text-align:inherit !important;
+}
+
+.gh-align-left{
+  text-align:left !important;
+  text-align-last:center !important;
+}
+
+.gh-align-center{
+  text-align:center !important;
+  text-align-last:center !important;
+}
+
+.gh-align-right{
+  text-align:right !important;
+  text-align-last:right !important;
+}
+
+.gh-align-justify{
+  text-align:justify !important;
+  text-align-last:auto !important;
+}
+
+.gh-align-justify-left{
+  text-align:justify !important;
+  text-align-last:left !important;
+}
+
+.gh-align-justify-center{
+  text-align:justify !important;
+  text-align-last:center !important;
+}
+
+.gh-align-justify-right{
+  text-align:justify !important;
+  text-align-last:right !important;
+}
+
+.gh-dir-ltr{
+  direction:ltr !important;
+  unicode-bidi:plaintext !important;
+}
+
+.gh-dir-rtl{
+  direction:rtl !important;
+  unicode-bidi:plaintext !important;
+}
+
+/* =========================
+   TOP BAR
+========================= */
+
+.top-bar{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  padding:18px 24px;
+  background:#f8fafc;
+  flex-wrap:wrap;
+  position:relative;
+  z-index:20;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.top-links{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.top-links a{
+  text-decoration:none;
+  padding:14px 24px;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:700;
+  color:#fff;
+}
+
+.facility-login{
+  background:#2563eb;
+}
+
+.staff-login{
+  background:#0f172a;
+}
+
+/* =========================
+   LANGUAGE
+========================= */
+
+.lang-right{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.lang-btn{
+  border:none;
+  cursor:pointer;
+  padding:14px 22px;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:700;
+  background:#dbe1ea;
+  color:#2563eb;
+}
+
+.active-lang{
+  background:#16a34a !important;
+  color:#fff !important;
+}
+
+/* =========================
+   HERO
+========================= */
+
+.hero{
+  width:100%;
+  background:#111827;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+  padding:20px;
+}
+
+.hero-inner{
+  position:relative;
+  width:100%;
+  max-width:1500px;
+}
+
+.hero-image{
+  width:100%;
+  height:auto;
+  display:block;
+  border-radius:28px;
+  object-fit:contain;
+}
+
+/* =========================
+   POWERED
+========================= */
+
+.powered-box{
+  position:absolute;
+  left:26px;
+  bottom:26px;
+  background:rgba(0,0,0,.75);
+  color:#fff;
+  padding:14px 24px;
+  border-radius:40px;
+  font-size:15px;
+  font-weight:700;
+}
+
+/* =========================
+   ABOUT BIG TEXT BOX
+========================= */
+
+.about{
+  width:100%;
+  max-width:1400px;
+  margin:40px auto 0;
+  background:#ffffff;
+  border-radius:32px;
+  padding:70px 70px;
+  border:1px solid #dbeafe;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.about h2{
+  width:100%;
+  font-size:60px;
+  color:#1e3a6d;
+  margin-bottom:26px;
+  font-weight:900;
+  line-height:1.15;
+}
+
+.about p,
+#aboutText{
+  width:100%;
+  font-size:25px;
+  color:#6b7280;
+  line-height:1.9;
+}
+
+/* =========================
+   QUOTE BIG TEXT BOX
+========================= */
+
+.quote-header{
+  width:100%;
+  max-width:1400px;
+  margin:30px auto 0;
+  background:#ffffff;
+  border-radius:32px;
+  padding:70px 70px;
+  border:1px solid #dbeafe;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.quote-header h2{
+  width:100%;
+  font-size:70px;
+  color:#1e3a6d;
+  margin-bottom:22px;
+  line-height:1.1;
+  font-weight:900;
+}
+
+.quote-header p,
+#quoteText{
+  width:100%;
+  font-size:24px;
+  color:#6b7280;
+  line-height:1.9;
+}
+
+/* =========================
+   SERVICES
+   نفس الكروت — بدون تغيير الشكل الأساسي
+========================= */
+
+.services{
+  width:100%;
+  max-width:1500px;
+  margin:auto;
+  padding:60px 60px 140px;
+  display:grid;
+  grid-template-columns:repeat(3,340px);
+  justify-content:center;
+  gap:28px;
+  align-items:start;
+}
+
+.services.layout-1{
+  grid-template-columns:340px;
+}
+
+.services.layout-2{
+  grid-template-columns:repeat(2,340px);
+}
+
+.services.layout-4{
+  grid-template-columns:repeat(2,340px);
+}
+
+.services.layout-5{
+  grid-template-columns:repeat(6,170px);
+  justify-content:center;
+}
+
+.services.layout-5 .card{
+  grid-column:span 2;
+}
+
+.services.layout-5 .card:nth-child(4){
+  grid-column:2 / span 2;
+}
+
+.services.layout-5 .card:nth-child(5){
+  grid-column:4 / span 2;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.card{
+  width:340px;
+  background:#fff;
+  border-radius:26px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.10);
+}
+
+.card-image{
+  width:100%;
+  height:240px;
+  object-fit:contain;
+  object-position:center;
+  background:#eef2f7;
+  padding:8px;
+  display:block;
+}
+
+.card-body{
+  padding:24px;
+  text-align:center;
+}
+
+.card h3{
+  font-size:30px;
+  margin-bottom:12px;
+  color:#111827;
+  font-weight:800;
+  line-height:1.25;
+}
+
+.card p{
+  font-size:17px;
+  color:#6b7280;
+  line-height:1.9;
+  min-height:120px;
+  word-break:normal;
+  overflow-wrap:break-word;
+}
+
+.card-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:58px;
+  margin-top:20px;
+  background:#2563eb;
+  color:#fff !important;
+  text-decoration:none;
+  border-radius:16px;
+  font-size:20px;
+  font-weight:800;
+}
+
+.card-btn:hover{
+  background:#1d4ed8;
+}
+
+/* =========================
+   EXTRA BIG TEXT BOXES
+========================= */
+
+.extra-sections{
+  width:100%;
+  max-width:1400px;
+  margin:auto;
+  padding:0 60px 140px;
+  display:flex;
+  flex-direction:column;
+  gap:34px;
+}
+
+.extra-box{
+  width:100%;
+  background:#fff;
+  border-radius:32px;
+  padding:70px;
+  border:1px solid #dbeafe;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+}
+
+.extra-box h3{
+  width:100%;
+  font-size:42px;
+  color:#1e3a6d;
+  margin-bottom:24px;
+  font-weight:900;
+  line-height:1.2;
+}
+
+.extra-box p,
+.extra-box .gh-word-text{
+  width:100%;
+  font-size:22px;
+  color:#6b7280;
+  line-height:2;
+  word-break:normal;
+  overflow-wrap:break-word;
+}
+
+/* =========================
+   CONTACT
+========================= */
+
+.contact-section{
+  text-align:center;
+  padding:80px 20px;
+  background:#fff;
+  font-size:24px;
+  line-height:2.2;
+  color:#111827;
+}
+
+.contact-section strong{
+  display:block;
+  font-size:42px;
+  color:#111827;
+  margin-bottom:12px;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+footer{
+  background:#111827;
+  color:#fff;
+  text-align:center;
+  padding:30px;
+  font-size:20px;
+  font-weight:700;
+}
+
+.google-translate-holder{
+  position:absolute;
+  left:-9999px;
+  top:auto;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+.goog-te-balloon-frame,
+iframe.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-logo-link,
+.goog-te-gadget span,
+.goog-te-gadget,
+.goog-te-spinner-pos,
+.goog-tooltip,
+.goog-tooltip:hover,
+body > .skiptranslate,
+html > body > .skiptranslate{
+  display:none !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  height:0 !important;
+  min-height:0 !important;
+  max-height:0 !important;
+  overflow:hidden !important;
+  pointer-events:none !important;
+}
+
+html,
+body{
+  top:0 !important;
+  margin-top:0 !important;
+}
+
+/* =========================
+   MOBILE FIX
+   Mobile Auto Text Mode
+========================= */
+
+@media(max-width:768px){
+
+  html,
+  body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden !important;
+  }
+
+  *{
+    max-width:100%;
+  }
+
+  /* =========================
+     TOP BAR
+  ========================= */
+
+  .top-bar{
+    width:100%;
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+    padding:14px;
+  }
+
+  .top-links,
+  .lang-right{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .top-links a,
+  .lang-btn{
+    width:100%;
+    text-align:center;
+    font-size:13px;
+    padding:12px 8px;
+    border-radius:12px;
+  }
+
+  /* =========================
+     HERO
+  ========================= */
+
+  .hero{
+    width:100%;
+    padding:0;
+    overflow:hidden;
+  }
+
+  .hero-inner{
+    width:100%;
+    max-width:100%;
+  }
+
+  .hero-image{
+    width:100%;
+    height:auto;
+    display:block;
+    border-radius:0;
+    object-fit:cover;
+  }
+
+  .powered-box{
+    left:12px;
+    bottom:12px;
+    font-size:11px;
+    padding:8px 14px;
+    border-radius:20px;
+  }
+
+  /* =========================
+   MOBILE TEXT SECTIONS — COMPACT
+   One layout for About, Quote and both Extra boxes.
+========================= */
+
+  .about,
+  .quote-header,
+  .extra-box{
+    width:calc(100% - 12px) !important;
+    max-width:680px !important;
+    margin:6px auto 0 !important;
+    padding:10px 10px !important;
+    background:#ffffff !important;
+    border:1px solid #dbeafe !important;
+    border-radius:12px !important;
+    box-shadow:0 2px 6px rgba(15,23,42,.04) !important;
+  }
+
+  .extra-sections{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    padding:0 0 12px !important;
+    gap:0 !important;
+  }
+
+  #aboutTitle,
+  #quoteTitle,
+  #extra1TitleView,
+  #extra2TitleView,
+  .about h2,
+  .quote-header h2,
+  .extra-box h3{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 0 6px !important;
+    padding:0 !important;
+    text-align:center !important;
+    text-align-last:center !important;
+    font-size:15px !important;
+    line-height:1.15 !important;
+    font-weight:800 !important;
+    letter-spacing:0 !important;
+    word-spacing:0 !important;
+    white-space:normal !important;
+  }
+
+  #aboutText,
+  #quoteText,
+  #extra1TextView,
+  #extra2TextView{
+    width:94% !important;
+    max-width:620px !important;
+    margin:0 auto !important;
+    padding:0 !important;
+
+    text-align:justify !important;
+    text-align-last:left !important;
+    text-justify:inter-word !important;
+
+    font-size:13px !important;
+    line-height:1.36 !important;
+    font-weight:400 !important;
+
+    white-space:normal !important;
+    text-wrap:wrap !important;
+    word-spacing:normal !important;
+    letter-spacing:normal !important;
+    word-break:normal !important;
+    overflow-wrap:break-word !important;
+    hyphens:auto !important;
+  }
+
+/* =========================
+     SERVICES / CARDS
+  ========================= */
+
+  .services,
+  .services.layout-1,
+  .services.layout-2,
+  .services.layout-4,
+  .services.layout-5{
+    width:100%;
+    max-width:100%;
+    padding:20px 14px 60px;
+    display:grid;
+    grid-template-columns:1fr !important;
+    justify-content:center;
+    gap:20px;
+  }
+
+  .services.layout-5 .card,
+  .services.layout-5 .card:nth-child(4),
+  .services.layout-5 .card:nth-child(5){
+    grid-column:auto !important;
+  }
+
+  .card{
+    width:100% !important;
+    max-width:100% !important;
+    border-radius:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,.06) !important;
+  }
+
+  .card-image{
+    width:100%;
+    height:220px;
+    object-fit:contain;
+  }
+
+  .card-body{
+    padding:18px;
+  }
+
+  .card h3{
+    font-size:24px !important;
+    line-height:1.3;
+    margin-bottom:10px;
+  }
+
+  .card p{
+    font-size:15px !important;
+    line-height:1.8;
+    min-height:auto;
+  }
+
+  .card-btn{
+    height:50px;
+    font-size:16px;
+    margin-top:16px;
+  }
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  .contact-section{
+    width:100%;
+    padding:36px 14px;
+    font-size:15px !important;
+    line-height:1.8;
+  }
+
+  .contact-section strong{
+    font-size:24px !important;
+    line-height:1.3;
+    display:block;
+    margin-bottom:12px;
+  }
+
+  footer{
+    width:100%;
+    padding:18px 12px;
+    font-size:14px;
+    line-height:1.7;
+  }
+
+}
+</style>
+</head>
+
+<body>
+
+<div
+id="google_translate_element"
+class="google-translate-holder"></div>
+
+<div class="top-bar">
+
+  <div class="top-links">
+
+    <a
+    href="/companies/company-login.html"
+    class="facility-login">
+      Facility Login
+    </a>
+
+    <a
+    href="/login.html"
+    class="staff-login">
+      Staff Login
+    </a>
+
+  </div>
+
+  <div class="lang-right">
+
+    <button
+    id="lang-en"
+    class="lang-btn active-lang"
+    onclick="setLang('en')">
+      English
+    </button>
+
+    <button
+    id="lang-es"
+    class="lang-btn"
+    onclick="setLang('es')">
+      Spanish
+    </button>
+
+  </div>
+
+</div>
+
+<section class="hero">
+
+  <div class="hero-inner">
+
+    <img
+    class="hero-image"
+    src=""
+    alt="Hero">
+
+    <div class="powered-box">
+      Powered by GH Mobility
+    </div>
+
+  </div>
+
+</section>
+
+<section class="about">
+
+  <h2
+  id="aboutTitle"
+  class="gh-word-text gh-align-center">
+    Professional Transportation Across Arizona
+  </h2>
+
+  <div
+  id="aboutText"
+  class="gh-word-text gh-align-justify-center">
+    
+  </div>
+
+</section>
+
+<section class="quote-header">
+
+  <h2
+  id="quoteTitle"
+  class="gh-word-text gh-align-center">
+    Book Your Ride Today
+  </h2>
+
+  <div
+  id="quoteText"
+  class="gh-word-text gh-align-justify-center">
+    Fast booking, professional drivers, clean vehicles, and reliable transportation across Arizona.
+  </div>
+
+</section>
+
+<section
+class="services"
+id="servicesContainer">
+</section>
+
+<section
+class="extra-sections"
+id="extraSections">
+
+  <div
+  class="extra-box"
+  id="extraBox1">
+
+    <h3
+    id="extra1TitleView"
+    class="gh-word-text gh-align-center">
+      
+    </h3>
+
+    <div
+    id="extra1TextView"
+    class="gh-word-text gh-align-justify-center">
+      Professional Drivers
+    </div>
+
+  </div>
+
+  <div
+  class="extra-box"
+  id="extraBox2">
+
+    <h3
+    id="extra2TitleView"
+    class="gh-word-text gh-align-center">
+      Serving All Arizona
+    </h3>
+
+    <div
+    id="extra2TextView"
+    class="gh-word-text gh-align-justify-center">
+      Phoenix, Chandler, Mesa, Tempe, Scottsdale and surrounding areas.
+    </div>
+
+  </div>
+
+</section>
+
+<div class="contact-section">
+
+  <strong id="contactTitleView">
+    Customer Support
+  </strong>
+
+  📞
+  <span id="contactPhoneView">
+    
+  </span>
+
+  📧
+  <span id="contactEmailView">
+    
+  </span>
+
+</div>
+
+<footer id="footerView">
+  
+</footer>
+
+<script src="/index.js?v=homepage-balanced-text-20260903"></script>
+
+<script>
+
+/* =========================
+   FACILITY LOGIN TENANT LINK
+   Keeps company login inside the current tenant.
+========================= */
+
+(function(){
+
+  function cleanTenant(value){
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function tenantFromCurrentPage(){
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    const first =
+      cleanTenant(parts[0]);
+
+    const reserved =
+      new Set([
+        "",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company",
+        "companies",
+        "platform-admin",
+        "booking",
+        "api",
+        "core",
+        "assets",
+        "uploads",
+        "login",
+        "login.html",
+        "index.html"
+      ]);
+
+    if(
+      first &&
+      !reserved.has(first) &&
+      !first.includes(".") &&
+      /^[a-z0-9-]+$/.test(first)
+    ){
+      return first;
+    }
+
+    return cleanTenant(
+      window.Branding?.tenant?.slug ||
+      window.Branding?.data?.tenantSlug ||
+      window.Branding?.data?.slug ||
+      ""
+    );
+  }
+
+  function applyFacilityLoginTenant(){
+
+    const link =
+      document.querySelector(
+        ".facility-login"
+      );
+
+    if(!link) return;
+
+    const tenantSlug =
+      tenantFromCurrentPage();
+
+    /*
+      Never reuse an old company tenant from another organization.
+    */
+    sessionStorage.removeItem(
+      "companyTenantSlug"
+    );
+
+    if(!tenantSlug){
+
+      link.href =
+        "/companies/company-login.html";
+
+      return;
+    }
+
+    sessionStorage.setItem(
+      "companyTenantSlug",
+      tenantSlug
+    );
+
+    localStorage.setItem(
+      "companyTenantSlug",
+      tenantSlug
+    );
+
+    link.href =
+      "/companies/company-login.html?tenant=" +
+      encodeURIComponent(
+        tenantSlug
+      );
+  }
+
+  window.applyFacilityLoginTenant =
+    applyFacilityLoginTenant;
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      applyFacilityLoginTenant,
+      {once:true}
+    );
+
+  }else{
+
+    applyFacilityLoginTenant();
+
+  }
+
+})();
+
+/* =========================
+   STAFF LOGIN TENANT LINK
+   Driver Login is untouched.
+========================= */
+
+(function(){
+
+  function cleanTenant(value){
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function tenantFromCurrentPage(){
+
+    const parts =
+      window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+    const first =
+      cleanTenant(parts[0]);
+
+    const reserved =
+      new Set([
+        "",
+        "admin",
+        "dispatcher",
+        "driver",
+        "company",
+        "companies",
+        "platform-admin",
+        "booking",
+        "api",
+        "core",
+        "assets",
+        "uploads",
+        "login",
+        "login.html",
+        "index.html"
+      ]);
+
+    if(
+      first &&
+      !reserved.has(first) &&
+      !first.includes(".") &&
+      /^[a-z0-9-]+$/.test(first)
+    ){
+      return first;
+    }
+
+    const brandingSlug =
+      cleanTenant(
+        window.Branding?.tenant?.slug ||
+        window.Branding?.data?.tenantSlug ||
+        window.Branding?.data?.slug ||
+        ""
+      );
+
+    return brandingSlug;
+  }
+
+  function applyStaffLoginTenant(){
+
+    const link =
+      document.querySelector(
+        ".staff-login"
+      );
+
+    if(!link) return;
+
+    const tenantSlug =
+      tenantFromCurrentPage();
+
+    /*
+      Never reuse a stale company for Staff Login.
+    */
+    sessionStorage.removeItem(
+      "loginTenantSlug"
+    );
+
+    if(!tenantSlug){
+
+      link.href =
+        "/login.html";
+
+      return;
+    }
+
+    sessionStorage.setItem(
+      "loginTenantSlug",
+      tenantSlug
+    );
+
+    link.href =
+      "/login.html?tenant=" +
+      encodeURIComponent(
+        tenantSlug
+      );
+
+  }
+
+  window.applyStaffLoginTenant =
+    applyStaffLoginTenant;
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      applyStaffLoginTenant,
+      {once:true}
+    );
+
+  }else{
+
+    applyStaffLoginTenant();
+
+  }
+
+})();
+</script>
+
+<script>
+
+let currentLang = "en";
+
+/* =========================
+   BASIC HELPERS
+========================= */
+
+function cleanText(value){
+
+  return String(
+    value === undefined ||
+    value === null
+    ? ""
+    : value
+  );
+
+}
+
+function cleanWordText(value){
+
+  return cleanText(value)
+    .replace(/style="[^"]*"/gi,"")
+    .replace(/style='[^']*'/gi,"")
+    .replace(/text-align\s*:\s*(left|right|center|justify)\s*;?/gi,"")
+    .replace(/<div[^>]*>/gi,"")
+    .replace(/<\/div>/gi,"\n")
+    .replace(/<p[^>]*>/gi,"")
+    .replace(/<\/p>/gi,"\n")
+    .replace(/<br\s*\/?>/gi,"\n")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+
+}
+
+function normalizeWordAlign(align){
+
+  const clean =
+  String(align || "")
+  .toLowerCase()
+  .trim();
+
+  const allowed = [
+    "left",
+    "center",
+    "right",
+    "justify",
+    "justify-left",
+    "justify-center",
+    "justify-right"
+  ];
+
+  return allowed.includes(clean)
+  ? clean
+  : "center";
+
+}
+
+function detectDirection(text){
+
+  return /[\u0600-\u06FF]/.test(
+    String(text || "")
+  )
+  ? "rtl"
+  : "ltr";
+
+}
+
+function applyWordText(id,value,align){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const text =
+  cleanWordText(value);
+
+  let finalAlign =
+  normalizeWordAlign(align);
+
+  const dir =
+  detectDirection(text);
+
+  el.classList.remove(
+    "gh-align-left",
+    "gh-align-center",
+    "gh-align-right",
+    "gh-align-justify",
+    "gh-align-justify-left",
+    "gh-align-justify-center",
+    "gh-align-justify-right",
+    "gh-dir-ltr",
+    "gh-dir-rtl"
+  );
+
+  el.classList.add(
+    "gh-word-text",
+    "gh-align-" + finalAlign,
+    dir === "rtl" ? "gh-dir-rtl" : "gh-dir-ltr"
+  );
+
+  el.innerText = text;
+
+}
+function setText(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  el.innerText =
+  cleanText(value);
+
+}
+
+/* =========================
+   LANGUAGE
+========================= */
+
+function updateLangButtons(){
+
+  document
+  .querySelectorAll(".lang-btn")
+  .forEach(btn=>{
+
+    btn.classList.remove(
+      "active-lang"
+    );
+
+  });
+
+  const active =
+  document.getElementById(
+    "lang-" + currentLang
+  );
+
+  if(active){
+
+    active.classList.add(
+      "active-lang"
+    );
+
+  }
+
+}
+
+/* =========================
+   GOOGLE TRANSLATE
+   Hidden engine controlled by the page buttons.
+========================= */
+
+let googleTranslateReady = false;
+let pendingGoogleLang = "en";
+
+function clearGoogleTranslateCookie(){
+
+  const expired =
+  "expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+  document.cookie =
+  "googtrans=;path=/;" + expired;
+
+  document.cookie =
+  "googtrans=;path=/;domain=" +
+  location.hostname +
+  ";" + expired;
+
+}
+
+function setGoogleTranslateCookie(lang){
+
+  const value =
+  lang === "es"
+  ? "/en/es"
+  : "/en/en";
+
+  document.cookie =
+  "googtrans=" + value + ";path=/";
+
+  document.cookie =
+  "googtrans=" + value + ";path=/;domain=" +
+  location.hostname;
+
+}
+
+function getGoogleTranslateSelect(){
+
+  return document.querySelector(
+    ".goog-te-combo"
+  );
+
+}
+
+function applyGoogleTranslate(lang){
+
+  pendingGoogleLang =
+  lang === "es"
+  ? "es"
+  : "en";
+
+  if(pendingGoogleLang === "en"){
+    clearGoogleTranslateCookie();
+  }else{
+    setGoogleTranslateCookie(
+      pendingGoogleLang
+    );
+  }
+
+  const select =
+  getGoogleTranslateSelect();
+
+  if(!select){
+    return false;
+  }
+
+  const targetValue =
+  pendingGoogleLang === "es"
+  ? "es"
+  : "";
+
+  if(select.value !== targetValue){
+    select.value = targetValue;
+  }
+
+  select.dispatchEvent(
+    new Event(
+      "change",
+      {bubbles:true}
+    )
+  );
+
+  return true;
+}
+
+function queueGoogleTranslate(lang){
+
+  pendingGoogleLang =
+  lang === "es"
+  ? "es"
+  : "en";
+
+  let attempts = 0;
+
+  const timer =
+  setInterval(()=>{
+
+    attempts += 1;
+
+    const applied =
+    applyGoogleTranslate(
+      pendingGoogleLang
+    );
+
+    if(applied || attempts >= 30){
+      clearInterval(timer);
+    }
+
+  },250);
+
+}
+
+window.googleTranslateElementInit = function(){
+
+  if(
+    !window.google ||
+    !google.translate ||
+    !google.translate.TranslateElement
+  ){
+    return;
+  }
+
+  new google.translate.TranslateElement(
+    {
+      pageLanguage:"en",
+      includedLanguages:"en,es",
+      autoDisplay:false,
+      multilanguagePage:true
+    },
+    "google_translate_element"
+  );
+
+  googleTranslateReady = true;
+
+};
+
+/* =========================
+   GOOGLE TRANSLATE UI GUARD
+   Keeps translation engine hidden while preserving translation.
+========================= */
+
+function hideGoogleTranslateChrome(){
+
+  document.documentElement.style.setProperty(
+    "margin-top",
+    "0",
+    "important"
+  );
+
+  document.body.style.setProperty(
+    "top",
+    "0",
+    "important"
+  );
+
+  document.body.style.setProperty(
+    "margin-top",
+    "0",
+    "important"
+  );
+
+  document
+    .querySelectorAll(
+      [
+        ".goog-te-banner-frame",
+        ".goog-te-banner-frame.skiptranslate",
+        ".goog-te-balloon-frame",
+        "iframe.goog-te-banner-frame",
+        "#goog-gt-tt",
+        ".goog-te-spinner-pos",
+        ".goog-tooltip",
+        "body > .skiptranslate"
+      ].join(",")
+    )
+    .forEach(el=>{
+      el.style.setProperty(
+        "display",
+        "none",
+        "important"
+      );
+
+      el.style.setProperty(
+        "visibility",
+        "hidden",
+        "important"
+      );
+
+      el.style.setProperty(
+        "height",
+        "0",
+        "important"
+      );
+    });
+
+}
+
+const googleTranslateUiObserver =
+  new MutationObserver(
+    hideGoogleTranslateChrome
+  );
+
+googleTranslateUiObserver.observe(
+  document.documentElement,
+  {
+    childList:true,
+    subtree:true,
+    attributes:true,
+    attributeFilter:[
+      "style",
+      "class"
+    ]
+  }
+);
+
+window.addEventListener(
+  "load",
+  hideGoogleTranslateChrome
+);
+
+window.addEventListener(
+  "scroll",
+  hideGoogleTranslateChrome,
+  {passive:true}
+);
+
+setInterval(
+  hideGoogleTranslateChrome,
+  500
+);
+
+
+/* =========================
+   EXTRA THEME
+========================= */
+
+function applyExtraBoxesTheme(data){
+
+  if(window.innerWidth <= 768){
+    return;
+  }
+
+  const extraTitleAlign =
+    data.extraBoxAlign || "justify-center";
+
+  const extraTextAlign =
+    data.extraBoxAlign || "justify-center";
+
+  document
+    .querySelectorAll(".extra-box")
+    .forEach(box=>{
+
+      box.style.setProperty(
+        "background",
+        data.extraBoxBg || "#ffffff",
+        "important"
+      );
+
+      box.style.setProperty(
+        "border",
+        `${data.extraBoxBorderSize || 2}px solid ${data.extraBoxBorder || "#dbeafe"}`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "border-radius",
+        `${data.extraBoxRadius || 32}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "padding",
+        `${data.extraBoxPadding || 70}px`,
+        "important"
+      );
+
+      box.style.setProperty(
+        "box-shadow",
+        data.extraBoxShadow
+          ? "0 8px 22px rgba(15,23,42,.06)"
+          : "none",
+        "important"
+      );
+    });
+
+  document
+    .querySelectorAll(".extra-box h3")
+    .forEach(title=>{
+
+      title.style.setProperty(
+        "color",
+        data.extraBoxTitleColor || "#1e3a6d",
+        "important"
+      );
+
+      title.style.setProperty(
+        "font-size",
+        `${data.extraBoxTitleSize || 42}px`,
+        "important"
+      );
+
+      applyWordText(
+        title.id,
+        title.innerText,
+        extraTitleAlign
+      );
+    });
+
+  document
+    .querySelectorAll(".extra-box .gh-word-text:not(h3)")
+    .forEach(text=>{
+
+      text.style.setProperty(
+        "color",
+        data.extraBoxTextColor || "#6b7280",
+        "important"
+      );
+
+      text.style.setProperty(
+        "font-size",
+        `${data.extraBoxTextSize || 22}px`,
+        "important"
+      );
+
+      applyWordText(
+        text.id,
+        text.innerText,
+        extraTextAlign
+      );
+    });
+}
+
+
+/* =========================
+   PAGE THEME
+========================= */
+
+function applyPageTheme(data){
+
+  /*
+    HOMEPAGE ONLY:
+    System Design controls the full public tenant homepage.
+  */
+  document.body.style.background =
+    data.bodyBg || "#f1f5f9";
+
+  document.body.style.color =
+    data.bodyTextColor || "#0f172a";
+
+  const about =
+  document.querySelector(".about");
+
+  const quote =
+  document.querySelector(".quote-header");
+
+  if(about && window.innerWidth > 768){
+
+    about.style.background =
+      data.aboutBg || "#ffffff";
+
+    about.style.border =
+      `1px solid ${data.aboutBorder || "#dbeafe"}`;
+
+    about.style.borderRadius =
+      `${data.aboutRadius || 32}px`;
+
+    about.style.padding =
+      `${data.aboutPadding || 70}px`;
+
+  }
+
+  if(quote && window.innerWidth > 768){
+
+    quote.style.background =
+      data.quoteBg || "#ffffff";
+
+    quote.style.border =
+      `1px solid ${data.quoteBorder || "#dbeafe"}`;
+
+    quote.style.borderRadius =
+      `${data.quoteRadius || 32}px`;
+
+    quote.style.padding =
+      `${data.quotePadding || 70}px`;
+
+  }
+
+  const aboutTitle =
+  document.getElementById("aboutTitle");
+
+  const aboutText =
+  document.getElementById("aboutText");
+
+  const quoteTitle =
+  document.getElementById("quoteTitle");
+
+  const quoteText =
+  document.getElementById("quoteText");
+
+  if(aboutTitle){
+
+    aboutTitle.style.color =
+    data.aboutTitleColor || "#1e3a6d";
+
+    if(window.innerWidth > 768){
+      aboutTitle.style.fontSize =
+        `${data.aboutTitleSize || 60}px`;
+    }
+
+  }
+
+  if(aboutText){
+
+    aboutText.style.color =
+    data.aboutTextColor || "#6b7280";
+
+    if(window.innerWidth > 768){
+      aboutText.style.fontSize =
+        `${data.aboutTextSize || 25}px`;
+    }
+
+  }
+
+  if(quoteTitle){
+
+    quoteTitle.style.color =
+    data.quoteTitleColor || "#1e3a6d";
+
+    if(window.innerWidth > 768){
+      quoteTitle.style.fontSize =
+        `${data.quoteTitleSize || 70}px`;
+    }
+
+  }
+
+  if(quoteText){
+
+    quoteText.style.color =
+    data.quoteTextColor || "#6b7280";
+
+    if(window.innerWidth > 768){
+      quoteText.style.fontSize =
+        `${data.quoteTextSize || 24}px`;
+    }
+
+  }
+
+  const contact =
+    document.querySelector(".contact-section");
+
+  const contactTitle =
+    document.getElementById("contactTitleView");
+
+  if(contact){
+
+    contact.style.background =
+      data.contactBg || "#ffffff";
+
+    contact.style.border =
+      `1px solid ${data.contactBorder || "#dbeafe"}`;
+
+    contact.style.borderRadius =
+      `${data.contactRadius || 28}px`;
+
+    contact.style.textAlign =
+      data.contactAlign || "center";
+
+  }
+
+  if(contactTitle){
+
+    contactTitle.style.color =
+      data.contactTitleColor || "#145cff";
+
+    contactTitle.style.fontSize =
+      `${data.contactTitleSize || 34}px`;
+
+  }
+
+  /*
+    Service card text alignment from System Design.
+  */
+  document
+    .querySelectorAll(".card-body")
+    .forEach(cardBody=>{
+
+      const align =
+        String(
+          data.cardTextAlign ||
+          "center"
+        ).trim();
+
+      cardBody.style.textAlign =
+        align || "center";
+
+    });
+
+}
+
+/* =========================
+   RENDER PAGE
+========================= */
+
+function renderPage(){
+
+  const data =
+  Branding.data || {};
+
+  document.documentElement.lang =
+  currentLang === "es"
+  ? "es"
+  : "en";
+
+  document.title =
+  data.companyName ||
+  "GH Mobility";
+
+  const isMobile =
+  window.innerWidth <= 768;
+
+  applyWordText(
+    "aboutTitle",
+    data.aboutTitle ||
+    "Professional Transportation Across Arizona",
+    isMobile
+    ? "center"
+    : (data.aboutTitleAlign || "center")
+  );
+
+  applyWordText(
+    "aboutText",
+    data.aboutText ||
+    "",
+    isMobile
+    ? "justify-center"
+    : (data.aboutTextAlign || "justify-center")
+  );
+
+  applyWordText(
+    "quoteTitle",
+    data.quoteTitle ||
+    "",
+    isMobile
+    ? "center"
+    : (data.quoteTitleAlign || "center")
+  );
+
+  applyWordText(
+    "quoteText",
+    data.quoteText ||
+    "",
+    isMobile
+    ? "justify-center"
+    : (data.quoteTextAlign || "justify-center")
+  );
+
+  const extraBox1 =
+  document.getElementById("extraBox1");
+
+  if(extraBox1){
+
+    extraBox1.style.display =
+    data.extra1Active === false
+    ? "none"
+    : "block";
+
+  }
+
+  const extraBox2 =
+  document.getElementById("extraBox2");
+
+  if(extraBox2){
+
+    extraBox2.style.display =
+    data.extra2Active === false
+    ? "none"
+    : "block";
+
+  }
+
+  applyWordText(
+    "extra1TitleView",
+    data.extra1Title ||
+    "",
+    isMobile
+    ? "center"
+    : (data.extraBoxAlign || "justify-center")
+  );
+
+  applyWordText(
+    "extra1TextView",
+    data.extra1Text ||
+    "",
+    isMobile
+    ? "justify-center"
+    : (data.extraBoxAlign || "justify-center")
+  );
+
+  applyWordText(
+    "extra2TitleView",
+    data.extra2Title ||
+    "",
+    isMobile
+    ? "center"
+    : (data.extraBoxAlign || "justify-center")
+  );
+
+  applyWordText(
+    "extra2TextView",
+    data.extra2Text ||
+    "",
+    isMobile
+    ? "justify-center"
+    : (data.extraBoxAlign || "justify-center")
+  );
+
+  setText(
+    "contactTitleView",
+    data.contactTitle ||
+    "Customer Support"
+  );
+
+  setText(
+    "contactPhoneView",
+    data.contactPhone ||
+    ""
+  );
+
+  setText(
+    "contactEmailView",
+    data.contactEmail ||
+    ""
+  );
+
+  setText(
+    "footerView",
+    data.footerText ||
+    ""
+  );
+
+  Branding.renderHomepageCards(
+    "servicesContainer",
+    "en"
+  );
+
+  applyPageTheme(data);
+
+  applyExtraBoxesTheme(data);
+
+updateServicesLayout();
+
+  updateLangButtons();
+
+  if(currentLang === "es"){
+
+    queueGoogleTranslate("es");
+
+  }
+
+}
+
+/* =========================
+   LANGUAGE SWITCH
+========================= */
+
+window.setLang = function(lang){
+
+  currentLang =
+  lang === "es"
+  ? "es"
+  : "en";
+
+  if(currentLang === "es"){
+
+    renderPage();
+
+    setGoogleTranslateCookie("es");
+
+    queueGoogleTranslate("es");
+
+    return;
+  }
+
+  /*
+    English must restore the ORIGINAL page text.
+    Google Translate is more reliable when its translation cookie
+    is cleared and the page is reloaded cleanly.
+  */
+
+  pendingGoogleLang = "en";
+
+  clearGoogleTranslateCookie();
+
+  document.cookie =
+    "googtrans=;path=/;max-age=0";
+
+  if(location.hostname){
+
+    document.cookie =
+      "googtrans=;path=/;domain=" +
+      location.hostname +
+      ";max-age=0";
+
+  }
+
+  window.location.reload();
+
+};
+
+/* =========================
+   INIT
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    currentLang = "en";
+    pendingGoogleLang = "en";
+    clearGoogleTranslateCookie();
+
+    await Branding.load();
+
+    if(typeof window.applyStaffLoginTenant === "function"){
+      window.applyStaffLoginTenant();
+    }
+
+    if(typeof window.applyFacilityLoginTenant === "function"){
+      window.applyFacilityLoginTenant();
+    }
+
+    renderPage();
+
+    if(currentLang === "es"){
+
+      queueGoogleTranslate("es");
+
+    }
+
+  }
+);
+
+window.addEventListener(
+  "resize",
+  ()=>{
+
+    clearTimeout(window.__homeResizeTimer);
+
+    window.__homeResizeTimer =
+    setTimeout(()=>{
+
+      renderPage();
+
+      if(currentLang === "es"){
+
+        queueGoogleTranslate("es");
+
+      }
+
+    },150);
+
+  },
+  { passive:true }
+);
+
+window.addEventListener(
+  "load",
+  ()=>{
+
+    if(currentLang === "es"){
+
+      queueGoogleTranslate("es");
+
+    }
+
+  }
+);
+function getBalancedMobileAlign(value){
+
+  const align =
+    String(value || "left")
+      .trim()
+      .toLowerCase();
+
+  if(align.startsWith("justify")){
+    return "left";
+  }
+
+  return align || "left";
+}
+
+function forceMobileHomeLayout(){
+  return;
+}
+/* =========================
+   SERVICES LAYOUT
+========================= */
+
+function updateServicesLayout(){
+
+  const services =
+  document.getElementById(
+    "servicesContainer"
+  );
+
+  if(!services) return;
+
+  const count =
+  services.querySelectorAll(".card").length;
+
+  services.classList.remove(
+    "layout-1",
+    "layout-2",
+    "layout-4",
+    "layout-5"
+  );
+
+  if(count === 1){
+
+    services.classList.add("layout-1");
+
+  }else if(count === 2){
+
+    services.classList.add("layout-2");
+
+  }else if(count === 4){
+
+    services.classList.add("layout-4");
+
+  }else if(count === 5){
+
+    services.classList.add("layout-5");
+
+  }
+
+}
+
+</script>
+
+<script
+src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+</body>
+</html>

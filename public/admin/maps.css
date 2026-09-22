@@ -1,0 +1,75 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f5f6fa;
+}
+
+/* ===== HEADER ===== */
+.header {
+  background: linear-gradient(90deg,#0f172a,#1e293b);
+  color: #facc15;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back-btn {
+  background: #facc15;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.logout {
+  background: #facc15;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.title {
+  text-align: center;
+}
+
+.title .main {
+  font-weight: bold;
+}
+
+.title .sub {
+  font-size: 14px;
+}
+
+.title .role {
+  font-size: 12px;
+}
+
+/* ===== CONTENT ===== */
+.content {
+  padding: 15px;
+}
+
+#driverSelect {
+  padding: 6px;
+  margin-bottom: 10px;
+  width: 250px;
+}
+
+#map {
+  height: 500px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.save-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}

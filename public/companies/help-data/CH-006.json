@@ -1,0 +1,96 @@
+{
+  "id": "CH-006",
+  "page": "taxes.html",
+  "name": "Taxes",
+  "description": "Review transportation billing and tax summary information, revenue and status totals, detailed trip rows, and export or print the report.",
+  "tasks": [
+    {
+      "id": "CH-006-T01",
+      "title": "Review the revenue summary",
+      "summary": "Use Revenue Summary to review billable totals including completed, cancelled, and No Show amounts.",
+      "steps": [
+        "Open Taxes.",
+        "Review Revenue Summary.",
+        "Check completed revenue.",
+        "Check cancelled revenue and cancellation fees when present.",
+        "Review No Show billable amounts when present."
+      ],
+      "keywords": [
+        "taxes",
+        "review the revenue summary"
+      ]
+    },
+    {
+      "id": "CH-006-T02",
+      "title": "Review trip totals",
+      "summary": "Use Trip Summary to review Total Trips, Individual Trips, Shared Trips, and Shared Passengers.",
+      "steps": [
+        "Open Taxes.",
+        "Locate Trip Summary.",
+        "Review each trip counter."
+      ],
+      "keywords": [
+        "taxes",
+        "review trip totals"
+      ]
+    },
+    {
+      "id": "CH-006-T03",
+      "title": "Review status totals",
+      "summary": "Use Status Summary to review Completed, Cancelled, and No Show trip counts.",
+      "steps": [
+        "Open Taxes.",
+        "Locate Status Summary.",
+        "Review Completed Trips.",
+        "Review Cancelled Trips.",
+        "Review No Show Trips."
+      ],
+      "keywords": [
+        "taxes",
+        "review status totals"
+      ]
+    },
+    {
+      "id": "CH-006-T04",
+      "title": "Review detailed trip rows",
+      "summary": "Use the report table to inspect individual trip billing rows.",
+      "steps": [
+        "Scroll to the trip table.",
+        "Review Trip Number, service/type, trip date, status, and billing values."
+      ],
+      "keywords": [
+        "taxes",
+        "review detailed trip rows"
+      ]
+    },
+    {
+      "id": "CH-006-T05",
+      "title": "Export the tax report to CSV",
+      "summary": "Use Export CSV for spreadsheet or accounting review.",
+      "steps": [
+        "Apply any available report filters.",
+        "Select Export CSV.",
+        "Open the exported file and verify the report."
+      ],
+      "keywords": [
+        "taxes",
+        "export the tax report to csv"
+      ]
+    },
+    {
+      "id": "CH-006-T06",
+      "title": "Print the tax report",
+      "summary": "Use Print Report for a printable version.",
+      "steps": [
+        "Apply the required filters.",
+        "Select Print Report.",
+        "Review the browser print preview.",
+        "Print or save as PDF using the browser."
+      ],
+      "keywords": [
+        "taxes",
+        "print the tax report"
+      ]
+    }
+  ]
+}

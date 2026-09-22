@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<title>User Management</title>
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
+
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI,Arial,sans-serif;
+background:#f1f5f9;
+}
+
+/* HEADER */
+
+#adminHeader{
+width:100%;
+z-index:1000;
+}
+
+/* PAGE */
+
+.page-content{
+padding:18px 22px 30px;
+width:100%;
+}
+
+/* MOBILE */
+
+@media(max-width:768px){
+
+.page-content{
+padding:10px 8px 20px;
+}
+
+.page-head{
+min-height:72px;
+padding:12px;
+margin-bottom:10px;
+}
+
+.page-main-title{
+font-size:22px;
+}
+
+.page-main-sub{
+font-size:11px;
+}
+
+}
+
+
+/* GOLD PAGE TITLE — SAME AS TRIPS HUB */
+
+.page-head{
+display:flex;
+align-items:center;
+justify-content:center;
+min-height:84px;
+margin-bottom:12px;
+padding:16px 20px;
+border:1px solid #e0be5a;
+border-radius:18px;
+background:linear-gradient(
+135deg,
+#fff8dc 0%,
+#f8e6ae 48%,
+#fff4cf 100%
+);
+box-shadow:0 8px 22px rgba(146,102,14,.13);
+text-align:center;
+}
+
+.page-main-title{
+margin:0;
+font-size:28px;
+line-height:1.1;
+font-weight:900;
+color:#111827;
+}
+
+.page-main-sub{
+margin-top:5px;
+font-size:13px;
+font-weight:800;
+color:#64748b;
+}
+
+/* LAYOUT */
+
+.layout{
+display:grid;
+grid-template-columns:260px 1fr;
+gap:20px;
+}
+
+@media(max-width:1000px){
+
+.layout{
+grid-template-columns:1fr;
+}
+
+}
+
+/* SIDEBAR */
+
+.sidebar{
+background:white;
+border-radius:10px;
+padding:20px;
+border:1px solid #e2e8f0;
+height:fit-content;
+box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+
+.sidebar-title{
+font-size:20px;
+font-weight:900;
+margin-bottom:20px;
+color:#0f172a;
+}
+
+.sidebar button{
+width:100%;
+border:none;
+padding:14px;
+margin-bottom:12px;
+border-radius:10px;
+font-size:14px;
+font-weight:900;
+cursor:pointer;
+background:#e2e8f0;
+color:#0f172a;
+transition:.2s;
+}
+
+.sidebar button:hover{
+opacity:.92;
+transform:translateY(-1px);
+}
+
+.sidebar button.active{
+background:#2563eb;
+color:white;
+}
+
+/* CONTENT */
+
+.content{
+display:flex;
+flex-direction:column;
+gap:20px;
+}
+
+/* CARD */
+
+.card{
+background:white;
+border-radius:10px;
+padding:20px;
+border:1px solid #e2e8f0;
+box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+
+/* TITLE */
+
+.page-title{
+font-size:28px;
+font-weight:900;
+margin-bottom:5px;
+color:#0f172a;
+}
+
+.page-subtitle{
+font-size:14px;
+color:#64748b;
+margin-bottom:20px;
+}
+
+/* FORM */
+
+.form-grid{
+display:grid;
+grid-template-columns:
+repeat(auto-fit,minmax(220px,1fr));
+gap:15px;
+}
+
+.input-group{
+display:flex;
+flex-direction:column;
+gap:8px;
+}
+
+.input-group label{
+font-size:13px;
+font-weight:800;
+color:#334155;
+}
+
+.input-group input{
+height:50px;
+border:1px solid #dbe2ea;
+border-radius:10px;
+padding:0 14px;
+font-size:14px;
+outline:none;
+}
+
+/* SAVE BUTTON */
+
+.save-btn{
+margin-top:20px;
+border:none;
+background:#16a34a;
+color:white;
+padding:14px 22px;
+border-radius:10px;
+font-size:14px;
+font-weight:900;
+cursor:pointer;
+transition:.2s;
+}
+
+.save-btn:hover{
+opacity:.92;
+transform:translateY(-1px);
+}
+
+/* TABLE */
+
+.table-wrap{
+overflow:auto;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+min-width:1200px;
+}
+
+th{
+background:#0f172a;
+color:white;
+padding:14px;
+font-size:13px;
+text-align:left;
+}
+
+td{
+padding:14px;
+border-bottom:1px solid #e5e7eb;
+font-size:13px;
+font-weight:700;
+vertical-align:top;
+}
+
+/* BUTTONS */
+
+.actions{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+}
+
+.btn{
+border:none;
+padding:10px 14px;
+border-radius:8px;
+font-size:12px;
+font-weight:900;
+cursor:pointer;
+transition:.2s;
+}
+
+.btn:hover{
+transform:translateY(-1px);
+}
+
+.edit{
+background:#dbeafe;
+color:#1d4ed8;
+}
+
+.disable{
+background:#fef3c7;
+color:#92400e;
+}
+
+.delete{
+background:#fee2e2;
+color:#991b1b;
+}
+
+.primary-badge{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+min-height:34px;
+padding:8px 12px;
+border-radius:999px;
+background:#dcfce7;
+border:1px solid #86efac;
+color:#166534;
+font-size:12px;
+font-weight:900;
+white-space:nowrap;
+}
+
+.protected-label{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+min-height:34px;
+padding:8px 12px;
+border-radius:8px;
+background:#f8fafc;
+border:1px solid #cbd5e1;
+color:#475569;
+font-size:12px;
+font-weight:900;
+white-space:nowrap;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ADMIN HEADER -->
+<div id="adminHeader"></div>
+
+<!-- PAGE -->
+<div class="page-content">
+
+<div class="page-head">
+  <div>
+    <h1 class="page-main-title">Add User</h1>
+    <div class="page-main-sub">Create and manage staff, drivers and companies</div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<div class="sidebar-title">
+User Roles
+</div>
+
+<button
+id="superadminBtn"
+class="active"
+onclick="changeRole('superadmin')">
+
+Super Admins
+
+</button>
+
+<button
+id="adminBtn"
+onclick="changeRole('admin')">
+
+Admins
+
+</button>
+
+<button
+id="dispatcherBtn"
+onclick="changeRole('dispatcher')">
+
+Dispatchers
+
+</button>
+
+<button
+id="driverBtn"
+onclick="changeRole('driver')">
+
+Drivers
+
+</button>
+
+<button
+id="companyBtn"
+onclick="changeRole('company')">
+
+Companies
+
+</button>
+
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- FORM -->
+<div class="card">
+
+<div
+class="page-title"
+id="title">
+
+Super Admins
+
+</div>
+
+<div class="page-subtitle">
+
+Create, edit, disable, and manage users.
+
+</div>
+
+<div class="form-grid">
+
+<!-- NAME -->
+<div class="input-group">
+
+<label>
+Full Name
+</label>
+
+<input
+type="text"
+id="name"
+placeholder="Enter full name"
+>
+
+</div>
+
+<!-- USERNAME -->
+<div class="input-group">
+
+<label>
+Username
+</label>
+
+<input
+type="text"
+id="username"
+placeholder="Enter username"
+>
+
+</div>
+
+<!-- EMAIL -->
+<div class="input-group">
+
+<label>
+Email Address
+</label>
+
+<input
+type="email"
+id="email"
+placeholder="Enter email address"
+>
+
+</div>
+
+<!-- PHONE -->
+<div class="input-group">
+
+<label>
+Phone Number
+</label>
+
+<input
+type="tel"
+id="phone"
+placeholder="Enter phone number"
+>
+
+</div>
+
+<!-- PASSWORD -->
+<div class="input-group">
+
+<label>
+Password
+</label>
+
+<input
+type="password"
+id="password"
+placeholder="Enter password"
+>
+
+</div>
+
+</div>
+
+<button
+class="save-btn"
+onclick="addUser()">
+
+Save User
+
+</button>
+
+</div>
+
+<!-- TABLE -->
+<div class="card">
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Name</th>
+<th>Username</th>
+<th>Email</th>
+<th>Phone</th>
+<th>Status</th>
+<th>Actions</th>
+
+</tr>
+
+</thead>
+
+<tbody id="table">
+
+<tr>
+
+<td colspan="6">
+Loading...
+</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- HEADER -->
+<script src="/admin/header.js"></script>
+
+<!-- PAGE -->
+<script src="/admin/users.js"></script>
+
+</body>
+</html>

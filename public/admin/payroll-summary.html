@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Payroll Summary</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+*{box-sizing:border-box}
+
+:root{
+  --navy:#0f2747;
+  --navy2:#173f70;
+  --gold:#d4a900;
+  --gold2:#ffd21f;
+  --bg:#eef3f8;
+  --line:#dfe7f0;
+  --muted:#64748b;
+  --green:#15803d;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:var(--navy);
+}
+
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+.page{
+  max-width:1650px;
+  width:100%;
+  margin:0 auto;
+  padding:18px 22px 70px;
+}
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
+/* =========================
+   TABS
+========================= */
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.tab-btn{
+  min-width:120px;
+  padding:10px 14px;
+  border:1px solid rgba(212,169,0,.48);
+  border-radius:13px;
+  background:linear-gradient(180deg,#fff,#edf3f9);
+  color:var(--navy);
+  box-shadow:0 4px 12px rgba(15,39,71,.07);
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.tab-btn.active{
+  background:linear-gradient(180deg,var(--navy2),var(--navy));
+  color:var(--gold2);
+  border-color:var(--gold);
+}
+
+.help-line{
+  margin:0 0 14px;
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+}
+
+/* =========================
+   MASTER / DETAIL
+========================= */
+
+.workspace{
+  display:grid;
+  grid-template-columns:360px minmax(0,1fr);
+  gap:14px;
+  align-items:start;
+}
+
+.people-panel,
+.detail-panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:19px;
+  box-shadow:0 8px 24px rgba(15,39,71,.07);
+}
+
+.people-panel{
+  overflow:hidden;
+}
+
+.search-wrap{
+  padding:13px;
+  border-bottom:1px solid var(--line);
+}
+
+.search{
+  width:100%;
+  height:42px;
+  padding:0 13px;
+  border:1px solid #cbd6e2;
+  border-radius:11px;
+  outline:none;
+  color:var(--navy);
+  font-size:13px;
+  font-weight:700;
+}
+
+.search:focus{
+  border-color:var(--gold);
+  box-shadow:0 0 0 3px rgba(212,169,0,.10);
+}
+
+.people-list{
+  max-height:650px;
+  overflow:auto;
+  padding:9px;
+}
+
+.person-item{
+  width:100%;
+  display:block;
+  margin-bottom:8px;
+  padding:12px 13px;
+  border:1px solid #e0e6ed;
+  border-radius:14px;
+  background:#fff;
+  color:var(--navy);
+  text-align:left;
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.person-item:hover{
+  border-color:#c8d4e3;
+  transform:translateY(-1px);
+}
+
+.person-item.active{
+  background:linear-gradient(90deg,#fff6cd,#fff);
+  border-color:var(--gold);
+  box-shadow:0 5px 14px rgba(212,169,0,.13);
+}
+
+.person-name{
+  font-size:15px;
+  font-weight:900;
+}
+
+.person-last{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  line-height:1.45;
+}
+
+.person-last-row{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:6px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.person-hours{
+  color:var(--navy2);
+}
+
+.person-money{
+  color:var(--green);
+}
+
+.no-people{
+  padding:24px 12px;
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+
+/* =========================
+   DETAIL
+========================= */
+
+.detail-panel{
+  padding:16px;
+  min-height:430px;
+}
+
+.detail-empty{
+  min-height:380px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.detail-title{
+  margin:0 0 13px;
+  color:var(--gold);
+  font-size:25px;
+  font-weight:900;
+}
+
+.detail-sub{
+  margin-top:-7px;
+  margin-bottom:14px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.card{
+  padding:13px 15px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fbfdff;
+}
+
+.card span{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.card b{
+  display:block;
+  margin-top:5px;
+  color:var(--navy);
+  font-size:19px;
+  font-weight:900;
+}
+
+.card.money b{
+  color:var(--green);
+}
+
+.table-card{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+
+.table-wrap{
+  width:100%;
+  overflow:auto;
+}
+
+table{
+  width:100%;
+  min-width:760px;
+  border-collapse:collapse;
+}
+
+th{
+  padding:10px 9px;
+  background:var(--navy);
+  color:#fff;
+  text-align:left;
+  white-space:nowrap;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+td{
+  padding:10px 9px;
+  border-bottom:1px solid #e7ecf2;
+  font-size:12px;
+  font-weight:700;
+}
+
+tbody tr:nth-child(even) td{
+  background:#fbfdff;
+}
+
+.money{
+  color:var(--green);
+  font-weight:900;
+}
+
+.pagination{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:12px;
+}
+
+.page-btn{
+  min-width:34px;
+  height:34px;
+  padding:0 9px;
+  border:1px solid #d7e0ea;
+  border-radius:9px;
+  background:#fff;
+  color:var(--navy);
+  font-weight:900;
+  cursor:pointer;
+}
+
+.page-btn.active{
+  background:var(--navy);
+  color:#fff;
+  border-color:var(--navy);
+}
+
+.page-btn:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+}
+
+.retention-note{
+  margin-top:11px;
+  color:var(--muted);
+  text-align:center;
+  font-size:10px;
+  font-weight:800;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1050px){
+
+  .workspace{
+    grid-template-columns:300px minmax(0,1fr);
+  }
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:900px){
+
+  .page{
+    padding:10px 8px 60px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+
+  .workspace{
+    grid-template-columns:1fr;
+  }
+
+  .people-list{
+    max-height:330px;
+  }
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media(max-width:520px){
+
+  .cards{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* =========================================================
+   PAYROLL SUMMARY — PERSON NAME TYPOGRAPHY FIX
+   Visual only. Keeps all existing IDs and JS behavior.
+========================================================= */
+
+/* Names in the left people list */
+.person-name{
+  width:100%;
+  display:block;
+  text-align:center;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:0;
+  color:#172033;
+}
+
+/* Selected person's name / Payroll History title */
+.detail-title{
+  width:100%;
+  margin:0 0 13px;
+  text-align:center;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-size:22px;
+  line-height:1.2;
+  font-weight:750;
+  letter-spacing:0;
+  color:#172033;
+}
+
+/* Keep the small helper line centered below the selected name */
+.detail-sub{
+  text-align:center;
+}
+
+/* Mobile balance */
+@media(max-width:900px){
+  .person-name{
+    font-size:13px;
+  }
+
+  .detail-title{
+    font-size:19px;
+  }
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<main class="page">
+
+  <div class="page-head">
+    <div>
+      <h1 class="title">Payroll Summary</h1>
+      <div class="page-sub">Payroll history and closed pay periods by person</div>
+    </div>
+  </div>
+
+  <section class="tabs">
+
+    <button
+      class="tab-btn active"
+      data-type="driver"
+      type="button">
+      Drivers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="dispatcher"
+      type="button">
+      Dispatchers
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="admin"
+      type="button">
+      Admins
+    </button>
+
+    <button
+      class="tab-btn"
+      data-type="super_admin"
+      type="button">
+      Super Admins
+    </button>
+
+  </section>
+
+  <div class="help-line">
+    Search on the left, then select a name to view that person's payroll history.
+  </div>
+
+  <section class="workspace">
+
+    <!-- LEFT -->
+    <aside class="people-panel">
+
+      <div class="search-wrap">
+        <input
+          class="search"
+          id="nameSearch"
+          type="search"
+          placeholder="Search by name..."
+          autocomplete="off">
+      </div>
+
+      <div
+        class="people-list"
+        id="peopleList">
+        <div class="no-people">
+          Loading...
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT -->
+    <section
+      class="detail-panel"
+      id="detailPanel">
+
+      <div class="detail-empty">
+        Select a name from the list.
+      </div>
+
+    </section>
+
+  </section>
+
+  <div class="retention-note">
+    Each person keeps their own closed payroll periods for the rolling last 24 months.
+  </div>
+
+</main>
+
+<script src="header.js"></script>
+<script src="payroll-summary.js"></script>
+
+</body>
+</html>

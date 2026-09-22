@@ -1,0 +1,255 @@
+{
+  "pageId": "ADM-025",
+  "pageTitle": "Tax Report - GH Mobility",
+  "pageFile": "tax-report.html",
+  "module": "Taxes",
+  "roles": [
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/tax-report.html",
+    "server/public/admin/header.js",
+    "server/public/admin/tax-report.js"
+  ],
+  "apiDependencies": [
+    "/api/external-summary?",
+    "/api/payroll/staff-signin",
+    "/api/payroll/staff-signin/status",
+    "/api/shared-engine/settings",
+    "/api/tax-report"
+  ],
+  "sourceFunctions": [
+    "loadAdminFloatingChat",
+    "injectChatScript",
+    "loadSharedBrokerVisibility",
+    "ensureBrandingLoaded",
+    "setupPayrollSignIn",
+    "payrollRequest",
+    "showStatus",
+    "clearStatus",
+    "loadBrokerCapability",
+    "loadBrokerReport",
+    "loadReport",
+    "downloadFile",
+    "saveReport",
+    "exportExcel"
+  ],
+  "articles": [
+    {
+      "id": "ADM-025-T01",
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Generate a Tax Report",
+      "summary": "Generate a Tax Report",
+      "keywords": [
+        "company tax",
+        "from date",
+        "tax report",
+        "tax report - gh mobility",
+        "to date"
+      ],
+      "steps": [
+        "Open Tax Report.",
+        "Choose Company and From/To dates.",
+        "Click Apply.",
+        "Review the calculated tax report."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/tax-report.html",
+        "server/public/admin/header.js",
+        "server/public/admin/tax-report.js"
+      ],
+      "apiDependencies": [
+        "/api/external-summary?",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tax-report"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showStatus",
+        "clearStatus",
+        "loadBrokerCapability",
+        "loadBrokerReport",
+        "loadReport",
+        "downloadFile",
+        "saveReport",
+        "exportExcel"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-025-T02",
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Save a Tax Report",
+      "summary": "Save a Tax Report",
+      "keywords": [
+        "save tax report",
+        "saved report",
+        "tax report",
+        "tax report - gh mobility"
+      ],
+      "steps": [
+        "Generate the required report.",
+        "Click Save Report."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/tax-report.html",
+        "server/public/admin/header.js",
+        "server/public/admin/tax-report.js"
+      ],
+      "apiDependencies": [
+        "/api/external-summary?",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tax-report"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showStatus",
+        "clearStatus",
+        "loadBrokerCapability",
+        "loadBrokerReport",
+        "loadReport",
+        "downloadFile",
+        "saveReport",
+        "exportExcel"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-025-T03",
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Export Tax Report to Excel",
+      "summary": "Export Tax Report to Excel",
+      "keywords": [
+        "excel tax report",
+        "export tax",
+        "tax report",
+        "tax report - gh mobility"
+      ],
+      "steps": [
+        "Generate the required report.",
+        "Click Export Excel.",
+        "Save the file."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/tax-report.html",
+        "server/public/admin/header.js",
+        "server/public/admin/tax-report.js"
+      ],
+      "apiDependencies": [
+        "/api/external-summary?",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tax-report"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showStatus",
+        "clearStatus",
+        "loadBrokerCapability",
+        "loadBrokerReport",
+        "loadReport",
+        "downloadFile",
+        "saveReport",
+        "exportExcel"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-025-T04",
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Print Tax Report",
+      "summary": "Print Tax Report",
+      "keywords": [
+        "print tax report",
+        "tax report",
+        "tax report - gh mobility"
+      ],
+      "steps": [
+        "Generate the required report.",
+        "Click Print."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/tax-report.html",
+        "server/public/admin/header.js",
+        "server/public/admin/tax-report.js"
+      ],
+      "apiDependencies": [
+        "/api/external-summary?",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tax-report"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showStatus",
+        "clearStatus",
+        "loadBrokerCapability",
+        "loadBrokerReport",
+        "loadReport",
+        "downloadFile",
+        "saveReport",
+        "exportExcel"
+      ],
+      "active": true
+    }
+  ]
+}

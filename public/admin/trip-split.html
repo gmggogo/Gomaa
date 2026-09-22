@@ -1,0 +1,1418 @@
+<!--
+DESTINATION PATH:
+server/public/admin/trip-split.html
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1.0"
+  />
+
+  <title>Trip Split</title>
+
+  <link
+    rel="stylesheet"
+    href="/admin/style.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
+
+  <style>
+    *{box-sizing:border-box}
+
+    :root{
+      --text:#0f172a;
+      --muted:#64748b;
+      --bg:#f1f5f9;
+      --border:#dbe3ee;
+      --blue:#1f4f7a;
+      --green:#176b45;
+      --greenSoft:#e1f4e7;
+      --gold:#b6892d;
+      --red:#a92d2d;
+      --purple:#6d3fc0;
+      --dropYellow:#fff1a8;
+      --appointmentPink:#ffd9e8;
+    }
+
+    body{
+      margin:0;
+      font-family:Segoe UI,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    #adminHeader{
+      min-height:0;
+    }
+
+    .page{
+      width:100%;
+      max-width:none;
+      margin:0;
+      padding:18px 22px 30px;
+    }
+
+    .page-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:84px;
+      margin-bottom:12px;
+      padding:16px 20px;
+      border:1px solid #e0be5a;
+      border-radius:18px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff8dc 0%,
+          #f8e6ae 48%,
+          #fff4cf 100%
+        );
+      box-shadow:
+        0 8px 22px
+        rgba(146,102,14,.13);
+      text-align:center;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:28px;
+      line-height:1.1;
+      font-weight:900;
+      color:#111827;
+    }
+
+    .page-sub{
+      margin-top:5px;
+      color:#64748b;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .notice{
+      display:none;
+      padding:12px;
+      border-radius:8px;
+      margin-bottom:12px;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .notice.show{display:block}
+    .notice.error{background:#fde8e8;color:#8d1e1e}
+    .notice.ok{background:#e1f4e7;color:#146837}
+
+    .hidden{
+      display:none!important;
+    }
+
+    .controls-panel{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px;
+      margin-bottom:14px;
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.06);
+    }
+
+    .filter-row{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:flex-end;
+      gap:12px;
+    }
+
+    .filter-field{
+      min-width:220px;
+    }
+
+    .filter-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:900;
+      color:#4b5563;
+    }
+
+    .filter-field select{
+      width:100%;
+      height:42px;
+      border:1px solid #15803d;
+      border-radius:8px;
+      padding:0 11px;
+      background:#dcfce7;
+      color:#14532d;
+      font-size:12px;
+      font-weight:900;
+    }
+
+    .action-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-top:18px;
+    }
+
+    .action-left{
+      display:flex;
+      flex-wrap:wrap;
+      gap:9px;
+    }
+
+    .action-right{
+      margin-left:auto;
+    }
+
+    .btn{
+      height:38px;
+      border:0;
+      border-radius:7px;
+      padding:0 14px;
+      font-weight:800;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .btn:disabled{
+      opacity:.48;
+      cursor:not-allowed;
+    }
+
+    .btn-blue{background:var(--blue);color:#fff}
+    .btn-green{background:var(--green);color:#fff}
+    .btn-gold{background:var(--gold);color:#fff}
+    .btn-gray{background:#e5e7eb;color:#1f2937}
+    .btn-red{background:var(--red);color:#fff}
+    .btn-dark{background:#26323c;color:#fff}
+
+    .btn-restore{
+      background:var(--purple);
+      color:#fff;
+      border:1px solid #4f2a99;
+    }
+
+    .btn-confirm-glow{
+      background:#16804f;
+      color:#fff;
+      border:1px solid #0d623b;
+      animation:confirmGlow 1.25s ease-in-out infinite;
+    }
+
+    @keyframes confirmGlow{
+      0%,100%{
+        box-shadow:
+          0 0 0 0 rgba(22,128,79,.22),
+          0 0 5px rgba(22,128,79,.30);
+      }
+      50%{
+        box-shadow:
+          0 0 0 4px rgba(22,128,79,.10),
+          0 0 13px rgba(22,128,79,.58);
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce){
+      .btn-confirm-glow{
+        animation:none;
+        box-shadow:0 0 8px rgba(22,128,79,.45);
+      }
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(8,minmax(102px,1fr));
+      gap:6px;
+      margin-bottom:10px;
+      overflow-x:auto;
+      padding-bottom:2px;
+    }
+
+    .stat{
+      min-height:58px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      background:
+        linear-gradient(
+          135deg,
+          #fff7d8 0%,
+          #ecd07a 48%,
+          #fff0b2 100%
+        );
+      border:1px solid #c7a13a;
+      border-radius:9px;
+      padding:6px 6px;
+      text-align:center;
+      box-shadow:0 3px 8px rgba(146,102,14,.10);
+    }
+
+    .stat-label{
+      width:100%;
+      font-size:8px;
+      line-height:1.1;
+      font-weight:900;
+      color:#4b3908;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+      text-align:center;
+      white-space:nowrap;
+    }
+
+    .stat-value{
+      width:100%;
+      margin-top:3px;
+      font-size:18px;
+      line-height:1;
+      font-weight:900;
+      color:#111827;
+      text-align:center;
+    }
+
+
+    .split-tabs{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      width:100%;
+      margin:0 0 14px;
+      border:1px solid #c7a13a;
+      border-radius:14px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow:0 6px 16px rgba(15,23,42,.06);
+    }
+
+    .split-tab{
+      min-height:62px;
+      border:0;
+      border-right:1px solid #d7bd6a;
+      background:linear-gradient(180deg,#fffaf0 0%,#f7e7ad 100%);
+      color:#3f3208;
+      font-size:16px;
+      font-weight:900;
+      letter-spacing:.02em;
+      cursor:pointer;
+      text-align:center;
+      box-shadow:inset 0 -2px 0 rgba(138,107,22,.14);
+    }
+
+    .split-tab:last-child{
+      border-right:0;
+    }
+
+    .split-tab.active{
+      background:linear-gradient(135deg,#e6c55a 0%,#cda72e 100%);
+      color:#111827;
+      box-shadow:
+        inset 0 -5px 0 #7d6113,
+        0 4px 10px rgba(125,97,19,.18);
+    }
+
+    .split-tab.hidden{
+      display:none!important;
+    }
+
+    .split-tabs.two-tabs{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .trip-panel-hidden{
+      display:none!important;
+    }
+
+    .individual-actions{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+
+    .individual-actions .btn{
+      min-width:70px;
+      height:31px;
+      font-size:10px;
+      padding:0 9px;
+    }
+
+    .panel{
+      width:100%;
+      max-width:none;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      margin-bottom:14px;
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.08);
+    }
+
+    .section-tab{
+      width:100%;
+      padding:12px 16px;
+      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.02em;
+      border-bottom:1px solid rgba(15,23,42,.10);
+    }
+
+    .section-tab.individual,
+    .section-tab.shared{
+      background:
+        linear-gradient(
+          90deg,
+          #fff3c7 0%,
+          #e7c65f 50%,
+          #fff3c7 100%
+        );
+      color:#3f3007;
+      border-bottom:1px solid #c7a13a;
+      text-align:center;
+    }
+
+    .section-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 14px;
+      font-weight:900;
+      border-bottom:1px solid #e5e7eb;
+      background:#fff;
+    }
+
+
+
+
+
+
+    .section-title-actions-only{
+      min-height:40px;
+      padding:6px 10px;
+      justify-content:flex-end;
+      background:#fff;
+      border-bottom:1px solid #e5e7eb;
+    }
+
+    .table-wrap{
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      -webkit-overflow-scrolling:touch;
+      background:#fff;
+    }
+
+    .original-table{
+      width:100%;
+      min-width:1750px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+      border-top:6px solid #000;
+    }
+
+    .original-table th,
+    .original-table td{
+      border:1px solid var(--border);
+      padding:5px;
+      text-align:center;
+      font-size:10px;
+      vertical-align:middle;
+      line-height:1.25;
+      box-sizing:border-box;
+    }
+
+    .original-table th{
+      background:#1f2937;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+      font-size:10px;
+    }
+
+    .original-table th:nth-child(1),
+    .original-table td:nth-child(1){width:38px}
+
+    .original-table th:nth-child(2),
+    .original-table td:nth-child(2){width:88px}
+
+    .original-table th:nth-child(3),
+    .original-table td:nth-child(3){width:66px}
+
+    .original-table th:nth-child(4),
+    .original-table td:nth-child(4){width:82px}
+
+    .original-table th:nth-child(5),
+    .original-table td:nth-child(5){width:62px}
+
+    .original-table th:nth-child(6),
+    .original-table td:nth-child(6){width:72px}
+
+    .original-table th:nth-child(7),
+    .original-table td:nth-child(7){width:72px}
+
+    .original-table th:nth-child(8),
+    .original-table td:nth-child(8){width:96px}
+
+    .original-table th:nth-child(9),
+    .original-table td:nth-child(9){width:88px}
+
+    .original-table th:nth-child(10),
+    .original-table td:nth-child(10){width:220px}
+
+    .original-table th:nth-child(11),
+    .original-table td:nth-child(11){width:235px}
+
+    .original-table th:nth-child(12),
+    .original-table td:nth-child(12){width:220px}
+
+    .original-table th:nth-child(13),
+    .original-table td:nth-child(13){width:92px}
+
+    .original-table th:nth-child(14),
+    .original-table td:nth-child(14){width:120px}
+
+    .original-table th:nth-child(15),
+    .original-table td:nth-child(15){width:78px}
+
+    .original-table th:nth-child(16),
+    .original-table td:nth-child(16){width:66px}
+
+    .original-table th:nth-child(17),
+    .original-table td:nth-child(17){width:92px}
+
+    .check-cell{
+      text-align:center!important;
+    }
+
+    .trip-id{
+      font-weight:900;
+      color:#1d4ed8;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      font-size:8.8px;
+    }
+
+    .small-cell{
+      white-space:nowrap;
+    }
+
+    .address-cell,
+    .stops-cell,
+    .notes-cell{
+      text-align:left!important;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .address-box,
+    .gh-stop-box{
+      display:block;
+      width:100%;
+      min-height:28px;
+      padding:6px 7px;
+      border:1px solid #111;
+      border-radius:4px;
+      background:#fff;
+      color:#1f2937;
+      line-height:1.3;
+    }
+
+    .gh-stop-box{
+      margin:0 0 5px;
+    }
+
+    .gh-stop-box:last-child{
+      margin-bottom:0;
+    }
+
+    .date-group-row td{
+      padding:8px 12px!important;
+      background:#dcecff!important;
+      color:#214b76;
+      text-align:left!important;
+      font-size:12px!important;
+      font-weight:900;
+      border-top:2px solid #85a9d0!important;
+      border-bottom:2px solid #85a9d0!important;
+    }
+
+    .status{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      border-radius:999px;
+      padding:4px 6px;
+      font-size:8px;
+      font-weight:900;
+      white-space:normal;
+      text-align:center;
+    }
+
+    .status.ready{
+      background:#e1f4e7;
+      color:#146837;
+    }
+
+    .status.shared{
+      background:#e9eef8;
+      color:#294d85;
+    }
+
+    .status.excluded{
+      background:#fde8e8;
+      color:#8d1e1e;
+    }
+
+    .status.confirmed{
+      background:#e1f4e7;
+      color:#146837;
+    }
+
+    .row-actions{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+    }
+
+    .row-actions .btn{
+      height:29px;
+      min-width:36px;
+      padding:0 6px;
+      font-size:8px;
+    }
+
+
+    .search-field{
+      flex:1 1 320px;
+      min-width:260px;
+    }
+
+    .search-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:900;
+      color:#4b5563;
+    }
+
+    .search-field input{
+      width:100%;
+      height:42px;
+      border:1px solid #c7a13a;
+      border-radius:8px;
+      padding:0 12px;
+      background:#fffaf0;
+      color:#111827;
+      font-size:12px;
+      font-weight:700;
+      outline:none;
+    }
+
+    .search-field input:focus{
+      border-color:#9d7b20;
+      box-shadow:0 0 0 2px rgba(199,161,58,.15);
+    }
+
+    .section-actions{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      gap:7px;
+    }
+
+    .individual-table{
+      width:100%;
+      min-width:1220px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+    }
+
+    .individual-table th,
+    .individual-table td{
+      padding:9px 8px;
+      border:1px solid #d8e0e7;
+      font-size:11px;
+      vertical-align:middle;
+      text-align:center;
+      line-height:1.3;
+      background:#fff;
+    }
+
+    .individual-table th{
+      background:#e8edf2;
+      color:#263746;
+      font-weight:900;
+      white-space:nowrap;
+      text-align:center;
+    }
+
+    .individual-table .individual-trip-number-head{
+      background:#1d4ed8;
+      color:#fff;
+    }
+
+    .individual-table .individual-trip-number{
+      color:#1d4ed8;
+      font-weight:900;
+      overflow-wrap:anywhere;
+    }
+
+    .individual-table .individual-address,
+    .individual-table .individual-stops{
+      text-align:center;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    .individual-table .individual-address .address-box,
+    .individual-table .individual-stops .gh-stop-box{
+      min-height:34px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .individual-table th:nth-child(1),
+    .individual-table td:nth-child(1){width:46px}
+
+    .individual-table th:nth-child(2),
+    .individual-table td:nth-child(2){width:135px}
+
+    .individual-table th:nth-child(3),
+    .individual-table td:nth-child(3){width:90px}
+
+    .individual-table th:nth-child(4),
+    .individual-table td:nth-child(4){width:135px}
+
+    .individual-table th:nth-child(5),
+    .individual-table td:nth-child(5){width:85px}
+
+    .individual-table th:nth-child(6),
+    .individual-table td:nth-child(6){width:90px}
+
+    .individual-table th:nth-child(7),
+    .individual-table td:nth-child(7){width:130px}
+
+    .individual-table th:nth-child(8),
+    .individual-table td:nth-child(8){width:210px}
+
+    .individual-table th:nth-child(9),
+    .individual-table td:nth-child(9){width:210px}
+
+    .individual-table th:nth-child(10),
+    .individual-table td:nth-child(10){width:210px}
+
+    .individual-table th:nth-child(11),
+    .individual-table td:nth-child(11){width:95px}
+
+    .individual-table th:nth-child(12),
+    .individual-table td:nth-child(12){width:95px}
+
+    .individual-table th:nth-child(13),
+    .individual-table td:nth-child(13){width:115px}
+
+    .redistribute-btn{
+      background:#1d4ed8;
+      color:#fff;
+    }
+
+    .grouped-source-row td{
+      background:#f3f6fb;
+    }
+
+    .in-group-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px 7px;
+      border-radius:999px;
+      background:#dbeafe;
+      color:#1d4ed8;
+      font-size:8px;
+      font-weight:900;
+    }
+
+    .group-card{
+      border-bottom:1px solid #dce2e7;
+      background:#fff;
+    }
+
+    .group-card:last-child{
+      border-bottom:0;
+    }
+
+    .group-head{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      background:#f7f8fa;
+      border-bottom:1px solid #e4e7ea;
+    }
+
+    .group-title{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:800;
+    }
+
+    .group-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      font-size:11px;
+      color:#5b6470;
+    }
+
+    .group-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:7px;
+    }
+
+    .group-actions .btn{
+      height:31px;
+      padding:0 10px;
+      font-size:11px;
+    }
+
+    .group-card table{
+      width:100%;
+      min-width:1000px;
+      border-collapse:collapse;
+    }
+
+    .group-card th,
+    .group-card td{
+      padding:9px 8px;
+      border:1px solid #d8e0e7;
+      font-size:11px;
+      vertical-align:middle;
+      text-align:center;
+      line-height:1.3;
+    }
+
+    .group-card th{
+      background:#e8edf2;
+      color:#263746;
+      font-weight:900;
+      white-space:nowrap;
+      text-align:center;
+    }
+
+    .group-card td{
+      background:#fff;
+    }
+
+    .group-card .group-trip-number-head{
+      background:#1d4ed8;
+      color:#fff;
+    }
+
+    .group-card .group-trip-number{
+      color:#1d4ed8;
+      font-weight:900;
+      overflow-wrap:anywhere;
+    }
+
+    .group-card .dropoff-time-head,
+    .group-card .dropoff-time-cell{
+      background:var(--dropYellow);
+      color:#5c4800;
+      font-weight:900;
+    }
+
+    .group-card .appointment-head,
+    .group-card .appointment-cell{
+      background:var(--appointmentPink);
+      color:#7c264e;
+      font-weight:900;
+    }
+
+    .group-card .time-ok{
+      color:#116b43;
+    }
+
+    .group-card .time-late{
+      color:#b42323;
+      font-weight:900;
+    }
+
+    .return-trip-row td{
+      background:#fff7df;
+    }
+
+    .return-trip-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-left:4px;
+      padding:3px 6px;
+      border-radius:999px;
+      background:#7c3aed;
+      color:#fff;
+      font-size:7px;
+      font-weight:900;
+      animation:returnPulse 1.1s ease-in-out infinite;
+    }
+
+    @keyframes returnPulse{
+      0%,100%{opacity:1}
+      50%{opacity:.38}
+    }
+
+    @media(prefers-reduced-motion:reduce){
+      .return-trip-badge{
+        animation:none;
+      }
+    }
+
+    .route-box{
+      padding:10px 12px;
+      border-top:1px solid #edf0f2;
+      font-size:11px;
+      line-height:1.55;
+      background:#fbfcfd;
+    }
+
+    .empty{
+      padding:28px 12px;
+      text-align:center;
+      color:#6b7280;
+      font-size:13px;
+    }
+
+    dialog{
+      width:min(640px,calc(100% - 24px));
+      border:0;
+      border-radius:12px;
+      padding:0;
+      box-shadow:
+        0 20px 60px
+        rgba(0,0,0,.22);
+    }
+
+    dialog::backdrop{
+      background:rgba(0,0,0,.35);
+    }
+
+    .dialog-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      padding:14px;
+      border-bottom:1px solid #e5e7eb;
+    }
+
+    .dialog-body{
+      padding:14px;
+    }
+
+    .dialog-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .dialog-field label{
+      display:block;
+      margin-bottom:5px;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .dialog-field input{
+      width:100%;
+      height:38px;
+      border:1px solid #cfd6dd;
+      border-radius:7px;
+      padding:0 10px;
+      background:#fff;
+      color:#111827;
+    }
+
+    .dialog-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top:14px;
+    }
+
+    @media(max-width:900px){
+      .stats{
+        grid-template-columns:repeat(8,minmax(100px,1fr));
+      }
+    }
+
+    @media(max-width:650px){
+      .page{
+        padding:10px 8px 20px;
+      }
+
+      .page-head{
+        min-height:72px;
+        padding:12px;
+      }
+
+      .page-title{
+        font-size:22px;
+      }
+
+      .filter-field{
+        width:100%;
+        min-width:100%;
+      }
+
+      .action-row{
+        align-items:stretch;
+      }
+
+      .action-left{
+        flex:1;
+      }
+
+      .action-right{
+        margin-left:0;
+      }
+
+      .stats{
+        grid-template-columns:repeat(8,minmax(98px,1fr));
+      }
+
+      .dialog-grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main
+    class="page"
+    id="tripSplitPage"
+  >
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">
+          Trip Split
+        </h1>
+
+        <div class="page-sub">
+          Prepare broker trips for Dispatch.
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="pageNotice"
+      class="notice"
+    ></div>
+
+    <section class="controls-panel">
+
+      <div class="filter-row">
+
+        <div class="filter-field">
+          <label>Broker</label>
+
+          <select id="brokerFilter">
+            <option value="MIXED">
+              Mixed
+            </option>
+          </select>
+        </div>
+
+        <div class="filter-field">
+          <label>Day</label>
+
+          <select id="dayFilter">
+            <option value="ALL">
+              Today & Tomorrow
+            </option>
+
+            <option value="TODAY">
+              Today
+            </option>
+
+            <option value="TOMORROW">
+              Tomorrow
+            </option>
+          </select>
+        </div>
+
+        <div class="search-field">
+          <label>Search</label>
+          <input
+            id="tripSearch"
+            type="search"
+            placeholder="Trip #, passenger, broker, phone, pickup, drop-off..."
+            autocomplete="off"
+          />
+        </div>
+
+      </div>
+
+      <div class="action-row">
+
+        <div class="action-left">
+
+          <button
+            id="selectAllBtn"
+            class="btn btn-blue"
+            type="button"
+          >
+            Select All
+          </button>
+
+          <button
+            id="shareBtn"
+            class="btn btn-gold"
+            type="button"
+          >
+            Share
+          </button>
+
+          <button
+            id="restoreBtn"
+            class="btn btn-restore"
+            type="button"
+            disabled
+          >
+            Restore Original
+          </button>
+
+        </div>
+
+        <div class="action-right">
+
+          <button
+            id="confirmAllBtn"
+            class="btn btn-confirm-glow"
+            type="button"
+          >
+            Confirm Selected
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <div class="stats">
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Total Trips
+        </div>
+        <div
+          id="statTotalTrips"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          New Trips
+        </div>
+        <div
+          id="statNewTrips"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Individual Trips
+        </div>
+        <div
+          id="statIndividual"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Shared Group Trips
+        </div>
+        <div
+          id="statGroups"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Selected
+        </div>
+        <div
+          id="statSelected"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Confirmed
+        </div>
+        <div
+          id="statConfirmed"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          Active Brokers
+        </div>
+        <div
+          id="statActiveBrokers"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+      <div class="stat stat-gold">
+        <div class="stat-label">
+          With Stops
+        </div>
+        <div
+          id="statWithStops"
+          class="stat-value"
+        >
+          0
+        </div>
+      </div>
+
+    </div>
+
+    <div class="split-tabs" id="splitTabs">
+      <button
+        type="button"
+        class="split-tab active"
+        id="originalTabBtn"
+        data-tab="ORIGINAL"
+      >
+        Original Trips
+      </button>
+
+      <button
+        type="button"
+        class="split-tab"
+        id="individualTabBtn"
+        data-tab="INDIVIDUAL"
+      >
+        Individual Trips
+      </button>
+
+      <button
+        type="button"
+        class="split-tab"
+        id="sharedTabBtn"
+        data-tab="SHARED"
+      >
+        Shared Group Trips
+      </button>
+    </div>
+
+
+    <section class="panel" id="originalTripsSection" data-trip-panel="ORIGINAL">
+
+      <span id="originalCount" class="hidden">0</span>
+
+      <div class="table-wrap">
+
+        <table class="original-table">
+
+          <thead>
+            <tr>
+              <th class="check-cell"></th>
+              <th>External Trip</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
+              <th>Return Time</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Notes</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="originalTripRows"></tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+    <section class="panel trip-panel-hidden" id="individualTripsSection" data-trip-panel="INDIVIDUAL">
+
+      <span id="individualCount" class="hidden">0</span>
+
+      <div class="table-wrap">
+
+        <table class="individual-table">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th class="individual-trip-number-head">Trip Number</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
+              <th>Passenger</th>
+              <th>Pickup</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody id="individualTripRows"></tbody>
+        </table>
+
+      </div>
+
+    </section>
+
+
+    <section
+      class="panel trip-panel-hidden"
+      id="sharedGroupsSection"
+      data-trip-panel="SHARED"
+    >
+
+      <span id="groupCount" class="hidden">0</span>
+
+      <div id="sharedGroups"></div>
+
+    </section>
+
+  </main>
+
+  <dialog id="editDialog">
+
+    <div class="dialog-head">
+      <strong>Edit Trip</strong>
+
+      <button
+        id="closeEditBtn"
+        class="btn btn-gray"
+        type="button"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="dialog-body">
+
+      <div class="dialog-grid">
+
+        <div class="dialog-field">
+          <label>Pickup Time</label>
+          <input
+            id="editPickupTime"
+            type="time"
+          />
+        </div>
+
+        <div class="dialog-field">
+          <label>Appointment Time</label>
+          <input
+            id="editAppointmentTime"
+            type="time"
+          />
+        </div>
+
+        <div
+          class="dialog-field"
+          style="grid-column:1/-1"
+        >
+          <label>Pickup</label>
+          <input id="editPickup" />
+        </div>
+
+        <div
+          class="dialog-field"
+          style="grid-column:1/-1"
+        >
+          <label>Drop-off</label>
+          <input id="editDropoff" />
+        </div>
+
+      </div>
+
+      <div class="dialog-actions">
+
+        <button
+          id="saveEditBtn"
+          class="btn btn-green"
+          type="button"
+        >
+          Save
+        </button>
+
+      </div>
+
+    </div>
+
+  </dialog>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/tripSplit.js"></script>
+
+</body>
+</html>

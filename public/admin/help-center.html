@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Help Center</title>
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#f4f7fb;
+  color:#172033;
+  font-family:Arial,sans-serif;
+}
+
+.help-page-title-band{
+  width:100%;
+  margin:18px 0 0;
+  padding:15px 18px 14px;
+  text-align:center;
+  background:linear-gradient(90deg,#fff7d7 0%,#f7e49d 50%,#fff7d7 100%);
+  border-top:1px solid #ead37d;
+  border-bottom:1px solid #d7bd5c;
+  box-shadow:0 3px 10px rgba(151,102,0,.08);
+  position:relative;
+  z-index:1;
+}
+.help-page-title-band h1{
+  margin:0;
+  font-size:24px;
+  font-weight:900;
+  color:#6f4b00;
+}
+
+.help-shell{
+  width:100%;
+  max-width:none;
+  margin:24px 0 60px;
+  padding:0 28px;
+}
+
+.help-support-grid{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:36px;
+  align-items:start;
+}
+
+.help-column,
+.support-column{
+  min-width:0;
+}
+
+.help-hero,
+.section-card,
+.selected-page-card,
+.support-card{
+  border-radius:18px;
+  box-shadow:0 7px 20px rgba(15,23,42,.06);
+}
+
+.help-hero{
+  background:linear-gradient(135deg,#fffaf0 0%,#fff4cf 100%);
+  border:1px solid #e2bb48;
+  padding:20px;
+}
+
+.help-top{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+}
+
+.help-title{
+  margin:0 0 6px;
+  font-size:28px;
+  color:#8a5a00;
+  font-weight:900;
+}
+
+.help-sub{
+  margin:0;
+  color:#6f5a24;
+  line-height:1.55;
+  font-weight:600;
+}
+
+.lang-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  white-space:nowrap;
+}
+
+.lang-label{
+  font-size:13px;
+  font-weight:800;
+  color:#475467;
+}
+
+.lang-select{
+  min-width:190px;
+  border:1px solid #c58900;
+  border-radius:12px;
+  padding:11px 38px 11px 12px;
+  color:#241900;
+  font-weight:900;
+  appearance:none;
+  background:
+    linear-gradient(45deg,transparent 50%,#402b00 50%) calc(100% - 18px) 52%/6px 6px no-repeat,
+    linear-gradient(135deg,#f9d975 0%,#d99b00 100%);
+  box-shadow:0 4px 10px rgba(151,102,0,.16);
+}
+.lang-select option{
+  background:#fff;
+  color:#172033;
+  font-weight:700;
+}
+
+.help-search-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 245px;
+  gap:12px;
+  margin-top:18px;
+}
+
+.help-search,
+.help-select{
+  width:100%;
+  border-radius:12px;
+  padding:13px 14px;
+  font-size:15px;
+}
+
+.help-search{
+  border:2px solid #d7bd66;
+  background:#fff;
+}
+
+.help-select{
+  appearance:none;
+  border:1px solid #084f73;
+  color:#fff;
+  font-weight:900;
+  padding-right:38px;
+  background:
+    linear-gradient(45deg,transparent 50%,#ffd96a 50%) calc(100% - 18px) 52%/6px 6px no-repeat,
+    linear-gradient(135deg,#1976a8 0%,#075f8c 100%);
+  box-shadow:0 4px 10px rgba(7,95,140,.18);
+}
+.help-select option,
+.help-select optgroup{
+  background:#fff;
+  color:#172033;
+  font-weight:700;
+}
+.help-select optgroup{
+  color:#075f8c;
+  font-weight:900;
+}
+
+.help-search:focus,
+.help-select:focus,
+.lang-select:focus,
+.support-input:focus,
+.support-textarea:focus{
+  outline:3px solid rgba(217,155,0,.16);
+  border-color:#d99b00;
+}
+
+.selected-page-card{
+  background:linear-gradient(135deg,#edf8ff 0%,#f7fbff 100%);
+  border:1px solid #8fc8e8;
+  border-left:6px solid #1678aa;
+  padding:18px 20px;
+  margin-top:18px;
+}
+.selected-page-card[hidden]{display:none}
+
+.selected-page-id{
+  font-size:12px;
+  font-weight:800;
+  color:#a86f00;
+  margin-bottom:5px;
+}
+.selected-page-title{
+  margin:0 0 8px;
+  font-size:24px;
+  color:#075f8c;
+  font-weight:900;
+}
+.selected-page-description{
+  margin:0;
+  color:#667085;
+  line-height:1.6;
+  font-size:14px;
+}
+
+.section-card{
+  margin-top:18px;
+  padding:18px;
+  background:linear-gradient(180deg,#fffdf7 0%,#fff9e7 100%);
+  border:1px solid #e4c66b;
+}
+
+.results-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.help-count{
+  font-size:13px;
+  color:#667085;
+  margin:0;
+}
+.clear-btn{
+  border:1px solid #c58900;
+  border-radius:9px;
+  padding:8px 11px;
+  cursor:pointer;
+  font-weight:900;
+  color:#241900;
+  background:linear-gradient(135deg,#f9d975 0%,#d99b00 100%);
+}
+
+.help-result{
+  border:1px solid #d9bc63;
+  border-radius:14px;
+  margin-bottom:12px;
+  overflow:hidden;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(15,23,42,.05);
+}
+.help-result-head{
+  width:100%;
+  border:0;
+  padding:15px;
+  text-align:left;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  align-items:flex-start;
+  background:linear-gradient(90deg,#fff1bd 0%,#fffaf0 100%);
+}
+.help-result:nth-child(4n+2) .help-result-head{
+  background:linear-gradient(90deg,#e6f5ff 0%,#f7fbff 100%);
+  border-left:5px solid #1484b8;
+}
+.help-result:nth-child(4n+3) .help-result-head{
+  background:linear-gradient(90deg,#eaf8ef 0%,#f8fff9 100%);
+  border-left:5px solid #2f9e5b;
+}
+.help-result:nth-child(4n) .help-result-head{
+  background:linear-gradient(90deg,#f1eaff 0%,#fbf9ff 100%);
+  border-left:5px solid #7b52b9;
+}
+.help-result-title{
+  font-weight:900;
+  font-size:16px;
+  color:#172033;
+}
+.help-result-meta{
+  font-size:12px;
+  color:#7a5b10;
+  margin-top:5px;
+  font-weight:700;
+}
+.help-result-summary{
+  font-size:14px;
+  color:#475467;
+  margin-top:7px;
+  line-height:1.45;
+}
+.help-result-body{
+  display:none;
+  border-top:1px solid #eadba8;
+  padding:15px;
+  background:#fff;
+}
+.help-result.open .help-result-body{display:block}
+.help-result.open .help-chevron{transform:rotate(180deg)}
+.help-chevron{
+  transition:transform .15s ease;
+  font-size:18px;
+  color:#9d6a00;
+  font-weight:900;
+}
+.help-steps{
+  margin:0;
+  padding-left:22px;
+  line-height:1.7;
+}
+.help-warning{
+  margin-top:12px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  border-radius:10px;
+  padding:10px;
+  color:#9a3412;
+}
+.help-source{
+  margin-top:12px;
+  font-size:12px;
+  color:#64748b;
+}
+.scope-explanation{
+  margin:0 0 14px;
+  padding:13px 14px;
+  border:1px solid #dfb735;
+  border-left:6px solid #d28d00;
+  border-radius:12px;
+  background:#fff0b5;
+  color:#5a4100;
+  line-height:1.55;
+  font-size:13px;
+  font-weight:700;
+}
+.help-empty{
+  padding:30px;
+  text-align:center;
+  color:#667085;
+}
+
+/* ============ PLATFORM SUPPORT SIDE ============ */
+
+.support-card{
+  background:#fff;
+  border:1px solid #d7bd66;
+  overflow:hidden;
+  position:sticky;
+  top:14px;
+}
+
+.support-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:17px 18px;
+  background:linear-gradient(135deg,#0d688f 0%,#084f73 100%);
+  color:#fff;
+}
+
+.support-header-left{
+  min-width:0;
+}
+.support-header h2{
+  margin:0;
+  font-size:20px;
+  font-weight:900;
+}
+.support-header p{
+  margin:4px 0 0;
+  font-size:12px;
+  opacity:.88;
+}
+
+.support-unread{
+  display:none;
+  min-width:28px;
+  height:28px;
+  padding:0 8px;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background:#f1b51c;
+  color:#3b2900;
+  font-size:12px;
+  font-weight:900;
+}
+.support-unread.show{display:inline-flex}
+
+.support-company-card{
+  margin:14px;
+  padding:13px 14px;
+  border-radius:13px;
+  background:linear-gradient(135deg,#fff8dc 0%,#fffdf4 100%);
+  border:1px solid #e3c75f;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px 14px;
+  font-size:12px;
+}
+.support-company-card div{min-width:0}
+.support-company-card b{
+  display:block;
+  margin-bottom:2px;
+  color:#765100;
+  font-size:11px;
+}
+.support-company-card span,
+.support-company-card a{
+  color:#172033;
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+
+.support-actions{
+  display:flex;
+  gap:9px;
+  padding:0 14px 13px;
+}
+.support-new-btn{
+  flex:1;
+  border:0;
+  border-radius:10px;
+  padding:11px 13px;
+  background:linear-gradient(135deg,#d99b00 0%,#b97800 100%);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.support-new-form{
+  display:none;
+  margin:0 14px 14px;
+  padding:13px;
+  border:1px solid #b9ddec;
+  border-radius:13px;
+  background:#f4fbff;
+}
+.support-new-form.show{display:block}
+.support-new-form h3{
+  margin:0 0 10px;
+  font-size:15px;
+  color:#075f8c;
+}
+.support-input,
+.support-textarea{
+  width:100%;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  background:#fff;
+  color:#172033;
+  padding:10px 11px;
+  font:inherit;
+  margin-bottom:9px;
+}
+.support-textarea{
+  min-height:95px;
+  resize:vertical;
+}
+.support-form-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+}
+.support-form-actions button{
+  border:0;
+  border-radius:8px;
+  padding:9px 12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.support-cancel-btn{
+  background:#e5e7eb;
+  color:#172033;
+}
+.support-start-btn{
+  background:#0f6f9f;
+  color:#fff;
+}
+
+.support-body{
+  display:grid;
+  grid-template-columns:180px minmax(0,1fr);
+  min-height:470px;
+  border-top:1px solid #e5e7eb;
+}
+
+.support-list-wrap{
+  border-right:1px solid #e5e7eb;
+  background:#f8fafc;
+  min-width:0;
+}
+.support-list-title{
+  padding:11px 10px 7px;
+  font-size:11px;
+  font-weight:900;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+.support-conversation-list{
+  padding:0 8px 10px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  max-height:430px;
+  overflow:auto;
+}
+.support-conversation-item{
+  border:1px solid #dbe5ee;
+  border-radius:9px;
+  padding:9px;
+  background:#fff;
+  cursor:pointer;
+}
+.support-conversation-item.active{
+  background:#fff3bf;
+  border-color:#d5a520;
+}
+.support-conversation-title{
+  font-size:12px;
+  font-weight:900;
+  line-height:1.35;
+}
+.support-conversation-meta{
+  margin-top:4px;
+  font-size:10px;
+  color:#697386;
+}
+
+.support-chat-area{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  background:#fff;
+}
+.support-chat-empty{
+  min-height:470px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:#718096;
+  padding:24px;
+  font-size:13px;
+}
+.support-chat-view{
+  display:none;
+  flex-direction:column;
+  min-height:470px;
+}
+.support-chat-view.show{display:flex}
+.support-chat-head{
+  padding:11px 13px;
+  border-bottom:1px solid #e5e7eb;
+  background:#fbfcfe;
+}
+.support-chat-head h3{
+  margin:0;
+  font-size:14px;
+  color:#172033;
+}
+.support-chat-head p{
+  margin:4px 0 0;
+  color:#64748b;
+  font-size:10px;
+}
+.support-messages{
+  flex:1;
+  padding:12px;
+  overflow:auto;
+  max-height:315px;
+  background:#f7f9fc;
+}
+.support-message{
+  max-width:88%;
+  margin-bottom:9px;
+  padding:9px 10px;
+  border-radius:12px;
+}
+.support-message.tenant{
+  margin-right:auto;
+  background:#e6f5ff;
+  border:1px solid #b9ddf3;
+}
+.support-message.platform{
+  margin-left:auto;
+  background:#fff0b8;
+  border:1px solid #e1c45c;
+}
+.support-message-meta{
+  margin-bottom:4px;
+  font-size:9px;
+  font-weight:800;
+  color:#697386;
+}
+.support-message-text{
+  white-space:pre-wrap;
+  line-height:1.4;
+  font-size:12px;
+}
+.support-composer{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  border-top:1px solid #e5e7eb;
+}
+.support-composer textarea{
+  flex:1;
+  min-height:58px;
+  resize:vertical;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:9px;
+  font:inherit;
+}
+.support-send-btn{
+  width:88px;
+  border:0;
+  border-radius:9px;
+  background:#0f6f9f;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+html[dir="rtl"] .selected-page-card,
+html[dir="rtl"] .help-result-head{
+  text-align:right;
+}
+html[dir="rtl"] .help-steps{
+  padding-left:0;
+  padding-right:22px;
+}
+
+@media(max-width:980px){
+  .help-support-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:800px){
+  .help-top{
+    flex-direction:column;
+  }
+  .help-search-row{
+    grid-template-columns:1fr;
+  }
+  .support-company-card{
+    grid-template-columns:1fr;
+  }
+  .support-body{
+    grid-template-columns:1fr;
+  }
+  .support-list-wrap{
+    border-right:0;
+    border-bottom:1px solid #e5e7eb;
+  }
+  .support-conversation-list{
+    max-height:190px;
+  }
+}
+
+@media(max-width:560px){
+  .help-shell{padding:0 10px}
+  .help-hero,
+  .section-card,
+  .selected-page-card{
+    border-radius:13px;
+    padding:14px;
+  }
+  .lang-wrap{
+    width:100%;
+  }
+  .lang-select{
+    width:100%;
+    min-width:0;
+  }
+}
+
+.help-column,
+.support-column{
+  width:100%;
+}
+
+.help-column > *,
+.support-column > *{
+  width:100%;
+}
+
+@media(min-width:981px){
+  .help-column,
+  .support-column{
+    min-height:680px;
+  }
+}
+
+
+/* ===== WIDE TWO-PANEL DESKTOP LAYOUT ===== */
+
+.help-column,
+.support-column{
+  width:100%;
+  min-width:0;
+}
+
+.help-hero,
+.section-card,
+.selected-page-card,
+.support-card{
+  width:100%;
+}
+
+/* Left Help Center gets the same navy header language as Platform Support. */
+.help-hero{
+  overflow:hidden;
+  padding:0 20px 20px;
+  background:#ffffff;
+  border:1px solid #cfd8e3;
+}
+
+.help-top{
+  margin:0 -20px 18px;
+  padding:18px 20px;
+  background:linear-gradient(135deg,#0d688f 0%,#084f73 100%);
+  color:#ffffff;
+  align-items:center;
+}
+
+.help-title{
+  color:#ffffff!important;
+  margin-bottom:5px;
+}
+
+.help-sub{
+  color:#e8f4fb!important;
+}
+
+.lang-label{
+  color:#f6fbff!important;
+}
+
+.help-search-row{
+  margin-top:0;
+}
+
+.section-card{
+  min-height:440px;
+}
+
+.support-card{
+  min-height:680px;
+}
+
+/* More breathing room between the two halves */
+@media(min-width:981px){
+  .help-column{
+    padding-right:4px;
+  }
+
+  .support-column{
+    padding-left:4px;
+  }
+}
+
+@media(max-width:980px){
+  .help-shell{
+    padding:0 16px;
+  }
+
+  .help-support-grid{
+    grid-template-columns:1fr;
+    gap:22px;
+  }
+}
+
+
+.support-tabs{
+  display:flex;
+  gap:7px;
+  padding:0 14px 12px;
+}
+.support-tab{
+  flex:1;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:8px 10px;
+  background:linear-gradient(180deg,#fff8de 0%,#f4dda0 100%);
+  color:#5f4500;
+  border-color:#d0ad42;
+  box-shadow:0 2px 7px rgba(96,72,0,.10);
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+.support-tab.active{
+  background:#0b1933;
+  color:#fff;
+  border-color:#0b1933;
+}
+.support-resolved-info{
+  display:none;
+  margin-top:7px;
+  padding:7px 9px;
+  border-radius:8px;
+  background:#ecfdf3;
+  border:1px solid #bbf7d0;
+  color:#166534;
+  font-size:10px;
+  line-height:1.45;
+}
+.support-resolve-btn{
+  display:none;
+  border:0;
+  border-radius:8px;
+  padding:7px 10px;
+  margin-top:7px;
+  background:#166534;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.super-admin-support-tabs{
+  width:calc(100% - 56px);
+  margin:20px 28px 0;
+  display:flex;
+  gap:12px;
+  padding:10px;
+  background:#e9eef5;
+  border:1px solid #d6deea;
+  border-radius:14px;
+}
+.super-admin-main-tab{
+  flex:1;
+  position:relative;
+  border:1px solid #cbd5e1;
+  border-radius:11px;
+  padding:12px 14px;
+  background:linear-gradient(180deg,#f7fbff 0%,#e4eef8 100%);
+  color:#22354a;
+  border-color:#9db5cc;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 2px 7px rgba(34,53,74,.10);
+  transition:filter .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.super-admin-main-tab:hover{
+  filter:brightness(1.025);
+  box-shadow:0 4px 10px rgba(34,53,74,.14);
+}
+.super-admin-main-tab.active{
+  background:#0b1933;
+  color:#fff;
+  border-color:#0b1933;
+  box-shadow:0 5px 14px rgba(11,25,51,.18);
+}
+.super-admin-main-badge{
+  display:none;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  margin-left:6px;
+  border-radius:999px;
+  align-items:center;
+  justify-content:center;
+  background:#dc2626;
+  color:#fff;
+  font-size:10px;
+}
+.super-admin-main-badge.show{display:inline-flex}
+body.super-admin-help-mode .help-support-grid{
+  grid-template-columns:1fr!important;
+}
+body.super-admin-help-mode #knowledgeBasePanel,
+body.super-admin-help-mode #platformSupportPanel,
+body.super-admin-help-mode #companySupportPanel{
+  width:100%;
+}
+.company-support-main-panel{
+  width:100%;
+}
+.company-support-filter{
+  padding:14px;
+  border-bottom:1px solid #e5e7eb;
+}
+.company-support-filter select{
+  width:min(360px,100%);
+  min-height:42px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:0 10px;
+  background:#fff;
+  font-weight:800;
+}
+.company-support-grid{
+  display:grid;
+  grid-template-columns:310px minmax(0,1fr);
+  min-height:580px;
+}
+.company-support-list-wrap{
+  border-right:1px solid #e5e7eb;
+  background:#f8fafc;
+}
+.company-support-meta{
+  margin-top:8px;
+  padding:9px 10px;
+  border-radius:9px;
+  background:#eef8ff;
+  border:1px solid #b9ddf3;
+  font-size:11px;
+  line-height:1.5;
+}
+.company-support-status-row{
+  display:flex;
+  gap:8px;
+  margin-top:9px;
+  flex-wrap:wrap;
+}
+.company-support-status-row select,
+.company-support-status-row button{
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  padding:7px 10px;
+  background:#fff;
+  font-weight:800;
+}
+.company-support-status-row button{
+  background:#0f6f9f;
+  color:#fff;
+  border:0;
+  cursor:pointer;
+}
+@media(max-width:900px){
+  .super-admin-support-tabs{
+    width:calc(100% - 20px);
+    margin:14px 10px 0;
+    flex-direction:column;
+  }
+  .company-support-grid{
+    grid-template-columns:1fr;
+  }
+  .company-support-list-wrap{
+    border-right:0;
+    border-bottom:1px solid #e5e7eb;
+  }
+}
+
+
+
+/* =========================================================
+   COMPANY SUPPORT — HEADER / TABS SPACING
+   Visual-only adjustment.
+   Adds clear breathing room under the blue Company Support header.
+========================================================= */
+#companySupportPanel .support-tabs{
+  padding-top:20px;
+}
+
+</style>
+
+</head>
+<body>
+<div id="adminHeader"></div>
+
+<div class="help-page-title-band">
+  <h1>Help Center</h1>
+</div>
+
+<div id="superAdminSupportTabs" class="super-admin-support-tabs" hidden>
+  <button id="companySupportMainTab" class="super-admin-main-tab active" type="button">
+    Company Support
+    <span id="companySupportMainBadge" class="super-admin-main-badge">0</span>
+  </button>
+
+  <button id="platformSupportMainTab" class="super-admin-main-tab" type="button">
+    Platform Support
+  </button>
+
+  <button id="helpKnowledgeMainTab" class="super-admin-main-tab" type="button">
+    Help Center
+  </button>
+</div>
+
+<main class="help-shell">
+
+  <div class="help-support-grid">
+
+    <section id="knowledgeBasePanel" class="help-column">
+
+      <section class="help-hero">
+        <div class="help-top">
+          <div>
+            <h1 id="uiTitle" class="help-title">Help Center</h1>
+            <p id="uiSubtitle" class="help-sub">Choose a page or search for the task you need.</p>
+          </div>
+
+          <div class="lang-wrap">
+            <label id="uiLanguageLabel" class="lang-label" for="helpLanguage">Language</label>
+            <select id="helpLanguage" class="lang-select">
+              <option value="en">English</option>
+              <option value="es-MX">Español (México)</option>
+              <option value="ar">العربية</option>
+              <option value="fr">Français</option>
+              <option value="it">Italiano</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="help-search-row">
+          <input
+            id="helpSearch"
+            class="help-search"
+            type="search"
+            placeholder="Example: change pickup time, assign driver, add broker trip..."
+            autocomplete="off">
+
+          <select
+            id="helpPageFilter"
+            class="help-select"
+            aria-label="Page filter">
+            <option value="">All accessible pages</option>
+          </select>
+        </div>
+      </section>
+
+      <section
+        id="selectedPageCard"
+        class="selected-page-card"
+        hidden>
+        <div id="selectedPageId" class="selected-page-id"></div>
+        <h2 id="selectedPageTitle" class="selected-page-title"></h2>
+        <p id="selectedPageDescription" class="selected-page-description"></p>
+      </section>
+
+      <section class="section-card results-card">
+        <div class="results-head">
+          <p id="helpResultCount" class="help-count">Loading help...</p>
+          <button
+            id="clearPageFilter"
+            class="clear-btn"
+            type="button">
+            Show All Pages
+          </button>
+        </div>
+
+        <div id="helpResults"></div>
+      </section>
+
+    </section>
+
+
+    <section id="companySupportPanel" class="company-support-main-panel" hidden>
+
+      <section class="support-card">
+
+        <div class="support-header">
+          <div class="support-header-left">
+            <h2>Company Support</h2>
+            <p>Review support requests from contracted company accounts inside this tenant.</p>
+          </div>
+
+          <span id="companySupportUnreadBadge" class="support-unread">0</span>
+        </div>
+
+        <div class="support-tabs">
+          <button id="companySupportActiveBtn" class="support-tab active" type="button">Active</button>
+          <button id="companySupportHistoryBtn" class="support-tab" type="button">History</button>
+        </div>
+
+        <div class="company-support-filter">
+          <select id="companySupportStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+            <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+            <option value="OPEN">Open</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
+        </div>
+
+        <div class="company-support-grid">
+
+          <div class="company-support-list-wrap">
+            <div class="support-list-title">Company Conversations</div>
+            <div id="companySupportList" class="support-conversation-list"></div>
+          </div>
+
+          <section class="support-chat-area">
+
+            <div id="companySupportEmpty" class="support-chat-empty">
+              Select a company support conversation.
+            </div>
+
+            <div id="companySupportChatView" class="support-chat-view">
+
+              <div class="support-chat-head">
+                <h3 id="companySupportSubject"></h3>
+                <p id="companySupportStatus"></p>
+
+                <div id="companySupportCompanyMeta" class="company-support-meta"></div>
+
+                <div class="company-support-status-row">
+                  <select id="companySupportStatusSelect">
+                    <option value="OPEN">Open</option>
+                    <option value="WAITING_FOR_SUPPORT">Waiting for Support</option>
+                    <option value="WAITING_FOR_CUSTOMER">Waiting for Customer</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+
+                  <button id="companySupportReopenBtn" type="button" hidden>
+                    Reopen Conversation
+                  </button>
+                </div>
+              </div>
+
+              <div id="companySupportMessages" class="support-messages"></div>
+
+              <div id="companySupportComposer" class="support-composer">
+                <textarea id="companySupportMessageInput" maxlength="5000" placeholder="Reply to the company..."></textarea>
+                <button id="companySupportSendBtn" class="support-send-btn" type="button">Send</button>
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </section>
+
+    </section>
+
+    <aside id="platformSupportPanel" class="support-column">
+
+      <section class="support-card">
+
+        <div class="support-header">
+          <div class="support-header-left">
+            <h2>Platform Support</h2>
+            <p>Send a support request directly to the GH Mobility Platform Admin.</p>
+          </div>
+
+          <span
+            id="platformSupportUnreadBadge"
+            class="support-unread">
+            0
+          </span>
+        </div>
+
+        <div class="support-company-card">
+          <div>
+            <b>Company</b>
+            <span id="supportCompanyName">Loading...</span>
+          </div>
+
+          <div>
+            <b>Company Phone</b>
+            <span id="supportCompanyPhone">-</span>
+          </div>
+
+          <div>
+            <b>Current User</b>
+            <span id="supportUserName">-</span>
+          </div>
+
+          <div>
+            <b>Role</b>
+            <span id="supportUserRole">-</span>
+          </div>
+
+          <div>
+            <b>User Phone</b>
+            <span id="supportUserPhone">-</span>
+          </div>
+        </div>
+
+        <div class="support-actions">
+          <button
+            id="supportNewConversationBtn"
+            class="support-new-btn"
+            type="button">
+            + New Support Request
+          </button>
+        </div>
+
+        <div class="support-tabs">
+          <button id="supportActiveTabBtn" class="support-tab active" type="button">
+            Active
+          </button>
+          <button id="supportHistoryTabBtn" class="support-tab" type="button">
+            History
+          </button>
+        </div>
+
+        <div
+          id="supportNewConversationForm"
+          class="support-new-form">
+
+          <h3>Describe Your Issue</h3>
+
+          <input
+            id="supportNewSubject"
+            class="support-input"
+            maxlength="180"
+            placeholder="Subject">
+
+          <textarea
+            id="supportNewMessage"
+            class="support-textarea"
+            maxlength="5000"
+            placeholder="Describe your issue in detail..."></textarea>
+
+          <div class="support-form-actions">
+            <button
+              id="supportCancelNewBtn"
+              class="support-cancel-btn"
+              type="button">
+              Cancel
+            </button>
+
+            <button
+              id="supportStartNewBtn"
+              class="support-start-btn"
+              type="button">
+              Send Request
+            </button>
+          </div>
+        </div>
+
+        <div class="support-body">
+
+          <div class="support-list-wrap">
+            <div class="support-list-title">Conversations</div>
+
+            <div
+              id="supportConversationList"
+              class="support-conversation-list">
+            </div>
+          </div>
+
+          <section class="support-chat-area">
+
+            <div
+              id="supportChatEmpty"
+              class="support-chat-empty">
+              Select a conversation or create a new support request.
+            </div>
+
+            <div
+              id="supportChatView"
+              class="support-chat-view">
+
+              <div class="support-chat-head">
+                <h3 id="supportChatSubject"></h3>
+                <p id="supportChatStatus"></p>
+
+                <div
+                  id="supportResolvedInfo"
+                  class="support-resolved-info">
+                </div>
+
+                <button
+                  id="supportResolveBtn"
+                  class="support-resolve-btn"
+                  type="button">
+                  Resolve Conversation
+                </button>
+              </div>
+
+              <div
+                id="supportMessages"
+                class="support-messages">
+              </div>
+
+              <div class="support-composer">
+                <textarea
+                  id="supportMessageInput"
+                  maxlength="5000"
+                  placeholder="Write your message..."></textarea>
+
+                <button
+                  id="supportSendMessageBtn"
+                  class="support-send-btn"
+                  type="button">
+                  Send
+                </button>
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </section>
+
+    </aside>
+
+  </div>
+
+</main>
+
+
+<script src="/admin/header.js"></script>
+<script src="/admin/help-center.js"></script>
+</body>
+</html>

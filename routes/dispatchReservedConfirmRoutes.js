@@ -1,0 +1,3349 @@
+"use strict";
+
+/* =====================================================
+   FILE: server/routes/dispatchReservedConfirmRoutes.js
+   RESERVED CONFIRM ROUTE
+   Server-only confirm logic
+
+   SAFE VERSION:
+   - Keeps old working behavior.
+   - Individual trips still calculate route by address strings.
+   - Shared trips can geocode missing passenger coordinates during Confirm.
+   - Shared geocoded lat/lng are saved back inside trip.passengers.
+   - If AddressCache model exists, geocoded addresses are also saved/reused.
+   - Each lat/lng is bound to its address using GeoKey:
+       pickupGeoKey / dropoffGeoKey
+       pickupGeoAddress / dropoffGeoAddress
+   - On Edit:
+       if only one address changed, only that address gets new geocode.
+       unchanged addresses reuse saved lat/lng.
+   - Prevents old lat/lng from being saved under a new address.
+   - Counts requests:
+       geocodeRequestsUsed
+       directionsRequestsUsed
+       googleRequestsUsed = geocode + directions
+   - If route signature did NOT change = reuse saved route = 0 Google requests.
+   - Google final route calculates miles/minutes/polyline only.
+   - Google must not reorder final route.
+===================================================== */
+
+const express = require("express");
+const router = express.Router();
+const https = require("https");
+const jwt = require("jsonwebtoken");
+
+const tripFinalizer = require("../utils/trip-finalizer");
+const routeMapEngine = require("../utils/routeMapEngine");
+const Service = require("../models/Service");
+const Tenant = require("../models/Tenant");
+const dispatchRoutes = require("./dispatchRoutes");
+
+const serviceIdentity =
+  require("../utils/serviceIdentityResolver");
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "dev_secret";
+
+/* =========================
+   TENANT AUTH
+========================= */
+
+function readBearerToken(req){
+
+  const header =
+    String(
+      req.headers?.authorization ||
+      ""
+    ).trim();
+
+  if(
+    !header
+      .toLowerCase()
+      .startsWith("bearer ")
+  ){
+    return "";
+  }
+
+  return header
+    .slice(7)
+    .trim();
+}
+
+function requireTenantApi(req,res,next){
+
+  const token =
+    readBearerToken(req);
+
+  if(!token){
+    return res.status(401).json({
+      success:false,
+      message:"Access Denied"
+    });
+  }
+
+  try{
+
+    const verified =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.authUser = {
+      id:verified.id || null,
+      role:verified.role || "",
+      tenantId:verified.tenantId || null
+    };
+
+    if(req.authUser.role === "PLATFORM_ADMIN"){
+      return next();
+    }
+
+    if(!req.authUser.tenantId){
+      return res.status(403).json({
+        success:false,
+        message:"Tenant Required"
+      });
+    }
+
+    next();
+
+  }catch(err){
+
+    return res.status(401).json({
+      success:false,
+      message:"Invalid Token"
+    });
+  }
+}
+
+function tenantFilter(req,extra={}){
+
+  if(req.authUser?.role === "PLATFORM_ADMIN"){
+
+    const requestedTenantId =
+      String(
+        req.query?.tenantId ||
+        req.body?.tenantId ||
+        ""
+      ).trim();
+
+    return requestedTenantId
+      ? {...extra,tenantId:requestedTenantId}
+      : {...extra};
+  }
+
+  return {
+    ...extra,
+    tenantId:req.authUser.tenantId
+  };
+}
+
+/* =========================
+   OPTIONAL ADDRESS CACHE
+========================= */
+
+let AddressCache = null;
+
+try{
+  AddressCache = require("../models/AddressCache");
+}catch(err){
+  AddressCache = null;
+}
+
+/* =========================
+   BASIC HELPERS
+========================= */
+
+function n(value){
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function clean(value){
+  return String(value ?? "").trim();
+}
+
+function normalizeAddress(value){
+  return clean(value)
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function addressKey(value){
+  return normalizeAddress(value)
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function geoKey(value){
+  return addressKey(value);
+}
+
+function cleanStatus(value){
+  return clean(value)
+    .replace(/\s+/g,"")
+    .toLowerCase();
+}
+
+function bool(value){
+  return (
+    value === true ||
+    String(value).toLowerCase() === "true" ||
+    String(value).toLowerCase() === "yes" ||
+    String(value).toLowerCase() === "1"
+  );
+}
+
+function normalizeCode(value){
+
+  const c =
+    clean(value)
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!c) return "";
+
+  if(c === "ST" || c === "STANDARD" || c.includes("STANDARD")){
+    return "ST";
+  }
+
+  if(
+    c === "WH" ||
+    c === "WC" ||
+    c === "WHEELCHAIR" ||
+    c === "WHEEL CHAIR" ||
+    c.includes("WHEELCHAIR") ||
+    c.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(c === "SH" || c === "SHARED" || c.includes("SHARED")){
+    return "SH";
+  }
+
+  if(
+    c === "LM" ||
+    c === "LIMO" ||
+    c === "LIMOUSINE" ||
+    c === "LIMO SERVICE" ||
+    c === "LIMOUSINE SERVICE" ||
+    c === "LIMOUSINE TRANSPORTATION" ||
+    c.includes("LIMOUSINE") ||
+    c.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(c === "TX" || c === "TAXI" || c.includes("TAXI")){
+    return "TX";
+  }
+
+  if(c === "XL" || c === "XL SERVICE" || c.startsWith("XL ")){
+    return "XL";
+  }
+
+  return c;
+}
+
+function safeArray(value){
+  return Array.isArray(value) ? value : [];
+}
+
+function hasValidLatLng(lat,lng){
+  return (
+    Number.isFinite(Number(lat)) &&
+    Number.isFinite(Number(lng))
+  );
+}
+
+function uniqueAddressList(list){
+
+  const out = [];
+  const seen = new Set();
+
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      typeof item === "string"
+        ? normalizeAddress(item)
+        : normalizeAddress(item?.address || item?.formattedAddress || "");
+
+    if(!address){
+      continue;
+    }
+
+    const key = addressKey(address);
+
+    if(seen.has(key)){
+      continue;
+    }
+
+    seen.add(key);
+    out.push(address);
+  }
+
+  return out;
+}
+
+function compactRoutePoints(list){
+
+  const out = [];
+  let lastKey = "";
+
+  for(const item of Array.isArray(list) ? list : []){
+
+    const address =
+      typeof item === "string"
+        ? normalizeAddress(item)
+        : normalizeAddress(item?.address || "");
+
+    if(!address){
+      continue;
+    }
+
+    const key = addressKey(address);
+
+    if(key === lastKey){
+      continue;
+    }
+
+    out.push(address);
+    lastKey = key;
+  }
+
+  return out;
+}
+
+function isBadAddress(value){
+
+  const v =
+    normalizeAddress(value).toLowerCase();
+
+  return (
+    !v ||
+    v === "undefined" ||
+    v === "null" ||
+    v === "nan" ||
+    v === "-"
+  );
+}
+
+function normalizePossibleAddress(value){
+  return isBadAddress(value)
+    ? ""
+    : normalizeAddress(value);
+}
+
+function splitAddressList(value){
+
+  if(Array.isArray(value)){
+    return value
+      .map(normalizePossibleAddress)
+      .filter(Boolean);
+  }
+
+  const text = normalizeAddress(value);
+
+  if(!text){
+    return [];
+  }
+
+  return text
+    .split(/\n|;|\|/g)
+    .map(item=>{
+      return item
+        .replace(/^\s*\d+\s*[\.\-\)]\s*/,"")
+        .trim();
+    })
+    .map(normalizePossibleAddress)
+    .filter(Boolean);
+}
+
+function getSharedPickupAddress(trip,passenger,index){
+
+  const fromPassenger =
+    normalizePossibleAddress(passenger?.pickup) ||
+    normalizePossibleAddress(passenger?.pickupAddress) ||
+    normalizePossibleAddress(passenger?.pickupLocation) ||
+    normalizePossibleAddress(passenger?.from);
+
+  if(fromPassenger){
+    return fromPassenger;
+  }
+
+  const lists = [
+    splitAddressList(trip?.pickup),
+    splitAddressList(trip?.pickupAddress),
+    splitAddressList(trip?.sharedPickups),
+    splitAddressList(trip?.pickupList),
+    splitAddressList(trip?.pickupAddresses)
+  ];
+
+  for(const list of lists){
+    if(list[index]){
+      return list[index];
+    }
+  }
+
+  return "";
+}
+
+function getSharedDropoffAddress(trip,passenger,index){
+
+  const fromPassenger =
+    normalizePossibleAddress(passenger?.dropoff) ||
+    normalizePossibleAddress(passenger?.dropoffAddress) ||
+    normalizePossibleAddress(passenger?.dropoffLocation) ||
+    normalizePossibleAddress(passenger?.to);
+
+  if(fromPassenger){
+    return fromPassenger;
+  }
+
+  const lists = [
+    splitAddressList(trip?.dropoff),
+    splitAddressList(trip?.dropoffAddress),
+    splitAddressList(trip?.sharedDropoffs),
+    splitAddressList(trip?.dropoffList),
+    splitAddressList(trip?.dropoffAddresses)
+  ];
+
+  for(const list of lists){
+    if(list[index]){
+      return list[index];
+    }
+  }
+
+  return "";
+}
+
+function getTripModel(){
+
+  if(!global.Trip){
+    throw new Error("Trip model not loaded");
+  }
+
+  return global.Trip;
+}
+
+function isSharedTrip(trip){
+
+  if(!trip){
+    return false;
+  }
+
+  const code =
+    normalizeCode(
+      trip.serviceKey ||
+      trip.serviceCode ||
+      trip.serviceType ||
+      trip.tripNumberSuffix ||
+      ""
+    );
+
+  return (
+    trip.isShared === true ||
+    trip.tripType === "SHARED" ||
+    code === "SH"
+  );
+}
+
+function passengerIsActive(passenger){
+
+  const status = cleanStatus(passenger?.status);
+
+  return (
+    !status.includes("cancel") &&
+    !status.includes("noshow") &&
+    !status.includes("no-show")
+  );
+}
+
+/* =========================
+   GEO BINDING HELPERS
+
+   These prevent this bad case:
+   dropoff text changed, but old dropoffLat/dropoffLng remained.
+   Then old coordinates get saved under the new address.
+========================= */
+
+function geoMatchesCurrentAddress(passenger,type){
+
+  const address =
+    type === "pickup"
+      ? normalizePossibleAddress(passenger.pickup)
+      : normalizePossibleAddress(passenger.dropoff);
+
+  const savedGeoKey =
+    type === "pickup"
+      ? clean(passenger.pickupGeoKey || passenger.pickupAddressKey || "")
+      : clean(passenger.dropoffGeoKey || passenger.dropoffAddressKey || "");
+
+  const savedGeoAddress =
+    type === "pickup"
+      ? normalizePossibleAddress(passenger.pickupGeoAddress || "")
+      : normalizePossibleAddress(passenger.dropoffGeoAddress || "");
+
+  const currentKey =
+    geoKey(address);
+
+  if(!address || !currentKey){
+    return false;
+  }
+
+  if(savedGeoKey){
+    return savedGeoKey === currentKey;
+  }
+
+  if(savedGeoAddress){
+    return geoKey(savedGeoAddress) === currentKey;
+  }
+
+  /*
+    Old trips may have lat/lng but no geo binding.
+    We cannot trust those coordinates after edit.
+    This prevents poisoning AddressCache.
+  */
+  return false;
+}
+
+function needsFreshGeocode(passenger,type){
+
+  if(type === "pickup"){
+
+    if(!hasValidLatLng(passenger.pickupLat,passenger.pickupLng)){
+      return true;
+    }
+
+    return !geoMatchesCurrentAddress(passenger,"pickup");
+  }
+
+  if(type === "dropoff"){
+
+    if(!hasValidLatLng(passenger.dropoffLat,passenger.dropoffLng)){
+      return true;
+    }
+
+    return !geoMatchesCurrentAddress(passenger,"dropoff");
+  }
+
+  return true;
+}
+
+/* =========================
+   REQUEST COUNTERS
+========================= */
+
+function createRequestStats(){
+  return {
+    geocodeRequestsUsed:0,
+    geocodeCacheHits:0,
+    directionsRequestsUsed:0,
+    googleRequestsUsed:0
+  };
+}
+
+function finalizeRequestStats(stats){
+  stats.geocodeRequestsUsed = n(stats.geocodeRequestsUsed);
+  stats.geocodeCacheHits = n(stats.geocodeCacheHits);
+  stats.directionsRequestsUsed = n(stats.directionsRequestsUsed);
+  stats.googleRequestsUsed =
+    n(stats.geocodeRequestsUsed) +
+    n(stats.directionsRequestsUsed);
+
+  return stats;
+}
+
+/* =========================
+   ROUTE SIGNATURE
+========================= */
+
+function buildIndividualRouteSignature(trip){
+
+  return JSON.stringify({
+    type:"INDIVIDUAL",
+    pickup:addressKey(trip?.pickup),
+    stops:safeArray(trip?.stops)
+      .map(addressKey)
+      .filter(Boolean),
+    dropoff:addressKey(trip?.dropoff)
+  });
+}
+
+function buildSharedRouteSignature(trip){
+
+  const passengers =
+    safeArray(trip?.passengers)
+      .map((p,index)=>{
+
+        const pickup =
+          getSharedPickupAddress(trip,p,index);
+
+        const dropoff =
+          getSharedDropoffAddress(trip,p,index);
+
+        return {
+          id:String(p.passengerId || p._id || index),
+          pickup:addressKey(pickup),
+          dropoff:addressKey(dropoff),
+          active:passengerIsActive(p) ? "1" : "0"
+        };
+      })
+      .filter(p=>p.pickup || p.dropoff)
+      .sort((a,b)=>{
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+  return JSON.stringify({
+    type:"SHARED",
+    passengers
+  });
+}
+
+function buildCurrentRouteSignature(trip){
+  return isSharedTrip(trip)
+    ? buildSharedRouteSignature(trip)
+    : buildIndividualRouteSignature(trip);
+}
+
+function getSavedRouteSignature(trip){
+  return clean(
+    trip?.routeSignature ||
+    trip?.sharedRouteSignature ||
+    ""
+  );
+}
+
+function savedRoutePlan(trip){
+
+  const plan =
+    safeArray(trip?.sharedRoutePlan).length
+      ? safeArray(trip.sharedRoutePlan)
+      : safeArray(trip?.routePlan);
+
+  return plan
+    .filter(p=>normalizeAddress(p?.address))
+    .sort((a,b)=>n(a.order) - n(b.order));
+}
+
+function savedRoutePoints(trip){
+
+  const plan = savedRoutePlan(trip);
+
+  if(plan.length >= 2){
+    return compactRoutePoints(
+      plan.map(p=>p.address)
+    );
+  }
+
+  return compactRoutePoints(trip?.routePoints || []);
+}
+
+function hasUsableSavedRoute(trip,currentSignature){
+
+  const points = savedRoutePoints(trip);
+
+  if(points.length < 2){
+    return false;
+  }
+
+  if(n(trip?.miles) <= 0 && n(trip?.sharedRouteMiles) <= 0){
+    return false;
+  }
+
+  if(
+    trip?.routeChangePending === true ||
+    clean(trip?.routeChangeStatus).toUpperCase() === "ROUTE_CHANGED"
+  ){
+    return false;
+  }
+
+  const savedSignature = getSavedRouteSignature(trip);
+
+  if(savedSignature){
+    return savedSignature === currentSignature;
+  }
+
+  return (
+    trip?.routeLocked === true ||
+    trip?.routeFinalized === true ||
+    trip?.sharedRouteLocked === true
+  );
+}
+
+/* =========================
+   ROUTE DATA NORMALIZATION
+========================= */
+
+function firstPositiveNumber(...values){
+
+  for(const value of values){
+    const num = n(value);
+    if(num > 0){
+      return num;
+    }
+  }
+
+  return 0;
+}
+
+function parseDistanceToMiles(value){
+
+  if(Number.isFinite(Number(value))){
+    return Number(value);
+  }
+
+  const text =
+    clean(value).toLowerCase();
+
+  if(!text){
+    return 0;
+  }
+
+  const match =
+    text.match(/([0-9]+(?:\.[0-9]+)?)/);
+
+  if(!match){
+    return 0;
+  }
+
+  const num =
+    Number(match[1]);
+
+  if(!Number.isFinite(num)){
+    return 0;
+  }
+
+  if(text.includes(" km") || text.includes("kilometer")){
+    return num * 0.621371;
+  }
+
+  if(text.includes(" ft") || text.includes("feet")){
+    return num / 5280;
+  }
+
+  if(text.includes(" m") && !text.includes("mi")){
+    return num * 0.000621371;
+  }
+
+  return num;
+}
+
+function parseDurationToMinutes(value){
+
+  if(Number.isFinite(Number(value))){
+    return Number(value);
+  }
+
+  const text =
+    clean(value).toLowerCase();
+
+  if(!text){
+    return 0;
+  }
+
+  let total = 0;
+
+  const hourMatch =
+    text.match(/([0-9]+(?:\.[0-9]+)?)\s*(hour|hours|hr|hrs)/);
+
+  const minMatch =
+    text.match(/([0-9]+(?:\.[0-9]+)?)\s*(minute|minutes|min|mins)/);
+
+  if(hourMatch){
+    total += Number(hourMatch[1]) * 60;
+  }
+
+  if(minMatch){
+    total += Number(minMatch[1]);
+  }
+
+  if(total > 0){
+    return total;
+  }
+
+  const any =
+    text.match(/([0-9]+(?:\.[0-9]+)?)/);
+
+  return any ? Number(any[1]) : 0;
+}
+
+function flattenGoogleLegs(raw){
+
+  const directLegs =
+    Array.isArray(raw?.legs)
+      ? raw.legs
+      : [];
+
+  if(directLegs.length){
+    return directLegs;
+  }
+
+  const googleRoute =
+    raw?.googleRoute ||
+    raw?.route ||
+    raw?.data ||
+    raw ||
+    {};
+
+  if(Array.isArray(googleRoute?.legs)){
+    return googleRoute.legs;
+  }
+
+  if(Array.isArray(googleRoute?.routes?.[0]?.legs)){
+    return googleRoute.routes[0].legs;
+  }
+
+  if(Array.isArray(raw?.routes?.[0]?.legs)){
+    return raw.routes[0].legs;
+  }
+
+  return [];
+}
+
+function normalizeRouteData(raw, routePoints = []){
+
+  const legs =
+    flattenGoogleLegs(raw);
+
+  let legDistanceMeters = 0;
+  let legDurationSeconds = 0;
+
+  for(const leg of legs){
+
+    const distanceValue =
+      leg?.distance?.value ??
+      leg?.distanceMeters ??
+      leg?.distance_meters ??
+      leg?.distanceValue ??
+      0;
+
+    const durationValue =
+      leg?.duration?.value ??
+      leg?.durationSeconds ??
+      leg?.duration_seconds ??
+      leg?.durationValue ??
+      0;
+
+    legDistanceMeters += n(distanceValue);
+    legDurationSeconds += n(durationValue);
+  }
+
+  const distanceMeters =
+    firstPositiveNumber(
+      raw?.distanceMeters,
+      raw?.totalDistanceMeters,
+      raw?.distance_meters,
+      raw?.distance?.value,
+      raw?.googleRoute?.distanceMeters,
+      raw?.googleRoute?.distance?.value,
+      legDistanceMeters
+    );
+
+  const durationSeconds =
+    firstPositiveNumber(
+      raw?.durationSeconds,
+      raw?.totalDurationSeconds,
+      raw?.duration_seconds,
+      raw?.duration?.value,
+      raw?.googleRoute?.durationSeconds,
+      raw?.googleRoute?.duration?.value,
+      legDurationSeconds
+    );
+
+  const miles =
+    firstPositiveNumber(
+      raw?.miles,
+      raw?.totalMiles,
+      raw?.distanceMiles,
+      raw?.routeMiles,
+      raw?.googleRoute?.miles,
+      parseDistanceToMiles(raw?.distanceText),
+      parseDistanceToMiles(raw?.totalDistance),
+      parseDistanceToMiles(raw?.distance),
+      parseDistanceToMiles(raw?.googleRoute?.distanceText),
+      distanceMeters > 0 ? distanceMeters * 0.000621371 : 0
+    );
+
+  const estimatedMinutes =
+    firstPositiveNumber(
+      raw?.estimatedMinutes,
+      raw?.minutes,
+      raw?.totalMinutes,
+      raw?.durationMinutes,
+      raw?.googleRoute?.estimatedMinutes,
+      parseDurationToMinutes(raw?.durationText),
+      parseDurationToMinutes(raw?.totalDuration),
+      parseDurationToMinutes(raw?.duration),
+      durationSeconds > 0 ? durationSeconds / 60 : 0
+    );
+
+  return {
+    ...(raw || {}),
+    miles:Number(Number(miles).toFixed(2)),
+    distanceMeters:Number(distanceMeters || 0),
+    durationSeconds:Number(durationSeconds || 0),
+    estimatedMinutes:Number(Math.round(estimatedMinutes || 0)),
+    polyline:
+      raw?.polyline ||
+      raw?.routePolyline ||
+      raw?.overviewPolyline ||
+      raw?.googleRoute?.overview_polyline?.points ||
+      raw?.routes?.[0]?.overview_polyline?.points ||
+      "",
+    googleRoute:
+      raw?.googleRoute ||
+      raw?.route ||
+      raw ||
+      {},
+    routePoints:
+      safeArray(raw?.routePoints).length
+        ? safeArray(raw.routePoints)
+        : safeArray(routePoints)
+  };
+}
+
+function buildRouteDataFromSavedTrip(trip){
+
+  return normalizeRouteData({
+    miles:n(trip?.miles || trip?.sharedRouteMiles),
+    distanceMeters:n(trip?.distanceMeters),
+    durationSeconds:n(trip?.durationSeconds),
+    estimatedMinutes:n(trip?.estimatedMinutes || trip?.sharedRouteMinutes),
+    polyline:
+      trip?.routePolyline ||
+      trip?.sharedRoutePolyline ||
+      "",
+    googleRoute:
+      trip?.googleRoute ||
+      trip?.optimizedRoute ||
+      {}
+  }, trip?.routePoints || []);
+}
+
+/* =========================
+   ROUTE MAP ENGINE WRAPPERS
+========================= */
+
+async function calculateRoute(routePoints){
+
+  let raw = null;
+
+  if(
+    routeMapEngine &&
+    typeof routeMapEngine.calculateRouteMiles === "function"
+  ){
+    raw = await routeMapEngine.calculateRouteMiles(routePoints);
+    return normalizeRouteData(raw, routePoints);
+  }
+
+  if(
+    routeMapEngine &&
+    typeof routeMapEngine.calculateRoute === "function"
+  ){
+    raw = await routeMapEngine.calculateRoute(routePoints);
+    return normalizeRouteData(raw, routePoints);
+  }
+
+  throw new Error("routeMapEngine calculate function not found");
+}
+
+function getGoogleMapsApiKey(){
+
+  return (
+    process.env.GOOGLE_SERVER_KEY ||
+    process.env.GOOGLE_SERVER_API_KEY ||
+    process.env.GOOGLE_MAPS_SERVER_KEY ||
+    process.env.SERVER_GOOGLE_MAPS_KEY ||
+    ""
+  );
+}
+
+function httpsGetJson(url){
+
+  return new Promise((resolve,reject)=>{
+
+    https.get(url,response=>{
+
+      let data = "";
+
+      response.on("data",chunk=>{
+        data += chunk;
+      });
+
+      response.on("end",()=>{
+
+        try{
+          resolve(JSON.parse(data));
+        }catch(err){
+          reject(err);
+        }
+      });
+
+    }).on("error",reject);
+  });
+}
+
+/* =========================
+   ADDRESS CACHE HELPERS
+========================= */
+
+async function lookupAddressCache(address,stats = null){
+
+  if(!AddressCache){
+    return null;
+  }
+
+  const fullAddress =
+    normalizePossibleAddress(address);
+
+  if(!fullAddress){
+    return null;
+  }
+
+  const key =
+    addressKey(fullAddress);
+
+  try{
+
+    const found =
+      await AddressCache.findOne({
+        $or:[
+          {addressKey:key},
+          {key},
+          {normalizedAddress:key},
+          {fullAddress:new RegExp("^" + fullAddress.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "$","i")},
+          {address:new RegExp("^" + fullAddress.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "$","i")}
+        ]
+      });
+
+    if(found && hasValidLatLng(found.lat,found.lng)){
+
+      if(stats){
+        stats.geocodeCacheHits += 1;
+      }
+
+      found.usedCount = n(found.usedCount) + 1;
+      found.lastUsedAt = new Date();
+
+      await found.save().catch(()=>null);
+
+      return {
+        lat:Number(found.lat),
+        lng:Number(found.lng),
+        source:"address-cache",
+        geoAddress:fullAddress,
+        geoKey:key
+      };
+    }
+
+  }catch(err){
+    console.log("AddressCache lookup failed:", err.message);
+  }
+
+  return null;
+}
+
+async function saveAddressCache(address,coords,source = "confirm-geocode"){
+
+  if(!AddressCache){
+    return null;
+  }
+
+  const fullAddress =
+    normalizePossibleAddress(address);
+
+  if(!fullAddress || !hasValidLatLng(coords?.lat,coords?.lng)){
+    return null;
+  }
+
+  const key =
+    addressKey(fullAddress);
+
+  try{
+
+    const setData = {
+      addressKey:key,
+      key,
+      normalizedAddress:key,
+      fullAddress,
+      address:fullAddress,
+      lat:Number(coords.lat),
+      lng:Number(coords.lng),
+      source,
+      updatedAt:new Date(),
+      lastUsedAt:new Date()
+    };
+
+    const saved =
+      await AddressCache.findOneAndUpdate(
+        {
+          $or:[
+            {addressKey:key},
+            {key},
+            {normalizedAddress:key}
+          ]
+        },
+        {
+          $set:setData,
+          $inc:{
+            usedCount:1
+          },
+          $setOnInsert:{
+            createdAt:new Date()
+          }
+        },
+        {
+          new:true,
+          upsert:true,
+          setDefaultsOnInsert:true
+        }
+      );
+
+    return saved;
+
+  }catch(err){
+    console.log("AddressCache save failed:", err.message);
+    return null;
+  }
+}
+
+/* =========================
+   GEOCODING
+========================= */
+
+async function geocodeAddress(address,stats = null){
+
+  const cleanAddress = normalizePossibleAddress(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  const cached =
+    await lookupAddressCache(cleanAddress,stats);
+
+  if(cached){
+    return cached;
+  }
+
+  const fn =
+    routeMapEngine?.geocodeAddress ||
+    routeMapEngine?.geocode ||
+    routeMapEngine?.getCoordinates ||
+    routeMapEngine?.getLatLng ||
+    null;
+
+  if(typeof fn === "function"){
+
+    try{
+
+      if(stats){
+        stats.geocodeRequestsUsed += 1;
+      }
+
+      const result = await fn(cleanAddress);
+
+      const lat =
+        result?.lat ??
+        result?.latitude ??
+        result?.location?.lat ??
+        result?.geometry?.location?.lat;
+
+      const lng =
+        result?.lng ??
+        result?.lon ??
+        result?.longitude ??
+        result?.location?.lng ??
+        result?.location?.lon ??
+        result?.geometry?.location?.lng;
+
+      if(
+        Number.isFinite(Number(lat)) &&
+        Number.isFinite(Number(lng))
+      ){
+        const coords = {
+          lat:Number(lat),
+          lng:Number(lng),
+          source:"routeMapEngine-geocode",
+          geoAddress:cleanAddress,
+          geoKey:geoKey(cleanAddress)
+        };
+
+        await saveAddressCache(cleanAddress,coords,coords.source);
+
+        return coords;
+      }
+
+    }catch(err){
+      console.log("routeMapEngine geocode failed:", err.message);
+    }
+  }
+
+  const apiKey = getGoogleMapsApiKey();
+
+  if(!apiKey){
+    console.log("Missing Google Maps API key for geocode");
+    return null;
+  }
+
+  if(stats){
+    stats.geocodeRequestsUsed += 1;
+  }
+
+  const url =
+    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
+    encodeURIComponent(cleanAddress) +
+    "&key=" +
+    encodeURIComponent(apiKey);
+
+  const json = await httpsGetJson(url);
+
+  if(
+    json?.status !== "OK" ||
+    !Array.isArray(json.results) ||
+    !json.results.length
+  ){
+    console.log(
+      "Google geocode failed:",
+      cleanAddress,
+      json?.status,
+      json?.error_message || ""
+    );
+
+    return null;
+  }
+
+  const location = json.results[0]?.geometry?.location;
+
+  if(
+    Number.isFinite(Number(location?.lat)) &&
+    Number.isFinite(Number(location?.lng))
+  ){
+    const coords = {
+      lat:Number(location.lat),
+      lng:Number(location.lng),
+      source:"google-geocode",
+      geoAddress:cleanAddress,
+      geoKey:geoKey(cleanAddress)
+    };
+
+    await saveAddressCache(cleanAddress,coords,coords.source);
+
+    return coords;
+  }
+
+  return null;
+}
+
+
+/* =========================
+   INDIVIDUAL ROUTE RESOLUTION
+   Resolve every address before Directions so Google Directions never has
+   to guess which pickup/stop/dropoff failed.
+========================= */
+
+function waitMs(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+async function geocodeAddressWithRetry(
+  address,
+  stats = null,
+  attempts = 2
+){
+
+  const cleanAddress =
+    normalizePossibleAddress(address);
+
+  if(!cleanAddress){
+    return null;
+  }
+
+  let lastResult = null;
+
+  for(let attempt = 1; attempt <= attempts; attempt += 1){
+
+    lastResult =
+      await geocodeAddress(
+        cleanAddress,
+        stats
+      );
+
+    if(
+      lastResult &&
+      hasValidLatLng(
+        lastResult.lat,
+        lastResult.lng
+      )
+    ){
+      return lastResult;
+    }
+
+    if(attempt < attempts){
+      await waitMs(350);
+    }
+  }
+
+  return null;
+}
+
+async function resolveIndividualRouteForDirections(
+  trip,
+  stats = null
+){
+
+  const addresses =
+    buildIndividualRoutePoints(trip);
+
+  if(addresses.length < 2){
+    throw new Error(
+      "Route is missing pickup/dropoff"
+    );
+  }
+
+  /*
+    Resolve independent route addresses in parallel.
+    The old version waited for pickup, every stop, and dropoff one-by-one.
+    Route order is preserved by Promise.all, while network/geocode latency
+    is paid once for the slowest point instead of once per point.
+  */
+  const resolvedResults =
+    await Promise.all(
+      addresses.map(async (rawAddress,index)=>{
+
+        const address =
+          normalizePossibleAddress(rawAddress);
+
+        const coords =
+          await geocodeAddressWithRetry(
+            address,
+            stats,
+            2
+          );
+
+        return {
+          index,
+          address,
+          coords
+        };
+      })
+    );
+
+  const resolved = [];
+
+  for(const item of resolvedResults){
+
+    const {
+      index,
+      address,
+      coords
+    } = item;
+
+    if(!coords){
+
+      let label = "Route address";
+
+      if(index === 0){
+        label = "Pickup address";
+      }else if(index === addresses.length - 1){
+        label = "Dropoff address";
+      }else{
+        label = `Stop ${index} address`;
+      }
+
+      throw new Error(
+        `${label} was not found by Google: ${address}`
+      );
+    }
+
+    resolved.push(
+      `${Number(coords.lat)},${Number(coords.lng)}`
+    );
+  }
+
+  return {
+    displayRoutePoints:addresses,
+    directionsRoutePoints:resolved
+  };
+}
+
+async function reservedAllowedServiceSet(req){
+
+  const tenantId =
+    req.authUser?.role === "PLATFORM_ADMIN"
+      ? clean(
+          req.query?.tenantId ||
+          req.body?.tenantId ||
+          ""
+        )
+      : clean(
+          req.authUser?.tenantId ||
+          ""
+        );
+
+  if(!tenantId){
+    return new Set();
+  }
+
+  const tenant =
+    await Tenant
+      .findById(tenantId)
+      .select({
+        allowedServices:1
+      })
+      .lean();
+
+  if(!tenant){
+    return new Set();
+  }
+
+  return new Set(
+    (
+      Array.isArray(
+        tenant.allowedServices
+      )
+        ? tenant.allowedServices
+        : []
+    )
+    .map(
+      serviceIdentity
+        .normalizeServiceCode
+    )
+    .filter(Boolean)
+  );
+}
+
+function reservedServiceAvailable(
+  service,
+  allowed
+){
+
+  if(!service){
+    return false;
+  }
+
+  const gate =
+    serviceIdentity
+      .getServiceGateKey(
+        service
+      );
+
+  if(
+    !gate ||
+    !allowed.has(gate)
+  ){
+    return false;
+  }
+
+  if(
+    serviceIdentity
+      .isCustomService(service) &&
+    !serviceIdentity
+      .isCustomServiceConfigured(
+        service
+      )
+  ){
+    return false;
+  }
+
+  return (
+    service.reservedEnabled === true ||
+    bool(service.reservedEnabled)
+  );
+}
+
+function reservedServiceMatchesTrip(
+  service,
+  tripCode
+){
+
+  const raw =
+    clean(tripCode)
+      .toUpperCase();
+
+  const normalized =
+    serviceIdentity
+      .normalizeServiceCode(
+        tripCode
+      );
+
+  const operational =
+    serviceIdentity
+      .getServiceOperationalCode(
+        service
+      );
+
+  const gate =
+    serviceIdentity
+      .getServiceGateKey(
+        service
+      );
+
+  const aliases =
+    serviceIdentity
+      .getServiceMatchKeys(
+        service
+      );
+
+  return (
+    raw === operational ||
+    normalized === operational ||
+    raw === gate ||
+    normalized === gate ||
+    aliases.includes(raw) ||
+    aliases.includes(normalized)
+  );
+}
+
+/* =========================
+   SERVICE / PRICING
+========================= */
+
+function resolveServiceCodeFromTrip(trip){
+
+  if(isSharedTrip(trip)){
+    return "SH";
+  }
+
+  const candidates = [
+    trip?.serviceKey,
+    trip?.serviceCode,
+    trip?.serviceType,
+    trip?.serviceSuffix,
+    trip?.tripNumberSuffix,
+    trip?.vehicleTypeFromQuote,
+    trip?.serviceName,
+    trip?.serviceTitle,
+    trip?.service
+  ];
+
+  for(const value of candidates){
+
+    const code =
+      serviceIdentity
+        .normalizeOperationalCode(
+          value
+        );
+
+    if(code.length === 2){
+      return code;
+    }
+  }
+
+  return "";
+}
+
+function serviceHasReservedConfiguration(service){
+
+  if(!service){
+    return false;
+  }
+
+  return (
+    service.reservedEnabled === true ||
+    bool(service.reservedEnabled) ||
+    service.reservedPricingMode !== undefined ||
+    service.reservedBaseFare !== undefined ||
+    service.reservedIncludedMiles !== undefined ||
+    service.reservedPerMile !== undefined ||
+    service.reservedHourlyRate !== undefined ||
+    service.reservedInitialDurationMinutes !== undefined ||
+    service.reservedInitialPrice !== undefined ||
+    service.reservedStopFee !== undefined ||
+    service.reservedSharedPrice !== undefined
+  );
+}
+
+function resolveReservedCodeFromService(service){
+
+  if(
+    !service ||
+    !serviceHasReservedConfiguration(
+      service
+    )
+  ){
+    return "";
+  }
+
+  return (
+    serviceIdentity
+      .getServiceOperationalCode(
+        service
+      )
+  );
+}
+
+async function getReservedServiceForTrip(trip,req){
+
+  const code =
+    resolveServiceCodeFromTrip(
+      trip
+    );
+
+  if(!code){
+    throw new Error(
+      "Reserved service code missing"
+    );
+  }
+
+  const [
+    services,
+    allowed
+  ] =
+    await Promise.all([
+      Service
+        .find(
+          tenantFilter(req)
+        )
+        .lean(),
+
+      reservedAllowedServiceSet(
+        req
+      )
+    ]);
+
+  const found =
+    services.find(
+      service =>
+        serviceHasReservedConfiguration(
+          service
+        ) &&
+        reservedServiceAvailable(
+          service,
+          allowed
+        ) &&
+        reservedServiceMatchesTrip(
+          service,
+          code
+        )
+    );
+
+  if(!found){
+    throw new Error(
+      "Reserved service not found or disabled: " +
+      code
+    );
+  }
+
+  return found;
+}
+
+
+function getReservedPricing(service){
+
+  return {
+    serviceKey:
+      resolveReservedCodeFromService(service),
+
+    pricingMode:
+      clean(
+        service?.reservedPricingMode ||
+        "MILE"
+      ).toUpperCase(),
+
+    baseFare:n(service?.reservedBaseFare),
+    includedMiles:n(service?.reservedIncludedMiles),
+    perMile:n(service?.reservedPerMile),
+    hourlyRate:n(service?.reservedHourlyRate),
+
+    hourlyBillingMode:
+      clean(
+        service?.reservedHourlyBillingMode ||
+        "FULL"
+      ).toUpperCase(),
+
+    initialDurationMinutes:
+      Math.max(
+        0,
+        n(service?.reservedInitialDurationMinutes)
+      ),
+
+    initialPrice:
+      Math.max(
+        0,
+        n(service?.reservedInitialPrice)
+      ),
+
+    stopFee:n(service?.reservedStopFee),
+    noShowFee:n(service?.reservedNoShowFee),
+    cancelFee:n(service?.reservedCancelFee),
+    sharedPrice:n(service?.reservedSharedPrice),
+    warningMinutes:Number(service?.reservedWarningMinutes ?? 120),
+    disableCancel:bool(service?.reservedDisableCancel)
+  };
+}
+
+function calculateReservedPrice({pricing,miles,minutes,stops}){
+
+  const mode =
+    clean(
+      pricing.pricingMode ||
+      "MILE"
+    ).toUpperCase();
+
+  const serviceCode =
+    normalizeCode(
+      pricing.serviceKey ||
+      ""
+    );
+
+  const stopCount = n(stops);
+  const mins = Math.max(0,n(minutes));
+  const hourlyRate = n(pricing.hourlyRate);
+
+  const hourlyBillingMode =
+    clean(
+      pricing.hourlyBillingMode ||
+      "FULL"
+    ).toUpperCase();
+
+  const initialDurationMinutes =
+    Math.max(
+      0,
+      n(pricing.initialDurationMinutes)
+    );
+
+  const initialPrice =
+    Math.max(
+      0,
+      n(pricing.initialPrice)
+    );
+
+  let total = 0;
+
+  if(mode === "HOURLY"){
+
+    if(
+      serviceCode === "LM" &&
+      initialDurationMinutes > 0
+    ){
+
+      if(mins <= initialDurationMinutes){
+        total = initialPrice;
+      }else{
+
+        const extraMinutes =
+          mins - initialDurationMinutes;
+
+        let extraHours = 0;
+
+        if(hourlyBillingMode === "QUARTER"){
+          extraHours =
+            Math.ceil(extraMinutes / 15) * 0.25;
+        }else{
+          extraHours =
+            Math.ceil(extraMinutes / 60);
+        }
+
+        total =
+          initialPrice +
+          (extraHours * hourlyRate);
+      }
+
+    }else{
+
+      let billableHours = 0;
+
+      if(hourlyBillingMode === "QUARTER"){
+        billableHours =
+          Math.ceil(mins / 15) * 0.25;
+      }else{
+        billableHours =
+          Math.ceil(mins / 60);
+      }
+
+      total =
+        billableHours *
+        hourlyRate;
+    }
+
+    total +=
+      stopCount *
+      n(pricing.stopFee);
+
+  }else{
+
+    const extraMiles =
+      Math.max(
+        0,
+        n(miles) -
+        n(pricing.includedMiles)
+      );
+
+    total =
+      n(pricing.baseFare) +
+      (extraMiles * n(pricing.perMile)) +
+      (stopCount * n(pricing.stopFee));
+  }
+
+  return Number(total.toFixed(2));
+}
+
+function calculateSharedPricing({
+  pricing,
+  routeData,
+  passengers,
+  activeCount,
+  stopsCount
+}){
+
+  const count = Math.max(1,n(activeCount));
+  const routeMiles = n(routeData?.miles);
+
+  if(n(pricing.sharedPrice) > 0){
+
+    const fixed = n(pricing.sharedPrice);
+    const total = Number((fixed * count).toFixed(2));
+
+    const pricedPassengers =
+      passengers.map(passenger=>{
+
+        if(!passengerIsActive(passenger)){
+          return {
+            ...passenger,
+            passengerMiles:0,
+            passengerMinutes:0,
+            passengerDistanceMeters:0,
+            passengerDurationSeconds:0,
+            priceAmount:0,
+            finalPrice:0
+          };
+        }
+
+        return {
+          ...passenger,
+          passengerMiles:0,
+          passengerMinutes:0,
+          passengerDistanceMeters:0,
+          passengerDurationSeconds:0,
+          priceAmount:fixed,
+          finalPrice:fixed
+        };
+      });
+
+    return {
+      total,
+      pricePerPassenger:fixed,
+      stopTotal:0,
+      stopShare:0,
+      passengers:pricedPassengers
+    };
+  }
+
+  const includedMilesTotal = n(pricing.includedMiles) * count;
+  const extraMiles = Math.max(0,routeMiles - includedMilesTotal);
+  const baseTotal = Number((n(pricing.baseFare) * count).toFixed(2));
+  const mileageTotal = Number((extraMiles * n(pricing.perMile)).toFixed(2));
+  const stopTotal = Number((n(stopsCount) * n(pricing.stopFee)).toFixed(2));
+  const total = Number((baseTotal + mileageTotal + stopTotal).toFixed(2));
+  const pricePerPassenger = Number((total / count).toFixed(2));
+
+  const pricedPassengers =
+    passengers.map(passenger=>{
+
+      if(!passengerIsActive(passenger)){
+        return {
+          ...passenger,
+          passengerMiles:0,
+          passengerMinutes:0,
+          passengerDistanceMeters:0,
+          passengerDurationSeconds:0,
+          priceAmount:0,
+          finalPrice:0
+        };
+      }
+
+      return {
+        ...passenger,
+        passengerMiles:routeMiles,
+        passengerMinutes:n(routeData?.estimatedMinutes),
+        passengerDistanceMeters:n(routeData?.distanceMeters),
+        passengerDurationSeconds:n(routeData?.durationSeconds),
+        priceAmount:pricePerPassenger,
+        finalPrice:pricePerPassenger
+      };
+    });
+
+  return {
+    total,
+    pricePerPassenger,
+    stopTotal,
+    stopShare:Number((stopTotal / count).toFixed(2)),
+    passengers:pricedPassengers
+  };
+}
+
+/* =========================
+   ROUTE POINT COORDINATES
+========================= */
+
+function extractRoutePointCoordinates(routePoints, routeData){
+
+  const map = new Map();
+
+  const legs =
+    Array.isArray(routeData?.googleRoute?.legs)
+      ? routeData.googleRoute.legs
+      : Array.isArray(routeData?.legs)
+        ? routeData.legs
+        : [];
+
+  if(!legs.length){
+    return map;
+  }
+
+  for(const leg of legs){
+
+    const startAddress = normalizeAddress(leg.startAddress || leg.start_address);
+    const endAddress = normalizeAddress(leg.endAddress || leg.end_address);
+
+    if(
+      startAddress &&
+      Number.isFinite(Number(leg.startLat)) &&
+      Number.isFinite(Number(leg.startLng))
+    ){
+      map.set(addressKey(startAddress),{
+        address:startAddress,
+        lat:Number(leg.startLat),
+        lng:Number(leg.startLng)
+      });
+    }
+
+    if(
+      endAddress &&
+      Number.isFinite(Number(leg.endLat)) &&
+      Number.isFinite(Number(leg.endLng))
+    ){
+      map.set(addressKey(endAddress),{
+        address:endAddress,
+        lat:Number(leg.endLat),
+        lng:Number(leg.endLng)
+      });
+    }
+  }
+
+  for(const point of routePoints){
+
+    const key = addressKey(point);
+
+    if(!map.has(key)){
+      map.set(key,{
+        address:normalizeAddress(point),
+        lat:null,
+        lng:null
+      });
+    }
+  }
+
+  return map;
+}
+
+function routePlanOrder(routePlan,type,address){
+
+  const key = addressKey(address);
+
+  const index =
+    safeArray(routePlan)
+      .sort((a,b)=>n(a.order) - n(b.order))
+      .findIndex(point=>{
+        return (
+          clean(point.type).toLowerCase() === type &&
+          addressKey(point.address) === key
+        );
+      });
+
+  return index < 0 ? 9999 : index + 1;
+}
+
+function applySharedPassengerOrdersAndCoords({
+  passengers,
+  routePoints,
+  routePlan,
+  routeData,
+  pricing
+}){
+
+  const coordMap =
+    extractRoutePointCoordinates(routePoints,routeData);
+
+  return safeArray(passengers)
+    .map((passenger,index)=>{
+
+      const active = passengerIsActive(passenger);
+
+      const pickupOrder = routePlanOrder(routePlan,"pickup",passenger.pickup);
+      const dropoffOrder = routePlanOrder(routePlan,"dropoff",passenger.dropoff);
+
+      const pickupKey = addressKey(passenger.pickup);
+      const dropoffKey = addressKey(passenger.dropoff);
+
+      const pickupCoord = coordMap.get(pickupKey) || null;
+      const dropoffCoord = coordMap.get(dropoffKey) || null;
+
+      const pickupAddress =
+        normalizePossibleAddress(passenger.pickup);
+
+      const dropoffAddress =
+        normalizePossibleAddress(passenger.dropoff);
+
+      return {
+        ...passenger,
+
+        pickup:pickupAddress,
+        pickupLat:
+          Number.isFinite(Number(pickupCoord?.lat))
+            ? Number(pickupCoord.lat)
+            : passenger.pickupLat ?? null,
+        pickupLng:
+          Number.isFinite(Number(pickupCoord?.lng))
+            ? Number(pickupCoord.lng)
+            : passenger.pickupLng ?? null,
+        pickupGeoAddress:
+          passenger.pickupGeoAddress || pickupAddress,
+        pickupGeoKey:
+          passenger.pickupGeoKey || geoKey(pickupAddress),
+        pickupGeoSource:
+          passenger.pickupGeoSource || "",
+
+        dropoff:dropoffAddress,
+        dropoffLat:
+          Number.isFinite(Number(dropoffCoord?.lat))
+            ? Number(dropoffCoord.lat)
+            : passenger.dropoffLat ?? null,
+        dropoffLng:
+          Number.isFinite(Number(dropoffCoord?.lng))
+            ? Number(dropoffCoord.lng)
+            : passenger.dropoffLng ?? null,
+        dropoffGeoAddress:
+          passenger.dropoffGeoAddress || dropoffAddress,
+        dropoffGeoKey:
+          passenger.dropoffGeoKey || geoKey(dropoffAddress),
+        dropoffGeoSource:
+          passenger.dropoffGeoSource || "",
+
+        pickupOrder:active ? pickupOrder : 9999,
+        dropoffOrder:active ? dropoffOrder : 9999,
+        routeOrder:index + 1,
+        status:active ? "Confirmed" : passenger.status || "Scheduled",
+        cancelFee:active ? n(pricing.cancelFee) : n(passenger.cancelFee),
+        noShowFee:active ? n(pricing.noShowFee) : n(passenger.noShowFee)
+      };
+    })
+    .sort((a,b)=>{
+
+      if(n(a.pickupOrder) !== n(b.pickupOrder)){
+        return n(a.pickupOrder) - n(b.pickupOrder);
+      }
+
+      if(n(a.dropoffOrder) !== n(b.dropoffOrder)){
+        return n(a.dropoffOrder) - n(b.dropoffOrder);
+      }
+
+      return n(a.routeOrder) - n(b.routeOrder);
+    })
+    .map((passenger,index)=>({
+      ...passenger,
+      routeOrder:index + 1
+    }));
+}
+
+/* =========================
+   INDIVIDUAL ROUTE PREP
+========================= */
+
+function buildIndividualRoutePoints(trip){
+
+  return compactRoutePoints([
+    trip.pickup,
+    ...safeArray(trip.stops),
+    trip.dropoff
+  ]);
+}
+
+/* =========================
+   SHARED ROUTE PIPELINE HELPERS
+========================= */
+
+function toRad(value){
+  return Number(value || 0) * Math.PI / 180;
+}
+
+function distanceMilesByCoords(a,b){
+
+  if(
+    !hasValidLatLng(a?.lat,a?.lng) ||
+    !hasValidLatLng(b?.lat,b?.lng)
+  ){
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const R = 3958.8;
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const dLat = toRad(Number(b.lat) - Number(a.lat));
+  const dLng = toRad(Number(b.lng) - Number(a.lng));
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) *
+    Math.cos(lat2) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
+
+  return R * 2 * Math.atan2(Math.sqrt(h),Math.sqrt(1 - h));
+}
+
+function normalizePassengerId(passenger,index){
+  return String(
+    passenger?.passengerId ||
+    passenger?._id ||
+    index
+  );
+}
+
+function makePickupPoint(passenger,index){
+
+  return {
+    type:"pickup",
+    address:normalizePossibleAddress(passenger.pickup),
+    lat:Number(passenger.pickupLat),
+    lng:Number(passenger.pickupLng),
+    passengerId:normalizePassengerId(passenger,index),
+    passengerIndex:index,
+    passengerName:passenger.clientName || passenger.name || "",
+    phone:passenger.clientPhone || passenger.phone || ""
+  };
+}
+
+function makeDropoffPoint(passenger,index){
+
+  return {
+    type:"dropoff",
+    address:normalizePossibleAddress(passenger.dropoff),
+    lat:Number(passenger.dropoffLat),
+    lng:Number(passenger.dropoffLng),
+    passengerId:normalizePassengerId(passenger,index),
+    passengerIndex:index,
+    passengerName:passenger.clientName || passenger.name || "",
+    phone:passenger.clientPhone || passenger.phone || ""
+  };
+}
+
+function uniqueTypedRoutePoints(points){
+
+  const out = [];
+  const seen = new Map();
+
+  for(const point of safeArray(points)){
+
+    if(!normalizePossibleAddress(point?.address)){
+      continue;
+    }
+
+    if(!hasValidLatLng(point.lat,point.lng)){
+      throw new Error(
+        `Missing coordinates for shared ${point.type}: ${point.address}`
+      );
+    }
+
+    const key =
+      `${clean(point.type).toLowerCase()}|${addressKey(point.address)}`;
+
+    if(seen.has(key)){
+
+      const existing = seen.get(key);
+
+      existing.passengerIndexes =
+        Array.from(new Set([
+          ...(existing.passengerIndexes || []),
+          point.passengerId
+        ]));
+
+      existing.group = true;
+      continue;
+    }
+
+    const cleanPoint = {
+      ...point,
+      passengerIndexes:[point.passengerId],
+      group:false
+    };
+
+    seen.set(key,cleanPoint);
+    out.push(cleanPoint);
+  }
+
+  return out;
+}
+
+/* =========================
+   COORDINATE ENSURE
+
+   IMPORTANT:
+   - Only geocode the changed/missing/untrusted address.
+   - Do not geocode unchanged addresses.
+   - Do not save old lat/lng under new address.
+========================= */
+
+async function ensurePassengerPointCoordinates(passenger,stats){
+
+  const out = { ...passenger };
+
+  const pickupAddress =
+    normalizePossibleAddress(out.pickup);
+
+  const dropoffAddress =
+    normalizePossibleAddress(out.dropoff);
+
+  if(!pickupAddress){
+    throw new Error("Missing pickup address");
+  }
+
+  if(!dropoffAddress){
+    throw new Error("Missing dropoff address");
+  }
+
+  /* =========================
+     PICKUP
+  ========================= */
+
+  if(needsFreshGeocode(out,"pickup")){
+
+    console.log("======== GEOCODE PICKUP START ========");
+    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
+    console.log("Pickup address:", pickupAddress);
+    console.log("Old pickupLat:", out.pickupLat);
+    console.log("Old pickupLng:", out.pickupLng);
+    console.log("Old pickupGeoKey:", out.pickupGeoKey || "");
+    console.log("Current pickupGeoKey:", geoKey(pickupAddress));
+    console.log(
+      "Reason:",
+      hasValidLatLng(out.pickupLat,out.pickupLng)
+        ? "ADDRESS_CHANGED_OR_UNTRUSTED_GEO"
+        : "MISSING_COORDS"
+    );
+    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
+
+    const coords =
+      await geocodeAddress(pickupAddress,stats);
+
+    console.log("Pickup geocode result:", coords);
+    console.log("======== GEOCODE PICKUP END ========");
+
+    if(coords){
+      out.pickupLat = coords.lat;
+      out.pickupLng = coords.lng;
+      out.pickupGeoAddress = pickupAddress;
+      out.pickupGeoKey = geoKey(pickupAddress);
+      out.pickupGeoSource = coords.source || "geocode";
+    }
+
+  }else{
+
+    await saveAddressCache(
+      pickupAddress,
+      {
+        lat:out.pickupLat,
+        lng:out.pickupLng
+      },
+      "trusted-existing-passenger-pickup"
+    );
+
+    out.pickupGeoAddress = pickupAddress;
+    out.pickupGeoKey = geoKey(pickupAddress);
+    out.pickupGeoSource = out.pickupGeoSource || "existing-trusted";
+  }
+
+  /* =========================
+     DROPOFF
+  ========================= */
+
+  if(needsFreshGeocode(out,"dropoff")){
+
+    console.log("======== GEOCODE DROPOFF START ========");
+    console.log("Passenger:", out.clientName || out.name || out.passengerId || "");
+    console.log("Dropoff address:", dropoffAddress);
+    console.log("Old dropoffLat:", out.dropoffLat);
+    console.log("Old dropoffLng:", out.dropoffLng);
+    console.log("Old dropoffGeoKey:", out.dropoffGeoKey || "");
+    console.log("Current dropoffGeoKey:", geoKey(dropoffAddress));
+    console.log(
+      "Reason:",
+      hasValidLatLng(out.dropoffLat,out.dropoffLng)
+        ? "ADDRESS_CHANGED_OR_UNTRUSTED_GEO"
+        : "MISSING_COORDS"
+    );
+    console.log("Google key exists:", getGoogleMapsApiKey() ? "YES" : "NO");
+
+    const coords =
+      await geocodeAddress(dropoffAddress,stats);
+
+    console.log("Dropoff geocode result:", coords);
+    console.log("======== GEOCODE DROPOFF END ========");
+
+    if(coords){
+      out.dropoffLat = coords.lat;
+      out.dropoffLng = coords.lng;
+      out.dropoffGeoAddress = dropoffAddress;
+      out.dropoffGeoKey = geoKey(dropoffAddress);
+      out.dropoffGeoSource = coords.source || "geocode";
+    }
+
+  }else{
+
+    await saveAddressCache(
+      dropoffAddress,
+      {
+        lat:out.dropoffLat,
+        lng:out.dropoffLng
+      },
+      "trusted-existing-passenger-dropoff"
+    );
+
+    out.dropoffGeoAddress = dropoffAddress;
+    out.dropoffGeoKey = geoKey(dropoffAddress);
+    out.dropoffGeoSource = out.dropoffGeoSource || "existing-trusted";
+  }
+
+  return out;
+}
+
+/* =========================
+   1) COLLECT POINTS
+========================= */
+
+async function collectSharedPoints(trip,stats){
+
+  const sourcePassengers =
+    safeArray(trip.passengers)
+      .map((passenger,index)=>{
+
+        const pickup =
+          getSharedPickupAddress(trip,passenger,index);
+
+        const dropoff =
+          getSharedDropoffAddress(trip,passenger,index);
+
+        return {
+          ...passenger,
+          pickup,
+          dropoff
+        };
+      });
+
+  const activePassengersRaw =
+    sourcePassengers.filter(passenger=>{
+      return (
+        passengerIsActive(passenger) &&
+        normalizePossibleAddress(passenger.pickup) &&
+        normalizePossibleAddress(passenger.dropoff)
+      );
+    });
+
+  if(activePassengersRaw.length < 2){
+    throw new Error("Shared trip requires at least 2 active passengers with pickup/dropoff addresses");
+  }
+
+  const activePassengers = [];
+
+  for(const passenger of activePassengersRaw){
+
+    const name =
+      passenger.clientName ||
+      passenger.name ||
+      passenger.passengerId ||
+      "";
+
+    if(!normalizePossibleAddress(passenger.pickup)){
+      throw new Error("Missing pickup for passenger: " + name);
+    }
+
+    if(!normalizePossibleAddress(passenger.dropoff)){
+      throw new Error("Missing dropoff for passenger: " + name);
+    }
+
+    const withCoords =
+      await ensurePassengerPointCoordinates(passenger,stats);
+
+    if(!hasValidLatLng(withCoords.pickupLat,withCoords.pickupLng)){
+      throw new Error(
+        "Missing pickup coordinates for passenger: " +
+        name +
+        " | address: " +
+        withCoords.pickup +
+        " | Google key exists: " +
+        (getGoogleMapsApiKey() ? "YES" : "NO")
+      );
+    }
+
+    if(!hasValidLatLng(withCoords.dropoffLat,withCoords.dropoffLng)){
+      throw new Error(
+        "Missing dropoff coordinates for passenger: " +
+        name +
+        " | address: " +
+        withCoords.dropoff +
+        " | Google key exists: " +
+        (getGoogleMapsApiKey() ? "YES" : "NO")
+      );
+    }
+
+    activePassengers.push(withCoords);
+  }
+
+  const pickupPoints =
+    uniqueTypedRoutePoints(
+      activePassengers.map(makePickupPoint)
+    );
+
+  const dropoffPoints =
+    uniqueTypedRoutePoints(
+      activePassengers.map(makeDropoffPoint)
+    );
+
+  if(!pickupPoints.length || !dropoffPoints.length){
+    throw new Error("Shared route is missing pickup/dropoff points");
+  }
+
+  const sourcePassengersWithCoords =
+    sourcePassengers.map(passenger=>{
+
+      const found =
+        activePassengers.find(active=>{
+          return (
+            addressKey(active.pickup) === addressKey(passenger.pickup) &&
+            addressKey(active.dropoff) === addressKey(passenger.dropoff)
+          );
+        });
+
+      if(!found){
+        return passenger;
+      }
+
+      return {
+        ...passenger,
+
+        pickup:found.pickup,
+        pickupLat:found.pickupLat,
+        pickupLng:found.pickupLng,
+        pickupGeoAddress:found.pickupGeoAddress || found.pickup,
+        pickupGeoKey:found.pickupGeoKey || geoKey(found.pickup),
+        pickupGeoSource:found.pickupGeoSource || "",
+
+        dropoff:found.dropoff,
+        dropoffLat:found.dropoffLat,
+        dropoffLng:found.dropoffLng,
+        dropoffGeoAddress:found.dropoffGeoAddress || found.dropoff,
+        dropoffGeoKey:found.dropoffGeoKey || geoKey(found.dropoff),
+        dropoffGeoSource:found.dropoffGeoSource || ""
+      };
+    });
+
+  return {
+    sourcePassengers:sourcePassengersWithCoords,
+    activePassengers,
+    pickupPoints,
+    dropoffPoints
+  };
+}
+
+/* =========================
+   2) DETECT CASE
+========================= */
+
+function allSamePointAddress(points){
+
+  const list = safeArray(points);
+
+  if(list.length <= 1){
+    return true;
+  }
+
+  const first = addressKey(list[0].address);
+
+  return list.every(point=>addressKey(point.address) === first);
+}
+
+function detectSharedCase(pickupPoints,dropoffPoints){
+
+  const pickupUnified = allSamePointAddress(pickupPoints);
+  const dropoffUnified = allSamePointAddress(dropoffPoints);
+
+  if(pickupUnified && dropoffUnified){
+    return "SAME_PICKUP_SAME_DROPOFF";
+  }
+
+  if(pickupUnified && !dropoffUnified){
+    return "SAME_PICKUP_DIFFERENT_DROPOFF";
+  }
+
+  if(!pickupUnified && dropoffUnified){
+    return "DIFFERENT_PICKUP_SAME_DROPOFF";
+  }
+
+  return "DIFFERENT_PICKUP_DIFFERENT_DROPOFF";
+}
+
+/* =========================
+   3) BUILD CENTER POINT
+========================= */
+
+function buildSharedCenterPoint(pickupPoints,dropoffPoints){
+
+  let anchorPickup = null;
+  let anchorDropoff = null;
+  let anchorMiles = Number.MAX_SAFE_INTEGER;
+
+  for(const pickup of pickupPoints){
+
+    for(const dropoff of dropoffPoints){
+
+      const miles = distanceMilesByCoords(pickup,dropoff);
+
+      if(miles < anchorMiles){
+        anchorMiles = miles;
+        anchorPickup = pickup;
+        anchorDropoff = dropoff;
+      }
+    }
+  }
+
+  if(!anchorPickup || !anchorDropoff){
+    throw new Error("Could not find shared route center point");
+  }
+
+  const centerPoint = {
+    type:"center",
+    address:"__SHARED_CENTER_POINT__",
+    lat:(Number(anchorPickup.lat) + Number(anchorDropoff.lat)) / 2,
+    lng:(Number(anchorPickup.lng) + Number(anchorDropoff.lng)) / 2
+  };
+
+  return {
+    centerPoint,
+    anchorPickup,
+    anchorDropoff,
+    anchorMiles
+  };
+}
+
+/* =========================
+   4) ORDER PICKUPS
+========================= */
+
+function orderPickupsFromCenter(pickupPoints,centerResult,routeCase){
+
+  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
+    return [pickupPoints[0]];
+  }
+
+  if(routeCase === "SAME_PICKUP_DIFFERENT_DROPOFF"){
+    return [pickupPoints[0]];
+  }
+
+  const center = centerResult.centerPoint;
+
+  return [...pickupPoints]
+    .map((point,index)=>({
+      ...point,
+      distanceFromCenter:distanceMilesByCoords(point,center),
+      originalIndex:index
+    }))
+    .sort((a,b)=>{
+
+      const diff =
+        Number(b.distanceFromCenter) -
+        Number(a.distanceFromCenter);
+
+      if(Math.abs(diff) > 0.000001){
+        return diff;
+      }
+
+      return Number(a.originalIndex) - Number(b.originalIndex);
+    })
+    .map((point,index)=>({
+      ...point,
+      pickupOrder:index + 1
+    }));
+}
+
+/* =========================
+   5) ORDER DROPOFFS
+========================= */
+
+function orderDropoffsFromCenter(dropoffPoints,centerResult,routeCase){
+
+  if(routeCase === "SAME_PICKUP_SAME_DROPOFF"){
+    return [dropoffPoints[0]];
+  }
+
+  if(routeCase === "DIFFERENT_PICKUP_SAME_DROPOFF"){
+    return [dropoffPoints[0]];
+  }
+
+  const center = centerResult.centerPoint;
+
+  return [...dropoffPoints]
+    .map((point,index)=>({
+      ...point,
+      distanceFromCenter:distanceMilesByCoords(point,center),
+      originalIndex:index
+    }))
+    .sort((a,b)=>{
+
+      const diff =
+        Number(a.distanceFromCenter) -
+        Number(b.distanceFromCenter);
+
+      if(Math.abs(diff) > 0.000001){
+        return diff;
+      }
+
+      return Number(a.originalIndex) - Number(b.originalIndex);
+    })
+    .map((point,index)=>({
+      ...point,
+      dropoffOrder:index + 1
+    }));
+}
+
+/* =========================
+   6) FINAL ROUTE PLAN
+========================= */
+
+function makeFinalRoutePlanPoint(point,type,order){
+
+  const passengerIndexes =
+    Array.isArray(point.passengerIndexes) && point.passengerIndexes.length
+      ? point.passengerIndexes
+      : [point.passengerId];
+
+  return {
+    type,
+    address:normalizePossibleAddress(point.address),
+    lat:Number(point.lat),
+    lng:Number(point.lng),
+    order,
+    passengerId:point.passengerId || "",
+    passengerIndex:point.passengerIndex,
+    passengerIndexes,
+    passengerName:point.passengerName || "",
+    phone:point.phone || "",
+    group:point.group === true || passengerIndexes.length > 1,
+    distanceFromCenter:
+      Number.isFinite(Number(point.distanceFromCenter))
+        ? Number(Number(point.distanceFromCenter).toFixed(3))
+        : 0
+  };
+}
+
+function buildFinalSharedRoutePlan(orderedPickups,orderedDropoffs){
+
+  const routePlan = [];
+
+  for(const pickup of orderedPickups){
+    routePlan.push(
+      makeFinalRoutePlanPoint(
+        pickup,
+        "pickup",
+        routePlan.length + 1
+      )
+    );
+  }
+
+  for(const dropoff of orderedDropoffs){
+    routePlan.push(
+      makeFinalRoutePlanPoint(
+        dropoff,
+        "dropoff",
+        routePlan.length + 1
+      )
+    );
+  }
+
+  if(routePlan.length < 2){
+    throw new Error("Final shared route plan is invalid");
+  }
+
+  return routePlan;
+}
+
+/* =========================
+   MAIN SHARED ROUTE PREP
+========================= */
+
+async function buildSmartSharedRoute(trip,stats){
+
+  const points =
+    await collectSharedPoints(trip,stats);
+
+  if(
+    routeMapEngine &&
+    typeof routeMapEngine.buildSharedRoutePlanFromPassengers === "function"
+  ){
+
+    const smart =
+      routeMapEngine.buildSharedRoutePlanFromPassengers(
+        points.sourcePassengers
+      );
+
+    const smartRoutePlan =
+      safeArray(smart.routePlan);
+
+    const smartSharedRoutePlan =
+      safeArray(smart.sharedRoutePlan).length
+        ? safeArray(smart.sharedRoutePlan)
+        : smartRoutePlan;
+
+    const finalRouteAddresses =
+      (
+        safeArray(smart.addresses).length
+          ? safeArray(smart.addresses)
+          : smartRoutePlan.map(point=>point.address)
+      )
+        .map(normalizePossibleAddress)
+        .filter(Boolean);
+
+    return {
+      isShared:true,
+      routePoints:finalRouteAddresses,
+      routePlan:smartRoutePlan,
+      sharedRoutePlan:smartSharedRoutePlan,
+      passengers:points.sourcePassengers,
+      activeCount:n(smart.activeCount) || points.activePassengers.length,
+      sharedStopsCount:n(smart.sharedStopsCount),
+      routeCase:smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
+      requestsBeforeFinal:n(stats?.geocodeRequestsUsed),
+      routeMeta:{
+        ...(smart.meta || {}),
+        mode:smart.routeCase || "SHARED_SMART_ROUTE_ENGINE",
+        policy:"ROUTE_MAP_ENGINE_ALL_PICKUPS_FIRST_THEN_DROPOFFS",
+        engine:"routeMapEngine.buildSharedRoutePlanFromPassengers",
+        routeAddresses:finalRouteAddresses,
+        geocodeRequestsUsed:n(stats?.geocodeRequestsUsed),
+        geocodeCacheHits:n(stats?.geocodeCacheHits)
+      }
+    };
+  }
+
+  const routeCase =
+    detectSharedCase(
+      points.pickupPoints,
+      points.dropoffPoints
+    );
+
+  const centerResult =
+    buildSharedCenterPoint(
+      points.pickupPoints,
+      points.dropoffPoints
+    );
+
+  const orderedPickups =
+    orderPickupsFromCenter(
+      points.pickupPoints,
+      centerResult,
+      routeCase
+    );
+
+  const orderedDropoffs =
+    orderDropoffsFromCenter(
+      points.dropoffPoints,
+      centerResult,
+      routeCase
+    );
+
+  const routePlan =
+    buildFinalSharedRoutePlan(
+      orderedPickups,
+      orderedDropoffs
+    );
+
+  const finalRoutePoints =
+    routePlan.map(point=>point.address);
+
+  return {
+    isShared:true,
+    routePoints:finalRoutePoints,
+    routePlan,
+    sharedRoutePlan:routePlan,
+    passengers:points.sourcePassengers,
+    activeCount:points.activePassengers.length,
+    sharedStopsCount:Math.max(0,routePlan.length - 2),
+    routeCase,
+    requestsBeforeFinal:n(stats?.geocodeRequestsUsed),
+    routeMeta:{
+      mode:routeCase,
+      policy:"FALLBACK_CENTER_POINT_OLD_ENGINE",
+      engine:"old-center-fallback",
+      centerPoint:centerResult.centerPoint,
+      anchorPickup:centerResult.anchorPickup,
+      anchorDropoff:centerResult.anchorDropoff,
+      anchorMiles:Number(Number(centerResult.anchorMiles).toFixed(3)),
+      orderedPickups:orderedPickups.map(p=>p.address),
+      orderedDropoffs:orderedDropoffs.map(p=>p.address),
+      geocodeRequestsUsed:n(stats?.geocodeRequestsUsed),
+      geocodeCacheHits:n(stats?.geocodeCacheHits)
+    }
+  };
+}
+
+function buildPreparedFromSavedTrip(trip,currentSignature){
+
+  const shared = isSharedTrip(trip);
+  const routePlan = savedRoutePlan(trip);
+  const routePoints = savedRoutePoints(trip);
+  const passengers = safeArray(trip.passengers);
+
+  return {
+    isShared:shared,
+    alreadySaved:true,
+    routePoints,
+    routePlan,
+    sharedRoutePlan:shared ? routePlan : [],
+    passengers,
+    activeCount:
+      shared
+        ? Math.max(1,passengers.filter(passengerIsActive).length)
+        : 1,
+    sharedStopsCount:
+      shared
+        ? Math.max(0,(routePlan.length || routePoints.length) - 2)
+        : 0,
+    routeCase:
+      shared
+        ? trip.sharedRouteCase || trip.routeCase || "SAVED_SHARED_ROUTE"
+        : "SAVED_INDIVIDUAL_ROUTE",
+    routeMeta:{
+      mode:"SAVED_ROUTE_REUSED",
+      reused:true,
+      signature:currentSignature,
+      savedSignature:getSavedRouteSignature(trip)
+    }
+  };
+}
+
+/* =========================
+   CONFIRM RESERVED TRIP
+========================= */
+
+router.post("/:tripId", requireTenantApi, async (req,res)=>{
+
+  try{
+
+    const Trip = getTripModel();
+    const tripId = req.params.tripId;
+
+    if(!tripId){
+      return res.status(400).json({
+        success:false,
+        message:"Missing trip id"
+      });
+    }
+
+    const trip = await Trip.findOne(tenantFilter(req,{_id:tripId}));
+
+    if(!trip){
+      return res.status(404).json({
+        success:false,
+        message:"Trip not found"
+      });
+    }
+
+    const shared = isSharedTrip(trip);
+
+    /*
+      Apply a pending Reserved Add Stop request before route calculation.
+      Confirm must calculate the new route and Reserved price, not the old trip.
+    */
+    const pendingAddStop =
+      !shared &&
+      trip.addStopRequest?.active === true &&
+      clean(trip.addStopRequest?.source).toLowerCase() === "reserved-add-stop"
+        ? trip.addStopRequest
+        : null;
+
+    if(pendingAddStop){
+
+      const requestPickup =
+        normalizePossibleAddress(
+          pendingAddStop.pickup || trip.pickup
+        );
+
+      const requestDropoff =
+        normalizePossibleAddress(
+          pendingAddStop.dropoffAfter ||
+          pendingAddStop.dropoffBefore ||
+          trip.dropoff
+        );
+
+      const requestStops =
+        uniqueAddressList(
+          safeArray(pendingAddStop.finalStops)
+        );
+
+      if(requestPickup){
+        trip.pickup = requestPickup;
+      }
+
+      if(requestDropoff){
+        trip.dropoff = requestDropoff;
+      }
+
+      trip.stops = requestStops;
+      trip.routeLocked = false;
+      trip.routeFinalized = false;
+      trip.routeSignature = "";
+      trip.routePoints = [];
+      trip.googleRoute = {};
+      trip.optimizedRoute = {};
+      trip.markModified("stops");
+      trip.markModified("addStopRequest");
+    }
+
+    const currentSignature = buildCurrentRouteSignature(trip);
+    const service = await getReservedServiceForTrip(trip,req);
+    const pricing = getReservedPricing(service);
+
+    const requestStats =
+      createRequestStats();
+
+    let prepared = null;
+    let routeData = null;
+    let routeReused = false;
+
+    if(hasUsableSavedRoute(trip,currentSignature)){
+
+      prepared = buildPreparedFromSavedTrip(trip,currentSignature);
+      routeData = buildRouteDataFromSavedTrip(trip);
+      routeReused = true;
+
+    }else if(shared){
+
+      prepared = await buildSmartSharedRoute(trip,requestStats);
+
+      routeData = await calculateRoute(prepared.routePoints);
+
+      requestStats.directionsRequestsUsed += 1;
+
+    }else{
+
+      /*
+        Resolve pickup / stops / dropoff first.
+        Directions receives exact coordinates instead of raw address text.
+
+        This fixes intermittent Google Directions NOT_FOUND responses and
+        gives a precise message when one specific address cannot be resolved.
+      */
+      const individualRoute =
+        await resolveIndividualRouteForDirections(
+          trip,
+          requestStats
+        );
+
+      prepared = {
+        isShared:false,
+
+        /*
+          Keep human-readable addresses on the trip.
+          Only the actual Google Directions request uses resolved coordinates.
+        */
+        routePoints:
+          individualRoute.displayRoutePoints,
+
+        routePlan:[],
+        passengers:[],
+        activeCount:1,
+        sharedStopsCount:0,
+        routeCase:"INDIVIDUAL_1_REQUEST",
+        routeMeta:{
+          mode:"INDIVIDUAL_1_REQUEST",
+          directionsUsedResolvedCoordinates:true
+        }
+      };
+
+      try{
+
+        routeData =
+          await calculateRoute(
+            individualRoute.directionsRoutePoints
+          );
+
+      }catch(firstRouteErr){
+
+        /*
+          One short retry protects Confirm from a temporary Google/network
+          failure. A permanent invalid address was already caught above.
+        */
+        await waitMs(450);
+
+        routeData =
+          await calculateRoute(
+            individualRoute.directionsRoutePoints
+          );
+      }
+
+      requestStats.directionsRequestsUsed += 1;
+    }
+
+    finalizeRequestStats(requestStats);
+
+    const googleRequestsUsed =
+      routeReused
+        ? 0
+        : requestStats.googleRequestsUsed;
+
+    const routeMiles =
+      firstPositiveNumber(
+        routeData?.miles,
+        routeData?.distanceMeters > 0
+          ? routeData.distanceMeters * 0.000621371
+          : 0
+      );
+
+    if(routeMiles <= 0){
+
+      console.log("ROUTE DATA MISSING MILES:", {
+        routePoints:prepared?.routePoints,
+        routeData
+      });
+
+      return res.status(400).json({
+        success:false,
+        message:"Route miles missing"
+      });
+    }
+
+    routeData.miles =
+      Number(Number(routeMiles).toFixed(2));
+
+    let total = 0;
+    let pricePerPassenger = 0;
+    let sharedStopTotal = 0;
+    let sharedStopShare = 0;
+    let finalPassengers = safeArray(prepared.passengers);
+
+    const serviceCode =
+      shared
+        ? "SH"
+        : serviceIdentity
+            .getServiceOperationalCode(
+              service
+            );
+
+    if(!serviceCode){
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Reserved service code is not configured"
+      });
+    }
+
+    if(shared){
+
+      finalPassengers =
+        applySharedPassengerOrdersAndCoords({
+          passengers:prepared.passengers,
+          routePoints:prepared.routePoints,
+          routePlan:
+            safeArray(prepared.sharedRoutePlan).length
+              ? prepared.sharedRoutePlan
+              : prepared.routePlan,
+          routeData,
+          pricing
+        });
+
+      const sharedPricing =
+        calculateSharedPricing({
+          pricing,
+          routeData,
+          passengers:finalPassengers,
+          activeCount:prepared.activeCount,
+          stopsCount:prepared.sharedStopsCount
+        });
+
+      total = sharedPricing.total;
+      pricePerPassenger = sharedPricing.pricePerPassenger;
+      sharedStopTotal = sharedPricing.stopTotal;
+      sharedStopShare = sharedPricing.stopShare;
+      finalPassengers = sharedPricing.passengers;
+
+    }else{
+
+      const stopsCount =
+        safeArray(trip.stops).filter(Boolean).length;
+
+      total =
+        calculateReservedPrice({
+          pricing,
+          miles:routeData.miles,
+          minutes:routeData.estimatedMinutes,
+          stops:stopsCount
+        });
+
+      pricePerPassenger = 0;
+    }
+
+    const pricingSnapshot = {
+      source:"RESERVED_SERVICE_MANAGEMENT",
+      serviceId:String(service?._id || ""),
+      serviceIdentity:
+        serviceIdentity
+          .getServiceGateKey(
+            service
+          ),
+      customSlot:
+        serviceIdentity
+          .getCustomSlot(
+            service
+          ),
+      serviceCode,
+      pricingMode:pricing.pricingMode,
+      baseFare:pricing.baseFare,
+      includedMiles:pricing.includedMiles,
+      perMile:pricing.perMile,
+      hourlyRate:pricing.hourlyRate,
+      hourlyBillingMode:pricing.hourlyBillingMode,
+      stopFee:pricing.stopFee,
+      noShowFee:pricing.noShowFee,
+      cancelFee:pricing.cancelFee,
+      sharedPrice:pricing.sharedPrice,
+      warningMinutes:pricing.warningMinutes,
+      disableCancel:pricing.disableCancel,
+      sharedStopsCount:shared ? prepared.sharedStopsCount : 0,
+      sharedStopTotal:shared ? sharedStopTotal : 0,
+      sharedStopShare:shared ? sharedStopShare : 0
+    };
+
+    const routeMeta = {
+      ...(prepared.routeMeta || {}),
+      routeReused,
+      geocodeRequestsUsed:
+        routeReused ? 0 : requestStats.geocodeRequestsUsed,
+      geocodeCacheHits:
+        routeReused ? 0 : requestStats.geocodeCacheHits,
+      directionsRequestsUsed:
+        routeReused ? 0 : requestStats.directionsRequestsUsed,
+      googleRequestsUsed,
+      routeSignature:currentSignature
+    };
+
+    const updatedTrip =
+      await tripFinalizer.lockConfirmedTrip(trip,{
+        ...prepared,
+        routePlan:safeArray(prepared.routePlan),
+        sharedRoutePlan:
+          shared
+            ? safeArray(prepared.sharedRoutePlan || prepared.routePlan)
+            : [],
+        passengers:shared ? finalPassengers : [],
+        routeData,
+        priceAmount:Number(total || 0),
+        finalPrice:Number(total || 0),
+        pricePerPassenger:Number(pricePerPassenger || 0),
+        sharedStopTotal:shared ? sharedStopTotal : 0,
+        sharedStopShare:shared ? sharedStopShare : 0,
+        cancelFee:n(pricing.cancelFee),
+        noShowFee:n(pricing.noShowFee),
+        pricingSnapshot,
+        reservedPricingMode:pricing.pricingMode,
+        reservationStatus:"RV",
+        routeCase:prepared.routeCase,
+        routeMeta,
+        calculationSource:
+          routeReused
+            ? "SAVED_ROUTE_REUSED"
+            : "GOOGLE_DIRECTIONS_FINAL_ONLY",
+        googleRequestsUsed,
+        routeSource:
+          routeReused
+            ? "server-confirm-reused-saved-route"
+            : shared
+              ? "server-shared-routeMapEngine-smart-route"
+              : "server-individual-route"
+      });
+
+    if(
+      req.authUser?.role !== "PLATFORM_ADMIN"
+    ){
+      updatedTrip.tenantId =
+        req.authUser.tenantId;
+    }
+
+    updatedTrip.type = "reserved";
+    updatedTrip.reservation = true;
+    updatedTrip.source = "RV";
+    updatedTrip.bookingSource = "RV";
+
+    updatedTrip.serviceKey = serviceCode;
+    updatedTrip.serviceType = serviceCode;
+    updatedTrip.serviceCode = serviceCode;
+    updatedTrip.serviceSuffix = serviceCode;
+    updatedTrip.tripNumberSuffix = serviceCode;
+    updatedTrip.vehicleTypeFromQuote = serviceCode;
+    updatedTrip.vehicleType = serviceCode;
+
+    const serviceDisplayName =
+      serviceIdentity
+        .getServiceDisplayName(
+          service
+        ) ||
+      serviceCode;
+
+    updatedTrip.serviceName =
+      serviceDisplayName;
+
+    updatedTrip.serviceTitle =
+      serviceDisplayName;
+
+    updatedTrip.serviceId = String(service._id || "");
+    updatedTrip.createdFrom = updatedTrip.createdFrom || "dispatch-add-trip";
+
+    /* =========================
+       FORCE SAVE FINAL ROUTE PLAN
+    ========================= */
+
+    updatedTrip.routePoints =
+      safeArray(prepared.routePoints)
+        .map(point=>{
+          return typeof point === "string"
+            ? normalizePossibleAddress(point)
+            : normalizePossibleAddress(point?.address);
+        })
+        .filter(Boolean);
+
+    updatedTrip.routePlan = safeArray(prepared.routePlan);
+    updatedTrip.routeSignature = currentSignature;
+    updatedTrip.routeLocked = true;
+    updatedTrip.routeFinalized = true;
+    updatedTrip.routeChangePending = false;
+    updatedTrip.routeChangeStatus = "";
+    updatedTrip.routeMeta = routeMeta;
+    updatedTrip.googleRequestsUsed = googleRequestsUsed;
+    updatedTrip.geocodeRequestsUsed =
+      routeReused ? 0 : requestStats.geocodeRequestsUsed;
+    updatedTrip.geocodeCacheHits =
+      routeReused ? 0 : requestStats.geocodeCacheHits;
+    updatedTrip.directionsRequestsUsed =
+      routeReused ? 0 : requestStats.directionsRequestsUsed;
+
+    if(pendingAddStop){
+      updatedTrip.addStopRequest = {
+        ...(
+          typeof pendingAddStop.toObject === "function"
+            ? pendingAddStop.toObject()
+            : pendingAddStop
+        ),
+        active:false,
+        status:"COMPLETED",
+        completedAt:new Date(),
+        updatedAt:new Date(),
+        appliedAutomatically:true,
+        appliedPickup:updatedTrip.pickup,
+        appliedStops:safeArray(updatedTrip.stops),
+        appliedDropoff:updatedTrip.dropoff,
+        appliedMiles:n(routeData.miles),
+        appliedPrice:n(total)
+      };
+
+      updatedTrip.routeChangePending = false;
+      updatedTrip.routeChangeStatus = "COMPLETED";
+      updatedTrip.markModified("addStopRequest");
+    }
+
+    if(shared){
+
+      updatedTrip.sharedRoutePlan =
+        safeArray(prepared.sharedRoutePlan || prepared.routePlan);
+
+      updatedTrip.sharedRouteSignature = currentSignature;
+      updatedTrip.sharedRouteCase = prepared.routeCase;
+      updatedTrip.sharedGoogleRequestsUsed = googleRequestsUsed;
+      updatedTrip.sharedGeocodeRequestsUsed =
+        routeReused ? 0 : requestStats.geocodeRequestsUsed;
+      updatedTrip.sharedGeocodeCacheHits =
+        routeReused ? 0 : requestStats.geocodeCacheHits;
+      updatedTrip.sharedDirectionsRequestsUsed =
+        routeReused ? 0 : requestStats.directionsRequestsUsed;
+      updatedTrip.sharedRouteLocked = true;
+      updatedTrip.sharedStopsCount = prepared.sharedStopsCount;
+      updatedTrip.sharedRouteMeta = routeMeta;
+    }
+
+    await updatedTrip.save();
+
+    /*
+      Return Confirm success as soon as the confirmed trip is safely saved.
+      Auto assignment is intentionally started after the response so Smart
+      Dispatch cannot keep the Confirm button waiting. The assignment logic
+      itself is unchanged and still runs for every successful Confirm.
+    */
+    const autoAssignment = {
+      success:true,
+      assigned:false,
+      pending:true,
+      reason:"AUTO_ASSIGNMENT_RUNNING"
+    };
+
+    const responsePayload = {
+      success:true,
+      trip:updatedTrip,
+      autoAssignment,
+      requestsUsed:googleRequestsUsed,
+      googleRequestsUsed,
+      geocodeRequestsUsed:
+        routeReused ? 0 : requestStats.geocodeRequestsUsed,
+      geocodeCacheHits:
+        routeReused ? 0 : requestStats.geocodeCacheHits,
+      directionsRequestsUsed:
+        routeReused ? 0 : requestStats.directionsRequestsUsed,
+      routeReused,
+      routeMode:
+        routeReused
+          ? "SAVED_ROUTE_REUSED"
+          : prepared.routeCase || prepared.routeMeta?.mode || "ROUTE_CALCULATED"
+    };
+
+    res.json(responsePayload);
+
+    setImmediate(async ()=>{
+
+      try{
+        await dispatchRoutes.autoAssignTripById(
+          updatedTrip._id,
+          req.authUser?.id
+            ? String(req.authUser.id)
+            : "SYSTEM_CONFIRM",
+          req.authUser?.tenantId || null
+        );
+      }catch(autoAssignError){
+        console.log(
+          "RESERVED CONFIRM AUTO ASSIGN ERROR:",
+          autoAssignError
+        );
+      }
+    });
+
+    return;
+
+  }catch(err){
+
+    console.log(
+      "DISPATCH RESERVED CONFIRM ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success:false,
+      message:err.message || "Server error"
+    });
+  }
+});
+
+module.exports = router;

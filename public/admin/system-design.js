@@ -1,0 +1,2403 @@
+// =========================================
+// FILE: public/admin/system-design.js
+// COMPLETE SYSTEM DESIGN ENGINE
+// TENANT CLEAN DEFAULTS - NO LEGACY SUNBEAM BRANDING
+// =========================================
+
+console.log("SYSTEM DESIGN LOADED");
+
+/* =========================
+SECURITY
+========================= */
+
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
+
+if(!token || !["SUPER_ADMIN","admin"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+let systemDesign = {};
+
+
+let allowedServices = [];
+
+function normalizeServiceKey(value){
+
+  const raw =
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+  if(!raw) return "";
+
+  if(raw === "ST" || raw === "STANDARD" || raw.includes("STANDARD")) return "ST";
+
+  if(
+    raw === "WH" ||
+    raw === "WC" ||
+    raw === "WHEELCHAIR" ||
+    raw === "WHEEL CHAIR" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WH";
+  }
+
+  if(raw === "SH" || raw === "SHARED" || raw.includes("SHARED")) return "SH";
+
+  if(
+    raw === "LM" ||
+    raw === "LIMO" ||
+    raw === "LIMOUSINE" ||
+    raw.includes("LIMOUSINE") ||
+    raw.startsWith("LIMO ")
+  ){
+    return "LM";
+  }
+
+  if(raw === "TX" || raw === "TAXI" || raw.includes("TAXI")) return "TX";
+  if(raw === "XL" || raw === "XL SERVICE" || raw.startsWith("XL ")) return "XL";
+
+  return raw.replace(/\s+/g,"");
+}
+
+function serviceCardKey(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.id,
+    service?.key,
+    service?.code,
+    service?.suffix,
+    service?.title,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    const key =
+      normalizeServiceKey(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(key) ||
+      /^CUSTOM[1-4]$/.test(key)
+    ){
+      return key;
+    }
+  }
+
+  return "";
+}
+
+function isServiceAllowed(service){
+
+  const key =
+    serviceCardKey(service);
+
+  return (
+    !!key &&
+    allowedServices.includes(key)
+  );
+}
+
+/* =========================
+DEFAULT DATA
+========================= */
+
+const defaultSystemDesign = {
+
+  companyName:"",
+
+timezone:"America/Phoenix",
+region:"",
+
+country:"",
+
+getQuoteZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
+companiesZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
+reservedZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
+
+invoiceEmail:"",
+
+smtpHost:"",
+
+smtpPort:"465",
+
+smtpSecure:true,
+
+smtpUser:"",
+
+smtpPass:"",
+
+bookingEmailSubject:
+"Booking Confirmation",
+
+bookingEmailMessage:
+"Your trip is confirmed.",
+
+cancelPolicyText:
+"Free cancellation up to 2 hours before trip time.",
+
+mainLogo:"",
+  driverLogo:"",
+
+  heroImage:"",
+
+  /* =========================
+  BODY
+  ========================= */
+
+  bodyBg:"#f1f5f9",
+
+  bodyTextColor:"#0f172a",
+
+  /* =========================
+  ABOUT
+  ========================= */
+
+  aboutBg:"#ffffff",
+
+  aboutBorder:"#dbeafe",
+
+  aboutRadius:"28",
+
+  aboutPadding:"40",
+
+  aboutTitle:"About Us",
+
+  aboutTitleColor:"#145cff",
+
+  aboutTitleSize:"34",
+
+  aboutTitleAlign:"center",
+
+  aboutText:
+  "Professional transportation services.",
+
+  aboutTextColor:"#334155",
+
+  aboutTextSize:"18",
+
+  aboutTextAlign:"justify-center",
+
+  /* =========================
+  ABOUT - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  aboutMobilePadding:"18",
+
+  aboutTitleMobileSize:"20",
+
+  aboutTitleMobileAlign:"center",
+
+  aboutTextMobileSize:"14",
+
+  aboutTextMobileAlign:"left",
+
+
+  /* =========================
+  QUOTE
+  ========================= */
+
+  quoteBg:"#ffffff",
+
+  quoteBorder:"#dbeafe",
+
+  quoteRadius:"28",
+
+  quotePadding:"40",
+
+  quoteTitle:
+  "Get Quote & Book Your Ride",
+
+  quoteTitleColor:"#145cff",
+
+  quoteTitleSize:"34",
+
+  quoteTitleAlign:"center",
+
+  quoteText:
+  "Select your service below",
+
+  quoteTextColor:"#334155",
+
+  quoteTextSize:"18",
+
+  quoteTextAlign:"justify-center",
+
+  /* =========================
+  QUOTE - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  quoteMobilePadding:"18",
+
+  quoteTitleMobileSize:"20",
+
+  quoteTitleMobileAlign:"center",
+
+  quoteTextMobileSize:"14",
+
+  quoteTextMobileAlign:"left",
+
+
+  /* =========================
+  EXTRA BOXES
+  ========================= */
+
+  extra1Active:true,
+
+  extra1Title:"Extra Information",
+
+  extra1Text:
+  "You can add pricing, announcements, promotions, or company information here.",
+
+  extra2Active:true,
+
+  extra2Title:"Additional Services",
+
+  extra2Text:
+  "This section can later be managed from the admin panel.",
+
+  /* =========================
+  EXTRA BOX DESIGN
+  ========================= */
+
+  extraBoxBg:"#ffffff",
+
+  extraBoxBorder:"#dbeafe",
+
+  extraBoxTitleColor:"#145cff",
+
+  extraBoxTextColor:"#334155",
+
+  extraBoxRadius:"28",
+
+  extraBoxPadding:"40",
+
+  extraBoxAlign:"justify-center",
+
+  extraBoxTitleSize:"32",
+
+  extraBoxTextSize:"18",
+
+  /* =========================
+  EXTRA BOX DESIGN - MOBILE
+  Independent mobile controls
+  ========================= */
+
+  extraBoxMobilePadding:"18",
+
+  extraBoxTitleMobileSize:"20",
+
+  extraBoxTitleMobileAlign:"center",
+
+  extraBoxTextMobileSize:"14",
+
+  extraBoxTextMobileAlign:"left",
+
+  extraBoxBorderSize:"2",
+
+  extraBoxShadow:true,
+
+/* =========================
+CONTACT
+========================= */
+
+contactTitle:"Customer Support",
+
+contactPhone:"",
+
+contactEmail:"",
+
+footerText:"",
+
+contactTitleColor:"#145cff",
+
+contactTitleSize:"34",
+
+contactBg:"#ffffff",
+
+contactBorder:"#dbeafe",
+
+contactRadius:"28",
+contactAlign:"center",
+
+contactJustify:"justify-center",
+
+cardTextAlign:"center",
+
+cardTextJustify:"justify-center",
+/* =========================
+SERVICES
+========================= */
+
+  services:[
+
+    {
+      id:"standard",
+      serviceKey:"ST",
+      active:false,
+      title:"Standard",
+      description:"Standard transportation service",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"xl",
+      serviceKey:"XL",
+      active:false,
+      title:"XL",
+      description:"Large vehicle transportation",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"taxi",
+      serviceKey:"TX",
+      active:false,
+      title:"Taxi",
+      description:"Daily city transportation",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"limo",
+      serviceKey:"LM",
+      active:false,
+      title:"Limo",
+      description:"Luxury transportation service",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"wheelchair",
+      serviceKey:"WH",
+      active:false,
+      title:"Wheelchair",
+      description:"Wheelchair accessible rides",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"shared",
+      serviceKey:"SH",
+      active:false,
+      title:"Shared Ride",
+      description:"Affordable shared rides",
+      image:"",
+      link:"getquote/index.html"
+    }
+
+  ]
+
+};
+
+/* =========================
+LOAD
+========================= */
+
+async function loadSystemDesign(){
+
+  try{
+
+    const [res,serviceRes] =
+    await Promise.all([
+      fetch("/api/system-design",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }),
+      fetch("/api/services/admin",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      })
+    ]);
+
+    const data =
+    await res.json();
+
+    const serviceRows =
+      await serviceRes.json()
+        .catch(()=>[]);
+
+    allowedServices =
+      Array.isArray(data.allowedServices)
+        ? [
+            ...new Set(
+              data.allowedServices
+                .map(normalizeServiceKey)
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
+    const savedServices =
+      Array.isArray(data.services)
+        ? data.services
+        : [];
+
+    /*
+      Keep the six default card definitions available locally.
+      Saved tenant card values override matching defaults.
+      This means a service enabled later by Platform Admin
+      immediately has a card editor instead of disappearing.
+    */
+    const customServiceDefaults =
+      (Array.isArray(serviceRows) ? serviceRows : [])
+        .filter(service =>
+          Number(service?.customSlot || 0) >= 1 &&
+          service?.customConfigured === true
+        )
+        .map(service=>({
+          id:`custom${Number(service.customSlot)}`,
+          serviceKey:
+            `CUSTOM${Number(service.customSlot)}`,
+          active:false,
+          title:
+            service.title ||
+            `Custom Service ${Number(service.customSlot)}`,
+          description:"",
+          image:"",
+          link:"getquote/index.html"
+        }));
+
+    const mergedServices =
+      [
+        ...defaultSystemDesign.services,
+        ...customServiceDefaults
+      ]
+        .map(defaultService=>{
+
+          const key =
+            serviceCardKey(
+              defaultService
+            );
+
+          const saved =
+            savedServices.find(item => {
+              const savedKey =
+                serviceCardKey(item);
+
+              if(savedKey === key){
+                return true;
+              }
+
+              return (
+                String(item?.id || "")
+                  .trim()
+                  .toLowerCase() ===
+                String(defaultService?.id || "")
+                  .trim()
+                  .toLowerCase()
+              );
+            });
+
+          return {
+            ...defaultService,
+            ...(saved || {}),
+            id:defaultService.id,
+            serviceKey:key
+          };
+        });
+
+    savedServices.forEach(saved=>{
+
+      const key =
+        serviceCardKey(saved);
+
+      const exists =
+        mergedServices.some(item =>
+          serviceCardKey(item) === key
+        );
+
+      if(!exists){
+        mergedServices.push(saved);
+      }
+    });
+
+    systemDesign = {
+
+      ...defaultSystemDesign,
+
+      ...data,
+
+      allowedServices,
+
+      services:
+        mergedServices
+
+    };
+
+  }catch(err){
+
+    console.log(err);
+
+    systemDesign =
+    defaultSystemDesign;
+
+  }
+
+}
+
+/* =========================
+SAVE
+========================= */
+
+async function saveSystemDesign(){
+
+  try{
+
+    const res =
+    await fetch(
+      "/api/system-design",
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json",
+          Authorization:"Bearer " + token
+        },
+
+        body:
+        JSON.stringify(systemDesign)
+
+      }
+    );
+
+    const data =
+    await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        "Save Failed"
+      );
+    }
+
+  }catch(err){
+
+    console.log(err);
+
+    throw err;
+
+  }
+
+}
+
+/* =========================
+HELPERS
+========================= */
+
+function setValue(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.value = value || "";
+
+  }
+
+}
+
+function setChecked(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.checked = !!value;
+
+  }
+
+}
+
+function setImage(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const src =
+    String(value || "").trim();
+
+  if(src){
+    el.src = src;
+    el.style.display = "block";
+  }else{
+    el.removeAttribute("src");
+    el.style.display = "none";
+  }
+
+}
+
+/* =========================
+WORD ALIGN HELPERS
+========================= */
+
+const WORD_ALIGN_OPTIONS = [
+  { value:"left", label:"Left" },
+  { value:"center", label:"Center" },
+  { value:"right", label:"Right" },
+  { value:"justify", label:"Justify" },
+  { value:"justify-left", label:"Justify Left" },
+  { value:"justify-center", label:"Justify Center" },
+  { value:"justify-right", label:"Justify Right" }
+];
+
+function normalizeWordAlign(value, fallback = "center"){
+
+  const clean =
+  String(value || "")
+  .toLowerCase()
+  .trim();
+
+  const allowed =
+  WORD_ALIGN_OPTIONS.map(item=>item.value);
+
+  return allowed.includes(clean)
+  ? clean
+  : fallback;
+
+}
+
+function setupAlignSelect(id, value, fallback = "center"){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const finalValue =
+  normalizeWordAlign(value, fallback);
+
+  el.innerHTML = "";
+
+  WORD_ALIGN_OPTIONS.forEach(item=>{
+
+    const option =
+    document.createElement("option");
+
+    option.value =
+    item.value;
+
+    option.innerText =
+    item.label;
+
+    if(item.value === finalValue){
+      option.selected = true;
+    }
+
+    el.appendChild(option);
+
+  });
+
+}
+
+function getAlignValue(id, fallback = "center"){
+
+  return normalizeWordAlign(
+    document.getElementById(id)?.value,
+    fallback
+  );
+
+}
+
+/* =========================
+SERVICE ZONE HELPERS
+========================= */
+
+function zoneRadiusValue(value){
+
+  const n = Number(value);
+
+  return (
+    Number.isFinite(n) &&
+    n > 0
+  )
+    ? n
+    : 50;
+}
+
+function loadZoneForm(
+  prefix,
+  zone
+){
+
+  const z =
+    zone &&
+    typeof zone === "object"
+      ? zone
+      : {};
+
+  setChecked(
+    `${prefix}Enabled`,
+    z.enabled === true
+  );
+
+  setValue(
+    `${prefix}Country`,
+    z.country || ""
+  );
+
+  setValue(
+    `${prefix}StateProvince`,
+    z.stateProvince || ""
+  );
+
+  setValue(
+    `${prefix}City`,
+    z.city || ""
+  );
+
+  setValue(
+    `${prefix}PostalCode`,
+    z.postalCode || ""
+  );
+
+  setValue(
+    `${prefix}RadiusMiles`,
+    zoneRadiusValue(
+      z.radiusMiles
+    )
+  );
+}
+
+function readZoneForm(
+  prefix,
+  currentZone = {}
+){
+
+  return {
+    enabled:
+      document.getElementById(
+        `${prefix}Enabled`
+      )?.checked === true,
+
+    country:
+      document.getElementById(
+        `${prefix}Country`
+      )?.value || "",
+
+    stateProvince:
+      document.getElementById(
+        `${prefix}StateProvince`
+      )?.value || "",
+
+    city:
+      document.getElementById(
+        `${prefix}City`
+      )?.value || "",
+
+    postalCode:
+      document.getElementById(
+        `${prefix}PostalCode`
+      )?.value || "",
+
+    radiusMiles:
+      zoneRadiusValue(
+        document.getElementById(
+          `${prefix}RadiusMiles`
+        )?.value
+      ),
+
+    centerLat:
+      currentZone?.centerLat ?? null,
+
+    centerLng:
+      currentZone?.centerLng ?? null,
+
+    centerAddress:
+      currentZone?.centerAddress || ""
+  };
+}
+
+/* =========================
+LOAD VALUES
+========================= */
+
+function loadFormValues(){
+
+  /* =========================
+     BASIC
+  ========================= */
+
+  setValue(
+    "companyNameInput",
+    systemDesign.companyName
+  );
+
+  setValue(
+    "timezoneInput",
+    systemDesign.timezone
+  );
+
+  setValue(
+    "regionInput",
+    systemDesign.region
+  );
+
+  setValue(
+    "countryInput",
+    systemDesign.country
+  );
+
+  loadZoneForm(
+    "getQuoteZone",
+    systemDesign.getQuoteZone
+  );
+
+  loadZoneForm(
+    "companiesZone",
+    systemDesign.companiesZone
+  );
+
+  loadZoneForm(
+    "reservedZone",
+    systemDesign.reservedZone
+  );
+
+  setValue(
+    "invoiceEmailInput",
+    systemDesign.invoiceEmail
+  );
+
+  setValue(
+    "smtpHostInput",
+    systemDesign.smtpHost
+  );
+
+  setValue(
+    "smtpPortInput",
+    systemDesign.smtpPort
+  );
+
+  setValue(
+    "smtpUserInput",
+    systemDesign.smtpUser
+  );
+
+  setValue(
+    "smtpPassInput",
+    systemDesign.smtpPass
+  );
+
+  setValue(
+    "bookingEmailSubjectInput",
+    systemDesign.bookingEmailSubject
+  );
+
+  setValue(
+    "bookingEmailMessageInput",
+    systemDesign.bookingEmailMessage
+  );
+
+  setValue(
+    "cancelPolicyTextInput",
+    systemDesign.cancelPolicyText
+  );
+
+  /* =========================
+     IMAGES
+  ========================= */
+
+  setImage(
+    "mainLogoPreview",
+    systemDesign.mainLogo
+  );
+
+  setImage(
+    "driverLogoPreview",
+    systemDesign.driverLogo
+  );
+
+  setImage(
+    "heroImagePreview",
+    systemDesign.heroImage
+  );
+
+  /* =========================
+     BODY
+  ========================= */
+
+  setValue(
+    "bodyBgInput",
+    systemDesign.bodyBg
+  );
+
+  setValue(
+    "bodyTextColorInput",
+    systemDesign.bodyTextColor
+  );
+
+  /* =========================
+     ABOUT
+  ========================= */
+
+  setValue(
+    "aboutBgInput",
+    systemDesign.aboutBg
+  );
+
+  setValue(
+    "aboutBorderInput",
+    systemDesign.aboutBorder
+  );
+
+  setValue(
+    "aboutRadiusInput",
+    systemDesign.aboutRadius
+  );
+
+  setValue(
+    "aboutPaddingInput",
+    systemDesign.aboutPadding
+  );
+
+  setValue(
+    "aboutTitleInput",
+    systemDesign.aboutTitle
+  );
+
+  setValue(
+    "aboutTitleColorInput",
+    systemDesign.aboutTitleColor
+  );
+
+  setValue(
+    "aboutTitleSizeInput",
+    systemDesign.aboutTitleSize
+  );
+
+  setupAlignSelect(
+    "aboutTitleAlignInput",
+    systemDesign.aboutTitleAlign,
+    "center"
+  );
+
+  setValue(
+    "aboutTextInput",
+    systemDesign.aboutText
+  );
+
+  setValue(
+    "aboutTextColorInput",
+    systemDesign.aboutTextColor
+  );
+
+  setValue(
+    "aboutTextSizeInput",
+    systemDesign.aboutTextSize
+  );
+
+  setupAlignSelect(
+    "aboutTextAlignInput",
+    systemDesign.aboutTextAlign,
+    "justify-center"
+  );
+
+  /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  setValue(
+    "aboutMobilePaddingInput",
+    systemDesign.aboutMobilePadding
+  );
+
+  setValue(
+    "aboutTitleMobileSizeInput",
+    systemDesign.aboutTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTitleMobileAlignInput",
+    systemDesign.aboutTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "aboutTextMobileSizeInput",
+    systemDesign.aboutTextMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTextMobileAlignInput",
+    systemDesign.aboutTextMobileAlign,
+    "left"
+  );
+
+  /* =========================
+     QUOTE
+  ========================= */
+
+  setValue(
+    "quoteBgInput",
+    systemDesign.quoteBg
+  );
+
+  setValue(
+    "quoteBorderInput",
+    systemDesign.quoteBorder
+  );
+
+  setValue(
+    "quoteRadiusInput",
+    systemDesign.quoteRadius
+  );
+
+  setValue(
+    "quotePaddingInput",
+    systemDesign.quotePadding
+  );
+
+  setValue(
+    "quoteTitleInput",
+    systemDesign.quoteTitle
+  );
+
+  setValue(
+    "quoteTitleColorInput",
+    systemDesign.quoteTitleColor
+  );
+
+  setValue(
+    "quoteTitleSizeInput",
+    systemDesign.quoteTitleSize
+  );
+
+  setupAlignSelect(
+    "quoteTitleAlignInput",
+    systemDesign.quoteTitleAlign,
+    "center"
+  );
+
+  setValue(
+    "quoteTextInput",
+    systemDesign.quoteText
+  );
+
+  setValue(
+    "quoteTextColorInput",
+    systemDesign.quoteTextColor
+  );
+
+  setValue(
+    "quoteTextSizeInput",
+    systemDesign.quoteTextSize
+  );
+
+  setupAlignSelect(
+    "quoteTextAlignInput",
+    systemDesign.quoteTextAlign,
+    "justify-center"
+  );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  setValue(
+    "quoteMobilePaddingInput",
+    systemDesign.quoteMobilePadding
+  );
+
+  setValue(
+    "quoteTitleMobileSizeInput",
+    systemDesign.quoteTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTitleMobileAlignInput",
+    systemDesign.quoteTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "quoteTextMobileSizeInput",
+    systemDesign.quoteTextMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTextMobileAlignInput",
+    systemDesign.quoteTextMobileAlign,
+    "left"
+  );
+
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
+
+  setValue(
+    "extra1Title",
+    systemDesign.extra1Title
+  );
+
+  setValue(
+    "extra1Text",
+    systemDesign.extra1Text
+  );
+
+  setChecked(
+    "extra1Active",
+    systemDesign.extra1Active
+  );
+
+  setValue(
+    "extra2Title",
+    systemDesign.extra2Title
+  );
+
+  setValue(
+    "extra2Text",
+    systemDesign.extra2Text
+  );
+
+  setChecked(
+    "extra2Active",
+    systemDesign.extra2Active
+  );
+
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
+
+  setValue(
+    "extraBoxBgInput",
+    systemDesign.extraBoxBg
+  );
+
+  setValue(
+    "extraBoxBorderInput",
+    systemDesign.extraBoxBorder
+  );
+
+  setValue(
+    "extraBoxTitleColorInput",
+    systemDesign.extraBoxTitleColor
+  );
+
+  setValue(
+    "extraBoxTextColorInput",
+    systemDesign.extraBoxTextColor
+  );
+
+  setValue(
+    "extraBoxRadiusInput",
+    systemDesign.extraBoxRadius
+  );
+
+  setValue(
+    "extraBoxPaddingInput",
+    systemDesign.extraBoxPadding
+  );
+
+  setupAlignSelect(
+    "extraBoxAlignInput",
+    systemDesign.extraBoxAlign,
+    "justify-center"
+  );
+
+  setValue(
+    "extraBoxTitleSizeInput",
+    systemDesign.extraBoxTitleSize
+  );
+
+  setValue(
+    "extraBoxTextSizeInput",
+    systemDesign.extraBoxTextSize
+  );
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  setValue(
+    "extraBoxMobilePaddingInput",
+    systemDesign.extraBoxMobilePadding
+  );
+
+  setValue(
+    "extraBoxTitleMobileSizeInput",
+    systemDesign.extraBoxTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTitleMobileAlignInput",
+    systemDesign.extraBoxTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "extraBoxTextMobileSizeInput",
+    systemDesign.extraBoxTextMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTextMobileAlignInput",
+    systemDesign.extraBoxTextMobileAlign,
+    "left"
+  );
+
+  setValue(
+    "extraBoxBorderSizeInput",
+    systemDesign.extraBoxBorderSize
+  );
+
+  setChecked(
+    "extraBoxShadowInput",
+    systemDesign.extraBoxShadow
+  );
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  setValue(
+    "contactTitleInput",
+    systemDesign.contactTitle
+  );
+
+  setValue(
+    "contactPhoneInput",
+    systemDesign.contactPhone
+  );
+
+  setValue(
+    "contactEmailInput",
+    systemDesign.contactEmail
+  );
+
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
+
+  setValue(
+    "contactTitleColorInput",
+    systemDesign.contactTitleColor
+  );
+
+  setValue(
+    "contactTitleSizeInput",
+    systemDesign.contactTitleSize
+  );
+
+  setValue(
+    "contactBgInput",
+    systemDesign.contactBg
+  );
+
+  setValue(
+    "contactBorderInput",
+    systemDesign.contactBorder
+  );
+
+  setValue(
+    "contactRadiusInput",
+    systemDesign.contactRadius
+  );
+
+  setupAlignSelect(
+    "contactAlignInput",
+    systemDesign.contactAlign,
+    "center"
+  );
+
+  setupAlignSelect(
+    "contactJustifyInput",
+    systemDesign.contactJustify,
+    "justify-center"
+  );
+
+}
+
+/* =========================
+UPLOADS
+========================= */
+async function uploadMainImage(
+  input,
+  key,
+  previewId
+){
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  key
+);
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign[key] =
+    data.image;
+
+    setImage(
+      previewId,
+      data.image
+    );
+
+    await saveSystemDesign();
+
+    alert("Uploaded");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+}
+
+window.uploadMainLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+
+};
+
+window.uploadDriverLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+
+};
+
+window.uploadHeroImage =
+function(input){
+
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+
+};
+
+/* =========================
+LIVE PREVIEW
+========================= */
+
+function previewLive(){
+
+  document.body.style.background =
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "#f1f5f9";
+
+  document.body.style.color =
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "#0f172a";
+
+}
+
+/* =========================
+RENDER SERVICE CARDS
+========================= */
+
+function renderCardsEditor(){
+
+  const container =
+  document.getElementById(
+    "cardsEditor"
+  );
+
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  const services =
+  systemDesign.services || [];
+
+  services.forEach((service,index)=>{
+
+    if(!isServiceAllowed(service)){
+      return;
+    }
+
+    container.innerHTML += `
+
+    <div class="service-card">
+
+      <div class="service-top">
+
+        <div class="service-title">
+          ${service.title || ""}
+        </div>
+
+        <button
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
+          onclick="toggleCard(${index})"
+        >
+
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
+
+        </button>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Service Name
+        </label>
+
+        <input
+          type="text"
+          id="title-${index}"
+          value="${service.title || ""}"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Description
+        </label>
+
+        <textarea
+          id="desc-${index}"
+        >${service.description || ""}</textarea>
+
+      </div>
+
+    <div class="input-group">
+
+  <label>
+    Card Image
+  </label>
+
+  <img
+    ${service.image ? `src="${service.image}"` : ""}
+    class="preview-image"
+    ${service.image ? "" : 'style="display:none;"'}
+    style="
+      width:100%;
+      height:180px;
+      object-fit:cover;
+      border-radius:14px;
+      margin-top:10px;
+    "
+  >
+
+  <input
+    type="file"
+    hidden
+    accept="image/*"
+    id="cardUpload-${index}"
+    onchange="uploadCardImage(this,${index})"
+  >
+
+  <button
+    class="upload-btn"
+    type="button"
+    onclick="
+    document.getElementById(
+      'cardUpload-${index}'
+    ).click()
+    "
+  >
+    Upload Card Image
+  </button>
+
+</div>
+
+<button
+  class="save-btn card-save"
+  onclick="saveCard(${index})"
+>
+
+  Save Card
+
+</button>
+
+</div>
+
+`;
+
+  });
+
+  const visibleCount =
+    services.filter(
+      isServiceAllowed
+    ).length;
+
+  if(!visibleCount){
+
+    container.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        padding:28px;
+        border:1px dashed #cbd5e1;
+        border-radius:18px;
+        background:#f8fafc;
+        color:#64748b;
+        font-weight:800;
+        text-align:center;
+      ">
+        No homepage services have been assigned to this company by Platform Admin.
+      </div>
+    `;
+  }
+
+}
+
+/* =========================
+CARD ACTIONS
+========================= */
+
+window.toggleCard =
+function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  systemDesign.services[index].active =
+  !systemDesign.services[index].active;
+
+  saveSystemDesign();
+
+  renderCardsEditor();
+
+};
+
+window.saveCard =
+async function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  const service =
+    systemDesign.services[index];
+
+  const permanentKey =
+    serviceCardKey(service);
+
+  if(permanentKey){
+    service.serviceKey =
+      permanentKey;
+  }
+
+  service.title =
+  document.getElementById(
+    `title-${index}`
+  ).value;
+
+  service.description =
+  document.getElementById(
+    `desc-${index}`
+  ).value;
+
+  await saveSystemDesign();
+
+  alert("Card Saved");
+
+};
+
+/* =========================
+SAVE ALL
+========================= */
+
+window.saveAllSystemDesign =
+async function(){
+
+  /* =========================
+     BASIC
+  ========================= */
+
+  systemDesign.companyName =
+  document.getElementById(
+    "companyNameInput"
+  )?.value || "";
+
+  systemDesign.timezone =
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "";
+
+  systemDesign.region =
+  document.getElementById(
+    "regionInput"
+  )?.value || "";
+
+  systemDesign.country =
+  document.getElementById(
+    "countryInput"
+  )?.value || "";
+
+  systemDesign.getQuoteZone =
+    readZoneForm(
+      "getQuoteZone",
+      systemDesign.getQuoteZone
+    );
+
+  systemDesign.companiesZone =
+    readZoneForm(
+      "companiesZone",
+      systemDesign.companiesZone
+    );
+
+  systemDesign.reservedZone =
+    readZoneForm(
+      "reservedZone",
+      systemDesign.reservedZone
+    );
+
+  systemDesign.invoiceEmail =
+  document.getElementById(
+    "invoiceEmailInput"
+  )?.value || "";
+
+  systemDesign.smtpHost =
+  document.getElementById(
+    "smtpHostInput"
+  )?.value || "";
+
+  systemDesign.smtpPort =
+  document.getElementById(
+    "smtpPortInput"
+  )?.value || "";
+
+  systemDesign.smtpUser =
+  document.getElementById(
+    "smtpUserInput"
+  )?.value || "";
+
+  systemDesign.smtpPass =
+  document.getElementById(
+    "smtpPassInput"
+  )?.value || "";
+
+  systemDesign.bookingEmailSubject =
+  document.getElementById(
+    "bookingEmailSubjectInput"
+  )?.value || "";
+
+  systemDesign.bookingEmailMessage =
+  document.getElementById(
+    "bookingEmailMessageInput"
+  )?.value || "";
+
+  systemDesign.cancelPolicyText =
+  document.getElementById(
+    "cancelPolicyTextInput"
+  )?.value || "";
+
+  /* =========================
+     BODY
+  ========================= */
+
+  systemDesign.bodyBg =
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "";
+
+  systemDesign.bodyTextColor =
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "";
+
+  /* =========================
+     ABOUT
+  ========================= */
+
+  systemDesign.aboutBg =
+  document.getElementById(
+    "aboutBgInput"
+  )?.value || "";
+
+  systemDesign.aboutBorder =
+  document.getElementById(
+    "aboutBorderInput"
+  )?.value || "";
+
+  systemDesign.aboutRadius =
+  document.getElementById(
+    "aboutRadiusInput"
+  )?.value || "";
+
+  systemDesign.aboutPadding =
+  document.getElementById(
+    "aboutPaddingInput"
+  )?.value || "";
+
+  systemDesign.aboutTitle =
+  document.getElementById(
+    "aboutTitleInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleColor =
+  document.getElementById(
+    "aboutTitleColorInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleSize =
+  document.getElementById(
+    "aboutTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleAlign =
+  getAlignValue(
+    "aboutTitleAlignInput",
+    "center"
+  );
+
+  systemDesign.aboutText =
+  document.getElementById(
+    "aboutTextInput"
+  )?.value || "";
+
+  systemDesign.aboutTextColor =
+  document.getElementById(
+    "aboutTextColorInput"
+  )?.value || "";
+
+  systemDesign.aboutTextSize =
+  document.getElementById(
+    "aboutTextSizeInput"
+  )?.value || "";
+
+  systemDesign.aboutTextAlign =
+  getAlignValue(
+    "aboutTextAlignInput",
+    "justify-center"
+  );
+
+  /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  systemDesign.aboutMobilePadding =
+  document.getElementById(
+    "aboutMobilePaddingInput"
+  )?.value ||
+  systemDesign.aboutMobilePadding ||
+  "18";
+
+  systemDesign.aboutTitleMobileSize =
+  document.getElementById(
+    "aboutTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTitleMobileSize ||
+  "20";
+
+  systemDesign.aboutTitleMobileAlign =
+  document.getElementById(
+    "aboutTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.aboutTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.aboutTextMobileSize =
+  document.getElementById(
+    "aboutTextMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTextMobileSize ||
+  "14";
+
+  systemDesign.aboutTextMobileAlign =
+  document.getElementById(
+    "aboutTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.aboutTextMobileAlign ||
+        "left"
+      );
+
+  /* =========================
+     QUOTE
+  ========================= */
+
+  systemDesign.quoteBg =
+  document.getElementById(
+    "quoteBgInput"
+  )?.value || "";
+
+  systemDesign.quoteBorder =
+  document.getElementById(
+    "quoteBorderInput"
+  )?.value || "";
+
+  systemDesign.quoteRadius =
+  document.getElementById(
+    "quoteRadiusInput"
+  )?.value || "";
+
+  systemDesign.quotePadding =
+  document.getElementById(
+    "quotePaddingInput"
+  )?.value || "";
+
+  systemDesign.quoteTitle =
+  document.getElementById(
+    "quoteTitleInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleColor =
+  document.getElementById(
+    "quoteTitleColorInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleSize =
+  document.getElementById(
+    "quoteTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleAlign =
+  getAlignValue(
+    "quoteTitleAlignInput",
+    "center"
+  );
+
+  systemDesign.quoteText =
+  document.getElementById(
+    "quoteTextInput"
+  )?.value || "";
+
+  systemDesign.quoteTextColor =
+  document.getElementById(
+    "quoteTextColorInput"
+  )?.value || "";
+
+  systemDesign.quoteTextSize =
+  document.getElementById(
+    "quoteTextSizeInput"
+  )?.value || "";
+
+  systemDesign.quoteTextAlign =
+  getAlignValue(
+    "quoteTextAlignInput",
+    "justify-center"
+  );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  systemDesign.quoteMobilePadding =
+  document.getElementById(
+    "quoteMobilePaddingInput"
+  )?.value ||
+  systemDesign.quoteMobilePadding ||
+  "18";
+
+  systemDesign.quoteTitleMobileSize =
+  document.getElementById(
+    "quoteTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTitleMobileSize ||
+  "20";
+
+  systemDesign.quoteTitleMobileAlign =
+  document.getElementById(
+    "quoteTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.quoteTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.quoteTextMobileSize =
+  document.getElementById(
+    "quoteTextMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTextMobileSize ||
+  "14";
+
+  systemDesign.quoteTextMobileAlign =
+  document.getElementById(
+    "quoteTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.quoteTextMobileAlign ||
+        "left"
+      );
+
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
+
+  systemDesign.extra1Title =
+  document.getElementById(
+    "extra1Title"
+  )?.value || "";
+
+  systemDesign.extra1Text =
+  document.getElementById(
+    "extra1Text"
+  )?.value || "";
+
+  systemDesign.extra1Active =
+  document.getElementById(
+    "extra1Active"
+  )?.checked || false;
+
+  systemDesign.extra2Title =
+  document.getElementById(
+    "extra2Title"
+  )?.value || "";
+
+  systemDesign.extra2Text =
+  document.getElementById(
+    "extra2Text"
+  )?.value || "";
+
+  systemDesign.extra2Active =
+  document.getElementById(
+    "extra2Active"
+  )?.checked || false;
+
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
+
+  systemDesign.extraBoxBg =
+  document.getElementById(
+    "extraBoxBgInput"
+  )?.value || "";
+
+  systemDesign.extraBoxBorder =
+  document.getElementById(
+    "extraBoxBorderInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTitleColor =
+  document.getElementById(
+    "extraBoxTitleColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextColor =
+  document.getElementById(
+    "extraBoxTextColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxRadius =
+  document.getElementById(
+    "extraBoxRadiusInput"
+  )?.value || "";
+
+  systemDesign.extraBoxPadding =
+  document.getElementById(
+    "extraBoxPaddingInput"
+  )?.value || "";
+
+  systemDesign.extraBoxAlign =
+  getAlignValue(
+    "extraBoxAlignInput",
+    "justify-center"
+  );
+
+  systemDesign.extraBoxTitleSize =
+  document.getElementById(
+    "extraBoxTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextSize =
+  document.getElementById(
+    "extraBoxTextSizeInput"
+  )?.value || "";
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  systemDesign.extraBoxMobilePadding =
+  document.getElementById(
+    "extraBoxMobilePaddingInput"
+  )?.value ||
+  systemDesign.extraBoxMobilePadding ||
+  "18";
+
+  systemDesign.extraBoxTitleMobileSize =
+  document.getElementById(
+    "extraBoxTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTitleMobileSize ||
+  "20";
+
+  systemDesign.extraBoxTitleMobileAlign =
+  document.getElementById(
+    "extraBoxTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.extraBoxTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.extraBoxTextMobileSize =
+  document.getElementById(
+    "extraBoxTextMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTextMobileSize ||
+  "14";
+
+  systemDesign.extraBoxTextMobileAlign =
+  document.getElementById(
+    "extraBoxTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.extraBoxTextMobileAlign ||
+        "left"
+      );
+
+  systemDesign.extraBoxBorderSize =
+  document.getElementById(
+    "extraBoxBorderSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxShadow =
+  document.getElementById(
+    "extraBoxShadowInput"
+  )?.checked || false;
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  systemDesign.contactTitle =
+  document.getElementById(
+    "contactTitleInput"
+  )?.value || "";
+
+  systemDesign.contactPhone =
+  document.getElementById(
+    "contactPhoneInput"
+  )?.value || "";
+
+  systemDesign.contactEmail =
+  document.getElementById(
+    "contactEmailInput"
+  )?.value || "";
+
+  systemDesign.footerText =
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
+
+  systemDesign.contactTitleColor =
+  document.getElementById(
+    "contactTitleColorInput"
+  )?.value || "";
+
+  systemDesign.contactTitleSize =
+  document.getElementById(
+    "contactTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.contactBg =
+  document.getElementById(
+    "contactBgInput"
+  )?.value || "";
+
+  systemDesign.contactBorder =
+  document.getElementById(
+    "contactBorderInput"
+  )?.value || "";
+
+  systemDesign.contactRadius =
+  document.getElementById(
+    "contactRadiusInput"
+  )?.value || "";
+
+  systemDesign.contactAlign =
+  getAlignValue(
+    "contactAlignInput",
+    "center"
+  );
+
+  systemDesign.contactJustify =
+  getAlignValue(
+    "contactJustifyInput",
+    "justify-center"
+  );
+
+  try{
+
+    await saveSystemDesign();
+
+    alert("Saved");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Save Failed"
+    );
+  }
+
+};
+
+/* =========================
+UPLOAD CARD IMAGE
+========================= */
+
+window.uploadCardImage =
+async function(input,index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  `services.${index}.image`
+);
+
+formData.append(
+  "serviceKey",
+  serviceCardKey(
+    systemDesign.services[index]
+  )
+);
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign.services[index].image =
+    data.image;
+
+    await saveSystemDesign();
+
+    renderCardsEditor();
+
+    alert("Card Image Updated");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+};
+
+/* =========================
+RESET
+========================= */
+
+window.resetSystemDesign =
+function(){
+
+  const ok =
+  confirm(
+    "Reset System Design?"
+  );
+
+  if(!ok) return;
+
+  location.reload();
+
+};
+
+/* =========================
+INIT
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    await loadSystemDesign();
+
+    loadFormValues();
+
+    renderCardsEditor();
+
+    previewLive();
+
+  }
+);
