@@ -454,6 +454,91 @@ async function getTenantServices(tenant){
     .map(publicService);
 }
 
+
+function tenantAllowedServiceGateSet(tenant){
+
+  return new Set(
+    (
+      Array.isArray(
+        tenant?.allowedServices
+      )
+        ? tenant.allowedServices
+        : []
+    )
+    .map(normalizeServiceCode)
+    .filter(Boolean)
+  );
+}
+
+function resolveAllowedPublicQuoteService(
+  tenant,
+  services,
+  requestedValue
+){
+
+  const requestedOperationalCode =
+    normalizeServiceKey(
+      requestedValue
+    );
+
+  const requestedGateKey =
+    normalizeServiceCode(
+      requestedValue
+    );
+
+  const service =
+    (
+      Array.isArray(services)
+        ? services
+        : []
+    )
+    .find(item => {
+
+      const operationalCode =
+        normalizeServiceKey(
+          getServiceCode(item)
+        );
+
+      const gateKey =
+        normalizeServiceCode(
+          getServiceGateKey(item)
+        );
+
+      return (
+        operationalCode ===
+          requestedOperationalCode ||
+        gateKey ===
+          requestedGateKey
+      );
+    });
+
+  if(!service){
+    return {
+      service:null,
+      allowed:false
+    };
+  }
+
+  const allowedGates =
+    tenantAllowedServiceGateSet(
+      tenant
+    );
+
+  const serviceGateKey =
+    normalizeServiceCode(
+      getServiceGateKey(service)
+    );
+
+  return {
+    service,
+    allowed:
+      service.enabled === true &&
+      allowedGates.has(
+        serviceGateKey
+      )
+  };
+}
+
 async function resolveTenantForPublicRequest(
   req,
   slug
@@ -1148,55 +1233,39 @@ router.post(
         });
       }
 
-      const requestedCode =
-        normalizeServiceKey(
-          req.body?.serviceKey
-        );
-
-      const allowed =
-        new Set(
-          (
-            tenant.allowedServices ||
-            []
-          )
-          .map(normalizeServiceKey)
-        );
-
-      if(
-        !allowed.has(
-          requestedCode
-        )
-      ){
-
-        return res.status(403).json({
-          success:false,
-          message:
-            "Service is not enabled for this company"
-        });
-      }
-
       const services =
         await Service.find({
           tenantId:tenant._id
         })
         .lean();
 
-      const service =
-        services.find(
-          item =>
-            getServiceCode(item) ===
-            requestedCode
+      const resolvedService =
+        resolveAllowedPublicQuoteService(
+          tenant,
+          services,
+          req.body?.serviceKey
         );
 
-      if(
-        !service ||
-        service.enabled !== true
-      ){
+      const service =
+        resolvedService.service;
+
+      if(!service){
 
         return res.status(404).json({
           success:false,
           message:
             "Service not available"
+        });
+      }
+
+      if(
+        resolvedService.allowed !== true
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Service is not enabled for this company"
         });
       }
 
@@ -1254,55 +1323,39 @@ router.post(
         });
       }
 
-      const requestedCode =
-        normalizeServiceKey(
-          req.body?.serviceKey
-        );
-
-      const allowed =
-        new Set(
-          (
-            tenant.allowedServices ||
-            []
-          )
-          .map(normalizeServiceKey)
-        );
-
-      if(
-        !allowed.has(
-          requestedCode
-        )
-      ){
-
-        return res.status(403).json({
-          success:false,
-          message:
-            "Service is not enabled for this company"
-        });
-      }
-
       const services =
         await Service.find({
           tenantId:tenant._id
         })
         .lean();
 
-      const service =
-        services.find(
-          item =>
-            getServiceCode(item) ===
-            requestedCode
+      const resolvedService =
+        resolveAllowedPublicQuoteService(
+          tenant,
+          services,
+          req.body?.serviceKey
         );
 
-      if(
-        !service ||
-        service.enabled !== true
-      ){
+      const service =
+        resolvedService.service;
+
+      if(!service){
 
         return res.status(404).json({
           success:false,
           message:
             "Service not available"
+        });
+      }
+
+      if(
+        resolvedService.allowed !== true
+      ){
+
+        return res.status(403).json({
+          success:false,
+          message:
+            "Service is not enabled for this company"
         });
       }
 
