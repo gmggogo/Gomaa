@@ -24,6 +24,16 @@ function parseAllowedOrigins() {
   allowed.add("http://localhost:10000");
   allowed.add("http://127.0.0.1:10000");
 
+  // GH Mobility production origin on Render.
+  // Keep this explicit so same-origin API calls such as /api/auth/login
+  // are accepted in production without opening CORS to every domain.
+  allowed.add("https://sunbeam-933g.onrender.com");
+
+  // Also allow Render's external URL automatically if provided by the platform.
+  if (process.env.RENDER_EXTERNAL_URL) {
+    allowed.add(normalizeOrigin(process.env.RENDER_EXTERNAL_URL));
+  }
+
   if (String(process.env.NODE_ENV || "").toLowerCase() !== "production") {
     allowed.add("http://localhost:3000");
     allowed.add("http://localhost:5000");
