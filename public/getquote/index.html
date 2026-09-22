@@ -661,58 +661,6 @@ function getServiceImage(serviceKey){
 
 }
 
-function getServiceEmoji(service){
-
-  const serviceKey =
-    String(service?.serviceKey || service || "").toUpperCase();
-
-  const iconKey =
-    String(service?.iconKey || "").toUpperCase();
-
-  const icons = {
-    GENERIC_TRANSPORT:"🚚",
-    SEDAN:"🚗",
-    SUV:"🚙",
-    MINIVAN:"🚐",
-    WHEELCHAIR:"♿",
-    LIMOUSINE:"🚘",
-    TAXI:"🚕",
-    SHARED:"👥",
-    CARGO_VAN:"📦",
-    SPRINTER_VAN:"🚐",
-    PICKUP_TRUCK:"🛻",
-    BOX_TRUCK:"🚚",
-    MOVING_TRUCK:"🚛",
-    FLATBED:"🚛",
-    SEMI_TRUCK:"🚛",
-    TRACTOR_TRAILER:"🚛",
-    HEAVY_DUTY:"🚚",
-    COURIER:"📦",
-    MEDICAL:"🏥",
-    ESCORT:"🧑‍🦽"
-  };
-
-  if(iconKey && icons[iconKey]){
-    return icons[iconKey];
-  }
-
-  if(
-    service &&
-    typeof service === "object" &&
-    String(service.icon || "").trim()
-  ){
-    return String(service.icon).trim();
-  }
-
-  if(serviceKey === "ST") return "🚗";
-  if(serviceKey === "XL") return "🚐";
-  if(serviceKey === "TX") return "🚕";
-  if(serviceKey === "LM") return "🚘";
-  if(serviceKey === "WH") return "♿";
-
-  return "🚚";
-}
-
 /* ================= LOAD SERVICES ================= */
 
 async function loadServices(){
@@ -930,8 +878,14 @@ activeServices.forEach(service=>{
 
 const serviceKey =
 String(
-service.serviceKey || ""
-).toUpperCase();
+  service.serviceKey ||
+  service.serviceCode ||
+  service.customServiceCode ||
+  service.serviceIdentity ||
+  ""
+)
+.trim()
+.toUpperCase();
 
 const title =
 lang === "es"
@@ -939,48 +893,18 @@ lang === "es"
 : (service.title || serviceKey);
 
 /*
-  Dynamic icon library:
-  passenger, cargo, box truck, semi truck and CDL services share one UI.
+  Dynamic service card.
+  No fixed vehicle image/emoji is used because custom services can represent
+  passenger, cargo, trucking, medical transport, or any future service.
 */
-const emoji =
-getServiceEmoji(service);
-
 const card =
 document.createElement("div");
 
 card.className =
 "vehicle-option";
 
-const mediaHtml =
-`
-<div class="vehicle-emoji">
-${emoji}
-</div>
-`;
-
-</div>
-`;
-
-}
-
-const serviceMeta = [
-  String(service.serviceCategory || "").toUpperCase() === "CARGO"
-    ? "Cargo"
-    : "",
-  service.requiresCDL === true
-    ? `CDL${service.cdlClass ? " " + service.cdlClass : ""}`
-    : "",
-  String(service.vehicleCategory || "").toUpperCase() !== "GENERIC"
-    ? String(service.vehicleCategory || "").replace(/_/g," ")
-    : ""
-]
-.filter(Boolean)
-.join(" • ");
-
 card.innerHTML = `
-${mediaHtml}
 <b>${title}</b>
-${serviceMeta ? `<small style="display:block;margin-top:3px">${serviceMeta}</small>` : ""}
 `;
 
 card.onclick = function(){
@@ -995,6 +919,47 @@ card
 container.appendChild(card);
 
 });
+
+/*
+  Support direct links such as ?service=LM or ?service=ME.
+  This also works for Platform-created custom services because matching is
+  based on the operational service code returned by the public tenant API.
+*/
+const requestedService =
+  String(
+    new URLSearchParams(window.location.search).get("service") ||
+    ""
+  )
+  .trim()
+  .toUpperCase();
+
+if(requestedService){
+  const requestedIndex =
+    activeServices.findIndex(service => {
+      const codes = [
+        service?.serviceKey,
+        service?.serviceCode,
+        service?.customServiceCode,
+        service?.serviceIdentity
+      ]
+      .map(value => String(value || "").trim().toUpperCase())
+      .filter(Boolean);
+
+      return codes.includes(requestedService);
+    });
+
+  if(requestedIndex >= 0){
+    const requestedCard =
+      container.children[requestedIndex];
+
+    if(requestedCard){
+      selectService(
+        activeServices[requestedIndex],
+        requestedCard
+      );
+    }
+  }
+}
 
 }catch(err){
 
@@ -1017,8 +982,14 @@ function selectService(service,card){
 
 selectedService =
 String(
-service.serviceKey || ""
-).toUpperCase();
+  service.serviceKey ||
+  service.serviceCode ||
+  service.customServiceCode ||
+  service.serviceIdentity ||
+  ""
+)
+.trim()
+.toUpperCase();
 
 document
 .querySelectorAll(".vehicle-option")
