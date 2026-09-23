@@ -2740,6 +2740,230 @@ function viewLine(label,value){
   `;
 }
 
+function bookingViewValue(value){
+
+  if(value === undefined || value === null){
+    return "";
+  }
+
+  if(Array.isArray(value)){
+    return value
+      .map(item=>bookingViewValue(item))
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if(typeof value === "object"){
+    try{
+      return JSON.stringify(value);
+    }catch(err){
+      return String(value);
+    }
+  }
+
+  return normalizeText(value);
+}
+
+function bookingViewLabelFromKey(key){
+
+  const raw =
+    normalizeText(key);
+
+  if(!raw){
+    return "Additional Information";
+  }
+
+  const known = {
+    appointmentTime:"Appointment Time",
+    returnTime:"Return Time",
+    memberId:"Member ID",
+    serviceType:"Service Type",
+    tripType:"Trip Type",
+    company:"Company",
+    entryName:"Entry Name",
+    entryPhone:"Entry Phone",
+    brokerName:"Broker Name",
+    brokerCode:"Broker Code",
+    brokerTripId:"Broker Trip ID",
+    externalSource:"External Source",
+    brokerNotes:"Broker Notes",
+    totalPassengers:"Total Passengers"
+  };
+
+  if(known[raw]){
+    return known[raw];
+  }
+
+  return raw
+    .replace(/^CUSTOM_/i,"Custom ")
+    .replace(/[_-]+/g," ")
+    .replace(/([a-z0-9])([A-Z])/g,"$1 $2")
+    .replace(/\b\w/g,ch=>ch.toUpperCase())
+    .trim();
+}
+
+function getTripBookingViewFields(t){
+
+  const rows = [];
+  const seen = new Set();
+
+  function pushField(label,value,key=""){
+
+    const finalValue =
+      bookingViewValue(value);
+
+    if(!finalValue){
+      return;
+    }
+
+    const finalLabel =
+      normalizeText(label) ||
+      bookingViewLabelFromKey(key);
+
+    const dedupeKey =
+      (
+        normalizeText(key) ||
+        finalLabel
+      )
+      .toLowerCase();
+
+    if(!dedupeKey || seen.has(dedupeKey)){
+      return;
+    }
+
+    seen.add(dedupeKey);
+
+    rows.push({
+      key:normalizeText(key),
+      label:finalLabel,
+      value:finalValue
+    });
+  }
+
+  [
+    t?.dynamicBookingData,
+    t?.customBookingData,
+    t?.reservedCustomBookingData,
+    t?.bookingData?.reservedFields,
+    t?.bookingData?.getQuoteFields,
+    t?.bookingData?.companyFields,
+    t?.bookingData?.facilityFields,
+    t?.bookingData?.brokerFields
+  ]
+  .forEach(list=>{
+
+    if(!Array.isArray(list)){
+      return;
+    }
+
+    list.forEach(item=>{
+
+      if(!item || typeof item !== "object"){
+        return;
+      }
+
+      pushField(
+        item.label ||
+        item.title ||
+        bookingViewLabelFromKey(
+          item.key ||
+          item.fieldKey ||
+          item.name
+        ),
+        item.value ??
+        item.fieldValue ??
+        item.answer,
+        item.key ||
+        item.fieldKey ||
+        item.name ||
+        (
+          Number(item.slot || 0)
+            ? `CUSTOM_${Number(item.slot)}`
+            : ""
+        )
+      );
+    });
+  });
+
+  [
+    t?.reservedBookingData,
+    t?.bookingData?.reserved,
+    t?.bookingData?.getQuote,
+    t?.bookingData?.company,
+    t?.bookingData?.facility,
+    t?.bookingData?.broker,
+    t?.additionalBookingData
+  ]
+  .forEach(obj=>{
+
+    if(
+      !obj ||
+      typeof obj !== "object" ||
+      Array.isArray(obj)
+    ){
+      return;
+    }
+
+    Object.entries(obj)
+      .forEach(([key,value])=>{
+        pushField(
+          bookingViewLabelFromKey(key),
+          value,
+          key
+        );
+      });
+  });
+
+  [
+    ["appointmentTime","Appointment Time"],
+    ["returnTime","Return Time"],
+    ["memberId","Member ID"],
+    ["brokerName","Broker Name"],
+    ["brokerCode","Broker Code"],
+    ["brokerTripId","Broker Trip ID"],
+    ["externalSource","External Source"],
+    ["brokerNotes","Broker Notes"],
+    ["totalPassengers","Total Passengers"]
+  ]
+  .forEach(([key,label])=>{
+    pushField(
+      label,
+      t?.[key],
+      key
+    );
+  });
+
+  if(
+    t?.unmappedExternalFields &&
+    typeof t.unmappedExternalFields === "object" &&
+    !Array.isArray(t.unmappedExternalFields)
+  ){
+    Object.entries(
+      t.unmappedExternalFields
+    ).forEach(([key,value])=>{
+      pushField(
+        bookingViewLabelFromKey(key),
+        value,
+        `external_${key}`
+      );
+    });
+  }
+
+  return rows;
+}
+
+function renderTripBookingViewFields(t){
+
+  return getTripBookingViewFields(t)
+    .map(item=>
+      viewLine(
+        item.label,
+        item.value
+      )
+    )
+    .join("");
+}
+
 function viewPassengerCard(passenger,index,trip){
   const title =
     `Passenger ${index + 1} — ` +
@@ -2798,6 +3022,8 @@ function openReviewView(key){
       ${viewLine("Trip Status",getGroupStatus(item.group))}
       ${viewLine("Passengers",String(passengers.length))}
 
+      ${renderTripBookingViewFields(t)}
+
       <div class="view-passenger-list">
         ${passengers.map(
           (passenger,index)=>
@@ -2829,6 +3055,7 @@ function openReviewView(key){
       ${viewLine("Notes",getNotes(t))}
       ${viewLine("Booked Date",getBookedDate(t))}
       ${viewLine("Booked Time",getBookedTime(t))}
+      ${renderTripBookingViewFields(t)}
     `;
   }
 
