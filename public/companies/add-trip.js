@@ -123,186 +123,478 @@ function ensureDynamicBookingFieldsHost(){
   section.style.display = "none";
   section.innerHTML = `<h3>Additional Information</h3><div class="form-grid" id="dynamicBookingFields"></div>`;
 
-  const individual = document.getElementById("individualSection");
-  const shared = document.getElementById("sharedSection");
-
-  if(individual?.parentNode && shared?.parentNode && individual.parentNode === shared.parentNode){
-    individual.parentNode.insertBefore(section,individual);
+  const tripDetails = document.getElementById("individualTripDetails");
+  if(tripDetails?.parentNode){
+    tripDetails.parentNode.insertBefore(section,tripDetails);
   }else{
-    const tabs = document.getElementById("companyTabs");
-    if(tabs?.parentNode){
-      if(tabs.nextSibling) tabs.parentNode.insertBefore(section,tabs.nextSibling);
-      else tabs.parentNode.appendChild(section);
-    }else{
-      const tripDetails = document.getElementById("individualTripDetails");
-      if(tripDetails?.parentNode) tripDetails.parentNode.insertBefore(section,tripDetails);
-      else document.querySelector("main")?.appendChild(section);
-    }
+    const notes = document.getElementById("notes");
+    const parentSection = notes?.closest("section");
+    if(parentSection?.parentNode) parentSection.parentNode.insertBefore(section,parentSection);
+    else document.querySelector("main")?.appendChild(section);
   }
-
   box = document.getElementById("dynamicBookingFields");
   return {section,box};
 }
 
-function platformCompanyFieldMatrix(field){
-  return field?.matrix?.company || field?.matrix?.facility || field?.company || field?.facility || {};
-}
-
-function platformCompanyFieldVisible(field){
-  const matrix = platformCompanyFieldMatrix(field);
-  return field?.showField === true || matrix?.showField === true;
-}
-
-function platformCompanyFieldRequired(field){
-  const matrix = platformCompanyFieldMatrix(field);
-  return platformCompanyFieldVisible(field) && (field?.required === true || matrix?.required === true);
-}
-
-function platformCompanyFieldColumn(field){
-  const matrix = platformCompanyFieldMatrix(field);
-  return field?.showColumn === true || matrix?.showColumn === true;
-}
-
-function platformCompanyFieldEye(field){
-  const matrix = platformCompanyFieldMatrix(field);
-  return field?.showEye === true || matrix?.showEye === true;
-}
-
-function extractPlatformCompanyFields(data){
-  const direct = [data?.fields,data?.bookingFields,data?.data?.fields,data?.data?.bookingFields,data?.items,data?.results];
-  for(const list of direct){ if(Array.isArray(list)) return list; }
-
-  const standard = Array.isArray(data?.standardFields) ? data.standardFields : (Array.isArray(data?.data?.standardFields) ? data.data.standardFields : []);
-  const custom = Array.isArray(data?.customFields) ? data.customFields : (Array.isArray(data?.data?.customFields) ? data.data.customFields : []);
-  if(standard.length || custom.length){
-    return [
-      ...standard.map(item=>({...item,source:item?.source || "STANDARD"})),
-      ...custom.map(item=>({...item,source:item?.source || "CUSTOM"}))
-    ];
-  }
-  return [];
-}
-
-async function fetchPlatformCompanyBookingFields(){
-  const slug = getCompanyTenantSlug();
-  const endpoints = [
-    "/api/services/booking-data/company",
-    slug ? `/api/public/tenant/${encodeURIComponent(slug)}/booking-data/company` : "",
-    "/api/public/tenant/default/booking-data/company"
-  ].filter(Boolean);
-
-  let lastError = null;
-  for(const endpoint of endpoints){
-    try{
-      const res = await fetch(endpoint,{
-        method:"GET",
-        headers:{Authorization:"Bearer " + token,Accept:"application/json"},
-        cache:"no-store"
-      });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        lastError = new Error(data.message || `Failed loading booking fields from ${endpoint}`);
-        continue;
-      }
-      return {endpoint,fields:extractPlatformCompanyFields(data),raw:data};
-    }catch(err){
-      lastError = err;
-    }
-  }
-  throw (lastError || new Error("Failed loading Platform Company booking fields"));
-}
-
 async function loadFacilityBookingFields(){
-  const {section,box} = ensureDynamicBookingFieldsHost();
-  if(!section || !box) return;
+
+  const {section,box} =
+    ensureDynamicBookingFieldsHost();
+
+  if(!section || !box){
+    return;
+  }
 
   FACILITY_BOOKING_FIELDS = [];
   box.innerHTML = "";
   section.style.display = "none";
 
+  /*
+    Platform Admin is the source of truth.
+
+    This reader accepts BOTH backend response styles:
+    1) already-normalized { fields:[...] }
+    2) raw BookingDataConfig { standardFields:[], customFields:[] }
+
+    It also accepts either matrix.company or matrix.facility so an older
+    BookingDataConfig version cannot make Company fields disappear.
+  */
+  function matrixForCompany(field){
+
+    return (
+      field?.matrix?.company ||
+      field?.matrix?.facility ||
+      field?.company ||
+      field?.facility ||
+      {}
+    );
+  }
+
+  function companyShowField(field){
+
+    if(field?.showField !== undefined){
+      return bool(field.showField);
+    }
+
+    const matrix =
+      matrixForCompany(field);
+
+    if(matrix?.showField !== undefined){
+      return bool(matrix.showField);
+    }
+
+    /*
+      A normalized endpoint usually returns only fields that Platform Admin
+      already enabled, so absence of showField must NOT hide them again.
+    */
+    return true;
+  }
+
+  function companyRequired(field){
+
+    if(field?.required !== undefined){
+      return bool(field.required);
+    }
+
+    return bool(
+      matrixForCompany(field)
+        ?.required
+    );
+  }
+
+  function normalizeCompanyField(
+    field,
+    index,
+    sourceHint = ""
+  ){
+
+    const source =
+      normalizeText(
+        field?.source ||
+        sourceHint ||
+        (
+          Number(field?.slot || 0)
+            ? "CUSTOM"
+            : "STANDARD"
+        )
+      )
+      .toUpperCase();
+
+    const slot =
+      Number(
+        field?.slot || 0
+      ) || null;
+
+    let key =
+      normalizeText(
+        field?.key ||
+        field?.fieldKey ||
+        field?.name
+      );
+
+    if(
+      !key &&
+      source === "CUSTOM" &&
+      slot
+    ){
+      key =
+        `CUSTOM_${slot}`;
+    }
+
+    return {
+      key,
+
+      label:
+        normalizeText(
+          field?.label ||
+          field?.title ||
+          field?.displayName ||
+          key
+        ),
+
+      fieldType:
+        normalizeText(
+          field?.fieldType ||
+          field?.type ||
+          "TEXT"
+        )
+        .toUpperCase(),
+
+      options:
+        Array.isArray(field?.options)
+          ? field.options
+              .map(normalizeText)
+              .filter(Boolean)
+          : [],
+
+      placeholder:
+        normalizeText(
+          field?.placeholder ||
+          ""
+        ),
+
+      required:
+        companyRequired(field),
+
+      showField:
+        companyShowField(field),
+
+      showColumn:
+        field?.showColumn !== undefined
+          ? bool(field.showColumn)
+          : bool(
+              matrixForCompany(field)
+                ?.showColumn
+            ),
+
+      showEye:
+        field?.showEye !== undefined
+          ? bool(field.showEye)
+          : bool(
+              matrixForCompany(field)
+                ?.showEye
+            ),
+
+      source:
+        source === "CUSTOM"
+          ? "CUSTOM"
+          : "STANDARD",
+
+      slot:
+        source === "CUSTOM"
+          ? slot
+          : null,
+
+      order:
+        Number(
+          field?.order ??
+          matrixForCompany(field)?.order ??
+          index
+        )
+    };
+  }
+
+  function fieldsFromBookingConfig(data){
+
+    const direct =
+      Array.isArray(data?.fields)
+        ? data.fields
+        : Array.isArray(data?.bookingFields)
+          ? data.bookingFields
+          : Array.isArray(data?.data?.fields)
+            ? data.data.fields
+            : null;
+
+    if(Array.isArray(direct)){
+      return direct.map(
+        (field,index)=>
+          normalizeCompanyField(
+            field,
+            index,
+            field?.source
+          )
+      );
+    }
+
+    const config =
+      (
+        data?.config &&
+        typeof data.config === "object"
+      )
+        ? data.config
+        : (
+            data?.data &&
+            typeof data.data === "object"
+          )
+            ? data.data
+            : data;
+
+    const standardFields =
+      Array.isArray(
+        config?.standardFields
+      )
+        ? config.standardFields
+        : [];
+
+    const customFields =
+      Array.isArray(
+        config?.customFields
+      )
+        ? config.customFields
+        : [];
+
+    return [
+      ...standardFields.map(
+        (field,index)=>
+          normalizeCompanyField(
+            field,
+            index,
+            "STANDARD"
+          )
+      ),
+      ...customFields.map(
+        (field,index)=>
+          normalizeCompanyField(
+            field,
+            standardFields.length + index,
+            "CUSTOM"
+          )
+      )
+    ];
+  }
+
   try{
-    const result = await fetchPlatformCompanyBookingFields();
-    const rawFields = Array.isArray(result?.fields) ? result.fields : [];
 
-    FACILITY_BOOKING_FIELDS = rawFields
-      .map((field,index)=>{
-        const source = normalizeText(field?.source || (Number(field?.slot || 0) ? "CUSTOM" : "STANDARD")).toUpperCase();
-        const slot = Number(field?.slot || 0) || null;
-        const key = normalizeText(field?.key || field?.fieldKey || field?.name || (source === "CUSTOM" && slot ? `CUSTOM_${slot}` : ""));
-        const matrix = platformCompanyFieldMatrix(field);
+    const res =
+      await fetch(
+        "/api/services/booking-data/company",
+        {
+          method:"GET",
+          headers:{
+            Authorization:
+              "Bearer " + token,
+            Accept:
+              "application/json"
+          },
+          cache:"no-store"
+        }
+      );
 
-        return {
-          key,
-          label:normalizeText(field?.label || field?.title || matrix?.label || key),
-          fieldType:normalizeText(field?.fieldType || field?.type || matrix?.fieldType || "TEXT").toUpperCase(),
-          options:Array.isArray(field?.options) ? field.options.map(normalizeText).filter(Boolean) : (Array.isArray(matrix?.options) ? matrix.options.map(normalizeText).filter(Boolean) : []),
-          placeholder:normalizeText(field?.placeholder || matrix?.placeholder || ""),
-          required:platformCompanyFieldRequired(field),
-          showField:platformCompanyFieldVisible(field),
-          showColumn:platformCompanyFieldColumn(field),
-          showEye:platformCompanyFieldEye(field),
-          source,
-          slot,
-          aliases:Array.isArray(field?.aliases) ? field.aliases.map(normalizeText).filter(Boolean) : [],
-          order:Number(field?.order ?? matrix?.order ?? index)
-        };
-      })
-      .filter(field=>field.key && field.showField === true)
-      .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
 
-    for(const field of FACILITY_BOOKING_FIELDS){
-      const wrap = document.createElement("div");
-      wrap.className = "field-wrap";
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        `Failed loading booking fields (${res.status})`
+      );
+    }
 
-      const label = document.createElement("label");
-      label.className = "auto-share-field-label";
-      label.htmlFor = `dynamicBookingField_${field.key}`;
-      label.textContent = field.label + (field.required ? " *" : "");
+    FACILITY_BOOKING_FIELDS =
+      fieldsFromBookingConfig(data)
+        .filter(field=>
+          field.key &&
+          field.showField === true
+        )
+        .sort(
+          (a,b)=>
+            Number(a.order || 0) -
+            Number(b.order || 0)
+        );
+
+    for(
+      const field of
+      FACILITY_BOOKING_FIELDS
+    ){
+
+      const wrap =
+        document.createElement(
+          "div"
+        );
+
+      wrap.className =
+        "field-wrap";
+
+      const label =
+        document.createElement(
+          "label"
+        );
+
+      label.className =
+        "auto-share-field-label";
+
+      label.htmlFor =
+        `dynamicBookingField_${field.key}`;
+
+      label.textContent =
+        field.label +
+        (
+          field.required
+            ? " *"
+            : ""
+        );
+
       wrap.appendChild(label);
 
       let input;
-      if(field.fieldType === "LONG_TEXT"){
-        input = document.createElement("textarea");
-      }else if(field.fieldType === "DROPDOWN" || field.fieldType === "YES_NO"){
-        input = document.createElement("select");
-        const empty = document.createElement("option");
+
+      if(
+        field.fieldType ===
+        "LONG_TEXT"
+      ){
+
+        input =
+          document.createElement(
+            "textarea"
+          );
+
+      }else if(
+        field.fieldType ===
+          "DROPDOWN" ||
+        field.fieldType ===
+          "YES_NO"
+      ){
+
+        input =
+          document.createElement(
+            "select"
+          );
+
+        const empty =
+          document.createElement(
+            "option"
+          );
+
         empty.value = "";
-        empty.textContent = field.placeholder || `Select ${field.label}`;
+
+        empty.textContent =
+          field.placeholder ||
+          `Select ${field.label}`;
+
         input.appendChild(empty);
-        const options = field.fieldType === "YES_NO" ? ["Yes","No"] : field.options;
-        for(const value of options){
-          const option = document.createElement("option");
+
+        const options =
+          field.fieldType ===
+            "YES_NO"
+            ? ["Yes","No"]
+            : field.options;
+
+        for(
+          const value of options
+        ){
+
+          const option =
+            document.createElement(
+              "option"
+            );
+
           option.value = value;
           option.textContent = value;
+
           input.appendChild(option);
         }
+
       }else{
-        input = document.createElement("input");
-        input.type = bookingFieldInputType(field.fieldType);
+
+        input =
+          document.createElement(
+            "input"
+          );
+
+        input.type =
+          bookingFieldInputType(
+            field.fieldType
+          );
       }
 
-      input.id = `dynamicBookingField_${field.key}`;
-      input.name = field.key;
-      input.dataset.bookingFieldKey = field.key;
-      input.dataset.bookingFieldSource = field.source;
-      input.dataset.bookingFieldSlot = field.slot ? String(field.slot) : "";
-      input.placeholder = field.placeholder || field.label;
-      input.required = field.required === true;
+      input.id =
+        `dynamicBookingField_${field.key}`;
+
+      input.name =
+        field.key;
+
+      input.dataset.bookingFieldKey =
+        field.key;
+
+      input.dataset.bookingSource =
+        field.source;
+
+      input.dataset.bookingSlot =
+        field.slot || "";
+
+      input.dataset.bookingLabel =
+        field.label;
+
+      input.dataset.bookingType =
+        field.fieldType;
+
+      input.dataset.bookingRequired =
+        field.required
+          ? "true"
+          : "false";
+
+      input.placeholder =
+        field.placeholder ||
+        field.label;
+
+      input.required =
+        field.required === true;
+
       wrap.appendChild(input);
       box.appendChild(wrap);
     }
 
-    section.style.display = FACILITY_BOOKING_FIELDS.length ? "block" : "none";
-    if(FACILITY_BOOKING_FIELDS.length) restoreDynamicBookingDraft();
+    section.style.display =
+      FACILITY_BOOKING_FIELDS.length
+        ? "block"
+        : "none";
 
-    console.log("PLATFORM COMPANY BOOKING FIELDS:",{endpoint:result?.endpoint || "",fields:FACILITY_BOOKING_FIELDS});
+    if(
+      FACILITY_BOOKING_FIELDS.length
+    ){
+      restoreDynamicBookingDraft();
+    }
+
+    console.log(
+      "COMPANY BOOKING FIELDS FROM PLATFORM ADMIN:",
+      FACILITY_BOOKING_FIELDS
+    );
+
   }catch(err){
-    console.error("LOAD PLATFORM COMPANY BOOKING FIELDS ERROR:",err);
+
+    console.error(
+      "LOAD COMPANY BOOKING FIELDS ERROR:",
+      err
+    );
+
     FACILITY_BOOKING_FIELDS = [];
     box.innerHTML = "";
     section.style.display = "none";
   }
 }
+
 
 function collectDynamicBookingData(validateRequired=false){
   const rows = [];
@@ -324,11 +616,6 @@ function collectDynamicBookingData(validateRequired=false){
       fieldType:field.fieldType,
       value,
       source:field.source,
-      required:field.required === true,
-      showField:field.showField === true,
-      showColumn:field.showColumn === true,
-      showEye:field.showEye === true,
-      aliases:Array.isArray(field.aliases) ? field.aliases : [],
       ...(field.slot ? { slot:field.slot } : {})
     });
   }
@@ -1850,14 +2137,16 @@ function normalizeServiceCode(v){
 
 function isValidServiceCode(code){
 
-  const normalized =
-    normalizeServiceCode(code);
-
-  if(["ST","WH","XL","LM","TX","SH"].includes(normalized)){
-    return true;
-  }
-
-  return /^[A-Z]{2}$/.test(normalized);
+  return [
+    "ST",
+    "WH",
+    "XL",
+    "LM",
+    "TX",
+    "SH"
+  ].includes(
+    normalizeServiceCode(code)
+  );
 }
 
 function resolveServiceCode(service){
@@ -1872,7 +2161,6 @@ function resolveServiceCode(service){
 
   const directFields = [
 
-    service.customServiceCode,
     service.companySuffix,
     service.serviceSuffix,
     service.suffix,
@@ -3439,9 +3727,6 @@ async function submitUnmatchedAutomaticCandidate(id,serviceCode){
   try{
     const selected = servicePayloadFromConfig(service);
 
-    const dynamicBookingData = collectDynamicBookingData(true);
-    const dynamicTopLevel = dynamicBookingTopLevelValues(dynamicBookingData);
-
     assertCompanyBookingHours(
       selected.service,
       candidate.tripDate || "",
@@ -3484,17 +3769,6 @@ async function submitUnmatchedAutomaticCandidate(id,serviceCode){
       tripTime:candidate.tripTime || candidate.pickupTime || "",
       appointmentTime:candidate.appointmentTime || "",
       notes:candidate.notes || "",
-
-      dynamicBookingData,
-      customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
-      bookingData:{
-        facility:dynamicBookingObject(dynamicBookingData),
-        company:dynamicBookingObject(dynamicBookingData),
-        facilityFields:dynamicBookingData,
-        companyFields:dynamicBookingData
-      },
-      ...dynamicTopLevel,
-
       status:"Scheduled"
     };
 
@@ -4451,8 +4725,6 @@ async function submitAutomaticSharedGroup(groupIndex){
 
   try{
     const selected = selectedServicePayload();
-    const dynamicBookingData = collectDynamicBookingData(true);
-    const dynamicTopLevel = dynamicBookingTopLevelValues(dynamicBookingData);
     const passengers = sourceTrips.map(automaticPassengerFromCandidate);
     const tripDate = group.tripDate || passengers[0]?.tripDate || "";
     const tripTime = group.calculatedFirstPickupTime || passengers[0]?.tripTime || "";
@@ -4495,16 +4767,6 @@ async function submitAutomaticSharedGroup(groupIndex){
       routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
       routeSource:"SHARED_ENGINE",
       notes:`Automatic Shared ${group.tripLeg || "OUTBOUND"}`,
-
-      dynamicBookingData,
-      customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
-      bookingData:{
-        facility:dynamicBookingObject(dynamicBookingData),
-        company:dynamicBookingObject(dynamicBookingData),
-        facilityFields:dynamicBookingData,
-        companyFields:dynamicBookingData
-      },
-      ...dynamicTopLevel,
 
       /*
         Automatic Shared groups are already reviewed/built by the Company
@@ -5267,9 +5529,7 @@ submitTripBtn.onclick = async function(){
       customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
       bookingData:{
         facility:dynamicBookingObject(dynamicBookingData),
-        company:dynamicBookingObject(dynamicBookingData),
-        facilityFields:dynamicBookingData,
-        companyFields:dynamicBookingData
+        company:dynamicBookingObject(dynamicBookingData)
       },
       ...dynamicTopLevel,
 
@@ -5437,12 +5697,6 @@ submitSharedBtn.onclick = async function(){
     const selected =
       selectedServicePayload();
 
-    const dynamicBookingData =
-      collectDynamicBookingData(true);
-
-    const dynamicTopLevel =
-      dynamicBookingTopLevelValues(dynamicBookingData);
-
     assertCompanyBookingHours(
       selected.service,
       sharedDate.value,
@@ -5485,16 +5739,6 @@ submitSharedBtn.onclick = async function(){
       tripDate:sharedDate.value,
       tripTime:sharedTime.value,
       notes:sharedNotes.value,
-
-      dynamicBookingData,
-      customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
-      bookingData:{
-        facility:dynamicBookingObject(dynamicBookingData),
-        company:dynamicBookingObject(dynamicBookingData),
-        facilityFields:dynamicBookingData,
-        companyFields:dynamicBookingData
-      },
-      ...dynamicTopLevel,
 
       status:"Scheduled"
     };
