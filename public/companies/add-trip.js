@@ -146,30 +146,42 @@ async function loadFacilityBookingFields(){
 
   try{
     const res = await fetch("/api/services/booking-data/company",{
-      headers:{ Authorization:"Bearer " + token },
+      method:"GET",
+      headers:{
+        Authorization:"Bearer " + token,
+        Accept:"application/json"
+      },
       cache:"no-store"
     });
 
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
-    FACILITY_BOOKING_FIELDS = (Array.isArray(data?.fields) ? data.fields : [])
+    const rawFields = Array.isArray(data?.fields)
+      ? data.fields
+      : Array.isArray(data?.bookingFields)
+        ? data.bookingFields
+        : Array.isArray(data?.data?.fields)
+          ? data.data.fields
+          : [];
+
+    FACILITY_BOOKING_FIELDS = rawFields
       .map((field,index)=>({
         key:normalizeText(field?.key),
         label:normalizeText(field?.label || field?.key),
-        fieldType:normalizeText(field?.fieldType || "TEXT").toUpperCase(),
+        fieldType:normalizeText(field?.fieldType || field?.type || "TEXT").toUpperCase(),
         options:Array.isArray(field?.options) ? field.options.map(normalizeText).filter(Boolean) : [],
         placeholder:normalizeText(field?.placeholder || ""),
-        required:field?.showField === true && field?.required === true,
+        required:field?.required === true,
         showField:field?.showField === true,
         source:normalizeText(field?.source || "STANDARD").toUpperCase(),
         slot:Number(field?.slot || 0) || null,
         order:Number(field?.order ?? index)
       }))
-      .filter(field=>field.key && (field.showField || field.required))
+      .filter(field=>field.key && field.showField === true)
       .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
 
-    FACILITY_BOOKING_FIELDS.forEach(field=>{
+    for(const field of FACILITY_BOOKING_FIELDS){
       const wrap = document.createElement("div");
       wrap.className = "field-wrap";
 
@@ -189,31 +201,33 @@ async function loadFacilityBookingFields(){
         empty.textContent = field.placeholder || `Select ${field.label}`;
         input.appendChild(empty);
         const options = field.fieldType === "YES_NO" ? ["Yes","No"] : field.options;
-        options.forEach(value=>{
+        for(const value of options){
           const option = document.createElement("option");
           option.value = value;
           option.textContent = value;
           input.appendChild(option);
-        });
+        }
       }else{
         input = document.createElement("input");
         input.type = bookingFieldInputType(field.fieldType);
       }
 
       input.id = `dynamicBookingField_${field.key}`;
+      input.name = field.key;
       input.dataset.bookingFieldKey = field.key;
       input.placeholder = field.placeholder || field.label;
-      if(field.required) input.required = true;
+      input.required = field.required === true;
       wrap.appendChild(input);
       box.appendChild(wrap);
-    });
-
-    if(FACILITY_BOOKING_FIELDS.length){
-      section.style.display = "block";
-      restoreDynamicBookingDraft();
     }
+
+    section.style.display = FACILITY_BOOKING_FIELDS.length ? "block" : "none";
+    if(FACILITY_BOOKING_FIELDS.length) restoreDynamicBookingDraft();
   }catch(err){
-    console.log("LOAD FACILITY BOOKING FIELDS ERROR:", err);
+    console.error("LOAD COMPANY BOOKING FIELDS ERROR:",err);
+    FACILITY_BOOKING_FIELDS = [];
+    box.innerHTML = "";
+    section.style.display = "none";
   }
 }
 
