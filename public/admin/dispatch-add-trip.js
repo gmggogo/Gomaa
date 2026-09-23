@@ -1,133 +1,110 @@
-function getCompanyToken(){
-  const own = String(localStorage.getItem("companyToken") || "").trim();
-  if(own) return own;
-  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
-    return String(localStorage.getItem("token") || "").trim();
-  }
-  return "";
-}
-function getCompanyRole(){
-  const own = String(localStorage.getItem("companyRole") || "").trim();
-  if(own) return own;
-  const legacy = String(localStorage.getItem("role") || "").trim();
-  return legacy.toLowerCase() === "company" ? legacy : "";
-}
-function getCompanyName(){
-  const own = String(localStorage.getItem("companyName") || "").trim();
-  if(own) return own;
-  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
-    return String(localStorage.getItem("name") || "").trim();
-  }
-  return "";
-}
-function getCompanyTenantSlug(){
-  return String(
-    localStorage.getItem("companyTenantSlug") ||
-    sessionStorage.getItem("companyTenantSlug") ||
-    ""
-  ).trim().toLowerCase();
-}
-function companyLoginUrl(){
-  const slug = getCompanyTenantSlug();
-  return slug
-    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
-    : "/companies/company-login.html";
-}
-function companyStorageKey(baseKey){
-  const scope =
-    getCompanyTenantSlug() ||
-    String(localStorage.getItem("companyTenantId") || "").trim() ||
-    "company";
-  return `${baseKey}:${scope}`;
-}
-
 /* =====================================================
-FILE: add-trip.js
-FINAL COMPLETE VERSION
-Facility Override First
-Service Code Fixed From Company Suffix
+FILE: public/admin/dispatch-add-trip.js
+DISPATCH ADD TRIP - RESERVED RV DB FIRST
+Final Version
+
+POLICY:
+- Add Trip stays inside dispatchAddWrapper/container
+- Review is full page outside any frame
+- Review grouping by CREATED date, not trip date
+- Add To Review stays on Add page and clears form
+- Individual Add Stop returns, max 5 stops
+- Confirm builds final route first, then miles/minutes, then price
+- Shared: every passenger has own Base Fare + own Included Miles
+- Shared stops count from final route
+- No CSS injection
 ===================================================== */
 
-document.addEventListener("DOMContentLoaded", function(){
+document.addEventListener("DOMContentLoaded", async function(){
 
-const token = getCompanyToken();
+/* ================= CONFIG ================= */
 
-const role = getCompanyRole();
+const API_URL = "/api/trips";
+const TENANT_TRIPS_URL = "/api/tenant-trips";
+const SERVICES_URL = "/api/services/admin";
+const ADD_STOP_ACTIVE_FROM =
+  new Date("2026-06-20T05:58:00");
 
-const companyName = getCompanyName();
-
-const companyId =
-  localStorage.getItem("companyFacilityId") ||
-  localStorage.getItem("companyUserId") ||
-  localStorage.getItem("companyTenantId") ||
+const token =
+  sessionStorage.getItem("staffToken") ||
+  localStorage.getItem("staffToken") ||
+  sessionStorage.getItem("token") ||
+  localStorage.getItem("token") ||
   "";
 
-if(!token || role !== "company"){
-  window.location.replace(companyLoginUrl());
+const role =
+  sessionStorage.getItem("staffRole") ||
+  localStorage.getItem("staffRole") ||
+  sessionStorage.getItem("role") ||
+  localStorage.getItem("role") ||
+  "";
+
+const normalizedRole =
+  String(role || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g,"_");
+
+const allowedStaffRoles = [
+  "SUPER_ADMIN",
+  "SUPERADMIN",
+  "ADMIN",
+  "DISPATCHER"
+];
+
+if(!token || !allowedStaffRoles.includes(normalizedRole)){
+  window.location.href = "/login.html";
   return;
 }
 
-let COMPANY_SERVICES = [];
+sessionStorage.setItem("staffToken",token);
+localStorage.setItem("token",token);
+sessionStorage.setItem("staffRole",role);
+localStorage.setItem("role",role);
 
-let activeService = "ST";
-let activeSuffix  = "ST";
+/* ================= STATE ================= */
+
+let SERVICES = [];
+let activeService = null;
+let reviewTrips = [];
+let addTripStops = [];
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
+let SYSTEM_REGION = "";
+let SYSTEM_COUNTRY = "";
 
-/* ================= BILLING ================= */
 
-async function checkBillingLock(){
+/* ================= DOM ================= */
 
-  try{
+const addWrapper =
+  document.getElementById("dispatchAddWrapper");
 
-    const res =
-      await fetch(
-        "/api/company/billing?company=" + encodeURIComponent(companyName),
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
+const addTripPage =
+  document.getElementById("dispatchAddPage");
 
-    const data =
-      await res.json();
+const dispatchReviewPage =
+  document.getElementById("dispatchReviewPage");
 
-    if(data.billingLocked){
+const dispatchReviewList =
+  document.getElementById("dispatchReviewList");
 
-      document.body.innerHTML = `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;padding:20px;font-family:Segoe UI;">
-        <div style="max-width:600px;width:100%;background:#fff;padding:40px;border-radius:20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);">
-          <h1 style="color:#dc2626;margin-bottom:15px;">Account Suspended</h1>
-          <p style="color:#475569;font-size:17px;line-height:1.7;">
-            Your company account is currently locked due to unpaid billing.
-          </p>
-          <a href="/companies/payment.html" style="display:inline-block;margin-top:25px;background:#2563eb;color:#fff;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:800;">
-            Go To Payment Center
-          </a>
-        </div>
-      </div>`;
+const backToHubBtn =
+  document.getElementById("backToHubBtn");
 
-      return false;
-    }
+const showAddBtn =
+  document.getElementById("showAddBtn");
 
-    return true;
+const showReviewBtn =
+  document.getElementById("showReviewBtn");
 
-  }catch(err){
+const reviewBackToHubBtn =
+  document.getElementById("reviewBackToHubBtn");
 
-    console.log(err);
-    return true;
-  }
-}
+const reviewShowAddBtn =
+  document.getElementById("reviewShowAddBtn");
 
-(async()=>{
-
-const ok =
-  await checkBillingLock();
-
-if(!ok) return;
-
-/* ================= ELEMENTS ================= */
+const reviewShowReviewBtn =
+  document.getElementById("reviewShowReviewBtn");
 
 const companyTabs =
   document.getElementById("companyTabs");
@@ -150,17 +127,11 @@ const editEntryBtn =
 const saveEntryBtn =
   document.getElementById("saveEntryBtn");
 
-const saveDraftBtn =
-  document.getElementById("saveDraftBtn");
-
 const clientName =
   document.getElementById("clientName");
 
 const clientPhone =
   document.getElementById("clientPhone");
-
-const clientSuggestions =
-  document.getElementById("clientSuggestions");
 
 const pickupInput =
   document.getElementById("pickup");
@@ -180,11 +151,14 @@ const notes =
 const stopsBox =
   document.getElementById("stops");
 
-const addStopBtn =
+let addStopBtn =
   document.getElementById("addStopBtn");
 
 const submitTripBtn =
   document.getElementById("submitTrip");
+
+const saveDraftBtn =
+  document.getElementById("saveDraftBtn");
 
 const sharedEntryName =
   document.getElementById("sharedEntryName");
@@ -194,6 +168,9 @@ const sharedEntryPhone =
 
 const editSharedEntryBtn =
   document.getElementById("editSharedEntryBtn");
+
+const saveSharedEntryBtn =
+  document.getElementById("saveSharedEntryBtn");
 
 const passengerCount =
   document.getElementById("passengerCount");
@@ -216,1284 +193,25 @@ const submitSharedBtn =
 const saveSharedDraftBtn =
   document.getElementById("saveSharedDraftBtn");
 
-
-const sharedManualModeBtn =
-  document.getElementById("sharedManualModeBtn");
-
-const sharedAutomaticModeBtn =
-  document.getElementById("sharedAutomaticModeBtn");
-
-const manualSharedModePanel =
-  document.getElementById("manualSharedModePanel");
-
-const automaticSharedModePanel =
-  document.getElementById("automaticSharedModePanel");
-
-const autoSharedClientName =
-  document.getElementById("autoSharedClientName");
-
-const autoSharedClientPhone =
-  document.getElementById("autoSharedClientPhone");
-
-const autoSharedPickup =
-  document.getElementById("autoSharedPickup");
-
-const autoSharedDropoff =
-  document.getElementById("autoSharedDropoff");
-
-const autoSharedDate =
-  document.getElementById("autoSharedDate");
-
-const autoSharedPickupTime =
-  document.getElementById("autoSharedPickupTime");
-
-const autoSharedAppointmentTime =
-  document.getElementById("autoSharedAppointmentTime");
-
-const autoSharedReturnTime =
-  document.getElementById("autoSharedReturnTime");
-
-const autoSharedNotes =
-  document.getElementById("autoSharedNotes");
-
-const addAutomaticSharedCandidateBtn =
-  document.getElementById("addAutomaticSharedCandidate");
-
-const automaticSharedList =
-  document.getElementById("automaticSharedList");
-
-const automaticSharedResult =
-  document.getElementById("automaticSharedResult");
-
-const automaticSharedCounters =
-  document.getElementById("automaticSharedCounters");
-
-const runAutomaticSharedEngineBtn =
-  document.getElementById("runAutomaticSharedEngine");
-
-const submitAutomaticSharedGroupsBtn =
-  document.getElementById("submitAutomaticSharedGroups");
-
-let sharedEntryMode = "AUTOMATIC";
-let automaticSharedCandidates = [];
-let automaticSharedPlan = null;
-
 /* ================= HELPERS ================= */
-
 
 function normalizeText(v){
   return String(v ?? "").trim();
 }
 
-/* ================= COMPANIES SERVICE ZONE ================= */
-
-let companyZoneGooglePromise = null;
-let companyZoneSettingsCache = null;
-
-function zoneNumber(value){
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function zoneCoordOk(lat,lng){
-  const a = zoneNumber(lat);
-  const b = zoneNumber(lng);
-
-  return (
-    a !== null &&
-    b !== null &&
-    a >= -90 &&
-    a <= 90 &&
-    b >= -180 &&
-    b <= 180 &&
-    !(a === 0 && b === 0)
-  );
-}
-
-function zoneDistanceMiles(a,b){
-
-  if(
-    !zoneCoordOk(a?.lat,a?.lng) ||
-    !zoneCoordOk(b?.lat,b?.lng)
-  ){
-    return null;
-  }
-
-  const toRad =
-    value=>Number(value) * Math.PI / 180;
-
-  const earthMiles = 3958.7613;
-
-  const dLat =
-    toRad(Number(b.lat) - Number(a.lat));
-
-  const dLng =
-    toRad(Number(b.lng) - Number(a.lng));
-
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) *
-    Math.cos(toRad(b.lat)) *
-    Math.sin(dLng / 2) ** 2;
-
-  return (
-    earthMiles *
-    2 *
-    Math.atan2(
-      Math.sqrt(h),
-      Math.sqrt(1 - h)
-    )
-  );
-}
-
-async function loadCompaniesZone(){
-
-  if(companyZoneSettingsCache){
-    return companyZoneSettingsCache;
-  }
-
-  const res =
-    await fetch(
-      "/api/system-design",
-      {
-        headers:{
-          Authorization:"Bearer " + token
-        },
-        cache:"no-store"
-      }
-    );
-
-  const data =
-    await res.json().catch(()=>({}));
-
-  if(!res.ok){
-    throw new Error(
-      data.message ||
-      "Could not load Companies Zone settings."
-    );
-  }
-
-  const raw =
-    data?.companiesZone ||
-    data?.serviceZones?.companiesZone ||
-    {};
-
-  companyZoneSettingsCache = {
-    enabled:
-      raw?.enabled === true ||
-      String(raw?.enabled).toLowerCase() === "true",
-
-    radiusMiles:
-      Math.max(
-        0,
-        Number(
-          raw?.radiusMiles ??
-          raw?.radius ??
-          0
-        ) || 0
-      ),
-
-    centerLat:
-      zoneNumber(
-        raw?.centerLat
-      ),
-
-    centerLng:
-      zoneNumber(
-        raw?.centerLng
-      ),
-
-    centerAddress:
-      normalizeText(
-        raw?.centerAddress ||
-        [
-          raw?.postalCode,
-          raw?.city,
-          raw?.stateProvince,
-          raw?.country
-        ]
-          .filter(Boolean)
-          .join(", ")
-      )
-  };
-
-  return companyZoneSettingsCache;
-}
-
-async function ensureCompanyZoneGoogleLoaded(){
-
-  if(
-    window.google &&
-    google.maps &&
-    google.maps.DirectionsService &&
-    google.maps.Geocoder
-  ){
-    return;
-  }
-
-  if(companyZoneGooglePromise){
-    return companyZoneGooglePromise;
-  }
-
-  companyZoneGooglePromise =
-    new Promise(
-      async (resolve,reject)=>{
-
-        try{
-
-          const configRes =
-            await fetch(
-              "/api/config",
-              {
-                headers:{
-                  Authorization:"Bearer " + token
-                }
-              }
-            );
-
-          const config =
-            await configRes
-              .json()
-              .catch(()=>({}));
-
-          const googleKey =
-            normalizeText(
-              config?.googleKey
-            );
-
-          if(!googleKey){
-            reject(
-              new Error(
-                "Google Maps key is missing."
-              )
-            );
-            return;
-          }
-
-          const existing =
-            document.querySelector(
-              "script[data-company-zone-google='true']"
-            ) ||
-            document.querySelector(
-              "script[data-google-maps='true']"
-            );
-
-          if(existing){
-
-            if(
-              window.google &&
-              google.maps &&
-              google.maps.DirectionsService &&
-              google.maps.Geocoder
-            ){
-              resolve();
-              return;
-            }
-
-            existing.addEventListener(
-              "load",
-              ()=>resolve(),
-              {once:true}
-            );
-
-            existing.addEventListener(
-              "error",
-              ()=>reject(
-                new Error(
-                  "Google Maps failed to load."
-                )
-              ),
-              {once:true}
-            );
-
-            return;
-          }
-
-          const script =
-            document.createElement(
-              "script"
-            );
-
-          script.src =
-            "https://maps.googleapis.com/maps/api/js?key=" +
-            encodeURIComponent(
-              googleKey
-            );
-
-          script.async = true;
-          script.defer = true;
-
-          script.setAttribute(
-            "data-company-zone-google",
-            "true"
-          );
-
-          script.onload =
-            ()=>resolve();
-
-          script.onerror =
-            ()=>reject(
-              new Error(
-                "Google Maps failed to load."
-              )
-            );
-
-          document.head.appendChild(
-            script
-          );
-
-        }catch(err){
-          reject(err);
-        }
-      }
-    );
-
-  return companyZoneGooglePromise;
-}
-
-async function resolveCompaniesZoneCenter(zone){
-
-  if(
-    zoneCoordOk(
-      zone?.centerLat,
-      zone?.centerLng
-    )
-  ){
-    return {
-      lat:Number(zone.centerLat),
-      lng:Number(zone.centerLng)
-    };
-  }
-
-  const address =
-    normalizeText(
-      zone?.centerAddress
-    );
-
-  if(!address){
-    throw new Error(
-      "Companies Zone center is missing."
-    );
-  }
-
-  await ensureCompanyZoneGoogleLoaded();
-
-  return await new Promise(
-    (resolve,reject)=>{
-
-      const geocoder =
-        new google.maps.Geocoder();
-
-      geocoder.geocode(
-        {address},
-        (results,status)=>{
-
-          const location =
-            results?.[0]
-              ?.geometry
-              ?.location;
-
-          if(
-            status !== "OK" ||
-            !location
-          ){
-            reject(
-              new Error(
-                "Companies Zone center could not be located."
-              )
-            );
-            return;
-          }
-
-          resolve({
-            lat:Number(location.lat()),
-            lng:Number(location.lng())
-          });
-        }
-      );
-    }
-  );
-}
-
-async function calculateCompanyZoneRoute(addresses){
-
-  const points =
-    (Array.isArray(addresses)
-      ? addresses
-      : []
-    )
-      .map(normalizeText)
-      .filter(Boolean);
-
-  if(points.length < 2){
-    throw new Error(
-      "Pickup and Dropoff are required for Companies Zone validation."
-    );
-  }
-
-  await ensureCompanyZoneGoogleLoaded();
-
-  const origin =
-    points[0];
-
-  const destination =
-    points[
-      points.length - 1
-    ];
-
-  const waypoints =
-    points
-      .slice(1,-1)
-      .map(address=>({
-        location:address,
-        stopover:true
-      }));
-
-  return await new Promise(
-    (resolve,reject)=>{
-
-      const directions =
-        new google.maps.DirectionsService();
-
-      directions.route(
-        {
-          origin,
-          destination,
-          waypoints,
-          optimizeWaypoints:false,
-          travelMode:
-            google.maps.TravelMode.DRIVING,
-          unitSystem:
-            google.maps.UnitSystem.IMPERIAL
-        },
-        (response,status)=>{
-
-          const route =
-            response?.routes?.[0];
-
-          if(
-            status !== "OK" ||
-            !route
-          ){
-            reject(
-              new Error(
-                "Unable to verify the trip route for Companies Zone."
-              )
-            );
-            return;
-          }
-
-          const routePath =
-            Array.isArray(
-              route.overview_path
-            )
-              ? route.overview_path
-                  .map(point=>({
-                    lat:Number(point.lat()),
-                    lng:Number(point.lng())
-                  }))
-                  .filter(point=>
-                    zoneCoordOk(
-                      point.lat,
-                      point.lng
-                    )
-                  )
-              : [];
-
-          resolve({
-            routePath
-          });
-        }
-      );
-    }
-  );
-}
-
-async function checkCompaniesZoneRoute(
-  addresses,
-  options = {}
-){
-
-  const zone =
-    await loadCompaniesZone();
-
-  if(
-    !zone.enabled ||
-    zone.radiusMiles <= 0
-  ){
-    return true;
-  }
-
-  const center =
-    await resolveCompaniesZoneCenter(
-      zone
-    );
-
-  const routeData =
-    await calculateCompanyZoneRoute(
-      addresses
-    );
-
-  const routePath =
-    Array.isArray(
-      routeData?.routePath
-    )
-      ? routeData.routePath
-      : [];
-
-  if(!routePath.length){
-    throw new Error(
-      "Companies Zone route could not be verified."
-    );
-  }
-
-  let farthestMiles = 0;
-
-  for(const point of routePath){
-
-    const miles =
-      zoneDistanceMiles(
-        center,
-        point
-      );
-
-    if(miles === null){
-      continue;
-    }
-
-    farthestMiles =
-      Math.max(
-        farthestMiles,
-        miles
-      );
-
-    if(
-      miles >
-      zone.radiusMiles
-    ){
-
-      return confirm(
-`WARNING
-
-This trip route leaves the Companies Zone.
-
-Maximum Radius: ${zone.radiusMiles} miles
-Route Point Distance: ${miles.toFixed(2)} miles
-
-Continue anyway?`
-      );
-    }
-  }
-
-  return true;
-}
-
-async function checkCompaniesZoneSharedPassengers(
-  passengers
-){
-
-  const list =
-    Array.isArray(passengers)
-      ? passengers
-      : [];
-
-  for(
-    let index = 0;
-    index < list.length;
-    index += 1
-  ){
-
-    const passenger =
-      list[index] || {};
-
-    const ok =
-      await checkCompaniesZoneRoute(
-        [
-          passenger.pickup,
-          passenger.dropoff
-        ]
-      );
-
-    if(!ok){
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/* ================= SAVED CLIENTS =================
-   Tenant-scoped browser cache.
-   Zero API requests.
-============================================== */
-
-const SAVED_CLIENTS_KEY =
-  companyStorageKey("savedClients");
-
-function loadSavedClients(){
-
-  try{
-
-    const data =
-      JSON.parse(
-        localStorage.getItem(
-          SAVED_CLIENTS_KEY
-        ) || "[]"
-      );
-
-    return Array.isArray(data)
-      ? data
-      : [];
-
-  }catch(_){
-    return [];
-  }
-}
-
-function saveSavedClients(list){
-
-  try{
-
-    localStorage.setItem(
-      SAVED_CLIENTS_KEY,
-      JSON.stringify(
-        Array.isArray(list)
-          ? list.slice(0,200)
-          : []
-      )
-    );
-
-  }catch(err){
-    console.log(
-      "SAVE CLIENT CACHE ERROR:",
-      err
-    );
-  }
-}
-
-function clientKey(name){
-
-  return normalizeText(name)
+function cleanStatus(v){
+  return String(v || "")
+    .replace(/\s+/g,"")
     .toLowerCase()
-    .replace(/\s+/g," ");
+    .trim();
 }
 
-function upsertSavedClient(data){
-
-  const name =
-    normalizeText(data?.clientName);
-
-  if(!name){
-    return;
-  }
-
-  const key =
-    clientKey(name);
-
-  const list =
-    loadSavedClients();
-
-  const existingIndex =
-    list.findIndex(
-      item=>
-        clientKey(item?.clientName) === key
-    );
-
-  const cleanItem = {
-    clientName:name,
-    clientPhone:
-      normalizeText(data?.clientPhone),
-    pickup:
-      normalizeText(data?.pickup),
-    dropoff:
-      normalizeText(data?.dropoff),
-    updatedAt:
-      Date.now()
-  };
-
-  if(existingIndex >= 0){
-
-    list.splice(
-      existingIndex,
-      1
-    );
-  }
-
-  list.unshift(
-    cleanItem
-  );
-
-  saveSavedClients(
-    list
-  );
-}
-
-function findSavedClientByName(name){
-
-  const key =
-    clientKey(name);
-
-  if(!key){
-    return null;
-  }
-
-  return (
-    loadSavedClients()
-      .find(
-        item=>
-          clientKey(item?.clientName) === key
-      ) ||
-    null
-  );
-}
-
-function getMatchingSavedClients(query){
-
-  const q =
-    clientKey(query);
-
-  if(q.length < 1){
-    return [];
-  }
-
-  return loadSavedClients()
-    .filter(item=>{
-      const name =
-        clientKey(item?.clientName);
-
-      return (
-        name.includes(q) ||
-        normalizeText(item?.clientPhone)
-          .includes(q)
-      );
-    })
-    .slice(0,8);
-}
-
-/* ================= CURRENT LOCATION =================
-   UX:
-   - User clicks/focuses Pickup / Dropoff / Stop.
-   - First option shown is "Current Location".
-   - Only when that option is clicked do we request GPS.
-   - One reverse-geocode request turns GPS into a real street address.
-   - The visible input receives the real address.
-   - lat/lng remain stored in the background for Review/route logic.
-
-   LOW REQUEST POLICY:
-   - No location request on page load.
-   - No polling / watchPosition.
-   - Current GPS + resolved address are cached for 2 minutes.
-   - Reusing Current Location in another field during that window causes
-     ZERO extra GPS and ZERO extra reverse-geocode requests.
-============================================== */
-
-let currentLocationCache = null;
-const CURRENT_LOCATION_CACHE_MS = 15 * 60 * 1000;
-
-function hasValidCoords(lat,lng){
-
-  return (
-    Number.isFinite(Number(lat)) &&
-    Number.isFinite(Number(lng))
-  );
-}
-
-function clearLocationMeta(input){
-
-  if(!input) return;
-
-  delete input.dataset.currentLat;
-  delete input.dataset.currentLng;
-  delete input.dataset.currentLocation;
-  delete input.dataset.currentAddress;
-}
-
-function attachLocationChangeReset(input){
-
-  if(!input || input.dataset.locationResetBound === "1"){
-    return;
-  }
-
-  input.dataset.locationResetBound = "1";
-
-  input.addEventListener(
-    "input",
-    ()=>{
-      if(input.dataset.settingLocation === "1"){
-        return;
-      }
-      clearLocationMeta(input);
-    }
-  );
-}
-
-function getFreshCachedCurrentLocation(){
-
-  if(
-    !currentLocationCache ||
-    !Number.isFinite(Number(currentLocationCache.savedAt))
-  ){
-    return null;
-  }
-
-  if(
-    Date.now() - Number(currentLocationCache.savedAt) >
-    CURRENT_LOCATION_CACHE_MS
-  ){
-    currentLocationCache = null;
-    return null;
-  }
-
-  if(
-    !normalizeText(currentLocationCache.address) ||
-    !hasValidCoords(
-      currentLocationCache.lat,
-      currentLocationCache.lng
-    )
-  ){
-    currentLocationCache = null;
-    return null;
-  }
-
-  return currentLocationCache;
-}
-
-function getBrowserCurrentPosition(){
-
-  return new Promise((resolve,reject)=>{
-
-    if(!navigator.geolocation){
-      reject(
-        new Error(
-          "Current Location is not supported on this device."
-        )
-      );
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      position=>{
-        resolve({
-          lat:Number(position.coords.latitude),
-          lng:Number(position.coords.longitude)
-        });
-      },
-      error=>{
-
-        let message =
-          "Could not get current location.";
-
-        if(error?.code === 1){
-          message =
-            "Location permission was denied.";
-        }else if(error?.code === 2){
-          message =
-            "Current location is unavailable.";
-        }else if(error?.code === 3){
-          message =
-            "Current location request timed out.";
-        }
-
-        reject(
-          new Error(message)
-        );
-      },
-      {
-        enableHighAccuracy:false,
-        timeout:10000,
-        maximumAge:120000
-      }
-    );
-  });
-}
-
-async function reverseGeocodeCurrentPosition(lat,lng){
-
-  /*
-    Server-side reverse geocode.
-    We intentionally do NOT require google.maps.Geocoder in the browser.
-    The Google key stays on the server and the company token protects
-    this endpoint.
-  */
-
-  if(!hasValidCoords(lat,lng)){
-    throw new Error(
-      "Invalid Current Location coordinates."
-    );
-  }
-
-  const res =
-    await fetch(
-      "/api/location/reverse?" +
-      new URLSearchParams({
-        lat:String(lat),
-        lng:String(lng),
-        tenantSlug:String(
-          localStorage.getItem("tenantSlug") ||
-          localStorage.getItem("tenant") ||
-          ""
-        ).trim()
-      }).toString(),
-      {
-        method:"GET",
-        headers:{
-          Authorization:
-            "Bearer " + token
-        },
-        cache:"no-store"
-      }
-    );
-
-  let data = {};
-
-  try{
-    data = await res.json();
-  }catch(_){}
-
-  if(!res.ok){
-
-    throw new Error(
-      data.message ||
-      "Could not find the street address for Current Location."
-    );
-  }
-
-  const address =
-    normalizeText(
-      data.address ||
-      data.formattedAddress ||
-      ""
-    );
-
-  if(!address){
-
-    throw new Error(
-      "Current Location address is unavailable."
-    );
-  }
-
-  return {
-    address,
-    lat:Number(lat),
-    lng:Number(lng),
-    latitude:Number(lat),
-    longitude:Number(lng),
-    source:
-      data.source ||
-      "server-reverse-geocode"
-  };
-}
-
-async function resolveCurrentLocation(){
-
-  const cached =
-    getFreshCachedCurrentLocation();
-
-  if(cached){
-    return {
-      ...cached
-    };
-  }
-
-  const coords =
-    await getBrowserCurrentPosition();
-
-  if(
-    !hasValidCoords(
-      coords.lat,
-      coords.lng
-    )
-  ){
-    throw new Error(
-      "Could not read current location."
-    );
-  }
-
-  const point =
-    await reverseGeocodeCurrentPosition(
-      coords.lat,
-      coords.lng
-    );
-
-  currentLocationCache = {
-    ...point,
-    savedAt:Date.now()
-  };
-
-  return {
-    ...currentLocationCache
-  };
-}
-
-function setCurrentLocationOnInput(input,point){
-
-  if(
-    !input ||
-    !point ||
-    !normalizeText(point.address) ||
-    !hasValidCoords(point.lat,point.lng)
-  ){
-    return;
-  }
-
-  input.dataset.settingLocation = "1";
-
-  /*
-    IMPORTANT:
-    The user sees the REAL ADDRESS, not coordinates and not the words
-    "Current Location". Review.js therefore receives a normal address.
-  */
-  input.value =
-    normalizeText(point.address);
-
-  input.dataset.currentLat =
-    String(point.lat);
-
-  input.dataset.currentLng =
-    String(point.lng);
-
-  input.dataset.currentLocation =
-    "1";
-
-  input.dataset.currentAddress =
-    normalizeText(point.address);
-
-  input.dataset.hasLatLng =
-    "1";
-
-  input.dispatchEvent(
-    new Event(
-      "change",
-      {bubbles:true}
-    )
-  );
-
-  delete input.dataset.settingLocation;
-}
-
-function closeCurrentLocationChoices(except=null){
-
-  document
-    .querySelectorAll(
-      ".current-location-choice.show"
-    )
-    .forEach(choice=>{
-      if(choice !== except){
-        choice.classList.remove("show");
-      }
-    });
-}
-
-function bindCurrentLocationChoice(input){
-
-  if(
-    !input ||
-    input.dataset.currentLocationChoiceBound === "1"
-  ){
-    return;
-  }
-
-  input.dataset.currentLocationChoiceBound = "1";
-
-  attachLocationChangeReset(
-    input
-  );
-
-  const parent =
-    input.closest(
-      ".location-field,.stop-address-wrap"
-    ) ||
-    input.parentElement;
-
-  if(!parent){
-    return;
-  }
-
-  if(
-    getComputedStyle(parent).position === "static"
-  ){
-    parent.style.position = "relative";
-  }
-
-  const choice =
-    document.createElement("div");
-
-  choice.className =
-    "current-location-choice";
-
-  choice.setAttribute(
-    "role",
-    "button"
-  );
-
-  choice.setAttribute(
-    "tabindex",
-    "0"
-  );
-
-  choice.innerHTML = `
-    <span class="pin">📍</span>
-    <span>Current Location</span>
-  `;
-
-  parent.appendChild(
-    choice
-  );
-
-  const showChoice = ()=>{
-    closeCurrentLocationChoices(choice);
-    choice.classList.add("show");
-  };
-
-  input.addEventListener(
-    "focus",
-    showChoice
-  );
-
-  input.addEventListener(
-    "click",
-    showChoice
-  );
-
-  async function chooseCurrentLocation(event){
-
-    event?.preventDefault();
-    event?.stopPropagation();
-
-    if(choice.classList.contains("loading")){
-      return;
-    }
-
-    choice.classList.add("loading");
-    choice.innerHTML = `
-      <span class="pin">📍</span>
-      <span>Getting Current Location...</span>
-    `;
-
-    try{
-
-      const point =
-        await resolveCurrentLocation();
-
-      setCurrentLocationOnInput(
-        input,
-        point
-      );
-
-      /*
-        Current Location is already stored on the input itself by
-        setCurrentLocationOnInput():
-        - visible street address in input.value
-        - lat/lng in data-current-lat / data-current-lng
-
-        getLocationMeta() reads those values later during save/submit,
-        so no extra point-store synchronization is needed here.
-      */
-
-      choice.classList.remove("show");
-
-    }catch(err){
-
-      console.log(
-        "CURRENT LOCATION ERROR:",
-        err
-      );
-
-      showAlert(
-        err.message ||
-        "Could not get Current Location."
-      );
-
-    }finally{
-
-      choice.classList.remove("loading");
-      choice.innerHTML = `
-        <span class="pin">📍</span>
-        <span>Current Location</span>
-      `;
-    }
-  }
-
-  choice.addEventListener(
-    "mousedown",
-    e=>e.preventDefault()
-  );
-
-  choice.addEventListener(
-    "click",
-    chooseCurrentLocation
-  );
-
-  choice.addEventListener(
-    "keydown",
-    e=>{
-      if(
-        e.key === "Enter" ||
-        e.key === " "
-      ){
-        chooseCurrentLocation(e);
-      }
-    }
-  );
-}
-
-function bindStaticLocationChoices(){
-
-  bindCurrentLocationChoice(
-    pickupInput
-  );
-
-  bindCurrentLocationChoice(
-    dropoffInput
-  );
-}
-
-document.addEventListener(
-  "click",
-  e=>{
-    if(
-      !e.target.closest(
-        ".location-field,.stop-address-wrap"
-      )
-    ){
-      closeCurrentLocationChoices();
-    }
-  }
-);
-
-function getLocationMeta(input){
-
-  const lat =
-    Number(
-      input?.dataset?.currentLat
-    );
-
-  const lng =
-    Number(
-      input?.dataset?.currentLng
-    );
-
-  if(
-    input?.dataset?.currentLocation === "1" &&
-    hasValidCoords(lat,lng)
-  ){
-    return {
-      lat,
-      lng,
-      address:
-        normalizeText(
-          input.dataset.currentAddress ||
-          input.value
-        ),
-      source:"browser-current-location"
-    };
-  }
-
-  return null;
-}
-
-function showAlert(msg){
-  alert(msg);
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/"/g,"&quot;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
 }
 
 function bool(v){
@@ -1510,7 +228,15 @@ function num(v){
   return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeServiceCode(v){
+function showAlert(msg){
+  alert(msg);
+}
+
+function formatMoney(v){
+  return Number(v || 0).toFixed(2);
+}
+
+function normalizeCode(v){
 
   const c =
     normalizeText(v)
@@ -1541,72 +267,716 @@ function normalizeServiceCode(v){
 }
 
 function isValidServiceCode(code){
-
   const normalized =
-    normalizeServiceCode(code);
+    normalizeCode(code);
 
-  return [
-    "ST",
-    "WH",
-    "XL",
-    "LM",
-    "TX",
-    "SH"
-  ].includes(normalized) ||
-  /^[A-Z]{2}$/.test(normalized);
+  return (
+    ["ST","WH","XL","LM","TX","SH"].includes(normalized) ||
+    /^[A-Z]{2}$/.test(normalized)
+  );
 }
+
+function normalizeAddress(address){
+
+  let v = normalizeText(address);
+
+  if(!v) return "";
+
+  v = v.replace(/\s+/g," ").trim();
+
+  const lower = v.toLowerCase();
+
+  if(SYSTEM_REGION && !lower.includes(SYSTEM_REGION.toLowerCase())){
+    v += ", " + SYSTEM_REGION;
+  }
+
+  if(SYSTEM_COUNTRY && !lower.includes(SYSTEM_COUNTRY.toLowerCase())){
+    v += ", " + SYSTEM_COUNTRY;
+  }
+
+  return v;
+}
+
+function addressKey(v){
+  return normalizeAddress(v).toLowerCase().replace(/\s+/g," ").trim();
+}
+
+function cellBox(items){
+
+  const arr =
+    Array.isArray(items)
+      ? items
+      : [items];
+
+  return `
+    <div class="cell-box">
+      ${
+        arr.map(v=>`
+          <div class="cell-item">
+            ${v || "--"}
+          </div>
+        `).join("")
+      }
+    </div>
+  `;
+}
+
+function getTripStops(trip){
+  if(Array.isArray(trip?.stops)) return trip.stops;
+  if(Array.isArray(trip?.stopAddresses)) return trip.stopAddresses;
+  if(Array.isArray(trip?.extraStops)) return trip.extraStops;
+  return [];
+}
+
+function getReviewDisplayStops(trip){
+
+  const request =
+    trip?.addStopRequest || null;
+
+  if(
+    hasActiveAddStopRequest(trip) &&
+    Array.isArray(request?.finalStops)
+  ){
+    return request.finalStops;
+  }
+
+  return getTripStops(trip);
+}
+
+function stopText(stop,seen=new Set()){
+  if(stop === undefined || stop === null) return "";
+
+  if(typeof stop === "string") return normalizeText(stop);
+  if(typeof stop === "number") return String(stop);
+  if(typeof stop !== "object") return "";
+
+  if(seen.has(stop)) return "";
+  seen.add(stop);
+
+  const candidates = [
+    stop.formattedAddress,
+    stop.formatted_address,
+    stop.description,
+    stop.label,
+    stop.placeName,
+    stop.name,
+    stop.address,
+    stop.location
+  ];
+
+  for(const candidate of candidates){
+    const text = stopText(candidate,seen);
+    if(text) return text;
+  }
+
+  return "";
+}
+
+function createEditInput(value,field,type="text"){
+  return `
+    <input
+      class="edit-input"
+      type="${type}"
+      data-field="${field}"
+      value="${escapeHtml(value || "")}"
+    >
+  `;
+}
+
+function createSharedEditInput(value,field,type="text"){
+  return `
+    <input
+      class="edit-input"
+      type="${type}"
+      data-field="${field}"
+      value="${escapeHtml(value || "")}"
+    >
+  `;
+}
+
+/* ================= UI FIXES ================= */
+
+localStorage.removeItem("dispatchReviewTrips");
+
+function hideDuplicateReviewTop(){
+
+  if(!dispatchReviewPage) return;
+
+  dispatchReviewPage
+    .querySelectorAll(".review-top-actions,.dispatch-review-note")
+    .forEach(el=>{
+      el.style.display = "none";
+    });
+}
+
+function ensureAddStopButton(){
+
+  if(addStopBtn) return;
+
+  if(!stopsBox) return;
+
+  const actions =
+    document.createElement("div");
+
+  actions.className = "actions";
+  actions.style.marginTop = "10px";
+
+  actions.innerHTML = `
+    <button class="btn-light" id="addStopBtn" type="button">
+      + Add Stop
+    </button>
+  `;
+
+  stopsBox.insertAdjacentElement("afterend",actions);
+
+  addStopBtn =
+    document.getElementById("addStopBtn");
+}
+
+function ensureDispatchReviewTableStyle(){
+
+  if(document.getElementById("dispatchReviewTableStylePatch")){
+    return;
+  }
+
+  const style =
+    document.createElement("style");
+
+  style.id =
+    "dispatchReviewTableStylePatch";
+
+  style.textContent = `
+    #dispatchReviewPage{
+      width:100%;
+      max-width:none;
+    }
+
+    #dispatchReviewList{
+      width:100%;
+      max-width:none;
+    }
+
+    .table-wrap{
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      background:#ffffff;
+      border:1px solid #cbd5e1;
+      border-radius:12px;
+      padding:0;
+      box-shadow:0 8px 22px rgba(15,23,42,.10);
+    }
+
+    .review-table{
+      width:100%;
+      min-width:1620px;
+      border-collapse:collapse;
+      table-layout:fixed;
+      background:#ffffff;
+      font-size:12px;
+    }
+
+    .review-table th{
+      position:sticky;
+      top:0;
+      z-index:5;
+      background:#1f2937;
+      color:#ffffff;
+      padding:10px 8px;
+      border:1px solid #374151;
+      font-weight:900;
+      text-align:center;
+      white-space:nowrap;
+    }
+
+    .review-table td{
+      padding:7px 7px;
+      border:1px solid rgba(148,163,184,.65);
+      vertical-align:middle;
+      text-align:center;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+    }
+
+    .review-table .date-row td{
+      position:sticky;
+      left:0;
+      z-index:4;
+      background:#bfdbfe !important;
+      color:#0f172a;
+      padding:10px 14px;
+      font-size:14px;
+      font-weight:950;
+      text-align:left;
+      border-top:3px solid #2563eb;
+      border-bottom:2px solid #2563eb;
+    }
+
+    .review-table tr:not(.date-row){
+      border-bottom:2px solid rgba(15,23,42,.18);
+    }
+
+    .review-table .col-num{width:44px;}
+    .review-table .col-trip{width:110px;}
+    .review-table .col-type{width:82px;}
+    .review-table .col-client{width:120px;}
+    .review-table .col-phone{width:145px;}
+    .review-table .col-pickup{width:245px;}
+    .review-table .col-stops{width:250px;}
+    .review-table .col-drop{width:245px;}
+    .review-table .col-date{width:110px;}
+    .review-table .col-time{width:90px;}
+    .review-table .col-notes{width:130px;}
+    .review-table .col-miles{width:95px;}
+    .review-table .col-mins{width:85px;}
+    .review-table .col-price{width:105px;}
+    .review-table .col-status{width:105px;}
+    .review-table .col-actions{width:170px;}
+
+    .cell-box{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      width:100%;
+    }
+
+    .cell-item{
+      width:100%;
+      min-height:24px;
+      padding:5px 7px;
+      background:rgba(255,255,255,.72);
+      border:1px solid rgba(100,116,139,.55);
+      border-radius:5px;
+      color:#0f172a;
+      font-weight:700;
+      line-height:1.25;
+      text-align:left;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .review-table .col-stops .cell-item{
+      white-space:nowrap;
+      word-break:normal;
+    }
+
+    .trip-number-badge,
+    .price-badge,
+    .miles-strong{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      padding:4px 8px;
+      border-radius:999px;
+      font-weight:950;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    .trip-number-badge{
+      background:#dbeafe;
+      color:#1d4ed8;
+      border:1px solid #93c5fd;
+    }
+
+    .price-badge{
+      background:#dcfce7;
+      color:#166534;
+      border:1px solid #86efac;
+    }
+
+    .miles-strong{
+      color:#1d4ed8;
+      background:#eff6ff;
+      border:1px solid #bfdbfe;
+    }
+
+    .route-locked-badge{
+      display:inline-block;
+      margin-top:5px;
+      padding:3px 7px;
+      border-radius:999px;
+      background:#fef3c7;
+      color:#92400e;
+      font-size:10px;
+      font-weight:950;
+      white-space:normal;
+    }
+
+    .actions-wrap{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      width:100%;
+    }
+
+    .actions-wrap .btn{
+      min-width:42px;
+      border:0;
+      border-radius:7px;
+      padding:6px 8px;
+      font-size:11px;
+      font-weight:950;
+      line-height:1;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+
+    .btn.view{
+      background:#e5e7eb;
+      color:#111827;
+    }
+
+    .btn.edit{
+      background:#2563eb;
+      color:#ffffff;
+    }
+
+    .btn.delete{
+      background:#ef4444;
+      color:#ffffff;
+    }
+
+    .btn.confirm{
+      background:#16a34a;
+      color:#ffffff;
+    }
+
+    .btn.cancel{
+      background:#dc2626;
+      color:#ffffff;
+    }
+
+    .btn.add-stop{
+      background:#7c3aed;
+      color:#ffffff;
+    }
+
+    .edit-input{
+      width:100%;
+      min-height:26px;
+      padding:5px 7px;
+      border:1px solid #94a3b8;
+      border-radius:6px;
+      background:#ffffff;
+      color:#0f172a;
+      font-weight:700;
+      outline:none;
+    }
+
+    .edit-input:focus{
+      border-color:#2563eb;
+      box-shadow:0 0 0 2px rgba(37,99,235,.18);
+    }
+
+    #dispatchTripEyeModal::backdrop{
+      background:rgba(15,23,42,.55);
+    }
+
+    .eye-details-body{
+      padding:18px;
+      background:#ffffff;
+      color:#0f172a;
+    }
+
+    .eye-detail-row{
+      display:grid;
+      grid-template-columns:150px 1fr;
+      gap:10px;
+      padding:9px 0;
+      border-bottom:1px solid #e5e7eb;
+      align-items:center;
+    }
+
+    .eye-detail-row strong{
+      color:#1e40af;
+      font-weight:950;
+    }
+
+    .eye-detail-row div{
+      font-weight:800;
+      color:#0f172a;
+      overflow-wrap:anywhere;
+    }
+
+    @media(max-width:900px){
+      .table-wrap{
+        border-radius:8px;
+      }
+
+      .review-table{
+        min-width:1460px;
+        font-size:11px;
+      }
+
+      .review-table th,
+      .review-table td{
+        padding:6px 5px;
+      }
+
+      .review-table .col-pickup,
+      .review-table .col-drop{
+        width:210px;
+      }
+
+      .review-table .col-client{
+        width:110px;
+      }
+
+      .review-table .col-stops{
+        width:210px;
+      }
+
+      .review-table .col-phone{
+        width:130px;
+      }
+
+      .review-table .col-actions{
+        width:155px;
+      }
+
+      .cell-item{
+        font-size:10.5px;
+        padding:4px 5px;
+      }
+
+      .actions-wrap .btn{
+        padding:5px 6px;
+        font-size:10px;
+      }
+
+      .eye-detail-row{
+        grid-template-columns:118px 1fr;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+
+hideDuplicateReviewTop();
+ensureAddStopButton();
+ensureDispatchReviewTableStyle();
+
+/* ================= SYSTEM ================= */
+
+async function loadSystemInfo(){
+
+  try{
+
+    const res = await fetch("/api/system-design");
+    const data = await res.json();
+
+    SYSTEM_TIMEZONE =
+      data?.timezone ||
+      "America/Phoenix";
+
+    SYSTEM_REGION =
+      data?.region ||
+      "";
+
+    SYSTEM_COUNTRY =
+      data?.country ||
+      "";
+
+  }catch(err){
+
+    console.log(err);
+
+    SYSTEM_TIMEZONE =
+      "America/Phoenix";
+  }
+}
+
+function getSystemNow(){
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+      }
+    )
+  );
+}
+
+function parseTripDateTime(dateValue,timeValue){
+
+  const d = normalizeText(dateValue);
+  let t = normalizeText(timeValue);
+
+  if(!d || !t) return null;
+
+  const ampm =
+    t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if(ampm){
+
+    let h = Number(ampm[1]);
+    const m = String(ampm[2]).padStart(2,"0");
+    const ap = ampm[3].toUpperCase();
+
+    if(ap === "PM" && h < 12) h += 12;
+    if(ap === "AM" && h === 12) h = 0;
+
+    t = `${String(h).padStart(2,"0")}:${m}`;
+  }
+
+  if(/^\d{1,2}:\d{2}$/.test(t)){
+    const [h,m] = t.split(":");
+    t = `${String(h).padStart(2,"0")}:${m}`;
+  }
+
+  const dt = new Date(`${d}T${t}:00`);
+
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function minutesToTrip(trip){
+
+  const dt =
+    parseTripDateTime(
+      trip.tripDate,
+      trip.tripTime
+    );
+
+  if(!dt) return null;
+
+  return (dt - getSystemNow()) / 60000;
+}
+
+function getCreatedDateObject(trip){
+
+  const raw =
+    trip.createdAt ||
+    trip.bookedAt ||
+    trip.updatedAt ||
+    trip.routeUpdatedAt ||
+    trip.tripCreatedAt ||
+    trip._createdAt ||
+    "";
+
+  const d =
+    raw
+      ? new Date(raw)
+      : null;
+
+  if(d && !Number.isNaN(d.getTime())){
+    return d;
+  }
+
+  return new Date(0);
+}
+
+function getCreatedDateKey(trip){
+
+  const d =
+    getCreatedDateObject(trip);
+
+  if(!d || Number.isNaN(d.getTime()) || d.getTime() === 0){
+    return "Unknown";
+  }
+
+  const local =
+    new Date(
+      d.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  const y = local.getFullYear();
+  const m = String(local.getMonth() + 1).padStart(2,"0");
+  const day = String(local.getDate()).padStart(2,"0");
+
+  return `${y}-${m}-${day}`;
+}
+
+function dateOnlyLocal(date){
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  return new Date(
+    local.getFullYear(),
+    local.getMonth(),
+    local.getDate()
+  );
+}
+
+function labelCreatedDate(key){
+
+  if(key === "Unknown") return "Unknown Date";
+
+  const today =
+    dateOnlyLocal(getSystemNow());
+
+  const target =
+    new Date(`${key}T00:00:00`);
+
+  const diffDays =
+    Math.round((today - target) / 86400000);
+
+  if(diffDays === 0){
+    return `Today - ${key}`;
+  }
+
+  if(diffDays === 1){
+    return `Yesterday - ${key}`;
+  }
+
+  return key;
+}
+
+/* ================= SERVICE MAPPING ================= */
 
 function resolveServiceCode(service){
 
   if(!service) return "";
 
   /*
-    IMPORTANT:
-    Company service code must come from suffix/code fields first.
-    Do NOT read title/name first because it can make all services ST.
+    Reserved flow must never identify a service through Company or Get Quote
+    fields. Reserved-specific identity is checked first, then the canonical
+    service identity used by the same Reserved record.
   */
-
-  const directFields = [
-
-    service.customServiceCode,
+  const fields = [
+    service.reservedServiceSuffix,
+    service.reservedServiceCode,
+    service.reservedServiceKey,
     service.serviceCode,
-    service.companySuffix,
-    service.serviceSuffix,
-    service.suffix,
-
-    service.reservedSuffix,
-    service.getQuoteSuffix,
-
-    service.companyServiceSuffix,
-    service.facilitySuffix,
-    service.facilityServiceSuffix,
-
-    service.companyServiceCode,
-    service.code,
-
-    service.companyServiceKey,
     service.serviceKey,
     service.serviceType,
-
-    service.vehicle
+    service.code,
+    service.serviceSuffix,
+    service.suffix
   ];
 
-  for(const field of directFields){
+  for(const field of fields){
 
     const code =
-      normalizeServiceCode(field);
+      normalizeCode(field);
 
     if(isValidServiceCode(code)){
       return code;
     }
   }
 
-  /*
-    Last fallback only: infer from name.
-  */
-
   const name =
-    normalizeServiceCode(
+    normalizeCode(
       service.serviceName ||
       service.title ||
       service.name ||
@@ -1634,7 +1004,7 @@ function serviceDisplayName(service,code){
       code === "ST" ? "Standard" :
       code === "WH" ? "Wheelchair" :
       code === "XL" ? "XL" :
-      code === "LM" ? "Limo" :
+      code === "LM" ? "Limousine" :
       code === "TX" ? "Taxi" :
       code === "SH" ? "Shared" :
       code || "Service"
@@ -1642,50 +1012,68 @@ function serviceDisplayName(service,code){
   );
 }
 
-async function loadSystemTimezone(){
-
-  try{
-
-    const res =
-      await fetch("/api/system-design");
-
-    const data =
-      await res.json();
-
-    SYSTEM_TIMEZONE =
-      data?.timezone ||
-      "America/Phoenix";
-
-  }catch(err){
-    console.log(err);
-  }
-}
-
-function getSystemNow(){
-
-  return new Date(
-    new Date().toLocaleString(
-      "en-US",
-      {
-        timeZone:SYSTEM_TIMEZONE
-      }
-    )
-  );
-}
-
-function getCurrentServiceConfig(){
+function mapReservedService(s){
 
   const code =
-    normalizeServiceCode(activeService);
+    resolveServiceCode(s) || "ST";
 
-  return COMPANY_SERVICES.find(s => {
+  const serviceName =
+    serviceDisplayName(s,code);
 
-    const serviceCode =
-      resolveServiceCode(s);
+  const shared =
+    bool(s.reservedShared) ||
+    code === "SH" ||
+    normalizeCode(s.reservedPricingMode) === "SHARED";
 
-    return serviceCode === code;
+  return {
+    ...s,
 
-  }) || {};
+    _id:
+      s._id || code,
+
+    title:
+      serviceName,
+
+    name:
+      serviceName,
+
+    serviceName:
+      serviceName,
+
+    serviceKey:
+      code,
+
+    serviceCode:
+      code,
+
+    serviceType:
+      code,
+
+    code:
+      code,
+
+    reservedSuffix:
+      code,
+
+    serviceSuffix:
+      code,
+
+    suffix:
+      code,
+
+    tripNumberSuffix:
+      code,
+
+    reservedShared:
+      shared,
+
+    shared:
+      shared
+  };
+}
+
+function serviceVisible(service){
+  return bool(service?.reservedEnabled);
 }
 
 function isSharedService(service){
@@ -1695,427 +1083,386 @@ function isSharedService(service){
   const code =
     resolveServiceCode(service);
 
-  const key =
-    normalizeServiceCode(service.serviceKey);
-
-  const suffix =
-    normalizeServiceCode(
-      service.companySuffix ||
-      service.suffix ||
-      service.serviceSuffix ||
-      service.reservedSuffix ||
-      service.getQuoteSuffix
-    );
-
   const title =
-    normalizeServiceCode(
+    normalizeCode(
       service.title ||
       service.name ||
       service.serviceName
     );
 
-  const pricing =
-    normalizeServiceCode(
-      service.companyPricingMode ||
-      service.reservedPricingMode ||
-      service.pricingMode
+  const mode =
+    normalizeCode(
+      service.reservedPricingMode
     );
 
   return (
-    service.companyShared === true ||
-    service.reservedShared === true ||
-    service.shared === true ||
+    bool(service.reservedShared) ||
     code === "SH" ||
-    key === "SH" ||
-    suffix === "SH" ||
     title === "SH" ||
     title === "SHARED" ||
-    pricing === "SH" ||
-    pricing === "SHARED"
+    mode === "SHARED" ||
+    mode === "SH"
   );
 }
 
-function mapFacilityOverrideService(s){
+function getCurrentReservedServiceConfig(){
 
   const code =
-    resolveServiceCode(s);
+    resolveServiceCode(activeService);
 
-  if(!code){
-    console.warn("FACILITY OVERRIDE SERVICE CODE MISSING:", s);
+  return SERVICES.find(s => resolveServiceCode(s) === code) || activeService || {};
+}
+
+function getServiceByTrip(trip){
+
+  if(!trip) return null;
+
+  /*
+    Use the exact Service document saved on the trip first.
+    This prevents an XL / Wheelchair / Standard trip from reading
+    another Reserved service's Add Stop policy.
+  */
+  const savedServiceId =
+    normalizeText(
+      trip.serviceId ||
+      trip.reservedServiceId ||
+      ""
+    );
+
+  if(savedServiceId){
+
+    const exactService =
+      SERVICES.find(service=>{
+        return String(service?._id || "") === savedServiceId;
+      });
+
+    if(exactService){
+      return exactService;
+    }
   }
 
-  const finalCode =
-    code || "ST";
+  /*
+    Check every possible trip field separately. Do not let a generic value
+    such as RV in one field hide the real XL / TX / LM code in another.
+  */
+  const tripCodeCandidates = [
+    trip.serviceKey,
+    trip.serviceCode,
+    trip.serviceType,
+    trip.serviceName,
+    trip.serviceTitle,
+    trip.vehicleType,
+    trip.serviceSuffix,
+    trip.tripNumberSuffix
+  ];
 
-  const serviceName =
-    serviceDisplayName(s, finalCode);
+  let direct = "";
 
-  const shared =
-    bool(s.shared) ||
-    finalCode === "SH" ||
-    normalizeServiceCode(s.pricingMode) === "SHARED";
+  for(const candidate of tripCodeCandidates){
+
+    const code =
+      normalizeCode(candidate);
+
+    if(isValidServiceCode(code)){
+      direct = code;
+      break;
+    }
+  }
+
+  if(
+    trip.isShared === true ||
+    trip.tripType === "SHARED" ||
+    direct === "SH"
+  ){
+    return SERVICES.find(s=>isSharedService(s)) || null;
+  }
+
+  if(direct){
+
+    const serviceByCode =
+      SERVICES.find(s=>{
+        return resolveServiceCode(s) === direct;
+      });
+
+    if(serviceByCode){
+      return serviceByCode;
+    }
+  }
+
+  /* Old Reserved trips may only carry the service inside the trip number. */
+  const tripNumber =
+    normalizeText(trip.tripNumber).toUpperCase();
+
+  let tripNumberCode = "";
+
+  const tripNumberParts =
+    tripNumber
+      .split("-")
+      .map(part=>normalizeCode(part))
+      .filter(Boolean);
+
+  for(let i = tripNumberParts.length - 1; i >= 0; i--){
+
+    if(isValidServiceCode(tripNumberParts[i])){
+      tripNumberCode = tripNumberParts[i];
+      break;
+    }
+  }
+
+  if(tripNumberCode){
+    return SERVICES.find(s=>{
+      return resolveServiceCode(s) === tripNumberCode;
+    }) || null;
+  }
+
+  return null;
+}
+
+function getReservedPricing(service){
 
   return {
+    pricingMode:
+      normalizeText(service?.reservedPricingMode || "MILE").toUpperCase(),
 
-    ...s,
+    baseFare:
+      num(service?.reservedBaseFare),
 
-    _id:
-      finalCode,
+    includedMiles:
+      num(service?.reservedIncludedMiles),
 
-    title:
-      serviceName,
+    perMile:
+      num(service?.reservedPerMile),
 
-    name:
-      serviceName,
+    hourlyRate:
+      num(service?.reservedHourlyRate),
 
-    serviceName:
-      serviceName,
+    hourlyBillingMode:
+      normalizeText(service?.reservedHourlyBillingMode || "FULL").toUpperCase(),
 
-    serviceKey:
-      finalCode,
+    stopFee:
+      num(service?.reservedStopFee),
 
-    serviceCode:
-      finalCode,
+    noShowFee:
+      num(service?.reservedNoShowFee),
 
-    serviceType:
-      finalCode,
+    cancelFee:
+      num(service?.reservedCancelFee),
 
-    code:
-      finalCode,
+    sharedPrice:
+      num(service?.reservedSharedPrice),
 
-    companySuffix:
-      finalCode,
+    warningMinutes:
+      Number(service?.reservedWarningMinutes ?? 120),
 
-    suffix:
-      finalCode,
-
-    serviceSuffix:
-      finalCode,
-
-    companyShared:
-      shared,
-
-    shared:
-      shared,
-
-    companyPricingMode:
-      s.pricingMode || "MILE",
-
-    companyBaseFare:
-      num(s.baseFare),
-
-    companyIncludedMiles:
-      num(s.includedMiles),
-
-    companyPerMile:
-      num(s.perMile),
-
-    companyHourlyRate:
-      num(s.hourlyRate),
-
-    companyHourlyBillingMode:
-      s.hourlyBillingMode || "FULL",
-
-    companyStopFee:
-      num(s.stopFee),
-
-    companyNoShowFee:
-      num(s.noShowFee),
-
-    companySharedPrice:
-      num(s.sharedPrice),
-
-    companyDisableCancel:
-      bool(s.disableCancel),
-
-    companyWarningMinutes:
-      num(s.warningMinutes),
-
-    companyCancelFee:
-      num(s.cancelFee),
-
-    companyAddStopEnabled:
-      shared ? false : bool(s.addStopEnabled),
-
-    companyAddStopCustomTimeEnabled:
-      shared ? false : bool(s.addStopCustomTimeEnabled),
-
-    companyAddStopCutoffMinutes:
-      shared ? 0 : num(s.addStopCutoffMinutes),
-
-    __pricingSource:
-      "FACILITY_OVERRIDE"
+    disableCancel:
+      bool(service?.reservedDisableCancel)
   };
 }
 
-function mapServiceManagementService(s){
+/* ================= RESERVED BOOKING HOURS ================= */
 
-  const code =
-    resolveServiceCode(s);
+const RESERVED_BOOKING_HOURS_ERROR =
+  "This booking is outside the company's business hours.";
 
-  if(!code){
-    console.warn("SERVICE MANAGEMENT CODE MISSING:", s);
-  }
+function normalizeReservedBookingMode(value){
 
-  const finalCode =
-    code || "ST";
+  const mode =
+    normalizeText(value || "24_HOURS")
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
 
-  const serviceName =
-    serviceDisplayName(s, finalCode);
-
-  const shared =
-    bool(s.companyShared) ||
-    bool(s.reservedShared) ||
-    bool(s.shared) ||
-    finalCode === "SH" ||
-    normalizeServiceCode(
-      s.companyPricingMode ||
-      s.reservedPricingMode ||
-      s.pricingMode
-    ) === "SHARED";
-
-  return {
-
-    ...s,
-
-    title:
-      serviceName,
-
-    name:
-      serviceName,
-
-    serviceName:
-      serviceName,
-
-    serviceKey:
-      finalCode,
-
-    serviceCode:
-      finalCode,
-
-    serviceType:
-      finalCode,
-
-    code:
-      finalCode,
-
-    companySuffix:
-      finalCode,
-
-    suffix:
-      finalCode,
-
-    serviceSuffix:
-      finalCode,
-
-    companyShared:
-      shared,
-
-    shared:
-      shared,
-
-    companyWarningMinutes:
-      num(
-        s.companyWarningMinutes ??
-        s.warningMinutes ??
-        s.cancelWarningMinutes ??
-        120
-      ),
-
-    companyDisableCancel:
-      bool(
-        s.companyDisableCancel ??
-        s.disableCancel
-      ),
-
-    __pricingSource:
-      "SERVICE_MANAGEMENT"
-  };
-}
-
-function selectedServicePayload(){
-
-  const service =
-    getCurrentServiceConfig();
-
-  const serviceKey =
-    resolveServiceCode(service) ||
-    normalizeServiceCode(activeSuffix) ||
-    normalizeServiceCode(activeService);
-
-  if(!serviceKey){
-    console.log("BAD SELECTED SERVICE:", service);
-    showAlert("Service code missing");
-    throw new Error("Service code missing");
-  }
-
-  const serviceName =
-    serviceDisplayName(service, serviceKey);
-
-  const fromOverride =
-    service.__pricingSource === "FACILITY_OVERRIDE";
-
-  return {
-    service,
-
-    serviceKey,
-    serviceCode:serviceKey,
-    serviceType:serviceKey,
-    serviceSuffix:serviceKey,
-
-    serviceName,
-
-    serviceId:
-      fromOverride
-        ? ""
-        : String(service._id || ""),
-
-    pricingSource:
-      fromOverride
-        ? "FACILITY_OVERRIDE"
-        : "SERVICE_MANAGEMENT",
-
-    facilityOverrideActive:
-      fromOverride
-  };
-}
-
-
-/* ================= BOOKING HOURS - FACILITY FRONTEND ================= */
-
-function normalizeCompanyBookingMode(value){
-  const mode = String(value || "24_HOURS").trim().toUpperCase().replace(/[\s-]+/g,"_");
   if(mode === "CUSTOM") return "CUSTOM";
   if(mode === "DISABLED") return "DISABLED";
+
   return "24_HOURS";
 }
 
-function companyBookingMinutes(value){
-  const match = String(value || "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
-  if(!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
+function reservedBookingMinutes(value){
+
+  const text =
+    normalizeText(value).toUpperCase();
+
+  let match =
+    text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+
+  if(match){
+
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const meridiem = match[3];
+
+    if(
+      hour < 1 ||
+      hour > 12 ||
+      minute < 0 ||
+      minute > 59
+    ){
+      return null;
+    }
+
+    if(hour === 12){
+      hour = 0;
+    }
+
+    if(meridiem === "PM"){
+      hour += 12;
+    }
+
+    return (hour * 60) + minute;
+  }
+
+  match =
+    text.match(/^(\d{1,2}):(\d{2})$/);
+
+  if(!match){
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if(
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ){
+    return null;
+  }
+
+  return (hour * 60) + minute;
 }
 
-function companyBookingRule(service,forceOverride=false){
-  const hours = service?.bookingHours || {};
-  const useOverride = forceOverride === true || service?.__pricingSource === "FACILITY_OVERRIDE";
-  return useOverride
-    ? (hours.facilityOverride || null)
-    : (hours.facility || null);
+function getReservedBookingHoursRule(service){
+
+  const hours =
+    service?.bookingHours &&
+    typeof service.bookingHours === "object"
+      ? service.bookingHours
+      : {};
+
+  return (
+    hours.reserved &&
+    typeof hours.reserved === "object"
+      ? hours.reserved
+      : null
+  );
 }
 
-function companyBookingTimeAllowed(service,timeValue,forceOverride=false){
-  const rule = companyBookingRule(service,forceOverride);
-  if(!rule) return true;
+function reservedBookingTimeAllowed(service,timeValue){
 
-  const mode = normalizeCompanyBookingMode(rule.mode);
-  if(mode === "DISABLED") return false;
-  if(mode === "24_HOURS") return true;
+  const rule =
+    getReservedBookingHoursRule(service);
 
-  const tripMinutes = companyBookingMinutes(timeValue);
-  const fromMinutes = companyBookingMinutes(rule.from);
-  const toMinutes = companyBookingMinutes(rule.to);
-
-  if(tripMinutes === null || fromMinutes === null || toMinutes === null){
+  /*
+    Older Service records without Booking Hours keep the historical
+    Reserved behavior. The server remains the authoritative validator.
+  */
+  if(!rule){
     return true;
   }
 
+  const mode =
+    normalizeReservedBookingMode(rule.mode);
+
+  if(mode === "24_HOURS"){
+    return true;
+  }
+
+  if(mode === "DISABLED"){
+    return false;
+  }
+
+  const tripMinutes =
+    reservedBookingMinutes(timeValue);
+
+  const fromMinutes =
+    reservedBookingMinutes(rule.from);
+
+  const toMinutes =
+    reservedBookingMinutes(rule.to);
+
+  if(
+    tripMinutes === null ||
+    fromMinutes === null ||
+    toMinutes === null
+  ){
+    return false;
+  }
+
   if(fromMinutes <= toMinutes){
-    return tripMinutes >= fromMinutes && tripMinutes <= toMinutes;
+    return (
+      tripMinutes >= fromMinutes &&
+      tripMinutes <= toMinutes
+    );
   }
 
-  return tripMinutes >= fromMinutes || tripMinutes <= toMinutes;
+  return (
+    tripMinutes >= fromMinutes ||
+    tripMinutes <= toMinutes
+  );
 }
 
-function assertCompanyBookingHours(service,dateValue,timeValue,forceOverride=false){
-  if(!dateValue || !timeValue) return true;
-  if(companyBookingTimeAllowed(service,timeValue,forceOverride)) return true;
-  throw new Error("This booking is outside the company's business hours.");
-}
+function assertReservedBookingHours(service,timeValue){
 
-async function attachCompanyBookingHoursToOverrideServices(services){
-  const list = Array.isArray(services) ? services : [];
-  if(!list.length) return list;
-
-  try{
-    const res = await fetch("/api/services?company=true",{
-      headers:{ Authorization:"Bearer " + token }
-    });
-    if(!res.ok) return list;
-
-    const base = await res.json().catch(()=>[]);
-    if(!Array.isArray(base)) return list;
-
-    const byCode = new Map();
-    base.forEach(item=>{
-      const code = resolveServiceCode(item);
-      if(code) byCode.set(code,item);
-    });
-
-    return list.map(item=>{
-      const baseService = byCode.get(resolveServiceCode(item));
-      return baseService?.bookingHours
-        ? { ...item, bookingHours:baseService.bookingHours }
-        : item;
-    });
-  }catch(err){
-    console.log("BOOKING HOURS LOAD ERROR:",err);
-    return list;
+  if(reservedBookingTimeAllowed(service,timeValue)){
+    return true;
   }
+
+  showAlert(RESERVED_BOOKING_HOURS_ERROR);
+  return false;
+}
+
+function warningEnabled(service){
+  return getReservedPricing(service).disableCancel !== true;
+}
+
+function getWarningMinutes(service){
+  return Number(getReservedPricing(service).warningMinutes || 120);
 }
 
 /* ================= WARNING ================= */
 
-function getServiceWarningMinutes(service = getCurrentServiceConfig()){
-  const rawValues = [
-    service?.companyWarningMinutes,
-    service?.reservedWarningMinutes,
-    service?.warningMinutes,
-    service?.cancelWarningMinutes,
-    service?.warningTimeMinutes
-  ];
-
-  for(const value of rawValues){
-    if(value === undefined || value === null || value === "") continue;
-    const minutes = Number(value);
-    if(Number.isFinite(minutes)) return minutes;
-  }
-
-  return 120;
-}
-
-function checkDynamicWarning(dateValue,timeValue){
+function checkReservedDynamicWarningForService(
+  service,
+  dateValue,
+  timeValue
+){
 
   if(!dateValue || !timeValue){
     return true;
   }
 
-  const service = getCurrentServiceConfig();
-  const warningMinutes = getServiceWarningMinutes(service);
+  const pricing =
+    getReservedPricing(service || {});
+
+  if(pricing.disableCancel === true){
+    return true;
+  }
+
+  const warningMinutes =
+    Number(pricing.warningMinutes || 120);
 
   if(warningMinutes <= 0){
     return true;
   }
 
-  const tripDateTime = new Date(`${dateValue}T${timeValue}:00`);
-  const now = getSystemNow();
+  const tripDateTime =
+    parseTripDateTime(dateValue,timeValue);
 
-  if(Number.isNaN(tripDateTime.getTime()) || Number.isNaN(now.getTime())){
+  if(!tripDateTime){
     return true;
   }
 
-  const diff = (tripDateTime - now) / 60000;
+  const diff =
+    (tripDateTime - getSystemNow()) / 60000;
 
   if(diff > 0 && diff <= warningMinutes){
-    const serviceName = serviceDisplayName(
-      service,
-      resolveServiceCode(service) || normalizeServiceCode(activeService)
-    );
 
     return confirm(
 `WARNING
 
-${serviceName || "Selected service"} trip is within ${warningMinutes} minutes.
+This trip is within ${warningMinutes} minutes.
 
 Continue anyway?`
     );
@@ -2124,56 +1471,1191 @@ Continue anyway?`
   return true;
 }
 
+function checkReservedDynamicWarning(dateValue,timeValue){
+
+  return checkReservedDynamicWarningForService(
+    getCurrentReservedServiceConfig(),
+    dateValue,
+    timeValue
+  );
+}
+
+function checkTripWarningByTrip(trip){
+
+  if(!trip){
+    return true;
+  }
+
+  /*
+    Confirm is the final validation point.
+    Save Edit only stores the edited values; after refresh, Confirm reads
+    the saved trip date/time and applies the same Reserved warning rule
+    used by Add Trip.
+  */
+  const service =
+    getServiceByTrip(trip) ||
+    getCurrentReservedServiceConfig();
+
+  return checkReservedDynamicWarningForService(
+    service,
+    trip.tripDate,
+    trip.tripTime
+  );
+}
+
+
+/*
+  Edit Save must validate the NEW date/time entered in the row.
+  The old trip object may still be scheduled for tomorrow, so checking only
+  checkTripWarningByTrip(trip) can miss a newly edited time that was moved
+  into the warning window.
+*/
+function checkTripWarningForDateTime(
+  trip,
+  dateValue,
+  timeValue
+){
+
+  if(!trip){
+    return true;
+  }
+
+  /*
+    Review Edit Save must use the SAME warning rule as Add Trip,
+    but against the edited trip's own Reserved service.
+    Never bypass the warning just because an older trip is missing
+    an exact serviceId; fall back to the currently loaded Reserved
+    service configuration instead.
+  */
+  const service =
+    getServiceByTrip(trip) ||
+    getCurrentReservedServiceConfig();
+
+  return checkReservedDynamicWarningForService(
+    service,
+    dateValue,
+    timeValue
+  );
+}
+
+
+/* ================= RESERVED DYNAMIC BOOKING DATA =================
+   Additive only:
+   - Loads Reserved booking fields/columns configured by Admin Management.
+   - Existing button policy, pricing, route calculation, Confirm flow and
+     Reserved review logic remain untouched.
+=============================================================== */
+
+let RESERVED_DYNAMIC_FIELDS = [];
+let RESERVED_DYNAMIC_COLUMNS = [];
+
+const EXISTING_RESERVED_FIELD_KEYS =
+  new Set([
+    "tripNumber",
+    "type",
+    "tripType",
+    "service",
+    "serviceType",
+    "serviceKey",
+    "serviceCode",
+    "serviceName",
+    "entryName",
+    "entryPhone",
+    "clientName",
+    "clientPhone",
+    "pickup",
+    "stops",
+    "dropoff",
+    "tripDate",
+    "tripTime",
+    "notes",
+    "miles",
+    "estimatedMinutes",
+    "price",
+    "priceAmount",
+    "finalPrice",
+    "status",
+    "actions"
+  ]);
+
+function normalizeReservedFieldType(value){
+  const type =
+    String(value || "TEXT")
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
+
+  if(type === "LONG_TEXT" || type === "TEXTAREA") return "LONG_TEXT";
+  if(type === "YES_NO" || type === "BOOLEAN") return "YES_NO";
+  if(type === "DROPDOWN" || type === "SELECT") return "DROPDOWN";
+  if(type === "NUMBER") return "NUMBER";
+  if(type === "DATE") return "DATE";
+  if(type === "TIME") return "TIME";
+  if(type === "PHONE") return "PHONE";
+  if(type === "EMAIL") return "EMAIL";
+
+  return "TEXT";
+}
+
+function reservedDynamicFieldKey(field){
+  return normalizeText(
+    field?.key ||
+    field?.fieldKey ||
+    field?.name ||
+    field?.id ||
+    (
+      field?.source === "CUSTOM" && Number(field?.slot)
+        ? `custom_${Number(field.slot)}`
+        : ""
+    )
+  );
+}
+
+function reservedDynamicFieldLabel(field){
+  return normalizeText(
+    field?.label ||
+    field?.title ||
+    field?.name ||
+    reservedDynamicFieldKey(field) ||
+    "Additional Field"
+  );
+}
+
+function reservedDynamicFieldEnabled(field){
+  if(!field || typeof field !== "object") return false;
+
+  if(field.enabled === false) return false;
+  if(field.active === false) return false;
+  if(field.visible === false) return false;
+
+  const placement =
+    normalizeText(
+      field?.placement ||
+      field?.surface ||
+      field?.page ||
+      field?.channel ||
+      ""
+    ).toUpperCase();
+
+  if(
+    placement &&
+    !placement.includes("RESERVED") &&
+    !placement.includes("ALL")
+  ){
+    return false;
+  }
+
+  const key =
+    reservedDynamicFieldKey(field);
+
+  if(!key) return false;
+
+  return !EXISTING_RESERVED_FIELD_KEYS.has(key);
+}
+
+function reservedDynamicInputId(field){
+  const key =
+    reservedDynamicFieldKey(field);
+
+  return (
+    "reserved_dynamic_" +
+    key.replace(/[^a-zA-Z0-9_-]/g,"_")
+  );
+}
+
+function getReservedDynamicFieldOptions(field){
+  const raw =
+    Array.isArray(field?.options)
+      ? field.options
+      : typeof field?.options === "string"
+        ? field.options.split(",")
+        : [];
+
+  return raw
+    .map(item=>{
+      if(item && typeof item === "object"){
+        return {
+          value:normalizeText(item.value ?? item.label ?? item.name),
+          label:normalizeText(item.label ?? item.name ?? item.value)
+        };
+      }
+
+      const value =
+        normalizeText(item);
+
+      return {
+        value,
+        label:value
+      };
+    })
+    .filter(item=>item.value || item.label);
+}
+
+function createReservedDynamicInput(field,value=""){
+  const wrap =
+    document.createElement("div");
+
+  wrap.className =
+    "reserved-dynamic-field";
+
+  const label =
+    document.createElement("label");
+
+  label.textContent =
+    reservedDynamicFieldLabel(field);
+
+  label.style.display = "block";
+  label.style.marginBottom = "6px";
+  label.style.fontSize = "12px";
+  label.style.fontWeight = "800";
+  label.style.color = "#334155";
+
+  const type =
+    normalizeReservedFieldType(
+      field?.type ||
+      field?.fieldType
+    );
+
+  const required =
+    bool(field?.required);
+
+  let control;
+
+  if(type === "LONG_TEXT"){
+
+    control =
+      document.createElement("textarea");
+
+    control.rows = 3;
+
+  }else if(type === "DROPDOWN" || type === "YES_NO"){
+
+    control =
+      document.createElement("select");
+
+    const blank =
+      document.createElement("option");
+
+    blank.value = "";
+    blank.textContent =
+      required
+        ? "Select..."
+        : "Optional";
+
+    control.appendChild(blank);
+
+    const options =
+      type === "YES_NO"
+        ? [
+            {value:"Yes",label:"Yes"},
+            {value:"No",label:"No"}
+          ]
+        : getReservedDynamicFieldOptions(field);
+
+    options.forEach(option=>{
+      const el =
+        document.createElement("option");
+
+      el.value = option.value;
+      el.textContent = option.label;
+
+      control.appendChild(el);
+    });
+
+  }else{
+
+    control =
+      document.createElement("input");
+
+    control.type =
+      type === "NUMBER" ? "number" :
+      type === "DATE" ? "date" :
+      type === "TIME" ? "time" :
+      type === "PHONE" ? "tel" :
+      type === "EMAIL" ? "email" :
+      "text";
+  }
+
+  control.id =
+    reservedDynamicInputId(field);
+
+  control.dataset.reservedDynamicField =
+    reservedDynamicFieldKey(field);
+
+  control.dataset.reservedDynamicLabel =
+    reservedDynamicFieldLabel(field);
+
+  control.dataset.reservedDynamicType =
+    type;
+
+  if(required){
+    control.required = true;
+    control.dataset.required = "true";
+  }
+
+  if(
+    field?.placeholder &&
+    "placeholder" in control
+  ){
+    control.placeholder =
+      String(field.placeholder);
+  }
+
+  control.value =
+    value ?? "";
+
+  wrap.appendChild(label);
+  wrap.appendChild(control);
+
+  return wrap;
+}
+
+function ensureReservedDynamicSection(){
+  if(document.getElementById("reservedDynamicSection")){
+    return document.getElementById("reservedDynamicSection");
+  }
+
+  if(!individualSection){
+    return null;
+  }
+
+  const tripDetails =
+    individualSection.querySelector("section:nth-of-type(3)");
+
+  if(!tripDetails){
+    return null;
+  }
+
+  const section =
+    document.createElement("section");
+
+  section.id =
+    "reservedDynamicSection";
+
+  section.innerHTML = `
+    <h3>Additional Booking Information</h3>
+    <div
+      id="reservedDynamicFields"
+      class="form-grid"
+    ></div>
+  `;
+
+  /*
+    Keep Notes last in the booking data area:
+    move the existing Notes textarea after the dynamic section.
+  */
+  const notesEl =
+    document.getElementById("notes");
+
+  tripDetails.insertAdjacentElement(
+    "afterend",
+    section
+  );
+
+  if(notesEl){
+    const notesSection =
+      document.createElement("section");
+
+    notesSection.id =
+      "reservedNotesSection";
+
+    notesSection.innerHTML =
+      "<h3>Notes</h3>";
+
+    notesSection.appendChild(notesEl);
+
+    section.insertAdjacentElement(
+      "afterend",
+      notesSection
+    );
+  }
+
+  return section;
+}
+
+function renderReservedDynamicFields(values = {}){
+  const section =
+    ensureReservedDynamicSection();
+
+  if(!section){
+    return;
+  }
+
+  const box =
+    document.getElementById(
+      "reservedDynamicFields"
+    );
+
+  if(!box){
+    return;
+  }
+
+  box.innerHTML = "";
+
+  if(!RESERVED_DYNAMIC_FIELDS.length){
+    section.style.display = "none";
+
+    const notesSection =
+      document.getElementById(
+        "reservedNotesSection"
+      );
+
+    if(notesSection){
+      notesSection.style.display = "";
+    }
+
+    return;
+  }
+
+  section.style.display = "";
+
+  RESERVED_DYNAMIC_FIELDS
+    .slice()
+    .sort((a,b)=>
+      Number(a?.order ?? a?.sortOrder ?? 9999) -
+      Number(b?.order ?? b?.sortOrder ?? 9999)
+    )
+    .forEach(field=>{
+      const key =
+        reservedDynamicFieldKey(field);
+
+      box.appendChild(
+        createReservedDynamicInput(
+          field,
+          values?.[key] ?? ""
+        )
+      );
+    });
+}
+
+function collectReservedDynamicData(){
+  const data = {};
+  let valid = true;
+
+  RESERVED_DYNAMIC_FIELDS.forEach(field=>{
+    const key =
+      reservedDynamicFieldKey(field);
+
+    const control =
+      document.getElementById(
+        reservedDynamicInputId(field)
+      );
+
+    if(!control){
+      return;
+    }
+
+    const value =
+      normalizeText(control.value);
+
+    if(
+      bool(field?.required) &&
+      !value
+    ){
+      showAlert(
+        `${reservedDynamicFieldLabel(field)} Required`
+      );
+
+      control.focus();
+      valid = false;
+      return;
+    }
+
+    data[key] = value;
+  });
+
+  return {
+    valid,
+    data
+  };
+}
+
+function getTripReservedDynamicData(trip){
+  const candidates = [
+    trip?.reservedBookingData,
+    trip?.bookingData?.reserved,
+    trip?.bookingData,
+    trip?.additionalBookingData,
+    trip?.customBookingData,
+    trip?.dynamicBookingData
+  ];
+
+  for(const candidate of candidates){
+    if(
+      candidate &&
+      typeof candidate === "object" &&
+      !Array.isArray(candidate)
+    ){
+      return candidate;
+    }
+  }
+
+  return {};
+}
+
+function clearReservedDynamicForm(){
+  RESERVED_DYNAMIC_FIELDS.forEach(field=>{
+    const control =
+      document.getElementById(
+        reservedDynamicInputId(field)
+      );
+
+    if(control){
+      control.value = "";
+    }
+  });
+}
+
+function reservedColumnEnabled(field){
+  if(!reservedDynamicFieldEnabled(field)){
+    return false;
+  }
+
+  return (
+    bool(field?.reviewColumn) ||
+    bool(field?.showInReview) ||
+    bool(field?.column) ||
+    bool(field?.showColumn) ||
+    normalizeText(field?.placement)
+      .toUpperCase()
+      .includes("COLUMN")
+  );
+}
+
+function tripReservedDynamicValue(trip,field){
+  const key =
+    reservedDynamicFieldKey(field);
+
+  const data =
+    getTripReservedDynamicData(trip);
+
+  const direct =
+    data?.[key];
+
+  if(
+    direct !== undefined &&
+    direct !== null &&
+    String(direct).trim() !== ""
+  ){
+    return String(direct);
+  }
+
+  const fallback =
+    trip?.[key];
+
+  if(
+    fallback !== undefined &&
+    fallback !== null &&
+    String(fallback).trim() !== ""
+  ){
+    return String(fallback);
+  }
+
+  return "--";
+}
+
+async function loadReservedBookingData(){
+  const candidates = [
+    "/api/booking-data/reserved",
+    "/api/booking-data?section=reserved",
+    "/api/admin/booking-data/reserved"
+  ];
+
+  let loaded = null;
+
+  for(const url of candidates){
+    try{
+      const res =
+        await fetch(url,{
+          cache:"no-store",
+          headers:{
+            Authorization:
+              "Bearer " + token,
+            "Cache-Control":
+              "no-cache"
+          }
+        });
+
+      if(!res.ok){
+        continue;
+      }
+
+      const data =
+        await res.json()
+          .catch(()=>null);
+
+      if(!data){
+        continue;
+      }
+
+      const rawFields =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.fields)
+            ? data.fields
+            : Array.isArray(data.reserved)
+              ? data.reserved
+              : Array.isArray(data?.data?.fields)
+                ? data.data.fields
+                : Array.isArray(data?.data?.reserved)
+                  ? data.data.reserved
+                  : [];
+
+      if(rawFields.length){
+        loaded = rawFields;
+        break;
+      }
+
+      if(
+        data?.success === true &&
+        (
+          Array.isArray(data?.fields) ||
+          Array.isArray(data?.reserved)
+        )
+      ){
+        loaded = rawFields;
+        break;
+      }
+
+    }catch(err){
+      console.log(
+        "RESERVED BOOKING DATA LOAD TRY ERROR:",
+        url,
+        err
+      );
+    }
+  }
+
+  RESERVED_DYNAMIC_FIELDS =
+    (Array.isArray(loaded) ? loaded : [])
+      .filter(reservedDynamicFieldEnabled);
+
+  RESERVED_DYNAMIC_COLUMNS =
+    RESERVED_DYNAMIC_FIELDS
+      .filter(reservedColumnEnabled);
+
+  renderReservedDynamicFields();
+}
+
+
+/* ================= LOAD SERVICES ================= */
+
+async function loadReservedServices(rebuildTabs = true){
+
+  try{
+
+    const res =
+      await fetch(`${SERVICES_URL}?_=${Date.now()}`,{
+        cache:"no-store",
+        headers:{
+          Authorization:"Bearer " + token,
+          "Cache-Control":"no-cache"
+        }
+      });
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data =
+      await res.json().catch(()=>[]);
+
+    const raw =
+      Array.isArray(data)
+        ? data
+        : Array.isArray(data.services)
+          ? data.services
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+    const unique =
+      new Map();
+
+    raw
+      .map(mapReservedService)
+      .filter(serviceVisible)
+      .forEach(service=>{
+
+        const code =
+          resolveServiceCode(service);
+
+        if(code && !unique.has(code)){
+          unique.set(code,service);
+        }
+      });
+
+    SERVICES =
+      [...unique.values()];
+
+    if(rebuildTabs){
+      buildServiceTabs();
+    }else if(activeService){
+
+      const activeId =
+        normalizeText(activeService._id || "");
+
+      const activeCode =
+        resolveServiceCode(activeService);
+
+      const freshActive =
+        SERVICES.find(service=>{
+          return (
+            (activeId && String(service._id || "") === activeId) ||
+            (activeCode && resolveServiceCode(service) === activeCode)
+          );
+        });
+
+      if(freshActive){
+        activeService = freshActive;
+      }
+    }
+
+  }catch(err){
+
+    console.error(err);
+
+    SERVICES = [];
+
+    if(rebuildTabs){
+      buildServiceTabs();
+    }
+
+    showAlert("Failed loading Reserved services");
+  }
+}
+
+function buildServiceTabs(){
+
+  if(!companyTabs) return;
+
+  const previousActiveId =
+    normalizeText(activeService?._id || "");
+
+  const previousActiveCode =
+    resolveServiceCode(activeService);
+
+  companyTabs.innerHTML = "";
+
+  if(!SERVICES.length){
+
+    companyTabs.innerHTML = `
+      <div style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:12px;padding:12px;font-weight:900;width:100%;">
+        No Reserved services enabled.
+      </div>
+    `;
+
+    if(individualSection) individualSection.style.display = "none";
+    if(sharedSection) sharedSection.style.display = "none";
+
+    return;
+  }
+
+  let selectedIndex =
+    SERVICES.findIndex(service=>{
+
+      const sameId =
+        previousActiveId &&
+        String(service?._id || "") === previousActiveId;
+
+      const sameCode =
+        previousActiveCode &&
+        resolveServiceCode(service) === previousActiveCode;
+
+      return sameId || sameCode;
+    });
+
+  if(selectedIndex < 0){
+    selectedIndex = 0;
+  }
+
+  SERVICES.forEach((service,index)=>{
+
+    const btn =
+      document.createElement("button");
+
+    btn.type =
+      "button";
+
+    btn.innerText =
+      serviceDisplayName(
+        service,
+        resolveServiceCode(service)
+      );
+
+    btn.className =
+      index === selectedIndex
+        ? "btn-blue"
+        : "btn-gray";
+
+    btn.onclick =
+      ()=>setActiveService(service,index);
+
+    companyTabs.appendChild(btn);
+  });
+
+  setActiveService(
+    SERVICES[selectedIndex],
+    selectedIndex
+  );
+}
+
+function setActiveService(service,index){
+
+  activeService =
+    service;
+
+  companyTabs
+    ?.querySelectorAll("button")
+    .forEach(btn=>{
+      btn.classList.remove("btn-blue");
+      btn.classList.add("btn-gray");
+    });
+
+  const btn =
+    companyTabs
+      ?.querySelectorAll("button")[index];
+
+  if(btn){
+    btn.classList.remove("btn-gray");
+    btn.classList.add("btn-blue");
+  }
+
+  if(isSharedService(service)){
+
+    if(individualSection) individualSection.style.display = "none";
+    if(sharedSection) sharedSection.style.display = "block";
+
+  }else{
+
+    if(individualSection) individualSection.style.display = "block";
+    if(sharedSection) sharedSection.style.display = "none";
+  }
+}
+
+/* ================= ADD TRIP STOPS UI ================= */
+
+function renderAddTripStops(){
+
+  if(!stopsBox) return;
+
+  stopsBox.style.display = "block";
+  stopsBox.innerHTML = "";
+
+  addTripStops.forEach((stop,index)=>{
+
+    const row =
+      document.createElement("div");
+
+    row.className =
+      "stop-row";
+
+    row.innerHTML = `
+      <input
+        class="add-trip-stop-input"
+        value="${escapeHtml(stop)}"
+        placeholder="Stop ${index + 1} Address"
+        data-index="${index}"
+      >
+
+      <button
+        type="button"
+        class="remove-stop-btn"
+        data-remove-stop="${index}"
+      >
+        Remove
+      </button>
+    `;
+
+    stopsBox.appendChild(row);
+  });
+}
+
+addStopBtn?.addEventListener("click",()=>{
+
+  if(addTripStops.length >= 5){
+    showAlert("Maximum 5 stops allowed.");
+    return;
+  }
+
+  addTripStops.push("");
+
+  renderAddTripStops();
+});
+
+stopsBox?.addEventListener("input",e=>{
+
+  const input =
+    e.target.closest(".add-trip-stop-input");
+
+  if(!input) return;
+
+  const index =
+    Number(input.dataset.index);
+
+  addTripStops[index] =
+    input.value;
+});
+
+stopsBox?.addEventListener("click",e=>{
+
+  const btn =
+    e.target.closest("[data-remove-stop]");
+
+  if(!btn) return;
+
+  const index =
+    Number(btn.dataset.removeStop);
+
+  addTripStops.splice(index,1);
+
+  renderAddTripStops();
+});
+
+/* ================= FRONTEND ROUTE HELPERS ================= */
+/*
+  IMPORTANT:
+  No Google / Map requests in this file.
+  Add/Edit/Review only save and display data.
+  Server calculates route, miles, minutes and price only when Confirm is clicked.
+*/
+
+function passengerIsActive(p){
+
+  const s =
+    cleanStatus(p?.status);
+
+  return (
+    !s.includes("no") &&
+    !s.includes("cancel") &&
+    normalizeText(p?.pickup) &&
+    normalizeText(p?.dropoff)
+  );
+}
+
+/* ================= PAGE SWITCH ================= */
+
+function showAddPage(){
+
+  if(addWrapper){
+    addWrapper.style.display = "block";
+  }else if(addTripPage){
+    addTripPage.style.display = "block";
+  }
+
+  if(dispatchReviewPage){
+    dispatchReviewPage.style.display = "none";
+  }
+
+  if(companyTabs){
+    companyTabs.style.display = "flex";
+  }
+
+  if(activeService && isSharedService(activeService)){
+
+    if(individualSection) individualSection.style.display = "none";
+    if(sharedSection) sharedSection.style.display = "block";
+
+  }else{
+
+    if(individualSection) individualSection.style.display = "block";
+    if(sharedSection) sharedSection.style.display = "none";
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+function showReviewPage(){
+
+  if(addWrapper){
+    addWrapper.style.display = "none";
+  }else if(addTripPage){
+    addTripPage.style.display = "none";
+  }
+
+  if(dispatchReviewPage){
+    dispatchReviewPage.style.display = "block";
+  }
+
+  hideDuplicateReviewTop();
+
+  renderReviewTable();
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+function updateReviewCounter(){
+
+  const text =
+    `Dispatch Review (${reviewTrips.length})`;
+
+  if(showReviewBtn){
+    showReviewBtn.innerText = text;
+  }
+
+  if(reviewShowReviewBtn){
+    reviewShowReviewBtn.innerText = text;
+  }
+}
+
+function goTripsHub(){
+  window.location.href = "/admin/trips-hub.html";
+}
+
+backToHubBtn?.addEventListener("click",goTripsHub);
+reviewBackToHubBtn?.addEventListener("click",goTripsHub);
+
+showAddBtn?.addEventListener("click",showAddPage);
+reviewShowAddBtn?.addEventListener("click",showAddPage);
+
+showReviewBtn?.addEventListener("click",showReviewPage);
+reviewShowReviewBtn?.addEventListener("click",showReviewPage);
+
+/* ================= ENTRY ================= */
+
+function loadEntryInfo(){
+
+  const saved =
+    JSON.parse(
+      localStorage.getItem("dispatchEntryInfo") ||
+      localStorage.getItem("entryInfo") ||
+      "{}"
+    );
+
+  if(entryName) entryName.value = saved.entryName || "";
+  if(entryPhone) entryPhone.value = saved.entryPhone || "";
+
+  if(sharedEntryName) sharedEntryName.value = saved.entryName || "";
+  if(sharedEntryPhone) sharedEntryPhone.value = saved.entryPhone || "";
+}
+
+function saveEntryInfo(){
+
+  const data = {
+    entryName:
+      entryName?.value ||
+      sharedEntryName?.value ||
+      "",
+    entryPhone:
+      entryPhone?.value ||
+      sharedEntryPhone?.value ||
+      ""
+  };
+
+  localStorage.setItem(
+    "dispatchEntryInfo",
+    JSON.stringify(data)
+  );
+
+  localStorage.setItem(
+    "entryInfo",
+    JSON.stringify(data)
+  );
+
+  if(entryName) entryName.value = data.entryName;
+  if(entryPhone) entryPhone.value = data.entryPhone;
+
+  if(sharedEntryName) sharedEntryName.value = data.entryName;
+  if(sharedEntryPhone) sharedEntryPhone.value = data.entryPhone;
+
+  showAlert("Entry Info Saved ✔");
+}
+
+let entryEditMode = false;
+
+function toggleEntryEdit(){
+
+  if(!entryEditMode){
+
+    entryEditMode = true;
+
+    entryName?.removeAttribute("readonly");
+    entryPhone?.removeAttribute("readonly");
+
+    sharedEntryName?.removeAttribute("readonly");
+    sharedEntryPhone?.removeAttribute("readonly");
+
+    if(editEntryBtn) editEntryBtn.innerText = "Save";
+    if(editSharedEntryBtn) editSharedEntryBtn.innerText = "Save";
+
+    entryName?.focus();
+
+    return;
+  }
+
+  saveEntryInfo();
+
+  entryEditMode = false;
+
+  entryName?.setAttribute("readonly",true);
+  entryPhone?.setAttribute("readonly",true);
+
+  sharedEntryName?.setAttribute("readonly",true);
+  sharedEntryPhone?.setAttribute("readonly",true);
+
+  if(editEntryBtn) editEntryBtn.innerText = "Edit";
+  if(editSharedEntryBtn) editSharedEntryBtn.innerText = "Edit";
+}
+
+editEntryBtn?.addEventListener("click",toggleEntryEdit);
+editSharedEntryBtn?.addEventListener("click",toggleEntryEdit);
+saveEntryBtn?.addEventListener("click",saveEntryInfo);
+saveSharedEntryBtn?.addEventListener("click",saveEntryInfo);
+
 /* ================= VALIDATION ================= */
 
 function validateIndividualTrip(){
 
-  if(!normalizeText(entryName.value)){
+  if(!normalizeText(entryName?.value)){
     showAlert("Entry Name Required");
     return false;
   }
 
-  if(!normalizeText(entryPhone.value)){
+  if(!normalizeText(entryPhone?.value)){
     showAlert("Entry Phone Required");
     return false;
   }
 
-  if(!normalizeText(clientName.value)){
+  if(!normalizeText(clientName?.value)){
     showAlert("Client Name Required");
     return false;
   }
 
-  if(!normalizeText(clientPhone.value)){
+  if(!normalizeText(clientPhone?.value)){
     showAlert("Client Phone Required");
     return false;
   }
 
-  if(!normalizeText(pickupInput.value)){
+  if(!normalizeText(pickupInput?.value)){
     showAlert("Pickup Required");
     return false;
   }
 
-  if(!normalizeText(dropoffInput.value)){
+  if(!normalizeText(dropoffInput?.value)){
     showAlert("Dropoff Required");
     return false;
   }
 
-  if(!tripDate.value){
+  if(!tripDate?.value){
     showAlert("Trip Date Required");
     return false;
   }
 
-  if(!tripTime.value){
+  if(!tripTime?.value){
     showAlert("Trip Time Required");
     return false;
   }
 
-  const tripDateTime =
-    new Date(
-      `${tripDate.value}T${tripTime.value}:00`
-    );
+  const dt =
+    parseTripDateTime(tripDate.value,tripTime.value);
 
-  if(tripDateTime <= getSystemNow()){
+  if(!dt || dt <= getSystemNow()){
     showAlert("Trip Date/Time Already Passed");
     return false;
   }
@@ -2183,32 +2665,30 @@ function validateIndividualTrip(){
 
 function validateSharedTrip(){
 
-  if(!normalizeText(sharedEntryName.value)){
+  if(!normalizeText(sharedEntryName?.value)){
     showAlert("Entry Name Required");
     return false;
   }
 
-  if(!normalizeText(sharedEntryPhone.value)){
+  if(!normalizeText(sharedEntryPhone?.value)){
     showAlert("Entry Phone Required");
     return false;
   }
 
-  if(!sharedDate.value){
+  if(!sharedDate?.value){
     showAlert("Trip Date Required");
     return false;
   }
 
-  if(!sharedTime.value){
+  if(!sharedTime?.value){
     showAlert("Trip Time Required");
     return false;
   }
 
-  const tripDateTime =
-    new Date(
-      `${sharedDate.value}T${sharedTime.value}:00`
-    );
+  const dt =
+    parseTripDateTime(sharedDate.value,sharedTime.value);
 
-  if(tripDateTime <= getSystemNow()){
+  if(!dt || dt <= getSystemNow()){
     showAlert("Trip Date/Time Already Passed");
     return false;
   }
@@ -2223,22 +2703,22 @@ function validateSharedTrip(){
 
   for(const card of cards){
 
-    if(!normalizeText(card.querySelector(".sharedClientName").value)){
+    if(!normalizeText(card.querySelector(".sharedClientName")?.value)){
       showAlert("Passenger Name Required");
       return false;
     }
 
-    if(!normalizeText(card.querySelector(".sharedClientPhone").value)){
+    if(!normalizeText(card.querySelector(".sharedClientPhone")?.value)){
       showAlert("Passenger Phone Required");
       return false;
     }
 
-    if(!normalizeText(card.querySelector(".sharedPickup").value)){
+    if(!normalizeText(card.querySelector(".sharedPickup")?.value)){
       showAlert("Passenger Pickup Required");
       return false;
     }
 
-    if(!normalizeText(card.querySelector(".sharedDropoff").value)){
+    if(!normalizeText(card.querySelector(".sharedDropoff")?.value)){
       showAlert("Passenger Dropoff Required");
       return false;
     }
@@ -2247,2375 +2727,11 @@ function validateSharedTrip(){
   return true;
 }
 
-/* ================= ENTRY ================= */
-
-function loadEntryInfo(){
-
-  const saved =
-    JSON.parse(
-      localStorage.getItem(companyStorageKey("entryInfo")) || "{}"
-    );
-
-  entryName.value =
-    saved.entryName || "";
-
-  entryPhone.value =
-    saved.entryPhone || "";
-
-  sharedEntryName.value =
-    saved.entryName || "";
-
-  sharedEntryPhone.value =
-    saved.entryPhone || "";
-}
-
-function saveEntryInfo(){
-
-  localStorage.setItem(
-    companyStorageKey("entryInfo"),
-    JSON.stringify({
-      entryName:entryName.value,
-      entryPhone:entryPhone.value
-    })
-  );
-
-  showAlert("Entry Info Saved ✔");
-}
-
-let entryEditMode = false;
-
-function toggleEntryEdit(){
-
-  if(!entryEditMode){
-
-    entryEditMode = true;
-
-    entryName.removeAttribute("readonly");
-    entryPhone.removeAttribute("readonly");
-    sharedEntryName.removeAttribute("readonly");
-    sharedEntryPhone.removeAttribute("readonly");
-
-    if(editEntryBtn) editEntryBtn.innerText = "Save";
-    if(editSharedEntryBtn) editSharedEntryBtn.innerText = "Save";
-
-    entryName.focus();
-
-  }else{
-
-    saveEntryInfo();
-
-    entryEditMode = false;
-
-    entryName.setAttribute("readonly", true);
-    entryPhone.setAttribute("readonly", true);
-    sharedEntryName.setAttribute("readonly", true);
-    sharedEntryPhone.setAttribute("readonly", true);
-
-    if(editEntryBtn) editEntryBtn.innerText = "Edit";
-    if(editSharedEntryBtn) editSharedEntryBtn.innerText = "Edit";
-  }
-}
-
-if(editEntryBtn) editEntryBtn.onclick = toggleEntryEdit;
-if(editSharedEntryBtn) editSharedEntryBtn.onclick = toggleEntryEdit;
-if(saveEntryBtn) saveEntryBtn.onclick = saveEntryInfo;
-
-loadEntryInfo();
-
-/* ================= CLIENT AUTOCOMPLETE ================= */
-
-function hideClientSuggestions(){
-
-  if(!clientSuggestions){
-    return;
-  }
-
-  clientSuggestions.innerHTML = "";
-  clientSuggestions.classList.remove(
-    "show"
-  );
-}
-
-function applySavedClientToIndividual(item){
-
-  if(!item){
-    return;
-  }
-
-  clientName.value =
-    item.clientName || "";
-
-  clientPhone.value =
-    item.clientPhone || "";
-
-  pickupInput.value =
-    item.pickup || "";
-
-  dropoffInput.value =
-    item.dropoff || "";
-
-  clearLocationMeta(
-    pickupInput
-  );
-
-  clearLocationMeta(
-    dropoffInput
-  );
-
-  hideClientSuggestions();
-}
-
-function renderClientSuggestions(query){
-
-  if(!clientSuggestions){
-    return;
-  }
-
-  const matches =
-    getMatchingSavedClients(
-      query
-    );
-
-  if(!matches.length){
-
-    hideClientSuggestions();
-    return;
-  }
-
-  clientSuggestions.innerHTML = "";
-
-  matches.forEach(item=>{
-
-    const row =
-      document.createElement("div");
-
-    row.className =
-      "client-suggestion";
-
-    const name =
-      document.createElement("div");
-
-    name.className =
-      "client-suggestion-name";
-
-    name.textContent =
-      item.clientName || "";
-
-    const meta =
-      document.createElement("div");
-
-    meta.className =
-      "client-suggestion-meta";
-
-    meta.textContent =
-      [
-        item.clientPhone || "",
-        item.pickup || ""
-      ]
-      .filter(Boolean)
-      .join(" • ");
-
-    row.appendChild(name);
-
-    if(meta.textContent){
-      row.appendChild(meta);
-    }
-
-    row.addEventListener(
-      "mousedown",
-      event=>{
-        event.preventDefault();
-        applySavedClientToIndividual(
-          item
-        );
-      }
-    );
-
-    clientSuggestions.appendChild(
-      row
-    );
-  });
-
-  clientSuggestions.classList.add(
-    "show"
-  );
-}
-
-if(clientName){
-
-  clientName.addEventListener(
-    "input",
-    ()=>{
-      renderClientSuggestions(
-        clientName.value
-      );
-    }
-  );
-
-  clientName.addEventListener(
-    "focus",
-    ()=>{
-      if(normalizeText(clientName.value)){
-        renderClientSuggestions(
-          clientName.value
-        );
-      }
-    }
-  );
-
-  clientName.addEventListener(
-    "change",
-    ()=>{
-      const exact =
-        findSavedClientByName(
-          clientName.value
-        );
-
-      if(exact){
-        applySavedClientToIndividual(
-          exact
-        );
-      }
-    }
-  );
-
-  clientName.addEventListener(
-    "blur",
-    ()=>{
-      window.setTimeout(
-        hideClientSuggestions,
-        120
-      );
-    }
-  );
-}
-
-/* ================= DRAFTS ================= */
-
-function loadDraft(){
-
-  const draft =
-    JSON.parse(
-      localStorage.getItem(companyStorageKey("companyTripDraft")) || "{}"
-    );
-
-  clientName.value =
-    draft.clientName || "";
-
-  clientPhone.value =
-    draft.clientPhone || "";
-
-  pickupInput.value =
-    draft.pickup || "";
-
-  dropoffInput.value =
-    draft.dropoff || "";
-
-  tripDate.value =
-    draft.tripDate || "";
-
-  tripTime.value =
-    draft.tripTime || "";
-
-  notes.value =
-    draft.notes || "";
-}
-
-function saveDraft(){
-
-  localStorage.setItem(
-    companyStorageKey("companyTripDraft"),
-    JSON.stringify({
-      clientName:clientName.value,
-      clientPhone:clientPhone.value,
-      pickup:pickupInput.value,
-      dropoff:dropoffInput.value,
-      tripDate:tripDate.value,
-      tripTime:tripTime.value,
-      notes:notes.value
-    })
-  );
-
-  showAlert("Draft Saved ✔");
-}
-
-if(saveDraftBtn) saveDraftBtn.onclick = saveDraft;
-
-function loadSharedDraft(){
-
-  const draft =
-    JSON.parse(
-      localStorage.getItem(companyStorageKey("companySharedDraft")) || "{}"
-    );
-
-  passengerCount.value =
-    draft.passengerCount || "";
-
-  sharedDate.value =
-    draft.sharedDate || "";
-
-  sharedTime.value =
-    draft.sharedTime || "";
-
-  sharedNotes.value =
-    draft.sharedNotes || "";
-
-  if(Number(draft.passengerCount) >= 2){
-
-    renderSharedPassengers(
-      Number(draft.passengerCount)
-    );
-
-    setTimeout(()=>{
-
-      const cards =
-        document.querySelectorAll(".passenger-card");
-
-      (draft.passengers || []).forEach((p,index)=>{
-
-        const card =
-          cards[index];
-
-        if(!card) return;
-
-        card.querySelector(".sharedClientName").value =
-          p.clientName || "";
-
-        card.querySelector(".sharedClientPhone").value =
-          p.clientPhone || "";
-
-        card.querySelector(".sharedPickup").value =
-          p.pickup || "";
-
-        card.querySelector(".sharedDropoff").value =
-          p.dropoff || "";
-      });
-
-    },50);
-  }
-}
-
-function saveSharedDraft(){
-
-  const passengers = [];
-
-  document.querySelectorAll(".passenger-card").forEach(card=>{
-
-    passengers.push({
-      clientName:card.querySelector(".sharedClientName").value,
-      clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:card.querySelector(".sharedPickup").value,
-      dropoff:card.querySelector(".sharedDropoff").value
-    });
-  });
-
-  localStorage.setItem(
-    companyStorageKey("companySharedDraft"),
-    JSON.stringify({
-      passengerCount:passengerCount.value,
-      passengers,
-      sharedDate:sharedDate.value,
-      sharedTime:sharedTime.value,
-      sharedNotes:sharedNotes.value
-    })
-  );
-
-  showAlert("Shared Draft Saved ✔");
-}
-
-if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
-
-
-/* ================= AUTOMATIC SHARED ================= */
-
-const AUTO_SHARED_DRAFT_KEY =
-  companyStorageKey("companyAutomaticSharedDraft");
-
-function setSharedEntryMode(mode){
-
-  sharedEntryMode =
-    String(mode || "MANUAL")
-      .toUpperCase() === "AUTOMATIC"
-      ? "AUTOMATIC"
-      : "MANUAL";
-
-  const automatic =
-    sharedEntryMode === "AUTOMATIC";
-
-  if(manualSharedModePanel){
-    manualSharedModePanel.style.display =
-      automatic ? "none" : "block";
-  }
-
-  if(automaticSharedModePanel){
-    automaticSharedModePanel.style.display =
-      automatic ? "block" : "none";
-  }
-
-  if(sharedManualModeBtn){
-    sharedManualModeBtn.classList.toggle(
-      "active",
-      !automatic
-    );
-  }
-
-  if(sharedAutomaticModeBtn){
-    sharedAutomaticModeBtn.classList.toggle(
-      "active",
-      automatic
-    );
-  }
-}
-
-function automaticSharedStatePayload(){
-  return {
-    candidates:
-      Array.isArray(
-        automaticSharedCandidates
-      )
-        ? automaticSharedCandidates
-        : [],
-    plan:
-      automaticSharedPlan &&
-      typeof automaticSharedPlan === "object"
-        ? automaticSharedPlan
-        : null
-  };
-}
-
-function saveAutomaticSharedStateToServer(){
-  if(!token){
-    return;
-  }
-
-  fetch(
-    "/api/company-shared/automatic-state",
-    {
-      method:"PUT",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify(
-        automaticSharedStatePayload()
-      )
-    }
-  )
-    .then(async res=>{
-      if(!res.ok){
-        const data =
-          await res
-            .json()
-            .catch(()=>({}));
-
-        throw new Error(
-          data.message ||
-          "Automatic Shared state save failed"
-        );
-      }
-    })
-    .catch(err=>{
-      console.log(
-        "AUTO SHARED SERVER STATE SAVE ERROR:",
-        err
-      );
-    });
-}
-
-function saveAutomaticSharedDraft(){
-  const state =
-    automaticSharedStatePayload();
-
-  try{
-    localStorage.setItem(
-      AUTO_SHARED_DRAFT_KEY,
-      JSON.stringify(state)
-    );
-  }catch(err){
-    console.log(
-      "AUTO SHARED DRAFT SAVE ERROR:",
-      err
-    );
-  }
-
-  saveAutomaticSharedStateToServer();
-}
-
-function applyAutomaticSharedState(data){
-  automaticSharedCandidates =
-    Array.isArray(
-      data?.candidates
-    )
-      ? data.candidates
-      : [];
-
-  automaticSharedPlan =
-    data?.plan &&
-    typeof data.plan === "object"
-      ? data.plan
-      : null;
-
-  renderAutomaticSharedList();
-  renderAutomaticSharedResult(
-    automaticSharedPlan
-  );
-}
-
-async function loadAutomaticSharedDraft(){
-  let localState = {};
-
-  try{
-    localState =
-      JSON.parse(
-        localStorage.getItem(
-          AUTO_SHARED_DRAFT_KEY
-        ) || "{}"
-      );
-
-    applyAutomaticSharedState(
-      localState
-    );
-
-  }catch(err){
-    automaticSharedCandidates = [];
-    automaticSharedPlan = null;
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(null);
-  }
-
-  if(!token){
-    return;
-  }
-
-  try{
-    const res =
-      await fetch(
-        "/api/company-shared/automatic-state",
-        {
-          headers:{
-            Authorization:
-              "Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await res
-        .json()
-        .catch(()=>({}));
-
-    if(
-      res.ok &&
-      data?.success === true &&
-      data?.state
-    ){
-      const serverState =
-        data.state;
-
-      const serverHasState =
-        (
-          Array.isArray(
-            serverState.candidates
-          ) &&
-          serverState.candidates.length
-        ) ||
-        (
-          serverState.plan &&
-          typeof serverState.plan ===
-            "object"
-        );
-
-      if(serverHasState){
-        applyAutomaticSharedState(
-          serverState
-        );
-
-        try{
-          localStorage.setItem(
-            AUTO_SHARED_DRAFT_KEY,
-            JSON.stringify(
-              automaticSharedStatePayload()
-            )
-          );
-        }catch(err){}
-      }else if(
-        Array.isArray(
-          localState?.candidates
-        ) &&
-        localState.candidates.length
-      ){
-        saveAutomaticSharedStateToServer();
-      }
-    }
-
-  }catch(err){
-    console.log(
-      "AUTO SHARED SERVER STATE LOAD ERROR:",
-      err
-    );
-  }
-}
-
-function automaticCandidateId(){
-  return (
-    "AUTO-" +
-    Date.now().toString(36) +
-    "-" +
-    Math.random().toString(36).slice(2,8)
-  ).toUpperCase();
-}
-
-function automaticCandidateById(id){
-  return automaticSharedCandidates.find(
-    item=>String(item.id) === String(id)
-  ) || null;
-}
-
-function clearAutomaticCandidateForm(){
-  if(autoSharedClientName) autoSharedClientName.value = "";
-  if(autoSharedClientPhone) autoSharedClientPhone.value = "";
-  if(autoSharedPickup) autoSharedPickup.value = "";
-  if(autoSharedDropoff) autoSharedDropoff.value = "";
-  if(autoSharedDate) autoSharedDate.value = "";
-  if(autoSharedPickupTime) autoSharedPickupTime.value = "";
-  if(autoSharedAppointmentTime) autoSharedAppointmentTime.value = "";
-  if(autoSharedReturnTime) autoSharedReturnTime.value = "";
-  if(autoSharedNotes) autoSharedNotes.value = "";
-
-  clearLocationMeta(autoSharedPickup);
-  clearLocationMeta(autoSharedDropoff);
-}
-
-function timeToMinutes(value){
-  const text = normalizeText(value);
-  if(!text || !text.includes(":")) return null;
-  const [hourText,minuteText] = text.split(":");
-  const hours = Number(hourText);
-  const minutes = Number(minuteText);
-  if(!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  return (hours * 60) + minutes;
-}
-
-function formatDisplayTime(value){
-  const text = normalizeText(value);
-  if(!text) return "--";
-  return text;
-}
-
-function automaticGroupMaps(plan = automaticSharedPlan){
-  const groups = Array.isArray(plan?.groups) ? plan.groups : [];
-  const singles = Array.isArray(plan?.singles) ? plan.singles : [];
-  const excluded = Array.isArray(plan?.excluded) ? plan.excluded : [];
-
-  const matchedIds = new Set();
-  const groupIndexById = new Map();
-  const unmatchedReasonById = new Map();
-
-  groups.forEach((group,index)=>{
-    const members = Array.isArray(group?.trips) ? group.trips : [];
-    members.forEach(member=>{
-      const id = String(member?.id || member?.tripId || "").trim();
-      if(!id) return;
-      matchedIds.add(id);
-      groupIndexById.set(id,index);
-    });
-  });
-
-  [...singles,...excluded].forEach(row=>{
-    const id = String(row?.tripId || row?.id || "").trim();
-    if(!id) return;
-    unmatchedReasonById.set(id,row?.reason || "NOT_MATCHED");
-  });
-
-  return {
-    matchedIds,
-    groupIndexById,
-    unmatchedReasonById
-  };
-}
-
-function automaticCandidateStatus(item){
-  const maps = automaticGroupMaps();
-  const id = String(item?.id || "").trim();
-
-  if(id && maps.groupIndexById.has(id)){
-    const groupIndex = maps.groupIndexById.get(id);
-    return {
-      rowClass:"matched",
-      badgeClass:"matched",
-      badgeText:`Matched G${groupIndex + 1}`,
-      noteText:`Matched in Group ${groupIndex + 1}`
-    };
-  }
-
-  if(id && maps.unmatchedReasonById.has(id)){
-    return {
-      rowClass:"unmatched",
-      badgeClass:"unmatched",
-      badgeText:"Not Matched",
-      noteText:"Not Matched"
-    };
-  }
-
-  return {
-    rowClass:"",
-    badgeClass:"pending",
-    badgeText:"Pending",
-    noteText:"Waiting For Build"
-  };
-}
-
-function visibleAutomaticCandidates(){
-  if(!automaticSharedPlan){
-    return automaticSharedCandidates;
-  }
-
-  const maps = automaticGroupMaps();
-  return automaticSharedCandidates.filter(item=>{
-    const id = String(item?.id || "").trim();
-    return !maps.matchedIds.has(id);
-  });
-}
-
-function automaticAlternativeServices(){
-  return COMPANY_SERVICES.filter(service=>{
-    const code = resolveServiceCode(service);
-    return code && code !== "SH";
-  });
-}
-
-function automaticServiceOptionHtml(selectedCode=""){
-  const services = automaticAlternativeServices();
-
-  const firstOption = selectedCode
-    ? `<option value="">Change Service...</option>`
-    : `<option value="" selected>Change Service...</option>`;
-
-  if(!services.length){
-    return `<option value="" selected>No alternate service</option>`;
-  }
-
-  return firstOption + services.map(service=>{
-    const code = resolveServiceCode(service);
-    const name = serviceDisplayName(service,code);
-    const selected = code === selectedCode ? " selected" : "";
-    return `<option value="${safeHtml(code)}"${selected}>${safeHtml(name)}</option>`;
-  }).join("");
-}
-
-function servicePayloadFromConfig(service){
-  const serviceKey = resolveServiceCode(service);
-  if(!serviceKey){
-    throw new Error("Service code missing");
-  }
-
-  const serviceName = serviceDisplayName(service,serviceKey);
-  const fromOverride = service.__pricingSource === "FACILITY_OVERRIDE";
-
-  return {
-    service,
-    serviceKey,
-    serviceCode:serviceKey,
-    serviceType:serviceKey,
-    serviceSuffix:serviceKey,
-    serviceName,
-    serviceId:fromOverride ? "" : String(service._id || ""),
-    pricingSource:fromOverride ? "FACILITY_OVERRIDE" : "SERVICE_MANAGEMENT",
-    facilityOverrideActive:fromOverride
-  };
-}
-
-function updateAutomaticSharedCounters(){
-  if(!automaticSharedCounters) return;
-
-  const groups = Array.isArray(automaticSharedPlan?.groups)
-    ? automaticSharedPlan.groups
-    : [];
-
-  const matchedClients = groups.reduce((total,group)=>{
-    return total + (Array.isArray(group?.trips) ? group.trips.length : 0);
-  },0);
-
-  const unmatched = automaticSharedPlan
-    ? visibleAutomaticCandidates().length
-    : 0;
-
-  automaticSharedCounters.innerHTML = `
-    <div class="auto-share-counter"><span>Groups</span><strong>${groups.length}</strong></div>
-    <div class="auto-share-counter"><span>Matched Clients</span><strong>${matchedClients}</strong></div>
-    <div class="auto-share-counter"><span>Not Matched</span><strong>${unmatched}</strong></div>
-  `;
-}
-
-function bindUnmatchedAutomaticActions(){
-  if(!automaticSharedList) return;
-
-  automaticSharedList.querySelectorAll("[data-edit-time]").forEach(button=>{
-    button.onclick = ()=>{
-      const id = button.getAttribute("data-edit-time");
-      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
-      const saveButton = automaticSharedList.querySelector(`[data-save-time="${CSS.escape(id)}"]`);
-      if(input) input.style.display = "inline-block";
-      if(saveButton) saveButton.style.display = "inline-block";
-      button.style.display = "none";
-    };
-  });
-
-  automaticSharedList.querySelectorAll("[data-save-time]").forEach(button=>{
-    button.onclick = async ()=>{
-      const id = button.getAttribute("data-save-time");
-      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
-      const candidate = automaticCandidateById(id);
-      const nextTime = normalizeText(input?.value);
-
-      if(!candidate || !nextTime){
-        showAlert("Pickup Time Required");
-        return;
-      }
-
-      candidate.tripTime = nextTime;
-      candidate.pickupTime = nextTime;
-      saveAutomaticSharedDraft();
-      renderAutomaticSharedList();
-      updateAutomaticSharedCounters();
-      await runAutomaticSharedEngine();
-    };
-  });
-
-  automaticSharedList.querySelectorAll("[data-service-select]").forEach(select=>{
-    const id = select.getAttribute("data-service-select");
-    const submitButton = automaticSharedList.querySelector(`[data-submit-unmatched="${CSS.escape(id)}"]`);
-
-    const syncSubmitState = ()=>{
-      if(submitButton){
-        submitButton.disabled = !normalizeText(select.value);
-      }
-    };
-
-    syncSubmitState();
-    select.addEventListener("change",syncSubmitState);
-  });
-
-  automaticSharedList.querySelectorAll("[data-submit-unmatched]").forEach(button=>{
-    button.onclick = async ()=>{
-      const id = button.getAttribute("data-submit-unmatched");
-      const select = automaticSharedList.querySelector(`[data-service-select="${CSS.escape(id)}"]`);
-      const serviceCode = normalizeText(select?.value);
-
-      if(!serviceCode){
-        showAlert("Change the service before submitting this unmatched trip");
-        return;
-      }
-
-      await submitUnmatchedAutomaticCandidate(id,serviceCode);
-    };
-  });
-}
-
-async function submitUnmatchedAutomaticCandidate(id,serviceCode){
-  const candidate = automaticCandidateById(id);
-  if(!candidate){
-    showAlert("Trip not found");
-    return;
-  }
-
-  const service = automaticAlternativeServices().find(item=>resolveServiceCode(item) === serviceCode);
-  if(!service){
-    showAlert("Select a service");
-    return;
-  }
-
-  if(!confirm("Warning: Submit this unmatched trip as an individual trip with the selected service?")){
-    return;
-  }
-
-  try{
-    const selected = servicePayloadFromConfig(service);
-
-    assertCompanyBookingHours(
-      selected.service,
-      candidate.tripDate || "",
-      candidate.tripTime || candidate.pickupTime || "",
-      selected.facilityOverrideActive === true
-    );
-
-    const payload = {
-      company:companyName,
-      companyName,
-      facilityName:companyName,
-      companyId,
-      facilityId:companyId,
-      userId:companyId,
-      type:"company",
-      source:"company",
-      bookingSource:"AUTOMATIC_SHARED_UNMATCHED_INDIVIDUAL",
-      tripType:"INDIVIDUAL",
-      isShared:false,
-      serviceKey:selected.serviceKey,
-      serviceCode:selected.serviceCode,
-      serviceType:selected.serviceType,
-      serviceSuffix:selected.serviceSuffix,
-      serviceName:selected.serviceName,
-      serviceId:selected.serviceId,
-      pricingSource:selected.pricingSource,
-      facilityOverrideActive:selected.facilityOverrideActive,
-      entryName:sharedEntryName?.value || entryName?.value || "",
-      entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
-      clientName:candidate.clientName || "",
-      clientPhone:candidate.clientPhone || "",
-      pickup:candidate.pickup || "",
-      dropoff:candidate.dropoff || "",
-      stops:[],
-      pickupLat:candidate.pickupLat ?? null,
-      pickupLng:candidate.pickupLng ?? null,
-      dropoffLat:candidate.dropoffLat ?? null,
-      dropoffLng:candidate.dropoffLng ?? null,
-      tripDate:candidate.tripDate || "",
-      tripTime:candidate.tripTime || candidate.pickupTime || "",
-      appointmentTime:candidate.appointmentTime || "",
-      notes:candidate.notes || "",
-      status:"Scheduled"
-    };
-
-    const res = await fetch("/api/trips",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify(payload)
-    });
-
-    const data = await res.json().catch(()=>({}));
-    if(!res.ok){
-      throw new Error(data.message || "Failed to submit unmatched trip");
-    }
-
-    automaticSharedCandidates = automaticSharedCandidates.filter(item=>String(item.id) !== String(id));
-    pruneAutomaticPlanIds(new Set([String(id)]),false);
-    saveAutomaticSharedDraft();
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(automaticSharedPlan);
-    updateAutomaticSharedCounters();
-    showAlert("Trip submitted successfully ✔");
-
-  }catch(err){
-    console.log("UNMATCHED TRIP SUBMIT ERROR:",err);
-    showAlert(err.message || "Failed to submit unmatched trip");
-  }
-}
-
-function renderAutomaticSharedList(){
-
-  if(!automaticSharedList) return;
-
-  const visibleCandidates = visibleAutomaticCandidates();
-
-  if(!visibleCandidates.length){
-    automaticSharedList.innerHTML = `
-      <div class="auto-share-unmatched">
-        ${automaticSharedPlan ? "All current candidates are inside matched groups." : "No Automatic Shared candidates yet."}
-      </div>
-    `;
-    updateAutomaticSharedCounters();
-    return;
-  }
-
-  const rows = visibleCandidates.map((item,index)=>{
-    const status = automaticCandidateStatus(item);
-    const isUnmatched = status.badgeClass === "unmatched";
-    const serviceOptions = automaticServiceOptionHtml();
-    return `
-      <div class="auto-share-row ${status.rowClass}">
-        <div class="auto-share-cell"><div class="auto-share-data-box">${index + 1}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientName)}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientPhone)}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.pickup)}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.dropoff)}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripDate)}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.tripTime || item.pickupTime))}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.appointmentTime))}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.returnTime))}</div></div>
-        <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripLeg || "OUTBOUND")}</div></div>
-        <div class="auto-share-cell">
-          <span class="auto-share-status-badge ${status.badgeClass}">${safeHtml(status.badgeText)}</span>
-        </div>
-        <div class="auto-share-cell">
-          ${isUnmatched ? `
-            <div class="auto-share-unmatched-actions">
-              <button class="btn-orange auto-share-action-btn" type="button" data-edit-time="${safeHtml(item.id)}">Edit Time</button>
-              <input class="auto-share-inline-time" data-time-input="${safeHtml(item.id)}" type="time" value="${safeHtml(item.tripTime || item.pickupTime || "")}" style="display:none;">
-              <button class="btn-blue auto-share-action-btn" type="button" data-save-time="${safeHtml(item.id)}" style="display:none;">Retry Match</button>
-              <select class="auto-share-inline-service" data-service-select="${safeHtml(item.id)}">${serviceOptions}</select>
-              <button class="btn-green auto-share-action-btn" type="button" data-submit-unmatched="${safeHtml(item.id)}" disabled>Submit Trip</button>
-              <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
-            </div>
-          ` : `
-            <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
-          `}
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  automaticSharedList.innerHTML = `
-    <div class="auto-share-row header">
-      <div>#</div>
-      <div>Passenger</div>
-      <div>Phone</div>
-      <div>Pickup</div>
-      <div>Dropoff</div>
-      <div>Date</div>
-      <div>Pickup Time</div>
-      <div>Appointment</div>
-      <div>Return Time</div>
-      <div>Leg</div>
-      <div>Match Status</div>
-      <div>Actions</div>
-    </div>
-    ${rows}
-  `;
-
-  automaticSharedList
-    .querySelectorAll("[data-auto-remove]")
-    .forEach(button=>{
-      button.onclick = ()=>{
-        const id = button.getAttribute("data-auto-remove");
-        const target = automaticCandidateById(id);
-        const pairId = normalizeText(target?.pairId);
-
-        const removedIds = new Set(
-          automaticSharedCandidates
-            .filter(item=>{
-              if(pairId){
-                return normalizeText(item?.pairId) === pairId;
-              }
-              return String(item.id) === String(id);
-            })
-            .map(item=>String(item.id))
-        );
-
-        automaticSharedCandidates = automaticSharedCandidates.filter(item=>{
-          if(pairId){
-            return normalizeText(item?.pairId) !== pairId;
-          }
-          return String(item.id) !== String(id);
-        });
-
-        if(automaticSharedPlan){
-          pruneAutomaticPlanIds(removedIds,false);
-        }
-
-        saveAutomaticSharedDraft();
-        renderAutomaticSharedList();
-        renderAutomaticSharedResult(automaticSharedPlan);
-      };
-    });
-
-  bindUnmatchedAutomaticActions();
-  updateAutomaticSharedCounters();
-}
-
-function safeHtml(value){
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
-
-function validateAutomaticCandidate(){
-
-  if(!normalizeText(autoSharedClientName?.value)){
-    showAlert("Passenger Name Required");
-    return false;
-  }
-
-  if(!normalizeText(autoSharedClientPhone?.value)){
-    showAlert("Passenger Phone Required");
-    return false;
-  }
-
-  if(!normalizeText(autoSharedPickup?.value)){
-    showAlert("Pickup Required");
-    return false;
-  }
-
-  if(!normalizeText(autoSharedDropoff?.value)){
-    showAlert("Dropoff Required");
-    return false;
-  }
-
-  if(!autoSharedDate?.value){
-    showAlert("Trip Date Required");
-    return false;
-  }
-
-  if(!autoSharedPickupTime?.value){
-    showAlert("Pickup Time Required");
-    return false;
-  }
-
-  return true;
-}
-
-function automaticCandidatePayload(){
-
-  const pickupLocation =
-    getLocationMeta(autoSharedPickup);
-
-  const dropoffLocation =
-    getLocationMeta(autoSharedDropoff);
-
-  const id =
-    automaticCandidateId();
-
-  return {
-    id,
-    pairId:id,
-    tripLeg:"OUTBOUND",
-    generatedReturn:false,
-    clientName:normalizeText(autoSharedClientName?.value),
-    clientPhone:normalizeText(autoSharedClientPhone?.value),
-    pickup:normalizeText(autoSharedPickup?.value),
-    dropoff:normalizeText(autoSharedDropoff?.value),
-    pickupLat:pickupLocation?.lat ?? null,
-    pickupLng:pickupLocation?.lng ?? null,
-    dropoffLat:dropoffLocation?.lat ?? null,
-    dropoffLng:dropoffLocation?.lng ?? null,
-    tripDate:autoSharedDate?.value || "",
-    tripTime:autoSharedPickupTime?.value || "",
-    pickupTime:autoSharedPickupTime?.value || "",
-    appointmentTime:autoSharedAppointmentTime?.value || "",
-    returnTime:autoSharedReturnTime?.value || "",
-    notes:normalizeText(autoSharedNotes?.value),
-    source:"company",
-    sharedEngineSource:"COMPANY",
-    company:companyName,
-    companyName,
-    facilityName:companyName,
-    status:"Scheduled"
-  };
-}
-
-function automaticReturnCandidate(outbound){
-
-  const returnTime =
-    normalizeText(outbound?.returnTime);
-
-  if(!returnTime){
-    return null;
-  }
-
-  const returnId =
-    automaticCandidateId();
-
-  return {
-    ...outbound,
-    id:returnId,
-    pairId:outbound.pairId || outbound.id,
-    pairedCandidateId:outbound.id,
-    tripLeg:"RETURN",
-    generatedReturn:true,
-    pickup:outbound.dropoff,
-    dropoff:outbound.pickup,
-    pickupLat:outbound.dropoffLat ?? null,
-    pickupLng:outbound.dropoffLng ?? null,
-    dropoffLat:outbound.pickupLat ?? null,
-    dropoffLng:outbound.pickupLng ?? null,
-    tripTime:returnTime,
-    pickupTime:returnTime,
-    appointmentTime:"",
-    returnTime:"",
-    notes:outbound.notes || "",
-    bookingSource:"AUTOMATIC_SHARED_RETURN"
-  };
-}
-
-function appointmentStatusText(trip){
-  const appointmentMinutes = timeToMinutes(trip?.appointmentTime);
-  if(appointmentMinutes === null){
-    return {
-      text:"No Appointment",
-      className:""
-    };
-  }
-
-  const pickupMinutes = timeToMinutes(trip?.pickupTime || trip?.tripTime);
-  if(pickupMinutes === null){
-    return {
-      text:"Appointment Set",
-      className:"auto-share-appointment-risk"
-    };
-  }
-
-  if(pickupMinutes > appointmentMinutes){
-    return {
-      text:"Late Risk",
-      className:"auto-share-appointment-risk"
-    };
-  }
-
-  return {
-    text:"Review Route",
-    className:"auto-share-appointment-ok"
-  };
-}
-
-function pruneAutomaticPlanIds(idSet,markUnmatched = false){
-  if(!automaticSharedPlan || !idSet || !idSet.size){
-    return;
-  }
-
-  const keepTrip = trip=>!idSet.has(String(trip?.id || trip?.tripId || ""));
-
-  const groups = (Array.isArray(automaticSharedPlan.groups) ? automaticSharedPlan.groups : [])
-    .map(group=>({
-      ...group,
-      trips:(Array.isArray(group?.trips) ? group.trips : []).filter(keepTrip)
-    }))
-    .filter(group=>(group.trips || []).length >= 2);
-
-  const singles = (Array.isArray(automaticSharedPlan.singles) ? automaticSharedPlan.singles : [])
-    .filter(row=>!idSet.has(String(row?.tripId || row?.id || "")));
-
-  const excluded = (Array.isArray(automaticSharedPlan.excluded) ? automaticSharedPlan.excluded : [])
-    .filter(row=>!idSet.has(String(row?.tripId || row?.id || "")));
-
-  if(markUnmatched){
-    idSet.forEach(id=>{
-      excluded.push({
-        tripId:id,
-        reason:"RETURNED_TO_ORIGINAL"
-      });
-    });
-  }
-
-  automaticSharedPlan = {
-    ...automaticSharedPlan,
-    groups,
-    singles,
-    excluded
-  };
-}
-
-function bindAutomaticGroupActions(){
-  if(!automaticSharedResult) return;
-
-  automaticSharedResult
-    .querySelectorAll("[data-submit-group-index]")
-    .forEach(button=>{
-      button.onclick = ()=>{
-        const index = Number(button.getAttribute("data-submit-group-index"));
-        submitAutomaticSharedGroup(index);
-      };
-    });
-
-  automaticSharedResult
-    .querySelectorAll("[data-return-group-index]")
-    .forEach(button=>{
-      button.onclick = ()=>{
-        const index = Number(button.getAttribute("data-return-group-index"));
-        returnAutomaticSharedGroupToOriginal(index);
-      };
-    });
-}
-
-function renderAutomaticSharedResult(plan){
-
-  if(!automaticSharedResult) return;
-
-  if(!plan){
-    automaticSharedResult.innerHTML = "";
-    return;
-  }
-
-  const groups = Array.isArray(plan?.groups) ? plan.groups : [];
-  const singles = Array.isArray(plan?.singles) ? plan.singles : [];
-  const excluded = Array.isArray(plan?.excluded) ? plan.excluded : [];
-
-  const groupHtml = groups.map((group,index)=>{
-    const members = Array.isArray(group?.trips) ? group.trips : [];
-
-    const memberRows = members.map((trip,memberIndex)=>{
-      const status = appointmentStatusText(trip);
-      return `
-        <div class="auto-share-group-grid body">
-          <div><div class="auto-share-data-box">${memberIndex + 1}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(trip.clientName || trip.passengerName || trip.name || "Passenger")}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(trip.pickup || "--")}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(trip.dropoff || "--")}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(trip.tripDate || group.tripDate || "--")}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(formatDisplayTime(trip.pickupTime || trip.tripTime || group.calculatedFirstPickupTime || ""))}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(formatDisplayTime(trip.appointmentTime))}</div></div>
-          <div><div class="auto-share-data-box">${safeHtml(trip.tripLeg || group.tripLeg || "OUTBOUND")}</div></div>
-          <div class="${safeHtml(status.className)}"><div class="auto-share-data-box">${safeHtml(status.text)}</div></div>
-        </div>
-      `;
-    }).join("");
-
-    return `
-      <div class="auto-share-group">
-        <div class="auto-share-group-header">
-          <div>
-            <div class="auto-share-group-title">${safeHtml(group.tripLeg || "OUTBOUND")} Group ${index + 1} • ${members.length} Passengers</div>
-          </div>
-          <div class="auto-share-group-actions">
-            <button class="btn-green auto-share-group-btn" type="button" data-submit-group-index="${index}">Submit Group</button>
-            <button class="btn-gray auto-share-group-btn" type="button" data-return-group-index="${index}">Return To Original</button>
-          </div>
-        </div>
-
-        <div class="auto-share-group-table">
-          <div class="auto-share-group-table-title">Matched Group Trips</div>
-          <div class="auto-share-group-grid header">
-            <div>#</div>
-            <div>Passenger</div>
-            <div>Pickup</div>
-            <div>Dropoff</div>
-            <div>Date</div>
-            <div>Pickup Time</div>
-            <div>Appointment</div>
-            <div>Leg</div>
-            <div>Check</div>
-          </div>
-          ${memberRows}
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  automaticSharedResult.innerHTML = groupHtml || "";
-
-  bindAutomaticGroupActions();
-  updateAutomaticSharedCounters();
-}
-
-async function runAutomaticSharedEngine(){
-
-  const existingGroups =
-    Array.isArray(
-      automaticSharedPlan?.groups
-    )
-      ? automaticSharedPlan.groups
-      : [];
-
-  const existingMatchedIds =
-    new Set();
-
-  existingGroups.forEach(group=>{
-    (
-      Array.isArray(group?.trips)
-        ? group.trips
-        : []
-    ).forEach(trip=>{
-      const id =
-        String(
-          trip?.id ||
-          trip?.tripId ||
-          ""
-        ).trim();
-
-      if(id){
-        existingMatchedIds.add(id);
-      }
-    });
-  });
-
-  /*
-    IMPORTANT PRIORITY:
-    1) Existing matched groups stay fixed.
-    2) Build NEW groups from currently unmatched trips first.
-    3) Only trips still unmatched after step 2 may try to join an existing group.
-  */
-  const currentlyUnmatched =
-    automaticSharedCandidates
-      .filter(item=>{
-        const id =
-          String(
-            item?.id ||
-            item?.tripId ||
-            ""
-          ).trim();
-
-        return (
-          !id ||
-          !existingMatchedIds.has(id)
-        );
-      });
-
-  if(currentlyUnmatched.length < 1){
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(
-      automaticSharedPlan
-    );
-    return;
-  }
-
-  if(runAutomaticSharedEngineBtn){
-    runAutomaticSharedEngineBtn.disabled = true;
-    runAutomaticSharedEngineBtn.innerText = "Building...";
-  }
-
-  try{
-
-    async function planTrips(
-      trips,
-      tripLeg
-    ){
-      if(!trips.length){
-        return {
-          success:true,
-          groups:[],
-          singles:[],
-          excluded:[]
-        };
-      }
-
-      const res =
-        await fetch(
-          "/api/company-shared/plan",
-          {
-            method:"POST",
-            headers:{
-              "Content-Type":
-                "application/json",
-              Authorization:
-                "Bearer " + token
-            },
-            body:JSON.stringify({
-              trips
-            })
-          }
-        );
-
-      const data =
-        await res
-          .json()
-          .catch(()=>({}));
-
-      if(!res.ok){
-        throw new Error(
-          data.message ||
-          `${tripLeg} Automatic Shared planning failed`
-        );
-      }
-
-      return {
-        ...data,
-        groups:
-          Array.isArray(data?.groups)
-            ? data.groups.map(group=>({
-                ...group,
-                tripLeg
-              }))
-            : [],
-        singles:
-          Array.isArray(data?.singles)
-            ? data.singles
-            : [],
-        excluded:
-          Array.isArray(data?.excluded)
-            ? data.excluded
-            : []
-      };
-    }
-
-    async function planByLeg(
-      trips
-    ){
-      const outboundTrips =
-        trips.filter(
-          item=>
-            String(
-              item?.tripLeg ||
-              "OUTBOUND"
-            )
-              .toUpperCase() !==
-            "RETURN"
-        );
-
-      const returnTrips =
-        trips.filter(
-          item=>
-            String(
-              item?.tripLeg ||
-              ""
-            )
-              .toUpperCase() ===
-            "RETURN"
-        );
-
-      const outboundPlan =
-        await planTrips(
-          outboundTrips,
-          "OUTBOUND"
-        );
-
-      const returnPlan =
-        await planTrips(
-          returnTrips,
-          "RETURN"
-        );
-
-      return {
-        groups:[
-          ...(outboundPlan.groups || []),
-          ...(returnPlan.groups || [])
-        ],
-        singles:[
-          ...(outboundPlan.singles || []),
-          ...(returnPlan.singles || [])
-        ],
-        excluded:[
-          ...(outboundPlan.excluded || []),
-          ...(returnPlan.excluded || [])
-        ]
-      };
-    }
-
-    /*
-      STEP 1:
-      Build groups ONLY from unmatched trips.
-      This is the key behavior requested by the Company Automatic Shared flow.
-    */
-    const unmatchedPlan =
-      await planByLeg(
-        currentlyUnmatched
-      );
-
-    const newGroups =
-      Array.isArray(
-        unmatchedPlan.groups
-      )
-        ? unmatchedPlan.groups
-        : [];
-
-    const newlyMatchedIds =
-      new Set();
-
-    newGroups.forEach(group=>{
-      (
-        Array.isArray(group?.trips)
-          ? group.trips
-          : []
-      ).forEach(trip=>{
-        const id =
-          String(
-            trip?.id ||
-            trip?.tripId ||
-            ""
-          ).trim();
-
-        if(id){
-          newlyMatchedIds.add(id);
-        }
-      });
-    });
-
-    let stillUnmatched =
-      currentlyUnmatched
-        .filter(item=>{
-          const id =
-            String(
-              item?.id ||
-              item?.tripId ||
-              ""
-            ).trim();
-
-          return (
-            !id ||
-            !newlyMatchedIds.has(id)
-          );
-        });
-
-    /*
-      STEP 2:
-      Only AFTER unmatched-to-unmatched grouping is finished,
-      try each remaining trip against EXISTING groups.
-
-      A trip is attached only when the engine validates the WHOLE existing
-      group plus that trip as one valid group. Existing groups are not broken.
-    */
-    const updatedExistingGroups =
-      existingGroups.map(group=>({
-        ...group,
-        trips:
-          Array.isArray(group?.trips)
-            ? [...group.trips]
-            : []
-      }));
-
-    const finalStillUnmatched = [];
-
-    for(
-      const candidate of
-      stillUnmatched
-    ){
-      let attached = false;
-
-      const candidateLeg =
-        String(
-          candidate?.tripLeg ||
-          "OUTBOUND"
-        )
-          .trim()
-          .toUpperCase();
-
-      for(
-        let groupIndex = 0;
-        groupIndex <
-          updatedExistingGroups.length;
-        groupIndex += 1
-      ){
-        const group =
-          updatedExistingGroups[
-            groupIndex
-          ];
-
-        const groupTrips =
-          Array.isArray(group?.trips)
-            ? group.trips
-            : [];
-
-        if(!groupTrips.length){
-          continue;
-        }
-
-        const groupLeg =
-          String(
-            group?.tripLeg ||
-            groupTrips[0]?.tripLeg ||
-            "OUTBOUND"
-          )
-            .trim()
-            .toUpperCase();
-
-        if(groupLeg !== candidateLeg){
-          continue;
-        }
-
-        const testTrips = [
-          ...groupTrips,
-          candidate
-        ];
-
-        const testPlan =
-          await planTrips(
-            testTrips,
-            candidateLeg
-          );
-
-        const validatedGroup =
-          (
-            Array.isArray(
-              testPlan.groups
-            )
-              ? testPlan.groups
-              : []
-          ).find(testGroup=>{
-            const testIds =
-              new Set(
-                (
-                  Array.isArray(
-                    testGroup?.trips
-                  )
-                    ? testGroup.trips
-                    : []
-                )
-                  .map(item=>
-                    String(
-                      item?.id ||
-                      item?.tripId ||
-                      ""
-                    ).trim()
-                  )
-                  .filter(Boolean)
-              );
-
-            return testTrips.every(item=>{
-              const id =
-                String(
-                  item?.id ||
-                  item?.tripId ||
-                  ""
-                ).trim();
-
-              return (
-                id &&
-                testIds.has(id)
-              );
-            });
-          });
-
-        if(validatedGroup){
-          updatedExistingGroups[
-            groupIndex
-          ] = {
-            ...group,
-            ...validatedGroup,
-            tripLeg:
-              group.tripLeg ||
-              candidateLeg
-          };
-
-          attached = true;
-          break;
-        }
-      }
-
-      if(!attached){
-        finalStillUnmatched.push(
-          candidate
-        );
-      }
-    }
-
-    const unmatchedIds =
-      new Set(
-        finalStillUnmatched
-          .map(item=>
-            String(
-              item?.id ||
-              item?.tripId ||
-              ""
-            ).trim()
-          )
-          .filter(Boolean)
-      );
-
-    const originalReasonRows = [
-      ...(
-        Array.isArray(
-          unmatchedPlan.singles
-        )
-          ? unmatchedPlan.singles
-          : []
-      ),
-      ...(
-        Array.isArray(
-          unmatchedPlan.excluded
-        )
-          ? unmatchedPlan.excluded
-          : []
-      )
-    ];
-
-    const finalExcluded =
-      originalReasonRows
-        .filter(row=>{
-          const id =
-            String(
-              row?.tripId ||
-              row?.id ||
-              ""
-            ).trim();
-
-          return (
-            !id ||
-            unmatchedIds.has(id)
-          );
-        });
-
-    automaticSharedPlan = {
-      success:true,
-
-      /*
-        Existing groups remain first and stable.
-        New groups created from unmatched trips are appended after them.
-      */
-      groups:[
-        ...updatedExistingGroups,
-        ...newGroups
-      ],
-
-      singles:[],
-      excluded:finalExcluded,
-
-      matchingPriority:
-        "UNMATCHED_FIRST_THEN_EXISTING_GROUPS"
-    };
-
-    saveAutomaticSharedDraft();
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(
-      automaticSharedPlan
-    );
-
-  }catch(err){
-    console.log(
-      "AUTO SHARED ENGINE ERROR:",
-      err
-    );
-
-    showAlert(
-      err.message ||
-      "Automatic Shared planning failed"
-    );
-
-  }finally{
-    if(runAutomaticSharedEngineBtn){
-      runAutomaticSharedEngineBtn.disabled = false;
-      runAutomaticSharedEngineBtn.innerText = "Build Shared Groups";
-    }
-  }
-}
-
-function automaticPassengerFromCandidate(candidate,index){
-  return {
-    passengerId:candidate.id || ("AUTO-P" + (index + 1)),
-    clientName:candidate.clientName || "",
-    clientPhone:candidate.clientPhone || "",
-    pickup:candidate.pickup || "",
-    dropoff:candidate.dropoff || "",
-    pickupLat:candidate.pickupLat ?? null,
-    pickupLng:candidate.pickupLng ?? null,
-    dropoffLat:candidate.dropoffLat ?? null,
-    dropoffLng:candidate.dropoffLng ?? null,
-    tripDate:candidate.tripDate || "",
-    tripTime:candidate.tripTime || candidate.pickupTime || "",
-    pickupTime:candidate.pickupTime || candidate.tripTime || "",
-    appointmentTime:candidate.appointmentTime || "",
-    returnTime:candidate.returnTime || "",
-    tripLeg:candidate.tripLeg || "OUTBOUND",
-    generatedReturn:candidate.generatedReturn === true,
-    pairId:candidate.pairId || "",
-    pairedCandidateId:candidate.pairedCandidateId || "",
-    notes:candidate.notes || "",
-    source:"company",
-    bookingSource:"AUTOMATIC_SHARED",
-    status:"Confirmed"
-  };
-}
-
-async function submitAutomaticSharedGroup(groupIndex){
-
-  const groups = Array.isArray(automaticSharedPlan?.groups)
-    ? automaticSharedPlan.groups
-    : [];
-
-  const group = groups[groupIndex];
-
-  if(!group){
-    showAlert("Group not found");
-    return;
-  }
-
-  if(!confirm("Warning: Submit this matched Shared group now?")){
-    return;
-  }
-
-  const sourceTrips = Array.isArray(group?.trips) ? group.trips : [];
-
-  if(sourceTrips.length < 2){
-    showAlert("This group must contain at least 2 passengers");
-    return;
-  }
-
-  const groupDate =
-    group.tripDate ||
-    sourceTrips[0]?.tripDate ||
-    "";
-
-  const groupTime =
-    group.calculatedFirstPickupTime ||
-    sourceTrips[0]?.pickupTime ||
-    sourceTrips[0]?.tripTime ||
-    "";
-
-  if(!checkDynamicWarning(groupDate,groupTime)){
-    return;
-  }
-
-  try{
-    const selected = selectedServicePayload();
-    const passengers = sourceTrips.map(automaticPassengerFromCandidate);
-    const tripDate = group.tripDate || passengers[0]?.tripDate || "";
-    const tripTime = group.calculatedFirstPickupTime || passengers[0]?.tripTime || "";
-
-    assertCompanyBookingHours(
-      selected.service,
-      tripDate,
-      tripTime,
-      selected.facilityOverrideActive === true
-    );
-
-    const payload = {
-      company:companyName,
-      companyName,
-      facilityName:companyName,
-      companyId,
-      facilityId:companyId,
-      userId:companyId,
-      type:"company",
-      source:"company",
-      bookingSource:"AUTOMATIC_SHARED",
-      sharedEntryMode:"AUTOMATIC",
-      isShared:true,
-      tripType:"SHARED",
-      serviceKey:selected.serviceKey,
-      serviceCode:selected.serviceCode,
-      serviceType:selected.serviceType,
-      serviceSuffix:selected.serviceSuffix,
-      serviceName:selected.serviceName,
-      serviceId:selected.serviceId,
-      pricingSource:selected.pricingSource,
-      facilityOverrideActive:selected.facilityOverrideActive,
-      entryName:sharedEntryName?.value || entryName?.value || "",
-      entryPhone:sharedEntryPhone?.value || entryPhone?.value || "",
-      passengers,
-      passengersCount:passengers.length,
-      totalPassengers:passengers.length,
-      tripDate,
-      tripTime,
-      routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
-      routeSource:"SHARED_ENGINE",
-      notes:`Automatic Shared ${group.tripLeg || "OUTBOUND"}`,
-
-      /*
-        Automatic Shared groups are already reviewed/built by the Company
-        Shared Engine before Submit Group is pressed. They must enter Trip Hub
-        as operationally confirmed, not as a second pending company review.
-      */
-      status:"Confirmed",
-      dispatchSelected:true
-    };
-
-    const res = await fetch("/api/trips",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        Authorization:"Bearer " + token
-      },
-      body:JSON.stringify(payload)
-    });
-
-    const data = await res.json().catch(()=>({}));
-
-    if(!res.ok){
-      throw new Error(data.message || "Failed to submit this Automatic Shared group");
-    }
-
-    const submittedIds = new Set();
-    sourceTrips.forEach(item=>{
-      if(item?.id){
-        submittedIds.add(String(item.id));
-      }
-    });
-
-    automaticSharedCandidates = automaticSharedCandidates.filter(
-      item=>!submittedIds.has(String(item.id))
-    );
-
-    pruneAutomaticPlanIds(submittedIds,false);
-    saveAutomaticSharedDraft();
-
-    passengers.forEach(passenger=>{
-      upsertSavedClient({
-        clientName:passenger.clientName,
-        clientPhone:passenger.clientPhone,
-        pickup:passenger.pickup,
-        dropoff:passenger.dropoff
-      });
-    });
-
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(automaticSharedPlan);
-    showAlert("Automatic Shared group submitted ✔");
-
-  }catch(err){
-    console.log("AUTO SHARED GROUP SUBMIT ERROR:",err);
-    showAlert(err.message || "Automatic Shared group submit failed");
-  }
-}
-
-function returnAutomaticSharedGroupToOriginal(groupIndex){
-  const groups = Array.isArray(automaticSharedPlan?.groups)
-    ? automaticSharedPlan.groups
-    : [];
-
-  const group = groups[groupIndex];
-
-  if(!group){
-    showAlert("Group not found");
-    return;
-  }
-
-  if(!confirm("Return this matched group to the original list?")){
-    return;
-  }
-
-  const sourceTrips = Array.isArray(group?.trips) ? group.trips : [];
-  const ids = new Set(
-    sourceTrips
-      .map(item=>String(item?.id || item?.tripId || "").trim())
-      .filter(Boolean)
-  );
-
-  pruneAutomaticPlanIds(ids,true);
-  saveAutomaticSharedDraft();
-  renderAutomaticSharedList();
-  renderAutomaticSharedResult(automaticSharedPlan);
-}
-
-if(sharedManualModeBtn){
-  sharedManualModeBtn.onclick = ()=>{
-    setSharedEntryMode("MANUAL");
-  };
-}
-
-if(sharedAutomaticModeBtn){
-  sharedAutomaticModeBtn.onclick = ()=>{
-    setSharedEntryMode("AUTOMATIC");
-  };
-}
-
-if(addAutomaticSharedCandidateBtn){
-  addAutomaticSharedCandidateBtn.onclick = ()=>{
-
-    if(!validateAutomaticCandidate()){
-      return;
-    }
-
-    const candidate = automaticCandidatePayload();
-    const returnCandidate = automaticReturnCandidate(candidate);
-
-    if(returnCandidate){
-      candidate.pairedCandidateId = returnCandidate.id;
-      automaticSharedCandidates.push(candidate,returnCandidate);
-    }else{
-      automaticSharedCandidates.push(candidate);
-    }
-
-    saveAutomaticSharedDraft();
-    renderAutomaticSharedList();
-    renderAutomaticSharedResult(automaticSharedPlan);
-    clearAutomaticCandidateForm();
-  };
-}
-
-if(runAutomaticSharedEngineBtn){
-  runAutomaticSharedEngineBtn.onclick = runAutomaticSharedEngine;
-}
-
-/* ================= SERVICES ================= */
-
-function defaultStandardService(){
-
-  return {
-    serviceKey:"ST",
-    serviceCode:"ST",
-    serviceType:"ST",
-    serviceSuffix:"ST",
-    companySuffix:"ST",
-    suffix:"ST",
-
-    title:"Standard",
-    name:"Standard",
-    serviceName:"Standard",
-
-    companyShared:false,
-    shared:false,
-
-    companyWarningMinutes:120,
-    companyDisableCancel:false,
-
-    __pricingSource:"DEFAULT"
-  };
-}
-
-async function loadCompanyServices(){
-  try{
-
-    COMPANY_SERVICES = [];
-
-    const facilityName =
-      companyName || "";
-
-    const facilityId =
-      companyId || "";
-
-    /* =========================
-       1) FACILITY PRICING OVERRIDE
-    ========================= */
-
-    const bootRes =
-      await fetch("/api/facility-pricing-override/bootstrap",{
-        headers:{
-          Authorization:"Bearer " + token
-        }
-      });
-
-    const bootData =
-      await bootRes.json().catch(()=>({}));
-
-    console.log(
-      "ADD TRIP FACILITY BOOTSTRAP RESULT:",
-      bootData
-    );
-
-    let override = null;
-
-    if(
-      bootRes.ok &&
-      bootData.success === true &&
-      Array.isArray(bootData.overrides)
-    ){
-
-      const fid =
-        String(facilityId || "").trim();
-
-      const fname =
-        String(facilityName || "")
-          .trim()
-          .toLowerCase();
-
-      override =
-        bootData.overrides.find(o=>{
-
-          const oid =
-            String(o.facilityId || "").trim();
-
-          const oname =
-            String(o.facilityName || "")
-              .trim()
-              .toLowerCase();
-
-          return (
-            (
-              fid &&
-              oid &&
-              oid === fid
-            ) ||
-            (
-              fname &&
-              oname &&
-              oname === fname
-            )
-          );
-
-        }) || null;
-    }
-
-    if(
-      override &&
-      override.active === true &&
-      Array.isArray(override.services) &&
-      override.services.length
-    ){
-
-      COMPANY_SERVICES =
-        override.services
-          .map(mapFacilityOverrideService)
-          .filter(s=>s.serviceKey);
-
-      COMPANY_SERVICES =
-        await attachCompanyBookingHoursToOverrideServices(COMPANY_SERVICES);
-
-      console.log(
-        "ADD TRIP SERVICES FROM ACTIVE FACILITY OVERRIDE:",
-        COMPANY_SERVICES
-      );
-
-      buildDynamicTabs();
-
-      return;
-    }
-
-    /*
-      IMPORTANT:
-      Do NOT use bootData.services here.
-      Those are default pricing services and can make all company individual services become ST.
-    */
-
-    /* =========================
-       2) SERVICE MANAGEMENT COMPANY SERVICES
-    ========================= */
-
-    const res =
-      await fetch(
-        "/api/services?company=true",
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
-
-    if(!res.ok){
-      throw new Error("Failed loading services");
-    }
-
-    const data =
-      await res.json().catch(()=>[]);
-
-    COMPANY_SERVICES =
-      Array.isArray(data)
-        ? data.map(mapServiceManagementService)
-        : [];
-
-    console.log(
-      "ADD TRIP SERVICES FROM SERVICE MANAGEMENT:",
-      COMPANY_SERVICES
-    );
-
-    if(!COMPANY_SERVICES.length){
-      COMPANY_SERVICES = [defaultStandardService()];
-    }
-
-    buildDynamicTabs();
-
-  }catch(err){
-
-    console.log("LOAD COMPANY SERVICES ERROR:", err);
-
-    COMPANY_SERVICES = [defaultStandardService()];
-
-    buildDynamicTabs();
-  }
-}
-
-function setActiveService(service,index){
-
-  activeService =
-    resolveServiceCode(service);
-
-  if(!activeService){
-    showAlert("Service code missing");
-    return;
-  }
-
-  activeSuffix =
-    activeService;
-
-  companyTabs.querySelectorAll("button").forEach(b=>{
-    b.classList.remove("btn-blue");
-    b.classList.add("btn-gray");
-  });
-
-  const btn =
-    companyTabs.querySelectorAll("button")[index];
-
-  if(btn){
-    btn.classList.remove("btn-gray");
-    btn.classList.add("btn-blue");
-  }
-
-  if(isSharedService(service)){
-    individualSection.style.display = "none";
-    sharedSection.style.display = "block";
-  }else{
-    individualSection.style.display = "block";
-    sharedSection.style.display = "none";
-  }
-
-  console.log("ACTIVE SERVICE:", {
-    activeService,
-    activeSuffix,
-    pricingSource:service.__pricingSource,
-    warning:service.companyWarningMinutes,
-    addStop:service.companyAddStopEnabled,
-    rawService:service
-  });
-}
-
-function buildDynamicTabs(){
-
-  if(!companyTabs) return;
-
-  companyTabs.innerHTML = "";
-
-  COMPANY_SERVICES.forEach((service,index)=>{
-
-    const btn =
-      document.createElement("button");
-
-    btn.type =
-      "button";
-
-    btn.innerText =
-      service.title ||
-      service.name ||
-      service.serviceName ||
-      service.serviceKey ||
-      "Service";
-
-    btn.className =
-      index === 0
-        ? "btn-blue"
-        : "btn-gray";
-
-    btn.onclick = ()=>{
-      setActiveService(service,index);
-    };
-
-    companyTabs.appendChild(btn);
-  });
-
-  if(COMPANY_SERVICES.length > 0){
-    setActiveService(COMPANY_SERVICES[0],0);
-  }
-}
-
-/* ================= STOPS ================= */
-
-function createStopInput(value=""){
-
-  const currentStops =
-    stopsBox.querySelectorAll(".stop-input").length;
-
-  if(currentStops >= 5){
-    showAlert("Maximum 5 stops allowed.");
-    return;
-  }
-
-  const wrapper =
-    document.createElement("div");
-
-  wrapper.className =
-    "stop-row";
-
-  wrapper.innerHTML = `
-    <div class="stop-address-wrap">
-      <input
-        type="text"
-        class="stop-input"
-        placeholder="Stop address"
-        value="${value}"
-      >
-    </div>
-    <button
-      type="button"
-      class="remove-stop-btn"
-    >
-      ✕
-    </button>
-  `;
-
-  wrapper.querySelector(".remove-stop-btn").onclick = ()=>{
-    wrapper.remove();
-  };
-
-  const stopInput =
-    wrapper.querySelector(
-      ".stop-input"
-    );
-
-  bindCurrentLocationChoice(
-    stopInput
-  );
-
-stopsBox.appendChild(wrapper);
-}
-
-if(addStopBtn){
-  addStopBtn.onclick = ()=>createStopInput();
-}
-
-/* ================= SHARED PASSENGERS ================= */
+/* ================= SHARED UI ================= */
 
 function renderSharedPassengers(count){
+
+  if(!passengersContainer) return;
 
   passengersContainer.innerHTML = "";
 
@@ -4633,236 +2749,469 @@ function renderSharedPassengers(count){
       <div class="passenger-header">
         <h4>Passenger ${i}</h4>
       </div>
+
       <div class="form-grid">
         <div class="field-wrap">
-          <input class="sharedClientName" placeholder="Client Name" autocomplete="off">
-          <div class="client-suggestions shared-client-suggestions"></div>
+          <input class="sharedClientName" placeholder="Client Name">
         </div>
         <div class="field-wrap">
           <input class="sharedClientPhone" placeholder="Client Phone">
         </div>
-        <div class="field-wrap location-field">
-          <input class="sharedPickup" placeholder="Pickup Address"></div>
-        <div class="field-wrap location-field">
-          <input class="sharedDropoff" placeholder="Dropoff Address"></div>
+        <div class="field-wrap">
+          <input class="sharedPickup" placeholder="Pickup Address">
+        </div>
+        <div class="field-wrap">
+          <input class="sharedDropoff" placeholder="Dropoff Address">
+        </div>
       </div>
     `;
-
-    const sharedName =
-      card.querySelector(
-        ".sharedClientName"
-      );
-
-    const sharedPhone =
-      card.querySelector(
-        ".sharedClientPhone"
-      );
-
-    const sharedPickup =
-      card.querySelector(
-        ".sharedPickup"
-      );
-
-    const sharedDropoff =
-      card.querySelector(
-        ".sharedDropoff"
-      );
-
-    bindCurrentLocationChoice(
-      sharedPickup
-    );
-
-    bindCurrentLocationChoice(
-      sharedDropoff
-    );
-
-    const sharedSuggestions =
-      card.querySelector(
-        ".shared-client-suggestions"
-      );
-
-    function hideSharedSuggestions(){
-
-      if(!sharedSuggestions){
-        return;
-      }
-
-      sharedSuggestions.innerHTML = "";
-
-      sharedSuggestions.classList.remove(
-        "show"
-      );
-    }
-
-    function applySharedSavedClient(item){
-
-      if(!item){
-        return;
-      }
-
-      sharedName.value =
-        item.clientName || "";
-
-      sharedPhone.value =
-        item.clientPhone || "";
-
-      sharedPickup.value =
-        item.pickup || "";
-
-      sharedDropoff.value =
-        item.dropoff || "";
-
-      clearLocationMeta(
-        sharedPickup
-      );
-
-      clearLocationMeta(
-        sharedDropoff
-      );
-
-      hideSharedSuggestions();
-    }
-
-    function renderSharedSuggestions(query){
-
-      if(!sharedSuggestions){
-        return;
-      }
-
-      const matches =
-        getMatchingSavedClients(
-          query
-        );
-
-      if(!matches.length){
-        hideSharedSuggestions();
-        return;
-      }
-
-      sharedSuggestions.innerHTML = "";
-
-      matches.forEach(item=>{
-
-        const row =
-          document.createElement("div");
-
-        row.className =
-          "client-suggestion";
-
-        const name =
-          document.createElement("div");
-
-        name.className =
-          "client-suggestion-name";
-
-        name.textContent =
-          item.clientName || "";
-
-        const meta =
-          document.createElement("div");
-
-        meta.className =
-          "client-suggestion-meta";
-
-        meta.textContent =
-          [
-            item.clientPhone || "",
-            item.pickup || ""
-          ]
-          .filter(Boolean)
-          .join(" • ");
-
-        row.appendChild(name);
-
-        if(meta.textContent){
-          row.appendChild(meta);
-        }
-
-        row.addEventListener(
-          "mousedown",
-          event=>{
-            event.preventDefault();
-
-            applySharedSavedClient(
-              item
-            );
-          }
-        );
-
-        sharedSuggestions.appendChild(
-          row
-        );
-      });
-
-      sharedSuggestions.classList.add(
-        "show"
-      );
-    }
-
-    if(sharedName){
-
-      sharedName.addEventListener(
-        "input",
-        ()=>{
-          renderSharedSuggestions(
-            sharedName.value
-          );
-        }
-      );
-
-      sharedName.addEventListener(
-        "change",
-        ()=>{
-          const exact =
-            findSavedClientByName(
-              sharedName.value
-            );
-
-          if(exact){
-            applySharedSavedClient(
-              exact
-            );
-          }
-        }
-      );
-
-      sharedName.addEventListener(
-        "blur",
-        ()=>{
-          window.setTimeout(
-            hideSharedSuggestions,
-            120
-          );
-        }
-      );
-    }
 
     passengersContainer.appendChild(card);
   }
 }
 
-if(passengerCount){
-  passengerCount.onchange = function(){
-    renderSharedPassengers(Number(this.value));
+passengerCount?.addEventListener("change",function(){
+  renderSharedPassengers(Number(this.value));
+});
+
+/* ================= CLEAR FORM ================= */
+
+function clearIndividualForm(){
+
+  if(clientName) clientName.value = "";
+  if(clientPhone) clientPhone.value = "";
+  if(pickupInput) pickupInput.value = "";
+  if(dropoffInput) dropoffInput.value = "";
+  if(tripDate) tripDate.value = "";
+  if(tripTime) tripTime.value = "";
+  if(notes) notes.value = "";
+
+  clearReservedDynamicForm();
+
+  addTripStops = [];
+
+  if(stopsBox) stopsBox.innerHTML = "";
+
+  if(submitTripBtn){
+    submitTripBtn.innerText = "Add To Review";
+  }
+}
+
+function clearSharedForm(){
+
+  if(passengerCount) passengerCount.value = "";
+  if(sharedDate) sharedDate.value = "";
+  if(sharedTime) sharedTime.value = "";
+  if(sharedNotes) sharedNotes.value = "";
+  if(passengersContainer) passengersContainer.innerHTML = "";
+
+  if(submitSharedBtn){
+    submitSharedBtn.innerText = "Add Shared To Review";
+  }
+}
+
+/* ================= PAYLOADS ================= */
+
+function buildIndividualPayload(){
+
+  const service =
+    getCurrentReservedServiceConfig();
+
+  const serviceCode =
+    resolveServiceCode(service);
+
+  const stops =
+    addTripStops
+      .map(s=>normalizeAddress(s))
+      .filter(Boolean);
+
+  const reservedDynamic =
+    collectReservedDynamicData();
+
+  if(!reservedDynamic.valid){
+    throw new Error(
+      "Complete required Reserved booking fields"
+    );
+  }
+
+  return {
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
+    reservationStatus:"Review",
+    reviewOnly:true,
+
+    status:"Review",
+    dispatchSelected:false,
+    disabled:false,
+
+    tripType:"INDIVIDUAL",
+    isShared:false,
+
+    serviceKey:serviceCode,
+    serviceType:serviceCode,
+    serviceCode:serviceCode,
+    serviceSuffix:serviceCode,
+    tripNumberSuffix:serviceCode,
+    serviceName:serviceDisplayName(service,serviceCode),
+    serviceTitle:serviceDisplayName(service,serviceCode),
+    serviceId:String(service?._id || ""),
+
+    vehicleTypeFromQuote:serviceCode,
+    vehicleType:serviceCode,
+
+    entryName:normalizeText(entryName.value),
+    entryPhone:normalizeText(entryPhone.value),
+
+    clientName:normalizeText(clientName.value),
+    clientPhone:normalizeText(clientPhone.value),
+
+    pickup:normalizeAddress(pickupInput.value),
+    dropoff:normalizeAddress(dropoffInput.value),
+    stops,
+
+    tripDate:tripDate.value,
+    tripTime:tripTime.value,
+    notes:normalizeText(notes.value),
+
+    reservedBookingData:
+      reservedDynamic.data,
+
+    bookingData:{
+      reserved:
+        reservedDynamic.data
+    },
+
+    priceAmount:0,
+    finalPrice:0,
+    miles:0,
+    estimatedMinutes:0,
+
+    routePoints:[],
+    googleRoute:null,
+    optimizedRoute:null,
+    routeLocked:false,
+    routeFinalized:false,
+    routeSource:"",
+    routeUpdatedAt:null,
+
+    createdFrom:"dispatch-add-trip"
   };
 }
 
-/* ================= SUBMIT INDIVIDUAL ================= */
 
-if(submitTripBtn){
+function buildSharedPayload(){
 
-submitTripBtn.onclick = async function(){
+  const service =
+    getCurrentReservedServiceConfig();
+
+  const serviceCode =
+    "SH";
+
+  const passengers = [];
+
+  document.querySelectorAll(".passenger-card").forEach((card,index)=>{
+
+    const name =
+      normalizeText(card.querySelector(".sharedClientName")?.value);
+
+    const phone =
+      normalizeText(card.querySelector(".sharedClientPhone")?.value);
+
+    passengers.push({
+      passengerId:"P" + (index + 1),
+
+      name,
+      phone,
+      clientName:name,
+      clientPhone:phone,
+
+      pickup:normalizeAddress(card.querySelector(".sharedPickup")?.value),
+      pickupLat:null,
+      pickupLng:null,
+
+      dropoff:normalizeAddress(card.querySelector(".sharedDropoff")?.value),
+      dropoffLat:null,
+      dropoffLng:null,
+
+      status:"Scheduled",
+      priceAmount:0,
+      finalPrice:0,
+      cancelFee:0,
+      noShowFee:0,
+      pickupOrder:0,
+      dropoffOrder:0,
+      routeOrder:index + 1,
+      passengerMiles:0,
+      passengerMinutes:0
+    });
+  });
+
+  return {
+    type:"reserved",
+    reservation:true,
+    source:"RV",
+    bookingSource:"RV",
+    reservationStatus:"Review",
+    reviewOnly:true,
+
+    status:"Review",
+    dispatchSelected:false,
+    disabled:false,
+
+    tripType:"SHARED",
+    isShared:true,
+
+    serviceKey:serviceCode,
+    serviceType:serviceCode,
+    serviceCode:serviceCode,
+    serviceSuffix:"SH",
+    tripNumberSuffix:"SH",
+    serviceName:serviceDisplayName(service,serviceCode),
+    serviceTitle:serviceDisplayName(service,serviceCode),
+    serviceId:String(service?._id || ""),
+
+    vehicleTypeFromQuote:serviceCode,
+    vehicleType:serviceCode,
+
+    entryName:normalizeText(sharedEntryName.value),
+    entryPhone:normalizeText(sharedEntryPhone.value),
+
+    passengers,
+    passengerCount:passengers.length,
+    passengersCount:passengers.length,
+    totalPassengers:passengers.length,
+
+    pickup:passengers[0]?.pickup || "",
+    dropoff:passengers[passengers.length - 1]?.dropoff || "",
+    stops:[],
+
+    tripDate:sharedDate.value,
+    tripTime:sharedTime.value,
+    notes:normalizeText(sharedNotes.value),
+
+    priceAmount:0,
+    finalPrice:0,
+    pricePerPassenger:0,
+
+    miles:0,
+    estimatedMinutes:0,
+
+    routePoints:[],
+    googleRoute:null,
+    optimizedRoute:null,
+    routeLocked:false,
+    routeFinalized:false,
+    routeSource:"",
+    routeUpdatedAt:null,
+
+    createdFrom:"dispatch-add-trip"
+  };
+}
+
+
+/*
+  Confirm lock survives table refresh/re-render.
+  One trip can have only one Confirm request in flight.
+*/
+const confirmingTripIds = new Set();
+
+/* ================= SERVER ================= */
+
+function extractTripResponse(data){
+  return data?.trip || data?.data || data;
+}
+
+async function createTrip(payload){
+
+  const res =
+    await fetch(API_URL,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(data.message || "Create trip failed");
+  }
+
+  return extractTripResponse(data);
+}
+
+async function updateTrip(id,payload){
+
+  const res =
+    await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        Authorization:"Bearer " + token
+      },
+      body:JSON.stringify(payload)
+    });
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(data.message || "Update trip failed");
+  }
+
+  return extractTripResponse(data);
+}
+
+async function deleteTrip(id){
+
+  const res =
+    await fetch(`${API_URL}/${encodeURIComponent(id)}`,{
+      method:"DELETE",
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(data.message || "Delete trip failed");
+  }
+}
+
+
+async function confirmTripOnServer(id){
+
+  const res =
+    await fetch(
+      `/api/dispatch-reserved-confirm/${encodeURIComponent(id)}`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:"Bearer " + token
+        }
+      }
+    );
+
+  const data =
+    await res.json().catch(()=>({}));
+
+  if(!res.ok || data.success === false){
+    throw new Error(
+      data.message || "Confirm failed"
+    );
+  }
+
+  return extractTripResponse(data);
+}
+
+async function fetchReviewTrips(){
+
+  const res =
+    await fetch(TENANT_TRIPS_URL,{
+      headers:{
+        Authorization:"Bearer " + token
+      }
+    });
+
+  const data =
+    await res.json().catch(()=>[]);
+
+  const list =
+    Array.isArray(data)
+      ? data
+      : Array.isArray(data.trips)
+        ? data.trips
+        : Array.isArray(data.data)
+          ? data.data
+          : [];
+
+  reviewTrips =
+    list
+      .filter(t=>{
+
+        const type =
+          normalizeText(t.type).toLowerCase();
+
+        const source =
+          normalizeText(t.source).toUpperCase();
+
+        const booking =
+          normalizeText(t.bookingSource).toUpperCase();
+
+        const tripNumber =
+          normalizeText(t.tripNumber).toUpperCase();
+
+        const createdFrom =
+          normalizeText(t.createdFrom);
+
+        const isReserved =
+          type === "reserved" ||
+          source === "RV" ||
+          booking === "RV" ||
+          tripNumber.startsWith("RV-") ||
+          createdFrom === "dispatch-add-trip";
+
+        const status =
+          cleanStatus(t.status);
+
+        const hidden =
+          status.includes("complete") ||
+          status.includes("cancel") ||
+          status.includes("noshow") ||
+          status === "no";
+
+        const dt =
+          parseTripDateTime(t.tripDate,t.tripTime);
+
+        const isOldUnconfirmed =
+          dt &&
+          dt <= getSystemNow() &&
+          (
+            status.includes("review") ||
+            status === "scheduled" ||
+            status === ""
+          );
+
+        return isReserved && !hidden && !isOldUnconfirmed;
+      })
+      .sort((a,b)=>{
+
+        const da =
+          getCreatedDateObject(a);
+
+        const db =
+          getCreatedDateObject(b);
+
+        return db - da;
+      });
+
+  updateReviewCounter();
+}
+
+/* ================= ADD TRIP ================= */
+
+submitTripBtn?.addEventListener("click",async ()=>{
 
   if(!validateIndividualTrip()){
     return;
   }
 
-  if(
-    !checkDynamicWarning(
-      tripDate.value,
-      tripTime.value
-    )
-  ){
+  if(!assertReservedBookingHours(
+    getCurrentReservedServiceConfig(),
+    tripTime.value
+  )){
+    return;
+  }
+
+  if(!checkReservedDynamicWarning(tripDate.value,tripTime.value)){
     return;
   }
 
@@ -4871,284 +3220,51 @@ submitTripBtn.onclick = async function(){
 
   try{
 
-    const stops =
-      [...document.querySelectorAll(".stop-input")]
-        .map(i=>normalizeText(i.value))
-        .filter(Boolean);
+    await createTrip(buildIndividualPayload());
 
-    const companyZoneOk =
-      await checkCompaniesZoneRoute(
-        [
-          pickupInput.value,
-          ...stops,
-          dropoffInput.value
-        ]
-      );
+    clearIndividualForm();
 
-    if(!companyZoneOk){
-      return;
-    }
+    localStorage.removeItem("dispatchTripDraft");
 
-    const selected =
-      selectedServicePayload();
-
-    assertCompanyBookingHours(
-      selected.service,
-      tripDate.value,
-      tripTime.value,
-      selected.facilityOverrideActive === true
-    );
-
-    console.log("===== DEBUG SELECTED SERVICE BEFORE CREATE =====");
-    console.log("activeService:", activeService);
-    console.log("activeSuffix:", activeSuffix);
-    console.log("selected:", selected);
-    console.log("selected service object:", selected.service);
-    console.log("===============================================");
-
-    const pickupLocation =
-      getLocationMeta(
-        pickupInput
-      );
-
-    const dropoffLocation =
-      getLocationMeta(
-        dropoffInput
-      );
-
-    const stopDetails =
-      [...document.querySelectorAll(".stop-input")]
-        .map(input=>{
-
-          const loc =
-            getLocationMeta(
-              input
-            );
-
-          return {
-            address:
-              normalizeText(
-                input.value
-              ),
-            lat:
-              loc?.lat ?? null,
-            lng:
-              loc?.lng ?? null,
-            source:
-              loc?.source || ""
-          };
-        })
-        .filter(
-          item=>item.address
-        );
-
-    const trip = {
-      company:companyName,
-      companyName:companyName,
-      facilityName:companyName,
-
-      companyId:companyId,
-      facilityId:companyId,
-      userId:companyId,
-
-      type:"company",
-      source:"company",
-
-      tripType:"INDIVIDUAL",
-      isShared:false,
-
-      serviceKey:selected.serviceKey,
-      serviceCode:selected.serviceCode,
-      serviceType:selected.serviceType,
-      serviceSuffix:selected.serviceSuffix,
-      serviceName:selected.serviceName,
-      serviceId:selected.serviceId,
-
-      pricingSource:selected.pricingSource,
-      facilityOverrideActive:selected.facilityOverrideActive,
-
-      entryName:entryName.value,
-      entryPhone:entryPhone.value,
-
-      clientName:clientName.value,
-      clientPhone:clientPhone.value,
-
-      pickup:pickupInput.value,
-      dropoff:dropoffInput.value,
-      stops,
-
-      pickupLat:
-        pickupLocation?.lat ?? null,
-      pickupLng:
-        pickupLocation?.lng ?? null,
-      pickupGeoSource:
-        pickupLocation?.source || "",
-
-      dropoffLat:
-        dropoffLocation?.lat ?? null,
-      dropoffLng:
-        dropoffLocation?.lng ?? null,
-      dropoffGeoSource:
-        dropoffLocation?.source || "",
-
-      stopDetails,
-
-      tripDate:tripDate.value,
-      tripTime:tripTime.value,
-      notes:notes.value,
-
-      status:"Scheduled"
-    };
-
-    console.log("CREATE INDIVIDUAL TRIP PAYLOAD:", trip);
-
-    const res =
-      await fetch("/api/trips",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          Authorization:"Bearer " + token
-        },
-        body:JSON.stringify(trip)
-      });
-
-    if(!res.ok){
-      const err =
-        await res.json().catch(()=>({}));
-      throw new Error(err.message || "Server Error");
-    }
-
-    upsertSavedClient({
-      clientName:clientName.value,
-      clientPhone:clientPhone.value,
-      pickup:pickupInput.value,
-      dropoff:dropoffInput.value
+    /*
+      The trip is already safely created at this point. Refresh Review in the
+      background so a slow list request cannot keep the Add Trip button waiting.
+    */
+    refreshReview().catch(err=>{
+      console.error("ADD TRIP REVIEW REFRESH ERROR:",err);
     });
 
-    showAlert("Trip Submitted Successfully ✔");
+    showAddPage();
 
-    clientName.value = "";
-    clientPhone.value = "";
-    pickupInput.value = "";
-    dropoffInput.value = "";
-    tripDate.value = "";
-    tripTime.value = "";
-    notes.value = "";
-    stopsBox.innerHTML = "";
-
-    localStorage.removeItem(companyStorageKey("companyTripDraft"));
+    showAlert("Trip Added To Dispatch Review ✔");
 
   }catch(err){
 
-    console.log(err);
-    showAlert(err.message || "Server Error");
+    console.error(err);
+
+    showAlert(err.message || "Add trip failed");
 
   }finally{
 
     submitTripBtn.disabled = false;
-    submitTripBtn.innerText = "Submit Trip";
+    submitTripBtn.innerText = "Add To Review";
   }
-};
+});
 
-}
-
-/* ================= SUBMIT SHARED ================= */
-
-if(submitSharedBtn){
-
-submitSharedBtn.onclick = async function(){
+submitSharedBtn?.addEventListener("click",async ()=>{
 
   if(!validateSharedTrip()){
     return;
   }
 
-  if(
-    !checkDynamicWarning(
-      sharedDate.value,
-      sharedTime.value
-    )
-  ){
+  if(!assertReservedBookingHours(
+    getCurrentReservedServiceConfig(),
+    sharedTime.value
+  )){
     return;
   }
 
-  if(!sharedDate.value || !sharedTime.value){
-    showAlert("Select shared date/time");
-    return;
-  }
-
-  const passengers = [];
-
-  document.querySelectorAll(".passenger-card").forEach((card,index)=>{
-
-    const sharedPickupInput =
-      card.querySelector(".sharedPickup");
-
-    const sharedDropoffInput =
-      card.querySelector(".sharedDropoff");
-
-    const pickupLocation =
-      getLocationMeta(
-        sharedPickupInput
-      );
-
-    const dropoffLocation =
-      getLocationMeta(
-        sharedDropoffInput
-      );
-
-    passengers.push({
-      passengerId:"P" + (index + 1),
-      clientName:card.querySelector(".sharedClientName").value,
-      clientPhone:card.querySelector(".sharedClientPhone").value,
-      pickup:sharedPickupInput.value,
-      dropoff:sharedDropoffInput.value,
-
-      pickupLat:
-        pickupLocation?.lat ?? null,
-      pickupLng:
-        pickupLocation?.lng ?? null,
-      pickupGeoSource:
-        pickupLocation?.source || "",
-
-      dropoffLat:
-        dropoffLocation?.lat ?? null,
-      dropoffLng:
-        dropoffLocation?.lng ?? null,
-      dropoffGeoSource:
-        dropoffLocation?.source || "",
-
-      status:"Scheduled"
-    });
-  });
-
-  if(passengers.length < 2){
-    showAlert("Minimum 2 passengers");
-    return;
-  }
-
-  try{
-
-    const companyZoneOk =
-      await checkCompaniesZoneSharedPassengers(
-        passengers
-      );
-
-    if(!companyZoneOk){
-      return;
-    }
-
-  }catch(err){
-
-    console.log(
-      "COMPANIES ZONE CHECK ERROR:",
-      err
-    );
-
-    showAlert(
-      err.message ||
-      "Companies Zone validation failed."
-    );
-
+  if(!checkReservedDynamicWarning(sharedDate.value,sharedTime.value)){
     return;
   }
 
@@ -5157,130 +3273,2058 @@ submitSharedBtn.onclick = async function(){
 
   try{
 
-    const selected =
-      selectedServicePayload();
+    const payload =
+      buildSharedPayload();
 
-    assertCompanyBookingHours(
-      selected.service,
-      sharedDate.value,
-      sharedTime.value,
-      selected.facilityOverrideActive === true
+    submitSharedBtn.innerText =
+      "Saving...";
+
+    payload.pickup =
+      payload.passengers[0]?.pickup || "";
+
+    payload.dropoff =
+      payload.passengers[payload.passengers.length - 1]?.dropoff || "";
+
+    await createTrip(payload);
+
+    clearSharedForm();
+
+    localStorage.removeItem("dispatchSharedDraft");
+
+    refreshReview().catch(err=>{
+      console.error("ADD SHARED REVIEW REFRESH ERROR:",err);
+    });
+
+    showAddPage();
+
+    showAlert("Shared Trip Added To Dispatch Review ✔");
+
+  }catch(err){
+
+    console.error(err);
+
+    showAlert(err.message || "Add shared trip failed");
+
+  }finally{
+
+    submitSharedBtn.disabled = false;
+    submitSharedBtn.innerText = "Add Shared To Review";
+  }
+});
+
+/* ================= BUTTON POLICY ================= */
+
+function hasActiveAddStopRequest(trip){
+
+  const req =
+    trip?.addStopRequest || null;
+
+  if(!req) return false;
+
+  const status =
+    normalizeText(req.status).toUpperCase();
+
+  return (
+    req.active === true &&
+    ![
+      "CANCELLED",
+      "CANCELLED_BY_DISPATCH",
+      "COMPLETED",
+      "REJECTED"
+    ].includes(status)
+  );
+}
+
+function reservedAllowsAddStop(trip){
+
+  if(!trip || trip.isShared === true || trip.tripType === "SHARED"){
+    return false;
+  }
+
+  const status =
+    cleanStatus(trip.status);
+
+  if([
+    "completed",
+    "cancelled",
+    "noshow",
+    "notcompleted"
+  ].includes(status)){
+    return false;
+  }
+
+  const service =
+    getServiceByTrip(trip);
+
+  if(!service) return false;
+
+  const normalEnabled =
+    bool(service.reservedAddStopEnabled);
+
+  const customEnabled =
+    bool(service.reservedAddStopCustomTimeEnabled);
+
+  const created =
+    new Date(
+      trip.createdAt ||
+      trip.bookedAt ||
+      0
     );
 
-    const sharedTrip = {
-      company:companyName,
-      companyName:companyName,
-      facilityName:companyName,
+  if(created < ADD_STOP_ACTIVE_FROM){
+    return false;
+  }
 
-      companyId:companyId,
-      facilityId:companyId,
-      userId:companyId,
+  /* Normal Add Stop wins and stays available until the trip closes. */
+  if(normalEnabled){
+    return true;
+  }
 
-      type:"company",
-      source:"company",
+  /* Custom Time is an independent alternative policy. */
+  if(!customEnabled){
+    return false;
+  }
 
-      isShared:true,
-      tripType:"SHARED",
+  const mins =
+    minutesToTrip(trip);
 
-      serviceKey:selected.serviceKey,
-      serviceCode:selected.serviceCode,
-      serviceType:selected.serviceType,
-      serviceSuffix:selected.serviceSuffix,
-      serviceName:selected.serviceName,
-      serviceId:selected.serviceId,
+  if(mins === null){
+    return false;
+  }
 
-      pricingSource:selected.pricingSource,
-      facilityOverrideActive:selected.facilityOverrideActive,
+  const cutoff =
+    Math.max(
+      0,
+      Number(service.reservedAddStopCutoffMinutes || 0)
+    );
 
-      passengers,
-      passengersCount:passengers.length,
-      totalPassengers:passengers.length,
+  /* At the configured cutoff, or below it, Add Stop is hidden. */
+  return mins > cutoff;
+}
 
-      entryName:sharedEntryName.value,
-      entryPhone:sharedEntryPhone.value,
+function renderAddStopButton(t){
 
-      tripDate:sharedDate.value,
-      tripTime:sharedTime.value,
-      notes:sharedNotes.value,
+  if(t.isShared === true || t.tripType === "SHARED"){
+    return "";
+  }
 
-      status:"Scheduled"
-    };
+  if(hasActiveAddStopRequest(t)){
+    return `<button class="btn add-stop" data-action="add-stop">Add / Cancel Stop</button>`;
+  }
 
-    console.log("CREATE SHARED TRIP PAYLOAD:", sharedTrip);
+  if(!reservedAllowsAddStop(t)){
+    return "";
+  }
 
-    const res =
-      await fetch("/api/trips",{
+  return `<button class="btn add-stop" data-action="add-stop">Add Stop</button>`;
+}
+
+function renderTripButtons(t){
+
+  const service =
+    getServiceByTrip(t);
+
+  const mins =
+    minutesToTrip(t);
+
+  const warningMinutes =
+    warningEnabled(service)
+      ? getWarningMinutes(service)
+      : 0;
+
+  const status =
+    cleanStatus(t.status);
+
+  const stopBtn =
+    renderAddStopButton(t);
+
+  const viewBtn =
+    `<button type="button" class="btn view" data-action="view-trip" title="View Details">👁</button>`;
+
+  const insideWarning =
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes;
+
+  const outsideWarning =
+    mins === null ||
+    mins > warningMinutes;
+
+  const confirmed =
+    status.includes("confirm");
+
+  const cancelled =
+    status.includes("cancel");
+
+  if(t.__editing === true){
+
+    return `
+      <div class="actions-wrap">
+        ${viewBtn}
+        <button class="btn confirm" data-action="save-edit">Save</button>
+        <button class="btn cancel" data-action="cancel-edit">Cancel Edit</button>
+      </div>
+    `;
+  }
+
+  if(cancelled){
+
+    return `
+      <div class="actions-wrap">
+        ${viewBtn}
+        ${stopBtn}
+      </div>
+    `;
+  }
+
+  if(insideWarning){
+
+    if(confirmed){
+
+      return `
+        <div class="actions-wrap">
+        ${viewBtn}
+          <button class="btn cancel" data-action="cancel-trip">Cancel</button>
+          ${stopBtn}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="actions-wrap">
+        ${viewBtn}
+        <button class="btn confirm" data-action="confirm-trip">Confirm</button>
+        <button class="btn delete" data-action="delete-trip">Delete</button>
+        ${stopBtn}
+      </div>
+    `;
+  }
+
+  if(outsideWarning){
+
+    if(confirmed){
+
+      return `
+        <div class="actions-wrap">
+        ${viewBtn}
+          <button class="btn edit" data-action="edit-trip">Edit</button>
+          <button class="btn delete" data-action="delete-trip">Delete</button>
+          ${stopBtn}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="actions-wrap">
+        ${viewBtn}
+        <button class="btn edit" data-action="edit-trip">Edit</button>
+        <button class="btn delete" data-action="delete-trip">Delete</button>
+        <button class="btn confirm" data-action="confirm-trip">Confirm</button>
+        ${stopBtn}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="actions-wrap">
+        ${viewBtn}
+      ${stopBtn}
+    </div>
+  `;
+}
+
+/* ================= TABLE ================= */
+
+function applyRowColor(tr,t){
+
+  const mins =
+    minutesToTrip(t);
+
+  const status =
+    cleanStatus(t.status);
+
+  if(status.includes("cancel")){
+    tr.classList.add("cancelled-row");
+    return;
+  }
+
+  if(mins !== null && mins <= 0){
+    tr.classList.add("past-row");
+    return;
+  }
+
+  if(mins !== null){
+
+    if(mins <= 30){
+      tr.classList.add("red-dark");
+    }else if(mins <= 60){
+      tr.classList.add("red-mid");
+    }else if(mins <= 120){
+      tr.classList.add("red-light");
+    }else if(mins <= 180){
+      tr.classList.add("yellow");
+    }else if(status.includes("confirm")){
+      tr.classList.add("confirmed-row");
+    }else if(status.includes("review")){
+      tr.classList.add("review-row");
+    }else{
+      tr.classList.add("scheduled-row");
+    }
+  }
+}
+
+function getPassengers(t){
+
+  const arr =
+    Array.isArray(t.passengers)
+      ? t.passengers
+      : [];
+
+  const isShared =
+    t.isShared === true ||
+    t.tripType === "SHARED";
+
+  if(!isShared){
+    return arr;
+  }
+
+  return [...arr].sort((a,b)=>{
+
+    const ap =
+      Number(a.pickupOrder || 9999);
+
+    const bp =
+      Number(b.pickupOrder || 9999);
+
+    if(ap !== bp){
+      return ap - bp;
+    }
+
+    const ad =
+      Number(a.dropoffOrder || 9999);
+
+    const bd =
+      Number(b.dropoffOrder || 9999);
+
+    if(ad !== bd){
+      return ad - bd;
+    }
+
+    const ar =
+      Number(a.routeOrder || 9999);
+
+    const br =
+      Number(b.routeOrder || 9999);
+
+    if(ar !== br){
+      return ar - br;
+    }
+
+    return 0;
+  });
+}
+
+function renderTripRow(t,index){
+
+  const tr =
+    document.createElement("tr");
+
+  tr.dataset.id =
+    t._id || t.id || "";
+
+  applyRowColor(tr,t);
+
+  const isShared =
+    t.isShared === true ||
+    t.tripType === "SHARED";
+
+  const editing =
+    t.__editing === true;
+
+  const passengers =
+    getPassengers(t);
+
+  const clients =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientName || p.name || "--"}`))
+      : escapeHtml(t.clientName || "--");
+
+  const phones =
+    isShared
+      ? passengers.map((p,i)=>escapeHtml(`${i + 1}. ${p.clientPhone || p.phone || "--"}`))
+      : escapeHtml(t.clientPhone || "--");
+
+  const sharedPlan =
+    isShared && Array.isArray(t.sharedRoutePlan) && t.sharedRoutePlan.length
+      ? [...t.sharedRoutePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+      : isShared && Array.isArray(t.routePlan) && t.routePlan.length
+        ? [...t.routePlan].sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+        : [];
+
+  const sharedPickupRoute =
+    isShared && sharedPlan.length
+      ? sharedPlan
+          .filter(point=>{
+            return String(point.type || "").toLowerCase() === "pickup";
+          })
+          .map(point=>point.address)
+          .filter(Boolean)
+      : [];
+
+  const pickups =
+    isShared
+      ? (
+          sharedPickupRoute.length
+            ? sharedPickupRoute.map((address,i)=>{
+                return escapeHtml(`${i + 1}. ${address || "--"}`);
+              })
+            : passengers.map((p,i)=>{
+                const order =
+                  p.pickupOrder && p.pickupOrder !== 9999
+                    ? `P${p.pickupOrder}`
+                    : `${i + 1}`;
+
+                return escapeHtml(`${order}. ${p.pickup || "--"}`);
+              })
+        )
+      : escapeHtml(t.pickup || "--");
+
+  const sharedDropRoute =
+    isShared && sharedPlan.length
+      ? sharedPlan
+          .filter(point=>{
+            return String(point.type || "").toLowerCase() === "dropoff";
+          })
+          .map(point=>point.address)
+          .filter(Boolean)
+      : [];
+
+  const drops =
+    isShared
+      ? (
+          sharedDropRoute.length
+            ? sharedDropRoute.map((address,i)=>{
+                return escapeHtml(`${i + 1}. ${address || "--"}`);
+              })
+            : passengers.map((p,i)=>{
+                const order =
+                  p.dropoffOrder && p.dropoffOrder !== 9999
+                    ? `D${p.dropoffOrder}`
+                    : `${i + 1}`;
+
+                return escapeHtml(`${order}. ${p.dropoff || "--"}`);
+              })
+        )
+      : escapeHtml(t.dropoff || "--");
+
+  /*
+    IMPORTANT:
+    Shared trips do NOT display route addresses inside Stops.
+    Pickup column shows pickup order.
+    Dropoff column shows dropoff order.
+    Stops column only shows a count.
+  */
+  const stopsDisplay =
+    isShared
+      ? String(
+          Number(t.sharedStopsCount || t.sharedStopTotal || 0) > 0
+            ? Number(t.sharedStopsCount || t.sharedStopTotal || 0)
+            : Math.max(0,passengers.filter(passengerIsActive).length - 1)
+        )
+      : getReviewDisplayStops(t).length
+        ? getReviewDisplayStops(t).map((stop,i)=>escapeHtml(`${i + 1}. ${stopText(stop)}`))
+        : "--";
+
+  const sharedClientEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.clientName || p.name || "",`passenger_${i}_name`)}
+    `).join("");
+
+  const sharedPhoneEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.clientPhone || p.phone || "",`passenger_${i}_phone`)}
+    `).join("");
+
+  const sharedPickupEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.pickup || "",`passenger_${i}_pickup`)}
+    `).join("");
+
+  const sharedDropEdit =
+    passengers.map((p,i)=>`
+      ${createSharedEditInput(p.dropoff || "",`passenger_${i}_dropoff`)}
+    `).join("");
+
+  const reservedDynamicCells =
+    RESERVED_DYNAMIC_COLUMNS
+      .map(field=>{
+        return `
+          <td class="col-dynamic">
+            ${cellBox(
+              escapeHtml(
+                tripReservedDynamicValue(
+                  t,
+                  field
+                )
+              )
+            )}
+          </td>
+        `;
+      })
+      .join("");
+
+  tr.innerHTML = `
+    <td class="col-num">${index}</td>
+
+    <td class="col-trip">
+      <span class="trip-number-badge">${escapeHtml(t.tripNumber || "--")}</span>
+      ${
+        t.routeLocked === true
+          ? `<div class="route-locked-badge">Route Saved</div>`
+          : ""
+      }
+      ${
+        hasActiveAddStopRequest(t)
+          ? `<div class="route-locked-badge">Stop Pending</div>`
+          : ""
+      }
+    </td>
+
+    <td class="col-type">${escapeHtml(isShared ? "SHARED" : "TRIP")}</td>
+
+    <td class="col-client">
+      ${
+        editing
+          ? (
+              isShared
+                ? sharedClientEdit
+                : createEditInput(t.clientName || "", "clientName")
+            )
+          : cellBox(clients)
+      }
+    </td>
+
+    <td class="col-phone">
+      ${
+        editing
+          ? (
+              isShared
+                ? sharedPhoneEdit
+                : createEditInput(t.clientPhone || "", "clientPhone")
+            )
+          : cellBox(phones)
+      }
+    </td>
+
+    <td class="col-pickup">
+      ${
+        editing
+          ? (
+              isShared
+                ? sharedPickupEdit
+                : createEditInput(t.pickup || "", "pickup")
+            )
+          : cellBox(pickups)
+      }
+    </td>
+
+    <td class="col-stops">
+      ${
+        editing && !isShared
+          ? (
+              getTripStops(t).length
+                ? getTripStops(t).map((stop,si)=>`
+                    <input
+                      class="edit-input"
+                      data-stop-index="${si}"
+                      value="${escapeHtml(stopText(stop))}"
+                    >
+                  `).join("")
+                : "--"
+            )
+          : cellBox(stopsDisplay)
+      }
+    </td>
+
+    <td class="col-drop">
+      ${
+        editing
+          ? (
+              isShared
+                ? sharedDropEdit
+                : createEditInput(t.dropoff || "", "dropoff")
+            )
+          : cellBox(drops)
+      }
+    </td>
+
+    <td class="col-date">
+      ${editing ? createEditInput(t.tripDate || "", "tripDate", "date") : escapeHtml(t.tripDate || "--")}
+    </td>
+
+    <td class="col-time">
+      ${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "--")}
+    </td>
+
+    <td class="col-notes">
+      ${editing ? createEditInput(t.notes || "", "notes") : cellBox(escapeHtml(t.notes || "--"))}
+    </td>
+
+    ${reservedDynamicCells}
+
+    <td class="col-miles">
+      <span class="miles-strong">
+        ${Number(t.miles || 0).toFixed(2)} mi
+      </span>
+    </td>
+
+    <td class="col-mins">
+      ${Number(t.estimatedMinutes || 0)}
+    </td>
+
+    <td class="col-price">
+      <span class="price-badge">
+        $${formatMoney(t.priceAmount || t.finalPrice || 0)}
+      </span>
+    </td>
+
+    <td class="col-status">
+      <strong>${escapeHtml(t.status || "Review")}</strong>
+    </td>
+
+    <td class="col-actions">
+      ${renderTripButtons(t)}
+    </td>
+  `;
+
+  return tr;
+}
+
+function groupByCreatedDate(items){
+
+  const groups = {};
+
+  items.forEach(t=>{
+
+    const key =
+      getCreatedDateKey(t);
+
+    if(!groups[key]){
+      groups[key] = [];
+    }
+
+    groups[key].push(t);
+  });
+
+  Object.keys(groups).forEach(key=>{
+    groups[key].sort((a,b)=>getCreatedDateObject(b) - getCreatedDateObject(a));
+  });
+
+  return groups;
+}
+
+function renderReviewTable(){
+
+  if(!dispatchReviewList){
+    return;
+  }
+
+  updateReviewCounter();
+
+  if(!reviewTrips.length){
+
+    dispatchReviewList.innerHTML = `
+      <div class="empty-review">
+        No RV trips in review.
+      </div>
+    `;
+
+    return;
+  }
+
+  dispatchReviewList.innerHTML = `
+    <div class="table-wrap">
+      <table class="review-table">
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th class="col-trip">Trip#</th>
+            <th class="col-type">Type</th>
+            <th class="col-client">Client / Passengers</th>
+            <th class="col-phone">Phone</th>
+            <th class="col-pickup">Pickup</th>
+            <th class="col-stops">Stops</th>
+            <th class="col-drop">Dropoff</th>
+            <th class="col-date">Trip Date</th>
+            <th class="col-time">Time</th>
+            <th class="col-notes">Notes</th>
+            ${
+              RESERVED_DYNAMIC_COLUMNS
+                .map(field=>`
+                  <th class="col-dynamic">
+                    ${escapeHtml(
+                      reservedDynamicFieldLabel(field)
+                    )}
+                  </th>
+                `)
+                .join("")
+            }
+            <th class="col-miles">Miles</th>
+            <th class="col-mins">Minutes</th>
+            <th class="col-price">Price</th>
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="dispatchReviewTbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  const tbody =
+    document.getElementById("dispatchReviewTbody");
+
+  const grouped =
+    groupByCreatedDate(reviewTrips);
+
+  let counter = 1;
+
+  Object.keys(grouped)
+    .sort((a,b)=>{
+      if(a === "Unknown") return 1;
+      if(b === "Unknown") return -1;
+      return new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`);
+    })
+    .forEach(date=>{
+
+      const dateRow =
+        document.createElement("tr");
+
+      dateRow.className =
+        "date-row";
+
+      dateRow.innerHTML =
+        `<td colspan="${16 + RESERVED_DYNAMIC_COLUMNS.length}">${escapeHtml(labelCreatedDate(date))}</td>`;
+
+      tbody.appendChild(dateRow);
+
+      grouped[date].forEach(t=>{
+        tbody.appendChild(renderTripRow(t,counter++));
+      });
+    });
+}
+
+/* ================= EYE DETAILS MODAL ================= */
+/*
+  Hidden details inside eye only:
+  - Service
+  - Entry Name
+  - Entry Phone
+  - Booked Date
+  - Booked Time
+
+  Important:
+  This section only controls display.
+  It does NOT change Add/Edit/Confirm/Cancel/Delete/Add Stop logic.
+*/
+
+function detailValue(value){
+
+  if(Array.isArray(value)){
+
+    const arr =
+      value
+        .map(v=>normalizeText(v))
+        .filter(Boolean);
+
+    if(!arr.length){
+      return "--";
+    }
+
+    return arr
+      .map(v=>escapeHtml(v))
+      .join("<br>");
+  }
+
+  const v =
+    normalizeText(value);
+
+  return escapeHtml(v || "--");
+}
+
+function modalRow(label,value){
+
+  return `
+    <div class="eye-detail-row">
+      <strong>${escapeHtml(label)}</strong>
+      <div>${detailValue(value)}</div>
+    </div>
+  `;
+}
+
+function getBookedDateObject(trip){
+
+  const raw =
+    trip?.bookedAt ||
+    trip?.createdAt ||
+    trip?.tripCreatedAt ||
+    trip?._createdAt ||
+    trip?.routeUpdatedAt ||
+    trip?.updatedAt ||
+    "";
+
+  const d =
+    raw
+      ? new Date(raw)
+      : null;
+
+  if(d && !Number.isNaN(d.getTime())){
+    return d;
+  }
+
+  return null;
+}
+
+function formatBookedDate(date){
+
+  if(!date){
+    return "--";
+  }
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  const y =
+    local.getFullYear();
+
+  const m =
+    String(local.getMonth() + 1).padStart(2,"0");
+
+  const d =
+    String(local.getDate()).padStart(2,"0");
+
+  return `${y}-${m}-${d}`;
+}
+
+function formatBookedTime(date){
+
+  if(!date){
+    return "--";
+  }
+
+  const local =
+    new Date(
+      date.toLocaleString(
+        "en-US",
+        {
+          timeZone:SYSTEM_TIMEZONE || "America/Phoenix"
+        }
+      )
+    );
+
+  let h =
+    local.getHours();
+
+  const m =
+    String(local.getMinutes()).padStart(2,"0");
+
+  const ap =
+    h >= 12
+      ? "PM"
+      : "AM";
+
+  h =
+    h % 12;
+
+  if(h === 0){
+    h = 12;
+  }
+
+  return `${h}:${m} ${ap}`;
+}
+
+function getSharedPlanForModal(t,type){
+
+  const plan =
+    Array.isArray(t.sharedRoutePlan) && t.sharedRoutePlan.length
+      ? t.sharedRoutePlan
+      : Array.isArray(t.routePlan) && t.routePlan.length
+        ? t.routePlan
+        : [];
+
+  return [...plan]
+    .sort((a,b)=>Number(a.order || 0) - Number(b.order || 0))
+    .filter(point=>{
+      return String(point.type || "").toLowerCase() === type;
+    })
+    .map(point=>point.address)
+    .filter(Boolean);
+}
+
+function buildTripDetailsHtml(t){
+
+  const isShared =
+    t.isShared === true ||
+    t.tripType === "SHARED";
+
+  const service =
+    t.serviceTitle ||
+    t.serviceName ||
+    t.serviceType ||
+    t.serviceKey ||
+    "--";
+
+  const bookedDate =
+    getBookedDateObject(t);
+
+  /*
+    Eye / hidden details menu shows ONLY the highlighted fields:
+    Trip #, Type, Service, Entry Name, Entry Phone, Booked Date, Booked Time.
+    Nothing else is displayed here.
+  */
+
+  const dynamicRows =
+    RESERVED_DYNAMIC_FIELDS
+      .filter(field=>
+        bool(field?.eyeDetails) ||
+        bool(field?.showInDetails) ||
+        normalizeText(field?.placement)
+          .toUpperCase()
+          .includes("EYE")
+      )
+      .map(field=>
+        modalRow(
+          reservedDynamicFieldLabel(field),
+          tripReservedDynamicValue(t,field)
+        )
+      )
+      .join("");
+
+  return `
+    ${modalRow("Trip #",t.tripNumber || "--")}
+    ${modalRow("Type",isShared ? "SHARED" : "TRIP")}
+    ${modalRow("Service",service)}
+    ${modalRow("Entry Name",t.entryName || "--")}
+    ${modalRow("Entry Phone",t.entryPhone || "--")}
+    ${modalRow("Booked Date",formatBookedDate(bookedDate))}
+    ${modalRow("Booked Time",formatBookedTime(bookedDate))}
+    ${dynamicRows}
+  `;
+}
+
+function showTripEyeModal(trip){
+
+  if(!trip){
+    showAlert("Trip not found");
+    return;
+  }
+
+  document
+    .querySelectorAll("#dispatchTripEyeModal")
+    .forEach(el=>el.remove());
+
+  const dialog =
+    document.createElement("dialog");
+
+  dialog.id =
+    "dispatchTripEyeModal";
+
+  dialog.style.width =
+    "min(760px,94vw)";
+
+  dialog.style.maxHeight =
+    "86vh";
+
+  dialog.style.overflow =
+    "auto";
+
+  dialog.style.border =
+    "0";
+
+  dialog.style.borderRadius =
+    "16px";
+
+  dialog.style.padding =
+    "0";
+
+  dialog.innerHTML = `
+    <div style="padding:18px;background:#0f172a;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <strong>Trip Details</strong>
+      <button
+        type="button"
+        data-action="close-eye-modal"
+        style="border:0;border-radius:10px;padding:8px 12px;font-weight:900;cursor:pointer;"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="eye-details-body">
+      ${buildTripDetailsHtml(trip)}
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  if(typeof dialog.showModal === "function"){
+    dialog.showModal();
+  }else{
+    dialog.setAttribute("open","open");
+  }
+}
+
+async function handleViewTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr?.dataset?.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  showTripEyeModal(trip);
+}
+
+
+/* ================= ACTIONS ================= */
+
+async function handleEditTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  const service =
+    getServiceByTrip(trip);
+
+  const mins =
+    minutesToTrip(trip);
+
+  const warningMinutes =
+    warningEnabled(service)
+      ? getWarningMinutes(service)
+      : 0;
+
+  const insideWarning =
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes;
+
+  if(insideWarning){
+    showAlert("This trip is inside the warning window. Edit is locked. Use Cancel if needed.");
+    return;
+  }
+
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
+
+  trip.__editing = true;
+
+  renderReviewTable();
+}
+
+async function handleCancelEdit(){
+  await refreshReview();
+}
+
+
+function normRouteAddressOnly(v){
+  return normalizeAddress(v || "")
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function normalizeStopsForSignature(stops){
+  return (Array.isArray(stops) ? stops : [])
+    .map(normRouteAddressOnly)
+    .filter(Boolean);
+}
+
+function buildIndividualRouteSignatureForEdit(trip,nextPayload = {}, nextStops = null){
+
+  return JSON.stringify({
+    pickup:normRouteAddressOnly(nextPayload.pickup ?? trip.pickup),
+    stops:Array.isArray(nextStops)
+      ? normalizeStopsForSignature(nextStops)
+      : normalizeStopsForSignature(trip.stops),
+    dropoff:normRouteAddressOnly(nextPayload.dropoff ?? trip.dropoff)
+  });
+}
+
+function buildSharedRouteSignatureForEdit(passengers){
+
+  return JSON.stringify(
+    (Array.isArray(passengers) ? passengers : [])
+      .map((p,index)=>({
+        id:String(p.passengerId || p._id || index),
+        pickup:normRouteAddressOnly(p.pickup),
+        dropoff:normRouteAddressOnly(p.dropoff),
+        status:cleanStatus(p.status || "Scheduled")
+      }))
+  );
+}
+
+function coordinatesValue(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function routeAddressChanged(oldAddress,newAddress){
+  return normRouteAddressOnly(oldAddress) !== normRouteAddressOnly(newAddress);
+}
+
+async function handleSaveEdit(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  const isShared =
+    trip.isShared === true ||
+    trip.tripType === "SHARED";
+
+  const payload = {};
+  const stops =
+    Array.isArray(trip.stops)
+      ? [...trip.stops]
+      : [];
+
+  const originalPassengers =
+    Array.isArray(trip.passengers)
+      ? getPassengers(trip).map(p=>({...p}))
+      : [];
+
+  const passengers =
+    originalPassengers.map(p=>({...p}));
+
+  tr.querySelectorAll(".edit-input").forEach(input=>{
+
+    const field =
+      input.dataset.field;
+
+    const stopIndex =
+      input.dataset.stopIndex;
+
+    if(stopIndex !== undefined){
+
+      stops[Number(stopIndex)] =
+        normalizeAddress(input.value);
+
+      return;
+    }
+
+    if(!field) return;
+
+    if(field.startsWith("passenger_")){
+
+      const parts =
+        field.split("_");
+
+      const index =
+        Number(parts[1]);
+
+      const key =
+        parts[2];
+
+      if(!passengers[index]) return;
+
+      if(key === "name"){
+        passengers[index].name = input.value;
+        passengers[index].clientName = input.value;
+      }
+
+      if(key === "phone"){
+        passengers[index].phone = input.value;
+        passengers[index].clientPhone = input.value;
+      }
+
+      if(key === "pickup"){
+        passengers[index].pickup = normalizeAddress(input.value);
+      }
+
+      if(key === "dropoff"){
+        passengers[index].dropoff = normalizeAddress(input.value);
+      }
+
+      return;
+    }
+
+    if(field === "pickup" || field === "dropoff"){
+      payload[field] = normalizeAddress(input.value);
+    }else{
+      payload[field] = input.value;
+    }
+  });
+
+  const nextDate =
+    payload.tripDate ?? trip.tripDate;
+
+  const nextTime =
+    payload.tripTime ?? trip.tripTime;
+
+  const dt =
+    parseTripDateTime(nextDate,nextTime);
+
+  if(!dt){
+    showAlert("Invalid date/time");
+    return;
+  }
+
+  if(dt <= getSystemNow()){
+    showAlert("Trip time already passed");
+    return;
+  }
+
+  if(isShared){
+
+    for(const p of passengers){
+
+      if(!normalizeText(p.clientName || p.name)){
+        showAlert("Passenger name required");
+        return;
+      }
+
+      if(!normalizeText(p.clientPhone || p.phone)){
+        showAlert("Passenger phone required");
+        return;
+      }
+
+      if(!normalizeText(p.pickup)){
+        showAlert("Passenger pickup required");
+        return;
+      }
+
+      if(!normalizeText(p.dropoff)){
+        showAlert("Passenger dropoff required");
+        return;
+      }
+    }
+
+    payload.passengers =
+      passengers.map((p,index)=>{
+
+        const oldPassenger =
+          originalPassengers[index] || {};
+
+        const pickupChanged =
+          routeAddressChanged(oldPassenger.pickup,p.pickup);
+
+        const dropoffChanged =
+          routeAddressChanged(oldPassenger.dropoff,p.dropoff);
+
+        return {
+          ...p,
+
+          passengerId:
+            p.passengerId || oldPassenger.passengerId || "P" + (index + 1),
+
+          name:
+            normalizeText(p.name || p.clientName),
+
+          phone:
+            normalizeText(p.phone || p.clientPhone),
+
+          clientName:
+            normalizeText(p.clientName || p.name),
+
+          clientPhone:
+            normalizeText(p.clientPhone || p.phone),
+
+          pickup:
+            normalizeAddress(p.pickup),
+
+          pickupLat:
+            pickupChanged
+              ? null
+              : coordinatesValue(p.pickupLat ?? oldPassenger.pickupLat),
+
+          pickupLng:
+            pickupChanged
+              ? null
+              : coordinatesValue(p.pickupLng ?? oldPassenger.pickupLng),
+
+          dropoff:
+            normalizeAddress(p.dropoff),
+
+          dropoffLat:
+            dropoffChanged
+              ? null
+              : coordinatesValue(p.dropoffLat ?? oldPassenger.dropoffLat),
+
+          dropoffLng:
+            dropoffChanged
+              ? null
+              : coordinatesValue(p.dropoffLng ?? oldPassenger.dropoffLng),
+
+          status:
+            p.status || oldPassenger.status || "Scheduled",
+
+          pickupOrder:
+            p.pickupOrder ?? oldPassenger.pickupOrder ?? 0,
+
+          dropoffOrder:
+            p.dropoffOrder ?? oldPassenger.dropoffOrder ?? 0,
+
+          routeOrder:
+            p.routeOrder ?? oldPassenger.routeOrder ?? index + 1,
+
+          passengerMiles:
+            p.passengerMiles ?? oldPassenger.passengerMiles ?? 0,
+
+          passengerMinutes:
+            p.passengerMinutes ?? oldPassenger.passengerMinutes ?? 0,
+
+          passengerDistanceMeters:
+            p.passengerDistanceMeters ?? oldPassenger.passengerDistanceMeters ?? 0,
+
+          passengerDurationSeconds:
+            p.passengerDurationSeconds ?? oldPassenger.passengerDurationSeconds ?? 0,
+
+          priceAmount:
+            p.priceAmount ?? oldPassenger.priceAmount ?? 0,
+
+          finalPrice:
+            p.finalPrice ?? oldPassenger.finalPrice ?? 0
+        };
+      });
+
+    payload.pickup = payload.passengers[0]?.pickup || "";
+    payload.dropoff = payload.passengers[payload.passengers.length - 1]?.dropoff || "";
+    payload.totalPassengers = payload.passengers.length;
+    payload.passengerCount = payload.passengers.length;
+    payload.passengersCount = payload.passengers.length;
+
+  }else{
+
+    payload.stops =
+      stops.filter(Boolean);
+  }
+
+  let routeChanged = false;
+
+  if(isShared){
+
+    const oldSignature =
+      buildSharedRouteSignatureForEdit(originalPassengers);
+
+    const newSignature =
+      buildSharedRouteSignatureForEdit(payload.passengers || passengers);
+
+    routeChanged =
+      oldSignature !== newSignature;
+
+  }else{
+
+    const oldSignature =
+      buildIndividualRouteSignatureForEdit(trip);
+
+    const newSignature =
+      buildIndividualRouteSignatureForEdit(trip,payload,stops);
+
+    routeChanged =
+      oldSignature !== newSignature;
+  }
+
+  if(routeChanged){
+
+    payload.status = "Review";
+    payload.reservationStatus = "Review";
+    payload.reviewOnly = true;
+    payload.dispatchSelected = false;
+
+    payload.priceAmount = 0;
+    payload.finalPrice = 0;
+    payload.pricePerPassenger = 0;
+
+    payload.miles = 0;
+    payload.distanceMeters = 0;
+    payload.durationSeconds = 0;
+    payload.estimatedMinutes = 0;
+
+    payload.googleRoute = null;
+    payload.routePoints = [];
+    payload.routePlan = [];
+    payload.sharedRoutePlan = [];
+    payload.optimizedRoute = null;
+
+    payload.routeLocked = false;
+    payload.routeFinalized = false;
+    payload.routeSource = "route-edited";
+    payload.routeUpdatedAt = null;
+
+    payload.sharedRouteLocked = false;
+    payload.sharedRouteLockedAt = null;
+    payload.sharedRouteMeta = null;
+    payload.sharedRoutePolyline = "";
+    payload.sharedRouteMiles = 0;
+    payload.sharedRouteMinutes = 0;
+    payload.sharedRouteSignature = "";
+    payload.sharedGoogleRequestsUsed = 0;
+
+    payload.routeChangePending = true;
+    payload.routeChangeStatus = "ROUTE_CHANGED";
+
+    if(isShared && Array.isArray(payload.passengers)){
+      payload.passengers =
+        payload.passengers.map((p,index)=>({
+          ...p,
+          pickupOrder:0,
+          dropoffOrder:0,
+          routeOrder:index + 1,
+          passengerMiles:0,
+          passengerMinutes:0,
+          passengerDistanceMeters:0,
+          passengerDurationSeconds:0,
+          priceAmount:0,
+          finalPrice:0
+        }));
+    }
+
+  }else{
+
+    /*
+      Name / phone / notes / date / time changed only.
+      Keep route locked/saved and keep miles, minutes, price, polyline.
+      Do NOT trigger route rebuild.
+    */
+
+    payload.status = trip.status || "Confirmed";
+    payload.reservationStatus = trip.reservationStatus || "RV";
+    payload.reviewOnly = trip.reviewOnly === true ? true : false;
+    payload.dispatchSelected = trip.dispatchSelected === false ? false : true;
+
+    delete payload.priceAmount;
+    delete payload.finalPrice;
+    delete payload.pricePerPassenger;
+
+    delete payload.miles;
+    delete payload.distanceMeters;
+    delete payload.durationSeconds;
+    delete payload.estimatedMinutes;
+
+    delete payload.googleRoute;
+    delete payload.routePoints;
+    delete payload.routePlan;
+    delete payload.sharedRoutePlan;
+    delete payload.optimizedRoute;
+
+    delete payload.routeLocked;
+    delete payload.routeFinalized;
+    delete payload.routeSource;
+    delete payload.routeUpdatedAt;
+
+    delete payload.sharedRouteLocked;
+    delete payload.sharedRouteLockedAt;
+    delete payload.sharedRouteMeta;
+    delete payload.sharedRoutePolyline;
+    delete payload.sharedRouteMiles;
+    delete payload.sharedRouteMinutes;
+    delete payload.sharedRouteSignature;
+    delete payload.sharedGoogleRequestsUsed;
+
+    delete payload.routeChangePending;
+    delete payload.routeChangeStatus;
+  }
+
+  await updateTrip(id,payload);
+
+  await refreshReview();
+
+  showAlert("Trip Updated ✔");
+}
+
+async function handleDeleteTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  if(!id) return;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  const service =
+    getServiceByTrip(trip);
+
+  const mins =
+    minutesToTrip(trip);
+
+  const warningMinutes =
+    warningEnabled(service)
+      ? getWarningMinutes(service)
+      : 0;
+
+  const insideWarning =
+    mins !== null &&
+    mins > 0 &&
+    mins <= warningMinutes;
+
+  const status =
+    cleanStatus(trip.status);
+
+  const confirmed =
+    status.includes("confirm");
+
+  if(insideWarning && confirmed){
+    showAlert("This trip is inside the warning window. Delete is not allowed. Use Cancel.");
+    return;
+  }
+
+  if(!confirm("Are you sure you want to permanently delete this unconfirmed reservation? This action cannot be undone.")){
+    return;
+  }
+
+  await deleteTrip(id);
+
+  await refreshReview();
+
+  showAlert("Trip Deleted ✔");
+}
+
+async function handleAddStop(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  if(
+    !hasActiveAddStopRequest(trip) &&
+    !reservedAllowsAddStop(trip)
+  ){
+    showAlert("Add Stop is not available for this Reserved trip.");
+    return;
+  }
+
+  window.location.href =
+    `/admin/reserved-add-stop.html?tripId=${encodeURIComponent(id)}`;
+}
+
+async function handleCancelStop(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  const req =
+    trip.addStopRequest || null;
+
+  if(!req || req.active !== true){
+    showAlert("No active stop request.");
+    return;
+  }
+
+  if(!confirm("Cancel added stop request?")){
+    return;
+  }
+
+  const res =
+    await fetch(
+      `/api/reserved/add-stop/${encodeURIComponent(id)}/cancel`,
+      {
         method:"POST",
         headers:{
           "Content-Type":"application/json",
           Authorization:"Bearer " + token
         },
-        body:JSON.stringify(sharedTrip)
-      });
+        body:JSON.stringify({
+          status:"CANCELLED_BY_DISPATCH"
+        })
+      }
+    );
 
-    if(!res.ok){
-      const err =
-        await res.json().catch(()=>({}));
-      throw new Error(err.message || "Server Error");
-    }
+  const data =
+    await res.json().catch(()=>({}));
 
-    passengers.forEach(passenger=>{
-      upsertSavedClient({
-        clientName:passenger.clientName,
-        clientPhone:passenger.clientPhone,
-        pickup:passenger.pickup,
-        dropoff:passenger.dropoff
-      });
+  if(!res.ok || data.success === false){
+    throw new Error(
+      data.message || "Cancel Stop failed"
+    );
+  }
+
+  await refreshReview();
+
+  showAlert("Stop Cancelled ✔");
+}
+
+async function handleConfirmTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr?.dataset?.id;
+
+  if(!id){
+    showAlert("Trip id missing");
+    return;
+  }
+
+  /*
+    Do not allow a second Confirm request for the same trip while the first
+    request is still calculating/geocoding the route on the server.
+  */
+  if(confirmingTripIds.has(String(id))){
+    return;
+  }
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip){
+    showAlert("Trip not found");
+    return;
+  }
+
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
+
+  if(!confirm("Confirm this trip?")){
+    return;
+  }
+
+  const oldText =
+    btn.textContent;
+
+  confirmingTripIds.add(String(id));
+
+  try{
+
+    btn.disabled = true;
+    btn.textContent = "Calculating Route...";
+
+    await confirmTripOnServer(id);
+
+    btn.textContent = "Confirmed";
+
+    /*
+      Confirm already succeeded on the server. Do not make the user wait for
+      the Review list request before showing success.
+    */
+    refreshReview().catch(err=>{
+      console.error("CONFIRM REVIEW REFRESH ERROR:",err);
     });
 
-    showAlert("Shared Trip Submitted ✔");
-
-    passengersContainer.innerHTML = "";
-    sharedDate.value = "";
-    sharedTime.value = "";
-    sharedNotes.value = "";
-    passengerCount.value = "";
-
-    localStorage.removeItem(companyStorageKey("companySharedDraft"));
+    showAlert("RV Trip Confirmed ✔");
 
   }catch(err){
 
-    console.log(err);
-    showAlert(err.message || "Server Error");
+    console.error("CONFIRM TRIP ERROR:",err);
+
+    showAlert(
+      err.message || "Confirm failed"
+    );
 
   }finally{
 
-    submitSharedBtn.disabled = false;
-    submitSharedBtn.innerText = "Submit Shared";
-  }
-};
+    confirmingTripIds.delete(String(id));
 
+    /*
+      The row normally disappears after successful refresh.
+      Restore the old button only if this same DOM button still exists.
+    */
+    if(btn && btn.isConnected){
+      btn.disabled = false;
+      btn.textContent = oldText || "Confirm";
+    }
+  }
 }
+
+
+async function handleCancelTrip(btn){
+
+  const tr =
+    btn.closest("tr");
+
+  const id =
+    tr.dataset.id;
+
+  const trip =
+    reviewTrips.find(t=>String(t._id || t.id) === String(id));
+
+  if(!trip) return;
+
+  if(!checkTripWarningByTrip(trip)){
+    return;
+  }
+
+  if(!confirm("Cancel this RV trip?")){
+    return;
+  }
+
+  const service =
+    getServiceByTrip(trip);
+
+  if(!service){
+    showAlert("Reserved service not found");
+    return;
+  }
+
+  const pricing =
+    getReservedPricing(service);
+
+  const cancelFee =
+    warningEnabled(service)
+      ? Number(pricing.cancelFee || 0)
+      : 0;
+
+  const isShared =
+    trip.isShared === true ||
+    trip.tripType === "SHARED";
+
+  const passengers =
+    Array.isArray(trip.passengers)
+      ? trip.passengers
+      : [];
+
+  const count =
+    isShared
+      ? Math.max(1,passengers.length)
+      : 1;
+
+  await updateTrip(id,{
+    status:"Cancelled",
+    reservationStatus:"RV",
+    reviewOnly:false,
+    dispatchSelected:false,
+
+    priceAmount:isShared ? cancelFee * count : cancelFee,
+    finalPrice:isShared ? cancelFee * count : cancelFee,
+    cancelFee,
+
+    passengers:isShared
+      ? passengers.map(p=>({
+          ...p,
+          status:"Cancelled",
+          cancelFee,
+          priceAmount:cancelFee,
+          finalPrice:cancelFee
+        }))
+      : passengers,
+
+    routeLocked:false,
+    routeFinalized:false,
+    routeSource:"dispatch-add-trip-cancel",
+    routeUpdatedAt:new Date().toISOString()
+  });
+
+  await refreshReview();
+
+  showAlert("RV Trip Cancelled ✔");
+}
+
+/* ================= EVENTS ================= */
+
+document.addEventListener("click",async e=>{
+
+  const btn =
+    e.target.closest("button");
+
+  if(!btn) return;
+
+  const action =
+    btn.dataset.action;
+
+  if(!action) return;
+
+  if(action === "close-eye-modal"){
+    const dialog =
+      btn.closest("#dispatchTripEyeModal");
+
+    if(dialog && typeof dialog.close === "function"){
+      dialog.close();
+    }
+
+    dialog?.remove();
+    return;
+  }
+
+  try{
+
+    if(action === "view-trip") await handleViewTrip(btn);
+    if(action === "edit-trip") await handleEditTrip(btn);
+    if(action === "save-edit") await handleSaveEdit(btn);
+    if(action === "cancel-edit") await handleCancelEdit(btn);
+    if(action === "delete-trip") await handleDeleteTrip(btn);
+    if(action === "confirm-trip") await handleConfirmTrip(btn);
+    if(action === "cancel-trip") await handleCancelTrip(btn);
+    if(action === "add-stop") await handleAddStop(btn);
+    if(action === "cancel-stop") await handleCancelStop(btn);
+
+  }catch(err){
+
+    console.error(err);
+
+    showAlert(err.message || "Server Error");
+
+    await refreshReview();
+  }
+});
+
+/* ================= DRAFTS ================= */
+
+saveDraftBtn?.addEventListener("click",()=>{
+
+  localStorage.setItem(
+    "dispatchTripDraft",
+    JSON.stringify({
+      clientName:clientName?.value || "",
+      clientPhone:clientPhone?.value || "",
+      pickup:pickupInput?.value || "",
+      dropoff:dropoffInput?.value || "",
+      tripDate:tripDate?.value || "",
+      tripTime:tripTime?.value || "",
+      notes:notes?.value || "",
+      stops:addTripStops || []
+    })
+  );
+
+  showAlert("Draft Saved ✔");
+});
+
+saveSharedDraftBtn?.addEventListener("click",()=>{
+
+  const passengers = [];
+
+  document
+    .querySelectorAll(".passenger-card")
+    .forEach(card=>{
+
+      passengers.push({
+        clientName:card.querySelector(".sharedClientName")?.value || "",
+        clientPhone:card.querySelector(".sharedClientPhone")?.value || "",
+        pickup:card.querySelector(".sharedPickup")?.value || "",
+        dropoff:card.querySelector(".sharedDropoff")?.value || ""
+      });
+    });
+
+  localStorage.setItem(
+    "dispatchSharedDraft",
+    JSON.stringify({
+      passengerCount:passengerCount?.value || "",
+      sharedDate:sharedDate?.value || "",
+      sharedTime:sharedTime?.value || "",
+      sharedNotes:sharedNotes?.value || "",
+      passengers
+    })
+  );
+
+  showAlert("Shared Draft Saved ✔");
+});
+
+function loadDrafts(){
+
+  const draft =
+    JSON.parse(
+      localStorage.getItem("dispatchTripDraft") ||
+      "{}"
+    );
+
+  if(clientName) clientName.value = draft.clientName || "";
+  if(clientPhone) clientPhone.value = draft.clientPhone || "";
+  if(pickupInput) pickupInput.value = draft.pickup || "";
+  if(dropoffInput) dropoffInput.value = draft.dropoff || "";
+  if(tripDate) tripDate.value = draft.tripDate || "";
+  if(tripTime) tripTime.value = draft.tripTime || "";
+  if(notes) notes.value = draft.notes || "";
+
+  addTripStops =
+    Array.isArray(draft.stops)
+      ? draft.stops
+      : [];
+
+  renderAddTripStops();
+
+  const sharedDraft =
+    JSON.parse(
+      localStorage.getItem("dispatchSharedDraft") ||
+      "{}"
+    );
+
+  if(passengerCount) passengerCount.value = sharedDraft.passengerCount || "";
+  if(sharedDate) sharedDate.value = sharedDraft.sharedDate || "";
+  if(sharedTime) sharedTime.value = sharedDraft.sharedTime || "";
+  if(sharedNotes) sharedNotes.value = sharedDraft.sharedNotes || "";
+
+  if(sharedDraft.passengerCount){
+
+    renderSharedPassengers(Number(sharedDraft.passengerCount));
+
+    const cards =
+      document.querySelectorAll(".passenger-card");
+
+    (sharedDraft.passengers || []).forEach((p,index)=>{
+
+      const card =
+        cards[index];
+
+      if(!card) return;
+
+      card.querySelector(".sharedClientName").value = p.clientName || "";
+      card.querySelector(".sharedClientPhone").value = p.clientPhone || "";
+      card.querySelector(".sharedPickup").value = p.pickup || "";
+      card.querySelector(".sharedDropoff").value = p.dropoff || "";
+    });
+  }
+}
+
+/* ================= REFRESH ================= */
+
+async function refreshReview(){
+  await fetchReviewTrips();
+  renderReviewTable();
+}
+
+/*
+  Re-check time-based button policies while the Review page is open.
+  This makes a 10-minute cutoff hide Add Stop exactly when the trip
+  enters the final 10 minutes, without requiring a page refresh.
+*/
+function refreshTimeSensitiveButtons(){
+
+  if(
+    !dispatchReviewPage ||
+    dispatchReviewPage.style.display === "none"
+  ){
+    return;
+  }
+
+  document
+    .querySelectorAll("#dispatchReviewTbody tr[data-id]")
+    .forEach(tr=>{
+
+      const id =
+        tr.dataset.id;
+
+      const trip =
+        reviewTrips.find(t=>{
+          return String(t._id || t.id) === String(id);
+        });
+
+      if(!trip || trip.__editing === true){
+        return;
+      }
+
+      const actionsCell =
+        tr.querySelector(".col-actions");
+
+      if(actionsCell){
+        actionsCell.innerHTML = renderTripButtons(trip);
+      }
+    });
+}
+
+let refreshingReservedPolicies = false;
+
+async function refreshReservedPolicies(){
+
+  if(refreshingReservedPolicies){
+    return;
+  }
+
+  try{
+
+    refreshingReservedPolicies = true;
+
+    await loadReservedServices(false);
+
+    refreshTimeSensitiveButtons();
+
+  }catch(err){
+
+    console.error("RESERVED POLICY REFRESH ERROR:",err);
+
+  }finally{
+
+    refreshingReservedPolicies = false;
+  }
+}
+
+/* Reload live Reserved settings when returning from Service Management. */
+window.addEventListener("focus",()=>{
+  refreshReservedPolicies();
+});
+
+document.addEventListener("visibilitychange",()=>{
+
+  if(document.visibilityState === "visible"){
+    refreshReservedPolicies();
+  }
+});
 
 /* ================= INIT ================= */
 
-bindStaticLocationChoices();
+loadEntryInfo();
+loadDrafts();
 
-bindCurrentLocationChoice(autoSharedPickup);
-bindCurrentLocationChoice(autoSharedDropoff);
+await loadSystemInfo();
+await loadReservedBookingData();
+await loadReservedServices();
+await refreshReview();
 
-await loadAutomaticSharedDraft();
-setSharedEntryMode("AUTOMATIC");
+const initialView =
+  new URLSearchParams(window.location.search).get("view");
 
-attachLocationChangeReset(
-  pickupInput
+if(initialView === "review"){
+  showReviewPage();
+}else{
+  showAddPage();
+}
+
+setInterval(
+  refreshTimeSensitiveButtons,
+  5000
 );
 
-attachLocationChangeReset(
-  dropoffInput
+/* Backup refresh in case the tab stays open while another admin changes policy. */
+setInterval(
+  refreshReservedPolicies,
+  30000
 );
-
-loadDraft();
-loadSharedDraft();
-
-await loadSystemTimezone();
-await loadCompanyServices();
-
-})();
 
 });
