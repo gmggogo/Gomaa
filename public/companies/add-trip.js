@@ -68,14 +68,14 @@ if(!token || role !== "company"){
 }
 
 let COMPANY_SERVICES = [];
-let FACILITY_BOOKING_FIELDS = [];
+let COMPANY_BOOKING_FIELDS = [];
 
 let activeService = "ST";
 let activeSuffix  = "ST";
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
 
-/* ================= FACILITY DYNAMIC BOOKING FIELDS ================= */
+/* ================= COMPANY DYNAMIC BOOKING FIELDS ================= */
 
 function bookingFieldInputType(fieldType){
   const type = normalizeText(fieldType).toUpperCase();
@@ -87,12 +87,24 @@ function bookingFieldInputType(fieldType){
   return "text";
 }
 
+function companyFieldRule(item){
+  const matrix = item?.matrix || {};
+  return (
+    matrix.company ||
+    matrix.companies ||
+    matrix.facility ||
+    {}
+  );
+}
+
 function facilityFieldEnabled(item){
-  return item?.matrix?.facility?.showField === true;
+  const rule = companyFieldRule(item);
+  return rule?.showField === true;
 }
 
 function facilityFieldRequired(item){
-  return facilityFieldEnabled(item) && item?.matrix?.facility?.required === true;
+  const rule = companyFieldRule(item);
+  return facilityFieldEnabled(item) && rule?.required === true;
 }
 
 function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
@@ -117,52 +129,117 @@ function ensureFacilityBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
 
-  if(section && box){
-    return { section, box };
+  if(!section){
+    section = document.createElement("section");
+    section.id = "dynamicBookingFieldsSection";
+    section.style.display = "none";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Additional Information";
+
+    box = document.createElement("div");
+    box.id = "dynamicBookingFields";
+    box.className = "form-grid";
+
+    section.appendChild(heading);
+    section.appendChild(box);
   }
 
-  const notesField = notes?.closest(".field-wrap") || notes?.parentElement;
-  const parent = notesField?.parentElement || individualSection;
-  if(!parent){
-    return { section:null, box:null };
+  if(!box){
+    box = document.createElement("div");
+    box.id = "dynamicBookingFields";
+    box.className = "form-grid";
+    section.appendChild(box);
   }
 
-  section = document.createElement("section");
-  section.id = "dynamicBookingFieldsSection";
-  section.style.display = "none";
-
-  const heading = document.createElement("h3");
-  heading.textContent = "Additional Information";
-
-  box = document.createElement("div");
-  box.id = "dynamicBookingFields";
-  box.className = "form-grid";
-
-  section.appendChild(heading);
-  section.appendChild(box);
-
-  if(notesField && notesField.parentElement === parent){
-    parent.insertBefore(section,notesField);
-  }else{
-    parent.appendChild(section);
-  }
+  moveCompanyBookingFieldsToActiveService();
 
   return { section, box };
 }
 
-async function loadFacilityBookingFields(){
+function moveCompanyBookingFieldsToActiveService(){
+  const section =
+    document.getElementById("dynamicBookingFieldsSection");
+
+  if(!section){
+    return;
+  }
+
+  const service =
+    getCurrentServiceConfig();
+
+  const shared =
+    isSharedService(service);
+
+  const targetSection =
+    shared
+      ? sharedSection
+      : individualSection;
+
+  if(!targetSection){
+    return;
+  }
+
+  const targetNotes =
+    shared
+      ? sharedNotes
+      : notes;
+
+  const notesField =
+    targetNotes?.closest(".field-wrap") ||
+    targetNotes?.parentElement;
+
+  const parent =
+    notesField?.parentElement ||
+    targetSection;
+
+  if(!parent){
+    return;
+  }
+
+  if(
+    notesField &&
+    notesField.parentElement === parent
+  ){
+    if(section.parentElement !== parent){
+      parent.insertBefore(
+        section,
+        notesField
+      );
+    }else if(section.nextElementSibling !== notesField){
+      parent.insertBefore(
+        section,
+        notesField
+      );
+    }
+  }else if(section.parentElement !== parent){
+    parent.appendChild(section);
+  }
+
+  section.style.display =
+    COMPANY_BOOKING_FIELDS.length
+      ? "block"
+      : "none";
+}
+
+async function loadCompanyBookingFields(){
   const host = ensureFacilityBookingFieldsHost();
   const section = host.section;
   const box = host.box;
   if(!section || !box) return;
 
-  FACILITY_BOOKING_FIELDS = [];
+  COMPANY_BOOKING_FIELDS = [];
   box.innerHTML = "";
   section.style.display = "none";
 
   try{
     const res = await fetch("/api/services/booking-data/company",{
-      headers:{ Authorization:"Bearer " + token },
+      method:"GET",
+      headers:{
+        Authorization:"Bearer " + token,
+        Accept:"application/json",
+        "Cache-Control":"no-cache"
+      },
       cache:"no-store"
     });
 
@@ -170,7 +247,7 @@ async function loadFacilityBookingFields(){
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
     if(Array.isArray(data?.fields)){
-      FACILITY_BOOKING_FIELDS = data.fields
+      COMPANY_BOOKING_FIELDS = data.fields
         .filter(item=>item?.showField === true)
         .map((item,index)=>({
           key:normalizeText(item?.key),
@@ -193,10 +270,10 @@ async function loadFacilityBookingFields(){
       const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
       const standardFields = standard.filter(facilityFieldEnabled).map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false)).filter(item=>item.key);
       const customFields = custom.filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label)).map((item,index)=>normalizeFacilityBookingField(item,null,index,true)).filter(item=>item.key);
-      FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+      COMPANY_BOOKING_FIELDS = [...standardFields,...customFields];
     }
 
-    FACILITY_BOOKING_FIELDS.forEach(field=>{
+    COMPANY_BOOKING_FIELDS.forEach(field=>{
       const wrap = document.createElement("div");
       wrap.className = "field-wrap";
 
@@ -235,19 +312,22 @@ async function loadFacilityBookingFields(){
       box.appendChild(wrap);
     });
 
-    if(FACILITY_BOOKING_FIELDS.length){
+    if(COMPANY_BOOKING_FIELDS.length){
       section.style.display = "block";
       restoreDynamicBookingDraft();
+      moveCompanyBookingFieldsToActiveService();
+    }else{
+      section.style.display = "none";
     }
   }catch(err){
-    console.log("LOAD FACILITY BOOKING FIELDS ERROR:", err);
+    console.log("LOAD COMPANY BOOKING FIELDS ERROR:", err);
   }
 }
 
 function collectDynamicBookingData(validateRequired=false){
   const rows = [];
 
-  for(const field of FACILITY_BOOKING_FIELDS){
+  for(const field of COMPANY_BOOKING_FIELDS){
     const input = document.getElementById(`dynamicBookingField_${field.key}`);
     const value = normalizeText(input?.value);
 
@@ -304,7 +384,7 @@ function restoreDynamicBookingDraft(){
   }catch(_err){ draft = {}; }
 
   const values = draft.dynamicBookingValues || {};
-  FACILITY_BOOKING_FIELDS.forEach(field=>{
+  COMPANY_BOOKING_FIELDS.forEach(field=>{
     const input = document.getElementById(`dynamicBookingField_${field.key}`);
     if(input && Object.prototype.hasOwnProperty.call(values,field.key)){
       input.value = values[field.key] ?? "";
@@ -313,7 +393,7 @@ function restoreDynamicBookingDraft(){
 }
 
 function clearDynamicBookingFields(){
-  FACILITY_BOOKING_FIELDS.forEach(field=>{
+  COMPANY_BOOKING_FIELDS.forEach(field=>{
     const input = document.getElementById(`dynamicBookingField_${field.key}`);
     if(input) input.value = "";
   });
@@ -4759,6 +4839,8 @@ function setActiveService(service,index){
     sharedSection.style.display = "none";
   }
 
+  moveCompanyBookingFieldsToActiveService();
+
   console.log("ACTIVE SERVICE:", {
     activeService,
     activeSuffix,
@@ -5431,6 +5513,14 @@ submitSharedBtn.onclick = async function(){
       selected.facilityOverrideActive === true
     );
 
+    const dynamicBookingData =
+      collectDynamicBookingData(true);
+
+    const dynamicTopLevel =
+      dynamicBookingTopLevelValues(
+        dynamicBookingData
+      );
+
     const sharedTrip = {
       company:companyName,
       companyName:companyName,
@@ -5466,6 +5556,23 @@ submitSharedBtn.onclick = async function(){
       tripDate:sharedDate.value,
       tripTime:sharedTime.value,
       notes:sharedNotes.value,
+
+      dynamicBookingData,
+      customBookingData:
+        dynamicBookingData.filter(
+          row=>row.source === "CUSTOM"
+        ),
+      bookingData:{
+        company:
+          dynamicBookingObject(
+            dynamicBookingData
+          ),
+        facility:
+          dynamicBookingObject(
+            dynamicBookingData
+          )
+      },
+      ...dynamicTopLevel,
 
       status:"Scheduled"
     };
@@ -5504,6 +5611,7 @@ submitSharedBtn.onclick = async function(){
     sharedTime.value = "";
     sharedNotes.value = "";
     passengerCount.value = "";
+    clearDynamicBookingFields();
 
     localStorage.removeItem(companyStorageKey("companySharedDraft"));
 
@@ -5544,11 +5652,11 @@ loadSharedDraft();
 
 await loadSystemTimezone();
 
-/* Load services and Additional Information independently.
-   A slow/failed facility pricing request must never prevent booking fields. */
+/* Load company services and Company Additional Information independently.
+   A slow/failed pricing request must never prevent company booking fields. */
 await Promise.allSettled([
   loadCompanyServices(),
-  loadFacilityBookingFields()
+  loadCompanyBookingFields()
 ]);
 
 })();
