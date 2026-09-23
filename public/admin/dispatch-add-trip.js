@@ -469,10 +469,10 @@ function ensureDispatchReviewTableStyle(){
     }
 
     .review-table{
-      width:100%;
-      min-width:1620px;
+      width:max-content;
+      min-width:100%;
       border-collapse:collapse;
-      table-layout:fixed;
+      table-layout:auto;
       background:#ffffff;
       font-size:12px;
     }
@@ -530,9 +530,24 @@ function ensureDispatchReviewTableStyle(){
     .review-table .col-notes{width:130px;}
     .review-table .col-miles{width:95px;}
     .review-table .col-mins{width:85px;}
-    .review-table .col-price{width:105px;}
-    .review-table .col-status{width:105px;}
-    .review-table .col-actions{width:170px;}
+    .review-table .col-price{width:105px;min-width:105px;}
+
+    .review-table .col-dynamic{
+      min-width:145px;
+      width:auto;
+      white-space:normal;
+    }
+
+    /* Status and Actions are always the final two columns. */
+    .review-table .col-status{
+      width:105px;
+      min-width:105px;
+    }
+
+    .review-table .col-actions{
+      width:180px;
+      min-width:180px;
+    }
 
     .cell-box{
       display:flex;
@@ -2191,47 +2206,37 @@ function applyReservedReviewAutoLayout(){
       ".review-table"
     );
 
+  const wrap =
+    table?.closest(
+      ".table-wrap"
+    );
+
   if(!table){
     return;
   }
 
-  const baseWidth = 1620;
-
-  const dynamicWidth =
-    RESERVED_DYNAMIC_COLUMNS
-      .reduce((sum,field)=>{
-
-        const type =
-          normalizeReservedFieldType(
-            field?.fieldType ||
-            field?.type
-          );
-
-        const width =
-          type === "LONG_TEXT"
-            ? 220
-            : type === "TEXT"
-              ? 160
-              : type === "PHONE" ||
-                type === "EMAIL"
-                ? 175
-                : 135;
-
-        return sum + width;
-
-      },0);
-
-  const finalWidth =
-    Math.max(
-      baseWidth,
-      baseWidth + dynamicWidth
-    );
-
+  /*
+    The table grows from its real content.
+    No hard-coded total width and no column compression.
+    If more Admin Management columns are enabled,
+    horizontal scrolling appears automatically.
+  */
   table.style.width =
-    `${finalWidth}px`;
+    "max-content";
 
   table.style.minWidth =
-    `${finalWidth}px`;
+    "100%";
+
+  table.style.tableLayout =
+    "auto";
+
+  if(wrap){
+    wrap.style.overflowX =
+      "auto";
+
+    wrap.style.overflowY =
+      "visible";
+  }
 }
 
 /* ================= LOAD SERVICES ================= */
@@ -3535,7 +3540,7 @@ function renderTripButtons(t){
     renderAddStopButton(t);
 
   const viewBtn =
-    `<button type="button" class="btn view" data-action="view-trip" title="View Details">👁</button>`;
+    `<button type="button" class="btn view" data-action="view-trip" title="View Details" aria-label="View Details">👁</button>`;
 
   const insideWarning =
     mins !== null &&
@@ -3855,7 +3860,10 @@ function renderTripRow(t,index){
     RESERVED_DYNAMIC_COLUMNS
       .map(field=>{
         return `
-          <td class="col-dynamic">
+          <td
+            class="col-dynamic"
+            data-dynamic-key="${escapeHtml(reservedDynamicFieldKey(field))}"
+          >
             ${cellBox(
               escapeHtml(
                 tripReservedDynamicValue(
@@ -3966,8 +3974,6 @@ function renderTripRow(t,index){
       ${editing ? createEditInput(t.notes || "", "notes") : cellBox(escapeHtml(t.notes || "--"))}
     </td>
 
-    ${reservedDynamicCells}
-
     <td class="col-miles">
       <span class="miles-strong">
         ${Number(t.miles || 0).toFixed(2)} mi
@@ -3983,6 +3989,8 @@ function renderTripRow(t,index){
         $${formatMoney(t.priceAmount || t.finalPrice || 0)}
       </span>
     </td>
+
+    ${reservedDynamicCells}
 
     <td class="col-status">
       <strong>${escapeHtml(t.status || "Review")}</strong>
@@ -4054,6 +4062,9 @@ function renderReviewTable(){
             <th class="col-date">Trip Date</th>
             <th class="col-time">Time</th>
             <th class="col-notes">Notes</th>
+            <th class="col-miles">Miles</th>
+            <th class="col-mins">Minutes</th>
+            <th class="col-price">Price</th>
             ${
               RESERVED_DYNAMIC_COLUMNS
                 .map(field=>`
@@ -4065,9 +4076,6 @@ function renderReviewTable(){
                 `)
                 .join("")
             }
-            <th class="col-miles">Miles</th>
-            <th class="col-mins">Minutes</th>
-            <th class="col-price">Price</th>
             <th class="col-status">Status</th>
             <th class="col-actions">Actions</th>
           </tr>
