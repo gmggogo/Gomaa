@@ -137,186 +137,26 @@ function ensureDynamicBookingFieldsHost(){
 }
 
 async function loadFacilityBookingFields(){
-
-  const {section,box} =
-    ensureDynamicBookingFieldsHost();
-
-  if(!section || !box){
-    return;
-  }
+  const {section,box} = ensureDynamicBookingFieldsHost();
+  if(!section || !box) return;
 
   FACILITY_BOOKING_FIELDS = [];
   box.innerHTML = "";
   section.style.display = "none";
 
-  /*
-    Platform Admin is the source of truth.
-
-    This reader accepts BOTH backend response styles:
-    1) already-normalized { fields:[...] }
-    2) raw BookingDataConfig { standardFields:[], customFields:[] }
-
-    It also accepts either matrix.company or matrix.facility so an older
-    BookingDataConfig version cannot make Company fields disappear.
-  */
-  function matrixForCompany(field){
-
+  function matrixForCompany(item){
     return (
-      field?.matrix?.company ||
-      field?.matrix?.facility ||
-      field?.company ||
-      field?.facility ||
+      item?.matrix?.facility ||
+      item?.matrix?.company ||
+      item?.facility ||
+      item?.company ||
       {}
     );
   }
 
-  function companyShowField(field){
+  function normalizePlatformAdminFields(data){
 
-    if(field?.showField !== undefined){
-      return bool(field.showField);
-    }
-
-    const matrix =
-      matrixForCompany(field);
-
-    if(matrix?.showField !== undefined){
-      return bool(matrix.showField);
-    }
-
-    /*
-      A normalized endpoint usually returns only fields that Platform Admin
-      already enabled, so absence of showField must NOT hide them again.
-    */
-    return true;
-  }
-
-  function companyRequired(field){
-
-    if(field?.required !== undefined){
-      return bool(field.required);
-    }
-
-    return bool(
-      matrixForCompany(field)
-        ?.required
-    );
-  }
-
-  function normalizeCompanyField(
-    field,
-    index,
-    sourceHint = ""
-  ){
-
-    const source =
-      normalizeText(
-        field?.source ||
-        sourceHint ||
-        (
-          Number(field?.slot || 0)
-            ? "CUSTOM"
-            : "STANDARD"
-        )
-      )
-      .toUpperCase();
-
-    const slot =
-      Number(
-        field?.slot || 0
-      ) || null;
-
-    let key =
-      normalizeText(
-        field?.key ||
-        field?.fieldKey ||
-        field?.name
-      );
-
-    if(
-      !key &&
-      source === "CUSTOM" &&
-      slot
-    ){
-      key =
-        `CUSTOM_${slot}`;
-    }
-
-    return {
-      key,
-
-      label:
-        normalizeText(
-          field?.label ||
-          field?.title ||
-          field?.displayName ||
-          key
-        ),
-
-      fieldType:
-        normalizeText(
-          field?.fieldType ||
-          field?.type ||
-          "TEXT"
-        )
-        .toUpperCase(),
-
-      options:
-        Array.isArray(field?.options)
-          ? field.options
-              .map(normalizeText)
-              .filter(Boolean)
-          : [],
-
-      placeholder:
-        normalizeText(
-          field?.placeholder ||
-          ""
-        ),
-
-      required:
-        companyRequired(field),
-
-      showField:
-        companyShowField(field),
-
-      showColumn:
-        field?.showColumn !== undefined
-          ? bool(field.showColumn)
-          : bool(
-              matrixForCompany(field)
-                ?.showColumn
-            ),
-
-      showEye:
-        field?.showEye !== undefined
-          ? bool(field.showEye)
-          : bool(
-              matrixForCompany(field)
-                ?.showEye
-            ),
-
-      source:
-        source === "CUSTOM"
-          ? "CUSTOM"
-          : "STANDARD",
-
-      slot:
-        source === "CUSTOM"
-          ? slot
-          : null,
-
-      order:
-        Number(
-          field?.order ??
-          matrixForCompany(field)?.order ??
-          index
-        )
-    };
-  }
-
-  function fieldsFromBookingConfig(data){
-
-    const direct =
+    const normalized =
       Array.isArray(data?.fields)
         ? data.fields
         : Array.isArray(data?.bookingFields)
@@ -325,122 +165,313 @@ async function loadFacilityBookingFields(){
             ? data.data.fields
             : null;
 
-    if(Array.isArray(direct)){
-      return direct.map(
-        (field,index)=>
-          normalizeCompanyField(
-            field,
-            index,
-            field?.source
-          )
-      );
+    if(Array.isArray(normalized)){
+      return normalized
+        .map((field,index)=>({
+          key:
+            normalizeText(
+              field?.key ||
+              (
+                Number(field?.slot || 0)
+                  ? `CUSTOM_${Number(field.slot)}`
+                  : ""
+              )
+            ),
+
+          label:
+            normalizeText(
+              field?.label ||
+              field?.title ||
+              field?.name ||
+              field?.key
+            ),
+
+          fieldType:
+            normalizeText(
+              field?.fieldType ||
+              field?.type ||
+              "TEXT"
+            ).toUpperCase(),
+
+          options:
+            Array.isArray(field?.options)
+              ? field.options
+                  .map(normalizeText)
+                  .filter(Boolean)
+              : [],
+
+          placeholder:
+            normalizeText(
+              field?.placeholder || ""
+            ),
+
+          required:
+            field?.required === true,
+
+          showField:
+            field?.showField !== false,
+
+          source:
+            normalizeText(
+              field?.source ||
+              (
+                Number(field?.slot || 0)
+                  ? "CUSTOM"
+                  : "STANDARD"
+              )
+            ).toUpperCase(),
+
+          slot:
+            Number(field?.slot || 0) || null,
+
+          order:
+            Number(
+              field?.order ?? index
+            )
+        }))
+        .filter(field=>
+          field.key &&
+          field.showField === true
+        );
     }
 
-    const config =
-      (
-        data?.config &&
-        typeof data.config === "object"
-      )
-        ? data.config
-        : (
-            data?.data &&
-            typeof data.data === "object"
-          )
-            ? data.data
-            : data;
+    const standard =
+      Array.isArray(data?.standardFields)
+        ? data.standardFields
+        : Array.isArray(data?.data?.standardFields)
+          ? data.data.standardFields
+          : [];
 
-    const standardFields =
-      Array.isArray(
-        config?.standardFields
-      )
-        ? config.standardFields
-        : [];
+    const custom =
+      Array.isArray(data?.customFields)
+        ? data.customFields
+        : Array.isArray(data?.data?.customFields)
+          ? data.data.customFields
+          : [];
 
-    const customFields =
-      Array.isArray(
-        config?.customFields
-      )
-        ? config.customFields
-        : [];
+    const standardRows =
+      standard
+        .map((item,index)=>{
+
+          const matrix =
+            matrixForCompany(item);
+
+          if(matrix?.showField !== true){
+            return null;
+          }
+
+          const key =
+            normalizeText(item?.key);
+
+          if(!key){
+            return null;
+          }
+
+          return {
+            key,
+
+            label:
+              normalizeText(
+                item?.label ||
+                item?.title ||
+                item?.name ||
+                key
+              ),
+
+            fieldType:
+              normalizeText(
+                item?.fieldType ||
+                item?.type ||
+                "TEXT"
+              ).toUpperCase(),
+
+            options:
+              Array.isArray(item?.options)
+                ? item.options
+                    .map(normalizeText)
+                    .filter(Boolean)
+                : [],
+
+            placeholder:
+              normalizeText(
+                item?.placeholder || ""
+              ),
+
+            required:
+              matrix?.required === true,
+
+            showField:true,
+            source:"STANDARD",
+            slot:null,
+
+            order:
+              Number(
+                matrix?.order ??
+                item?.order ??
+                index
+              )
+          };
+        })
+        .filter(Boolean);
+
+    const customRows =
+      custom
+        .map((item,index)=>{
+
+          const matrix =
+            matrixForCompany(item);
+
+          if(matrix?.showField !== true){
+            return null;
+          }
+
+          const slot =
+            Number(item?.slot || 0) ||
+            (index + 1);
+
+          const key =
+            normalizeText(item?.key) ||
+            `CUSTOM_${slot}`;
+
+          const label =
+            normalizeText(
+              item?.label ||
+              item?.title ||
+              item?.name
+            );
+
+          if(!label){
+            return null;
+          }
+
+          return {
+            key,
+            label,
+
+            fieldType:
+              normalizeText(
+                item?.fieldType ||
+                item?.type ||
+                "TEXT"
+              ).toUpperCase(),
+
+            options:
+              Array.isArray(item?.options)
+                ? item.options
+                    .map(normalizeText)
+                    .filter(Boolean)
+                : [],
+
+            placeholder:
+              normalizeText(
+                item?.placeholder || ""
+              ),
+
+            required:
+              matrix?.required === true,
+
+            showField:true,
+            source:"CUSTOM",
+            slot,
+
+            order:
+              Number(
+                matrix?.order ??
+                item?.order ??
+                (1000 + index)
+              )
+          };
+        })
+        .filter(Boolean);
 
     return [
-      ...standardFields.map(
-        (field,index)=>
-          normalizeCompanyField(
-            field,
-            index,
-            "STANDARD"
-          )
-      ),
-      ...customFields.map(
-        (field,index)=>
-          normalizeCompanyField(
-            field,
-            standardFields.length + index,
-            "CUSTOM"
-          )
-      )
+      ...standardRows,
+      ...customRows
     ];
+  }
+
+  async function requestBookingFields(){
+
+    const endpoints = [
+      "/api/services/booking-data/company",
+      "/api/services/booking-data/facility"
+    ];
+
+    let lastError = null;
+
+    for(const endpoint of endpoints){
+
+      try{
+        const res = await fetch(endpoint,{
+          method:"GET",
+          headers:{
+            Authorization:"Bearer " + token,
+            Accept:"application/json"
+          },
+          cache:"no-store"
+        });
+
+        const data =
+          await res.json()
+            .catch(()=>({}));
+
+        if(!res.ok){
+          lastError =
+            new Error(
+              data.message ||
+              `Failed loading booking fields from ${endpoint}`
+            );
+          continue;
+        }
+
+        return {
+          rows:
+            normalizePlatformAdminFields(data),
+          endpoint
+        };
+
+      }catch(err){
+        lastError = err;
+      }
+    }
+
+    throw (
+      lastError ||
+      new Error(
+        "Failed loading Platform Admin booking fields"
+      )
+    );
   }
 
   try{
 
-    const res =
-      await fetch(
-        "/api/services/booking-data/company",
-        {
-          method:"GET",
-          headers:{
-            Authorization:
-              "Bearer " + token,
-            Accept:
-              "application/json"
-          },
-          cache:"no-store"
-        }
-      );
-
-    const data =
-      await res
-        .json()
-        .catch(()=>({}));
-
-    if(!res.ok){
-      throw new Error(
-        data.message ||
-        `Failed loading booking fields (${res.status})`
-      );
-    }
+    const result =
+      await requestBookingFields();
 
     FACILITY_BOOKING_FIELDS =
-      fieldsFromBookingConfig(data)
-        .filter(field=>
-          field.key &&
-          field.showField === true
-        )
-        .sort(
-          (a,b)=>
-            Number(a.order || 0) -
-            Number(b.order || 0)
-        );
+      (Array.isArray(result?.rows)
+        ? result.rows
+        : []
+      )
+      .filter(field=>
+        field?.key &&
+        field?.showField === true
+      )
+      .sort((a,b)=>
+        Number(a?.order || 0) -
+        Number(b?.order || 0)
+      );
 
-    for(
-      const field of
-      FACILITY_BOOKING_FIELDS
-    ){
+    for(const field of FACILITY_BOOKING_FIELDS){
 
       const wrap =
-        document.createElement(
-          "div"
-        );
+        document.createElement("div");
 
       wrap.className =
         "field-wrap";
 
       const label =
-        document.createElement(
-          "label"
-        );
+        document.createElement("label");
 
       label.className =
         "auto-share-field-label";
@@ -450,45 +481,29 @@ async function loadFacilityBookingFields(){
 
       label.textContent =
         field.label +
-        (
-          field.required
-            ? " *"
-            : ""
-        );
+        (field.required ? " *" : "");
 
       wrap.appendChild(label);
 
       let input;
 
-      if(
-        field.fieldType ===
-        "LONG_TEXT"
-      ){
+      if(field.fieldType === "LONG_TEXT"){
 
         input =
-          document.createElement(
-            "textarea"
-          );
+          document.createElement("textarea");
 
       }else if(
-        field.fieldType ===
-          "DROPDOWN" ||
-        field.fieldType ===
-          "YES_NO"
+        field.fieldType === "DROPDOWN" ||
+        field.fieldType === "YES_NO"
       ){
 
         input =
-          document.createElement(
-            "select"
-          );
+          document.createElement("select");
 
         const empty =
-          document.createElement(
-            "option"
-          );
+          document.createElement("option");
 
         empty.value = "";
-
         empty.textContent =
           field.placeholder ||
           `Select ${field.label}`;
@@ -496,19 +511,14 @@ async function loadFacilityBookingFields(){
         input.appendChild(empty);
 
         const options =
-          field.fieldType ===
-            "YES_NO"
+          field.fieldType === "YES_NO"
             ? ["Yes","No"]
             : field.options;
 
-        for(
-          const value of options
-        ){
+        for(const value of options){
 
           const option =
-            document.createElement(
-              "option"
-            );
+            document.createElement("option");
 
           option.value = value;
           option.textContent = value;
@@ -519,9 +529,7 @@ async function loadFacilityBookingFields(){
       }else{
 
         input =
-          document.createElement(
-            "input"
-          );
+          document.createElement("input");
 
         input.type =
           bookingFieldInputType(
@@ -539,21 +547,12 @@ async function loadFacilityBookingFields(){
         field.key;
 
       input.dataset.bookingSource =
-        field.source;
+        field.source || "STANDARD";
 
-      input.dataset.bookingSlot =
-        field.slot || "";
-
-      input.dataset.bookingLabel =
-        field.label;
-
-      input.dataset.bookingType =
-        field.fieldType;
-
-      input.dataset.bookingRequired =
-        field.required
-          ? "true"
-          : "false";
+      if(field.slot){
+        input.dataset.bookingSlot =
+          String(field.slot);
+      }
 
       input.placeholder =
         field.placeholder ||
@@ -571,9 +570,7 @@ async function loadFacilityBookingFields(){
         ? "block"
         : "none";
 
-    if(
-      FACILITY_BOOKING_FIELDS.length
-    ){
+    if(FACILITY_BOOKING_FIELDS.length){
       restoreDynamicBookingDraft();
     }
 
@@ -585,7 +582,7 @@ async function loadFacilityBookingFields(){
   }catch(err){
 
     console.error(
-      "LOAD COMPANY BOOKING FIELDS ERROR:",
+      "LOAD PLATFORM ADMIN COMPANY BOOKING FIELDS ERROR:",
       err
     );
 
@@ -594,7 +591,6 @@ async function loadFacilityBookingFields(){
     section.style.display = "none";
   }
 }
-
 
 function collectDynamicBookingData(validateRequired=false){
   const rows = [];
