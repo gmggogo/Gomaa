@@ -2174,6 +2174,56 @@ function renderTripBookingViewFields(t){
     .join("");
 }
 
+/* ===============================
+   FINAL EYE — SAME MERGED BOOKING DATA LOGIC AS TRIPS HUB
+
+   Important:
+   - SINGLE: reads every additional/dynamic booking field from the trip.
+   - SHARED: reads and merges the booking fields from EVERY trip in the group,
+     instead of reading only item.group[0].
+   - Existing labels, layout and Final Confirmation logic are unchanged.
+================================ */
+function buildFinalBookingEyeHtml(item){
+
+  const trips =
+    item?.kind === "shared"
+      ? (Array.isArray(item?.group) ? item.group : [])
+      : [item?.trip].filter(Boolean);
+
+  const merged = [];
+  const seen = new Set();
+
+  trips.forEach(trip=>{
+
+    getTripBookingViewFields(trip)
+      .forEach(row=>{
+
+        const identity =
+          (
+            normalizeText(row?.key) ||
+            normalizeText(row?.label)
+          )
+          .toLowerCase();
+
+        if(!identity || seen.has(identity)){
+          return;
+        }
+
+        seen.add(identity);
+        merged.push(row);
+      });
+  });
+
+  return merged
+    .map(row=>
+      viewLine(
+        row.label,
+        row.value
+      )
+    )
+    .join("");
+}
+
 function viewPassengerCard(
   passenger,
   index,
@@ -2387,7 +2437,7 @@ function openFinalView(key){
         )
       )}
 
-      ${renderTripBookingViewFields(t)}
+      ${buildFinalBookingEyeHtml(item)}
 
       <div class="view-passenger-list">
         ${
@@ -2512,7 +2562,7 @@ function openFinalView(key){
         getBookedTime(t)
       )}
 
-      ${renderTripBookingViewFields(t)}
+      ${buildFinalBookingEyeHtml(item)}
 
       ${viewLine(
         "Entered Page",
