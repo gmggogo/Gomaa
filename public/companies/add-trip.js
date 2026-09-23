@@ -113,30 +113,42 @@ function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
   };
 }
 
-async function loadFacilityBookingFields(){
+function ensureDynamicBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
 
-  /* Keep Add Trip independent from an older cached HTML file. */
-  if(!section || !box){
-    const notesEl = document.getElementById("notes");
-    if(!notesEl) return;
-
-    section = document.createElement("section");
-    section.id = "dynamicBookingFieldsSection";
-    section.style.display = "none";
-
-    const title = document.createElement("h3");
-    title.textContent = "Additional Information";
-
-    box = document.createElement("div");
-    box.id = "dynamicBookingFields";
-    box.className = "form-grid";
-
-    section.appendChild(title);
-    section.appendChild(box);
-    notesEl.parentNode.insertBefore(section,notesEl);
+  if(section && box){
+    return { section, box };
   }
+
+  const notes = document.getElementById("notes");
+  if(!notes || !notes.parentNode){
+    return { section:null, box:null };
+  }
+
+  section = document.createElement("section");
+  section.id = "dynamicBookingFieldsSection";
+  section.style.display = "none";
+
+  const title = document.createElement("h3");
+  title.textContent = "Additional Information";
+
+  box = document.createElement("div");
+  box.id = "dynamicBookingFields";
+  box.className = "form-grid";
+
+  section.appendChild(title);
+  section.appendChild(box);
+  notes.parentNode.insertBefore(section, notes);
+
+  return { section, box };
+}
+
+async function loadFacilityBookingFields(){
+  const host = ensureDynamicBookingFieldsHost();
+  const section = host.section;
+  const box = host.box;
+  if(!section || !box) return;
 
   FACILITY_BOOKING_FIELDS = [];
   box.innerHTML = "";
@@ -151,28 +163,32 @@ async function loadFacilityBookingFields(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
-    const returnedFields = Array.isArray(data?.fields) ? data.fields : [];
-
-    FACILITY_BOOKING_FIELDS = returnedFields
-      .map((field,index)=>({
-        key:normalizeText(field?.key),
-        label:normalizeText(field?.label || field?.key),
-        fieldType:normalizeText(field?.fieldType || "TEXT").toUpperCase(),
-        options:Array.isArray(field?.options)
-          ? field.options.map(normalizeText).filter(Boolean)
-          : [],
-        placeholder:normalizeText(field?.placeholder || ""),
-        required:field?.required === true,
-        showField:field?.showField === true,
-        source:normalizeText(field?.source || "STANDARD").toUpperCase(),
-        slot:Number(field?.slot || 0) || null,
-        order:Number(field?.order ?? index),
-        aliases:Array.isArray(field?.aliases)
-          ? field.aliases.map(normalizeText).filter(Boolean)
-          : []
-      }))
-      .filter(field=>field.key && field.showField === true)
-      .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+    if(Array.isArray(data?.fields)){
+      FACILITY_BOOKING_FIELDS = data.fields
+        .filter(item=>item?.showField === true)
+        .map((item,index)=>({
+          key:normalizeText(item?.key),
+          label:normalizeText(item?.label || item?.key),
+          fieldType:normalizeText(item?.fieldType || "TEXT").toUpperCase(),
+          options:Array.isArray(item?.options) ? item.options.map(normalizeText).filter(Boolean) : [],
+          placeholder:normalizeText(item?.placeholder || ""),
+          required:item?.required === true,
+          source:normalizeText(item?.source || "STANDARD").toUpperCase(),
+          slot:Number(item?.slot || 0) || null,
+          order:Number(item?.order || index),
+          aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
+        }))
+        .filter(item=>item.key)
+        .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
+    }else{
+      const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
+      const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
+      const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
+      const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
+      const standardFields = standard.filter(facilityFieldEnabled).map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false)).filter(item=>item.key);
+      const customFields = custom.filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label)).map((item,index)=>normalizeFacilityBookingField(item,null,index,true)).filter(item=>item.key);
+      FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+    }
 
     FACILITY_BOOKING_FIELDS.forEach(field=>{
       const wrap = document.createElement("div");
@@ -218,7 +234,7 @@ async function loadFacilityBookingFields(){
       restoreDynamicBookingDraft();
     }
   }catch(err){
-    console.error("LOAD COMPANY BOOKING FIELDS ERROR:",err);
+    console.log("LOAD FACILITY BOOKING FIELDS ERROR:", err);
   }
 }
 
@@ -5517,8 +5533,8 @@ loadDraft();
 loadSharedDraft();
 
 await loadSystemTimezone();
-await loadFacilityBookingFields();
 await loadCompanyServices();
+await loadFacilityBookingFields();
 
 })();
 
