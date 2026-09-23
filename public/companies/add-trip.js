@@ -131,22 +131,21 @@ async function loadFacilityBookingFields(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
-    const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
-    const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
-    const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
-    const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
-
-    const standardFields = standard
-      .filter(facilityFieldEnabled)
-      .map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false))
-      .filter(item=>item.key);
-
-    const customFields = custom
-      .filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label))
-      .map((item,index)=>normalizeFacilityBookingField(item,null,index,true))
-      .filter(item=>item.key);
-
-    FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+    FACILITY_BOOKING_FIELDS = (Array.isArray(data?.fields) ? data.fields : [])
+      .map((field,index)=>({
+        key:normalizeText(field?.key),
+        label:normalizeText(field?.label || field?.key),
+        fieldType:normalizeText(field?.fieldType || "TEXT").toUpperCase(),
+        options:Array.isArray(field?.options) ? field.options.map(normalizeText).filter(Boolean) : [],
+        placeholder:normalizeText(field?.placeholder || ""),
+        required:field?.showField === true && field?.required === true,
+        showField:field?.showField === true,
+        source:normalizeText(field?.source || "STANDARD").toUpperCase(),
+        slot:Number(field?.slot || 0) || null,
+        order:Number(field?.order ?? index)
+      }))
+      .filter(field=>field.key && field.showField)
+      .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
 
     FACILITY_BOOKING_FIELDS.forEach(field=>{
       const wrap = document.createElement("div");
@@ -221,6 +220,15 @@ function collectDynamicBookingData(validateRequired=false){
   }
 
   return rows;
+}
+
+function dynamicBookingObject(rows){
+  const out = {};
+  (Array.isArray(rows) ? rows : []).forEach(row=>{
+    const key = normalizeText(row?.key);
+    if(key) out[key] = row?.value ?? "";
+  });
+  return out;
 }
 
 function dynamicBookingTopLevelValues(rows){
