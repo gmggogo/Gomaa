@@ -113,7 +113,7 @@ function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
   };
 }
 
-function ensureDynamicBookingFieldsHost(){
+function ensureFacilityBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
 
@@ -121,31 +121,37 @@ function ensureDynamicBookingFieldsHost(){
     return { section, box };
   }
 
-  const notes = document.getElementById("notes");
-  const notesWrap = notes?.closest(".field-wrap") || notes?.parentElement || null;
-  const form = notesWrap?.parentElement || document.querySelector("form") || document.querySelector(".form-grid")?.parentElement;
-
-  if(!form){
+  const notesField = notes?.closest(".field-wrap") || notes?.parentElement;
+  const parent = notesField?.parentElement || individualSection;
+  if(!parent){
     return { section:null, box:null };
   }
 
   section = document.createElement("section");
   section.id = "dynamicBookingFieldsSection";
   section.style.display = "none";
-  section.innerHTML = `<h3>Additional Information</h3><div class="form-grid" id="dynamicBookingFields"></div>`;
 
-  if(notesWrap && notesWrap.parentElement){
-    notesWrap.parentElement.insertBefore(section, notesWrap);
+  const heading = document.createElement("h3");
+  heading.textContent = "Additional Information";
+
+  box = document.createElement("div");
+  box.id = "dynamicBookingFields";
+  box.className = "form-grid";
+
+  section.appendChild(heading);
+  section.appendChild(box);
+
+  if(notesField && notesField.parentElement === parent){
+    parent.insertBefore(section,notesField);
   }else{
-    form.appendChild(section);
+    parent.appendChild(section);
   }
 
-  box = section.querySelector("#dynamicBookingFields");
   return { section, box };
 }
 
 async function loadFacilityBookingFields(){
-  const host = ensureDynamicBookingFieldsHost();
+  const host = ensureFacilityBookingFieldsHost();
   const section = host.section;
   const box = host.box;
   if(!section || !box) return;
@@ -1781,16 +1787,16 @@ function normalizeServiceCode(v){
 
 function isValidServiceCode(code){
 
-  return [
-    "ST",
-    "WH",
-    "XL",
-    "LM",
-    "TX",
-    "SH"
-  ].includes(
-    normalizeServiceCode(code)
-  ) || /^CUSTOM_[1-4]$/.test(normalizeServiceCode(code));
+  const normalized =
+    normalizeServiceCode(code);
+
+  /*
+    Get Quote / backend use the configured operational two-letter code.
+    New services are not limited to the original ST/WH/XL/LM/TX/SH list.
+    Example: Emergency => EM. CUSTOM_1..4 are gate identities only and
+    must never become a trip-number suffix.
+  */
+  return /^[A-Z0-9]{2}$/.test(normalized);
 }
 
 function resolveServiceCode(service){
@@ -1805,19 +1811,20 @@ function resolveServiceCode(service){
 
   const directFields = [
 
-    /* Same canonical identity priority used by Get Quote. */
-    service.serviceKey,
-    service.serviceCode,
+    /* Canonical operational identity first — same source of truth as Get Quote. */
     service.customServiceCode,
-    service.serviceIdentity,
     service.operationalCode,
-
-    service.companyServiceKey,
     service.companyServiceCode,
-    service.serviceType,
+    service.serviceCode,
     service.code,
 
-    /* Legacy suffix fields are compatibility fallbacks only. */
+    /* serviceKey may be CUSTOM_n for custom slots, so it is accepted only
+       when it resolves to a real two-letter operational code. */
+    service.companyServiceKey,
+    service.serviceKey,
+    service.serviceType,
+
+    /* Legacy suffixes are compatibility fallbacks only. */
     service.companySuffix,
     service.serviceSuffix,
     service.suffix,
@@ -5536,8 +5543,13 @@ loadDraft();
 loadSharedDraft();
 
 await loadSystemTimezone();
-await loadCompanyServices();
-await loadFacilityBookingFields();
+
+/* Load services and Additional Information independently.
+   A slow/failed facility pricing request must never prevent booking fields. */
+await Promise.allSettled([
+  loadCompanyServices(),
+  loadFacilityBookingFields()
+]);
 
 })();
 
