@@ -533,9 +533,50 @@ function ensureDispatchReviewTableStyle(){
     .review-table .col-price{width:105px;min-width:105px;}
 
     .review-table .col-dynamic{
-      min-width:145px;
+      min-width:120px;
       width:auto;
       white-space:normal;
+    }
+
+    /* Compact only the NEW dynamic data columns. */
+    .review-table .col-dynamic-number{
+      width:72px;
+      min-width:72px;
+      max-width:88px;
+      text-align:center;
+    }
+
+    .review-table .col-dynamic-time,
+    .review-table .col-dynamic-date{
+      width:92px;
+      min-width:92px;
+      max-width:110px;
+      text-align:center;
+    }
+
+    .review-table .col-dynamic-yes_no{
+      width:82px;
+      min-width:82px;
+      max-width:96px;
+      text-align:center;
+    }
+
+    .review-table .col-dynamic-phone{
+      width:120px;
+      min-width:120px;
+      max-width:135px;
+    }
+
+    .review-table .col-dynamic-email{
+      width:155px;
+      min-width:155px;
+      max-width:180px;
+    }
+
+    .review-table .col-dynamic-long_text{
+      width:180px;
+      min-width:180px;
+      max-width:220px;
     }
 
     /* Status and Actions are always the final two columns. */
@@ -1987,33 +2028,314 @@ function collectReservedDynamicData(){
     data[key] = value;
   });
 
+  const values =
+    RESERVED_DYNAMIC_FIELDS
+      .filter(field=>
+        field.showField === true
+      )
+      .map(field=>{
+
+        const key =
+          reservedDynamicFieldKey(field);
+
+        const control =
+          document.getElementById(
+            reservedDynamicInputId(field)
+          );
+
+        return {
+          source:
+            field?.source ||
+            "STANDARD",
+
+          key,
+
+          slot:
+            Number(field?.slot || 0) ||
+            null,
+
+          label:
+            reservedDynamicFieldLabel(field),
+
+          fieldType:
+            normalizeReservedFieldType(
+              field?.fieldType ||
+              field?.type
+            ),
+
+          required:
+            field?.required === true,
+
+          value:
+            control
+              ? normalizeText(
+                  control.value
+                )
+              : ""
+        };
+      });
+
   return {
     valid,
-    data
+    data,
+    values
   };
 }
 
 function getTripReservedDynamicData(trip){
-  const candidates = [
+
+  const merged = {};
+
+  const objectCandidates = [
     trip?.reservedBookingData,
     trip?.bookingData?.reserved,
     trip?.bookingData,
     trip?.additionalBookingData,
-    trip?.customBookingData,
     trip?.dynamicBookingData
   ];
 
-  for(const candidate of candidates){
+  objectCandidates.forEach(candidate=>{
     if(
       candidate &&
       typeof candidate === "object" &&
       !Array.isArray(candidate)
     ){
-      return candidate;
+      Object.assign(
+        merged,
+        candidate
+      );
     }
+  });
+
+  /*
+    Get Quote already saves dynamic booking values as an ARRAY:
+    [{ key, label, slot, value, ... }]
+
+    Reserved must read the same structure too.
+  */
+  const arrayCandidates = [
+    trip?.customBookingData,
+    trip?.reservedCustomBookingData,
+    trip?.bookingData?.reservedFields
+  ];
+
+  arrayCandidates.forEach(list=>{
+
+    if(!Array.isArray(list)){
+      return;
+    }
+
+    list.forEach(item=>{
+
+      if(
+        !item ||
+        typeof item !== "object"
+      ){
+        return;
+      }
+
+      const key =
+        normalizeText(
+          item.key ||
+          item.fieldKey ||
+          item.name
+        );
+
+      const label =
+        normalizeText(
+          item.label ||
+          item.title
+        );
+
+      const slot =
+        Number(item.slot || 0);
+
+      const value =
+        item.value ??
+        item.fieldValue ??
+        item.answer ??
+        "";
+
+      if(key){
+        merged[key] = value;
+      }
+
+      if(label){
+        merged[
+          "__label__" +
+          label.toLowerCase()
+        ] = value;
+      }
+
+      if(slot){
+        merged[
+          "__slot__" + slot
+        ] = value;
+      }
+    });
+  });
+
+  return merged;
+}
+
+function reservedDynamicAliases(trip,field){
+
+  const key =
+    reservedDynamicFieldKey(field);
+
+  const normalized =
+    String(key || "")
+      .replace(/[^a-zA-Z0-9]/g,"")
+      .toLowerCase();
+
+  const aliases = [];
+
+  if(normalized === "appointmenttime"){
+    aliases.push(
+      trip?.appointmentTime,
+      trip?.appointment_time,
+      trip?.appointment
+    );
   }
 
-  return {};
+  if(normalized === "returntime"){
+    aliases.push(
+      trip?.returnTime,
+      trip?.return_time
+    );
+  }
+
+  if(normalized === "servicetype"){
+    aliases.push(
+      trip?.serviceType,
+      trip?.serviceKey,
+      trip?.serviceCode,
+      trip?.serviceName,
+      trip?.vehicleTypeFromQuote
+    );
+  }
+
+  if(normalized === "triptype"){
+    aliases.push(
+      trip?.tripType,
+      trip?.type
+    );
+  }
+
+  if(normalized === "company"){
+    aliases.push(
+      trip?.company,
+      trip?.companyName,
+      trip?.facilityName,
+      trip?.organizationName
+    );
+  }
+
+  if(normalized === "entryname"){
+    aliases.push(
+      trip?.entryName
+    );
+  }
+
+  if(normalized === "entryphone"){
+    aliases.push(
+      trip?.entryPhone
+    );
+  }
+
+  if(normalized === "brokername"){
+    aliases.push(
+      trip?.brokerName
+    );
+  }
+
+  if(normalized === "brokercode"){
+    aliases.push(
+      trip?.brokerCode
+    );
+  }
+
+  if(normalized === "brokertripid"){
+    aliases.push(
+      trip?.brokerTripId,
+      trip?.externalTripId,
+      trip?.externalId
+    );
+  }
+
+  if(normalized === "externalsource"){
+    aliases.push(
+      trip?.externalSource,
+      trip?.source
+    );
+  }
+
+  if(normalized === "brokernotes"){
+    aliases.push(
+      trip?.brokerNotes
+    );
+  }
+
+  if(normalized === "totalpassengers"){
+    aliases.push(
+      trip?.totalPassengers,
+      trip?.passengersCount,
+      Array.isArray(trip?.passengers)
+        ? trip.passengers.length
+        : ""
+    );
+  }
+
+  return aliases;
+}
+
+function tripReservedDynamicValue(trip,field){
+
+  const key =
+    reservedDynamicFieldKey(field);
+
+  const label =
+    reservedDynamicFieldLabel(field);
+
+  const slot =
+    Number(field?.slot || 0);
+
+  const data =
+    getTripReservedDynamicData(trip);
+
+  const candidates = [
+    data?.[key],
+    data?.[
+      "__label__" +
+      String(label || "")
+        .toLowerCase()
+    ],
+    slot
+      ? data?.["__slot__" + slot]
+      : undefined,
+    trip?.[key],
+    ...reservedDynamicAliases(
+      trip,
+      field
+    )
+  ];
+
+  const value =
+    candidates.find(candidate=>
+      candidate !== undefined &&
+      candidate !== null &&
+      String(candidate).trim() !== ""
+    );
+
+  if(
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ){
+    return "--";
+  }
+
+  return String(value);
 }
 
 function clearReservedDynamicForm(){
@@ -2034,38 +2356,6 @@ function reservedColumnEnabled(field){
     field &&
     field.showColumn === true
   );
-}
-
-function tripReservedDynamicValue(trip,field){
-  const key =
-    reservedDynamicFieldKey(field);
-
-  const data =
-    getTripReservedDynamicData(trip);
-
-  const direct =
-    data?.[key];
-
-  if(
-    direct !== undefined &&
-    direct !== null &&
-    String(direct).trim() !== ""
-  ){
-    return String(direct);
-  }
-
-  const fallback =
-    trip?.[key];
-
-  if(
-    fallback !== undefined &&
-    fallback !== null &&
-    String(fallback).trim() !== ""
-  ){
-    return String(fallback);
-  }
-
-  return "--";
 }
 
 function currentReservedTenantSlug(){
@@ -2981,8 +3271,17 @@ function buildIndividualPayload(){
 
     bookingData:{
       reserved:
-        reservedDynamic.data
+        reservedDynamic.data,
+      reservedFields:
+        reservedDynamic.values
     },
+
+    /*
+      Use the same durable array snapshot already used
+      by Get Quote dynamic booking data.
+    */
+    customBookingData:
+      reservedDynamic.values,
 
     priceAmount:0,
     finalPrice:0,
@@ -3861,7 +4160,10 @@ function renderTripRow(t,index){
       .map(field=>{
         return `
           <td
-            class="col-dynamic"
+            class="col-dynamic col-dynamic-${normalizeReservedFieldType(
+              field?.fieldType ||
+              field?.type
+            ).toLowerCase()}"
             data-dynamic-key="${escapeHtml(reservedDynamicFieldKey(field))}"
           >
             ${cellBox(
@@ -4068,7 +4370,10 @@ function renderReviewTable(){
             ${
               RESERVED_DYNAMIC_COLUMNS
                 .map(field=>`
-                  <th class="col-dynamic">
+                  <th class="col-dynamic col-dynamic-${normalizeReservedFieldType(
+                    field?.fieldType ||
+                    field?.type
+                  ).toLowerCase()}">
                     ${escapeHtml(
                       reservedDynamicFieldLabel(field)
                     )}
