@@ -59,6 +59,7 @@ const companyName = getCompanyName();
 const ADD_STOP_ACTIVE_FROM =
   new Date("2026-06-20T05:58:00");
 
+
 let COMPANY_BOOKING_FIELDS = [];
 
 function cleanBookingValue(value){
@@ -73,6 +74,7 @@ async function loadCompanyBookingFields(){
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
+
     COMPANY_BOOKING_FIELDS = (Array.isArray(data?.fields) ? data.fields : [])
       .map((field,index)=>({
         key:cleanBookingValue(field?.key),
@@ -126,17 +128,17 @@ function bookingColumnCells(trip){
   ).join("");
 }
 
-function sharedBookingColumnCells(group){
-  return companyColumnFields().map(field=>{
-    const values=(Array.isArray(group)?group:[]).map(t=>bookingValueByKey(t,field.key)).filter(v=>cleanBookingValue(v));
-    return `<td class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${cellBox(values.length ? values.map((v,i)=>`${i+1}. ${escapeHtml(v)}`) : "--")}</td>`;
-  }).join("");
+function bookingColumnHeaders(){
+  return companyColumnFields().map(field=>
+    `<th class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${escapeHtml(field.label)}</th>`
+  ).join("");
 }
 
 function bookingEyeLines(trip){
-  return companyEyeFields().map(field=>viewLine(field.label,bookingValueByKey(trip,field.key))).join("");
+  return companyEyeFields().map(field=>
+    viewLine(field.label,bookingValueByKey(trip,field.key))
+  ).join("");
 }
-
 if(!token || role !== "company"){
   window.location.replace(companyLoginUrl());
   return;
@@ -3157,7 +3159,7 @@ function renderSharedRow(group,index){
 
     <td class="col-miles"><span class="miles-strong">${first.miles ? Number(first.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
 
-    ${sharedBookingColumnCells(group)}
+    ${bookingColumnCells(first)}
 
     <td class="col-actions">${renderSharedButtons(group,editing)}</td>
 
@@ -3193,7 +3195,7 @@ function renderUnifiedTable(items,kind){
         <th class="col-status">Status</th>
         <th class="col-price">Price</th>
         <th class="col-miles">Miles</th>
-        ${companyColumnFields().map(field=>`<th class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${escapeHtml(field.label)}</th>`).join("")}
+        ${bookingColumnHeaders()}
         <th class="col-actions">Actions</th>
         <th class="col-eye">👁️</th>
       </tr>
@@ -4696,8 +4698,8 @@ const billableStopsCount =
 async function refreshData(){
 
   await loadSystemRegion();
-  await loadCompanyBookingFields();
   await loadServices();
+  await loadCompanyBookingFields();
 
   trips = await fetchTrips();
 

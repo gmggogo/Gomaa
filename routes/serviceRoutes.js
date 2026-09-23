@@ -7,7 +7,7 @@ const Service = require("../models/Service");
 const Tenant = require("../models/Tenant");
 const BrokerIntegration = require("../models/BrokerIntegration");
 const BookingDataConfig = require("../models/BookingDataConfig");
-const { bookingFieldDefinitions } = require("../services/bookingFieldRegistry");
+const bookingFieldRegistry = require("../services/bookingFieldRegistry");
 
 const serviceIdentity =
   require("../utils/serviceIdentityResolver");
@@ -1363,7 +1363,7 @@ router.get(
 });
 
 /* =========================
-   COMPANY / FACILITY BOOKING FIELDS
+   COMPANY / FACILITY BOOKING DATA
 ========================= */
 
 router.get(
@@ -1377,33 +1377,51 @@ router.get(
           : clean(req.authUser?.tenantId || "");
 
       if(!tenantId){
-        return res.status(400).json({ success:false, message:"Tenant Required" });
+        return res.status(400).json({
+          success:false,
+          message:"Tenant Required"
+        });
       }
 
-      const config = await BookingDataConfig.findOne({ tenantId }).lean();
-      const fields = bookingFieldDefinitions(config || {},"facility");
+      const config = await BookingDataConfig
+        .findOne({tenantId})
+        .select({standardFields:1,customFields:1,updatedAt:1})
+        .lean();
+
+      const definitions =
+        bookingFieldRegistry.bookingFieldDefinitions(
+          config || {},
+          "facility"
+        );
+
+      const fields = definitions.map((field,index)=>({
+        key:clean(field?.key),
+        label:clean(field?.label || field?.key),
+        fieldType:clean(field?.fieldType || "TEXT").toUpperCase(),
+        required:field?.required === true,
+        showField:field?.showField === true,
+        showColumn:field?.showColumn === true,
+        showEye:field?.showEye === true,
+        order:Number(field?.order ?? index),
+        options:Array.isArray(field?.options)
+          ? field.options.map(clean).filter(Boolean)
+          : [],
+        source:clean(field?.source || "STANDARD").toUpperCase(),
+        slot:Number(field?.slot || 0) || null
+      })).filter(field=>field.key);
 
       return res.json({
         success:true,
-        fields:fields.map(field=>({
-          key:field.key,
-          label:field.label,
-          fieldType:field.fieldType,
-          required:field.required === true,
-          showField:field.showField === true,
-          showColumn:field.showColumn === true,
-          showEye:field.showEye === true,
-          order:Number(field.order || 0),
-          options:Array.isArray(field.options) ? field.options : [],
-          placeholder:field.placeholder || "",
-          source:field.source || "STANDARD",
-          slot:field.slot || null,
-          aliases:Array.isArray(field.aliases) ? field.aliases : []
-        }))
+        fields,
+        updatedAt:config?.updatedAt || null
       });
+
     }catch(err){
-      console.log("COMPANY BOOKING FIELDS LOAD ERROR:", err);
-      return res.status(500).json({ success:false, message:"Failed To Load Company Booking Fields" });
+      console.log("COMPANY BOOKING FIELDS LOAD ERROR:",err);
+      return res.status(500).json({
+        success:false,
+        message:"Failed To Load Company Booking Fields"
+      });
     }
   }
 );
