@@ -113,9 +113,31 @@ function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
   };
 }
 
+function ensureDynamicBookingFieldsHost(){
+  let section = document.getElementById("dynamicBookingFieldsSection");
+  let box = document.getElementById("dynamicBookingFields");
+  if(section && box) return {section,box};
+
+  section = document.createElement("section");
+  section.id = "dynamicBookingFieldsSection";
+  section.style.display = "none";
+  section.innerHTML = `<h3>Additional Information</h3><div class="form-grid" id="dynamicBookingFields"></div>`;
+
+  const tripDetails = document.getElementById("individualTripDetails");
+  if(tripDetails?.parentNode){
+    tripDetails.parentNode.insertBefore(section,tripDetails);
+  }else{
+    const notes = document.getElementById("notes");
+    const parentSection = notes?.closest("section");
+    if(parentSection?.parentNode) parentSection.parentNode.insertBefore(section,parentSection);
+    else document.querySelector("main")?.appendChild(section);
+  }
+  box = document.getElementById("dynamicBookingFields");
+  return {section,box};
+}
+
 async function loadFacilityBookingFields(){
-  const section = document.getElementById("dynamicBookingFieldsSection");
-  const box = document.getElementById("dynamicBookingFields");
+  const {section,box} = ensureDynamicBookingFieldsHost();
   if(!section || !box) return;
 
   FACILITY_BOOKING_FIELDS = [];
@@ -144,7 +166,7 @@ async function loadFacilityBookingFields(){
         slot:Number(field?.slot || 0) || null,
         order:Number(field?.order ?? index)
       }))
-      .filter(field=>field.key && field.showField)
+      .filter(field=>field.key && (field.showField || field.required))
       .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
 
     FACILITY_BOOKING_FIELDS.forEach(field=>{
