@@ -1152,7 +1152,15 @@ router.get(
     if(isReserved){
       filter = { reservedEnabled:true };
     }else if(isCompany){
-      filter = { companyEnabled:true };
+      /*
+        COMPANY SERVICES:
+        Tenant.allowedServices is the Platform Admin master switch.
+        Do not pre-filter by companyEnabled because older tenant Service
+        documents may carry stale/false companyEnabled values and that can
+        make valid allowed services disappear from Add Trip.
+        filterAllowedServices() below remains the authoritative gate.
+      */
+      filter = {};
     }else{
       filter = { enabled:true };
     }
@@ -1363,7 +1371,12 @@ router.get(
 });
 
 /* =========================
-   COMPANY / FACILITY BOOKING DATA
+   COMPANY BOOKING DATA
+
+   IMPORTANT:
+   The Platform Admin Booking Data matrix stores the Company surface
+   under matrix.facility. "facility" is therefore the internal registry
+   channel for Company Add Trip / Review and is NOT Reserved.
 ========================= */
 
 router.get(

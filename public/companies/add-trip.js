@@ -4665,66 +4665,120 @@ async function loadCompanyServices(){
     const facilityId =
       companyId || "";
 
-    /* =========================
-       1) FACILITY PRICING OVERRIDE
-    ========================= */
-
-    const bootRes =
-      await fetch("/api/facility-pricing-override/bootstrap",{
-        headers:{
-          Authorization:"Bearer " + token
+    /*
+      COMPANY SERVICES SOURCE OF TRUTH:
+      Load the tenant's full Platform-Admin-allowed Company service list first.
+      Facility Pricing Override is pricing/settings only and must NEVER replace
+      or shrink the service tabs.
+    */
+    const baseRes =
+      await fetch(
+        "/api/services?company=true",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          },
+          cache:"no-store"
         }
-      });
+      );
 
-    const bootData =
-      await bootRes.json().catch(()=>({}));
+    if(!baseRes.ok){
+      const errData =
+        await baseRes.json().catch(()=>({}));
+
+      throw new Error(
+        errData?.message ||
+        "Failed loading company services"
+      );
+    }
+
+    const baseData =
+      await baseRes.json().catch(()=>[]);
+
+    let baseServices =
+      Array.isArray(baseData)
+        ? baseData
+            .map(mapServiceManagementService)
+            .filter(service=>
+              Boolean(resolveServiceCode(service))
+            )
+        : [];
 
     console.log(
-      "ADD TRIP FACILITY BOOTSTRAP RESULT:",
-      bootData
+      "ADD TRIP BASE COMPANY SERVICES:",
+      baseServices
     );
+
+    /* =========================
+       FACILITY PRICING OVERRIDE
+       Merge only. Never replace tabs.
+    ========================= */
 
     let override = null;
 
-    if(
-      bootRes.ok &&
-      bootData.success === true &&
-      Array.isArray(bootData.overrides)
-    ){
+    try{
+      const bootRes =
+        await fetch(
+          "/api/facility-pricing-override/bootstrap",
+          {
+            headers:{
+              Authorization:"Bearer " + token
+            },
+            cache:"no-store"
+          }
+        );
 
-      const fid =
-        String(facilityId || "").trim();
+      const bootData =
+        await bootRes.json().catch(()=>({}));
 
-      const fname =
-        String(facilityName || "")
-          .trim()
-          .toLowerCase();
+      console.log(
+        "ADD TRIP FACILITY BOOTSTRAP RESULT:",
+        bootData
+      );
 
-      override =
-        bootData.overrides.find(o=>{
+      if(
+        bootRes.ok &&
+        bootData.success === true &&
+        Array.isArray(bootData.overrides)
+      ){
+        const fid =
+          String(facilityId || "").trim();
 
-          const oid =
-            String(o.facilityId || "").trim();
+        const fname =
+          String(facilityName || "")
+            .trim()
+            .toLowerCase();
 
-          const oname =
-            String(o.facilityName || "")
-              .trim()
-              .toLowerCase();
+        override =
+          bootData.overrides.find(o=>{
 
-          return (
-            (
-              fid &&
-              oid &&
-              oid === fid
-            ) ||
-            (
-              fname &&
-              oname &&
-              oname === fname
-            )
-          );
+            const oid =
+              String(o.facilityId || "").trim();
 
-        }) || null;
+            const oname =
+              String(o.facilityName || "")
+                .trim()
+                .toLowerCase();
+
+            return (
+              (
+                fid &&
+                oid &&
+                oid === fid
+              ) ||
+              (
+                fname &&
+                oname &&
+                oname === fname
+              )
+            );
+          }) || null;
+      }
+    }catch(overrideErr){
+      console.log(
+        "FACILITY OVERRIDE LOAD ERROR - USING BASE SERVICES:",
+        overrideErr
+      );
     }
 
     if(
@@ -4733,73 +4787,100 @@ async function loadCompanyServices(){
       Array.isArray(override.services) &&
       override.services.length
     ){
+      const overrideByCode =
+        new Map();
 
-      COMPANY_SERVICES =
-        override.services
-          .map(mapFacilityOverrideService)
-          .filter(s=>s.serviceKey);
+      override.services
+        .map(mapFacilityOverrideService)
+        .forEach(service=>{
+          const code =
+            resolveServiceCode(service);
 
-      COMPANY_SERVICES =
-        await attachCompanyBookingHoursToOverrideServices(COMPANY_SERVICES);
+          if(code){
+            overrideByCode.set(
+              code,
+              service
+            );
+          }
+        });
+
+      baseServices =
+        baseServices.map(service=>{
+          const code =
+            resolveServiceCode(service);
+
+          const overrideService =
+            overrideByCode.get(code);
+
+          if(!overrideService){
+            return service;
+          }
+
+          /*
+            Keep the real Service Management identity and merge override
+            pricing/settings on top of it.
+          */
+          return {
+            ...service,
+            ...overrideService,
+
+            _id:
+              service._id ||
+              overrideService._id,
+
+            serviceKey:
+              code,
+
+            serviceCode:
+              code,
+
+            serviceType:
+              code,
+
+            code:
+              code,
+
+            companySuffix:
+              code,
+
+            suffix:
+              code,
+
+            serviceSuffix:
+              code,
+
+            __pricingSource:
+              "FACILITY_OVERRIDE"
+          };
+        });
 
       console.log(
-        "ADD TRIP SERVICES FROM ACTIVE FACILITY OVERRIDE:",
-        COMPANY_SERVICES
+        "ADD TRIP SERVICES AFTER OVERRIDE MERGE:",
+        baseServices
       );
-
-      buildDynamicTabs();
-
-      return;
     }
-
-    /*
-      IMPORTANT:
-      Do NOT use bootData.services here.
-      Those are default pricing services and can make all company individual services become ST.
-    */
-
-    /* =========================
-       2) SERVICE MANAGEMENT COMPANY SERVICES
-    ========================= */
-
-    const res =
-      await fetch(
-        "/api/services?company=true",
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
-
-    if(!res.ok){
-      throw new Error("Failed loading services");
-    }
-
-    const data =
-      await res.json().catch(()=>[]);
 
     COMPANY_SERVICES =
-      Array.isArray(data)
-        ? data.map(mapServiceManagementService)
-        : [];
-
-    console.log(
-      "ADD TRIP SERVICES FROM SERVICE MANAGEMENT:",
-      COMPANY_SERVICES
-    );
+      await attachCompanyBookingHoursToOverrideServices(
+        baseServices
+      );
 
     if(!COMPANY_SERVICES.length){
-      COMPANY_SERVICES = [defaultStandardService()];
+      COMPANY_SERVICES =
+        [defaultStandardService()];
     }
 
     buildDynamicTabs();
 
   }catch(err){
 
-    console.log("LOAD COMPANY SERVICES ERROR:", err);
+    console.log(
+      "LOAD COMPANY SERVICES ERROR:",
+      err
+    );
 
-    COMPANY_SERVICES = [defaultStandardService()];
+    COMPANY_SERVICES =
+      [defaultStandardService()];
 
     buildDynamicTabs();
   }
