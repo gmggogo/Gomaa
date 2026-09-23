@@ -73,6 +73,8 @@ let SYSTEM_TIMEZONE = "America/Phoenix";
 let SYSTEM_REGION = "";
 let SYSTEM_COUNTRY = "";
 
+let pendingReservedDraftDynamicData = [];
+
 
 /* ================= DOM ================= */
 
@@ -1677,6 +1679,76 @@ function reservedDynamicFieldLabel(field){
   );
 }
 
+function reservedCanonicalFieldKey(field){
+
+  const raw =
+    reservedDynamicFieldKey(field);
+
+  if(raw){
+    return raw;
+  }
+
+  const slot =
+    Number(field?.slot || 0);
+
+  if(
+    normalizeText(field?.source)
+      .toUpperCase() === "CUSTOM" &&
+    slot > 0
+  ){
+    return `CUSTOM_${slot}`;
+  }
+
+  return "";
+}
+
+function reservedDynamicValueByKey(values,key){
+
+  const wanted =
+    normalizeText(key);
+
+  if(!wanted){
+    return "";
+  }
+
+  const row =
+    (Array.isArray(values)
+      ? values
+      : []
+    ).find(item=>
+      normalizeText(item?.key) === wanted
+    );
+
+  return normalizeText(
+    row?.value
+  );
+}
+
+function buildReservedDynamicObject(values){
+
+  const data = {};
+
+  (Array.isArray(values)
+    ? values
+    : []
+  ).forEach(item=>{
+
+    const key =
+      normalizeText(
+        item?.key
+      );
+
+    if(!key){
+      return;
+    }
+
+    data[key] =
+      item?.value ?? "";
+  });
+
+  return data;
+}
+
 function reservedDynamicFieldEnabled(field){
   if(!field || typeof field !== "object") return false;
 
@@ -1993,87 +2065,89 @@ function renderReservedDynamicFields(values = {}){
 }
 
 function collectReservedDynamicData(){
-  const data = {};
+
   let valid = true;
 
-  RESERVED_DYNAMIC_FIELDS.forEach(field=>{
-    const key =
-      reservedDynamicFieldKey(field);
+  const values = [];
 
-    const control =
-      document.getElementById(
-        reservedDynamicInputId(field)
-      );
+  RESERVED_DYNAMIC_FIELDS
+    .filter(field=>
+      field.showField === true
+    )
+    .forEach(field=>{
 
-    if(!control){
-      return;
-    }
+      const key =
+        reservedCanonicalFieldKey(
+          field
+        );
 
-    const value =
-      normalizeText(control.value);
+      if(!key){
+        return;
+      }
 
-    if(
-      bool(field?.required) &&
-      !value
-    ){
-      showAlert(
-        `${reservedDynamicFieldLabel(field)} Required`
-      );
+      const control =
+        document.getElementById(
+          reservedDynamicInputId(field)
+        );
 
-      control.focus();
-      valid = false;
-      return;
-    }
+      if(!control){
+        return;
+      }
 
-    data[key] = value;
-  });
+      const value =
+        normalizeText(
+          control.value
+        );
 
-  const values =
-    RESERVED_DYNAMIC_FIELDS
-      .filter(field=>
-        field.showField === true
-      )
-      .map(field=>{
+      if(
+        bool(field?.required) &&
+        !value
+      ){
+        showAlert(
+          `${reservedDynamicFieldLabel(field)} Required`
+        );
 
-        const key =
-          reservedDynamicFieldKey(field);
+        control.focus();
+        valid = false;
+        return;
+      }
 
-        const control =
-          document.getElementById(
-            reservedDynamicInputId(field)
-          );
+      values.push({
+        source:"RESERVED",
 
-        return {
-          source:
-            field?.source ||
-            "STANDARD",
+        key,
 
-          key,
+        slot:
+          Number(field?.slot || 0) ||
+          null,
 
-          slot:
-            Number(field?.slot || 0) ||
-            null,
+        label:
+          reservedDynamicFieldLabel(field),
 
-          label:
-            reservedDynamicFieldLabel(field),
+        fieldType:
+          normalizeReservedFieldType(
+            field?.fieldType ||
+            field?.type
+          ),
 
-          fieldType:
-            normalizeReservedFieldType(
-              field?.fieldType ||
-              field?.type
-            ),
+        required:
+          field?.required === true,
 
-          required:
-            field?.required === true,
+        aliases:
+          Array.isArray(field?.aliases)
+            ? field.aliases
+                .map(item=>normalizeText(item))
+                .filter(Boolean)
+            : [],
 
-          value:
-            control
-              ? normalizeText(
-                  control.value
-                )
-              : ""
-        };
+        value
       });
+    });
+
+  const data =
+    buildReservedDynamicObject(
+      values
+    );
 
   return {
     valid,
@@ -2114,6 +2188,7 @@ function getTripReservedDynamicData(trip){
     Reserved must read the same structure too.
   */
   const arrayCandidates = [
+    trip?.dynamicBookingData,
     trip?.customBookingData,
     trip?.reservedCustomBookingData,
     trip?.bookingData?.reservedFields
@@ -2472,6 +2547,47 @@ async function loadReservedBookingData(){
         );
 
     renderReservedDynamicFields();
+
+    if(
+      Array.isArray(
+        pendingReservedDraftDynamicData
+      ) &&
+      pendingReservedDraftDynamicData.length
+    ){
+      pendingReservedDraftDynamicData
+        .forEach(item=>{
+
+          const key =
+            normalizeText(
+              item?.key
+            );
+
+          if(!key){
+            return;
+          }
+
+          const field =
+            RESERVED_DYNAMIC_FIELDS
+              .find(candidate=>
+                reservedCanonicalFieldKey(candidate) === key
+              );
+
+          if(!field){
+            return;
+          }
+
+          const control =
+            document.getElementById(
+              reservedDynamicInputId(field)
+            );
+
+          if(control){
+            control.value =
+              item?.value ?? "";
+          }
+        });
+    }
+
     applyReservedReviewAutoLayout();
 
   }catch(err){
@@ -3266,6 +3382,20 @@ function buildIndividualPayload(){
     tripTime:tripTime.value,
     notes:normalizeText(notes.value),
 
+    /*
+      Unified Booking Data snapshot.
+      The manually entered values are the source of truth for Reserved.
+      Review / Eye read the same saved snapshot.
+    */
+    dynamicBookingData:
+      reservedDynamic.values,
+
+    /*
+      Backward-compatible names kept during migration.
+    */
+    customBookingData:
+      reservedDynamic.values,
+
     reservedBookingData:
       reservedDynamic.data,
 
@@ -3277,11 +3407,56 @@ function buildIndividualPayload(){
     },
 
     /*
-      Use the same durable array snapshot already used
-      by Get Quote dynamic booking data.
+      Known canonical fields are also copied to their normal Trip fields.
+      If a broker supplies these later, the backend mapper uses the same key.
     */
-    customBookingData:
-      reservedDynamic.values,
+    appointmentTime:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "appointmentTime"
+      ),
+
+    returnTime:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "returnTime"
+      ),
+
+    memberId:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "memberId"
+      ),
+
+    brokerName:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "brokerName"
+      ),
+
+    brokerCode:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "brokerCode"
+      ),
+
+    brokerTripId:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "brokerTripId"
+      ),
+
+    externalSource:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "externalSource"
+      ),
+
+    brokerNotes:
+      reservedDynamicValueByKey(
+        reservedDynamic.values,
+        "brokerNotes"
+      ),
 
     priceAmount:0,
     finalPrice:0,
@@ -3625,6 +3800,7 @@ submitTripBtn?.addEventListener("click",async ()=>{
     clearIndividualForm();
 
     localStorage.removeItem("dispatchTripDraft");
+    pendingReservedDraftDynamicData = [];
 
     /*
       The trip is already safely created at this point. Refresh Review in the
@@ -4158,22 +4334,52 @@ function renderTripRow(t,index){
   const reservedDynamicCells =
     RESERVED_DYNAMIC_COLUMNS
       .map(field=>{
+
+        const key =
+          reservedCanonicalFieldKey(
+            field
+          );
+
+        const value =
+          tripReservedDynamicValue(
+            t,
+            field
+          );
+
+        const editType =
+          normalizeReservedFieldType(
+            field?.fieldType ||
+            field?.type
+          );
+
         return `
           <td
-            class="col-dynamic col-dynamic-${normalizeReservedFieldType(
-              field?.fieldType ||
-              field?.type
-            ).toLowerCase()}"
-            data-dynamic-key="${escapeHtml(reservedDynamicFieldKey(field))}"
+            class="col-dynamic col-dynamic-${editType.toLowerCase()}"
+            data-dynamic-key="${escapeHtml(key)}"
           >
-            ${cellBox(
-              escapeHtml(
-                tripReservedDynamicValue(
-                  t,
-                  field
-                )
-              )
-            )}
+            ${
+              editing && !isShared
+                ? createEditInput(
+                    value === "--" ? "" : value,
+                    `dynamic_${key}`,
+                    editType === "NUMBER"
+                      ? "number"
+                      : editType === "DATE"
+                        ? "date"
+                        : editType === "TIME"
+                          ? "time"
+                          : editType === "EMAIL"
+                            ? "email"
+                            : editType === "PHONE"
+                              ? "tel"
+                              : "text"
+                  )
+                : cellBox(
+                    escapeHtml(
+                      value
+                    )
+                  )
+            }
           </td>
         `;
       })
@@ -4817,6 +5023,26 @@ async function handleSaveEdit(btn){
     trip.tripType === "SHARED";
 
   const payload = {};
+
+  const editedDynamicByKey = new Map(
+    (
+      Array.isArray(
+        trip.dynamicBookingData
+      )
+        ? trip.dynamicBookingData
+        : Array.isArray(
+            trip.customBookingData
+          )
+          ? trip.customBookingData
+          : []
+    ).map(item=>[
+      normalizeText(item?.key),
+      {
+        ...item
+      }
+    ])
+  );
+
   const stops =
     Array.isArray(trip.stops)
       ? [...trip.stops]
@@ -4847,6 +5073,60 @@ async function handleSaveEdit(btn){
     }
 
     if(!field) return;
+
+    if(field.startsWith("dynamic_")){
+
+      const key =
+        field.slice(
+          "dynamic_".length
+        );
+
+      const definition =
+        RESERVED_DYNAMIC_FIELDS
+          .find(candidate=>
+            reservedCanonicalFieldKey(candidate) === key
+          );
+
+      const previous =
+        editedDynamicByKey.get(key) ||
+        {};
+
+      editedDynamicByKey.set(
+        key,
+        {
+          ...previous,
+          source:"RESERVED",
+          key,
+          slot:
+            Number(definition?.slot || previous?.slot || 0) ||
+            null,
+          label:
+            reservedDynamicFieldLabel(
+              definition || previous
+            ),
+          fieldType:
+            normalizeReservedFieldType(
+              definition?.fieldType ||
+              definition?.type ||
+              previous?.fieldType
+            ),
+          required:
+            definition?.required === true,
+          aliases:
+            Array.isArray(definition?.aliases)
+              ? definition.aliases
+              : Array.isArray(previous?.aliases)
+                ? previous.aliases
+                : [],
+          value:
+            normalizeText(
+              input.value
+            )
+        }
+      );
+
+      return;
+    }
 
     if(field.startsWith("passenger_")){
 
@@ -5031,6 +5311,66 @@ async function handleSaveEdit(btn){
 
     payload.stops =
       stops.filter(Boolean);
+  }
+
+  if(!isShared){
+
+    const editedDynamicValues =
+      [...editedDynamicByKey.values()]
+        .filter(item=>
+          normalizeText(
+            item?.key
+          )
+        );
+
+    payload.dynamicBookingData =
+      editedDynamicValues;
+
+    payload.customBookingData =
+      editedDynamicValues;
+
+    payload.reservedBookingData =
+      buildReservedDynamicObject(
+        editedDynamicValues
+      );
+
+    payload.bookingData = {
+      ...(
+        trip.bookingData &&
+        typeof trip.bookingData === "object"
+          ? trip.bookingData
+          : {}
+      ),
+      reserved:
+        buildReservedDynamicObject(
+          editedDynamicValues
+        ),
+      reservedFields:
+        editedDynamicValues
+    };
+
+    [
+      "appointmentTime",
+      "returnTime",
+      "memberId",
+      "brokerName",
+      "brokerCode",
+      "brokerTripId",
+      "externalSource",
+      "brokerNotes"
+    ].forEach(key=>{
+
+      const value =
+        reservedDynamicValueByKey(
+          editedDynamicValues,
+          key
+        );
+
+      if(value){
+        payload[key] =
+          value;
+      }
+    });
   }
 
   let routeChanged = false;
@@ -5527,7 +5867,10 @@ saveDraftBtn?.addEventListener("click",()=>{
       tripDate:tripDate?.value || "",
       tripTime:tripTime?.value || "",
       notes:notes?.value || "",
-      stops:addTripStops || []
+      stops:addTripStops || [],
+      dynamicBookingData:
+        collectReservedDynamicData()
+          .values
     })
   );
 
@@ -5579,6 +5922,11 @@ function loadDrafts(){
   if(tripDate) tripDate.value = draft.tripDate || "";
   if(tripTime) tripTime.value = draft.tripTime || "";
   if(notes) notes.value = draft.notes || "";
+
+  pendingReservedDraftDynamicData =
+    Array.isArray(draft.dynamicBookingData)
+      ? draft.dynamicBookingData
+      : [];
 
   addTripStops =
     Array.isArray(draft.stops)

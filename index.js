@@ -64,6 +64,12 @@ require("./routes/smartDispatchEngineRoutes");
 const Service =
 require("./models/Service");
 
+const BookingDataConfig =
+require("./models/BookingDataConfig");
+
+const bookingFieldRegistry =
+require("./services/bookingFieldRegistry");
+
 const serviceIdentity =
 require("./utils/serviceIdentityResolver");
 
@@ -8161,6 +8167,196 @@ async function validateTripBookingHours({
   };
 }
 
+
+/* =========================
+   UNIFIED BOOKING FIELD SNAPSHOT
+
+   One storage format for:
+   - Get Quote
+   - Company / Facility
+   - Reserved
+
+   Broker transfers use the same bookingFieldRegistry service
+   from their own route.
+
+   This block does NOT change pricing, route calculation,
+   confirmation, button policy, payment, or dispatch.
+========================= */
+
+function tripBookingDataChannel(
+  req,
+  type
+){
+
+  if(
+    !req.authUser &&
+    type === "individual"
+  ){
+    return "getQuote";
+  }
+
+  if(type === "company"){
+    return "facility";
+  }
+
+  return "reserved";
+}
+
+function incomingManualBookingValues(req){
+
+  const body =
+    req?.body &&
+    typeof req.body === "object"
+      ? req.body
+      : {};
+
+  if(
+    Array.isArray(
+      body.dynamicBookingData
+    )
+  ){
+    return body.dynamicBookingData;
+  }
+
+  if(
+    Array.isArray(
+      body.customBookingData
+    )
+  ){
+    return body.customBookingData;
+  }
+
+  if(
+    body.reservedBookingData &&
+    typeof body.reservedBookingData === "object"
+  ){
+    return body.reservedBookingData;
+  }
+
+  if(
+    body.bookingData?.reserved &&
+    typeof body.bookingData.reserved === "object"
+  ){
+    return body.bookingData.reserved;
+  }
+
+  if(
+    body.bookingData?.facility &&
+    typeof body.bookingData.facility === "object"
+  ){
+    return body.bookingData.facility;
+  }
+
+  if(
+    body.bookingData?.getQuote &&
+    typeof body.bookingData.getQuote === "object"
+  ){
+    return body.bookingData.getQuote;
+  }
+
+  return {};
+}
+
+async function buildManualTripBookingSnapshot({
+  tenantId,
+  req,
+  type
+}){
+
+  const channel =
+    tripBookingDataChannel(
+      req,
+      type
+    );
+
+  const config =
+    await BookingDataConfig
+      .findOne({
+        tenantId
+      })
+      .select({
+        standardFields:1,
+        customFields:1
+      })
+      .lean();
+
+  const definitions =
+    bookingFieldRegistry
+      .bookingFieldDefinitions(
+        config || {},
+        channel
+      );
+
+  const manualValues =
+    incomingManualBookingValues(
+      req
+    );
+
+  const source =
+    channel === "getQuote"
+      ? "GET_QUOTE"
+      : channel === "facility"
+        ? "COMPANY"
+        : "RESERVED";
+
+  const dynamicBookingData =
+    bookingFieldRegistry
+      .normalizeManualValues(
+        manualValues,
+        definitions,
+        source
+      );
+
+  return {
+    channel,
+    dynamicBookingData,
+    customBookingData:
+      dynamicBookingData,
+
+    appointmentTime:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "appointmentTime"
+        ),
+
+    returnTime:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "returnTime"
+        ),
+
+    memberId:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "memberId"
+        ),
+
+    brokerTripId:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "brokerTripId"
+        ),
+
+    externalSource:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "externalSource"
+        ),
+
+    brokerNotes:
+      bookingFieldRegistry
+        .snapshotValue(
+          dynamicBookingData,
+          "brokerNotes"
+        )
+  };
+}
+
 /* =========================
    CREATE TRIP (FINAL + SHARED)
 ========================= */
@@ -8195,6 +8391,13 @@ app.post("/api/trips", optionalTenantApi, async (req, res) => {
       normalizeTripType(
         req.body.type
       );
+
+    const bookingSnapshot =
+      await buildManualTripBookingSnapshot({
+        tenantId,
+        req,
+        type
+      });
 
     /* =========================
        PUBLIC GET QUOTE PAYMENT GATE
@@ -8629,6 +8832,32 @@ if (isShared) {
             req.body.bookingSource
           ),
 
+        dynamicBookingData:
+          bookingSnapshot
+            .dynamicBookingData,
+
+        customBookingData:
+          bookingSnapshot
+            .customBookingData,
+
+        appointmentTime:
+          normalizeText(
+            req.body.appointmentTime ||
+            bookingSnapshot.appointmentTime
+          ),
+
+        returnTime:
+          normalizeText(
+            req.body.returnTime ||
+            bookingSnapshot.returnTime
+          ),
+
+        memberId:
+          normalizeText(
+            req.body.memberId ||
+            bookingSnapshot.memberId
+          ),
+
         /* COMPANY */
 
         company:
@@ -8877,6 +9106,50 @@ noShowFee:
 
 clientEmail:
   normalizeText(req.body.clientEmail),
+
+dynamicBookingData:
+  bookingSnapshot
+    .dynamicBookingData,
+
+customBookingData:
+  bookingSnapshot
+    .customBookingData,
+
+appointmentTime:
+  normalizeText(
+    req.body.appointmentTime ||
+    bookingSnapshot.appointmentTime
+  ),
+
+returnTime:
+  normalizeText(
+    req.body.returnTime ||
+    bookingSnapshot.returnTime
+  ),
+
+memberId:
+  normalizeText(
+    req.body.memberId ||
+    bookingSnapshot.memberId
+  ),
+
+brokerTripId:
+  normalizeText(
+    req.body.brokerTripId ||
+    bookingSnapshot.brokerTripId
+  ),
+
+externalSource:
+  normalizeText(
+    req.body.externalSource ||
+    bookingSnapshot.externalSource
+  ),
+
+brokerNotes:
+  normalizeText(
+    req.body.brokerNotes ||
+    bookingSnapshot.brokerNotes
+  ),
 
 vehicle: vehicleTypeFromQuote,
 
@@ -9245,6 +9518,16 @@ app.get(
           clientPhone
           clientEmail
 
+          appointmentTime
+          returnTime
+          memberId
+          dynamicBookingData
+          customBookingData
+          reservedBookingData
+          bookingData
+          unmappedExternalFields
+          brokerNotes
+
           priceAmount
           finalPrice
 
@@ -9467,6 +9750,16 @@ app.get(
           clientName
           clientPhone
           clientEmail
+
+          appointmentTime
+          returnTime
+          memberId
+          dynamicBookingData
+          customBookingData
+          reservedBookingData
+          bookingData
+          unmappedExternalFields
+          brokerNotes
 
           priceAmount
           finalPrice
