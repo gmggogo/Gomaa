@@ -17,7 +17,7 @@ body{
 
   font-family:Arial;
 
-  background:#f8fafc;
+  background:linear-gradient(135deg,#dbeafe,#eff6ff);
 
   margin:0;
 
@@ -29,9 +29,11 @@ body{
 
 .box{
 
-  background:#fff;
+  background:#eff6ff;
 
   padding:20px;
+
+  border:1px solid #bfdbfe;
 
   border-radius:14px;
 
@@ -108,11 +110,15 @@ textarea{
 
   margin-top:5px;
 
-  border:1px solid #ddd;
+  border:1px solid #93c5fd;
 
-  border-radius:8px;
+  border-radius:9px;
 
   font-size:16px;
+
+  background:#ffffff;
+
+  box-shadow:0 2px 7px rgba(37,99,235,.08);
 
 }
 
@@ -184,11 +190,17 @@ button{
 
   padding:12px;
 
-  background:#e5e7eb;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
 
-  border-radius:8px;
+  color:#ffffff;
+
+  border:1px solid #1d4ed8;
+
+  border-radius:9px;
 
   font-weight:bold;
+
+  box-shadow:0 4px 12px rgba(37,99,235,.22);
 
   text-align:center;
 
@@ -235,8 +247,8 @@ button{
   margin:8px 0 2px;
   padding:9px 11px;
   border-radius:8px;
-  background:#eff6ff;
-  border:1px solid #bfdbfe;
+  background:#dbeafe;
+  border:1px solid #60a5fa;
   color:#1e3a8a;
   font-size:13px;
   font-weight:bold;
@@ -261,10 +273,11 @@ button{
   width:100%;
   padding:12px;
   margin-top:5px;
-  border:1px solid #ddd;
-  border-radius:8px;
+  border:1px solid #93c5fd;
+  border-radius:9px;
   font-size:16px;
   background:#fff;
+  box-shadow:0 2px 7px rgba(37,99,235,.08);
 }
 
 .dynamicField input:focus,
@@ -374,7 +387,7 @@ button{
   ></div>
 
   <label>
-    Passenger Name
+    Client Name
   </label>
 
   <input id="name">
@@ -424,12 +437,6 @@ button{
 
   </div>
 
-  <label>
-    Notes
-  </label>
-
-  <textarea id="notes"></textarea>
-
   <div
     id="dynamicBookingSection"
     class="dynamicBookingSection"
@@ -443,6 +450,12 @@ button{
       class="dynamicBookingGrid"
     ></div>
   </div>
+
+  <label>
+    Notes
+  </label>
+
+  <textarea id="notes"></textarea>
 
 
   <div class="actions">

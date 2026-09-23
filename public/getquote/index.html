@@ -199,21 +199,37 @@ button{
 }
 
 .vehicle-option{
-  background:#ffffff;
-  border:2px solid #e2e8f0;
-  border-radius:18px;
-  padding:14px;
+  background:linear-gradient(135deg,#eff6ff,#e0ecff);
+  border:2px solid #3b82f6;
+  border-radius:12px;
+  padding:13px 14px;
+  min-height:48px;
   text-align:center;
   cursor:pointer;
-  transition:.25s;
-  box-shadow:none;
+  transition:.18s ease;
+  box-shadow:0 3px 9px rgba(37,99,235,.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  user-select:none;
+}
+
+.vehicle-option:hover{
+  background:linear-gradient(135deg,#dbeafe,#cfe1ff);
+  border-color:#2563eb;
+  box-shadow:0 5px 14px rgba(37,99,235,.20);
+  transform:translateY(-1px);
 }
 
 .vehicle-option.active{
-  border-color:#2563eb;
-  background:linear-gradient(135deg,#eff6ff,#dbeafe);
-  box-shadow:0 0 20px rgba(37,99,235,.22);
-  transform:scale(1.03);
+  border-color:#1d4ed8;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  box-shadow:0 6px 18px rgba(37,99,235,.30);
+  transform:translateY(-1px);
+}
+
+.vehicle-option.active b{
+  color:#ffffff;
 }
 
 .vehicle-option img{
@@ -236,6 +252,9 @@ button{
 .vehicle-option b{
   display:block;
   font-size:14px;
+  font-weight:800;
+  color:#1d4ed8;
+  letter-spacing:.1px;
 }
 
 .vehicle-pricing .vehicle-option:last-child:nth-child(odd){
@@ -253,7 +272,7 @@ button{
 
   .vehicle-option{
     padding:12px 8px;
-    min-height:118px;
+    min-height:50px;
     display:flex;
     flex-direction:column;
     align-items:center;
