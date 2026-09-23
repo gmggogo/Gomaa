@@ -58,6 +58,85 @@ const role = getCompanyRole();
 const companyName = getCompanyName();
 const ADD_STOP_ACTIVE_FROM =
   new Date("2026-06-20T05:58:00");
+
+let COMPANY_BOOKING_FIELDS = [];
+
+function cleanBookingValue(value){
+  return String(value ?? "").trim();
+}
+
+async function loadCompanyBookingFields(){
+  try{
+    const res = await fetch("/api/services/booking-data/company",{
+      headers:{ Authorization:"Bearer " + token },
+      cache:"no-store"
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
+    COMPANY_BOOKING_FIELDS = (Array.isArray(data?.fields) ? data.fields : [])
+      .map((field,index)=>({
+        key:cleanBookingValue(field?.key),
+        label:cleanBookingValue(field?.label || field?.key),
+        fieldType:cleanBookingValue(field?.fieldType || "TEXT").toUpperCase(),
+        required:field?.required === true,
+        showField:field?.showField === true,
+        showColumn:field?.showColumn === true,
+        showEye:field?.showEye === true,
+        order:Number(field?.order ?? index),
+        options:Array.isArray(field?.options) ? field.options : [],
+        source:cleanBookingValue(field?.source || "STANDARD").toUpperCase(),
+        slot:Number(field?.slot || 0) || null
+      }))
+      .filter(field=>field.key)
+      .sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+  }catch(err){
+    console.error("LOAD COMPANY BOOKING FIELDS ERROR:",err);
+    COMPANY_BOOKING_FIELDS = [];
+  }
+}
+
+function companyColumnFields(){
+  return COMPANY_BOOKING_FIELDS.filter(field=>field.showColumn === true);
+}
+
+function companyEyeFields(){
+  return COMPANY_BOOKING_FIELDS.filter(field=>field.showEye === true);
+}
+
+function bookingSnapshotRows(trip){
+  const primary = Array.isArray(trip?.dynamicBookingData) ? trip.dynamicBookingData : [];
+  const custom = Array.isArray(trip?.customBookingData) ? trip.customBookingData : [];
+  return [...primary,...custom];
+}
+
+function bookingValueByKey(trip,key){
+  const wanted = cleanBookingValue(key);
+  if(!wanted) return "";
+  const row = bookingSnapshotRows(trip).find(item=>cleanBookingValue(item?.key) === wanted);
+  if(row && row.value !== undefined && row.value !== null && String(row.value) !== "") return row.value;
+  const companyData = trip?.bookingData?.company || trip?.bookingData?.facility || {};
+  if(companyData && Object.prototype.hasOwnProperty.call(companyData,wanted)) return companyData[wanted];
+  if(trip && Object.prototype.hasOwnProperty.call(trip,wanted)) return trip[wanted];
+  return "";
+}
+
+function bookingColumnCells(trip){
+  return companyColumnFields().map(field=>
+    `<td class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${cellBox(escapeHtml(bookingValueByKey(trip,field.key) || "--"))}</td>`
+  ).join("");
+}
+
+function sharedBookingColumnCells(group){
+  return companyColumnFields().map(field=>{
+    const values=(Array.isArray(group)?group:[]).map(t=>bookingValueByKey(t,field.key)).filter(v=>cleanBookingValue(v));
+    return `<td class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${cellBox(values.length ? values.map((v,i)=>`${i+1}. ${escapeHtml(v)}`) : "--")}</td>`;
+  }).join("");
+}
+
+function bookingEyeLines(trip){
+  return companyEyeFields().map(field=>viewLine(field.label,bookingValueByKey(trip,field.key))).join("");
+}
+
 if(!token || role !== "company"){
   window.location.replace(companyLoginUrl());
   return;
@@ -2647,6 +2726,7 @@ function openReviewView(kind,key){
         ${viewLine("Trip Time",trip.tripTime || "")}
         ${viewLine("Booked / Created",getBookedDate(trip))}
         ${viewLine("Route Locked",trip.routeLocked === true ? "Yes" : "No")}
+        ${bookingEyeLines(trip)}
       </div>
     </div>
   `;
@@ -2939,6 +3019,8 @@ ${stopRequestBadge}
 
     <td class="col-miles"><span class="miles-strong">${t.miles ? Number(t.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
 
+    ${bookingColumnCells(t)}
+
     <td class="col-actions">${renderTripButtons(t,editing)}</td>
 
     <td class="col-eye">
@@ -3075,6 +3157,8 @@ function renderSharedRow(group,index){
 
     <td class="col-miles"><span class="miles-strong">${first.miles ? Number(first.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
 
+    ${sharedBookingColumnCells(group)}
+
     <td class="col-actions">${renderSharedButtons(group,editing)}</td>
 
     <td class="col-eye">
@@ -3109,6 +3193,7 @@ function renderUnifiedTable(items,kind){
         <th class="col-status">Status</th>
         <th class="col-price">Price</th>
         <th class="col-miles">Miles</th>
+        ${companyColumnFields().map(field=>`<th class="col-dynamic" data-booking-key="${escapeHtml(field.key)}">${escapeHtml(field.label)}</th>`).join("")}
         <th class="col-actions">Actions</th>
         <th class="col-eye">👁️</th>
       </tr>
@@ -3130,7 +3215,7 @@ function renderUnifiedTable(items,kind){
     .forEach(date=>{
       const dateRow = document.createElement("tr");
       dateRow.className = "date-row";
-      dateRow.innerHTML = `<td colspan="15">Trip Date: ${escapeHtml(date)}</td>`;
+      dateRow.innerHTML = `<td colspan="${15 + companyColumnFields().length}">Trip Date: ${escapeHtml(date)}</td>`;
       tbody.appendChild(dateRow);
 
       grouped[date].forEach(item=>{
@@ -4611,6 +4696,7 @@ const billableStopsCount =
 async function refreshData(){
 
   await loadSystemRegion();
+  await loadCompanyBookingFields();
   await loadServices();
 
   trips = await fetchTrips();

@@ -7,6 +7,7 @@ const Service = require("../models/Service");
 const Tenant = require("../models/Tenant");
 const BrokerIntegration = require("../models/BrokerIntegration");
 const BookingDataConfig = require("../models/BookingDataConfig");
+const { bookingFieldDefinitions } = require("../services/bookingFieldRegistry");
 
 const serviceIdentity =
   require("../utils/serviceIdentityResolver");
@@ -1380,30 +1381,25 @@ router.get(
       }
 
       const config = await BookingDataConfig.findOne({ tenantId }).lean();
+      const fields = bookingFieldDefinitions(config || {},"facility");
 
       return res.json({
         success:true,
-        standardCatalog:[
-          { key:"appointmentTime", label:"Appointment Time", type:"TIME" },
-          { key:"returnTime", label:"Return Time", type:"TIME" },
-          { key:"clientEmail", label:"Passenger Email", type:"EMAIL" },
-          { key:"memberId", label:"Member ID", type:"TEXT" },
-          { key:"serviceType", label:"Service Type", type:"TEXT" },
-          { key:"tripType", label:"Trip Type", type:"TEXT" },
-          { key:"company", label:"Company / Facility Name", type:"TEXT" },
-          { key:"entryName", label:"Data Entry Name", type:"TEXT" },
-          { key:"entryPhone", label:"Data Entry Phone", type:"PHONE" },
-          { key:"brokerName", label:"Broker Name", type:"TEXT" },
-          { key:"brokerCode", label:"Broker Code", type:"TEXT" },
-          { key:"brokerTripId", label:"Broker Trip ID", type:"TEXT" },
-          { key:"externalSource", label:"External Source", type:"TEXT" },
-          { key:"brokerNotes", label:"Broker Notes", type:"LONG_TEXT" },
-          { key:"totalPassengers", label:"Total Passengers", type:"NUMBER" }
-        ],
-        config:{
-          standardFields:Array.isArray(config?.standardFields) ? config.standardFields : [],
-          customFields:Array.isArray(config?.customFields) ? config.customFields : []
-        }
+        fields:fields.map(field=>({
+          key:field.key,
+          label:field.label,
+          fieldType:field.fieldType,
+          required:field.required === true,
+          showField:field.showField === true,
+          showColumn:field.showColumn === true,
+          showEye:field.showEye === true,
+          order:Number(field.order || 0),
+          options:Array.isArray(field.options) ? field.options : [],
+          placeholder:field.placeholder || "",
+          source:field.source || "STANDARD",
+          slot:field.slot || null,
+          aliases:Array.isArray(field.aliases) ? field.aliases : []
+        }))
       });
     }catch(err){
       console.log("COMPANY BOOKING FIELDS LOAD ERROR:", err);

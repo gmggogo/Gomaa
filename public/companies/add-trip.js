@@ -131,22 +131,32 @@ async function loadFacilityBookingFields(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
-    const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
-    const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
-    const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
-    const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
-
-    const standardFields = standard
-      .filter(facilityFieldEnabled)
-      .map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false))
-      .filter(item=>item.key);
-
-    const customFields = custom
-      .filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label))
-      .map((item,index)=>normalizeFacilityBookingField(item,null,index,true))
-      .filter(item=>item.key);
-
-    FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+    if(Array.isArray(data?.fields)){
+      FACILITY_BOOKING_FIELDS = data.fields
+        .filter(item=>item?.showField === true)
+        .map((item,index)=>({
+          key:normalizeText(item?.key),
+          label:normalizeText(item?.label || item?.key),
+          fieldType:normalizeText(item?.fieldType || "TEXT").toUpperCase(),
+          options:Array.isArray(item?.options) ? item.options.map(normalizeText).filter(Boolean) : [],
+          placeholder:normalizeText(item?.placeholder || ""),
+          required:item?.required === true,
+          source:normalizeText(item?.source || "STANDARD").toUpperCase(),
+          slot:Number(item?.slot || 0) || null,
+          order:Number(item?.order || index),
+          aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
+        }))
+        .filter(item=>item.key)
+        .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
+    }else{
+      const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
+      const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
+      const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
+      const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
+      const standardFields = standard.filter(facilityFieldEnabled).map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false)).filter(item=>item.key);
+      const customFields = custom.filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label)).map((item,index)=>normalizeFacilityBookingField(item,null,index,true)).filter(item=>item.key);
+      FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+    }
 
     FACILITY_BOOKING_FIELDS.forEach(field=>{
       const wrap = document.createElement("div");
@@ -216,11 +226,22 @@ function collectDynamicBookingData(validateRequired=false){
       fieldType:field.fieldType,
       value,
       source:field.source,
+      required:field.required === true,
+      aliases:Array.isArray(field.aliases) ? field.aliases : [],
       ...(field.slot ? { slot:field.slot } : {})
     });
   }
 
   return rows;
+}
+
+function dynamicBookingObject(rows){
+  const out = {};
+  (Array.isArray(rows) ? rows : []).forEach(row=>{
+    const key = normalizeText(row?.key);
+    if(key) out[key] = row?.value ?? "";
+  });
+  return out;
 }
 
 function dynamicBookingTopLevelValues(rows){
@@ -1737,7 +1758,7 @@ function isValidServiceCode(code){
     "SH"
   ].includes(
     normalizeServiceCode(code)
-  );
+  ) || /^CUSTOM_[1-4]$/.test(normalizeServiceCode(code));
 }
 
 function resolveServiceCode(service){
@@ -5191,6 +5212,10 @@ submitTripBtn.onclick = async function(){
 
       dynamicBookingData,
       customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
+      bookingData:{
+        company:dynamicBookingObject(dynamicBookingData),
+        facility:dynamicBookingObject(dynamicBookingData)
+      },
       ...dynamicTopLevel,
 
       status:"Scheduled"
