@@ -2527,6 +2527,145 @@ function updateSelectionButtons(){
   if(cancelBtn) cancelBtn.style.display = isEditing ? "inline-block" : "none";
 }
 
+/* ================= BOOKING DATA IN EYE ONLY ================= */
+
+function hubBookingValueText(value){
+  if(value === undefined || value === null) return "";
+  if(Array.isArray(value)){
+    return value.map(hubBookingValueText).filter(Boolean).join(", ");
+  }
+  if(typeof value === "object"){
+    try{return JSON.stringify(value);}catch(err){return String(value);}
+  }
+  return String(value).trim();
+}
+
+function hubBookingLabelFromKey(key){
+  const known = {
+    appointmentTime:"Appointment Time",
+    returnTime:"Return Time",
+    clientEmail:"Client Email",
+    memberId:"Member ID",
+    serviceType:"Service Type",
+    tripType:"Trip Type",
+    company:"Company / Facility Name",
+    entryName:"Data Entry Name",
+    entryPhone:"Data Entry Phone",
+    brokerName:"Broker Name",
+    brokerCode:"Broker Code",
+    brokerTripId:"Broker Trip ID",
+    externalSource:"External Source",
+    brokerNotes:"Broker Notes",
+    totalPassengers:"Total Passengers"
+  };
+
+  if(known[key]) return known[key];
+
+  return String(key || "")
+    .replace(/^CUSTOM_?/i,"Custom ")
+    .replace(/[_-]+/g," ")
+    .replace(/([a-z0-9])([A-Z])/g,"$1 $2")
+    .replace(/\s+/g," ")
+    .trim()
+    .replace(/\b\w/g,char=>char.toUpperCase()) ||
+    "Additional Information";
+}
+
+function collectTripBookingEyeFields(trip){
+  const rows = [];
+  const seen = new Set();
+
+  function addRow({key,label,value,slot}){
+    const cleanKey = normalizeText(
+      key || (Number(slot || 0) ? `CUSTOM_${Number(slot)}` : "")
+    );
+    const cleanLabel = normalizeText(label) || hubBookingLabelFromKey(cleanKey);
+    const cleanValue = hubBookingValueText(value);
+
+    if(!cleanValue) return;
+
+    const identity = (cleanKey || cleanLabel).toLowerCase();
+    if(!identity || seen.has(identity)) return;
+
+    seen.add(identity);
+    rows.push({key:cleanKey,label:cleanLabel,value:cleanValue});
+  }
+
+  [
+    trip?.dynamicBookingData,
+    trip?.customBookingData,
+    trip?.reservedCustomBookingData,
+    trip?.bookingData?.reservedFields,
+    trip?.bookingData?.getQuoteFields,
+    trip?.bookingData?.companyFields,
+    trip?.bookingData?.facilityFields
+  ].forEach(list=>{
+    if(!Array.isArray(list)) return;
+
+    list.forEach(item=>{
+      if(!item || typeof item !== "object") return;
+
+      addRow({
+        key:item.key || item.fieldKey || item.name,
+        label:item.label || item.title || item.name,
+        slot:item.slot,
+        value:item.value ?? item.fieldValue ?? item.answer
+      });
+    });
+  });
+
+  [
+    trip?.reservedBookingData,
+    trip?.bookingData?.reserved,
+    trip?.bookingData?.getQuote,
+    trip?.bookingData?.company,
+    trip?.bookingData?.facility,
+    trip?.additionalBookingData
+  ].forEach(obj=>{
+    if(!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+
+    Object.entries(obj).forEach(([key,value])=>{
+      addRow({key,label:hubBookingLabelFromKey(key),value});
+    });
+  });
+
+  [
+    ["appointmentTime","Appointment Time"],
+    ["returnTime","Return Time"],
+    ["memberId","Member ID"],
+    ["brokerName","Broker Name"],
+    ["brokerCode","Broker Code"],
+    ["brokerTripId","Broker Trip ID"],
+    ["externalSource","External Source"],
+    ["brokerNotes","Broker Notes"]
+  ].forEach(([key,label])=>{
+    addRow({key,label,value:trip?.[key]});
+  });
+
+  return rows;
+}
+
+function buildTripBookingEyeHtml(item){
+  const trips =
+    item?.kind === "shared"
+      ? (Array.isArray(item?.group) ? item.group : [])
+      : [getItemTrip(item)];
+
+  const merged = [];
+  const seen = new Set();
+
+  trips.forEach(trip=>{
+    collectTripBookingEyeFields(trip).forEach(row=>{
+      const identity = (row.key || row.label).toLowerCase();
+      if(seen.has(identity)) return;
+      seen.add(identity);
+      merged.push(row);
+    });
+  });
+
+  return merged.map(row=>viewLine(row.label,row.value)).join("");
+}
+
 /* ================= VIEW ================= */
 
 function viewLine(label,value){
@@ -2543,6 +2682,9 @@ function openTripView(key){
   if(!item) return;
 
   const t = getItemTrip(item);
+
+  const bookingEyeHtml =
+    buildTripBookingEyeHtml(item);
 
   closeTripView();
 
@@ -2564,6 +2706,7 @@ function openTripView(key){
         ${viewLine("Client Email",getEmail(t))}
         ${viewLine("Booked Date",getBookedDate(t))}
         ${viewLine("Booked Time",getBookedTime(t))}
+        ${bookingEyeHtml}
       </div>
     </div>
   `;
