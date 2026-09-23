@@ -113,7 +113,7 @@ function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
   };
 }
 
-function ensureDynamicBookingFieldsHost(){
+function ensureFacilityBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
 
@@ -122,7 +122,9 @@ function ensureDynamicBookingFieldsHost(){
   }
 
   const notes = document.getElementById("notes");
-  if(!notes || !notes.parentNode){
+  const individual = document.getElementById("individualTripDetails");
+
+  if(!notes || !individual){
     return { section:null, box:null };
   }
 
@@ -139,16 +141,21 @@ function ensureDynamicBookingFieldsHost(){
 
   section.appendChild(title);
   section.appendChild(box);
+
   notes.parentNode.insertBefore(section, notes);
 
   return { section, box };
 }
 
 async function loadFacilityBookingFields(){
-  const host = ensureDynamicBookingFieldsHost();
+  const host = ensureFacilityBookingFieldsHost();
   const section = host.section;
   const box = host.box;
-  if(!section || !box) return;
+
+  if(!section || !box){
+    console.log("COMPANY BOOKING FIELDS HOST NOT FOUND");
+    return;
+  }
 
   FACILITY_BOOKING_FIELDS = [];
   box.innerHTML = "";
@@ -175,7 +182,7 @@ async function loadFacilityBookingFields(){
           required:item?.required === true,
           source:normalizeText(item?.source || "STANDARD").toUpperCase(),
           slot:Number(item?.slot || 0) || null,
-          order:Number(item?.order || index),
+          order:Number(item?.order ?? index),
           aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
         }))
         .filter(item=>item.key)
