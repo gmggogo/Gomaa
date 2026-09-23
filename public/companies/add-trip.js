@@ -68,11 +68,197 @@ if(!token || role !== "company"){
 }
 
 let COMPANY_SERVICES = [];
+let FACILITY_BOOKING_FIELDS = [];
 
 let activeService = "ST";
 let activeSuffix  = "ST";
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
+
+/* ================= FACILITY DYNAMIC BOOKING FIELDS ================= */
+
+function bookingFieldInputType(fieldType){
+  const type = normalizeText(fieldType).toUpperCase();
+  if(type === "NUMBER") return "number";
+  if(type === "DATE") return "date";
+  if(type === "TIME") return "time";
+  if(type === "PHONE") return "tel";
+  if(type === "EMAIL") return "email";
+  return "text";
+}
+
+function facilityFieldEnabled(item){
+  return item?.matrix?.facility?.showField === true;
+}
+
+function facilityFieldRequired(item){
+  return facilityFieldEnabled(item) && item?.matrix?.facility?.required === true;
+}
+
+function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
+  const slot = Number(item?.slot || 0) || (index + 1);
+  const key = isCustom
+    ? (normalizeText(item?.key) || `CUSTOM_${slot}`)
+    : normalizeText(item?.key || catalogItem?.key);
+
+  return {
+    key,
+    label:normalizeText(item?.label || catalogItem?.label || key),
+    fieldType:normalizeText(item?.fieldType || catalogItem?.type || "TEXT").toUpperCase(),
+    options:Array.isArray(item?.options) ? item.options.map(normalizeText).filter(Boolean) : [],
+    placeholder:normalizeText(item?.placeholder || ""),
+    required:facilityFieldRequired(item),
+    source:isCustom ? "CUSTOM" : "STANDARD",
+    slot:isCustom ? slot : null
+  };
+}
+
+async function loadFacilityBookingFields(){
+  const section = document.getElementById("dynamicBookingFieldsSection");
+  const box = document.getElementById("dynamicBookingFields");
+  if(!section || !box) return;
+
+  FACILITY_BOOKING_FIELDS = [];
+  box.innerHTML = "";
+  section.style.display = "none";
+
+  try{
+    const res = await fetch("/api/services/booking-data/company",{
+      headers:{ Authorization:"Bearer " + token },
+      cache:"no-store"
+    });
+
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
+
+    const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
+    const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
+    const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
+    const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
+
+    const standardFields = standard
+      .filter(facilityFieldEnabled)
+      .map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false))
+      .filter(item=>item.key);
+
+    const customFields = custom
+      .filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label))
+      .map((item,index)=>normalizeFacilityBookingField(item,null,index,true))
+      .filter(item=>item.key);
+
+    FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+
+    FACILITY_BOOKING_FIELDS.forEach(field=>{
+      const wrap = document.createElement("div");
+      wrap.className = "field-wrap";
+
+      const label = document.createElement("label");
+      label.className = "auto-share-field-label";
+      label.htmlFor = `dynamicBookingField_${field.key}`;
+      label.textContent = field.label + (field.required ? " *" : "");
+      wrap.appendChild(label);
+
+      let input;
+      if(field.fieldType === "LONG_TEXT"){
+        input = document.createElement("textarea");
+      }else if(field.fieldType === "DROPDOWN" || field.fieldType === "YES_NO"){
+        input = document.createElement("select");
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = field.placeholder || `Select ${field.label}`;
+        input.appendChild(empty);
+        const options = field.fieldType === "YES_NO" ? ["Yes","No"] : field.options;
+        options.forEach(value=>{
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          input.appendChild(option);
+        });
+      }else{
+        input = document.createElement("input");
+        input.type = bookingFieldInputType(field.fieldType);
+      }
+
+      input.id = `dynamicBookingField_${field.key}`;
+      input.dataset.bookingFieldKey = field.key;
+      input.placeholder = field.placeholder || field.label;
+      if(field.required) input.required = true;
+      wrap.appendChild(input);
+      box.appendChild(wrap);
+    });
+
+    if(FACILITY_BOOKING_FIELDS.length){
+      section.style.display = "block";
+      restoreDynamicBookingDraft();
+    }
+  }catch(err){
+    console.log("LOAD FACILITY BOOKING FIELDS ERROR:", err);
+  }
+}
+
+function collectDynamicBookingData(validateRequired=false){
+  const rows = [];
+
+  for(const field of FACILITY_BOOKING_FIELDS){
+    const input = document.getElementById(`dynamicBookingField_${field.key}`);
+    const value = normalizeText(input?.value);
+
+    if(validateRequired && field.required && !value){
+      if(input) input.focus();
+      throw new Error(`${field.label} is required`);
+    }
+
+    if(!value) continue;
+
+    rows.push({
+      key:field.key,
+      label:field.label,
+      fieldType:field.fieldType,
+      value,
+      source:field.source,
+      ...(field.slot ? { slot:field.slot } : {})
+    });
+  }
+
+  return rows;
+}
+
+function dynamicBookingTopLevelValues(rows){
+  const allowed = new Set([
+    "appointmentTime","returnTime","clientEmail","memberId",
+    "brokerName","brokerCode","brokerTripId","externalSource",
+    "brokerNotes","totalPassengers"
+  ]);
+  const out = {};
+  rows.forEach(row=>{
+    if(row.source === "STANDARD" && allowed.has(row.key)){
+      out[row.key] = row.value;
+    }
+  });
+  return out;
+}
+
+function restoreDynamicBookingDraft(){
+  let draft = {};
+  try{
+    draft = JSON.parse(localStorage.getItem(companyStorageKey("companyTripDraft")) || "{}");
+  }catch(_err){ draft = {}; }
+
+  const values = draft.dynamicBookingValues || {};
+  FACILITY_BOOKING_FIELDS.forEach(field=>{
+    const input = document.getElementById(`dynamicBookingField_${field.key}`);
+    if(input && Object.prototype.hasOwnProperty.call(values,field.key)){
+      input.value = values[field.key] ?? "";
+    }
+  });
+}
+
+function clearDynamicBookingFields(){
+  FACILITY_BOOKING_FIELDS.forEach(field=>{
+    const input = document.getElementById(`dynamicBookingField_${field.key}`);
+    if(input) input.value = "";
+  });
+}
 
 /* ================= BILLING ================= */
 
@@ -2529,7 +2715,10 @@ function saveDraft(){
       dropoff:dropoffInput.value,
       tripDate:tripDate.value,
       tripTime:tripTime.value,
-      notes:notes.value
+      notes:notes.value,
+      dynamicBookingValues:Object.fromEntries(
+        collectDynamicBookingData(false).map(row=>[row.key,row.value])
+      )
     })
   );
 
@@ -4939,6 +5128,12 @@ submitTripBtn.onclick = async function(){
           item=>item.address
         );
 
+    const dynamicBookingData =
+      collectDynamicBookingData(true);
+
+    const dynamicTopLevel =
+      dynamicBookingTopLevelValues(dynamicBookingData);
+
     const trip = {
       company:companyName,
       companyName:companyName,
@@ -4994,6 +5189,10 @@ submitTripBtn.onclick = async function(){
       tripTime:tripTime.value,
       notes:notes.value,
 
+      dynamicBookingData,
+      customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
+      ...dynamicTopLevel,
+
       status:"Scheduled"
     };
 
@@ -5032,6 +5231,7 @@ submitTripBtn.onclick = async function(){
     tripTime.value = "";
     notes.value = "";
     stopsBox.innerHTML = "";
+    clearDynamicBookingFields();
 
     localStorage.removeItem(companyStorageKey("companyTripDraft"));
 
@@ -5277,6 +5477,7 @@ loadSharedDraft();
 
 await loadSystemTimezone();
 await loadCompanyServices();
+await loadFacilityBookingFields();
 
 })();
 

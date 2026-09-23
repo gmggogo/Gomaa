@@ -6,6 +6,7 @@ const router = express.Router();
 const Service = require("../models/Service");
 const Tenant = require("../models/Tenant");
 const BrokerIntegration = require("../models/BrokerIntegration");
+const BookingDataConfig = require("../models/BookingDataConfig");
 
 const serviceIdentity =
   require("../utils/serviceIdentityResolver");
@@ -1359,6 +1360,57 @@ router.get(
     });
   }
 });
+
+/* =========================
+   COMPANY / FACILITY BOOKING FIELDS
+========================= */
+
+router.get(
+  "/booking-data/company",
+  requireTenantApi,
+  async (req,res)=>{
+    try{
+      const tenantId =
+        req.authUser?.role === "PLATFORM_ADMIN"
+          ? clean(req.query?.tenantId || "")
+          : clean(req.authUser?.tenantId || "");
+
+      if(!tenantId){
+        return res.status(400).json({ success:false, message:"Tenant Required" });
+      }
+
+      const config = await BookingDataConfig.findOne({ tenantId }).lean();
+
+      return res.json({
+        success:true,
+        standardCatalog:[
+          { key:"appointmentTime", label:"Appointment Time", type:"TIME" },
+          { key:"returnTime", label:"Return Time", type:"TIME" },
+          { key:"clientEmail", label:"Passenger Email", type:"EMAIL" },
+          { key:"memberId", label:"Member ID", type:"TEXT" },
+          { key:"serviceType", label:"Service Type", type:"TEXT" },
+          { key:"tripType", label:"Trip Type", type:"TEXT" },
+          { key:"company", label:"Company / Facility Name", type:"TEXT" },
+          { key:"entryName", label:"Data Entry Name", type:"TEXT" },
+          { key:"entryPhone", label:"Data Entry Phone", type:"PHONE" },
+          { key:"brokerName", label:"Broker Name", type:"TEXT" },
+          { key:"brokerCode", label:"Broker Code", type:"TEXT" },
+          { key:"brokerTripId", label:"Broker Trip ID", type:"TEXT" },
+          { key:"externalSource", label:"External Source", type:"TEXT" },
+          { key:"brokerNotes", label:"Broker Notes", type:"LONG_TEXT" },
+          { key:"totalPassengers", label:"Total Passengers", type:"NUMBER" }
+        ],
+        config:{
+          standardFields:Array.isArray(config?.standardFields) ? config.standardFields : [],
+          customFields:Array.isArray(config?.customFields) ? config.customFields : []
+        }
+      });
+    }catch(err){
+      console.log("COMPANY BOOKING FIELDS LOAD ERROR:", err);
+      return res.status(500).json({ success:false, message:"Failed To Load Company Booking Fields" });
+    }
+  }
+);
 
 /* =========================
    CUSTOM SERVICE SLOT NAME
