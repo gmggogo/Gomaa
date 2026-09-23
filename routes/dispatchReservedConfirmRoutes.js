@@ -1389,9 +1389,23 @@ async function resolveIndividualRouteForDirections(
 
   trip.markModified("stopCoords");
 
+  const coordinateRoutePlan = resolvedResults.map((item,index) => ({
+    type:
+      index === 0
+        ? "pickup"
+        : index === resolvedResults.length - 1
+          ? "dropoff"
+          : "stop",
+    address:item.address,
+    lat:Number(item.coords.lat),
+    lng:Number(item.coords.lng),
+    order:index + 1
+  }));
+
   return {
     displayRoutePoints:addresses,
-    directionsRoutePoints:resolved
+    directionsRoutePoints:resolved,
+    coordinateRoutePlan
   };
 }
 
@@ -2993,7 +3007,13 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
         routePoints:
           individualRoute.displayRoutePoints,
 
-        routePlan:[],
+        /*
+          Driver ARRIVED/geofence reads the current route stop from routePlan.
+          Reserved individual trips must therefore keep the same coordinates
+          here as pickupLat/dropoffLat/stopCoords, not an empty routePlan.
+        */
+        routePlan:
+          safeArray(individualRoute.coordinateRoutePlan),
         passengers:[],
         activeCount:1,
         sharedStopsCount:0,
