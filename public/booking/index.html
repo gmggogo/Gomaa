@@ -1240,49 +1240,169 @@ async function loadDynamicBookingFields(){
   }
 }
 
+
+function getQuoteCanonicalFieldKey(field){
+
+  const source =
+    String(
+      field?.source || ""
+    )
+    .trim()
+    .toUpperCase();
+
+  const slot =
+    Number(
+      field?.slot || 0
+    );
+
+  const rawKey =
+    String(
+      field?.key ||
+      field?.fieldKey ||
+      field?.name ||
+      ""
+    )
+    .trim();
+
+  if(rawKey){
+    return rawKey;
+  }
+
+  if(
+    source === "CUSTOM" &&
+    slot > 0
+  ){
+    return `CUSTOM_${slot}`;
+  }
+
+  return "";
+}
+
+function getQuoteDynamicValueByKey(
+  values,
+  key
+){
+
+  const wanted =
+    String(key || "")
+      .trim();
+
+  if(!wanted){
+    return "";
+  }
+
+  const row =
+    (Array.isArray(values)
+      ? values
+      : []
+    ).find(item=>
+      String(item?.key || "")
+        .trim() === wanted
+    );
+
+  return String(
+    row?.value ?? ""
+  ).trim();
+}
+
+function getQuoteDynamicObject(values){
+
+  const data = {};
+
+  (Array.isArray(values)
+    ? values
+    : []
+  ).forEach(item=>{
+
+    const key =
+      String(
+        item?.key || ""
+      )
+      .trim();
+
+    if(!key){
+      return;
+    }
+
+    data[key] =
+      item?.value ?? "";
+  });
+
+  return data;
+}
+
 function collectDynamicBookingData(){
 
-  const fields =
+  const inputs =
   Array.from(
     document.querySelectorAll(
       '[data-booking-field="true"]'
     )
   );
 
-  return fields.map(input=>({
+  return inputs.map(input=>{
 
-    source:
+    const source =
       input.dataset.bookingSource ||
-      "",
+      "";
 
-    key:
-      input.dataset.bookingKey ||
-      "",
-
-    slot:
+    const slot =
       Number(
         input.dataset.bookingSlot ||
         0
-      ) || null,
+      ) || null;
 
-    label:
-      input.dataset.bookingLabel ||
-      "",
+    const rawKey =
+      input.dataset.bookingKey ||
+      "";
 
-    fieldType:
-      input.dataset.bookingType ||
-      "TEXT",
+    const key =
+      String(rawKey || "").trim() ||
+      (
+        String(source)
+          .trim()
+          .toUpperCase() === "CUSTOM" &&
+        slot
+          ? `CUSTOM_${slot}`
+          : ""
+      );
 
-    required:
-      input.dataset.bookingRequired ===
-      "true",
+    return {
+      source:
+        "GET_QUOTE",
 
-    value:
-      String(
-        input.value ?? ""
-      ).trim()
+      key,
 
-  }));
+      slot,
+
+      label:
+        input.dataset.bookingLabel ||
+        "",
+
+      fieldType:
+        input.dataset.bookingType ||
+        "TEXT",
+
+      required:
+        input.dataset.bookingRequired ===
+        "true",
+
+      aliases:
+        [
+          rawKey,
+          input.dataset.bookingLabel || ""
+        ]
+        .map(item=>
+          String(item || "").trim()
+        )
+        .filter(Boolean),
+
+      value:
+        String(
+          input.value ?? ""
+        ).trim()
+    };
+  });
 }
 
 function validateDynamicBookingData(){
@@ -1413,8 +1533,16 @@ async function confirmBooking(){
     return;
   }
 
-  const customBookingData =
+  const dynamicBookingData =
   dynamicBooking.values;
+
+  const customBookingData =
+  dynamicBookingData;
+
+  const bookingDataObject =
+  getQuoteDynamicObject(
+    dynamicBookingData
+  );
 
   /* =========================
      CLEAN PRICE
@@ -1805,11 +1933,77 @@ Do you want to continue?`
     notes,
 
     /*
-      Dynamic Booking Data is additive.
-      Existing trip fields remain unchanged.
+      Unified Booking Data snapshot.
+      Manual Get Quote values are saved under the same canonical keys
+      used by Reserved / Company / Broker.
+    */
+    dynamicBookingData:
+    dynamicBookingData,
+
+    /*
+      Backward-compatible name already used by the current booking flow.
     */
     customBookingData:
-    customBookingData
+    customBookingData,
+
+    bookingData:{
+      getQuote:
+        bookingDataObject,
+      getQuoteFields:
+        dynamicBookingData
+    },
+
+    /*
+      Known canonical fields are also mirrored into their normal Trip fields.
+      If the field is not configured on Get Quote, the value remains blank.
+    */
+    appointmentTime:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "appointmentTime"
+    ),
+
+    returnTime:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "returnTime"
+    ),
+
+    memberId:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "memberId"
+    ),
+
+    brokerName:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "brokerName"
+    ),
+
+    brokerCode:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "brokerCode"
+    ),
+
+    brokerTripId:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "brokerTripId"
+    ),
+
+    externalSource:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "externalSource"
+    ),
+
+    brokerNotes:
+    getQuoteDynamicValueByKey(
+      dynamicBookingData,
+      "brokerNotes"
+    )
 
   };
 
