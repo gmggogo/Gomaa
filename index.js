@@ -8473,12 +8473,12 @@ const isShared = req.body.isShared === true;
 
 const rawVehicle =
   String(
-    req.body.serviceSuffix ||
-    req.body.serviceCode ||
     req.body.serviceKey ||
-    req.body.serviceType ||
+    req.body.serviceCode ||
     req.body.vehicleTypeFromQuote ||
+    req.body.serviceType ||
     req.body.vehicleType ||
+    req.body.serviceSuffix ||
     ""
   )
   .trim()
