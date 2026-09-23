@@ -1892,7 +1892,12 @@ function renderReservedDynamicFields(values = {}){
 
   box.innerHTML = "";
 
-  if(!RESERVED_DYNAMIC_FIELDS.length){
+  if(
+    !RESERVED_DYNAMIC_FIELDS
+      .some(field=>
+        field.showField === true
+      )
+  ){
     section.style.display = "none";
 
     const notesSection =
@@ -1910,6 +1915,9 @@ function renderReservedDynamicFields(values = {}){
   section.style.display = "";
 
   RESERVED_DYNAMIC_FIELDS
+    .filter(field=>
+      field.showField === true
+    )
     .slice()
     .sort((a,b)=>
       Number(a?.order ?? a?.sortOrder ?? 9999) -
@@ -2007,18 +2015,9 @@ function clearReservedDynamicForm(){
 }
 
 function reservedColumnEnabled(field){
-  if(!reservedDynamicFieldEnabled(field)){
-    return false;
-  }
-
   return (
-    bool(field?.reviewColumn) ||
-    bool(field?.showInReview) ||
-    bool(field?.column) ||
-    bool(field?.showColumn) ||
-    normalizeText(field?.placement)
-      .toUpperCase()
-      .includes("COLUMN")
+    field &&
+    field.showColumn === true
   );
 }
 
@@ -2054,89 +2053,186 @@ function tripReservedDynamicValue(trip,field){
   return "--";
 }
 
-async function loadReservedBookingData(){
-  const candidates = [
-    "/api/booking-data/reserved",
-    "/api/booking-data?section=reserved",
-    "/api/admin/booking-data/reserved"
+function currentReservedTenantSlug(){
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const querySlug =
+    normalizeText(
+      params.get("tenant") ||
+      params.get("tenantSlug")
+    ).toLowerCase();
+
+  if(querySlug){
+    return querySlug;
+  }
+
+  const storageKeys = [
+    "loginTenantSlug",
+    "tenantSlug",
+    "companyTenantSlug",
+    "currentTenantSlug",
+    "selectedTenantSlug",
+    "ghTenantSlug"
   ];
 
-  let loaded = null;
+  for(const key of storageKeys){
 
-  for(const url of candidates){
-    try{
-      const res =
-        await fetch(url,{
-          cache:"no-store",
-          headers:{
-            Authorization:
-              "Bearer " + token,
-            "Cache-Control":
-              "no-cache"
-          }
-        });
+    const value =
+      normalizeText(
+        sessionStorage.getItem(key) ||
+        localStorage.getItem(key)
+      ).toLowerCase();
 
-      if(!res.ok){
-        continue;
-      }
-
-      const data =
-        await res.json()
-          .catch(()=>null);
-
-      if(!data){
-        continue;
-      }
-
-      const rawFields =
-        Array.isArray(data)
-          ? data
-          : Array.isArray(data.fields)
-            ? data.fields
-            : Array.isArray(data.reserved)
-              ? data.reserved
-              : Array.isArray(data?.data?.fields)
-                ? data.data.fields
-                : Array.isArray(data?.data?.reserved)
-                  ? data.data.reserved
-                  : [];
-
-      if(rawFields.length){
-        loaded = rawFields;
-        break;
-      }
-
-      if(
-        data?.success === true &&
-        (
-          Array.isArray(data?.fields) ||
-          Array.isArray(data?.reserved)
-        )
-      ){
-        loaded = rawFields;
-        break;
-      }
-
-    }catch(err){
-      console.log(
-        "RESERVED BOOKING DATA LOAD TRY ERROR:",
-        url,
-        err
-      );
+    if(value){
+      return value;
     }
   }
 
-  RESERVED_DYNAMIC_FIELDS =
-    (Array.isArray(loaded) ? loaded : [])
-      .filter(reservedDynamicFieldEnabled);
-
-  RESERVED_DYNAMIC_COLUMNS =
-    RESERVED_DYNAMIC_FIELDS
-      .filter(reservedColumnEnabled);
-
-  renderReservedDynamicFields();
+  return "";
 }
 
+function reservedBookingDataApiUrl(){
+
+  const slug =
+    currentReservedTenantSlug();
+
+  if(slug){
+    return (
+      "/api/public/tenant/" +
+      encodeURIComponent(slug) +
+      "/booking-data/reserved"
+    );
+  }
+
+  return (
+    "/api/public/tenant/default/" +
+    "booking-data/reserved"
+  );
+}
+
+async function loadReservedBookingData(){
+
+  try{
+
+    const res =
+      await fetch(
+        reservedBookingDataApiUrl(),
+        {
+          cache:"no-store",
+          headers:{
+            "Cache-Control":
+              "no-cache"
+          }
+        }
+      );
+
+    const data =
+      await res.json()
+        .catch(()=>({}));
+
+    if(
+      !res.ok ||
+      data?.success === false
+    ){
+      throw new Error(
+        data?.message ||
+        "Failed loading Reserved Booking Data"
+      );
+    }
+
+    const rawFields =
+      Array.isArray(data?.fields)
+        ? data.fields
+        : [];
+
+    RESERVED_DYNAMIC_FIELDS =
+      rawFields
+        .filter(field=>
+          field &&
+          (
+            field.showField === true ||
+            field.showColumn === true ||
+            field.showEye === true
+          )
+        );
+
+    RESERVED_DYNAMIC_COLUMNS =
+      RESERVED_DYNAMIC_FIELDS
+        .filter(field=>
+          field.showColumn === true
+        );
+
+    renderReservedDynamicFields();
+    applyReservedReviewAutoLayout();
+
+  }catch(err){
+
+    console.error(
+      "RESERVED BOOKING DATA ERROR:",
+      err
+    );
+
+    RESERVED_DYNAMIC_FIELDS = [];
+    RESERVED_DYNAMIC_COLUMNS = [];
+
+    renderReservedDynamicFields();
+    applyReservedReviewAutoLayout();
+  }
+}
+
+function applyReservedReviewAutoLayout(){
+
+  const table =
+    document.querySelector(
+      ".review-table"
+    );
+
+  if(!table){
+    return;
+  }
+
+  const baseWidth = 1620;
+
+  const dynamicWidth =
+    RESERVED_DYNAMIC_COLUMNS
+      .reduce((sum,field)=>{
+
+        const type =
+          normalizeReservedFieldType(
+            field?.fieldType ||
+            field?.type
+          );
+
+        const width =
+          type === "LONG_TEXT"
+            ? 220
+            : type === "TEXT"
+              ? 160
+              : type === "PHONE" ||
+                type === "EMAIL"
+                ? 175
+                : 135;
+
+        return sum + width;
+
+      },0);
+
+  const finalWidth =
+    Math.max(
+      baseWidth,
+      baseWidth + dynamicWidth
+    );
+
+  table.style.width =
+    `${finalWidth}px`;
+
+  table.style.minWidth =
+    `${finalWidth}px`;
+}
 
 /* ================= LOAD SERVICES ================= */
 
@@ -3990,6 +4086,8 @@ function renderReviewTable(){
 
   let counter = 1;
 
+  applyReservedReviewAutoLayout();
+
   Object.keys(grouped)
     .sort((a,b)=>{
       if(a === "Unknown") return 1;
@@ -4194,11 +4292,7 @@ function buildTripDetailsHtml(t){
   const dynamicRows =
     RESERVED_DYNAMIC_FIELDS
       .filter(field=>
-        bool(field?.eyeDetails) ||
-        bool(field?.showInDetails) ||
-        normalizeText(field?.placement)
-          .toUpperCase()
-          .includes("EYE")
+        field.showEye === true
       )
       .map(field=>
         modalRow(
