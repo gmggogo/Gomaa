@@ -1368,6 +1368,27 @@ async function resolveIndividualRouteForDirections(
     );
   }
 
+  /*
+    Persist the exact coordinates resolved during Reserved Confirm.
+    This keeps the confirmed trip self-contained for Driver/Dispatch and
+    prevents a confirmed trip from carrying addresses with empty coords.
+  */
+  const pickupResult = resolvedResults[0];
+  const dropoffResult = resolvedResults[resolvedResults.length - 1];
+  const stopResults = resolvedResults.slice(1, -1);
+
+  trip.pickupLat = Number(pickupResult.coords.lat);
+  trip.pickupLng = Number(pickupResult.coords.lng);
+  trip.dropoffLat = Number(dropoffResult.coords.lat);
+  trip.dropoffLng = Number(dropoffResult.coords.lng);
+  trip.stopCoords = stopResults.map(item => ({
+    address:item.address,
+    lat:Number(item.coords.lat),
+    lng:Number(item.coords.lng)
+  }));
+
+  trip.markModified("stopCoords");
+
   return {
     displayRoutePoints:addresses,
     directionsRoutePoints:resolved
@@ -2917,6 +2938,21 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
     let routeData = null;
     let routeReused = false;
 
+    /*
+      Reserved Confirm must always leave an individual trip with stored
+      pickup/dropoff/stop coordinates, even when an already-saved route
+      can be reused and no new Directions request is required.
+    */
+    let resolvedIndividualRoute = null;
+
+    if(!shared){
+      resolvedIndividualRoute =
+        await resolveIndividualRouteForDirections(
+          trip,
+          requestStats
+        );
+    }
+
     if(hasUsableSavedRoute(trip,currentSignature)){
 
       prepared = buildPreparedFromSavedTrip(trip,currentSignature);
@@ -2941,6 +2977,7 @@ router.post("/:tripId", requireTenantApi, async (req,res)=>{
         gives a precise message when one specific address cannot be resolved.
       */
       const individualRoute =
+        resolvedIndividualRoute ||
         await resolveIndividualRouteForDirections(
           trip,
           requestStats
