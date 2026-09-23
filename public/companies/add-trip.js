@@ -116,479 +116,125 @@ function normalizeFacilityBookingField(item,catalogItem,index,isCustom){
 function ensureDynamicBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
-  if(section && box) return {section,box};
+
+  if(section && box){
+    return { section, box };
+  }
+
+  const notes = document.getElementById("notes");
+  const notesWrap = notes?.closest(".field-wrap") || notes?.parentElement || null;
+  const form = notesWrap?.parentElement || document.querySelector("form") || document.querySelector(".form-grid")?.parentElement;
+
+  if(!form){
+    return { section:null, box:null };
+  }
 
   section = document.createElement("section");
   section.id = "dynamicBookingFieldsSection";
   section.style.display = "none";
   section.innerHTML = `<h3>Additional Information</h3><div class="form-grid" id="dynamicBookingFields"></div>`;
 
-  const tripDetails = document.getElementById("individualTripDetails");
-  if(tripDetails?.parentNode){
-    tripDetails.parentNode.insertBefore(section,tripDetails);
+  if(notesWrap && notesWrap.parentElement){
+    notesWrap.parentElement.insertBefore(section, notesWrap);
   }else{
-    const notes = document.getElementById("notes");
-    const parentSection = notes?.closest("section");
-    if(parentSection?.parentNode) parentSection.parentNode.insertBefore(section,parentSection);
-    else document.querySelector("main")?.appendChild(section);
+    form.appendChild(section);
   }
-  box = document.getElementById("dynamicBookingFields");
-  return {section,box};
+
+  box = section.querySelector("#dynamicBookingFields");
+  return { section, box };
 }
 
 async function loadFacilityBookingFields(){
-  const {section,box} = ensureDynamicBookingFieldsHost();
+  const host = ensureDynamicBookingFieldsHost();
+  const section = host.section;
+  const box = host.box;
   if(!section || !box) return;
 
   FACILITY_BOOKING_FIELDS = [];
   box.innerHTML = "";
   section.style.display = "none";
 
-  function matrixForCompany(item){
-    return (
-      item?.matrix?.facility ||
-      item?.matrix?.company ||
-      item?.facility ||
-      item?.company ||
-      {}
-    );
-  }
-
-  function normalizePlatformAdminFields(data){
-
-    const normalized =
-      Array.isArray(data?.fields)
-        ? data.fields
-        : Array.isArray(data?.bookingFields)
-          ? data.bookingFields
-          : Array.isArray(data?.data?.fields)
-            ? data.data.fields
-            : null;
-
-    if(Array.isArray(normalized)){
-      return normalized
-        .map((field,index)=>({
-          key:
-            normalizeText(
-              field?.key ||
-              (
-                Number(field?.slot || 0)
-                  ? `CUSTOM_${Number(field.slot)}`
-                  : ""
-              )
-            ),
-
-          label:
-            normalizeText(
-              field?.label ||
-              field?.title ||
-              field?.name ||
-              field?.key
-            ),
-
-          fieldType:
-            normalizeText(
-              field?.fieldType ||
-              field?.type ||
-              "TEXT"
-            ).toUpperCase(),
-
-          options:
-            Array.isArray(field?.options)
-              ? field.options
-                  .map(normalizeText)
-                  .filter(Boolean)
-              : [],
-
-          placeholder:
-            normalizeText(
-              field?.placeholder || ""
-            ),
-
-          required:
-            field?.required === true,
-
-          showField:
-            field?.showField !== false,
-
-          source:
-            normalizeText(
-              field?.source ||
-              (
-                Number(field?.slot || 0)
-                  ? "CUSTOM"
-                  : "STANDARD"
-              )
-            ).toUpperCase(),
-
-          slot:
-            Number(field?.slot || 0) || null,
-
-          order:
-            Number(
-              field?.order ?? index
-            )
-        }))
-        .filter(field=>
-          field.key &&
-          field.showField === true
-        );
-    }
-
-    const standard =
-      Array.isArray(data?.standardFields)
-        ? data.standardFields
-        : Array.isArray(data?.data?.standardFields)
-          ? data.data.standardFields
-          : [];
-
-    const custom =
-      Array.isArray(data?.customFields)
-        ? data.customFields
-        : Array.isArray(data?.data?.customFields)
-          ? data.data.customFields
-          : [];
-
-    const standardRows =
-      standard
-        .map((item,index)=>{
-
-          const matrix =
-            matrixForCompany(item);
-
-          if(matrix?.showField !== true){
-            return null;
-          }
-
-          const key =
-            normalizeText(item?.key);
-
-          if(!key){
-            return null;
-          }
-
-          return {
-            key,
-
-            label:
-              normalizeText(
-                item?.label ||
-                item?.title ||
-                item?.name ||
-                key
-              ),
-
-            fieldType:
-              normalizeText(
-                item?.fieldType ||
-                item?.type ||
-                "TEXT"
-              ).toUpperCase(),
-
-            options:
-              Array.isArray(item?.options)
-                ? item.options
-                    .map(normalizeText)
-                    .filter(Boolean)
-                : [],
-
-            placeholder:
-              normalizeText(
-                item?.placeholder || ""
-              ),
-
-            required:
-              matrix?.required === true,
-
-            showField:true,
-            source:"STANDARD",
-            slot:null,
-
-            order:
-              Number(
-                matrix?.order ??
-                item?.order ??
-                index
-              )
-          };
-        })
-        .filter(Boolean);
-
-    const customRows =
-      custom
-        .map((item,index)=>{
-
-          const matrix =
-            matrixForCompany(item);
-
-          if(matrix?.showField !== true){
-            return null;
-          }
-
-          const slot =
-            Number(item?.slot || 0) ||
-            (index + 1);
-
-          const key =
-            normalizeText(item?.key) ||
-            `CUSTOM_${slot}`;
-
-          const label =
-            normalizeText(
-              item?.label ||
-              item?.title ||
-              item?.name
-            );
-
-          if(!label){
-            return null;
-          }
-
-          return {
-            key,
-            label,
-
-            fieldType:
-              normalizeText(
-                item?.fieldType ||
-                item?.type ||
-                "TEXT"
-              ).toUpperCase(),
-
-            options:
-              Array.isArray(item?.options)
-                ? item.options
-                    .map(normalizeText)
-                    .filter(Boolean)
-                : [],
-
-            placeholder:
-              normalizeText(
-                item?.placeholder || ""
-              ),
-
-            required:
-              matrix?.required === true,
-
-            showField:true,
-            source:"CUSTOM",
-            slot,
-
-            order:
-              Number(
-                matrix?.order ??
-                item?.order ??
-                (1000 + index)
-              )
-          };
-        })
-        .filter(Boolean);
-
-    return [
-      ...standardRows,
-      ...customRows
-    ];
-  }
-
-  async function requestBookingFields(){
-
-    const endpoints = [
-      "/api/services/booking-data/company",
-      "/api/services/booking-data/facility"
-    ];
-
-    let lastError = null;
-
-    for(const endpoint of endpoints){
-
-      try{
-        const res = await fetch(endpoint,{
-          method:"GET",
-          headers:{
-            Authorization:"Bearer " + token,
-            Accept:"application/json"
-          },
-          cache:"no-store"
-        });
-
-        const data =
-          await res.json()
-            .catch(()=>({}));
-
-        if(!res.ok){
-          lastError =
-            new Error(
-              data.message ||
-              `Failed loading booking fields from ${endpoint}`
-            );
-          continue;
-        }
-
-        return {
-          rows:
-            normalizePlatformAdminFields(data),
-          endpoint
-        };
-
-      }catch(err){
-        lastError = err;
-      }
-    }
-
-    throw (
-      lastError ||
-      new Error(
-        "Failed loading Platform Admin booking fields"
-      )
-    );
-  }
-
   try{
+    const res = await fetch("/api/services/booking-data/company",{
+      headers:{ Authorization:"Bearer " + token },
+      cache:"no-store"
+    });
 
-    const result =
-      await requestBookingFields();
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
-    FACILITY_BOOKING_FIELDS =
-      (Array.isArray(result?.rows)
-        ? result.rows
-        : []
-      )
-      .filter(field=>
-        field?.key &&
-        field?.showField === true
-      )
-      .sort((a,b)=>
-        Number(a?.order || 0) -
-        Number(b?.order || 0)
-      );
+    if(Array.isArray(data?.fields)){
+      FACILITY_BOOKING_FIELDS = data.fields
+        .filter(item=>item?.showField === true)
+        .map((item,index)=>({
+          key:normalizeText(item?.key),
+          label:normalizeText(item?.label || item?.key),
+          fieldType:normalizeText(item?.fieldType || "TEXT").toUpperCase(),
+          options:Array.isArray(item?.options) ? item.options.map(normalizeText).filter(Boolean) : [],
+          placeholder:normalizeText(item?.placeholder || ""),
+          required:item?.required === true,
+          source:normalizeText(item?.source || "STANDARD").toUpperCase(),
+          slot:Number(item?.slot || 0) || null,
+          order:Number(item?.order || index),
+          aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
+        }))
+        .filter(item=>item.key)
+        .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
+    }else{
+      const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
+      const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
+      const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];
+      const custom = Array.isArray(data?.config?.customFields) ? data.config.customFields : [];
+      const standardFields = standard.filter(facilityFieldEnabled).map((item,index)=>normalizeFacilityBookingField(item,catalogMap.get(normalizeText(item?.key)),index,false)).filter(item=>item.key);
+      const customFields = custom.filter(item=>facilityFieldEnabled(item) && normalizeText(item?.label)).map((item,index)=>normalizeFacilityBookingField(item,null,index,true)).filter(item=>item.key);
+      FACILITY_BOOKING_FIELDS = [...standardFields,...customFields];
+    }
 
-    for(const field of FACILITY_BOOKING_FIELDS){
+    FACILITY_BOOKING_FIELDS.forEach(field=>{
+      const wrap = document.createElement("div");
+      wrap.className = "field-wrap";
 
-      const wrap =
-        document.createElement("div");
-
-      wrap.className =
-        "field-wrap";
-
-      const label =
-        document.createElement("label");
-
-      label.className =
-        "auto-share-field-label";
-
-      label.htmlFor =
-        `dynamicBookingField_${field.key}`;
-
-      label.textContent =
-        field.label +
-        (field.required ? " *" : "");
-
+      const label = document.createElement("label");
+      label.className = "auto-share-field-label";
+      label.htmlFor = `dynamicBookingField_${field.key}`;
+      label.textContent = field.label + (field.required ? " *" : "");
       wrap.appendChild(label);
 
       let input;
-
       if(field.fieldType === "LONG_TEXT"){
-
-        input =
-          document.createElement("textarea");
-
-      }else if(
-        field.fieldType === "DROPDOWN" ||
-        field.fieldType === "YES_NO"
-      ){
-
-        input =
-          document.createElement("select");
-
-        const empty =
-          document.createElement("option");
-
+        input = document.createElement("textarea");
+      }else if(field.fieldType === "DROPDOWN" || field.fieldType === "YES_NO"){
+        input = document.createElement("select");
+        const empty = document.createElement("option");
         empty.value = "";
-        empty.textContent =
-          field.placeholder ||
-          `Select ${field.label}`;
-
+        empty.textContent = field.placeholder || `Select ${field.label}`;
         input.appendChild(empty);
-
-        const options =
-          field.fieldType === "YES_NO"
-            ? ["Yes","No"]
-            : field.options;
-
-        for(const value of options){
-
-          const option =
-            document.createElement("option");
-
+        const options = field.fieldType === "YES_NO" ? ["Yes","No"] : field.options;
+        options.forEach(value=>{
+          const option = document.createElement("option");
           option.value = value;
           option.textContent = value;
-
           input.appendChild(option);
-        }
-
+        });
       }else{
-
-        input =
-          document.createElement("input");
-
-        input.type =
-          bookingFieldInputType(
-            field.fieldType
-          );
+        input = document.createElement("input");
+        input.type = bookingFieldInputType(field.fieldType);
       }
 
-      input.id =
-        `dynamicBookingField_${field.key}`;
-
-      input.name =
-        field.key;
-
-      input.dataset.bookingFieldKey =
-        field.key;
-
-      input.dataset.bookingSource =
-        field.source || "STANDARD";
-
-      if(field.slot){
-        input.dataset.bookingSlot =
-          String(field.slot);
-      }
-
-      input.placeholder =
-        field.placeholder ||
-        field.label;
-
-      input.required =
-        field.required === true;
-
+      input.id = `dynamicBookingField_${field.key}`;
+      input.dataset.bookingFieldKey = field.key;
+      input.placeholder = field.placeholder || field.label;
+      if(field.required) input.required = true;
       wrap.appendChild(input);
       box.appendChild(wrap);
-    }
-
-    section.style.display =
-      FACILITY_BOOKING_FIELDS.length
-        ? "block"
-        : "none";
+    });
 
     if(FACILITY_BOOKING_FIELDS.length){
+      section.style.display = "block";
       restoreDynamicBookingDraft();
     }
-
-    console.log(
-      "COMPANY BOOKING FIELDS FROM PLATFORM ADMIN:",
-      FACILITY_BOOKING_FIELDS
-    );
-
   }catch(err){
-
-    console.error(
-      "LOAD PLATFORM ADMIN COMPANY BOOKING FIELDS ERROR:",
-      err
-    );
-
-    FACILITY_BOOKING_FIELDS = [];
-    box.innerHTML = "";
-    section.style.display = "none";
+    console.log("LOAD FACILITY BOOKING FIELDS ERROR:", err);
   }
 }
 
@@ -612,6 +258,8 @@ function collectDynamicBookingData(validateRequired=false){
       fieldType:field.fieldType,
       value,
       source:field.source,
+      required:field.required === true,
+      aliases:Array.isArray(field.aliases) ? field.aliases : [],
       ...(field.slot ? { slot:field.slot } : {})
     });
   }
@@ -2142,7 +1790,7 @@ function isValidServiceCode(code){
     "SH"
   ].includes(
     normalizeServiceCode(code)
-  );
+  ) || /^CUSTOM_[1-4]$/.test(normalizeServiceCode(code));
 }
 
 function resolveServiceCode(service){
@@ -2157,24 +1805,27 @@ function resolveServiceCode(service){
 
   const directFields = [
 
+    /* Same canonical identity priority used by Get Quote. */
+    service.serviceKey,
+    service.serviceCode,
+    service.customServiceCode,
+    service.serviceIdentity,
+    service.operationalCode,
+
+    service.companyServiceKey,
+    service.companyServiceCode,
+    service.serviceType,
+    service.code,
+
+    /* Legacy suffix fields are compatibility fallbacks only. */
     service.companySuffix,
     service.serviceSuffix,
     service.suffix,
-
     service.reservedSuffix,
     service.getQuoteSuffix,
-
     service.companyServiceSuffix,
     service.facilitySuffix,
     service.facilityServiceSuffix,
-
-    service.companyServiceCode,
-    service.serviceCode,
-    service.code,
-
-    service.companyServiceKey,
-    service.serviceKey,
-    service.serviceType,
 
     service.vehicle
   ];
@@ -4918,78 +4569,151 @@ function defaultStandardService(){
 
 async function loadCompanyServices(){
   try{
+
     COMPANY_SERVICES = [];
 
-    /* Visible services always come from Service Management. */
-    const res = await fetch("/api/services?company=true",{
-      headers:{ Authorization:"Bearer " + token }
-    });
-    if(!res.ok) throw new Error("Failed loading services");
+    const facilityName =
+      companyName || "";
 
-    const data = await res.json().catch(()=>[]);
-    COMPANY_SERVICES = Array.isArray(data)
-      ? data.map(mapServiceManagementService)
-      : [];
+    const facilityId =
+      companyId || "";
 
-    /* Preserve the existing Facility Override pricing policy only.
-       The override does not control service visibility or service names. */
-    try{
-      const bootRes = await fetch("/api/facility-pricing-override/bootstrap",{
-        headers:{ Authorization:"Bearer " + token }
+    /* =========================
+       1) FACILITY PRICING OVERRIDE
+    ========================= */
+
+    const bootRes =
+      await fetch("/api/facility-pricing-override/bootstrap",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
       });
-      const bootData = await bootRes.json().catch(()=>({}));
-      let override = null;
 
-      if(bootRes.ok && bootData.success === true && Array.isArray(bootData.overrides)){
-        const fid = String(companyId || "").trim();
-        const fname = String(companyName || "").trim().toLowerCase();
-        override = bootData.overrides.find(o=>{
-          const oid = String(o.facilityId || "").trim();
-          const oname = String(o.facilityName || "").trim().toLowerCase();
-          return (fid && oid && oid === fid) || (fname && oname && oname === fname);
+    const bootData =
+      await bootRes.json().catch(()=>({}));
+
+    console.log(
+      "ADD TRIP FACILITY BOOTSTRAP RESULT:",
+      bootData
+    );
+
+    let override = null;
+
+    if(
+      bootRes.ok &&
+      bootData.success === true &&
+      Array.isArray(bootData.overrides)
+    ){
+
+      const fid =
+        String(facilityId || "").trim();
+
+      const fname =
+        String(facilityName || "")
+          .trim()
+          .toLowerCase();
+
+      override =
+        bootData.overrides.find(o=>{
+
+          const oid =
+            String(o.facilityId || "").trim();
+
+          const oname =
+            String(o.facilityName || "")
+              .trim()
+              .toLowerCase();
+
+          return (
+            (
+              fid &&
+              oid &&
+              oid === fid
+            ) ||
+            (
+              fname &&
+              oname &&
+              oname === fname
+            )
+          );
+
         }) || null;
-      }
-
-      if(override && override.active === true && Array.isArray(override.services)){
-        const overrideByCode = new Map();
-        override.services.forEach(raw=>{
-          const mapped = mapFacilityOverrideService(raw);
-          const code = resolveServiceCode(mapped);
-          if(code) overrideByCode.set(code,mapped);
-        });
-
-        COMPANY_SERVICES = COMPANY_SERVICES.map(base=>{
-          const ov = overrideByCode.get(resolveServiceCode(base));
-          if(!ov) return base;
-          return {
-            ...base,
-            ...ov,
-            _id:base._id,
-            title:base.title,
-            name:base.name,
-            serviceName:base.serviceName,
-            serviceKey:base.serviceKey,
-            serviceCode:base.serviceCode,
-            serviceType:base.serviceType,
-            code:base.code,
-            companySuffix:base.companySuffix,
-            suffix:base.suffix,
-            serviceSuffix:base.serviceSuffix,
-            bookingHours:base.bookingHours || ov.bookingHours,
-            __pricingSource:"FACILITY_OVERRIDE"
-          };
-        });
-      }
-    }catch(overrideErr){
-      console.log("FACILITY PRICING OVERRIDE LOAD ERROR:", overrideErr);
     }
 
-    console.log("ADD TRIP SERVICES FROM SERVICE MANAGEMENT:", COMPANY_SERVICES);
-    if(!COMPANY_SERVICES.length) COMPANY_SERVICES = [defaultStandardService()];
+    if(
+      override &&
+      override.active === true &&
+      Array.isArray(override.services) &&
+      override.services.length
+    ){
+
+      COMPANY_SERVICES =
+        override.services
+          .map(mapFacilityOverrideService)
+          .filter(s=>s.serviceKey);
+
+      COMPANY_SERVICES =
+        await attachCompanyBookingHoursToOverrideServices(COMPANY_SERVICES);
+
+      console.log(
+        "ADD TRIP SERVICES FROM ACTIVE FACILITY OVERRIDE:",
+        COMPANY_SERVICES
+      );
+
+      buildDynamicTabs();
+
+      return;
+    }
+
+    /*
+      IMPORTANT:
+      Do NOT use bootData.services here.
+      Those are default pricing services and can make all company individual services become ST.
+    */
+
+    /* =========================
+       2) SERVICE MANAGEMENT COMPANY SERVICES
+    ========================= */
+
+    const res =
+      await fetch(
+        "/api/services?company=true",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    if(!res.ok){
+      throw new Error("Failed loading services");
+    }
+
+    const data =
+      await res.json().catch(()=>[]);
+
+    COMPANY_SERVICES =
+      Array.isArray(data)
+        ? data.map(mapServiceManagementService)
+        : [];
+
+    console.log(
+      "ADD TRIP SERVICES FROM SERVICE MANAGEMENT:",
+      COMPANY_SERVICES
+    );
+
+    if(!COMPANY_SERVICES.length){
+      COMPANY_SERVICES = [defaultStandardService()];
+    }
+
     buildDynamicTabs();
+
   }catch(err){
+
     console.log("LOAD COMPANY SERVICES ERROR:", err);
+
     COMPANY_SERVICES = [defaultStandardService()];
+
     buildDynamicTabs();
   }
 }
@@ -5524,8 +5248,8 @@ submitTripBtn.onclick = async function(){
       dynamicBookingData,
       customBookingData:dynamicBookingData.filter(row=>row.source === "CUSTOM"),
       bookingData:{
-        facility:dynamicBookingObject(dynamicBookingData),
-        company:dynamicBookingObject(dynamicBookingData)
+        company:dynamicBookingObject(dynamicBookingData),
+        facility:dynamicBookingObject(dynamicBookingData)
       },
       ...dynamicTopLevel,
 
