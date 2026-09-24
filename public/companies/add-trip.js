@@ -286,75 +286,151 @@ async function loadCompanyBookingFields(){
         }))
         .filter(item=>item.key)
         .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
+    }
 
-      /*
-        Some backend versions return fields:[] while also including config.
-        In that case rebuild directly from the raw Platform Admin config.
-      */
-      if(
-        !COMPANY_BOOKING_FIELDS.length &&
-        data?.config
-      ){
-        const catalog =
-          Array.isArray(data?.standardCatalog)
-            ? data.standardCatalog
-            : [];
+    /*
+      HARD COMPANY FALLBACK:
+      If the calculated fields array is empty, rebuild directly from the
+      Platform Admin Company/Facility matrix returned in data.config.
 
-        const catalogMap =
-          new Map(
-            catalog.map(item=>[
-              normalizeText(item?.key),
-              item
-            ])
-          );
+      This is Company-only. Reserved is not read here.
+    */
+    if(
+      !COMPANY_BOOKING_FIELDS.length &&
+      data?.config
+    ){
+      const standard =
+        Array.isArray(data?.config?.standardFields)
+          ? data.config.standardFields
+          : [];
 
-        const standard =
-          Array.isArray(data?.config?.standardFields)
-            ? data.config.standardFields
-            : [];
+      const custom =
+        Array.isArray(data?.config?.customFields)
+          ? data.config.customFields
+          : [];
 
-        const custom =
-          Array.isArray(data?.config?.customFields)
-            ? data.config.customFields
-            : [];
+      const standardFields =
+        standard
+          .filter(item=>
+            item?.matrix?.facility?.showField === true ||
+            item?.matrix?.company?.showField === true ||
+            item?.matrix?.companies?.showField === true
+          )
+          .map((item,index)=>({
+            key:normalizeText(item?.key),
+            label:normalizeText(item?.label || item?.key),
+            fieldType:normalizeText(item?.fieldType || "TEXT").toUpperCase(),
+            options:Array.isArray(item?.options) ? item.options.map(normalizeText).filter(Boolean) : [],
+            placeholder:normalizeText(item?.placeholder || ""),
+            required:
+              item?.matrix?.facility?.required === true ||
+              item?.matrix?.company?.required === true ||
+              item?.matrix?.companies?.required === true,
+            source:"STANDARD",
+            slot:null,
+            order:Number(item?.order ?? item?.sortOrder ?? index),
+            aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
+          }))
+          .filter(item=>item.key);
 
-        const standardFields =
-          standard
-            .filter(facilityFieldEnabled)
-            .map((item,index)=>
-              normalizeFacilityBookingField(
-                item,
-                catalogMap.get(
-                  normalizeText(item?.key)
+      const customFields =
+        custom
+          .filter(item=>{
+            const label =
+              normalizeText(item?.label);
+
+            if(!label) return false;
+
+            const matrix =
+              item?.matrix || {};
+
+            const hasExplicitRule =
+              matrix?.facility ||
+              matrix?.company ||
+              matrix?.companies;
+
+            /*
+              If the custom field has an explicit Company/Facility rule,
+              respect showField. If it is a newly-created custom field from
+              an older config with no matrix rule at all, show it rather than
+              silently losing it.
+            */
+            if(hasExplicitRule){
+              return (
+                matrix?.facility?.showField === true ||
+                matrix?.company?.showField === true ||
+                matrix?.companies?.showField === true
+              );
+            }
+
+            return true;
+          })
+          .map((item,index)=>{
+            const matrix =
+              item?.matrix || {};
+
+            const rule =
+              matrix.facility ||
+              matrix.company ||
+              matrix.companies ||
+              {};
+
+            const slot =
+              Number(item?.slot || 0) ||
+              (index + 1);
+
+            return {
+              key:
+                normalizeText(item?.key) ||
+                `CUSTOM_${slot}`,
+              label:
+                normalizeText(item?.label) ||
+                `Custom ${slot}`,
+              fieldType:
+                normalizeText(
+                  item?.fieldType || "TEXT"
+                ).toUpperCase(),
+              options:
+                Array.isArray(item?.options)
+                  ? item.options.map(normalizeText).filter(Boolean)
+                  : [],
+              placeholder:
+                normalizeText(item?.placeholder || ""),
+              required:
+                rule?.required === true,
+              source:"CUSTOM",
+              slot,
+              order:
+                Number(
+                  item?.order ??
+                  item?.sortOrder ??
+                  (1000 + index)
                 ),
-                index,
-                false
-              )
-            )
-            .filter(item=>item.key);
+              aliases:
+                Array.isArray(item?.aliases)
+                  ? item.aliases.map(normalizeText).filter(Boolean)
+                  : []
+            };
+          })
+          .filter(item=>item.key);
 
-        const customFields =
-          custom
-            .filter(item=>
-              facilityFieldEnabled(item) &&
-              normalizeText(item?.label)
-            )
-            .map((item,index)=>
-              normalizeFacilityBookingField(
-                item,
-                null,
-                index,
-                true
-              )
-            )
-            .filter(item=>item.key);
+      COMPANY_BOOKING_FIELDS = [
+        ...standardFields,
+        ...customFields
+      ]
+      .sort(
+        (a,b)=>
+          Number(a.order || 0) -
+          Number(b.order || 0)
+      );
 
-        COMPANY_BOOKING_FIELDS = [
-          ...standardFields,
-          ...customFields
-        ];
-      }
-    }else{
+      console.log(
+        "ADD TRIP COMPANY BOOKING FIELDS FROM RAW CONFIG:",
+        COMPANY_BOOKING_FIELDS
+      );
+    }
+
+    if(!Array.isArray(returnedFields) && !data?.config){
       const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
       const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
       const standard = Array.isArray(data?.config?.standardFields) ? data.config.standardFields : [];

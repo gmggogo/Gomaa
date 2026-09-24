@@ -1134,6 +1134,11 @@ router.get(
 
   try{
 
+    const allowed =
+      await ensureTenantServiceDocuments(
+        req
+      );
+
     const isCompany =
       String(req.query.company || "")
       .toLowerCase() === "true";
@@ -1142,25 +1147,19 @@ router.get(
       String(req.query.reserved || "")
       .toLowerCase() === "true";
 
-    /*
-      RESERVED:
-      keep the existing behavior exactly as before.
-
-      COMPANY:
-      protect Add Trip from an empty/mismatched Tenant.allowedServices gate.
-      Company Add Trip must still be able to read the tenant's own Company
-      service documents instead of falling back to one fake Standard tab.
-    */
-    const allowed =
-      await ensureTenantServiceDocuments(
-        req
-      );
-
     let filter = {};
 
     if(isReserved){
       filter = { reservedEnabled:true };
     }else if(isCompany){
+      /*
+        COMPANY SERVICES:
+        Tenant.allowedServices is the Platform Admin master switch.
+        Do not pre-filter by companyEnabled because older tenant Service
+        documents may carry stale/false companyEnabled values and that can
+        make valid allowed services disappear from Add Trip.
+        filterAllowedServices() below remains the authoritative gate.
+      */
       filter = {};
     }else{
       filter = { enabled:true };
@@ -1177,62 +1176,12 @@ router.get(
         createdAt:1
       });
 
-    let visibleServices =
+    const visibleServices =
       await filterAllowedServices(
         req,
         services,
         allowed
       );
-
-    /*
-      COMPANY-ONLY FALLBACK
-
-      If the Platform Admin gate contains an old/mismatched code and filters
-      every Company service out, do NOT return [] to Add Trip. Use the tenant's
-      own configured Company services as the safe fallback.
-
-      Reserved is intentionally NOT changed by this fallback.
-    */
-    if(
-      isCompany &&
-      (!Array.isArray(visibleServices) || !visibleServices.length) &&
-      Array.isArray(services) &&
-      services.length
-    ){
-      visibleServices =
-        services.filter(service=>{
-
-          const customSlot =
-            Number(service?.customSlot || 0);
-
-          if(customSlot){
-            return (
-              service?.customConfigured === true &&
-              (
-                service?.companyEnabled !== false ||
-                service?.enabled === true
-              )
-            );
-          }
-
-          return (
-            service?.companyEnabled !== false ||
-            service?.enabled === true
-          );
-        });
-
-      console.log(
-        "COMPANY SERVICES FALLBACK USED:",
-        req.authUser?.tenantId || "",
-        visibleServices.map(item=>({
-          id:item?._id,
-          serviceKey:item?.serviceKey,
-          title:item?.title,
-          companyEnabled:item?.companyEnabled,
-          enabled:item?.enabled
-        }))
-      );
-    }
 
     return res.json(
       visibleServices
@@ -1240,10 +1189,7 @@ router.get(
 
   }catch(err){
 
-    console.log(
-      "LOAD SERVICES ERROR:",
-      err
-    );
+    console.log(err);
 
     return res.status(500).json({
       success:false,
@@ -1427,9 +1373,10 @@ router.get(
 /* =========================
    COMPANY BOOKING DATA
 
-   Company Add Trip / Review uses the canonical "company" registry channel.
-   bookingFieldRegistry keeps backward compatibility with older matrix.facility
-   records, so Reserved is not involved here.
+   IMPORTANT:
+   The Platform Admin Booking Data matrix stores the Company surface
+   under matrix.facility. "facility" is therefore the internal registry
+   channel for Company Add Trip / Review and is NOT Reserved.
 ========================= */
 
 router.get(
@@ -1457,7 +1404,7 @@ router.get(
       const definitions =
         bookingFieldRegistry.bookingFieldDefinitions(
           config || {},
-          "company"
+          "facility"
         );
 
       const fields = definitions.map((field,index)=>({
@@ -1479,6 +1426,24 @@ router.get(
       return res.json({
         success:true,
         fields,
+
+        /*
+          Raw Company Booking Data config is returned as a safe read-only
+          fallback for Company Add Trip. This prevents the frontend from
+          losing Additional Information when an older registry/version
+          computes an empty fields array.
+        */
+        config:{
+          standardFields:
+            Array.isArray(config?.standardFields)
+              ? config.standardFields
+              : [],
+          customFields:
+            Array.isArray(config?.customFields)
+              ? config.customFields
+              : []
+        },
+
         updatedAt:config?.updatedAt || null
       });
 
