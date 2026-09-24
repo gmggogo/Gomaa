@@ -37,6 +37,19 @@ const driverPaths = new Map();
 const driverPolylines = new Map();
 const driverRawData = new Map();
 
+/*
+  Selected-driver route state.
+  This uses only trip data already saved in GH Mobility.
+  It never calls Google Directions / Routes / traffic APIs.
+*/
+const tripRouteCache = new Map();
+const selectedRouteSummary = new Map();
+
+let selectedDriverId = "";
+let selectedTripId = "";
+let selectedRoutePolyline = null;
+let selectedDestinationMarker = null;
+
 let firstLoad = true;
 
 /* ===============================
@@ -170,6 +183,34 @@ function injectMapStyles(){
       font-size:13px;
       color:#cbd5e1;
       padding:8px 4px;
+    }
+
+    .driver-route-info{
+      margin:7px 0 0 20px;
+      padding-top:7px;
+      border-top:1px solid rgba(148,163,184,.22);
+      font-size:12px;
+      line-height:1.45;
+      color:#e2e8f0;
+    }
+
+    .driver-route-info:empty{
+      display:none;
+    }
+
+    .route-eta{
+      color:#facc15;
+      font-weight:800;
+    }
+
+    .route-distance{
+      color:#93c5fd;
+      font-weight:800;
+    }
+
+    .route-note{
+      color:#94a3b8;
+      font-size:10px;
     }
 
     @media(max-width:900px){
@@ -396,6 +437,756 @@ function highlightDriverCard(id){
 
 }
 
+
+/* ===============================
+   SAVED ROUTE + APPROX ETA
+   ZERO external routing requests
+=============================== */
+
+function validPoint(point){
+  return !!(
+    point &&
+    Number.isFinite(Number(point.lat)) &&
+    Number.isFinite(Number(point.lng))
+  );
+}
+
+function pointFromAny(value){
+  if(Array.isArray(value) && value.length >= 2){
+    const lat = Number(value[0]);
+    const lng = Number(value[1]);
+    return Number.isFinite(lat) && Number.isFinite(lng)
+      ? {lat,lng}
+      : null;
+  }
+
+  if(!value || typeof value !== "object"){
+    return null;
+  }
+
+  const lat = Number(
+    value.lat ??
+    value.latitude ??
+    value.location?.lat ??
+    value.location?.latitude
+  );
+
+  const lng = Number(
+    value.lng ??
+    value.lon ??
+    value.longitude ??
+    value.location?.lng ??
+    value.location?.lon ??
+    value.location?.longitude
+  );
+
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    ? {lat,lng}
+    : null;
+}
+
+function decodeGooglePolyline(encoded){
+  const points = [];
+
+  if(typeof encoded !== "string" || !encoded){
+    return points;
+  }
+
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  try{
+    while(index < encoded.length){
+
+      let result = 0;
+      let shift = 0;
+      let byte = 0;
+
+      do{
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      }while(byte >= 0x20 && index <= encoded.length);
+
+      const dLat =
+        (result & 1)
+          ? ~(result >> 1)
+          : (result >> 1);
+
+      lat += dLat;
+
+      result = 0;
+      shift = 0;
+
+      do{
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      }while(byte >= 0x20 && index <= encoded.length);
+
+      const dLng =
+        (result & 1)
+          ? ~(result >> 1)
+          : (result >> 1);
+
+      lng += dLng;
+
+      points.push({
+        lat:lat / 1e5,
+        lng:lng / 1e5
+      });
+    }
+  }catch(err){
+    console.log("SAVED POLYLINE DECODE ERROR",err);
+    return [];
+  }
+
+  return points.filter(validPoint);
+}
+
+function unwrapTripPayload(data){
+  if(!data || typeof data !== "object"){
+    return null;
+  }
+
+  return (
+    data.trip ||
+    data.item ||
+    data.data ||
+    data
+  );
+}
+
+function savedTripPathArray(trip){
+
+  const candidates = [
+    trip?.googleRoute?.path,
+    trip?.googleRoute?.routePath,
+    trip?.googleRoute?.polylinePath,
+    trip?.optimizedRoute?.path,
+    trip?.optimizedRoute?.routePath,
+    trip?.optimizedRoute?.polylinePath,
+    trip?.routePath,
+    trip?.polylinePath,
+    trip?.savedRoutePath,
+    trip?.route?.path
+  ];
+
+  for(const candidate of candidates){
+
+    if(!Array.isArray(candidate) || candidate.length < 2){
+      continue;
+    }
+
+    const path =
+      candidate
+        .map(pointFromAny)
+        .filter(Boolean);
+
+    if(path.length >= 2){
+      return path;
+    }
+  }
+
+  const encodedCandidates = [
+    trip?.googleRoute?.overviewPolyline?.points,
+    trip?.googleRoute?.overview_polyline?.points,
+    trip?.googleRoute?.routes?.[0]?.overviewPolyline?.points,
+    trip?.googleRoute?.routes?.[0]?.overview_polyline?.points,
+    trip?.optimizedRoute?.overviewPolyline?.points,
+    trip?.optimizedRoute?.overview_polyline?.points,
+    trip?.optimizedRoute?.routes?.[0]?.overviewPolyline?.points,
+    trip?.optimizedRoute?.routes?.[0]?.overview_polyline?.points,
+    trip?.overviewPolyline?.points,
+    trip?.overview_polyline?.points,
+    typeof trip?.overviewPolyline === "string" ? trip.overviewPolyline : "",
+    typeof trip?.overview_polyline === "string" ? trip.overview_polyline : "",
+    trip?.routePolyline?.points,
+    trip?.encodedPolyline?.points,
+    typeof trip?.routePolyline === "string" ? trip.routePolyline : "",
+    typeof trip?.encodedPolyline === "string" ? trip.encodedPolyline : "",
+    trip?.polyline
+  ];
+
+  for(const encoded of encodedCandidates){
+    const decoded = decodeGooglePolyline(encoded);
+    if(decoded.length >= 2){
+      return decoded;
+    }
+  }
+
+  /*
+    Safe fallback: connect already-saved stop coordinates.
+    This still makes zero external route requests.
+  */
+  const stopCandidates = [
+    trip?.stops,
+    trip?.routeStops,
+    trip?.tripStops
+  ];
+
+  for(const stops of stopCandidates){
+    if(!Array.isArray(stops)) continue;
+
+    const points =
+      stops
+        .map(pointFromAny)
+        .filter(Boolean);
+
+    if(points.length >= 2){
+      return points;
+    }
+  }
+
+  const simple = [
+    pointFromAny({
+      lat:trip?.pickupLat ?? trip?.pickup?.lat,
+      lng:trip?.pickupLng ?? trip?.pickup?.lng
+    }),
+    pointFromAny({
+      lat:trip?.dropoffLat ?? trip?.dropLat ?? trip?.dropoff?.lat,
+      lng:trip?.dropoffLng ?? trip?.dropLng ?? trip?.dropoff?.lng
+    })
+  ].filter(Boolean);
+
+  return simple.length >= 2 ? simple : [];
+}
+
+function nearestPathIndex(path,driverPoint){
+
+  if(!Array.isArray(path) || !path.length || !validPoint(driverPoint)){
+    return -1;
+  }
+
+  let bestIndex = 0;
+  let bestDistance = Infinity;
+
+  path.forEach((point,index)=>{
+    const distance = getDistance(driverPoint,point);
+
+    if(distance < bestDistance){
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
+function pathDistanceKm(path){
+
+  if(!Array.isArray(path) || path.length < 2){
+    return 0;
+  }
+
+  let total = 0;
+
+  for(let i=1;i<path.length;i++){
+    total += getDistance(path[i-1],path[i]);
+  }
+
+  return total;
+}
+
+function estimateEtaRange(miles){
+
+  const distance = Math.max(0,Number(miles || 0));
+
+  if(distance < 0.08){
+    return {
+      low:0,
+      high:1,
+      text:"< 1 min"
+    };
+  }
+
+  /*
+    Traffic-free local estimate.
+    Slower assumed average for short city trips,
+    faster average for longer stretches.
+  */
+  const averageMph =
+    distance <= 2 ? 18 :
+    distance <= 8 ? 24 :
+    distance <= 20 ? 32 :
+    40;
+
+  const baseMinutes =
+    (distance / averageMph) * 60;
+
+  const low =
+    Math.max(
+      1,
+      Math.floor(baseMinutes * 0.82)
+    );
+
+  const high =
+    Math.max(
+      low + 1,
+      Math.ceil(baseMinutes * 1.22)
+    );
+
+  return {
+    low,
+    high,
+    text:`~${low}–${high} min`
+  };
+}
+
+function routeInfoHtml(id){
+
+  const summary =
+    selectedRouteSummary.get(
+      String(id || "")
+    );
+
+  if(!summary){
+    return "";
+  }
+
+  if(summary.loading){
+    return `<span class="route-note">Loading saved route…</span>`;
+  }
+
+  if(summary.message){
+    return `<span class="route-note">${escapeHtml(summary.message)}</span>`;
+  }
+
+  return `
+    <div class="route-distance">Remaining: ~${Number(summary.miles || 0).toFixed(1)} mi</div>
+    <div class="route-eta">ETA: ${escapeHtml(summary.etaText || "--")}</div>
+    <div class="route-note">Approximate • no traffic request</div>
+  `;
+}
+
+function clearSelectedRoute(){
+
+  if(selectedRoutePolyline){
+    map.removeLayer(selectedRoutePolyline);
+    selectedRoutePolyline = null;
+  }
+
+  if(selectedDestinationMarker){
+    map.removeLayer(selectedDestinationMarker);
+    selectedDestinationMarker = null;
+  }
+}
+
+function updateSelectedDriverUi(id){
+
+  const key = String(id || "");
+  const driver = driverRawData.get(key);
+  const marker = driverMarkers.get(key);
+  const summary = selectedRouteSummary.get(key);
+
+  const routeEl =
+    document.querySelector(
+      `.driver-route-info[data-route-id="${CSS.escape(key)}"]`
+    );
+
+  if(routeEl){
+    routeEl.innerHTML = routeInfoHtml(key);
+  }
+
+  if(!driver || !marker){
+    return;
+  }
+
+  const vehicle =
+    getVehicleText(driver)
+      ? `Vehicle: ${escapeHtml(getVehicleText(driver))}<br>`
+      : "";
+
+  const trip =
+    driver.tripId
+      ? `Trip: ${escapeHtml(driver.tripId)}<br>`
+      : "";
+
+  const routeDetails =
+    summary && !summary.loading && !summary.message
+      ? `
+          <div style="margin-top:7px;padding-top:7px;border-top:1px solid #e2e8f0">
+            <b>Remaining:</b> ~${Number(summary.miles || 0).toFixed(1)} mi<br>
+            <b>ETA:</b> ${escapeHtml(summary.etaText || "--")}<br>
+            <span style="font-size:10px;color:#64748b">Approximate • no traffic request</span>
+          </div>
+        `
+      : summary?.message
+        ? `<div style="margin-top:7px;color:#64748b">${escapeHtml(summary.message)}</div>`
+        : summary?.loading
+          ? `<div style="margin-top:7px;color:#64748b">Loading saved route…</div>`
+          : "";
+
+  marker.setPopupContent(`
+    <div style="min-width:190px">
+      <b style="font-size:14px">${escapeHtml(getDriverName(driver,key))}</b><br>
+      ${vehicle}
+      ${driver.phone ? `Phone: ${escapeHtml(driver.phone)}<br>` : ""}
+      ${trip}
+      ${routeDetails}
+    </div>
+  `);
+}
+
+async function getTripRoute(tripId){
+
+  const key = String(tripId || "").trim();
+
+  if(!key){
+    return {
+      trip:null,
+      path:[]
+    };
+  }
+
+  if(tripRouteCache.has(key)){
+    return tripRouteCache.get(key);
+  }
+
+  const promise = (async()=>{
+
+    try{
+      const res = await fetch(
+        `/api/trips/${encodeURIComponent(key)}`,
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:"Bearer " + mapAuthToken
+          }
+        }
+      );
+
+      if(!res.ok){
+        return {
+          trip:null,
+          path:[],
+          error:`Trip route unavailable (${res.status})`
+        };
+      }
+
+      const data = await res.json().catch(()=>({}));
+      const trip = unwrapTripPayload(data);
+      const path = savedTripPathArray(trip);
+
+      return {
+        trip,
+        path
+      };
+
+    }catch(err){
+      console.log("TRIP ROUTE LOAD ERROR",err);
+
+      return {
+        trip:null,
+        path:[],
+        error:"Trip route unavailable"
+      };
+    }
+  })();
+
+  tripRouteCache.set(key,promise);
+
+  const result = await promise;
+
+  /*
+    Keep successful trip data cached. A failed request should be allowed
+    to retry the next time the driver is selected.
+  */
+  if(result?.error){
+    tripRouteCache.delete(key);
+  }else{
+    tripRouteCache.set(key,Promise.resolve(result));
+  }
+
+  return result;
+}
+
+function drawRemainingSavedRoute(id,path,fitRoute=true){
+
+  const driver = driverRawData.get(String(id || ""));
+
+  if(
+    !driver ||
+    !validPoint(driver) ||
+    !Array.isArray(path) ||
+    path.length < 2
+  ){
+    return null;
+  }
+
+  const driverPoint = {
+    lat:Number(driver.lat),
+    lng:Number(driver.lng)
+  };
+
+  const nearestIndex =
+    nearestPathIndex(
+      path,
+      driverPoint
+    );
+
+  if(nearestIndex < 0){
+    return null;
+  }
+
+  const remaining = [
+    driverPoint,
+    ...path.slice(nearestIndex)
+  ];
+
+  const distanceKm =
+    pathDistanceKm(remaining);
+
+  const miles =
+    distanceKm * 0.621371;
+
+  const eta =
+    estimateEtaRange(miles);
+
+  clearSelectedRoute();
+
+  selectedRoutePolyline =
+    L.polyline(
+      remaining.map(point=>[point.lat,point.lng]),
+      {
+        color:"#2563eb",
+        weight:6,
+        opacity:0.92,
+        lineCap:"round",
+        lineJoin:"round"
+      }
+    ).addTo(map);
+
+  const destination =
+    remaining[remaining.length - 1];
+
+  if(validPoint(destination)){
+    selectedDestinationMarker =
+      L.circleMarker(
+        [destination.lat,destination.lng],
+        {
+          radius:7,
+          color:"#ffffff",
+          weight:2,
+          fillColor:"#dc2626",
+          fillOpacity:1
+        }
+      )
+      .addTo(map)
+      .bindTooltip("Destination",{
+        direction:"top"
+      });
+  }
+
+  if(fitRoute){
+    const bounds =
+      L.latLngBounds(
+        remaining.map(point=>[point.lat,point.lng])
+      );
+
+    if(bounds.isValid()){
+      map.fitBounds(bounds,{
+        padding:[45,45],
+        maxZoom:16
+      });
+    }
+  }
+
+  return {
+    miles,
+    etaText:eta.text,
+    lowMinutes:eta.low,
+    highMinutes:eta.high
+  };
+}
+
+async function selectDriver(id,options={}){
+
+  const key = String(id || "");
+  const driver = driverRawData.get(key);
+  const marker = driverMarkers.get(key);
+
+  if(!driver){
+    return;
+  }
+
+  selectedDriverId = key;
+  selectedTripId = String(driver.tripId || "").trim();
+
+  highlightDriverCard(key);
+
+  if(marker && options.center !== false){
+    map.setView(
+      marker.getLatLng(),
+      16,
+      {animate:true}
+    );
+  }
+
+  if(!selectedTripId){
+    clearSelectedRoute();
+
+    selectedRouteSummary.set(key,{
+      message:"No active trip"
+    });
+
+    updateSelectedDriverUi(key);
+
+    if(marker && options.openPopup !== false){
+      marker.openPopup();
+    }
+
+    return;
+  }
+
+  selectedRouteSummary.set(key,{
+    loading:true
+  });
+
+  updateSelectedDriverUi(key);
+
+  const routeData =
+    await getTripRoute(
+      selectedTripId
+    );
+
+  /*
+    The user may have selected another driver while this trip was loading.
+  */
+  if(
+    selectedDriverId !== key ||
+    selectedTripId !== String(driver.tripId || "").trim()
+  ){
+    return;
+  }
+
+  if(
+    routeData?.error ||
+    !Array.isArray(routeData?.path) ||
+    routeData.path.length < 2
+  ){
+    clearSelectedRoute();
+
+    selectedRouteSummary.set(key,{
+      message:
+        routeData?.error ||
+        "No saved route found for this trip"
+    });
+
+    updateSelectedDriverUi(key);
+
+    if(marker && options.openPopup !== false){
+      marker.openPopup();
+    }
+
+    return;
+  }
+
+  const summary =
+    drawRemainingSavedRoute(
+      key,
+      routeData.path,
+      options.fitRoute !== false
+    );
+
+  if(!summary){
+    selectedRouteSummary.set(key,{
+      message:"Unable to calculate remaining route"
+    });
+  }else{
+    selectedRouteSummary.set(key,summary);
+  }
+
+  updateSelectedDriverUi(key);
+
+  if(marker && options.openPopup !== false){
+    marker.openPopup();
+  }
+}
+
+async function refreshSelectedRoute(){
+
+  if(!selectedDriverId){
+    return;
+  }
+
+  const driver =
+    driverRawData.get(
+      selectedDriverId
+    );
+
+  if(!driver){
+    clearSelectedRoute();
+    selectedDriverId = "";
+    selectedTripId = "";
+    return;
+  }
+
+  const tripId =
+    String(driver.tripId || "").trim();
+
+  if(!tripId){
+    clearSelectedRoute();
+
+    selectedRouteSummary.set(
+      selectedDriverId,
+      {message:"No active trip"}
+    );
+
+    updateSelectedDriverUi(
+      selectedDriverId
+    );
+
+    return;
+  }
+
+  if(tripId !== selectedTripId){
+    selectedTripId = tripId;
+
+    await selectDriver(
+      selectedDriverId,
+      {
+        center:false,
+        fitRoute:false,
+        openPopup:false
+      }
+    );
+
+    return;
+  }
+
+  const cached =
+    await getTripRoute(
+      tripId
+    );
+
+  if(
+    !Array.isArray(cached?.path) ||
+    cached.path.length < 2
+  ){
+    return;
+  }
+
+  const summary =
+    drawRemainingSavedRoute(
+      selectedDriverId,
+      cached.path,
+      false
+    );
+
+  if(summary){
+    selectedRouteSummary.set(
+      selectedDriverId,
+      summary
+    );
+
+    updateSelectedDriverUi(
+      selectedDriverId
+    );
+  }
+}
+
 /* ===============================
    DRAW PATH
 =============================== */
@@ -471,6 +1262,7 @@ function renderSidebar(drivers){
           ${phone ? `Phone: ${phone}` : ""}
           ${tripId ? `<br>Trip: ${tripId}` : ""}
         </div>
+        <div class="driver-route-info" data-route-id="${escapeHtml(id)}">${routeInfoHtml(id)}</div>
       </div>
     `;
 
@@ -483,15 +1275,11 @@ function renderSidebar(drivers){
       const marker = driverMarkers.get(id);
       const driver = driverRawData.get(id);
 
-      highlightDriverCard(id);
-
-      if(marker){
-        map.setView(marker.getLatLng(), 16, {
-          animate: true
-        });
-
-        marker.openPopup();
-      }
+      selectDriver(id,{
+        center:true,
+        fitRoute:true,
+        openPopup:true
+      });
 
       const searchInput = document.getElementById("searchDriver");
       if(searchInput){
@@ -499,6 +1287,10 @@ function renderSidebar(drivers){
       }
     });
   });
+
+  if(selectedDriverId){
+    highlightDriverCard(selectedDriverId);
+  }
 
 }
 
@@ -640,14 +1432,12 @@ async function loadLiveDrivers(){
       =============================== */
 
       const popupHtml = `
-        <div style="min-width:180px">
+        <div style="min-width:190px">
           <b style="font-size:14px">${escapeHtml(getDriverName(driverData, id))}</b><br>
-          Driver ID: ${escapeHtml(id)}<br>
           ${getVehicleText(driverData) ? `Vehicle: ${escapeHtml(getVehicleText(driverData))}<br>` : ""}
           ${driverData.phone ? `Phone: ${escapeHtml(driverData.phone)}<br>` : ""}
           ${driverData.tripId ? `Trip: ${escapeHtml(driverData.tripId)}<br>` : ""}
-          Lat: ${lat}<br>
-          Lng: ${lng}
+          ${routeInfoHtml(id)}
         </div>
       `;
 
@@ -667,7 +1457,11 @@ async function loadLiveDrivers(){
         marker.bindPopup(popupHtml);
 
         marker.on("click", () => {
-          highlightDriverCard(id);
+          selectDriver(id,{
+            center:false,
+            fitRoute:true,
+            openPopup:true
+          });
         });
 
         driverMarkers.set(id, marker);
@@ -695,6 +1489,13 @@ async function loadLiveDrivers(){
         driverPaths.delete(id);
         driverRawData.delete(id);
 
+        if(selectedDriverId === id){
+          clearSelectedRoute();
+          selectedDriverId = "";
+          selectedTripId = "";
+          selectedRouteSummary.delete(id);
+        }
+
       }
 
     });
@@ -709,6 +1510,17 @@ async function loadLiveDrivers(){
     });
 
     renderSidebar(cleanedDrivers);
+
+    /*
+      Recalculate the selected driver's remaining miles/ETA from the
+      newest live GPS point. The saved route stays cached, so this makes
+      no additional external routing requests.
+    */
+    if(selectedDriverId){
+      refreshSelectedRoute().catch(err=>{
+        console.log("SELECTED ROUTE REFRESH ERROR",err);
+      });
+    }
 
     /* ===============================
        FIRST ZOOM
