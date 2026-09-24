@@ -1184,20 +1184,7 @@ router.get(
   async (req,res) => {
 
     try{
-
-      await expireOverdueExternalTrips(
-        req.authUser.tenantId
-      );
-
-      /*
-        Final-confirmed broker trips must not remain in External Trips Hub.
-        This also covers Completed, No Show, Cancelled and Not Completed.
-      */
-      await syncFinalizedExternalTrips(
-        req.authUser.tenantId
-      );
-
-      const filter = {
+const filter = {
         tenantId:
           req.authUser.tenantId
       };
