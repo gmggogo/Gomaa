@@ -55,11 +55,6 @@ function normalizeRow(row){
     lat: row.lat ?? null,
     lng: row.lng ?? null,
     vehicleNumber: row.vehicleNumber || "",
-    vehicleCategory:String(row.vehicleCategory || "GENERIC").toUpperCase(),
-    vehicleCapacityLb:Math.max(0,Number(row.vehicleCapacityLb || 0) || 0),
-    liftGate:row.liftGate === true,
-    refrigerated:row.refrigerated === true,
-    hazmatEndorsed:row.hazmatEndorsed === true,
     enabled: row.enabled !== false,
     edit: row.edit === true,
 
@@ -244,11 +239,6 @@ async function save(){
       lat:row.lat,
       lng:row.lng,
       vehicleNumber:row.vehicleNumber,
-      vehicleCategory:row.vehicleCategory || "GENERIC",
-      vehicleCapacityLb:Number(row.vehicleCapacityLb || 0),
-      liftGate:row.liftGate === true,
-      refrigerated:row.refrigerated === true,
-      hazmatEndorsed:row.hazmatEndorsed === true,
       enabled:row.enabled === true,
     days:{
   ...DAYS_DEFAULT,
@@ -400,32 +390,6 @@ function render(){
         <td>
           <div style="display:grid;gap:5px;min-width:190px">
             <input value="${esc(s.vehicleNumber)}" placeholder="Vehicle #" ${!s.edit ? "disabled" : ""} oninput="schedule['${id}'].vehicleNumber=this.value">
-
-            ${
-              s.edit
-              ? `
-                <select onchange="schedule['${id}'].vehicleCategory=this.value">
-                  ${[
-                    ["GENERIC","Generic / Any"],["SEDAN","Sedan"],["SUV","SUV"],
-                    ["MINIVAN","Minivan"],["WHEELCHAIR_VAN","Wheelchair Van"],
-                    ["CARGO_VAN","Cargo Van"],["SPRINTER_VAN","Sprinter Van"],
-                    ["PICKUP_TRUCK","Pickup Truck"],["BOX_TRUCK","Box Truck"],
-                    ["MOVING_TRUCK","Moving Truck"],["FLATBED","Flatbed"],
-                    ["SEMI_TRUCK","Semi Truck"],["TRACTOR_TRAILER","Tractor Trailer"],
-                    ["HEAVY_DUTY","Heavy Duty"]
-                  ].map(([key,label])=>`<option value="${key}" ${s.vehicleCategory===key?"selected":""}>${label}</option>`).join("")}
-                </select>
-
-                <input type="number" min="0" value="${Number(s.vehicleCapacityLb || 0)}" placeholder="Capacity lb" oninput="schedule['${id}'].vehicleCapacityLb=Number(this.value||0)">
-
-                <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px">
-                  <label><input type="checkbox" ${s.liftGate?"checked":""} onchange="schedule['${id}'].liftGate=this.checked"> Liftgate</label>
-                  <label><input type="checkbox" ${s.refrigerated?"checked":""} onchange="schedule['${id}'].refrigerated=this.checked"> Reefer</label>
-                  <label><input type="checkbox" ${s.hazmatEndorsed?"checked":""} onchange="schedule['${id}'].hazmatEndorsed=this.checked"> Hazmat</label>
-                </div>
-              `
-              : `<small>${esc(s.vehicleCategory || "GENERIC")}</small>`
-            }
           </div>
         </td>
 
