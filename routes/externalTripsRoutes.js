@@ -1184,17 +1184,12 @@ router.get(
   async (req,res) => {
 
     try{
-const filter = {
+
+      const filter = {
         tenantId:
           req.authUser.tenantId
       };
 
-      /*
-        External Trips Hub is the broker intake/history page.
-        Keep trips visible here even after they move to Trip Split /
-        Broker Review. Only apply a status filter when the user
-        explicitly selects one in the page filters.
-      */
       if(req.query.status){
         filter.status =
           String(
@@ -1216,21 +1211,38 @@ const filter = {
           );
       }
 
-      const trips =
-        await ExternalTrip.find(
-          filter
-        )
-        .sort({
-          tripDate:1,
-          tripTime:1,
-          createdAt:1
-        })
-        .lean();
+      /*
+        External Trips Hub must be a fast read-only intake/history view.
+        Do not run expiry/finalization work here.
+        Keep transferred rows visible unless the user explicitly filters status.
+      */
+      const [trips,brokerFields] =
+        await Promise.all([
+          ExternalTrip.find(
+            filter
+          )
+            .select({
+              rawPayload:0,
+              normalizedPayload:0
+            })
+            .sort({
+              tripDate:1,
+              tripTime:1,
+              createdAt:1
+            })
+            .lean(),
 
-      const brokerFields =
-        await listBrokerFields(
-          req.authUser.tenantId
-        );
+          listBrokerFields(
+            req.authUser.tenantId
+          )
+            .catch(err=>{
+              console.error(
+                "EXTERNAL TRIPS BROKER FIELDS LOAD ERROR:",
+                err
+              );
+              return [];
+            })
+        ]);
 
       return res.json({
         success:true,
@@ -1241,9 +1253,16 @@ const filter = {
 
     }catch(err){
 
+      console.error(
+        "EXTERNAL TRIPS LIST ERROR:",
+        err
+      );
+
       return res.status(500).json({
         success:false,
-        message:"Failed to load external trips"
+        message:
+          err.message ||
+          "Failed to load external trips"
       });
     }
   }
