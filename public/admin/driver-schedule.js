@@ -56,8 +56,6 @@ function normalizeRow(row){
     lng: row.lng ?? null,
     vehicleNumber: row.vehicleNumber || "",
     vehicleCategory:String(row.vehicleCategory || "GENERIC").toUpperCase(),
-    cdlLicensed:row.cdlLicensed === true,
-    cdlClass:String(row.cdlClass || "").toUpperCase(),
     vehicleCapacityLb:Math.max(0,Number(row.vehicleCapacityLb || 0) || 0),
     liftGate:row.liftGate === true,
     refrigerated:row.refrigerated === true,
@@ -247,8 +245,6 @@ async function save(){
       lng:row.lng,
       vehicleNumber:row.vehicleNumber,
       vehicleCategory:row.vehicleCategory || "GENERIC",
-      cdlLicensed:row.cdlLicensed === true,
-      cdlClass:row.cdlLicensed === true ? (row.cdlClass || "") : "",
       vehicleCapacityLb:Number(row.vehicleCapacityLb || 0),
       liftGate:row.liftGate === true,
       refrigerated:row.refrigerated === true,
@@ -420,15 +416,6 @@ function render(){
                   ].map(([key,label])=>`<option value="${key}" ${s.vehicleCategory===key?"selected":""}>${label}</option>`).join("")}
                 </select>
 
-                <label style="font-size:12px"><input type="checkbox" ${s.cdlLicensed?"checked":""} onchange="schedule['${id}'].cdlLicensed=this.checked;render()"> CDL</label>
-
-                <select onchange="schedule['${id}'].cdlClass=this.value" ${!s.cdlLicensed?"disabled":""}>
-                  <option value="" ${!s.cdlClass?"selected":""}>CDL Class</option>
-                  <option value="A" ${s.cdlClass==="A"?"selected":""}>Class A</option>
-                  <option value="B" ${s.cdlClass==="B"?"selected":""}>Class B</option>
-                  <option value="C" ${s.cdlClass==="C"?"selected":""}>Class C</option>
-                </select>
-
                 <input type="number" min="0" value="${Number(s.vehicleCapacityLb || 0)}" placeholder="Capacity lb" oninput="schedule['${id}'].vehicleCapacityLb=Number(this.value||0)">
 
                 <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px">
@@ -437,7 +424,7 @@ function render(){
                   <label><input type="checkbox" ${s.hazmatEndorsed?"checked":""} onchange="schedule['${id}'].hazmatEndorsed=this.checked"> Hazmat</label>
                 </div>
               `
-              : `<small>${esc(s.vehicleCategory || "GENERIC")}${s.cdlLicensed ? ` • CDL ${esc(s.cdlClass || "")}` : ""}</small>`
+              : `<small>${esc(s.vehicleCategory || "GENERIC")}</small>`
             }
           </div>
         </td>
