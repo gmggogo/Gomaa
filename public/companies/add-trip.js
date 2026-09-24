@@ -344,6 +344,7 @@ function ensureFacilityBookingFieldsHost(){
   if(!section){
     section = document.createElement("section");
     section.id = "dynamicBookingFieldsSection";
+    section.className = "dynamic-booking-fields-section";
     section.style.display = "none";
 
     const heading = document.createElement("h3");
@@ -362,6 +363,14 @@ function ensureFacilityBookingFieldsHost(){
     box.id = "dynamicBookingFields";
     box.className = "form-grid";
     section.appendChild(box);
+  }
+
+  const heading =
+    section.querySelector("h3");
+
+  if(heading){
+    heading.textContent =
+      "Additional Information";
   }
 
   moveCompanyBookingFieldsToActiveService();
@@ -383,49 +392,73 @@ function moveCompanyBookingFieldsToActiveService(){
   const shared =
     isSharedService(service);
 
-  const targetSection =
-    shared
-      ? sharedSection
-      : individualSection;
+  if(shared){
 
-  if(!targetSection){
-    return;
-  }
+    /*
+      SHARED:
+      Same Reserved-style placement.
+      Additional Information must appear immediately above Notes.
 
-  const targetNotes =
-    shared
-      ? sharedNotes
-      : notes;
+      AUTOMATIC mode -> above autoSharedNotes
+      MANUAL mode    -> above sharedNotes
+    */
+    const automaticMode =
+      String(sharedEntryMode || "AUTOMATIC")
+        .toUpperCase() === "AUTOMATIC";
 
-  const notesField =
-    targetNotes?.closest(".field-wrap") ||
-    targetNotes?.parentElement;
+    const targetNotes =
+      automaticMode
+        ? document.getElementById("autoSharedNotes")
+        : document.getElementById("sharedNotes");
 
-  const parent =
-    notesField?.parentElement ||
-    targetSection;
+    const targetWrap =
+      targetNotes?.closest(".field-wrap") ||
+      targetNotes?.parentElement;
 
-  if(!parent){
-    return;
-  }
+    const targetParent =
+      targetWrap?.parentElement;
 
-  if(
-    notesField &&
-    notesField.parentElement === parent
-  ){
-    if(section.parentElement !== parent){
-      parent.insertBefore(
+    if(
+      targetParent &&
+      targetWrap
+    ){
+      targetParent.insertBefore(
         section,
-        notesField
+        targetWrap
       );
-    }else if(section.nextElementSibling !== notesField){
-      parent.insertBefore(
-        section,
-        notesField
-      );
+    }else{
+      const sharedRoot =
+        document.getElementById("sharedSection");
+
+      if(sharedRoot){
+        sharedRoot.appendChild(section);
+      }
     }
-  }else if(section.parentElement !== parent){
-    parent.appendChild(section);
+
+  }else{
+
+    /*
+      INDIVIDUAL:
+      Put Additional Information at the end of Trip Details,
+      immediately ABOVE the Notes field — same visual flow as Reserved.
+    */
+    const notesEl =
+      document.getElementById("notes");
+
+    const tripDetails =
+      document.getElementById("individualTripDetails");
+
+    if(
+      notesEl &&
+      notesEl.parentElement
+    ){
+      notesEl.parentElement.insertBefore(
+        section,
+        notesEl
+      );
+    }else if(tripDetails){
+      tripDetails.appendChild(section);
+    }
   }
 
   section.style.display =
@@ -433,7 +466,6 @@ function moveCompanyBookingFieldsToActiveService(){
       ? "block"
       : "none";
 }
-
 async function loadCompanyBookingFields(){
   const host = ensureFacilityBookingFieldsHost();
   const section = host.section;
@@ -479,6 +511,7 @@ async function loadCompanyBookingFields(){
 
     if(Array.isArray(returnedFields)){
       COMPANY_BOOKING_FIELDS = returnedFields
+        .filter(item=>item?.showField === true)
         .map((item,index)=>({
           key:normalizeText(item?.key),
           label:normalizeText(item?.label || item?.key),
@@ -3168,6 +3201,11 @@ function setSharedEntryMode(mode){
       automatic
     );
   }
+
+  /*
+    Keep Additional Information immediately above the active Notes field.
+  */
+  moveCompanyBookingFieldsToActiveService();
 }
 
 function automaticSharedStatePayload(){
@@ -3635,6 +3673,14 @@ async function submitUnmatchedAutomaticCandidate(id,serviceCode){
   try{
     const selected = servicePayloadFromConfig(service);
 
+    const dynamicBookingData =
+      collectDynamicBookingData(true);
+
+    const dynamicTopLevel =
+      dynamicBookingTopLevelValues(
+        dynamicBookingData
+      );
+
     assertCompanyBookingHours(
       selected.service,
       candidate.tripDate || "",
@@ -3677,6 +3723,24 @@ async function submitUnmatchedAutomaticCandidate(id,serviceCode){
       tripTime:candidate.tripTime || candidate.pickupTime || "",
       appointmentTime:candidate.appointmentTime || "",
       notes:candidate.notes || "",
+
+      dynamicBookingData,
+      customBookingData:
+        dynamicBookingData.filter(
+          row=>row.source === "CUSTOM"
+        ),
+      bookingData:{
+        company:
+          dynamicBookingObject(
+            dynamicBookingData
+          ),
+        facility:
+          dynamicBookingObject(
+            dynamicBookingData
+          )
+      },
+      ...dynamicTopLevel,
+
       status:"Scheduled"
     };
 
@@ -4644,6 +4708,14 @@ async function submitAutomaticSharedGroup(groupIndex){
       selected.facilityOverrideActive === true
     );
 
+    const dynamicBookingData =
+      collectDynamicBookingData(true);
+
+    const dynamicTopLevel =
+      dynamicBookingTopLevelValues(
+        dynamicBookingData
+      );
+
     const payload = {
       company:companyName,
       companyName,
@@ -4675,6 +4747,23 @@ async function submitAutomaticSharedGroup(groupIndex){
       routePoints:Array.isArray(group.routePoints) ? group.routePoints : [],
       routeSource:"SHARED_ENGINE",
       notes:`Automatic Shared ${group.tripLeg || "OUTBOUND"}`,
+
+      dynamicBookingData,
+      customBookingData:
+        dynamicBookingData.filter(
+          row=>row.source === "CUSTOM"
+        ),
+      bookingData:{
+        company:
+          dynamicBookingObject(
+            dynamicBookingData
+          ),
+        facility:
+          dynamicBookingObject(
+            dynamicBookingData
+          )
+      },
+      ...dynamicTopLevel,
 
       /*
         Automatic Shared groups are already reviewed/built by the Company
