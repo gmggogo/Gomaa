@@ -47,20 +47,24 @@ async function getDefaultPackage(){
     row = await PlatformBillingSettings.create({
       key:"DEFAULT_PACKAGE",
       packageName:"GH Mobility Starter",
-      basePrice:125,
+      basePrice:99,
       includedVehicles:5,
-      includedServices:1,
-      includedBrokers:1,
+      includedServices:2,
+      includedBrokers:0,
       maxDrivers:5,
       maxVehicles:5,
       maxAdmins:2,
       maxSuperAdmins:2,
       maxDispatchers:2,
-      maxCompanies:2,
-      maxServices:1,
+      maxCompanies:3,
+      maxServices:2,
       maxBrokers:1,
       billingCycle:"MONTHLY",
-      extraVehiclePrice:25,
+      extraVehiclePrice:10,
+      extraDispatcherPrice:0,
+      extraAdminPrice:0,
+      extraSuperAdminPrice:0,
+      extraCompanyPrice:0,
       extraServicePrice:15,
       extraBrokerPrice:0,
       packageStatus:"ACTIVE"
@@ -271,57 +275,6 @@ async function getTenantUsage(tenant){
   };
 }
 
-
-function normalizeServicePricing(rows){
-  const map = new Map();
-
-  (Array.isArray(rows) ? rows : []).forEach(row=>{
-    const key = clean(row?.key).toUpperCase();
-    if(!key) return;
-
-    map.set(key,{
-      key,
-      label:clean(row?.label) || key,
-      included:row?.included === true,
-      monthlyPrice:nonNegative(row?.monthlyPrice)
-    });
-  });
-
-  return map;
-}
-
-function mergeServicePricing(serviceControls,savedRows,includedSlots,fallbackPrice){
-  const saved = normalizeServicePricing(savedRows);
-  let remainingIncluded = whole(includedSlots);
-
-  const rows = (Array.isArray(serviceControls) ? serviceControls : []).map(control=>{
-    const key = clean(control?.key).toUpperCase();
-    const old = saved.get(key);
-
-    let included = old ? old.included === true : false;
-
-    if(!old && control?.billingEnabled !== false && remainingIncluded > 0){
-      included = true;
-      remainingIncluded -= 1;
-    }
-
-    if(old?.included === true && remainingIncluded > 0){
-      remainingIncluded -= 1;
-    }
-
-    return {
-      key,
-      label:clean(control?.label) || key,
-      included,
-      monthlyPrice:old
-        ? nonNegative(old.monthlyPrice)
-        : nonNegative(fallbackPrice)
-    };
-  });
-
-  return rows;
-}
-
 function calculatePricing(subscription,usage){
   const vehicleControls = mergeControls(
     usage.vehicles,
@@ -363,7 +316,7 @@ function calculatePricing(subscription,usage){
     whole(subscription.maxDispatchers,2);
 
   const maxCompanies =
-    whole(subscription.maxCompanies,2);
+    whole(subscription.maxCompanies,3);
 
   const maxServices =
     whole(
@@ -371,141 +324,124 @@ function calculatePricing(subscription,usage){
       includedServices
     );
 
-  const maxBrokers =
-    whole(
-      subscription.maxBrokers,
-      whole(subscription.includedBrokers,1)
-    );
-
-  const extraVehicles = Math.max(
-    0,
-    billedVehicles - includedVehicles
+  /*
+    Driver + Vehicle billing rule:
+    one driver and one vehicle represent ONE paid unit.
+    Therefore the used unit count is the larger of active drivers / billed vehicles.
+    The package allowance is snapshotted separately so raising hard limits does not
+    silently increase what is included in the base package.
+  */
+  const actualDriverVehicleUnits = Math.max(
+    whole(usage.actualDrivers),
+    whole(billedVehicles)
   );
 
+  const includedDriverVehicleUnits = whole(
+    subscription.includedDriverVehicleUnits,
+    Math.max(maxDrivers,maxVehicles,includedVehicles)
+  );
+
+  const extraDriverVehicleUnits = Math.max(
+    0,
+    actualDriverVehicleUnits - includedDriverVehicleUnits
+  );
+
+  /* Existing freeExtraVehicles remains valid and now waives combined units. */
   const freeExtraVehicles = whole(subscription.freeExtraVehicles);
-
-  const billableExtraVehicles = Math.max(
+  const billableExtraDriverVehicleUnits = Math.max(
     0,
-    extraVehicles - freeExtraVehicles
+    extraDriverVehicleUnits - freeExtraVehicles
   );
 
-  const basePackageAmount =
+  const includedDispatchers = whole(
+    subscription.includedDispatchers,
+    maxDispatchers
+  );
+  const includedAdmins = whole(
+    subscription.includedAdmins,
+    maxAdmins
+  );
+  const includedSuperAdmins = whole(
+    subscription.includedSuperAdmins,
+    maxSuperAdmins
+  );
+  const includedCompanies = whole(
+    subscription.includedCompanies,
+    maxCompanies
+  );
+
+  const billableExtraDispatchers = Math.max(
+    0,
+    whole(usage.actualDispatchers) - includedDispatchers
+  );
+  const billableExtraAdmins = Math.max(
+    0,
+    whole(usage.actualAdmins) - includedAdmins
+  );
+  const billableExtraSuperAdmins = Math.max(
+    0,
+    whole(usage.actualSuperAdmins) - includedSuperAdmins
+  );
+  const billableExtraCompanies = Math.max(
+    0,
+    whole(usage.actualCompanies) - includedCompanies
+  );
+
+  const extraServices = Math.max(
+    0,
+    billedServices - includedServices
+  );
+
+  const freeExtraServices = whole(subscription.freeExtraServices);
+  const billableExtraServices = Math.max(
+    0,
+    extraServices - freeExtraServices
+  );
+
+  const baseAmount =
     subscription.basePackageEnabled === false
       ? 0
       : nonNegative(subscription.basePrice);
 
+  /* Backward-compatible field: this is now the combined unit price. */
   const extraVehiclePrice =
     nonNegative(subscription.extraVehiclePrice);
-
-  /*
-    Base package price does NOT include a service.
-    The selected Included service is added at its full monthly price.
-
-    Example:
-    Base package = $100
-    Selected Included service (WH) = $40
-    Package with service = $140
-
-    Every other active Billable service is charged at its full add-on price.
-  */
-  const defaultServicePrice =
+  const extraDispatcherPrice =
+    nonNegative(subscription.extraDispatcherPrice);
+  const extraAdminPrice =
+    nonNegative(subscription.extraAdminPrice);
+  const extraSuperAdminPrice =
+    nonNegative(subscription.extraSuperAdminPrice);
+  const extraCompanyPrice =
+    nonNegative(subscription.extraCompanyPrice);
+  const extraServicePrice =
     nonNegative(subscription.extraServicePrice);
 
-  const servicePricing = mergeServicePricing(
-    serviceControls,
-    subscription.servicePricing,
-    includedServices,
-    defaultServicePrice
-  );
-
-  const includedServiceRows =
-    servicePricing.filter(row=>{
-      const control = serviceControls.find(x=>
-        clean(x.key).toUpperCase() === row.key
-      );
-
-      return (
-        control?.billingEnabled !== false &&
-        row.included === true
-      );
-    });
-
-  const includedServicePriceTotal =
-    includedServiceRows.reduce(
-      (sum,row)=>sum + nonNegative(row.monthlyPrice),
-      0
-    );
-
-  const baseAmount = Math.max(
-    0,
-    basePackageAmount + includedServicePriceTotal
-  );
-
-  const billableServiceRows =
-    servicePricing.filter(row=>{
-      const control = serviceControls.find(x=>
-        clean(x.key).toUpperCase() === row.key
-      );
-
-      return (
-        control?.billingEnabled !== false &&
-        row.included !== true
-      );
-    });
-
-  const extraServices =
-    billableServiceRows.length;
-
-  const freeExtraServices =
-    whole(subscription.freeExtraServices);
-
-  const billableExtraServices =
-    Math.max(
-      0,
-      extraServices - freeExtraServices
-    );
-
-  let remainingFreeServices =
-    freeExtraServices;
-
-  const serviceCharges =
-    billableServiceRows.map(row=>{
-      const free = remainingFreeServices > 0;
-
-      if(free){
-        remainingFreeServices -= 1;
-      }
-
-      const amount =
-        free
-          ? 0
-          : nonNegative(row.monthlyPrice);
-
-      return {
-        key:row.key,
-        label:row.label,
-        included:false,
-        free,
-        monthlyPrice:nonNegative(row.monthlyPrice),
-        amount
-      };
-    });
-
   const vehicleAmount =
-    billableExtraVehicles * extraVehiclePrice;
-
+    billableExtraDriverVehicleUnits * extraVehiclePrice;
+  const dispatcherAmount =
+    billableExtraDispatchers * extraDispatcherPrice;
+  const adminAmount =
+    billableExtraAdmins * extraAdminPrice;
+  const superAdminAmount =
+    billableExtraSuperAdmins * extraSuperAdminPrice;
+  const companyAmount =
+    billableExtraCompanies * extraCompanyPrice;
   const serviceAmount =
-    serviceCharges.reduce(
-      (sum,row)=>sum + nonNegative(row.amount),
-      0
-    );
+    billableExtraServices * extraServicePrice;
 
   const discount = nonNegative(subscription.discount);
   const credit = nonNegative(subscription.credit);
 
   const subtotal = Math.max(
     0,
-    baseAmount + vehicleAmount + serviceAmount
+    baseAmount +
+    vehicleAmount +
+    dispatcherAmount +
+    adminAmount +
+    superAdminAmount +
+    companyAmount +
+    serviceAmount
   );
 
   const calculated = Math.max(
@@ -551,7 +487,6 @@ function calculatePricing(subscription,usage){
     maxDispatchers,
     maxCompanies,
     maxServices,
-    maxBrokers,
 
     includedVehicles,
     includedServices,
@@ -559,27 +494,42 @@ function calculatePricing(subscription,usage){
     billedVehicles,
     billedServices,
 
-    extraVehicles,
-    extraServices,
+    actualDriverVehicleUnits,
+    includedDriverVehicleUnits,
+    extraDriverVehicleUnits,
 
+    /* Legacy names kept so old screens/routes do not break. */
+    extraVehicles:extraDriverVehicleUnits,
     freeExtraVehicles,
-    freeExtraServices,
+    billableExtraVehicles:billableExtraDriverVehicleUnits,
+    billableExtraDriverVehicleUnits,
 
-    billableExtraVehicles,
+    includedDispatchers,
+    includedAdmins,
+    includedSuperAdmins,
+    includedCompanies,
+    billableExtraDispatchers,
+    billableExtraAdmins,
+    billableExtraSuperAdmins,
+    billableExtraCompanies,
+
+    extraServices,
+    freeExtraServices,
     billableExtraServices,
 
-    basePackageAmount:Number(basePackageAmount.toFixed(2)),
-    includedServicePriceTotal:Number(includedServicePriceTotal.toFixed(2)),
     baseAmount:Number(baseAmount.toFixed(2)),
     extraVehiclePrice:Number(extraVehiclePrice.toFixed(2)),
-    extraServicePrice:Number(defaultServicePrice.toFixed(2)),
+    extraDispatcherPrice:Number(extraDispatcherPrice.toFixed(2)),
+    extraAdminPrice:Number(extraAdminPrice.toFixed(2)),
+    extraSuperAdminPrice:Number(extraSuperAdminPrice.toFixed(2)),
+    extraCompanyPrice:Number(extraCompanyPrice.toFixed(2)),
+    extraServicePrice:Number(extraServicePrice.toFixed(2)),
     vehicleAmount:Number(vehicleAmount.toFixed(2)),
+    dispatcherAmount:Number(dispatcherAmount.toFixed(2)),
+    adminAmount:Number(adminAmount.toFixed(2)),
+    superAdminAmount:Number(superAdminAmount.toFixed(2)),
+    companyAmount:Number(companyAmount.toFixed(2)),
     serviceAmount:Number(serviceAmount.toFixed(2)),
-    serviceCharges:serviceCharges.map(row=>({
-      ...row,
-      monthlyPrice:Number(row.monthlyPrice.toFixed(2)),
-      amount:Number(row.amount.toFixed(2))
-    })),
     discount:Number(discount.toFixed(2)),
     credit:Number(credit.toFixed(2)),
     subtotal:Number(subtotal.toFixed(2)),
@@ -587,8 +537,7 @@ function calculatePricing(subscription,usage){
     finalAmount:Number(finalAmount.toFixed(2)),
 
     vehicleControls,
-    serviceControls,
-    servicePricing
+    serviceControls
   };
 }
 
@@ -639,16 +588,28 @@ async function ensureTenantPricing(tenant){
       whole(defaults.includedServices);
 
     subscription.includedBrokers =
-      whole(defaults.includedBrokers,1);
+      whole(defaults.includedBrokers);
+
+    subscription.extraBrokerPrice =
+      nonNegative(defaults.extraBrokerPrice);
 
     subscription.extraVehiclePrice =
       nonNegative(defaults.extraVehiclePrice);
 
+    subscription.extraDispatcherPrice =
+      nonNegative(defaults.extraDispatcherPrice);
+
+    subscription.extraAdminPrice =
+      nonNegative(defaults.extraAdminPrice);
+
+    subscription.extraSuperAdminPrice =
+      nonNegative(defaults.extraSuperAdminPrice);
+
+    subscription.extraCompanyPrice =
+      nonNegative(defaults.extraCompanyPrice);
+
     subscription.extraServicePrice =
       nonNegative(defaults.extraServicePrice);
-
-    subscription.extraBrokerPrice =
-      nonNegative(defaults.extraBrokerPrice);
 
     subscription.pricingInitialized = true;
     subscription.pricingUpdatedAt = new Date();
@@ -685,7 +646,7 @@ async function ensureTenantPricing(tenant){
     subscription.maxServices =
       whole(
         defaults.maxServices,
-        defaults.includedServices ?? 1
+        defaults.includedServices ?? 2
       );
 
     subscription.maxBrokers =
@@ -698,15 +659,55 @@ async function ensureTenantPricing(tenant){
     subscription.pricingUpdatedAt = new Date();
   }
 
+  /*
+    One-time snapshot of what the current package already includes.
+    Future increases to max* are sellable add-ons instead of silently becoming free.
+  */
+  if(subscription.accountAddonPricingInitialized !== true){
+    subscription.includedDriverVehicleUnits = Math.max(
+      whole(subscription.maxDrivers,defaults.maxDrivers ?? 5),
+      whole(subscription.maxVehicles,defaults.maxVehicles ?? defaults.includedVehicles ?? 5),
+      whole(subscription.includedVehicles,defaults.includedVehicles ?? 5)
+    );
+    subscription.includedDispatchers =
+      whole(subscription.maxDispatchers,defaults.maxDispatchers ?? 2);
+    subscription.includedAdmins =
+      whole(subscription.maxAdmins,defaults.maxAdmins ?? 2);
+    subscription.includedSuperAdmins =
+      whole(subscription.maxSuperAdmins,defaults.maxSuperAdmins ?? 2);
+    subscription.includedCompanies =
+      whole(subscription.maxCompanies,defaults.maxCompanies ?? 3);
+
+    /* Existing companies receive the current default add-on prices initially. */
+    if(!nonNegative(subscription.extraDispatcherPrice)){
+      subscription.extraDispatcherPrice = nonNegative(defaults.extraDispatcherPrice);
+    }
+    if(!nonNegative(subscription.extraAdminPrice)){
+      subscription.extraAdminPrice = nonNegative(defaults.extraAdminPrice);
+    }
+    if(!nonNegative(subscription.extraSuperAdminPrice)){
+      subscription.extraSuperAdminPrice = nonNegative(defaults.extraSuperAdminPrice);
+    }
+    if(!nonNegative(subscription.extraCompanyPrice)){
+      subscription.extraCompanyPrice = nonNegative(defaults.extraCompanyPrice);
+    }
+
+    subscription.accountAddonPricingInitialized = true;
+    subscription.pricingUpdatedAt = new Date();
+  }
+
   const usage = await getTenantUsage(tenant);
   const pricing = calculatePricing(subscription,usage);
 
   subscription.vehicleControls = pricing.vehicleControls;
   subscription.serviceControls = pricing.serviceControls;
-  subscription.servicePricing = pricing.servicePricing;
 
   subscription.calculatedBaseAmount = pricing.baseAmount;
   subscription.calculatedVehicleAmount = pricing.vehicleAmount;
+  subscription.calculatedDispatcherAmount = pricing.dispatcherAmount;
+  subscription.calculatedAdminAmount = pricing.adminAmount;
+  subscription.calculatedSuperAdminAmount = pricing.superAdminAmount;
+  subscription.calculatedCompanyAmount = pricing.companyAmount;
   subscription.calculatedServiceAmount = pricing.serviceAmount;
   subscription.calculatedSubtotal = pricing.subtotal;
   subscription.calculatedFinalAmount = pricing.finalAmount;

@@ -709,8 +709,28 @@ document.addEventListener("DOMContentLoaded",()=>{
           <div class="pricing-section-heading">Extra Unit Pricing & Adjustments</div>
           <div class="grid-4 pricing-grid">
             <div class="field">
-              <label>Extra Vehicle Price</label>
+              <label>Extra Driver / Vehicle Unit Price</label>
               <input class="extra-vehicle-price" type="number" min="0" step="0.01" value="${Number(s.extraVehiclePrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Extra Dispatcher Price</label>
+              <input class="extra-dispatcher-price" type="number" min="0" step="0.01" value="${Number(s.extraDispatcherPrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Extra Admin Price</label>
+              <input class="extra-admin-price" type="number" min="0" step="0.01" value="${Number(s.extraAdminPrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Extra Super Admin Price</label>
+              <input class="extra-super-admin-price" type="number" min="0" step="0.01" value="${Number(s.extraSuperAdminPrice || 0)}" disabled>
+            </div>
+
+            <div class="field">
+              <label>Extra Company Price</label>
+              <input class="extra-company-price" type="number" min="0" step="0.01" value="${Number(s.extraCompanyPrice || 0)}" disabled>
             </div>
 
             <div class="field broker-field">
@@ -766,7 +786,11 @@ document.addEventListener("DOMContentLoaded",()=>{
             <div class="price-line"><span>Base Package</span><strong>${money(p.basePackageAmount ?? s.basePrice ?? 0)}</strong></div>
             <div class="price-line"><span>Included Service</span><strong>+${money(p.includedServicePriceTotal || 0)}</strong></div>
             <div class="price-line"><span>Package Price</span><strong>${money(p.baseAmount)}</strong></div>
-            <div class="price-line"><span>Extra Vehicles</span><strong>${Number(p.billableExtraVehicles || 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
+            <div class="price-line"><span>Extra Driver / Vehicle Units</span><strong>${Number(p.billableExtraDriverVehicleUnits ?? p.billableExtraVehicles ?? 0)} × ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}</strong></div>
+            <div class="price-line"><span>Extra Dispatchers</span><strong>${Number(p.billableExtraDispatchers || 0)} × ${money(p.extraDispatcherPrice)} = ${money(p.dispatcherAmount)}</strong></div>
+            <div class="price-line"><span>Extra Admins</span><strong>${Number(p.billableExtraAdmins || 0)} × ${money(p.extraAdminPrice)} = ${money(p.adminAmount)}</strong></div>
+            <div class="price-line"><span>Extra Super Admins</span><strong>${Number(p.billableExtraSuperAdmins || 0)} × ${money(p.extraSuperAdminPrice)} = ${money(p.superAdminAmount)}</strong></div>
+            <div class="price-line"><span>Extra Companies</span><strong>${Number(p.billableExtraCompanies || 0)} × ${money(p.extraCompanyPrice)} = ${money(p.companyAmount)}</strong></div>
             ${
               Array.isArray(p.serviceCharges) && p.serviceCharges.length
                 ? p.serviceCharges.map(item=>`
@@ -914,6 +938,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       maxServices:Number(q(".max-services")?.value || 0),
       maxBrokers:Number(q(".max-brokers")?.value || 0),
       extraVehiclePrice:Number(q(".extra-vehicle-price")?.value || 0),
+      extraDispatcherPrice:Number(q(".extra-dispatcher-price")?.value || 0),
+      extraAdminPrice:Number(q(".extra-admin-price")?.value || 0),
+      extraSuperAdminPrice:Number(q(".extra-super-admin-price")?.value || 0),
+      extraCompanyPrice:Number(q(".extra-company-price")?.value || 0),
       extraServicePrice:Number(q(".extra-service-price")?.value || 0),
       extraBrokerPrice:Number(q(".extra-broker-price")?.value || 0),
       freeExtraVehicles:Number(q(".free-extra-vehicles")?.value || 0),
@@ -1009,7 +1037,11 @@ document.addEventListener("DOMContentLoaded",()=>{
           `Base Package: ${money(p.basePackageAmount ?? p.baseAmount)}`,
           `Included Service: +${money(p.includedServicePriceTotal || 0)}`,
           `Package Price: ${money(p.baseAmount)}`,
-          `Extra Vehicles: ${Number(p.billableExtraVehicles || 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
+          `Extra Driver / Vehicle Units: ${Number(p.billableExtraDriverVehicleUnits ?? p.billableExtraVehicles ?? 0)} x ${money(p.extraVehiclePrice)} = ${money(p.vehicleAmount)}`,
+          `Extra Dispatchers: ${Number(p.billableExtraDispatchers || 0)} x ${money(p.extraDispatcherPrice)} = ${money(p.dispatcherAmount)}`,
+          `Extra Admins: ${Number(p.billableExtraAdmins || 0)} x ${money(p.extraAdminPrice)} = ${money(p.adminAmount)}`,
+          `Extra Super Admins: ${Number(p.billableExtraSuperAdmins || 0)} x ${money(p.extraSuperAdminPrice)} = ${money(p.superAdminAmount)}`,
+          `Extra Companies: ${Number(p.billableExtraCompanies || 0)} x ${money(p.extraCompanyPrice)} = ${money(p.companyAmount)}`,
           `Extra Services: ${money(p.serviceAmount)}`,
           `Extra Brokers: ${Number(p.billableExtraBrokers || brokerStats(row).billableExtra || 0)} x ${money(p.extraBrokerPrice ?? brokerStats(row).extraPrice)} = ${money(p.brokerAmount ?? brokerStats(row).amount)}`,
           `Discount: -${money(p.discount)}`,
@@ -1240,6 +1272,10 @@ document.addEventListener("DOMContentLoaded",()=>{
     "dMaxBrokers",
     "dBillingCycle",
     "dExtraVehiclePrice",
+    "dExtraDispatcherPrice",
+    "dExtraAdminPrice",
+    "dExtraSuperAdminPrice",
+    "dExtraCompanyPrice",
     "dExtraServicePrice",
     "dExtraBrokerPrice",
     "dPackageStatus"
@@ -1273,6 +1309,10 @@ document.addEventListener("DOMContentLoaded",()=>{
     document.getElementById("dMaxBrokers").value = Number(row.maxBrokers ?? row.includedBrokers ?? 1);
     document.getElementById("dBillingCycle").value = row.billingCycle || "MONTHLY";
     document.getElementById("dExtraVehiclePrice").value = Number(row.extraVehiclePrice || 0);
+    document.getElementById("dExtraDispatcherPrice").value = Number(row.extraDispatcherPrice || 0);
+    document.getElementById("dExtraAdminPrice").value = Number(row.extraAdminPrice || 0);
+    document.getElementById("dExtraSuperAdminPrice").value = Number(row.extraSuperAdminPrice || 0);
+    document.getElementById("dExtraCompanyPrice").value = Number(row.extraCompanyPrice || 0);
     document.getElementById("dExtraServicePrice").value = Number(row.extraServicePrice || 0);
     document.getElementById("dExtraBrokerPrice").value = Number(row.extraBrokerPrice || 0);
     document.getElementById("dPackageStatus").value = row.packageStatus || "ACTIVE";
@@ -1302,6 +1342,10 @@ document.addEventListener("DOMContentLoaded",()=>{
       maxBrokers:Number(document.getElementById("dMaxBrokers").value || 0),
       billingCycle:document.getElementById("dBillingCycle").value,
       extraVehiclePrice:Number(document.getElementById("dExtraVehiclePrice").value || 0),
+      extraDispatcherPrice:Number(document.getElementById("dExtraDispatcherPrice").value || 0),
+      extraAdminPrice:Number(document.getElementById("dExtraAdminPrice").value || 0),
+      extraSuperAdminPrice:Number(document.getElementById("dExtraSuperAdminPrice").value || 0),
+      extraCompanyPrice:Number(document.getElementById("dExtraCompanyPrice").value || 0),
       extraServicePrice:Number(document.getElementById("dExtraServicePrice").value || 0),
       extraBrokerPrice:Number(document.getElementById("dExtraBrokerPrice").value || 0),
       packageStatus:document.getElementById("dPackageStatus").value

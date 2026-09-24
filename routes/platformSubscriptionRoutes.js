@@ -56,11 +56,7 @@ function normalizeControlRows(rows){
 }
 
 async function getActualBrokerCount(tenantId){
-  return BrokerIntegration.countDocuments({
-    tenantId,
-    enabled:{ $ne:false },
-    billingEnabled:{ $ne:false }
-  });
+  return BrokerIntegration.countDocuments({ tenantId });
 }
 
 function applyBrokerPricing(basePricing,subscription,actualBrokers){
@@ -98,17 +94,6 @@ function applyBrokerPricing(basePricing,subscription,actualBrokers){
   return pricing;
 }
 
-function normalizeServicePricingRows(rows){
-  return (Array.isArray(rows) ? rows : [])
-    .map(row=>({
-      key:clean(row?.key).toUpperCase(),
-      label:clean(row?.label) || clean(row?.key).toUpperCase(),
-      included:row?.included === true,
-      monthlyPrice:nonNegative(row?.monthlyPrice)
-    }))
-    .filter(row=>row.key);
-}
-
 function applyCompanyPayload(subscription,body){
   if(body.planName !== undefined){
     subscription.planName =
@@ -129,6 +114,10 @@ function applyCompanyPayload(subscription,body){
   [
     "basePrice",
     "extraVehiclePrice",
+    "extraDispatcherPrice",
+    "extraAdminPrice",
+    "extraSuperAdminPrice",
+    "extraCompanyPrice",
     "extraServicePrice",
     "extraBrokerPrice",
     "discount",
@@ -182,15 +171,7 @@ function applyCompanyPayload(subscription,body){
       subscription.dueDate = null;
       subscription.nextBillingDate = null;
     }else{
-      const rawDueDate =
-        String(body.dueDate || "")
-          .trim()
-          .slice(0,10);
-
-      const date =
-        /^\d{4}-\d{2}-\d{2}$/.test(rawDueDate)
-          ? new Date(rawDueDate + "T00:00:00.000Z")
-          : new Date(body.dueDate);
+      const date = new Date(body.dueDate);
 
       if(!Number.isNaN(date.getTime())){
         subscription.dueDate = date;
@@ -207,14 +188,6 @@ function applyCompanyPayload(subscription,body){
   if(Array.isArray(body.serviceControls)){
     subscription.serviceControls =
       normalizeControlRows(body.serviceControls);
-  }
-
-  if(Array.isArray(body.servicePricing)){
-    subscription.servicePricing =
-      normalizeServicePricingRows(body.servicePricing);
-
-    subscription.includedServices =
-      subscription.servicePricing.filter(row=>row.included).length;
   }
 
   subscription.pricingInitialized = true;
@@ -258,16 +231,16 @@ router.put(
         "GH Mobility Starter";
 
       row.basePrice =
-        nonNegative(req.body?.basePrice,125);
+        nonNegative(req.body?.basePrice,99);
 
       row.includedVehicles =
         whole(req.body?.includedVehicles,5);
 
       row.includedServices =
-        whole(req.body?.includedServices,1);
+        whole(req.body?.includedServices,2);
 
       row.includedBrokers =
-        whole(req.body?.includedBrokers,1);
+        whole(req.body?.includedBrokers,0);
 
       row.maxDrivers =
         whole(req.body?.maxDrivers,5);
@@ -288,12 +261,12 @@ router.put(
         whole(req.body?.maxDispatchers,2);
 
       row.maxCompanies =
-        whole(req.body?.maxCompanies,2);
+        whole(req.body?.maxCompanies,3);
 
       row.maxServices =
         whole(
           req.body?.maxServices,
-          row.includedServices || 1
+          row.includedServices || 2
         );
 
       row.maxBrokers =
@@ -307,6 +280,18 @@ router.put(
 
       row.extraVehiclePrice =
         nonNegative(req.body?.extraVehiclePrice,10);
+
+      row.extraDispatcherPrice =
+        nonNegative(req.body?.extraDispatcherPrice,0);
+
+      row.extraAdminPrice =
+        nonNegative(req.body?.extraAdminPrice,0);
+
+      row.extraSuperAdminPrice =
+        nonNegative(req.body?.extraSuperAdminPrice,0);
+
+      row.extraCompanyPrice =
+        nonNegative(req.body?.extraCompanyPrice,0);
 
       row.extraServicePrice =
         nonNegative(req.body?.extraServicePrice,15);
@@ -770,15 +755,30 @@ router.post(
             ? whole(req.body.maxBrokers)
             : draft.maxBrokers,
 
-        servicePricing:
-          Array.isArray(req.body?.servicePricing)
-            ? normalizeServicePricingRows(req.body.servicePricing)
-            : draft.servicePricing,
-
         extraVehiclePrice:
           req.body?.extraVehiclePrice !== undefined
             ? nonNegative(req.body.extraVehiclePrice)
             : draft.extraVehiclePrice,
+
+        extraDispatcherPrice:
+          req.body?.extraDispatcherPrice !== undefined
+            ? nonNegative(req.body.extraDispatcherPrice)
+            : draft.extraDispatcherPrice,
+
+        extraAdminPrice:
+          req.body?.extraAdminPrice !== undefined
+            ? nonNegative(req.body.extraAdminPrice)
+            : draft.extraAdminPrice,
+
+        extraSuperAdminPrice:
+          req.body?.extraSuperAdminPrice !== undefined
+            ? nonNegative(req.body.extraSuperAdminPrice)
+            : draft.extraSuperAdminPrice,
+
+        extraCompanyPrice:
+          req.body?.extraCompanyPrice !== undefined
+            ? nonNegative(req.body.extraCompanyPrice)
+            : draft.extraCompanyPrice,
 
         extraServicePrice:
           req.body?.extraServicePrice !== undefined
@@ -830,11 +830,6 @@ router.post(
             ? normalizeControlRows(req.body.serviceControls)
             : draft.serviceControls
       });
-
-      if(Array.isArray(draft.servicePricing)){
-        draft.includedServices =
-          draft.servicePricing.filter(row=>row.included === true).length;
-      }
 
       const actualBrokers =
         await getActualBrokerCount(tenant._id);
@@ -918,14 +913,23 @@ router.put(
       subscription.serviceControls =
         pricing.serviceControls;
 
-      subscription.servicePricing =
-        pricing.servicePricing;
-
       subscription.calculatedBaseAmount =
         pricing.baseAmount;
 
       subscription.calculatedVehicleAmount =
         pricing.vehicleAmount;
+
+      subscription.calculatedDispatcherAmount =
+        pricing.dispatcherAmount;
+
+      subscription.calculatedAdminAmount =
+        pricing.adminAmount;
+
+      subscription.calculatedSuperAdminAmount =
+        pricing.superAdminAmount;
+
+      subscription.calculatedCompanyAmount =
+        pricing.companyAmount;
 
       subscription.calculatedServiceAmount =
         pricing.serviceAmount;

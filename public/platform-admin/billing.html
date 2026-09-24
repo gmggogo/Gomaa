@@ -1235,7 +1235,11 @@ body{
             </select>
           </div>
 
-          <div class="field"><label>Extra Vehicle Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Driver / Vehicle Unit Price</label><input id="dExtraVehiclePrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Dispatcher Price</label><input id="dExtraDispatcherPrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Admin Price</label><input id="dExtraAdminPrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Super Admin Price</label><input id="dExtraSuperAdminPrice" type="number" min="0" step="0.01" disabled></div>
+          <div class="field"><label>Extra Company Price</label><input id="dExtraCompanyPrice" type="number" min="0" step="0.01" disabled></div>
           <div class="field"><label>Extra Service Price</label><input id="dExtraServicePrice" type="number" min="0" step="0.01" disabled></div>
           <div class="field broker-field"><label>Extra Broker Price</label><input id="dExtraBrokerPrice" type="number" min="0" step="0.01" disabled></div>
 
@@ -1249,7 +1253,7 @@ body{
         </div>
 
         <div class="limit-note">
-          Creation limits are hard caps. Live usage is pulled automatically from the company. Vehicles, services and brokers above the included package quantity are added to billing automatically after Platform Admin increases the allowed limit. Each service has its own monthly price. The base package price does not include a service. The selected Included service is added at its full price, and all displayed package totals update from that combined amount.
+          Creation limits are hard caps. Live usage is pulled automatically from the company. Driver/vehicle units, dispatchers, admins, super admins, companies, services and brokers above the package allowance are added to billing automatically after Platform Admin increases the allowed limit. Each service has its own monthly price. The base package price does not include a service. The selected Included service is added at its full price, and all displayed package totals update from that combined amount.
         </div>
 
         <div class="actions">
