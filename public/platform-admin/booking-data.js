@@ -83,7 +83,8 @@ let saving = false;
 const collapsed = {
   core:false,
   standard:false,
-  custom:false
+  custom:false,
+  brokerAuto:false
 };
 
 function clean(value){
@@ -166,7 +167,7 @@ function normalizeMatrix(raw){
     raw?.facility?.showEye === true;
 
   if(
-    matrix.facility.showField &&
+    matrix.facility.showColumn &&
     matrix.facility.showEye
   ){
     matrix.facility.showEye = false;
@@ -186,7 +187,7 @@ function normalizeMatrix(raw){
     raw?.reserved?.showEye === true;
 
   if(
-    matrix.reserved.showField &&
+    matrix.reserved.showColumn &&
     matrix.reserved.showEye
   ){
     matrix.reserved.showEye = false;
@@ -303,9 +304,46 @@ function normalizeConfig(data){
         };
       });
 
+  const brokerAutoInput =
+    Array.isArray(data?.brokerAutoFields)
+      ? data.brokerAutoFields
+      : (
+          Array.isArray(data?.brokerFields)
+            ? data.brokerFields.filter(
+                item =>
+                  clean(item?.source).toUpperCase() ===
+                  "BROKER_AUTO"
+              )
+            : []
+        );
+
+  const brokerAutoFields =
+    brokerAutoInput
+      .map((field,index)=>({
+        key:clean(field?.key || field?.fieldKey),
+        label:clean(field?.label || field?.fieldPath || field?.key),
+        fieldType:clean(field?.fieldType || "TEXT").toUpperCase(),
+        brokerCode:clean(field?.brokerCode).toUpperCase(),
+        brokerName:clean(field?.brokerName),
+        fieldPath:clean(field?.fieldPath),
+        matrix:{
+          broker:(()=>{
+            const showColumn = field?.showColumn !== false;
+            const showEye = field?.showEye === true && !showColumn;
+            return {
+              showColumn,
+              showEye
+            };
+          })()
+        },
+        order:Number(field?.order ?? (10000 + index))
+      }))
+      .filter(field=>field.key);
+
   return {
     standardFields,
-    customFields
+    customFields,
+    brokerAutoFields
   };
 }
 
@@ -771,6 +809,97 @@ function customRows(){
     .join("");
 }
 
+function brokerAutoRows(){
+
+  if(collapsed.brokerAuto){
+    return "";
+  }
+
+  const fields =
+    Array.isArray(draftConfig.brokerAutoFields)
+      ? draftConfig.brokerAutoFields
+      : [];
+
+  if(!fields.length){
+    return `
+      <tr data-section="brokerAuto">
+        <td class="field-cell">
+          <div class="field-name">Broker Auto Fields</div>
+          <div class="field-meta">
+            No auto-discovered broker fields have been received yet.
+          </div>
+        </td>
+        ${fixedCell("gq")}
+        ${fixedCell("fa")}
+        ${fixedCell("rv")}
+        <td class="source-cell br">
+          <div class="fixed-state">Waiting for broker data</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  return fields
+    .slice()
+    .sort((a,b)=>
+      Number(a.order || 0) -
+      Number(b.order || 0)
+    )
+    .map(item=>{
+      const broker =
+        item.matrix?.broker || {
+          showColumn:true,
+          showEye:false
+        };
+
+      const identity = {
+        fieldKind:"brokerAuto",
+        fieldKey:item.key
+      };
+
+      const brokerCell = `
+        <td class="source-cell br">
+          <div class="control-grid br-grid">
+            ${checkboxControl({
+              checked:broker.showColumn === true,
+              label:"Column",
+              action:"showColumn",
+              source:"broker",
+              ...identity
+            })}
+
+            ${checkboxControl({
+              checked:broker.showEye === true,
+              label:"Eye",
+              action:"showEye",
+              source:"broker",
+              ...identity
+            })}
+          </div>
+        </td>
+      `;
+
+      return `
+        <tr data-section="brokerAuto">
+          <td class="field-cell">
+            <div class="field-name">
+              ${esc(item.label || item.key)}
+            </div>
+            <div class="field-meta">
+              Broker Auto Field${item.brokerCode ? ` • ${esc(item.brokerCode)}` : ""}${item.fieldPath ? ` • ${esc(item.fieldPath)}` : ""}
+            </div>
+          </td>
+
+          ${fixedCell("gq")}
+          ${fixedCell("fa")}
+          ${fixedCell("rv")}
+          ${brokerCell}
+        </tr>
+      `;
+    })
+    .join("");
+}
+
 function renderMatrix(){
 
   matrixRows.innerHTML =
@@ -789,6 +918,14 @@ function renderMatrix(){
       "＋"
     ) +
     standardRows() +
+
+    sectionRow(
+      "Broker Auto Fields",
+      "Fields discovered automatically from broker payloads",
+      "brokerAuto",
+      "⇄"
+    ) +
+    brokerAutoRows() +
 
     sectionRow(
       "10 Custom Extra Fields",
@@ -830,6 +967,14 @@ function locateItem(
 
   if(kind === "standard"){
     return draftConfig.standardFields
+      .find(
+        item =>
+          item.key === key
+      );
+  }
+
+  if(kind === "brokerAuto"){
+    return (draftConfig.brokerAutoFields || [])
       .find(
         item =>
           item.key === key
@@ -900,9 +1045,16 @@ function applyMatrixChange(input){
     source === "reserved"
   ){
 
+    /*
+      Field is independent from the display mode.
+      Allowed:
+      - Field + Column
+      - Field + Eye
+      Only Column and Eye are mutually exclusive.
+    */
     if(
-      action === "showField" &&
-      group.showField
+      action === "showColumn" &&
+      group.showColumn
     ){
       group.showEye = false;
     }
@@ -911,8 +1063,7 @@ function applyMatrixChange(input){
       action === "showEye" &&
       group.showEye
     ){
-      group.showField = false;
-      group.required = false;
+      group.showColumn = false;
     }
 
     if(
@@ -1296,7 +1447,14 @@ async function saveConfig(){
               draftConfig.standardFields,
 
             customFields:
-              draftConfig.customFields
+              draftConfig.customFields,
+
+            brokerAutoFields:
+              (draftConfig.brokerAutoFields || []).map(field=>({
+                key:field.key,
+                showColumn:field.matrix?.broker?.showColumn === true,
+                showEye:field.matrix?.broker?.showEye === true
+              }))
           })
         }
       );
