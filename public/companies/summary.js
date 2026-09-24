@@ -683,7 +683,13 @@ function getServiceCatalog(){
     new Map();
 
   /*
-    First: services enabled for this company from Service Management.
+    SUMMARY SERVICE SOURCE:
+    Only services returned by /api/services?company=true are allowed
+    to create Summary tabs/stat cards.
+
+    Do NOT add services discovered from historical trips.
+    Old trips remain visible under "All", but an old/disabled service
+    must not recreate a service tab after Service Management disabled it.
   */
   (Array.isArray(SERVICES) ? SERVICES : [])
     .forEach(service=>{
@@ -699,43 +705,6 @@ function getServiceCatalog(){
         code,
         title:getServiceTitle(service),
         service
-      });
-
-    });
-
-  /*
-    Second: never hide a service already used by an existing trip,
-    even if the service endpoint is temporarily behind/stale.
-  */
-  (Array.isArray(allTrips) ? allTrips : [])
-    .forEach(trip=>{
-
-      const code =
-        getTripServiceCode(trip);
-
-      if(!code || byCode.has(code)){
-        return;
-      }
-
-      const tripTitle =
-        String(
-          trip.serviceName ??
-          trip.serviceTitle ??
-          (
-            typeof trip.service === "string"
-              ? trip.service
-              : ""
-          ) ??
-          ""
-        ).trim();
-
-      byCode.set(code,{
-        code,
-        title:tripTitle || code,
-        service:{
-          code,
-          title:tripTitle || code
-        }
       });
 
     });
