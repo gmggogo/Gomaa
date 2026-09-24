@@ -970,6 +970,83 @@ button:hover{
   }
 }
 
+
+/* ================= INFORMATION PANELS ================= */
+
+/* Client Information + Additional Information */
+.information-panel{
+  border:1px solid #cfe0f5;
+  background:#f8fbff;
+  box-shadow:0 4px 12px rgba(37,99,235,.05);
+}
+
+/* Center both titles and give them a light highlighted frame */
+.information-panel > h3{
+  width:max-content;
+  max-width:100%;
+  margin:0 auto 16px;
+  padding:8px 22px;
+  text-align:center;
+  color:#1e3a8a;
+  background:#eef6ff;
+  border:1px solid #cfe0f5;
+  border-radius:10px;
+}
+
+/* Keep the two-column fields perfectly even */
+#clientInformationSection .form-grid,
+#dynamicBookingFieldsSection .form-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+}
+
+#clientInformationSection .field-wrap,
+#dynamicBookingFieldsSection .field-wrap{
+  width:100%;
+  min-width:0;
+}
+
+/* Same field size */
+#clientInformationSection input,
+#clientInformationSection select,
+#dynamicBookingFieldsSection input,
+#dynamicBookingFieldsSection select,
+#dynamicBookingFieldsSection textarea{
+  width:100%;
+  height:46px;
+  min-height:46px;
+  margin:0;
+  padding:11px 12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#fff;
+  font-size:13px;
+  line-height:22px;
+}
+
+/* Dynamic long-text fields stay visually equal to the rest */
+#dynamicBookingFieldsSection textarea{
+  resize:vertical;
+}
+
+/* Labels line up consistently */
+#dynamicBookingFieldsSection .auto-share-field-label{
+  min-height:18px;
+  margin:0 0 6px 2px;
+}
+
+/* Mobile */
+@media(max-width:768px){
+  #clientInformationSection .form-grid,
+  #dynamicBookingFieldsSection .form-grid{
+    grid-template-columns:1fr;
+  }
+
+  .information-panel > h3{
+    width:100%;
+  }
+}
+
 </style>
 </head>
 
@@ -1038,7 +1115,7 @@ button:hover{
 
 </section>
 
-<section>
+<section id="clientInformationSection" class="information-panel">
 
 <h3>Client Information</h3>
 
@@ -1058,7 +1135,7 @@ button:hover{
 </section>
 
 <!-- ================= FACILITY DYNAMIC BOOKING FIELDS ================= -->
-<section id="dynamicBookingFieldsSection" style="display:none;">
+<section id="dynamicBookingFieldsSection" class="information-panel" style="display:none;">
   <h3>Additional Information</h3>
   <div class="form-grid" id="dynamicBookingFields"></div>
 </section>
