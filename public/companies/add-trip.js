@@ -165,6 +165,24 @@ function moveCompanyBookingFieldsToActiveService(){
     return;
   }
 
+  /*
+    IMPORTANT SCOPE FIX:
+    This function lives outside the inner async IIFE, so it must NOT use
+    individualSection/sharedSection/notes/sharedNotes variables declared
+    inside that IIFE. Query the DOM directly instead.
+  */
+  const individualSectionEl =
+    document.getElementById("individualSection");
+
+  const sharedSectionEl =
+    document.getElementById("sharedSection");
+
+  const notesEl =
+    document.getElementById("notes");
+
+  const sharedNotesEl =
+    document.getElementById("sharedNotes");
+
   const service =
     getCurrentServiceConfig();
 
@@ -173,8 +191,8 @@ function moveCompanyBookingFieldsToActiveService(){
 
   const targetSection =
     shared
-      ? sharedSection
-      : individualSection;
+      ? sharedSectionEl
+      : individualSectionEl;
 
   if(!targetSection){
     return;
@@ -182,8 +200,8 @@ function moveCompanyBookingFieldsToActiveService(){
 
   const targetNotes =
     shared
-      ? sharedNotes
-      : notes;
+      ? sharedNotesEl
+      : notesEl;
 
   const notesField =
     targetNotes?.closest(".field-wrap") ||
@@ -266,16 +284,6 @@ async function loadCompanyBookingFields(){
           );
 
     if(Array.isArray(returnedFields)){
-      /*
-        IMPORTANT:
-        /api/services/booking-data/company is already the authoritative
-        Company Booking Data endpoint. The server already decides which
-        fields belong on the Company form.
-
-        Do NOT filter the returned list a second time in the browser.
-        That extra filter was the reason valid fields could disappear even
-        though the API returned them successfully.
-      */
       COMPANY_BOOKING_FIELDS = returnedFields
         .map((item,index)=>({
           key:normalizeText(item?.key),
@@ -286,19 +294,18 @@ async function loadCompanyBookingFields(){
           required:item?.required === true,
           source:normalizeText(item?.source || "STANDARD").toUpperCase(),
           slot:Number(item?.slot || 0) || null,
-          order:Number(item?.order ?? index),
-          aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : [],
-          showField:true
+          order:Number(item?.order || index),
+          aliases:Array.isArray(item?.aliases) ? item.aliases.map(normalizeText).filter(Boolean) : []
         }))
         .filter(item=>item.key)
         .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
-    }
 
-    console.log(
-      "ADD TRIP COMPANY BOOKING FIELDS:",
-      COMPANY_BOOKING_FIELDS.length,
-      COMPANY_BOOKING_FIELDS
-    );
+      console.log(
+        "ADD TRIP COMPANY BOOKING FIELDS:",
+        COMPANY_BOOKING_FIELDS.length,
+        COMPANY_BOOKING_FIELDS
+      );
+    }
 
     /*
       HARD COMPANY FALLBACK:
@@ -493,29 +500,10 @@ async function loadCompanyBookingFields(){
 
     if(COMPANY_BOOKING_FIELDS.length){
       section.style.display = "block";
-      section.removeAttribute("hidden");
-
       restoreDynamicBookingDraft();
       moveCompanyBookingFieldsToActiveService();
-
-      /*
-        moveCompanyBookingFieldsToActiveService can reposition the section,
-        but it must remain visible after a successful Company field load.
-      */
-      section.style.display = "block";
-
-      console.log(
-        "ADD TRIP BOOKING FIELDS RENDERED:",
-        box.children.length
-      );
     }else{
-      section.style.display = "block";
-      box.innerHTML =
-        '<div style="grid-column:1/-1;padding:12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-weight:800;">No Company booking fields were returned.</div>';
-
-      console.warn(
-        "ADD TRIP: COMPANY BOOKING FIELDS ARRAY IS EMPTY"
-      );
+      section.style.display = "none";
     }
   }catch(err){
     console.log(
@@ -6005,25 +5993,12 @@ loadSharedDraft();
 
 await loadSystemTimezone();
 
-/*
-  INIT ORDER:
-  1) Load Company services first.
-  2) Then load Company Booking Data fields.
-
-  The Booking Data API is independent, but loading sequentially makes the
-  active service/section state deterministic and guarantees the field loader
-  is actually called after the page service tabs are ready.
-*/
-console.log("ADD TRIP: START COMPANY SERVICES");
-await loadCompanyServices();
-
-console.log("ADD TRIP: START COMPANY BOOKING FIELDS");
-await loadCompanyBookingFields();
-
-console.log(
-  "ADD TRIP: COMPANY BOOKING FIELDS INIT COMPLETE",
-  COMPANY_BOOKING_FIELDS.length
-);
+/* Load company services and Company Additional Information independently.
+   A slow/failed pricing request must never prevent company booking fields. */
+await Promise.allSettled([
+  loadCompanyServices(),
+  loadCompanyBookingFields()
+]);
 
 })();
 
