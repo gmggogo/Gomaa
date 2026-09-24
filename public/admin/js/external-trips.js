@@ -23,9 +23,9 @@ EXTERNAL TRIPS HUB R5
     trips:[],
     integrations:[],
     services:[],
-    brokerFields:[],
     editingId:"",
-    stopValues:[]
+    stopValues:[],
+    brokerFields:[]
   };
 
   const NEW_TRIP_WINDOW_MS =
@@ -66,139 +66,6 @@ EXTERNAL TRIPS HUB R5
 
   function clean(value){
     return String(value ?? "").trim();
-  }
-
-  function normalizeServiceCode(value){
-
-    const raw =
-      clean(value)
-        .toUpperCase();
-
-    if(!raw){
-      return "";
-    }
-
-    const compact =
-      raw
-        .replace(/[\s_-]+/g,"");
-
-    if(
-      compact === "ST" ||
-      compact === "STANDARD"
-    ) return "ST";
-
-    if(
-      compact === "WH" ||
-      compact === "WC" ||
-      compact === "WHEELCHAIR"
-    ) return "WH";
-
-    if(
-      compact === "SH" ||
-      compact === "SHARED"
-    ) return "SH";
-
-    if(
-      compact === "LM" ||
-      compact === "LIMO" ||
-      compact === "LIMOUSINE"
-    ) return "LM";
-
-    if(
-      compact === "TX" ||
-      compact === "TAXI"
-    ) return "TX";
-
-    if(
-      compact === "XL" ||
-      compact === "XLSERVICE"
-    ) return "XL";
-
-    if(/^CUSTOM[1-4]$/.test(compact)){
-      return `CUSTOM_${compact.slice(-1)}`;
-    }
-
-    return raw;
-  }
-
-  function normalizeOperationalServiceCode(value){
-
-    const normalized =
-      normalizeServiceCode(
-        value
-      );
-
-    if(
-      ["ST","WH","SH","LM","TX","XL"]
-        .includes(normalized)
-    ){
-      return normalized;
-    }
-
-    if(/^CUSTOM_[1-4]$/.test(normalized)){
-      return "";
-    }
-
-    const letters =
-      clean(value)
-        .toUpperCase()
-        .replace(/[^A-Z]/g,"")
-        .slice(0,2);
-
-    return letters.length === 2
-      ? letters
-      : "";
-  }
-
-  function normalizeServiceCatalogRow(
-    service={}
-  ){
-
-    const key =
-      normalizeOperationalServiceCode(
-        service.key ||
-        service.serviceKey ||
-        service.serviceCode ||
-        service.serviceSuffix
-      );
-
-    return {
-      ...service,
-
-      key,
-
-      name:
-        clean(
-          service.name ||
-          service.serviceName ||
-          service.title ||
-          key
-        ),
-
-      serviceIdentity:
-        normalizeServiceCode(
-          service.serviceIdentity ||
-          service.gateKey ||
-          (
-            Number(service.customSlot || 0) > 0
-              ? `CUSTOM_${Number(service.customSlot)}`
-              : key
-          )
-        ),
-
-      custom:
-        service.custom === true ||
-        Number(
-          service.customSlot ||
-          0
-        ) > 0,
-
-      customSlot:
-        Number(
-          service.customSlot ||
-          0
-        )
-    };
   }
 
   function escapeHtml(value){
@@ -404,15 +271,6 @@ EXTERNAL TRIPS HUB R5
     state.services =
       Array.isArray(data.services)
         ? data.services
-            .map(
-              normalizeServiceCatalogRow
-            )
-            .filter(
-              service =>
-                Boolean(
-                  service.key
-                )
-            )
         : [];
 
     renderServiceSelector();
@@ -432,10 +290,51 @@ EXTERNAL TRIPS HUB R5
         ? data.trips
         : [];
 
-    state.brokerFields =
-      Array.isArray(data.brokerFields)
-        ? data.brokerFields
-        : [];
+    /*
+      DYNAMIC BROKER COLUMNS ONLY.
+      Keep the old working trip loading path unchanged.
+      If the backend supplies brokerFields, use Platform Admin visibility/order.
+      If not, build the column union directly from brokerDynamicData on the trips.
+    */
+    if(Array.isArray(data.brokerFields)){
+      state.brokerFields =
+        data.brokerFields;
+    }else{
+      const fieldMap =
+        new Map();
+
+      for(const trip of state.trips){
+        const list =
+          Array.isArray(trip?.brokerDynamicData)
+            ? trip.brokerDynamicData
+            : [];
+
+        for(const item of list){
+          const key =
+            clean(item?.key);
+
+          if(!key || fieldMap.has(key)){
+            continue;
+          }
+
+          fieldMap.set(
+            key,
+            {
+              key,
+              label:
+                clean(item?.label) ||
+                key,
+              showColumn:true,
+              order:
+                Number(item?.order || 0)
+            }
+          );
+        }
+      }
+
+      state.brokerFields =
+        [...fieldMap.values()];
+    }
 
     render();
   }
@@ -532,12 +431,6 @@ EXTERNAL TRIPS HUB R5
       option.textContent =
         clean(service.name) ||
         clean(service.key);
-
-      if(service.custom === true){
-
-        option.title =
-          `${clean(service.serviceIdentity) || "Custom Service"} • ${clean(service.key)}`;
-      }
 
       select.appendChild(option);
     }
@@ -786,64 +679,128 @@ EXTERNAL TRIPS HUB R5
   }
 
   function brokerColumnFields(){
-    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
-      .filter(field=>field?.showColumn === true);
+    return (
+      Array.isArray(state.brokerFields)
+        ? state.brokerFields
+        : []
+    )
+      .filter(
+        field=>
+          field &&
+          field.showColumn !== false &&
+          clean(field.key)
+      )
+      .sort(
+        (a,b)=>
+          Number(a?.order || 0) -
+          Number(b?.order || 0)
+      );
   }
 
-  function brokerDynamicValue(source,key){
-    const list = Array.isArray(source?.brokerDynamicData)
-      ? source.brokerDynamicData
-      : [];
-    const row = list.find(item=>clean(item?.key) === clean(key));
+  function brokerDynamicValue(
+    trip,
+    key
+  ){
+    const list =
+      Array.isArray(
+        trip?.brokerDynamicData
+      )
+        ? trip.brokerDynamicData
+        : [];
+
+    const row =
+      list.find(
+        item=>
+          clean(item?.key) ===
+          clean(key)
+      );
+
     return row?.value ?? "";
   }
 
-  function brokerDynamicCells(source){
+  function brokerDynamicCells(trip){
     return brokerColumnFields()
-      .map(field=>`<td class="broker-dynamic-cell">${escapeHtml(brokerDynamicValue(source,field.key) || "-")}</td>`)
+      .map(
+        field=>`
+          <td class="broker-dynamic-cell">
+            ${escapeHtml(
+              brokerDynamicValue(
+                trip,
+                field.key
+              ) || "-"
+            )}
+          </td>
+        `
+      )
       .join("");
   }
 
   function syncBrokerDynamicHeaders(){
-    const row = document.querySelector(".external-table thead tr");
-    if(!row) return;
+    const row =
+      document.querySelector(
+        ".external-table thead tr"
+      );
 
-    row.querySelectorAll("[data-broker-dynamic-head]").forEach(el=>el.remove());
+    if(!row){
+      return;
+    }
 
-    const statusHead = [...row.children].find(th=>clean(th.textContent) === "Status");
-    if(!statusHead) return;
+    row
+      .querySelectorAll(
+        "[data-broker-dynamic-head]"
+      )
+      .forEach(
+        element=>
+          element.remove()
+      );
 
-    brokerColumnFields().forEach(field=>{
-      const th = document.createElement("th");
-      th.dataset.brokerDynamicHead = field.key;
-      th.textContent = field.label || field.key;
-      th.style.minWidth = "110px";
-      row.insertBefore(th,statusHead);
-    });
+    /*
+      Put Broker custom columns before Status.
+      All original 16 columns keep their original order.
+    */
+    const statusHead =
+      [...row.children]
+        .find(
+          th=>
+            clean(th.textContent) ===
+            "Status"
+        );
+
+    if(!statusHead){
+      return;
+    }
+
+    for(
+      const field
+      of brokerColumnFields()
+    ){
+      const th =
+        document.createElement("th");
+
+      th.dataset
+        .brokerDynamicHead =
+        field.key;
+
+      th.textContent =
+        clean(field.label) ||
+        field.key;
+
+      th.style.minWidth =
+        "110px";
+
+      row.insertBefore(
+        th,
+        statusHead
+      );
+    }
   }
 
   function serviceDisplayName(trip){
-
-    const snapshotName =
-      clean(
-        trip.serviceName ||
-        trip.serviceTitle
-      );
-
-    if(snapshotName){
-      return snapshotName;
-    }
-
-    const code =
-      normalizeOperationalServiceCode(
-        trip.serviceCode ||
-        trip.serviceKey ||
-        trip.serviceSuffix ||
-        trip.tripNumberSuffix ||
-        trip.serviceType
-      );
-
-    return code || "-";
+    return (
+      clean(trip.serviceName) ||
+      clean(trip.serviceKey) ||
+      "-"
+    );
   }
 
   function displayTripNotes(trip){
@@ -1564,18 +1521,8 @@ EXTERNAL TRIPS HUB R5
     }
 
     if($("serviceKey")){
-
-      const currentServiceCode =
-        normalizeOperationalServiceCode(
-          trip.serviceCode ||
-          trip.serviceKey ||
-          trip.serviceSuffix ||
-          trip.tripNumberSuffix ||
-          trip.serviceType
-        );
-
       $("serviceKey").value =
-        currentServiceCode;
+        clean(trip.serviceKey);
     }
 
     if($("pickup")){
@@ -1681,44 +1628,10 @@ EXTERNAL TRIPS HUB R5
         ),
 
       serviceKey:
-        normalizeOperationalServiceCode(
+        clean(
           $("serviceKey")?.value
         ) ||
-        "ST",
-
-      serviceName:
-        clean(
-          state.services.find(
-            service =>
-              service.key ===
-              normalizeOperationalServiceCode(
-                $("serviceKey")?.value
-              )
-          )?.name
-        ),
-
-      serviceIdentity:
-        clean(
-          state.services.find(
-            service =>
-              service.key ===
-              normalizeOperationalServiceCode(
-                $("serviceKey")?.value
-              )
-          )?.serviceIdentity
-        ),
-
-      customServiceSlot:
-        Number(
-          state.services.find(
-            service =>
-              service.key ===
-              normalizeOperationalServiceCode(
-                $("serviceKey")?.value
-              )
-          )?.customSlot ||
-          0
-        ),
+        "STANDARD",
 
       pickup:
         clean(
@@ -2003,3 +1916,5 @@ EXTERNAL TRIPS HUB R5
   }
 
   init();
+
+})();
