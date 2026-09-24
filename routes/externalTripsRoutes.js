@@ -42,6 +42,10 @@ const {
   replaceExternalTripServiceSuffix
 } = require("../services/externalTripService");
 
+const {
+  listBrokerFields
+} = require("../services/brokerDynamicFieldService");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -1234,10 +1238,16 @@ router.get(
         })
         .lean();
 
+      const brokerFields =
+        await listBrokerFields(
+          req.authUser.tenantId
+        );
+
       return res.json({
         success:true,
         count:trips.length,
-        trips
+        trips,
+        brokerFields
       });
 
     }catch(err){

@@ -12,6 +12,7 @@ server/public/admin/js/broker-review.js
 
   const state = {
     items:[],
+    brokerFields:[],
     today:"",
     tomorrow:"",
     activeDay:"TODAY",
@@ -329,6 +330,37 @@ server/public/admin/js/broker-review.js
       .join("");
   }
 
+  function brokerColumnFields(){
+    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
+      .filter(field=>field?.showColumn === true);
+  }
+
+  function brokerDynamicValue(source,key){
+    const list = Array.isArray(source?.brokerDynamicData) ? source.brokerDynamicData : [];
+    const row = list.find(item=>clean(item?.key) === clean(key));
+    return row?.value ?? "";
+  }
+
+  function brokerDynamicCellItems(item,field){
+    const externals = externalList(item);
+    return cellItems(externals.map(ex=>brokerDynamicValue(ex,field.key) || "-"));
+  }
+
+  function syncBrokerDynamicHeaders(){
+    const row=document.querySelector(".panel table thead tr");
+    if(!row) return;
+    row.querySelectorAll("[data-broker-dynamic-head]").forEach(el=>el.remove());
+    const target=[...row.children].find(th=>clean(th.textContent) === "Driver");
+    if(!target) return;
+    brokerColumnFields().forEach(field=>{
+      const th=document.createElement("th");
+      th.dataset.brokerDynamicHead=field.key;
+      th.textContent=field.label || field.key;
+      th.style.width="120px";
+      row.insertBefore(th,target);
+    });
+  }
+
   function passengerRows(item){
     const externals = externalList(item);
     const trip = item?.trip || {};
@@ -511,7 +543,7 @@ server/public/admin/js/broker-review.js
     if(!list.length){
       body.innerHTML = `
         <tr>
-          <td colspan="21" class="empty">
+          <td colspan="${21 + brokerColumnFields().length}" class="empty">
             No broker trips for this day.
           </td>
         </tr>
@@ -577,6 +609,8 @@ server/public/admin/js/broker-review.js
             <td><div class="cell-box">${p.dropoff}</div></td>
             <td><div class="cell-box">${p.service}</div></td>
             <td><div class="cell-box">${p.notes}</div></td>
+
+            ${brokerColumnFields().map(field=>`<td><div class="cell-box">${brokerDynamicCellItems(item,field)}</div></td>`).join("")}
 
             <td>${esc(trip.driverName || "-")}</td>
             <td>${esc(trip.vehicleNumber || "-")}</td>
@@ -1071,6 +1105,13 @@ This action cannot be undone.`
         Array.isArray(data.items)
           ? data.items
           : [];
+
+      state.brokerFields =
+        Array.isArray(data.brokerFields)
+          ? data.brokerFields
+          : [];
+
+      syncBrokerDynamicHeaders();
 
       if(!state.baselineInitialized){
         state.baselineItemIds =

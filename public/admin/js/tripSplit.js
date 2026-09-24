@@ -24,6 +24,7 @@ FLOW:
     originalTrips:[],
     individualTrips:[],
     integrations:[],
+    brokerFields:[],
     groups:[],
     excluded:[],
     selectedTripIds:new Set(),
@@ -591,6 +592,43 @@ FLOW:
     }
   }
 
+  function brokerColumnFields(){
+    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
+      .filter(field=>field?.showColumn === true);
+  }
+
+  function brokerDynamicValue(source,key){
+    const list = Array.isArray(source?.brokerDynamicData) ? source.brokerDynamicData : [];
+    const row = list.find(item=>clean(item?.key) === clean(key));
+    return row?.value ?? "";
+  }
+
+  function brokerDynamicCells(source){
+    return brokerColumnFields()
+      .map(field=>`<td class="broker-dynamic-cell">${escapeHtml(brokerDynamicValue(source,field.key) || "-")}</td>`)
+      .join("");
+  }
+
+  function syncBrokerDynamicHeaders(){
+    const apply = (selector,statusText)=>{
+      const row = document.querySelector(selector);
+      if(!row) return;
+      row.querySelectorAll("[data-broker-dynamic-head]").forEach(el=>el.remove());
+      const target = [...row.children].find(th=>clean(th.textContent) === statusText);
+      if(!target) return;
+      brokerColumnFields().forEach(field=>{
+        const th=document.createElement("th");
+        th.dataset.brokerDynamicHead=field.key;
+        th.textContent=field.label || field.key;
+        th.style.minWidth="110px";
+        row.insertBefore(th,target);
+      });
+    };
+
+    apply(".original-table thead tr","Status");
+    apply(".individual-table thead tr","Status");
+  }
+
   function renderOriginalTrips(){
     const body = $("originalTripRows");
     if(!body) return;
@@ -601,7 +639,7 @@ FLOW:
     if(!trips.length){
       body.innerHTML =
         `<tr>
-          <td colspan="17">
+          <td colspan="${17 + brokerColumnFields().length}">
             <div class="empty">
               No original trips for this filter.
             </div>
@@ -625,7 +663,7 @@ FLOW:
     for(const [date,dateTrips] of groups.entries()){
       rows.push(`
         <tr class="date-group-row">
-          <td colspan="17">
+          <td colspan="${17 + brokerColumnFields().length}">
             Trip Date: ${escapeHtml(date)}
           </td>
         </tr>
@@ -670,6 +708,8 @@ FLOW:
             <td class="address-cell">${addressBox(trip.dropoff)}</td>
             <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
             <td class="notes-cell">${escapeHtml(displayTripNotes(trip) || "-")}</td>
+
+            ${brokerDynamicCells(trip)}
 
             <td>
               <span class="status ready">
@@ -805,6 +845,7 @@ FLOW:
                   <th>Pickup Time</th>
                   <th class="dropoff-time-head">Drop-off Time</th>
                   <th class="appointment-head">Appointment</th>
+                  ${brokerColumnFields().map(field=>`<th>${escapeHtml(field.label || field.key)}</th>`).join("")}
                 </tr>
               </thead>
               <tbody>
@@ -843,6 +884,7 @@ FLOW:
                       <td class="appointment-cell">
                         ${escapeHtml(appointment)}
                       </td>
+                      ${brokerDynamicCells(trip)}
                     </tr>
                   `;
                 }).join("")}
@@ -888,7 +930,7 @@ FLOW:
     if(!trips.length){
       body.innerHTML = `
         <tr>
-          <td colspan="12">
+          <td colspan="${12 + brokerColumnFields().length}">
             <div class="empty">
               No individual trips for this filter.
             </div>
@@ -943,6 +985,8 @@ FLOW:
             </td>
 
             <td>${escapeHtml(trip.serviceName || trip.serviceKey || "STANDARD")}</td>
+
+            ${brokerDynamicCells(trip)}
 
             <td>
               <span class="status ready">
@@ -2173,6 +2217,7 @@ FLOW:
       const data = await api("/api/trip-split/bootstrap");
 
       state.capabilities = data.capabilities || {};
+      state.brokerFields = Array.isArray(data.brokerFields) ? data.brokerFields : [];
       state.originalTrips =
         Array.isArray(data.originalTrips)
           ? data.originalTrips
@@ -2198,6 +2243,8 @@ FLOW:
         ? data.shareBaselines
         : [];
       state.confirmedCount = state.confirmedTrips.length;
+
+      syncBrokerDynamicHeaders();
 
       if(state.capabilities?.brokerContractEnabled !== true){
         $("tripSplitPage")?.classList.add("hidden");

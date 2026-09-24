@@ -50,6 +50,10 @@ const {
   ensureExternalTripsCoordinates
 } = require("../services/externalTripGeoService");
 
+const {
+  listBrokerFields
+} = require("../services/brokerDynamicFieldService");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -469,6 +473,10 @@ async function ensureReturnTrips(
         parentGhExternalTripNumber:
           clean(original.ghExternalTripNumber)
       },
+
+      /* Return leg keeps the Broker-specific source fields. */
+      brokerDynamicData:
+        safeArray(original.brokerDynamicData),
 
       duplicateKey:
         `RETURN|${String(original._id)}`
@@ -1580,7 +1588,7 @@ router.get("/bootstrap",async(req,res)=>{
     const today = phoenixDateKey(0);
     const tomorrow = phoenixDateKey(1);
 
-    const [integrations,capabilities] =
+    const [integrations,capabilities,brokerFields] =
       await Promise.all([
         BrokerIntegration.find({
           tenantId,
@@ -1591,7 +1599,8 @@ router.get("/bootstrap",async(req,res)=>{
           .sort({brokerName:1})
           .lean(),
 
-        brokerCapabilities(tenantId)
+        brokerCapabilities(tenantId),
+        listBrokerFields(tenantId)
       ]);
 
     if(!capabilities.brokerContractEnabled){
@@ -1607,7 +1616,8 @@ router.get("/bootstrap",async(req,res)=>{
         confirmedTrips:[],
         shareBaselines:[],
         confirmedCount:0,
-        capabilities
+        capabilities,
+        brokerFields
       });
     }
 
@@ -1849,7 +1859,8 @@ router.get("/bootstrap",async(req,res)=>{
       confirmedTrips,
       confirmedCount:confirmedTrips.length,
       shareBaselines,
-      capabilities
+      capabilities,
+      brokerFields
     });
   }catch(err){
     console.log("TRIP SPLIT BOOTSTRAP ERROR:",err);

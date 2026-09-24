@@ -381,6 +381,15 @@ const ExternalTripSchema = new mongoose.Schema(
       default:null
     },
 
+    /*
+      Dynamic Broker fields captured from the original Broker payload.
+      Stored as snapshots so values survive every downstream Broker page.
+    */
+    brokerDynamicData:{
+      type:[mongoose.Schema.Types.Mixed],
+      default:[]
+    },
+
     duplicateKey:{
       type:String,
       default:"",

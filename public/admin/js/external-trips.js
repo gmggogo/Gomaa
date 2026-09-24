@@ -23,6 +23,7 @@ EXTERNAL TRIPS HUB R5
     trips:[],
     integrations:[],
     services:[],
+    brokerFields:[],
     editingId:"",
     stopValues:[]
   };
@@ -431,6 +432,11 @@ EXTERNAL TRIPS HUB R5
         ? data.trips
         : [];
 
+    state.brokerFields =
+      Array.isArray(data.brokerFields)
+        ? data.brokerFields
+        : [];
+
     render();
   }
 
@@ -779,6 +785,43 @@ EXTERNAL TRIPS HUB R5
     return groups;
   }
 
+  function brokerColumnFields(){
+    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
+      .filter(field=>field?.showColumn === true);
+  }
+
+  function brokerDynamicValue(source,key){
+    const list = Array.isArray(source?.brokerDynamicData)
+      ? source.brokerDynamicData
+      : [];
+    const row = list.find(item=>clean(item?.key) === clean(key));
+    return row?.value ?? "";
+  }
+
+  function brokerDynamicCells(source){
+    return brokerColumnFields()
+      .map(field=>`<td class="broker-dynamic-cell">${escapeHtml(brokerDynamicValue(source,field.key) || "-")}</td>`)
+      .join("");
+  }
+
+  function syncBrokerDynamicHeaders(){
+    const row = document.querySelector(".external-table thead tr");
+    if(!row) return;
+
+    row.querySelectorAll("[data-broker-dynamic-head]").forEach(el=>el.remove());
+
+    const statusHead = [...row.children].find(th=>clean(th.textContent) === "Status");
+    if(!statusHead) return;
+
+    brokerColumnFields().forEach(field=>{
+      const th = document.createElement("th");
+      th.dataset.brokerDynamicHead = field.key;
+      th.textContent = field.label || field.key;
+      th.style.minWidth = "110px";
+      row.insertBefore(th,statusHead);
+    });
+  }
+
   function serviceDisplayName(trip){
 
     const snapshotName =
@@ -935,6 +978,7 @@ EXTERNAL TRIPS HUB R5
 
   function render(){
     renderStats();
+    syncBrokerDynamicHeaders();
 
     const body =
       $("tripRows");
@@ -953,7 +997,7 @@ EXTERNAL TRIPS HUB R5
         document.createElement("tr");
 
       row.innerHTML = `
-        <td colspan="16"
+        <td colspan="${16 + brokerColumnFields().length}"
             style="padding:24px;text-align:center;font-weight:800;color:#64748b;">
           No external trips found.
         </td>
@@ -977,7 +1021,7 @@ EXTERNAL TRIPS HUB R5
         "date-group-row";
 
       dateRow.innerHTML = `
-        <td colspan="16">
+        <td colspan="${16 + brokerColumnFields().length}">
           Trip Date: ${escapeHtml(date)}
         </td>
       `;
@@ -1085,6 +1129,8 @@ EXTERNAL TRIPS HUB R5
               displayTripNotes(trip)
             )}
           </td>
+
+          ${brokerDynamicCells(trip)}
 
           <td>
             <span class="status ${escapeHtml(
@@ -1957,5 +2003,3 @@ EXTERNAL TRIPS HUB R5
   }
 
   init();
-
-})();

@@ -60,6 +60,10 @@ const {
   resolveBrokerPricing
 } = require("../services/brokerPricingEngine");
 
+const {
+  listBrokerFields
+} = require("../services/brokerDynamicFieldService");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -804,7 +808,9 @@ function serializeExternal(
       "",
     notes:
       external.notes ||
-      ""
+      "",
+    brokerDynamicData:
+      safeArray(external.brokerDynamicData)
   };
 }
 
@@ -1339,20 +1345,24 @@ router.get(
       const tomorrow =
         phoenixDateKey(1);
 
-      const items =
-        await buildItems(
-          tenantId,
-          [
-            today,
-            tomorrow
-          ]
-        );
+      const [items,brokerFields] =
+        await Promise.all([
+          buildItems(
+            tenantId,
+            [
+              today,
+              tomorrow
+            ]
+          ),
+          listBrokerFields(tenantId)
+        ]);
 
       return res.json({
         success:true,
         today,
         tomorrow,
-        items
+        items,
+        brokerFields
       });
 
     }catch(err){

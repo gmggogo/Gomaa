@@ -30,6 +30,10 @@ const {
   resolveBrokerPricing
 } = require("../services/brokerPricingEngine");
 
+const {
+  listBrokerFields
+} = require("../services/brokerDynamicFieldService");
+
 const serviceIdentity =
   require("../utils/serviceIdentityResolver");
 
@@ -1585,7 +1589,11 @@ function serializeTrip(
             0
           ),
         notes:
-          clean(ex?.notes)
+          clean(ex?.notes),
+        brokerDynamicData:
+          Array.isArray(ex?.brokerDynamicData)
+            ? ex.brokerDynamicData
+            : []
       }))
   };
 }
@@ -1704,7 +1712,7 @@ async function buildBrokerSummaryItemsForRange(
             "externalTripId ghExternalTripNumber externalTripNumber " +
             "brokerCode brokerName memberId clientName clientPhone " +
             "clientEmail tripDate tripTime appointmentTime returnTime " +
-            "pickup stops dropoff serviceKey serviceName notes"
+            "pickup stops dropoff serviceKey serviceName notes brokerDynamicData"
           )
           .lean()
       : [];
@@ -2132,10 +2140,14 @@ router.get("/",async(req,res)=>{
     const brokers =
       buildBrokerList(items);
 
+    const brokerFields =
+      await listBrokerFields(tenantId);
+
     const payload = {
       success:true,
       items,
       brokers,
+      brokerFields,
       archive:{
         enabled:true,
         liveWindow:"TODAY"

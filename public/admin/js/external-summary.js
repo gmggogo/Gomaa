@@ -19,7 +19,8 @@ BROKER SUMMARY
     allItems:[],
     displayItems:[],
     brokers:[],
-    services:[]
+    services:[],
+    brokerFields:[]
   };
 
   function token(){
@@ -380,6 +381,28 @@ BROKER SUMMARY
       .map(p=>money(p.total || 0));
   }
 
+  function brokerColumnFields(){
+    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
+      .filter(field=>field?.showColumn === true);
+  }
+
+  function brokerEyeFields(){
+    return (Array.isArray(state.brokerFields) ? state.brokerFields : [])
+      .filter(field=>field?.showEye === true);
+  }
+
+  function brokerDynamicValue(source,key){
+    const list = Array.isArray(source?.brokerDynamicData) ? source.brokerDynamicData : [];
+    const row = list.find(entry=>clean(entry?.key) === clean(key));
+    return row?.value ?? "";
+  }
+
+  function brokerDynamicSummaryValues(item,field){
+    const sources = Array.isArray(item?.externalTrips) ? item.externalTrips : [];
+    if(!sources.length) return ["--"];
+    return sources.slice(0,10).map(source=>brokerDynamicValue(source,field.key) || "--");
+  }
+
   function brokerLabel(item){
     const name = clean(item?.brokerName);
     const code = clean(item?.brokerCode);
@@ -706,6 +729,7 @@ BROKER SUMMARY
           <th class="col-address">Dropoff</th>
           <th class="col-date">Trip Date</th>
           <th class="col-time">Time</th>
+          ${brokerColumnFields().map(field=>`<th class="broker-dynamic-head">${safe(field.label || field.key)}</th>`).join("")}
           <th class="col-status">Trip Status</th>
           <th class="col-miles">Miles</th>
           <th class="col-passenger-status">Passenger Status</th>
@@ -735,7 +759,7 @@ BROKER SUMMARY
           "date-row";
 
         dateRow.innerHTML =
-          `<td colspan="20">Trip Date: ${safe(day)}</td>`;
+          `<td colspan="${20 + brokerColumnFields().length}">Trip Date: ${safe(day)}</td>`;
 
         tbody.appendChild(dateRow);
 
@@ -810,6 +834,8 @@ BROKER SUMMARY
             <td class="col-time">
               ${safe(item.tripTime || "-")}
             </td>
+
+            ${brokerColumnFields().map(field=>`<td class="broker-dynamic-cell">${cellBox(brokerDynamicSummaryValues(item,field))}</td>`).join("")}
 
             <td class="col-status">
               ${statusHTML(item.status)}
@@ -926,6 +952,12 @@ BROKER SUMMARY
           ${viewLine("No Show Fee",money(item.noShowFee))}
           ${viewLine("Pricing Error",item.pricingError)}
           ${viewLine("External Source Trips",externalSource)}
+          ${brokerEyeFields().map(field=>
+            viewLine(
+              field.label || field.key,
+              brokerDynamicSummaryValues(item,field).join("\n")
+            )
+          ).join("")}
           ${viewLine("Notes",item.notes)}
         </div>
       </div>
@@ -1107,6 +1139,11 @@ BROKER SUMMARY
     state.brokers =
       Array.isArray(data.brokers)
         ? data.brokers
+        : [];
+
+    state.brokerFields =
+      Array.isArray(data.brokerFields)
+        ? data.brokerFields
         : [];
 
     buildServiceCatalog();

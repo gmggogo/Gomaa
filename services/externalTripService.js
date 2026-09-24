@@ -24,6 +24,10 @@ const {
   ensureExternalTripCoordinates
 } = require("./externalTripGeoService");
 
+const {
+  captureBrokerDynamicData
+} = require("./brokerDynamicFieldService");
+
 function clean(value){
   return String(value ?? "").trim();
 }
@@ -1066,6 +1070,24 @@ async function createExternalTrip(options){
     resolvedService
   );
 
+  /*
+    Discover and snapshot Broker-specific fields before persistence.
+    Unknown fields become stable tenant+broker columns automatically.
+  */
+  normalized.brokerDynamicData =
+    await captureBrokerDynamicData({
+      tenantId:normalized.tenantId,
+      brokerCode:normalized.brokerCode,
+      brokerName:normalized.brokerName,
+      payload:normalized.rawPayload || options?.payload || {}
+    });
+
+  normalized.normalizedPayload = {
+    ...normalized,
+    rawPayload:undefined,
+    normalizedPayload:undefined
+  };
+
   const validationErrors =
     validateNormalizedTrip(
       normalized
@@ -1241,6 +1263,20 @@ async function applyBrokerUpdate(existingTrip,payload){
     normalized,
     resolvedService
   );
+
+  normalized.brokerDynamicData =
+    await captureBrokerDynamicData({
+      tenantId:normalized.tenantId,
+      brokerCode:normalized.brokerCode,
+      brokerName:normalized.brokerName,
+      payload:incomingPayload || {}
+    });
+
+  normalized.normalizedPayload = {
+    ...normalized,
+    rawPayload:undefined,
+    normalizedPayload:undefined
+  };
 
   const validationErrors =
     validateNormalizedTrip(
