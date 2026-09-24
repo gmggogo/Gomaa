@@ -1047,6 +1047,101 @@ button:hover{
   }
 }
 
+
+/* ================= FINAL FORM ALIGNMENT ================= */
+
+/* Long full-width title strips, aligned to the left */
+#clientInformationSection > h3,
+#individualTripDetails > h3,
+#dynamicBookingFieldsSection > h3{
+  display:block;
+  width:100%;
+  max-width:none;
+  margin:0 0 16px 0;
+  padding:9px 14px;
+  text-align:left;
+  color:#1e3a8a;
+  background:#eef6ff;
+  border:1px solid #cfe0f5;
+  border-radius:10px;
+}
+
+/* Trip Details gets the same light blue framed look as Client Information */
+#individualTripDetails{
+  border:1px solid #cfe0f5;
+  background:#f8fbff;
+  box-shadow:0 4px 12px rgba(37,99,235,.05);
+}
+
+/* Make dynamically added Stop Address rows use the full available width */
+#stops,
+.stop-row{
+  width:100%;
+}
+
+.stop-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.stop-address-wrap{
+  flex:1 1 auto;
+  min-width:0;
+  width:auto;
+}
+
+.stop-address-wrap .stop-input{
+  display:block;
+  width:100%;
+  min-width:0;
+  height:46px;
+}
+
+.remove-stop-btn{
+  flex:0 0 46px;
+  width:46px;
+  min-width:46px;
+  height:46px;
+  padding:0;
+}
+
+/* Add Stop button is a longer horizontal control */
+.trip-add-stop-wrap{
+  width:100%;
+}
+
+#addStopBtn{
+  width:220px;
+  min-width:220px;
+  height:46px;
+}
+
+/* Keep the main two-column trip fields stretched evenly */
+#individualTripDetails .trip-grid{
+  width:100%;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+/* Mobile */
+@media(max-width:768px){
+  #clientInformationSection > h3,
+  #individualTripDetails > h3,
+  #dynamicBookingFieldsSection > h3{
+    width:100%;
+    text-align:left;
+  }
+
+  #addStopBtn{
+    width:100%;
+    min-width:0;
+  }
+
+  #individualTripDetails .trip-grid{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 </head>
 
