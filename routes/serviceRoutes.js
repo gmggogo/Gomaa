@@ -1153,14 +1153,22 @@ router.get(
       filter = { reservedEnabled:true };
     }else if(isCompany){
       /*
-        COMPANY SERVICES:
-        Tenant.allowedServices is the Platform Admin master switch.
-        Do not pre-filter by companyEnabled because older tenant Service
-        documents may carry stale/false companyEnabled values and that can
-        make valid allowed services disappear from Add Trip.
-        filterAllowedServices() below remains the authoritative gate.
+        COMPANY SERVICES - STRICT TENANT SURFACE GATE
+
+        A service is visible to Companies only when BOTH are true:
+
+        1) Platform Admin granted the service to this tenant
+           through Tenant.allowedServices.
+        2) This tenant enabled the service for the Companies surface
+           through Service Management (companyEnabled:true).
+
+        The first gate is applied by filterAllowedServices() below.
+        This Mongo filter applies the second gate.
+
+        This prevents the full Platform catalog from leaking into
+        Add Trip / Review / Summary / other company pages.
       */
-      filter = {};
+      filter = { companyEnabled:true };
     }else{
       filter = { enabled:true };
     }
@@ -1176,12 +1184,26 @@ router.get(
         createdAt:1
       });
 
-    const visibleServices =
+    let visibleServices =
       await filterAllowedServices(
         req,
         services,
         allowed
       );
+
+    /*
+      CUSTOM SERVICES:
+      Platform permission alone is not enough.
+      A custom slot must also be fully configured before any Company
+      page can see or use it.
+    */
+    if(isCompany){
+      visibleServices =
+        visibleServices.filter(service =>
+          !serviceIdentity.isCustomService(service) ||
+          serviceIdentity.isCustomServiceConfigured(service)
+        );
+    }
 
     return res.json(
       visibleServices
