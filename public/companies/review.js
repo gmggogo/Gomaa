@@ -3015,13 +3015,13 @@ ${stopRequestBadge}
 
     <td class="col-time">${editing ? createEditInput(t.tripTime || "", "tripTime", "time") : escapeHtml(t.tripTime || "")}</td>
 
-    <td class="col-status"><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
-
-    <td class="col-price"><span class="price-badge">$${formatMoney(getTripPrice(t))}</span></td>
+    ${bookingColumnCells(t)}
 
     <td class="col-miles"><span class="miles-strong">${t.miles ? Number(t.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
 
-    ${bookingColumnCells(t)}
+    <td class="col-status"><strong>${escapeHtml(t.status || "Scheduled")}</strong></td>
+
+    <td class="col-price"><span class="price-badge">$${formatMoney(getTripPrice(t))}</span></td>
 
     <td class="col-actions">${renderTripButtons(t,editing)}</td>
 
@@ -3153,13 +3153,13 @@ function renderSharedRow(group,index){
 
     <td class="col-time">${editing ? createSharedEditInput(first.tripTime || "", "tripTime", "time") : escapeHtml(first.tripTime || "")}</td>
 
-    <td class="col-status"><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
-
-    <td class="col-price"><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
+    ${bookingColumnCells(first)}
 
     <td class="col-miles"><span class="miles-strong">${first.miles ? Number(first.miles).toFixed(1) + " mi" : "-- mi"}</span></td>
 
-    ${bookingColumnCells(first)}
+    <td class="col-status"><strong>${escapeHtml(getGroupStatus(group))}</strong></td>
+
+    <td class="col-price"><span class="price-badge">$${formatMoney(getGroupPrice(group))}</span></td>
 
     <td class="col-actions">${renderSharedButtons(group,editing)}</td>
 
@@ -3192,10 +3192,10 @@ function renderUnifiedTable(items,kind){
         <th class="col-notes">Notes</th>
         <th class="col-date">Date</th>
         <th class="col-time">Time</th>
+        ${bookingColumnHeaders()}
+        <th class="col-miles">Miles</th>
         <th class="col-status">Status</th>
         <th class="col-price">Price</th>
-        <th class="col-miles">Miles</th>
-        ${bookingColumnHeaders()}
         <th class="col-actions">Actions</th>
         <th class="col-eye">👁️</th>
       </tr>
