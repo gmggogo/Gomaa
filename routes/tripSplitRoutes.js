@@ -1794,9 +1794,50 @@ router.get("/bootstrap",async(req,res)=>{
     );
 
     /*
+      SELF-HEAL FOR INDIVIDUAL BUCKET
+
+      Older/partial Share runs may have created Shared groups successfully
+      while failing to persist TripSplitState for the unmatched trips.
+      In that case those trips used to fall back into Original forever.
+
+      Rule:
+      - New trips that arrived AFTER the last Share baseline stay ORIGINAL.
+      - Trips that existed AT/BEFORE the last Share baseline, are not Shared,
+        and are not explicitly restored belong to INDIVIDUAL.
+      - Explicit TripSplitState still wins and keeps the trip INDIVIDUAL.
+    */
+    const baselineKeys = new Set(
+      safeArray(shareBaselines)
+        .map(row=>{
+          const date = clean(row?.tripDate);
+          const broker = clean(row?.brokerCode);
+          return date ? `${date}|${broker}` : "";
+        })
+        .filter(Boolean)
+    );
+
+    function hadShareBaseline(trip){
+      const date = clean(trip?.tripDate);
+      const broker = clean(trip?.brokerCode);
+
+      return (
+        baselineKeys.has(`${date}|${broker}`) ||
+        [...baselineKeys].some(key=>key.startsWith(`${date}|`))
+      );
+    }
+
+    function legacyIndividual(trip){
+      return (
+        trip?.isNewTrip !== true &&
+        hadShareBaseline(trip) &&
+        !restoredToOriginal(trip)
+      );
+    }
+
+    /*
       A trip belongs to exactly one Trip Split bucket:
-      ORIGINAL   -> ready for distribution/re-distribution
-      INDIVIDUAL -> engine result not placed in a shared group
+      ORIGINAL   -> new/re-distribution candidate
+      INDIVIDUAL -> unmatched by Shared Engine or historical unmatched trip
       SHARED     -> stored inside SharedTripGroup
     */
     const originalTrips =
@@ -1811,6 +1852,7 @@ router.get("/bootstrap",async(req,res)=>{
         return (
           !groupedIds.has(id) &&
           !individualIds.has(id) &&
+          !legacyIndividual(trip) &&
           (
             !hasStops ||
             restored
@@ -1831,6 +1873,7 @@ router.get("/bootstrap",async(req,res)=>{
           !groupedIds.has(id) &&
           (
             individualIds.has(id) ||
+            legacyIndividual(trip) ||
             (
               hasStops &&
               !restored
@@ -2047,55 +2090,81 @@ router.post("/share",async(req,res)=>{
       )
     );
 
-    const individualTripIds =
-      tripIds.filter(id=>
-        !groupedTripIds.has(String(id))
-      );
+    /*
+      Build the INDIVIDUAL set from BOTH the engine result and the submitted
+      selection. This is deliberately defensive: even if an engine version
+      reports singles/excluded differently, every selected trip that did not
+      make it into a persisted Shared group MUST become Individual.
+    */
+    const engineIndividualIds = new Set(
+      [
+        ...safeArray(result?.singles),
+        ...safeArray(result?.excluded)
+      ]
+        .map(row=>clean(row?.tripId))
+        .filter(id=>mongoose.Types.ObjectId.isValid(id))
+    );
+
+    const individualTripIds = [
+      ...new Set(
+        tripIds
+          .filter(id=>!groupedTripIds.has(String(id)))
+          .concat([...engineIndividualIds])
+      )
+    ]
+      .filter(id=>!groupedTripIds.has(String(id)))
+      .filter(id=>mongoose.Types.ObjectId.isValid(id));
 
     /*
-      Trips selected for distribution that are not placed in a Shared Group
-      become persistent INDIVIDUAL trips. They stay there through refresh
-      until Confirm or Restore.
+      Persist every unmatched selected trip as INDIVIDUAL.
+      bulkWrite makes the move atomic enough for the page refresh path and
+      avoids a partially-updated list when many trips are processed together.
     */
-    for(const id of individualTripIds){
-      const trip =
-        tripDocs.find(doc=>
-          String(doc._id) === String(id)
-        );
-
-      if(!trip){
-        continue;
-      }
-
-      await TripSplitState.findOneAndUpdate(
-        {
-          tenantId,
-          externalTripObjectId:trip._id
-        },
-        {
-          $set:{
-            externalTripId:trip.externalTripId || "",
-            brokerCode:trip.brokerCode || "",
-            brokerName:trip.brokerName || "",
-            source:"BROKER",
-            processingMode:"NORMAL",
-            sharedGroupId:"",
-            dispatchTripId:null,
-            confirmed:false,
-            confirmedAt:null,
-            confirmedBy:"",
-            reviewConfirmed:false,
-            reviewConfirmedAt:null,
-            reviewConfirmedBy:""
-          }
-        },
-        {
-          upsert:true,
-          new:true,
-          setDefaultsOnInsert:true,
-          runValidators:true
-        }
+    if(individualTripIds.length){
+      const tripById = new Map(
+        tripDocs.map(doc=>[String(doc._id),doc])
       );
+
+      const operations =
+        individualTripIds
+          .map(id=>{
+            const trip = tripById.get(String(id));
+            if(!trip){
+              return null;
+            }
+
+            return {
+              updateOne:{
+                filter:{
+                  tenantId,
+                  externalTripObjectId:trip._id
+                },
+                update:{
+                  $set:{
+                    externalTripId:trip.externalTripId || "",
+                    brokerCode:trip.brokerCode || "",
+                    brokerName:trip.brokerName || "",
+                    source:"BROKER",
+                    processingMode:"NORMAL",
+                    sharedGroupId:"",
+                    dispatchTripId:null,
+                    confirmed:false,
+                    confirmedAt:null,
+                    confirmedBy:"",
+                    reviewConfirmed:false,
+                    reviewConfirmedAt:null,
+                    reviewConfirmedBy:""
+                  }
+                },
+                upsert:true
+              }
+            };
+          })
+          .filter(Boolean);
+
+      if(operations.length){
+        await TripSplitState.bulkWrite(operations,{ordered:false});
+      }
     }
 
     /*
