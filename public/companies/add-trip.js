@@ -4973,9 +4973,48 @@ async function loadCompanyServices(){
     byCode.set(code,mapped);
   }
 
+  function finalizeServices({
+    rebuildTabs = false
+  } = {}){
+    COMPANY_SERVICES =
+      Array.from(byCode.values());
+
+    const order = {
+      ST:10,
+      WH:20,
+      SH:30,
+      LM:40,
+      TX:50,
+      XL:60
+    };
+
+    COMPANY_SERVICES.sort((a,b)=>{
+      const ac =
+        resolveServiceCode(a);
+
+      const bc =
+        resolveServiceCode(b);
+
+      return (
+        (order[ac] ?? 100) -
+        (order[bc] ?? 100)
+      );
+    });
+
+    if(rebuildTabs){
+      buildDynamicTabs();
+    }
+  }
+
   /*
-    SOURCE 1 — Company services.
+    FAST PATH
+    ----------
+    The company service endpoint is the primary source of truth.
+    Build tabs immediately when it returns instead of waiting for
+    admin fallback and facility override requests.
   */
+  let primaryLoaded = false;
+
   try{
     const res =
       await fetch(
@@ -5004,7 +5043,22 @@ async function loadCompanyServices(){
           "SERVICE_MANAGEMENT"
         )
       );
+
+      primaryLoaded =
+        byCode.size > 0;
+
+      if(primaryLoaded){
+        finalizeServices({
+          rebuildTabs:true
+        });
+
+        console.log(
+          "ADD TRIP FAST TABS READY:",
+          COMPANY_SERVICES
+        );
+      }
     }
+
   }catch(err){
     console.log(
       "COMPANY SERVICES PRIMARY LOAD ERROR:",
@@ -5013,32 +5067,91 @@ async function loadCompanyServices(){
   }
 
   /*
-    SOURCE 2 — Admin service list.
-    Same tenant token, read-only fallback.
-    Useful when company=true filtering is stale/broken.
+    BACKGROUND ENRICHMENT
+    ---------------------
+    These requests must NOT delay the initial tabs.
+
+    They run together:
+    - /api/services/admin
+    - /api/facility-pricing-override/bootstrap
   */
-  try{
+  const adminPromise =
+    fetch(
+      "/api/services/admin",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        cache:"no-store"
+      }
+    )
+    .then(async res=>({
+      res,
+      data:
+        await res
+          .json()
+          .catch(()=>[])
+    }))
+    .catch(err=>({
+      error:err
+    }));
+
+  const overridePromise =
+    fetch(
+      "/api/facility-pricing-override/bootstrap",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        cache:"no-store"
+      }
+    )
+    .then(async res=>({
+      res,
+      data:
+        await res
+          .json()
+          .catch(()=>({}))
+    }))
+    .catch(err=>({
+      error:err
+    }));
+
+  const [
+    adminResult,
+    overrideResult
+  ] =
+    await Promise.all([
+      adminPromise,
+      overridePromise
+    ]);
+
+  /*
+    SOURCE 2 — Admin service list.
+    Used only as fallback/union enrichment.
+  */
+  if(adminResult?.error){
+    console.log(
+      "COMPANY SERVICES ADMIN FALLBACK ERROR:",
+      adminResult.error
+    );
+  }else{
     const res =
-      await fetch(
-        "/api/services/admin",
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          },
-          cache:"no-store"
-        }
-      );
+      adminResult?.res;
 
     const data =
-      await res.json().catch(()=>[]);
+      adminResult?.data;
 
     console.log(
       "ADD TRIP /api/services/admin:",
-      res.status,
+      res?.status,
       data
     );
 
-    if(res.ok && Array.isArray(data)){
+    if(
+      res?.ok &&
+      Array.isArray(data)
+    ){
       data
         .filter(item=>
           item?.companyEnabled !== false ||
@@ -5051,51 +5164,32 @@ async function loadCompanyServices(){
           )
         );
     }
-  }catch(err){
-    console.log(
-      "COMPANY SERVICES ADMIN FALLBACK ERROR:",
-      err
-    );
   }
 
   /*
     SOURCE 3 — Facility pricing override.
-    Adds pricing to matching services and can rescue configured
-    service names if the service route is temporarily incomplete.
+    Enrich matching services with pricing/settings.
   */
-  try{
-    const facilityName =
-      companyName || "";
-
-    const facilityId =
-      companyId || "";
-
+  if(overrideResult?.error){
+    console.log(
+      "COMPANY OVERRIDE FALLBACK ERROR:",
+      overrideResult.error
+    );
+  }else{
     const bootRes =
-      await fetch(
-        "/api/facility-pricing-override/bootstrap",
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          },
-          cache:"no-store"
-        }
-      );
+      overrideResult?.res;
 
     const bootData =
-      await bootRes.json().catch(()=>({}));
+      overrideResult?.data;
 
     console.log(
       "ADD TRIP FACILITY BOOTSTRAP:",
-      bootRes.status,
+      bootRes?.status,
       bootData
     );
 
-    if(bootRes.ok){
+    if(bootRes?.ok){
 
-      /*
-        Some backend versions expose a default services array.
-        Use it only as a fallback/union source, never as a replacement.
-      */
       if(Array.isArray(bootData?.services)){
         bootData.services.forEach(item=>
           addService(
@@ -5109,6 +5203,12 @@ async function loadCompanyServices(){
         bootData?.success === true &&
         Array.isArray(bootData?.overrides)
       ){
+        const facilityName =
+          companyName || "";
+
+        const facilityId =
+          companyId || "";
+
         const fid =
           String(facilityId || "").trim();
 
@@ -5154,50 +5254,21 @@ async function loadCompanyServices(){
         }
       }
     }
-  }catch(err){
-    console.log(
-      "COMPANY OVERRIDE FALLBACK ERROR:",
-      err
-    );
   }
 
-  COMPANY_SERVICES =
-    Array.from(byCode.values());
-
   /*
-    Prefer stable base order where possible.
+    Finalize after enrichment.
+    If tabs were already shown from the primary endpoint, rebuild once
+    with enriched data while preserving the active service when possible.
   */
-  const order = {
-    ST:10,
-    WH:20,
-    SH:30,
-    LM:40,
-    TX:50,
-    XL:60
-  };
+  const previousActive =
+    normalizeServiceCode(activeService);
 
-  COMPANY_SERVICES.sort((a,b)=>{
-    const ac =
-      resolveServiceCode(a);
-
-    const bc =
-      resolveServiceCode(b);
-
-    return (
-      (order[ac] ?? 100) -
-      (order[bc] ?? 100)
-    );
+  finalizeServices({
+    rebuildTabs:
+      !primaryLoaded
   });
 
-  console.log(
-    "ADD TRIP FINAL COMPANY SERVICES:",
-    COMPANY_SERVICES
-  );
-
-  /*
-    Do NOT invent Standard if the API failed.
-    Show the real state instead of hiding the bug.
-  */
   if(!COMPANY_SERVICES.length){
     if(companyTabs){
       companyTabs.innerHTML =
@@ -5211,9 +5282,34 @@ async function loadCompanyServices(){
     return;
   }
 
-  buildDynamicTabs();
-}
+  if(primaryLoaded){
+    /*
+      Rebuild once using enriched pricing/settings.
+      buildDynamicTabs() activates the first service, so restore the
+      previously active tab afterwards when it still exists.
+    */
+    buildDynamicTabs();
 
+    const activeIndex =
+      COMPANY_SERVICES.findIndex(
+        service=>
+          resolveServiceCode(service) ===
+          previousActive
+      );
+
+    if(activeIndex >= 0){
+      setActiveService(
+        COMPANY_SERVICES[activeIndex],
+        activeIndex
+      );
+    }
+  }
+
+  console.log(
+    "ADD TRIP FINAL COMPANY SERVICES:",
+    COMPANY_SERVICES
+  );
+}
 function setActiveService(service,index){
 
   activeService =
@@ -6059,11 +6155,19 @@ attachLocationChangeReset(
 loadDraft();
 loadSharedDraft();
 
-await loadSystemTimezone();
-
-/* Company Add Trip init order */
+/*
+  Fast startup:
+  - Services start immediately so tabs can render ASAP.
+  - Timezone loads in parallel and does not block tabs.
+*/
 console.log("ADD TRIP: START COMPANY SERVICES");
+
+const timezonePromise =
+  loadSystemTimezone();
+
 await loadCompanyServices();
+
+await timezonePromise;
 
 console.log("ADD TRIP: START COMPANY BOOKING FIELDS");
 await loadCompanyBookingFields();
