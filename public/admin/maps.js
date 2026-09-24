@@ -1,23 +1,29 @@
 /* ================= SECURITY ================= */
 
 const mapAuthToken = localStorage.getItem("token") || "";
-const mapUserRole = String(localStorage.getItem("role") || "").trim().toUpperCase();
+const mapUserRole = String(localStorage.getItem("role") || "")
+  .trim()
+  .toUpperCase()
+  .replace(/[\s-]+/g,"_");
 
-if(!mapAuthToken || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(mapUserRole)){
+if(!mapAuthToken || !["SUPER_ADMIN","SUPERADMIN","ADMIN","DISPATCHER"].includes(mapUserRole)){
   window.location.href = "/login.html";
 }
 
-/* =============================== */
-
-// ===============================
-// ADMIN LIVE MAP - CARS + NAMES + SIDEBAR
-// ===============================
+/* ===============================
+   ADMIN LIVE MAP
+   - ONE aggregated live-drivers request
+   - NO Google / OSRM / routing request
+   - Selected driver gets a lightweight direct line to Dropoff
+   - Pickup + Dropoff fit on selection
+================================ */
 
 const LIVE_DRIVERS_API = "/api/admin/live-drivers";
+const LIVE_REFRESH_MS = 30000;
 
 /* ===============================
    MAP
-=============================== */
+================================ */
 
 const map = L.map("map", {
   zoomControl: true,
@@ -30,31 +36,22 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 /* ===============================
    STATE
-=============================== */
+================================ */
 
 const driverMarkers = new Map();
-const driverPaths = new Map();
-const driverPolylines = new Map();
 const driverRawData = new Map();
-
-/*
-  Selected-driver route state.
-  This uses only trip data already saved in GH Mobility.
-  It never calls Google Directions / Routes / traffic APIs.
-*/
-const tripRouteCache = new Map();
 const selectedRouteSummary = new Map();
 
 let selectedDriverId = "";
-let selectedTripId = "";
-let selectedRoutePolyline = null;
-let selectedDestinationMarker = null;
-
+let selectedDirectLine = null;
+let selectedPickupMarker = null;
+let selectedDropoffMarker = null;
 let firstLoad = true;
+let liveRequestInFlight = false;
 
 /* ===============================
    UI INIT
-=============================== */
+================================ */
 
 function injectMapStyles(){
 
@@ -70,7 +67,7 @@ function injectMapStyles(){
       left:14px;
       right:auto;
       width:290px;
-      max-height:calc(100vh - 210px);
+      max-height:calc(100vh - 215px);
       overflow:auto;
       background:rgba(15,23,42,.96);
       border:1px solid #334155;
@@ -79,6 +76,7 @@ function injectMapStyles(){
       box-shadow:0 12px 30px rgba(0,0,0,.35);
       padding:12px;
       color:#fff;
+      box-sizing:border-box;
     }
 
     .drivers-sidebar h3{
@@ -216,21 +214,16 @@ function injectMapStyles(){
     @media(max-width:900px){
       .drivers-sidebar{
         width:220px;
-        top:180px;
         left:8px;
-        right:auto;
-        max-height:calc(100vh - 200px);
       }
     }
 
     @media(max-width:700px){
       .drivers-sidebar{
         width:180px;
-        top:170px;
         left:8px;
-        right:auto;
-        max-height:calc(100vh - 190px);
       }
+
       .leaflet-driver-name{
         font-size:10px;
       }
@@ -238,7 +231,6 @@ function injectMapStyles(){
   `;
 
   document.head.appendChild(style);
-
 }
 
 function ensureSidebar(){
@@ -254,98 +246,103 @@ function ensureSidebar(){
     <span class="drivers-count" id="driversCount">0 drivers online</span>
     <div class="driver-list" id="driversList"></div>
   `;
-  document.body.appendChild(box);
 
+  document.body.appendChild(box);
 }
 
+/*
+  Keep the driver list below the ACTUAL rendered admin header.
+  ResizeObserver + MutationObserver prevent it from jumping back under
+  the header after header.js finishes/re-renders.
+*/
 function positionDriversSidebarBelowHeader(){
 
-  const sidebar =
-    document.getElementById("driversSidebar");
+  const sidebar = document.getElementById("driversSidebar");
+  if(!sidebar) return;
 
-  if(!sidebar){
-    return;
-  }
+  const header = document.getElementById("adminHeader");
+  const rect = header ? header.getBoundingClientRect() : null;
 
-  const header =
-    document.getElementById("adminHeader");
+  const headerBottom =
+    rect && Number.isFinite(Number(rect.bottom))
+      ? Math.max(0, Number(rect.bottom))
+      : 0;
 
-  let headerBottom = 0;
+  const fallbackTop = window.innerWidth <= 800 ? 150 : 165;
+  const top = Math.max(Math.ceil(headerBottom + 18), fallbackTop);
 
-  if(header){
-
-    const rect =
-      header.getBoundingClientRect();
-
-    headerBottom =
-      Math.max(
-        0,
-        Number(rect.bottom || 0)
-      );
-
-  }
-
-  /*
-    Keep the list fully below the real rendered admin header.
-    The extra 18px gives a visible gap under the header/navigation.
-  */
-  const top =
-    Math.max(
-      headerBottom + 18,
-      190
-    );
-
-  sidebar.style.setProperty(
-    "top",
-    `${top}px`,
-    "important"
-  );
-
+  sidebar.style.setProperty("top", `${top}px`, "important");
   sidebar.style.setProperty(
     "left",
-    window.innerWidth <= 900
-      ? "8px"
-      : "14px",
+    window.innerWidth <= 900 ? "8px" : "14px",
     "important"
   );
-
-  sidebar.style.setProperty(
-    "right",
-    "auto",
-    "important"
-  );
-
+  sidebar.style.setProperty("right", "auto", "important");
   sidebar.style.setProperty(
     "max-height",
     `calc(100vh - ${top + 20}px)`,
     "important"
   );
+}
 
+function watchHeaderPosition(){
+
+  const header = document.getElementById("adminHeader");
+  if(!header) return;
+
+  let raf = 0;
+  const queue = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(positionDriversSidebarBelowHeader);
+  };
+
+  if("ResizeObserver" in window){
+    const ro = new ResizeObserver(queue);
+    ro.observe(header);
+  }
+
+  if("MutationObserver" in window){
+    const mo = new MutationObserver(queue);
+    mo.observe(header,{
+      childList:true,
+      subtree:true,
+      attributes:true
+    });
+  }
 }
 
 /* ===============================
    HELPERS
-=============================== */
+================================ */
 
-function getDistance(a, b){
+function validPoint(point){
+  return !!(
+    point &&
+    Number.isFinite(Number(point.lat)) &&
+    Number.isFinite(Number(point.lng))
+  );
+}
+
+function getDistance(a,b){
 
   const R = 6371;
+  const dLat = (Number(b.lat) - Number(a.lat)) * Math.PI / 180;
+  const dLng = (Number(b.lng) - Number(a.lng)) * Math.PI / 180;
 
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = Number(a.lat) * Math.PI / 180;
+  const lat2 = Number(b.lat) * Math.PI / 180;
 
   const x =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * Math.PI / 180) *
-    Math.cos(b.lat * Math.PI / 180) *
+    Math.cos(lat1) *
+    Math.cos(lat2) *
     Math.sin(dLng / 2) ** 2;
 
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-
 }
 
 function escapeHtml(value){
-  return String(value || "")
+  return String(value ?? "")
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
@@ -355,18 +352,9 @@ function escapeHtml(value){
 function colorFromId(id){
 
   const colors = [
-    "#ef4444",
-    "#3b82f6",
-    "#22c55e",
-    "#f59e0b",
-    "#a855f7",
-    "#06b6d4",
-    "#e11d48",
-    "#14b8a6",
-    "#f97316",
-    "#8b5cf6",
-    "#84cc16",
-    "#0ea5e9"
+    "#ef4444","#3b82f6","#22c55e","#f59e0b",
+    "#a855f7","#06b6d4","#e11d48","#14b8a6",
+    "#f97316","#8b5cf6","#84cc16","#0ea5e9"
   ];
 
   let hash = 0;
@@ -378,80 +366,32 @@ function colorFromId(id){
   }
 
   return colors[Math.abs(hash) % colors.length];
-
 }
 
-function getDriverName(driver, id){
+function getDriverName(driver,id){
   return (
-    driver.name ||
-    driver.driverName ||
-    driver.username ||
-    driver.phone ||
+    driver?.name ||
+    driver?.driverName ||
+    driver?.username ||
+    driver?.phone ||
     id
   );
 }
 
 function getVehicleText(driver){
   return (
-    driver.vehicleNumber ||
-    driver.vehicle ||
-    driver.carNumber ||
+    driver?.vehicleNumber ||
+    driver?.vehicle ||
+    driver?.carNumber ||
     ""
   );
 }
 
-function buildDriverIcon(driver, id){
+function pointFromObject(value){
 
-  const color = colorFromId(id);
-  const name = escapeHtml(getDriverName(driver, id));
+  if(!value || typeof value !== "object")
+    return null;
 
-  return L.divIcon({
-    className: "",
-    html: `
-      <div class="leaflet-driver-wrap">
-        <div class="leaflet-driver-name">${name}</div>
-        <div class="leaflet-driver-car" style="background:${color}">
-          🚗
-        </div>
-      </div>
-    `,
-    iconSize: [90, 54],
-    iconAnchor: [45, 44],
-    popupAnchor: [0, -35]
-  });
-
-}
-
-function highlightDriverCard(id){
-
-  document
-    .querySelectorAll(".driver-card")
-    .forEach(el => el.classList.remove("active"));
-
-  const target =
-    document.querySelector(`.driver-card[data-id="${CSS.escape(String(id))}"]`);
-
-  if(target){
-    target.classList.add("active");
-  }
-
-}
-
-
-/* ===============================
-   SAVED ROUTE + APPROX ETA
-   ZERO external routing requests
-=============================== */
-
-function validPoint(point){
-  return !!(
-    point &&
-    Number.isFinite(Number(point.lat)) &&
-    Number.isFinite(Number(point.lng))
-  );
-}
-
-function pointFromAny(value){
   if(Array.isArray(value) && value.length >= 2){
     const lat = Number(value[0]);
     const lng = Number(value[1]);
@@ -460,15 +400,12 @@ function pointFromAny(value){
       : null;
   }
 
-  if(!value || typeof value !== "object"){
-    return null;
-  }
-
   const lat = Number(
     value.lat ??
     value.latitude ??
     value.location?.lat ??
-    value.location?.latitude
+    value.location?.latitude ??
+    value.coordinates?.[1]
   );
 
   const lng = Number(
@@ -477,7 +414,8 @@ function pointFromAny(value){
     value.longitude ??
     value.location?.lng ??
     value.location?.lon ??
-    value.location?.longitude
+    value.location?.longitude ??
+    value.coordinates?.[0]
   );
 
   return Number.isFinite(lat) && Number.isFinite(lng)
@@ -485,247 +423,137 @@ function pointFromAny(value){
     : null;
 }
 
-function decodeGooglePolyline(encoded){
-  const points = [];
-
-  if(typeof encoded !== "string" || !encoded){
-    return points;
-  }
-
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-
-  try{
-    while(index < encoded.length){
-
-      let result = 0;
-      let shift = 0;
-      let byte = 0;
-
-      do{
-        byte = encoded.charCodeAt(index++) - 63;
-        result |= (byte & 0x1f) << shift;
-        shift += 5;
-      }while(byte >= 0x20 && index <= encoded.length);
-
-      const dLat =
-        (result & 1)
-          ? ~(result >> 1)
-          : (result >> 1);
-
-      lat += dLat;
-
-      result = 0;
-      shift = 0;
-
-      do{
-        byte = encoded.charCodeAt(index++) - 63;
-        result |= (byte & 0x1f) << shift;
-        shift += 5;
-      }while(byte >= 0x20 && index <= encoded.length);
-
-      const dLng =
-        (result & 1)
-          ? ~(result >> 1)
-          : (result >> 1);
-
-      lng += dLng;
-
-      points.push({
-        lat:lat / 1e5,
-        lng:lng / 1e5
-      });
-    }
-  }catch(err){
-    console.log("SAVED POLYLINE DECODE ERROR",err);
-    return [];
-  }
-
-  return points.filter(validPoint);
+function pointFromLatLng(lat,lng){
+  const a = Number(lat);
+  const b = Number(lng);
+  return Number.isFinite(a) && Number.isFinite(b)
+    ? {lat:a,lng:b}
+    : null;
 }
 
-function unwrapTripPayload(data){
-  if(!data || typeof data !== "object"){
-    return null;
-  }
-
+function getActiveTripObject(driver){
   return (
-    data.trip ||
-    data.item ||
-    data.data ||
-    data
+    driver?.activeTrip ||
+    driver?.currentTrip ||
+    driver?.trip ||
+    driver?.tripData ||
+    driver?.ride ||
+    null
   );
 }
 
-function savedTripPathArray(trip){
+/*
+  IMPORTANT:
+  We only read pickup/dropoff coordinates already included in the ONE
+  /api/admin/live-drivers payload. No second trip fetch is made.
+*/
+function getPickupPoint(driver){
 
-  const candidates = [
-    trip?.googleRoute?.path,
-    trip?.googleRoute?.routePath,
-    trip?.googleRoute?.polylinePath,
-    trip?.optimizedRoute?.path,
-    trip?.optimizedRoute?.routePath,
-    trip?.optimizedRoute?.polylinePath,
-    trip?.routePath,
-    trip?.polylinePath,
-    trip?.savedRoutePath,
-    trip?.route?.path
+  const trip = getActiveTripObject(driver);
+
+  const objectCandidates = [
+    driver?.pickup,
+    driver?.pickupLocation,
+    driver?.pickupPoint,
+    driver?.origin,
+    trip?.pickup,
+    trip?.pickupLocation,
+    trip?.pickupPoint,
+    trip?.origin
   ];
 
-  for(const candidate of candidates){
-
-    if(!Array.isArray(candidate) || candidate.length < 2){
-      continue;
-    }
-
-    const path =
-      candidate
-        .map(pointFromAny)
-        .filter(Boolean);
-
-    if(path.length >= 2){
-      return path;
-    }
+  for(const item of objectCandidates){
+    const point = pointFromObject(item);
+    if(validPoint(point)) return point;
   }
 
-  const encodedCandidates = [
-    trip?.googleRoute?.overviewPolyline?.points,
-    trip?.googleRoute?.overview_polyline?.points,
-    trip?.googleRoute?.routes?.[0]?.overviewPolyline?.points,
-    trip?.googleRoute?.routes?.[0]?.overview_polyline?.points,
-    trip?.optimizedRoute?.overviewPolyline?.points,
-    trip?.optimizedRoute?.overview_polyline?.points,
-    trip?.optimizedRoute?.routes?.[0]?.overviewPolyline?.points,
-    trip?.optimizedRoute?.routes?.[0]?.overview_polyline?.points,
-    trip?.overviewPolyline?.points,
-    trip?.overview_polyline?.points,
-    typeof trip?.overviewPolyline === "string" ? trip.overviewPolyline : "",
-    typeof trip?.overview_polyline === "string" ? trip.overview_polyline : "",
-    trip?.routePolyline?.points,
-    trip?.encodedPolyline?.points,
-    typeof trip?.routePolyline === "string" ? trip.routePolyline : "",
-    typeof trip?.encodedPolyline === "string" ? trip.encodedPolyline : "",
-    trip?.polyline
+  const pairCandidates = [
+    [driver?.pickupLat, driver?.pickupLng ?? driver?.pickupLon],
+    [driver?.pickupLatitude, driver?.pickupLongitude],
+    [driver?.originLat, driver?.originLng ?? driver?.originLon],
+    [trip?.pickupLat, trip?.pickupLng ?? trip?.pickupLon],
+    [trip?.pickupLatitude, trip?.pickupLongitude],
+    [trip?.originLat, trip?.originLng ?? trip?.originLon]
   ];
 
-  for(const encoded of encodedCandidates){
-    const decoded = decodeGooglePolyline(encoded);
-    if(decoded.length >= 2){
-      return decoded;
-    }
+  for(const [lat,lng] of pairCandidates){
+    const point = pointFromLatLng(lat,lng);
+    if(validPoint(point)) return point;
   }
 
-  /*
-    Safe fallback: connect already-saved stop coordinates.
-    This still makes zero external route requests.
-  */
-  const stopCandidates = [
-    trip?.stops,
-    trip?.routeStops,
-    trip?.tripStops
-  ];
-
-  for(const stops of stopCandidates){
-    if(!Array.isArray(stops)) continue;
-
-    const points =
-      stops
-        .map(pointFromAny)
-        .filter(Boolean);
-
-    if(points.length >= 2){
-      return points;
-    }
-  }
-
-  const simple = [
-    pointFromAny({
-      lat:trip?.pickupLat ?? trip?.pickup?.lat,
-      lng:trip?.pickupLng ?? trip?.pickup?.lng
-    }),
-    pointFromAny({
-      lat:trip?.dropoffLat ?? trip?.dropLat ?? trip?.dropoff?.lat,
-      lng:trip?.dropoffLng ?? trip?.dropLng ?? trip?.dropoff?.lng
-    })
-  ].filter(Boolean);
-
-  return simple.length >= 2 ? simple : [];
+  return null;
 }
 
-function nearestPathIndex(path,driverPoint){
+function getDropoffPoint(driver){
 
-  if(!Array.isArray(path) || !path.length || !validPoint(driverPoint)){
-    return -1;
+  const trip = getActiveTripObject(driver);
+
+  const objectCandidates = [
+    driver?.dropoff,
+    driver?.dropoffLocation,
+    driver?.dropoffPoint,
+    driver?.destination,
+    driver?.destinationLocation,
+    trip?.dropoff,
+    trip?.dropoffLocation,
+    trip?.dropoffPoint,
+    trip?.destination,
+    trip?.destinationLocation
+  ];
+
+  for(const item of objectCandidates){
+    const point = pointFromObject(item);
+    if(validPoint(point)) return point;
   }
 
-  let bestIndex = 0;
-  let bestDistance = Infinity;
+  const pairCandidates = [
+    [driver?.dropoffLat ?? driver?.dropLat, driver?.dropoffLng ?? driver?.dropLng ?? driver?.dropoffLon],
+    [driver?.dropoffLatitude, driver?.dropoffLongitude],
+    [driver?.destinationLat, driver?.destinationLng ?? driver?.destinationLon],
+    [trip?.dropoffLat ?? trip?.dropLat, trip?.dropoffLng ?? trip?.dropLng ?? trip?.dropoffLon],
+    [trip?.dropoffLatitude, trip?.dropoffLongitude],
+    [trip?.destinationLat, trip?.destinationLng ?? trip?.destinationLon]
+  ];
 
-  path.forEach((point,index)=>{
-    const distance = getDistance(driverPoint,point);
+  for(const [lat,lng] of pairCandidates){
+    const point = pointFromLatLng(lat,lng);
+    if(validPoint(point)) return point;
+  }
 
-    if(distance < bestDistance){
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  });
-
-  return bestIndex;
+  return null;
 }
 
-function pathDistanceKm(path){
-
-  if(!Array.isArray(path) || path.length < 2){
-    return 0;
-  }
-
-  let total = 0;
-
-  for(let i=1;i<path.length;i++){
-    total += getDistance(path[i-1],path[i]);
-  }
-
-  return total;
+function getTripId(driver){
+  const trip = getActiveTripObject(driver);
+  return String(
+    driver?.tripId ||
+    driver?.activeTripId ||
+    driver?.currentTripId ||
+    trip?.tripId ||
+    trip?._id ||
+    trip?.id ||
+    ""
+  ).trim();
 }
 
 function estimateEtaRange(miles){
 
-  const distance = Math.max(0,Number(miles || 0));
+  const distance = Math.max(0, Number(miles || 0));
 
   if(distance < 0.08){
-    return {
-      low:0,
-      high:1,
-      text:"< 1 min"
-    };
+    return {low:0,high:1,text:"< 1 min"};
   }
 
-  /*
-    Traffic-free local estimate.
-    Slower assumed average for short city trips,
-    faster average for longer stretches.
-  */
   const averageMph =
     distance <= 2 ? 18 :
     distance <= 8 ? 24 :
     distance <= 20 ? 32 :
     40;
 
-  const baseMinutes =
-    (distance / averageMph) * 60;
+  const baseMinutes = (distance / averageMph) * 60;
 
-  const low =
-    Math.max(
-      1,
-      Math.floor(baseMinutes * 0.82)
-    );
-
-  const high =
-    Math.max(
-      low + 1,
-      Math.ceil(baseMinutes * 1.22)
-    );
+  const low = Math.max(1, Math.floor(baseMinutes * 0.82));
+  const high = Math.max(low + 1, Math.ceil(baseMinutes * 1.22));
 
   return {
     low,
@@ -734,43 +562,105 @@ function estimateEtaRange(miles){
   };
 }
 
+function buildDriverIcon(driver,id){
+
+  const color = colorFromId(id);
+  const name = escapeHtml(getDriverName(driver,id));
+
+  return L.divIcon({
+    className:"",
+    html:`
+      <div class="leaflet-driver-wrap">
+        <div class="leaflet-driver-name">${name}</div>
+        <div class="leaflet-driver-car" style="background:${color}">🚗</div>
+      </div>
+    `,
+    iconSize:[90,54],
+    iconAnchor:[45,44],
+    popupAnchor:[0,-35]
+  });
+}
+
+function highlightDriverCard(id){
+
+  document
+    .querySelectorAll(".driver-card")
+    .forEach(el => el.classList.remove("active"));
+
+  const target = document.querySelector(
+    `.driver-card[data-id="${CSS.escape(String(id))}"]`
+  );
+
+  if(target) target.classList.add("active");
+}
+
+/* ===============================
+   SELECTED DRIVER DIRECT LINE
+   ZERO extra requests
+================================ */
+
+function clearSelectedVisuals(){
+
+  if(selectedDirectLine){
+    map.removeLayer(selectedDirectLine);
+    selectedDirectLine = null;
+  }
+
+  if(selectedPickupMarker){
+    map.removeLayer(selectedPickupMarker);
+    selectedPickupMarker = null;
+  }
+
+  if(selectedDropoffMarker){
+    map.removeLayer(selectedDropoffMarker);
+    selectedDropoffMarker = null;
+  }
+}
+
 function routeInfoHtml(id){
 
-  const summary =
-    selectedRouteSummary.get(
-      String(id || "")
-    );
+  const summary = selectedRouteSummary.get(String(id || ""));
 
-  if(!summary){
-    return "";
-  }
-
-  if(summary.loading){
-    return `<span class="route-note">Loading saved route…</span>`;
-  }
+  if(!summary) return "";
 
   if(summary.message){
     return `<span class="route-note">${escapeHtml(summary.message)}</span>`;
   }
 
   return `
-    <div class="route-distance">Remaining: ~${Number(summary.miles || 0).toFixed(1)} mi</div>
-    <div class="route-eta">ETA: ${escapeHtml(summary.etaText || "--")}</div>
-    <div class="route-note">Approximate • no traffic request</div>
+    <div class="route-distance">Direct remaining: ~${Number(summary.miles || 0).toFixed(1)} mi</div>
+    <div class="route-eta">Estimated time: ${escapeHtml(summary.etaText || "--")}</div>
+    <div class="route-note">Approximate • direct line • no routing request</div>
   `;
 }
 
-function clearSelectedRoute(){
+function makePopupHtml(driver,id){
 
-  if(selectedRoutePolyline){
-    map.removeLayer(selectedRoutePolyline);
-    selectedRoutePolyline = null;
-  }
+  const tripId = getTripId(driver);
+  const summary = selectedRouteSummary.get(String(id || ""));
 
-  if(selectedDestinationMarker){
-    map.removeLayer(selectedDestinationMarker);
-    selectedDestinationMarker = null;
-  }
+  const routeDetails =
+    summary && !summary.message
+      ? `
+        <div style="margin-top:7px;padding-top:7px;border-top:1px solid #e2e8f0">
+          <b>Direct remaining:</b> ~${Number(summary.miles || 0).toFixed(1)} mi<br>
+          <b>Estimated time:</b> ${escapeHtml(summary.etaText || "--")}<br>
+          <span style="font-size:10px;color:#64748b">Approximate • direct line • no routing request</span>
+        </div>
+      `
+      : summary?.message
+        ? `<div style="margin-top:7px;color:#64748b">${escapeHtml(summary.message)}</div>`
+        : "";
+
+  return `
+    <div style="min-width:190px">
+      <b style="font-size:14px">${escapeHtml(getDriverName(driver,id))}</b><br>
+      ${getVehicleText(driver) ? `Vehicle: ${escapeHtml(getVehicleText(driver))}<br>` : ""}
+      ${driver?.phone ? `Phone: ${escapeHtml(driver.phone)}<br>` : ""}
+      ${tripId ? `Trip: ${escapeHtml(tripId)}<br>` : ""}
+      ${routeDetails}
+    </div>
+  `;
 }
 
 function updateSelectedDriverUi(id){
@@ -778,449 +668,185 @@ function updateSelectedDriverUi(id){
   const key = String(id || "");
   const driver = driverRawData.get(key);
   const marker = driverMarkers.get(key);
-  const summary = selectedRouteSummary.get(key);
 
-  const routeEl =
-    document.querySelector(
-      `.driver-route-info[data-route-id="${CSS.escape(key)}"]`
-    );
+  const routeEl = document.querySelector(
+    `.driver-route-info[data-route-id="${CSS.escape(key)}"]`
+  );
 
   if(routeEl){
     routeEl.innerHTML = routeInfoHtml(key);
   }
 
-  if(!driver || !marker){
+  if(driver && marker){
+    marker.setPopupContent(makePopupHtml(driver,key));
+  }
+}
+
+function drawSelectedDriverDirectLine(id,{fitSelection=false}={}){
+
+  const key = String(id || "");
+  const driver = driverRawData.get(key);
+
+  if(!driver || !validPoint(driver)){
+    clearSelectedVisuals();
+    selectedRouteSummary.set(key,{message:"Driver location unavailable"});
+    updateSelectedDriverUi(key);
     return;
   }
 
-  const vehicle =
-    getVehicleText(driver)
-      ? `Vehicle: ${escapeHtml(getVehicleText(driver))}<br>`
-      : "";
-
-  const trip =
-    driver.tripId
-      ? `Trip: ${escapeHtml(driver.tripId)}<br>`
-      : "";
-
-  const routeDetails =
-    summary && !summary.loading && !summary.message
-      ? `
-          <div style="margin-top:7px;padding-top:7px;border-top:1px solid #e2e8f0">
-            <b>Remaining:</b> ~${Number(summary.miles || 0).toFixed(1)} mi<br>
-            <b>ETA:</b> ${escapeHtml(summary.etaText || "--")}<br>
-            <span style="font-size:10px;color:#64748b">Approximate • no traffic request</span>
-          </div>
-        `
-      : summary?.message
-        ? `<div style="margin-top:7px;color:#64748b">${escapeHtml(summary.message)}</div>`
-        : summary?.loading
-          ? `<div style="margin-top:7px;color:#64748b">Loading saved route…</div>`
-          : "";
-
-  marker.setPopupContent(`
-    <div style="min-width:190px">
-      <b style="font-size:14px">${escapeHtml(getDriverName(driver,key))}</b><br>
-      ${vehicle}
-      ${driver.phone ? `Phone: ${escapeHtml(driver.phone)}<br>` : ""}
-      ${trip}
-      ${routeDetails}
-    </div>
-  `);
-}
-
-async function getTripRoute(tripId){
-
-  const key = String(tripId || "").trim();
-
-  if(!key){
-    return {
-      trip:null,
-      path:[]
-    };
-  }
-
-  if(tripRouteCache.has(key)){
-    return tripRouteCache.get(key);
-  }
-
-  const promise = (async()=>{
-
-    try{
-      const res = await fetch(
-        `/api/trips/${encodeURIComponent(key)}`,
-        {
-          cache:"no-store",
-          headers:{
-            Authorization:"Bearer " + mapAuthToken
-          }
-        }
-      );
-
-      if(!res.ok){
-        return {
-          trip:null,
-          path:[],
-          error:`Trip route unavailable (${res.status})`
-        };
-      }
-
-      const data = await res.json().catch(()=>({}));
-      const trip = unwrapTripPayload(data);
-      const path = savedTripPathArray(trip);
-
-      return {
-        trip,
-        path
-      };
-
-    }catch(err){
-      console.log("TRIP ROUTE LOAD ERROR",err);
-
-      return {
-        trip:null,
-        path:[],
-        error:"Trip route unavailable"
-      };
-    }
-  })();
-
-  tripRouteCache.set(key,promise);
-
-  const result = await promise;
-
-  /*
-    Keep successful trip data cached. A failed request should be allowed
-    to retry the next time the driver is selected.
-  */
-  if(result?.error){
-    tripRouteCache.delete(key);
-  }else{
-    tripRouteCache.set(key,Promise.resolve(result));
-  }
-
-  return result;
-}
-
-function drawRemainingSavedRoute(id,path,fitRoute=true){
-
-  const driver = driverRawData.get(String(id || ""));
-
-  if(
-    !driver ||
-    !validPoint(driver) ||
-    !Array.isArray(path) ||
-    path.length < 2
-  ){
-    return null;
-  }
-
+  const pickup = getPickupPoint(driver);
+  const dropoff = getDropoffPoint(driver);
   const driverPoint = {
     lat:Number(driver.lat),
     lng:Number(driver.lng)
   };
 
-  const nearestIndex =
-    nearestPathIndex(
-      path,
-      driverPoint
-    );
+  clearSelectedVisuals();
 
-  if(nearestIndex < 0){
-    return null;
+  if(validPoint(pickup)){
+    selectedPickupMarker = L.circleMarker(
+      [pickup.lat,pickup.lng],
+      {
+        radius:7,
+        color:"#ffffff",
+        weight:2,
+        fillColor:"#16a34a",
+        fillOpacity:1
+      }
+    )
+      .addTo(map)
+      .bindTooltip("Pickup",{direction:"top"});
   }
 
-  const remaining = [
-    driverPoint,
-    ...path.slice(nearestIndex)
-  ];
+  if(validPoint(dropoff)){
+    selectedDropoffMarker = L.circleMarker(
+      [dropoff.lat,dropoff.lng],
+      {
+        radius:7,
+        color:"#ffffff",
+        weight:2,
+        fillColor:"#dc2626",
+        fillOpacity:1
+      }
+    )
+      .addTo(map)
+      .bindTooltip("Dropoff",{direction:"top"});
 
-  const distanceKm =
-    pathDistanceKm(remaining);
-
-  const miles =
-    distanceKm * 0.621371;
-
-  const eta =
-    estimateEtaRange(miles);
-
-  clearSelectedRoute();
-
-  selectedRoutePolyline =
-    L.polyline(
-      remaining.map(point=>[point.lat,point.lng]),
+    selectedDirectLine = L.polyline(
+      [
+        [driverPoint.lat,driverPoint.lng],
+        [dropoff.lat,dropoff.lng]
+      ],
       {
         color:"#2563eb",
-        weight:6,
-        opacity:0.92,
-        lineCap:"round",
-        lineJoin:"round"
+        weight:4,
+        opacity:0.9,
+        dashArray:"8 7",
+        lineCap:"round"
       }
     ).addTo(map);
 
-  const destination =
-    remaining[remaining.length - 1];
+    const miles = getDistance(driverPoint,dropoff) * 0.621371;
+    const eta = estimateEtaRange(miles);
 
-  if(validPoint(destination)){
-    selectedDestinationMarker =
-      L.circleMarker(
-        [destination.lat,destination.lng],
-        {
-          radius:7,
-          color:"#ffffff",
-          weight:2,
-          fillColor:"#dc2626",
-          fillOpacity:1
-        }
-      )
-      .addTo(map)
-      .bindTooltip("Destination",{
-        direction:"top"
-      });
+    selectedRouteSummary.set(key,{
+      miles,
+      etaText:eta.text,
+      lowMinutes:eta.low,
+      highMinutes:eta.high
+    });
+  }else{
+    selectedRouteSummary.set(key,{
+      message:getTripId(driver)
+        ? "Dropoff coordinates are not included in the live-drivers response"
+        : "No active trip"
+    });
   }
 
-  if(fitRoute){
-    const bounds =
-      L.latLngBounds(
-        remaining.map(point=>[point.lat,point.lng])
-      );
+  updateSelectedDriverUi(key);
+
+  if(fitSelection){
+
+    const fitPoints = [];
+
+    /*
+      User request: clicking driver name zooms between Pickup and Dropoff.
+      If either endpoint is unavailable, fall back to the points we do have.
+    */
+    if(validPoint(pickup))
+      fitPoints.push([pickup.lat,pickup.lng]);
+
+    if(validPoint(dropoff))
+      fitPoints.push([dropoff.lat,dropoff.lng]);
+
+    if(fitPoints.length < 2)
+      fitPoints.push([driverPoint.lat,driverPoint.lng]);
+
+    const bounds = L.latLngBounds(fitPoints);
 
     if(bounds.isValid()){
-      map.fitBounds(bounds,{
-        padding:[45,45],
-        maxZoom:16
-      });
+      if(fitPoints.length === 1){
+        map.setView(fitPoints[0],16,{animate:true});
+      }else{
+        map.fitBounds(bounds,{
+          padding:[55,55],
+          maxZoom:16,
+          animate:true
+        });
+      }
     }
   }
-
-  return {
-    miles,
-    etaText:eta.text,
-    lowMinutes:eta.low,
-    highMinutes:eta.high
-  };
 }
 
-async function selectDriver(id,options={}){
+function selectDriver(id,options={}){
 
   const key = String(id || "");
   const driver = driverRawData.get(key);
   const marker = driverMarkers.get(key);
 
-  if(!driver){
-    return;
-  }
+  if(!driver) return;
 
   selectedDriverId = key;
-  selectedTripId = String(driver.tripId || "").trim();
-
   highlightDriverCard(key);
 
-  if(marker && options.center !== false){
-    map.setView(
-      marker.getLatLng(),
-      16,
-      {animate:true}
-    );
-  }
-
-  if(!selectedTripId){
-    clearSelectedRoute();
-
-    selectedRouteSummary.set(key,{
-      message:"No active trip"
-    });
-
-    updateSelectedDriverUi(key);
-
-    if(marker && options.openPopup !== false){
-      marker.openPopup();
-    }
-
-    return;
-  }
-
-  selectedRouteSummary.set(key,{
-    loading:true
-  });
-
-  updateSelectedDriverUi(key);
-
-  const routeData =
-    await getTripRoute(
-      selectedTripId
-    );
-
-  /*
-    The user may have selected another driver while this trip was loading.
-  */
-  if(
-    selectedDriverId !== key ||
-    selectedTripId !== String(driver.tripId || "").trim()
-  ){
-    return;
-  }
-
-  if(
-    routeData?.error ||
-    !Array.isArray(routeData?.path) ||
-    routeData.path.length < 2
-  ){
-    clearSelectedRoute();
-
-    selectedRouteSummary.set(key,{
-      message:
-        routeData?.error ||
-        "No saved route found for this trip"
-    });
-
-    updateSelectedDriverUi(key);
-
-    if(marker && options.openPopup !== false){
-      marker.openPopup();
-    }
-
-    return;
-  }
-
-  const summary =
-    drawRemainingSavedRoute(
-      key,
-      routeData.path,
-      options.fitRoute !== false
-    );
-
-  if(!summary){
-    selectedRouteSummary.set(key,{
-      message:"Unable to calculate remaining route"
-    });
-  }else{
-    selectedRouteSummary.set(key,summary);
-  }
-
-  updateSelectedDriverUi(key);
+  drawSelectedDriverDirectLine(
+    key,
+    {fitSelection:options.fitSelection !== false}
+  );
 
   if(marker && options.openPopup !== false){
     marker.openPopup();
   }
 }
 
-async function refreshSelectedRoute(){
+function refreshSelectedDriver(){
 
-  if(!selectedDriverId){
+  if(!selectedDriverId)
     return;
-  }
 
-  const driver =
-    driverRawData.get(
-      selectedDriverId
-    );
+  const driver = driverRawData.get(selectedDriverId);
 
   if(!driver){
-    clearSelectedRoute();
+    clearSelectedVisuals();
+    selectedRouteSummary.delete(selectedDriverId);
     selectedDriverId = "";
-    selectedTripId = "";
     return;
   }
 
-  const tripId =
-    String(driver.tripId || "").trim();
-
-  if(!tripId){
-    clearSelectedRoute();
-
-    selectedRouteSummary.set(
-      selectedDriverId,
-      {message:"No active trip"}
-    );
-
-    updateSelectedDriverUi(
-      selectedDriverId
-    );
-
-    return;
-  }
-
-  if(tripId !== selectedTripId){
-    selectedTripId = tripId;
-
-    await selectDriver(
-      selectedDriverId,
-      {
-        center:false,
-        fitRoute:false,
-        openPopup:false
-      }
-    );
-
-    return;
-  }
-
-  const cached =
-    await getTripRoute(
-      tripId
-    );
-
-  if(
-    !Array.isArray(cached?.path) ||
-    cached.path.length < 2
-  ){
-    return;
-  }
-
-  const summary =
-    drawRemainingSavedRoute(
-      selectedDriverId,
-      cached.path,
-      false
-    );
-
-  if(summary){
-    selectedRouteSummary.set(
-      selectedDriverId,
-      summary
-    );
-
-    updateSelectedDriverUi(
-      selectedDriverId
-    );
-  }
+  /*
+    Re-draw from the newest GPS point to the same Dropoff.
+    This shortens the direct line and recalculates distance/time,
+    using data from the SAME aggregated request.
+  */
+  drawSelectedDriverDirectLine(
+    selectedDriverId,
+    {fitSelection:false}
+  );
 }
 
 /* ===============================
-   DRAW PATH
-=============================== */
-
-function drawPath(id){
-
-  const path = driverPaths.get(id);
-
-  if(!path || path.length < 2) return;
-
-  const latlngs = path.map(p => [p.lat, p.lng]);
-  const color = colorFromId(id);
-
-  if(driverPolylines.has(id)){
-
-    driverPolylines.get(id).setLatLngs(latlngs);
-
-  }else{
-
-    const poly = L.polyline(latlngs, {
-      color,
-      weight: 4,
-      opacity: 0.85
-    }).addTo(map);
-
-    driverPolylines.set(id, poly);
-
-  }
-
-}
-
-/* ===============================
-   SIDEBAR RENDER
-=============================== */
+   SIDEBAR
+================================ */
 
 function renderSidebar(drivers){
 
@@ -1229,14 +855,15 @@ function renderSidebar(drivers){
 
   if(!listEl || !countEl) return;
 
-  countEl.innerText = `${drivers.length} driver${drivers.length === 1 ? "" : "s"} online`;
+  countEl.innerText =
+    `${drivers.length} driver${drivers.length === 1 ? "" : "s"} online`;
 
   if(!drivers.length){
     listEl.innerHTML = `<div class="empty-drivers">No live drivers found</div>`;
     return;
   }
 
-  listEl.innerHTML = drivers.map((driver, index) => {
+  listEl.innerHTML = drivers.map((driver,index) => {
 
     const id = String(
       driver.driverId ||
@@ -1246,10 +873,10 @@ function renderSidebar(drivers){
     );
 
     const color = colorFromId(id);
-    const name = escapeHtml(getDriverName(driver, id));
+    const name = escapeHtml(getDriverName(driver,id));
     const vehicle = escapeHtml(getVehicleText(driver) || "No vehicle");
     const phone = escapeHtml(driver.phone || "");
-    const tripId = escapeHtml(driver.tripId || "");
+    const tripId = escapeHtml(getTripId(driver));
 
     return `
       <div class="driver-card" data-id="${escapeHtml(id)}">
@@ -1265,25 +892,23 @@ function renderSidebar(drivers){
         <div class="driver-route-info" data-route-id="${escapeHtml(id)}">${routeInfoHtml(id)}</div>
       </div>
     `;
-
   }).join("");
 
   listEl.querySelectorAll(".driver-card").forEach(card => {
-    card.addEventListener("click", () => {
+
+    card.addEventListener("click",() => {
 
       const id = card.getAttribute("data-id");
-      const marker = driverMarkers.get(id);
       const driver = driverRawData.get(id);
 
       selectDriver(id,{
-        center:true,
-        fitRoute:true,
+        fitSelection:true,
         openPopup:true
       });
 
       const searchInput = document.getElementById("searchDriver");
       if(searchInput){
-        searchInput.value = getDriverName(driver || {}, id);
+        searchInput.value = getDriverName(driver || {},id);
       }
     });
   });
@@ -1291,21 +916,21 @@ function renderSidebar(drivers){
   if(selectedDriverId){
     highlightDriverCard(selectedDriverId);
   }
-
 }
 
 /* ===============================
    SEARCH
-=============================== */
+================================ */
 
 function bindSearch(){
 
   const input = document.getElementById("searchDriver");
-  if(!input || input.dataset.bound === "1") return;
+  if(!input || input.dataset.bound === "1")
+    return;
 
   input.dataset.bound = "1";
 
-  input.addEventListener("input", () => {
+  input.addEventListener("input",() => {
 
     const q = String(input.value || "").trim().toLowerCase();
 
@@ -1316,9 +941,9 @@ function bindSearch(){
 
     if(!q) return;
 
-    for(const [id, driver] of driverRawData.entries()){
+    for(const [id,driver] of driverRawData.entries()){
 
-      const name = getDriverName(driver, id).toLowerCase();
+      const name = getDriverName(driver,id).toLowerCase();
       const phone = String(driver.phone || "").toLowerCase();
       const vehicle = String(getVehicleText(driver) || "").toLowerCase();
 
@@ -1327,30 +952,35 @@ function bindSearch(){
         phone.includes(q) ||
         vehicle.includes(q)
       ){
-        const marker = driverMarkers.get(id);
-        if(marker){
-          map.setView(marker.getLatLng(), 16, { animate:true });
-          highlightDriverCard(id);
-        }
+        selectDriver(id,{
+          fitSelection:true,
+          openPopup:false
+        });
         break;
       }
-
     }
-
   });
-
 }
 
 /* ===============================
-   LOAD LIVE DRIVERS
-=============================== */
+   ONE AGGREGATED LIVE REQUEST
+================================ */
 
 async function loadLiveDrivers(){
 
+  if(liveRequestInFlight)
+    return;
+
+  liveRequestInFlight = true;
+
   try{
 
-    const res = await fetch(LIVE_DRIVERS_API, {
-      cache: "no-store",
+    /*
+      This is the ONLY data request made by maps.js.
+      It must return all online drivers in one response.
+    */
+    const res = await fetch(LIVE_DRIVERS_API,{
+      cache:"no-store",
       headers:{
         Authorization:"Bearer " + mapAuthToken
       }
@@ -1358,10 +988,12 @@ async function loadLiveDrivers(){
 
     if(!res.ok){
       let message = "Failed to load live drivers";
+
       try{
         const errorData = await res.json();
         message = errorData.message || message;
       }catch(e){}
+
       throw new Error(`${message} (${res.status})`);
     }
 
@@ -1375,7 +1007,7 @@ async function loadLiveDrivers(){
     const onlineIds = new Set();
     const cleanedDrivers = [];
 
-    drivers.forEach((driver, index) => {
+    drivers.forEach((driver,index) => {
 
       const id = String(
         driver.driverId ||
@@ -1384,208 +1016,131 @@ async function loadLiveDrivers(){
         ("driver_" + index)
       );
 
-      const lat = Number(driver.lat);
-      const lng = Number(driver.lng);
+      const lat = Number(driver.lat ?? driver.latitude);
+      const lng = Number(driver.lng ?? driver.lon ?? driver.longitude);
 
-      if(!id || !Number.isFinite(lat) || !Number.isFinite(lng)){
+      if(!id || !Number.isFinite(lat) || !Number.isFinite(lng))
         return;
-      }
 
       onlineIds.add(id);
-      bounds.push([lat, lng]);
+      bounds.push([lat,lng]);
 
       const driverData = {
         ...driver,
-        driverId: id,
+        driverId:id,
         lat,
         lng
       };
 
-      driverRawData.set(id, driverData);
+      driverRawData.set(id,driverData);
       cleanedDrivers.push(driverData);
 
-      /* ===============================
-         PATH TRACKING
-      =============================== */
-
-      if(!driverPaths.has(id)){
-        driverPaths.set(id, []);
-      }
-
-      const path = driverPaths.get(id);
-      const last = path[path.length - 1];
-
-      if(!last || getDistance(last, {lat, lng}) > 0.01){
-
-        path.push({lat, lng});
-
-        if(path.length > 200){
-          path.shift();
-        }
-
-        drawPath(id);
-
-      }
-
-      /* ===============================
-         MARKER
-      =============================== */
-
-      const popupHtml = `
-        <div style="min-width:190px">
-          <b style="font-size:14px">${escapeHtml(getDriverName(driverData, id))}</b><br>
-          ${getVehicleText(driverData) ? `Vehicle: ${escapeHtml(getVehicleText(driverData))}<br>` : ""}
-          ${driverData.phone ? `Phone: ${escapeHtml(driverData.phone)}<br>` : ""}
-          ${driverData.tripId ? `Trip: ${escapeHtml(driverData.tripId)}<br>` : ""}
-          ${routeInfoHtml(id)}
-        </div>
-      `;
+      const popupHtml = makePopupHtml(driverData,id);
 
       if(driverMarkers.has(id)){
 
         const marker = driverMarkers.get(id);
-        marker.setLatLng([lat, lng]);
-        marker.setIcon(buildDriverIcon(driverData, id));
+        marker.setLatLng([lat,lng]);
+        marker.setIcon(buildDriverIcon(driverData,id));
         marker.setPopupContent(popupHtml);
 
       }else{
 
-        const marker = L.marker([lat, lng], {
-          icon: buildDriverIcon(driverData, id)
+        const marker = L.marker([lat,lng],{
+          icon:buildDriverIcon(driverData,id)
         }).addTo(map);
 
         marker.bindPopup(popupHtml);
 
-        marker.on("click", () => {
+        marker.on("click",() => {
           selectDriver(id,{
-            center:false,
-            fitRoute:true,
+            fitSelection:true,
             openPopup:true
           });
         });
 
-        driverMarkers.set(id, marker);
-
+        driverMarkers.set(id,marker);
       }
-
     });
 
-    /* ===============================
-       REMOVE OFFLINE
-    =============================== */
-
-    driverMarkers.forEach((marker, id) => {
+    /* remove offline drivers */
+    driverMarkers.forEach((marker,id) => {
 
       if(!onlineIds.has(id)){
 
         map.removeLayer(marker);
         driverMarkers.delete(id);
-
-        if(driverPolylines.has(id)){
-          map.removeLayer(driverPolylines.get(id));
-          driverPolylines.delete(id);
-        }
-
-        driverPaths.delete(id);
         driverRawData.delete(id);
+        selectedRouteSummary.delete(id);
 
         if(selectedDriverId === id){
-          clearSelectedRoute();
+          clearSelectedVisuals();
           selectedDriverId = "";
-          selectedTripId = "";
-          selectedRouteSummary.delete(id);
         }
-
       }
-
     });
 
-    /* ===============================
-       SIDEBAR
-    =============================== */
-
-    cleanedDrivers.sort((a, b) => {
-      return getDriverName(a, a.driverId)
-        .localeCompare(getDriverName(b, b.driverId));
+    cleanedDrivers.sort((a,b) => {
+      return getDriverName(a,a.driverId)
+        .localeCompare(getDriverName(b,b.driverId));
     });
 
     renderSidebar(cleanedDrivers);
 
     /*
-      Recalculate the selected driver's remaining miles/ETA from the
-      newest live GPS point. The saved route stays cached, so this makes
-      no additional external routing requests.
+      Selected driver's line + direct distance + estimated time
+      are recalculated from this same response only.
     */
-    if(selectedDriverId){
-      refreshSelectedRoute().catch(err=>{
-        console.log("SELECTED ROUTE REFRESH ERROR",err);
-      });
-    }
-
-    /* ===============================
-       FIRST ZOOM
-    =============================== */
+    refreshSelectedDriver();
 
     if(bounds.length && firstLoad){
 
-      map.fitBounds(bounds, {
-        padding: [60, 60]
+      map.fitBounds(bounds,{
+        padding:[60,60]
       });
 
       firstLoad = false;
-
     }
 
   }catch(err){
 
-    console.log("MAP ERROR", err);
+    console.log("MAP ERROR",err);
 
     const listEl = document.getElementById("driversList");
     if(listEl){
-      listEl.innerHTML = `<div class="empty-drivers">Failed to load live drivers</div>`;
+      listEl.innerHTML =
+        `<div class="empty-drivers">Failed to load live drivers</div>`;
     }
 
+  }finally{
+    liveRequestInFlight = false;
   }
-
 }
 
 /* ===============================
    START
-=============================== */
+================================ */
 
 injectMapStyles();
 ensureSidebar();
 positionDriversSidebarBelowHeader();
+watchHeaderPosition();
 bindSearch();
 
-/*
-  header.js builds the admin header dynamically.
-  Re-check the real header height after it finishes rendering.
-*/
-setTimeout(
-  positionDriversSidebarBelowHeader,
-  100
-);
-
-setTimeout(
-  positionDriversSidebarBelowHeader,
-  350
-);
-
-setTimeout(
-  positionDriversSidebarBelowHeader,
-  800
-);
+setTimeout(positionDriversSidebarBelowHeader,100);
+setTimeout(positionDriversSidebarBelowHeader,350);
+setTimeout(positionDriversSidebarBelowHeader,800);
+setTimeout(positionDriversSidebarBelowHeader,1500);
 
 setTimeout(() => {
   map.invalidateSize(true);
   positionDriversSidebarBelowHeader();
   loadLiveDrivers();
-}, 150);
+},150);
 
-window.addEventListener("resize", () => {
+window.addEventListener("resize",() => {
   map.invalidateSize(false);
   positionDriversSidebarBelowHeader();
 });
 
-setInterval(loadLiveDrivers, 30000);
+setInterval(loadLiveDrivers,LIVE_REFRESH_MS);

@@ -460,6 +460,12 @@ router.post(
 /* =========================
    ADMIN MAP READ LIVE DRIVERS
    GET /api/admin/live-drivers
+
+   ONE HTTP REQUEST FROM MAP:
+   - returns all online drivers
+   - also attaches pickup/dropoff coordinates
+     for each active trip in the same response
+   - NO extra /api/trips/:id request is needed
 ========================= */
 
 router.get(
@@ -482,64 +488,293 @@ router.get(
       await LiveDriver.find(
         tenantFilter(req,{
           $or:[
-            {
-              updatedAt:{
-                $gte:since
-              }
-            },
-            {
-              lastSeen:{
-                $gte:since
-              }
-            }
+            { updatedAt:{ $gte:since } },
+            { lastSeen:{ $gte:since } }
           ]
         })
       )
       .lean();
 
+    const tripObjectIds = [
+      ...new Set(
+        drivers
+          .map(d => String(d?.tripId || "").trim())
+          .filter(id =>
+            id &&
+            mongoose.Types.ObjectId.isValid(id)
+          )
+      )
+    ].map(id => new mongoose.Types.ObjectId(id));
+
+    const tripById = new Map();
+
+    if(tripObjectIds.length){
+
+      const Trip = getTripModel();
+
+      if(Trip){
+
+        const trips =
+          await Trip.find(
+            tenantFilter(req,{
+              _id:{ $in:tripObjectIds }
+            })
+          )
+          .select([
+            "_id",
+            "tenantId",
+            "status",
+
+            "pickupLat",
+            "pickupLng",
+            "pickupLatitude",
+            "pickupLongitude",
+
+            "dropoffLat",
+            "dropoffLng",
+            "dropLat",
+            "dropLng",
+            "dropoffLatitude",
+            "dropoffLongitude",
+
+            "passengers.pickupLat",
+            "passengers.pickupLng",
+            "passengers.dropoffLat",
+            "passengers.dropoffLng",
+            "passengers.status"
+          ].join(" "))
+          .lean();
+
+        for(const trip of trips){
+          tripById.set(
+            String(trip._id),
+            trip
+          );
+        }
+      }
+    }
+
+    function safePoint(latValue,lngValue){
+
+      const lat = Number(latValue);
+      const lng = Number(lngValue);
+
+      if(
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lng) ||
+        lat < -90 ||
+        lat > 90 ||
+        lng < -180 ||
+        lng > 180 ||
+        (lat === 0 && lng === 0)
+      ){
+        return null;
+      }
+
+      return { lat, lng };
+    }
+
+    function firstPassengerPoint(trip,type){
+
+      const passengers =
+        Array.isArray(trip?.passengers)
+          ? trip.passengers
+          : [];
+
+      for(const passenger of passengers){
+
+        const status =
+          cleanStatus(passenger?.status);
+
+        if(
+          status.includes("cancel") ||
+          status.includes("noshow")
+        ){
+          continue;
+        }
+
+        const point =
+          type === "pickup"
+            ? safePoint(
+                passenger?.pickupLat,
+                passenger?.pickupLng
+              )
+            : safePoint(
+                passenger?.dropoffLat,
+                passenger?.dropoffLng
+              );
+
+        if(point){
+          return point;
+        }
+      }
+
+      return null;
+    }
+
+    function tripPickupPoint(trip){
+
+      if(!trip){
+        return null;
+      }
+
+      return (
+        safePoint(
+          trip.pickupLat ??
+          trip.pickupLatitude,
+
+          trip.pickupLng ??
+          trip.pickupLongitude
+        ) ||
+        firstPassengerPoint(
+          trip,
+          "pickup"
+        )
+      );
+    }
+
+    function tripDropoffPoint(trip){
+
+      if(!trip){
+        return null;
+      }
+
+      return (
+        safePoint(
+          trip.dropoffLat ??
+          trip.dropLat ??
+          trip.dropoffLatitude,
+
+          trip.dropoffLng ??
+          trip.dropLng ??
+          trip.dropoffLongitude
+        ) ||
+        firstPassengerPoint(
+          trip,
+          "dropoff"
+        )
+      );
+    }
+
     const list =
       drivers
-        .map(d => ({
+        .map(d => {
 
-          tenantId:
-            d.tenantId || "",
+          const tripId =
+            String(
+              d.tripId ||
+              ""
+            ).trim();
 
-          driverId:
-            d.driverId || "",
+          const trip =
+            tripById.get(
+              tripId
+            ) || null;
 
-          tripId:
-            d.tripId || "",
+          const pickup =
+            tripPickupPoint(trip);
 
-          name:
-            d.name || "",
+          const dropoff =
+            tripDropoffPoint(trip);
 
-          phone:
-            d.phone || "",
+          return {
 
-          vehicleNumber:
-            d.vehicleNumber || "",
+            tenantId:
+              d.tenantId || "",
 
-          routeMode:
-            d.routeMode || "",
+            driverId:
+              d.driverId || "",
 
-          currentStopId:
-            d.currentStopId || "",
+            tripId,
 
-          currentStopIndex:
-            Number(d.currentStopIndex || 0),
+            name:
+              d.name || "",
 
-          lat:
-            Number(d.lat),
+            phone:
+              d.phone || "",
 
-          lng:
-            Number(d.lng),
+            vehicleNumber:
+              d.vehicleNumber || "",
 
-          updatedAt:
-            d.updatedAt ||
-            d.lastSeen ||
-            null
+            routeMode:
+              d.routeMode || "",
 
-        }))
+            currentStopId:
+              d.currentStopId || "",
+
+            currentStopIndex:
+              Number(
+                d.currentStopIndex ||
+                0
+              ),
+
+            lat:
+              Number(d.lat),
+
+            lng:
+              Number(d.lng),
+
+            pickupLat:
+              pickup
+                ? pickup.lat
+                : null,
+
+            pickupLng:
+              pickup
+                ? pickup.lng
+                : null,
+
+            dropoffLat:
+              dropoff
+                ? dropoff.lat
+                : null,
+
+            dropoffLng:
+              dropoff
+                ? dropoff.lng
+                : null,
+
+            activeTrip:
+              trip
+                ? {
+                    _id:
+                      String(
+                        trip._id
+                      ),
+
+                    status:
+                      trip.status ||
+                      "",
+
+                    pickupLat:
+                      pickup
+                        ? pickup.lat
+                        : null,
+
+                    pickupLng:
+                      pickup
+                        ? pickup.lng
+                        : null,
+
+                    dropoffLat:
+                      dropoff
+                        ? dropoff.lat
+                        : null,
+
+                    dropoffLng:
+                      dropoff
+                        ? dropoff.lng
+                        : null
+                  }
+                : null,
+
+            updatedAt:
+              d.updatedAt ||
+              d.lastSeen ||
+              null
+
+          };
+        })
         .filter(d =>
           Number.isFinite(d.lat) &&
           Number.isFinite(d.lng)
