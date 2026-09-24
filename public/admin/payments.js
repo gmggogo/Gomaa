@@ -126,14 +126,39 @@ function customServiceDisplayCode(gateKey){
     return key;
   }
 
+  const slot =
+    Number(
+      key.match(/^CUSTOM_([1-4])$/)?.[1] || 0
+    );
+
+  /*
+    Custom service records do not always keep CUSTOM_n in serviceKey.
+    After configuration, serviceKey/customServiceCode may become the
+    real two-letter operational code (for example ME). The permanent
+    link back to the Platform slot is customSlot, so match by slot first.
+  */
   const row = serviceCatalog.find(service=>{
-    const candidates = [
+    const directSlot =
+      Number(
+        service?.customSlot ||
+        service?.customServiceSlot ||
+        0
+      );
+
+    if(slot && directSlot === slot){
+      return true;
+    }
+
+    const identityCandidates = [
+      service?.serviceIdentity,
+      service?.gateKey,
+      service?.platformServiceKey,
       service?.serviceKey,
       service?.key,
       service?.code
     ];
 
-    return candidates.some(value=>
+    return identityCandidates.some(value=>
       normalizeServiceKey(value) === key
     );
   });
@@ -148,7 +173,8 @@ function customServiceDisplayCode(gateKey){
       row?.serviceCode ||
       row?.serviceSuffix ||
       row?.companySuffix ||
-      row?.reservedSuffix
+      row?.reservedSuffix ||
+      row?.suffix
     ) ||
     firstTwoServiceLetters(
       row?.title ||
