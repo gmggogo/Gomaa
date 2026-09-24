@@ -287,10 +287,40 @@ function customDefinition(item,index=0){
 
 function channelRule(item,channel){
   const name =
-    clean(channel);
+    clean(channel)
+      .toLowerCase();
+
+  const matrix =
+    item?.matrix &&
+    typeof item.matrix === "object"
+      ? item.matrix
+      : {};
+
+  /*
+    COMPANY / FACILITY COMPATIBILITY
+
+    Add Trip for company accounts must read the Company booking-data rules.
+    Older GH Mobility data used matrix.facility while newer configuration
+    can use matrix.company / matrix.companies.
+
+    Keep both directions backward-compatible so existing tenants do not lose
+    their configured fields while the Company endpoint is migrated.
+  */
+  if(
+    name === "company" ||
+    name === "companies" ||
+    name === "facility"
+  ){
+    return (
+      matrix.company ||
+      matrix.companies ||
+      matrix.facility ||
+      {}
+    );
+  }
 
   return (
-    item?.matrix?.[name] ||
+    matrix[name] ||
     {}
   );
 }
