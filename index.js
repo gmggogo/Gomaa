@@ -1080,16 +1080,46 @@ async function enforceTenantVehicleLimit(
       return next();
     }
 
-    const currentSchedules =
-      await DriverScheduleModel.find({
-        tenantId
-      })
-      .select(
-        "driverId vehicleNumber"
-      )
-      .lean();
+    /*
+      IMPORTANT:
+      Driver Schedule sends the WHOLE schedule on every Save, even when the
+      user changed only Service / Days / Address. Therefore the presence of
+      vehicleNumber in the request does NOT mean that a vehicle was added.
 
-    const scheduleMap =
+      We compare the effective vehicle count BEFORE and AFTER the request.
+      The package limit blocks only a REAL increase in Driver/Vehicle units.
+    */
+
+    const [
+      currentSchedules,
+      drivers
+    ] =
+      await Promise.all([
+        DriverScheduleModel.find({
+          tenantId
+        })
+          .select(
+            "driverId vehicleNumber"
+          )
+          .lean(),
+
+        UserModel.find({
+          tenantId,
+          role:"driver",
+          active:{
+            $ne:false
+          },
+          enabled:{
+            $ne:false
+          }
+        })
+          .select(
+            "_id vehicleNumber vehicle"
+          )
+          .lean()
+      ]);
+
+    const currentScheduleMap =
       new Map(
         currentSchedules.map(row=>[
           String(
@@ -1103,6 +1133,76 @@ async function enforceTenantVehicleLimit(
         ])
       );
 
+    function countEffectiveVehicles(
+      scheduleMap
+    ){
+
+      const vehicleSet =
+        new Set();
+
+      drivers.forEach(driver=>{
+
+        const driverId =
+          String(
+            driver._id ||
+            ""
+          );
+
+        const scheduleVehicle =
+          String(
+            scheduleMap.get(
+              driverId
+            ) ||
+            ""
+          ).trim();
+
+        const vehicle =
+          scheduleVehicle ||
+          String(
+            driver.vehicleNumber ||
+            driver.vehicle ||
+            ""
+          ).trim();
+
+        if(vehicle){
+          vehicleSet.add(
+            vehicle.toUpperCase()
+          );
+        }
+      });
+
+      /*
+        Keep saved schedule vehicles that belong to the tenant even when an
+        old driver record is no longer available.
+      */
+      scheduleMap.forEach(vehicle=>{
+
+        const cleanVehicle =
+          String(
+            vehicle ||
+            ""
+          ).trim();
+
+        if(cleanVehicle){
+          vehicleSet.add(
+            cleanVehicle.toUpperCase()
+          );
+        }
+      });
+
+      return vehicleSet.size;
+    }
+
+    const currentCount =
+      countEffectiveVehicles(
+        currentScheduleMap
+      );
+
+    const proposedScheduleMap =
+      new Map(
+        currentScheduleMap
+      );
+
     incomingRows.forEach(
       ([driverId,row])=>{
 
@@ -1113,7 +1213,7 @@ async function enforceTenantVehicleLimit(
           return;
         }
 
-        scheduleMap.set(
+        proposedScheduleMap.set(
           String(driverId),
           String(
             row.vehicleNumber ||
@@ -1123,88 +1223,35 @@ async function enforceTenantVehicleLimit(
       }
     );
 
-    const drivers =
-      await UserModel.find({
-        tenantId,
-        role:"driver",
-        active:{
-          $ne:false
-        },
-        enabled:{
-          $ne:false
-        }
-      })
-      .select(
-        "_id vehicleNumber vehicle"
-      )
-      .lean();
-
-    const vehicleSet =
-      new Set();
-
-    drivers.forEach(driver=>{
-
-      const driverId =
-        String(
-          driver._id ||
-          ""
-        );
-
-      const scheduleVehicle =
-        String(
-          scheduleMap.get(
-            driverId
-          ) ||
-          ""
-        ).trim();
-
-      const vehicle =
-        scheduleVehicle ||
-        String(
-          driver.vehicleNumber ||
-          driver.vehicle ||
-          ""
-        ).trim();
-
-      if(vehicle){
-        vehicleSet.add(
-          vehicle.toUpperCase()
-        );
-      }
-    });
+    const proposedCount =
+      countEffectiveVehicles(
+        proposedScheduleMap
+      );
 
     /*
-      Keep schedule rows that belong to a tenant even if an old driver
-      record is no longer available. They still represent saved vehicles.
+      Do NOT block:
+      - service-only edits
+      - day / address / phone edits
+      - changing vehicle details without increasing the total count
+      - existing tenants that are already above an old/stale limit
+
+      Block only when this request ACTUALLY increases the number of
+      Driver/Vehicle units AND the new total is above the package limit.
     */
-    scheduleMap.forEach(vehicle=>{
-      const cleanVehicle =
-        String(
-          vehicle ||
-          ""
-        ).trim();
+    const increasesVehicleCount =
+      proposedCount > currentCount;
 
-      if(cleanVehicle){
-        vehicleSet.add(
-          cleanVehicle.toUpperCase()
-        );
-      }
-    });
-
-    const proposedCount =
-      vehicleSet.size;
-
-    if(proposedCount > maxVehicles){
+    if(
+      increasesVehicleCount &&
+      proposedCount > maxVehicles
+    ){
 
       return res.status(409).json({
         success:false,
         code:"PACKAGE_LIMIT_REACHED",
         resource:"vehicle",
         current:
-          packageData
-            ?.usage
-            ?.actualVehicles ||
-          0,
+          currentCount,
         requestedTotal:
           proposedCount,
         limit:
@@ -1230,6 +1277,7 @@ async function enforceTenantVehicleLimit(
     });
   }
 }
+
 
 /* =========================
    LIVE DRIVER ROUTES
