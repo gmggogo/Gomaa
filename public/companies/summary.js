@@ -55,6 +55,7 @@ let allTrips = [];
 let SERVICES = [];
 let currentTab = "ALL";
 let autoRefreshTimer = null;
+let lastServicesRefreshAt = 0;
 
 /* =========================
 LOAD
@@ -92,6 +93,29 @@ async function load(){
 
 }
 
+function extractServicesPayload(payload){
+
+  const candidates = [
+    payload,
+    payload?.services,
+    payload?.items,
+    payload?.results,
+    payload?.data,
+    payload?.data?.services,
+    payload?.data?.items,
+    payload?.result,
+    payload?.result?.services
+  ];
+
+  for(const candidate of candidates){
+    if(Array.isArray(candidate)){
+      return candidate;
+    }
+  }
+
+  return [];
+}
+
 async function loadServices(){
 
   try{
@@ -100,6 +124,7 @@ async function loadServices(){
 
     const res =
       await fetch("/api/services?company=true",{
+        cache:"no-store",
         headers:{
           Authorization:"Bearer " + token
         }
@@ -113,21 +138,27 @@ async function loadServices(){
       await res.json();
 
     const services =
-      Array.isArray(data)
-      ? data.filter(s =>
+      extractServicesPayload(data)
+        .filter(s =>
           s &&
+          typeof s === "object" &&
           s.companyEnabled !== false &&
-          s.enabled !== false
-        )
-      : [];
+          s.enabled !== false &&
+          s.active !== false &&
+          s.isActive !== false
+        );
 
-    if(services.length){
-      SERVICES = services;
-    }
+    /*
+      Always replace the catalog.
+      This prevents an old/stale service list from surviving
+      after Service Management changes.
+    */
+    SERVICES = services;
+    lastServicesRefreshAt = Date.now();
 
   }catch(err){
 
-    console.log(err);
+    console.log("SUMMARY SERVICES LOAD ERROR",err);
 
     if(!Array.isArray(SERVICES)){
       SERVICES = [];
@@ -515,13 +546,45 @@ function getTripSuffix(trip){
 
 }
 
+function normalizeServiceCode(value){
+
+  const raw =
+    String(value ?? "")
+      .trim()
+      .toUpperCase();
+
+  if(!raw){
+    return "";
+  }
+
+  if(raw === "STANDARD") return "ST";
+  if(raw === "WHEELCHAIR") return "WH";
+  if(raw === "SHARED") return "SH";
+  if(raw === "LIMO" || raw === "LIMOUSINE") return "LM";
+  if(raw === "TAXI") return "TX";
+  if(raw === "XL") return "XL";
+
+  return raw;
+}
+
 function getServiceKey(service){
 
+  if(!service || typeof service !== "object"){
+    return "";
+  }
+
   return String(
-    service.serviceKey ||
-    service.key ||
-    service.code ||
-    service.title ||
+    service.serviceKey ??
+    service.key ??
+    service.slug ??
+    service.type ??
+    service.value ??
+    service.code ??
+    service.serviceCode ??
+    service.suffix ??
+    service.title ??
+    service.name ??
+    service.serviceName ??
     ""
   ).trim().toUpperCase();
 
@@ -529,58 +592,157 @@ function getServiceKey(service){
 
 function getServiceTitle(service){
 
-  return (
-    service.title ||
-    service.name ||
-    service.serviceName ||
-    getServiceKey(service) ||
+  if(!service || typeof service !== "object"){
+    return "Service";
+  }
+
+  return String(
+    service.title ??
+    service.name ??
+    service.serviceName ??
+    service.label ??
+    service.displayName ??
+    getServiceKey(service) ??
     "Service"
-  );
+  ).trim() || "Service";
 
 }
 
 function getServiceCode(service){
 
-  const key =
-    getServiceKey(service);
+  if(!service || typeof service !== "object"){
+    return normalizeServiceCode(service);
+  }
 
-  if(key === "STANDARD") return "ST";
-  if(key === "WHEELCHAIR") return "WH";
-  if(key === "SHARED") return "SH";
-  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
-  if(key === "TAXI") return "TX";
-  if(key === "XL") return "XL";
+  /*
+    New/custom services must use their explicit generated suffix/code first.
+    This keeps Summary aligned with the trip number/service code generated
+    by Service Management.
+  */
+  const explicit =
+    service.suffix ??
+    service.serviceSuffix ??
+    service.serviceCode ??
+    service.code ??
+    "";
 
-  return String(
-    service.suffix ||
-    service.code ||
-    key
-  ).trim().toUpperCase();
+  if(String(explicit ?? "").trim()){
+    return normalizeServiceCode(explicit);
+  }
+
+  return normalizeServiceCode(
+    getServiceKey(service)
+  );
 
 }
 
 function getTripServiceCode(trip){
 
-  const direct =
-    String(
-      trip.serviceCode ||
-      trip.serviceSuffix ||
-      trip.serviceKey ||
-      trip.service ||
-      ""
-    ).trim().toUpperCase();
-
-  if(direct){
-    if(direct === "STANDARD") return "ST";
-    if(direct === "WHEELCHAIR") return "WH";
-    if(direct === "SHARED") return "SH";
-    if(direct === "LIMO" || direct === "LIMOUSINE") return "LM";
-    if(direct === "TAXI") return "TX";
-    if(direct === "XL") return "XL";
-    return direct;
+  if(!trip || typeof trip !== "object"){
+    return "";
   }
 
-  return getTripSuffix(trip);
+  const serviceObject =
+    trip.service &&
+    typeof trip.service === "object"
+      ? trip.service
+      : null;
+
+  const direct =
+    trip.serviceCode ??
+    trip.serviceSuffix ??
+    trip.serviceKey ??
+    trip.serviceType ??
+    trip.serviceName ??
+    serviceObject?.suffix ??
+    serviceObject?.serviceSuffix ??
+    serviceObject?.serviceCode ??
+    serviceObject?.code ??
+    serviceObject?.serviceKey ??
+    serviceObject?.key ??
+    (
+      typeof trip.service === "string"
+        ? trip.service
+        : ""
+    );
+
+  const normalized =
+    normalizeServiceCode(direct);
+
+  if(normalized){
+    return normalized;
+  }
+
+  return normalizeServiceCode(
+    getTripSuffix(trip)
+  );
+
+}
+
+function getServiceCatalog(){
+
+  const byCode =
+    new Map();
+
+  /*
+    First: services enabled for this company from Service Management.
+  */
+  (Array.isArray(SERVICES) ? SERVICES : [])
+    .forEach(service=>{
+
+      const code =
+        getServiceCode(service);
+
+      if(!code){
+        return;
+      }
+
+      byCode.set(code,{
+        code,
+        title:getServiceTitle(service),
+        service
+      });
+
+    });
+
+  /*
+    Second: never hide a service already used by an existing trip,
+    even if the service endpoint is temporarily behind/stale.
+  */
+  (Array.isArray(allTrips) ? allTrips : [])
+    .forEach(trip=>{
+
+      const code =
+        getTripServiceCode(trip);
+
+      if(!code || byCode.has(code)){
+        return;
+      }
+
+      const tripTitle =
+        String(
+          trip.serviceName ??
+          trip.serviceTitle ??
+          (
+            typeof trip.service === "string"
+              ? trip.service
+              : ""
+          ) ??
+          ""
+        ).trim();
+
+      byCode.set(code,{
+        code,
+        title:tripTitle || code,
+        service:{
+          code,
+          title:tripTitle || code
+        }
+      });
+
+    });
+
+  return [...byCode.values()];
 
 }
 
@@ -926,39 +1088,18 @@ function buildTabs(){
     </button>
   `;
 
-  let tabs = [];
+  const tabs =
+    getServiceCatalog();
 
-  if(Array.isArray(SERVICES) && SERVICES.length){
-
-    tabs = SERVICES.map(s => ({
-      code:getServiceCode(s),
-      title:getServiceTitle(s)
-    }));
-
-  }else{
-
-    const found = {};
-
-    allTrips.forEach(t=>{
-
-      const code =
-        getTripServiceCode(t);
-
-      if(!code) return;
-
-      if(!found[code]){
-
-        found[code] = {
-          code,
-          title:code
-        };
-
-      }
-
-    });
-
-    tabs = Object.values(found);
-
+  /*
+    If a service was removed while its tab was selected,
+    safely return to All.
+  */
+  if(
+    currentTab !== "ALL" &&
+    !tabs.some(tab => tab.code === currentTab)
+  ){
+    currentTab = "ALL";
   }
 
   tabs.forEach(tab=>{
@@ -1169,10 +1310,13 @@ STATS
 
 function buildServiceStats(data){
 
-  return SERVICES.map(service=>{
+  return getServiceCatalog().map(item=>{
+
+    const service =
+      item.service || {};
 
     const code =
-      getServiceCode(service);
+      item.code || getServiceCode(service);
 
     const serviceTrips =
       data.filter(t =>
@@ -1213,7 +1357,7 @@ function buildServiceStats(data){
     });
 
     return {
-      title:getServiceTitle(service),
+      title:item.title || getServiceTitle(service),
       code,
       trips,
       miles,
@@ -2169,11 +2313,18 @@ function startAutoRefresh(){
         currentTab;
 
       /*
-        Summary history is archived server-side.
-        Auto refresh only checks live/closed trip changes; Services were
-        already loaded on page start and do not need a 30-second poll.
+        Trips stay live every 30 seconds.
+        Services refresh only every 5 minutes, so Summary can pick up
+        newly-created services without adding a service request every cycle.
       */
       await loadTrips();
+
+      if(
+        !lastServicesRefreshAt ||
+        Date.now() - lastServicesRefreshAt >= 5 * 60 * 1000
+      ){
+        await loadServices();
+      }
 
       currentTab =
         oldTab;
@@ -2185,6 +2336,34 @@ function startAutoRefresh(){
     },30000);
 
 }
+
+/*
+  If Service Management was changed in another tab/window,
+  refresh services immediately when the user returns to Summary.
+*/
+document.addEventListener("visibilitychange",async ()=>{
+
+  if(document.visibilityState !== "visible"){
+    return;
+  }
+
+  const oldTab =
+    currentTab;
+
+  await Promise.all([
+    loadServices(),
+    loadTrips()
+  ]);
+
+  currentTab =
+    oldTab;
+
+  buildFilters();
+  buildTabs();
+  render();
+
+});
+
 
 /* =========================
 INIT
