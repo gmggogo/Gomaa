@@ -75,6 +75,218 @@ let activeSuffix  = "ST";
 
 let SYSTEM_TIMEZONE = "America/Phoenix";
 
+/* ================= BILLING ================= */
+
+async function checkBillingLock(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/company/billing?company=" + encodeURIComponent(companyName),
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if(data.billingLocked){
+
+      document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;padding:20px;font-family:Segoe UI;">
+        <div style="max-width:600px;width:100%;background:#fff;padding:40px;border-radius:20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);">
+          <h1 style="color:#dc2626;margin-bottom:15px;">Account Suspended</h1>
+          <p style="color:#475569;font-size:17px;line-height:1.7;">
+            Your company account is currently locked due to unpaid billing.
+          </p>
+          <a href="/companies/payment.html" style="display:inline-block;margin-top:25px;background:#2563eb;color:#fff;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:800;">
+            Go To Payment Center
+          </a>
+        </div>
+      </div>`;
+
+      return false;
+    }
+
+    return true;
+
+  }catch(err){
+
+    console.log(err);
+    return true;
+  }
+}
+
+(async()=>{
+
+const ok =
+  await checkBillingLock();
+
+if(!ok) return;
+
+/* ================= ELEMENTS ================= */
+
+const companyTabs =
+  document.getElementById("companyTabs");
+
+const individualSection =
+  document.getElementById("individualSection");
+
+const sharedSection =
+  document.getElementById("sharedSection");
+
+const entryName =
+  document.getElementById("entryName");
+
+const entryPhone =
+  document.getElementById("entryPhone");
+
+const editEntryBtn =
+  document.getElementById("editEntryBtn");
+
+const saveEntryBtn =
+  document.getElementById("saveEntryBtn");
+
+const saveDraftBtn =
+  document.getElementById("saveDraftBtn");
+
+const clientName =
+  document.getElementById("clientName");
+
+const clientPhone =
+  document.getElementById("clientPhone");
+
+const clientSuggestions =
+  document.getElementById("clientSuggestions");
+
+const pickupInput =
+  document.getElementById("pickup");
+
+const dropoffInput =
+  document.getElementById("dropoff");
+
+const tripDate =
+  document.getElementById("tripDate");
+
+const tripTime =
+  document.getElementById("tripTime");
+
+const notes =
+  document.getElementById("notes");
+
+const stopsBox =
+  document.getElementById("stops");
+
+const addStopBtn =
+  document.getElementById("addStopBtn");
+
+const submitTripBtn =
+  document.getElementById("submitTrip");
+
+const sharedEntryName =
+  document.getElementById("sharedEntryName");
+
+const sharedEntryPhone =
+  document.getElementById("sharedEntryPhone");
+
+const editSharedEntryBtn =
+  document.getElementById("editSharedEntryBtn");
+
+const passengerCount =
+  document.getElementById("passengerCount");
+
+const sharedDate =
+  document.getElementById("sharedDate");
+
+const sharedTime =
+  document.getElementById("sharedTime");
+
+const sharedNotes =
+  document.getElementById("sharedNotes");
+
+const passengersContainer =
+  document.getElementById("passengersContainer");
+
+const submitSharedBtn =
+  document.getElementById("submitShared");
+
+const saveSharedDraftBtn =
+  document.getElementById("saveSharedDraftBtn");
+
+
+const sharedManualModeBtn =
+  document.getElementById("sharedManualModeBtn");
+
+const sharedAutomaticModeBtn =
+  document.getElementById("sharedAutomaticModeBtn");
+
+const manualSharedModePanel =
+  document.getElementById("manualSharedModePanel");
+
+const automaticSharedModePanel =
+  document.getElementById("automaticSharedModePanel");
+
+const autoSharedClientName =
+  document.getElementById("autoSharedClientName");
+
+const autoSharedClientPhone =
+  document.getElementById("autoSharedClientPhone");
+
+const autoSharedPickup =
+  document.getElementById("autoSharedPickup");
+
+const autoSharedDropoff =
+  document.getElementById("autoSharedDropoff");
+
+const autoSharedDate =
+  document.getElementById("autoSharedDate");
+
+const autoSharedPickupTime =
+  document.getElementById("autoSharedPickupTime");
+
+const autoSharedAppointmentTime =
+  document.getElementById("autoSharedAppointmentTime");
+
+const autoSharedReturnTime =
+  document.getElementById("autoSharedReturnTime");
+
+const autoSharedNotes =
+  document.getElementById("autoSharedNotes");
+
+const addAutomaticSharedCandidateBtn =
+  document.getElementById("addAutomaticSharedCandidate");
+
+const automaticSharedList =
+  document.getElementById("automaticSharedList");
+
+const automaticSharedResult =
+  document.getElementById("automaticSharedResult");
+
+const automaticSharedCounters =
+  document.getElementById("automaticSharedCounters");
+
+const runAutomaticSharedEngineBtn =
+  document.getElementById("runAutomaticSharedEngine");
+
+const submitAutomaticSharedGroupsBtn =
+  document.getElementById("submitAutomaticSharedGroups");
+
+let sharedEntryMode = "AUTOMATIC";
+let automaticSharedCandidates = [];
+let automaticSharedPlan = null;
+
+/* ================= HELPERS ================= */
+
+
+function normalizeText(v){
+  return String(v ?? "").trim();
+}
+
+
 /* ================= COMPANY DYNAMIC BOOKING FIELDS ================= */
 
 function bookingFieldInputType(fieldType){
@@ -165,24 +377,6 @@ function moveCompanyBookingFieldsToActiveService(){
     return;
   }
 
-  /*
-    IMPORTANT SCOPE FIX:
-    This function lives outside the inner async IIFE, so it must NOT use
-    individualSection/sharedSection/notes/sharedNotes variables declared
-    inside that IIFE. Query the DOM directly instead.
-  */
-  const individualSectionEl =
-    document.getElementById("individualSection");
-
-  const sharedSectionEl =
-    document.getElementById("sharedSection");
-
-  const notesEl =
-    document.getElementById("notes");
-
-  const sharedNotesEl =
-    document.getElementById("sharedNotes");
-
   const service =
     getCurrentServiceConfig();
 
@@ -191,8 +385,8 @@ function moveCompanyBookingFieldsToActiveService(){
 
   const targetSection =
     shared
-      ? sharedSectionEl
-      : individualSectionEl;
+      ? sharedSection
+      : individualSection;
 
   if(!targetSection){
     return;
@@ -200,8 +394,8 @@ function moveCompanyBookingFieldsToActiveService(){
 
   const targetNotes =
     shared
-      ? sharedNotesEl
-      : notesEl;
+      ? sharedNotes
+      : notes;
 
   const notesField =
     targetNotes?.closest(".field-wrap") ||
@@ -299,12 +493,6 @@ async function loadCompanyBookingFields(){
         }))
         .filter(item=>item.key)
         .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
-
-      console.log(
-        "ADD TRIP COMPANY BOOKING FIELDS:",
-        COMPANY_BOOKING_FIELDS.length,
-        COMPANY_BOOKING_FIELDS
-      );
     }
 
     /*
@@ -594,216 +782,7 @@ function clearDynamicBookingFields(){
   });
 }
 
-/* ================= BILLING ================= */
 
-async function checkBillingLock(){
-
-  try{
-
-    const res =
-      await fetch(
-        "/api/company/billing?company=" + encodeURIComponent(companyName),
-        {
-          headers:{
-            Authorization:"Bearer " + token
-          }
-        }
-      );
-
-    const data =
-      await res.json();
-
-    if(data.billingLocked){
-
-      document.body.innerHTML = `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;padding:20px;font-family:Segoe UI;">
-        <div style="max-width:600px;width:100%;background:#fff;padding:40px;border-radius:20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08);">
-          <h1 style="color:#dc2626;margin-bottom:15px;">Account Suspended</h1>
-          <p style="color:#475569;font-size:17px;line-height:1.7;">
-            Your company account is currently locked due to unpaid billing.
-          </p>
-          <a href="/companies/payment.html" style="display:inline-block;margin-top:25px;background:#2563eb;color:#fff;text-decoration:none;padding:14px 22px;border-radius:12px;font-weight:800;">
-            Go To Payment Center
-          </a>
-        </div>
-      </div>`;
-
-      return false;
-    }
-
-    return true;
-
-  }catch(err){
-
-    console.log(err);
-    return true;
-  }
-}
-
-(async()=>{
-
-const ok =
-  await checkBillingLock();
-
-if(!ok) return;
-
-/* ================= ELEMENTS ================= */
-
-const companyTabs =
-  document.getElementById("companyTabs");
-
-const individualSection =
-  document.getElementById("individualSection");
-
-const sharedSection =
-  document.getElementById("sharedSection");
-
-const entryName =
-  document.getElementById("entryName");
-
-const entryPhone =
-  document.getElementById("entryPhone");
-
-const editEntryBtn =
-  document.getElementById("editEntryBtn");
-
-const saveEntryBtn =
-  document.getElementById("saveEntryBtn");
-
-const saveDraftBtn =
-  document.getElementById("saveDraftBtn");
-
-const clientName =
-  document.getElementById("clientName");
-
-const clientPhone =
-  document.getElementById("clientPhone");
-
-const clientSuggestions =
-  document.getElementById("clientSuggestions");
-
-const pickupInput =
-  document.getElementById("pickup");
-
-const dropoffInput =
-  document.getElementById("dropoff");
-
-const tripDate =
-  document.getElementById("tripDate");
-
-const tripTime =
-  document.getElementById("tripTime");
-
-const notes =
-  document.getElementById("notes");
-
-const stopsBox =
-  document.getElementById("stops");
-
-const addStopBtn =
-  document.getElementById("addStopBtn");
-
-const submitTripBtn =
-  document.getElementById("submitTrip");
-
-const sharedEntryName =
-  document.getElementById("sharedEntryName");
-
-const sharedEntryPhone =
-  document.getElementById("sharedEntryPhone");
-
-const editSharedEntryBtn =
-  document.getElementById("editSharedEntryBtn");
-
-const passengerCount =
-  document.getElementById("passengerCount");
-
-const sharedDate =
-  document.getElementById("sharedDate");
-
-const sharedTime =
-  document.getElementById("sharedTime");
-
-const sharedNotes =
-  document.getElementById("sharedNotes");
-
-const passengersContainer =
-  document.getElementById("passengersContainer");
-
-const submitSharedBtn =
-  document.getElementById("submitShared");
-
-const saveSharedDraftBtn =
-  document.getElementById("saveSharedDraftBtn");
-
-
-const sharedManualModeBtn =
-  document.getElementById("sharedManualModeBtn");
-
-const sharedAutomaticModeBtn =
-  document.getElementById("sharedAutomaticModeBtn");
-
-const manualSharedModePanel =
-  document.getElementById("manualSharedModePanel");
-
-const automaticSharedModePanel =
-  document.getElementById("automaticSharedModePanel");
-
-const autoSharedClientName =
-  document.getElementById("autoSharedClientName");
-
-const autoSharedClientPhone =
-  document.getElementById("autoSharedClientPhone");
-
-const autoSharedPickup =
-  document.getElementById("autoSharedPickup");
-
-const autoSharedDropoff =
-  document.getElementById("autoSharedDropoff");
-
-const autoSharedDate =
-  document.getElementById("autoSharedDate");
-
-const autoSharedPickupTime =
-  document.getElementById("autoSharedPickupTime");
-
-const autoSharedAppointmentTime =
-  document.getElementById("autoSharedAppointmentTime");
-
-const autoSharedReturnTime =
-  document.getElementById("autoSharedReturnTime");
-
-const autoSharedNotes =
-  document.getElementById("autoSharedNotes");
-
-const addAutomaticSharedCandidateBtn =
-  document.getElementById("addAutomaticSharedCandidate");
-
-const automaticSharedList =
-  document.getElementById("automaticSharedList");
-
-const automaticSharedResult =
-  document.getElementById("automaticSharedResult");
-
-const automaticSharedCounters =
-  document.getElementById("automaticSharedCounters");
-
-const runAutomaticSharedEngineBtn =
-  document.getElementById("runAutomaticSharedEngine");
-
-const submitAutomaticSharedGroupsBtn =
-  document.getElementById("submitAutomaticSharedGroups");
-
-let sharedEntryMode = "AUTOMATIC";
-let automaticSharedCandidates = [];
-let automaticSharedPlan = null;
-
-/* ================= HELPERS ================= */
-
-
-function normalizeText(v){
-  return String(v ?? "").trim();
-}
 
 /* ================= COMPANIES SERVICE ZONE ================= */
 
@@ -5993,12 +5972,17 @@ loadSharedDraft();
 
 await loadSystemTimezone();
 
-/* Load company services and Company Additional Information independently.
-   A slow/failed pricing request must never prevent company booking fields. */
-await Promise.allSettled([
-  loadCompanyServices(),
-  loadCompanyBookingFields()
-]);
+/* Company Add Trip init order */
+console.log("ADD TRIP: START COMPANY SERVICES");
+await loadCompanyServices();
+
+console.log("ADD TRIP: START COMPANY BOOKING FIELDS");
+await loadCompanyBookingFields();
+
+console.log(
+  "ADD TRIP: COMPANY BOOKING FIELDS INIT COMPLETE",
+  COMPANY_BOOKING_FIELDS.length
+);
 
 })();
 
