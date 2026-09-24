@@ -8,6 +8,7 @@ const User = require("../models/User");
 const Tenant = require("../models/Tenant");
 const Service = require("../models/Service");
 const BookingDataConfig = require("../models/BookingDataConfig");
+const BrokerDynamicField = require("../models/BrokerDynamicField");
 
 const {
   verifyToken,
@@ -1137,11 +1138,13 @@ function normalizeMatrix(raw){
     bool(raw?.facility?.showEye);
 
   /*
-    Facility form field and Eye/Details are mutually exclusive.
-    If malformed input contains both, form field wins.
+    Facility:
+    Field is independent.
+    Column and Eye are alternate display modes and are mutually exclusive.
+    If malformed input contains both, Column wins.
   */
   if(
-    matrix.facility.showField &&
+    matrix.facility.showColumn &&
     matrix.facility.showEye
   ){
     matrix.facility.showEye = false;
@@ -1161,10 +1164,13 @@ function normalizeMatrix(raw){
     bool(raw?.reserved?.showEye);
 
   /*
-    Reserved form field and Eye/Details are mutually exclusive.
+    Reserved:
+    Field is independent.
+    Column and Eye are alternate display modes and are mutually exclusive.
+    If malformed input contains both, Column wins.
   */
   if(
-    matrix.reserved.showField &&
+    matrix.reserved.showColumn &&
     matrix.reserved.showEye
   ){
     matrix.reserved.showEye = false;
@@ -1403,6 +1409,114 @@ function normalizeBookingDataConfig(doc){
   };
 }
 
+
+function normalizeBrokerAutoFieldUpdates(input){
+
+  const source =
+    Array.isArray(input)
+      ? input
+      : [];
+
+  const byKey =
+    new Map();
+
+  for(const item of source){
+
+    const fieldKey =
+      clean(
+        item?.fieldKey ||
+        item?.key
+      );
+
+    if(
+      !fieldKey ||
+      byKey.has(fieldKey)
+    ){
+      continue;
+    }
+
+    let showColumn =
+      bool(item?.showColumn);
+
+    let showEye =
+      bool(item?.showEye);
+
+    /*
+      Broker Auto Fields:
+      Column OR Eye. Never both.
+      Column wins if malformed input contains both.
+    */
+    if(
+      showColumn &&
+      showEye
+    ){
+      showEye = false;
+    }
+
+    byKey.set(
+      fieldKey,
+      {
+        fieldKey,
+        showColumn,
+        showEye
+      }
+    );
+  }
+
+  return [...byKey.values()];
+}
+
+function publicBrokerAutoFields(rows){
+
+  return (
+    Array.isArray(rows)
+      ? rows
+      : []
+  ).map((field,index)=>({
+    fieldKey:
+      clean(field?.fieldKey),
+
+    key:
+      clean(field?.fieldKey),
+
+    brokerCode:
+      clean(field?.brokerCode)
+        .toUpperCase(),
+
+    brokerName:
+      clean(field?.brokerName),
+
+    fieldPath:
+      clean(field?.fieldPath),
+
+    label:
+      clean(
+        field?.label ||
+        field?.fieldPath ||
+        field?.fieldKey
+      ),
+
+    fieldType:
+      clean(
+        field?.fieldType ||
+        "TEXT"
+      ).toUpperCase(),
+
+    showColumn:
+      field?.showColumn !== false,
+
+    showEye:
+      field?.showEye !== false,
+
+    sampleValue:
+      clean(field?.sampleValue),
+
+    order:
+      10000 + index
+  }))
+  .filter(field=>field.fieldKey);
+}
+
 router.get(
   "/booking-data/:tenantId",
   async (req,res)=>{
@@ -1426,16 +1540,37 @@ router.get(
         });
       }
 
-      const config =
-        await BookingDataConfig
-          .findOne({
-            tenantId:tenant._id
-          })
-          .lean();
+      const [
+        config,
+        brokerAutoRows
+      ] =
+        await Promise.all([
+          BookingDataConfig
+            .findOne({
+              tenantId:tenant._id
+            })
+            .lean(),
+
+          BrokerDynamicField
+            .find({
+              tenantId:tenant._id
+            })
+            .sort({
+              brokerCode:1,
+              label:1,
+              createdAt:1
+            })
+            .lean()
+        ]);
 
       const normalized =
         normalizeBookingDataConfig(
           config
+        );
+
+      const brokerAutoFields =
+        publicBrokerAutoFields(
+          brokerAutoRows
         );
 
       return res.json({
@@ -1452,6 +1587,12 @@ router.get(
         config:
           normalized,
 
+        /*
+          Auto-discovered broker fields are shown in Platform Admin
+          so Column/Eye visibility can be controlled without deleting data.
+        */
+        brokerAutoFields,
+
         matrixRules:{
           getQuote:{
             showField:true,
@@ -1465,7 +1606,7 @@ router.get(
             required:true,
             column:true,
             eye:true,
-            fieldEyeExclusive:true
+            columnEyeExclusive:true
           },
 
           reserved:{
@@ -1473,7 +1614,7 @@ router.get(
             required:true,
             column:true,
             eye:true,
-            fieldEyeExclusive:true
+            columnEyeExclusive:true
           },
 
           broker:{
@@ -1538,6 +1679,11 @@ router.put(
           req.body?.customFields
         );
 
+      const brokerAutoFieldUpdates =
+        normalizeBrokerAutoFieldUpdates(
+          req.body?.brokerAutoFields
+        );
+
       const actorId =
         req.authUser?._id ||
         req.authUser?.id ||
@@ -1567,6 +1713,46 @@ router.put(
           )
           .lean();
 
+      if(brokerAutoFieldUpdates.length){
+
+        await BrokerDynamicField.bulkWrite(
+          brokerAutoFieldUpdates.map(item=>({
+            updateOne:{
+              filter:{
+                tenantId:tenant._id,
+                fieldKey:item.fieldKey
+              },
+              update:{
+                $set:{
+                  showColumn:item.showColumn,
+                  showEye:item.showEye
+                }
+              }
+            }
+          })),
+          {
+            ordered:false
+          }
+        );
+      }
+
+      const brokerAutoRows =
+        await BrokerDynamicField
+          .find({
+            tenantId:tenant._id
+          })
+          .sort({
+            brokerCode:1,
+            label:1,
+            createdAt:1
+          })
+          .lean();
+
+      const brokerAutoFields =
+        publicBrokerAutoFields(
+          brokerAutoRows
+        );
+
       return res.json({
         success:true,
         message:
@@ -1582,6 +1768,8 @@ router.put(
           normalizeBookingDataConfig(
             saved
           ),
+
+        brokerAutoFields,
 
         updatedAt:
           saved?.updatedAt ||
