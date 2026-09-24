@@ -141,11 +141,7 @@ async function loadServices(){
       extractServicesPayload(data)
         .filter(s =>
           s &&
-          typeof s === "object" &&
-          s.companyEnabled !== false &&
-          s.enabled !== false &&
-          s.active !== false &&
-          s.isActive !== false
+          typeof s === "object"
         );
 
     /*
@@ -620,6 +616,8 @@ function getServiceCode(service){
     by Service Management.
   */
   const explicit =
+    service.customServiceCode ??
+    service.companySuffix ??
     service.suffix ??
     service.serviceSuffix ??
     service.serviceCode ??
