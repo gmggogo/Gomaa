@@ -126,6 +126,11 @@ const schema = new mongoose.Schema(
       default:false
     },
 
+    accountAddonPricingInitialized:{
+      type:Boolean,
+      default:false
+    },
+
     basePackageEnabled:{
       type:Boolean,
       default:true
@@ -150,6 +155,34 @@ const schema = new mongoose.Schema(
     },
 
     includedBrokers:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    /* Snapshot of package account allowances.
+       These stay fixed when Platform Admin raises hard limits. */
+    includedDriverVehicleUnits:{
+      type:Number,
+      default:0,
+      min:0
+    },
+    includedDispatchers:{
+      type:Number,
+      default:0,
+      min:0
+    },
+    includedAdmins:{
+      type:Number,
+      default:0,
+      min:0
+    },
+    includedSuperAdmins:{
+      type:Number,
+      default:0,
+      min:0
+    },
+    includedCompanies:{
       type:Number,
       default:0,
       min:0
@@ -203,7 +236,33 @@ const schema = new mongoose.Schema(
       min:0
     },
 
+    /* extraVehiclePrice is intentionally retained for backward compatibility.
+       It now means Extra Driver / Vehicle Unit Price. */
     extraVehiclePrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraDispatcherPrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraAdminPrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraSuperAdminPrice:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    extraCompanyPrice:{
       type:Number,
       default:0,
       min:0
@@ -277,7 +336,28 @@ const schema = new mongoose.Schema(
       default:0
     },
 
+    /* Combined Driver / Vehicle unit amount; old field name retained. */
     calculatedVehicleAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedDispatcherAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedAdminAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedSuperAdminAmount:{
+      type:Number,
+      default:0
+    },
+
+    calculatedCompanyAmount:{
       type:Number,
       default:0
     },
