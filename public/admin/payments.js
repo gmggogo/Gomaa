@@ -83,6 +83,119 @@ const E = {
 };
 
 let current = null;
+let serviceCatalog = [];
+
+function extractServiceRows(data){
+  if(Array.isArray(data)) return data;
+  if(Array.isArray(data?.services)) return data.services;
+  if(Array.isArray(data?.data)) return data.data;
+  if(Array.isArray(data?.items)) return data.items;
+  return [];
+}
+
+function normalizeServiceKey(value){
+  const raw = clean(value).toUpperCase().replace(/[\s-]+/g,"_");
+  const compact = raw.replace(/_/g,"");
+
+  if(compact === "STANDARD" || compact === "ST") return "ST";
+  if(compact === "WHEELCHAIR" || compact === "WC" || compact === "WH") return "WH";
+  if(compact === "SHARED" || compact === "SH") return "SH";
+  if(compact === "LIMOUSINE" || compact === "LIMO" || compact === "LM") return "LM";
+  if(compact === "TAXI" || compact === "TX") return "TX";
+  if(compact === "XL" || compact === "XLSERVICE") return "XL";
+
+  const custom = compact.match(/^CUSTOM([1-4])$/);
+  if(custom) return "CUSTOM_" + custom[1];
+
+  return raw;
+}
+
+function firstTwoServiceLetters(value){
+  const letters = clean(value)
+    .toUpperCase()
+    .replace(/[^A-Z]/g,"")
+    .slice(0,2);
+
+  return letters.length === 2 ? letters : "";
+}
+
+function customServiceDisplayCode(gateKey){
+  const key = normalizeServiceKey(gateKey);
+
+  if(!/^CUSTOM_[1-4]$/.test(key)){
+    return key;
+  }
+
+  const row = serviceCatalog.find(service=>{
+    const candidates = [
+      service?.serviceKey,
+      service?.key,
+      service?.code
+    ];
+
+    return candidates.some(value=>
+      normalizeServiceKey(value) === key
+    );
+  });
+
+  if(!row){
+    return "";
+  }
+
+  return (
+    firstTwoServiceLetters(
+      row?.customServiceCode ||
+      row?.serviceCode ||
+      row?.serviceSuffix ||
+      row?.companySuffix ||
+      row?.reservedSuffix
+    ) ||
+    firstTwoServiceLetters(
+      row?.title ||
+      row?.name ||
+      row?.serviceName
+    )
+  );
+}
+
+function displayServiceCode(value){
+  const key = normalizeServiceKey(value);
+
+  if(/^CUSTOM_[1-4]$/.test(key)){
+    return customServiceDisplayCode(key);
+  }
+
+  if(["ST","WH","SH","LM","TX","XL"].includes(key)){
+    return key;
+  }
+
+  return firstTwoServiceLetters(value) || clean(value);
+}
+
+async function loadServiceCatalog(){
+  try{
+    const res = await fetch(
+      "/api/services/admin",
+      {
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        cache:"no-store"
+      }
+    );
+
+    if(!res.ok){
+      serviceCatalog = [];
+      return;
+    }
+
+    const data = await res.json().catch(()=>[]);
+    serviceCatalog = extractServiceRows(data);
+  }catch(err){
+    console.warn("SERVICE CATALOG LOAD ERROR:",err);
+    serviceCatalog = [];
+  }
+}
 
 function money(v){
   return new Intl.NumberFormat(
@@ -244,7 +357,13 @@ function printInvoice(snapshot,payment=null){
   const serviceNames =
     Array.isArray(snapshot.enabledServices) &&
     snapshot.enabledServices.length
-      ? snapshot.enabledServices.join(", ")
+      ? [
+          ...new Set(
+            snapshot.enabledServices
+              .map(value=>displayServiceCode(value))
+              .filter(Boolean)
+          )
+        ].join(", ")
       : "--";
 
   const brokerNames =
@@ -409,7 +528,31 @@ function enabledServiceNames(data){
 
   const names = rows
     .filter(row=>row?.accessEnabled !== false)
-    .map(row=>clean(row?.label || row?.key))
+    .map(row=>{
+      const raw =
+        row?.key ||
+        row?.serviceKey ||
+        row?.code ||
+        row?.label ||
+        "";
+
+      const code = displayServiceCode(raw);
+
+      if(code){
+        return code;
+      }
+
+      const fallback = clean(row?.label || raw);
+
+      /*
+        Never expose internal CUSTOM_n identities to the customer.
+        If a custom slot has not been configured with a real service
+        name/code yet, leave it out of the customer-facing list.
+      */
+      return /^CUSTOM_[1-4]$/i.test(fallback)
+        ? ""
+        : fallback;
+    })
     .filter(Boolean);
 
   return [...new Set(names)];
@@ -935,5 +1078,6 @@ E.pay.addEventListener("click",payNow);
 
 (async()=>{
   await verifyReturn();
+  await loadServiceCatalog();
   await load();
 })();
