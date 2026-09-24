@@ -87,12 +87,8 @@ function bookingFieldInputType(fieldType){
   return "text";
 }
 
-function companyFieldMatrixRule(item){
-  const matrix =
-    item?.matrix && typeof item.matrix === "object"
-      ? item.matrix
-      : {};
-
+function companyFieldRule(item){
+  const matrix = item?.matrix || {};
   return (
     matrix.company ||
     matrix.companies ||
@@ -102,11 +98,12 @@ function companyFieldMatrixRule(item){
 }
 
 function facilityFieldEnabled(item){
-  return companyFieldMatrixRule(item)?.showField === true;
+  const rule = companyFieldRule(item);
+  return rule?.showField === true;
 }
 
 function facilityFieldRequired(item){
-  const rule = companyFieldMatrixRule(item);
+  const rule = companyFieldRule(item);
   return facilityFieldEnabled(item) && rule?.required === true;
 }
 
@@ -132,45 +129,37 @@ function ensureFacilityBookingFieldsHost(){
   let section = document.getElementById("dynamicBookingFieldsSection");
   let box = document.getElementById("dynamicBookingFields");
 
-  if(section && box){
-    return { section, box };
+  if(!section){
+    section = document.createElement("section");
+    section.id = "dynamicBookingFieldsSection";
+    section.style.display = "none";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Additional Information";
+
+    box = document.createElement("div");
+    box.id = "dynamicBookingFields";
+    box.className = "form-grid";
+
+    section.appendChild(heading);
+    section.appendChild(box);
   }
 
-  const notesField = notes?.closest(".field-wrap") || notes?.parentElement;
-  const parent = notesField?.parentElement || individualSection;
-  if(!parent){
-    return { section:null, box:null };
+  if(!box){
+    box = document.createElement("div");
+    box.id = "dynamicBookingFields";
+    box.className = "form-grid";
+    section.appendChild(box);
   }
 
-  section = document.createElement("section");
-  section.id = "dynamicBookingFieldsSection";
-  section.style.display = "none";
-
-  const heading = document.createElement("h3");
-  heading.textContent = "Additional Information";
-
-  box = document.createElement("div");
-  box.id = "dynamicBookingFields";
-  box.className = "form-grid";
-
-  section.appendChild(heading);
-  section.appendChild(box);
-
-  if(notesField && notesField.parentElement === parent){
-    parent.insertBefore(section,notesField);
-  }else{
-    parent.appendChild(section);
-  }
+  moveCompanyBookingFieldsToActiveService();
 
   return { section, box };
 }
 
-
 function moveCompanyBookingFieldsToActiveService(){
   const section =
-    document.getElementById(
-      "dynamicBookingFieldsSection"
-    );
+    document.getElementById("dynamicBookingFieldsSection");
 
   if(!section){
     return;
@@ -182,37 +171,49 @@ function moveCompanyBookingFieldsToActiveService(){
   const shared =
     isSharedService(service);
 
-  const target =
+  const targetSection =
     shared
       ? sharedSection
       : individualSection;
 
-  if(!target){
+  if(!targetSection){
     return;
   }
 
-  /*
-    Keep Additional Information visible for every service.
-    Move the same section instead of cloning inputs.
-  */
-  const anchor =
+  const targetNotes =
     shared
-      ? (
-          sharedNotes?.closest("section") ||
-          sharedNotes?.parentElement
-        )
-      : individualTripDetails;
+      ? sharedNotes
+      : notes;
+
+  const notesField =
+    targetNotes?.closest(".field-wrap") ||
+    targetNotes?.parentElement;
+
+  const parent =
+    notesField?.parentElement ||
+    targetSection;
+
+  if(!parent){
+    return;
+  }
 
   if(
-    anchor &&
-    anchor.parentElement === target
+    notesField &&
+    notesField.parentElement === parent
   ){
-    target.insertBefore(
-      section,
-      anchor
-    );
-  }else if(section.parentElement !== target){
-    target.appendChild(section);
+    if(section.parentElement !== parent){
+      parent.insertBefore(
+        section,
+        notesField
+      );
+    }else if(section.nextElementSibling !== notesField){
+      parent.insertBefore(
+        section,
+        notesField
+      );
+    }
+  }else if(section.parentElement !== parent){
+    parent.appendChild(section);
   }
 
   section.style.display =
@@ -245,6 +246,12 @@ async function loadCompanyBookingFields(){
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.message || "Failed loading booking fields");
 
+    console.log(
+      "ADD TRIP COMPANY BOOKING DATA RESPONSE:",
+      res.status,
+      data
+    );
+
     const returnedFields =
       Array.isArray(data?.fields)
         ? data.fields
@@ -258,14 +265,13 @@ async function loadCompanyBookingFields(){
                 )
           );
 
-    console.log(
-      "COMPANY BOOKING FIELDS RESPONSE:",
-      data
-    );
-
     if(Array.isArray(returnedFields)){
       COMPANY_BOOKING_FIELDS = returnedFields
-        .filter(item=>item?.showField === true)
+        .filter(item=>
+          item?.showField === true ||
+          item?.matrix?.facility?.showField === true ||
+          item?.matrix?.company?.showField === true
+        )
         .map((item,index)=>({
           key:normalizeText(item?.key),
           label:normalizeText(item?.label || item?.key),
@@ -280,6 +286,74 @@ async function loadCompanyBookingFields(){
         }))
         .filter(item=>item.key)
         .sort((x,y)=>Number(x.order||0)-Number(y.order||0));
+
+      /*
+        Some backend versions return fields:[] while also including config.
+        In that case rebuild directly from the raw Platform Admin config.
+      */
+      if(
+        !COMPANY_BOOKING_FIELDS.length &&
+        data?.config
+      ){
+        const catalog =
+          Array.isArray(data?.standardCatalog)
+            ? data.standardCatalog
+            : [];
+
+        const catalogMap =
+          new Map(
+            catalog.map(item=>[
+              normalizeText(item?.key),
+              item
+            ])
+          );
+
+        const standard =
+          Array.isArray(data?.config?.standardFields)
+            ? data.config.standardFields
+            : [];
+
+        const custom =
+          Array.isArray(data?.config?.customFields)
+            ? data.config.customFields
+            : [];
+
+        const standardFields =
+          standard
+            .filter(facilityFieldEnabled)
+            .map((item,index)=>
+              normalizeFacilityBookingField(
+                item,
+                catalogMap.get(
+                  normalizeText(item?.key)
+                ),
+                index,
+                false
+              )
+            )
+            .filter(item=>item.key);
+
+        const customFields =
+          custom
+            .filter(item=>
+              facilityFieldEnabled(item) &&
+              normalizeText(item?.label)
+            )
+            .map((item,index)=>
+              normalizeFacilityBookingField(
+                item,
+                null,
+                index,
+                true
+              )
+            )
+            .filter(item=>item.key);
+
+        COMPANY_BOOKING_FIELDS = [
+          ...standardFields,
+          ...customFields
+        ];
+      }
     }else{
       const catalog = Array.isArray(data?.standardCatalog) ? data.standardCatalog : [];
       const catalogMap = new Map(catalog.map(item=>[normalizeText(item?.key),item]));
@@ -337,7 +411,16 @@ async function loadCompanyBookingFields(){
       section.style.display = "none";
     }
   }catch(err){
-    console.log("LOAD COMPANY BOOKING FIELDS ERROR:", err);
+    console.log(
+      "LOAD COMPANY BOOKING FIELDS ERROR:",
+      err
+    );
+
+    if(section && box){
+      section.style.display = "block";
+      box.innerHTML =
+        '<div style="grid-column:1/-1;padding:12px;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:800;">Company booking fields could not be loaded.</div>';
+    }
   }
 }
 
@@ -4672,18 +4755,66 @@ function defaultStandardService(){
 }
 
 async function loadCompanyServices(){
-  try{
+  COMPANY_SERVICES = [];
 
-    COMPANY_SERVICES = [];
+  const byCode = new Map();
+
+  function addService(raw,source){
+    if(!raw) return;
+
+    const mapped =
+      source === "FACILITY_OVERRIDE"
+        ? mapFacilityOverrideService(raw)
+        : mapServiceManagementService(raw);
+
+    const code =
+      resolveServiceCode(mapped);
+
+    if(!code){
+      console.warn(
+        "ADD TRIP SERVICE SKIPPED - NO CODE:",
+        source,
+        raw
+      );
+      return;
+    }
+
+    const existing =
+      byCode.get(code);
 
     /*
-      COMPANY SERVICES ARE AUTHORITATIVE.
-
-      Always load every Company service first.
-      Facility Pricing Override may change pricing/settings for matching
-      services, but it must NEVER replace/remove the Company's service list.
+      Service Management owns identity.
+      Facility Override may enrich pricing/settings only.
     */
-    const serviceRes =
+    if(existing){
+      if(source === "FACILITY_OVERRIDE"){
+        byCode.set(code,{
+          ...existing,
+          ...mapped,
+          _id:existing._id || mapped._id,
+          title:existing.title || mapped.title,
+          name:existing.name || mapped.name,
+          serviceName:existing.serviceName || mapped.serviceName,
+          serviceKey:code,
+          serviceCode:code,
+          serviceType:code,
+          companySuffix:code,
+          suffix:code,
+          serviceSuffix:code,
+          __pricingSource:"FACILITY_OVERRIDE"
+        });
+      }
+      return;
+    }
+
+    byCode.set(code,mapped);
+  }
+
+  /*
+    SOURCE 1 — Company services.
+  */
+  try{
+    const res =
       await fetch(
         "/api/services?company=true",
         {
@@ -4694,56 +4825,124 @@ async function loadCompanyServices(){
         }
       );
 
-    const serviceData =
-      await serviceRes.json().catch(()=>[]);
+    const data =
+      await res.json().catch(()=>[]);
 
-    if(!serviceRes.ok){
-      throw new Error(
-        serviceData?.message ||
-        "Failed loading company services"
+    console.log(
+      "ADD TRIP /api/services?company=true:",
+      res.status,
+      data
+    );
+
+    if(res.ok && Array.isArray(data)){
+      data.forEach(item=>
+        addService(
+          item,
+          "SERVICE_MANAGEMENT"
+        )
       );
     }
+  }catch(err){
+    console.log(
+      "COMPANY SERVICES PRIMARY LOAD ERROR:",
+      err
+    );
+  }
 
-    const baseServices =
-      Array.isArray(serviceData)
-        ? serviceData
-            .map(mapServiceManagementService)
-            .filter(service=>resolveServiceCode(service))
-        : [];
+  /*
+    SOURCE 2 — Admin service list.
+    Same tenant token, read-only fallback.
+    Useful when company=true filtering is stale/broken.
+  */
+  try{
+    const res =
+      await fetch(
+        "/api/services/admin",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
 
-    COMPANY_SERVICES =
-      [...baseServices];
+    const data =
+      await res.json().catch(()=>[]);
 
-    /*
-      Pricing Override is optional.
-      If it exists, MERGE it into matching services only.
-      Never return early and never replace COMPANY_SERVICES.
-    */
-    try{
-      const facilityName =
-        companyName || "";
+    console.log(
+      "ADD TRIP /api/services/admin:",
+      res.status,
+      data
+    );
 
-      const facilityId =
-        companyId || "";
-
-      const bootRes =
-        await fetch(
-          "/api/facility-pricing-override/bootstrap",
-          {
-            headers:{
-              Authorization:"Bearer " + token
-            },
-            cache:"no-store"
-          }
+    if(res.ok && Array.isArray(data)){
+      data
+        .filter(item=>
+          item?.companyEnabled !== false ||
+          item?.enabled === true
+        )
+        .forEach(item=>
+          addService(
+            item,
+            "SERVICE_MANAGEMENT"
+          )
         );
+    }
+  }catch(err){
+    console.log(
+      "COMPANY SERVICES ADMIN FALLBACK ERROR:",
+      err
+    );
+  }
 
-      const bootData =
-        await bootRes.json().catch(()=>({}));
+  /*
+    SOURCE 3 — Facility pricing override.
+    Adds pricing to matching services and can rescue configured
+    service names if the service route is temporarily incomplete.
+  */
+  try{
+    const facilityName =
+      companyName || "";
 
-      let override = null;
+    const facilityId =
+      companyId || "";
+
+    const bootRes =
+      await fetch(
+        "/api/facility-pricing-override/bootstrap",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
+
+    const bootData =
+      await bootRes.json().catch(()=>({}));
+
+    console.log(
+      "ADD TRIP FACILITY BOOTSTRAP:",
+      bootRes.status,
+      bootData
+    );
+
+    if(bootRes.ok){
+
+      /*
+        Some backend versions expose a default services array.
+        Use it only as a fallback/union source, never as a replacement.
+      */
+      if(Array.isArray(bootData?.services)){
+        bootData.services.forEach(item=>
+          addService(
+            item,
+            "SERVICE_MANAGEMENT"
+          )
+        );
+      }
 
       if(
-        bootRes.ok &&
         bootData?.success === true &&
         Array.isArray(bootData?.overrides)
       ){
@@ -4755,140 +4954,101 @@ async function loadCompanyServices(){
             .trim()
             .toLowerCase();
 
-        override =
+        const override =
           bootData.overrides.find(item=>{
-
             const oid =
-              String(item?.facilityId || "").trim();
+              String(
+                item?.facilityId || ""
+              ).trim();
 
             const oname =
-              String(item?.facilityName || "")
-                .trim()
-                .toLowerCase();
+              String(
+                item?.facilityName || ""
+              )
+              .trim()
+              .toLowerCase();
 
             return (
-              (fid && oid && oid === fid) ||
-              (fname && oname && oname === fname)
+              (fid && oid && fid === oid) ||
+              (
+                fname &&
+                oname &&
+                fname === oname
+              )
             );
           }) || null;
-      }
-
-      if(
-        override?.active === true &&
-        Array.isArray(override?.services) &&
-        override.services.length
-      ){
-        const overrideServices =
-          override.services
-            .map(mapFacilityOverrideService)
-            .filter(service=>resolveServiceCode(service));
-
-        const overrideMap =
-          new Map(
-            overrideServices.map(service=>[
-              resolveServiceCode(service),
-              service
-            ])
-          );
-
-        COMPANY_SERVICES =
-          COMPANY_SERVICES.map(service=>{
-            const code =
-              resolveServiceCode(service);
-
-            const pricingOverride =
-              overrideMap.get(code);
-
-            if(!pricingOverride){
-              return service;
-            }
-
-            return {
-              ...service,
-              ...pricingOverride,
-
-              /*
-                Preserve Service Management identity/title.
-                Override controls pricing, not which service exists.
-              */
-              serviceKey:
-                service.serviceKey ||
-                pricingOverride.serviceKey,
-
-              serviceCode:
-                service.serviceCode ||
-                pricingOverride.serviceCode,
-
-              title:
-                service.title ||
-                pricingOverride.title,
-
-              name:
-                service.name ||
-                pricingOverride.name,
-
-              serviceName:
-                service.serviceName ||
-                pricingOverride.serviceName,
-
-              __pricingSource:"FACILITY_OVERRIDE"
-            };
-          });
 
         if(
-          typeof attachCompanyBookingHoursToOverrideServices === "function"
+          override?.active === true &&
+          Array.isArray(override?.services)
         ){
-          COMPANY_SERVICES =
-            await attachCompanyBookingHoursToOverrideServices(
-              COMPANY_SERVICES
-            );
+          override.services.forEach(item=>
+            addService(
+              item,
+              "FACILITY_OVERRIDE"
+            )
+          );
         }
       }
-
-    }catch(overrideErr){
-      console.log(
-        "COMPANY PRICING OVERRIDE WARNING:",
-        overrideErr
-      );
     }
-
-    /*
-      Do not silently collapse valid Company setup into one fake Standard tab.
-      Only use Standard if the backend literally returned no Company services.
-    */
-    if(!COMPANY_SERVICES.length){
-      console.warn(
-        "NO COMPANY SERVICES RETURNED - USING TEMPORARY STANDARD FALLBACK"
-      );
-      COMPANY_SERVICES = [
-        defaultStandardService()
-      ];
-    }
-
-    console.log(
-      "ADD TRIP FINAL COMPANY SERVICES:",
-      COMPANY_SERVICES
-    );
-
-    buildDynamicTabs();
-
   }catch(err){
-
     console.log(
-      "LOAD COMPANY SERVICES ERROR:",
+      "COMPANY OVERRIDE FALLBACK ERROR:",
       err
     );
-
-    /*
-      Keep the page usable, but make the fallback explicit.
-      This no longer happens merely because an Override has one service.
-    */
-    COMPANY_SERVICES = [
-      defaultStandardService()
-    ];
-
-    buildDynamicTabs();
   }
+
+  COMPANY_SERVICES =
+    Array.from(byCode.values());
+
+  /*
+    Prefer stable base order where possible.
+  */
+  const order = {
+    ST:10,
+    WH:20,
+    SH:30,
+    LM:40,
+    TX:50,
+    XL:60
+  };
+
+  COMPANY_SERVICES.sort((a,b)=>{
+    const ac =
+      resolveServiceCode(a);
+
+    const bc =
+      resolveServiceCode(b);
+
+    return (
+      (order[ac] ?? 100) -
+      (order[bc] ?? 100)
+    );
+  });
+
+  console.log(
+    "ADD TRIP FINAL COMPANY SERVICES:",
+    COMPANY_SERVICES
+  );
+
+  /*
+    Do NOT invent Standard if the API failed.
+    Show the real state instead of hiding the bug.
+  */
+  if(!COMPANY_SERVICES.length){
+    if(companyTabs){
+      companyTabs.innerHTML =
+        '<div style="width:100%;padding:12px;text-align:center;font-weight:800;color:#b91c1c;background:#fee2e2;border-radius:10px;">No company services were returned.</div>';
+    }
+
+    console.error(
+      "ADD TRIP: NO COMPANY SERVICES FROM ANY SOURCE"
+    );
+
+    return;
+  }
+
+  buildDynamicTabs();
 }
 
 function setActiveService(service,index){
@@ -5599,6 +5759,14 @@ submitSharedBtn.onclick = async function(){
       selected.facilityOverrideActive === true
     );
 
+    const dynamicBookingData =
+      collectDynamicBookingData(true);
+
+    const dynamicTopLevel =
+      dynamicBookingTopLevelValues(
+        dynamicBookingData
+      );
+
     const sharedTrip = {
       company:companyName,
       companyName:companyName,
@@ -5634,6 +5802,23 @@ submitSharedBtn.onclick = async function(){
       tripDate:sharedDate.value,
       tripTime:sharedTime.value,
       notes:sharedNotes.value,
+
+      dynamicBookingData,
+      customBookingData:
+        dynamicBookingData.filter(
+          row=>row.source === "CUSTOM"
+        ),
+      bookingData:{
+        company:
+          dynamicBookingObject(
+            dynamicBookingData
+          ),
+        facility:
+          dynamicBookingObject(
+            dynamicBookingData
+          )
+      },
+      ...dynamicTopLevel,
 
       status:"Scheduled"
     };
@@ -5672,6 +5857,7 @@ submitSharedBtn.onclick = async function(){
     sharedTime.value = "";
     sharedNotes.value = "";
     passengerCount.value = "";
+    clearDynamicBookingFields();
 
     localStorage.removeItem(companyStorageKey("companySharedDraft"));
 
@@ -5712,8 +5898,8 @@ loadSharedDraft();
 
 await loadSystemTimezone();
 
-/* Load Company services and Company Additional Information independently.
-   Pricing Override must never hide services or block booking fields. */
+/* Load company services and Company Additional Information independently.
+   A slow/failed pricing request must never prevent company booking fields. */
 await Promise.allSettled([
   loadCompanyServices(),
   loadCompanyBookingFields()
