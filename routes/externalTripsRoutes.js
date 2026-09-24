@@ -1202,15 +1202,17 @@ router.get(
           req.authUser.tenantId
       };
 
+      /*
+        External Trips Hub is the broker intake/history page.
+        Keep trips visible here even after they move to Trip Split /
+        Broker Review. Only apply a status filter when the user
+        explicitly selects one in the page filters.
+      */
       if(req.query.status){
         filter.status =
           String(
             req.query.status
           ).toUpperCase();
-      }else{
-        filter.status = {
-          $ne:"TRANSFERRED"
-        };
       }
 
       if(req.query.brokerCode){
