@@ -5227,12 +5227,12 @@ async function submitAutomaticSharedGroup(groupIndex){
       ...dynamicTopLevel,
 
       /*
-        Automatic Shared groups are already reviewed/built by the Company
-        Shared Engine before Submit Group is pressed. They must enter Trip Hub
-        as operationally confirmed, not as a second pending company review.
+        Automatic Shared must enter Company Review first, exactly like
+        normal Company Shared trips. Review will handle confirmation
+        before the trip continues to Trip Hub / dispatch.
       */
-      status:"Confirmed",
-      dispatchSelected:true
+      status:"Scheduled",
+      dispatchSelected:false
     };
 
     const res = await fetch("/api/trips",{
