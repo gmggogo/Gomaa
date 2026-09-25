@@ -75,7 +75,11 @@
         "auto assign",
         "automatic assignment",
         "dispatch",
-        "smart dispatch"
+        "smart dispatch",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Dispatch.",
@@ -155,7 +159,15 @@
         "driver name",
         "edit driver",
         "edit driver assignment",
-        "vehicle"
+        "vehicle",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Dispatch.",
@@ -233,7 +245,11 @@
         "clear driver",
         "dispatch",
         "remove driver",
-        "unassign driver"
+        "unassign driver",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Dispatch.",
@@ -309,7 +325,11 @@
         "dispatch trip",
         "driver app",
         "send selected",
-        "send trip"
+        "send trip",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Dispatch.",
@@ -390,6 +410,157 @@
         "Select the required trip.",
         "Click Delete Trip.",
         "Confirm deletion."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/dispatch.html",
+        "server/public/admin/header.js",
+        "server/public/admin/dispatch.store.js",
+        "server/public/admin/dispatch.engine.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch",
+        "/api/dispatch/${encodeURIComponent",
+        "/api/dispatch/auto-assign",
+        "/api/dispatch/send",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/smart-dispatch-engine",
+        "/api/system-design",
+        "/api/trips/${encodeURIComponent"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusKey",
+        "normalizeScheduleRow",
+        "getSchedule",
+        "loadSmartEngine",
+        "filterTrips",
+        "loadAll",
+        "autoAssign",
+        "autoAssignNewTrips",
+        "saveAssignment",
+        "sendTrips",
+        "sendSelected",
+        "sendAll",
+        "sendOne",
+        "toggleSelectAll",
+        "handleTripSelect",
+        "syncSelectionControls",
+        "removeSelectedDrivers",
+        "deleteSelectedTrip",
+        "toggleEdit"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-009-T06",
+      "pageId": "ADM-009",
+      "pageTitle": "Dispatch",
+      "pageFile": "dispatch.html",
+      "module": "Dispatch",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Select All Dispatch Trips",
+      "summary": "Select all displayed trips for a bulk dispatch action.",
+      "keywords": [
+        "dispatch select all",
+        "select all trips",
+        "تحديد الكل ديسباتش"
+      ],
+      "steps": [
+        "Open Dispatch.",
+        "Click Select All.",
+        "Use the intended bulk action such as Auto Assign or Send Selected."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/dispatch.html",
+        "server/public/admin/header.js",
+        "server/public/admin/dispatch.store.js",
+        "server/public/admin/dispatch.engine.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch",
+        "/api/dispatch/${encodeURIComponent",
+        "/api/dispatch/auto-assign",
+        "/api/dispatch/send",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/smart-dispatch-engine",
+        "/api/system-design",
+        "/api/trips/${encodeURIComponent"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusKey",
+        "normalizeScheduleRow",
+        "getSchedule",
+        "loadSmartEngine",
+        "filterTrips",
+        "loadAll",
+        "autoAssign",
+        "autoAssignNewTrips",
+        "saveAssignment",
+        "sendTrips",
+        "sendSelected",
+        "sendAll",
+        "sendOne",
+        "toggleSelectAll",
+        "handleTripSelect",
+        "syncSelectionControls",
+        "removeSelectedDrivers",
+        "deleteSelectedTrip",
+        "toggleEdit"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-009-T07",
+      "pageId": "ADM-009",
+      "pageTitle": "Dispatch",
+      "pageFile": "dispatch.html",
+      "module": "Dispatch",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit Selected Dispatch Trips",
+      "summary": "Open editing for the selected dispatch trips.",
+      "keywords": [
+        "edit selected",
+        "dispatch edit",
+        "تعديل الرحلات المحددة",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open Dispatch.",
+        "Select the trip or trips.",
+        "Click Edit Selected.",
+        "Apply the available changes and save/confirm them in the edit flow."
       ],
       "warnings": [],
       "sourceFiles": [

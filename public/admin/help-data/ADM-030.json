@@ -131,6 +131,33 @@
         "If Save Settings shows View Only, the current user can review the settings but cannot change them."
       ],
       "warnings": []
+    },
+    {
+      "id": "ADM-030-T01",
+      "pageId": "ADM-030",
+      "pageTitle": "Autopilot Settings",
+      "pageFile": "autopilot-settings.html",
+      "module": "Autopilot",
+      "roles": [],
+      "requiredFeature": "",
+      "title": "How to Save Autopilot Settings",
+      "summary": "Save changes made to the Autopilot switches/modes.",
+      "keywords": [
+        "save autopilot",
+        "autopilot settings",
+        "حفظ الاوتوبايلوت"
+      ],
+      "steps": [
+        "Open Autopilot Mode.",
+        "Change the available Company, Broker, or Broker Shared settings.",
+        "Click Save Settings.",
+        "Verify the saved status shown on the page."
+      ],
+      "warnings": [],
+      "sourceFiles": [],
+      "apiDependencies": [],
+      "sourceFunctions": [],
+      "active": true
     }
   ]
 }

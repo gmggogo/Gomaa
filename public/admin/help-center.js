@@ -523,7 +523,30 @@ const HelpCenter = (()=>{
   }
 
   function normalizeSearch(value){
-    return clean(value).toLowerCase().replace(/[_-]/g," ").replace(/\s+/g," ");
+    let text = clean(value)
+      .toLowerCase()
+      .replace(/[_-]/g," ")
+      .replace(/\s+/g," ");
+
+    const aliases = [
+      [/\bhow do i\b/g,"how to"],
+      [/\bcreate\b/g,"add"],
+      [/\bdriver\b/g,"driver"],
+      [/ازاي|إزاي|كيف/g,"how to"],
+      [/اضيف|أضيف|إضافة|انشاء|إنشاء/g,"add"],
+      [/اعدل|أعدل|تعديل|غيّر|غير/g,"edit"],
+      [/سواق|سائق|درايفر/g,"driver"],
+      [/ادمن|أدمن/g,"admin"],
+      [/ديسباتشر/g,"dispatcher"],
+      [/شركة/g,"company"],
+      [/رحلة|رحلات/g,"trip"]
+    ];
+
+    aliases.forEach(([pattern,replacement])=>{
+      text = text.replace(pattern,replacement);
+    });
+
+    return text.replace(/\s+/g," ").trim();
   }
 
   function articleText(article){

@@ -1,8 +1,8 @@
 {
-  "version": "2.0",
-  "generatedFrom": "admin.zip",
-  "pageCount": 30,
-  "articleCount": 95,
+  "version": "3.0",
+  "generatedFrom": "admin folder full source audit",
+  "pageCount": 31,
+  "articleCount": 145,
   "pages": [
     {
       "pageId": "ADM-005",
@@ -32,7 +32,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 4,
+      "articleCount": 6,
       "dataFile": "help-data/ADM-027.json",
       "description": "Central trip hub for adding, finding, filtering, editing, and deleting active trips.",
       "headerOrder": 1,
@@ -49,7 +49,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 4,
+      "articleCount": 7,
       "dataFile": "help-data/ADM-028.json",
       "description": "Shows active trips, selection tools, individual/shared editing, and preparation for Dispatch.",
       "headerOrder": 2,
@@ -66,7 +66,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "BROKER",
-      "articleCount": 4,
+      "articleCount": 6,
       "dataFile": "help-data/ADM-012.json",
       "description": "Receives and manages external broker trips before Trip Split.",
       "headerOrder": 3,
@@ -100,7 +100,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "BROKER",
-      "articleCount": 3,
+      "articleCount": 5,
       "dataFile": "help-data/ADM-004.json",
       "description": "Reviews broker trips, allows edits, confirms them, or returns them to Trip Split.",
       "headerOrder": 5,
@@ -117,7 +117,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 5,
+      "articleCount": 7,
       "dataFile": "help-data/ADM-009.json",
       "description": "Assigns drivers and vehicles, runs Auto Assign, sends trips, and manages assignments.",
       "headerOrder": 6,
@@ -151,7 +151,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 3,
+      "articleCount": 6,
       "dataFile": "help-data/ADM-008.json",
       "description": "Reviews completed, cancelled, no-show, and not-completed trips with filters and exports.",
       "headerOrder": 8,
@@ -168,7 +168,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 2,
+      "articleCount": 7,
       "dataFile": "help-data/ADM-010.json",
       "description": "Manages driver availability, work days, schedule information, and assigned service.",
       "headerOrder": 9,
@@ -217,7 +217,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "BROKER",
-      "articleCount": 3,
+      "articleCount": 4,
       "dataFile": "help-data/ADM-011.json",
       "description": "Broker reporting for closed broker trips with filters, print, CSV, and Excel export.",
       "headerOrder": 12,
@@ -233,7 +233,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 3,
+      "articleCount": 12,
       "dataFile": "help-data/ADM-029.json",
       "description": "Creates and manages Super Admin, Admin, Dispatcher, Driver, and Company users.",
       "headerOrder": 13,
@@ -264,7 +264,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 4,
+      "articleCount": 7,
       "dataFile": "help-data/ADM-001.json",
       "description": "Manages Stripe connection, tenant billing, invoices, payment status, and company lock/unlock.",
       "headerOrder": 15,
@@ -324,7 +324,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 4,
+      "articleCount": 5,
       "dataFile": "help-data/ADM-025.json",
       "description": "Generates, saves, prints, and exports company tax reports by date range.",
       "headerOrder": 19,
@@ -339,7 +339,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 5,
+      "articleCount": 8,
       "dataFile": "help-data/ADM-020.json",
       "description": "Controls service pricing, cancellation rules, warning windows, add-stop policy, and driver timers.",
       "headerOrder": 20,
@@ -354,7 +354,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 2,
+      "articleCount": 4,
       "dataFile": "help-data/ADM-013.json",
       "description": "Sets company/facility-specific pricing overrides instead of default service pricing.",
       "headerOrder": 21,
@@ -385,7 +385,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 5,
+      "articleCount": 10,
       "dataFile": "help-data/ADM-024.json",
       "description": "Tenant-wide branding, timezone, service zones, email/SMTP, booking text, and design settings.",
       "headerOrder": 23,
@@ -401,7 +401,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 3,
+      "articleCount": 4,
       "dataFile": "help-data/ADM-022.json",
       "description": "Configures Smart Dispatch strategy, limits, driver requirements, balancing, and scoring.",
       "headerOrder": 24,
@@ -417,7 +417,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "",
-      "articleCount": 4,
+      "articleCount": 5,
       "dataFile": "help-data/ADM-030.json",
       "description": "Controls Company Autopilot, Broker Autopilot, and Broker Shared Autopilot, with options shown according to enabled capabilities.",
       "headerOrder": 25,
@@ -433,7 +433,7 @@
         "SUPER_ADMIN"
       ],
       "requiredFeature": "SHARED",
-      "articleCount": 4,
+      "articleCount": 6,
       "dataFile": "help-data/ADM-021.json",
       "description": "Configures Shared grouping rules, rider limits, distance/time tolerance, priorities, and trip sources.",
       "headerOrder": 26,
@@ -488,6 +488,23 @@
       "dataFile": "help-data/ADM-002.json",
       "description": "Communicates with drivers and shows online drivers, unread messages, and conversation history.",
       "headerOrder": 29,
+      "helpGroup": "STANDARD"
+    },
+    {
+      "pageId": "ADM-031",
+      "pageTitle": "Platform Support",
+      "pageFile": "support-chat.html",
+      "module": "Platform Support",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "articleCount": 3,
+      "dataFile": "help-data/ADM-031.json",
+      "description": "Starts and continues support conversations with the GH Mobility Platform Support team.",
+      "headerOrder": 30,
       "helpGroup": "STANDARD"
     }
   ]

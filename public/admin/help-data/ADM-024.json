@@ -55,7 +55,11 @@
         "region",
         "state",
         "system design",
-        "timezone"
+        "timezone",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open System Design.",
@@ -110,7 +114,11 @@
         "driver logo",
         "main logo",
         "system design",
-        "upload logo"
+        "upload logo",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open System Design.",
@@ -282,12 +290,307 @@
         "branding",
         "hero image",
         "system design",
-        "title color"
+        "title color",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open System Design.",
         "Update Hero Image, colors, borders, spacing, title text/size/alignment, and available design cards.",
         "Save System Design."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T06",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Upload the Hero Image",
+      "summary": "Replace the public-page Hero Image.",
+      "keywords": [
+        "hero image",
+        "upload hero",
+        "public hero",
+        "صورة الهيرو"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Go to the Hero Image setting.",
+        "Click Upload Hero Image and select the image.",
+        "Click Save All Settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T07",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit About Us Text and Design",
+      "summary": "Change About title/text and its visual settings.",
+      "keywords": [
+        "about us",
+        "about title",
+        "about text",
+        "about design",
+        "ابوت اس",
+        "من نحن",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Edit About Title and About Text.",
+        "Adjust About background, border, radius, padding, title/text colors, sizes, and alignment as needed.",
+        "Click Save All Settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T08",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit the Two Extra Information Boxes",
+      "summary": "Change Extra Box 1 and Extra Box 2 content and visibility.",
+      "keywords": [
+        "extra box",
+        "extra information",
+        "additional services",
+        "show extra box",
+        "المربع الاضافي",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Edit Extra Box 1 Title/Text and Extra Box 2 Title/Text.",
+        "Use Show Extra Box 1 and Show Extra Box 2 to control visibility.",
+        "Adjust shared box design fields if needed.",
+        "Click Save All Settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T09",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit Customer Support Contact Information",
+      "summary": "Change the public contact title, phone, and email.",
+      "keywords": [
+        "customer support",
+        "contact phone",
+        "contact email",
+        "support contact",
+        "رقم الدعم",
+        "ايميل الدعم",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Find the Contact settings.",
+        "Edit Contact Title, Phone Number, and Email Address.",
+        "Click Save All Settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/system-design.html",
+        "server/public/admin/header.js",
+        "server/public/admin/system-design.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/system-design/upload"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystemDesign",
+        "saveSystemDesign",
+        "setupAlignSelect",
+        "loadZoneForm",
+        "loadFormValues",
+        "uploadMainImage",
+        "renderCardsEditor"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-024-T10",
+      "pageId": "ADM-024",
+      "pageTitle": "System Design",
+      "pageFile": "system-design.html",
+      "module": "System Design",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Reset Unsaved System Design Changes",
+      "summary": "Reload the current saved values.",
+      "keywords": [
+        "reset system design",
+        "reset branding",
+        "إعادة ضبط"
+      ],
+      "steps": [
+        "Open System Design.",
+        "Click Reset.",
+        "Review the restored values before making new edits."
       ],
       "warnings": [],
       "sourceFiles": [

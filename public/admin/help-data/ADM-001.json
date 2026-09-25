@@ -59,7 +59,10 @@
         "admin billing center",
         "connect stripe",
         "stripe connect",
-        "stripe status"
+        "stripe status",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Billing.",
@@ -120,7 +123,10 @@
         "admin billing",
         "admin billing center",
         "open stripe",
-        "stripe dashboard"
+        "stripe dashboard",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Billing.",
@@ -181,7 +187,14 @@
         "billing",
         "edit billing",
         "invoice",
-        "tenant billing"
+        "tenant billing",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Billing.",
@@ -245,13 +258,202 @@
         "admin billing center",
         "lock company",
         "suspend company",
-        "unlock company"
+        "unlock company",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Billing.",
         "Locate the company.",
         "Use Lock Company or Unlock Company.",
         "Verify the updated status."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T05",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to View Tenant Payment History",
+      "summary": "Open the billing payment-history records for the tenant.",
+      "keywords": [
+        "payment history",
+        "billing history",
+        "invoice history",
+        "سجل الدفع",
+        "سجل الفواتير"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Select the tenant/company billing record.",
+        "Open the payment history area.",
+        "Use the Year and Month filters when needed."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T06",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Open or Print a Billing Invoice",
+      "summary": "Open an invoice and print it from Admin Billing.",
+      "keywords": [
+        "open invoice",
+        "print invoice",
+        "billing invoice",
+        "طباعة فاتورة",
+        "فتح فاتورة"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Select the billing record or payment-history invoice.",
+        "Open the invoice.",
+        "Use Print for a printable copy."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/admin-billing.html",
+        "server/public/admin/header.js",
+        "server/public/admin/admin-billing.js"
+      ],
+      "apiDependencies": [
+        "/api/admin/billing",
+        "/api/admin/billing/${id}/lock",
+        "/api/admin/billing/${id}/mark-paid",
+        "/api/admin/billing/${id}/unlock",
+        "/api/admin/generate-invoice/${id}",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tenant-stripe/connect",
+        "/api/tenant-stripe/dashboard-link",
+        "/api/tenant-stripe/status"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadStripeStatus",
+        "connectStripe",
+        "loadBilling",
+        "editBilling",
+        "saveBilling",
+        "lockCompany",
+        "unlockCompany",
+        "applyFilters"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-001-T07",
+      "pageId": "ADM-001",
+      "pageTitle": "Admin Billing Center",
+      "pageFile": "admin-billing.html",
+      "module": "SaaS Billing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Mark a Billing Record Paid",
+      "summary": "Use the Mark Paid action when available.",
+      "keywords": [
+        "mark paid",
+        "paid invoice",
+        "billing paid",
+        "تحديد مدفوع",
+        "الفاتورة مدفوعة"
+      ],
+      "steps": [
+        "Open Admin Billing.",
+        "Locate the tenant billing record.",
+        "Use Mark Paid for the intended billing record.",
+        "Reload/verify the payment status after the action completes."
       ],
       "warnings": [],
       "sourceFiles": [

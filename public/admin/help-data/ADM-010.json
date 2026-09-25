@@ -59,7 +59,15 @@
         "driver schedule",
         "edit driver schedule",
         "service",
-        "work days"
+        "work days",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Driver Schedule.",
@@ -119,13 +127,359 @@
         "change service",
         "driver schedule",
         "driver service",
-        "update service"
+        "update service",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Driver Schedule.",
         "Select the driver.",
         "Change the assigned service.",
         "Save the update."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T03",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit a Driver Vehicle Number",
+      "summary": "Change the Vehicle # assigned in Driver Schedule.",
+      "keywords": [
+        "vehicle number",
+        "driver vehicle",
+        "car number",
+        "edit car",
+        "رقم السيارة",
+        "سيارة السائق",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Find the Driver row.",
+        "Click Edit.",
+        "Change the Vehicle # field.",
+        "Click Save."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T04",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit a Driver Phone or Address",
+      "summary": "Update driver Phone or Address in Driver Schedule.",
+      "keywords": [
+        "driver phone",
+        "driver address",
+        "edit driver address",
+        "edit driver phone",
+        "عنوان السائق",
+        "هاتف السائق",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Find the Driver row and click Edit.",
+        "Change Phone and/or Address.",
+        "Click Save."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T05",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Set Driver Working Days",
+      "summary": "Turn individual weekdays on or off for a driver.",
+      "keywords": [
+        "driver days",
+        "working days",
+        "week schedule",
+        "driver availability",
+        "ايام السائق",
+        "جدول السائق",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Find the Driver row.",
+        "Click Edit.",
+        "Click the day buttons under Week to activate or deactivate each day.",
+        "Click Save."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T06",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Enable or Disable a Driver Schedule",
+      "summary": "Control whether the driver schedule is enabled.",
+      "keywords": [
+        "enable driver",
+        "disable driver",
+        "driver active",
+        "driver off",
+        "تفعيل السائق",
+        "تعطيل السائق",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Find the Driver row.",
+        "Click Disable when the schedule is enabled, or Enable when it is disabled.",
+        "Verify the Status column changes between ACTIVE and OFF."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/driver-schedule.html",
+        "server/public/admin/header.js",
+        "server/public/admin/driver-schedule.js"
+      ],
+      "apiDependencies": [
+        "/api/driver-schedule",
+        "/api/drivers",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadSystem",
+        "loadDrivers",
+        "loadServices",
+        "loadSchedule",
+        "save",
+        "editDriver",
+        "saveDriver",
+        "updateService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-010-T07",
+      "pageId": "ADM-010",
+      "pageTitle": "Driver Schedule",
+      "pageFile": "driver-schedule.html",
+      "module": "Driver Follow-up",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Change the Driver Service",
+      "summary": "Assign the driver to a different enabled service.",
+      "keywords": [
+        "driver service",
+        "assign service",
+        "change service",
+        "خدمة السائق",
+        "تغيير خدمة السائق",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Driver Schedule.",
+        "Find the Driver row and click Edit.",
+        "Use the Service selector to choose the service.",
+        "Click Save."
       ],
       "warnings": [],
       "sourceFiles": [

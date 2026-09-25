@@ -56,7 +56,18 @@
         "new driver",
         "new super admin",
         "user management",
-        "users"
+        "users",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Add User.",
@@ -113,7 +124,18 @@
         "update dispatcher",
         "update driver",
         "user management",
-        "users"
+        "users",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open the appropriate role tab.",
@@ -175,6 +197,562 @@
         "Locate the user.",
         "Click Delete.",
         "Confirm deletion."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T04",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Add a Driver",
+      "summary": "Create a Driver account from User Management.",
+      "keywords": [
+        "add driver",
+        "create driver",
+        "new driver",
+        "driver account",
+        "سواق",
+        "سائق",
+        "درايفر",
+        "ازاي اضيف سواق",
+        "اضيف سائق",
+        "إضافة سائق",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create",
+        "driver"
+      ],
+      "steps": [
+        "Open User Management.",
+        "Click Drivers.",
+        "Enter Full Name, Username, Email Address, Phone Number, and Password.",
+        "Click Save User.",
+        "Verify the new Driver appears in the Drivers table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T05",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Add a Dispatcher",
+      "summary": "Create a Dispatcher account from User Management.",
+      "keywords": [
+        "add dispatcher",
+        "create dispatcher",
+        "new dispatcher",
+        "اضيف ديسباتشر",
+        "إضافة ديسباتشر",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
+      ],
+      "steps": [
+        "Open User Management.",
+        "Click Dispatchers.",
+        "Enter Full Name, Username, Email Address, Phone Number, and Password.",
+        "Click Save User.",
+        "Verify the new Dispatcher appears in the Dispatchers table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T06",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Add a Company User",
+      "summary": "Create a Company account from User Management.",
+      "keywords": [
+        "add company",
+        "create company",
+        "company user",
+        "اضيف شركة",
+        "إضافة شركة",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
+      ],
+      "steps": [
+        "Open User Management.",
+        "Click Companies.",
+        "Enter Full Name, Username, Email Address, Phone Number, and Password.",
+        "Click Save User.",
+        "Verify the new Company appears in the Companies table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T07",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Add an Admin",
+      "summary": "Create an Admin account when signed in as Super Admin.",
+      "keywords": [
+        "add admin",
+        "create admin",
+        "new admin",
+        "ازاي اضيف ادمن",
+        "اضيف ادمن",
+        "إضافة أدمن",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create",
+        "admin",
+        "ادمن",
+        "أدمن"
+      ],
+      "steps": [
+        "Open User Management as Super Admin.",
+        "Click Admins.",
+        "Enter Full Name, Username, Email Address, Phone Number, and Password.",
+        "Click Save User.",
+        "Verify the new Admin appears in the Admins table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T08",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Add a Super Admin",
+      "summary": "Create a Super Admin account when signed in as Super Admin.",
+      "keywords": [
+        "add super admin",
+        "create super admin",
+        "new super admin",
+        "اضيف سوبر ادمن",
+        "إضافة سوبر أدمن",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create",
+        "admin",
+        "ادمن",
+        "أدمن"
+      ],
+      "steps": [
+        "Open User Management as Super Admin.",
+        "Click Super Admins.",
+        "Enter Full Name, Username, Email Address, Phone Number, and Password.",
+        "Click Save User.",
+        "Verify the new Super Admin appears in the Super Admins table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T09",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit a User",
+      "summary": "Edit the selected user without changing the user type.",
+      "keywords": [
+        "edit user",
+        "edit driver",
+        "edit admin",
+        "edit dispatcher",
+        "edit company",
+        "تعديل مستخدم",
+        "تعديل سائق",
+        "تعديل ادمن",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
+      ],
+      "steps": [
+        "Open the user type tab that contains the account.",
+        "Click Edit on the user row.",
+        "Update Full Name, Username, Email Address, Phone Number, or Password as needed.",
+        "Click Save User.",
+        "Verify the updated values in the table."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T10",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Enable or Disable a User",
+      "summary": "Change whether a user account is active.",
+      "keywords": [
+        "enable user",
+        "disable user",
+        "activate user",
+        "deactivate user",
+        "تفعيل مستخدم",
+        "تعطيل مستخدم"
+      ],
+      "steps": [
+        "Open the correct user type tab.",
+        "Find the user in the table.",
+        "Click Disable for an active user or Enable for a disabled user.",
+        "Wait for the list to reload and verify the Status column."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T11",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Why the Primary Super Admin Cannot Be Disabled or Deleted",
+      "summary": "Understand the protected Primary Super Admin record.",
+      "keywords": [
+        "primary super admin",
+        "protected super admin",
+        "cannot delete admin",
+        "cannot disable admin",
+        "سوبر ادمن محمي",
+        "admin",
+        "ادمن",
+        "أدمن"
+      ],
+      "steps": [
+        "Open Super Admins in User Management.",
+        "Locate the row marked Primary and Protected.",
+        "The page intentionally does not show Disable or Delete for that protected account."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/users.html",
+        "server/public/admin/header.js",
+        "server/public/admin/users.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/users/${currentRole}",
+        "/api/users/${editId}",
+        "/api/users/${id}",
+        "/api/users/${id}/toggle"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "loadUsers",
+        "addUser",
+        "editUser",
+        "deleteUser"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-029-T12",
+      "pageId": "ADM-029",
+      "pageTitle": "User Management",
+      "pageFile": "users.html",
+      "module": "User Management",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "Who Can Manage Each User Type",
+      "summary": "Understand User Management role permissions.",
+      "keywords": [
+        "user permissions",
+        "admin permissions",
+        "super admin permissions",
+        "who can add driver",
+        "who can add admin",
+        "صلاحيات المستخدمين",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
+      ],
+      "steps": [
+        "Super Admin can manage Super Admin, Admin, Dispatcher, Driver, and Company accounts.",
+        "Admin can manage Dispatcher, Driver, and Company accounts.",
+        "Dispatcher does not have access to Add User/User Management creation functions."
       ],
       "warnings": [],
       "sourceFiles": [

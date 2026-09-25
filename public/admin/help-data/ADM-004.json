@@ -65,7 +65,11 @@
         "change address",
         "change pickup time",
         "edit broker review",
-        "notes"
+        "notes",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Broker Review.",
@@ -205,6 +209,134 @@
       "warnings": [
         "Broker Contract must be enabled."
       ],
+      "sourceFiles": [
+        "server/public/admin/broker-review.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/broker-review.js"
+      ],
+      "apiDependencies": [
+        "/api/broker-review/bootstrap",
+        "/api/broker-review/confirm-selected",
+        "/api/broker-review/return-to-trip-split",
+        "/api/broker-review/trips/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "addressBox",
+        "normalizedTripStatus",
+        "isSelected",
+        "statusText",
+        "updateSelectAllButton",
+        "toggleSelectAll",
+        "selectedVisibleIds",
+        "selectedReturnableIds",
+        "returnSelectedToTripSplit",
+        "confirmSelected",
+        "openEdit",
+        "saveEdit",
+        "deleteTrip",
+        "load"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-004-T04",
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "How to Filter Broker Review by Today or Tomorrow",
+      "summary": "Limit Broker Review to the selected day.",
+      "keywords": [
+        "today broker review",
+        "tomorrow broker review",
+        "filter broker date",
+        "اليوم",
+        "غدا"
+      ],
+      "steps": [
+        "Open Broker Review.",
+        "Click Today or Tomorrow.",
+        "Review the trips shown for that date."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/broker-review.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/broker-review.js"
+      ],
+      "apiDependencies": [
+        "/api/broker-review/bootstrap",
+        "/api/broker-review/confirm-selected",
+        "/api/broker-review/return-to-trip-split",
+        "/api/broker-review/trips/${encodeURIComponent",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "addressBox",
+        "normalizedTripStatus",
+        "isSelected",
+        "statusText",
+        "updateSelectAllButton",
+        "toggleSelectAll",
+        "selectedVisibleIds",
+        "selectedReturnableIds",
+        "returnSelectedToTripSplit",
+        "confirmSelected",
+        "openEdit",
+        "saveEdit",
+        "deleteTrip",
+        "load"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-004-T05",
+      "pageId": "ADM-004",
+      "pageTitle": "Broker Review",
+      "pageFile": "broker-review.html",
+      "module": "Broker Operations",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "How to Select All Broker Review Trips",
+      "summary": "Select all currently displayed Broker Review trips.",
+      "keywords": [
+        "select all broker trips",
+        "broker select all",
+        "تحديد الكل بروكر"
+      ],
+      "steps": [
+        "Open Broker Review.",
+        "Click Select All.",
+        "Use Confirm Selected or Return Selected to Trip Split for the selected rows."
+      ],
+      "warnings": [],
       "sourceFiles": [
         "server/public/admin/broker-review.html",
         "server/public/admin/header.js",

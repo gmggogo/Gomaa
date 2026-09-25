@@ -106,7 +106,11 @@
         "max group distance",
         "max riders",
         "pickup tolerance",
-        "shared engine settings"
+        "shared engine settings",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Edit Max Group Distance, Max Extra Ride Distance/Time, appointment/pickup tolerances, and Max Riders Per Group.",
@@ -217,6 +221,113 @@
       "warnings": [
         "This page is visible only when SHARED is enabled for the tenant."
       ],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-021-T05",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "How to Change Maximum Riders per Shared Group",
+      "summary": "Change Max Riders Per Group.",
+      "keywords": [
+        "max riders",
+        "shared riders",
+        "group passengers",
+        "عدد الركاب",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open Shared Engine Settings.",
+        "Change Max Riders Per Group.",
+        "Click Save Shared Engine."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/shared-engine-settings.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/sharedEngineSettings.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "setStatus",
+        "setAdvancedEditable",
+        "selectMode",
+        "payload",
+        "load",
+        "save"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-021-T06",
+      "pageId": "ADM-021",
+      "pageTitle": "Shared Engine Settings",
+      "pageFile": "shared-engine-settings.html",
+      "module": "Shared Engine",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "SHARED",
+      "title": "How to Enable or Disable Shared Trip Sources",
+      "summary": "Choose whether Company, Reserved, or Broker trips participate.",
+      "keywords": [
+        "company trips shared",
+        "reserved trips shared",
+        "broker trips shared",
+        "shared sources",
+        "مصادر الشير"
+      ],
+      "steps": [
+        "Open Shared Engine Settings.",
+        "Set Company Trips, Reserved Trips, and Broker Trips as required.",
+        "Click Save Shared Engine."
+      ],
+      "warnings": [],
       "sourceFiles": [
         "server/public/admin/shared-engine-settings.html",
         "server/public/admin/header.js",

@@ -250,7 +250,11 @@
         "add to review",
         "dispatch add trip",
         "individual review",
-        "review trip"
+        "review trip",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Complete the individual trip information.",
@@ -335,7 +339,11 @@
         "add shared",
         "dispatch add trip",
         "shared passengers",
-        "shared setup"
+        "shared setup",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open Shared Setup.",
@@ -421,7 +429,11 @@
         "confirm",
         "dispatch add trip",
         "edit review trip",
-        "save edit"
+        "save edit",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Dispatch Review inside Dispatch Add Trip.",

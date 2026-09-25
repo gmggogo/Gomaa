@@ -254,7 +254,11 @@
         "edit pickup",
         "edit trip split",
         "pickup time",
-        "trip split"
+        "trip split",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open the trip edit dialog.",

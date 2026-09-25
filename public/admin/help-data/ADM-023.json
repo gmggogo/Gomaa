@@ -88,7 +88,10 @@
         "status",
         "summary",
         "summary filter",
-        "year"
+        "year",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Summary.",
@@ -172,7 +175,10 @@
         "admin summary",
         "operations report",
         "print summary",
-        "summary"
+        "summary",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Apply the required filters.",
@@ -256,7 +262,10 @@
         "csv",
         "excel",
         "export summary",
-        "summary"
+        "summary",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Apply the required filters.",

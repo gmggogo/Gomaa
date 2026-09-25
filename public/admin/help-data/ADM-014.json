@@ -52,7 +52,14 @@
         "live driver",
         "location",
         "maps",
-        "search driver"
+        "search driver",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Drivers Map.",

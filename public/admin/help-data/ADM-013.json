@@ -55,7 +55,15 @@
         "edit override",
         "facility pricing",
         "facility pricing override",
-        "pricing override"
+        "pricing override",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Facility Pricing Override.",
@@ -119,6 +127,120 @@
         "Open the facility and service override.",
         "Change the override status/values as allowed.",
         "Save and reload the page to verify the effective pricing source."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/facility-pricing-override.html",
+        "server/public/admin/header.js",
+        "server/public/admin/facility-pricing-override.js"
+      ],
+      "apiDependencies": [
+        "/api/facility-pricing-override",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "getSelectedFacility",
+        "loadAll",
+        "selectInput",
+        "syncLocalOverrideStatus",
+        "editServiceCard",
+        "saveServiceCard",
+        "updateServiceField",
+        "validateBeforeSave",
+        "prepareServicesForSave",
+        "saveOverride",
+        "reloadPage"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-013-T03",
+      "pageId": "ADM-013",
+      "pageTitle": "Facility Pricing Override",
+      "pageFile": "facility-pricing-override.html",
+      "module": "Facility Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Select a Facility for Pricing Override",
+      "summary": "Choose the Company/Facility whose override you want to edit.",
+      "keywords": [
+        "select facility",
+        "facility pricing",
+        "company pricing override",
+        "اختيار فاصلتي"
+      ],
+      "steps": [
+        "Open Facility Pricing Override.",
+        "Select the facility/company from the facility list.",
+        "Review the services shown for that facility."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/facility-pricing-override.html",
+        "server/public/admin/header.js",
+        "server/public/admin/facility-pricing-override.js"
+      ],
+      "apiDependencies": [
+        "/api/facility-pricing-override",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "getSelectedFacility",
+        "loadAll",
+        "selectInput",
+        "syncLocalOverrideStatus",
+        "editServiceCard",
+        "saveServiceCard",
+        "updateServiceField",
+        "validateBeforeSave",
+        "prepareServicesForSave",
+        "saveOverride",
+        "reloadPage"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-013-T04",
+      "pageId": "ADM-013",
+      "pageTitle": "Facility Pricing Override",
+      "pageFile": "facility-pricing-override.html",
+      "module": "Facility Pricing",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Enable or Disable a Facility Service",
+      "summary": "Control service availability for the selected facility.",
+      "keywords": [
+        "facility service",
+        "enable facility service",
+        "disable facility service",
+        "خدمة الفاصلتي"
+      ],
+      "steps": [
+        "Open Facility Pricing Override.",
+        "Select the facility.",
+        "Find the service card.",
+        "Use the service enable/disable control.",
+        "Save the service card if required."
       ],
       "warnings": [],
       "sourceFiles": [

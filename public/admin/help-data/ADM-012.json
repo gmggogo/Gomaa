@@ -69,7 +69,11 @@
         "external trip",
         "external trips",
         "external trips hub",
-        "manual broker trip"
+        "manual broker trip",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open External Trips Hub.",
@@ -140,7 +144,11 @@
         "external stops",
         "external trips",
         "external trips hub",
-        "remove stop"
+        "remove stop",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open Add/Edit Trip.",
@@ -210,7 +218,11 @@
         "edit broker trip",
         "edit external trip",
         "external trips",
-        "external trips hub"
+        "external trips hub",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open External Trips Hub.",
@@ -294,6 +306,145 @@
       "warnings": [
         "Broker Contract must be enabled."
       ],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-012-T05",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "How to Choose the Broker for a Manual External Trip",
+      "summary": "Set the Broker when manually adding an external trip.",
+      "keywords": [
+        "choose broker",
+        "manual broker trip",
+        "broker field",
+        "اختيار بروكر"
+      ],
+      "steps": [
+        "Open External Trips Hub.",
+        "Click Add Trip.",
+        "Use the Broker field to select the broker.",
+        "Complete the remaining trip fields and click Save Trip."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/external-trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/js/external-trips.js"
+      ],
+      "apiDependencies": [
+        "/api/external-trips${queryString",
+        "/api/external-trips/${encodeURIComponent",
+        "/api/external-trips/brokers",
+        "/api/external-trips/manual",
+        "/api/external-trips/services",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "normalizeStopAddress",
+        "addressBox",
+        "selectedFilters",
+        "searchedTrips",
+        "loadBrokers",
+        "loadServices",
+        "loadTrips",
+        "renderBrokerSelectors",
+        "renderServiceSelector",
+        "addStopRow",
+        "openAdd",
+        "editTrip",
+        "formPayload",
+        "validatePayload",
+        "saveTrip",
+        "deleteTrip"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-012-T06",
+      "pageId": "ADM-012",
+      "pageTitle": "External Trips Hub",
+      "pageFile": "external-trips.html",
+      "module": "Broker Intake",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "BROKER",
+      "title": "How to Enter Pickup, Appointment, and Return Times",
+      "summary": "Fill the time fields on a manual broker trip.",
+      "keywords": [
+        "pickup time",
+        "appointment time",
+        "return time",
+        "broker times",
+        "وقت البيك اب",
+        "موعد"
+      ],
+      "steps": [
+        "Open Add Trip in External Trips Hub.",
+        "Enter Trip Date.",
+        "Enter Pickup Time.",
+        "Enter Appointment Time and Return Time when they apply.",
+        "Complete the trip and click Save Trip."
+      ],
+      "warnings": [],
       "sourceFiles": [
         "server/public/admin/external-trips.html",
         "server/public/admin/header.js",

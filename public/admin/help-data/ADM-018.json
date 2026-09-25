@@ -1,6 +1,6 @@
 {
   "pageId": "ADM-018",
-  "pageTitle": "Refunds \u2013 Sunbeam",
+  "pageTitle": "Refunds – Sunbeam",
   "pageFile": "refunds.html",
   "module": "Refunds",
   "roles": [
@@ -29,7 +29,7 @@
     {
       "id": "ADM-018-T01",
       "pageId": "ADM-018",
-      "pageTitle": "Refunds \u2013 Sunbeam",
+      "pageTitle": "Refunds – Sunbeam",
       "pageFile": "refunds.html",
       "module": "Refunds",
       "roles": [
@@ -44,7 +44,7 @@
         "refund",
         "refund status",
         "refunds",
-        "refunds \u2013 sunbeam"
+        "refunds – sunbeam"
       ],
       "steps": [
         "Open Refunds.",

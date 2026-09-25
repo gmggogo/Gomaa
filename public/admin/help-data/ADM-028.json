@@ -158,7 +158,11 @@
         "save trip",
         "today trip edit",
         "tomorrow trip edit",
-        "trips"
+        "trips",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Trips.",
@@ -240,7 +244,11 @@
         "shared passenger",
         "today shared edit",
         "tomorrow shared edit",
-        "trips"
+        "trips",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Trips.",
@@ -325,6 +333,233 @@
         "Locate the trip.",
         "Use the delete action.",
         "Confirm deletion if prompted."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/trips.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch/",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/tenant-trips",
+        "/api/trips"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusKey",
+        "getStatusClass",
+        "isDispatchStatus",
+        "loadSystemTimezone",
+        "getGroupStatus",
+        "itemSelected",
+        "allSelected",
+        "getManuallyDeselectedTripIds",
+        "rememberManualSelection",
+        "itemWasManuallyDeselected",
+        "updateSelectionButtons",
+        "setItemSelected",
+        "bulkSetSelected",
+        "toggleSelectAll",
+        "toggleSelectToday",
+        "toggleSelectTomorrow",
+        "sendDispatchItem",
+        "searchAddress",
+        "autoSelectIncomingTrips",
+        "loadServices",
+        "loadTrips",
+        "editItem",
+        "saveSingleItem",
+        "saveSharedItem",
+        "deleteItem"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-028-T05",
+      "pageId": "ADM-028",
+      "pageTitle": "Trips",
+      "pageFile": "trips.html",
+      "module": "Trips",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Select Today's Trips",
+      "summary": "Select only trips scheduled for today.",
+      "keywords": [
+        "select today",
+        "today trips",
+        "تحديد رحلات اليوم"
+      ],
+      "steps": [
+        "Open Trips.",
+        "Click Select Today.",
+        "Review the selected trips before sending them forward."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/trips.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch/",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/tenant-trips",
+        "/api/trips"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusKey",
+        "getStatusClass",
+        "isDispatchStatus",
+        "loadSystemTimezone",
+        "getGroupStatus",
+        "itemSelected",
+        "allSelected",
+        "getManuallyDeselectedTripIds",
+        "rememberManualSelection",
+        "itemWasManuallyDeselected",
+        "updateSelectionButtons",
+        "setItemSelected",
+        "bulkSetSelected",
+        "toggleSelectAll",
+        "toggleSelectToday",
+        "toggleSelectTomorrow",
+        "sendDispatchItem",
+        "searchAddress",
+        "autoSelectIncomingTrips",
+        "loadServices",
+        "loadTrips",
+        "editItem",
+        "saveSingleItem",
+        "saveSharedItem",
+        "deleteItem"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-028-T06",
+      "pageId": "ADM-028",
+      "pageTitle": "Trips",
+      "pageFile": "trips.html",
+      "module": "Trips",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Select Tomorrow's Trips",
+      "summary": "Select only trips scheduled for tomorrow.",
+      "keywords": [
+        "select tomorrow",
+        "tomorrow trips",
+        "تحديد رحلات بكرة"
+      ],
+      "steps": [
+        "Open Trips.",
+        "Click Select Tomorrow.",
+        "Review the selected trips before sending them forward."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/trips.html",
+        "server/public/admin/header.js",
+        "server/public/admin/trips.js"
+      ],
+      "apiDependencies": [
+        "/api/dispatch/",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/system-design",
+        "/api/tenant-trips",
+        "/api/trips"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusKey",
+        "getStatusClass",
+        "isDispatchStatus",
+        "loadSystemTimezone",
+        "getGroupStatus",
+        "itemSelected",
+        "allSelected",
+        "getManuallyDeselectedTripIds",
+        "rememberManualSelection",
+        "itemWasManuallyDeselected",
+        "updateSelectionButtons",
+        "setItemSelected",
+        "bulkSetSelected",
+        "toggleSelectAll",
+        "toggleSelectToday",
+        "toggleSelectTomorrow",
+        "sendDispatchItem",
+        "searchAddress",
+        "autoSelectIncomingTrips",
+        "loadServices",
+        "loadTrips",
+        "editItem",
+        "saveSingleItem",
+        "saveSharedItem",
+        "deleteItem"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-028-T07",
+      "pageId": "ADM-028",
+      "pageTitle": "Trips",
+      "pageFile": "trips.html",
+      "module": "Trips",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Open Trip Details",
+      "summary": "Open the detailed trip view from Trips.",
+      "keywords": [
+        "trip details",
+        "view trip",
+        "open trip",
+        "تفاصيل الرحلة"
+      ],
+      "steps": [
+        "Open Trips.",
+        "Open the trip/view action for the row.",
+        "Review booking fields, stops, notes, and trip information.",
+        "Close the view when finished."
       ],
       "warnings": [],
       "sourceFiles": [

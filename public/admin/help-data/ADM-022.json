@@ -102,7 +102,15 @@
         "fair distribution",
         "nearest driver",
         "smart dispatch engine",
-        "smart score"
+        "smart score",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Edit Settings.",
@@ -155,12 +163,75 @@
         "driver load",
         "max pickup distance",
         "smart dispatch engine",
-        "weights"
+        "weights",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open Edit Settings.",
         "Adjust the available distance/time/load/conflict settings.",
         "Save Settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/smart-dispatch-engine.html",
+        "server/public/admin/header.js",
+        "server/public/admin/smart-dispatch-engine.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/smart-dispatch-engine"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "updateVisibleState",
+        "setEditMode",
+        "loadSettings",
+        "saveSettings"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-022-T04",
+      "pageId": "ADM-022",
+      "pageTitle": "Smart Dispatch Engine",
+      "pageFile": "smart-dispatch-engine.html",
+      "module": "Smart Dispatch",
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit Smart Dispatch Settings",
+      "summary": "Enter edit mode and change Smart Dispatch values.",
+      "keywords": [
+        "edit smart dispatch",
+        "smart dispatch settings",
+        "save smart dispatch",
+        "تعديل التوزيع الذكي",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
+      ],
+      "steps": [
+        "Open Smart Dispatch Engine.",
+        "Click Edit Settings.",
+        "Change the available strategy/constraint values.",
+        "Click Save Settings, or Cancel to discard the edit."
       ],
       "warnings": [],
       "sourceFiles": [

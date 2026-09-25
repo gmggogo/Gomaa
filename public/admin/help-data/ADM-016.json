@@ -46,7 +46,14 @@
         "admins payroll",
         "dispatchers payroll",
         "drivers payroll",
-        "payroll summary"
+        "payroll summary",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Payroll Summary.",

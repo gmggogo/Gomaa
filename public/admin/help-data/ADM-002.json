@@ -51,7 +51,14 @@
         "messages",
         "open chat",
         "sunbeam admin chat",
-        "unread"
+        "unread",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Chat.",
@@ -100,7 +107,14 @@
         "chat",
         "driver message",
         "send message",
-        "sunbeam admin chat"
+        "sunbeam admin chat",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open the driver's conversation.",
@@ -150,7 +164,14 @@
         "chat status",
         "driver online",
         "online driver",
-        "sunbeam admin chat"
+        "sunbeam admin chat",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open Admin Chat.",

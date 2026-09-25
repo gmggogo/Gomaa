@@ -77,7 +77,11 @@
         "add trip",
         "create trip",
         "new trip",
-        "trips hub"
+        "trips hub",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open Trips Hub.",
@@ -163,7 +167,11 @@
         "pickup",
         "time",
         "trip details",
-        "trips hub"
+        "trips hub",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Trips Hub.",
@@ -329,6 +337,161 @@
         "Open Trips Hub.",
         "Use the date and service filters.",
         "Use Search for trip number, passenger, company, address, notes, or status."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/trips-hub.html",
+        "server/public/admin/header.js",
+        "server/public/admin/trips-hub.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/tenant-trips",
+        "/api/trips"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "openAddTripPage",
+        "cleanStatus",
+        "statusKey",
+        "isActiveStatus",
+        "isClosedStatus",
+        "getStatusLabel",
+        "getStatusClass",
+        "getFilterDateObj",
+        "createEditInput",
+        "createEditArea",
+        "getGroupStatus",
+        "loadServices",
+        "loadHubTrips",
+        "tripPassesDateFilter",
+        "getBaseTripsForFilters",
+        "searchableText",
+        "applyFilters",
+        "buildDateFilters",
+        "toggleSelection",
+        "getSelectedItem",
+        "updateSelectionButtons",
+        "editSelected",
+        "deleteSelected",
+        "saveCurrentEdit",
+        "saveTrip",
+        "saveShared",
+        "cancelEdit",
+        "updateStickyOffsets"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-027-T05",
+      "pageId": "ADM-027",
+      "pageTitle": "Trips Hub",
+      "pageFile": "trips-hub.html",
+      "module": "Trips Hub",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Search Trips Hub",
+      "summary": "Find a trip using the Trips Hub search/filter controls.",
+      "keywords": [
+        "search trips hub",
+        "find trip",
+        "trip search",
+        "بحث الرحلات"
+      ],
+      "steps": [
+        "Open Trips Hub.",
+        "Use the available search/filter controls.",
+        "Enter trip, passenger, source, address, or other available search text.",
+        "Review the filtered results."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/trips-hub.html",
+        "server/public/admin/header.js",
+        "server/public/admin/trips-hub.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/admin",
+        "/api/shared-engine/settings",
+        "/api/tenant-trips",
+        "/api/trips"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "openAddTripPage",
+        "cleanStatus",
+        "statusKey",
+        "isActiveStatus",
+        "isClosedStatus",
+        "getStatusLabel",
+        "getStatusClass",
+        "getFilterDateObj",
+        "createEditInput",
+        "createEditArea",
+        "getGroupStatus",
+        "loadServices",
+        "loadHubTrips",
+        "tripPassesDateFilter",
+        "getBaseTripsForFilters",
+        "searchableText",
+        "applyFilters",
+        "buildDateFilters",
+        "toggleSelection",
+        "getSelectedItem",
+        "updateSelectionButtons",
+        "editSelected",
+        "deleteSelected",
+        "saveCurrentEdit",
+        "saveTrip",
+        "saveShared",
+        "cancelEdit",
+        "updateStickyOffsets"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-027-T06",
+      "pageId": "ADM-027",
+      "pageTitle": "Trips Hub",
+      "pageFile": "trips-hub.html",
+      "module": "Trips Hub",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to View Today's or Tomorrow's Trips in Trips Hub",
+      "summary": "Use the date filters for current operational trips.",
+      "keywords": [
+        "today trips hub",
+        "tomorrow trips hub",
+        "date filter",
+        "فلتر التاريخ"
+      ],
+      "steps": [
+        "Open Trips Hub.",
+        "Choose the Today or Tomorrow/date filter.",
+        "Review the matching active trips."
       ],
       "warnings": [],
       "sourceFiles": [

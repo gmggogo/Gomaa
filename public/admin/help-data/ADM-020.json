@@ -69,7 +69,11 @@
         "per mile",
         "pricing",
         "service management",
-        "shared price"
+        "shared price",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Service Management.",
@@ -139,7 +143,11 @@
         "cancellation fee",
         "disable cancel",
         "service management",
-        "service policy"
+        "service policy",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open the service/source section in Edit mode.",
@@ -207,7 +215,11 @@
         "booking warning",
         "service management",
         "warning minutes",
-        "warning window"
+        "warning window",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open the required service/source settings.",
@@ -276,7 +288,11 @@
         "add stop policy",
         "custom time",
         "cutoff minutes",
-        "service management"
+        "service management",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open the required service/source section.",
@@ -344,13 +360,237 @@
         "driver timer",
         "service management",
         "service timer",
-        "timer settings"
+        "timer settings",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
       ],
       "steps": [
         "Open the relevant service timer settings.",
         "Enable timer editing.",
         "Update the timer values.",
         "Save Driver Timer settings."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T06",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Enable or Disable a Service Section",
+      "summary": "Turn a service on or off for a supported booking section.",
+      "keywords": [
+        "enable service",
+        "disable service",
+        "service section",
+        "تفعيل خدمة",
+        "تعطيل خدمة"
+      ],
+      "steps": [
+        "Open Service Management.",
+        "Find the service and section you want to change.",
+        "Use the section enable/disable control.",
+        "Save the section/service changes."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T07",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Configure Booking Hours",
+      "summary": "Edit the booking-hour rules available for the service/section.",
+      "keywords": [
+        "booking hours",
+        "booking rule",
+        "service hours",
+        "ساعات الحجز"
+      ],
+      "steps": [
+        "Open Service Management.",
+        "Open the booking-hours editor for the relevant service/section.",
+        "Set the available booking-hour mode/rule values.",
+        "Save Booking Hours."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/service-management.html",
+        "server/public/admin/header.js",
+        "server/public/admin/service-management.js"
+      ],
+      "apiDependencies": [
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/services/${id}",
+        "/api/services/admin",
+        "/api/shared-engine/settings"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "statusClass",
+        "addStopClass",
+        "optionSelected",
+        "enabledStatusText",
+        "editAttr",
+        "selectField",
+        "onOffSelect",
+        "pricingModeSelect",
+        "hourlyModeSelect",
+        "disableCancelSelect",
+        "addStopBlock",
+        "buildDriverTimerPayload",
+        "enableDriverTimerEdit",
+        "saveDriverTimerService",
+        "loadServices",
+        "enableSectionEdit",
+        "updateVisualSelect",
+        "forceNoAddStopForShared",
+        "buildGetQuotePayload",
+        "buildFacilityPayload",
+        "buildReservedPayload",
+        "saveSectionService"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-020-T08",
+      "pageId": "ADM-020",
+      "pageTitle": "Service Management",
+      "pageFile": "service-management.html",
+      "module": "Service Management",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Edit Driver Wait Timer",
+      "summary": "Change driver wait-timer settings for the service.",
+      "keywords": [
+        "driver timer",
+        "wait timer",
+        "driver wait",
+        "تايمر السائق",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر"
+      ],
+      "steps": [
+        "Open Service Management.",
+        "Find the Driver Timer settings for the service.",
+        "Enable editing and change the timer values.",
+        "Save the Driver Timer settings."
       ],
       "warnings": [],
       "sourceFiles": [

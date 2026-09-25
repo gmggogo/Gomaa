@@ -51,7 +51,11 @@
         "pay period",
         "payroll",
         "payroll & earnings",
-        "start date"
+        "start date",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Payroll & Earnings.",
@@ -106,7 +110,14 @@
         "payroll",
         "payroll & earnings",
         "payroll schedule",
-        "save schedule"
+        "save schedule",
+        "driver",
+        "سائق",
+        "سواق",
+        "درايفر",
+        "admin",
+        "ادمن",
+        "أدمن"
       ],
       "steps": [
         "Open the required role section.",

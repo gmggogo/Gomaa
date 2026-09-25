@@ -189,7 +189,11 @@
         "dispatch final confirmation",
         "edit final trip",
         "save final edit",
-        "status"
+        "status",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Final Confirmation.",
@@ -381,7 +385,11 @@
         "dispatch final confirmation",
         "final status",
         "no show",
-        "not completed"
+        "not completed",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Final Confirmation.",

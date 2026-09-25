@@ -84,7 +84,11 @@
         "add stop",
         "new stop",
         "reserved add stop",
-        "route change"
+        "route change",
+        "ازاي اضيف",
+        "إزاي أضيف",
+        "how to add",
+        "how to create"
       ],
       "steps": [
         "Open the eligible trip's Add Stop page.",
@@ -171,7 +175,11 @@
         "change stop",
         "edit existing stop",
         "reserved add stop",
-        "reserved stop"
+        "reserved stop",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Add Stop for the trip.",
@@ -344,7 +352,11 @@
         "change dropoff",
         "edit dropoff",
         "reserved add stop",
-        "reserved dropoff"
+        "reserved dropoff",
+        "ازاي اعدل",
+        "إزاي أعدل",
+        "how to edit",
+        "how to change"
       ],
       "steps": [
         "Open Add Stop for the trip.",

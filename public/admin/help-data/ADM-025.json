@@ -250,6 +250,60 @@
         "exportExcel"
       ],
       "active": true
+    },
+    {
+      "id": "ADM-025-T05",
+      "pageId": "ADM-025",
+      "pageTitle": "Tax Report - GH Mobility",
+      "pageFile": "tax-report.html",
+      "module": "Taxes",
+      "roles": [
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Set the Tax Report Date Range",
+      "summary": "Choose From and To dates before generating the report.",
+      "keywords": [
+        "tax date range",
+        "from to tax",
+        "فترة الضريبة"
+      ],
+      "steps": [
+        "Open Tax Report.",
+        "Set From.",
+        "Set To.",
+        "Click Apply."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/tax-report.html",
+        "server/public/admin/header.js",
+        "server/public/admin/tax-report.js"
+      ],
+      "apiDependencies": [
+        "/api/external-summary?",
+        "/api/payroll/staff-signin",
+        "/api/payroll/staff-signin/status",
+        "/api/shared-engine/settings",
+        "/api/tax-report"
+      ],
+      "sourceFunctions": [
+        "loadAdminFloatingChat",
+        "injectChatScript",
+        "loadSharedBrokerVisibility",
+        "ensureBrandingLoaded",
+        "setupPayrollSignIn",
+        "payrollRequest",
+        "showStatus",
+        "clearStatus",
+        "loadBrokerCapability",
+        "loadBrokerReport",
+        "loadReport",
+        "downloadFile",
+        "saveReport",
+        "exportExcel"
+      ],
+      "active": true
     }
   ]
 }
