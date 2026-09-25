@@ -122,6 +122,23 @@ async function loadServices(){
 
     const token = COMPANY_TOKEN;
 
+    const facilityId =
+      localStorage.getItem("companyFacilityId") ||
+      localStorage.getItem("companyUserId") ||
+      localStorage.getItem("companyId") ||
+      localStorage.getItem("facilityId") ||
+      localStorage.getItem("userId") ||
+      "";
+
+    const facilityName =
+      localStorage.getItem("companyName") ||
+      localStorage.getItem("facilityName") ||
+      COMPANY_NAME ||
+      "";
+
+    /*
+      1) Load the normal Company service catalog from Service Management.
+    */
     const res =
       await fetch("/api/services?company=true",{
         cache:"no-store",
@@ -137,7 +154,7 @@ async function loadServices(){
     const data =
       await res.json();
 
-    const services =
+    let services =
       extractServicesPayload(data)
         .filter(s =>
           s &&
@@ -145,9 +162,131 @@ async function loadServices(){
         );
 
     /*
+      2) Facility Override is the FINAL switch for this facility.
+
+      If the override is active and a service has:
+        facilityEnabled:false
+
+      that service must disappear from Summary completely.
+      It must NOT come back from Service Management.
+    */
+    let override = null;
+
+    try{
+
+      const bootRes =
+        await fetch(
+          "/api/facility-pricing-override/bootstrap",
+          {
+            cache:"no-store",
+            headers:{
+              Authorization:"Bearer " + token
+            }
+          }
+        );
+
+      const bootData =
+        await bootRes.json().catch(()=>({}));
+
+      if(
+        bootRes.ok &&
+        bootData?.success === true &&
+        Array.isArray(bootData.overrides)
+      ){
+
+        const fid =
+          String(facilityId || "").trim();
+
+        const fname =
+          String(facilityName || "")
+            .trim()
+            .toLowerCase();
+
+        override =
+          bootData.overrides.find(o=>{
+
+            const oid =
+              String(o?.facilityId || "").trim();
+
+            const oname =
+              String(o?.facilityName || "")
+                .trim()
+                .toLowerCase();
+
+            return (
+              (
+                fid &&
+                oid &&
+                oid === fid
+              ) ||
+              (
+                fname &&
+                oname &&
+                oname === fname
+              )
+            );
+          }) || null;
+      }
+
+    }catch(overrideErr){
+      console.log(
+        "SUMMARY FACILITY OVERRIDE LOAD ERROR",
+        overrideErr
+      );
+    }
+
+    if(
+      override &&
+      override.active === true &&
+      Array.isArray(override.services)
+    ){
+
+      const facilityStateByCode =
+        new Map();
+
+      override.services.forEach(service=>{
+
+        const code =
+          getServiceCode(service);
+
+        if(!code){
+          return;
+        }
+
+        facilityStateByCode.set(
+          code,
+          service.facilityEnabled !== false
+        );
+      });
+
+      services =
+        services.filter(service=>{
+
+          const code =
+            getServiceCode(service);
+
+          /*
+            If this service exists inside the active Facility Override,
+            obey the facility switch. A missing old flag means ENABLED.
+            Services not present in the override keep their base visibility.
+          */
+          if(
+            code &&
+            facilityStateByCode.has(code)
+          ){
+            return (
+              facilityStateByCode.get(code) === true
+            );
+          }
+
+          return true;
+        });
+    }
+
+    /*
       Always replace the catalog.
       This prevents an old/stale service list from surviving
-      after Service Management changes.
+      after Service Management or Facility Override changes.
     */
     SERVICES = services;
     lastServicesRefreshAt = Date.now();
