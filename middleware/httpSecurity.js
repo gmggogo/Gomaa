@@ -27,7 +27,9 @@ function parseAllowedOrigins() {
   // GH Mobility production origin on Render.
   // Keep this explicit so same-origin API calls such as /api/auth/login
   // are accepted in production without opening CORS to every domain.
-  allowed.add("https://sunbeam-933g.onrender.com");
+  allowed.add("https://sunbeam-933q.onrender.com");
+  allowed.add("https://ghmobility.com");
+  allowed.add("https://www.ghmobility.com");
 
   // Also allow Render's external URL automatically if provided by the platform.
   if (process.env.RENDER_EXTERNAL_URL) {
