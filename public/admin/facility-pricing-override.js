@@ -1,7 +1,7 @@
 /* ==========================================================================
    FACILITY PRICING OVERRIDE
-   Platform Admin Services / Facility Custom Override
-   Facility Services Independent From Service Management
+   Service Management Default / Facility Custom Override
+   Facility Section Same As Service Management
    Edit Per Service Card
    ========================================================================== */
 
@@ -525,54 +525,27 @@ function serviceDefaultCopy(s){
 function getVisibleServicesForFacility(facility){
 
   /*
-    FACILITY OVERRIDE SERVICE SOURCE:
-
-    Platform Admin -> Tenant.allowedServices is the ONLY master list.
-
-    Do NOT read facility.allowedServices as a second gate.
-    Do NOT use Service Management companyEnabled/enabled here.
-
-    The owner of the company chooses the final services for each facility
-    using Facility Override's own facilityEnabled switch.
+    /bootstrap already returns exactly the services enabled by Platform Admin.
+    Do NOT apply Service Management or facility.allowedServices filtering here.
+    The company owner controls each service with facilityEnabled.
   */
   void facility;
 
-  const allowed =
-    new Set(
-      Array.isArray(tenantAllowedServices)
-        ? tenantAllowedServices
-            .map(upper)
-            .filter(Boolean)
-        : []
-    );
-
-  const seenGates =
-    new Set();
+  const seen = new Set();
 
   return services.filter(service=>{
 
-    const gate =
-      upper(
-        getServiceIdentity(
-          service
-        )
-      );
-
     const code =
-      getServiceCode(
-        service
-      );
+      getServiceCode(service);
 
     if(
-      !gate ||
       !code ||
-      !allowed.has(gate) ||
-      seenGates.has(gate)
+      seen.has(code)
     ){
       return false;
     }
 
-    seenGates.add(gate);
+    seen.add(code);
     return true;
   });
 }
