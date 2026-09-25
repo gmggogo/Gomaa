@@ -5521,6 +5521,15 @@ async function loadCompanyServices(){
   const byCode = new Map();
 
   /*
+    IMPORTANT:
+    /api/services?company=true is the company's filtered Service Management list.
+    When it succeeds, it is the authority for WHICH services may appear.
+    Admin/bootstrap data may enrich pricing/settings, but must not add extra
+    Platform services back into the company Add Trip tabs.
+  */
+  let primaryLoaded = false;
+
+  /*
     Facility Override is the FINAL authority for whether a service
     is available to this facility/company.
 
@@ -5575,6 +5584,24 @@ async function loadCompanyServices(){
 
     const existing =
       byCode.get(code);
+
+    /*
+      When the primary company endpoint loaded successfully, Facility Override
+      is allowed to modify/disable only a service that already exists in the
+      company's filtered Service Management list. It must never introduce a
+      new Platform service into Add Trip.
+    */
+    if(
+      source === "FACILITY_OVERRIDE" &&
+      primaryLoaded &&
+      !existing
+    ){
+      console.log(
+        "ADD TRIP FACILITY OVERRIDE SKIPPED - NOT ENABLED FOR COMPANY:",
+        code
+      );
+      return;
+    }
 
     /*
       Service Management owns identity.
@@ -5652,8 +5679,6 @@ async function loadCompanyServices(){
     Build tabs immediately when it returns instead of waiting for
     admin fallback and facility override requests.
   */
-  let primaryLoaded = false;
-
   try{
     const res =
       await fetch(
@@ -5788,13 +5813,18 @@ async function loadCompanyServices(){
     );
 
     if(
+      !primaryLoaded &&
       res?.ok &&
       Array.isArray(data)
     ){
+      /*
+        FALLBACK ONLY.
+        Never union the full Admin service catalog into a company that already
+        received its filtered list from /api/services?company=true.
+      */
       data
         .filter(item=>
-          item?.companyEnabled !== false ||
-          item?.enabled === true
+          item?.companyEnabled === true
         )
         .forEach(item=>
           addService(
@@ -5829,13 +5859,26 @@ async function loadCompanyServices(){
 
     if(bootRes?.ok){
 
-      if(Array.isArray(bootData?.services)){
-        bootData.services.forEach(item=>
-          addService(
-            item,
-            "SERVICE_MANAGEMENT"
+      if(
+        !primaryLoaded &&
+        !byCode.size &&
+        Array.isArray(bootData?.services)
+      ){
+        /*
+          Last-resort fallback only. bootstrap.services must never be unioned
+          into an already-filtered company list, otherwise disabled Platform
+          services reappear in Add Trip.
+        */
+        bootData.services
+          .filter(item=>
+            item?.companyEnabled === true
           )
-        );
+          .forEach(item=>
+            addService(
+              item,
+              "SERVICE_MANAGEMENT"
+            )
+          );
       }
 
       if(
