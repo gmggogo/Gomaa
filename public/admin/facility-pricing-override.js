@@ -1276,7 +1276,6 @@ function serviceCardHTML(s,idx){
 
         ${numberInput(idx,"sharedPrice","Shared Price",s.sharedPrice,cardLocked || !draftActive)}
 
-        ${facilityOverrideBookingHoursHTML(s)}
 
         <div class="policy-title">Facility Warning Policy</div>
 
