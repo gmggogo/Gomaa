@@ -670,8 +670,11 @@ document.addEventListener("DOMContentLoaded",async()=>{
    });
  }
 
+ if(currentRole!=="DISPATCHER")nav.push(settings);
+
  /*
    Help Center is available to every staff role.
+   Keep it after Settings so it sits directly next to Log Out.
  */
  nav.push({
    l:"Help Center",
@@ -679,7 +682,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
    i:"doc"
  });
 
- if(currentRole!=="DISPATCHER")nav.push(settings);
  const desktop=document.getElementById("adminDesktopNav");
  const mobile=document.getElementById("mobileSideNav");
 
