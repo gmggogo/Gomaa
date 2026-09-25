@@ -1,1314 +1,2571 @@
-/*
-DESTINATION PATH:
-server/public/admin/header.js
+"use strict";
 
-GH HEADER BROKER REVIEW NAV BUILD: 2026-09-07-R1
-*/
+const HelpCenter = (()=>{
 
-(function(){
-
-/* =========================================================
-   STAFF TAB SESSION ISOLATION
-   ---------------------------------------------------------
-   Existing admin pages still call localStorage.getItem("token"),
-   localStorage.getItem("role"), etc.
-
-   localStorage is shared by every tab, which caused Admin and
-   Dispatcher to overwrite each other.
-
-   This compatibility bridge makes those STAFF keys behave like
-   per-tab values while leaving the rest of localStorage untouched.
-   It must run immediately when header.js is loaded.
-========================================================= */
-(function installStaffTabStorageBridge(){
-
-  if(window.__GH_STAFF_TAB_STORAGE_BRIDGE__){
-    return;
-  }
-
-  window.__GH_STAFF_TAB_STORAGE_BRIDGE__ = true;
-
-  const STAFF_KEYS = new Set([
-    "token",
-    "role",
-    "name",
-    "fullName",
-    "tenantId",
-    "tenantSlug",
-    "tenant",
-    "tenantName",
-    "companyName",
-    "appLogo",
-    "systemTimezone",
-    "appTimezone"
-  ]);
-
-  const originalGetItem =
-    Storage.prototype.getItem;
-
-  const originalSetItem =
-    Storage.prototype.setItem;
-
-  const originalRemoveItem =
-    Storage.prototype.removeItem;
-
-  Storage.prototype.getItem =
-    function(key){
-
-      const k =
-        String(key || "");
-
-      if(
-        this === window.localStorage &&
-        STAFF_KEYS.has(k)
-      ){
-
-        const sessionKey =
-          k === "token"
-            ? "staffToken"
-            : k === "role"
-              ? "staffRole"
-              : k === "name"
-                ? "staffName"
-                : k === "tenantId"
-                  ? "staffTenantId"
-                  : k === "tenantSlug"
-                    ? "staffTenantSlug"
-                    : "staffCompat:" + k;
-
-        const value =
-          originalGetItem.call(
-            window.sessionStorage,
-            sessionKey
-          );
-
-        if(value !== null){
-          return value;
-        }
-      }
-
-      return originalGetItem.call(
-        this,
-        k
-      );
-    };
-
-  Storage.prototype.setItem =
-    function(key,value){
-
-      const k =
-        String(key || "");
-
-      if(
-        this === window.localStorage &&
-        STAFF_KEYS.has(k)
-      ){
-
-        const sessionKey =
-          k === "token"
-            ? "staffToken"
-            : k === "role"
-              ? "staffRole"
-              : k === "name"
-                ? "staffName"
-                : k === "tenantId"
-                  ? "staffTenantId"
-                  : k === "tenantSlug"
-                    ? "staffTenantSlug"
-                    : "staffCompat:" + k;
-
-        originalSetItem.call(
-          window.sessionStorage,
-          sessionKey,
-          String(value ?? "")
-        );
-
-        return;
-      }
-
-      return originalSetItem.call(
-        this,
-        k,
-        String(value ?? "")
-      );
-    };
-
-  Storage.prototype.removeItem =
-    function(key){
-
-      const k =
-        String(key || "");
-
-      if(
-        this === window.localStorage &&
-        STAFF_KEYS.has(k)
-      ){
-
-        const sessionKey =
-          k === "token"
-            ? "staffToken"
-            : k === "role"
-              ? "staffRole"
-              : k === "name"
-                ? "staffName"
-                : k === "tenantId"
-                  ? "staffTenantId"
-                  : k === "tenantSlug"
-                    ? "staffTenantSlug"
-                    : "staffCompat:" + k;
-
-        originalRemoveItem.call(
-          window.sessionStorage,
-          sessionKey
-        );
-
-        return;
-      }
-
-      return originalRemoveItem.call(
-        this,
-        k
-      );
-    };
-
-})();
-
-const svg={
-home:'<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-6h5v6"/></svg>',
-car:'<svg viewBox="0 0 24 24"><path d="M4 15h16l-1.5-5H5.5L4 15Z"/><path d="M8 10l1-3h6l1 3"/><circle cx="7" cy="17.5" r="1.5"/><circle cx="17" cy="17.5" r="1.5"/></svg>',
-check:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/></svg>',
-doc:'<svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h5"/><path d="M10 12h6M10 16h6"/></svg>',
-user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>',
-plus:'<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3.5 21v-2a5.5 5.5 0 0 1 11 0v2"/><path d="M18 8v6M15 11h6"/></svg>',
-chart:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/><path d="M3 20h18"/></svg>',
-refund:'<svg viewBox="0 0 24 24"><path d="M7 7h8a5 5 0 0 1 0 10H8"/><path d="m7 7 3-3M7 7l3 3"/></svg>',
-tag:'<svg viewBox="0 0 24 24"><path d="M4 12 12 4h7v7l-8 8-7-7Z"/><circle cx="16" cy="8" r="1.2"/></svg>',
-gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>',
-money:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg>',
-logout:'<svg viewBox="0 0 24 24"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>',
-list:'<svg viewBox="0 0 24 24"><path d="M7 5h13M7 12h13M7 19h13"/><circle cx="3.5" cy="5" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="19" r="1"/></svg>',
-calendar:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>',
-map:'<svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>',
-bolt:'<svg viewBox="0 0 24 24"><path d="m13 2-7 12h6l-1 8 7-12h-6z"/></svg>',
-building:'<svg viewBox="0 0 24 24"><path d="M4 21V5h16v16"/><path d="M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/></svg>'
-};
-const I=n=>`<span class="gh-icon">${svg[n]||svg.home}</span>`;
-
-/* =========================
-   ADMIN FLOATING CHAT LOADER
-   Loads once on every admin page
-========================= */
-
-(function loadAdminFloatingChat(){
-
-  if(window.ADMIN_CHAT_LOADER_STARTED){
-    return;
-  }
-
-  window.ADMIN_CHAT_LOADER_STARTED = true;
-
-  function injectChatScript(){
-
-    if(
-      window.SUNBEAM_ADMIN_FLOATING_CHAT ||
-      document.querySelector(
-        'script[src="/admin/admin-chat.js"]'
-      ) ||
-      document.querySelector(
-        'script[src="admin-chat.js"]'
-      )
-    ){
-      return;
-    }
-
-    const script =
-      document.createElement("script");
-
-    script.src =
-      "/admin/admin-chat.js";
-
-    script.defer = true;
-
-    script.onerror = function(){
-      console.log(
-        "ADMIN CHAT LOAD ERROR"
-      );
-    };
-
-    document.body.appendChild(
-      script
-    );
-  }
-
-  if(
-    document.readyState ===
-    "loading"
-  ){
-    document.addEventListener(
-      "DOMContentLoaded",
-      injectChatScript,
-      {once:true}
-    );
-  }else{
-    injectChatScript();
-  }
-
-})();
-
-const norm=v=>String(v||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
-function staffSessionValue(sessionKey,legacyKey){
-  return String(
-    sessionStorage.getItem(sessionKey) ||
-    localStorage.getItem(legacyKey) ||
-    ""
-  ).trim();
-}
-
-function syncStaffLegacyStorage(){
-  /*
-    No global localStorage mirroring anymore.
-    The storage bridge above makes old admin scripts read this tab's
-    sessionStorage transparently.
-  */
-  const pairs = [
-    ["staffToken","token"],
-    ["staffRole","role"],
-    ["staffName","name"],
-    ["staffTenantId","tenantId"],
-    ["staffTenantSlug","tenantSlug"]
-  ];
-
-  pairs.forEach(([sessionKey,legacyKey])=>{
-
-    if(sessionStorage.getItem(sessionKey)){
-      return;
-    }
-
-    const legacy =
-      localStorage.getItem(legacyKey);
-
-    if(legacy){
-      sessionStorage.setItem(
-        sessionKey,
-        legacy
-      );
-    }
-  });
-}
-
-const role=()=>{
-  const r=norm(
-    staffSessionValue("staffRole","role")
-  );
-  return (r==="SUPER_ADMIN"||r==="SUPERADMIN")
-    ?"SUPER_ADMIN"
-    :r==="DISPATCHER"
-      ?"DISPATCHER"
-      :"ADMIN";
-};
-
-async function loadSharedBrokerVisibility(){
-
-  const cacheKey = "ghHeaderSharedBrokerVisibility";
-  const cacheTtlMs = 30000;
-
-  try{
-    const cachedRaw = sessionStorage.getItem(cacheKey);
-    if(cachedRaw){
-      const cached = JSON.parse(cachedRaw);
-      if(
-        cached &&
-        Number(cached.at) > 0 &&
-        (Date.now() - Number(cached.at)) < cacheTtlMs
-      ){
-        return {
-          sharedEnabled: cached.sharedEnabled === true,
-          brokerEnabled: cached.brokerEnabled === true
-        };
-      }
-    }
-  }catch(_err){}
-
-  const token =
-    staffSessionValue(
-      "staffToken",
-      "token"
-    );
-
-  const fallback = {
+  const state = {
+    index:null,
+    articles:[],
+    role:"ADMIN",
+    brokerEnabled:false,
     sharedEnabled:false,
-    brokerEnabled:false
+    page:"",
+    lang:localStorage.getItem("ghHelpLanguage") || "en",
+    companySupport:{
+      scope:"active",
+      conversations:[],
+      facilities:[],
+      activeId:"",
+      pollTimer:null
+    },
+    support:{
+      loaded:false,
+      identity:null,
+      conversations:[],
+      activeId:"",
+      scope:"active",
+      pollTimer:null
+    }
   };
 
-  if(!token){
-    return fallback;
+  const $ = id=>document.getElementById(id);
+
+  const UI = {
+    en:{
+      title:"Help Center",
+      subtitle:"Choose a page or search for the task you need.",
+      language:"Language",
+      standardPages:"Admin Pages",
+      standardPagesSub:"Core Admin pages in the same order used by the Admin header.",
+      brokerPages:"Broker Operations Pages",
+      brokerPagesSub:"Broker-only pages are kept separate from the regular Admin workflow.",
+      allPages:"All accessible pages",
+      showAll:"Show All Pages",
+      search:"Example: change pickup time, assign driver, add broker trip...",
+      loading:"Loading help...",
+      noResults:"No matching help article is available for your role and enabled features.",
+      result:"result",
+      results:"results",
+      in:"in",
+      for:"for",
+      tasks:"help tasks",
+      task:"help task",
+      page:"Page",
+      startHelp:"Choose a page or type a task in the search box to see the instructions."
+    },
+    "es-MX":{
+      title:"Centro de ayuda",
+      subtitle:"Elige una página o busca la tarea que necesitas.",
+      language:"Idioma",
+      standardPages:"Páginas de Admin",
+      standardPagesSub:"Páginas principales de Admin en el mismo orden del encabezado.",
+      brokerPages:"Páginas de Operaciones de Broker",
+      brokerPagesSub:"Las páginas exclusivas de Broker están separadas del flujo normal de Admin.",
+      allPages:"Todas las páginas disponibles",
+      showAll:"Mostrar todas las páginas",
+      search:"Ejemplo: cambiar hora de recogida, asignar conductor, agregar viaje de broker...",
+      loading:"Cargando ayuda...",
+      noResults:"No hay un artículo de ayuda disponible para tu rol y las funciones habilitadas.",
+      result:"resultado",
+      results:"resultados",
+      in:"en",
+      for:"para",
+      tasks:"tareas de ayuda",
+      task:"tarea de ayuda",
+      page:"Página",
+      startHelp:"Elige una página o escribe una tarea en el buscador para ver las instrucciones."
+    },
+    ar:{
+      title:"مركز المساعدة",
+      subtitle:"اختر صفحة أو ابحث عن المهمة التي تريد تنفيذها.",
+      language:"اللغة",
+      standardPages:"صفحات الأدمن",
+      standardPagesSub:"صفحات الأدمن الأساسية مرتبة بنفس ترتيب الهيدر.",
+      brokerPages:"صفحات عمليات البروكر",
+      brokerPagesSub:"صفحات البروكر منفصلة عن صفحات التشغيل العادية.",
+      allPages:"كل الصفحات المتاحة",
+      showAll:"عرض كل الصفحات",
+      search:"مثال: تغيير وقت البيك أب، تعيين سائق، إضافة رحلة بروكر...",
+      loading:"جارٍ تحميل المساعدة...",
+      noResults:"لا توجد نتيجة مساعدة مطابقة لدورك والخصائص المفعلة.",
+      result:"نتيجة",
+      results:"نتائج",
+      in:"في",
+      for:"عن",
+      tasks:"مهام مساعدة",
+      task:"مهمة مساعدة",
+      page:"الصفحة",
+      startHelp:"اختر صفحة أو اكتب المهمة في البحث لعرض خطوات التنفيذ."
+    },
+    fr:{
+      title:"Centre d’aide",
+      subtitle:"Choisissez une page ou recherchez la tâche dont vous avez besoin.",
+      language:"Langue",
+      standardPages:"Pages Admin",
+      standardPagesSub:"Pages Admin principales dans le même ordre que l’en-tête.",
+      brokerPages:"Pages des opérations Broker",
+      brokerPagesSub:"Les pages réservées au Broker sont séparées du flux Admin normal.",
+      allPages:"Toutes les pages accessibles",
+      showAll:"Afficher toutes les pages",
+      search:"Exemple : modifier l’heure de prise en charge, affecter un chauffeur, ajouter un trajet broker...",
+      loading:"Chargement de l’aide...",
+      noResults:"Aucun article d’aide correspondant n’est disponible pour votre rôle et les fonctions activées.",
+      result:"résultat",
+      results:"résultats",
+      in:"dans",
+      for:"pour",
+      tasks:"tâches d’aide",
+      task:"tâche d’aide",
+      page:"Page",
+      startHelp:"Choisissez une page ou saisissez une tâche dans la recherche pour voir les instructions."
+    },
+    it:{
+      title:"Centro assistenza",
+      subtitle:"Scegli una pagina oppure cerca l’attività di cui hai bisogno.",
+      language:"Lingua",
+      standardPages:"Pagine Admin",
+      standardPagesSub:"Pagine Admin principali nello stesso ordine dell’header.",
+      brokerPages:"Pagine Operazioni Broker",
+      brokerPagesSub:"Le pagine dedicate al Broker sono separate dal normale flusso Admin.",
+      allPages:"Tutte le pagine accessibili",
+      showAll:"Mostra tutte le pagine",
+      search:"Esempio: cambia orario pickup, assegna autista, aggiungi corsa broker...",
+      loading:"Caricamento assistenza...",
+      noResults:"Nessun articolo di assistenza corrispondente è disponibile per il tuo ruolo e le funzioni abilitate.",
+      result:"risultato",
+      results:"risultati",
+      in:"in",
+      for:"per",
+      tasks:"attività di assistenza",
+      task:"attività di assistenza",
+      page:"Pagina",
+      startHelp:"Scegli una pagina oppure scrivi un’attività nella ricerca per vedere le istruzioni."
+    }
+  };
+
+  const PAGE_DESC = {
+    "dashboard.html":{
+      "es-MX":"Muestra totales de viajes, alertas, actividad de brokers, operaciones de hoy y resúmenes mensuales.",
+      ar:"يعرض إجمالي الرحلات والتنبيهات ونشاط البروكر وعمليات اليوم والملخصات الشهرية.",
+      fr:"Affiche les totaux des trajets, les alertes, l’activité broker, les opérations du jour et les résumés mensuels.",
+      it:"Mostra totali corse, avvisi, attività broker, operazioni di oggi e riepiloghi mensili."
+    },
+    "trips-hub.html":{
+      "es-MX":"Centro principal para agregar, buscar, filtrar, editar y eliminar viajes activos.",
+      ar:"المركز الرئيسي لإضافة الرحلات النشطة والبحث عنها وفلترتها وتعديلها وحذفها.",
+      fr:"Centre principal pour ajouter, rechercher, filtrer, modifier et supprimer les trajets actifs.",
+      it:"Centro principale per aggiungere, cercare, filtrare, modificare ed eliminare corse attive."
+    },
+    "trips.html":{
+      "es-MX":"Muestra viajes activos, selección, edición individual/compartida y preparación para Dispatch.",
+      ar:"يعرض الرحلات النشطة وأدوات الاختيار وتعديل الرحلات الفردية والمشتركة وتجهيزها للديسباتش.",
+      fr:"Affiche les trajets actifs, la sélection, la modification individuelle/partagée et la préparation au Dispatch.",
+      it:"Mostra corse attive, selezione, modifica individuale/condivisa e preparazione al Dispatch."
+    },
+    "external-trips.html":{
+      "es-MX":"Recibe y administra viajes externos de brokers antes de Trip Split.",
+      ar:"يستقبل ويدير رحلات البروكر الخارجية قبل Trip Split.",
+      fr:"Reçoit et gère les trajets externes des brokers avant Trip Split.",
+      it:"Riceve e gestisce le corse esterne dei broker prima di Trip Split."
+    },
+    "trip-split.html":{
+      "es-MX":"Agrupa viajes de broker como individuales o compartidos y envía los resultados confirmados a Broker Review.",
+      ar:"يقسم رحلات البروكر إلى فردية أو مشتركة ويرسل النتائج المؤكدة إلى Broker Review.",
+      fr:"Regroupe les trajets broker en trajets individuels ou partagés et envoie les résultats confirmés à Broker Review.",
+      it:"Raggruppa le corse broker come individuali o condivise e invia i risultati confermati a Broker Review."
+    },
+    "broker-review.html":{
+      "es-MX":"Revisa viajes de broker, permite editarlos, confirmarlos o regresarlos a Trip Split.",
+      ar:"يراجع رحلات البروكر ويسمح بتعديلها أو تأكيدها أو إرجاعها إلى Trip Split.",
+      fr:"Révise les trajets broker, permet de les modifier, les confirmer ou les renvoyer à Trip Split.",
+      it:"Revisiona le corse broker, consente modifica, conferma o ritorno a Trip Split."
+    },
+    "dispatch.html":{
+      "es-MX":"Asigna conductores y vehículos, ejecuta Auto Assign, envía viajes y administra asignaciones.",
+      ar:"يعيّن السائقين والسيارات ويشغل Auto Assign ويرسل الرحلات ويدير التعيينات.",
+      fr:"Affecte chauffeurs et véhicules, exécute Auto Assign, envoie les trajets et gère les affectations.",
+      it:"Assegna autisti e veicoli, esegue Auto Assign, invia corse e gestisce le assegnazioni."
+    },
+    "dispatch-final-confirmation.html":{
+      "es-MX":"Revisa viajes pendientes del procesamiento final y confirma el estado final del viaje/pasajero.",
+      ar:"يراجع الرحلات المنتظرة للمعالجة النهائية ويؤكد الحالة النهائية للرحلة أو الراكب.",
+      fr:"Révise les trajets en attente du traitement final et confirme l’état final du trajet/passager.",
+      it:"Revisiona le corse in attesa dell’elaborazione finale e conferma lo stato finale corsa/passeggero."
+    },
+    "dispatch-review.html":{
+      "es-MX":"Revisa viajes completados, cancelados, No Show y Not Completed con filtros y exportación.",
+      ar:"يراجع الرحلات المكتملة والملغاة وNo Show وNot Completed مع الفلاتر والتصدير.",
+      fr:"Révise les trajets terminés, annulés, No Show et Not Completed avec filtres et export.",
+      it:"Revisiona corse completate, annullate, No Show e Not Completed con filtri ed esportazione."
+    },
+    "driver-schedule.html":{
+      "es-MX":"Administra disponibilidad del conductor, días de trabajo, horario y servicio asignado.",
+      ar:"يدير حالة السائق وأيام العمل والجدول والخدمة المخصصة له.",
+      fr:"Gère la disponibilité du chauffeur, les jours de travail, le planning et le service affecté.",
+      it:"Gestisce disponibilità autista, giorni di lavoro, programma e servizio assegnato."
+    },
+    "maps.html":{
+      "es-MX":"Muestra ubicaciones en vivo de conductores y ayuda a localizar conductores activos.",
+      ar:"يعرض مواقع السائقين مباشرة ويساعد في العثور على السائقين النشطين.",
+      fr:"Affiche la position en direct des chauffeurs et aide à localiser les chauffeurs actifs.",
+      it:"Mostra le posizioni live degli autisti e aiuta a trovare gli autisti attivi."
+    },
+    "summary.html":{
+      "es-MX":"Reportes operativos con filtros por fuente, facility, servicio, estado y fecha, más exportación.",
+      ar:"تقارير تشغيلية بفلاتر المصدر والشركة والخدمة والحالة والتاريخ مع الطباعة والتصدير.",
+      fr:"Rapports opérationnels avec filtres source, facility, service, statut et date, plus export.",
+      it:"Report operativi con filtri per origine, facility, servizio, stato e data, più esportazione."
+    },
+    "external-summary.html":{
+      "es-MX":"Reportes de broker para viajes cerrados con filtros, impresión, CSV y Excel.",
+      ar:"تقارير البروكر للرحلات المغلقة مع الفلاتر والطباعة وCSV وExcel.",
+      fr:"Rapports broker pour trajets clôturés avec filtres, impression, CSV et Excel.",
+      it:"Report broker per corse chiuse con filtri, stampa, CSV ed Excel."
+    },
+    "users.html":{
+      "es-MX":"Crea y administra Super Admin, Admin, Dispatcher, Driver y Company.",
+      ar:"ينشئ ويدير حسابات Super Admin وAdmin وDispatcher وDriver وCompany.",
+      fr:"Crée et gère les comptes Super Admin, Admin, Dispatcher, Driver et Company.",
+      it:"Crea e gestisce account Super Admin, Admin, Dispatcher, Driver e Company."
+    },
+    "refunds.html":{
+      "es-MX":"Revisa registros de reembolso y las acciones disponibles para procesarlos.",
+      ar:"يراجع سجلات الاسترداد والإجراءات المتاحة لمعالجتها.",
+      fr:"Révise les dossiers de remboursement et les actions disponibles pour les traiter.",
+      it:"Revisiona i rimborsi e le azioni disponibili per elaborarli."
+    },
+    "admin-billing.html":{
+      "es-MX":"Administra Stripe, facturación del tenant, facturas, estado de pago y bloqueo/desbloqueo de compañías.",
+      ar:"يدير Stripe وفوترة التانت والفواتير وحالة الدفع وقفل أو فتح الشركات.",
+      fr:"Gère Stripe, la facturation du tenant, les factures, le statut de paiement et le verrouillage/déverrouillage des sociétés.",
+      it:"Gestisce Stripe, fatturazione tenant, fatture, stato pagamento e blocco/sblocco aziende."
+    },
+    "payments.html":{
+      "es-MX":"Revisa pagos SaaS y permite pagar facturas de la plataforma.",
+      ar:"يراجع حالة دفع الـSaaS ويسمح بدفع فواتير المنصة.",
+      fr:"Révise les paiements SaaS et permet de payer les factures de la plateforme.",
+      it:"Controlla i pagamenti SaaS e permette di pagare le fatture della piattaforma."
+    },
+    "payroll.html":{
+      "es-MX":"Configura periodos de nómina, horarios, tarifas y ajustes de ingresos.",
+      ar:"يضبط فترات الرواتب والجداول والأسعار وإعدادات الأرباح.",
+      fr:"Configure les périodes de paie, plannings, taux et paramètres de rémunération.",
+      it:"Configura periodi paga, programmi, tariffe e impostazioni guadagni."
+    },
+    "payroll-summary.html":{
+      "es-MX":"Resume la nómina por Drivers, Dispatchers, Admins y Super Admins.",
+      ar:"يلخص الرواتب حسب Drivers وDispatchers وAdmins وSuper Admins.",
+      fr:"Résume la paie par Drivers, Dispatchers, Admins et Super Admins.",
+      it:"Riepiloga la paga per Drivers, Dispatchers, Admins e Super Admins."
+    },
+    "tax-report.html":{
+      "es-MX":"Genera, guarda, imprime y exporta reportes fiscales de compañías por rango de fechas.",
+      ar:"ينشئ ويحفظ ويطبع ويصدر تقارير الضرائب للشركات حسب فترة التاريخ.",
+      fr:"Génère, enregistre, imprime et exporte les rapports fiscaux des sociétés par période.",
+      it:"Genera, salva, stampa ed esporta report fiscali aziendali per intervallo date."
+    },
+    "service-management.html":{
+      "es-MX":"Controla precios de servicios, cancelaciones, ventanas de aviso, política Add Stop y temporizadores del conductor.",
+      ar:"يدير أسعار الخدمات وسياسات الإلغاء وفترات التحذير وسياسة Add Stop وتايمرات السائق.",
+      fr:"Gère les tarifs des services, annulations, fenêtres d’alerte, politique Add Stop et minuteries chauffeur.",
+      it:"Gestisce prezzi servizi, cancellazioni, finestre di avviso, politica Add Stop e timer autista."
+    },
+    "facility-pricing-override.html":{
+      "es-MX":"Define precios especiales por Company/Facility en lugar del precio predeterminado del servicio.",
+      ar:"يحدد أسعارًا خاصة للشركة أو Facility بدل سعر الخدمة الافتراضي.",
+      fr:"Définit des tarifs spécifiques Company/Facility à la place du tarif de service par défaut.",
+      it:"Imposta prezzi specifici per Company/Facility invece del prezzo servizio predefinito."
+    },
+    "broker-pricing.html":{
+      "es-MX":"Define precios específicos por broker y reglas de cobro del broker.",
+      ar:"يحدد أسعارًا خاصة بكل بروكر وقواعد الرسوم الخاصة به.",
+      fr:"Définit les tarifs spécifiques par broker et les règles de facturation broker.",
+      it:"Imposta prezzi specifici per broker e relative regole di addebito."
+    },
+    "system-design.html":{
+      "es-MX":"Ajustes generales del tenant: marca, zona horaria, zonas de servicio, SMTP/email, mensajes y diseño.",
+      ar:"إعدادات التانت العامة: البراند، المنطقة الزمنية، نطاقات الخدمة، SMTP والإيميل، الرسائل والتصميم.",
+      fr:"Paramètres généraux du tenant : marque, fuseau horaire, zones de service, SMTP/email, messages et design.",
+      it:"Impostazioni generali tenant: branding, fuso orario, zone servizio, SMTP/email, messaggi e design."
+    },
+    "smart-dispatch-engine.html":{
+      "es-MX":"Configura estrategia Smart Dispatch, límites, requisitos del conductor, balance y puntuación.",
+      ar:"يضبط استراتيجية Smart Dispatch والحدود وشروط السائق والتوزيع والأوزان.",
+      fr:"Configure la stratégie Smart Dispatch, les limites, exigences chauffeur, équilibrage et scoring.",
+      it:"Configura strategia Smart Dispatch, limiti, requisiti autista, bilanciamento e punteggio."
+    },
+    "shared-engine-settings.html":{
+      "es-MX":"Configura reglas Shared, máximo de pasajeros, tolerancias de distancia/tiempo, prioridades y fuentes.",
+      ar:"يضبط قواعد Shared وعدد الركاب وحدود المسافة والوقت والأولويات ومصادر الرحلات.",
+      fr:"Configure les règles Shared, limite passagers, tolérances distance/temps, priorités et sources.",
+      it:"Configura regole Shared, limite passeggeri, tolleranze distanza/tempo, priorità e origini."
+    },
+    "autopilot-settings.html":{
+      "es-MX":"Configura Company Autopilot, Broker Autopilot y Broker Shared Autopilot según las capacidades habilitadas.",
+      ar:"يضبط Company Autopilot وBroker Autopilot وBroker Shared Autopilot حسب الخصائص المفعلة.",
+      fr:"Configure Company Autopilot, Broker Autopilot et Broker Shared Autopilot selon les capacités activées.",
+      it:"Configura Company Autopilot, Broker Autopilot e Broker Shared Autopilot in base alle funzionalità abilitate."
+    },
+
+    "dispatch-add-trip.html":{
+      "es-MX":"Crea viajes individuales/compartidos, guarda borradores y prepara viajes para revisión.",
+      ar:"ينشئ رحلات فردية أو مشتركة ويحفظ المسودات ويجهز الرحلات للمراجعة.",
+      fr:"Crée des trajets individuels/partagés, enregistre les brouillons et prépare les trajets pour révision.",
+      it:"Crea corse individuali/condivise, salva bozze e prepara le corse per la revisione."
+    },
+    "reserved-add-stop.html":{
+      "es-MX":"Modifica la ruta de un viaje Reserved agregando, editando o eliminando paradas o el drop-off.",
+      ar:"يعدل مسار رحلة Reserved بإضافة أو تعديل أو حذف الاستوبات أو تغيير الدروب أوف.",
+      fr:"Modifie l’itinéraire d’un trajet Reserved en ajoutant, modifiant ou supprimant des arrêts ou le drop-off.",
+      it:"Modifica il percorso Reserved aggiungendo, modificando o eliminando stop o il drop-off."
+    },
+    "admin-chat.html":{
+      "es-MX":"Comunicación con conductores, estado online, mensajes no leídos e historial de conversación.",
+      ar:"للتواصل مع السائقين وعرض حالة الأونلاين والرسائل غير المقروءة وسجل المحادثة.",
+      fr:"Communication avec les chauffeurs, statut en ligne, messages non lus et historique de conversation.",
+      it:"Comunicazione con autisti, stato online, messaggi non letti e cronologia conversazione."
+    }
+  };
+
+  const GLOSSARY = {
+    "es-MX":{
+      "Open ":"Abre ","Click ":"Haz clic en ","Choose ":"Elige ","Select ":"Selecciona ","Review ":"Revisa ",
+      "Use ":"Usa ","Change ":"Cambia ","Save ":"Guarda ","Enter ":"Ingresa ","Complete ":"Completa ",
+      "Locate ":"Busca ","Confirm ":"Confirma ","Set ":"Configura ","Update ":"Actualiza ","Apply ":"Aplica ","Verify ":"Verifica ",
+      "Trip":"Viaje","Trips":"Viajes","Driver":"Conductor","Drivers":"Conductores","Vehicle":"Vehículo","Vehicles":"Vehículos",
+      "Service":"Servicio","Services":"Servicios","Pricing":"Precios","Status":"Estado","Search":"Buscar","Filter":"Filtrar",
+      "Edit":"Editar","Delete":"Eliminar","Remove":"Quitar","Add":"Agregar","Shared":"Compartido","Individual":"Individual",
+      "Pickup":"Recogida","Dropoff":"Destino","Drop-off":"Destino","Time":"Hora","Date":"Fecha","Settings":"Ajustes",
+      "Broker":"Broker","Company":"Compañía","User":"Usuario","Users":"Usuarios","Schedule":"Horario","Message":"Mensaje",
+      "Messages":"Mensajes","Payment":"Pago","Payments":"Pagos","Invoice":"Factura","Report":"Reporte","Summary":"Resumen",
+      "Final Confirmation":"Confirmación final","Dispatch Review":"Revisión de Dispatch","Dispatch":"Dispatch"
+    },
+    ar:{
+      "Open ":"افتح ","Click ":"اضغط على ","Choose ":"اختر ","Select ":"حدد ","Review ":"راجع ",
+      "Use ":"استخدم ","Change ":"غيّر ","Save ":"احفظ ","Enter ":"أدخل ","Complete ":"أكمل ",
+      "Locate ":"ابحث عن ","Confirm ":"أكد ","Set ":"اضبط ","Update ":"حدّث ","Apply ":"طبّق ","Verify ":"تأكد من ",
+      "Trip":"رحلة","Trips":"رحلات","Driver":"سائق","Drivers":"سائقين","Vehicle":"سيارة","Vehicles":"سيارات",
+      "Service":"خدمة","Services":"خدمات","Pricing":"الأسعار","Status":"الحالة","Search":"البحث","Filter":"الفلترة",
+      "Edit":"تعديل","Delete":"حذف","Remove":"إزالة","Add":"إضافة","Shared":"مشتركة","Individual":"فردية",
+      "Pickup":"البيك أب","Dropoff":"الدروب أوف","Drop-off":"الدروب أوف","Time":"الوقت","Date":"التاريخ","Settings":"الإعدادات",
+      "Broker":"البروكر","Company":"الشركة","User":"المستخدم","Users":"المستخدمين","Schedule":"الجدول","Message":"رسالة",
+      "Messages":"رسائل","Payment":"الدفع","Payments":"المدفوعات","Invoice":"فاتورة","Report":"تقرير","Summary":"الملخص",
+      "Final Confirmation":"التأكيد النهائي","Dispatch Review":"مراجعة الديسباتش","Dispatch":"الديسباتش"
+    },
+    fr:{
+      "Open ":"Ouvrez ","Click ":"Cliquez sur ","Choose ":"Choisissez ","Select ":"Sélectionnez ","Review ":"Vérifiez ",
+      "Use ":"Utilisez ","Change ":"Modifiez ","Save ":"Enregistrez ","Enter ":"Saisissez ","Complete ":"Complétez ",
+      "Locate ":"Recherchez ","Confirm ":"Confirmez ","Set ":"Configurez ","Update ":"Mettez à jour ","Apply ":"Appliquez ","Verify ":"Vérifiez ",
+      "Trip":"Trajet","Trips":"Trajets","Driver":"Chauffeur","Drivers":"Chauffeurs","Vehicle":"Véhicule","Vehicles":"Véhicules",
+      "Service":"Service","Services":"Services","Pricing":"Tarification","Status":"Statut","Search":"Recherche","Filter":"Filtre",
+      "Edit":"Modifier","Delete":"Supprimer","Remove":"Retirer","Add":"Ajouter","Shared":"Partagé","Individual":"Individuel",
+      "Pickup":"Prise en charge","Dropoff":"Destination","Drop-off":"Destination","Time":"Heure","Date":"Date","Settings":"Paramètres",
+      "Broker":"Broker","Company":"Société","User":"Utilisateur","Users":"Utilisateurs","Schedule":"Planning","Message":"Message",
+      "Messages":"Messages","Payment":"Paiement","Payments":"Paiements","Invoice":"Facture","Report":"Rapport","Summary":"Résumé",
+      "Final Confirmation":"Confirmation finale","Dispatch Review":"Revue Dispatch","Dispatch":"Dispatch"
+    },
+    it:{
+      "Open ":"Apri ","Click ":"Fai clic su ","Choose ":"Scegli ","Select ":"Seleziona ","Review ":"Controlla ",
+      "Use ":"Usa ","Change ":"Modifica ","Save ":"Salva ","Enter ":"Inserisci ","Complete ":"Completa ",
+      "Locate ":"Trova ","Confirm ":"Conferma ","Set ":"Imposta ","Update ":"Aggiorna ","Apply ":"Applica ","Verify ":"Verifica ",
+      "Trip":"Corsa","Trips":"Corse","Driver":"Autista","Drivers":"Autisti","Vehicle":"Veicolo","Vehicles":"Veicoli",
+      "Service":"Servizio","Services":"Servizi","Pricing":"Prezzi","Status":"Stato","Search":"Cerca","Filter":"Filtro",
+      "Edit":"Modifica","Delete":"Elimina","Remove":"Rimuovi","Add":"Aggiungi","Shared":"Condivisa","Individual":"Individuale",
+      "Pickup":"Pickup","Dropoff":"Destinazione","Drop-off":"Destinazione","Time":"Orario","Date":"Data","Settings":"Impostazioni",
+      "Broker":"Broker","Company":"Azienda","User":"Utente","Users":"Utenti","Schedule":"Programma","Message":"Messaggio",
+      "Messages":"Messaggi","Payment":"Pagamento","Payments":"Pagamenti","Invoice":"Fattura","Report":"Report","Summary":"Riepilogo",
+      "Final Confirmation":"Conferma finale","Dispatch Review":"Revisione Dispatch","Dispatch":"Dispatch"
+    }
+  };
+
+  function repeatedEditExplanation(){
+    const map = {"en": "These results use similar edit actions, but each page has a different job: Trips Hub edits any trip including future trips; Trips is the faster Today/Tomorrow operational edit; Dispatch changes driver/vehicle assignment only.", "es-MX": "Estos resultados usan acciones de edición parecidas, pero cada página tiene una función distinta: Trips Hub edita cualquier viaje, incluso futuros; Trips es la edición operativa rápida de Hoy/Mañana; Dispatch cambia solamente la asignación de conductor/vehículo.", "ar": "النتائج دي فيها تعديل في أكتر من صفحة، لكن وظيفة كل صفحة مختلفة: Trips Hub لتعديل أي رحلة حتى الرحلات المستقبلية، وTrips للتعديل التشغيلي السريع لرحلات اليوم وغدًا، وDispatch لتغيير تعيين السائق أو السيارة فقط.", "fr": "Ces résultats utilisent des actions de modification similaires, mais chaque page a un rôle différent : Trips Hub modifie n’importe quel trajet, y compris futur ; Trips est la modification opérationnelle rapide Aujourd’hui/Demain ; Dispatch modifie uniquement l’affectation chauffeur/véhicule.", "it": "Questi risultati usano azioni di modifica simili, ma ogni pagina ha un compito diverso: Trips Hub modifica qualsiasi corsa, anche futura; Trips è la modifica operativa rapida Oggi/Domani; Dispatch modifica solo l’assegnazione autista/veicolo."};
+    return map[state.lang] || map.en;
   }
 
-  try{
+  function clean(v){ return String(v ?? "").trim(); }
+  function upper(v){ return clean(v).toUpperCase(); }
+  function t(key){ return UI[state.lang]?.[key] || UI.en[key] || key; }
 
+  function translateText(text){
+    if(state.lang === "en") return text;
+    let out = String(text ?? "");
+    const map = GLOSSARY[state.lang] || {};
+    Object.keys(map)
+      .sort((a,b)=>b.length-a.length)
+      .forEach(key=>{
+        out = out.split(key).join(map[key]);
+      });
+    return out;
+  }
+
+  function pageDescription(page){
+    if(state.lang === "en") return page.description || "";
+    return PAGE_DESC[page.pageFile]?.[state.lang] || translateText(page.description || "");
+  }
+
+  function staffValue(sessionKey,legacyKey){
+    return sessionStorage.getItem(sessionKey) || localStorage.getItem(legacyKey) || "";
+  }
+
+  function currentRole(){
+    const raw = upper(staffValue("staffRole","role"));
+    if(raw === "SUPER_ADMIN" || raw === "SUPERADMIN") return "SUPER_ADMIN";
+    if(raw === "DISPATCHER") return "DISPATCHER";
+    return "ADMIN";
+  }
+
+  function authHeaders(){
+    const token = staffValue("staffToken","token");
+    return token ? {Authorization:"Bearer " + token} : {};
+  }
+
+  async function loadCapabilities(){
+    try{
+      const r = await fetch("/api/shared-engine/settings",{cache:"no-store",headers:authHeaders()});
+      if(!r.ok) return;
+      const data = await r.json().catch(()=>({}));
+      const cap = data?.capabilities || {};
+      state.sharedEnabled = cap.sharedServiceEnabled === true || cap.sharedServiceFound === true;
+      state.brokerEnabled = cap.brokerContractEnabled === true;
+    }catch(err){
+      console.log("HELP CAPABILITY LOAD ERROR:",err?.message || err);
+    }
+  }
+
+  function featureAllowed(feature){
+    const key = upper(feature);
+    if(!key) return true;
+    if(key === "BROKER") return state.brokerEnabled;
+    if(key === "SHARED") return state.sharedEnabled;
+    return true;
+  }
+
+  function roleAllowed(article){
+    if(state.role === "SUPER_ADMIN") return true;
+    const roles = Array.isArray(article?.roles) ? article.roles.map(upper) : [];
+    return roles.includes(state.role);
+  }
+
+  async function loadKnowledge(){
+    const indexRes = await fetch("/admin/help-data/help-index.json",{cache:"no-store"});
+    if(!indexRes.ok) throw new Error("Help index could not be loaded.");
+    state.index = await indexRes.json();
+
+    const pages = Array.isArray(state.index?.pages) ? state.index.pages : [];
+    const docs = await Promise.all(pages.map(async page=>{
+      const res = await fetch("/admin/" + page.dataFile,{cache:"no-store"});
+      if(!res.ok) return null;
+      return await res.json().catch(()=>null);
+    }));
+
+    state.articles = docs.filter(Boolean).flatMap(doc=>Array.isArray(doc.articles) ? doc.articles : []);
+  }
+
+  function accessibleArticles(){
+    return state.articles.filter(a=>
+      a?.active !== false &&
+      roleAllowed(a) &&
+      featureAllowed(a?.requiredFeature)
+    );
+  }
+
+  function accessiblePages(){
+    const allowed = new Set(accessibleArticles().map(a=>a.pageFile));
+
+    const headerOrder = [
+      "dashboard.html",
+      "trips-hub.html",
+      "trips.html",
+      "dispatch.html",
+      "dispatch-final-confirmation.html",
+      "dispatch-review.html",
+      "driver-schedule.html",
+      "maps.html",
+      "summary.html",
+      "users.html",
+      "refunds.html",
+      "admin-billing.html",
+      "payments.html",
+      "payroll.html",
+      "payroll-summary.html",
+      "tax-report.html",
+      "service-management.html",
+      "facility-pricing-override.html",
+      "system-design.html",
+      "smart-dispatch-engine.html",
+      "autopilot-settings.html",
+      "shared-engine-settings.html",
+      "external-trips.html",
+      "trip-split.html",
+      "broker-review.html",
+      "external-summary.html",
+      "broker-pricing.html",
+      "dispatch-add-trip.html",
+      "reserved-add-stop.html",
+      "admin-chat.html"
+    ];
+
+    const orderMap =
+      new Map(
+        headerOrder.map(
+          (file,index)=>[
+            file,
+            index
+          ]
+        )
+      );
+
+    return (state.index?.pages || [])
+      .filter(p=>allowed.has(p.pageFile))
+      .sort((a,b)=>
+        (orderMap.get(a.pageFile) ?? 999) -
+        (orderMap.get(b.pageFile) ?? 999)
+      );
+  }
+
+  function normalizeSearch(value){
+    return clean(value).toLowerCase().replace(/[_-]/g," ").replace(/\s+/g," ");
+  }
+
+  function articleText(article){
+    return normalizeSearch([
+      article?.title, article?.summary, article?.pageTitle, article?.pageFile,
+      ...(article?.keywords || []), ...(article?.steps || []), ...(article?.warnings || [])
+    ].join(" "));
+  }
+
+  function searchScore(article,query){
+    const q = normalizeSearch(query);
+    if(!q) return 1;
+
+    const words = q.split(" ").filter(Boolean);
+    const title = normalizeSearch(article.title || "");
+    const translatedTitle = normalizeSearch(translateText(article.title || ""));
+    const keywords = normalizeSearch((article.keywords || []).join(" "));
+    const translatedSteps = normalizeSearch((article.steps || []).map(translateText).join(" "));
+    const hay = normalizeSearch(articleText(article) + " " + translatedTitle + " " + translatedSteps);
+
+    let score = 0;
+
+    if(title === q || translatedTitle === q) score += 150;
+    if(title.includes(q) || translatedTitle.includes(q)) score += 90;
+    if(keywords.includes(q)) score += 70;
+    if(hay.includes(q)) score += 45;
+
+    let matchedWords = 0;
+
+    for(const word of words){
+      if(title.includes(word) || translatedTitle.includes(word)) score += 25;
+      if(keywords.includes(word)) score += 18;
+      if(hay.includes(word)){
+        score += 8;
+        matchedWords += 1;
+      }
+    }
+
+    if(words.length > 1 && matchedWords === words.length){
+      score += 40;
+    }
+
+    return score;
+  }
+
+  function visibleResults(){
+    const query = $("helpSearch")?.value || "";
+    return accessibleArticles()
+      .filter(a=>!state.page || a.pageFile === state.page)
+      .map(article=>({article,score:searchScore(article,query)}))
+      .filter(x=>!normalizeSearch(query) || x.score > 0)
+      .sort((a,b)=>b.score-a.score || a.article.pageId.localeCompare(b.article.pageId) || a.article.id.localeCompare(b.article.id))
+      .slice(0,100)
+      .map(x=>x.article);
+  }
+
+  function escapeHtml(value){
+    return String(value ?? "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  function setLanguage(lang){
+    state.lang = UI[lang] ? lang : "en";
+    localStorage.setItem("ghHelpLanguage",state.lang);
+    document.documentElement.lang = state.lang === "es-MX" ? "es-MX" : state.lang;
+    document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
+
+    $("uiTitle").textContent = t("title");
+    $("uiSubtitle").textContent = t("subtitle");
+    $("uiLanguageLabel").textContent = t("language");
+    $("clearPageFilter").textContent = t("showAll");
+    $("helpSearch").placeholder = t("search");
+
+    renderPageFilter();
+    renderSelectedPage();
+    renderResults();
+  }
+
+  function choosePage(file){
+    state.page = file || "";
+    if($("helpPageFilter")){
+      $("helpPageFilter").value = state.page;
+    }
+    renderSelectedPage();
+    renderResults();
+  }
+
+  function renderSelectedPage(){
+    const card = $("selectedPageCard");
+    if(!card) return;
+
+    const page = accessiblePages().find(p=>p.pageFile === state.page);
+
+    if(!page){
+      card.hidden = true;
+      $("selectedPageId").textContent = "";
+      $("selectedPageTitle").textContent = "";
+      $("selectedPageDescription").textContent = "";
+      return;
+    }
+
+    card.hidden = false;
+    $("selectedPageId").textContent = page.pageId;
+    $("selectedPageTitle").textContent = translateText(page.pageTitle);
+    $("selectedPageDescription").textContent = pageDescription(page);
+  }
+
+  function renderPageFilter(){
+    const select = $("helpPageFilter");
+    if(!select) return;
+
+    const pages = accessiblePages();
+    const standardPages = pages.filter(p=>p.helpGroup !== "BROKER");
+    const brokerPages = pages.filter(p=>p.helpGroup === "BROKER");
+
+    select.innerHTML = "";
+
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = t("allPages");
+    select.appendChild(all);
+
+    if(standardPages.length){
+      const group = document.createElement("optgroup");
+      group.label = t("standardPages");
+      standardPages.forEach(page=>{
+        const option = document.createElement("option");
+        option.value = page.pageFile;
+        option.textContent = `${page.pageId} — ${translateText(page.pageTitle)}`;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    }
+
+    if(brokerPages.length){
+      const group = document.createElement("optgroup");
+      group.label = t("brokerPages");
+      brokerPages.forEach(page=>{
+        const option = document.createElement("option");
+        option.value = page.pageFile;
+        option.textContent = `${page.pageId} — ${translateText(page.pageTitle)}`;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
+    }
+
+    select.value = state.page;
+  }
+
+  function renderResults(){
+    const host = $("helpResults");
+    const countEl = $("helpResultCount");
+    if(!host || !countEl) return;
+
+    const results = visibleResults();
+    const query = clean($("helpSearch")?.value);
+    const selectedPage = accessiblePages().find(p=>p.pageFile === state.page);
+
+    if(!query && !selectedPage){
+      countEl.textContent = "";
+      host.innerHTML = `<div class="help-empty">${escapeHtml(t("startHelp"))}</div>`;
+      return;
+    }
+
+    countEl.textContent =
+      `${results.length} ${results.length === 1 ? t("result") : t("results")}` +
+      (selectedPage ? ` ${t("in")} ${selectedPage.pageId} — ${translateText(selectedPage.pageTitle)}` : "") +
+      (query ? ` ${t("for")} "${query}"` : "");
+
+    if(!results.length){
+      host.innerHTML = `<div class="help-empty">${escapeHtml(t("noResults"))}</div>`;
+      return;
+    }
+
+    const normalizedQuery = normalizeSearch(query);
+    const repeatedEditSearch =
+      /\b(edit|change|modify|update|assign|driver|تعديل|غيّر|غير|editar|cambiar|modifier|modifica|cambia)\b/i
+        .test(normalizedQuery);
+
+    const pagesInResults =
+      new Set(results.map(article=>article.pageFile));
+
+    const scopeExplanation =
+      repeatedEditSearch && pagesInResults.size > 1
+        ? `<div class="scope-explanation">${escapeHtml(repeatedEditExplanation())}</div>`
+        : "";
+
+    host.innerHTML = scopeExplanation + results.map(article=>{
+      const warning = Array.isArray(article.warnings) && article.warnings.length
+        ? `<div class="help-warning">${article.warnings.map(w=>`<div>${escapeHtml(translateText(w))}</div>`).join("")}</div>`
+        : "";
+
+      return `
+        <article class="help-result">
+          <button class="help-result-head" type="button">
+            <div>
+              <div class="help-result-title">${escapeHtml(translateText(article.title))}</div>
+              <div class="help-result-meta">
+                ${escapeHtml(article.pageId)} · ${escapeHtml(translateText(article.pageTitle))}
+              </div>
+              <div class="help-result-summary">${escapeHtml(translateText(article.summary))}</div>
+            </div>
+            <span class="help-chevron">⌄</span>
+          </button>
+
+          <div class="help-result-body">
+            <ol class="help-steps">
+              ${(article.steps || []).map(step=>`<li>${escapeHtml(translateText(step))}</li>`).join("")}
+            </ol>
+            ${warning}
+            <div class="help-source">${escapeHtml(t("page"))}: ${escapeHtml(article.pageFile)}</div>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+    host.querySelectorAll(".help-result-head").forEach(btn=>{
+      btn.addEventListener("click",()=>btn.closest(".help-result")?.classList.toggle("open"));
+    });
+  }
+
+
+  /* =========================
+     PLATFORM SUPPORT SIDE PANEL
+  ========================= */
+
+  function supportToken(){
+    return String(
+      sessionStorage.getItem("staffToken") ||
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
+  }
+
+  function supportHeaders(json=false){
+    const result = {
+      Authorization:
+        "Bearer " + supportToken()
+    };
+
+    if(json){
+      result["Content-Type"] =
+        "application/json";
+    }
+
+    return result;
+  }
+
+  async function supportApi(url,options={}){
     const response =
       await fetch(
-        "/api/shared-engine/settings",
+        url,
         {
           cache:"no-store",
+          ...options,
           headers:{
-            Authorization:
-              `Bearer ${token}`
+            ...supportHeaders(
+              !!options.body
+            ),
+            ...(options.headers || {})
           }
         }
       );
-
-    if(!response.ok){
-      return fallback;
-    }
 
     const data =
       await response
         .json()
         .catch(()=>({}));
 
-    const capabilities =
-      data?.capabilities || {};
+    if(!response.ok){
+      throw new Error(
+        data?.message ||
+        "Support request failed"
+      );
+    }
 
-    const result = {
-      sharedEnabled:
-        capabilities.sharedServiceEnabled === true ||
-        capabilities.sharedServiceFound === true,
+    return data;
+  }
 
-      brokerEnabled:
-        capabilities.brokerContractEnabled === true
-    };
+  function supportDate(value){
+    if(!value){
+      return "";
+    }
 
     try{
-      sessionStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          ...result,
-          at:Date.now()
-        })
+      return new Date(value)
+        .toLocaleString();
+    }catch(err){
+      return "";
+    }
+  }
+
+  function supportPhoneHtml(value){
+    const phone =
+      clean(value);
+
+    if(!phone){
+      return "Not Available";
+    }
+
+    return (
+      `<a href="tel:${escapeHtml(phone)}">` +
+      `${escapeHtml(phone)}</a>`
+    );
+  }
+
+  async function loadSupportIdentity(){
+    const data =
+      await supportApi(
+        "/api/platform-support/tenant/me"
       );
-    }catch(_err){}
 
-    return result;
+    state.support.identity =
+      data.identity || {};
 
-  }catch(err){
+    $("supportCompanyName").textContent =
+      state.support.identity.tenantName ||
+      "-";
 
-    console.log(
-      "SHARED/BROKER VISIBILITY CHECK ERROR:",
-      err?.message || err
+    $("supportCompanyPhone").innerHTML =
+      supportPhoneHtml(
+        state.support.identity.companyPhone
+      );
+
+    $("supportUserName").textContent =
+      state.support.identity.userName ||
+      "-";
+
+    $("supportUserRole").textContent =
+      state.support.identity.userRole ||
+      "-";
+
+    $("supportUserPhone").innerHTML =
+      supportPhoneHtml(
+        state.support.identity.userPhone
+      );
+  }
+
+  async function loadSupportUnread(){
+    try{
+      const data =
+        await supportApi(
+          "/api/platform-support/unread-count"
+        );
+
+      const count =
+        Math.max(
+          0,
+          Number(data.count || 0)
+        );
+
+      const badge =
+        $("platformSupportUnreadBadge");
+
+      if(!badge){
+        return;
+      }
+
+      badge.textContent =
+        String(count);
+
+      badge.classList.toggle(
+        "show",
+        count > 0
+      );
+
+    }catch(err){
+      /* Keep Help Center usable if Support backend is not mounted yet. */
+    }
+  }
+
+  async function loadSupportList(){
+    const data =
+      await supportApi(
+        "/api/platform-support/tenant/conversations?scope=" +
+        encodeURIComponent(
+          state.support.scope
+        )
+      );
+
+    state.support.conversations =
+      Array.isArray(
+        data.conversations
+      )
+        ? data.conversations
+        : [];
+
+    renderSupportList();
+  }
+
+  function renderSupportList(){
+    const host =
+      $("supportConversationList");
+
+    if(!host){
+      return;
+    }
+
+    if(
+      !state.support
+        .conversations
+        .length
+    ){
+      host.innerHTML =
+        `<div style="padding:12px;text-align:center;color:#718096;font-size:11px">${state.support.scope === "history" ? "No resolved conversations." : "No active conversations."}</div>`;
+      return;
+    }
+
+    host.innerHTML =
+      state.support.conversations
+        .map(
+          conversation=>`
+            <div
+              class="support-conversation-item ${
+                String(conversation._id) ===
+                state.support.activeId
+                  ? "active"
+                  : ""
+              }"
+              data-support-id="${escapeHtml(conversation._id)}">
+
+              <div class="support-conversation-title">
+                ${escapeHtml(conversation.subject)}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(conversation.status || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${
+                  conversation.status === "RESOLVED"
+                    ? "Resolved: " + escapeHtml(supportDate(conversation.resolvedAt))
+                    : escapeHtml(supportDate(conversation.lastMessageAt))
+                }
+              </div>
+
+              ${
+                conversation.status === "RESOLVED"
+                  ? `<div class="support-conversation-meta"><b>By:</b> ${escapeHtml(conversation.resolvedByName || conversation.resolvedBy || "-")}</div>`
+                  : ""
+              }
+
+              ${
+                Number(
+                  conversation.tenantUnreadCount ||
+                  0
+                ) > 0
+                  ? `<div class="support-conversation-meta"><b>${Number(conversation.tenantUnreadCount)} new</b></div>`
+                  : ""
+              }
+            </div>
+          `
+        )
+        .join("");
+
+    host
+      .querySelectorAll(
+        "[data-support-id]"
+      )
+      .forEach(
+        item=>{
+          item.addEventListener(
+            "click",
+            ()=>{
+              openSupportConversation(
+                item.dataset.supportId
+              );
+            }
+          );
+        }
+      );
+  }
+
+  function renderSupportMessages(messages){
+    const host =
+      $("supportMessages");
+
+    if(!host){
+      return;
+    }
+
+    host.innerHTML =
+      (Array.isArray(messages)
+        ? messages
+        : []
+      )
+        .map(
+          message=>{
+            const platform =
+              message.senderType ===
+              "PLATFORM_ADMIN";
+
+            return `
+              <div class="support-message ${platform ? "platform" : "tenant"}">
+                <div class="support-message-meta">
+                  ${escapeHtml(message.senderName || (platform ? "Platform Admin" : "Staff"))}
+                  · ${escapeHtml(message.senderRole || "")}
+                  · ${escapeHtml(supportDate(message.createdAt))}
+                </div>
+
+                <div class="support-message-text">
+                  ${escapeHtml(message.message)}
+                </div>
+              </div>
+            `;
+          }
+        )
+        .join("");
+
+    host.scrollTop =
+      host.scrollHeight;
+  }
+
+  async function openSupportConversation(conversationId){
+    const id =
+      clean(conversationId);
+
+    if(!id){
+      return;
+    }
+
+    state.support.activeId =
+      id;
+
+    const data =
+      await supportApi(
+        "/api/platform-support/conversations/" +
+        encodeURIComponent(id)
+      );
+
+    $("supportChatEmpty").style.display =
+      "none";
+
+    $("supportChatView")
+      .classList
+      .add("show");
+
+    $("supportChatSubject").textContent =
+      data.conversation?.subject ||
+      "Support Conversation";
+
+    $("supportChatStatus").textContent =
+      "Status: " +
+      (
+        data.conversation?.status ||
+        "-"
+      );
+
+    const conversation =
+      data.conversation ||
+      {};
+
+    const resolved =
+      conversation.status ===
+      "RESOLVED";
+
+    const role =
+      String(
+        state.support.identity?.userRole ||
+        ""
+      ).toUpperCase();
+
+    const canManage =
+      role === "ADMIN" ||
+      role === "SUPER_ADMIN" ||
+      role === "SUPERADMIN";
+
+    if($("supportResolvedInfo")){
+      $("supportResolvedInfo").style.display =
+        resolved
+          ? "block"
+          : "none";
+
+      $("supportResolvedInfo").innerHTML =
+        resolved
+          ? `<b>Resolved:</b> ${escapeHtml(supportDate(conversation.resolvedAt))}<br>` +
+            `<b>Resolved By:</b> ${escapeHtml(conversation.resolvedByName || conversation.resolvedBy || "-")}` +
+            `${conversation.resolvedByRole ? ` · ${escapeHtml(conversation.resolvedByRole)}` : ""}`
+          : "";
+    }
+
+    if($("supportResolveBtn")){
+      $("supportResolveBtn").style.display =
+        canManage
+          ? "inline-block"
+          : "none";
+
+      $("supportResolveBtn").textContent =
+        resolved
+          ? "Reopen Conversation"
+          : "Resolve Conversation";
+
+      $("supportResolveBtn").dataset.status =
+        resolved
+          ? "OPEN"
+          : "RESOLVED";
+    }
+
+    if($("supportMessageInput")){
+      $("supportMessageInput").disabled =
+        resolved;
+    }
+
+    if($("supportSendMessageBtn")){
+      $("supportSendMessageBtn").disabled =
+        resolved;
+    }
+
+    renderSupportMessages(
+      data.messages ||
+      []
     );
 
-    return fallback;
+    await Promise.all([
+      loadSupportList(),
+      loadSupportUnread()
+    ]);
   }
-}
-
-const core=[
-{l:"Dashboard",h:"dashboard.html",i:"home"},
-{g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
-{l:"Dispatch",h:"dispatch.html",i:"car"},
-{l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
-{l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
-{g:"Driver Follow-up",i:"user",items:[["Driver Schedule","driver-schedule.html","calendar"],["Drivers Map","maps.html","map"]]}
-];
-const admin=[
-{l:"Add User",h:"users.html",i:"plus"},
-{l:"Refunds",h:"refunds.html",i:"refund"}
-];
-const extraBase=[
-{l:"Admin Billing",h:"admin-billing.html",i:"doc"},
-{l:"Payments",h:"payments.html",i:"money"},
-{g:"Payroll",i:"money",items:[["Payroll","payroll.html","money"],["Payroll Summary","payroll-summary.html","chart"]]},
-{l:"Taxes",h:"tax-report.html",i:"chart"}
-];
-const settingsBase={g:"Settings",i:"gear",items:[["System Design","system-design.html","doc"],["Smart Dispatch","smart-dispatch-engine.html","bolt"],["Autopilot Mode","autopilot-settings.html","bolt"]]};
-
-document.addEventListener("DOMContentLoaded",async()=>{
-
- /* Restore this tab's staff identity before header/auth logic runs. */
- syncStaffLegacyStorage();
-
- /*
-   Auth is now isolated per tab by the storage bridge above.
- */
- const host=document.getElementById("adminHeader")||document.getElementById("headerContainer")||document.getElementById("header-container"); if(!host)return;
- const r=await fetch("/admin/header.html"); host.innerHTML=await r.text();
-
- const currentRole=role(); document.getElementById("ghAdminHeader")?.setAttribute("data-role",currentRole);
- const roleLabel=currentRole==="SUPER_ADMIN"?"Super Admin":currentRole==="DISPATCHER"?"Dispatcher":"Admin";
- const tenantNameForHeader=localStorage.getItem("tenantName")||localStorage.getItem("companyName")||"";
- const saasEl=document.getElementById("saasCompanyName"); if(saasEl) saasEl.textContent=tenantNameForHeader;
- document.getElementById("mobileRoleLabel").textContent=roleLabel+" Panel";
- document.getElementById("roleTitle").textContent=currentRole==="DISPATCHER"?"Dispatcher":currentRole==="SUPER_ADMIN"?"Super Admin — Administrator":"Admin — Administrator";
-
- /*
-   Dedicated page title in the center of the existing header.
- */
- const currentPageName =
-   String(
-     location.pathname
-       .split("/")
-       .pop() ||
-     ""
-   )
-   .trim()
-   .toLowerCase();
-
- const pageHeaderTitles = {
-   "help-center.html":
-     "Help Center",
-   "shared-engine-settings.html":
-     "Shared Engine",
-   "autopilot-settings.html":
-     "Autopilot Mode",
-   "trip-split.html":
-     "Trip Split",
-   "external-trips.html":
-     "External Trips",
-   "external-summary.html":
-     "External Summary",
-   "broker-review.html":
-     "Broker Review",
-   "broker-pricing.html":
-     "Broker Pricing"
- };
-
- const pageHeaderTitle =
-   pageHeaderTitles[
-     currentPageName
-   ];
-
- if(pageHeaderTitle){
-   const headerTitle =
-     document.getElementById(
-       "roleTitle"
-     );
-
-   if(headerTitle){
-     headerTitle.textContent =
-       pageHeaderTitle;
-
-     if(currentPageName === "help-center.html"){
-       headerTitle.textContent = "Help Center";
-       headerTitle.style.color = "#f6c453";
-       headerTitle.style.fontWeight = "900";
-       headerTitle.style.textShadow = "0 1px 2px rgba(0,0,0,.25)";
-       headerTitle.style.textAlign = "center";
-       headerTitle.style.width = "100%";
-       headerTitle.style.display = "block";
-       headerTitle.style.letterSpacing = ".2px";
-     }
-   }
- }
-
-
- const fallbackCompany=localStorage.getItem("companyName")||localStorage.getItem("tenantName")||"";
- const fallbackStaff=staffSessionValue("staffName","name")||localStorage.getItem("fullName")||"";
-
- async function ensureBrandingLoaded(){
-   if(!window.Branding){
-     await new Promise(resolve=>{
-       const existing=document.querySelector('script[src="/core/branding.js"]');
-       if(existing){
-         if(window.Branding){resolve();return;}
-         existing.addEventListener("load",resolve,{once:true});
-         setTimeout(resolve,700);return;
-       }
-       const script=document.createElement("script");
-       script.src="/core/branding.js";script.onload=resolve;script.onerror=resolve;document.body.appendChild(script);
-     });
-   }
-   if(window.Branding&&typeof window.Branding.load==="function"){
-     try{await window.Branding.load();}catch(err){console.log("HEADER BRANDING LOAD ERROR:",err);}
-   }
- }
-
- await ensureBrandingLoaded();
- const brandingData=window.Branding?.data||{};
- const tenantCompany=brandingData.companyName||fallbackCompany||"";
- const tenantMainLogo=brandingData.mainLogo||(typeof window.Branding?.getMainLogo==="function"?window.Branding.getMainLogo():"")||"/assets/logo.png";
- const companyEl=document.getElementById("dynamicCompanyName");
- const mobileCompanyEl=document.getElementById("mobileCompanyName");
- const staffEl=document.getElementById("staffDisplayName");
- if(companyEl)companyEl.textContent=tenantCompany;
- if(mobileCompanyEl)mobileCompanyEl.textContent=tenantCompany;
- if(staffEl)staffEl.textContent=fallbackStaff;
- document.querySelectorAll(".app-logo").forEach(img=>{img.src=tenantMainLogo;});
- if(tenantCompany)localStorage.setItem("companyName",tenantCompany);
- if(tenantMainLogo)localStorage.setItem("appLogo",tenantMainLogo);
-
- let nav=[...core];
-
- const visibility =
-   await loadSharedBrokerVisibility();
-
- /*
-   Broker navigation is visible only when the tenant has an enabled
-   Broker Contract.
-
-   Required desktop order:
-   Dashboard -> Operations -> Broker Operations -> remaining core navigation.
-
-   Broker Review belongs INSIDE Broker Operations.
-   Broker Summary belongs INSIDE the normal Summary menu.
- */
- if(visibility.brokerEnabled){
-
-   const operationsIndex =
-     nav.findIndex(
-       item=>
-         item?.g === "Operations"
-     );
-
-   const brokerOperationsItem = {
-     g:"Broker Operations",
-     i:"building",
-     items:[
-       [
-         "External Trips Hub",
-         "external-trips.html",
-         "list"
-       ],
-       [
-         "Trip Split",
-         "trip-split.html",
-         "list"
-       ],
-       [
-         "Broker Review",
-         "broker-review.html",
-         "doc"
-       ]
-     ]
-   };
-
-   if(operationsIndex >= 0){
-     nav.splice(
-       operationsIndex + 1,
-       0,
-       brokerOperationsItem
-     );
-   }else{
-     nav.unshift(
-       brokerOperationsItem
-     );
-   }
- }
-
-
- const settings = {
-   ...settingsBase,
-   items:[
-     ...settingsBase.items
-   ]
- };
-
- /*
-   Shared Engine belongs to the SHARED service assigned by Platform Admin.
-   If SHARED is not enabled for this tenant, do not expose this page.
- */
- if(visibility.sharedEnabled){
-   settings.items.push(
-     [
-       "Shared Engine",
-       "shared-engine-settings.html",
-       "car"
-     ]
-   );
- }
-
- if(currentRole!=="DISPATCHER"){
-
-   nav.push({
-     g:"Summary",
-     i:"chart",
-     items:[
-       [
-         "Summary",
-         "summary.html",
-         "chart"
-       ],
-       ...(
-         visibility.brokerEnabled
-           ? [[
-               "Broker Summary",
-               "external-summary.html",
-               "chart"
-             ]]
-           : []
-       )
-     ]
-   });
-
-   nav.push(...admin);
- }
-
- if(currentRole==="SUPER_ADMIN"){
-
-   nav.push(...extraBase);
-
-   const pricingItems = [
-     ["Service Management","service-management.html","doc"],
-     ["Facility Pricing Override","facility-pricing-override.html","building"]
-   ];
-
-   /*
-     Broker Pricing is SUPER_ADMIN only and follows the same
-     Platform Admin Broker capability used by Broker Operations.
-   */
-   if(visibility.brokerEnabled){
-     pricingItems.push([
-       "Broker Pricing",
-       "broker-pricing.html",
-       "money"
-     ]);
-   }
-
-   nav.push({
-     g:"Pricing",
-     i:"tag",
-     items:pricingItems
-   });
- }
-
- if(currentRole!=="DISPATCHER")nav.push(settings);
-
- /*
-   Help Center is available to every staff role.
-   Keep it after Settings so it sits directly next to Log Out.
- */
- nav.push({
-   l:"Help Center",
-   h:"help-center.html",
-   i:"doc"
- });
-
- const desktop=document.getElementById("adminDesktopNav");
- const mobile=document.getElementById("mobileSideNav");
-
- function link(item){const a=document.createElement("a");a.href=item.h;a.dataset.href=item.h;a.className="gh-nav-tile";a.innerHTML=I(item.i)+`<span>${item.l}</span>`;return a;}
- function group(item){
-   const w=document.createElement("div");w.className="gh-nav-group";
-   const b=document.createElement("button");b.type="button";b.className="gh-nav-tile gh-nav-group-btn";b.innerHTML=I(item.i)+`<span>${item.g}</span><b class="gh-caret">▾</b>`;
-   const m=document.createElement("div");m.className="gh-nav-menu";
-   item.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;m.appendChild(a)});
-   b.onclick=e=>{e.preventDefault();document.querySelectorAll(".gh-nav-group.open").forEach(x=>{if(x!==w)x.classList.remove("open")});w.classList.toggle("open")};
-   w.append(b,m);return w;
- }
- nav.forEach(x=>desktop.appendChild(x.g?group(x):link(x)));
- const lo=document.createElement("button");lo.type="button";lo.className="gh-nav-tile gh-logout-tile";lo.innerHTML=I("logout")+"<span>Log Out</span>";lo.onclick=logout;desktop.appendChild(lo);
-
- nav.forEach(x=>{
-   if(x.g){
-     const t=document.createElement("div");t.className="gh-mobile-group-title";t.textContent=x.g;mobile.appendChild(t);
-     x.items.forEach(([l,h,i])=>{const a=document.createElement("a");a.href=h;a.dataset.href=h;a.innerHTML=I(i)+`<span>${l}</span>`;mobile.appendChild(a)});
-   }else{const a=link(x);a.className="";mobile.appendChild(a)}
- });
-
- setTimeout(()=>{
-   const data=window.Branding?.data||{};
-   const latestCompany=data.companyName||localStorage.getItem("companyName")||"";
-   const latestLogo=data.mainLogo||(typeof window.Branding?.getMainLogo==="function"?window.Branding.getMainLogo():"")||localStorage.getItem("appLogo")||"/assets/logo.png";
-   const a=document.getElementById("dynamicCompanyName"),c=document.getElementById("mobileCompanyName");
-   if(a)a.textContent=latestCompany;if(c)c.textContent=latestCompany;
-   document.querySelectorAll(".app-logo").forEach(img=>{img.src=latestLogo;});
- },350);
-
- const page=location.pathname.split("/").pop();
- document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
- document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
-
- /* =========================================================
-    HEADER COLORS + ALERT VISUALS
-    Dispatch + Final Confirmation = same gold.
-    Help Center = normal header color unless there is an unread alert.
- ========================================================= */
- if(!document.getElementById("gh-header-color-alert-style")){
-   const headerColorAlertStyle=document.createElement("style");
-   headerColorAlertStyle.id="gh-header-color-alert-style";
-   headerColorAlertStyle.textContent=`
-     #adminDesktopNav [data-href="dispatch.html"],
-     #adminDesktopNav [data-href="dispatch-final-confirmation.html"]{
-       background:linear-gradient(180deg,#f6c85f 0%,#d79a00 100%)!important;
-       color:#241900!important;
-       border-color:#f8dc8b!important;
-       box-shadow:0 5px 12px rgba(151,102,0,.28)!important;
-     }
-
-     #mobileSideNav [data-href="dispatch.html"],
-     #mobileSideNav [data-href="dispatch-final-confirmation.html"]{
-       background:linear-gradient(90deg,#f6c85f 0%,#dda416 100%)!important;
-       color:#241900!important;
-       font-weight:900!important;
-     }
-
-     @keyframes ghHeaderAlertBlink{
-       0%,100%{
-         filter:brightness(1);
-         box-shadow:0 0 0 2px rgba(255,186,35,.65),0 0 10px rgba(255,176,19,.25);
-       }
-       50%{
-         filter:brightness(1.42);
-         box-shadow:
-           0 0 0 3px rgba(255,220,92,.78),
-           0 0 22px rgba(255,184,0,.95),
-           0 0 34px rgba(255,176,19,.45);
-       }
-     }
-
-     .gh-alert-hot,
-     .gh-support-unread{
-       position:relative!important;
-       animation:ghHeaderAlertBlink 1s ease-in-out infinite!important;
-     }
-
-     .gh-alert-badge,
-     .gh-support-unread-badge{
-       position:absolute;
-       right:4px;
-       top:3px;
-       min-width:18px;
-       height:18px;
-       padding:0 5px;
-       border-radius:999px;
-       display:flex;
-       align-items:center;
-       justify-content:center;
-       background:#c81e1e;
-       color:#fff;
-       font-size:9px;
-       font-weight:900;
-       line-height:1;
-       z-index:20;
-       box-shadow:0 2px 6px rgba(0,0,0,.22);
-     }
-   `;
-   document.head.appendChild(headerColorAlertStyle);
- }
-
- function supportUnreadToken(){
-   return String(
-     sessionStorage.getItem("staffToken") ||
-     localStorage.getItem("token") ||
-     ""
-   ).trim();
- }
-
- let latestPlatformSupportUnread=0;
- let latestFacilitySupportUnread=0;
-
- function applySupportUnreadToHelpButton(){
-   const unread=
-     Math.max(
-       0,
-       Number(latestPlatformSupportUnread||0)
-     ) +
-     Math.max(
-       0,
-       Number(latestFacilitySupportUnread||0)
-     );
-
-   document
-     .querySelectorAll('[data-href="help-center.html"]')
-     .forEach(link=>{
-       link.classList.toggle(
-         "gh-support-unread",
-         unread>0
-       );
-
-       link
-         .querySelectorAll(
-           ".gh-support-unread-badge"
-         )
-         .forEach(
-           badge=>badge.remove()
-         );
-
-       if(unread>0){
-         const badge=
-           document.createElement("b");
-
-         badge.className=
-           "gh-support-unread-badge";
-
-         badge.textContent=
-           unread>99
-             ? "99+"
-             : String(unread);
-
-         badge.title=
-           [
-             latestPlatformSupportUnread>0
-               ? `Platform Support: ${latestPlatformSupportUnread}`
-               : "",
-             latestFacilitySupportUnread>0
-               ? `Facilities Support: ${latestFacilitySupportUnread}`
-               : ""
-           ]
-           .filter(Boolean)
-           .join(" · ");
-
-         link.appendChild(
-           badge
-         );
-       }
-     });
- }
-
- async function fetchSupportUnread(
-   url,
-   token
- ){
-   try{
-     const response=
-       await fetch(
-         url,
-         {
-           cache:"no-store",
-           headers:{
-             Authorization:
-               "Bearer "+token
-           }
-         }
-       );
-
-     if(!response.ok){
-       return 0;
-     }
-
-     const data=
-       await response.json();
-
-     return Math.max(
-       0,
-       Number(data?.count||0)
-     );
-
-   }catch(err){
-     return 0;
-   }
- }
-
- async function refreshSupportUnread(){
-   const token=
-     supportUnreadToken();
-
-   if(!token){
-     latestPlatformSupportUnread=0;
-     latestFacilitySupportUnread=0;
-     applySupportUnreadToHelpButton();
-     return;
-   }
-
-   const [
-     platformCount,
-     facilityCount
-   ] =
-     await Promise.all([
-       fetchSupportUnread(
-         "/api/platform-support/unread-count",
-         token
-       ),
-       fetchSupportUnread(
-         "/api/company-support/unread-count",
-         token
-       )
-     ]);
-
-   latestPlatformSupportUnread=
-     platformCount;
-
-   latestFacilitySupportUnread=
-     facilityCount;
-
-   applySupportUnreadToHelpButton();
- }
-
- refreshSupportUnread();
-
- if(!window.__GH_SUPPORT_UNREAD_INTERVAL__){
-   window.__GH_SUPPORT_UNREAD_INTERVAL__=
-     setInterval(
-       refreshSupportUnread,
-       12000
-     );
- }
-
- window.addEventListener(
-   "focus",
-   refreshSupportUnread
- );
-
- document.addEventListener(
-   "visibilitychange",
-   ()=>{
-     if(
-       document.visibilityState===
-       "visible"
-     ){
-       refreshSupportUnread();
-     }
-   }
- );
-
- /* =========================================================
-    TRIPS HUB + FINAL CONFIRMATION ALERTS
-    Blink + badge.
-    Clicking the related header button clears the current alert only.
-    A later increase lights it again.
- ========================================================= */
- const TRIPS_SEEN_KEY="ghHeaderTripsSeenCount";
- const FINAL_SEEN_KEY="ghHeaderFinalSeenCount";
-
- let latestTripsRawCount=
-   Math.max(
-     0,
-     Number(
-       localStorage.getItem("dashboardNewTripsCount")||0
-     )||0
-   );
-
- let latestFinalRawCount=
-   Math.max(
-     0,
-     Number(
-       localStorage.getItem("dashboardPendingConfirmationCount")||0
-     )||0
-   );
-
- function setHeaderBadge(target,count){
-   if(!target)return;
-
-   const value=Math.max(0,Number(count||0));
-
-   target.classList.toggle(
-     "gh-alert-hot",
-     value>0
-   );
-
-   target
-     .querySelectorAll(".gh-alert-badge")
-     .forEach(badge=>badge.remove());
-
-   if(value>0){
-     const badge=document.createElement("span");
-     badge.className="gh-alert-badge";
-     badge.textContent=value>99?"99+":String(value);
-     target.appendChild(badge);
-   }
- }
-
- function renderHeaderAlerts(){
-   const pending=
-     effectiveUnread(
-       latestFinalRawCount,
-       FINAL_SEEN_KEY
-     );
-
-   const fresh=
-     effectiveUnread(
-       latestTripsRawCount,
-       TRIPS_SEEN_KEY
-     );
-
-   const finalLink=
-     document.querySelector(
-       '[data-href="dispatch-final-confirmation.html"]'
-     );
-
-   setHeaderBadge(
-     finalLink,
-     pending
-   );
-
-   const opsGroup=
-     [...document.querySelectorAll(".gh-nav-group")]
-       .find(g=>
-         g.querySelector(
-           '[data-href="trips-hub.html"]'
-         )
-       );
-
-   const opsButton=
-     opsGroup?.querySelector(
-       ".gh-nav-group-btn"
-     );
-
-   setHeaderBadge(
-     opsButton,
-     fresh
-   );
- }
-
- function applyHeaderAlerts(detail){
-   if(
-     detail &&
-     detail.pendingConfirmation !== undefined
-   ){
-     latestFinalRawCount=
-       Math.max(
-         0,
-         Number(detail.pendingConfirmation||0)
-       );
-   }else{
-     latestFinalRawCount=
-       Math.max(
-         0,
-         Number(
-           localStorage.getItem(
-             "dashboardPendingConfirmationCount"
-           )||0
-         )
-       );
-   }
-
-   if(
-     detail &&
-     detail.newTrips !== undefined
-   ){
-     latestTripsRawCount=
-       Math.max(
-         0,
-         Number(detail.newTrips||0)
-       );
-   }else{
-     latestTripsRawCount=
-       Math.max(
-         0,
-         Number(
-           localStorage.getItem(
-             "dashboardNewTripsCount"
-           )||0
-         )
-       );
-   }
-
-   renderHeaderAlerts();
- }
-
- window.addEventListener(
-   "gh-dashboard-alerts",
-   e=>applyHeaderAlerts(e.detail||{})
- );
-
- applyHeaderAlerts({});
-
- if(!window.__GH_HEADER_ALERT_LOCAL_INTERVAL__){
-   window.__GH_HEADER_ALERT_LOCAL_INTERVAL__=
-     setInterval(
-       ()=>applyHeaderAlerts({}),
-       2000
-     );
- }
-
- const finalLinkForAck=
-   document.querySelector(
-     '[data-href="dispatch-final-confirmation.html"]'
-   );
-
- finalLinkForAck?.addEventListener(
-   "click",
-   ()=>{
-     setSeenCount(
-       FINAL_SEEN_KEY,
-       latestFinalRawCount
-     );
-     renderHeaderAlerts();
-   }
- );
-
- const tripsHubLink=
-   document.querySelector(
-     '[data-href="trips-hub.html"]'
-   );
-
- const tripsOpsGroup=
-   [...document.querySelectorAll(".gh-nav-group")]
-     .find(g=>
-       g.querySelector(
-         '[data-href="trips-hub.html"]'
-       )
-     );
-
- const tripsOpsButton=
-   tripsOpsGroup?.querySelector(
-     ".gh-nav-group-btn"
-   );
-
- const acknowledgeTripsAlert=()=>{
-   setSeenCount(
-     TRIPS_SEEN_KEY,
-     latestTripsRawCount
-   );
-   renderHeaderAlerts();
- };
-
- tripsHubLink?.addEventListener(
-   "click",
-   acknowledgeTripsAlert
- );
-
- tripsOpsButton?.addEventListener(
-   "click",
-   acknowledgeTripsAlert
- );
-
- /* PAYROLL SIGN IN — shown only when today's staff schedule is eligible. */
- async function setupPayrollSignIn(){
-   const token=staffSessionValue("staffToken","token");
-   if(!token)return;
-
-   const signInSlot=document.getElementById("payrollSignInSlot");
-   if(!signInSlot)return;
-
-   const style=document.createElement("style");
-   style.textContent=`
-   .gh-payroll-signin-slot{display:flex;min-height:0;align-items:center;justify-content:center;margin-top:7px}
-   .gh-payroll-signin{min-width:118px;padding:9px 16px;border:2px solid #eaffdf;border-radius:11px;background:linear-gradient(180deg,#62d443,#269c1b 60%,#167d10);color:#fff;font-size:13px;font-weight:1000;letter-spacing:.45px;cursor:pointer;box-shadow:0 0 0 0 rgba(89,239,72,.75),0 4px 0 rgba(12,91,7,.35),inset 0 1px 0 rgba(255,255,255,.4);white-space:nowrap;position:relative;z-index:2;animation:ghPayrollSignInPulse 1.05s ease-in-out infinite}
-   .gh-payroll-signin:hover{filter:brightness(1.12);animation-play-state:paused}
-   .gh-payroll-signin:disabled{cursor:wait;opacity:.72}
-   .gh-payroll-signin-note{padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;font-size:11px;font-weight:900;white-space:nowrap;position:relative;z-index:2}
-   @keyframes ghPayrollSignInPulse{0%,100%{filter:brightness(.92);transform:scale(1);box-shadow:0 0 0 0 rgba(89,239,72,.72),0 4px 0 rgba(12,91,7,.35)}50%{filter:brightness(1.28);transform:scale(1.055);box-shadow:0 0 0 9px rgba(89,239,72,0),0 5px 0 rgba(12,91,7,.35),0 0 20px rgba(104,255,84,.9)}}
-   @media(max-width:900px){.gh-payroll-signin{min-width:auto;padding:8px 10px;font-size:11px}.gh-payroll-signin-note{display:none}}
-   `;
-   document.head.appendChild(style);
-
-   async function payrollRequest(url,options={}){
-     const response=await fetch(url,{
-       cache:"no-store",
-       ...options,
-       headers:{
-         ...(options.body?{"Content-Type":"application/json"}:{}),
-         ...(options.headers||{}),
-         Authorization:`Bearer ${token}`
-       }
-     });
-     const data=await response.json().catch(()=>({}));
-     if(!response.ok)throw new Error(data.message||`HTTP ${response.status}`);
-     return data;
-   }
-
-   try{
-     const payrollCacheKey="ghPayrollSignInStatus";
-     const payrollCacheTtlMs=20000;
-     let status=null;
-
-     try{
-       const cachedRaw=sessionStorage.getItem(payrollCacheKey);
-       if(cachedRaw){
-         const cached=JSON.parse(cachedRaw);
-         if(
-           cached &&
-           Number(cached.at)>0 &&
-           (Date.now()-Number(cached.at))<payrollCacheTtlMs
-         ){
-           status=cached.data||null;
-         }
-       }
-     }catch(_err){}
-
-     if(!status){
-       status=await payrollRequest("/api/payroll/staff-signin/status");
-       try{
-         sessionStorage.setItem(
-           payrollCacheKey,
-           JSON.stringify({
-             at:Date.now(),
-             data:status
-           })
-         );
-       }catch(_err){}
-     }
-     if(status.showSignIn!==true)return;
-
-     const button=document.createElement("button");
-     button.type="button";
-     button.className="gh-payroll-signin";
-     button.textContent="SIGN IN";
-     button.title=`Sign in and credit ${Number(status.creditedHours||0)} scheduled hours`;
-
-     button.addEventListener("click",async()=>{
-       if(button.disabled)return;
-       button.disabled=true;
-       button.textContent="SIGNING IN...";
-
-       try{
-         const result=await payrollRequest("/api/payroll/staff-signin",{method:"POST"});
-         try{sessionStorage.removeItem("ghPayrollSignInStatus");}catch(_err){}
-         button.remove();
-
-         const note=document.createElement("div");
-         note.className="gh-payroll-signin-note";
-         note.textContent=`SIGNED IN · ${Number(result.creditedHours||status.creditedHours||0)} HRS`;
-         signInSlot.appendChild(note);
-         setTimeout(()=>note.remove(),5000);
-       }catch(err){
-         button.disabled=false;
-         button.textContent="SIGN IN";
-         window.alert(err.message||"Sign In failed");
-       }
-     });
-
-     signInSlot.appendChild(button);
-   }catch(err){
-     console.log("PAYROLL SIGN IN STATUS ERROR:",err);
-   }
- }
-
- await setupPayrollSignIn();
-
- const tz=()=>localStorage.getItem("systemTimezone")||localStorage.getItem("appTimezone")||"America/Phoenix";
- function tick(){const n=new Date();document.getElementById("headerDate").textContent=n.toLocaleDateString("en-US",{timeZone:tz(),weekday:"short",month:"short",day:"numeric",year:"numeric"});document.getElementById("headerTime").textContent=n.toLocaleTimeString("en-US",{timeZone:tz(),hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true});const h=Number(new Intl.DateTimeFormat("en-US",{hour:"numeric",hour12:false,timeZone:tz()}).format(n));document.getElementById("welcomeMessage").textContent=h<12?"Good Morning":h<18?"Good Afternoon":"Good Evening";document.getElementById("weatherIcon").textContent=h<12?"☀️":h<18?"🌤️":"🌙"} tick();setInterval(tick,1000);
-
- const drawer=document.getElementById("mobileSideMenu"),ov=document.getElementById("mobileMenuOverlay");
- const open=()=>{drawer.classList.add("show");ov.classList.add("show")},close=()=>{drawer.classList.remove("show");ov.classList.remove("show")};
- document.getElementById("mobileMenuBtn").onclick=open;document.getElementById("mobileCloseBtn").onclick=close;ov.onclick=close;
-});
-})();
-function logout(){
-
-  const tenantSlug =
-    String(
-      sessionStorage.getItem("staffTenantSlug") ||
-      sessionStorage.getItem("loginTenantSlug") ||
+
+  function showSupportNewForm(){
+    $("supportNewSubject").value =
+      "";
+
+    $("supportNewMessage").value =
+      "";
+
+    $("supportNewConversationForm")
+      .classList
+      .add("show");
+
+    $("supportNewSubject")
+      .focus();
+  }
+
+  function hideSupportNewForm(){
+    $("supportNewConversationForm")
+      .classList
+      .remove("show");
+  }
+
+  async function startSupportConversation(){
+    const subject =
+      clean(
+        $("supportNewSubject")?.value
+      );
+
+    const message =
+      clean(
+        $("supportNewMessage")?.value
+      );
+
+    if(!subject){
+      alert("Subject is required");
+      return;
+    }
+
+    if(!message){
+      alert("Describe your issue");
+      return;
+    }
+
+    const button =
+      $("supportStartNewBtn");
+
+    button.disabled =
+      true;
+
+    try{
+      const data =
+        await supportApi(
+          "/api/platform-support/tenant/conversations",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              subject,
+              message
+            })
+          }
+        );
+
+      hideSupportNewForm();
+      await loadSupportList();
+
+      if(
+        data.conversation?._id
+      ){
+        await openSupportConversation(
+          data.conversation._id
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      button.disabled =
+        false;
+    }
+  }
+
+  async function sendSupportMessage(){
+    const message =
+      clean(
+        $("supportMessageInput")?.value
+      );
+
+    if(
+      !message ||
+      !state.support.activeId
+    ){
+      return;
+    }
+
+    const button =
+      $("supportSendMessageBtn");
+
+    button.disabled =
+      true;
+
+    try{
+      await supportApi(
+        "/api/platform-support/conversations/" +
+        encodeURIComponent(
+          state.support.activeId
+        ) +
+        "/messages",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            message
+          })
+        }
+      );
+
+      $("supportMessageInput").value =
+        "";
+
+      await openSupportConversation(
+        state.support.activeId
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      button.disabled =
+        false;
+    }
+  }
+
+  async function setSupportScope(scope){
+    state.support.scope =
+      scope === "history"
+        ? "history"
+        : "active";
+
+    state.support.activeId = "";
+
+    $("supportActiveTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.support.scope === "active"
+      );
+
+    $("supportHistoryTabBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.support.scope === "history"
+      );
+
+    if($("supportChatView")){
+      $("supportChatView")
+        .classList
+        .remove("show");
+    }
+
+    if($("supportChatEmpty")){
+      $("supportChatEmpty").style.display =
+        "flex";
+
+      $("supportChatEmpty").textContent =
+        state.support.scope === "history"
+          ? "Select a resolved support conversation."
+          : "Select a conversation or create a new support request.";
+    }
+
+    await loadSupportList();
+  }
+
+  async function changeTenantSupportStatus(){
+    const id =
+      state.support.activeId;
+
+    const status =
+      $("supportResolveBtn")
+        ?.dataset
+        ?.status;
+
+    if(
+      !id ||
+      !status
+    ){
+      return;
+    }
+
+    try{
+      await supportApi(
+        "/api/platform-support/tenant/conversations/" +
+        encodeURIComponent(id) +
+        "/status",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            status
+          })
+        }
+      );
+
+      await setSupportScope(
+        status === "RESOLVED"
+          ? "history"
+          : "active"
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+    }
+  }
+
+  function bindSupport(){
+    $("supportActiveTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setSupportScope("active")
+      );
+
+    $("supportHistoryTabBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setSupportScope("history")
+      );
+
+    $("supportResolveBtn")
+      ?.addEventListener(
+        "click",
+        changeTenantSupportStatus
+      );
+
+    $("supportNewConversationBtn")
+      ?.addEventListener(
+        "click",
+        showSupportNewForm
+      );
+
+    $("supportCancelNewBtn")
+      ?.addEventListener(
+        "click",
+        hideSupportNewForm
+      );
+
+    $("supportStartNewBtn")
+      ?.addEventListener(
+        "click",
+        startSupportConversation
+      );
+
+    $("supportSendMessageBtn")
+      ?.addEventListener(
+        "click",
+        sendSupportMessage
+      );
+
+    $("supportMessageInput")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+            event.preventDefault();
+            sendSupportMessage();
+          }
+        }
+      );
+  }
+
+  async function initSupport(){
+    try{
+      await Promise.all([
+        loadSupportIdentity(),
+        loadSupportList(),
+        loadSupportUnread()
+      ]);
+
+      state.support.loaded =
+        true;
+
+    }catch(err){
+      console.error(
+        "PLATFORM SUPPORT LOAD:",
+        err
+      );
+
+      const host =
+        $("supportConversationList");
+
+      if(host){
+        host.innerHTML =
+          `<div style="padding:12px;color:#b42318;font-size:11px">${escapeHtml(err.message || "Support unavailable")}</div>`;
+      }
+    }
+  }
+
+  function startSupportPolling(){
+    clearInterval(
+      state.support.pollTimer
+    );
+
+    state.support.pollTimer =
+      setInterval(
+        async ()=>{
+          try{
+            await loadSupportUnread();
+
+            if(
+              !state.support.loaded
+            ){
+              return;
+            }
+
+            await loadSupportList();
+
+            if(
+              state.support.activeId
+            ){
+              await openSupportConversation(
+                state.support.activeId
+              );
+            }
+
+          }catch(err){}
+        },
+        12000
+      );
+  }
+
+
+
+  /* =========================
+     SUPER ADMIN COMPANY SUPPORT
+  ========================= */
+
+  function currentStaffRole(){
+    return String(
+      sessionStorage.getItem("staffRole") ||
+      localStorage.getItem("role") ||
       ""
     )
-    .trim()
-    .toLowerCase();
-
-  [
-    "staffToken",
-    "staffRole",
-    "staffName",
-    "staffTenantId",
-    "staffTenantSlug",
-    "staffCompat:fullName",
-    "staffCompat:tenant",
-    "staffCompat:tenantName",
-    "staffCompat:companyName",
-    "staffCompat:appLogo",
-    "staffCompat:systemTimezone",
-    "staffCompat:appTimezone"
-  ].forEach(
-    k=>sessionStorage.removeItem(k)
-  );
-
-  sessionStorage.removeItem(
-    "loginTenantSlug"
-  );
-
-  if(tenantSlug){
-
-    sessionStorage.setItem(
-      "loginTenantSlug",
-      tenantSlug
-    );
-
-    location.href=
-      "/login.html?tenant="+
-      encodeURIComponent(tenantSlug);
-
-    return;
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g,"_");
   }
 
-  location.href="/login.html";
-}
+  async function companySupportApi(url,options={}){
+    return supportApi(
+      url,
+      options
+    );
+  }
+
+  async function loadFacilitySupportTargets(){
+    const data =
+      await companySupportApi(
+        "/api/company-support/super-admin/facilities"
+      );
+
+    state.companySupport.facilities =
+      Array.isArray(
+        data.facilities
+      )
+        ? data.facilities
+        : [];
+
+    const select =
+      $("facilitySupportTarget");
+
+    if(!select){
+      return;
+    }
+
+    select.innerHTML =
+      `<option value="">Select Facility</option>` +
+      state.companySupport.facilities
+        .map(
+          row=>`
+            <option value="${escapeHtml(row.companyUserId)}">
+              ${escapeHtml(row.companyName || "Facility")}
+              ${row.companyPhone ? " · " + escapeHtml(row.companyPhone) : ""}
+            </option>
+          `
+        )
+        .join("");
+  }
+
+  function showFacilitySupportNewForm(){
+    $("facilitySupportTarget").value =
+      "";
+
+    $("facilitySupportNewSubject").value =
+      "";
+
+    $("facilitySupportNewMessage").value =
+      "";
+
+    $("facilitySupportNewConversationForm")
+      ?.classList
+      .add("show");
+
+    $("facilitySupportTarget")
+      ?.focus();
+  }
+
+  function hideFacilitySupportNewForm(){
+    $("facilitySupportNewConversationForm")
+      ?.classList
+      .remove("show");
+  }
+
+  async function startFacilitySupportConversation(){
+    const companyUserId =
+      clean(
+        $("facilitySupportTarget")?.value
+      );
+
+    const subject =
+      clean(
+        $("facilitySupportNewSubject")?.value
+      );
+
+    const message =
+      clean(
+        $("facilitySupportNewMessage")?.value
+      );
+
+    if(!companyUserId){
+      alert("Select a Facility");
+      return;
+    }
+
+    if(!subject){
+      alert("Subject is required");
+      return;
+    }
+
+    if(!message){
+      alert("Describe your message");
+      return;
+    }
+
+    const button =
+      $("facilitySupportStartNewBtn");
+
+    if(button){
+      button.disabled =
+        true;
+    }
+
+    try{
+      const data =
+        await companySupportApi(
+          "/api/company-support/super-admin/conversations",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              companyUserId,
+              subject,
+              message
+            })
+          }
+        );
+
+      hideFacilitySupportNewForm();
+
+      await Promise.all([
+        loadCompanySupportList(),
+        loadCompanySupportUnread()
+      ]);
+
+      if(
+        data.conversation?._id
+      ){
+        await openCompanySupportConversation(
+          data.conversation._id
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      if(button){
+        button.disabled =
+          false;
+      }
+    }
+  }
+
+  async function loadCompanySupportUnread(){
+    try{
+      const data =
+        await companySupportApi(
+          "/api/company-support/unread-count"
+        );
+
+      const count =
+        Math.max(
+          0,
+          Number(
+            data.count ||
+            0
+          )
+        );
+
+      const badge =
+        $("companySupportMainBadge");
+
+      if(badge){
+        badge.textContent =
+          String(count);
+
+        badge.classList.toggle(
+          "show",
+          count > 0
+        );
+      }
+
+      const panelBadge =
+        $("companySupportUnreadBadge");
+
+      if(panelBadge){
+        panelBadge.textContent =
+          String(count);
+
+        panelBadge.classList.toggle(
+          "show",
+          count > 0
+        );
+      }
+
+    }catch(err){}
+  }
+
+  async function loadCompanySupportList(){
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "scope",
+      state.companySupport.scope
+    );
+
+    const status =
+      clean(
+        $("companySupportStatusFilter")?.value
+      );
+
+    if(status){
+      params.set(
+        "status",
+        status
+      );
+    }
+
+    const data =
+      await companySupportApi(
+        "/api/company-support/super-admin/conversations?" +
+        params.toString()
+      );
+
+    state.companySupport.conversations =
+      Array.isArray(
+        data.conversations
+      )
+        ? data.conversations
+        : [];
+
+    renderCompanySupportList();
+  }
+
+  function renderCompanySupportList(){
+    const host =
+      $("companySupportList");
+
+    if(!host){
+      return;
+    }
+
+    if(
+      !state.companySupport
+        .conversations
+        .length
+    ){
+      host.innerHTML =
+        `<div style="padding:16px;text-align:center;color:#718096;font-size:12px">${
+          state.companySupport.scope === "history"
+            ? "No resolved Facility support conversations."
+            : "No active Facility support conversations."
+        }</div>`;
+      return;
+    }
+
+    host.innerHTML =
+      state.companySupport
+        .conversations
+        .map(
+          row=>`
+            <div
+              class="support-conversation-item ${
+                String(row._id) === state.companySupport.activeId
+                  ? "active"
+                  : ""
+              }"
+              data-company-support-id="${escapeHtml(row._id)}">
+
+              <div class="support-conversation-title">
+                ${escapeHtml(row.companyName || "Facility")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(row.subject || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(row.status || "")}
+              </div>
+
+              <div class="support-conversation-meta">
+                ${escapeHtml(
+                  supportDate(
+                    row.status === "RESOLVED"
+                      ? row.resolvedAt
+                      : row.lastMessageAt
+                  )
+                )}
+              </div>
+
+              ${
+                Number(
+                  row.superAdminUnreadCount ||
+                  0
+                ) > 0
+                  ? `<div class="support-conversation-meta"><b>${Number(row.superAdminUnreadCount)} new</b></div>`
+                  : ""
+              }
+            </div>
+          `
+        )
+        .join("");
+
+    host
+      .querySelectorAll(
+        "[data-company-support-id]"
+      )
+      .forEach(
+        item=>{
+          item.addEventListener(
+            "click",
+            ()=>openCompanySupportConversation(
+              item.dataset.companySupportId
+            )
+          );
+        }
+      );
+  }
+
+  function renderCompanySupportMessages(messages){
+    const host =
+      $("companySupportMessages");
+
+    if(!host){
+      return;
+    }
+
+    host.innerHTML =
+      (messages || [])
+        .map(
+          message=>{
+            const superAdmin =
+              message.senderType ===
+              "SUPER_ADMIN";
+
+            return `
+              <div class="support-message ${superAdmin ? "platform" : "tenant"}">
+                <div class="support-message-meta">
+                  ${escapeHtml(message.senderName || (superAdmin ? "Super Admin" : "Facility"))}
+                  · ${escapeHtml(message.senderRole || "")}
+                  · ${escapeHtml(supportDate(message.createdAt))}
+                </div>
+
+                <div class="support-message-text">
+                  ${escapeHtml(message.message)}
+                </div>
+              </div>
+            `;
+          }
+        )
+        .join("");
+
+    host.scrollTop =
+      host.scrollHeight;
+  }
+
+  async function openCompanySupportConversation(id){
+    state.companySupport.activeId =
+      clean(id);
+
+    if(
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    const data =
+      await companySupportApi(
+        "/api/company-support/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        )
+      );
+
+    const conversation =
+      data.conversation ||
+      {};
+
+    $("companySupportEmpty").style.display =
+      "none";
+
+    $("companySupportChatView")
+      .classList
+      .add("show");
+
+    $("companySupportSubject").textContent =
+      conversation.subject ||
+      "Facilities Support";
+
+    $("companySupportStatus").textContent =
+      "Status: " +
+      (
+        conversation.status ||
+        "-"
+      );
+
+    $("companySupportCompanyMeta").innerHTML =
+      `<b>Facility:</b> ${escapeHtml(conversation.companyName || "-")}<br>` +
+      `<b>Facility Phone:</b> ${escapeHtml(conversation.companyPhone || "Not Available")}<br>` +
+      `<b>Opened By:</b> ${escapeHtml(conversation.createdByName || "-")} · ${escapeHtml(conversation.createdByRole || "COMPANY")}<br>` +
+      (
+        conversation.status === "RESOLVED"
+          ? `<b>Resolved:</b> ${escapeHtml(supportDate(conversation.resolvedAt))}<br>` +
+            `<b>Resolved By:</b> ${escapeHtml(conversation.resolvedByName || "-")}`
+          : ""
+      );
+
+    const resolved =
+      conversation.status ===
+      "RESOLVED";
+
+    $("companySupportStatusSelect").value =
+      conversation.status ||
+      "OPEN";
+
+    $("companySupportStatusSelect").disabled =
+      resolved;
+
+    $("companySupportReopenBtn").hidden =
+      !resolved;
+
+    $("companySupportComposer").style.display =
+      resolved
+        ? "none"
+        : "flex";
+
+    renderCompanySupportMessages(
+      data.messages ||
+      []
+    );
+
+    await Promise.all([
+      loadCompanySupportList(),
+      loadCompanySupportUnread()
+    ]);
+  }
+
+  async function setCompanySupportScope(scope){
+    state.companySupport.scope =
+      scope === "history"
+        ? "history"
+        : "active";
+
+    state.companySupport.activeId =
+      "";
+
+    $("companySupportActiveBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.companySupport.scope === "active"
+      );
+
+    $("companySupportHistoryBtn")
+      ?.classList
+      .toggle(
+        "active",
+        state.companySupport.scope === "history"
+      );
+
+    if($("companySupportStatusFilter")){
+      $("companySupportStatusFilter").value =
+        state.companySupport.scope === "history"
+          ? "RESOLVED"
+          : "";
+    }
+
+    $("companySupportChatView")
+      ?.classList
+      .remove("show");
+
+    if($("companySupportEmpty")){
+      $("companySupportEmpty").style.display =
+        "flex";
+    }
+
+    await loadCompanySupportList();
+  }
+
+  async function changeCompanySupportStatus(status){
+    if(
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    try{
+      await companySupportApi(
+        "/api/company-support/super-admin/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        ) +
+        "/status",
+        {
+          method:"PATCH",
+          body:JSON.stringify({
+            status
+          })
+        }
+      );
+
+      if(status === "RESOLVED"){
+        await setCompanySupportScope(
+          "history"
+        );
+      }else{
+        await setCompanySupportScope(
+          "active"
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+    }
+  }
+
+  async function sendCompanySupportReply(){
+    const message =
+      clean(
+        $("companySupportMessageInput")?.value
+      );
+
+    if(
+      !message ||
+      !state.companySupport.activeId
+    ){
+      return;
+    }
+
+    const button =
+      $("companySupportSendBtn");
+
+    button.disabled =
+      true;
+
+    try{
+      await companySupportApi(
+        "/api/company-support/conversations/" +
+        encodeURIComponent(
+          state.companySupport.activeId
+        ) +
+        "/messages",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            message
+          })
+        }
+      );
+
+      $("companySupportMessageInput").value =
+        "";
+
+      await openCompanySupportConversation(
+        state.companySupport.activeId
+      );
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      button.disabled =
+        false;
+    }
+  }
+
+  function selectSuperAdminMainTab(tab){
+    if(
+      currentStaffRole() !==
+      "SUPER_ADMIN"
+    ){
+      return;
+    }
+
+    const tabs = {
+      company:{
+        button:
+          $("companySupportMainTab"),
+        panel:
+          $("companySupportPanel")
+      },
+
+      platform:{
+        button:
+          $("platformSupportMainTab"),
+        panel:
+          $("platformSupportPanel")
+      },
+
+      help:{
+        button:
+          $("helpKnowledgeMainTab"),
+        panel:
+          $("knowledgeBasePanel")
+      }
+    };
+
+    Object.values(tabs)
+      .forEach(
+        item=>{
+          item.button
+            ?.classList
+            .remove("active");
+
+          if(item.panel){
+            item.panel.hidden =
+              true;
+          }
+        }
+      );
+
+    const selected =
+      tabs[tab] ||
+      tabs.company;
+
+    selected.button
+      ?.classList
+      .add("active");
+
+    if(selected.panel){
+      selected.panel.hidden =
+        false;
+    }
+  }
+
+  function bindCompanySupport(){
+    $("companySupportMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("company")
+      );
+
+    $("platformSupportMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("platform")
+      );
+
+    $("helpKnowledgeMainTab")
+      ?.addEventListener(
+        "click",
+        ()=>selectSuperAdminMainTab("help")
+      );
+
+    $("companySupportActiveBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setCompanySupportScope("active")
+      );
+
+    $("companySupportHistoryBtn")
+      ?.addEventListener(
+        "click",
+        ()=>setCompanySupportScope("history")
+      );
+
+    $("facilitySupportNewConversationBtn")
+      ?.addEventListener(
+        "click",
+        showFacilitySupportNewForm
+      );
+
+    $("facilitySupportCancelNewBtn")
+      ?.addEventListener(
+        "click",
+        hideFacilitySupportNewForm
+      );
+
+    $("facilitySupportStartNewBtn")
+      ?.addEventListener(
+        "click",
+        startFacilitySupportConversation
+      );
+
+    $("companySupportStatusFilter")
+      ?.addEventListener(
+        "change",
+        loadCompanySupportList
+      );
+
+    $("companySupportStatusSelect")
+      ?.addEventListener(
+        "change",
+        event=>changeCompanySupportStatus(
+          event.target.value
+        )
+      );
+
+    $("companySupportReopenBtn")
+      ?.addEventListener(
+        "click",
+        ()=>changeCompanySupportStatus("OPEN")
+      );
+
+    $("companySupportSendBtn")
+      ?.addEventListener(
+        "click",
+        sendCompanySupportReply
+      );
+
+    $("companySupportMessageInput")
+      ?.addEventListener(
+        "keydown",
+        event=>{
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+            event.preventDefault();
+            sendCompanySupportReply();
+          }
+        }
+      );
+  }
+
+  async function initCompanySupportWorkspace(){
+    if(
+      currentStaffRole() !==
+      "SUPER_ADMIN"
+    ){
+      $("companySupportPanel")?.remove();
+      return;
+    }
+
+    document.body
+      .classList
+      .add(
+        "super-admin-help-mode"
+      );
+
+    $("superAdminSupportTabs").hidden =
+      false;
+
+    bindCompanySupport();
+
+    selectSuperAdminMainTab(
+      "company"
+    );
+
+    await Promise.all([
+      loadCompanySupportList(),
+      loadCompanySupportUnread(),
+      loadFacilitySupportTargets()
+    ]);
+
+    clearInterval(
+      state.companySupport.pollTimer
+    );
+
+    state.companySupport.pollTimer =
+      setInterval(
+        async ()=>{
+          try{
+            await Promise.all([
+              loadCompanySupportList(),
+              loadCompanySupportUnread()
+            ]);
+
+            if(
+              state.companySupport.activeId
+            ){
+              await openCompanySupportConversation(
+                state.companySupport.activeId
+              );
+            }
+          }catch(err){}
+        },
+        12000
+      );
+  }
+
+
+  function bind(){
+    $("helpSearch")?.addEventListener("input",renderResults);
+    $("helpPageFilter")?.addEventListener("change",e=>choosePage(e.target.value || ""));
+    $("clearPageFilter")?.addEventListener("click",()=>choosePage(""));
+    $("helpLanguage")?.addEventListener("change",e=>setLanguage(e.target.value));
+    bindSupport();
+  }
+
+
+  function forceDropdownText(selectEl){
+
+    if(!selectEl){
+      return;
+    }
+
+    selectEl
+      .querySelectorAll("option")
+      .forEach(option=>{
+        option.style.setProperty(
+          "color",
+          "#172033",
+          "important"
+        );
+
+        option.style.setProperty(
+          "background",
+          "#ffffff",
+          "important"
+        );
+
+        option.style.setProperty(
+          "font-weight",
+          "700",
+          "important"
+        );
+      });
+
+    selectEl
+      .querySelectorAll("optgroup")
+      .forEach(group=>{
+        group.style.setProperty(
+          "color",
+          "#075f8c",
+          "important"
+        );
+
+        group.style.setProperty(
+          "background",
+          "#eef8ff",
+          "important"
+        );
+
+        group.style.setProperty(
+          "font-weight",
+          "900",
+          "important"
+        );
+      });
+  }
+
+  function applyVisualTheme(){
+
+    const language =
+      $("helpLanguage");
+
+    const pageFilter =
+      $("helpPageFilter");
+
+    const search =
+      $("helpSearch");
+
+    const resultsCard =
+      $("helpResults")
+        ?.closest(".section-card");
+
+    const selectedPage =
+      $("selectedPageCard");
+
+    if(language){
+      language.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#f8d66d 0%,#d99a00 100%)",
+        "important"
+      );
+      language.style.setProperty(
+        "color",
+        "#241900",
+        "important"
+      );
+      language.style.setProperty(
+        "border",
+        "2px solid #b97d00",
+        "important"
+      );
+      language.style.setProperty(
+        "font-weight",
+        "900",
+        "important"
+      );
+      language.style.setProperty(
+        "box-shadow",
+        "0 4px 10px rgba(151,102,0,.20)",
+        "important"
+      );
+    }
+
+    if(pageFilter){
+      pageFilter.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#1685b5 0%,#075f8c 100%)",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "color",
+        "#ffffff",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "border",
+        "2px solid #064f75",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "font-weight",
+        "900",
+        "important"
+      );
+      pageFilter.style.setProperty(
+        "box-shadow",
+        "0 4px 10px rgba(7,95,140,.20)",
+        "important"
+      );
+    }
+
+    forceDropdownText(
+      language
+    );
+
+    forceDropdownText(
+      pageFilter
+    );
+
+    if(search){
+      search.style.setProperty(
+        "border",
+        "2px solid #d5b24b",
+        "important"
+      );
+      search.style.setProperty(
+        "background",
+        "#ffffff",
+        "important"
+      );
+    }
+
+    if(resultsCard){
+      resultsCard.style.setProperty(
+        "background",
+        "linear-gradient(180deg,#fffdf8 0%,#fff7dc 100%)",
+        "important"
+      );
+      resultsCard.style.setProperty(
+        "border",
+        "1px solid #e2bf55",
+        "important"
+      );
+      resultsCard.style.setProperty(
+        "box-shadow",
+        "0 6px 18px rgba(151,102,0,.10)",
+        "important"
+      );
+    }
+
+    if(selectedPage){
+      selectedPage.style.setProperty(
+        "background",
+        "linear-gradient(135deg,#eaf7ff 0%,#f8fcff 100%)",
+        "important"
+      );
+      selectedPage.style.setProperty(
+        "border",
+        "1px solid #86c7e7",
+        "important"
+      );
+      selectedPage.style.setProperty(
+        "border-left",
+        "6px solid #1679aa",
+        "important"
+      );
+    }
+
+    document
+      .querySelectorAll(
+        ".help-result"
+      )
+      .forEach(
+        (row,index)=>{
+
+          const head =
+            row.querySelector(
+              ".help-result-head"
+            );
+
+          row.style.setProperty(
+            "border",
+            "1px solid #d7bb61",
+            "important"
+          );
+
+          row.style.setProperty(
+            "box-shadow",
+            "0 4px 12px rgba(15,23,42,.05)",
+            "important"
+          );
+
+          if(!head){
+            return;
+          }
+
+          const themes = [
+            [
+              "linear-gradient(90deg,#fff0b8 0%,#fffaf0 100%)",
+              "#d79a00"
+            ],
+            [
+              "linear-gradient(90deg,#e2f4ff 0%,#f8fcff 100%)",
+              "#1685b5"
+            ],
+            [
+              "linear-gradient(90deg,#e6f8ec 0%,#f8fff9 100%)",
+              "#2f9e5b"
+            ],
+            [
+              "linear-gradient(90deg,#eee6ff 0%,#fbf9ff 100%)",
+              "#7b52b9"
+            ]
+          ];
+
+          const theme =
+            themes[
+              index %
+              themes.length
+            ];
+
+          head.style.setProperty(
+            "background",
+            theme[0],
+            "important"
+          );
+
+          head.style.setProperty(
+            "border-left",
+            `5px solid ${theme[1]}`,
+            "important"
+          );
+        }
+      );
+  }
+
+  async function init(){
+    try{
+      state.role = currentRole();
+      await Promise.all([loadCapabilities(),loadKnowledge()]);
+      bind();
+      if($("helpLanguage")) $("helpLanguage").value = state.lang;
+      setLanguage(state.lang);
+      applyVisualTheme();
+
+      initSupport();
+      startSupportPolling();
+      initCompanySupportWorkspace();
+
+      const observer =
+        new MutationObserver(
+          ()=>applyVisualTheme()
+        );
+
+      if($("helpResults")){
+        observer.observe(
+          $("helpResults"),
+          {
+            childList:true,
+            subtree:true
+          }
+        );
+      }
+
+    }catch(err){
+      console.log("HELP CENTER ERROR:",err);
+      if($("helpResultCount")) $("helpResultCount").textContent = "Help Center failed to load.";
+      if($("helpResults")) $("helpResults").innerHTML = `<div class="help-empty">${escapeHtml(err.message || "Unable to load Help Center.")}</div>`;
+    }
+  }
+
+  return {init};
+
+})();
+
+HelpCenter.init();

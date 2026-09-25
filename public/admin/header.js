@@ -793,118 +793,135 @@ document.addEventListener("DOMContentLoaded",async()=>{
    ).trim();
  }
 
- const SUPPORT_SEEN_KEY="ghHeaderSupportSeenCount";
+ let latestPlatformSupportUnread=0;
+ let latestFacilitiesSupportUnread=0;
 
- function getSeenCount(key){
-   return Math.max(
-     0,
-     Number(sessionStorage.getItem(key)||0)||0
-   );
- }
-
- function setSeenCount(key,value){
-   sessionStorage.setItem(
-     key,
-     String(Math.max(0,Number(value||0)))
-   );
- }
-
- function effectiveUnread(raw,key){
-   const count=Math.max(0,Number(raw||0));
-   let seen=getSeenCount(key);
-
-   if(count<seen){
-     seen=count;
-     setSeenCount(key,seen);
-   }
-
-   return Math.max(0,count-seen);
- }
-
- let latestSupportRawCount=0;
-
- function applySupportUnreadToHelpButton(count){
-   latestSupportRawCount=Math.max(0,Number(count||0));
-
+ function applySupportUnreadToHelpButton(){
    const unread=
-     effectiveUnread(
-       latestSupportRawCount,
-       SUPPORT_SEEN_KEY
+     Math.max(
+       0,
+       Number(latestPlatformSupportUnread||0)
+     ) +
+     Math.max(
+       0,
+       Number(latestFacilitiesSupportUnread||0)
      );
 
    document
      .querySelectorAll('[data-href="help-center.html"]')
      .forEach(link=>{
-       link.classList.toggle("gh-support-unread",unread>0);
+       link.classList.toggle(
+         "gh-support-unread",
+         unread>0
+       );
 
        link
-         .querySelectorAll(".gh-support-unread-badge")
-         .forEach(badge=>badge.remove());
+         .querySelectorAll(
+           ".gh-support-unread-badge"
+         )
+         .forEach(
+           badge=>badge.remove()
+         );
 
        if(unread>0){
-         const badge=document.createElement("b");
-         badge.className="gh-support-unread-badge";
-         badge.textContent=unread>99?"99+":String(unread);
-         link.appendChild(badge);
+         const badge=
+           document.createElement("b");
+
+         badge.className=
+           "gh-support-unread-badge";
+
+         badge.textContent=
+           unread>99
+             ? "99+"
+             : String(unread);
+
+         link.appendChild(
+           badge
+         );
        }
      });
  }
 
- async function refreshPlatformSupportUnread(){
-   const token=supportUnreadToken();
+ async function fetchSupportUnreadCount(
+   url,
+   token
+ ){
+   try{
+     const response=
+       await fetch(
+         url,
+         {
+           cache:"no-store",
+           headers:{
+             Authorization:
+               "Bearer "+token
+           }
+         }
+       );
+
+     if(!response.ok){
+       return 0;
+     }
+
+     const data=
+       await response
+         .json()
+         .catch(()=>({}));
+
+     return Math.max(
+       0,
+       Number(data?.count||0)
+     );
+
+   }catch(err){
+     return 0;
+   }
+ }
+
+ async function refreshSupportUnread(){
+   const token=
+     supportUnreadToken();
 
    if(!token){
-     applySupportUnreadToHelpButton(0);
+     latestPlatformSupportUnread=0;
+     latestFacilitiesSupportUnread=0;
+     applySupportUnreadToHelpButton();
      return;
    }
 
-   try{
-     const response=await fetch(
-       "/api/platform-support/unread-count",
-       {
-         cache:"no-store",
-         headers:{
-           Authorization:"Bearer "+token
-         }
-       }
-     );
+   const [
+     platformUnread,
+     facilitiesUnread
+   ] =
+     await Promise.all([
+       fetchSupportUnreadCount(
+         "/api/platform-support/unread-count",
+         token
+       ),
+       fetchSupportUnreadCount(
+         "/api/company-support/unread-count",
+         token
+       )
+     ]);
 
-     if(!response.ok){
-       return;
-     }
+   latestPlatformSupportUnread=
+     platformUnread;
 
-     const data=await response.json();
+   latestFacilitiesSupportUnread=
+     facilitiesUnread;
 
-     applySupportUnreadToHelpButton(
-       data?.count||0
-     );
-   }catch(err){
-     /* Keep the header working if Support is temporarily unavailable. */
-   }
+   applySupportUnreadToHelpButton();
  }
 
- refreshPlatformSupportUnread();
+ refreshSupportUnread();
 
  if(!window.__GH_SUPPORT_UNREAD_INTERVAL__){
-   window.__GH_SUPPORT_UNREAD_INTERVAL__=setInterval(
-     refreshPlatformSupportUnread,
-     12000
-   );
+   window.__GH_SUPPORT_UNREAD_INTERVAL__=
+     setInterval(
+       refreshSupportUnread,
+       12000
+     );
  }
-
- document
-   .querySelectorAll('[data-href="help-center.html"]')
-   .forEach(link=>{
-     link.addEventListener("click",()=>{
-       setSeenCount(
-         SUPPORT_SEEN_KEY,
-         latestSupportRawCount
-       );
-       applySupportUnreadToHelpButton(
-         latestSupportRawCount
-       );
-     });
-   });
 
  /* =========================================================
     TRIPS HUB + FINAL CONFIRMATION ALERTS
