@@ -279,6 +279,13 @@ let sharedEntryMode = "AUTOMATIC";
 let automaticSharedCandidates = [];
 let automaticSharedPlan = null;
 
+/*
+  Automatic Shared row selection.
+  If one or more rows are selected, Build Shared Groups uses ONLY them.
+  Unselected rows stay untouched in the original list.
+*/
+const automaticSharedSelectedIds = new Set();
+
 /* ================= HELPERS ================= */
 
 
@@ -3778,7 +3785,35 @@ function renderAutomaticSharedList(){
 
   const visibleCandidates = visibleAutomaticCandidates();
 
+  const visibleIds =
+    new Set(
+      visibleCandidates
+        .map(item=>
+          String(
+            item?.id ||
+            item?.tripId ||
+            ""
+          ).trim()
+        )
+        .filter(Boolean)
+    );
+
+  /*
+    Remove selection IDs that no longer exist in the original list.
+  */
+  [...automaticSharedSelectedIds]
+    .forEach(id=>{
+      if(!visibleIds.has(String(id))){
+        automaticSharedSelectedIds.delete(String(id));
+      }
+    });
+
   if(!visibleCandidates.length){
+    if(runAutomaticSharedEngineBtn){
+      runAutomaticSharedEngineBtn.disabled = true;
+      runAutomaticSharedEngineBtn.title = "Select at least 2 trips first";
+    }
+
     automaticSharedList.innerHTML = `
       <div class="auto-share-unmatched">
         ${automaticSharedPlan ? "All current candidates are inside matched groups." : "No Automatic Shared candidates yet."}
@@ -3788,12 +3823,82 @@ function renderAutomaticSharedList(){
     return;
   }
 
+  const selectedCount =
+    visibleCandidates.filter(item=>{
+      const id =
+        String(
+          item?.id ||
+          item?.tripId ||
+          ""
+        ).trim();
+
+      return (
+        id &&
+        automaticSharedSelectedIds.has(id)
+      );
+    }).length;
+
+  const allSelected =
+    visibleCandidates.length > 0 &&
+    selectedCount === visibleCandidates.length;
+
+  if(runAutomaticSharedEngineBtn){
+    runAutomaticSharedEngineBtn.disabled =
+      selectedCount < 2;
+
+    runAutomaticSharedEngineBtn.title =
+      selectedCount < 2
+        ? "Select at least 2 trips first"
+        : "";
+  }
+
   const rows = visibleCandidates.map((item,index)=>{
     const status = automaticCandidateStatus(item);
     const isUnmatched = status.badgeClass === "unmatched";
     const serviceOptions = automaticServiceOptionHtml();
+
+    const id =
+      String(
+        item?.id ||
+        item?.tripId ||
+        ""
+      ).trim();
+
+    const selected =
+      id &&
+      automaticSharedSelectedIds.has(id);
+
     return `
-      <div class="auto-share-row ${status.rowClass}">
+      <div
+        class="auto-share-row ${status.rowClass}"
+        style="
+          min-width:1900px;
+          grid-template-columns:
+            42px
+            44px
+            minmax(110px,1fr)
+            minmax(120px,1.1fr)
+            minmax(180px,1.6fr)
+            minmax(180px,1.6fr)
+            100px
+            100px
+            115px
+            105px
+            85px
+            120px
+            minmax(350px,2.2fr);
+        "
+      >
+        <div class="auto-share-cell" style="display:flex;align-items:center;justify-content:center;">
+          <input
+            type="checkbox"
+            data-auto-select="${safeHtml(id)}"
+            ${selected ? "checked" : ""}
+            aria-label="Select trip"
+            style="width:18px;height:18px;cursor:pointer;"
+          >
+        </div>
+
         <div class="auto-share-cell"><div class="auto-share-data-box">${index + 1}</div></div>
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientName)}</div></div>
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.clientPhone)}</div></div>
@@ -3804,21 +3909,50 @@ function renderAutomaticSharedList(){
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.appointmentTime))}</div></div>
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(formatDisplayTime(item.returnTime))}</div></div>
         <div class="auto-share-cell"><div class="auto-share-data-box">${safeHtml(item.tripLeg || "OUTBOUND")}</div></div>
+
         <div class="auto-share-cell">
           <span class="auto-share-status-badge ${status.badgeClass}">${safeHtml(status.badgeText)}</span>
         </div>
+
         <div class="auto-share-cell">
           ${isUnmatched ? `
-            <div class="auto-share-unmatched-actions">
+            <div
+              class="auto-share-unmatched-actions"
+              style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                flex-wrap:nowrap;
+                white-space:nowrap;
+                min-width:340px;
+              "
+            >
               <button class="btn-orange auto-share-action-btn" type="button" data-edit-time="${safeHtml(item.id)}">Edit Time</button>
-              <input class="auto-share-inline-time" data-time-input="${safeHtml(item.id)}" type="time" value="${safeHtml(item.tripTime || item.pickupTime || "")}" style="display:none;">
+
+              <input
+                class="auto-share-inline-time"
+                data-time-input="${safeHtml(item.id)}"
+                type="time"
+                value="${safeHtml(item.tripTime || item.pickupTime || "")}"
+                style="display:none;min-width:105px;"
+              >
+
               <button class="btn-blue auto-share-action-btn" type="button" data-save-time="${safeHtml(item.id)}" style="display:none;">Retry Match</button>
-              <select class="auto-share-inline-service" data-service-select="${safeHtml(item.id)}">${serviceOptions}</select>
+
+              <select
+                class="auto-share-inline-service"
+                data-service-select="${safeHtml(item.id)}"
+                style="min-width:135px;"
+              >${serviceOptions}</select>
+
               <button class="btn-green auto-share-action-btn" type="button" data-submit-unmatched="${safeHtml(item.id)}" disabled>Submit Trip</button>
+
               <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
             </div>
           ` : `
-            <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+            <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+              <button class="auto-share-remove" type="button" data-auto-remove="${safeHtml(item.id)}">×</button>
+            </div>
           `}
         </div>
       </div>
@@ -3826,7 +3960,65 @@ function renderAutomaticSharedList(){
   }).join("");
 
   automaticSharedList.innerHTML = `
-    <div class="auto-share-row header">
+    <div
+      class="auto-share-select-toolbar"
+      style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+        margin:0 0 10px 0;
+        flex-wrap:wrap;
+      "
+    >
+      <button
+        id="automaticSharedSelectAll"
+        type="button"
+        style="
+          width:auto;
+          min-width:110px;
+          padding:9px 16px;
+          border:0;
+          border-radius:9px;
+          background:#111827;
+          color:#ffffff;
+          font-size:11px;
+          font-weight:900;
+          cursor:pointer;
+        "
+      >
+        ${allSelected ? "Clear Selection" : "Select All"}
+      </button>
+
+      <span style="font-size:11px;font-weight:800;color:#475569;">
+        Selected: ${selectedCount}
+      </span>
+
+      <span style="font-size:10px;font-weight:700;color:#64748b;">
+        Build Shared Groups works ONLY with selected trips. Select at least 2 trips.
+      </span>
+    </div>
+
+    <div
+      class="auto-share-row header"
+      style="
+        min-width:1900px;
+        grid-template-columns:
+          42px
+          44px
+          minmax(110px,1fr)
+          minmax(120px,1.1fr)
+          minmax(180px,1.6fr)
+          minmax(180px,1.6fr)
+          100px
+          100px
+          115px
+          105px
+          85px
+          120px
+          minmax(350px,2.2fr);
+      "
+    >
+      <div>Select</div>
       <div>#</div>
       <div>Passenger</div>
       <div>Phone</div>
@@ -3840,8 +4032,74 @@ function renderAutomaticSharedList(){
       <div>Match Status</div>
       <div>Actions</div>
     </div>
+
     ${rows}
   `;
+
+  const selectAllButton =
+    automaticSharedList.querySelector(
+      "#automaticSharedSelectAll"
+    );
+
+  if(selectAllButton){
+    selectAllButton.onclick = ()=>{
+      if(allSelected){
+        visibleCandidates.forEach(item=>{
+          const id =
+            String(
+              item?.id ||
+              item?.tripId ||
+              ""
+            ).trim();
+
+          if(id){
+            automaticSharedSelectedIds.delete(id);
+          }
+        });
+      }else{
+        visibleCandidates.forEach(item=>{
+          const id =
+            String(
+              item?.id ||
+              item?.tripId ||
+              ""
+            ).trim();
+
+          if(id){
+            automaticSharedSelectedIds.add(id);
+          }
+        });
+      }
+
+      renderAutomaticSharedList();
+    };
+  }
+
+  automaticSharedList
+    .querySelectorAll("[data-auto-select]")
+    .forEach(input=>{
+      input.onchange = ()=>{
+        const id =
+          String(
+            input.getAttribute(
+              "data-auto-select"
+            ) ||
+            ""
+          ).trim();
+
+        if(!id){
+          return;
+        }
+
+        if(input.checked){
+          automaticSharedSelectedIds.add(id);
+        }else{
+          automaticSharedSelectedIds.delete(id);
+        }
+
+        renderAutomaticSharedList();
+      };
+    });
 
   automaticSharedList
     .querySelectorAll("[data-auto-remove]")
@@ -3860,6 +4118,13 @@ function renderAutomaticSharedList(){
               return String(item.id) === String(id);
             })
             .map(item=>String(item.id))
+        );
+
+        removedIds.forEach(
+          removedId=>
+            automaticSharedSelectedIds.delete(
+              String(removedId)
+            )
         );
 
         automaticSharedCandidates = automaticSharedCandidates.filter(item=>{
@@ -4087,6 +4352,32 @@ function bindAutomaticGroupActions(){
         returnAutomaticSharedGroupToOriginal(index);
       };
     });
+
+  automaticSharedResult
+    .querySelectorAll("[data-return-trip-id]")
+    .forEach(button=>{
+      button.onclick = ()=>{
+        const groupIndex =
+          Number(
+            button.getAttribute(
+              "data-return-trip-group-index"
+            )
+          );
+
+        const tripId =
+          String(
+            button.getAttribute(
+              "data-return-trip-id"
+            ) ||
+            ""
+          ).trim();
+
+        returnAutomaticSharedTripToOriginal(
+          groupIndex,
+          tripId
+        );
+      };
+    });
 }
 
 function renderAutomaticSharedResult(plan){
@@ -4107,8 +4398,33 @@ function renderAutomaticSharedResult(plan){
 
     const memberRows = members.map((trip,memberIndex)=>{
       const status = appointmentStatusText(trip);
+
+      const tripId =
+        String(
+          trip?.id ||
+          trip?.tripId ||
+          ""
+        ).trim();
+
       return `
-        <div class="auto-share-group-grid body">
+        <div
+          class="auto-share-group-grid body"
+          style="
+            min-width:1180px;
+            grid-template-columns:
+              44px
+              minmax(130px,1fr)
+              minmax(180px,1.3fr)
+              minmax(180px,1.3fr)
+              100px
+              100px
+              110px
+              100px
+              110px
+              150px;
+            align-items:center;
+          "
+        >
           <div><div class="auto-share-data-box">${memberIndex + 1}</div></div>
           <div><div class="auto-share-data-box">${safeHtml(trip.clientName || trip.passengerName || trip.name || "Passenger")}</div></div>
           <div><div class="auto-share-data-box">${safeHtml(trip.pickup || "--")}</div></div>
@@ -4118,6 +4434,27 @@ function renderAutomaticSharedResult(plan){
           <div><div class="auto-share-data-box">${safeHtml(formatDisplayTime(trip.appointmentTime))}</div></div>
           <div><div class="auto-share-data-box">${safeHtml(trip.tripLeg || group.tripLeg || "OUTBOUND")}</div></div>
           <div class="${safeHtml(status.className)}"><div class="auto-share-data-box">${safeHtml(status.text)}</div></div>
+
+          <div style="display:flex;align-items:center;white-space:nowrap;">
+            <button
+              type="button"
+              data-return-trip-group-index="${index}"
+              data-return-trip-id="${safeHtml(tripId)}"
+              style="
+                width:auto;
+                padding:9px 12px;
+                border:0;
+                border-radius:9px;
+                background:#111827;
+                color:#ffffff;
+                font-size:10px;
+                font-weight:900;
+                cursor:pointer;
+              "
+            >
+              Return Original
+            </button>
+          </div>
         </div>
       `;
     }).join("");
@@ -4130,13 +4467,34 @@ function renderAutomaticSharedResult(plan){
           </div>
           <div class="auto-share-group-actions">
             <button class="btn-green auto-share-group-btn" type="button" data-submit-group-index="${index}">Submit Group</button>
-            <button class="btn-gray auto-share-group-btn" type="button" data-return-group-index="${index}">Return To Original</button>
+            <button
+              class="auto-share-group-btn"
+              type="button"
+              data-return-group-index="${index}"
+              style="background:#111827;color:#fff;border:0;"
+            >Return To Original</button>
           </div>
         </div>
 
         <div class="auto-share-group-table">
           <div class="auto-share-group-table-title">Matched Group Trips</div>
-          <div class="auto-share-group-grid header">
+          <div
+            class="auto-share-group-grid header"
+            style="
+              min-width:1180px;
+              grid-template-columns:
+                44px
+                minmax(130px,1fr)
+                minmax(180px,1.3fr)
+                minmax(180px,1.3fr)
+                100px
+                100px
+                110px
+                100px
+                110px
+                150px;
+            "
+          >
             <div>#</div>
             <div>Passenger</div>
             <div>Pickup</div>
@@ -4146,6 +4504,7 @@ function renderAutomaticSharedResult(plan){
             <div>Appointment</div>
             <div>Leg</div>
             <div>Check</div>
+            <div>Actions</div>
           </div>
           ${memberRows}
         </div>
@@ -4196,7 +4555,7 @@ async function runAutomaticSharedEngine(){
     2) Build NEW groups from currently unmatched trips first.
     3) Only trips still unmatched after step 2 may try to join an existing group.
   */
-  const currentlyUnmatched =
+  let currentlyUnmatched =
     automaticSharedCandidates
       .filter(item=>{
         const id =
@@ -4211,6 +4570,39 @@ async function runAutomaticSharedEngine(){
           !existingMatchedIds.has(id)
         );
       });
+
+  /*
+    Selection is REQUIRED.
+    Build Shared Groups must NEVER process unselected trips.
+  */
+  if(automaticSharedSelectedIds.size < 1){
+    showAlert(
+      "Select at least 2 trips first."
+    );
+    return;
+  }
+
+  currentlyUnmatched =
+    currentlyUnmatched.filter(item=>{
+      const id =
+        String(
+          item?.id ||
+          item?.tripId ||
+          ""
+        ).trim();
+
+      return (
+        id &&
+        automaticSharedSelectedIds.has(id)
+      );
+    });
+
+  if(currentlyUnmatched.length < 2){
+    showAlert(
+      "Select at least 2 unmatched trips to build a Shared Group."
+    );
+    return;
+  }
 
   if(currentlyUnmatched.length < 1){
     renderAutomaticSharedList();
@@ -4604,6 +4996,19 @@ async function runAutomaticSharedEngine(){
         "UNMATCHED_FIRST_THEN_EXISTING_GROUPS"
     };
 
+    currentlyUnmatched.forEach(item=>{
+      const id =
+        String(
+          item?.id ||
+          item?.tripId ||
+          ""
+        ).trim();
+
+      if(id){
+        automaticSharedSelectedIds.delete(id);
+      }
+    });
+
     saveAutomaticSharedDraft();
     renderAutomaticSharedList();
     renderAutomaticSharedResult(
@@ -4820,6 +5225,143 @@ async function submitAutomaticSharedGroup(groupIndex){
     console.log("AUTO SHARED GROUP SUBMIT ERROR:",err);
     showAlert(err.message || "Automatic Shared group submit failed");
   }
+}
+
+function returnAutomaticSharedTripToOriginal(
+  groupIndex,
+  tripId
+){
+  const groups =
+    Array.isArray(
+      automaticSharedPlan?.groups
+    )
+      ? automaticSharedPlan.groups
+      : [];
+
+  const group = groups[groupIndex];
+
+  if(!group){
+    showAlert("Group not found");
+    return;
+  }
+
+  const cleanTripId =
+    String(tripId || "").trim();
+
+  if(!cleanTripId){
+    showAlert("Trip not found");
+    return;
+  }
+
+  if(
+    !confirm(
+      "Return this trip to the original list for editing?"
+    )
+  ){
+    return;
+  }
+
+  const members =
+    Array.isArray(group?.trips)
+      ? group.trips
+      : [];
+
+  const exists =
+    members.some(item=>
+      String(
+        item?.id ||
+        item?.tripId ||
+        ""
+      ).trim() === cleanTripId
+    );
+
+  if(!exists){
+    showAlert("Trip not found in this group");
+    return;
+  }
+
+  /*
+    A Shared group must keep at least 2 riders.
+    If this is only a 2-rider group, returning one trip breaks the group,
+    so both trips return to the original list.
+  */
+  if(members.length <= 2){
+    const allIds =
+      new Set(
+        members
+          .map(item=>
+            String(
+              item?.id ||
+              item?.tripId ||
+              ""
+            ).trim()
+          )
+          .filter(Boolean)
+      );
+
+    pruneAutomaticPlanIds(
+      allIds,
+      true
+    );
+
+    allIds.forEach(id=>
+      automaticSharedSelectedIds.delete(id)
+    );
+  }else{
+    const nextGroups =
+      groups.map((row,index)=>{
+        if(index !== groupIndex){
+          return row;
+        }
+
+        return {
+          ...row,
+          trips:
+            members.filter(item=>
+              String(
+                item?.id ||
+                item?.tripId ||
+                ""
+              ).trim() !== cleanTripId
+            )
+        };
+      });
+
+    const existingExcluded =
+      Array.isArray(
+        automaticSharedPlan?.excluded
+      )
+        ? automaticSharedPlan.excluded
+        : [];
+
+    automaticSharedPlan = {
+      ...automaticSharedPlan,
+      groups:nextGroups,
+      excluded:[
+        ...existingExcluded.filter(row=>
+          String(
+            row?.tripId ||
+            row?.id ||
+            ""
+          ).trim() !== cleanTripId
+        ),
+        {
+          tripId:cleanTripId,
+          reason:"RETURNED_TO_ORIGINAL"
+        }
+      ]
+    };
+
+    automaticSharedSelectedIds.delete(
+      cleanTripId
+    );
+  }
+
+  saveAutomaticSharedDraft();
+  renderAutomaticSharedList();
+  renderAutomaticSharedResult(
+    automaticSharedPlan
+  );
 }
 
 function returnAutomaticSharedGroupToOriginal(groupIndex){
