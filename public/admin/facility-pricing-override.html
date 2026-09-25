@@ -687,6 +687,223 @@ body{
     text-align:left;
   }
 }
+
+
+/* ===============================
+   PROFESSIONAL CARD ALIGNMENT / COLOR
+   Visual-only update — no logic changes
+================================ */
+
+.layout{
+  align-items:stretch;
+}
+
+.side-panel,
+.main-panel{
+  border:1px solid #cbd8e8;
+  box-shadow:0 10px 28px rgba(15,23,42,.09);
+}
+
+.side-head,
+.main-head{
+  background:linear-gradient(135deg,#123b69 0%,#1d4f86 55%,#2563a9 100%);
+  border-bottom:1px solid rgba(255,255,255,.12);
+  letter-spacing:.2px;
+}
+
+.company-search{
+  background:#f8fbff;
+}
+
+.facility-item{
+  border-left:4px solid transparent;
+}
+
+.facility-item:hover{
+  background:#eef6ff;
+  border-left-color:#93c5fd;
+}
+
+.facility-item.active{
+  background:linear-gradient(90deg,#dbeafe 0%,#eff6ff 100%);
+  color:#174ea6;
+  border-left-color:#2563eb;
+}
+
+.selected-box{
+  background:linear-gradient(90deg,#f8fbff 0%,#ffffff 65%,#f7fbff 100%);
+}
+
+.toggle-row{
+  background:#fbfdff;
+}
+
+.notice{
+  background:linear-gradient(90deg,#eef6ff 0%,#f8fbff 100%);
+  border-color:#b8d5f8;
+  color:#173b67;
+  box-shadow:inset 4px 0 0 #3b82f6;
+}
+
+/* Equal card sizing */
+.services-grid{
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  grid-auto-rows:1fr;
+  align-items:stretch;
+  gap:16px;
+}
+
+.service-card{
+  min-width:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  border:1px solid #c7d5e5;
+  border-top:4px solid #2f6fba;
+  border-radius:16px;
+  background:#ffffff;
+  box-shadow:0 9px 24px rgba(25,55,95,.09);
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+
+.service-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 12px 30px rgba(25,55,95,.13);
+}
+
+.service-card.disabled{
+  opacity:.76;
+  border-top-color:#94a3b8;
+}
+
+.service-card.editing{
+  border-color:#2563eb;
+  border-top-color:#f0b429;
+  box-shadow:0 0 0 3px rgba(37,99,235,.10),0 12px 28px rgba(37,99,235,.12);
+}
+
+.service-head{
+  min-height:72px;
+  padding:13px 14px;
+  background:linear-gradient(135deg,#eef5ff 0%,#f8fbff 62%,#fff8df 100%);
+  border-bottom:1px solid #d9e4f0;
+  align-items:center;
+}
+
+.service-card.editing .service-head{
+  background:linear-gradient(135deg,#e8f2ff 0%,#f4f8ff 55%,#fff4c9 100%);
+}
+
+.service-title{
+  color:#173b67;
+  font-size:16px;
+}
+
+.service-sub{
+  color:#66778d;
+}
+
+.service-code{
+  min-width:42px;
+  text-align:center;
+  background:#173b67;
+  color:#fff;
+  border:1px solid #173b67;
+  box-shadow:0 2px 7px rgba(23,59,103,.18);
+}
+
+.form-grid{
+  flex:1 1 auto;
+  align-content:start;
+  background:#fff;
+  padding:14px;
+  gap:11px 12px;
+}
+
+.field{
+  min-width:0;
+}
+
+.field label{
+  min-height:28px;
+  display:flex;
+  align-items:flex-end;
+  color:#44566c;
+}
+
+.field input,
+.field select{
+  min-height:42px;
+  border-color:#c9d5e3;
+  background:#ffffff;
+}
+
+.field input:disabled,
+.field select:disabled{
+  background:#f3f6fa;
+  color:#66778d;
+}
+
+.policy-title,
+.add-stop-title{
+  min-height:44px;
+  background:linear-gradient(90deg,#edf5ff 0%,#f8fbff 100%);
+  color:#173b67;
+  border-color:#bfd8f5;
+}
+
+.shared-lock{
+  background:#fff3f3;
+  border-color:#fecaca;
+}
+
+.card-actions{
+  margin-top:auto;
+  min-height:64px;
+  padding:12px 14px;
+  background:linear-gradient(180deg,#fbfdff 0%,#f3f7fb 100%);
+  border-top:1px solid #dbe5ef;
+}
+
+.card-btn{
+  min-width:96px;
+  min-height:40px;
+  box-shadow:0 3px 9px rgba(15,23,42,.10);
+}
+
+.card-edit{
+  background:linear-gradient(180deg,#3276c7 0%,#1f5da8 100%);
+}
+
+.card-save{
+  background:linear-gradient(180deg,#28b463 0%,#15803d 100%);
+}
+
+.actions{
+  background:#fbfdff;
+}
+
+.btn-refresh{
+  background:linear-gradient(180deg,#244d78 0%,#173b67 100%);
+}
+
+@media(min-width:1180px){
+  .services-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:900px){
+  .services-grid{
+    grid-template-columns:1fr;
+    grid-auto-rows:auto;
+  }
+
+  .service-card{
+    height:auto;
+  }
+}
+
 </style>
 </head>
 
