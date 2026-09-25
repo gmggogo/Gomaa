@@ -856,9 +856,22 @@ function serviceVisibleForTenant(
   tenantAllowed
 ){
 
+  /*
+    FACILITY OVERRIDE VISIBILITY RULE:
+
+    Platform Admin is the ONLY master gate for which services are available
+    inside Facility Pricing Override.
+
+    IMPORTANT:
+    Do NOT use service.companyEnabled or service.enabled here.
+    Those switches belong to Service Management and must not decide whether
+    a service appears in Facility Override.
+
+    Custom services still must be fully configured because an unconfigured
+    CUSTOM_n slot has no valid operational service code/name to price.
+  */
   if(
     !service ||
-    !serviceEnabled(service) ||
     !isConfiguredCustomService(service)
   ){
     return false;
@@ -869,62 +882,37 @@ function serviceVisibleForTenant(
       service
     );
 
+  const operational =
+    getServiceCode(
+      service
+    );
+
   return (
     Boolean(gate) &&
+    Boolean(operational) &&
     tenantAllowed.has(gate)
   );
 }
 
-function resolveFacilityAllowedOperationalCodes({
-  facilityAllowedServices,
+function platformAllowedTenantServiceDefinitions(
   tenantServices,
   tenantAllowed
-}){
+){
 
-  const raw =
-    Array.isArray(
-      facilityAllowedServices
-    )
-      ? facilityAllowedServices
-      : [];
+  /*
+    Return exactly ONE service definition for every Platform Admin allowed
+    service gate. This prevents duplicate tenant Service documents from
+    creating an extra Facility Override card.
+  */
+  const byGate =
+    new Map();
 
-  if(!raw.length){
-
-    return new Set(
-      tenantServices
-        .filter(
-          service =>
-            serviceVisibleForTenant(
-              service,
-              tenantAllowed
-            )
-        )
-        .map(
-          service =>
-            getServiceCode(
-              service
-            )
-        )
-        .filter(Boolean)
-    );
-  }
-
-  const requested =
-    new Set(
-      raw
-        .map(
-          value =>
-            String(value || "")
-              .trim()
-              .toUpperCase()
-        )
-        .filter(Boolean)
-    );
-
-  const result =
-    new Set();
-
-  for(const service of tenantServices){
+  for(
+    const service of
+      Array.isArray(tenantServices)
+        ? tenantServices
+        : []
+  ){
 
     if(
       !serviceVisibleForTenant(
@@ -940,36 +928,56 @@ function resolveFacilityAllowedOperationalCodes({
         service
       );
 
-    const operational =
-      getServiceCode(
-        service
-      );
-
-    const aliases =
-      serviceIdentity
-        .getServiceMatchKeys(
-          service
-        );
-
-    const matched =
-      requested.has(gate) ||
-      requested.has(operational) ||
-      aliases.some(
-        alias =>
-          requested.has(alias)
-      );
-
     if(
-      matched &&
-      operational
+      !gate ||
+      byGate.has(gate)
     ){
-      result.add(
-        operational
-      );
+      continue;
     }
+
+    byGate.set(
+      gate,
+      service
+    );
   }
 
-  return result;
+  return [
+    ...byGate.values()
+  ];
+}
+
+function resolveFacilityAllowedOperationalCodes({
+  facilityAllowedServices,
+  tenantServices,
+  tenantAllowed
+}){
+
+  /*
+    Facility Override is NOT restricted by User.allowedServices and is NOT
+    restricted by Service Management.
+
+    The only visibility gate is Tenant.allowedServices, controlled by
+    Platform Admin. The facility owner then independently enables/disables
+    each returned service with Facility Override's facilityEnabled switch.
+
+    facilityAllowedServices remains in the function signature only for
+    backward-compatible callers; it is intentionally not used as a gate.
+  */
+  void facilityAllowedServices;
+
+  return new Set(
+    platformAllowedTenantServiceDefinitions(
+      tenantServices,
+      tenantAllowed
+    )
+      .map(
+        service =>
+          getServiceCode(
+            service
+          )
+      )
+      .filter(Boolean)
+  );
 }
 
 function serviceByOperationalCode(
@@ -1136,15 +1144,16 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
             u.username || "",
 
           /*
-            Optional per-facility restriction.
-            If empty, the frontend falls back to the
-            tenant-level Platform Admin permissions.
+            Facility Override receives the Platform Admin allowed service set.
+            User.allowedServices / Service Management do not restrict this list.
+            The company owner controls the final per-facility choice with the
+            Facility Override service switch.
           */
           allowedServices:
             [
               ...resolveFacilityAllowedOperationalCodes({
                 facilityAllowedServices:
-                  u.allowedServices,
+                  null,
                 tenantServices:
                   services,
                 tenantAllowed:
@@ -1162,19 +1171,20 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
         );
 
     /*
-      Pricing defaults continue to come from
-      Service Management for this same tenant.
+      FACILITY OVERRIDE SERVICE CATALOG:
+
+      Visibility comes ONLY from Platform Admin -> Tenant.allowedServices.
+      Service Management enable/disable switches do not participate here.
+
+      One Platform gate = one Facility Override card, even if old/duplicate
+      Service documents exist for the tenant.
     */
 
     const activeServices =
-      services
-        .filter(
-          service =>
-            serviceVisibleForTenant(
-              service,
-              tenantAllowedSet
-            )
-        )
+      platformAllowedTenantServiceDefinitions(
+        services,
+        tenantAllowedSet
+      )
         .map(
           serviceDefaultPricing
         )
@@ -1638,7 +1648,7 @@ router.patch("/:facilityId", requireTenantApi, async (req,res)=>{
         success:false,
 
         message:
-          "Service is not enabled for this facility"
+          "Service is not enabled by Platform Admin for this tenant"
 
       });
     }

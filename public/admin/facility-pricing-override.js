@@ -1,7 +1,7 @@
 /* ==========================================================================
    FACILITY PRICING OVERRIDE
-   Service Management Default / Facility Custom Override
-   Facility Section Same As Service Management
+   Platform Admin Services / Facility Custom Override
+   Facility Services Independent From Service Management
    Edit Per Service Card
    ========================================================================== */
 
@@ -524,33 +524,57 @@ function serviceDefaultCopy(s){
 
 function getVisibleServicesForFacility(facility){
 
-  const facilityAllowed =
-    Array.isArray(facility?.allowedServices)
-      ? facility.allowedServices
-          .map(normalizeCode)
-          .filter(Boolean)
-      : [];
-
   /*
-    /bootstrap now returns only tenant services that passed the
-    Platform Admin master gate and are configured/enabled.
-    An empty facility list means inherit all tenant-visible services.
+    FACILITY OVERRIDE SERVICE SOURCE:
+
+    Platform Admin -> Tenant.allowedServices is the ONLY master list.
+
+    Do NOT read facility.allowedServices as a second gate.
+    Do NOT use Service Management companyEnabled/enabled here.
+
+    The owner of the company chooses the final services for each facility
+    using Facility Override's own facilityEnabled switch.
   */
-  if(!facilityAllowed.length){
-    return services;
-  }
+  void facility;
 
   const allowed =
     new Set(
-      facilityAllowed
+      Array.isArray(tenantAllowedServices)
+        ? tenantAllowedServices
+            .map(upper)
+            .filter(Boolean)
+        : []
     );
 
-  return services.filter(
-    service =>
-      allowed.has(
-        getServiceCode(service)
-      )
-  );
+  const seenGates =
+    new Set();
+
+  return services.filter(service=>{
+
+    const gate =
+      upper(
+        getServiceIdentity(
+          service
+        )
+      );
+
+    const code =
+      getServiceCode(
+        service
+      );
+
+    if(
+      !gate ||
+      !code ||
+      !allowed.has(gate) ||
+      seenGates.has(gate)
+    ){
+      return false;
+    }
+
+    seenGates.add(gate);
+    return true;
+  });
 }
 
 function buildDraftForFacility(facility){
