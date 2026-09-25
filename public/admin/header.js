@@ -739,14 +739,6 @@ document.addEventListener("DOMContentLoaded",async()=>{
        font-weight:900!important;
      }
 
-     #adminDesktopNav [data-href="help-center.html"],
-     #mobileSideNav [data-href="help-center.html"]{
-       background:unset!important;
-       color:inherit!important;
-       border-color:inherit!important;
-       box-shadow:none!important;
-     }
-
      @keyframes ghHeaderAlertBlink{
        0%,100%{
          filter:brightness(1);
