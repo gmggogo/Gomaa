@@ -376,6 +376,9 @@ function serviceDefaultCopy(s){
     custom:
       isCustomService(s),
 
+    facilityEnabled:
+      s?.facilityEnabled !== false,
+
     serviceSuffix:
       normalizeSuffix(
         s.serviceSuffix ||
@@ -604,6 +607,9 @@ function buildDraftForFacility(facility){
 
           custom:
             base.custom,
+
+          facilityEnabled:
+            saved.facilityEnabled !== false,
 
           serviceSuffix:
             normalizeSuffix(
@@ -1131,12 +1137,17 @@ function serviceCardHTML(s,idx){
   const cardLocked =
     !activeEditing;
 
+  const facilityServiceEnabled =
+    s.facilityEnabled !== false;
+
   const cardClass =
     !draftActive
       ? "disabled"
-      : cardLocked
-        ? "locked"
-        : "editing";
+      : !facilityServiceEnabled
+        ? "disabled"
+        : cardLocked
+          ? "locked"
+          : "editing";
 
   const shared =
     isSharedService(s);
@@ -1149,20 +1160,17 @@ function serviceCardHTML(s,idx){
         <div>
           <div class="service-title">
             ${safe(s.serviceName || s.serviceKey)}
-            ${
-              s.custom === true
-                ? ` <span title="Platform custom service">(${safe(s.serviceIdentity || "Custom")})</span>`
-                : ""
-            }
           </div>
 
           <div class="service-sub">
             ${
               !draftActive
                 ? "Facility Pricing • Override Disabled"
-                : activeEditing
-                  ? "Facility Pricing • Editing"
-                  : "Facility Pricing • Locked"
+                : !facilityServiceEnabled
+                  ? "Facility Service • DISABLED"
+                  : activeEditing
+                    ? "Facility Pricing • Editing"
+                    : "Facility Service • ENABLED"
             }
           </div>
         </div>
@@ -1310,6 +1318,21 @@ function serviceCardHTML(s,idx){
       <div class="card-actions">
 
         ${
+          draftActive
+            ? `
+              <button
+                class="card-btn"
+                type="button"
+                onclick="toggleFacilityService(${idx})"
+                style="background:${facilityServiceEnabled ? "#dc2626" : "#16a34a"};color:#fff;margin-right:auto;"
+              >
+                ${facilityServiceEnabled ? "DISABLE SERVICE" : "ENABLE SERVICE"}
+              </button>
+            `
+            : ""
+        }
+
+        ${
           !draftActive
             ? `
               <button class="card-btn card-locked" type="button" disabled>
@@ -1428,6 +1451,65 @@ async function saveServiceCard(idx){
   render();
 
   alert("Service saved.");
+}
+
+async function toggleFacilityService(idx){
+
+  if(!draftActive){
+    alert("Turn Override Active first.");
+    return;
+  }
+
+  const service =
+    draftServices[idx];
+
+  if(!service){
+    return;
+  }
+
+  const oldValue =
+    service.facilityEnabled !== false;
+
+  service.facilityEnabled =
+    !oldValue;
+
+  /*
+    Explicit facility-level decision.
+    DISABLED here must stay disabled for this facility and must not mean
+    "fall back to Service Management".
+  */
+  const ok =
+    await saveOverride(true,false);
+
+  if(!ok){
+
+    service.facilityEnabled =
+      oldValue;
+
+    renderMain();
+
+    alert("Service status was not saved.");
+    return;
+  }
+
+  const facility =
+    getSelectedFacility();
+
+  if(facility){
+    buildDraftForFacility(facility);
+  }
+
+  render();
+
+  const savedService =
+    draftServices[idx];
+
+  alert(
+    savedService &&
+    savedService.facilityEnabled !== false
+      ? "Service enabled for this facility."
+      : "Service disabled for this facility."
+  );
 }
 
 /* ===============================
@@ -1579,6 +1661,9 @@ function prepareServicesForSave(){
 
       serviceName:
         clean(s.serviceName),
+
+      facilityEnabled:
+        s.facilityEnabled !== false,
 
       serviceIdentity:
         getServiceIdentity(s),
@@ -1764,7 +1849,8 @@ Object.assign(window,{
   saveOverride,
   reloadPage,
   editServiceCard,
-  saveServiceCard
+  saveServiceCard,
+  toggleFacilityService
 });
 
 /* ===============================
