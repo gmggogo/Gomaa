@@ -793,11 +793,39 @@ document.addEventListener("DOMContentLoaded",async()=>{
    ).trim();
  }
 
+ const SUPPORT_SEEN_KEY="ghHeaderSupportSeenCount";
+
+ function getSeenCount(key){
+   return Math.max(
+     0,
+     Number(sessionStorage.getItem(key)||0)||0
+   );
+ }
+
+ function setSeenCount(key,value){
+   sessionStorage.setItem(
+     key,
+     String(Math.max(0,Number(value||0)))
+   );
+ }
+
+ function effectiveUnread(raw,key){
+   const count=Math.max(0,Number(raw||0));
+   let seen=getSeenCount(key);
+
+   if(count<seen){
+     seen=count;
+     setSeenCount(key,seen);
+   }
+
+   return Math.max(0,count-seen);
+ }
+
  let latestPlatformSupportUnread=0;
  let latestFacilitiesSupportUnread=0;
 
- function applySupportUnreadToHelpButton(){
-   const unread=
+ function latestSupportRawCount(){
+   return (
      Math.max(
        0,
        Number(latestPlatformSupportUnread||0)
@@ -805,6 +833,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
      Math.max(
        0,
        Number(latestFacilitiesSupportUnread||0)
+     )
+   );
+ }
+
+ function applySupportUnreadToHelpButton(){
+   const unread=
+     effectiveUnread(
+       latestSupportRawCount(),
+       SUPPORT_SEEN_KEY
      );
 
    document
@@ -922,6 +959,22 @@ document.addEventListener("DOMContentLoaded",async()=>{
        12000
      );
  }
+
+ document
+   .querySelectorAll('[data-href="help-center.html"]')
+   .forEach(link=>{
+     link.addEventListener(
+       "click",
+       ()=>{
+         setSeenCount(
+           SUPPORT_SEEN_KEY,
+           latestSupportRawCount()
+         );
+
+         applySupportUnreadToHelpButton();
+       }
+     );
+   });
 
  /* =========================================================
     TRIPS HUB + FINAL CONFIRMATION ALERTS
