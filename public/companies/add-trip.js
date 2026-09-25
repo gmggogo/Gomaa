@@ -3601,32 +3601,72 @@ function bindUnmatchedAutomaticActions(){
   automaticSharedList.querySelectorAll("[data-edit-time]").forEach(button=>{
     button.onclick = ()=>{
       const id = button.getAttribute("data-edit-time");
-      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
-      const saveButton = automaticSharedList.querySelector(`[data-save-time="${CSS.escape(id)}"]`);
-      if(input) input.style.display = "inline-block";
+
+      const dateInput =
+        automaticSharedList.querySelector(
+          `[data-date-input="${CSS.escape(id)}"]`
+        );
+
+      const timeInput =
+        automaticSharedList.querySelector(
+          `[data-time-input="${CSS.escape(id)}"]`
+        );
+
+      const saveButton =
+        automaticSharedList.querySelector(
+          `[data-save-time="${CSS.escape(id)}"]`
+        );
+
+      if(dateInput) dateInput.style.display = "inline-block";
+      if(timeInput) timeInput.style.display = "inline-block";
       if(saveButton) saveButton.style.display = "inline-block";
+
       button.style.display = "none";
     };
   });
 
   automaticSharedList.querySelectorAll("[data-save-time]").forEach(button=>{
-    button.onclick = async ()=>{
+    button.onclick = ()=>{
       const id = button.getAttribute("data-save-time");
-      const input = automaticSharedList.querySelector(`[data-time-input="${CSS.escape(id)}"]`);
-      const candidate = automaticCandidateById(id);
-      const nextTime = normalizeText(input?.value);
 
-      if(!candidate || !nextTime){
+      const dateInput =
+        automaticSharedList.querySelector(
+          `[data-date-input="${CSS.escape(id)}"]`
+        );
+
+      const timeInput =
+        automaticSharedList.querySelector(
+          `[data-time-input="${CSS.escape(id)}"]`
+        );
+
+      const candidate = automaticCandidateById(id);
+      const nextDate = normalizeText(dateInput?.value);
+      const nextTime = normalizeText(timeInput?.value);
+
+      if(!candidate){
+        showAlert("Trip not found");
+        return;
+      }
+
+      if(!nextDate){
+        showAlert("Trip Date Required");
+        return;
+      }
+
+      if(!nextTime){
         showAlert("Pickup Time Required");
         return;
       }
 
+      candidate.tripDate = nextDate;
       candidate.tripTime = nextTime;
       candidate.pickupTime = nextTime;
+
       saveAutomaticSharedDraft();
       renderAutomaticSharedList();
       updateAutomaticSharedCounters();
-      await runAutomaticSharedEngine();
+
+      showAlert("Trip date and time updated ✔");
     };
   });
 
@@ -3872,21 +3912,21 @@ function renderAutomaticSharedList(){
       <div
         class="auto-share-row ${status.rowClass}"
         style="
-          min-width:1900px;
+          min-width:1820px;
           grid-template-columns:
             42px
             44px
-            minmax(110px,1fr)
-            minmax(120px,1.1fr)
+            minmax(88px,.72fr)
+            minmax(96px,.78fr)
             minmax(180px,1.6fr)
             minmax(180px,1.6fr)
-            100px
-            100px
-            115px
-            105px
+            88px
+            88px
+            108px
+            98px
             85px
             120px
-            minmax(350px,2.2fr);
+            minmax(390px,2.4fr);
         "
       >
         <div class="auto-share-cell" style="display:flex;align-items:center;justify-content:center;">
@@ -3924,20 +3964,36 @@ function renderAutomaticSharedList(){
                 gap:6px;
                 flex-wrap:nowrap;
                 white-space:nowrap;
-                min-width:340px;
+                min-width:390px;
               "
             >
-              <button class="btn-orange auto-share-action-btn" type="button" data-edit-time="${safeHtml(item.id)}">Edit Time</button>
+              <button
+                class="btn-orange auto-share-action-btn"
+                type="button"
+                data-edit-time="${safeHtml(item.id)}"
+              >Edit Trip</button>
+
+              <input
+                data-date-input="${safeHtml(item.id)}"
+                type="date"
+                value="${safeHtml(item.tripDate || "")}"
+                style="display:none;width:128px;min-width:128px;padding:6px 7px;font-size:10px;"
+              >
 
               <input
                 class="auto-share-inline-time"
                 data-time-input="${safeHtml(item.id)}"
                 type="time"
                 value="${safeHtml(item.tripTime || item.pickupTime || "")}"
-                style="display:none;min-width:105px;"
+                style="display:none;width:96px;min-width:96px;"
               >
 
-              <button class="btn-blue auto-share-action-btn" type="button" data-save-time="${safeHtml(item.id)}" style="display:none;">Retry Match</button>
+              <button
+                class="btn-blue auto-share-action-btn"
+                type="button"
+                data-save-time="${safeHtml(item.id)}"
+                style="display:none;"
+              >Save Edit</button>
 
               <select
                 class="auto-share-inline-service"
@@ -4001,21 +4057,21 @@ function renderAutomaticSharedList(){
     <div
       class="auto-share-row header"
       style="
-        min-width:1900px;
+        min-width:1820px;
         grid-template-columns:
           42px
           44px
-          minmax(110px,1fr)
-          minmax(120px,1.1fr)
+          minmax(88px,.72fr)
+          minmax(96px,.78fr)
           minmax(180px,1.6fr)
           minmax(180px,1.6fr)
-          100px
-          100px
-          115px
-          105px
+          88px
+          88px
+          108px
+          98px
           85px
           120px
-          minmax(350px,2.2fr);
+          minmax(390px,2.4fr);
       "
     >
       <div>Select</div>
