@@ -454,6 +454,13 @@ function serviceDefaultPricing(s){
           s
         ),
 
+    /*
+      Facility service switch defaults ON for existing Service Management
+      services. A saved Facility Override may explicitly turn it OFF.
+    */
+    facilityEnabled:
+      true,
+
     serviceSuffix:
       operationalCode(
         s?.companySuffix ||
@@ -644,6 +651,14 @@ function normalizeServiceInput(s){
         s?.customSlot ||
         0
       ),
+
+    /*
+      IMPORTANT:
+      false is an explicit facility decision and must be preserved.
+      Missing/legacy values remain enabled for backward compatibility.
+    */
+    facilityEnabled:
+      s?.facilityEnabled !== false,
 
     serviceSuffix:
       operationalCode(
