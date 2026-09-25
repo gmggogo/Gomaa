@@ -863,14 +863,19 @@ function serviceVisibleForTenant(
 ){
 
   /*
-    Facility Override must NOT depend on Service Management enable switches.
-    Platform Admin permission is the master gate.
+    FACILITY OVERRIDE VISIBILITY RULE:
 
-    Match both the canonical gate and operational/legacy aliases so older
-    tenant Service documents do not disappear just because their stored
-    identity is from an earlier version.
+    1) Platform Admin must allow the service for the tenant.
+    2) Service Management must have the service enabled for the company.
+    3) Facility Override keeps its OWN facilityEnabled switch after the card appears.
+
+    Pricing/calculation logic is not changed here.
   */
   if(!service){
+    return false;
+  }
+
+  if(!serviceEnabled(service)){
     return false;
   }
 
@@ -943,6 +948,10 @@ function platformAllowedTenantServiceDefinitions(
 
     const match =
       list.find(service=>{
+
+        if(!serviceEnabled(service)){
+          return false;
+        }
 
         if(
           serviceIdentity.isCustomService(service) &&
@@ -1207,8 +1216,10 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
         );
 
     /*
-      Facility Override catalog comes from Platform Admin permissions only.
-      Service Management enabled/disabled status does not control visibility.
+      Facility Override catalog = Platform Admin allowed services
+      INTERSECTED with services enabled in Service Management.
+
+      Facility Override's own facilityEnabled switch remains independent.
     */
 
     const activeServices =
