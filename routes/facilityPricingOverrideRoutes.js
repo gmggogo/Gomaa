@@ -455,11 +455,17 @@ function serviceDefaultPricing(s){
         ),
 
     /*
-      Facility service switch defaults ON for existing Service Management
-      services. A saved Facility Override may explicitly turn it OFF.
+      Facility Override switch is independent from Service Management.
+
+      IMPORTANT:
+      - Platform Admin decides which service cards are available here.
+      - Service Management companyEnabled/enabled does NOT decide this switch.
+      - A service with no saved Facility Override decision starts OFF.
+      - Saved Facility Override values are preserved separately.
+      - Pricing/calculation fields below are unchanged.
     */
     facilityEnabled:
-      true,
+      false,
 
     serviceSuffix:
       operationalCode(
@@ -851,127 +857,56 @@ function allowedGateSet(values){
   );
 }
 
-function facilityMatchKey(value){
-
-  /*
-    Facility Override matching must be tolerant of older/newer identity forms:
-    CUSTOM_1 / CUSTOM-1 / CUSTOM 1 / operational codes / aliases.
-    Platform Admin permission remains the master gate.
-  */
-  const raw =
-    clean(value);
-
-  if(!raw){
-    return "";
-  }
-
-  const normalized =
-    serviceIdentity
-      .normalizeServiceCode(
-        raw
-      );
-
-  return upper(
-    normalized ||
-    raw
-  )
-    .replace(/[\s_-]+/g,"");
-}
-
-function serviceFacilityMatchKeys(service){
-
-  if(!service){
-    return [];
-  }
-
-  const values = [
-    getServiceGate(service),
-    getServiceCode(service),
-
-    service?.serviceIdentity,
-    service?.gateKey,
-
-    service?.serviceKey,
-    service?.serviceCode,
-    service?.serviceType,
-
-    service?.customServiceCode,
-    service?.companySuffix,
-    service?.reservedSuffix,
-    service?.serviceSuffix,
-    service?.suffix,
-
-    service?.title,
-    service?.name,
-    service?.serviceName,
-
-    ...serviceIdentity
-      .getServiceMatchKeys(
-        service
-      )
-  ];
-
-  return [
-    ...new Set(
-      values
-        .map(facilityMatchKey)
-        .filter(Boolean)
-    )
-  ];
-}
-
 function serviceVisibleForTenant(
   service,
   tenantAllowed
 ){
 
   /*
-    FACILITY OVERRIDE RULE:
+    Facility Override must NOT depend on Service Management enable switches.
+    Platform Admin permission is the master gate.
 
-    Tenant.allowedServices from Platform Admin is the ONLY visibility gate.
-
-    Do NOT require:
-      - Service Management companyEnabled
-      - Service Management enabled
-      - customConfigured flag
-
-    Some older custom Service documents have a valid two-letter operational
-    code/name but a stale customConfigured flag. If Platform Admin explicitly
-    allowed that service, Facility Override must not hide it.
-
-    We only require a real operational code so the service can be priced and
-    saved safely.
+    Match both the canonical gate and operational/legacy aliases so older
+    tenant Service documents do not disappear just because their stored
+    identity is from an earlier version.
   */
   if(!service){
     return false;
   }
 
-  const operational =
-    getServiceCode(
-      service
-    );
-
-  if(!operational){
+  if(
+    serviceIdentity.isCustomService(service) &&
+    !isConfiguredCustomService(service)
+  ){
     return false;
   }
 
-  const keys =
-    new Set(
-      serviceFacilityMatchKeys(
-        service
-      )
-    );
+  const gate =
+    getServiceGate(service);
+
+  const operational =
+    getServiceCode(service);
+
+  const aliases =
+    serviceIdentity
+      .getServiceMatchKeys(service)
+      .map(value=>upper(value))
+      .filter(Boolean);
+
+  const candidates =
+    new Set([
+      upper(gate),
+      upper(operational),
+      ...aliases
+    ].filter(Boolean));
 
   for(const allowed of tenantAllowed){
-
     if(
-      keys.has(
-        facilityMatchKey(
-          allowed
-        )
+      candidates.has(
+        upper(allowed)
       )
     ){
-      return true;
+      return Boolean(operational);
     }
   }
 
@@ -984,12 +919,10 @@ function platformAllowedTenantServiceDefinitions(
 ){
 
   /*
-    Build Facility Override cards directly from Platform Admin permissions.
+    Build the Facility Override catalog FROM Tenant.allowedServices itself.
 
-    IMPORTANT:
-    - Service Management does not decide visibility here.
-    - Stale customConfigured does not hide a Platform-enabled custom service.
-    - Every operational service code appears once.
+    One Platform Admin permission = one Facility Override card.
+    Service Management companyEnabled/enabled are intentionally ignored.
   */
   const list =
     Array.isArray(tenantServices)
@@ -1002,9 +935,7 @@ function platformAllowedTenantServiceDefinitions(
   for(const allowedValue of tenantAllowed){
 
     const allowed =
-      facilityMatchKey(
-        allowedValue
-      );
+      upper(allowedValue);
 
     if(!allowed){
       continue;
@@ -1013,36 +944,43 @@ function platformAllowedTenantServiceDefinitions(
     const match =
       list.find(service=>{
 
-        const operational =
-          getServiceCode(
-            service
-          );
-
-        if(!operational){
+        if(
+          serviceIdentity.isCustomService(service) &&
+          !isConfiguredCustomService(service)
+        ){
           return false;
         }
 
-        return serviceFacilityMatchKeys(
-          service
-        ).includes(
-          allowed
+        const gate =
+          upper(
+            getServiceGate(service)
+          );
+
+        const operational =
+          upper(
+            getServiceCode(service)
+          );
+
+        const aliases =
+          serviceIdentity
+            .getServiceMatchKeys(service)
+            .map(value=>upper(value))
+            .filter(Boolean);
+
+        return (
+          gate === allowed ||
+          operational === allowed ||
+          aliases.includes(allowed)
         );
       }) ||
       null;
 
     if(!match){
-      /*
-        Keep going instead of failing the whole catalog.
-        This means one stale/missing Service document cannot hide the other
-        Platform Admin enabled services.
-      */
       continue;
     }
 
     const code =
-      getServiceCode(
-        match
-      );
+      getServiceCode(match);
 
     if(
       !code ||
@@ -1273,44 +1211,16 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       Service Management enabled/disabled status does not control visibility.
     */
 
-    const activeServiceDefinitions =
+    const activeServices =
       platformAllowedTenantServiceDefinitions(
         services,
         tenantAllowedSet
-      );
-
-    const activeServices =
-      activeServiceDefinitions
+      )
         .map(
           serviceDefaultPricing
         )
         .filter(
           s=>s.serviceKey
-        );
-
-    /*
-      Diagnostic only: useful in Network -> bootstrap response.
-      It does not change the frontend contract.
-    */
-    const matchedPlatformGates =
-      new Set(
-        activeServiceDefinitions
-          .map(service=>
-            facilityMatchKey(
-              getServiceGate(service)
-            )
-          )
-          .filter(Boolean)
-      );
-
-    const unmatchedAllowedServices =
-      [...tenantAllowedSet]
-        .filter(allowed=>
-          !matchedPlatformGates.has(
-            facilityMatchKey(
-              allowed
-            )
-          )
         );
 
     return res.json({
@@ -1333,15 +1243,7 @@ router.get("/bootstrap", requireTenantApi, async (req,res)=>{
       services:
         activeServices,
 
-      overrides,
-
-      debug:{
-        platformAllowedCount:
-          tenantAllowedSet.size,
-        facilityCatalogCount:
-          activeServices.length,
-        unmatchedAllowedServices
-      }
+      overrides
 
     });
 

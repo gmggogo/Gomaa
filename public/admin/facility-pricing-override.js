@@ -376,8 +376,13 @@ function serviceDefaultCopy(s){
     custom:
       isCustomService(s),
 
+    /*
+      Facility Override owns this switch.
+      Do not infer it from Service Management.
+      Backend sends false for an unsaved service; a saved override replaces it below.
+    */
     facilityEnabled:
-      s?.facilityEnabled !== false,
+      s?.facilityEnabled === true,
 
     serviceSuffix:
       normalizeSuffix(
