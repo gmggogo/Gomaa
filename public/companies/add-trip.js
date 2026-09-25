@@ -4922,6 +4922,17 @@ async function loadCompanyServices(){
 
   const byCode = new Map();
 
+  /*
+    Facility Override is the FINAL authority for whether a service
+    is available to this facility/company.
+
+    If facilityEnabled === false:
+    - remove the service even if Service Management has it active
+    - never allow Service Management to add it back for this facility
+  */
+  const facilityDisabledCodes =
+    new Set();
+
   function addService(raw,source){
     if(!raw) return;
 
@@ -4942,18 +4953,43 @@ async function loadCompanyServices(){
       return;
     }
 
+    if(
+      source === "FACILITY_OVERRIDE" &&
+      raw?.facilityEnabled === false
+    ){
+      facilityDisabledCodes.add(code);
+      byCode.delete(code);
+
+      console.log(
+        "ADD TRIP SERVICE DISABLED BY FACILITY OVERRIDE:",
+        code
+      );
+
+      return;
+    }
+
+    if(
+      source !== "FACILITY_OVERRIDE" &&
+      facilityDisabledCodes.has(code)
+    ){
+      return;
+    }
+
     const existing =
       byCode.get(code);
 
     /*
       Service Management owns identity.
-      Facility Override may enrich pricing/settings only.
+      Facility Override enriches pricing/settings and may disable
+      the matching service for this facility.
     */
     if(existing){
       if(source === "FACILITY_OVERRIDE"){
         byCode.set(code,{
           ...existing,
           ...mapped,
+          facilityEnabled:
+            raw?.facilityEnabled !== false,
           _id:existing._id || mapped._id,
           title:existing.title || mapped.title,
           name:existing.name || mapped.name,
@@ -4970,7 +5006,12 @@ async function loadCompanyServices(){
       return;
     }
 
-    byCode.set(code,mapped);
+    byCode.set(code,{
+      ...mapped,
+      ...(source === "FACILITY_OVERRIDE"
+        ? {facilityEnabled:raw?.facilityEnabled !== false}
+        : {})
+    });
   }
 
   function finalizeServices({
