@@ -4083,38 +4083,56 @@ async function handleConfirmShared(btn){
   }
 
   btn.disabled = true;
-  btn.textContent = "Zone Check...";
 
-  const routePoints =
-    await buildSharedRoutePoints(
-      group
-    );
+  /*
+    PERFORMANCE FIX:
+    Shared routing/pricing is finalized on the server.
+    The browser should calculate a route ONLY when Companies Zone
+    is actually enabled. Otherwise the old flow calculated the same
+    Shared route twice: once here and again on the server.
+  */
+  btn.textContent = "Checking...";
+
+  const zone =
+    await loadCompaniesZone();
 
   if(
-    !Array.isArray(routePoints) ||
-    routePoints.length < 2
+    zone?.enabled === true &&
+    Number(zone?.radiusMiles || 0) > 0
   ){
-    btn.disabled = false;
-    btn.textContent = "Confirm";
-    throw new Error(
-      "Shared route is not ready for Companies Zone validation."
-    );
-  }
+    btn.textContent = "Zone Check...";
 
-  const routeData =
-    await calculateRouteMiles(
-      routePoints
-    );
+    const routePoints =
+      await buildSharedRoutePoints(
+        group
+      );
 
-  const companyZoneOk =
-    await checkCompaniesZoneRouteData(
-      routeData
-    );
+    if(
+      !Array.isArray(routePoints) ||
+      routePoints.length < 2
+    ){
+      btn.disabled = false;
+      btn.textContent = "Confirm";
+      throw new Error(
+        "Shared route is not ready for Companies Zone validation."
+      );
+    }
 
-  if(!companyZoneOk){
-    btn.disabled = false;
-    btn.textContent = "Confirm";
-    return;
+    const routeData =
+      await calculateRouteMiles(
+        routePoints
+      );
+
+    const companyZoneOk =
+      await checkCompaniesZoneRouteData(
+        routeData
+      );
+
+    if(!companyZoneOk){
+      btn.disabled = false;
+      btn.textContent = "Confirm";
+      return;
+    }
   }
 
   btn.textContent = "Server Routing...";
