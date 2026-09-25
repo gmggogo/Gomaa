@@ -138,7 +138,7 @@
         "أدمن"
       ],
       "steps": [
-        "Open the appropriate role tab.",
+        "Open the Add User page, then open the appropriate role tab.",
         "Locate the user.",
         "Click Edit.",
         "Update the allowed user information.",
@@ -193,7 +193,7 @@
         "users"
       ],
       "steps": [
-        "Open the appropriate role tab.",
+        "Open the Add User page, then open the appropriate role tab.",
         "Locate the user.",
         "Click Delete.",
         "Confirm deletion."
@@ -258,7 +258,7 @@
         "driver"
       ],
       "steps": [
-        "Open User Management.",
+        "Open the Add User page.",
         "Click Drivers.",
         "Enter Full Name, Username, Email Address, Phone Number, and Password.",
         "Click Save User.",
@@ -318,7 +318,7 @@
         "how to create"
       ],
       "steps": [
-        "Open User Management.",
+        "Open the Add User page.",
         "Click Dispatchers.",
         "Enter Full Name, Username, Email Address, Phone Number, and Password.",
         "Click Save User.",
@@ -378,7 +378,7 @@
         "how to create"
       ],
       "steps": [
-        "Open User Management.",
+        "Open the Add User page.",
         "Click Companies.",
         "Enter Full Name, Username, Email Address, Phone Number, and Password.",
         "Click Save User.",
@@ -441,7 +441,7 @@
         "أدمن"
       ],
       "steps": [
-        "Open User Management as Super Admin.",
+        "Open the Add User page as Super Admin.",
         "Click Admins.",
         "Enter Full Name, Username, Email Address, Phone Number, and Password.",
         "Click Save User.",
@@ -503,7 +503,7 @@
         "أدمن"
       ],
       "steps": [
-        "Open User Management as Super Admin.",
+        "Open the Add User page as Super Admin.",
         "Click Super Admins.",
         "Enter Full Name, Username, Email Address, Phone Number, and Password.",
         "Click Save User.",
@@ -573,7 +573,7 @@
         "أدمن"
       ],
       "steps": [
-        "Open the user type tab that contains the account.",
+        "Open the Add User page, then open the user type tab that contains the account.",
         "Click Edit on the user row.",
         "Update Full Name, Username, Email Address, Phone Number, or Password as needed.",
         "Click Save User.",
@@ -630,7 +630,7 @@
         "تعطيل مستخدم"
       ],
       "steps": [
-        "Open the correct user type tab.",
+        "Open the Add User page, then open the correct user type tab.",
         "Find the user in the table.",
         "Click Disable for an active user or Enable for a disabled user.",
         "Wait for the list to reload and verify the Status column."
@@ -688,7 +688,7 @@
         "أدمن"
       ],
       "steps": [
-        "Open Super Admins in User Management.",
+        "Open the Add User page, then open Super Admins.",
         "Locate the row marked Primary and Protected.",
         "The page intentionally does not show Disable or Delete for that protected account."
       ],
