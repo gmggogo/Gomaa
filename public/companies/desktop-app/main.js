@@ -376,7 +376,7 @@ function loadConfig() {
 function isAllowedUrl(rawUrl) {
   try {
     const url = new URL(rawUrl);
-    const allowed = new URL(loadConfig().appUrl || "https://sunbeam-933q.onrender.com/companies/company-login.html");
+    const allowed = new URL(loadConfig().appUrl || "https://ghmobility.com/companies/company-login.html");
     return url.origin === allowed.origin;
   } catch {
     return false;
@@ -425,7 +425,7 @@ function applyDesktopFit(win) {
 
 function createWindow() {
   const config = loadConfig();
-  const appUrl = config.appUrl || "https://sunbeam-933q.onrender.com/companies/company-login.html";
+  const appUrl = config.appUrl || "https://ghmobility.com/companies/company-login.html";
 
   const win = new BrowserWindow({
     width: 1440,

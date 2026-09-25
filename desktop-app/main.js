@@ -129,7 +129,7 @@ function loadConfig() {
   const appUrl =
     process.env.GH_MOBILITY_APP_URL ||
     config.appUrl ||
-    "https://sunbeam-933q.onrender.com";
+    "https://ghmobility.com";
 
   const startPath =
     process.env.GH_MOBILITY_START_PATH ||

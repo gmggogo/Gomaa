@@ -25,7 +25,7 @@ const JWT_SECRET =
 const PUBLIC_BASE_URL =
   String(
     process.env.PUBLIC_BASE_URL ||
-    "https://sunbeam-933q.onrender.com"
+    "https://ghmobility.com"
   )
   .trim()
   .replace(/\/+$/,"");
