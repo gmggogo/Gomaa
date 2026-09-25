@@ -7333,7 +7333,7 @@ app.post(
       .toLowerCase();
 
     const successUrl =
-      "https://sunbeam-933q.onrender.com/companies/payment.html" +
+      "https://ghmobility.com/companies/payment.html" +
       "?success=1" +
       "&session_id={CHECKOUT_SESSION_ID}" +
       "&companyId=" + encodeURIComponent(String(company._id)) +
@@ -7342,7 +7342,7 @@ app.post(
         : "");
 
     const cancelUrl =
-      "https://sunbeam-933q.onrender.com/companies/payment.html?cancel=1" +
+      "https://ghmobility.com/companies/payment.html?cancel=1" +
       (tenantSlug
         ? "&tenant=" + encodeURIComponent(tenantSlug)
         : "");
