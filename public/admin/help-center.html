@@ -1047,11 +1047,61 @@ body.super-admin-help-mode #companySupportPanel{
 
         <div class="support-header">
           <div class="support-header-left">
-            <h2>Company Support</h2>
-            <p>Review support requests from contracted company accounts inside this tenant.</p>
+            <h2>Facilities Support</h2>
+            <p>Review Facility support conversations and start a new support request.</p>
           </div>
 
           <span id="companySupportUnreadBadge" class="support-unread">0</span>
+        </div>
+
+        <div class="support-actions">
+          <button
+            id="facilitySupportNewConversationBtn"
+            class="support-new-btn"
+            type="button">
+            + New Support Request
+          </button>
+        </div>
+
+        <div
+          id="facilitySupportNewConversationForm"
+          class="support-new-form">
+
+          <h3>New Facility Support Request</h3>
+
+          <select
+            id="facilitySupportTarget"
+            class="support-input">
+            <option value="">Select Facility</option>
+          </select>
+
+          <input
+            id="facilitySupportNewSubject"
+            class="support-input"
+            maxlength="180"
+            placeholder="Subject">
+
+          <textarea
+            id="facilitySupportNewMessage"
+            class="support-textarea"
+            maxlength="5000"
+            placeholder="Describe your message to the Facility..."></textarea>
+
+          <div class="support-form-actions">
+            <button
+              id="facilitySupportCancelNewBtn"
+              class="support-cancel-btn"
+              type="button">
+              Cancel
+            </button>
+
+            <button
+              id="facilitySupportStartNewBtn"
+              class="support-start-btn"
+              type="button">
+              Send Request
+            </button>
+          </div>
         </div>
 
         <div class="support-tabs">
@@ -1072,14 +1122,14 @@ body.super-admin-help-mode #companySupportPanel{
         <div class="company-support-grid">
 
           <div class="company-support-list-wrap">
-            <div class="support-list-title">Company Conversations</div>
+            <div class="support-list-title">Facility Conversations</div>
             <div id="companySupportList" class="support-conversation-list"></div>
           </div>
 
           <section class="support-chat-area">
 
             <div id="companySupportEmpty" class="support-chat-empty">
-              Select a company support conversation.
+              Select a Facility conversation or create a new support request.
             </div>
 
             <div id="companySupportChatView" class="support-chat-view">
@@ -1107,7 +1157,7 @@ body.super-admin-help-mode #companySupportPanel{
               <div id="companySupportMessages" class="support-messages"></div>
 
               <div id="companySupportComposer" class="support-composer">
-                <textarea id="companySupportMessageInput" maxlength="5000" placeholder="Reply to the company..."></textarea>
+                <textarea id="companySupportMessageInput" maxlength="5000" placeholder="Reply to the Facility..."></textarea>
                 <button id="companySupportSendBtn" class="support-send-btn" type="button">Send</button>
               </div>
 

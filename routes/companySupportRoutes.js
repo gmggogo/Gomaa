@@ -306,6 +306,47 @@ async function superAdminIdentity(req){
   };
 }
 
+function facilityIdentityFromUser(user){
+
+  const facilityId =
+    clean(
+      user?.facilityId ||
+      user?.companyId ||
+      user?._id
+    );
+
+  const companyUserId =
+    clean(
+      user?._id
+    );
+
+  const companyKey =
+    facilityId ||
+    companyUserId;
+
+  return {
+    companyKey,
+    companyUserId,
+    facilityId,
+
+    companyName:
+      clean(
+        user?.facilityName ||
+        user?.organizationName ||
+        user?.companyName ||
+        user?.company ||
+        user?.businessName ||
+        user?.name ||
+        user?.fullName ||
+        user?.username ||
+        "Facility"
+      ),
+
+    companyPhone:
+      pickPhone(user)
+  };
+}
+
 function scopeFilter(scope){
   const value =
     clean(scope)
@@ -912,6 +953,287 @@ router.post(
       res.status(500).json({
         success:false,
         message:"Could not send support message"
+      });
+    }
+  }
+);
+
+/* =========================
+   SUPER ADMIN FACILITY TARGETS
+========================= */
+
+router.get(
+  "/super-admin/facilities",
+  requireAuth,
+  async (req,res)=>{
+    try{
+      if(!isSuperAdmin(req)){
+        return res.status(403).json({
+          success:false,
+          message:"Super Admin required"
+        });
+      }
+
+      const users =
+        await User
+          .find({
+            tenantId:
+              req.authUser.tenantId,
+            role:{
+              $in:[
+                "COMPANY",
+                "company"
+              ]
+            }
+          })
+          .sort({
+            facilityName:1,
+            companyName:1,
+            name:1,
+            username:1
+          })
+          .lean();
+
+      const facilities =
+        users
+          .map(user=>{
+            const identity =
+              facilityIdentityFromUser(
+                user
+              );
+
+            return {
+              companyUserId:
+                identity.companyUserId,
+              facilityId:
+                identity.facilityId,
+              companyKey:
+                identity.companyKey,
+              companyName:
+                identity.companyName,
+              companyPhone:
+                identity.companyPhone
+            };
+          })
+          .filter(
+            row=>
+              row.companyUserId &&
+              row.companyKey
+          );
+
+      return res.json({
+        success:true,
+        facilities
+      });
+
+    }catch(err){
+      console.error(
+        "FACILITY SUPPORT TARGETS:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Could not load facilities"
+      });
+    }
+  }
+);
+
+/* =========================
+   SUPER ADMIN CREATE
+========================= */
+
+router.post(
+  "/super-admin/conversations",
+  requireAuth,
+  async (req,res)=>{
+    try{
+      if(!isSuperAdmin(req)){
+        return res.status(403).json({
+          success:false,
+          message:"Super Admin required"
+        });
+      }
+
+      const companyUserId =
+        clean(
+          req.body?.companyUserId
+        );
+
+      const subject =
+        clean(
+          req.body?.subject
+        );
+
+      const message =
+        clean(
+          req.body?.message
+        );
+
+      if(
+        !companyUserId ||
+        !validId(companyUserId)
+      ){
+        return res.status(400).json({
+          success:false,
+          message:
+            "Select a facility"
+        });
+      }
+
+      if(!subject){
+        return res.status(400).json({
+          success:false,
+          message:
+            "Subject is required"
+        });
+      }
+
+      if(!message){
+        return res.status(400).json({
+          success:false,
+          message:
+            "Describe your issue"
+        });
+      }
+
+      const companyUser =
+        await User
+          .findOne({
+            _id:
+              companyUserId,
+            tenantId:
+              req.authUser.tenantId,
+            role:{
+              $in:[
+                "COMPANY",
+                "company"
+              ]
+            }
+          })
+          .lean();
+
+      if(!companyUser){
+        return res.status(404).json({
+          success:false,
+          message:
+            "Facility account not found"
+        });
+      }
+
+      const facility =
+        facilityIdentityFromUser(
+          companyUser
+        );
+
+      if(!facility.companyKey){
+        return res.status(400).json({
+          success:false,
+          message:
+            "Facility identity unavailable"
+        });
+      }
+
+      const admin =
+        await superAdminIdentity(
+          req
+        );
+
+      const conversation =
+        await Conversation.create({
+          tenantId:
+            req.authUser.tenantId,
+
+          companyKey:
+            facility.companyKey,
+
+          companyUserId:
+            facility.companyUserId,
+
+          facilityId:
+            facility.facilityId,
+
+          companyName:
+            facility.companyName,
+
+          companyPhone:
+            facility.companyPhone,
+
+          subject,
+
+          status:
+            "WAITING_FOR_CUSTOMER",
+
+          createdByUserId:
+            admin.userId,
+
+          createdByName:
+            admin.userName,
+
+          createdByRole:
+            admin.userRole,
+
+          createdByPhone:
+            admin.userPhone,
+
+          lastMessageAt:
+            new Date(),
+
+          lastMessagePreview:
+            message.slice(
+              0,
+              500
+            ),
+
+          companyUnreadCount:1,
+          superAdminUnreadCount:0
+        });
+
+      await Message.create({
+        conversationId:
+          conversation._id,
+
+        tenantId:
+          req.authUser.tenantId,
+
+        companyKey:
+          facility.companyKey,
+
+        senderType:
+          "SUPER_ADMIN",
+
+        senderUserId:
+          admin.userId,
+
+        senderName:
+          admin.userName,
+
+        senderRole:
+          admin.userRole,
+
+        senderPhone:
+          admin.userPhone,
+
+        message
+      });
+
+      return res.status(201).json({
+        success:true,
+        conversation
+      });
+
+    }catch(err){
+      console.error(
+        "FACILITY SUPPORT CREATE:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          "Could not create facility support conversation"
       });
     }
   }

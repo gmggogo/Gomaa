@@ -13,6 +13,7 @@ const HelpCenter = (()=>{
     companySupport:{
       scope:"active",
       conversations:[],
+      facilities:[],
       activeId:"",
       pollTimer:null
     },
@@ -523,30 +524,7 @@ const HelpCenter = (()=>{
   }
 
   function normalizeSearch(value){
-    let text = clean(value)
-      .toLowerCase()
-      .replace(/[_-]/g," ")
-      .replace(/\s+/g," ");
-
-    const aliases = [
-      [/\bhow do i\b/g,"how to"],
-      [/\bcreate\b/g,"add"],
-      [/\bdriver\b/g,"driver"],
-      [/ازاي|إزاي|كيف/g,"how to"],
-      [/اضيف|أضيف|إضافة|انشاء|إنشاء/g,"add"],
-      [/اعدل|أعدل|تعديل|غيّر|غير/g,"edit"],
-      [/سواق|سائق|درايفر/g,"driver"],
-      [/ادمن|أدمن/g,"admin"],
-      [/ديسباتشر/g,"dispatcher"],
-      [/شركة/g,"company"],
-      [/رحلة|رحلات/g,"trip"]
-    ];
-
-    aliases.forEach(([pattern,replacement])=>{
-      text = text.replace(pattern,replacement);
-    });
-
-    return text.replace(/\s+/g," ").trim();
+    return clean(value).toLowerCase().replace(/[_-]/g," ").replace(/\s+/g," ");
   }
 
   function articleText(article){
@@ -1528,6 +1506,145 @@ const HelpCenter = (()=>{
     );
   }
 
+  async function loadFacilitySupportTargets(){
+    const data =
+      await companySupportApi(
+        "/api/company-support/super-admin/facilities"
+      );
+
+    state.companySupport.facilities =
+      Array.isArray(
+        data.facilities
+      )
+        ? data.facilities
+        : [];
+
+    const select =
+      $("facilitySupportTarget");
+
+    if(!select){
+      return;
+    }
+
+    select.innerHTML =
+      `<option value="">Select Facility</option>` +
+      state.companySupport.facilities
+        .map(
+          row=>`
+            <option value="${escapeHtml(row.companyUserId)}">
+              ${escapeHtml(row.companyName || "Facility")}
+              ${row.companyPhone ? " · " + escapeHtml(row.companyPhone) : ""}
+            </option>
+          `
+        )
+        .join("");
+  }
+
+  function showFacilitySupportNewForm(){
+    $("facilitySupportTarget").value =
+      "";
+
+    $("facilitySupportNewSubject").value =
+      "";
+
+    $("facilitySupportNewMessage").value =
+      "";
+
+    $("facilitySupportNewConversationForm")
+      ?.classList
+      .add("show");
+
+    $("facilitySupportTarget")
+      ?.focus();
+  }
+
+  function hideFacilitySupportNewForm(){
+    $("facilitySupportNewConversationForm")
+      ?.classList
+      .remove("show");
+  }
+
+  async function startFacilitySupportConversation(){
+    const companyUserId =
+      clean(
+        $("facilitySupportTarget")?.value
+      );
+
+    const subject =
+      clean(
+        $("facilitySupportNewSubject")?.value
+      );
+
+    const message =
+      clean(
+        $("facilitySupportNewMessage")?.value
+      );
+
+    if(!companyUserId){
+      alert("Select a Facility");
+      return;
+    }
+
+    if(!subject){
+      alert("Subject is required");
+      return;
+    }
+
+    if(!message){
+      alert("Describe your message");
+      return;
+    }
+
+    const button =
+      $("facilitySupportStartNewBtn");
+
+    if(button){
+      button.disabled =
+        true;
+    }
+
+    try{
+      const data =
+        await companySupportApi(
+          "/api/company-support/super-admin/conversations",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              companyUserId,
+              subject,
+              message
+            })
+          }
+        );
+
+      hideFacilitySupportNewForm();
+
+      await Promise.all([
+        loadCompanySupportList(),
+        loadCompanySupportUnread()
+      ]);
+
+      if(
+        data.conversation?._id
+      ){
+        await openCompanySupportConversation(
+          data.conversation._id
+        );
+      }
+
+    }catch(err){
+      alert(
+        err.message
+      );
+
+    }finally{
+      if(button){
+        button.disabled =
+          false;
+      }
+    }
+  }
+
   async function loadCompanySupportUnread(){
     try{
       const data =
@@ -1626,8 +1743,8 @@ const HelpCenter = (()=>{
       host.innerHTML =
         `<div style="padding:16px;text-align:center;color:#718096;font-size:12px">${
           state.companySupport.scope === "history"
-            ? "No resolved company support conversations."
-            : "No active company support conversations."
+            ? "No resolved Facility support conversations."
+            : "No active Facility support conversations."
         }</div>`;
       return;
     }
@@ -1646,7 +1763,7 @@ const HelpCenter = (()=>{
               data-company-support-id="${escapeHtml(row._id)}">
 
               <div class="support-conversation-title">
-                ${escapeHtml(row.companyName || "Company")}
+                ${escapeHtml(row.companyName || "Facility")}
               </div>
 
               <div class="support-conversation-meta">
@@ -1715,7 +1832,7 @@ const HelpCenter = (()=>{
             return `
               <div class="support-message ${superAdmin ? "platform" : "tenant"}">
                 <div class="support-message-meta">
-                  ${escapeHtml(message.senderName || (superAdmin ? "Super Admin" : "Company"))}
+                  ${escapeHtml(message.senderName || (superAdmin ? "Super Admin" : "Facility"))}
                   · ${escapeHtml(message.senderRole || "")}
                   · ${escapeHtml(supportDate(message.createdAt))}
                 </div>
@@ -1764,7 +1881,7 @@ const HelpCenter = (()=>{
 
     $("companySupportSubject").textContent =
       conversation.subject ||
-      "Company Support";
+      "Facilities Support";
 
     $("companySupportStatus").textContent =
       "Status: " +
@@ -1774,8 +1891,8 @@ const HelpCenter = (()=>{
       );
 
     $("companySupportCompanyMeta").innerHTML =
-      `<b>Company:</b> ${escapeHtml(conversation.companyName || "-")}<br>` +
-      `<b>Company Phone:</b> ${escapeHtml(conversation.companyPhone || "Not Available")}<br>` +
+      `<b>Facility:</b> ${escapeHtml(conversation.companyName || "-")}<br>` +
+      `<b>Facility Phone:</b> ${escapeHtml(conversation.companyPhone || "Not Available")}<br>` +
       `<b>Opened By:</b> ${escapeHtml(conversation.createdByName || "-")} · ${escapeHtml(conversation.createdByRole || "COMPANY")}<br>` +
       (
         conversation.status === "RESOLVED"
@@ -2037,6 +2154,24 @@ const HelpCenter = (()=>{
         ()=>setCompanySupportScope("history")
       );
 
+    $("facilitySupportNewConversationBtn")
+      ?.addEventListener(
+        "click",
+        showFacilitySupportNewForm
+      );
+
+    $("facilitySupportCancelNewBtn")
+      ?.addEventListener(
+        "click",
+        hideFacilitySupportNewForm
+      );
+
+    $("facilitySupportStartNewBtn")
+      ?.addEventListener(
+        "click",
+        startFacilitySupportConversation
+      );
+
     $("companySupportStatusFilter")
       ?.addEventListener(
         "change",
@@ -2104,7 +2239,8 @@ const HelpCenter = (()=>{
 
     await Promise.all([
       loadCompanySupportList(),
-      loadCompanySupportUnread()
+      loadCompanySupportUnread(),
+      loadFacilitySupportTargets()
     ]);
 
     clearInterval(
