@@ -117,6 +117,15 @@ const servicePricingSchema =
         trim:true
       },
 
+      /*
+        Facility-level service switch.
+        Old records default to true so existing facilities keep working.
+      */
+      facilityEnabled:{
+        type:Boolean,
+        default:true
+      },
+
       serviceSuffix:{
         type:String,
         default:"",
