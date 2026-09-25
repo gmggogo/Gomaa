@@ -304,10 +304,24 @@ function isConfiguredCustomService(s){
 
 function serviceEnabled(s){
 
-  return (
-    s?.companyEnabled === true ||
-    s?.enabled === true
-  );
+  /*
+    Service Management is the authority for company visibility.
+
+    IMPORTANT:
+    - If companyEnabled exists, its value is final.
+      companyEnabled:false MUST stay disabled even when the old/global
+      enabled flag is still true.
+    - Only legacy records that do not have companyEnabled at all may
+      fall back to enabled.
+
+    This fixes services such as XL remaining visible in Facility Override
+    after being turned OFF in Service Management.
+  */
+  if(typeof s?.companyEnabled === "boolean"){
+    return s.companyEnabled;
+  }
+
+  return s?.enabled === true;
 }
 
 /* =========================
