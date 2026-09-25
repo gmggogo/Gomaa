@@ -715,43 +715,59 @@ document.addEventListener("DOMContentLoaded",async()=>{
  document.querySelectorAll("[data-href]").forEach(a=>a.classList.toggle("active",a.dataset.href===page));
  document.querySelectorAll(".gh-nav-group").forEach(g=>g.classList.toggle("has-active",!!g.querySelector("a.active")));
 
- /* HELP CENTER — GOLD ONLY */
- if(!document.getElementById("gh-help-center-gold-only")){
-   const helpCenterGoldStyle=document.createElement("style");
-   helpCenterGoldStyle.id="gh-help-center-gold-only";
-   helpCenterGoldStyle.textContent=`
-     #adminDesktopNav [data-href="help-center.html"]{
+ /* =========================================================
+    HEADER COLORS + ALERT VISUALS
+    Dispatch + Final Confirmation = same gold.
+    Help Center = normal header color unless there is an unread alert.
+ ========================================================= */
+ if(!document.getElementById("gh-header-color-alert-style")){
+   const headerColorAlertStyle=document.createElement("style");
+   headerColorAlertStyle.id="gh-header-color-alert-style";
+   headerColorAlertStyle.textContent=`
+     #adminDesktopNav [data-href="dispatch.html"],
+     #adminDesktopNav [data-href="dispatch-final-confirmation.html"]{
        background:linear-gradient(180deg,#f6c85f 0%,#d79a00 100%)!important;
        color:#241900!important;
        border-color:#f8dc8b!important;
        box-shadow:0 5px 12px rgba(151,102,0,.28)!important;
      }
-     #mobileSideNav [data-href="help-center.html"]{
+
+     #mobileSideNav [data-href="dispatch.html"],
+     #mobileSideNav [data-href="dispatch-final-confirmation.html"]{
        background:linear-gradient(90deg,#f6c85f 0%,#dda416 100%)!important;
        color:#241900!important;
        font-weight:900!important;
      }
 
-     @keyframes ghHelpSupportBlink{
+     #adminDesktopNav [data-href="help-center.html"],
+     #mobileSideNav [data-href="help-center.html"]{
+       background:unset!important;
+       color:inherit!important;
+       border-color:inherit!important;
+       box-shadow:none!important;
+     }
+
+     @keyframes ghHeaderAlertBlink{
        0%,100%{
          filter:brightness(1);
-         box-shadow:0 5px 12px rgba(151,102,0,.28);
+         box-shadow:0 0 0 2px rgba(255,186,35,.65),0 0 10px rgba(255,176,19,.25);
        }
        50%{
-         filter:brightness(1.38);
+         filter:brightness(1.42);
          box-shadow:
-           0 0 0 3px rgba(255,220,92,.72),
+           0 0 0 3px rgba(255,220,92,.78),
            0 0 22px rgba(255,184,0,.95),
-           0 5px 16px rgba(151,102,0,.38);
+           0 0 34px rgba(255,176,19,.45);
        }
      }
 
-     #adminDesktopNav [data-href="help-center.html"].gh-support-unread,
-     #mobileSideNav [data-href="help-center.html"].gh-support-unread{
-       animation:ghHelpSupportBlink 1s ease-in-out infinite!important;
+     .gh-alert-hot,
+     .gh-support-unread{
        position:relative!important;
+       animation:ghHeaderAlertBlink 1s ease-in-out infinite!important;
      }
 
+     .gh-alert-badge,
      .gh-support-unread-badge{
        position:absolute;
        right:4px;
@@ -772,7 +788,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
        box-shadow:0 2px 6px rgba(0,0,0,.22);
      }
    `;
-   document.head.appendChild(helpCenterGoldStyle);
+   document.head.appendChild(headerColorAlertStyle);
  }
 
  function supportUnreadToken(){
@@ -783,8 +799,44 @@ document.addEventListener("DOMContentLoaded",async()=>{
    ).trim();
  }
 
+ const SUPPORT_SEEN_KEY="ghHeaderSupportSeenCount";
+
+ function getSeenCount(key){
+   return Math.max(
+     0,
+     Number(sessionStorage.getItem(key)||0)||0
+   );
+ }
+
+ function setSeenCount(key,value){
+   sessionStorage.setItem(
+     key,
+     String(Math.max(0,Number(value||0)))
+   );
+ }
+
+ function effectiveUnread(raw,key){
+   const count=Math.max(0,Number(raw||0));
+   let seen=getSeenCount(key);
+
+   if(count<seen){
+     seen=count;
+     setSeenCount(key,seen);
+   }
+
+   return Math.max(0,count-seen);
+ }
+
+ let latestSupportRawCount=0;
+
  function applySupportUnreadToHelpButton(count){
-   const unread=Math.max(0,Number(count||0));
+   latestSupportRawCount=Math.max(0,Number(count||0));
+
+   const unread=
+     effectiveUnread(
+       latestSupportRawCount,
+       SUPPORT_SEEN_KEY
+     );
 
    document
      .querySelectorAll('[data-href="help-center.html"]')
@@ -846,39 +898,221 @@ document.addEventListener("DOMContentLoaded",async()=>{
    );
  }
 
- /* ALERT BADGES — VISUAL ONLY; EXISTING HEADER SIZE/COLORS ARE UNCHANGED */
- const alertStyle=document.createElement("style");
- alertStyle.textContent=`
- .gh-alert-hot{position:relative!important;box-shadow:0 0 0 2px rgba(255,186,35,.75),0 0 15px rgba(255,176,19,.38)!important}
- .gh-alert-badge{position:absolute;right:4px;top:3px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#ffb11b;color:#172033;font-size:8px;font-weight:900;line-height:1;z-index:5}
- `;
- document.head.appendChild(alertStyle);
+ document
+   .querySelectorAll('[data-href="help-center.html"]')
+   .forEach(link=>{
+     link.addEventListener("click",()=>{
+       setSeenCount(
+         SUPPORT_SEEN_KEY,
+         latestSupportRawCount
+       );
+       applySupportUnreadToHelpButton(
+         latestSupportRawCount
+       );
+     });
+   });
 
- function applyHeaderAlerts(detail){
-   const pending=Number(detail?.pendingConfirmation??localStorage.getItem("dashboardPendingConfirmationCount")??0);
-   const fresh=Number(detail?.newTrips??localStorage.getItem("dashboardNewTripsCount")??0);
+ /* =========================================================
+    TRIPS HUB + FINAL CONFIRMATION ALERTS
+    Blink + badge.
+    Clicking the related header button clears the current alert only.
+    A later increase lights it again.
+ ========================================================= */
+ const TRIPS_SEEN_KEY="ghHeaderTripsSeenCount";
+ const FINAL_SEEN_KEY="ghHeaderFinalSeenCount";
 
-   const finalLink=document.querySelector('[data-href="dispatch-final-confirmation.html"]');
-   if(finalLink){
-     finalLink.classList.toggle("gh-alert-hot",pending>0);
-     finalLink.querySelector(".gh-alert-badge")?.remove();
-     if(pending>0){
-       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=pending;finalLink.appendChild(b);
-     }
-   }
+ let latestTripsRawCount=
+   Math.max(
+     0,
+     Number(
+       localStorage.getItem("dashboardNewTripsCount")||0
+     )||0
+   );
 
-   const opsGroup=[...document.querySelectorAll(".gh-nav-group")].find(g=>g.querySelector('[data-href="trips-hub.html"]'));
-   const opsButton=opsGroup?.querySelector(".gh-nav-group-btn");
-   if(opsButton){
-     opsButton.classList.toggle("gh-alert-hot",fresh>0);
-     opsButton.querySelector(".gh-alert-badge")?.remove();
-     if(fresh>0){
-       const b=document.createElement("span");b.className="gh-alert-badge";b.textContent=fresh;opsButton.appendChild(b);
-     }
+ let latestFinalRawCount=
+   Math.max(
+     0,
+     Number(
+       localStorage.getItem("dashboardPendingConfirmationCount")||0
+     )||0
+   );
+
+ function setHeaderBadge(target,count){
+   if(!target)return;
+
+   const value=Math.max(0,Number(count||0));
+
+   target.classList.toggle(
+     "gh-alert-hot",
+     value>0
+   );
+
+   target
+     .querySelectorAll(".gh-alert-badge")
+     .forEach(badge=>badge.remove());
+
+   if(value>0){
+     const badge=document.createElement("span");
+     badge.className="gh-alert-badge";
+     badge.textContent=value>99?"99+":String(value);
+     target.appendChild(badge);
    }
  }
- window.addEventListener("gh-dashboard-alerts",e=>applyHeaderAlerts(e.detail||{}));
+
+ function renderHeaderAlerts(){
+   const pending=
+     effectiveUnread(
+       latestFinalRawCount,
+       FINAL_SEEN_KEY
+     );
+
+   const fresh=
+     effectiveUnread(
+       latestTripsRawCount,
+       TRIPS_SEEN_KEY
+     );
+
+   const finalLink=
+     document.querySelector(
+       '[data-href="dispatch-final-confirmation.html"]'
+     );
+
+   setHeaderBadge(
+     finalLink,
+     pending
+   );
+
+   const opsGroup=
+     [...document.querySelectorAll(".gh-nav-group")]
+       .find(g=>
+         g.querySelector(
+           '[data-href="trips-hub.html"]'
+         )
+       );
+
+   const opsButton=
+     opsGroup?.querySelector(
+       ".gh-nav-group-btn"
+     );
+
+   setHeaderBadge(
+     opsButton,
+     fresh
+   );
+ }
+
+ function applyHeaderAlerts(detail){
+   if(
+     detail &&
+     detail.pendingConfirmation !== undefined
+   ){
+     latestFinalRawCount=
+       Math.max(
+         0,
+         Number(detail.pendingConfirmation||0)
+       );
+   }else{
+     latestFinalRawCount=
+       Math.max(
+         0,
+         Number(
+           localStorage.getItem(
+             "dashboardPendingConfirmationCount"
+           )||0
+         )
+       );
+   }
+
+   if(
+     detail &&
+     detail.newTrips !== undefined
+   ){
+     latestTripsRawCount=
+       Math.max(
+         0,
+         Number(detail.newTrips||0)
+       );
+   }else{
+     latestTripsRawCount=
+       Math.max(
+         0,
+         Number(
+           localStorage.getItem(
+             "dashboardNewTripsCount"
+           )||0
+         )
+       );
+   }
+
+   renderHeaderAlerts();
+ }
+
+ window.addEventListener(
+   "gh-dashboard-alerts",
+   e=>applyHeaderAlerts(e.detail||{})
+ );
+
  applyHeaderAlerts({});
+
+ if(!window.__GH_HEADER_ALERT_LOCAL_INTERVAL__){
+   window.__GH_HEADER_ALERT_LOCAL_INTERVAL__=
+     setInterval(
+       ()=>applyHeaderAlerts({}),
+       2000
+     );
+ }
+
+ const finalLinkForAck=
+   document.querySelector(
+     '[data-href="dispatch-final-confirmation.html"]'
+   );
+
+ finalLinkForAck?.addEventListener(
+   "click",
+   ()=>{
+     setSeenCount(
+       FINAL_SEEN_KEY,
+       latestFinalRawCount
+     );
+     renderHeaderAlerts();
+   }
+ );
+
+ const tripsHubLink=
+   document.querySelector(
+     '[data-href="trips-hub.html"]'
+   );
+
+ const tripsOpsGroup=
+   [...document.querySelectorAll(".gh-nav-group")]
+     .find(g=>
+       g.querySelector(
+         '[data-href="trips-hub.html"]'
+       )
+     );
+
+ const tripsOpsButton=
+   tripsOpsGroup?.querySelector(
+     ".gh-nav-group-btn"
+   );
+
+ const acknowledgeTripsAlert=()=>{
+   setSeenCount(
+     TRIPS_SEEN_KEY,
+     latestTripsRawCount
+   );
+   renderHeaderAlerts();
+ };
+
+ tripsHubLink?.addEventListener(
+   "click",
+   acknowledgeTripsAlert
+ );
+
+ tripsOpsButton?.addEventListener(
+   "click",
+   acknowledgeTripsAlert
+ );
 
  /* PAYROLL SIGN IN — shown only when today's staff schedule is eligible. */
  async function setupPayrollSignIn(){
