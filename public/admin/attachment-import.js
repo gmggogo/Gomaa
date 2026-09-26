@@ -8,7 +8,9 @@ const state = {
   services:[],
   editingRows:new Set(),
   shareRatings:new Map(),
-  sharePlan:null
+  sharePlan:null,
+  draftImports:[],
+  autoSaveTimers:new Map()
 };
 const $ = id=>document.getElementById(id);
 
@@ -434,6 +436,189 @@ $("saveTemplateBtn").onclick=async()=>{
   }
 };
 
+
+function ensureDraftImportPicker(){
+  const reviewMeta=$("reviewMeta");
+  if(!reviewMeta) return null;
+
+  let bar=document.getElementById("attachmentDraftBar");
+  if(bar) return bar;
+
+  bar=document.createElement("div");
+  bar.id="attachmentDraftBar";
+  bar.style.display="flex";
+  bar.style.alignItems="center";
+  bar.style.gap="8px";
+  bar.style.flexWrap="wrap";
+  bar.style.margin="0 0 10px 0";
+
+  const label=document.createElement("strong");
+  label.textContent="Saved Drafts:";
+
+  const select=document.createElement("select");
+  select.id="attachmentDraftSelect";
+  select.style.minWidth="240px";
+  select.addEventListener("change",async()=>{
+    const id=clean(select.value);
+    if(!id) return;
+    try{
+      await flushPendingAutoSaves();
+      await loadDraftImport(id);
+    }catch(e){
+      notice(e.message,false);
+    }
+  });
+
+  const refresh=document.createElement("button");
+  refresh.type="button";
+  refresh.className="btn btn-muted";
+  refresh.textContent="Refresh Drafts";
+  refresh.addEventListener("click",async()=>{
+    try{
+      await refreshDraftImports();
+      notice("Saved drafts refreshed");
+    }catch(e){
+      notice(e.message,false);
+    }
+  });
+
+  bar.append(label,select,refresh);
+  reviewMeta.parentElement?.insertBefore(bar,reviewMeta);
+  return bar;
+}
+
+function renderDraftImportPicker(){
+  ensureDraftImportPicker();
+
+  const select=document.getElementById("attachmentDraftSelect");
+  if(!select) return;
+
+  const currentId=clean(state.currentImport?._id);
+
+  select.innerHTML=state.draftImports.length
+    ? state.draftImports.map(imp=>{
+        const count=(imp.reviewRows||[]).filter(row=>!row.confirmed).length;
+        const label=[
+          imp.documentNumber||"Draft",
+          imp.templateName||"",
+          `${count} pending`
+        ].filter(Boolean).join(" • ");
+
+        return `<option value="${esc(imp._id)}" ${clean(imp._id)===currentId?"selected":""}>${esc(label)}</option>`;
+      }).join("")
+    : `<option value="">No saved drafts</option>`;
+}
+
+async function refreshDraftImports(){
+  const data=await api("/api/attachment-imports");
+  const imports=Array.isArray(data.imports) ? data.imports : [];
+
+  state.draftImports=imports.filter(imp=>{
+    const status=clean(imp.status).toUpperCase();
+    const hasPending=(imp.reviewRows||[]).some(row=>!row.confirmed);
+    return hasPending && !["CONFIRMED","ARCHIVED"].includes(status);
+  });
+
+  renderDraftImportPicker();
+  return state.draftImports;
+}
+
+async function loadDraftImport(id){
+  const data=await api(`/api/attachment-imports/${id}`);
+
+  state.currentImport=data.import;
+  state.services=data.services||state.services;
+
+  if(data.template){
+    state.selected=data.template;
+    const existing=state.templates.findIndex(
+      template=>clean(template._id)===clean(data.template._id)
+    );
+    if(existing>=0) state.templates[existing]=data.template;
+    else state.templates.push(data.template);
+    fillTemplateForm();
+    renderTemplateList();
+  }
+
+  state.editingRows.clear();
+  state.shareRatings.clear();
+  state.sharePlan=null;
+
+  setTab("review");
+  renderReview();
+  renderDraftImportPicker();
+}
+
+async function restoreLatestDraft(){
+  const drafts=await refreshDraftImports();
+  if(!drafts.length) return false;
+
+  await loadDraftImport(drafts[0]._id);
+  return true;
+}
+
+function clearAutoSaveTimer(rowIndex){
+  const key=Number(rowIndex);
+  const timer=state.autoSaveTimers.get(key);
+  if(timer) clearTimeout(timer);
+  state.autoSaveTimers.delete(key);
+}
+
+function scheduleRowAutoSave(rowIndex){
+  const key=Number(rowIndex);
+  if(!Number.isFinite(key) || !state.currentImport) return;
+
+  clearAutoSaveTimer(key);
+
+  const timer=setTimeout(async()=>{
+    state.autoSaveTimers.delete(key);
+
+    try{
+      await saveRows([key],{render:false});
+      const row=document.querySelector(`[data-review-row="${key}"]`);
+      if(row){
+        row.dataset.saved="true";
+      }
+    }catch(e){
+      notice(`Auto-save failed for row ${key}: ${e.message}`,false);
+    }
+  },700);
+
+  state.autoSaveTimers.set(key,timer);
+}
+
+async function flushPendingAutoSaves(){
+  const indexes=[...state.autoSaveTimers.keys()];
+  indexes.forEach(clearAutoSaveTimer);
+
+  if(!indexes.length || !state.currentImport) return;
+
+  await saveRows(indexes,{render:false});
+}
+
+function bindReviewAutoSave(){
+  document.querySelectorAll("[data-review-row]").forEach(tr=>{
+    const rowIndex=Number(tr.dataset.reviewRow);
+    if(!Number.isFinite(rowIndex)) return;
+
+    tr.querySelectorAll("[data-key]").forEach(input=>{
+      input.addEventListener("input",()=>{
+        if(!input.disabled) scheduleRowAutoSave(rowIndex);
+      });
+      input.addEventListener("change",()=>{
+        if(!input.disabled) scheduleRowAutoSave(rowIndex);
+      });
+    });
+
+    const service=tr.querySelector("[data-service]");
+    if(service){
+      service.addEventListener("change",()=>{
+        if(!service.disabled) scheduleRowAutoSave(rowIndex);
+      });
+    }
+  });
+}
+
 $("uploadBtn").onclick=async()=>{
   try{
     clearNotice();
@@ -463,6 +648,7 @@ $("uploadBtn").onclick=async()=>{
 
     setTab("review");
     renderReview();
+    await refreshDraftImports();
 
     /*
       One browser request validates/corrects all Pickup / Stops / Dropoff
@@ -667,6 +853,7 @@ function renderReview(){
     btn.addEventListener("click",async()=>{
       const rowIndex=Number(btn.dataset.editRow);
       if(state.editingRows.has(rowIndex)){
+        clearAutoSaveTimer(rowIndex);
         await saveEditedRow(rowIndex);
       }else{
         state.editingRows.add(rowIndex);
@@ -674,6 +861,9 @@ function renderReview(){
       }
     });
   });
+
+  bindReviewAutoSave();
+  renderDraftImportPicker();
 }
 
 function findFieldInput(tr,internalKey){
@@ -722,6 +912,8 @@ async function deleteSelectedRows(){
       throw new Error("No import to edit");
     }
 
+    await flushPendingAutoSaves();
+
     const indexes=selectedRowIndexes();
     if(!indexes.length){
       throw new Error("Select at least one trip to delete");
@@ -762,6 +954,7 @@ async function deleteSelectedRows(){
     });
 
     renderReview();
+    await refreshDraftImports();
 
     const blocked=Array.isArray(data.blocked) ? data.blocked : [];
     if(blocked.length){
@@ -902,6 +1095,7 @@ async function runShareEvaluation(){
       throw new Error("No import to review");
     }
 
+    await flushPendingAutoSaves();
     await saveReview();
 
     const selected=selectedRowIndexes();
@@ -1005,6 +1199,7 @@ async function submitRows(rowIndexes){
       Do not re-render between Save and Submit, so the button action cannot
       lose its row selection or current values.
     */
+    indexes.forEach(clearAutoSaveTimer);
     await saveRows(indexes,{render:false});
 
     const requested=new Set(indexes);
@@ -1040,6 +1235,7 @@ async function submitRows(rowIndexes){
 
     indexes.forEach(index=>state.editingRows.delete(Number(index)));
     renderReview();
+    await refreshDraftImports();
 
     if(failed.length){
       throw new Error(
@@ -1064,6 +1260,26 @@ async function submitRows(rowIndexes){
 
 $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
 
+
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="hidden"){
+    const indexes=[...state.autoSaveTimers.keys()];
+    indexes.forEach(clearAutoSaveTimer);
+    if(indexes.length && state.currentImport){
+      const rows=collectReviewRows(indexes);
+      fetch(
+        `/api/attachment-imports/${state.currentImport._id}/review`,
+        {
+          method:"PUT",
+          headers:authHeaders({"Content-Type":"application/json"}),
+          body:JSON.stringify({rows}),
+          keepalive:true
+        }
+      ).catch(()=>{});
+    }
+  }
+});
+
 (async function init(){
   try{
     const feature=await api("/api/attachment-imports/feature");
@@ -1079,6 +1295,11 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
     }catch(_){}
 
     ensureReviewActionButtons();
-    renderReview();
+
+    const restored=await restoreLatestDraft();
+    if(!restored){
+      renderReview();
+      renderDraftImportPicker();
+    }
   }catch(e){notice(e.message,false)}
 })();
