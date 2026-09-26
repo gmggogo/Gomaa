@@ -53,6 +53,45 @@ function ghFieldOptions(currentKey=""){
   if(currentKey&&!ghFieldMeta(currentKey))options.push(`<option value="${esc(currentKey)}" selected>${esc(currentKey)} (Existing custom field)</option>`);
   return options.join("");
 }
+function syncFieldRowFromDom(row){
+  if(!state.selected || !row) return;
+
+  const index=Number(row.dataset.fieldRow);
+  if(!Number.isFinite(index) || !state.selected.fields?.[index]) return;
+
+  const current=state.selected.fields[index];
+  const label=clean(row.querySelector('[data-k="label"]')?.value);
+  const internalKey=clean(row.querySelector('[data-k="internalKey"]')?.value);
+  const meta=ghFieldMeta(internalKey);
+
+  let oldAliases=[];
+  try{
+    oldAliases=JSON.parse(row.dataset.originalAliases||"[]");
+  }catch(_){
+    oldAliases=[];
+  }
+
+  state.selected.fields[index]={
+    ...current,
+    label,
+    internalKey,
+    type:meta?.type || row.dataset.originalType || current.type || "TEXT",
+    required:row.querySelector('[data-k="required"]')?.value==="true",
+    visibleInReview:row.querySelector('[data-k="visibleInReview"]')?.value!=="false",
+    aliases:meta?.aliases || oldAliases,
+    order:index
+  };
+}
+
+function bindFieldEditorSync(){
+  document.querySelectorAll("[data-field-row]").forEach(row=>{
+    row.querySelectorAll("input,select").forEach(control=>{
+      control.addEventListener("input",()=>syncFieldRowFromDom(row));
+      control.addEventListener("change",()=>syncFieldRowFromDom(row));
+    });
+  });
+}
+
 function renderFields(){
   const fields=state.selected?.fields || [];
   $("fieldsEditor").innerHTML=fields.map((f,i)=>`
@@ -63,27 +102,84 @@ function renderFields(){
       <div><label>Required</label><select data-k="required"><option value="false" ${!f.required?"selected":""}>No</option><option value="true" ${f.required?"selected":""}>Yes</option></select></div>
       <button class="btn btn-red field-delete" type="button" onclick="removeField(${i})" title="Delete field">×</button>
     </div>`).join("") || `<div class="meta">Add only the fields that appear on this organization's document.</div>`;
+
+  bindFieldEditorSync();
 }
 function collectFields(){
-  return [...document.querySelectorAll("[data-field-row]")].map((row,i)=>{
-    const label=clean(row.querySelector('[data-k="label"]').value);
-    const internalKey=clean(row.querySelector('[data-k="internalKey"]').value);
-    const meta=ghFieldMeta(internalKey);
-    let oldAliases=[];
-    try{oldAliases=JSON.parse(row.dataset.originalAliases||"[]")}catch(_){oldAliases=[]}
+  const rows=[...document.querySelectorAll("[data-field-row]")];
+
+  rows.forEach(syncFieldRowFromDom);
+
+  return rows.map((row,i)=>{
+    const field=state.selected?.fields?.[i] || {};
     return {
-      label,
-      internalKey,
-      type:meta?.type || row.dataset.originalType || "TEXT",
-      required:row.querySelector('[data-k="required"]').value==="true",
-      visibleInReview:row.querySelector('[data-k="visibleInReview"]').value!=="false",
-      aliases:meta?.aliases || oldAliases,
+      ...field,
       order:i
     };
-  }).filter(f=>f.label&&f.internalKey);
+  }).filter(f=>clean(f.label)&&clean(f.internalKey));
 }
 window.removeField=i=>{state.selected.fields.splice(i,1);renderFields()}
 $("addFieldBtn").onclick=()=>{if(!state.selected)newTemplate();state.selected.fields.push(emptyField());renderFields()}
+
+const STANDARD_DOCUMENT_FIELD_MAP = new Map([
+  ["client name","clientName"],
+  ["customer name","clientName"],
+  ["phone","clientPhone"],
+  ["phone #","clientPhone"],
+  ["pickup","pickup"],
+  ["pickup address","pickup"],
+  ["pick up address","pickup"],
+  ["stops","stops"],
+  ["stop","stops"],
+  ["dropoff","dropoff"],
+  ["drop off","dropoff"],
+  ["dropoff address","dropoff"],
+  ["drop off address","dropoff"],
+  ["pickup date","tripDate"],
+  ["pick up date","tripDate"],
+  ["trip date","tripDate"],
+  ["pickup time","tripTime"],
+  ["pick up time","tripTime"],
+  ["notes","notes"]
+]);
+
+function normalizeTemplateLabel(value){
+  return clean(value)
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function repairStandardTemplateMapping(){
+  if(!state.selected?.fields?.length) return 0;
+
+  let changed=0;
+
+  state.selected.fields=state.selected.fields.map((field,index)=>{
+    const wanted=STANDARD_DOCUMENT_FIELD_MAP.get(
+      normalizeTemplateLabel(field.label)
+    );
+
+    if(!wanted || field.internalKey===wanted){
+      return {...field,order:index};
+    }
+
+    const meta=ghFieldMeta(wanted);
+    changed+=1;
+
+    return {
+      ...field,
+      internalKey:wanted,
+      type:meta?.type || field.type || "TEXT",
+      aliases:meta?.aliases || field.aliases || [],
+      order:index
+    };
+  });
+
+  renderFields();
+  return changed;
+}
+
 
 function newTemplate(){
   state.selected={_id:null,name:"New Template",organizationType:"INSURANCE",organizationName:"",fields:[
@@ -121,7 +217,43 @@ async function loadTemplates(){
 $("newTemplateBtn").onclick=()=>newTemplate();
 $("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
 $("deleteTemplateBtn").onclick=async()=>{if(!state.selected?._id)return;if(!confirm("Delete this template?"))return;try{await api(`/api/attachment-templates/${state.selected._id}`,{method:"DELETE"});state.selected=null;await loadTemplates();notice("Template deleted") }catch(e){notice(e.message,false)}};
-$("saveTemplateBtn").onclick=async()=>{try{const payload=templatePayload();if(!payload.name)throw new Error("Template name is required");if(!payload.fields.length)throw new Error("Add at least one field");const data=state.selected?._id?await api(`/api/attachment-templates/${state.selected._id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}):await api("/api/attachment-templates",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});state.selected=data.template;await loadTemplates();state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;fillTemplateForm();renderTemplateList();notice("Template saved") }catch(e){notice(e.message,false)}};
+$("saveTemplateBtn").onclick=async()=>{
+  try{
+    document.querySelectorAll("[data-field-row]").forEach(syncFieldRowFromDom);
+
+    const repaired=repairStandardTemplateMapping();
+    const payload=templatePayload();
+
+    if(!payload.name) throw new Error("Template name is required");
+    if(!payload.fields.length) throw new Error("Add at least one field");
+
+    const data=state.selected?._id
+      ? await api(`/api/attachment-templates/${state.selected._id}`,{
+          method:"PUT",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        })
+      : await api("/api/attachment-templates",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        });
+
+    state.selected=data.template;
+    await loadTemplates();
+    state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;
+    fillTemplateForm();
+    renderTemplateList();
+
+    notice(
+      repaired
+        ? `Template saved. ${repaired} standard field mapping(s) corrected.`
+        : "Template saved"
+    );
+  }catch(e){
+    notice(e.message,false);
+  }
+};
 
 $("uploadBtn").onclick=async()=>{
   try{
