@@ -336,18 +336,24 @@ function extractionPrompt(template,ocrText=""){
 
   const lines = [
     "You are extracting transportation reservation trips from a reservation document.",
+    clean(template?._recoveryInstruction) || "",
     "The source can contain printed text, handwriting, a hand-drawn table, or a normal form.",
     "Detect the table headers, visible column boundaries, row boundaries, and the spatial position of every handwritten or printed value.",
     "For tables, COLUMN POSITION IS AUTHORITATIVE: assign a value only to the column in which it is visibly written.",
     "Never move, merge, borrow, prepend, append, or copy a value from a neighboring column.",
     "Never infer a missing street number, phone number, date, time, stop, or address from another cell.",
-    "If a cell is blank, keep it blank even when a nearby cell contains a plausible value.",
+    "If a cell is visibly blank, keep it blank even when a nearby cell contains a plausible value. If handwriting exists in the cell, make the best faithful transcription of that handwriting.",
     "If a value crosses a hand-drawn border visually, use the center/bulk of the writing to decide which single cell owns it; never duplicate it.",
     "Read each physical row from left to right using the visible grid, and output exactly one trip row for each physical passenger/trip row.",
+    "Count the visible data rows first before extracting fields. Do not collapse multiple physical rows into one.",
+    "Do not return an all-empty trip row when the document visibly contains handwritten trip data.",
+    "If one field in a row is uncertain, keep the other clearly readable fields from that same row.",
     "If the document has front and back pages, treat them as one logical document and combine only information that clearly belongs to the same row/person.",
     "Read handwriting carefully.",
-    "Do not invent values. If a value is unreadable, ambiguous, or absent, return an empty string.",
+    "Do not invent values. Read the best visible value from its own cell. Use an empty string only when the cell is truly unreadable or absent.",
     "Preserve names, addresses, dates, times and phone numbers exactly as written; do not normalize or correct addresses during extraction.",
+    "Use the visible header above each column to map cells to template fields. For example: Client Name -> clientName, Pickup Date -> tripDate, Pickup Time -> tripTime, Phone # -> clientPhone, Pickup Address -> pickup, Stops -> stops, Dropoff Address -> dropoff when those template keys exist.",
+    "A number written under Phone # belongs to the phone field, never to Pickup Address. A street written under Stops belongs to stops, never to Pickup or Dropoff.",
     "For a Stops field, preserve only text visibly written inside the Stops column; separate multiple stops with semicolons.",
     "Return JSON only. No markdown and no commentary.",
     `Template fields: ${JSON.stringify(fields)}`,
@@ -529,15 +535,60 @@ async function parseVisualDocument(files,template){
     );
   }
 
-  const parsed =
+  let parsed =
     jsonFromModelText(
       result.text
     );
 
-  const modelRows =
+  let modelRows =
     Array.isArray(parsed?.rows)
       ? parsed.rows
       : [];
+
+  const hasUsefulVisualRow =
+    modelRows.some(row=>{
+      const data =
+        row?.data &&
+        typeof row.data === "object"
+          ? row.data
+          : {};
+
+      return Object.values(data)
+        .some(value=>clean(value));
+    });
+
+  /*
+    Recovery pass:
+    A very strict first pass can occasionally return an empty row even though
+    handwriting is visible. Retry once with the original image/PDF still attached,
+    asking for the best faithful transcription while keeping column ownership strict.
+  */
+  if(!modelRows.length || !hasUsefulVisualRow){
+    const recoveryTemplate = {
+      ...(template || {}),
+      _recoveryInstruction:
+        "The previous pass returned no usable row data. The document visibly contains trip data. Re-read the ORIGINAL IMAGE/PDF and transcribe the best visible value from each cell. Keep every value in its visible column. Do not invent or move values between columns."
+    };
+
+    const recovery =
+      await callGemini({
+        files,
+        template:recoveryTemplate,
+        ocrText:usefulOcr
+      });
+
+    if(recovery){
+      parsed =
+        jsonFromModelText(
+          recovery.text
+        );
+
+      modelRows =
+        Array.isArray(parsed?.rows)
+          ? parsed.rows
+          : [];
+    }
+  }
 
   if(!modelRows.length){
     return blankDocumentRow(
