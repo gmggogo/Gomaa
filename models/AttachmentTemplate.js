@@ -10,6 +10,7 @@ const templateFieldSchema = new mongoose.Schema(
       default:"TEXT"
     },
     required:{ type:Boolean, default:false },
+    visibleInReview:{ type:Boolean, default:true },
     aliases:{ type:[String], default:[] },
     order:{ type:Number, default:0 }
   },

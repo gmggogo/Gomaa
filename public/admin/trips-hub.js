@@ -84,6 +84,12 @@ function openAttachmentImportPage(event){
   window.location.href = "/admin/attachment-import.html";
 }
 
+function openAttachmentSummaryPage(event){
+  event?.preventDefault?.();
+  syncLegacyAdminAuth();
+  window.location.href = "/admin/attachment-summary.html";
+}
+
 async function loadAttachmentImportButton(){
   try{
     const res = await fetch(
@@ -100,25 +106,41 @@ async function loadAttachmentImportButton(){
     const wrap = document.getElementById("topAddTripWrap");
     if(!wrap) return;
 
-    let btn = document.getElementById("addAttachmentTripBtn");
+    let importBtn = document.getElementById("addAttachmentTripBtn");
+    let summaryBtn = document.getElementById("attachmentSummaryBtn");
 
     if(res.ok && data.enabled === true){
-      if(!btn){
-        btn = document.createElement("button");
-        btn.id = "addAttachmentTripBtn";
-        btn.className = "top-add-trip-btn";
-        btn.type = "button";
-        btn.textContent = "+ Add Trip Attachment";
-        btn.style.marginLeft = "10px";
-        btn.addEventListener("click",openAttachmentImportPage);
-        wrap.appendChild(btn);
+      if(!importBtn){
+        importBtn = document.createElement("button");
+        importBtn.id = "addAttachmentTripBtn";
+        importBtn.className = "top-add-trip-btn";
+        importBtn.type = "button";
+        importBtn.textContent = "+ Add Trip Attachment";
+        importBtn.style.marginLeft = "10px";
+        importBtn.addEventListener("click",openAttachmentImportPage);
+        wrap.appendChild(importBtn);
       }
-      btn.style.display = "inline-flex";
-    }else if(btn){
-      btn.remove();
+
+      if(!summaryBtn){
+        summaryBtn = document.createElement("button");
+        summaryBtn.id = "attachmentSummaryBtn";
+        summaryBtn.className = "top-add-trip-btn attachment-summary-btn";
+        summaryBtn.type = "button";
+        summaryBtn.textContent = "Attachment Summary";
+        summaryBtn.style.marginLeft = "10px";
+        summaryBtn.addEventListener("click",openAttachmentSummaryPage);
+        wrap.appendChild(summaryBtn);
+      }
+
+      importBtn.style.display = "inline-flex";
+      summaryBtn.style.display = "inline-flex";
+    }else{
+      importBtn?.remove();
+      summaryBtn?.remove();
     }
   }catch(err){
     document.getElementById("addAttachmentTripBtn")?.remove();
+    document.getElementById("attachmentSummaryBtn")?.remove();
   }
 }
 

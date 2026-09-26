@@ -14,8 +14,8 @@
     <button class="btn btn-muted" type="button" onclick="location.href='/admin/trips-hub.html'">Back to Trips Hub</button>
   </header>
 
-  <div class="ai-layout">
-    <aside class="ai-sidebar">
+  <div class="ai-layout" id="aiLayout">
+    <aside class="ai-sidebar" id="templateSidebar">
       <h3>Templates</h3>
       <div id="templateList" class="template-list"></div>
       <div class="side-actions">
@@ -45,8 +45,8 @@
           <div class="upload-zone primary-upload-zone">
             <div class="upload-title">Choose the reservation document</div>
             <div class="meta upload-help">
-              Paper with Front + Back: select both images in the same upload, Front first then Back.
-              Both sides stay linked as one document.
+              For Front + Back paper, select both images in one upload: Front first, then Back.
+              Both sides remain one document.
             </div>
             <input id="attachmentFiles" type="file" multiple accept=".csv,.xls,.xlsx,.pdf,image/*">
             <div class="upload-actions">
@@ -66,7 +66,8 @@
         </div>
 
         <div class="section">
-          <h3>Fields → Document Data Mapping</h3>
+          <h3>Match Document Fields</h3>
+          <div class="meta field-map-help">Write the field name as it appears on the document, choose the matching GH Mobility field, and decide whether it appears in Review.</div>
           <div id="fieldsEditor"></div>
           <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
         </div>
@@ -83,16 +84,15 @@
         </div>
 
         <div class="toolbar"><button class="btn btn-green" id="saveTemplateBtn">Save Template</button></div>
-
       </div>
 
       <div id="reviewPanel" class="panel">
-        <div class="toolbar">
+        <div class="review-toolbar">
+          <label class="select-all-control"><input id="selectAllRows" type="checkbox"> <span>Select All</span></label>
           <button class="btn btn-muted" id="saveReviewBtn">Save Review</button>
-          <button class="btn btn-green" id="confirmImportBtn">Confirm & Create Trips</button>
-          <button class="btn btn-muted" type="button" onclick="location.href='/admin/attachment-summary.html'">Attachment Summary / Archive</button>
+          <button class="btn btn-green" id="submitSelectedBtn">Submit Selected</button>
         </div>
-        <div id="reviewMeta" class="meta"></div>
+        <div id="reviewMeta" class="review-meta"></div>
         <div id="reviewTable" class="review-wrap"></div>
       </div>
     </section>

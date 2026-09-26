@@ -16,6 +16,28 @@ const AttachmentTripCounter =
       .index({ tenantId:1, serviceKey:1 },{ unique:true })
   );
 
+const AttachmentDocumentCounter =
+  mongoose.models.AttachmentDocumentCounter ||
+  mongoose.model(
+    "AttachmentDocumentCounter",
+    new mongoose.Schema({
+      tenantId:{ type:mongoose.Schema.Types.ObjectId, required:true, unique:true, index:true },
+      value:{ type:Number, default:0 }
+    },{ timestamps:true, collection:"attachment_document_counters" })
+  );
+
+const AttachmentDailyEntryCounter =
+  mongoose.models.AttachmentDailyEntryCounter ||
+  mongoose.model(
+    "AttachmentDailyEntryCounter",
+    new mongoose.Schema({
+      tenantId:{ type:mongoose.Schema.Types.ObjectId, required:true, index:true },
+      dayKey:{ type:String, required:true, index:true },
+      value:{ type:Number, default:0 }
+    },{ timestamps:true, collection:"attachment_daily_entry_counters" })
+      .index({ tenantId:1, dayKey:1 },{ unique:true })
+  );
+
 function clean(v){ return String(v ?? "").trim(); }
 function upper(v){ return clean(v).toUpperCase(); }
 function normalizedWords(v){ return upper(v).replace(/[^A-Z0-9]+/g," ").trim(); }
@@ -75,6 +97,16 @@ function first(data,...keys){
   return "";
 }
 
+function normalizeStops(value){
+  if(Array.isArray(value)) return value.map(clean).filter(Boolean);
+  const text = clean(value);
+  if(!text) return [];
+  return text
+    .split(/\r?\n|\s*;\s*|\s*\|\s*/)
+    .map(clean)
+    .filter(Boolean);
+}
+
 function validateRow(row,template,enabledServices){
   const errors = [];
   for(const field of template?.fields || []){
@@ -95,6 +127,47 @@ async function nextTripNumber(tenantId,serviceKey){
     { upsert:true, new:true, setDefaultsOnInsert:true }
   );
   return `AT${serviceKey}${String(counter.value).padStart(6,"0")}`;
+}
+
+async function nextDocumentNumber(tenantId){
+  const counter = await AttachmentDocumentCounter.findOneAndUpdate(
+    { tenantId },
+    { $inc:{ value:1 } },
+    { upsert:true, new:true, setDefaultsOnInsert:true }
+  );
+  return `DOC-${String(counter.value).padStart(6,"0")}`;
+}
+
+function dayKeyForTimezone(timeZone){
+  const parts = new Intl.DateTimeFormat("en-CA",{
+    timeZone:timeZone || "America/Phoenix",
+    year:"numeric",
+    month:"2-digit",
+    day:"2-digit"
+  }).formatToParts(new Date());
+
+  const map = {};
+  for(const part of parts) map[part.type] = part.value;
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+async function allocateDailyEntryNumbers(tenantId,count){
+  const safeCount = Math.max(0,Number(count || 0));
+  const dayKey = dayKeyForTimezone(process.env.SYSTEM_TIMEZONE || "America/Phoenix");
+  if(!safeCount) return { dayKey,numbers:[] };
+
+  const counter = await AttachmentDailyEntryCounter.findOneAndUpdate(
+    { tenantId,dayKey },
+    { $inc:{ value:safeCount } },
+    { upsert:true,new:true,setDefaultsOnInsert:true }
+  );
+
+  const end = Number(counter.value || 0);
+  const start = end - safeCount + 1;
+  return {
+    dayKey,
+    numbers:Array.from({length:safeCount},(_,i)=>start+i)
+  };
 }
 
 function tripPayloadFromRow({row,service,importDoc,tenant}){
@@ -121,7 +194,7 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     returnTime:first(data,"returnTime"),
     pickup,
     dropoff,
-    stops:[],
+    stops:normalizeStops(first(data,"stops","stop","additionalStops")),
     tripDate,
     tripTime,
     notes:first(data,"notes","note","comments"),
@@ -141,6 +214,8 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     attachmentImport:true,
     attachmentImportId:importDoc._id,
     attachmentTemplateId:importDoc.templateId,
+    attachmentDocumentNumber:importDoc.documentNumber || "",
+    attachmentDailyEntryNumber:Number(row.dailyEntryNumber || 0),
     attachmentRowIndex:Number(row.rowIndex || 0),
     attachmentSignatureRequired:service.customerSignatureRequired === true
   };
@@ -163,7 +238,7 @@ async function prepareReviewRows({importDoc,template}){
   return services;
 }
 
-async function confirmImport({importDoc,template}){
+async function confirmImport({importDoc,template,rowIndexes=null}){
   const tenant = await Tenant.findById(importDoc.tenantId);
   if(!tenant) throw new Error("Tenant not found");
   if(tenant.attachmentImportEnabled !== true){
@@ -174,10 +249,15 @@ async function confirmImport({importDoc,template}){
 
   const services = await enabledServicesForTenant(importDoc.tenantId);
   const serviceMap = new Map(services.map(s=>[s.serviceKey,s]));
+  const requested = Array.isArray(rowIndexes)
+    ? new Set(rowIndexes.map(Number).filter(Number.isFinite))
+    : null;
   const created = [];
 
   for(const row of importDoc.reviewRows){
+    if(requested && !requested.has(Number(row.rowIndex))) continue;
     if(row.confirmed && row.tripId) continue;
+
     const service = serviceMap.get(upper(row.serviceKey));
     row.validationErrors = validateRow(row,template,services);
     if(row.validationErrors.length) continue;
@@ -205,5 +285,7 @@ module.exports = {
   enabledServicesForTenant,
   prepareReviewRows,
   confirmImport,
-  autoResolveService
+  autoResolveService,
+  nextDocumentNumber,
+  allocateDailyEntryNumbers
 };

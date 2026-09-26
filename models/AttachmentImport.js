@@ -15,6 +15,8 @@ const sourceFileSchema = new mongoose.Schema(
 const reviewRowSchema = new mongoose.Schema(
   {
     rowIndex:{ type:Number, required:true },
+    dailyEntryNumber:{ type:Number, default:null },
+    extractionConfidence:{ type:Number, default:null, min:0, max:1 },
     data:{ type:mongoose.Schema.Types.Mixed, default:{} },
     rawData:{ type:mongoose.Schema.Types.Mixed, default:{} },
     serviceKey:{ type:String, default:"", trim:true, uppercase:true },
@@ -57,6 +59,8 @@ const attachmentImportSchema = new mongoose.Schema(
       index:true
     },
     tenantSlug:{ type:String, default:"", trim:true, lowercase:true },
+    documentNumber:{ type:String, default:"", trim:true, index:true },
+    dailyEntryDate:{ type:String, default:"", trim:true },
     templateId:{
       type:mongoose.Schema.Types.ObjectId,
       ref:"AttachmentTemplate",
@@ -87,6 +91,7 @@ const attachmentImportSchema = new mongoose.Schema(
 
 attachmentImportSchema.index({ tenantId:1, createdAt:-1 });
 attachmentImportSchema.index({ tenantId:1, status:1, updatedAt:-1 });
+attachmentImportSchema.index({ tenantId:1, documentNumber:1 },{ unique:true, sparse:true });
 attachmentImportSchema.index({ tenantId:1, "archiveEntries.tripId":1 });
 
 module.exports =

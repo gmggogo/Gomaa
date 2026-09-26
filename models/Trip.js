@@ -90,6 +90,8 @@ const tripSchema = new mongoose.Schema({
     ref:"AttachmentTemplate",
     default:null
   },
+  attachmentDocumentNumber:{ type:String, default:"", trim:true, index:true },
+  attachmentDailyEntryNumber:{ type:Number, default:null },
   attachmentRowIndex:{ type:Number, default:-1 },
   attachmentSignatureRequired:{ type:Boolean, default:false },
   customerSignatureCaptured:{ type:Boolean, default:false },

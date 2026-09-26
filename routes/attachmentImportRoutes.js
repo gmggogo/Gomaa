@@ -11,7 +11,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const upload = multer({
   storage:multer.memoryStorage(),
-  limits:{ fileSize:8*1024*1024, files:10 }
+  limits:{ fileSize:8*1024*1024, files:20 }
 });
 
 function readBearerToken(req){
@@ -108,7 +108,7 @@ router.post("/upload",upload.array("files",20),async(req,res)=>{
       return res.status(413).json({success:false,message:"Attachment document is too large. Keep the full front/back packet under 12 MB."});
     }
 
-    const parsed = attachmentParserService.parseAttachment({files:req.files,template});
+    const parsed = await attachmentParserService.parseAttachment({files:req.files,template});
     const sourceFiles = req.files.map((file,index)=>({
       originalName:file.originalname,
       mimeType:file.mimetype,
@@ -118,15 +118,22 @@ router.post("/upload",upload.array("files",20),async(req,res)=>{
       data:file.buffer
     }));
 
+    const documentNumber = await attachmentImportService.nextDocumentNumber(tenantId);
+    const daily = await attachmentImportService.allocateDailyEntryNumbers(tenantId,parsed.rows.length);
+
     const importDoc = await AttachmentImport.create({
       tenantId,
       tenantSlug:feature.tenant.slug || "",
+      documentNumber,
+      dailyEntryDate:daily.dayKey,
       templateId:template._id,
       templateName:template.name,
       sourceType:parsed.sourceType,
       sourceFiles,
-      reviewRows:parsed.rows.map(r=>({
+      reviewRows:parsed.rows.map((r,index)=>({
         rowIndex:r.rowIndex,
+        dailyEntryNumber:daily.numbers[index] ?? null,
+        extractionConfidence:r.extractionConfidence ?? null,
         data:r.data,
         rawData:r.rawData,
         serviceResolution:"UNRESOLVED"
@@ -168,7 +175,7 @@ router.put("/:id/review",async(req,res)=>{
     const updates = Array.isArray(req.body?.rows) ? req.body.rows : [];
     for(const update of updates){
       const row = importDoc.reviewRows.find(r=>Number(r.rowIndex) === Number(update.rowIndex));
-      if(!row) continue;
+      if(!row || row.confirmed) continue;
       if(update.data && typeof update.data === "object") row.data = update.data;
       if(update.serviceKey !== undefined){
         row.serviceKey = String(update.serviceKey || "").trim().toUpperCase();
@@ -191,9 +198,17 @@ router.post("/:id/confirm",async(req,res)=>{
     const template = await AttachmentTemplate.findById(importDoc.templateId);
     if(!template) return res.status(404).json({success:false,message:"Template not found"});
 
+    const rowIndexes = Array.isArray(req.body?.rowIndexes)
+      ? req.body.rowIndexes.map(Number).filter(Number.isFinite)
+      : null;
+
+    if(rowIndexes && !rowIndexes.length){
+      return res.status(400).json({success:false,message:"Select at least one trip to submit"});
+    }
+
     await attachmentImportService.prepareReviewRows({importDoc,template});
     await importDoc.save();
-    const result = await attachmentImportService.confirmImport({importDoc,template});
+    const result = await attachmentImportService.confirmImport({importDoc,template,rowIndexes});
 
     return res.json({
       success:true,
