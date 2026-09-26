@@ -399,7 +399,7 @@ async function callGemini({files,template,ocrText=""}){
 
   const model =
     clean(process.env.ATTACHMENT_GEMINI_MODEL) ||
-    "gemini-2.5-flash-lite";
+    "gemini-3.5-flash-lite";
 
   const prompt =
     extractionPrompt(
