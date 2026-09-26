@@ -11,6 +11,18 @@ const state = {
   sharePlan:null
 };
 const $ = id=>document.getElementById(id);
+
+const templateFieldStyle=document.createElement("style");
+templateFieldStyle.textContent=`
+  .one-field-map-row{
+    grid-template-columns:minmax(320px,2fr) minmax(140px,.7fr) minmax(120px,.6fr) auto !important;
+  }
+  .one-field-map-row .document-field-only input{
+    width:100%;
+  }
+`;
+document.head.appendChild(templateFieldStyle);
+
 function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function clean(v){return String(v??"").trim()}
 function authHeaders(extra={}){return {Authorization:`Bearer ${token}`,...extra}}
@@ -47,11 +59,66 @@ const GH_FIELD_OPTIONS = [
 ];
 function ghFieldMeta(key){return GH_FIELD_OPTIONS.find(x=>x.key===key)||null}
 function emptyField(){return {label:"",internalKey:"",type:"TEXT",required:false,visibleInReview:true,aliases:[],order:0}}
-function ghFieldOptions(currentKey=""){
-  const options=[`<option value="">Select GH Mobility field...</option>`];
-  GH_FIELD_OPTIONS.forEach(x=>options.push(`<option value="${esc(x.key)}" ${x.key===currentKey?"selected":""}>${esc(x.label)}</option>`));
-  if(currentKey&&!ghFieldMeta(currentKey))options.push(`<option value="${esc(currentKey)}" selected>${esc(currentKey)} (Existing custom field)</option>`);
-  return options.join("");
+function normalizeFieldLabel(value){
+  return clean(value)
+    .toLowerCase()
+    .replace(/[_\-]+/g," ")
+    .replace(/[^\p{L}\p{N}#]+/gu," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function localFieldMatch(label){
+  const target=normalizeFieldLabel(label);
+  if(!target) return null;
+
+  let best=null;
+  let bestScore=0;
+
+  for(const meta of GH_FIELD_OPTIONS){
+    const candidates=[
+      meta.label,
+      meta.key,
+      ...(Array.isArray(meta.aliases)?meta.aliases:[])
+    ].map(normalizeFieldLabel).filter(Boolean);
+
+    for(const candidate of candidates){
+      let score=0;
+
+      if(target===candidate){
+        score=100;
+      }else if(
+        target.length>=4 &&
+        (target.includes(candidate) || candidate.includes(target))
+      ){
+        score=80;
+      }else{
+        const a=new Set(target.split(" "));
+        const b=new Set(candidate.split(" "));
+        const common=[...a].filter(x=>b.has(x)).length;
+        const total=new Set([...a,...b]).size;
+        if(total) score=Math.round((common/total)*70);
+      }
+
+      if(score>bestScore){
+        bestScore=score;
+        best=meta;
+      }
+    }
+  }
+
+  return bestScore>=70 ? best : null;
+}
+
+function applyFieldMapping(field,label,internalKey){
+  const meta=ghFieldMeta(internalKey);
+  return {
+    ...field,
+    label:clean(label),
+    internalKey:clean(internalKey),
+    type:meta?.type || field?.type || "TEXT",
+    aliases:meta?.aliases || field?.aliases || []
+  };
 }
 function syncFieldRowFromDom(row){
   if(!state.selected || !row) return;
@@ -61,26 +128,27 @@ function syncFieldRowFromDom(row){
 
   const current=state.selected.fields[index];
   const label=clean(row.querySelector('[data-k="label"]')?.value);
-  const internalKey=clean(row.querySelector('[data-k="internalKey"]')?.value);
-  const meta=ghFieldMeta(internalKey);
+  const local=localFieldMatch(label);
+  const currentKey=clean(current.internalKey);
 
-  let oldAliases=[];
-  try{
-    oldAliases=JSON.parse(row.dataset.originalAliases||"[]");
-  }catch(_){
-    oldAliases=[];
-  }
+  const internalKey=
+    local?.key ||
+    currentKey ||
+    "";
 
   state.selected.fields[index]={
-    ...current,
-    label,
-    internalKey,
-    type:meta?.type || row.dataset.originalType || current.type || "TEXT",
+    ...applyFieldMapping(current,label,internalKey),
     required:row.querySelector('[data-k="required"]')?.value==="true",
     visibleInReview:row.querySelector('[data-k="visibleInReview"]')?.value!=="false",
-    aliases:meta?.aliases || oldAliases,
     order:index
   };
+
+  const hint=row.querySelector("[data-map-hint]");
+  if(hint){
+    hint.textContent=internalKey
+      ? `Mapped internally: ${ghFieldMeta(internalKey)?.label || internalKey}`
+      : "Will be identified automatically when saved";
+  }
 }
 
 function bindFieldEditorSync(){
@@ -94,14 +162,53 @@ function bindFieldEditorSync(){
 
 function renderFields(){
   const fields=state.selected?.fields || [];
+
   $("fieldsEditor").innerHTML=fields.map((f,i)=>`
-    <div class="field-row simple-field-row" data-field-row="${i}" data-original-type="${esc(f.type||"TEXT")}" data-original-aliases="${esc(JSON.stringify(f.aliases||[]))}">
-      <div><label>Document Field</label><input data-k="label" value="${esc(f.label)}" placeholder="Example: Client Name"></div>
-      <div><label>GH Mobility Field</label><select data-k="internalKey">${ghFieldOptions(f.internalKey)}</select></div>
-      <div><label>Show in Review</label><select data-k="visibleInReview"><option value="true" ${f.visibleInReview!==false?"selected":""}>Show</option><option value="false" ${f.visibleInReview===false?"selected":""}>Hide</option></select></div>
-      <div><label>Required</label><select data-k="required"><option value="false" ${!f.required?"selected":""}>No</option><option value="true" ${f.required?"selected":""}>Yes</option></select></div>
-      <button class="btn btn-red field-delete" type="button" onclick="removeField(${i})" title="Delete field">×</button>
-    </div>`).join("") || `<div class="meta">Add only the fields that appear on this organization's document.</div>`;
+    <div
+      class="field-row simple-field-row one-field-map-row"
+      data-field-row="${i}"
+      data-internal-key="${esc(f.internalKey||"")}"
+    >
+      <div class="document-field-only">
+        <label>Document Field</label>
+        <input
+          data-k="label"
+          value="${esc(f.label)}"
+          placeholder="Type the field name exactly as it appears on the document"
+        >
+        <div class="meta" data-map-hint>
+          ${
+            f.internalKey
+              ? `Mapped internally: ${esc(ghFieldMeta(f.internalKey)?.label || f.internalKey)}`
+              : "Will be identified automatically when saved"
+          }
+        </div>
+      </div>
+
+      <div>
+        <label>Show in Review</label>
+        <select data-k="visibleInReview">
+          <option value="true" ${f.visibleInReview!==false?"selected":""}>Show</option>
+          <option value="false" ${f.visibleInReview===false?"selected":""}>Hide</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Required</label>
+        <select data-k="required">
+          <option value="false" ${!f.required?"selected":""}>No</option>
+          <option value="true" ${f.required?"selected":""}>Yes</option>
+        </select>
+      </div>
+
+      <button
+        class="btn btn-red field-delete"
+        type="button"
+        onclick="removeField(${i})"
+        title="Delete field"
+      >×</button>
+    </div>
+  `).join("") || `<div class="meta">Add only the fields that appear on this organization's document.</div>`;
 
   bindFieldEditorSync();
 }
@@ -114,9 +221,11 @@ function collectFields(){
     const field=state.selected?.fields?.[i] || {};
     return {
       ...field,
+      label:clean(field.label),
+      internalKey:clean(field.internalKey),
       order:i
     };
-  }).filter(f=>clean(f.label)&&clean(f.internalKey));
+  }).filter(f=>clean(f.label));
 }
 window.removeField=i=>{state.selected.fields.splice(i,1);renderFields()}
 $("addFieldBtn").onclick=()=>{if(!state.selected)newTemplate();state.selected.fields.push(emptyField());renderFields()}
@@ -200,6 +309,71 @@ function fillTemplateForm(){
   const p=t.signaturePosition||{};$("sigPage").value=p.page||1;$("sigX").value=p.xPercent??62;$("sigY").value=p.yPercent??78;$("sigW").value=p.widthPercent??28;$("sigH").value=p.heightPercent??12;
   renderFields();
 }
+
+async function resolveUnknownTemplateFields(){
+  if(!state.selected?.fields?.length) return;
+
+  document.querySelectorAll("[data-field-row]").forEach(syncFieldRowFromDom);
+
+  const unknown=state.selected.fields
+    .map((field,index)=>({
+      index,
+      label:clean(field.label),
+      internalKey:clean(field.internalKey)
+    }))
+    .filter(item=>item.label && !item.internalKey);
+
+  if(!unknown.length) return;
+
+  const data=await api(
+    "/api/attachment-imports/map-template-fields",
+    {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        fields:unknown.map(item=>({
+          index:item.index,
+          label:item.label
+        }))
+      })
+    }
+  );
+
+  const mappings=Array.isArray(data.mappings)
+    ? data.mappings
+    : [];
+
+  for(const mapping of mappings){
+    const index=Number(mapping.index);
+    const key=clean(mapping.internalKey);
+
+    if(
+      Number.isFinite(index) &&
+      state.selected.fields?.[index] &&
+      key
+    ){
+      state.selected.fields[index]=applyFieldMapping(
+        state.selected.fields[index],
+        state.selected.fields[index].label,
+        key
+      );
+    }
+  }
+
+  const stillUnknown=state.selected.fields.filter(
+    field=>clean(field.label) && !clean(field.internalKey)
+  );
+
+  if(stillUnknown.length){
+    throw new Error(
+      "Could not identify: " +
+      stillUnknown.map(field=>field.label).join(", ")
+    );
+  }
+
+  renderFields();
+}
+
 function templatePayload(){return {
   name:clean($("templateName").value),organizationType:$("organizationType").value,organizationName:clean($("organizationName").value),
   fields:collectFields(),sourceTypes:["CSV","XLSX","IMAGE","PDF"],active:true,
@@ -221,11 +395,21 @@ $("saveTemplateBtn").onclick=async()=>{
   try{
     document.querySelectorAll("[data-field-row]").forEach(syncFieldRowFromDom);
 
-    const repaired=repairStandardTemplateMapping();
+    await resolveUnknownTemplateFields();
+
     const payload=templatePayload();
 
-    if(!payload.name) throw new Error("Template name is required");
-    if(!payload.fields.length) throw new Error("Add at least one field");
+    if(!payload.name){
+      throw new Error("Template name is required");
+    }
+
+    if(!payload.fields.length){
+      throw new Error("Add at least one field");
+    }
+
+    if(payload.fields.some(field=>!clean(field.internalKey))){
+      throw new Error("Every Document Field must be identified before saving");
+    }
 
     const data=state.selected?._id
       ? await api(`/api/attachment-templates/${state.selected._id}`,{
@@ -244,12 +428,7 @@ $("saveTemplateBtn").onclick=async()=>{
     state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;
     fillTemplateForm();
     renderTemplateList();
-
-    notice(
-      repaired
-        ? `Template saved. ${repaired} standard field mapping(s) corrected.`
-        : "Template saved"
-    );
+    notice("Template saved");
   }catch(e){
     notice(e.message,false);
   }

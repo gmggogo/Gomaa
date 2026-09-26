@@ -266,6 +266,118 @@ async function validateImportAddresses(importDoc,rowIndexes=null){
 }
 
 
+
+const ATTACHMENT_FIELD_TARGETS = Object.freeze([
+  { internalKey:"clientName", label:"Customer Name", aliases:["client name","customer name","patient","patient name","member name","passenger","rider"] },
+  { internalKey:"clientPhone", label:"Phone", aliases:["phone","phone number","phone #","telephone","member phone","mobile"] },
+  { internalKey:"pickup", label:"Pickup Address", aliases:["pickup","pickup address","pick up","pick up address","origin","from address"] },
+  { internalKey:"stops", label:"Stops", aliases:["stop","stops","additional stop","additional stops","waypoint","waypoints"] },
+  { internalKey:"dropoff", label:"Dropoff Address", aliases:["dropoff","drop off","dropoff address","drop off address","destination","to address"] },
+  { internalKey:"tripDate", label:"Trip Date", aliases:["date","trip date","pickup date","pick up date","service date"] },
+  { internalKey:"tripTime", label:"Pickup Time", aliases:["time","pickup time","pick up time","pu time"] },
+  { internalKey:"service", label:"Service", aliases:["service","service type","vehicle type","transport type"] },
+  { internalKey:"appointmentTime", label:"Appointment Time", aliases:["appointment","appointment time","appt","appt time"] },
+  { internalKey:"returnTime", label:"Return Time", aliases:["return","return time","will call return"] },
+  { internalKey:"memberId", label:"Member ID", aliases:["member id","member #","medicaid id","insurance id"] },
+  { internalKey:"notes", label:"Notes", aliases:["notes","note","comments","comment","special instructions"] }
+]);
+
+function attachmentFieldTargetByKey(key){
+  return ATTACHMENT_FIELD_TARGETS.find(
+    item=>item.internalKey===String(key||"").trim()
+  ) || null;
+}
+
+async function geminiMapUnknownAttachmentFields(fields){
+  const apiKey=String(process.env.GEMINI_API_KEY||"").trim();
+
+  if(!apiKey){
+    const err=new Error(
+      "Unknown field names require GEMINI_API_KEY on the server"
+    );
+    err.statusCode=503;
+    throw err;
+  }
+
+  const model=
+    String(process.env.ATTACHMENT_GEMINI_MODEL||"").trim() ||
+    "gemini-3.5-flash-lite";
+
+  const allowed=ATTACHMENT_FIELD_TARGETS.map(item=>({
+    internalKey:item.internalKey,
+    meaning:item.label,
+    examples:item.aliases
+  }));
+
+  const prompt=[
+    "Map unfamiliar transportation document column labels to GH Mobility canonical fields.",
+    "Choose ONLY from the allowed internalKey values below.",
+    "Do not invent a new key.",
+    "Return JSON only.",
+    `Allowed targets: ${JSON.stringify(allowed)}`,
+    `Unknown document fields: ${JSON.stringify(fields)}`,
+    'Required JSON: {"mappings":[{"index":0,"internalKey":"pickup"}]}'
+  ].join("\n");
+
+  const response=await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method:"POST",
+      headers:{
+        "x-goog-api-key":apiKey,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        contents:[{
+          role:"user",
+          parts:[{text:prompt}]
+        }],
+        generationConfig:{
+          responseMimeType:"application/json",
+          temperature:0
+        }
+      })
+    }
+  );
+
+  const payload=await response.json().catch(()=>({}));
+
+  if(!response.ok){
+    const err=new Error(
+      String(payload?.error?.message||"Gemini field mapping failed")
+    );
+    err.statusCode=502;
+    throw err;
+  }
+
+  const modelText=(payload?.candidates?.[0]?.content?.parts||[])
+    .map(part=>String(part?.text||""))
+    .join("")
+    .trim();
+
+  let parsed={};
+  try{
+    parsed=JSON.parse(modelText);
+  }catch(_){
+    parsed={};
+  }
+
+  const incoming=Array.isArray(parsed?.mappings)
+    ? parsed.mappings
+    : [];
+
+  return incoming
+    .map(item=>({
+      index:Number(item?.index),
+      internalKey:String(item?.internalKey||"").trim()
+    }))
+    .filter(item=>
+      Number.isFinite(item.index) &&
+      attachmentFieldTargetByKey(item.internalKey)
+    );
+}
+
+
 router.use(requireTenantApi);
 
 router.get("/feature",async(req,res)=>{
@@ -274,6 +386,53 @@ router.get("/feature",async(req,res)=>{
     const tenant = await Tenant.findById(tenantId).select("attachmentImportEnabled").lean();
     return res.json({success:true,enabled:tenant?.attachmentImportEnabled === true});
   }catch(err){ return res.status(500).json({success:false,message:"Failed to load Attachment Import feature"}); }
+});
+
+
+router.post("/map-template-fields",async(req,res)=>{
+  try{
+    const tenantId=tenantIdFor(req);
+    const feature=await featureTenant(tenantId);
+
+    if(!feature.ok){
+      return res.status(feature.status).json({
+        success:false,
+        message:feature.message
+      });
+    }
+
+    const fields=Array.isArray(req.body?.fields)
+      ? req.body.fields
+          .map(item=>({
+            index:Number(item?.index),
+            label:String(item?.label||"").trim()
+          }))
+          .filter(item=>Number.isFinite(item.index) && item.label)
+          .slice(0,50)
+      : [];
+
+    if(!fields.length){
+      return res.json({
+        success:true,
+        mappings:[],
+        aiUsed:false
+      });
+    }
+
+    const mappings=await geminiMapUnknownAttachmentFields(fields);
+
+    return res.json({
+      success:true,
+      mappings,
+      aiUsed:true
+    });
+  }catch(err){
+    console.error("ATTACHMENT FIELD MAP ERROR:",err);
+    return res.status(err?.statusCode || 500).json({
+      success:false,
+      message:err?.message || "Failed to identify document fields"
+    });
+  }
 });
 
 router.get("/services",async(req,res)=>{
