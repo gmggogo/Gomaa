@@ -334,43 +334,61 @@ function extractionPrompt(template,ocrText=""){
   const fields =
     fieldSpecForVision(template);
 
+  const orderedColumns =
+    fields.map((field,index)=>({
+      columnIndex:index,
+      documentLabel:field.documentLabel,
+      internalKey:field.internalKey,
+      required:field.required === true
+    }));
+
   const lines = [
     "You are extracting transportation reservation trips from a reservation document.",
     clean(template?._recoveryInstruction) || "",
     "The source can contain printed text, handwriting, a hand-drawn table, or a normal form.",
-    "Detect the table headers, visible column boundaries, row boundaries, and the spatial position of every handwritten or printed value.",
-    "For tables, COLUMN POSITION IS AUTHORITATIVE: assign a value only to the column in which it is visibly written.",
-    "Never move, merge, borrow, prepend, append, or copy a value from a neighboring column.",
-    "Never infer a missing street number, phone number, date, time, stop, or address from another cell.",
-    "If a cell is visibly blank, keep it blank even when a nearby cell contains a plausible value. If handwriting exists in the cell, make the best faithful transcription of that handwriting.",
-    "If a value crosses a hand-drawn border visually, use the center/bulk of the writing to decide which single cell owns it; never duplicate it.",
-    "Read each physical row from left to right using the visible grid, and output exactly one trip row for each physical passenger/trip row.",
-    "Count the visible data rows first before extracting fields. Do not collapse multiple physical rows into one.",
-    "Do not return an all-empty trip row when the document visibly contains handwritten trip data.",
-    "If one field in a row is uncertain, keep the other clearly readable fields from that same row.",
-    "If the document has front and back pages, treat them as one logical document and combine only information that clearly belongs to the same row/person.",
-    "Read handwriting carefully.",
-    "Do not invent values. Read the best visible value from its own cell. Use an empty string only when the cell is truly unreadable or absent.",
-    "Preserve names, addresses, dates, times and phone numbers exactly as written; do not normalize or correct addresses during extraction.",
-    "Use the visible header above each column to map cells to template fields. For example: Client Name -> clientName, Pickup Date -> tripDate, Pickup Time -> tripTime, Phone # -> clientPhone, Pickup Address -> pickup, Stops -> stops, Dropoff Address -> dropoff when those template keys exist.",
-    "A number written under Phone # belongs to the phone field, never to Pickup Address. A street written under Stops belongs to stops, never to Pickup or Dropoff.",
-    "For a Stops field, preserve only text visibly written inside the Stops column; separate multiple stops with semicolons.",
+    "",
+    "CRITICAL POSITIONAL EXTRACTION RULE:",
+    "Do NOT decide the destination field from the meaning of a value.",
+    "Do NOT return a semantic data object.",
+    "Return one positional cells array per physical row.",
+    "The cells array MUST use the exact same order as ORDERED DOCUMENT COLUMNS below.",
+    "cells[0] belongs only to columnIndex 0, cells[1] only to columnIndex 1, and so on.",
+    "The server will map those positions to GH Mobility fields AFTER extraction.",
+    "",
+    "First locate the visible document headers and vertical column boundaries.",
+    "Then read each physical data row horizontally and place each cell value into the matching positional slot.",
+    "COLUMN POSITION IS AUTHORITATIVE.",
+    "A value must stay in the physical column where it is written even if its content looks like a date, time, phone number, or address that would make more sense somewhere else.",
+    "Never shift a value left or right because of its meaning.",
+    "Never merge neighboring columns.",
+    "Never copy or duplicate a value into another column.",
+    "Never use a blank cell as a reason to shift later values into earlier positions.",
+    "If a physical cell is blank, its corresponding cells[] position MUST be an empty string.",
+    "Every row must contain exactly the same number of cells as ORDERED DOCUMENT COLUMNS.",
+    "If handwriting crosses a border, assign it to the one cell containing the center/bulk of the handwriting.",
+    "Read handwriting carefully and make the best faithful transcription from that cell only.",
+    "Do not invent missing values.",
+    "Preserve names, addresses, dates, times and phone numbers exactly as written.",
+    "Do not normalize or correct addresses during extraction.",
+    "Do not turn header text into a trip row.",
+    "Count visible physical data rows first; output exactly one result row per physical trip/passenger row.",
+    "",
+    `ORDERED DOCUMENT COLUMNS: ${JSON.stringify(orderedColumns)}`,
+    "",
     "Return JSON only. No markdown and no commentary.",
-    `Template fields: ${JSON.stringify(fields)}`,
     "Required JSON shape:",
-    '{"rows":[{"data":{"<internalKey>":"value"},"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
-    "Include every template internalKey inside every row.data object, even when blank.",
+    '{"rows":[{"cells":["value for column 0","value for column 1"],"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
+    `IMPORTANT: every cells array must contain exactly ${orderedColumns.length} positions.`,
     "confidence is 0 to 1 for the whole extracted row."
   ];
 
   if(clean(ocrText)){
     lines.push(
       "",
-      "Google Document OCR text is provided below only as a secondary reading aid.",
-      "The ORIGINAL IMAGE/PDF is authoritative for row and column ownership.",
-      "If OCR order conflicts with the visible table layout, ignore the OCR order and follow the visible cells.",
-      "Never use OCR text to pull a number or word from one visible column into another.",
-      "Do not turn header text into a trip row.",
+      "Google Document OCR text is provided below only as a secondary reading aid for deciphering characters.",
+      "The ORIGINAL IMAGE/PDF is authoritative for physical row and column ownership.",
+      "OCR text order is NOT column order.",
+      "Never use OCR order to decide which cells[] position receives a value.",
       "",
       clean(ocrText)
     );
@@ -547,6 +565,10 @@ async function parseVisualDocument(files,template){
 
   const hasUsefulVisualRow =
     modelRows.some(row=>{
+      if(Array.isArray(row?.cells)){
+        return row.cells.some(value=>clean(value));
+      }
+
       const data =
         row?.data &&
         typeof row.data === "object"
@@ -567,7 +589,7 @@ async function parseVisualDocument(files,template){
     const recoveryTemplate = {
       ...(template || {}),
       _recoveryInstruction:
-        "The previous pass returned no usable row data. The document visibly contains trip data. Re-read the ORIGINAL IMAGE/PDF and transcribe the best visible value from each cell. Keep every value in its visible column. Do not invent or move values between columns."
+        "The previous pass returned no usable row data. Re-read the ORIGINAL IMAGE/PDF. Return positional cells arrays in the exact ORDERED DOCUMENT COLUMNS order. Preserve blank cells as empty positions and never shift later values left or right."
     };
 
     const recovery =
@@ -598,13 +620,21 @@ async function parseVisualDocument(files,template){
     );
   }
 
-  const requiredKeys =
+  const orderedFields =
     (template?.fields || [])
-      .map(f=>clean(f.internalKey))
-      .filter(Boolean);
+      .map(field=>({
+        internalKey:clean(field.internalKey),
+        documentLabel:clean(field.label)
+      }))
+      .filter(field=>field.internalKey);
 
   return modelRows.map((modelRow,index)=>{
-    const incoming =
+    const cells =
+      Array.isArray(modelRow?.cells)
+        ? modelRow.cells
+        : [];
+
+    const legacyIncoming =
       modelRow?.data &&
       typeof modelRow.data === "object"
         ? modelRow.data
@@ -612,9 +642,23 @@ async function parseVisualDocument(files,template){
 
     const data = {};
 
-    for(const key of requiredKeys){
-      data[key] =
-        incoming[key] ?? "";
+    /*
+      IMPORTANT:
+      Visual rows are mapped by POSITION on the server.
+      Gemini does not get to decide which GH Mobility key owns a value.
+      Template field order == physical document column order.
+    */
+    for(let columnIndex=0;columnIndex<orderedFields.length;columnIndex++){
+      const field=orderedFields[columnIndex];
+
+      if(Array.isArray(modelRow?.cells)){
+        data[field.internalKey] =
+          clean(cells[columnIndex]);
+      }else{
+        // Backward-compatible fallback only if an older model response is returned.
+        data[field.internalKey] =
+          legacyIncoming[field.internalKey] ?? "";
+      }
     }
 
     return {
@@ -628,8 +672,8 @@ async function parseVisualDocument(files,template){
         ),
         _extractionStatus:
           usefulOcr
-            ? "GEMINI_VISUAL_WITH_GOOGLE_OCR_AID"
-            : "GEMINI_VISUAL_EXTRACTED",
+            ? "GEMINI_POSITIONAL_WITH_GOOGLE_OCR_AID"
+            : "GEMINI_POSITIONAL_EXTRACTED",
         _documentPages:
           (files || []).length,
         _ocrProvider:
@@ -638,6 +682,9 @@ async function parseVisualDocument(files,template){
             : "",
         _aiProvider:"GEMINI",
         _aiModel:result.model,
+        _mappingMode:"POSITIONAL_TEMPLATE_ORDER",
+        _expectedColumns:orderedFields.length,
+        _receivedCells:cells.length,
         _googleVisionError:
           ocr.error || ""
       },
@@ -656,6 +703,7 @@ async function parseVisualDocument(files,template){
           : null
     };
   });
+
 }
 
 async function parseAttachment({files,template}){
