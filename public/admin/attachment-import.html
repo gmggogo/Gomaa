@@ -33,6 +33,29 @@
       <div id="notice" class="notice"></div>
 
       <div id="setupPanel" class="panel active">
+        <div class="section source-section">
+          <div class="source-head">
+            <div>
+              <h3>Upload Trip Document</h3>
+              <div class="meta">Upload an Image, PDF, Excel or CSV reservation file.</div>
+            </div>
+            <span class="source-badge">STEP 1</span>
+          </div>
+
+          <div class="upload-zone primary-upload-zone">
+            <div class="upload-title">Choose the reservation document</div>
+            <div class="meta upload-help">
+              Paper with Front + Back: select both images in the same upload, Front first then Back.
+              Both sides stay linked as one document.
+            </div>
+            <input id="attachmentFiles" type="file" multiple accept=".csv,.xls,.xlsx,.pdf,image/*">
+            <div class="upload-actions">
+              <button class="btn btn-primary" id="uploadBtn" type="button">Upload &amp; Extract</button>
+              <button class="btn btn-muted" type="button" disabled title="Scanner integration will use the same import flow">Scanner - Next Phase</button>
+            </div>
+          </div>
+        </div>
+
         <div class="section">
           <h3>Template Identity</h3>
           <div class="grid">
@@ -43,7 +66,7 @@
         </div>
 
         <div class="section">
-          <h3>Fields → Import Columns</h3>
+          <h3>Fields → Document Data Mapping</h3>
           <div id="fieldsEditor"></div>
           <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
         </div>
@@ -61,15 +84,6 @@
 
         <div class="toolbar"><button class="btn btn-green" id="saveTemplateBtn">Save Template</button></div>
 
-        <div class="section">
-          <h3>Upload Reservation File</h3>
-          <div class="upload-zone">
-            <div><strong>Excel / CSV / PDF / Image</strong></div>
-            <div class="meta">For a double-sided paper upload Front first, then Back. Both pages stay one document.</div>
-            <input id="attachmentFiles" type="file" multiple accept=".csv,.xls,.xlsx,.pdf,image/*">
-            <div><button class="btn btn-primary" id="uploadBtn">Read Attachment</button></div>
-          </div>
-        </div>
       </div>
 
       <div id="reviewPanel" class="panel">
