@@ -1,7 +1,15 @@
 const token = localStorage.getItem("token") || sessionStorage.getItem("staffToken") || "";
 if(!token){ location.href="/login.html"; }
 
-const state = { templates:[], selected:null, currentImport:null, services:[] };
+const state = {
+  templates:[],
+  selected:null,
+  currentImport:null,
+  services:[],
+  editingRows:new Set(),
+  shareRatings:new Map(),
+  sharePlan:null
+};
 const $ = id=>document.getElementById(id);
 function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function clean(v){return String(v??"").trim()}
@@ -117,12 +125,47 @@ $("saveTemplateBtn").onclick=async()=>{try{const payload=templatePayload();if(!p
 
 $("uploadBtn").onclick=async()=>{
   try{
-    clearNotice();if(!state.selected?._id)throw new Error("Save and select a template first");
-    const files=[...$("attachmentFiles").files];if(!files.length)throw new Error("Select at least one file");
-    const fd=new FormData();fd.append("templateId",state.selected._id);files.forEach(f=>fd.append("files",f));
-    const res=await fetch("/api/attachment-imports/upload",{method:"POST",headers:authHeaders(),body:fd});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||"Upload failed");
-    state.currentImport=data.import;state.services=data.services||[];renderReview();setTab("review");notice(`Document ${state.currentImport.documentNumber||""} read. ${state.currentImport.reviewRows?.length||0} review row(s).`)
-  }catch(e){notice(e.message,false)}
+    clearNotice();
+    if(!state.selected?._id) throw new Error("Save and select a template first");
+
+    const files=[...$("attachmentFiles").files];
+    if(!files.length) throw new Error("Select at least one file");
+
+    const fd=new FormData();
+    fd.append("templateId",state.selected._id);
+    files.forEach(f=>fd.append("files",f));
+
+    const res=await fetch("/api/attachment-imports/upload",{
+      method:"POST",
+      headers:authHeaders(),
+      body:fd
+    });
+
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.message||"Upload failed");
+
+    state.currentImport=data.import;
+    state.services=data.services||[];
+    state.editingRows.clear();
+    state.shareRatings.clear();
+    state.sharePlan=null;
+
+    setTab("review");
+    renderReview();
+
+    /*
+      One browser request validates/corrects all Pickup / Stops / Dropoff
+      addresses for the whole imported document.
+    */
+    await validateAddresses({silent:true});
+
+    notice(
+      `Document ${state.currentImport.documentNumber||""} read. ` +
+      `${state.currentImport.reviewRows?.length||0} review row(s). Addresses checked.`
+    );
+  }catch(e){
+    notice(e.message,false);
+  }
 };
 
 function visibleReviewFields(){
@@ -135,10 +178,95 @@ function confidenceText(value){
   const n=Number(value);
   return Number.isFinite(n) ? `${Math.round(n*100)}%` : "—";
 }
+function shareServiceEnabled(){
+  return state.services.some(service=>{
+    const code=clean(service?.serviceKey).toUpperCase();
+    const title=clean(service?.title).toUpperCase();
+    return code==="SH" || title==="SHARED" || title.includes("SHARED");
+  });
+}
+
+function ensureReviewActionButtons(){
+  const submitBtn=$("submitSelectedBtn");
+  const toolbar=submitBtn?.parentElement || $("saveReviewBtn")?.parentElement;
+  if(!toolbar) return;
+
+  let validateBtn=$("validateAddressesBtn");
+  if(!validateBtn){
+    validateBtn=document.createElement("button");
+    validateBtn.id="validateAddressesBtn";
+    validateBtn.type="button";
+    validateBtn.className="btn btn-muted";
+    validateBtn.textContent="Validate Addresses";
+    validateBtn.addEventListener("click",()=>validateAddresses({silent:false}));
+    toolbar.appendChild(validateBtn);
+  }
+
+  let shareBtn=$("shareReviewBtn");
+  if(!shareBtn){
+    shareBtn=document.createElement("button");
+    shareBtn.id="shareReviewBtn";
+    shareBtn.type="button";
+    shareBtn.className="btn btn-primary";
+    shareBtn.textContent="Share";
+    shareBtn.addEventListener("click",runShareEvaluation);
+    toolbar.appendChild(shareBtn);
+  }
+
+  shareBtn.style.display=shareServiceEnabled() ? "" : "none";
+
+  let result=$("shareReviewResult");
+  if(!result){
+    result=document.createElement("div");
+    result.id="shareReviewResult";
+    result.className="meta";
+    result.style.marginLeft="8px";
+    result.style.fontWeight="700";
+    toolbar.appendChild(result);
+  }
+
+  if(!shareServiceEnabled()){
+    result.textContent="";
+  }
+}
+
+function injectReviewLockStyles(){
+  if(document.getElementById("attachmentReviewLockStyles")) return;
+
+  const style=document.createElement("style");
+  style.id="attachmentReviewLockStyles";
+  style.textContent=`
+    .review-table input:disabled,
+    .review-table select:disabled{
+      background:#f3f6f9 !important;
+      color:#334155 !important;
+      opacity:1 !important;
+      cursor:not-allowed;
+    }
+    .review-table .edit-col{min-width:92px;text-align:center}
+    .review-table .share-col{min-width:110px;text-align:center}
+    .review-table .share-match{font-weight:800;color:#087443}
+    .review-table .share-no{font-weight:800;color:#9a3412}
+    .review-table .share-wait{font-weight:700;color:#64748b}
+  `;
+  document.head.appendChild(style);
+}
+
+function shareRatingText(row){
+  const value=state.shareRatings.get(Number(row.rowIndex)) || "";
+  if(value==="MATCHED") return `<span class="share-match">Matched</span>`;
+  if(value==="NOT_MATCHED") return `<span class="share-no">Not matched</span>`;
+  if(value==="EXCLUDED") return `<span class="share-no">Excluded</span>`;
+  return `<span class="share-wait">Not checked</span>`;
+}
+
 function renderReview(){
   const imp=state.currentImport;
   const selectAll=$("selectAllRows");
   if(selectAll) selectAll.checked=false;
+
+  ensureReviewActionButtons();
+  injectReviewLockStyles();
 
   if(!imp){
     $("reviewMeta").innerHTML="";
@@ -147,6 +275,8 @@ function renderReview(){
   }
 
   const fields=visibleReviewFields();
+  const showShare=shareServiceEnabled();
+
   $("reviewMeta").innerHTML=`
     <div><strong>Document #:</strong> ${esc(imp.documentNumber||"—")}</div>
     <div><strong>Daily Entry Date:</strong> ${esc(imp.dailyEntryDate||"—")}</div>
@@ -154,27 +284,70 @@ function renderReview(){
   `;
 
   const rows=imp.reviewRows||[];
+
   $("reviewTable").innerHTML=`<table class="review-table"><thead><tr>
     <th class="select-col">Select</th>
     <th class="daily-col">Daily #</th>
     ${fields.map(f=>`<th>${esc(f.label)}</th>`).join("")}
     <th>Service</th>
     <th>Confidence</th>
+    ${showShare?'<th class="share-col">Share Rating</th>':''}
     <th>Validation / Trip #</th>
+    <th class="edit-col">Edit</th>
     <th class="submit-col">Submit</th>
-  </tr></thead><tbody>${rows.map(r=>`
+  </tr></thead><tbody>${rows.map(r=>{
+    const rowIndex=Number(r.rowIndex);
+    const editing=!r.confirmed && state.editingRows.has(rowIndex);
+    const locked=!editing || r.confirmed;
+
+    return `
     <tr class="${r.validationErrors?.length?'bad':''} ${r.confirmed?'confirmed-row':''}" data-review-row="${r.rowIndex}">
       <td class="select-col"><input class="row-select" type="checkbox" data-select-row="${r.rowIndex}" ${r.confirmed?'disabled':''}></td>
       <td class="daily-col"><strong>${esc(r.dailyEntryNumber??'—')}</strong></td>
-      ${fields.map(f=>`<td><input data-key="${esc(f.internalKey)}" value="${esc(r.data?.[f.internalKey]??'')}" ${r.confirmed?'disabled':''}></td>`).join("")}
-      <td><select data-service ${r.confirmed?'disabled':''}>${serviceOptions(r)}</select><div class="meta">${esc(r.serviceResolution||'UNRESOLVED')}</div></td>
+      ${fields.map(f=>`<td><input data-key="${esc(f.internalKey)}" value="${esc(r.data?.[f.internalKey]??'')}" ${locked?'disabled':''}></td>`).join("")}
+      <td>
+        <select data-service ${locked?'disabled':''}>${serviceOptions(r)}</select>
+        <div class="meta">${esc(r.serviceResolution||'UNRESOLVED')}</div>
+      </td>
       <td>${confidenceText(r.extractionConfidence)}</td>
-      <td><div class="error-text">${esc((r.validationErrors||[]).join(' • '))}</div>${r.tripNumber?`<strong>${esc(r.tripNumber)}</strong>`:''}</td>
-      <td class="submit-col"><button class="btn ${r.confirmed?'btn-muted':'btn-green'} row-submit-btn" type="button" data-submit-row="${r.rowIndex}" ${r.confirmed?'disabled':''}>${r.confirmed?'Submitted':'Submit'}</button></td>
-    </tr>`).join("")}</tbody></table>`;
+      ${showShare?`<td class="share-col">${shareRatingText(r)}</td>`:''}
+      <td>
+        <div class="error-text">${esc((r.validationErrors||[]).join(' • '))}</div>
+        ${r.tripNumber?`<strong>${esc(r.tripNumber)}</strong>`:''}
+      </td>
+      <td class="edit-col">
+        <button
+          class="btn ${r.confirmed?'btn-muted':(editing?'btn-green':'btn-muted')}"
+          type="button"
+          data-edit-row="${r.rowIndex}"
+          ${r.confirmed?'disabled':''}
+        >${r.confirmed?'Locked':(editing?'Save':'Edit')}</button>
+      </td>
+      <td class="submit-col">
+        <button
+          class="btn ${r.confirmed?'btn-muted':'btn-green'} row-submit-btn"
+          type="button"
+          data-submit-row="${r.rowIndex}"
+          ${r.confirmed?'disabled':''}
+        >${r.confirmed?'Submitted':'Submit'}</button>
+      </td>
+    </tr>`;
+  }).join("")}</tbody></table>`;
 
   document.querySelectorAll("[data-submit-row]").forEach(btn=>{
     btn.addEventListener("click",()=>submitRows([Number(btn.dataset.submitRow)]));
+  });
+
+  document.querySelectorAll("[data-edit-row]").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      const rowIndex=Number(btn.dataset.editRow);
+      if(state.editingRows.has(rowIndex)){
+        await saveEditedRow(rowIndex);
+      }else{
+        state.editingRows.add(rowIndex);
+        renderReview();
+      }
+    });
   });
 }
 
@@ -190,6 +363,163 @@ function collectReviewRows(){
     return {rowIndex:Number(tr.dataset.reviewRow),data,serviceKey:tr.querySelector("[data-service]")?.value||original?.serviceKey||""};
   });
 }
+
+async function saveEditedRow(rowIndex){
+  try{
+    await saveReview();
+    state.editingRows.delete(Number(rowIndex));
+    renderReview();
+    notice(`Row ${rowIndex} saved`);
+  }catch(e){
+    notice(e.message,false);
+  }
+}
+
+async function validateAddresses({silent=false,rowIndexes=null}={}){
+  if(!state.currentImport) return null;
+
+  try{
+    const data=await api(
+      `/api/attachment-imports/${state.currentImport._id}/validate-addresses`,
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          rowIndexes:Array.isArray(rowIndexes) ? rowIndexes : undefined
+        })
+      }
+    );
+
+    state.currentImport=data.import;
+    state.services=data.services||state.services;
+    renderReview();
+
+    if(!silent){
+      notice(`${data.checkedRows||0} trip row(s) checked with one address-validation request.`);
+    }
+
+    return data;
+  }catch(e){
+    if(!silent) notice(e.message,false);
+    else notice(`Address validation warning: ${e.message}`,false);
+    return null;
+  }
+}
+
+function reviewRowCandidate(row){
+  const data=row?.data||{};
+  const id=`ATT-${state.currentImport?._id||"DOC"}-${row.rowIndex}`;
+
+  return {
+    id,
+    pairId:id,
+    tripLeg:"OUTBOUND",
+    generatedReturn:false,
+    clientName:clean(data.clientName),
+    clientPhone:clean(data.clientPhone),
+    pickup:clean(data.pickup),
+    dropoff:clean(data.dropoff),
+    pickupLat:Number.isFinite(Number(data.pickupLat)) ? Number(data.pickupLat) : null,
+    pickupLng:Number.isFinite(Number(data.pickupLng)) ? Number(data.pickupLng) : null,
+    dropoffLat:Number.isFinite(Number(data.dropoffLat)) ? Number(data.dropoffLat) : null,
+    dropoffLng:Number.isFinite(Number(data.dropoffLng)) ? Number(data.dropoffLng) : null,
+    tripDate:clean(data.tripDate),
+    tripTime:clean(data.tripTime),
+    pickupTime:clean(data.tripTime),
+    appointmentTime:clean(data.appointmentTime),
+    returnTime:clean(data.returnTime),
+    notes:clean(data.notes),
+    source:"company",
+    sharedEngineSource:"COMPANY",
+    company:clean(data.company || data.facility || data.insurance || state.selected?.organizationName),
+    companyName:clean(data.company || data.facility || data.insurance || state.selected?.organizationName),
+    facilityName:clean(data.company || data.facility || data.insurance || state.selected?.organizationName),
+    status:"Scheduled",
+    attachmentRowIndex:Number(row.rowIndex)
+  };
+}
+
+function collectIdsFromPlanRows(rows){
+  const ids=new Set();
+  (Array.isArray(rows)?rows:[]).forEach(item=>{
+    const id=clean(item?.id || item?.tripId);
+    if(id) ids.add(id);
+  });
+  return ids;
+}
+
+async function runShareEvaluation(){
+  try{
+    if(!shareServiceEnabled()){
+      throw new Error("Shared service is not enabled for this company");
+    }
+
+    if(!state.currentImport){
+      throw new Error("No import to review");
+    }
+
+    await saveReview();
+
+    const selected=selectedRowIndexes();
+    const selectedSet=new Set(selected.map(Number));
+
+    const rows=(state.currentImport.reviewRows||[]).filter(row=>{
+      if(row.confirmed) return false;
+      if(selectedSet.size && !selectedSet.has(Number(row.rowIndex))) return false;
+      return true;
+    });
+
+    if(rows.length < 2){
+      throw new Error("Select at least 2 trips for Share evaluation");
+    }
+
+    const trips=rows.map(reviewRowCandidate);
+
+    const res=await fetch("/api/company-shared/plan",{
+      method:"POST",
+      headers:authHeaders({"Content-Type":"application/json"}),
+      body:JSON.stringify({trips})
+    });
+
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok){
+      throw new Error(data.message || "Shared planning failed");
+    }
+
+    state.sharePlan=data;
+    state.shareRatings.clear();
+
+    const matchedIds=new Set();
+    (Array.isArray(data.groups)?data.groups:[]).forEach(group=>{
+      collectIdsFromPlanRows(group?.trips).forEach(id=>matchedIds.add(id));
+    });
+
+    const singleIds=collectIdsFromPlanRows(data.singles);
+    const excludedIds=collectIdsFromPlanRows(data.excluded);
+
+    rows.forEach(row=>{
+      const id=`ATT-${state.currentImport._id}-${row.rowIndex}`;
+      if(matchedIds.has(id)) state.shareRatings.set(Number(row.rowIndex),"MATCHED");
+      else if(excludedIds.has(id)) state.shareRatings.set(Number(row.rowIndex),"EXCLUDED");
+      else if(singleIds.has(id)) state.shareRatings.set(Number(row.rowIndex),"NOT_MATCHED");
+      else state.shareRatings.set(Number(row.rowIndex),"NOT_MATCHED");
+    });
+
+    renderReview();
+
+    const groupCount=Array.isArray(data.groups)?data.groups.length:0;
+    const matchedCount=[...state.shareRatings.values()].filter(x=>x==="MATCHED").length;
+    const result=$("shareReviewResult");
+    if(result){
+      result.textContent=`Share: ${groupCount} group(s), ${matchedCount} matched trip(s)`;
+    }
+
+    notice(`Share engine checked ${rows.length} trip(s).`);
+  }catch(e){
+    notice(e.message,false);
+  }
+}
+
 async function saveReview(){
   if(!state.currentImport)throw new Error("No import to review");
   const data=await api(`/api/attachment-imports/${state.currentImport._id}/review`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:collectReviewRows()})});
@@ -207,23 +537,65 @@ $("selectAllRows").addEventListener("change",e=>{
 async function submitRows(rowIndexes){
   try{
     if(!state.currentImport) throw new Error("No import to submit");
-    const indexes=(rowIndexes||[]).map(Number).filter(Number.isFinite);
-    if(!indexes.length) throw new Error("Select at least one trip");
+
+    const indexes=(rowIndexes||[])
+      .map(Number)
+      .filter(Number.isFinite);
+
+    if(!indexes.length){
+      throw new Error("Select at least one trip");
+    }
 
     await saveReview();
-    const requested=new Set(indexes);
-    const invalid=(state.currentImport.reviewRows||[]).filter(r=>requested.has(Number(r.rowIndex)) && r.validationErrors?.length);
-    if(invalid.length) throw new Error("Fix validation errors in the selected trip(s) before Submit");
 
-    const data=await api(`/api/attachment-imports/${state.currentImport._id}/confirm`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({rowIndexes:indexes})
-    });
+    const requested=new Set(indexes);
+    const invalid=(state.currentImport.reviewRows||[]).filter(
+      r=>requested.has(Number(r.rowIndex)) && r.validationErrors?.length
+    );
+
+    if(invalid.length){
+      throw new Error("Fix validation errors in the selected trip(s) before Submit");
+    }
+
+    const data=await api(
+      `/api/attachment-imports/${state.currentImport._id}/confirm`,
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({rowIndexes:indexes})
+      }
+    );
+
     state.currentImport=data.import;
+
+    const failed=indexes.filter(index=>{
+      const row=(state.currentImport.reviewRows||[]).find(
+        item=>Number(item.rowIndex)===Number(index)
+      );
+      return !row?.confirmed || !row?.tripId || !row?.tripNumber;
+    });
+
     renderReview();
-    notice(`${data.createdCount} trip(s) submitted to the normal GH Mobility flow.`);
-  }catch(e){notice(e.message,false)}
+
+    if(failed.length){
+      throw new Error(
+        `Trip creation was not confirmed for row(s): ${failed.join(", ")}. ` +
+        "The row remains in Review."
+      );
+    }
+
+    const numbers=(data.trips||[])
+      .map(t=>t.tripNumber)
+      .filter(Boolean)
+      .join(", ");
+
+    notice(
+      `${data.createdCount} trip(s) created in Trips Hub` +
+      (numbers ? `: ${numbers}` : ".")
+    );
+  }catch(e){
+    notice(e.message,false);
+  }
 }
 
 $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
@@ -236,6 +608,13 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
       return;
     }
     await loadTemplates();
+
+    try{
+      const serviceData=await api("/api/attachment-imports/services");
+      state.services=serviceData.services||state.services;
+    }catch(_){}
+
+    ensureReviewActionButtons();
     renderReview();
   }catch(e){notice(e.message,false)}
 })();

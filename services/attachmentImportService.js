@@ -120,13 +120,56 @@ function validateRow(row,template,enabledServices){
   return errors;
 }
 
-async function nextTripNumber(tenantId,serviceKey){
-  const counter = await AttachmentTripCounter.findOneAndUpdate(
-    { tenantId, serviceKey },
-    { $inc:{ value:1 } },
-    { upsert:true, new:true, setDefaultsOnInsert:true }
+function twoLetterCode(value,fallback="XX"){
+  const letters = upper(value).replace(/[^A-Z0-9]/g,"");
+  if(letters.length >= 2) return letters.slice(0,2);
+  if(letters.length === 1) return `${letters}X`;
+  return fallback;
+}
+
+async function nextTripSequence(tenantId){
+  const counterKey = "GLOBAL";
+
+  await AttachmentTripCounter.updateOne(
+    { tenantId, serviceKey:counterKey },
+    {
+      $setOnInsert:{
+        tenantId,
+        serviceKey:counterKey,
+        value:99
+      }
+    },
+    { upsert:true }
   );
-  return `AT${serviceKey}${String(counter.value).padStart(6,"0")}`;
+
+  const counter = await AttachmentTripCounter.findOneAndUpdate(
+    { tenantId, serviceKey:counterKey },
+    { $inc:{ value:1 } },
+    { new:true }
+  );
+
+  return Number(counter?.value || 100);
+}
+
+async function nextTripNumber(tenantId,insuranceName,serviceKey){
+  const insuranceCode = twoLetterCode(insuranceName,"IN");
+  const serviceCode = twoLetterCode(serviceKey,"SV");
+
+  for(let attempt=0; attempt<25; attempt+=1){
+    const sequence = await nextTripSequence(tenantId);
+    const tripNumber = `AT${insuranceCode}${sequence}${serviceCode}`;
+
+    const exists = await Trip.exists({
+      tenantId,
+      tripNumber
+    });
+
+    if(!exists){
+      return tripNumber;
+    }
+  }
+
+  throw new Error("Unable to allocate a unique Attachment Trip Number");
 }
 
 async function nextDocumentNumber(tenantId){
@@ -195,6 +238,11 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     pickup,
     dropoff,
     stops:normalizeStops(first(data,"stops","stop","additionalStops")),
+    pickupLat:Number.isFinite(Number(data.pickupLat)) ? Number(data.pickupLat) : null,
+    pickupLng:Number.isFinite(Number(data.pickupLng)) ? Number(data.pickupLng) : null,
+    dropoffLat:Number.isFinite(Number(data.dropoffLat)) ? Number(data.dropoffLat) : null,
+    dropoffLng:Number.isFinite(Number(data.dropoffLng)) ? Number(data.dropoffLng) : null,
+    stopCoords:Array.isArray(data.stopCoords) ? data.stopCoords : [],
     tripDate,
     tripTime,
     notes:first(data,"notes","note","comments"),
@@ -211,6 +259,10 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     serviceSuffix:service.serviceKey,
     tripNumberSuffix:service.serviceKey,
     status:"Scheduled",
+    dispatchSelected:false,
+    source:"attachment",
+    bookingSource:"ATTACHMENT_IMPORT",
+    reviewOnly:false,
     attachmentImport:true,
     attachmentImportId:importDoc._id,
     attachmentTemplateId:importDoc.templateId,
@@ -262,15 +314,35 @@ async function confirmImport({importDoc,template,rowIndexes=null}){
     row.validationErrors = validateRow(row,template,services);
     if(row.validationErrors.length) continue;
 
-    const tripNumber = await nextTripNumber(importDoc.tenantId,service.serviceKey);
+    const tripNumber = await nextTripNumber(
+      importDoc.tenantId,
+      template?.organizationName || template?.name || importDoc.templateName || "",
+      service.serviceKey
+    );
+
     const payload = tripPayloadFromRow({row,service,importDoc,tenant});
     payload.tripNumber = tripNumber;
 
     const trip = await Trip.create(payload);
+
+    /*
+      Do not remove/lock the Review row until the Trip can be read back
+      from the same tenant collection used by Trips Hub.
+    */
+    const persistedTrip = await Trip.findOne({
+      _id:trip._id,
+      tenantId:importDoc.tenantId
+    });
+
+    if(!persistedTrip){
+      await Trip.deleteOne({_id:trip._id}).catch(()=>{});
+      throw new Error(`Trip ${tripNumber} was not persisted to Trips Hub storage`);
+    }
+
     row.confirmed = true;
-    row.tripId = trip._id;
-    row.tripNumber = tripNumber;
-    created.push(trip);
+    row.tripId = persistedTrip._id;
+    row.tripNumber = persistedTrip.tripNumber;
+    created.push(persistedTrip);
   }
 
   const allDone = importDoc.reviewRows.length > 0 && importDoc.reviewRows.every(r=>r.confirmed);
