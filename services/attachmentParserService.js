@@ -184,20 +184,6 @@ function jsonFromModelText(text){
   return null;
 }
 
-function responseOutputText(payload){
-  if(clean(payload?.output_text)) return clean(payload.output_text);
-
-  const parts = [];
-  for(const item of payload?.output || []){
-    for(const content of item?.content || []){
-      if(content?.type === "output_text" && clean(content?.text)){
-        parts.push(content.text);
-      }
-    }
-  }
-  return parts.join("\n").trim();
-}
-
 function fieldSpecForVision(template){
   return (template?.fields || []).map(field=>({
     documentLabel:clean(field.label),
@@ -207,114 +193,410 @@ function fieldSpecForVision(template){
   }));
 }
 
-function toVisionContent(files){
-  const content = [];
-
-  for(const file of files || []){
-    const name = clean(file.originalname) || "document";
-    const mime = clean(file.mimetype).toLowerCase();
-    const base64 = file.buffer.toString("base64");
-
-    if(mime === "application/pdf" || name.toLowerCase().endsWith(".pdf")){
-      content.push({
-        type:"input_file",
-        filename:name,
-        file_data:base64
-      });
-    }else if(mime.startsWith("image/")){
-      content.push({
-        type:"input_image",
-        image_url:`data:${mime || "image/jpeg"};base64,${base64}`,
-        detail:"high"
-      });
-    }
-  }
-
-  return content;
+function isImageFile(file){
+  const name = clean(file?.originalname).toLowerCase();
+  const mime = clean(file?.mimetype).toLowerCase();
+  return mime.startsWith("image/") || /\.(png|jpe?g|webp|tiff?|heic|heif)$/.test(name);
 }
 
-async function parseVisualDocument(files,template){
-  const apiKey = clean(process.env.OPENAI_API_KEY);
+function geminiMime(file){
+  const name = clean(file?.originalname).toLowerCase();
+  const mime = clean(file?.mimetype).toLowerCase();
+
+  if(mime) return mime;
+  if(name.endsWith(".pdf")) return "application/pdf";
+  if(name.endsWith(".png")) return "image/png";
+  if(name.endsWith(".webp")) return "image/webp";
+  if(name.endsWith(".gif")) return "image/gif";
+  return "image/jpeg";
+}
+
+function geminiResponseText(payload){
+  const parts =
+    payload?.candidates?.[0]?.content?.parts;
+
+  if(!Array.isArray(parts)) return "";
+
+  return parts
+    .map(part=>clean(part?.text))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+async function googleVisionOcr(files){
+  const apiKey =
+    clean(
+      process.env.GOOGLE_VISION_API_KEY ||
+      process.env.GOOGLE_CLOUD_VISION_API_KEY
+    );
+
   if(!apiKey){
-    const err = new Error("Image/PDF reading requires OPENAI_API_KEY on the server");
+    return {
+      used:false,
+      text:"",
+      pages:0,
+      error:"GOOGLE_VISION_API_KEY_NOT_SET"
+    };
+  }
+
+  const imageFiles =
+    (files || []).filter(isImageFile);
+
+  if(!imageFiles.length){
+    return {
+      used:false,
+      text:"",
+      pages:0,
+      error:"NO_IMAGE_FILES"
+    };
+  }
+
+  const requests =
+    imageFiles.map(file=>({
+      image:{
+        content:file.buffer.toString("base64")
+      },
+      features:[
+        {
+          type:"DOCUMENT_TEXT_DETECTION",
+          maxResults:1
+        }
+      ],
+      imageContext:{
+        languageHints:["en"]
+      }
+    }));
+
+  try{
+    const response =
+      await fetch(
+        `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`,
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            requests
+          })
+        }
+      );
+
+    const payload =
+      await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      return {
+        used:false,
+        text:"",
+        pages:0,
+        error:
+          clean(payload?.error?.message) ||
+          `GOOGLE_VISION_${response.status}`
+      };
+    }
+
+    const textParts = [];
+
+    for(let i=0;i<(payload?.responses || []).length;i++){
+      const item = payload.responses[i] || {};
+      const pageText =
+        clean(
+          item?.fullTextAnnotation?.text ||
+          item?.textAnnotations?.[0]?.description
+        );
+
+      if(pageText){
+        textParts.push(
+          `--- PAGE ${i+1} ---\n${pageText}`
+        );
+      }
+    }
+
+    return {
+      used:textParts.length > 0,
+      text:textParts.join("\n\n"),
+      pages:textParts.length,
+      error:""
+    };
+  }catch(err){
+    return {
+      used:false,
+      text:"",
+      pages:0,
+      error:clean(err?.message) || "GOOGLE_VISION_ERROR"
+    };
+  }
+}
+
+function extractionPrompt(template,ocrText=""){
+  const fields =
+    fieldSpecForVision(template);
+
+  const lines = [
+    "You are extracting transportation reservation trips from a reservation document.",
+    "The source can contain printed text, handwriting, a hand-drawn table, or a normal form.",
+    "Detect the table headers and row boundaries. Every passenger/trip row must be a separate output row.",
+    "If the document has front and back pages, treat them as one logical document and combine matching information.",
+    "Read handwriting carefully.",
+    "Do not invent values. If a value is unreadable or absent, return an empty string.",
+    "Preserve names, addresses, dates, times and phone numbers as closely as possible.",
+    "For a Stops field, preserve multiple stops in one string separated by semicolons.",
+    "Return JSON only. No markdown and no commentary.",
+    `Template fields: ${JSON.stringify(fields)}`,
+    "Required JSON shape:",
+    '{"rows":[{"data":{"<internalKey>":"value"},"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
+    "Include every template internalKey inside every row.data object, even when blank.",
+    "confidence is 0 to 1 for the whole extracted row."
+  ];
+
+  if(clean(ocrText)){
+    lines.push(
+      "",
+      "Google Document OCR text is provided below.",
+      "Use it as a reading aid, but reconstruct rows according to the visible document structure described by the labels.",
+      "Do not turn header text into a trip row.",
+      "",
+      clean(ocrText)
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function geminiInlineParts(files){
+  return (files || [])
+    .filter(file=>{
+      const name = clean(file?.originalname).toLowerCase();
+      const mime = clean(file?.mimetype).toLowerCase();
+      return (
+        isImageFile(file) ||
+        mime === "application/pdf" ||
+        name.endsWith(".pdf")
+      );
+    })
+    .map(file=>({
+      inlineData:{
+        mimeType:geminiMime(file),
+        data:file.buffer.toString("base64")
+      }
+    }));
+}
+
+async function callGemini({files,template,ocrText=""}){
+  const apiKey =
+    clean(process.env.GEMINI_API_KEY);
+
+  if(!apiKey){
+    const err =
+      new Error(
+        "Image/PDF reading requires GEMINI_API_KEY on the server"
+      );
     err.statusCode = 503;
     throw err;
   }
 
-  const fields = fieldSpecForVision(template);
-  const prompt = [
-    "You are extracting transportation reservation trips from uploaded documents.",
-    "The document can be a photo, scan, PDF, handwritten sheet, printed form, or hand-drawn table.",
-    "Read handwriting carefully. Detect table headers and row boundaries. Every passenger/trip row is a separate output row.",
-    "If two images are provided they can be FRONT and BACK of the same physical document; use both together.",
-    "Do not invent values. If a value is unreadable or absent, return an empty string for that field.",
-    "Preserve addresses, names, dates, times and phone numbers as written as closely as possible.",
-    "For a Stops field, preserve multiple stops in one string separated by semicolons.",
-    "Return JSON only. No markdown.",
-    `Template fields: ${JSON.stringify(fields)}`,
-    "Required JSON shape:",
-    '{"rows":[{"data":{"<internalKey>":"value"},"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
-    "Include every template internalKey inside each row.data object, even when blank.",
-    "confidence is 0 to 1 for the whole extracted row."
-  ].join("\n");
+  const model =
+    clean(process.env.ATTACHMENT_GEMINI_MODEL) ||
+    "gemini-2.5-flash-lite";
 
-  const content = [
-    { type:"input_text", text:prompt },
-    ...toVisionContent(files)
+  const prompt =
+    extractionPrompt(
+      template,
+      ocrText
+    );
+
+  /*
+    Cost-saving path:
+    - If Google Vision produced useful OCR text, send only the OCR text to Gemini.
+    - Otherwise send the original image/PDF directly to Gemini.
+    This keeps handwriting support while avoiding image-token cost when OCR is enough.
+  */
+  const parts = [
+    { text:prompt }
   ];
 
-  if(content.length <= 1){
-    return blankDocumentRow(files,template,"UNSUPPORTED_VISUAL_FILE");
+  if(!clean(ocrText)){
+    parts.push(
+      ...geminiInlineParts(files)
+    );
   }
 
-  const model = clean(process.env.ATTACHMENT_VISION_MODEL) || "gpt-5.6-luna";
-  const response = await fetch("https://api.openai.com/v1/responses",{
-    method:"POST",
-    headers:{
-      "Authorization":`Bearer ${apiKey}`,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({
-      model,
-      input:[{ role:"user", content }]
-    })
-  });
+  if(parts.length === 1 && !clean(ocrText)){
+    return null;
+  }
 
-  const payload = await response.json().catch(()=>({}));
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+
+  const response =
+    await fetch(
+      url,
+      {
+        method:"POST",
+        headers:{
+          "x-goog-api-key":apiKey,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          contents:[
+            {
+              role:"user",
+              parts
+            }
+          ],
+          generationConfig:{
+            responseMimeType:"application/json",
+            temperature:0
+          }
+        })
+      }
+    );
+
+  const payload =
+    await response.json().catch(()=>({}));
+
   if(!response.ok){
-    const message = clean(payload?.error?.message) || `Vision extraction failed (${response.status})`;
-    const err = new Error(message);
+    const message =
+      clean(payload?.error?.message) ||
+      `Gemini extraction failed (${response.status})`;
+
+    const err =
+      new Error(message);
+
     err.statusCode = 502;
     throw err;
   }
 
-  const parsed = jsonFromModelText(responseOutputText(payload));
-  const modelRows = Array.isArray(parsed?.rows) ? parsed.rows : [];
+  return {
+    payload,
+    text:geminiResponseText(payload),
+    model
+  };
+}
 
-  if(!modelRows.length){
-    return blankDocumentRow(files,template,"VISION_NO_ROWS_FOUND");
+async function parseVisualDocument(files,template){
+  const imageOnly =
+    (files || []).length > 0 &&
+    (files || []).every(isImageFile);
+
+  let ocr = {
+    used:false,
+    text:"",
+    pages:0,
+    error:""
+  };
+
+  /*
+    Google Vision is optional.
+    If GOOGLE_VISION_API_KEY is present and the upload is image-only,
+    use DOCUMENT_TEXT_DETECTION first. It is especially useful for printed
+    forms and many handwriting cases, and it reduces Gemini image usage.
+  */
+  if(imageOnly){
+    ocr =
+      await googleVisionOcr(files);
   }
 
-  const requiredKeys = (template?.fields || []).map(f=>clean(f.internalKey)).filter(Boolean);
+  /*
+    Very short OCR output is usually not enough to rebuild a table reliably.
+    In that case Gemini sees the original image directly.
+  */
+  const usefulOcr =
+    clean(ocr.text).length >= 40
+      ? clean(ocr.text)
+      : "";
+
+  const result =
+    await callGemini({
+      files,
+      template,
+      ocrText:usefulOcr
+    });
+
+  if(!result){
+    return blankDocumentRow(
+      files,
+      template,
+      "UNSUPPORTED_VISUAL_FILE"
+    );
+  }
+
+  const parsed =
+    jsonFromModelText(
+      result.text
+    );
+
+  const modelRows =
+    Array.isArray(parsed?.rows)
+      ? parsed.rows
+      : [];
+
+  if(!modelRows.length){
+    return blankDocumentRow(
+      files,
+      template,
+      "VISION_NO_ROWS_FOUND"
+    );
+  }
+
+  const requiredKeys =
+    (template?.fields || [])
+      .map(f=>clean(f.internalKey))
+      .filter(Boolean);
 
   return modelRows.map((modelRow,index)=>{
-    const incoming = modelRow?.data && typeof modelRow.data === "object" ? modelRow.data : {};
+    const incoming =
+      modelRow?.data &&
+      typeof modelRow.data === "object"
+        ? modelRow.data
+        : {};
+
     const data = {};
+
     for(const key of requiredKeys){
-      data[key] = incoming[key] ?? "";
+      data[key] =
+        incoming[key] ?? "";
     }
 
     return {
       rowIndex:index,
       rawData:{
-        ...(modelRow?.rawData && typeof modelRow.rawData === "object" ? modelRow.rawData : {}),
-        _extractionStatus:"VISION_EXTRACTED",
-        _documentPages:(files || []).length
+        ...(
+          modelRow?.rawData &&
+          typeof modelRow.rawData === "object"
+            ? modelRow.rawData
+            : {}
+        ),
+        _extractionStatus:
+          usefulOcr
+            ? "GOOGLE_OCR_GEMINI_EXTRACTED"
+            : "GEMINI_VISUAL_EXTRACTED",
+        _documentPages:
+          (files || []).length,
+        _ocrProvider:
+          usefulOcr
+            ? "GOOGLE_VISION"
+            : "",
+        _aiProvider:"GEMINI",
+        _aiModel:result.model,
+        _googleVisionError:
+          ocr.error || ""
       },
       data,
-      extractionConfidence:Number.isFinite(Number(modelRow?.confidence))
-        ? Math.max(0,Math.min(1,Number(modelRow.confidence)))
-        : null
+      extractionConfidence:
+        Number.isFinite(
+          Number(modelRow?.confidence)
+        )
+          ? Math.max(
+              0,
+              Math.min(
+                1,
+                Number(modelRow.confidence)
+              )
+            )
+          : null
     };
   });
 }
@@ -349,5 +631,6 @@ module.exports = {
   parseCsv,
   mapRawRow,
   normalizeKey,
-  parseVisualDocument
+  parseVisualDocument,
+  googleVisionOcr
 };
