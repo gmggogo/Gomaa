@@ -248,6 +248,9 @@ function injectReviewLockStyles(){
     .review-table .share-match{font-weight:800;color:#087443}
     .review-table .share-no{font-weight:800;color:#9a3412}
     .review-table .share-wait{font-weight:700;color:#64748b}
+    #deleteSelectedRowsBtn{
+      margin-left:auto;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -362,6 +365,69 @@ function collectReviewRows(){
     });
     return {rowIndex:Number(tr.dataset.reviewRow),data,serviceKey:tr.querySelector("[data-service]")?.value||original?.serviceKey||""};
   });
+}
+
+
+async function deleteSelectedRows(){
+  try{
+    if(!state.currentImport){
+      throw new Error("No import to edit");
+    }
+
+    const indexes=selectedRowIndexes();
+    if(!indexes.length){
+      throw new Error("Select at least one trip to delete");
+    }
+
+    const confirmed=(state.currentImport.reviewRows||[]).filter(
+      row=>indexes.includes(Number(row.rowIndex)) && (row.confirmed || row.tripId)
+    );
+
+    if(confirmed.length){
+      throw new Error(
+        "Submitted trips cannot be deleted from Import Review. " +
+        "Select only trips that have not been submitted."
+      );
+    }
+
+    if(!confirm(
+      indexes.length === 1
+        ? "Delete this selected trip from Import Review?"
+        : `Delete these ${indexes.length} selected trips from Import Review?`
+    )){
+      return;
+    }
+
+    const data=await api(
+      `/api/attachment-imports/${state.currentImport._id}/review-rows`,
+      {
+        method:"DELETE",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({rowIndexes:indexes})
+      }
+    );
+
+    state.currentImport=data.import;
+    indexes.forEach(index=>{
+      state.editingRows.delete(Number(index));
+      state.shareRatings.delete(Number(index));
+    });
+
+    renderReview();
+
+    const blocked=Array.isArray(data.blocked) ? data.blocked : [];
+    if(blocked.length){
+      notice(
+        `${data.deletedCount||0} trip(s) deleted. ` +
+        `Submitted row(s) ${blocked.join(", ")} were kept.`,
+        false
+      );
+    }else{
+      notice(`${data.deletedCount||0} trip(s) deleted from Import Review.`);
+    }
+  }catch(e){
+    notice(e.message,false);
+  }
 }
 
 async function saveEditedRow(rowIndex){

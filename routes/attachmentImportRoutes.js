@@ -396,6 +396,79 @@ router.put("/:id/review",async(req,res)=>{
 });
 
 
+
+router.delete("/:id/review-rows",async(req,res)=>{
+  try{
+    const tenantId = tenantIdFor(req);
+    const importDoc = await AttachmentImport.findOne({
+      _id:req.params.id,
+      tenantId
+    });
+
+    if(!importDoc){
+      return res.status(404).json({
+        success:false,
+        message:"Import not found"
+      });
+    }
+
+    const rowIndexes = Array.isArray(req.body?.rowIndexes)
+      ? req.body.rowIndexes.map(Number).filter(Number.isFinite)
+      : [];
+
+    if(!rowIndexes.length){
+      return res.status(400).json({
+        success:false,
+        message:"Select at least one trip to delete"
+      });
+    }
+
+    const requested = new Set(rowIndexes);
+    const blocked = [];
+    const before = importDoc.reviewRows.length;
+
+    importDoc.reviewRows = importDoc.reviewRows.filter(row=>{
+      const rowIndex = Number(row.rowIndex);
+
+      if(!requested.has(rowIndex)){
+        return true;
+      }
+
+      /*
+        A row that already created a real Trip must never be deleted from
+        Import Review, because that would break the attachment audit trail.
+      */
+      if(row.confirmed || row.tripId){
+        blocked.push(rowIndex);
+        return true;
+      }
+
+      return false;
+    });
+
+    const deletedCount = before - importDoc.reviewRows.length;
+
+    if(!importDoc.reviewRows.length){
+      importDoc.status = "REVIEW";
+    }
+
+    await importDoc.save();
+
+    return res.json({
+      success:true,
+      deletedCount,
+      blocked,
+      import:cleanImport(importDoc)
+    });
+  }catch(err){
+    console.error("ATTACHMENT REVIEW DELETE ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:err?.message || "Failed to delete selected review trips"
+    });
+  }
+});
+
 router.post("/:id/validate-addresses",async(req,res)=>{
   try{
     const tenantId = tenantIdFor(req);
