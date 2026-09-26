@@ -228,6 +228,17 @@ function ensureReviewActionButtons(){
   if(!shareServiceEnabled()){
     result.textContent="";
   }
+
+  let deleteBtn=$("deleteSelectedRowsBtn");
+  if(!deleteBtn){
+    deleteBtn=document.createElement("button");
+    deleteBtn.id="deleteSelectedRowsBtn";
+    deleteBtn.type="button";
+    deleteBtn.className="btn btn-red";
+    deleteBtn.textContent="Delete Selected";
+    deleteBtn.addEventListener("click",deleteSelectedRows);
+    toolbar.appendChild(deleteBtn);
+  }
 }
 
 function injectReviewLockStyles(){
@@ -354,17 +365,43 @@ function renderReview(){
   });
 }
 
-function collectReviewRows(){
+function findFieldInput(tr,internalKey){
+  return [...tr.querySelectorAll("[data-key]")].find(
+    input=>String(input.dataset.key||"")===String(internalKey||"")
+  ) || null;
+}
+
+function collectReviewRows(rowIndexes=null){
   const fields=state.selected?.fields||[];
-  return [...document.querySelectorAll("[data-review-row]")].map(tr=>{
-    const original=(state.currentImport?.reviewRows||[]).find(r=>Number(r.rowIndex)===Number(tr.dataset.reviewRow));
-    const data={...(original?.data||{})};
-    fields.forEach(f=>{
-      const input=tr.querySelector(`[data-key="${CSS.escape(f.internalKey)}"]`);
-      if(input) data[f.internalKey]=input.value||"";
+  const wanted=Array.isArray(rowIndexes)
+    ? new Set(rowIndexes.map(Number).filter(Number.isFinite))
+    : null;
+
+  return [...document.querySelectorAll("[data-review-row]")]
+    .filter(tr=>!wanted || wanted.has(Number(tr.dataset.reviewRow)))
+    .map(tr=>{
+      const rowIndex=Number(tr.dataset.reviewRow);
+      const original=(state.currentImport?.reviewRows||[])
+        .find(r=>Number(r.rowIndex)===rowIndex);
+
+      const data={...(original?.data||{})};
+
+      fields.forEach(f=>{
+        const input=findFieldInput(tr,f.internalKey);
+        if(input) data[f.internalKey]=input.value||"";
+      });
+
+      const serviceSelect=tr.querySelector("[data-service]");
+      const serviceKey=serviceSelect
+        ? serviceSelect.value||""
+        : original?.serviceKey||"";
+
+      return {
+        rowIndex,
+        data,
+        serviceKey
+      };
     });
-    return {rowIndex:Number(tr.dataset.reviewRow),data,serviceKey:tr.querySelector("[data-service]")?.value||original?.serviceKey||""};
-  });
 }
 
 
@@ -430,9 +467,39 @@ async function deleteSelectedRows(){
   }
 }
 
+async function saveRows(rowIndexes=null,{render=true}={}){
+  if(!state.currentImport){
+    throw new Error("No import to review");
+  }
+
+  const rows=collectReviewRows(rowIndexes);
+
+  if(!rows.length){
+    throw new Error("No review rows found to save");
+  }
+
+  const data=await api(
+    `/api/attachment-imports/${state.currentImport._id}/review`,
+    {
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rows})
+    }
+  );
+
+  state.currentImport=data.import;
+  state.services=data.services||state.services;
+
+  if(render){
+    renderReview();
+  }
+
+  return data;
+}
+
 async function saveEditedRow(rowIndex){
   try{
-    await saveReview();
+    await saveRows([rowIndex],{render:false});
     state.editingRows.delete(Number(rowIndex));
     renderReview();
     notice(`Row ${rowIndex} saved`);
@@ -587,11 +654,19 @@ async function runShareEvaluation(){
 }
 
 async function saveReview(){
-  if(!state.currentImport)throw new Error("No import to review");
-  const data=await api(`/api/attachment-imports/${state.currentImport._id}/review`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({rows:collectReviewRows()})});
-  state.currentImport=data.import;state.services=data.services||state.services;renderReview();return data;
+  return await saveRows(null,{render:true});
 }
-$("saveReviewBtn").onclick=async()=>{try{await saveReview();notice("Review saved")}catch(e){notice(e.message,false)}};
+
+$("saveReviewBtn").onclick=async()=>{
+  try{
+    await saveRows(null,{render:false});
+    state.editingRows.clear();
+    renderReview();
+    notice("Review saved");
+  }catch(e){
+    notice(e.message,false);
+  }
+};
 
 function selectedRowIndexes(){
   return [...document.querySelectorAll(".row-select:checked")].map(x=>Number(x.dataset.selectRow)).filter(Number.isFinite);
@@ -602,7 +677,9 @@ $("selectAllRows").addEventListener("change",e=>{
 
 async function submitRows(rowIndexes){
   try{
-    if(!state.currentImport) throw new Error("No import to submit");
+    if(!state.currentImport){
+      throw new Error("No import to submit");
+    }
 
     const indexes=(rowIndexes||[])
       .map(Number)
@@ -612,7 +689,12 @@ async function submitRows(rowIndexes){
       throw new Error("Select at least one trip");
     }
 
-    await saveReview();
+    /*
+      Save exactly the trip row(s) being submitted.
+      Do not re-render between Save and Submit, so the button action cannot
+      lose its row selection or current values.
+    */
+    await saveRows(indexes,{render:false});
 
     const requested=new Set(indexes);
     const invalid=(state.currentImport.reviewRows||[]).filter(
@@ -620,7 +702,11 @@ async function submitRows(rowIndexes){
     );
 
     if(invalid.length){
-      throw new Error("Fix validation errors in the selected trip(s) before Submit");
+      const message=invalid
+        .map(r=>`Row ${r.rowIndex}: ${(r.validationErrors||[]).join(" • ")}`)
+        .join(" | ");
+      renderReview();
+      throw new Error(message || "Fix validation errors before Submit");
     }
 
     const data=await api(
@@ -641,12 +727,13 @@ async function submitRows(rowIndexes){
       return !row?.confirmed || !row?.tripId || !row?.tripNumber;
     });
 
+    indexes.forEach(index=>state.editingRows.delete(Number(index)));
     renderReview();
 
     if(failed.length){
       throw new Error(
-        `Trip creation was not confirmed for row(s): ${failed.join(", ")}. ` +
-        "The row remains in Review."
+        `Trip creation failed for row(s): ${failed.join(", ")}. ` +
+        "They were kept in Import Review."
       );
     }
 

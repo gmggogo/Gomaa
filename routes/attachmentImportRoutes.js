@@ -373,26 +373,105 @@ router.get("/:id",async(req,res)=>{
 router.put("/:id/review",async(req,res)=>{
   try{
     const tenantId = tenantIdFor(req);
-    const importDoc = await AttachmentImport.findOne({_id:req.params.id,tenantId});
-    if(!importDoc) return res.status(404).json({success:false,message:"Import not found"});
-    if(["CONFIRMED","ARCHIVED"].includes(importDoc.status)) return res.status(409).json({success:false,message:"Confirmed import cannot be edited"});
+    const importDoc = await AttachmentImport.findOne({
+      _id:req.params.id,
+      tenantId
+    });
 
-    const updates = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    if(!importDoc){
+      return res.status(404).json({
+        success:false,
+        message:"Import not found"
+      });
+    }
+
+    if(["CONFIRMED","ARCHIVED"].includes(importDoc.status)){
+      return res.status(409).json({
+        success:false,
+        message:"Confirmed import cannot be edited"
+      });
+    }
+
+    const updates=Array.isArray(req.body?.rows)
+      ? req.body.rows
+      : [];
+
+    if(!updates.length){
+      return res.status(400).json({
+        success:false,
+        message:"No review rows were sent to save"
+      });
+    }
+
+    let changed=0;
+
     for(const update of updates){
-      const row = importDoc.reviewRows.find(r=>Number(r.rowIndex) === Number(update.rowIndex));
-      if(!row || row.confirmed) continue;
-      if(update.data && typeof update.data === "object") row.data = update.data;
-      if(update.serviceKey !== undefined){
-        row.serviceKey = String(update.serviceKey || "").trim().toUpperCase();
-        row.serviceResolution = row.serviceKey ? "MANUAL" : "UNRESOLVED";
+      const row=importDoc.reviewRows.find(
+        r=>Number(r.rowIndex)===Number(update.rowIndex)
+      );
+
+      if(!row || row.confirmed){
+        continue;
+      }
+
+      if(update.data && typeof update.data==="object"){
+        row.data={...update.data};
+        if(typeof row.markModified==="function"){
+          row.markModified("data");
+        }
+        changed+=1;
+      }
+
+      if(update.serviceKey!==undefined){
+        row.serviceKey=String(update.serviceKey||"")
+          .trim()
+          .toUpperCase();
+
+        row.serviceResolution=row.serviceKey
+          ? "MANUAL"
+          : "UNRESOLVED";
+
+        changed+=1;
       }
     }
 
-    const template = await AttachmentTemplate.findById(importDoc.templateId);
-    const services = await attachmentImportService.prepareReviewRows({importDoc,template});
+    if(!changed){
+      return res.status(400).json({
+        success:false,
+        message:"No editable review rows were updated"
+      });
+    }
+
+    const template=await AttachmentTemplate.findById(importDoc.templateId);
+
+    if(!template){
+      return res.status(404).json({
+        success:false,
+        message:"Template not found"
+      });
+    }
+
+    const services=await attachmentImportService.prepareReviewRows({
+      importDoc,
+      template
+    });
+
+    importDoc.markModified("reviewRows");
     await importDoc.save();
-    return res.json({success:true,import:cleanImport(importDoc),services});
-  }catch(err){ return res.status(500).json({success:false,message:err.message || "Failed to save review"}); }
+
+    return res.json({
+      success:true,
+      savedCount:updates.length,
+      import:cleanImport(importDoc),
+      services
+    });
+  }catch(err){
+    console.error("ATTACHMENT REVIEW SAVE ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:err?.message || "Failed to save review"
+    });
+  }
 });
 
 
@@ -531,12 +610,55 @@ router.post("/:id/confirm",async(req,res)=>{
 
     await attachmentImportService.prepareReviewRows({importDoc,template});
     await importDoc.save();
-    const result = await attachmentImportService.confirmImport({importDoc,template,rowIndexes});
+    const result = await attachmentImportService.confirmImport({
+      importDoc,
+      template,
+      rowIndexes
+    });
+
+    const requestedSet = Array.isArray(rowIndexes)
+      ? new Set(rowIndexes.map(Number))
+      : null;
+
+    const failedRows = (result.importDoc.reviewRows || [])
+      .filter(row=>{
+        if(requestedSet && !requestedSet.has(Number(row.rowIndex))){
+          return false;
+        }
+        return !row.confirmed || !row.tripId || !row.tripNumber;
+      })
+      .map(row=>({
+        rowIndex:Number(row.rowIndex),
+        errors:Array.isArray(row.validationErrors)
+          ? row.validationErrors
+          : []
+      }));
+
+    if(failedRows.length){
+      return res.status(422).json({
+        success:false,
+        createdCount:result.created.length,
+        trips:result.created.map(t=>({
+          id:t._id,
+          tripNumber:t.tripNumber,
+          serviceKey:t.serviceKey
+        })),
+        failedRows,
+        import:cleanImport(result.importDoc),
+        message:failedRows
+          .map(row=>`Row ${row.rowIndex}: ${row.errors.join(" • ") || "Trip was not created"}`)
+          .join(" | ")
+      });
+    }
 
     return res.json({
       success:true,
       createdCount:result.created.length,
-      trips:result.created.map(t=>({id:t._id,tripNumber:t.tripNumber,serviceKey:t.serviceKey})),
+      trips:result.created.map(t=>({
+        id:t._id,
+        tripNumber:t.tripNumber,
+        serviceKey:t.serviceKey
+      })),
       import:cleanImport(result.importDoc)
     });
   }catch(err){

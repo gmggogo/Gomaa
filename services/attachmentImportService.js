@@ -348,6 +348,8 @@ async function confirmImport({importDoc,template,rowIndexes=null}){
   const allDone = importDoc.reviewRows.length > 0 && importDoc.reviewRows.every(r=>r.confirmed);
   importDoc.status = allDone ? "CONFIRMED" : (created.length ? "PARTIAL" : "REVIEW");
   if(created.length) importDoc.confirmedAt = new Date();
+
+  importDoc.markModified("reviewRows");
   await importDoc.save();
 
   return { created, services, importDoc };
