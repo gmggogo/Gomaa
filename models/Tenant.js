@@ -21,6 +21,12 @@ const tenantSchema = new mongoose.Schema(
       default: true
     },
 
+    /* Platform Admin premium feature gate for Trips Hub Attachment Import. */
+    attachmentImportEnabled: {
+      type: Boolean,
+      default: false
+    },
+
     subscriptionStatus: {
       type: String,
       enum: [

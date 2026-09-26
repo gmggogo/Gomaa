@@ -626,6 +626,18 @@ function driverWaitTimerFields(service){
       })
     }
 
+    ${
+      onOffSelect({
+        section:"driver",
+        service,
+        name:"customersignature",
+        label:"Customer Signature Before Complete",
+        value:service.customerSignatureRequired === true,
+        enabledLabel:"ACTIVE",
+        disabledLabel:"DISABLED"
+      })
+    }
+
     <div class="add-stop-note">
       Pickup and Stop timers are independent.
       If a timer is disabled, it will not appear in Driver Map.
@@ -726,7 +738,14 @@ function buildDriverTimerPayload(id){
         "driver",
         id,
         "stopwaitminutes"
-      )
+      ),
+
+    customerSignatureRequired:
+      getValue(
+        "driver",
+        id,
+        "customersignature"
+      ) === "true"
   };
 }
 

@@ -484,6 +484,7 @@ th{
             <th>Timezone</th>
             <th>Enabled</th>
             <th>Subscription</th>
+            <th>Attachment Import</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -492,7 +493,7 @@ th{
 
           <tr>
             <td
-              colspan="6"
+              colspan="7"
               class="empty"
             >
               Loading companies...
@@ -774,7 +775,7 @@ async function loadTenants(){
 
   body.innerHTML =
     `<tr>
-      <td colspan="6" class="empty">
+      <td colspan="7" class="empty">
         Loading companies...
       </td>
     </tr>`;
@@ -798,7 +799,7 @@ async function loadTenants(){
 
       body.innerHTML =
         `<tr>
-          <td colspan="6" class="empty">
+          <td colspan="7" class="empty">
             No companies yet.
           </td>
         </tr>`;
@@ -868,6 +869,16 @@ async function loadTenants(){
             </td>
 
             <td>
+              <button
+                class="small-btn"
+                onclick="toggleAttachmentImport('${t._id}', ${t.attachmentImportEnabled === true})"
+                style="${t.attachmentImportEnabled === true ? 'background:#15803d;color:#fff;' : 'background:#991b1b;color:#fff;'}"
+              >
+                ${t.attachmentImportEnabled === true ? "ACTIVE" : "DISABLED"}
+              </button>
+            </td>
+
+            <td>
 
               <button
                 class="small-btn"
@@ -906,7 +917,7 @@ async function loadTenants(){
 
     body.innerHTML =
       `<tr>
-        <td colspan="6" class="empty">
+        <td colspan="7" class="empty">
           ${escapeHtml(err.message)}
         </td>
       </tr>`;
@@ -946,6 +957,31 @@ async function toggleTenant(
   }
 }
 
+
+async function toggleAttachmentImport(
+  tenantId,
+  currentlyEnabled
+){
+
+  try{
+
+    await api(
+      `/api/platform-admin/tenants/${tenantId}/status`,
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          attachmentImportEnabled:
+            !currentlyEnabled
+        })
+      }
+    );
+
+    await loadTenants();
+
+  }catch(err){
+    showMessage(err.message,false);
+  }
+}
 
 async function deleteTenant(
   tenantId

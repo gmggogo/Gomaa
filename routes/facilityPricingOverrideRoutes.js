@@ -575,6 +575,9 @@ function serviceDefaultPricing(s){
         false
       ),
 
+    customerSignatureRequired:
+      false,
+
     warningMinutes:
       num(
         s?.companyWarningMinutes ??
@@ -745,6 +748,11 @@ function normalizeServiceInput(s){
     disableCancel:
       bool(
         s?.disableCancel
+      ),
+
+    customerSignatureRequired:
+      bool(
+        s?.customerSignatureRequired
       ),
 
     warningMinutes:

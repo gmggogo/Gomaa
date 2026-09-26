@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Smart Trip Import</title>
+<link rel="stylesheet" href="/admin/attachment-import.css">
+</head>
+<body>
+<div id="adminHeader"></div>
+<main class="ai-page">
+  <header class="ai-head">
+    <div><h1>Smart Trip Import</h1><p>Paper / PDF / Image / Excel reservation intake</p></div>
+    <button class="btn btn-muted" type="button" onclick="location.href='/admin/trips-hub.html'">Back to Trips Hub</button>
+  </header>
+
+  <div class="ai-layout">
+    <aside class="ai-sidebar">
+      <h3>Templates</h3>
+      <div id="templateList" class="template-list"></div>
+      <div class="side-actions">
+        <button class="btn btn-primary" id="newTemplateBtn">+ Add Template</button>
+        <button class="btn btn-muted" id="duplicateTemplateBtn">Duplicate</button>
+        <button class="btn btn-red" id="deleteTemplateBtn">Delete</button>
+      </div>
+    </aside>
+
+    <section class="ai-main">
+      <div class="tabs">
+        <button class="tab active" data-tab="setup">Import Setup</button>
+        <button class="tab" data-tab="review">Import Review</button>
+      </div>
+      <div id="notice" class="notice"></div>
+
+      <div id="setupPanel" class="panel active">
+        <div class="section">
+          <h3>Template Identity</h3>
+          <div class="grid">
+            <div class="field"><label>Template Name</label><input id="templateName"></div>
+            <div class="field"><label>Organization Type</label><select id="organizationType"><option>INSURANCE</option><option>BROKER</option><option>COMPANY</option><option>OTHER</option></select></div>
+            <div class="field full"><label>Insurance / Broker / Company Name</label><input id="organizationName"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Fields → Import Columns</h3>
+          <div id="fieldsEditor"></div>
+          <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
+        </div>
+
+        <div class="section">
+          <h3>Signature Position</h3>
+          <div class="grid">
+            <div class="field"><label>Page (1 = Front, 2 = Back)</label><input id="sigPage" type="number" min="1" value="1"></div>
+            <div class="field"><label>X %</label><input id="sigX" type="number" min="0" max="100" value="62"></div>
+            <div class="field"><label>Y %</label><input id="sigY" type="number" min="0" max="100" value="78"></div>
+            <div class="field"><label>Width %</label><input id="sigW" type="number" min="5" max="100" value="28"></div>
+            <div class="field"><label>Height %</label><input id="sigH" type="number" min="3" max="100" value="12"></div>
+          </div>
+        </div>
+
+        <div class="toolbar"><button class="btn btn-green" id="saveTemplateBtn">Save Template</button></div>
+
+        <div class="section">
+          <h3>Upload Reservation File</h3>
+          <div class="upload-zone">
+            <div><strong>Excel / CSV / PDF / Image</strong></div>
+            <div class="meta">For a double-sided paper upload Front first, then Back. Both pages stay one document.</div>
+            <input id="attachmentFiles" type="file" multiple accept=".csv,.xls,.xlsx,.pdf,image/*">
+            <div><button class="btn btn-primary" id="uploadBtn">Read Attachment</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="reviewPanel" class="panel">
+        <div class="toolbar">
+          <button class="btn btn-muted" id="saveReviewBtn">Save Review</button>
+          <button class="btn btn-green" id="confirmImportBtn">Confirm & Create Trips</button>
+          <button class="btn btn-muted" type="button" onclick="location.href='/admin/attachment-summary.html'">Attachment Summary / Archive</button>
+        </div>
+        <div id="reviewMeta" class="meta"></div>
+        <div id="reviewTable" class="review-wrap"></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="/admin/header.js"></script>
+<script src="/admin/attachment-import.js"></script>
+</body>
+</html>

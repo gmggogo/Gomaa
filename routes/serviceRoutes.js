@@ -927,6 +927,20 @@ function normalizeDriverTimerPayload(payload){
       safeMinutes(out.driverStopWaitMinutes,5);
   }
 
+  if(
+    Object.prototype.hasOwnProperty.call(
+      out,
+      "customerSignatureRequired"
+    )
+  ){
+    const value = bool(out.customerSignatureRequired);
+    if(value !== null){
+      out.customerSignatureRequired = value;
+    }else{
+      delete out.customerSignatureRequired;
+    }
+  }
+
   return out;
 }
 

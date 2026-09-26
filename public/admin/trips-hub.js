@@ -78,6 +78,50 @@ function syncLegacyAdminAuth(){
   }
 }
 
+function openAttachmentImportPage(event){
+  event?.preventDefault?.();
+  syncLegacyAdminAuth();
+  window.location.href = "/admin/attachment-import.html";
+}
+
+async function loadAttachmentImportButton(){
+  try{
+    const res = await fetch(
+      "/api/attachment-imports/feature",
+      {
+        cache:"no-store",
+        headers:{
+          Authorization:`Bearer ${token}`
+        }
+      }
+    );
+
+    const data = await res.json().catch(()=>({}));
+    const wrap = document.getElementById("topAddTripWrap");
+    if(!wrap) return;
+
+    let btn = document.getElementById("addAttachmentTripBtn");
+
+    if(res.ok && data.enabled === true){
+      if(!btn){
+        btn = document.createElement("button");
+        btn.id = "addAttachmentTripBtn";
+        btn.className = "top-add-trip-btn";
+        btn.type = "button";
+        btn.textContent = "+ Add Trip Attachment";
+        btn.style.marginLeft = "10px";
+        btn.addEventListener("click",openAttachmentImportPage);
+        wrap.appendChild(btn);
+      }
+      btn.style.display = "inline-flex";
+    }else if(btn){
+      btn.remove();
+    }
+  }catch(err){
+    document.getElementById("addAttachmentTripBtn")?.remove();
+  }
+}
+
 function openAddTripPage(event){
   event?.preventDefault?.();
 
@@ -3265,6 +3309,7 @@ async function refreshTripsOnly(){
 }
 
 (async function initHub(){
+  await loadAttachmentImportButton();
   await loadServices();
   await loadHubTrips();
   updateStickyOffsets();

@@ -396,6 +396,9 @@ function serviceDefaultCopy(s){
       s.shared === true ||
       s.companyShared === true,
 
+    customerSignatureRequired:
+      s.customerSignatureRequired === true,
+
     pricingMode:
       upper(
         s.companyPricingMode ||
@@ -631,6 +634,9 @@ function buildDraftForFacility(facility){
 
           disableCancel:
             bool(saved.disableCancel),
+
+          customerSignatureRequired:
+            bool(saved.customerSignatureRequired),
 
           addStopEnabled:
             bool(saved.addStopEnabled),
@@ -1276,6 +1282,17 @@ function serviceCardHTML(s,idx){
 
         ${numberInput(idx,"sharedPrice","Shared Price",s.sharedPrice,cardLocked || !draftActive)}
 
+        <div class="policy-title">Driver Completion</div>
+
+        ${
+          onOffInput(
+            idx,
+            "customerSignatureRequired",
+            "Customer Signature Before Complete",
+            s.customerSignatureRequired === true,
+            cardLocked || !draftActive
+          )
+        }
 
         <div class="policy-title">Facility Warning Policy</div>
 
@@ -1563,6 +1580,7 @@ function updateServiceField(idx,field,value){
   if([
     "shared",
     "disableCancel",
+    "customerSignatureRequired",
     "addStopEnabled",
     "addStopCustomTimeEnabled"
   ].includes(field)){
@@ -1722,6 +1740,9 @@ function prepareServicesForSave(){
 
       disableCancel:
         bool(s.disableCancel),
+
+      customerSignatureRequired:
+        bool(s.customerSignatureRequired),
 
       warningMinutes:
         num(s.warningMinutes),

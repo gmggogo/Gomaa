@@ -131,6 +131,12 @@ const serviceSchema = new mongoose.Schema({
     min:0
   },
 
+  /* Customer signature gate in Driver App. */
+  customerSignatureRequired:{
+    type:Boolean,
+    default:false
+  },
+
   /* =========================
      GET QUOTE PRICING
   ========================= */

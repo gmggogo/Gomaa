@@ -209,6 +209,12 @@ const servicePricingSchema =
         default:false
       },
 
+      /* Facility can override customer-signature requirement per service. */
+      customerSignatureRequired:{
+        type:Boolean,
+        default:false
+      },
+
       warningMinutes:{
         type:Number,
         default:0

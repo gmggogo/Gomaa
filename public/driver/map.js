@@ -308,6 +308,12 @@ let tripDoc = null;
 let routeStops = [];
 let currentStopIndex = 0;
 
+/* Customer signature is service-controlled and only gates final Complete. */
+let customerSignatureRequired = false;
+let customerSignatureSigned = false;
+let customerSignatureButton = null;
+let customerSignatureOverlay = null;
+
 let map = null;
 let driverMarker = null;
 let routePolyline = null;
@@ -1183,6 +1189,177 @@ async function loadTripServiceWaitConfig(){
   );
 
   return false;
+}
+
+function ensureCustomerSignatureUi(){
+  if(customerSignatureButton) return;
+
+  const style = document.createElement("style");
+  style.textContent = `
+    #customerSignatureBtn{display:none;width:100%;min-height:56px;margin:10px 0 0;border:0;border-radius:14px;background:#173f66;color:#fff;font-weight:900;font-size:17px}
+    #customerSignatureOverlay{display:none;position:fixed;inset:0;z-index:99999;background:rgba(6,17,29,.78);align-items:center;justify-content:center;padding:16px}
+    #customerSignatureCard{width:min(620px,100%);background:#fff;border-radius:18px;padding:18px;box-shadow:0 20px 70px #0007}
+    #customerSignatureCanvas{display:block;width:100%;height:230px;border:2px solid #aeb8c4;border-radius:12px;background:#fff;touch-action:none}
+    .customer-signature-actions{display:flex;gap:10px;margin-top:14px}.customer-signature-actions button{flex:1;min-height:46px;border:0;border-radius:10px;font-weight:900}.sig-clear{background:#e5e7eb}.sig-save{background:#15803d;color:#fff}.sig-cancel{background:#991b1b;color:#fff}
+  `;
+  document.head.appendChild(style);
+
+  customerSignatureButton = document.createElement("button");
+  customerSignatureButton.id = "customerSignatureBtn";
+  customerSignatureButton.type = "button";
+  customerSignatureButton.textContent = "✍ Customer Signature";
+  btnPrimaryAction?.parentElement?.appendChild(customerSignatureButton);
+
+  customerSignatureOverlay = document.createElement("div");
+  customerSignatureOverlay.id = "customerSignatureOverlay";
+  customerSignatureOverlay.innerHTML = `
+    <div id="customerSignatureCard">
+      <h2 style="margin:0 0 6px;color:#0d3155">Customer Signature</h2>
+      <div style="margin-bottom:12px;color:#5b6572">Signature is required before this trip can be completed.</div>
+      <canvas id="customerSignatureCanvas" width="900" height="330"></canvas>
+      <div class="customer-signature-actions">
+        <button type="button" class="sig-clear" id="sigClearBtn">Clear</button>
+        <button type="button" class="sig-cancel" id="sigCancelBtn">Cancel</button>
+        <button type="button" class="sig-save" id="sigSaveBtn">Save Signature</button>
+      </div>
+    </div>`;
+  document.body.appendChild(customerSignatureOverlay);
+
+  const canvas = customerSignatureOverlay.querySelector("#customerSignatureCanvas");
+  const ctx = canvas.getContext("2d");
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#111827";
+  let drawing = false;
+  let hasInk = false;
+
+  function point(event){
+    const rect = canvas.getBoundingClientRect();
+    const p = event.touches?.[0] || event.changedTouches?.[0] || event;
+    return {
+      x:(p.clientX-rect.left)*(canvas.width/rect.width),
+      y:(p.clientY-rect.top)*(canvas.height/rect.height)
+    };
+  }
+  function start(event){
+    event.preventDefault();
+    drawing = true;
+    const p = point(event);
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+  }
+  function move(event){
+    if(!drawing) return;
+    event.preventDefault();
+    const p = point(event);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    hasInk = true;
+  }
+  function end(event){
+    if(!drawing) return;
+    event.preventDefault();
+    drawing = false;
+    ctx.closePath();
+  }
+
+  canvas.addEventListener("pointerdown",start);
+  canvas.addEventListener("pointermove",move);
+  canvas.addEventListener("pointerup",end);
+  canvas.addEventListener("pointercancel",end);
+  canvas.addEventListener("touchstart",start,{passive:false});
+  canvas.addEventListener("touchmove",move,{passive:false});
+  canvas.addEventListener("touchend",end,{passive:false});
+
+  customerSignatureButton.addEventListener("click",()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    hasInk = false;
+    customerSignatureOverlay.style.display = "flex";
+  });
+  customerSignatureOverlay.querySelector("#sigClearBtn").addEventListener("click",()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    hasInk = false;
+  });
+  customerSignatureOverlay.querySelector("#sigCancelBtn").addEventListener("click",()=>{
+    customerSignatureOverlay.style.display = "none";
+  });
+  customerSignatureOverlay.querySelector("#sigSaveBtn").addEventListener("click",async()=>{
+    if(!hasInk){ alert("Customer signature is required."); return; }
+    const saveBtn = customerSignatureOverlay.querySelector("#sigSaveBtn");
+    saveBtn.disabled = true;
+    try{
+      const res = await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}`,{
+        method:"POST",
+        headers:driverAuthHeaders({"Content-Type":"application/json"}),
+        body:JSON.stringify({
+          signatureDataUrl:canvas.toDataURL("image/png"),
+          signerName:tripDoc?.clientName || ""
+        })
+      });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.message || "Signature save failed");
+      customerSignatureSigned = true;
+      if(tripDoc){
+        tripDoc.customerSignatureCaptured = true;
+        tripDoc.customerSignatureAt = data.signedAt || new Date().toISOString();
+      }
+      customerSignatureOverlay.style.display = "none";
+      renderExecutionState();
+    }catch(err){
+      alert(err.message || "Signature save failed");
+    }finally{
+      saveBtn.disabled = false;
+    }
+  });
+}
+
+async function loadCustomerSignatureRequirement(){
+  ensureCustomerSignatureUi();
+  try{
+    const res = await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}/requirement`,{
+      cache:"no-store",
+      headers:driverAuthHeaders()
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.message || "Signature settings failed");
+    customerSignatureRequired = data.required === true;
+    customerSignatureSigned = data.signed === true || tripDoc?.customerSignatureCaptured === true;
+  }catch(err){
+    console.log("SIGNATURE REQUIREMENT ERROR:",err);
+    customerSignatureRequired = tripDoc?.attachmentSignatureRequired === true;
+    customerSignatureSigned = tripDoc?.customerSignatureCaptured === true;
+  }
+}
+
+function hideCustomerSignatureButton(){
+  if(customerSignatureButton) customerSignatureButton.style.display = "none";
+}
+
+function applyCustomerSignatureDropoffGate(){
+  ensureCustomerSignatureUi();
+  if(customerSignatureRequired && !customerSignatureSigned){
+    customerSignatureButton.style.display = "block";
+    btnPrimaryAction.disabled = true;
+    btnPrimaryAction.setAttribute("aria-disabled","true");
+    setStopStatus("Customer signature required before Complete");
+    return false;
+  }
+  hideCustomerSignatureButton();
+  return true;
+}
+
+async function archiveCompletedAttachmentTrip(){
+  if(!tripDoc?.attachmentImport && !tripDoc?.attachmentImportId) return;
+  try{
+    await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}/archive`,{
+      method:"POST",
+      headers:driverAuthHeaders({"Content-Type":"application/json"}),
+      body:"{}"
+    });
+  }catch(err){
+    console.log("ATTACHMENT ARCHIVE ERROR:",err);
+  }
 }
 
 async function updateTrip(body){
@@ -5085,6 +5262,9 @@ function renderExecutionState(){
     );
 
     btnPrimaryAction.dataset.mode = "complete-dropoff";
+    applyCustomerSignatureDropoffGate();
+  }else{
+    hideCustomerSignatureButton();
   }
 }
 
@@ -5271,6 +5451,12 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
+    if(customerSignatureRequired && !customerSignatureSigned){
+      alert("Customer signature is required before Complete.");
+      applyCustomerSignatureDropoffGate();
+      return;
+    }
+
     try{
       if(isSharedTrip()){
         const ids = new Set(
@@ -5328,6 +5514,8 @@ btnPrimaryAction?.addEventListener("click", async () => {
       alert(err.message);
       return;
     }
+
+    await archiveCompletedAttachmentTrip();
 
     if(allTripPassengersTerminal()){
       await finishTripAndReturnToTrips();
@@ -5742,6 +5930,7 @@ async function initPage(){
 
     tripDoc = await fetchTrip();
 
+    await loadCustomerSignatureRequirement();
     await loadTripServiceWaitConfig();
 
     routeStops = buildRouteStops(tripDoc);

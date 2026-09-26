@@ -2484,6 +2484,30 @@ function moneyBreakdownText(item){
   return lines.join("\n");
 }
 
+async function openSignedAttachmentDocument(tripId){
+  try{
+    const res = await fetch(
+      `/api/trip-signatures/${encodeURIComponent(tripId)}/document`,
+      {
+        headers:{ Authorization:`Bearer ${token}` }
+      }
+    );
+
+    const html = await res.text();
+
+    if(!res.ok){
+      throw new Error(html || "Signed document is not available");
+    }
+
+    const blob = new Blob([html],{type:"text/html"});
+    const url = URL.createObjectURL(blob);
+    window.open(url,"_blank");
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(err){
+    alert(err.message || "Signed document is not available");
+  }
+}
+
 function openSummaryView(key){
 
   const item = displayItems.find(x=>x.key === key);
@@ -2523,6 +2547,11 @@ function openSummaryView(key){
         ${viewLine("Booked Time",getBookedTime(t))}
         ${viewLine("Money Breakdown",moneyBreakdownText(item))}
         ${viewLine("Notes",getNotes(t))}
+        ${
+          t?.attachmentImport === true || t?.attachmentImportId
+            ? `<div style="margin-top:16px"><button type="button" class="eye-btn" style="width:auto;padding:9px 14px" onclick="openSignedAttachmentDocument('${safe(t._id || t.id || "")}')">View Signed Document</button></div>`
+            : ""
+        }
       </div>
     </div>
   `;
@@ -3146,6 +3175,7 @@ excelBtn?.addEventListener("click",exportExcel);
 Object.assign(window,{
   openSummaryView,
   closeSummaryView,
+  openSignedAttachmentDocument,
   exportCSV,
   exportExcel
 });
