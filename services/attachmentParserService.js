@@ -185,12 +185,78 @@ function jsonFromModelText(text){
 }
 
 function fieldSpecForVision(template){
-  return (template?.fields || []).map(field=>({
-    documentLabel:clean(field.label),
-    internalKey:clean(field.internalKey),
-    aliases:Array.isArray(field.aliases) ? field.aliases.map(clean).filter(Boolean) : [],
-    required:field.required === true
-  }));
+  return (template?.fields || [])
+    .filter(field=>clean(field.label) && clean(field.internalKey))
+    .map(field=>({
+      documentLabel:clean(field.label),
+      internalKey:clean(field.internalKey),
+      aliases:Array.isArray(field.aliases) ? field.aliases.map(clean).filter(Boolean) : [],
+      required:field.required === true
+    }));
+}
+
+/*
+  IMPORTANT:
+  The visible Template has only "Document Field".
+  internalKey remains stored and hidden.
+
+  Gemini extracts by DOCUMENT LABEL, never by internalKey and never by
+  the Review-column order. After extraction, this function maps the
+  document labels back to their saved hidden internalKey.
+*/
+function normalizeDocumentLabel(value){
+  return clean(value)
+    .toLowerCase()
+    .replace(/[_\-]+/g," ")
+    .replace(/[^a-z0-9#]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function mapDocumentDataToInternalKeys(documentData,template){
+  const incoming =
+    documentData &&
+    typeof documentData === "object"
+      ? documentData
+      : {};
+
+  const normalizedIncoming = new Map();
+
+  for(const [key,value] of Object.entries(incoming)){
+    normalizedIncoming.set(
+      normalizeDocumentLabel(key),
+      value
+    );
+  }
+
+  const data = {};
+
+  for(const field of template?.fields || []){
+    const internalKey=clean(field.internalKey);
+    const documentLabel=clean(field.label);
+
+    if(!internalKey || !documentLabel) continue;
+
+    const candidates=[
+      documentLabel,
+      ...(Array.isArray(field.aliases) ? field.aliases : [])
+    ]
+      .map(normalizeDocumentLabel)
+      .filter(Boolean);
+
+    let value="";
+
+    for(const candidate of candidates){
+      if(normalizedIncoming.has(candidate)){
+        value=normalizedIncoming.get(candidate);
+        break;
+      }
+    }
+
+    data[internalKey]=value ?? "";
+  }
+
+  return data;
 }
 
 function isImageFile(file){
@@ -334,61 +400,49 @@ function extractionPrompt(template,ocrText=""){
   const fields =
     fieldSpecForVision(template);
 
-  const orderedColumns =
-    fields.map((field,index)=>({
-      columnIndex:index,
-      documentLabel:field.documentLabel,
-      internalKey:field.internalKey,
-      required:field.required === true
-    }));
-
   const lines = [
     "You are extracting transportation reservation trips from a reservation document.",
     clean(template?._recoveryInstruction) || "",
     "The source can contain printed text, handwriting, a hand-drawn table, or a normal form.",
-    "",
-    "CRITICAL POSITIONAL EXTRACTION RULE:",
-    "Do NOT decide the destination field from the meaning of a value.",
-    "Do NOT return a semantic data object.",
-    "Return one positional cells array per physical row.",
-    "The cells array MUST use the exact same order as ORDERED DOCUMENT COLUMNS below.",
-    "cells[0] belongs only to columnIndex 0, cells[1] only to columnIndex 1, and so on.",
-    "The server will map those positions to GH Mobility fields AFTER extraction.",
-    "",
-    "First locate the visible document headers and vertical column boundaries.",
-    "Then read each physical data row horizontally and place each cell value into the matching positional slot.",
-    "COLUMN POSITION IS AUTHORITATIVE.",
-    "A value must stay in the physical column where it is written even if its content looks like a date, time, phone number, or address that would make more sense somewhere else.",
-    "Never shift a value left or right because of its meaning.",
-    "Never merge neighboring columns.",
-    "Never copy or duplicate a value into another column.",
-    "Never use a blank cell as a reason to shift later values into earlier positions.",
-    "If a physical cell is blank, its corresponding cells[] position MUST be an empty string.",
-    "Every row must contain exactly the same number of cells as ORDERED DOCUMENT COLUMNS.",
-    "If handwriting crosses a border, assign it to the one cell containing the center/bulk of the handwriting.",
-    "Read handwriting carefully and make the best faithful transcription from that cell only.",
-    "Do not invent missing values.",
-    "Preserve names, addresses, dates, times and phone numbers exactly as written.",
-    "Do not normalize or correct addresses during extraction.",
-    "Do not turn header text into a trip row.",
-    "Count visible physical data rows first; output exactly one result row per physical trip/passenger row.",
-    "",
-    `ORDERED DOCUMENT COLUMNS: ${JSON.stringify(orderedColumns)}`,
-    "",
+    "Detect the table headers, visible column boundaries, row boundaries, and the spatial position of every handwritten or printed value.",
+    "For tables, COLUMN POSITION IS AUTHORITATIVE: assign a value only to the column in which it is visibly written.",
+    "Never move, merge, borrow, prepend, append, or copy a value from a neighboring column.",
+    "Never infer a missing street number, phone number, date, time, stop, or address from another cell.",
+    "If a cell is visibly blank, keep it blank even when a nearby cell contains a plausible value. If handwriting exists in the cell, make the best faithful transcription of that handwriting.",
+    "If a value crosses a hand-drawn border visually, use the center/bulk of the writing to decide which single cell owns it; never duplicate it.",
+    "Read each physical row from left to right using the visible grid, and output exactly one trip row for each physical passenger/trip row.",
+    "Count the visible data rows first before extracting fields. Do not collapse multiple physical rows into one.",
+    "Do not return an all-empty trip row when the document visibly contains handwritten trip data.",
+    "If one field in a row is uncertain, keep the other clearly readable fields from that same row.",
+    "If the document has front and back pages, treat them as one logical document and combine only information that clearly belongs to the same row/person.",
+    "Read handwriting carefully.",
+    "Do not invent values. Read the best visible value from its own cell. Use an empty string only when the cell is truly unreadable or absent.",
+    "Preserve names, addresses, dates, times and phone numbers exactly as written; do not normalize or correct addresses during extraction.",
+    "Use the VISIBLE DOCUMENT HEADER above each cell. Do not use GH Mobility internal field names to decide column ownership.",
+    "Return row data keyed by the DOCUMENT FIELD LABEL exactly as supplied in Document fields below.",
+    "The server will map each Document Field label to its hidden GH Mobility internalKey AFTER extraction.",
+    "Therefore never shift values because of output order, Review order, field type, or semantic meaning.",
+    "Example: if the visible header is Pickup Date, the value under it must be returned under the document label Pickup Date. If the visible header is Pickup Time, return it under Pickup Time.",
+    "A number written under Phone # belongs only to Phone #. A street written under Stops belongs only to Stops.",
+    "If Service is configured in the template but there is NO visible Service column/field in the document, return Service as an empty string. Never infer Service from Notes such as Wheelchair, Walker, Round Trip, or Stretcher.",
+    "For a Stops field, preserve only text visibly written inside the Stops column; separate multiple stops with semicolons.",
     "Return JSON only. No markdown and no commentary.",
+    `Document fields: ${JSON.stringify(fields.map(field=>({documentLabel:field.documentLabel,required:field.required})))}`,
     "Required JSON shape:",
-    '{"rows":[{"cells":["value for column 0","value for column 1"],"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
-    `IMPORTANT: every cells array must contain exactly ${orderedColumns.length} positions.`,
+    '{"rows":[{"documentData":{"<Document Field label>":"value"},"rawData":{"source":"visual","notes":""},"confidence":0.0}]}',
+    "Include every supplied Document Field label inside every row.documentData object, even when blank.",
+    "Do NOT return internalKey names in documentData.",
     "confidence is 0 to 1 for the whole extracted row."
   ];
 
   if(clean(ocrText)){
     lines.push(
       "",
-      "Google Document OCR text is provided below only as a secondary reading aid for deciphering characters.",
-      "The ORIGINAL IMAGE/PDF is authoritative for physical row and column ownership.",
-      "OCR text order is NOT column order.",
-      "Never use OCR order to decide which cells[] position receives a value.",
+      "Google Document OCR text is provided below only as a secondary reading aid.",
+      "The ORIGINAL IMAGE/PDF is authoritative for row and column ownership.",
+      "If OCR order conflicts with the visible table layout, ignore the OCR order and follow the visible cells.",
+      "Never use OCR text to pull a number or word from one visible column into another.",
+      "Do not turn header text into a trip row.",
       "",
       clean(ocrText)
     );
@@ -565,17 +619,18 @@ async function parseVisualDocument(files,template){
 
   const hasUsefulVisualRow =
     modelRows.some(row=>{
-      if(Array.isArray(row?.cells)){
-        return row.cells.some(value=>clean(value));
-      }
+      const extracted =
+        row?.documentData &&
+        typeof row.documentData === "object"
+          ? row.documentData
+          : (
+              row?.data &&
+              typeof row.data === "object"
+                ? row.data
+                : {}
+            );
 
-      const data =
-        row?.data &&
-        typeof row.data === "object"
-          ? row.data
-          : {};
-
-      return Object.values(data)
+      return Object.values(extracted)
         .some(value=>clean(value));
     });
 
@@ -589,7 +644,7 @@ async function parseVisualDocument(files,template){
     const recoveryTemplate = {
       ...(template || {}),
       _recoveryInstruction:
-        "The previous pass returned no usable row data. Re-read the ORIGINAL IMAGE/PDF. Return positional cells arrays in the exact ORDERED DOCUMENT COLUMNS order. Preserve blank cells as empty positions and never shift later values left or right."
+        "The previous pass returned no usable row data. The document visibly contains trip data. Re-read the ORIGINAL IMAGE/PDF and transcribe the best visible value from each cell. Keep every value in its visible column. Do not invent or move values between columns."
     };
 
     const recovery =
@@ -620,44 +675,39 @@ async function parseVisualDocument(files,template){
     );
   }
 
-  const orderedFields =
-    (template?.fields || [])
-      .map(field=>({
-        internalKey:clean(field.internalKey),
-        documentLabel:clean(field.label)
-      }))
-      .filter(field=>field.internalKey);
-
   return modelRows.map((modelRow,index)=>{
-    const cells =
-      Array.isArray(modelRow?.cells)
-        ? modelRow.cells
-        : [];
-
-    const legacyIncoming =
-      modelRow?.data &&
-      typeof modelRow.data === "object"
-        ? modelRow.data
-        : {};
-
-    const data = {};
-
     /*
-      IMPORTANT:
-      Visual rows are mapped by POSITION on the server.
-      Gemini does not get to decide which GH Mobility key owns a value.
-      Template field order == physical document column order.
+      New format: Gemini returns documentData by visible Document Field label.
+      Backward compatibility: if an older response returns data by internalKey,
+      keep accepting it without changing the rest of the import workflow.
     */
-    for(let columnIndex=0;columnIndex<orderedFields.length;columnIndex++){
-      const field=orderedFields[columnIndex];
+    const documentData =
+      modelRow?.documentData &&
+      typeof modelRow.documentData === "object"
+        ? modelRow.documentData
+        : null;
 
-      if(Array.isArray(modelRow?.cells)){
-        data[field.internalKey] =
-          clean(cells[columnIndex]);
-      }else{
-        // Backward-compatible fallback only if an older model response is returned.
-        data[field.internalKey] =
-          legacyIncoming[field.internalKey] ?? "";
+    let data;
+
+    if(documentData){
+      data =
+        mapDocumentDataToInternalKeys(
+          documentData,
+          template
+        );
+    }else{
+      const legacy =
+        modelRow?.data &&
+        typeof modelRow.data === "object"
+          ? modelRow.data
+          : {};
+
+      data={};
+
+      for(const field of template?.fields || []){
+        const key=clean(field.internalKey);
+        if(!key) continue;
+        data[key]=legacy[key] ?? "";
       }
     }
 
@@ -672,8 +722,8 @@ async function parseVisualDocument(files,template){
         ),
         _extractionStatus:
           usefulOcr
-            ? "GEMINI_POSITIONAL_WITH_GOOGLE_OCR_AID"
-            : "GEMINI_POSITIONAL_EXTRACTED",
+            ? "GEMINI_VISUAL_WITH_GOOGLE_OCR_AID"
+            : "GEMINI_VISUAL_EXTRACTED",
         _documentPages:
           (files || []).length,
         _ocrProvider:
@@ -682,9 +732,6 @@ async function parseVisualDocument(files,template){
             : "",
         _aiProvider:"GEMINI",
         _aiModel:result.model,
-        _mappingMode:"POSITIONAL_TEMPLATE_ORDER",
-        _expectedColumns:orderedFields.length,
-        _receivedCells:cells.length,
         _googleVisionError:
           ocr.error || ""
       },
@@ -703,7 +750,6 @@ async function parseVisualDocument(files,template){
           : null
     };
   });
-
 }
 
 async function parseAttachment({files,template}){
