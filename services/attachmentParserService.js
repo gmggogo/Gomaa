@@ -337,12 +337,18 @@ function extractionPrompt(template,ocrText=""){
   const lines = [
     "You are extracting transportation reservation trips from a reservation document.",
     "The source can contain printed text, handwriting, a hand-drawn table, or a normal form.",
-    "Detect the table headers and row boundaries. Every passenger/trip row must be a separate output row.",
-    "If the document has front and back pages, treat them as one logical document and combine matching information.",
+    "Detect the table headers, visible column boundaries, row boundaries, and the spatial position of every handwritten or printed value.",
+    "For tables, COLUMN POSITION IS AUTHORITATIVE: assign a value only to the column in which it is visibly written.",
+    "Never move, merge, borrow, prepend, append, or copy a value from a neighboring column.",
+    "Never infer a missing street number, phone number, date, time, stop, or address from another cell.",
+    "If a cell is blank, keep it blank even when a nearby cell contains a plausible value.",
+    "If a value crosses a hand-drawn border visually, use the center/bulk of the writing to decide which single cell owns it; never duplicate it.",
+    "Read each physical row from left to right using the visible grid, and output exactly one trip row for each physical passenger/trip row.",
+    "If the document has front and back pages, treat them as one logical document and combine only information that clearly belongs to the same row/person.",
     "Read handwriting carefully.",
-    "Do not invent values. If a value is unreadable or absent, return an empty string.",
-    "Preserve names, addresses, dates, times and phone numbers as closely as possible.",
-    "For a Stops field, preserve multiple stops in one string separated by semicolons.",
+    "Do not invent values. If a value is unreadable, ambiguous, or absent, return an empty string.",
+    "Preserve names, addresses, dates, times and phone numbers exactly as written; do not normalize or correct addresses during extraction.",
+    "For a Stops field, preserve only text visibly written inside the Stops column; separate multiple stops with semicolons.",
     "Return JSON only. No markdown and no commentary.",
     `Template fields: ${JSON.stringify(fields)}`,
     "Required JSON shape:",
@@ -354,8 +360,10 @@ function extractionPrompt(template,ocrText=""){
   if(clean(ocrText)){
     lines.push(
       "",
-      "Google Document OCR text is provided below.",
-      "Use it as a reading aid, but reconstruct rows according to the visible document structure described by the labels.",
+      "Google Document OCR text is provided below only as a secondary reading aid.",
+      "The ORIGINAL IMAGE/PDF is authoritative for row and column ownership.",
+      "If OCR order conflicts with the visible table layout, ignore the OCR order and follow the visible cells.",
+      "Never use OCR text to pull a number or word from one visible column into another.",
       "Do not turn header text into a trip row.",
       "",
       clean(ocrText)
@@ -408,22 +416,20 @@ async function callGemini({files,template,ocrText=""}){
     );
 
   /*
-    Cost-saving path:
-    - If Google Vision produced useful OCR text, send only the OCR text to Gemini.
-    - Otherwise send the original image/PDF directly to Gemini.
-    This keeps handwriting support while avoiding image-token cost when OCR is enough.
+    Spatial-table path:
+    Gemini must ALWAYS see the original image/PDF for visual documents.
+    Google Vision OCR is only a secondary reading aid; it must never replace
+    the original visual layout because column position determines field ownership.
   */
+  const visualParts =
+    geminiInlineParts(files);
+
   const parts = [
-    { text:prompt }
+    { text:prompt },
+    ...visualParts
   ];
 
-  if(!clean(ocrText)){
-    parts.push(
-      ...geminiInlineParts(files)
-    );
-  }
-
-  if(parts.length === 1 && !clean(ocrText)){
+  if(!visualParts.length){
     return null;
   }
 
@@ -571,7 +577,7 @@ async function parseVisualDocument(files,template){
         ),
         _extractionStatus:
           usefulOcr
-            ? "GOOGLE_OCR_GEMINI_EXTRACTED"
+            ? "GEMINI_VISUAL_WITH_GOOGLE_OCR_AID"
             : "GEMINI_VISUAL_EXTRACTED",
         _documentPages:
           (files || []).length,
