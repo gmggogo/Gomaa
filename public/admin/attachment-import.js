@@ -1337,24 +1337,24 @@ function injectReviewLockStyles(){
       opacity:1 !important;
       cursor:not-allowed;
     }
-    .review-table{width:100%!important;max-width:100%!important;table-layout:fixed!important;font-size:11px!important}
-    .review-table th,.review-table td{padding:5px 4px!important;overflow:hidden!important;overflow-wrap:anywhere!important}
-    .review-table input,.review-table select{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;font-size:10.5px!important;padding:5px 4px!important}
-    .review-table .field-clientName{width:8%!important}
-    .review-table .field-clientPhone{width:7%!important}
-    .review-table .field-tripDate{width:7%!important}
-    .review-table .field-tripTime,.review-table .field-appointmentTime,.review-table .field-returnTime{width:6%!important}
-    .review-table .field-pickup,.review-table .field-stops,.review-table .field-dropoff{width:13%!important}
-    .review-table .field-notes{width:8%!important}
-    .review-table .select-col{width:42px!important}
-    .review-table .daily-col{width:46px!important}
-    .review-table .service-col{width:82px!important}
-    .review-table .confidence-col{width:54px!important}
-    .review-table .validation-col{width:76px!important}
-    .review-table .submit-col{width:62px!important}
-    .review-table .edit-col{width:54px!important;min-width:0!important;text-align:center}
-    .review-table .share-col{width:66px!important;min-width:0!important;text-align:center}
-    .review-table .btn{font-size:10px!important;padding:6px 5px!important;min-width:0!important;width:100%!important}
+    .review-table{width:100%!important;max-width:100%!important;table-layout:fixed!important;font-size:10px!important}
+    .review-table th,.review-table td{padding:4px 3px!important;overflow:hidden!important;overflow-wrap:anywhere!important}
+    .review-table input,.review-table select{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;font-size:9.5px!important;padding:4px 3px!important}
+    .review-table .field-clientName{width:6%!important}
+    .review-table .field-clientPhone{width:6%!important}
+    .review-table .field-tripDate{width:6%!important}
+    .review-table .field-tripTime,.review-table .field-appointmentTime,.review-table .field-returnTime{width:5%!important}
+    .review-table .field-pickup,.review-table .field-stops,.review-table .field-dropoff{width:15%!important}
+    .review-table .field-notes{width:6%!important}
+    .review-table .select-col{width:34px!important}
+    .review-table .daily-col{width:38px!important}
+    .review-table .service-col{width:68px!important}
+    .review-table .confidence-col{width:44px!important}
+    .review-table .validation-col{width:62px!important}
+    .review-table .submit-col{width:52px!important}
+    .review-table .edit-col{width:46px!important;min-width:0!important;text-align:center}
+    .review-table .share-col{width:54px!important;min-width:0!important;text-align:center}
+    .review-table .btn{font-size:9px!important;padding:5px 3px!important;min-width:0!important;width:100%!important}
     .review-table .share-match{font-weight:800;color:#087443}
     .review-table .share-no{font-weight:800;color:#9a3412}
     .review-table .share-wait{font-weight:700;color:#64748b}
