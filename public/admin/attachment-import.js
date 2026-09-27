@@ -75,7 +75,8 @@ const state = {
   previewRotations:[],
   documentSubmitting:false,
   selectedFileSignature:"",
-  selectedOrganizationIds:new Set()
+  selectedOrganizationIds:new Set(),
+  organizationLoadSeq:0
 };
 window.addEventListener("resize",()=>{
   document.querySelectorAll("[data-preview-image]").forEach(img=>{
@@ -1028,10 +1029,19 @@ function renderTemplateList(){
       }
       rememberSelectedOrganization();
 
+      // Invalidate any in-flight draft load from the previously selected organization.
+      state.organizationLoadSeq++;
+      state.currentImport=null;
+      state.draftImports=[];
+      state.setupAcceptedRows=new Set();
+
       renderTemplateList();
       ensureOrganizationSettingsButton();
       closeOrganizationSettings();
       syncOrganizationDeleteButton();
+      renderActiveOrganizationName();
+      renderSetupExtractedTrips();
+      renderReview();
       await loadSavedDrafts({openLatest:true});
       loadAcceptedRows();
       renderSetupExtractedTrips();
@@ -1048,6 +1058,10 @@ window.selectTemplate=async id=>{
   state.selectedOrganizationIds.clear();
   if(state.selected) state.selectedOrganizationIds.add(normalizedId);
   rememberSelectedOrganization();
+  state.organizationLoadSeq++;
+  state.currentImport=null;
+  state.draftImports=[];
+  state.setupAcceptedRows=new Set();
   if(state.selected) fillTemplateForm();
   renderTemplateList();
   ensureOrganizationSettingsButton();
@@ -1275,39 +1289,53 @@ function renderActiveOrganizationName(){
 
 async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   const templateId=clean(state.selected?._id);
+  const requestSeq=++state.organizationLoadSeq;
+
   if(!templateId){
     state.draftImports=[];
-    if(openLatest) state.currentImport=null;
+    state.currentImport=null;
+    state.setupAcceptedRows=new Set();
     renderDraftPicker();
+    renderSetupExtractedTrips();
+    renderReview();
     return null;
   }
+
+  // Clear the previous organization's document immediately. This prevents the
+  // old company's trips from remaining visible while the new request is loading.
+  state.draftImports=[];
+  state.currentImport=null;
+  state.setupAcceptedRows=new Set();
+  renderDraftPicker();
+  renderSetupExtractedTrips();
+  renderReview();
+
   const data=await api(`/api/attachment-imports?templateId=${encodeURIComponent(templateId)}&open=true`);
-  // Server is authoritative for draft persistence. Do not discard a Mongo draft in the browser.
-  state.draftImports=(data.imports||[]);
+
+  // Ignore an older request that finished after the operator selected another organization.
+  if(requestSeq!==state.organizationLoadSeq || String(state.selected?._id||'')!==String(templateId)) return null;
+
+  state.draftImports=(data.imports||[]).filter(imp=>String(imp.templateId||'')===String(templateId));
 
   let target=null;
   if(preferId){
     target=state.draftImports.find(x=>String(x._id)===String(preferId))||null;
   }
-  if(!target && openLatest){
-    target=state.draftImports[0]||null;
-  }
+  if(!target && openLatest) target=state.draftImports[0]||null;
 
   if(target){
-    const detail=await api(`/api/attachment-imports/${target._id}`);
+    const detail=await api(`/api/attachment-imports/${target._id}?templateId=${encodeURIComponent(templateId)}`);
+    if(requestSeq!==state.organizationLoadSeq || String(state.selected?._id||'')!==String(templateId)) return null;
+    if(String(detail.import?.templateId||'')!==String(templateId)) throw new Error('Draft organization mismatch');
+
     state.currentImport=detail.import;
     state.services=detail.services||state.services;
-    if(detail.template){
-      const existing=(state.templates||[]).find(t=>String(t._id)===String(detail.template._id));
-      state.selected=existing||detail.template;
-    }else{
-      syncSelectedTemplateForImport(state.currentImport);
-    }
-  }else if(openLatest){
-    state.currentImport=null;
+    loadAcceptedRows();
   }
 
   renderDraftPicker();
+  renderSetupExtractedTrips();
+  renderReview();
   return target;
 }
 

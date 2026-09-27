@@ -257,7 +257,7 @@ router.get("/",async(req,res)=>{
       if(!mongoose.Types.ObjectId.isValid(templateId)){
         return res.status(400).json({success:false,message:"Invalid templateId"});
       }
-      filter.templateId = templateId;
+      filter.templateId = new mongoose.Types.ObjectId(templateId);
     }
     const imports = await AttachmentImport.find(filter).sort({updatedAt:-1,createdAt:-1}).limit(200);
     return res.json({success:true,imports:imports.map(cleanImport)});
@@ -325,8 +325,14 @@ router.post("/upload",upload.array("files",20),async(req,res)=>{
 router.get("/:id",async(req,res)=>{
   try{
     const tenantId = tenantIdFor(req);
-    const importDoc = await AttachmentImport.findOne({_id:req.params.id,tenantId});
-    if(!importDoc) return res.status(404).json({success:false,message:"Import not found"});
+    const detailFilter={_id:req.params.id,tenantId};
+    const requestedTemplateId=String(req.query?.templateId||"").trim();
+    if(requestedTemplateId){
+      if(!mongoose.Types.ObjectId.isValid(requestedTemplateId)) return res.status(400).json({success:false,message:"Invalid templateId"});
+      detailFilter.templateId=new mongoose.Types.ObjectId(requestedTemplateId);
+    }
+    const importDoc = await AttachmentImport.findOne(detailFilter);
+    if(!importDoc) return res.status(404).json({success:false,message:"Import not found for selected organization"});
     const [template,services] = await Promise.all([
       AttachmentTemplate.findById(importDoc.templateId).lean(),
       attachmentImportService.enabledServicesForTenant(tenantId)
