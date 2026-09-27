@@ -63,6 +63,99 @@ function cleanImport(doc){
 }
 
 
+function cleanText(value){
+  return String(value ?? "").trim();
+}
+
+function normalizeAddressList(value){
+  if(Array.isArray(value)) return value.map(cleanText).filter(Boolean);
+  const text=cleanText(value);
+  if(!text) return [];
+  return text.split(/\r?\n|\s*;\s*|\s*\|\s*/).map(cleanText).filter(Boolean);
+}
+
+async function googleGeocodeAddress(address){
+  const cleanAddress=cleanText(address);
+  if(!cleanAddress) return {ok:false,formattedAddress:"",lat:null,lng:null,status:"EMPTY"};
+
+  const key=process.env.GOOGLE_SERVER_KEY || process.env.GOOGLE_KEY || "";
+  if(!key){
+    const err=new Error("GOOGLE_SERVER_KEY is not configured");
+    err.statusCode=503;
+    throw err;
+  }
+
+  const url="https://maps.googleapis.com/maps/api/geocode/json?address=" +
+    encodeURIComponent(cleanAddress) + "&key=" + encodeURIComponent(key);
+  const response=await fetch(url);
+  const json=await response.json().catch(()=>({}));
+  const first=Array.isArray(json?.results) ? json.results[0] : null;
+  const location=first?.geometry?.location || {};
+  const lat=Number(location.lat), lng=Number(location.lng);
+
+  if(!response.ok || json?.status!=="OK" || !first || !Number.isFinite(lat) || !Number.isFinite(lng)){
+    return {ok:false,formattedAddress:cleanAddress,lat:null,lng:null,status:json?.status || `HTTP_${response.status}`};
+  }
+
+  return {
+    ok:true,
+    formattedAddress:cleanText(first.formatted_address) || cleanAddress,
+    lat,
+    lng,
+    partialMatch:first.partial_match===true,
+    status:"OK"
+  };
+}
+
+async function geocodeImportRows(importDoc,rowIndexes=null){
+  const requested=Array.isArray(rowIndexes) ? new Set(rowIndexes.map(Number).filter(Number.isFinite)) : null;
+  const rows=(importDoc.reviewRows||[]).filter(row=>!row.confirmed && (!requested || requested.has(Number(row.rowIndex))));
+  const cache=new Map();
+
+  async function resolve(address){
+    const value=cleanText(address);
+    if(!value) return null;
+    const key=value.toLowerCase();
+    if(!cache.has(key)) cache.set(key,googleGeocodeAddress(value));
+    return await cache.get(key);
+  }
+
+  const failures=[];
+  for(const row of rows){
+    const data=row.data || {};
+    const pickup=cleanText(data.pickup);
+    const dropoff=cleanText(data.dropoff);
+    const stops=normalizeAddressList(data.stops);
+
+    const pickupGeo=await resolve(pickup);
+    const dropoffGeo=await resolve(dropoff);
+    const stopGeos=[];
+    for(const stop of stops) stopGeos.push([stop,await resolve(stop)]);
+
+    if(!pickupGeo?.ok) failures.push(`Row ${row.rowIndex}: Pickup address could not be geocoded`);
+    if(!dropoffGeo?.ok) failures.push(`Row ${row.rowIndex}: Dropoff address could not be geocoded`);
+    stopGeos.forEach(([stop,geo],i)=>{ if(!geo?.ok) failures.push(`Row ${row.rowIndex}: Stop ${i+1} could not be geocoded (${stop})`); });
+    if(failures.some(x=>x.startsWith(`Row ${row.rowIndex}:`))) continue;
+
+    data.pickupLat=pickupGeo.lat;
+    data.pickupLng=pickupGeo.lng;
+    data.dropoffLat=dropoffGeo.lat;
+    data.dropoffLng=dropoffGeo.lng;
+    if(pickupGeo.partialMatch!==true) data.pickup=pickupGeo.formattedAddress;
+    if(dropoffGeo.partialMatch!==true) data.dropoff=dropoffGeo.formattedAddress;
+    data.stops=stopGeos.map(([stop,geo])=>geo.partialMatch===true ? stop : geo.formattedAddress);
+    data.stopCoords=stopGeos.map(([stop,geo],i)=>({address:data.stops[i],lat:geo.lat,lng:geo.lng}));
+    row.data=data;
+  }
+
+  if(failures.length){
+    const err=new Error(failures.join(" | "));
+    err.statusCode=422;
+    throw err;
+  }
+}
+
+
 
 const ATTACHMENT_FIELD_TARGETS = Object.freeze([
   { internalKey:"clientName", label:"Customer Name", aliases:["client name","customer name","patient","patient name","member name","passenger","rider"] },
@@ -551,7 +644,11 @@ router.post("/:id/confirm",async(req,res)=>{
       return res.status(400).json({success:false,message:"Select at least one trip to submit"});
     }
 
+    // Resolve and persist Pickup/Dropoff/Stop coordinates before a Trip can be created.
+    // Submit fails instead of creating an address-only trip when geocoding fails.
+    await geocodeImportRows(importDoc,rowIndexes);
     await attachmentImportService.prepareReviewRows({importDoc,template});
+    importDoc.markModified("reviewRows");
     await importDoc.save();
     const result = await attachmentImportService.confirmImport({
       importDoc,

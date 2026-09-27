@@ -356,6 +356,36 @@ async function confirmImport({importDoc,template,rowIndexes=null}){
     const payload = tripPayloadFromRow({row,service,importDoc,tenant});
     payload.tripNumber = tripNumber;
 
+    const hasCoord=(lat,lng)=>
+      Number.isFinite(Number(lat)) &&
+      Number.isFinite(Number(lng)) &&
+      Number(lat)>=-90 && Number(lat)<=90 &&
+      Number(lng)>=-180 && Number(lng)<=180;
+
+    const coordinateErrors=[];
+    if(!hasCoord(payload.pickupLat,payload.pickupLng)){
+      coordinateErrors.push("Pickup latitude/longitude is required");
+    }
+    if(!hasCoord(payload.dropoffLat,payload.dropoffLng)){
+      coordinateErrors.push("Dropoff latitude/longitude is required");
+    }
+    if(payload.stops.length){
+      if(!Array.isArray(payload.stopCoords) || payload.stopCoords.length!==payload.stops.length){
+        coordinateErrors.push("Every stop must have latitude/longitude");
+      }else{
+        payload.stopCoords.forEach((point,index)=>{
+          if(!hasCoord(point?.lat,point?.lng)){
+            coordinateErrors.push(`Stop ${index+1} latitude/longitude is required`);
+          }
+        });
+      }
+    }
+
+    if(coordinateErrors.length){
+      row.validationErrors=[...(row.validationErrors||[]),...coordinateErrors];
+      continue;
+    }
+
     const trip = await Trip.create(payload);
 
     /*

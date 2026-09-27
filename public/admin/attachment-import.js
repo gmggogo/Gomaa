@@ -1973,6 +1973,24 @@ async function submitRows(rowIndexes){
       state.autoSaveTimers.delete(index);
     }
 
+    // Give immediate visual feedback BEFORE the Save/Geocode/Confirm network work.
+    // This prevents the operator from thinking the click was ignored.
+    indexes.forEach(index=>{
+      const btn=document.querySelector(`[data-submit-row="${index}"]`);
+      if(btn){
+        btn.disabled=true;
+        btn.dataset.originalText=btn.textContent||"Submit";
+        btn.textContent="Submitting...";
+      }
+    });
+    const selectedSubmitBtn=$("submitSelectedBtn");
+    if(selectedSubmitBtn){
+      selectedSubmitBtn.disabled=true;
+      selectedSubmitBtn.dataset.originalText=selectedSubmitBtn.textContent||"Submit Selected";
+      selectedSubmitBtn.textContent="Submitting...";
+    }
+    notice("Submitting trip... validating address coordinates.");
+
     /*
       Save exactly the trip row(s) being submitted.
       Do not re-render between Save and Submit, so the button action cannot
@@ -2035,6 +2053,15 @@ async function submitRows(rowIndexes){
   }finally{
     for(const index of lockedIndexes){
       state.submittingRows.delete(index);
+      const btn=document.querySelector(`[data-submit-row="${index}"]`);
+      if(btn && !btn.disabled){
+        btn.textContent=btn.dataset.originalText||"Submit";
+      }
+    }
+    const selectedSubmitBtn=$("submitSelectedBtn");
+    if(selectedSubmitBtn){
+      selectedSubmitBtn.disabled=false;
+      selectedSubmitBtn.textContent=selectedSubmitBtn.dataset.originalText||"Submit Selected";
     }
   }
 }
