@@ -119,25 +119,6 @@ function validateRow(row,template,enabledServices){
     errors.push("Service must be selected from enabled services");
   }
 
-  // Accept the date exactly as users normally see/type it in Import Review
-  // (for example 10/01/2026) and normalize it before the Trip is created.
-  // Trips Hub still receives the canonical YYYY-MM-DD value it needs.
-  const rawTripDate = first(
-    row.data || {},
-    "tripDate",
-    "date",
-    "pickupDate",
-    "serviceDate"
-  );
-  const tripDate = normalizeTripDate(rawTripDate);
-
-  if(!rawTripDate){
-    errors.push("Trip Date is required");
-  }else if(!tripDate){
-  }else{
-    row.data = row.data || {};
-    row.data.tripDate = tripDate;
-  }
 
   return errors;
 }
@@ -271,7 +252,7 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
   const phone = first(data,"clientPhone","phone","memberPhone","customerPhone");
   const pickup = first(data,"pickup","pickupAddress","origin","from");
   const dropoff = first(data,"dropoff","dropoffAddress","destination","to");
-  const tripDate = normalizeTripDate(first(data,"tripDate","date","pickupDate","serviceDate"));
+  const tripDate = first(data,"tripDate","date","pickupDate","serviceDate");
   const tripTime = first(data,"tripTime","pickupTime","time");
 
   return {
