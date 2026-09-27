@@ -47,6 +47,10 @@
     .review-data-pane{position:relative;top:auto;max-height:none}
     .review-document-scroll{height:560px}
   }
+  .organization-settings[hidden]{display:none!important}
+  .review-workspace{display:block!important}
+  .review-data-pane{width:100%!important;max-width:none!important;position:relative!important;top:auto!important;max-height:none!important;overflow:visible!important}
+  .review-wrap{width:100%;max-width:100%;overflow:auto}
 </style>
 </head>
 <body>
@@ -98,49 +102,41 @@
               <button class="btn btn-muted" type="button" disabled title="Scanner integration will use the same import flow">Scanner - Next Phase</button>
             </div>
           </div>
-
-          <div id="setupDocumentPreview" class="document-preview-strip">
-            <div class="preview-heading">
-              <strong>Document Preview</strong>
-              <span class="meta">Check the page(s) before Submit.</span>
-            </div>
-            <div id="setupPreviewGrid" class="preview-grid"></div>
-          </div>
+        </div>
         </div>
 
-        <div class="section identity-section collapsed" id="identitySection">
-          <div class="identity-toggle-row">
+        <div id="organizationSettings" class="organization-settings" hidden>
+          <div class="section identity-section" id="identitySection">
             <h3 id="identityHeading">Template Identity</h3>
-            <button class="btn btn-muted" id="identityToggleBtn" type="button">Open Identity</button>
-          </div>
-          <div class="identity-body">
-            <div class="grid">
-              <div class="field"><label>Template Name</label><input id="templateName"></div>
-              <div class="field"><label>Organization Type</label><select id="organizationType"><option>INSURANCE</option><option>BROKER</option><option>COMPANY</option><option>OTHER</option></select></div>
-              <div class="field full"><label>Insurance / Broker / Company Name</label><input id="organizationName"></div>
+            <div class="identity-body">
+              <div class="grid">
+                <div class="field"><label>Template Name</label><input id="templateName"></div>
+                <div class="field"><label>Organization Type</label><select id="organizationType"><option>INSURANCE</option><option>BROKER</option><option>COMPANY</option><option>OTHER</option></select></div>
+                <div class="field full"><label>Insurance / Broker / Company Name</label><input id="organizationName"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="section">
-          <h3>Match Document Fields</h3>
-          <div class="meta field-map-help">Write only the field names that appear on this organization's document.</div>
-          <div id="fieldsEditor"></div>
-          <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
-        </div>
-
-        <div class="section">
-          <h3>Signature Position</h3>
-          <div class="grid">
-            <div class="field"><label>Page (1 = Front, 2 = Back)</label><input id="sigPage" type="number" min="1" value="1"></div>
-            <div class="field"><label>X %</label><input id="sigX" type="number" min="0" max="100" value="62"></div>
-            <div class="field"><label>Y %</label><input id="sigY" type="number" min="0" max="100" value="78"></div>
-            <div class="field"><label>Width %</label><input id="sigW" type="number" min="5" max="100" value="28"></div>
-            <div class="field"><label>Height %</label><input id="sigH" type="number" min="3" max="100" value="12"></div>
+          <div class="section">
+            <h3>Match Document Fields</h3>
+            <div class="meta field-map-help">Write only the field names that appear on this organization's document.</div>
+            <div id="fieldsEditor"></div>
+            <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
           </div>
-        </div>
 
-        <div class="toolbar"><button class="btn btn-green" id="saveTemplateBtn">Save Template</button></div>
+          <div class="section">
+            <h3>Signature Position</h3>
+            <div class="grid">
+              <div class="field"><label>Page (1 = Front, 2 = Back)</label><input id="sigPage" type="number" min="1" value="1"></div>
+              <div class="field"><label>X %</label><input id="sigX" type="number" min="0" max="100" value="62"></div>
+              <div class="field"><label>Y %</label><input id="sigY" type="number" min="0" max="100" value="78"></div>
+              <div class="field"><label>Width %</label><input id="sigW" type="number" min="5" max="100" value="28"></div>
+              <div class="field"><label>Height %</label><input id="sigH" type="number" min="3" max="100" value="12"></div>
+            </div>
+          </div>
+
+          <div class="toolbar"><button class="btn btn-green" id="saveTemplateBtn">Save Template</button></div>
+        </div>
       </div>
 
       <div id="reviewPanel" class="panel">
@@ -154,12 +150,6 @@
             <div id="reviewMeta" class="review-meta"></div>
             <div id="reviewTable" class="review-wrap"></div>
           </div>
-          <aside class="review-document-pane">
-            <div class="review-document-head">Trip Document</div>
-            <div id="reviewDocumentPreview" class="review-document-scroll">
-              <div class="meta">Select and submit a document from Import Setup to compare it here.</div>
-            </div>
-          </aside>
         </div>
       </div>
     </section>

@@ -285,6 +285,10 @@ function rotatePreview(index,delta){
 }
 function renderDocumentPreview(files=[]){
   let host=document.getElementById("documentFullPreview");
+  if(!host){
+    ensureSetupWorkflowMounts();
+    host=document.getElementById("documentFullPreview");
+  }
   if(!host) return;
   clearSelectedPreviewUrls();
 
@@ -427,7 +431,7 @@ async function deleteSetupRow(rowIndex){
 }
 
 function normalizeOrganizationSidebar(){
-  const templatesPanel=$("templatesPanel");
+  const templatesPanel=$("templatesPanel") || $("templateSidebar");
   if(!templatesPanel) return;
 
   const heading=[...templatesPanel.querySelectorAll("h1,h2,h3,h4,strong")]
@@ -458,63 +462,130 @@ function normalizeOrganizationSidebar(){
 }
 
 function organizationSettingsBlocks(){
-  const blocks=[];
-  const fieldsEditor=$("fieldsEditor");
-  const templateCard=fieldsEditor?.closest(".card") || $("templateName")?.closest(".card");
+  const block=$("organizationSettings");
+  return block ? [block] : [];
+}
 
-  organizationSettingsBlocks().forEach(block=>{
-    block.dataset.orgSettingsBlock="1";
-    block.classList.add("template-editor-collapsed");
-  });
+function closeOrganizationSettings(){
+  const block=$("organizationSettings");
+  if(block) block.hidden=true;
 
-  const settingsToggle=document.getElementById("templateFieldsToggle");
-  const templatesPanel=$("templatesPanel");
-  if(settingsToggle && templatesPanel){
-    settingsToggle.textContent="Open Settings";
-    settingsToggle.hidden=!state.selected?._id;
-    templatesPanel.appendChild(settingsToggle);
+  const toggle=$("templateFieldsToggle");
+  if(toggle){
+    toggle.textContent="Open Settings";
+    toggle.setAttribute("aria-expanded","false");
+  }
+}
+
+function openOrganizationSettings(){
+  if(!state.selected) return;
+
+  const block=$("organizationSettings");
+  if(block) block.hidden=false;
+
+  const toggle=$("templateFieldsToggle");
+  if(toggle){
+    toggle.textContent="Close Settings";
+    toggle.setAttribute("aria-expanded","true");
   }
 
-  settingsToggle?.addEventListener("click",()=>{
-    const anyOpen=organizationSettingsBlocks().some(
-      block=>!block.classList.contains("template-editor-collapsed")
-    );
-    if(anyOpen) closeOrganizationSettings();
-    else openOrganizationSettings();
-  });
+  block?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function ensureOrganizationSettingsButton(){
+  const templatesPanel=$("templatesPanel") || $("templateSidebar");
+  if(!templatesPanel) return null;
+
+  let toggle=$("templateFieldsToggle");
+  if(!toggle){
+    toggle=document.createElement("button");
+    toggle.id="templateFieldsToggle";
+    toggle.type="button";
+    toggle.className="btn btn-muted";
+    toggle.textContent="Open Settings";
+
+    const actions=templatesPanel.querySelector(".side-actions");
+    if(actions) templatesPanel.insertBefore(toggle,actions);
+    else templatesPanel.appendChild(toggle);
+
+    toggle.addEventListener("click",()=>{
+      const block=$("organizationSettings");
+      if(!block || block.hidden) openOrganizationSettings();
+      else closeOrganizationSettings();
+    });
+  }
+
+  toggle.hidden=!state.selected;
+  return toggle;
+}
+
+function ensureSetupWorkflowMounts(){
+  const setup=$("setupPanel");
+  const source=setup?.querySelector(".source-section");
+  if(!setup || !source) return;
+
+  let trips=document.getElementById("setupExtractedTrips");
+  if(!trips){
+    trips=document.createElement("div");
+    trips.id="setupExtractedTrips";
+    trips.className="setup-extracted-wrap";
+    source.insertAdjacentElement("afterend",trips);
+  }
+
+  let preview=document.getElementById("documentFullPreview");
+  if(!preview){
+    preview=document.createElement("div");
+    preview.id="documentFullPreview";
+    preview.className="document-preview-wrap";
+    trips.insertAdjacentElement("afterend",preview);
+  }
+}
+
+function installSetupWorkflowUI(){
+  normalizeOrganizationSidebar();
+  ensureOrganizationSettingsButton();
+  ensureSetupWorkflowMounts();
+  closeOrganizationSettings();
+  removeReviewDocumentPanel();
+
+  const uploadBtn=$("uploadBtn");
+  const fileInput=$("attachmentFiles");
 
   if(uploadBtn){
     uploadBtn.disabled=true;
     uploadBtn.dataset.readyForNewFile="0";
   }
 
-  fileInput?.addEventListener("change",()=>{
-    const files=[...fileInput.files];
-    const signature=files.map(f=>`${f.name}:${f.size}:${f.lastModified}`).join("|");
-    state.selectedFileSignature=signature;
-    state.documentSubmitting=false;
-    if(uploadBtn){
-      uploadBtn.disabled=!files.length;
-      uploadBtn.dataset.readyForNewFile=files.length?"1":"0";
-      uploadBtn.textContent="Submit Document";
-    }
-    renderDocumentPreview(files);
-  });
+  if(fileInput && fileInput.dataset.workflowBound!=="1"){
+    fileInput.dataset.workflowBound="1";
+    fileInput.addEventListener("change",()=>{
+      const files=[...fileInput.files];
+      state.selectedFileSignature=files
+        .map(f=>`${f.name}:${f.size}:${f.lastModified}`)
+        .join("|");
+      state.documentSubmitting=false;
+
+      if(uploadBtn){
+        uploadBtn.disabled=!files.length;
+        uploadBtn.dataset.readyForNewFile=files.length?"1":"0";
+        uploadBtn.textContent="Submit Document";
+      }
+
+      renderDocumentPreview(files);
+    });
+  }
 
   renderDocumentPreview([]);
   renderSetupExtractedTrips();
-  normalizeOrganizationSidebar();
-  closeOrganizationSettings();
-  removeReviewDocumentPanel();
 
-  const sidebarObserver=new MutationObserver(()=>normalizeOrganizationSidebar());
-  if($("templatesPanel")){
-    sidebarObserver.observe($("templatesPanel"),{childList:true,subtree:true});
-  }
-
-  if($("reviewPanel")){
-    const reviewObserver=new MutationObserver(()=>removeReviewDocumentPanel());
-    reviewObserver.observe($("reviewPanel"),{childList:true,subtree:true});
+  const templatesPanel=$("templatesPanel") || $("templateSidebar");
+  if(templatesPanel && templatesPanel.dataset.orgObserver!=="1"){
+    templatesPanel.dataset.orgObserver="1";
+    const sidebarObserver=new MutationObserver(()=>{
+      normalizeOrganizationSidebar();
+      ensureOrganizationSettingsButton();
+    });
+    sidebarObserver.observe(templatesPanel,{childList:true,subtree:true});
   }
 }
 
@@ -659,13 +730,6 @@ function renderFields(){
           value="${esc(f.label)}"
           placeholder="Type the field name exactly as it appears on the document"
         >
-        <div class="meta" data-map-hint>
-          ${
-            f.internalKey
-              ? `Mapped internally: ${esc(ghFieldMeta(f.internalKey)?.label || f.internalKey)}`
-              : "Will be identified automatically when saved"
-          }
-        </div>
       </div>
 
       <div>
@@ -784,7 +848,7 @@ function newTemplate(){
     {label:"Drop Off Address",internalKey:"dropoff",type:"ADDRESS",required:true,visibleInReview:true,aliases:["Dropoff Address","DO Address","Drop Off","Destination"],order:6},
     {label:"Service",internalKey:"service",type:"SERVICE",required:false,visibleInReview:true,aliases:["Service","Service Type","Vehicle Type"],order:7}
   ],signaturePosition:{page:1,xPercent:62,yPercent:78,widthPercent:28,heightPercent:12}};
-  fillTemplateForm();renderTemplateList();
+  fillTemplateForm();renderTemplateList();ensureOrganizationSettingsButton();closeOrganizationSettings();
 }
 function fillTemplateForm(){
   const t=state.selected;if(!t)return;
@@ -865,7 +929,7 @@ function templatePayload(){return {
 function renderTemplateList(){
   $("templateList").innerHTML=state.templates.map(t=>`<button class="template-btn ${state.selected?._id===t._id?"active":""}" onclick="selectTemplate('${t._id}')">${esc(t.name)}<div style="font-size:11px;font-weight:600;opacity:.8">${esc(t.organizationName||t.organizationType)}</div></button>`).join("") || `<div class="meta">No templates yet.</div>`;
 }
-window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList()}
+window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList();ensureOrganizationSettingsButton();closeOrganizationSettings()}
 async function loadTemplates(){
   const data=await api("/api/attachment-templates");state.templates=data.templates||[];
   if(!state.selected&&state.templates.length)state.selected=state.templates[0];
