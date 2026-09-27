@@ -72,6 +72,7 @@ const state = {
   sharePlan:null,
   setupAcceptedRows:new Set(),
   selectedPreviewUrls:[],
+  previewRotations:[],
   documentSubmitting:false,
   selectedFileSignature:""
 };
@@ -124,6 +125,13 @@ smartWorkflowStyle.textContent=`
   .setup-extracted-wrap{margin:14px 0 18px}
   .setup-trip-card{border:1px solid #cbd5e1;border-radius:12px;padding:12px;margin:10px 0;background:#fff}
   .setup-trip-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+  .setup-extracted-wrap{position:sticky;top:8px;z-index:40;background:#f8fafc;border-radius:12px;padding:8px;box-shadow:0 6px 18px rgba(15,23,42,.08)}
+  .setup-trip-head{position:sticky;top:8px;z-index:42;background:#fff;padding:8px;border-radius:9px}
+  .document-preview-toolbar{position:sticky;top:8px;z-index:35;display:flex;justify-content:flex-end;gap:8px;padding:8px 0;background:#fff}
+  .document-preview-page{position:relative}
+  .document-preview-stage{width:100%;overflow:auto;display:flex;align-items:center;justify-content:center;background:#f8fafc;min-height:220px}
+  .document-preview-stage img{transform-origin:center center;transition:transform .18s ease}
+
   .setup-trip-actions{display:flex;gap:8px}
   .setup-trip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
   .setup-trip-field{border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#f8fafc;min-height:54px}
@@ -173,6 +181,24 @@ function clearSelectedPreviewUrls(){
     try{ URL.revokeObjectURL(url); }catch(_){}
   });
   state.selectedPreviewUrls=[];
+  state.previewRotations=[];
+}
+function rotatePreview(index,delta){
+  const img=document.querySelector(`[data-preview-image="${index}"]`);
+  if(!img) return;
+  const next=((Number(state.previewRotations[index]||0)+delta)%360+360)%360;
+  state.previewRotations[index]=next;
+  img.style.transform=`rotate(${next}deg)`;
+  /*
+    When rotated 90/270, give the stage enough vertical room for a landscape page
+    without clipping it. The image itself remains full-resolution in the browser.
+  */
+  const stage=img.closest(".document-preview-stage");
+  if(stage){
+    stage.style.minHeight=(next===90||next===270)
+      ? `${Math.max(420,Math.min(window.innerWidth*.78,900))}px`
+      : "220px";
+  }
 }
 function renderDocumentPreview(files=[]){
   let host=document.getElementById("documentFullPreview");
@@ -191,7 +217,17 @@ function renderDocumentPreview(files=[]){
     const name=esc(file.name||`Page ${index+1}`);
 
     if(type.startsWith("image/")){
-      return `<div class="document-preview-page"><img src="${url}" alt="${name}"></div>`;
+      state.previewRotations[index]=0;
+      return `
+        <div class="document-preview-page">
+          <div class="document-preview-toolbar">
+            <button type="button" class="btn btn-muted" data-rotate-left="${index}">↶ Rotate Left</button>
+            <button type="button" class="btn btn-muted" data-rotate-right="${index}">↷ Rotate Right</button>
+          </div>
+          <div class="document-preview-stage">
+            <img data-preview-image="${index}" src="${url}" alt="${name}">
+          </div>
+        </div>`;
     }
     if(type==="application/pdf" || /\.pdf$/i.test(file.name||"")){
       return `<div class="document-preview-page"><embed src="${url}" type="application/pdf"></div>`;
@@ -205,6 +241,13 @@ function renderDocumentPreview(files=[]){
     </div>
     ${parts}
   `;
+
+  host.querySelectorAll("[data-rotate-left]").forEach(btn=>{
+    btn.addEventListener("click",()=>rotatePreview(Number(btn.dataset.rotateLeft),-90));
+  });
+  host.querySelectorAll("[data-rotate-right]").forEach(btn=>{
+    btn.addEventListener("click",()=>rotatePreview(Number(btn.dataset.rotateRight),90));
+  });
 }
 function fieldDisplayPairs(row){
   const fields=(state.selected?.fields||[]).filter(f=>f.visibleInReview!==false);
