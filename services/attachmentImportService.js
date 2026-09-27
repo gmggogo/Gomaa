@@ -291,7 +291,7 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     serviceTitle:service.title,
     serviceSuffix:service.serviceKey,
     tripNumberSuffix:service.serviceKey,
-    status:"Scheduled",
+    status:"Confirmed", // Smart Import already passed Admin Import Review; send directly to Trips Hub.
     dispatchSelected:false,
     source:"attachment",
     bookingSource:"ATTACHMENT_IMPORT",
