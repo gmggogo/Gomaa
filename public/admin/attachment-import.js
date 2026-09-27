@@ -76,7 +76,7 @@ const state = {
   documentSubmitting:false,
   selectedFileSignature:"",
   selectedOrganizationIds:new Set(),
-  organizationLoadSeq:0
+  organizationLoadGeneration:0
 };
 window.addEventListener("resize",()=>{
   document.querySelectorAll("[data-preview-image]").forEach(img=>{
@@ -1028,20 +1028,12 @@ function renderTemplateList(){
         closeOrganizationSettings();
       }
       rememberSelectedOrganization();
-
-      // Invalidate any in-flight draft load from the previously selected organization.
-      state.organizationLoadSeq++;
-      state.currentImport=null;
-      state.draftImports=[];
-      state.setupAcceptedRows=new Set();
+      renderActiveOrganizationName();
 
       renderTemplateList();
       ensureOrganizationSettingsButton();
       closeOrganizationSettings();
       syncOrganizationDeleteButton();
-      renderActiveOrganizationName();
-      renderSetupExtractedTrips();
-      renderReview();
       await loadSavedDrafts({openLatest:true});
       loadAcceptedRows();
       renderSetupExtractedTrips();
@@ -1058,10 +1050,6 @@ window.selectTemplate=async id=>{
   state.selectedOrganizationIds.clear();
   if(state.selected) state.selectedOrganizationIds.add(normalizedId);
   rememberSelectedOrganization();
-  state.organizationLoadSeq++;
-  state.currentImport=null;
-  state.draftImports=[];
-  state.setupAcceptedRows=new Set();
   if(state.selected) fillTemplateForm();
   renderTemplateList();
   ensureOrganizationSettingsButton();
@@ -1270,72 +1258,52 @@ function syncSelectedTemplateForImport(imp){
 }
 
 function renderActiveOrganizationName(){
-  let el=document.getElementById("activeImportOrganization");
-  const uploadTitle=document.querySelector("#setupPane h2, #setupPane h3, .upload-card h2, .upload-card h3");
-  if(!el){
-    el=document.createElement("div");
-    el.id="activeImportOrganization";
-    el.style.cssText="margin:0 0 12px 0;padding:10px 14px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-weight:900;font-size:16px";
-    const uploadBox=document.getElementById("uploadBox") || document.querySelector("#setupPane .card, #setupPane .panel");
-    if(uploadBox && uploadBox.parentNode) uploadBox.parentNode.insertBefore(el,uploadBox);
-    else if(uploadTitle && uploadTitle.parentNode) uploadTitle.parentNode.insertBefore(el,uploadTitle);
-  }
-  if(el){
-    const name=state.selected ? organizationDisplayName(state.selected) : "No organization selected";
-    el.textContent=`Current Insurance / Broker / Company: ${name}`;
-    el.style.display="block";
-  }
+  const el=document.getElementById("activeImportOrganization");
+  if(!el) return;
+  const name=state.selected ? organizationDisplayName(state.selected) : "No organization selected";
+  el.textContent=`Current Insurance / Broker / Company: ${name}`;
+  el.style.display="block";
 }
 
 async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   const templateId=clean(state.selected?._id);
-  const requestSeq=++state.organizationLoadSeq;
+  const generation=++state.organizationLoadGeneration;
 
   if(!templateId){
     state.draftImports=[];
-    state.currentImport=null;
-    state.setupAcceptedRows=new Set();
+    if(openLatest) state.currentImport=null;
     renderDraftPicker();
-    renderSetupExtractedTrips();
-    renderReview();
+    renderActiveOrganizationName();
     return null;
   }
 
-  // Clear the previous organization's document immediately. This prevents the
-  // old company's trips from remaining visible while the new request is loading.
-  state.draftImports=[];
-  state.currentImport=null;
-  state.setupAcceptedRows=new Set();
-  renderDraftPicker();
-  renderSetupExtractedTrips();
-  renderReview();
+  // Ask for open drafts tenant-wide, then isolate by the persisted templateId.
+  // This avoids depending on query casting in the list route while still keeping
+  // each Insurance/Broker/Company completely separate in the UI.
+  const data=await api(`/api/attachment-imports?open=true`);
+  if(generation!==state.organizationLoadGeneration || clean(state.selected?._id)!==templateId) return null;
 
-  const data=await api(`/api/attachment-imports?templateId=${encodeURIComponent(templateId)}&open=true`);
-
-  // Ignore an older request that finished after the operator selected another organization.
-  if(requestSeq!==state.organizationLoadSeq || String(state.selected?._id||'')!==String(templateId)) return null;
-
-  state.draftImports=(data.imports||[]).filter(imp=>String(imp.templateId||'')===String(templateId));
+  state.draftImports=(data.imports||[]).filter(imp=>clean(imp.templateId)===templateId);
 
   let target=null;
-  if(preferId){
-    target=state.draftImports.find(x=>String(x._id)===String(preferId))||null;
-  }
+  if(preferId) target=state.draftImports.find(x=>String(x._id)===String(preferId))||null;
   if(!target && openLatest) target=state.draftImports[0]||null;
 
   if(target){
-    const detail=await api(`/api/attachment-imports/${target._id}?templateId=${encodeURIComponent(templateId)}`);
-    if(requestSeq!==state.organizationLoadSeq || String(state.selected?._id||'')!==String(templateId)) return null;
-    if(String(detail.import?.templateId||'')!==String(templateId)) throw new Error('Draft organization mismatch');
-
-    state.currentImport=detail.import;
-    state.services=detail.services||state.services;
-    loadAcceptedRows();
+    const detail=await api(`/api/attachment-imports/${target._id}`);
+    if(generation!==state.organizationLoadGeneration || clean(state.selected?._id)!==templateId) return null;
+    if(clean(detail.import?.templateId)!==templateId){
+      state.currentImport=null;
+    }else{
+      state.currentImport=detail.import;
+      state.services=detail.services||state.services;
+    }
+  }else if(openLatest){
+    state.currentImport=null;
   }
 
   renderDraftPicker();
-  renderSetupExtractedTrips();
-  renderReview();
+  renderActiveOrganizationName();
   return target;
 }
 
