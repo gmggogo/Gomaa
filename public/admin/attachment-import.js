@@ -70,8 +70,10 @@ const state = {
   editingRows:new Set(),
   shareRatings:new Map(),
   sharePlan:null,
-  selectedFiles:[],
-  previewUrls:[]
+  setupAcceptedRows:new Set(),
+  selectedPreviewUrls:[],
+  documentSubmitting:false,
+  selectedFileSignature:""
 };
 const $ = id=>document.getElementById(id);
 
@@ -104,94 +106,262 @@ async function api(url,options={}){
 function notice(msg,ok=true){const n=$("notice");n.textContent=msg;n.className=`notice ${ok?"ok":"err"}`}
 function clearNotice(){const n=$("notice");n.className="notice";n.textContent=""}
 
-function revokePreviewUrls(){
-  (state.previewUrls||[]).forEach(url=>{
+
+/* =========================================================
+   SMART IMPORT WORKFLOW UI
+   Setup = document + extracted trips + optional template fields
+   Review = accepted trips only, service + final check + final submit
+========================================================= */
+const smartWorkflowStyle=document.createElement("style");
+smartWorkflowStyle.textContent=`
+  .ai-tabs{display:flex!important;gap:14px!important;margin:14px 0 18px!important}
+  .ai-tabs .tab,.tab[data-tab]{min-height:54px!important;padding:14px 28px!important;border-radius:12px!important;font-size:17px!important;font-weight:900!important;border:2px solid #cbd5e1!important}
+  .tab[data-tab="setup"]{background:#e0f2fe!important;color:#075985!important}
+  .tab[data-tab="review"]{background:#ede9fe!important;color:#5b21b6!important}
+  .tab[data-tab].active{box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;border-color:#2563eb!important}
+  #templateFieldsToggle{margin-left:auto}
+  .setup-workflow-toolbar{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .setup-extracted-wrap{margin:14px 0 18px}
+  .setup-trip-card{border:1px solid #cbd5e1;border-radius:12px;padding:12px;margin:10px 0;background:#fff}
+  .setup-trip-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+  .setup-trip-actions{display:flex;gap:8px}
+  .setup-trip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+  .setup-trip-field{border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#f8fafc;min-height:54px}
+  .setup-trip-field b{display:block;font-size:11px;color:#64748b;margin-bottom:3px}
+  .document-preview-wrap{margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px}
+  .document-preview-title{font-weight:900;font-size:16px;margin-bottom:10px}
+  .document-preview-page{width:100%;margin:0 0 16px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;overflow:hidden}
+  .document-preview-page img{display:block;width:100%;height:auto;object-fit:contain}
+  .document-preview-page embed{display:block;width:100%;height:850px}
+  .document-file-card{padding:22px;text-align:center;font-weight:800}
+  .template-editor-collapsed{display:none!important}
+  #uploadBtn:disabled{opacity:.55!important;cursor:not-allowed!important}
+`;
+document.head.appendChild(smartWorkflowStyle);
+
+function acceptedStorageKey(){
+  return `ghAttachmentSetupAccepted:${state.currentImport?._id||"none"}`;
+}
+function loadAcceptedRows(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(acceptedStorageKey())||"[]");
+    state.setupAcceptedRows=new Set((Array.isArray(raw)?raw:[]).map(Number).filter(Number.isFinite));
+  }catch(_){
+    state.setupAcceptedRows=new Set();
+  }
+}
+function saveAcceptedRows(){
+  try{
+    localStorage.setItem(
+      acceptedStorageKey(),
+      JSON.stringify([...state.setupAcceptedRows])
+    );
+  }catch(_){}
+}
+function currentSetupRows(){
+  return (state.currentImport?.reviewRows||[]).filter(
+    row=>!state.setupAcceptedRows.has(Number(row.rowIndex))
+  );
+}
+function currentReviewRows(){
+  return (state.currentImport?.reviewRows||[]).filter(
+    row=>state.setupAcceptedRows.has(Number(row.rowIndex)) || row.confirmed || row.tripId
+  );
+}
+function clearSelectedPreviewUrls(){
+  (state.selectedPreviewUrls||[]).forEach(url=>{
     try{ URL.revokeObjectURL(url); }catch(_){}
   });
-  state.previewUrls=[];
+  state.selectedPreviewUrls=[];
 }
-
-function previewCardForFile(file,index){
-  const url=URL.createObjectURL(file);
-  state.previewUrls.push(url);
-  const name=esc(file.name||`Page ${index+1}`);
-  const type=String(file.type||"").toLowerCase();
-  const isImage=type.startsWith("image/");
-  const isPdf=type==="application/pdf" || /\.pdf$/i.test(file.name||"");
-
-  if(isImage){
-    return `<div class="preview-card">
-      <div class="preview-card-head">${index===0?"Front / Page 1":index===1?"Back / Page 2":`Page ${index+1}`} • ${name}</div>
-      <img src="${url}" alt="${name}">
-    </div>`;
-  }
-
-  if(isPdf){
-    return `<div class="preview-card">
-      <div class="preview-card-head">${name}</div>
-      <iframe src="${url}" title="${name}"></iframe>
-    </div>`;
-  }
-
-  return `<div class="preview-card">
-    <div class="preview-card-head">${name}</div>
-    <div class="preview-file-fallback">Preview is not available for this file type.<br>${name}</div>
-  </div>`;
-}
-
-function renderSelectedDocumentPreview(){
-  const files=state.selectedFiles||[];
-  const setupWrap=$("setupDocumentPreview");
-  const setupGrid=$("setupPreviewGrid");
-  const reviewWrap=$("reviewDocumentPreview");
-  if(!setupWrap || !setupGrid || !reviewWrap) return;
-
-  revokePreviewUrls();
+function renderDocumentPreview(files=[]){
+  let host=document.getElementById("documentFullPreview");
+  if(!host) return;
+  clearSelectedPreviewUrls();
 
   if(!files.length){
-    setupWrap.classList.remove("visible");
-    setupGrid.innerHTML="";
-    reviewWrap.innerHTML='<div class="meta">Select and submit a document from Import Setup to compare it here.</div>';
+    host.innerHTML=`<div class="meta">Choose a new document to display it here.</div>`;
     return;
   }
 
-  const cards=files.map(previewCardForFile).join("");
-  setupGrid.innerHTML=cards;
-  setupWrap.classList.add("visible");
+  const parts=files.map((file,index)=>{
+    const url=URL.createObjectURL(file);
+    state.selectedPreviewUrls.push(url);
+    const type=String(file.type||"").toLowerCase();
+    const name=esc(file.name||`Page ${index+1}`);
 
-  // Use a second set of object URLs so Review has its own independent viewer.
-  const reviewCards=files.map(previewCardForFile).join("");
-  reviewWrap.innerHTML=`<div class="preview-grid">${reviewCards}</div>`;
+    if(type.startsWith("image/")){
+      return `<div class="document-preview-page"><img src="${url}" alt="${name}"></div>`;
+    }
+    if(type==="application/pdf" || /\.pdf$/i.test(file.name||"")){
+      return `<div class="document-preview-page"><embed src="${url}" type="application/pdf"></div>`;
+    }
+    return `<div class="document-preview-page document-file-card">${name}</div>`;
+  }).join("");
+
+  host.innerHTML=`
+    <div class="document-preview-title">
+      Document Preview ${files.length===2?'• Front + Back':''}
+    </div>
+    ${parts}
+  `;
 }
-
-function updateIdentityHeading(){
-  const org=clean(state.selected?.organizationName);
-  const name=clean(state.selected?.name);
-  const heading=$("identityHeading");
-  if(heading) heading.textContent=org || name || "Template Identity";
+function fieldDisplayPairs(row){
+  const fields=(state.selected?.fields||[]).filter(f=>f.visibleInReview!==false);
+  return fields.map(f=>({
+    label:f.label||f.internalKey,
+    value:row?.data?.[f.internalKey]??""
+  }));
 }
+function renderSetupExtractedTrips(){
+  const host=document.getElementById("setupExtractedTrips");
+  if(!host) return;
 
-function toggleIdentity(forceOpen=null){
-  const section=$("identitySection");
-  const btn=$("identityToggleBtn");
-  if(!section || !btn) return;
-  const open=forceOpen===null ? section.classList.contains("collapsed") : Boolean(forceOpen);
-  section.classList.toggle("collapsed",!open);
-  btn.textContent=open ? "Close Identity" : "Open Identity";
+  if(!state.currentImport){
+    host.innerHTML="";
+    return;
+  }
+
+  const rows=currentSetupRows();
+  if(!rows.length){
+    host.innerHTML=state.currentImport.reviewRows?.length
+      ? `<div class="meta">All extracted trips from this document were moved to Import Review.</div>`
+      : "";
+    return;
+  }
+
+  host.innerHTML=`
+    <div style="font-weight:900;font-size:17px;margin-bottom:8px">Extracted Trips</div>
+    ${rows.map(row=>`
+      <div class="setup-trip-card" data-setup-row="${Number(row.rowIndex)}">
+        <div class="setup-trip-head">
+          <div><strong>Trip ${esc(row.dailyEntryNumber??(Number(row.rowIndex)+1))}</strong>
+          <span class="meta"> • ${confidenceText(row.extractionConfidence)}</span></div>
+          <div class="setup-trip-actions">
+            <button type="button" class="btn btn-green" data-accept-setup="${Number(row.rowIndex)}">Submit</button>
+            <button type="button" class="btn btn-red" data-delete-setup="${Number(row.rowIndex)}">Delete</button>
+          </div>
+        </div>
+        <div class="setup-trip-grid">
+          ${fieldDisplayPairs(row).map(item=>`
+            <div class="setup-trip-field"><b>${esc(item.label)}</b>${esc(item.value||"—")}</div>
+          `).join("")}
+        </div>
+      </div>
+    `).join("")}
+  `;
+
+  host.querySelectorAll("[data-accept-setup]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const index=Number(btn.dataset.acceptSetup);
+      state.setupAcceptedRows.add(index);
+      saveAcceptedRows();
+      renderSetupExtractedTrips();
+      renderReview();
+      notice("Trip moved to Import Review.");
+    });
+  });
+
+  host.querySelectorAll("[data-delete-setup]").forEach(btn=>{
+    btn.addEventListener("click",()=>deleteSetupRow(Number(btn.dataset.deleteSetup)));
+  });
 }
+async function deleteSetupRow(rowIndex){
+  try{
+    const row=(state.currentImport?.reviewRows||[]).find(r=>Number(r.rowIndex)===Number(rowIndex));
+    if(!row) return;
+    if(row.confirmed || row.tripId) throw new Error("Submitted trips cannot be deleted.");
+    if(!confirm("Delete this extracted trip?")) return;
 
-$("identityToggleBtn")?.addEventListener("click",()=>toggleIdentity());
-$("attachmentFiles")?.addEventListener("change",()=>{
-  state.selectedFiles=[...$("attachmentFiles").files];
-  renderSelectedDocumentPreview();
-});
+    const data=await api(
+      `/api/attachment-imports/${state.currentImport._id}/review-rows`,
+      {
+        method:"DELETE",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({rowIndexes:[Number(rowIndex)]})
+      }
+    );
+
+    state.currentImport=data.import;
+    state.setupAcceptedRows.delete(Number(rowIndex));
+    saveAcceptedRows();
+    renderSetupExtractedTrips();
+    renderReview();
+    notice("Trip deleted.");
+  }catch(e){
+    notice(e.message,false);
+  }
+}
+function installSetupWorkflowUI(){
+  const setup=$("setupPanel");
+  if(!setup || document.getElementById("setupWorkflowMount")) return;
+
+  const mount=document.createElement("div");
+  mount.id="setupWorkflowMount";
+
+  const fileInput=$("attachmentFiles");
+  const uploadBtn=$("uploadBtn");
+  const uploadCard=fileInput?.closest(".card") || fileInput?.parentElement?.parentElement;
+
+  mount.innerHTML=`
+    <div class="setup-workflow-toolbar">
+      <button type="button" class="btn btn-muted" id="templateFieldsToggle">Template Fields</button>
+    </div>
+    <div id="setupExtractedTrips" class="setup-extracted-wrap"></div>
+    <div id="documentFullPreview" class="document-preview-wrap"></div>
+  `;
+
+  if(uploadCard?.parentNode){
+    uploadCard.parentNode.insertBefore(mount,uploadCard.nextSibling);
+  }else{
+    setup.appendChild(mount);
+  }
+
+  const fieldsEditor=$("fieldsEditor");
+  const templateCard=fieldsEditor?.closest(".card") || $("templateName")?.closest(".card");
+  if(templateCard){
+    templateCard.dataset.templateEditorCard="1";
+    templateCard.classList.add("template-editor-collapsed");
+  }
+
+  document.getElementById("templateFieldsToggle")?.addEventListener("click",()=>{
+    if(!templateCard) return;
+    const opening=templateCard.classList.contains("template-editor-collapsed");
+    templateCard.classList.toggle("template-editor-collapsed",!opening);
+    document.getElementById("templateFieldsToggle").textContent=
+      opening ? "Hide Template Fields" : "Template Fields";
+    if(opening){
+      templateCard.scrollIntoView({behavior:"smooth",block:"start"});
+    }
+  });
+
+  if(uploadBtn){
+    uploadBtn.disabled=true;
+    uploadBtn.dataset.readyForNewFile="0";
+  }
+
+  fileInput?.addEventListener("change",()=>{
+    const files=[...fileInput.files];
+    const signature=files.map(f=>`${f.name}:${f.size}:${f.lastModified}`).join("|");
+    state.selectedFileSignature=signature;
+    state.documentSubmitting=false;
+    if(uploadBtn){
+      uploadBtn.disabled=!files.length;
+      uploadBtn.dataset.readyForNewFile=files.length?"1":"0";
+      uploadBtn.textContent="Submit Document";
+    }
+    renderDocumentPreview(files);
+  });
+
+  renderDocumentPreview([]);
+  renderSetupExtractedTrips();
+}
 
 function setTab(name){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   $("setupPanel").classList.toggle("active",name==="setup");
   $("reviewPanel").classList.toggle("active",name==="review");
   $("aiLayout")?.classList.toggle("review-mode",name==="review");
-  if(name==="review") renderSelectedDocumentPreview();
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 
@@ -532,35 +702,15 @@ function templatePayload(){return {
   signaturePosition:{page:Number($("sigPage").value||1),xPercent:Number($("sigX").value||62),yPercent:Number($("sigY").value||78),widthPercent:Number($("sigW").value||28),heightPercent:Number($("sigH").value||12)}
 }}
 function renderTemplateList(){
-  const grouped=new Map();
-
-  state.templates.forEach(t=>{
-    const org=clean(t.organizationName) || clean(t.name) || clean(t.organizationType) || "Organization";
-    const key=org.toLowerCase();
-    if(!grouped.has(key)) grouped.set(key,{org,templates:[]});
-    grouped.get(key).templates.push(t);
-  });
-
-  $("templateList").innerHTML=[...grouped.values()].map(group=>{
-    const selectedInGroup=group.templates.some(t=>state.selected?._id===t._id);
-    const primary=group.templates.find(t=>state.selected?._id===t._id) || group.templates[0];
-
-    return `<button class="template-btn ${selectedInGroup?"active":""}" onclick="selectTemplate('${primary._id}')">
-      <strong>${esc(group.org)}</strong>
-      <div style="font-size:11px;font-weight:600;opacity:.8">
-        ${group.templates.length===1 ? esc(primary.name) : `${group.templates.length} template(s)`}
-      </div>
-    </button>`;
-  }).join("") || `<div class="meta">No organizations yet.</div>`;
+  $("templateList").innerHTML=state.templates.map(t=>`<button class="template-btn ${state.selected?._id===t._id?"active":""}" onclick="selectTemplate('${t._id}')">${esc(t.name)}<div style="font-size:11px;font-weight:600;opacity:.8">${esc(t.organizationName||t.organizationType)}</div></button>`).join("") || `<div class="meta">No templates yet.</div>`;
 }
-window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList();toggleIdentity(false)}
+window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList()}
 async function loadTemplates(){
   const data=await api("/api/attachment-templates");state.templates=data.templates||[];
   if(!state.selected&&state.templates.length)state.selected=state.templates[0];
   renderTemplateList();if(state.selected)fillTemplateForm();
-  updateIdentityHeading();
 }
-$("newTemplateBtn").onclick=()=>{newTemplate();toggleIdentity(true)};
+$("newTemplateBtn").onclick=()=>newTemplate();
 $("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
 $("deleteTemplateBtn").onclick=async()=>{if(!state.selected?._id)return;if(!confirm("Delete this template?"))return;try{await api(`/api/attachment-templates/${state.selected._id}`,{method:"DELETE"});state.selected=null;await loadTemplates();notice("Template deleted") }catch(e){notice(e.message,false)}};
 $("saveTemplateBtn").onclick=async()=>{
@@ -600,8 +750,6 @@ $("saveTemplateBtn").onclick=async()=>{
     state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;
     fillTemplateForm();
     renderTemplateList();
-    updateIdentityHeading();
-    toggleIdentity(false);
     notice("Template saved");
   }catch(e){
     notice(e.message,false);
@@ -609,13 +757,26 @@ $("saveTemplateBtn").onclick=async()=>{
 };
 
 $("uploadBtn").onclick=async()=>{
+  const btn=$("uploadBtn");
+
+  if(
+    state.documentSubmitting ||
+    btn?.disabled ||
+    btn?.dataset.readyForNewFile!=="1"
+  ){
+    return;
+  }
+
+  state.documentSubmitting=true;
+  btn.disabled=true;
+  btn.textContent="Processing...";
+
   try{
     clearNotice();
     if(!state.selected?._id) throw new Error("Save and select a template first");
 
-    const files=state.selectedFiles.length ? state.selectedFiles : [...$("attachmentFiles").files];
-    state.selectedFiles=files;
-    if(!files.length) throw new Error("Select at least one file");
+    const files=[...$("attachmentFiles").files];
+    if(!files.length) throw new Error("Select at least one new file");
 
     const fd=new FormData();
     fd.append("templateId",state.selected._id);
@@ -634,26 +795,48 @@ $("uploadBtn").onclick=async()=>{
     state.editingRows.clear();
     state.shareRatings.clear();
     state.sharePlan=null;
-
-    renderSelectedDocumentPreview();
-    setTab("review");
-    renderReview();
+    state.setupAcceptedRows=new Set();
+    saveAcceptedRows();
 
     /*
-      One browser request validates/corrects all Pickup / Stops / Dropoff
-      addresses for the whole imported document.
+      Keep the user in Import Setup.
+      Submit Document means Upload + Extract only.
+      Each extracted trip must be explicitly submitted to Import Review.
     */
+    setTab("setup");
+    renderSetupExtractedTrips();
+    renderReview();
+
     await validateAddresses({silent:true});
     await loadSavedDrafts({preferId:state.currentImport?._id,openLatest:false});
+    loadAcceptedRows();
+    renderSetupExtractedTrips();
     renderReview();
+
+    btn.dataset.readyForNewFile="0";
+    btn.disabled=true;
+    btn.textContent="Document Submitted";
 
     notice(
       `Document ${state.currentImport.documentNumber||""} read. ` +
-      `${state.currentImport.reviewRows?.length||0} review row(s). Addresses checked.`
+      `${state.currentImport.reviewRows?.length||0} trip(s) extracted.`
     );
   }catch(e){
+    /*
+      A failed request may be retried with the same selected file.
+      A successful request stays locked until Choose Files changes.
+    */
+    state.documentSubmitting=false;
+    if(btn){
+      btn.disabled=false;
+      btn.dataset.readyForNewFile="1";
+      btn.textContent="Submit Document";
+    }
     notice(e.message,false);
+    return;
   }
+
+  state.documentSubmitting=false;
 };
 
 function isOpenDraft(imp){
@@ -870,7 +1053,6 @@ function renderReview(){
   ensureReviewActionButtons();
   injectReviewLockStyles();
   renderDraftPicker();
-  if(state.selectedFiles?.length) renderSelectedDocumentPreview();
 
   if(!imp){
     $("reviewMeta").innerHTML="";
@@ -887,7 +1069,12 @@ function renderReview(){
     <div><strong>Source:</strong> ${esc(imp.sourceType)} • ${(imp.sourceFiles||[]).length} page/file(s) ${(imp.sourceFiles||[]).length===2?'• <span class="frontback">Front + Back</span>':''}</div>
   `;
 
-  const rows=imp.reviewRows||[];
+  const rows=currentReviewRows();
+
+  if(!rows.length){
+    $("reviewTable").innerHTML=`<div style="padding:18px" class="meta">No trips have been submitted from Import Setup yet.</div>`;
+    return;
+  }
 
   $("reviewTable").innerHTML=`<table class="review-table"><thead><tr>
     <th class="select-col">Select</th>
@@ -1369,6 +1556,7 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
       document.querySelector(".ai-main").innerHTML='<div class="notice err" style="display:block">Attachment Import is disabled for this company by Platform Admin.</div>';
       return;
     }
+    installSetupWorkflowUI();
     await loadTemplates();
 
     try{
@@ -1377,9 +1565,13 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
     }catch(_){}
 
     await loadSavedDrafts({openLatest:true});
-    if(state.currentImport) setTab("review");
+    if(state.currentImport){
+      loadAcceptedRows();
+      renderSetupExtractedTrips();
+    }
 
     ensureReviewActionButtons();
     renderReview();
+    setTab("setup");
   }catch(e){notice(e.message,false)}
 })();
