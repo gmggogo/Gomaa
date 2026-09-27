@@ -613,6 +613,13 @@ function setTab(name){
   $("setupPanel").classList.toggle("active",name==="setup");
   $("reviewPanel").classList.toggle("active",name==="review");
   $("aiLayout")?.classList.toggle("review-mode",name==="review");
+
+  // Organization deletion belongs to Import Setup only.
+  // Import Review has its own Delete Selected button for trip rows.
+  const organizationDeleteToolbar=document.querySelector(".top-delete-toolbar");
+  if(organizationDeleteToolbar){
+    organizationDeleteToolbar.style.display=name==="review" ? "none" : "flex";
+  }
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 
