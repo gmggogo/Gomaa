@@ -74,7 +74,8 @@ const state = {
   selectedPreviewUrls:[],
   previewRotations:[],
   documentSubmitting:false,
-  selectedFileSignature:""
+  selectedFileSignature:"",
+  selectedOrganizationIds:new Set()
 };
 window.addEventListener("resize",()=>{
   document.querySelectorAll("[data-preview-image]").forEach(img=>{
@@ -159,6 +160,8 @@ smartWorkflowStyle.textContent=`
 
   #uploadBtn:disabled{opacity:.55!important;cursor:not-allowed!important}
   #duplicateTemplateBtn,#duplicateBtn{display:none!important}
+  .org-list-row{display:grid!important;grid-template-columns:30px minmax(0,1fr)!important;align-items:center!important;gap:8px!important}
+  .org-delete-select{width:17px!important;height:17px!important;margin:0!important}
   #reviewPanel .review-layout,#reviewPanel .review-grid{display:block!important}
   #reviewPanel #reviewTable{width:100%!important;max-width:100%!important}
   #reviewPanel .trip-document,#reviewPanel #tripDocument,#reviewPanel #reviewDocument,
@@ -831,7 +834,7 @@ function repairStandardTemplateMapping(){
 
 
 function newTemplate(){
-  state.selected={_id:null,name:"New Template",organizationType:"INSURANCE",organizationName:"",fields:[
+  state.selected={_id:null,name:"",organizationType:"INSURANCE",organizationName:"",fields:[
     {label:"Client Name",internalKey:"clientName",type:"TEXT",required:true,visibleInReview:true,aliases:["Patient","Patient Name","Member Name","Passenger","Customer","Client Name"],order:0},
     {label:"Pickup Date",internalKey:"tripDate",type:"DATE",required:true,visibleInReview:true,aliases:["Date","Service Date","Trip Date","Pickup Date","Pick Up Date"],order:1},
     {label:"Pickup Time",internalKey:"tripTime",type:"TIME",required:true,visibleInReview:true,aliases:["Time","PU Time","Pickup Time","Pick Up Time"],order:2},
@@ -914,23 +917,125 @@ async function resolveUnknownTemplateFields(){
   renderFields();
 }
 
-function templatePayload(){return {
-  name:clean($("templateName").value),organizationType:$("organizationType").value,organizationName:clean($("organizationName").value),
+function templatePayload(){
+  const organizationName=clean($("organizationName").value);
+  const templateName=clean($("templateName").value) || organizationName;
+  return {
+  name:templateName,organizationType:$("organizationType").value,organizationName,
   fields:collectFields(),sourceTypes:["CSV","XLSX","IMAGE","PDF"],active:true,
   signaturePosition:{page:Number($("sigPage").value||1),xPercent:Number($("sigX").value||62),yPercent:Number($("sigY").value||78),widthPercent:Number($("sigW").value||28),heightPercent:Number($("sigH").value||12)}
 }}
+function organizationDisplayName(t){
+  const org=clean(t?.organizationName);
+  if(org) return org;
+  const name=clean(t?.name);
+  if(name && !/^new template$/i.test(name)) return name;
+  return clean(t?.organizationType) || "Organization";
+}
+
+function syncOrganizationDeleteButton(){
+  const btn=$("deleteTemplateBtn");
+  if(!btn) return;
+  const count=state.selectedOrganizationIds.size;
+  btn.disabled=count===0;
+  btn.textContent=count ? `Delete Selected (${count})` : "Delete Selected";
+}
+
 function renderTemplateList(){
-  $("templateList").innerHTML=state.templates.map(t=>`<button class="template-btn ${state.selected?._id===t._id?"active":""}" onclick="selectTemplate('${t._id}')">${esc(t.name)}<div style="font-size:11px;font-weight:600;opacity:.8">${esc(t.organizationName||t.organizationType)}</div></button>`).join("") || `<div class="meta">No templates yet.</div>`;
+  const validIds=new Set((state.templates||[]).map(t=>String(t._id)));
+  state.selectedOrganizationIds=new Set(
+    [...state.selectedOrganizationIds].filter(id=>validIds.has(String(id)))
+  );
+
+  $("templateList").innerHTML=state.templates.map(t=>{
+    const id=String(t._id);
+    const checked=state.selectedOrganizationIds.has(id);
+    const active=String(state.selected?._id||"")===id;
+    return `
+      <div class="org-list-row ${active?"active":""}" data-organization-id="${esc(id)}">
+        <input
+          class="org-delete-select"
+          type="checkbox"
+          aria-label="Select ${esc(organizationDisplayName(t))} for deletion"
+          data-org-delete-select="${esc(id)}"
+          ${checked?"checked":""}
+        >
+        <button
+          type="button"
+          class="template-btn ${active?"active":""}"
+          data-open-organization="${esc(id)}"
+          title="${esc(organizationDisplayName(t))}"
+        >${esc(organizationDisplayName(t))}</button>
+      </div>`;
+  }).join("") || `<div class="meta">No organizations yet.</div>`;
+
+  $("templateList").querySelectorAll("[data-open-organization]").forEach(btn=>{
+    btn.addEventListener("click",()=>selectTemplate(btn.dataset.openOrganization));
+  });
+
+  $("templateList").querySelectorAll("[data-org-delete-select]").forEach(cb=>{
+    cb.addEventListener("change",()=>{
+      const id=String(cb.dataset.orgDeleteSelect);
+      if(cb.checked) state.selectedOrganizationIds.add(id);
+      else state.selectedOrganizationIds.delete(id);
+      syncOrganizationDeleteButton();
+    });
+  });
+
+  syncOrganizationDeleteButton();
 }
-window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList();ensureOrganizationSettingsButton();closeOrganizationSettings()}
+
+window.selectTemplate=id=>{
+  state.selected=state.templates.find(t=>String(t._id)===String(id))||null;
+  fillTemplateForm();
+  renderTemplateList();
+  ensureOrganizationSettingsButton();
+  closeOrganizationSettings();
+}
+
 async function loadTemplates(){
-  const data=await api("/api/attachment-templates");state.templates=data.templates||[];
+  const data=await api("/api/attachment-templates");
+  state.templates=data.templates||[];
   if(!state.selected&&state.templates.length)state.selected=state.templates[0];
-  renderTemplateList();if(state.selected)fillTemplateForm();
+  renderTemplateList();
+  if(state.selected)fillTemplateForm();
 }
+
 $("newTemplateBtn").onclick=()=>newTemplate();
-if($("duplicateTemplateBtn")) $("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
-$("deleteTemplateBtn").onclick=async()=>{if(!state.selected?._id)return;if(!confirm("Delete this template?"))return;try{await api(`/api/attachment-templates/${state.selected._id}`,{method:"DELETE"});state.selected=null;await loadTemplates();notice("Template deleted") }catch(e){notice(e.message,false)}};
+
+if($("duplicateTemplateBtn")){
+  $("duplicateTemplateBtn").remove();
+}
+
+$("deleteTemplateBtn").onclick=async()=>{
+  const ids=[...state.selectedOrganizationIds];
+  if(!ids.length) return;
+
+  const selectedOrganizations=state.templates.filter(t=>ids.includes(String(t._id)));
+  const names=selectedOrganizations.map(organizationDisplayName);
+  const message=ids.length===1
+    ? `Delete "${names[0]}"?\n\nThis will delete this organization's Smart Trip Import setup.`
+    : `Delete these ${ids.length} organizations?\n\n${names.map(name=>`• ${name}`).join("\n")}\n\nThis will delete their Smart Trip Import setups.`;
+
+  if(!confirm(message)) return;
+
+  try{
+    for(const id of ids){
+      await api(`/api/attachment-templates/${id}`,{method:"DELETE"});
+    }
+
+    const deletedCurrent=ids.includes(String(state.selected?._id||""));
+    state.selectedOrganizationIds.clear();
+    if(deletedCurrent) state.selected=null;
+
+    await loadTemplates();
+    ensureOrganizationSettingsButton();
+    closeOrganizationSettings();
+    notice(ids.length===1 ? "Organization deleted" : `${ids.length} organizations deleted`);
+  }catch(e){
+    notice(e.message,false);
+  }
+};
 $("saveTemplateBtn").onclick=async()=>{
   try{
     document.querySelectorAll("[data-field-row]").forEach(syncFieldRowFromDom);
@@ -939,8 +1044,8 @@ $("saveTemplateBtn").onclick=async()=>{
 
     const payload=templatePayload();
 
-    if(!payload.name){
-      throw new Error("Template name is required");
+    if(!payload.organizationName){
+      throw new Error("Insurance / Broker / Company Name is required");
     }
 
     if(!payload.fields.length){
@@ -1232,8 +1337,24 @@ function injectReviewLockStyles(){
       opacity:1 !important;
       cursor:not-allowed;
     }
-    .review-table .edit-col{min-width:92px;text-align:center}
-    .review-table .share-col{min-width:110px;text-align:center}
+    .review-table{width:100%!important;max-width:100%!important;table-layout:fixed!important;font-size:11px!important}
+    .review-table th,.review-table td{padding:5px 4px!important;overflow:hidden!important;overflow-wrap:anywhere!important}
+    .review-table input,.review-table select{box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;font-size:10.5px!important;padding:5px 4px!important}
+    .review-table .field-clientName{width:8%!important}
+    .review-table .field-clientPhone{width:7%!important}
+    .review-table .field-tripDate{width:7%!important}
+    .review-table .field-tripTime,.review-table .field-appointmentTime,.review-table .field-returnTime{width:6%!important}
+    .review-table .field-pickup,.review-table .field-stops,.review-table .field-dropoff{width:13%!important}
+    .review-table .field-notes{width:8%!important}
+    .review-table .select-col{width:42px!important}
+    .review-table .daily-col{width:46px!important}
+    .review-table .service-col{width:82px!important}
+    .review-table .confidence-col{width:54px!important}
+    .review-table .validation-col{width:76px!important}
+    .review-table .submit-col{width:62px!important}
+    .review-table .edit-col{width:54px!important;min-width:0!important;text-align:center}
+    .review-table .share-col{width:66px!important;min-width:0!important;text-align:center}
+    .review-table .btn{font-size:10px!important;padding:6px 5px!important;min-width:0!important;width:100%!important}
     .review-table .share-match{font-weight:800;color:#087443}
     .review-table .share-no{font-weight:800;color:#9a3412}
     .review-table .share-wait{font-weight:700;color:#64748b}
@@ -1287,11 +1408,11 @@ function renderReview(){
   $("reviewTable").innerHTML=`<table class="review-table"><thead><tr>
     <th class="select-col">Select</th>
     <th class="daily-col">Daily #</th>
-    ${fields.map(f=>`<th>${esc(f.label)}</th>`).join("")}
-    <th>Service</th>
-    <th>Confidence</th>
+    ${fields.map(f=>`<th class="${esc(`field-${f.internalKey||"other"}`)}">${esc(f.label)}</th>`).join("")}
+    <th class="service-col">Service</th>
+    <th class="confidence-col">Confidence</th>
     ${showShare?'<th class="share-col">Share Rating</th>':''}
-    <th>Validation / Trip #</th>
+    <th class="validation-col">Validation / Trip #</th>
     <th class="edit-col">Edit</th>
     <th class="submit-col">Submit</th>
   </tr></thead><tbody>${rows.map(r=>{
@@ -1303,14 +1424,14 @@ function renderReview(){
     <tr class="${r.validationErrors?.length?'bad':''} ${r.confirmed?'confirmed-row':''}" data-review-row="${r.rowIndex}">
       <td class="select-col"><input class="row-select" type="checkbox" data-select-row="${r.rowIndex}" ${r.confirmed?'disabled':''}></td>
       <td class="daily-col"><strong>${esc(r.dailyEntryNumber??'—')}</strong></td>
-      ${fields.map(f=>`<td><input data-key="${esc(f.internalKey)}" value="${esc(r.data?.[f.internalKey]??'')}" ${locked?'disabled':''}></td>`).join("")}
-      <td>
+      ${fields.map(f=>`<td class="${esc(`field-${f.internalKey||"other"}`)}"><input data-key="${esc(f.internalKey)}" value="${esc(r.data?.[f.internalKey]??'')}" ${locked?'disabled':''}></td>`).join("")}
+      <td class="service-col">
         <select data-service ${locked?'disabled':''}>${serviceOptions(r)}</select>
         <div class="meta">${esc(r.serviceResolution||'UNRESOLVED')}</div>
       </td>
-      <td>${confidenceText(r.extractionConfidence)}</td>
+      <td class="confidence-col">${confidenceText(r.extractionConfidence)}</td>
       ${showShare?`<td class="share-col">${shareRatingText(r)}</td>`:''}
-      <td>
+      <td class="validation-col">
         <div class="error-text">${esc((r.validationErrors||[]).join(' • '))}</div>
         ${r.tripNumber?`<strong>${esc(r.tripNumber)}</strong>`:''}
       </td>
