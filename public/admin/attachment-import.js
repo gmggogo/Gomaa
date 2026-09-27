@@ -129,8 +129,11 @@ smartWorkflowStyle.textContent=`
   .setup-trip-head{position:sticky;top:8px;z-index:42;background:#fff;padding:8px;border-radius:9px}
   .document-preview-toolbar{position:sticky;top:8px;z-index:35;display:flex;justify-content:flex-end;gap:8px;padding:8px 0;background:#fff}
   .document-preview-page{position:relative}
-  .document-preview-stage{width:100%;overflow:auto;display:flex;align-items:center;justify-content:center;background:#f8fafc;min-height:220px}
-  .document-preview-stage img{transform-origin:center center;transition:transform .18s ease}
+  .document-preview-stage{width:100%;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fafc;min-height:220px}
+  .document-preview-stage img{display:block;max-width:100%;width:auto;height:auto;object-fit:contain;transform-origin:center center;transition:transform .18s ease}
+  .document-preview-page,.document-preview-wrap,#setupWorkflowMount{max-width:100%;min-width:0;overflow-x:hidden}
+  .setup-trip-card,.setup-trip-grid,.setup-trip-field{min-width:0}
+  .setup-trip-field{overflow-wrap:anywhere}
 
   .setup-trip-actions{display:flex;gap:8px}
   .setup-trip-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
@@ -143,6 +146,9 @@ smartWorkflowStyle.textContent=`
   .document-preview-page embed{display:block;width:100%;height:850px}
   .document-file-card{padding:22px;text-align:center;font-weight:800}
   .template-editor-collapsed{display:none!important}
+  [data-template-editor-card="1"].template-editor-collapsed{display:none!important}
+  #templateFieldsToggle{width:100%;margin:8px 0!important}
+
   #uploadBtn:disabled{opacity:.55!important;cursor:not-allowed!important}
 `;
 document.head.appendChild(smartWorkflowStyle);
@@ -188,17 +194,25 @@ function rotatePreview(index,delta){
   if(!img) return;
   const next=((Number(state.previewRotations[index]||0)+delta)%360+360)%360;
   state.previewRotations[index]=next;
-  img.style.transform=`rotate(${next}deg)`;
-  /*
-    When rotated 90/270, give the stage enough vertical room for a landscape page
-    without clipping it. The image itself remains full-resolution in the browser.
-  */
   const stage=img.closest(".document-preview-stage");
-  if(stage){
-    stage.style.minHeight=(next===90||next===270)
-      ? `${Math.max(420,Math.min(window.innerWidth*.78,900))}px`
-      : "220px";
-  }
+  const fitRotatedImage=()=>{
+    if(!stage) return;
+    if(next===90||next===270){
+      const sw=Math.max(1,stage.clientWidth);
+      const iw=Math.max(1,img.naturalWidth||img.clientWidth);
+      const ih=Math.max(1,img.naturalHeight||img.clientHeight);
+      const baseWidth=Math.min(sw,iw);
+      const renderedHeight=baseWidth*(ih/iw);
+      const scale=Math.min(1,sw/Math.max(1,renderedHeight));
+      img.style.transform=`rotate(${next}deg) scale(${scale})`;
+      stage.style.minHeight=`${Math.max(260,baseWidth*scale)}px`;
+    }else{
+      img.style.transform=`rotate(${next}deg)`;
+      stage.style.minHeight="220px";
+    }
+  };
+  if(img.complete) fitRotatedImage();
+  else img.addEventListener("load",fitRotatedImage,{once:true});
 }
 function renderDocumentPreview(files=[]){
   let host=document.getElementById("documentFullPreview");
@@ -335,6 +349,30 @@ async function deleteSetupRow(rowIndex){
     notice(e.message,false);
   }
 }
+
+function normalizeOrganizationSidebar(){
+  const templatesPanel=$("templatesPanel");
+  if(!templatesPanel) return;
+
+  /*
+    This is an organization list, not a generic template workspace.
+    Existing template records remain the storage mechanism; only the operator UI changes.
+  */
+  const heading=[...templatesPanel.querySelectorAll("h1,h2,h3,h4,strong")]
+    .find(el=>/templates?/i.test(el.textContent||""));
+  if(heading) heading.textContent="Insurance / Broker / Company";
+
+  templatesPanel.querySelectorAll("button").forEach(btn=>{
+    const label=String(btn.textContent||"").trim();
+    if(/^duplicate$/i.test(label)){
+      btn.remove();
+    }
+  });
+
+  const duplicate=$("duplicateTemplateBtn") || $("duplicateBtn");
+  if(duplicate) duplicate.remove();
+}
+
 function installSetupWorkflowUI(){
   const setup=$("setupPanel");
   if(!setup || document.getElementById("setupWorkflowMount")) return;
@@ -367,12 +405,19 @@ function installSetupWorkflowUI(){
     templateCard.classList.add("template-editor-collapsed");
   }
 
+  const settingsToggle=document.getElementById("templateFieldsToggle");
+  const templatesPanel=$("templatesPanel");
+  if(settingsToggle && templatesPanel){
+    settingsToggle.textContent="Open Settings";
+    templatesPanel.appendChild(settingsToggle);
+  }
+
   document.getElementById("templateFieldsToggle")?.addEventListener("click",()=>{
     if(!templateCard) return;
     const opening=templateCard.classList.contains("template-editor-collapsed");
     templateCard.classList.toggle("template-editor-collapsed",!opening);
     document.getElementById("templateFieldsToggle").textContent=
-      opening ? "Hide Template Fields" : "Template Fields";
+      opening ? "Close Settings" : "Open Settings";
     if(opening){
       templateCard.scrollIntoView({behavior:"smooth",block:"start"});
     }
@@ -398,6 +443,12 @@ function installSetupWorkflowUI(){
 
   renderDocumentPreview([]);
   renderSetupExtractedTrips();
+  normalizeOrganizationSidebar();
+
+  const sidebarObserver=new MutationObserver(()=>normalizeOrganizationSidebar());
+  if($("templatesPanel")){
+    sidebarObserver.observe($("templatesPanel"),{childList:true,subtree:true});
+  }
 }
 
 function setTab(name){
