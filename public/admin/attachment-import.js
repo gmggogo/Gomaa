@@ -436,7 +436,9 @@ function normalizeOrganizationSidebar(){
 
   const heading=[...templatesPanel.querySelectorAll("h1,h2,h3,h4,strong")]
     .find(el=>/templates?|insurance|broker|company/i.test(el.textContent||""));
-  if(heading) heading.textContent="Insurance / Broker / Company";
+  if(heading && heading.textContent.trim()!=="Insurance / Broker / Company"){
+    heading.textContent="Insurance / Broker / Company";
+  }
 
   /*
     Remove Duplicate from the operator UI completely.
@@ -543,13 +545,13 @@ function ensureSetupWorkflowMounts(){
 
 function installSetupWorkflowUI(){
   normalizeOrganizationSidebar();
-  ensureOrganizationSettingsButton();
   ensureSetupWorkflowMounts();
   closeOrganizationSettings();
-  removeReviewDocumentPanel();
 
   const uploadBtn=$("uploadBtn");
   const fileInput=$("attachmentFiles");
+
+  ensureOrganizationSettingsButton();
 
   if(uploadBtn){
     uploadBtn.disabled=true;
@@ -563,6 +565,7 @@ function installSetupWorkflowUI(){
       state.selectedFileSignature=files
         .map(f=>`${f.name}:${f.size}:${f.lastModified}`)
         .join("|");
+
       state.documentSubmitting=false;
 
       if(uploadBtn){
@@ -577,16 +580,6 @@ function installSetupWorkflowUI(){
 
   renderDocumentPreview([]);
   renderSetupExtractedTrips();
-
-  const templatesPanel=$("templatesPanel") || $("templateSidebar");
-  if(templatesPanel && templatesPanel.dataset.orgObserver!=="1"){
-    templatesPanel.dataset.orgObserver="1";
-    const sidebarObserver=new MutationObserver(()=>{
-      normalizeOrganizationSidebar();
-      ensureOrganizationSettingsButton();
-    });
-    sidebarObserver.observe(templatesPanel,{childList:true,subtree:true});
-  }
 }
 
 function setTab(name){
@@ -936,7 +929,7 @@ async function loadTemplates(){
   renderTemplateList();if(state.selected)fillTemplateForm();
 }
 $("newTemplateBtn").onclick=()=>newTemplate();
-$("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
+if($("duplicateTemplateBtn")) $("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
 $("deleteTemplateBtn").onclick=async()=>{if(!state.selected?._id)return;if(!confirm("Delete this template?"))return;try{await api(`/api/attachment-templates/${state.selected._id}`,{method:"DELETE"});state.selected=null;await loadTemplates();notice("Template deleted") }catch(e){notice(e.message,false)}};
 $("saveTemplateBtn").onclick=async()=>{
   try{

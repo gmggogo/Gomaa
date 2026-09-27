@@ -34,18 +34,11 @@
   .preview-file-fallback{min-height:150px;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;color:#475569}
   .review-workspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.75fr);gap:14px;align-items:start}
   .review-data-pane{min-width:0;position:sticky;top:10px;max-height:calc(100vh - 34px);overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
-  .review-document-pane{min-width:0;border:1px solid #dbe4ee;border-radius:12px;background:#f8fafc;overflow:hidden}
-  .review-document-head{padding:10px 12px;background:#eef4ff;border-bottom:1px solid #dbe4ee;font-weight:800}
-  .review-document-scroll{height:calc(100vh - 190px);min-height:520px;overflow:auto;padding:10px}
-  .review-document-scroll .preview-grid{grid-template-columns:1fr}
-  .review-document-scroll .preview-card img,.review-document-scroll .preview-card iframe{height:auto;min-height:520px;max-height:none;object-fit:contain}
-  .review-document-scroll .preview-card iframe{height:760px}
   .review-toolbar,.review-meta,#savedDraftPicker{margin-left:10px;margin-right:10px}
   .review-wrap{overflow:auto}
   @media(max-width:1050px){
     .review-workspace{grid-template-columns:1fr}
     .review-data-pane{position:relative;top:auto;max-height:none}
-    .review-document-scroll{height:560px}
   }
   .organization-settings[hidden]{display:none!important}
   .review-workspace{display:block!important}
@@ -74,7 +67,6 @@
       <div id="templateList" class="template-list"></div>
       <div class="side-actions">
         <button class="btn btn-primary" id="newTemplateBtn">+ Add Organization</button>
-        <button class="btn btn-muted" id="duplicateTemplateBtn">Duplicate</button>
         <button class="btn btn-red" id="deleteTemplateBtn">Delete</button>
       </div>
     </aside>
