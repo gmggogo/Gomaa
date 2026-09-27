@@ -117,6 +117,32 @@ function validateRow(row,template,enabledServices){
   if(!row.serviceKey || !enabledServices.some(s=>s.serviceKey === row.serviceKey)){
     errors.push("Service must be selected from enabled services");
   }
+
+  // Trips Hub initial loading is date-based. Never confirm an imported trip
+  // without a valid YYYY-MM-DD tripDate, otherwise the Trip can exist in
+  // MongoDB but be excluded from the Trips Hub initial window.
+  const tripDate = first(
+    row.data || {},
+    "tripDate",
+    "date",
+    "pickupDate",
+    "serviceDate"
+  );
+
+  if(!tripDate){
+    errors.push("Trip Date is required");
+  }else if(!/^\d{4}-\d{2}-\d{2}$/.test(tripDate)){
+    errors.push("Trip Date must use YYYY-MM-DD format");
+  }else{
+    const parsed = new Date(`${tripDate}T12:00:00Z`);
+    if(
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0,10) !== tripDate
+    ){
+      errors.push("Trip Date is invalid");
+    }
+  }
+
   return errors;
 }
 
@@ -323,42 +349,26 @@ async function confirmImport({importDoc,template,rowIndexes=null}){
     const payload = tripPayloadFromRow({row,service,importDoc,tenant});
     payload.tripNumber = tripNumber;
 
-    let trip = null;
-    try{
-      trip = await Trip.create(payload);
+    const trip = await Trip.create(payload);
 
-      /*
-        A Submit is successful only when the new Trip can be read back from
-        the same tenant storage used by Trips Hub AND has its trip number.
-      */
-      const persistedTrip = await Trip.findOne({
-        _id:trip._id,
-        tenantId:importDoc.tenantId,
-        tripNumber
-      });
+    /*
+      Do not remove/lock the Review row until the Trip can be read back
+      from the same tenant collection used by Trips Hub.
+    */
+    const persistedTrip = await Trip.findOne({
+      _id:trip._id,
+      tenantId:importDoc.tenantId
+    });
 
-      if(!persistedTrip || !clean(persistedTrip.tripNumber)){
-        if(trip?._id) await Trip.deleteOne({_id:trip._id}).catch(()=>{});
-        throw new Error(`Trip ${tripNumber} was not persisted to Trips Hub storage`);
-      }
-
-      row.confirmed = true;
-      row.tripId = persistedTrip._id;
-      row.tripNumber = persistedTrip.tripNumber;
-      row.validationErrors = [];
-      created.push(persistedTrip);
-    }catch(err){
-      if(trip?._id && !row.confirmed){
-        await Trip.deleteOne({_id:trip._id}).catch(()=>{});
-      }
-      row.confirmed = false;
-      row.tripId = null;
-      row.tripNumber = "";
-      row.validationErrors = [
-        ...(Array.isArray(row.validationErrors) ? row.validationErrors : []),
-        err?.message || "Trip creation failed"
-      ];
+    if(!persistedTrip){
+      await Trip.deleteOne({_id:trip._id}).catch(()=>{});
+      throw new Error(`Trip ${tripNumber} was not persisted to Trips Hub storage`);
     }
+
+    row.confirmed = true;
+    row.tripId = persistedTrip._id;
+    row.tripNumber = persistedTrip.tripNumber;
+    created.push(persistedTrip);
   }
 
   const allDone = importDoc.reviewRows.length > 0 && importDoc.reviewRows.every(r=>r.confirmed);
