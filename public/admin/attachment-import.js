@@ -524,7 +524,7 @@ function ensureOrganizationSettingsButton(){
     });
   }
 
-  // Always visible under Add Organization, but locked until an organization is opened.
+  // Always visible under Add Organization, but locked until an existing organization is selected (or Add Organization starts a new one).
   toggle.hidden=false;
   toggle.disabled=!state.selected;
   if(!state.selected){
@@ -986,8 +986,24 @@ function renderTemplateList(){
   $("templateList").querySelectorAll("[data-org-delete-select]").forEach(cb=>{
     cb.addEventListener("change",()=>{
       const id=String(cb.dataset.orgDeleteSelect);
-      if(cb.checked) state.selectedOrganizationIds.add(id);
-      else state.selectedOrganizationIds.delete(id);
+
+      // The checkbox is the organization selector for this screen.
+      // Keep one active organization so Open Settings and Delete always
+      // refer to the exact same organization the operator selected.
+      state.selectedOrganizationIds.clear();
+
+      if(cb.checked){
+        state.selectedOrganizationIds.add(id);
+        state.selected=state.templates.find(t=>String(t._id)===id)||null;
+        if(state.selected) fillTemplateForm();
+      }else if(String(state.selected?._id||"")===id){
+        state.selected=null;
+        closeOrganizationSettings();
+      }
+
+      renderTemplateList();
+      ensureOrganizationSettingsButton();
+      closeOrganizationSettings();
       syncOrganizationDeleteButton();
     });
   });
@@ -996,8 +1012,11 @@ function renderTemplateList(){
 }
 
 window.selectTemplate=id=>{
-  state.selected=state.templates.find(t=>String(t._id)===String(id))||null;
-  fillTemplateForm();
+  const normalizedId=String(id);
+  state.selected=state.templates.find(t=>String(t._id)===normalizedId)||null;
+  state.selectedOrganizationIds.clear();
+  if(state.selected) state.selectedOrganizationIds.add(normalizedId);
+  if(state.selected) fillTemplateForm();
   renderTemplateList();
   ensureOrganizationSettingsButton();
   closeOrganizationSettings();
@@ -1015,7 +1034,12 @@ async function loadTemplates(){
   ensureOrganizationSettingsButton();
 }
 
-$("newTemplateBtn").onclick=()=>newTemplate();
+$("newTemplateBtn").onclick=()=>{
+  state.selectedOrganizationIds.clear();
+  newTemplate();
+  syncOrganizationDeleteButton();
+  openOrganizationSettings();
+};
 
 if($("duplicateTemplateBtn")){
   $("duplicateTemplateBtn").remove();
