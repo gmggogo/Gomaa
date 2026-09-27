@@ -247,14 +247,37 @@ router.get("/",async(req,res)=>{
     const tenantId = tenantIdFor(req);
     const feature = await featureTenant(tenantId);
     if(!feature.ok) return res.status(feature.status).json({success:false,message:feature.message});
+
     const status = String(req.query?.status || "").trim().toUpperCase();
     const openOnly = String(req.query?.open || "").trim().toLowerCase() === "true";
-    const filter = {tenantId};
+    const templateId = String(req.query?.templateId || "").trim();
+
+    // Smart Trip Import is organization-scoped. Never return another
+    // Insurance/Broker/Company's drafts to the browser.
+    if(!templateId || !mongoose.isValidObjectId(templateId)){
+      return res.json({success:true,imports:[]});
+    }
+
+    const template = await AttachmentTemplate.findOne({_id:templateId,tenantId,active:true}).select("_id").lean();
+    if(!template) return res.json({success:true,imports:[]});
+
+    const filter = {tenantId,templateId:template._id};
     if(status) filter.status = status;
     else if(openOnly) filter.status = {$in:["UPLOADED","REVIEW","PARTIAL"]};
-    const imports = await AttachmentImport.find(filter).sort({updatedAt:-1,createdAt:-1}).limit(200);
+
+    // Do not pull source PDFs/images or archived binary documents just to build
+    // the draft picker. This keeps the list request small and stable.
+    const imports = await AttachmentImport.find(filter)
+      .select("-sourceFiles.data -archiveEntries.finalDocumentData -archiveEntries.finalDocumentHtml")
+      .sort({updatedAt:-1,createdAt:-1})
+      .limit(200)
+      .lean();
+
     return res.json({success:true,imports:imports.map(cleanImport)});
-  }catch(err){ return res.status(500).json({success:false,message:"Failed to load attachment imports"}); }
+  }catch(err){
+    console.error("[AttachmentImport] list failed:",err);
+    return res.status(500).json({success:false,message:"Failed to load attachment imports",error:err.message||String(err)});
+  }
 });
 
 router.post("/upload",upload.array("files",20),async(req,res)=>{

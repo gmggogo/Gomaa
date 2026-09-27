@@ -1258,11 +1258,17 @@ function syncSelectedTemplateForImport(imp){
 }
 
 function renderActiveOrganizationName(){
-  const el=document.getElementById("activeImportOrganization");
-  if(!el) return;
+  let el=document.getElementById("activeImportOrganization");
+  if(!el){
+    const panel=document.getElementById("setupPanel");
+    if(!panel) return;
+    el=document.createElement("div");
+    el.id="activeImportOrganization";
+    panel.insertBefore(el,panel.firstChild);
+  }
   const name=state.selected ? organizationDisplayName(state.selected) : "No organization selected";
-  el.textContent=`Current Insurance / Broker / Company: ${name}`;
-  el.style.display="block";
+  el.innerHTML=`<span style="font-size:13px;font-weight:800;opacity:.78">CURRENT INSURANCE / BROKER / COMPANY</span><br><span style="font-size:22px;font-weight:950">${esc(name)}</span>`;
+  el.style.cssText="display:block;margin:0 0 14px 0;padding:12px 16px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff;color:#173b7a;line-height:1.25";
 }
 
 async function loadSavedDrafts({preferId=null,openLatest=true}={}){
@@ -1277,10 +1283,9 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
     return null;
   }
 
-  // Ask for open drafts tenant-wide, then isolate by the persisted templateId.
-  // This avoids depending on query casting in the list route while still keeping
-  // each Insurance/Broker/Company completely separate in the UI.
-  const data=await api(`/api/attachment-imports?open=true`);
+  // Ask the server ONLY for this Insurance/Broker/Company. The backend also
+  // enforces templateId, so drafts can never bleed between organizations.
+  const data=await api(`/api/attachment-imports?open=true&templateId=${encodeURIComponent(templateId)}`);
   if(generation!==state.organizationLoadGeneration || clean(state.selected?._id)!==templateId) return null;
 
   state.draftImports=(data.imports||[]).filter(imp=>clean(imp.templateId)===templateId);
