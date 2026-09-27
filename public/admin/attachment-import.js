@@ -1295,11 +1295,31 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   const templateId=clean(state.selected?._id);
   const generation=++state.organizationLoadGeneration;
 
+  /*
+    Organization isolation must happen BEFORE the network request.
+    Never leave the previous organization's draft/import visible while
+    the newly selected organization is loading.
+  */
+  state.draftImports=[];
+  if(openLatest) state.currentImport=null;
+  state.editingRows.clear();
+  state.shareRatings.clear();
+  state.sharePlan=null;
+  state.setupAcceptedRows=new Set();
+
+  // Stop delayed auto-saves that belong to the organization we just left.
+  for(const timer of state.autoSaveTimers.values()){
+    clearTimeout(timer);
+  }
+  state.autoSaveTimers.clear();
+
+  clearNotice();
+  renderDraftPicker();
+  renderSetupExtractedTrips();
+  renderReview();
+  renderActiveOrganizationName();
+
   if(!templateId){
-    state.draftImports=[];
-    if(openLatest) state.currentImport=null;
-    renderDraftPicker();
-    renderActiveOrganizationName();
     return null;
   }
 
