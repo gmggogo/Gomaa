@@ -248,8 +248,10 @@ router.get("/",async(req,res)=>{
     const feature = await featureTenant(tenantId);
     if(!feature.ok) return res.status(feature.status).json({success:false,message:feature.message});
     const status = String(req.query?.status || "").trim().toUpperCase();
+    const openOnly = String(req.query?.open || "").trim().toLowerCase() === "true";
     const filter = {tenantId};
     if(status) filter.status = status;
+    else if(openOnly) filter.status = {$in:["UPLOADED","REVIEW","PARTIAL"]};
     const templateId = String(req.query?.templateId || "").trim();
     if(templateId){
       if(!mongoose.Types.ObjectId.isValid(templateId)){
@@ -257,7 +259,7 @@ router.get("/",async(req,res)=>{
       }
       filter.templateId = templateId;
     }
-    const imports = await AttachmentImport.find(filter).sort({createdAt:-1}).limit(200);
+    const imports = await AttachmentImport.find(filter).sort({updatedAt:-1,createdAt:-1}).limit(200);
     return res.json({success:true,imports:imports.map(cleanImport)});
   }catch(err){ return res.status(500).json({success:false,message:"Failed to load attachment imports"}); }
 });

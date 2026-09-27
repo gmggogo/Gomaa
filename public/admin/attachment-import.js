@@ -1052,6 +1052,7 @@ window.selectTemplate=async id=>{
   renderTemplateList();
   ensureOrganizationSettingsButton();
   closeOrganizationSettings();
+  renderActiveOrganizationName();
   await loadSavedDrafts({openLatest:true});
   loadAcceptedRows();
   renderSetupExtractedTrips();
@@ -1074,6 +1075,7 @@ async function loadTemplates(){
   renderTemplateList();
   if(state.selected) fillTemplateForm();
   ensureOrganizationSettingsButton();
+  renderActiveOrganizationName();
 }
 
 $("newTemplateBtn").onclick=()=>{
@@ -1253,6 +1255,24 @@ function syncSelectedTemplateForImport(imp){
   if(match) state.selected=match;
 }
 
+function renderActiveOrganizationName(){
+  let el=document.getElementById("activeImportOrganization");
+  const uploadTitle=document.querySelector("#setupPane h2, #setupPane h3, .upload-card h2, .upload-card h3");
+  if(!el){
+    el=document.createElement("div");
+    el.id="activeImportOrganization";
+    el.style.cssText="margin:0 0 12px 0;padding:10px 14px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-weight:900;font-size:16px";
+    const uploadBox=document.getElementById("uploadBox") || document.querySelector("#setupPane .card, #setupPane .panel");
+    if(uploadBox && uploadBox.parentNode) uploadBox.parentNode.insertBefore(el,uploadBox);
+    else if(uploadTitle && uploadTitle.parentNode) uploadTitle.parentNode.insertBefore(el,uploadTitle);
+  }
+  if(el){
+    const name=state.selected ? organizationDisplayName(state.selected) : "No organization selected";
+    el.textContent=`Current Insurance / Broker / Company: ${name}`;
+    el.style.display="block";
+  }
+}
+
 async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   const templateId=clean(state.selected?._id);
   if(!templateId){
@@ -1261,8 +1281,9 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
     renderDraftPicker();
     return null;
   }
-  const data=await api(`/api/attachment-imports?templateId=${encodeURIComponent(templateId)}`);
-  state.draftImports=(data.imports||[]).filter(isOpenDraft);
+  const data=await api(`/api/attachment-imports?templateId=${encodeURIComponent(templateId)}&open=true`);
+  // Server is authoritative for draft persistence. Do not discard a Mongo draft in the browser.
+  state.draftImports=(data.imports||[]);
 
   let target=null;
   if(preferId){
@@ -1943,6 +1964,7 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
     }
     installSetupWorkflowUI();
     await loadTemplates();
+    renderActiveOrganizationName();
 
     try{
       const serviceData=await api("/api/attachment-imports/services");
