@@ -76,7 +76,8 @@ const state = {
   documentSubmitting:false,
   selectedFileSignature:"",
   selectedOrganizationIds:new Set(),
-  organizationLoadGeneration:0
+  organizationLoadGeneration:0,
+  submittingRows:new Set()
 };
 window.addEventListener("resize",()=>{
   document.querySelectorAll("[data-preview-image]").forEach(img=>{
@@ -1423,6 +1424,11 @@ function scheduleRowAutoSave(rowIndex){
   if(old) clearTimeout(old);
   const timer=setTimeout(async()=>{
     state.autoSaveTimers.delete(key);
+
+    // Submit owns this row now. Never let a delayed Auto Save race the
+    // confirm request and produce a Mongoose VersionError.
+    if(state.submittingRows.has(key)) return;
+
     try{
       await saveRows([key],{render:false});
       notice(`Row ${key} auto-saved`);
@@ -1942,6 +1948,7 @@ $("selectAllRows").addEventListener("change",e=>{
 });
 
 async function submitRows(rowIndexes){
+  let lockedIndexes=[];
   try{
     if(!state.currentImport){
       throw new Error("No import to submit");
@@ -1953,6 +1960,17 @@ async function submitRows(rowIndexes){
 
     if(!indexes.length){
       throw new Error("Select at least one trip");
+    }
+
+    // Lock these rows against the 500ms Auto Save before doing the explicit
+    // Save -> Confirm sequence. This removes the concurrent document.save()
+    // race that caused "No matching document found ... version ...".
+    lockedIndexes=[...indexes];
+    for(const index of lockedIndexes){
+      state.submittingRows.add(index);
+      const timer=state.autoSaveTimers.get(index);
+      if(timer) clearTimeout(timer);
+      state.autoSaveTimers.delete(index);
     }
 
     /*
@@ -2014,6 +2032,10 @@ async function submitRows(rowIndexes){
     );
   }catch(e){
     notice(e.message,false);
+  }finally{
+    for(const index of lockedIndexes){
+      state.submittingRows.delete(index);
+    }
   }
 }
 
