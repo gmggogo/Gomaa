@@ -536,7 +536,11 @@ router.post("/:id/confirm",async(req,res)=>{
     const tenantId = tenantIdFor(req);
     const importDoc = await AttachmentImport.findOne({_id:req.params.id,tenantId});
     if(!importDoc) return res.status(404).json({success:false,message:"Import not found"});
-    const template = await AttachmentTemplate.findById(importDoc.templateId);
+    const template = await AttachmentTemplate.findOne({
+      _id:importDoc.templateId,
+      tenantId,
+      active:true
+    });
     if(!template) return res.status(404).json({success:false,message:"Template not found"});
 
     const rowIndexes = Array.isArray(req.body?.rowIndexes)

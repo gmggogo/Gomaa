@@ -323,26 +323,42 @@ async function confirmImport({importDoc,template,rowIndexes=null}){
     const payload = tripPayloadFromRow({row,service,importDoc,tenant});
     payload.tripNumber = tripNumber;
 
-    const trip = await Trip.create(payload);
+    let trip = null;
+    try{
+      trip = await Trip.create(payload);
 
-    /*
-      Do not remove/lock the Review row until the Trip can be read back
-      from the same tenant collection used by Trips Hub.
-    */
-    const persistedTrip = await Trip.findOne({
-      _id:trip._id,
-      tenantId:importDoc.tenantId
-    });
+      /*
+        A Submit is successful only when the new Trip can be read back from
+        the same tenant storage used by Trips Hub AND has its trip number.
+      */
+      const persistedTrip = await Trip.findOne({
+        _id:trip._id,
+        tenantId:importDoc.tenantId,
+        tripNumber
+      });
 
-    if(!persistedTrip){
-      await Trip.deleteOne({_id:trip._id}).catch(()=>{});
-      throw new Error(`Trip ${tripNumber} was not persisted to Trips Hub storage`);
+      if(!persistedTrip || !clean(persistedTrip.tripNumber)){
+        if(trip?._id) await Trip.deleteOne({_id:trip._id}).catch(()=>{});
+        throw new Error(`Trip ${tripNumber} was not persisted to Trips Hub storage`);
+      }
+
+      row.confirmed = true;
+      row.tripId = persistedTrip._id;
+      row.tripNumber = persistedTrip.tripNumber;
+      row.validationErrors = [];
+      created.push(persistedTrip);
+    }catch(err){
+      if(trip?._id && !row.confirmed){
+        await Trip.deleteOne({_id:trip._id}).catch(()=>{});
+      }
+      row.confirmed = false;
+      row.tripId = null;
+      row.tripNumber = "";
+      row.validationErrors = [
+        ...(Array.isArray(row.validationErrors) ? row.validationErrors : []),
+        err?.message || "Trip creation failed"
+      ];
     }
-
-    row.confirmed = true;
-    row.tripId = persistedTrip._id;
-    row.tripNumber = persistedTrip.tripNumber;
-    created.push(persistedTrip);
   }
 
   const allDone = importDoc.reviewRows.length > 0 && importDoc.reviewRows.every(r=>r.confirmed);

@@ -1295,11 +1295,7 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   const templateId=clean(state.selected?._id);
   const generation=++state.organizationLoadGeneration;
 
-  /*
-    Organization isolation must happen BEFORE the network request.
-    Never leave the previous organization's draft/import visible while
-    the newly selected organization is loading.
-  */
+  // Isolate organizations immediately, before waiting for the new request.
   state.draftImports=[];
   if(openLatest) state.currentImport=null;
   state.editingRows.clear();
@@ -1307,10 +1303,7 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   state.sharePlan=null;
   state.setupAcceptedRows=new Set();
 
-  // Stop delayed auto-saves that belong to the organization we just left.
-  for(const timer of state.autoSaveTimers.values()){
-    clearTimeout(timer);
-  }
+  for(const timer of state.autoSaveTimers.values()) clearTimeout(timer);
   state.autoSaveTimers.clear();
 
   clearNotice();
@@ -1319,9 +1312,7 @@ async function loadSavedDrafts({preferId=null,openLatest=true}={}){
   renderReview();
   renderActiveOrganizationName();
 
-  if(!templateId){
-    return null;
-  }
+  if(!templateId) return null;
 
   // Ask the server ONLY for this Insurance/Broker/Company. The backend also
   // enforces templateId, so drafts can never bleed between organizations.
