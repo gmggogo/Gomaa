@@ -15,8 +15,10 @@
   .workflow-tabs .tab[data-tab="review"].active{background:#13945b;color:#fff;transform:translateY(-1px)}
   .ai-layout{align-items:start}
   .ai-sidebar{position:sticky;top:12px}
-  .org-sidebar-title{margin-bottom:4px}
+  .org-sidebar-title{margin:0 0 10px;padding:8px 10px;border-radius:9px;background:#1f5fbf;color:#fff;font-size:13px;line-height:1;font-weight:800;text-align:center;white-space:nowrap;letter-spacing:.1px}
   .org-sidebar-help{margin-bottom:12px}
+  .org-sidebar-title{display:flex;align-items:center;justify-content:center;gap:6px}
+  .org-title-sep{opacity:.65;font-weight:600}
   .template-list{display:flex;flex-direction:column;gap:8px}
   .org-list-row{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:8px;border:1px solid #d7e0ea;border-radius:10px;background:#fff;padding:7px 8px}
   .org-list-row.active{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.10)}
@@ -26,6 +28,9 @@
   .template-btn.active{background:#1f5fbf;color:#fff}
   .side-actions{display:flex;flex-direction:column;gap:8px;margin:0 0 10px}
   #deleteTemplateBtn:disabled{opacity:.5;cursor:not-allowed}
+  .top-delete-toolbar{display:flex;justify-content:flex-end;margin:-4px 0 12px}
+  .top-delete-toolbar #deleteTemplateBtn{min-width:170px}
+  #templateFieldsToggle:disabled{opacity:.5;cursor:not-allowed}
   .identity-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
   .identity-toggle-row h3{margin:0}
   .identity-section.collapsed .identity-body{display:none}
@@ -89,15 +94,19 @@
     <button class="tab" data-tab="review">Import Review</button>
   </div>
 
+  <div class="top-delete-toolbar">
+    <button class="btn btn-red" id="deleteTemplateBtn" disabled>Delete Selected</button>
+  </div>
+
   <div id="notice" class="notice"></div>
 
   <div class="ai-layout" id="aiLayout">
     <aside class="ai-sidebar" id="templateSidebar">
-      <h3 class="org-sidebar-title">Insurance / Broker / Company</h3>
+      <h3 class="org-sidebar-title"><span>Insurance</span><span class="org-title-sep">|</span><span>Broker</span><span class="org-title-sep">|</span><span>Company</span></h3>
       <div class="meta org-sidebar-help">Choose an organization to open its import setup.</div>
       <div class="side-actions">
         <button class="btn btn-primary" id="newTemplateBtn">+ Add Organization</button>
-        <button class="btn btn-red" id="deleteTemplateBtn" disabled>Delete Selected</button>
+        <button class="btn btn-muted" id="templateFieldsToggle" type="button" disabled>Open Settings</button>
       </div>
       <div id="templateList" class="template-list"></div>
     </aside>

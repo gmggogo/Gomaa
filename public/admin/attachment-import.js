@@ -510,17 +510,27 @@ function ensureOrganizationSettingsButton(){
     toggle.textContent="Open Settings";
 
     const actions=templatesPanel.querySelector(".side-actions");
-    if(actions) templatesPanel.insertBefore(toggle,actions);
+    if(actions) actions.appendChild(toggle);
     else templatesPanel.appendChild(toggle);
+  }
 
+  if(toggle.dataset.settingsBound!=="1"){
+    toggle.dataset.settingsBound="1";
     toggle.addEventListener("click",()=>{
+      if(toggle.disabled || !state.selected) return;
       const block=$("organizationSettings");
       if(!block || block.hidden) openOrganizationSettings();
       else closeOrganizationSettings();
     });
   }
 
-  toggle.hidden=!state.selected;
+  // Always visible under Add Organization, but locked until an organization is opened.
+  toggle.hidden=false;
+  toggle.disabled=!state.selected;
+  if(!state.selected){
+    toggle.textContent="Open Settings";
+    toggle.setAttribute("aria-expanded","false");
+  }
   return toggle;
 }
 
@@ -996,9 +1006,13 @@ window.selectTemplate=id=>{
 async function loadTemplates(){
   const data=await api("/api/attachment-templates");
   state.templates=data.templates||[];
-  if(!state.selected&&state.templates.length)state.selected=state.templates[0];
+  // Do not auto-open the first organization. The operator must choose it explicitly.
+  if(state.selected){
+    state.selected=state.templates.find(t=>String(t._id)===String(state.selected._id))||null;
+  }
   renderTemplateList();
-  if(state.selected)fillTemplateForm();
+  if(state.selected) fillTemplateForm();
+  ensureOrganizationSettingsButton();
 }
 
 $("newTemplateBtn").onclick=()=>newTemplate();
