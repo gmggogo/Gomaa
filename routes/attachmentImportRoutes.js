@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -249,6 +250,13 @@ router.get("/",async(req,res)=>{
     const status = String(req.query?.status || "").trim().toUpperCase();
     const filter = {tenantId};
     if(status) filter.status = status;
+    const templateId = String(req.query?.templateId || "").trim();
+    if(templateId){
+      if(!mongoose.Types.ObjectId.isValid(templateId)){
+        return res.status(400).json({success:false,message:"Invalid templateId"});
+      }
+      filter.templateId = templateId;
+    }
     const imports = await AttachmentImport.find(filter).sort({createdAt:-1}).limit(200);
     return res.json({success:true,imports:imports.map(cleanImport)});
   }catch(err){ return res.status(500).json({success:false,message:"Failed to load attachment imports"}); }
@@ -408,6 +416,29 @@ router.put("/:id/review",async(req,res)=>{
   }
 });
 
+
+router.post("/:id/review-rows/accept",async(req,res)=>{
+  try{
+    const tenantId = tenantIdFor(req);
+    const rowIndexes = Array.isArray(req.body?.rowIndexes)
+      ? req.body.rowIndexes.map(Number).filter(Number.isFinite)
+      : [];
+    if(!rowIndexes.length){
+      return res.status(400).json({success:false,message:"Select at least one extracted trip"});
+    }
+
+    const importDoc = await AttachmentImport.findOneAndUpdate(
+      {_id:req.params.id,tenantId,status:{$nin:["CONFIRMED","ARCHIVED"]}},
+      {$set:{"reviewRows.$[row].acceptedForReview":true}},
+      {new:true,arrayFilters:[{"row.rowIndex":{$in:rowIndexes},"row.confirmed":{$ne:true}}]}
+    );
+    if(!importDoc) return res.status(404).json({success:false,message:"Import not found or locked"});
+    return res.json({success:true,import:cleanImport(importDoc)});
+  }catch(err){
+    console.error("ATTACHMENT REVIEW ACCEPT ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message || "Failed to move trip to Import Review"});
+  }
+});
 
 router.delete("/:id/review-rows",async(req,res)=>{
   try{

@@ -27,6 +27,7 @@ const reviewRowSchema = new mongoose.Schema(
       default:"UNRESOLVED"
     },
     validationErrors:{ type:[String], default:[] },
+    acceptedForReview:{ type:Boolean, default:false, index:false },
     confirmed:{ type:Boolean, default:false },
     tripId:{ type:mongoose.Schema.Types.ObjectId, ref:"Trip", default:null },
     tripNumber:{ type:String, default:"" }
@@ -91,6 +92,7 @@ const attachmentImportSchema = new mongoose.Schema(
 
 attachmentImportSchema.index({ tenantId:1, createdAt:-1 });
 attachmentImportSchema.index({ tenantId:1, status:1, updatedAt:-1 });
+attachmentImportSchema.index({ tenantId:1, templateId:1, status:1, updatedAt:-1 });
 attachmentImportSchema.index({ tenantId:1, documentNumber:1 },{ unique:true, sparse:true });
 attachmentImportSchema.index({ tenantId:1, "archiveEntries.tripId":1 });
 

@@ -230,12 +230,12 @@ function saveAcceptedRows(){
 }
 function currentSetupRows(){
   return (state.currentImport?.reviewRows||[]).filter(
-    row=>!state.setupAcceptedRows.has(Number(row.rowIndex))
+    row=>!(row.acceptedForReview === true || state.setupAcceptedRows.has(Number(row.rowIndex)) || row.confirmed || row.tripId)
   );
 }
 function currentReviewRows(){
   return (state.currentImport?.reviewRows||[]).filter(
-    row=>state.setupAcceptedRows.has(Number(row.rowIndex)) || row.confirmed || row.tripId
+    row=>row.acceptedForReview === true || state.setupAcceptedRows.has(Number(row.rowIndex)) || row.confirmed || row.tripId
   );
 }
 function clearSelectedPreviewUrls(){
@@ -392,13 +392,25 @@ function renderSetupExtractedTrips(){
   `;
 
   host.querySelectorAll("[data-accept-setup]").forEach(btn=>{
-    btn.addEventListener("click",()=>{
+    btn.addEventListener("click",async()=>{
       const index=Number(btn.dataset.acceptSetup);
-      state.setupAcceptedRows.add(index);
-      saveAcceptedRows();
-      renderSetupExtractedTrips();
-      renderReview();
-      notice("Trip moved to Import Review.");
+      try{
+        btn.disabled=true;
+        const data=await api(`/api/attachment-imports/${state.currentImport._id}/review-rows/accept`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({rowIndexes:[index]})
+        });
+        state.currentImport=data.import;
+        state.setupAcceptedRows.add(index);
+        saveAcceptedRows();
+        renderSetupExtractedTrips();
+        renderReview();
+        notice("Trip moved to Import Review.");
+      }catch(e){
+        btn.disabled=false;
+        notice(e.message,false);
+      }
     });
   });
 
@@ -951,6 +963,20 @@ function syncOrganizationDeleteButton(){
   btn.textContent=count ? `Delete Selected (${count})` : "Delete Selected";
 }
 
+function selectedOrganizationStorageKey(){
+  return "ghAttachmentSelectedOrganization";
+}
+function rememberSelectedOrganization(){
+  try{
+    const id=String(state.selected?._id||"");
+    if(id) localStorage.setItem(selectedOrganizationStorageKey(),id);
+    else localStorage.removeItem(selectedOrganizationStorageKey());
+  }catch(_){}
+}
+function rememberedSelectedOrganizationId(){
+  try{ return String(localStorage.getItem(selectedOrganizationStorageKey())||""); }catch(_){ return ""; }
+}
+
 function renderTemplateList(){
   const validIds=new Set((state.templates||[]).map(t=>String(t._id)));
   state.selectedOrganizationIds=new Set(
@@ -984,7 +1010,7 @@ function renderTemplateList(){
   });
 
   $("templateList").querySelectorAll("[data-org-delete-select]").forEach(cb=>{
-    cb.addEventListener("change",()=>{
+    cb.addEventListener("change",async()=>{
       const id=String(cb.dataset.orgDeleteSelect);
 
       // The checkbox is the organization selector for this screen.
@@ -1000,35 +1026,51 @@ function renderTemplateList(){
         state.selected=null;
         closeOrganizationSettings();
       }
+      rememberSelectedOrganization();
 
       renderTemplateList();
       ensureOrganizationSettingsButton();
       closeOrganizationSettings();
       syncOrganizationDeleteButton();
+      await loadSavedDrafts({openLatest:true});
+      loadAcceptedRows();
+      renderSetupExtractedTrips();
+      renderReview();
     });
   });
 
   syncOrganizationDeleteButton();
 }
 
-window.selectTemplate=id=>{
+window.selectTemplate=async id=>{
   const normalizedId=String(id);
   state.selected=state.templates.find(t=>String(t._id)===normalizedId)||null;
   state.selectedOrganizationIds.clear();
   if(state.selected) state.selectedOrganizationIds.add(normalizedId);
+  rememberSelectedOrganization();
   if(state.selected) fillTemplateForm();
   renderTemplateList();
   ensureOrganizationSettingsButton();
   closeOrganizationSettings();
+  await loadSavedDrafts({openLatest:true});
+  loadAcceptedRows();
+  renderSetupExtractedTrips();
+  renderReview();
 }
 
 async function loadTemplates(){
   const data=await api("/api/attachment-templates");
   state.templates=data.templates||[];
-  // Do not auto-open the first organization. The operator must choose it explicitly.
+  // Restore the last explicitly selected organization after Reload.
+  // Draft rows themselves still come from MongoDB, never from browser storage.
+  const rememberedId=rememberedSelectedOrganizationId();
   if(state.selected){
     state.selected=state.templates.find(t=>String(t._id)===String(state.selected._id))||null;
+  }else if(rememberedId){
+    state.selected=state.templates.find(t=>String(t._id)===rememberedId)||null;
   }
+  state.selectedOrganizationIds.clear();
+  if(state.selected?._id) state.selectedOrganizationIds.add(String(state.selected._id));
   renderTemplateList();
   if(state.selected) fillTemplateForm();
   ensureOrganizationSettingsButton();
@@ -1212,7 +1254,14 @@ function syncSelectedTemplateForImport(imp){
 }
 
 async function loadSavedDrafts({preferId=null,openLatest=true}={}){
-  const data=await api("/api/attachment-imports");
+  const templateId=clean(state.selected?._id);
+  if(!templateId){
+    state.draftImports=[];
+    if(openLatest) state.currentImport=null;
+    renderDraftPicker();
+    return null;
+  }
+  const data=await api(`/api/attachment-imports?templateId=${encodeURIComponent(templateId)}`);
   state.draftImports=(data.imports||[]).filter(isOpenDraft);
 
   let target=null;
@@ -1900,10 +1949,17 @@ $("submitSelectedBtn").onclick=()=>submitRows(selectedRowIndexes());
       state.services=serviceData.services||state.services;
     }catch(_){}
 
-    await loadSavedDrafts({openLatest:true});
-    if(state.currentImport){
-      loadAcceptedRows();
-      renderSetupExtractedTrips();
+    // If the operator had selected an organization before Reload, restore it
+    // and reload that organization's open drafts from MongoDB.
+    if(state.selected?._id){
+      await loadSavedDrafts({openLatest:true});
+      if(state.currentImport){
+        loadAcceptedRows();
+        renderSetupExtractedTrips();
+      }
+    }else{
+      state.currentImport=null;
+      state.draftImports=[];
     }
 
     ensureReviewActionButtons();
