@@ -1025,7 +1025,6 @@ $("uploadBtn").onclick=async()=>{
     renderSetupExtractedTrips();
     renderReview();
 
-    await validateAddresses({silent:true});
     await loadSavedDrafts({preferId:state.currentImport?._id,openLatest:false});
     loadAcceptedRows();
     renderSetupExtractedTrips();
@@ -1180,16 +1179,6 @@ function ensureReviewActionButtons(){
   const toolbar=submitBtn?.parentElement || $("saveReviewBtn")?.parentElement;
   if(!toolbar) return;
 
-  let validateBtn=$("validateAddressesBtn");
-  if(!validateBtn){
-    validateBtn=document.createElement("button");
-    validateBtn.id="validateAddressesBtn";
-    validateBtn.type="button";
-    validateBtn.className="btn btn-muted";
-    validateBtn.textContent="Validate Addresses";
-    validateBtn.addEventListener("click",()=>validateAddresses({silent:false}));
-    toolbar.appendChild(validateBtn);
-  }
 
   let shareBtn=$("shareReviewBtn");
   if(!shareBtn){
@@ -1520,37 +1509,6 @@ async function saveEditedRow(rowIndex){
     notice(`Row ${rowIndex} saved`);
   }catch(e){
     notice(e.message,false);
-  }
-}
-
-async function validateAddresses({silent=false,rowIndexes=null}={}){
-  if(!state.currentImport) return null;
-
-  try{
-    const data=await api(
-      `/api/attachment-imports/${state.currentImport._id}/validate-addresses`,
-      {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          rowIndexes:Array.isArray(rowIndexes) ? rowIndexes : undefined
-        })
-      }
-    );
-
-    state.currentImport=data.import;
-    state.services=data.services||state.services;
-    renderReview();
-
-    if(!silent){
-      notice(`${data.checkedRows||0} trip row(s) checked with one address-validation request.`);
-    }
-
-    return data;
-  }catch(e){
-    if(!silent) notice(e.message,false);
-    else notice(`Address validation warning: ${e.message}`,false);
-    return null;
   }
 }
 

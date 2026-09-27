@@ -62,210 +62,6 @@ function cleanImport(doc){
 }
 
 
-function cleanText(value){
-  return String(value ?? "").trim();
-}
-
-function normalizeAddressList(value){
-  if(Array.isArray(value)){
-    return value.map(cleanText).filter(Boolean);
-  }
-
-  const text = cleanText(value);
-  if(!text) return [];
-
-  return text
-    .split(/\r?\n|\s*;\s*|\s*\|\s*/)
-    .map(cleanText)
-    .filter(Boolean);
-}
-
-async function googleGeocodeAddress(address){
-  const cleanAddress = cleanText(address);
-  if(!cleanAddress){
-    return {
-      ok:false,
-      original:"",
-      formattedAddress:"",
-      lat:null,
-      lng:null,
-      partialMatch:false,
-      status:"EMPTY"
-    };
-  }
-
-  const key =
-    process.env.GOOGLE_KEY ||
-    process.env.GOOGLE_SERVER_KEY ||
-    "";
-
-  if(!key){
-    const err = new Error("Google Maps server key is missing");
-    err.statusCode = 503;
-    throw err;
-  }
-
-  const url =
-    "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-    encodeURIComponent(cleanAddress) +
-    "&key=" +
-    encodeURIComponent(key);
-
-  const response = await fetch(url);
-  const json = await response.json().catch(()=>({}));
-
-  if(
-    !response.ok ||
-    json?.status !== "OK" ||
-    !Array.isArray(json?.results) ||
-    !json.results.length
-  ){
-    return {
-      ok:false,
-      original:cleanAddress,
-      formattedAddress:cleanAddress,
-      lat:null,
-      lng:null,
-      partialMatch:false,
-      status:json?.status || `HTTP_${response.status}`
-    };
-  }
-
-  const first = json.results[0] || {};
-  const location = first?.geometry?.location || {};
-
-  return {
-    ok:true,
-    original:cleanAddress,
-    formattedAddress:cleanText(first.formatted_address) || cleanAddress,
-    lat:Number.isFinite(Number(location.lat)) ? Number(location.lat) : null,
-    lng:Number.isFinite(Number(location.lng)) ? Number(location.lng) : null,
-    partialMatch:first.partial_match === true,
-    status:"OK"
-  };
-}
-
-async function validateImportAddresses(importDoc,rowIndexes=null){
-  const requested = Array.isArray(rowIndexes)
-    ? new Set(rowIndexes.map(Number).filter(Number.isFinite))
-    : null;
-
-  const targetRows = (importDoc.reviewRows || []).filter(row=>{
-    if(row.confirmed) return false;
-    if(requested && !requested.has(Number(row.rowIndex))) return false;
-    return true;
-  });
-
-  const uniqueAddresses = new Map();
-
-  for(const row of targetRows){
-    const data = row.data || {};
-    const pickup = cleanText(data.pickup);
-    const dropoff = cleanText(data.dropoff);
-    const stops = normalizeAddressList(data.stops);
-
-    [pickup,...stops,dropoff].filter(Boolean).forEach(address=>{
-      const key = address.toLowerCase();
-      if(!uniqueAddresses.has(key)){
-        uniqueAddresses.set(key,address);
-      }
-    });
-  }
-
-  const resolvedPairs = await Promise.all(
-    [...uniqueAddresses.entries()].map(async([key,address])=>[
-      key,
-      await googleGeocodeAddress(address)
-    ])
-  );
-
-  const resolved = new Map(resolvedPairs);
-  const results = [];
-
-  for(const row of targetRows){
-    const data = row.data || {};
-    const rowResult = {
-      rowIndex:Number(row.rowIndex),
-      pickup:null,
-      dropoff:null,
-      stops:[]
-    };
-
-    const applySingle = (field,latField,lngField)=>{
-      const original = cleanText(data[field]);
-      if(!original) return null;
-
-      const result = resolved.get(original.toLowerCase()) || null;
-      if(!result) return null;
-
-      /*
-        Exact Google result: safely normalize the displayed address.
-        Partial result: keep the user's/OCR text and expose the suggestion
-        instead of silently guessing.
-      */
-      if(result.ok && result.partialMatch !== true){
-        data[field] = result.formattedAddress;
-      }
-
-      if(result.ok){
-        data[latField] = result.lat;
-        data[lngField] = result.lng;
-      }
-
-      return {
-        original,
-        value:data[field],
-        suggested:result.formattedAddress,
-        ok:result.ok,
-        partialMatch:result.partialMatch,
-        status:result.status
-      };
-    };
-
-    rowResult.pickup = applySingle("pickup","pickupLat","pickupLng");
-    rowResult.dropoff = applySingle("dropoff","dropoffLat","dropoffLng");
-
-    const originalStops = normalizeAddressList(data.stops);
-    const normalizedStops = [];
-    const stopCoords = [];
-
-    for(const stop of originalStops){
-      const result = resolved.get(stop.toLowerCase()) || null;
-      const value =
-        result?.ok && result?.partialMatch !== true
-          ? result.formattedAddress
-          : stop;
-
-      normalizedStops.push(value);
-
-      if(result?.ok){
-        stopCoords.push({
-          address:value,
-          lat:result.lat,
-          lng:result.lng
-        });
-      }
-
-      rowResult.stops.push({
-        original:stop,
-        value,
-        suggested:result?.formattedAddress || stop,
-        ok:result?.ok === true,
-        partialMatch:result?.partialMatch === true,
-        status:result?.status || "NOT_CHECKED"
-      });
-    }
-
-    data.stops = normalizedStops;
-    data.stopCoords = stopCoords;
-    row.data = data;
-    results.push(rowResult);
-  }
-
-  return results;
-}
-
-
 
 const ATTACHMENT_FIELD_TARGETS = Object.freeze([
   { internalKey:"clientName", label:"Customer Name", aliases:["client name","customer name","patient","patient name","member name","passenger","rider"] },
@@ -532,97 +328,76 @@ router.get("/:id",async(req,res)=>{
 router.put("/:id/review",async(req,res)=>{
   try{
     const tenantId = tenantIdFor(req);
-    const importDoc = await AttachmentImport.findOne({
-      _id:req.params.id,
-      tenantId
-    });
-
-    if(!importDoc){
-      return res.status(404).json({
-        success:false,
-        message:"Import not found"
-      });
-    }
-
-    if(["CONFIRMED","ARCHIVED"].includes(importDoc.status)){
-      return res.status(409).json({
-        success:false,
-        message:"Confirmed import cannot be edited"
-      });
-    }
-
-    const updates=Array.isArray(req.body?.rows)
-      ? req.body.rows
-      : [];
+    const updates=Array.isArray(req.body?.rows) ? req.body.rows : [];
 
     if(!updates.length){
-      return res.status(400).json({
-        success:false,
-        message:"No review rows were sent to save"
-      });
+      return res.status(400).json({success:false,message:"No review rows were sent to save"});
     }
 
-    let changed=0;
+    const templateCache = { value:null };
 
-    for(const update of updates){
-      const row=importDoc.reviewRows.find(
-        r=>Number(r.rowIndex)===Number(update.rowIndex)
-      );
+    async function applyAndSave(){
+      const importDoc = await AttachmentImport.findOne({_id:req.params.id,tenantId});
+      if(!importDoc) return {notFound:true};
+      if(["CONFIRMED","ARCHIVED"].includes(importDoc.status)) return {locked:true};
 
-      if(!row || row.confirmed){
-        continue;
-      }
+      let changed=0;
+      for(const update of updates){
+        const row=importDoc.reviewRows.find(
+          r=>Number(r.rowIndex)===Number(update.rowIndex)
+        );
+        if(!row || row.confirmed) continue;
 
-      if(update.data && typeof update.data==="object"){
-        row.data={...update.data};
-        if(typeof row.markModified==="function"){
-          row.markModified("data");
+        if(update.data && typeof update.data==="object"){
+          row.data={...update.data};
+          changed+=1;
         }
-        changed+=1;
+
+        if(update.serviceKey!==undefined){
+          row.serviceKey=String(update.serviceKey||"").trim().toUpperCase();
+          row.serviceResolution=row.serviceKey ? "MANUAL" : "UNRESOLVED";
+          changed+=1;
+        }
       }
 
-      if(update.serviceKey!==undefined){
-        row.serviceKey=String(update.serviceKey||"")
-          .trim()
-          .toUpperCase();
+      if(!changed) return {noChanges:true};
 
-        row.serviceResolution=row.serviceKey
-          ? "MANUAL"
-          : "UNRESOLVED";
-
-        changed+=1;
+      if(!templateCache.value){
+        templateCache.value=await AttachmentTemplate.findById(importDoc.templateId);
       }
-    }
+      if(!templateCache.value) return {templateMissing:true};
 
-    if(!changed){
-      return res.status(400).json({
-        success:false,
-        message:"No editable review rows were updated"
+      const services=await attachmentImportService.prepareReviewRows({
+        importDoc,
+        template:templateCache.value
       });
+
+      importDoc.markModified("reviewRows");
+      await importDoc.save();
+      return {importDoc,services};
     }
 
-    const template=await AttachmentTemplate.findById(importDoc.templateId);
-
-    if(!template){
-      return res.status(404).json({
-        success:false,
-        message:"Template not found"
-      });
+    let result;
+    try{
+      result=await applyAndSave();
+    }catch(err){
+      // A second browser action may have saved the same import milliseconds
+      // earlier. Reload the newest Mongo document and apply this request once
+      // more instead of returning Mongoose's stale __v VersionError.
+      if(err?.name!=="VersionError") throw err;
+      result=await applyAndSave();
     }
 
-    const services=await attachmentImportService.prepareReviewRows({
-      importDoc,
-      template
-    });
-
-    importDoc.markModified("reviewRows");
-    await importDoc.save();
+    if(result?.notFound) return res.status(404).json({success:false,message:"Import not found"});
+    if(result?.locked) return res.status(409).json({success:false,message:"Confirmed import cannot be edited"});
+    if(result?.noChanges) return res.status(400).json({success:false,message:"No editable review rows were updated"});
+    if(result?.templateMissing) return res.status(404).json({success:false,message:"Template not found"});
 
     return res.json({
       success:true,
       savedCount:updates.length,
-      import:cleanImport(importDoc),
-      services
+      import:cleanImport(result.importDoc),
+      services:result.services
     });
   }catch(err){
     console.error("ATTACHMENT REVIEW SAVE ERROR:",err);
@@ -632,7 +407,6 @@ router.put("/:id/review",async(req,res)=>{
     });
   }
 });
-
 
 
 router.delete("/:id/review-rows",async(req,res)=>{
@@ -707,49 +481,6 @@ router.delete("/:id/review-rows",async(req,res)=>{
   }
 });
 
-router.post("/:id/validate-addresses",async(req,res)=>{
-  try{
-    const tenantId = tenantIdFor(req);
-    const importDoc = await AttachmentImport.findOne({
-      _id:req.params.id,
-      tenantId
-    });
-
-    if(!importDoc){
-      return res.status(404).json({
-        success:false,
-        message:"Import not found"
-      });
-    }
-
-    const rowIndexes = Array.isArray(req.body?.rowIndexes)
-      ? req.body.rowIndexes.map(Number).filter(Number.isFinite)
-      : null;
-
-    const results = await validateImportAddresses(importDoc,rowIndexes);
-    const template = await AttachmentTemplate.findById(importDoc.templateId);
-    const services = await attachmentImportService.prepareReviewRows({
-      importDoc,
-      template
-    });
-
-    await importDoc.save();
-
-    return res.json({
-      success:true,
-      checkedRows:results.length,
-      addressResults:results,
-      import:cleanImport(importDoc),
-      services
-    });
-  }catch(err){
-    console.error("ATTACHMENT ADDRESS VALIDATION ERROR:",err);
-    return res.status(err?.statusCode || 500).json({
-      success:false,
-      message:err?.message || "Failed to validate attachment addresses"
-    });
-  }
-});
 
 router.post("/:id/confirm",async(req,res)=>{
   try{
