@@ -496,7 +496,7 @@ function closeOrganizationSettings(){
 }
 
 function openOrganizationSettings(){
-  if(!state.selected) return;
+  if(!state.selected?._id) return;
 
   const block=$("organizationSettings");
   if(block) block.hidden=false;
@@ -530,7 +530,7 @@ function ensureOrganizationSettingsButton(){
   if(toggle.dataset.settingsBound!=="1"){
     toggle.dataset.settingsBound="1";
     toggle.addEventListener("click",()=>{
-      if(toggle.disabled || !state.selected) return;
+      if(toggle.disabled || !state.selected?._id) return;
       const block=$("organizationSettings");
       if(!block || block.hidden) openOrganizationSettings();
       else closeOrganizationSettings();
@@ -539,8 +539,8 @@ function ensureOrganizationSettingsButton(){
 
   // Always visible under Add Organization, but locked until an existing organization is selected (or Add Organization starts a new one).
   toggle.hidden=false;
-  toggle.disabled=!state.selected;
-  if(!state.selected){
+  toggle.disabled=!state.selected?._id;
+  if(!state.selected?._id){
     toggle.textContent="Open Settings";
     toggle.setAttribute("aria-expanded","false");
   }
@@ -857,6 +857,9 @@ function repairStandardTemplateMapping(){
 
 
 function newTemplate(){
+  // Add Organization is the ONLY creator of a new unsaved organization.
+  // It intentionally has no _id until Save Template succeeds.
+  state.selectedOrganizationIds.clear();
   state.selected={_id:null,name:"",organizationType:"INSURANCE",organizationName:"",fields:[
     {label:"Client Name",internalKey:"clientName",type:"TEXT",required:true,visibleInReview:true,aliases:["Patient","Patient Name","Member Name","Passenger","Customer","Client Name"],order:0},
     {label:"Pickup Date",internalKey:"tripDate",type:"DATE",required:true,visibleInReview:true,aliases:["Date","Service Date","Trip Date","Pickup Date","Pick Up Date"],order:1},
@@ -867,7 +870,11 @@ function newTemplate(){
     {label:"Drop Off Address",internalKey:"dropoff",type:"ADDRESS",required:true,visibleInReview:true,aliases:["Dropoff Address","DO Address","Drop Off","Destination"],order:6},
     {label:"Service",internalKey:"service",type:"SERVICE",required:false,visibleInReview:true,aliases:["Service","Service Type","Vehicle Type"],order:7}
   ],signaturePosition:{page:1,xPercent:62,yPercent:78,widthPercent:28,heightPercent:12}};
-  fillTemplateForm();renderTemplateList();ensureOrganizationSettingsButton();closeOrganizationSettings();
+  fillTemplateForm();
+  renderTemplateList();
+  syncOrganizationDeleteButton();
+  ensureOrganizationSettingsButton();
+  renderActiveOrganizationName();
 }
 function fillTemplateForm(){
   const t=state.selected;if(!t)return;
@@ -993,7 +1000,7 @@ function renderTemplateList(){
         <input
           class="org-delete-select"
           type="checkbox"
-          aria-label="Select ${esc(organizationDisplayName(t))} for deletion"
+          aria-label="Select ${esc(organizationDisplayName(t))}"
           data-org-delete-select="${esc(id)}"
           ${checked?"checked":""}
         >
@@ -1081,10 +1088,16 @@ async function loadTemplates(){
 }
 
 $("newTemplateBtn").onclick=()=>{
-  state.selectedOrganizationIds.clear();
   newTemplate();
-  syncOrganizationDeleteButton();
-  openOrganizationSettings();
+  const block=$("organizationSettings");
+  if(block) block.hidden=false;
+  const toggle=$("templateFieldsToggle");
+  if(toggle){
+    toggle.disabled=true;
+    toggle.textContent="Open Settings";
+    toggle.setAttribute("aria-expanded","false");
+  }
+  $("organizationSettings")?.scrollIntoView({behavior:"smooth",block:"start"});
 };
 
 if($("duplicateTemplateBtn")){
@@ -1153,11 +1166,18 @@ $("saveTemplateBtn").onclick=async()=>{
         });
 
     state.selected=data.template;
+    rememberSelectedOrganization();
     await loadTemplates();
-    state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;
+    state.selected=state.templates.find(t=>String(t._id)===String(data.template._id))||data.template;
+    state.selectedOrganizationIds.clear();
+    if(state.selected?._id) state.selectedOrganizationIds.add(String(state.selected._id));
+    rememberSelectedOrganization();
     fillTemplateForm();
     renderTemplateList();
-    notice("Template saved");
+    ensureOrganizationSettingsButton();
+    closeOrganizationSettings();
+    renderActiveOrganizationName();
+    notice("Organization saved. Select it and use Open Settings to edit it.");
   }catch(e){
     notice(e.message,false);
   }
