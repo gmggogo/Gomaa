@@ -1,5 +1,64 @@
-const token = localStorage.getItem("token") || sessionStorage.getItem("staffToken") || "";
-if(!token){ location.href="/login.html"; }
+/*
+  GH Mobility admin auth:
+  Do not blindly prefer localStorage.token. An older/stale token can remain
+  there while the current staff login lives in sessionStorage.staffToken.
+  Keep all available staff-token candidates and retry once on 401.
+*/
+function uniqueAuthTokens(values){
+  return [...new Set(
+    values
+      .map(value=>String(value||"").trim())
+      .filter(Boolean)
+  )];
+}
+
+function readAuthTokenCandidates(){
+  return uniqueAuthTokens([
+    sessionStorage.getItem("staffToken"),
+    localStorage.getItem("staffToken"),
+    sessionStorage.getItem("token"),
+    localStorage.getItem("token")
+  ]);
+}
+
+let authTokenCandidates = readAuthTokenCandidates();
+let token = authTokenCandidates[0] || "";
+
+if(!token){
+  location.href="/login.html";
+}
+
+function authHeaders(extra={},tokenOverride=token){
+  return {
+    Authorization:`Bearer ${tokenOverride}`,
+    ...extra
+  };
+}
+
+async function fetchWithAuth(url,options={}){
+  authTokenCandidates = uniqueAuthTokens([
+    token,
+    ...readAuthTokenCandidates()
+  ]);
+
+  let lastResponse = null;
+
+  for(const candidate of authTokenCandidates){
+    const response = await fetch(url,{
+      ...options,
+      headers:authHeaders(options.headers||{},candidate)
+    });
+
+    lastResponse = response;
+
+    if(response.status !== 401){
+      token = candidate;
+      return response;
+    }
+  }
+
+  return lastResponse;
+}
 
 const state = {
   templates:[],
@@ -27,11 +86,17 @@ document.head.appendChild(templateFieldStyle);
 
 function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function clean(v){return String(v??"").trim()}
-function authHeaders(extra={}){return {Authorization:`Bearer ${token}`,...extra}}
 async function api(url,options={}){
-  const res=await fetch(url,{...options,headers:authHeaders(options.headers||{})});
+  const res=await fetchWithAuth(url,options);
   const data=await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data.message||`Request failed (${res.status})`);
+
+  if(!res.ok){
+    if(res.status===401){
+      throw new Error("Session expired. Please sign in again.");
+    }
+    throw new Error(data.message||`Request failed (${res.status})`);
+  }
+
   return data;
 }
 function notice(msg,ok=true){const n=$("notice");n.textContent=msg;n.className=`notice ${ok?"ok":"err"}`}
@@ -448,9 +513,8 @@ $("uploadBtn").onclick=async()=>{
     fd.append("templateId",state.selected._id);
     files.forEach(f=>fd.append("files",f));
 
-    const res=await fetch("/api/attachment-imports/upload",{
+    const res=await fetchWithAuth("/api/attachment-imports/upload",{
       method:"POST",
-      headers:authHeaders(),
       body:fd
     });
 
@@ -1043,9 +1107,9 @@ async function runShareEvaluation(){
 
     const trips=rows.map(reviewRowCandidate);
 
-    const res=await fetch("/api/company-shared/plan",{
+    const res=await fetchWithAuth("/api/company-shared/plan",{
       method:"POST",
-      headers:authHeaders({"Content-Type":"application/json"}),
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({trips})
     });
 
