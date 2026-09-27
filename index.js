@@ -15786,7 +15786,7 @@ setInterval(async () => {
 
   }
 
-}, 60000);
+}, 5 * 60 * 1000);
  
 /* =========================
    PLATFORM ADMIN ROUTES

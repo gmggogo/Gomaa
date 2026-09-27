@@ -2774,6 +2774,37 @@ router.get(
    GET FAST SUMMARY BUNDLE
 ========================= */
 
+router.get("/archive", requireTenantApi, async (req,res)=>{
+
+  try{
+    const tenantKey = summaryTenantKey(req);
+
+    const rows = await AdminSummaryArchive.find({ tenantKey })
+      .select({ _id:0, payload:1 })
+      .sort({ tripDate:-1, archivedAt:-1 })
+      .lean();
+
+    const trips = rows
+      .map(row=>row?.payload)
+      .filter(Boolean);
+
+    return res.json({
+      success:true,
+      count:trips.length,
+      trips,
+      archive:true
+    });
+
+  }catch(err){
+    console.log("ADMIN SUMMARY ARCHIVE GET ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:"Failed to load admin summary archive",
+      error:err.message
+    });
+  }
+});
+
 router.get("/", requireTenantApi, async (req,res)=>{
 
   try{
@@ -2842,57 +2873,25 @@ router.get("/", requireTenantApi, async (req,res)=>{
       - On a new day, only the newly-finished day is appended to the archive.
       - Today's rows stay live.
     */
-    const [
-      historicalTrips,
-      todayTrips
-    ] =
-      await Promise.all([
-        syncSummaryHistory(
-          req,
-          todayKey,
-          serviceMap,
-          overrideMaps
-        ),
+    /*
+      LIVE SUMMARY ONLY
 
-        querySummaryTripsForRange(
-          req,
-          {
-            tripDate:{
-              $gte:todayKey
-            }
-          },
-          serviceMap,
-          overrideMaps
-        )
-      ]);
-
-    const seen =
-      new Set();
-
-    const closedTrips =
-      [
-        ...todayTrips,
-        ...historicalTrips
-      ]
-        .filter(trip=>{
-
-          const id =
-            String(
-              trip?._id ||
-              ""
-            );
-
-          if(!id){
-            return true;
+      Historical rows stay in admin_summary_archive and are not included in
+      the normal polling response. The archive has its own endpoint below.
+    */
+    const todayTrips =
+      await querySummaryTripsForRange(
+        req,
+        {
+          tripDate:{
+            $gte:todayKey
           }
+        },
+        serviceMap,
+        overrideMaps
+      );
 
-          if(seen.has(id)){
-            return false;
-          }
-
-          seen.add(id);
-          return true;
-        });
+    const closedTrips = todayTrips;
 
     const facilities =
       [

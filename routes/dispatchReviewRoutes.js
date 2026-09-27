@@ -1201,6 +1201,37 @@ async function updateArchiveForTrip(
    Confirmed final trips only
 ========================= */
 
+router.get("/archive", requireTenantApi, async (req,res)=>{
+
+  try{
+    const tenantKey = reviewTenantKey(req);
+
+    const rows = await DispatchReviewArchive.find({ tenantKey })
+      .select({ _id:0, payload:1 })
+      .sort({ tripDate:-1, archivedAt:-1 })
+      .lean();
+
+    const trips = rows
+      .map(row=>row?.payload)
+      .filter(Boolean)
+      .sort(compareReviewTrips);
+
+    return res.json({
+      success:true,
+      count:trips.length,
+      trips,
+      archive:true
+    });
+
+  }catch(err){
+    console.log("DISPATCH REVIEW ARCHIVE GET ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:err.message || "Failed to load dispatch review archive"
+    });
+  }
+});
+
 router.get("/", requireTenantApi, async (req,res)=>{
 
   try{
@@ -1227,52 +1258,25 @@ router.get("/", requireTenantApi, async (req,res)=>{
       - Only today/future are read from Trip
       - Same final-confirmation rules remain unchanged
     */
-    const [
-      historicalTrips,
-      liveTrips
-    ] =
-      await Promise.all([
-        syncHistoricalArchive(
-          req,
-          todayKey
-        ),
-        queryReviewTripsForRange(
-          req,
-          {
-            tripDate:{
-              $gte:todayKey
-            }
-          }
-        )
-      ]);
+    /*
+      LIVE REVIEW ONLY
 
-    const seen =
-      new Set();
+      Historical/finalized trips are persisted by the archive worker and are
+      intentionally NOT returned by the polling endpoint. This keeps old rows
+      out of every Dispatch Review refresh.
+    */
+    const liveTrips =
+      await queryReviewTripsForRange(
+        req,
+        {
+          tripDate:{
+            $gte:todayKey
+          }
+        }
+      );
 
     const reviewTrips =
-      [
-        ...safeArray(liveTrips),
-        ...safeArray(historicalTrips)
-      ]
-        .filter(trip=>{
-
-          const id =
-            String(
-              trip?._id ||
-              ""
-            );
-
-          if(!id){
-            return true;
-          }
-
-          if(seen.has(id)){
-            return false;
-          }
-
-          seen.add(id);
-          return true;
-        })
+      safeArray(liveTrips)
         .sort(compareReviewTrips);
 
     const payload = {
