@@ -569,6 +569,26 @@ function ensureSetupWorkflowMounts(){
   }
 }
 
+function resetUploadForOrganizationChange(){
+  const fileInput=$("attachmentFiles");
+  const uploadBtn=$("uploadBtn");
+
+  // A selected file belongs only to the organization under which it was chosen.
+  // Never carry that browser FileList into another organization.
+  if(fileInput) fileInput.value="";
+
+  state.selectedFileSignature="";
+  state.documentSubmitting=false;
+
+  if(uploadBtn){
+    uploadBtn.disabled=true;
+    uploadBtn.dataset.readyForNewFile="0";
+    uploadBtn.textContent="Submit Document";
+  }
+
+  renderDocumentPreview([]);
+}
+
 function installSetupWorkflowUI(){
   normalizeOrganizationSidebar();
   ensureSetupWorkflowMounts();
@@ -1027,6 +1047,7 @@ function renderTemplateList(){
   $("templateList").querySelectorAll("[data-org-delete-select]").forEach(cb=>{
     cb.addEventListener("change",async()=>{
       const id=String(cb.dataset.orgDeleteSelect);
+      resetUploadForOrganizationChange();
 
       // The checkbox is the organization selector for this screen.
       // Keep one active organization so Open Settings and Delete always
@@ -1060,6 +1081,10 @@ function renderTemplateList(){
 
 window.selectTemplate=async id=>{
   const normalizedId=String(id);
+  const previousOrganizationId=String(state.selected?._id||"");
+  if(previousOrganizationId!==normalizedId){
+    resetUploadForOrganizationChange();
+  }
   state.selected=state.templates.find(t=>String(t._id)===normalizedId)||null;
   state.selectedOrganizationIds.clear();
   if(state.selected) state.selectedOrganizationIds.add(normalizedId);
