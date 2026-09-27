@@ -76,6 +76,11 @@ const state = {
   documentSubmitting:false,
   selectedFileSignature:""
 };
+window.addEventListener("resize",()=>{
+  document.querySelectorAll("[data-preview-image]").forEach(img=>{
+    fitPreviewImage(Number(img.dataset.previewImage));
+  });
+});
 const $ = id=>document.getElementById(id);
 
 const templateFieldStyle=document.createElement("style");
@@ -129,8 +134,8 @@ smartWorkflowStyle.textContent=`
   .setup-trip-head{position:sticky;top:8px;z-index:42;background:#fff;padding:8px;border-radius:9px}
   .document-preview-toolbar{position:sticky;top:8px;z-index:35;display:flex;justify-content:flex-end;gap:8px;padding:8px 0;background:#fff}
   .document-preview-page{position:relative}
-  .document-preview-stage{width:100%;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fafc;min-height:220px}
-  .document-preview-stage img{display:block;max-width:100%;width:auto;height:auto;object-fit:contain;transform-origin:center center;transition:transform .18s ease}
+  .document-preview-stage{position:relative;width:100%;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fafc;min-height:220px}
+  .document-preview-stage img{display:block;width:100%;max-width:100%;height:auto;object-fit:contain;transform-origin:center center;transition:transform .18s ease}
   .document-preview-page,.document-preview-wrap,#setupWorkflowMount{max-width:100%;min-width:0;overflow-x:hidden}
   .setup-trip-card,.setup-trip-grid,.setup-trip-field{min-width:0}
   .setup-trip-field{overflow-wrap:anywhere}
@@ -148,10 +153,58 @@ smartWorkflowStyle.textContent=`
   .template-editor-collapsed{display:none!important}
   [data-template-editor-card="1"].template-editor-collapsed{display:none!important}
   #templateFieldsToggle{width:100%;margin:8px 0!important}
+  [data-org-settings-block="1"].template-editor-collapsed{display:none!important}
+  #templateFieldsToggle[hidden]{display:none!important}
+
 
   #uploadBtn:disabled{opacity:.55!important;cursor:not-allowed!important}
+  #duplicateTemplateBtn,#duplicateBtn{display:none!important}
+  #reviewPanel .review-layout,#reviewPanel .review-grid{display:block!important}
+  #reviewPanel #reviewTable{width:100%!important;max-width:100%!important}
+  #reviewPanel .trip-document,#reviewPanel #tripDocument,#reviewPanel #reviewDocument,
+  #reviewPanel [data-review-document]{display:none!important}
 `;
 document.head.appendChild(smartWorkflowStyle);
+
+
+function removeReviewDocumentPanel(){
+  const review=$("reviewPanel");
+  if(!review) return;
+
+  const directSelectors=[
+    "#tripDocument",
+    "#reviewDocument",
+    ".trip-document",
+    "[data-review-document]"
+  ];
+
+  directSelectors.forEach(sel=>{
+    review.querySelectorAll(sel).forEach(el=>el.remove());
+  });
+
+  /*
+    Fallback for the current HTML where the panel may have no stable ID:
+    find the heading "Trip Document" and remove its containing card/column.
+  */
+  [...review.querySelectorAll("h1,h2,h3,h4,strong,.card-title")].forEach(el=>{
+    if(/^trip document$/i.test(String(el.textContent||"").trim())){
+      const card=el.closest(".card,.panel,.review-document,.review-column") || el.parentElement;
+      if(card) card.remove();
+    }
+  });
+
+  const table=$("reviewTable");
+  if(table){
+    table.style.width="100%";
+    table.style.maxWidth="100%";
+    const parent=table.parentElement;
+    if(parent){
+      parent.style.width="100%";
+      parent.style.maxWidth="100%";
+      parent.style.flex="1 1 100%";
+    }
+  }
+}
 
 function acceptedStorageKey(){
   return `ghAttachmentSetupAccepted:${state.currentImport?._id||"none"}`;
@@ -189,30 +242,46 @@ function clearSelectedPreviewUrls(){
   state.selectedPreviewUrls=[];
   state.previewRotations=[];
 }
-function rotatePreview(index,delta){
+function fitPreviewImage(index){
   const img=document.querySelector(`[data-preview-image="${index}"]`);
   if(!img) return;
+
+  const stage=img.closest(".document-preview-stage");
+  if(!stage) return;
+
+  const angle=((Number(state.previewRotations[index]||0)%360)+360)%360;
+  const sw=Math.max(1,stage.clientWidth);
+  const nw=Math.max(1,img.naturalWidth||1);
+  const nh=Math.max(1,img.naturalHeight||1);
+
+  /*
+    Base page is fitted to the available width.
+    For quarter-turn rotation, scale again by width / fitted height,
+    so the complete rotated page stays inside the same content width.
+    No horizontal scrollbar and no clipping.
+  */
+  const fittedW=sw;
+  const fittedH=sw*(nh/nw);
+
+  if(angle===90 || angle===270){
+    const scale=Math.min(1,sw/Math.max(1,fittedH));
+    img.style.width=`${fittedW}px`;
+    img.style.maxWidth="none";
+    img.style.transform=`rotate(${angle}deg) scale(${scale})`;
+    stage.style.height=`${Math.max(220,fittedW*scale)}px`;
+  }else{
+    img.style.width="100%";
+    img.style.maxWidth="100%";
+    img.style.transform=`rotate(${angle}deg)`;
+    stage.style.height="auto";
+    stage.style.minHeight="220px";
+  }
+}
+
+function rotatePreview(index,delta){
   const next=((Number(state.previewRotations[index]||0)+delta)%360+360)%360;
   state.previewRotations[index]=next;
-  const stage=img.closest(".document-preview-stage");
-  const fitRotatedImage=()=>{
-    if(!stage) return;
-    if(next===90||next===270){
-      const sw=Math.max(1,stage.clientWidth);
-      const iw=Math.max(1,img.naturalWidth||img.clientWidth);
-      const ih=Math.max(1,img.naturalHeight||img.clientHeight);
-      const baseWidth=Math.min(sw,iw);
-      const renderedHeight=baseWidth*(ih/iw);
-      const scale=Math.min(1,sw/Math.max(1,renderedHeight));
-      img.style.transform=`rotate(${next}deg) scale(${scale})`;
-      stage.style.minHeight=`${Math.max(260,baseWidth*scale)}px`;
-    }else{
-      img.style.transform=`rotate(${next}deg)`;
-      stage.style.minHeight="220px";
-    }
-  };
-  if(img.complete) fitRotatedImage();
-  else img.addEventListener("load",fitRotatedImage,{once:true});
+  fitPreviewImage(index);
 }
 function renderDocumentPreview(files=[]){
   let host=document.getElementById("documentFullPreview");
@@ -261,6 +330,13 @@ function renderDocumentPreview(files=[]){
   });
   host.querySelectorAll("[data-rotate-right]").forEach(btn=>{
     btn.addEventListener("click",()=>rotatePreview(Number(btn.dataset.rotateRight),90));
+  });
+
+  host.querySelectorAll("[data-preview-image]").forEach(img=>{
+    const index=Number(img.dataset.previewImage);
+    const fit=()=>fitPreviewImage(index);
+    if(img.complete) fit();
+    else img.addEventListener("load",fit,{once:true});
   });
 }
 function fieldDisplayPairs(row){
@@ -354,14 +430,14 @@ function normalizeOrganizationSidebar(){
   const templatesPanel=$("templatesPanel");
   if(!templatesPanel) return;
 
-  /*
-    This is an organization list, not a generic template workspace.
-    Existing template records remain the storage mechanism; only the operator UI changes.
-  */
   const heading=[...templatesPanel.querySelectorAll("h1,h2,h3,h4,strong")]
-    .find(el=>/templates?/i.test(el.textContent||""));
+    .find(el=>/templates?|insurance|broker|company/i.test(el.textContent||""));
   if(heading) heading.textContent="Insurance / Broker / Company";
 
+  /*
+    Remove Duplicate from the operator UI completely.
+    Keep Delete because it deletes the selected organization/template config.
+  */
   templatesPanel.querySelectorAll("button").forEach(btn=>{
     const label=String(btn.textContent||"").trim();
     if(/^duplicate$/i.test(label)){
@@ -371,56 +447,40 @@ function normalizeOrganizationSidebar(){
 
   const duplicate=$("duplicateTemplateBtn") || $("duplicateBtn");
   if(duplicate) duplicate.remove();
+
+  /*
+    Existing records are still backed by the template model,
+    but the visible list represents organizations.
+  */
+  templatesPanel.querySelectorAll("[data-template-id],.template-item,.template-row").forEach(item=>{
+    item.setAttribute("data-organization-item","1");
+  });
 }
 
-function installSetupWorkflowUI(){
-  const setup=$("setupPanel");
-  if(!setup || document.getElementById("setupWorkflowMount")) return;
-
-  const mount=document.createElement("div");
-  mount.id="setupWorkflowMount";
-
-  const fileInput=$("attachmentFiles");
-  const uploadBtn=$("uploadBtn");
-  const uploadCard=fileInput?.closest(".card") || fileInput?.parentElement?.parentElement;
-
-  mount.innerHTML=`
-    <div class="setup-workflow-toolbar">
-      <button type="button" class="btn btn-muted" id="templateFieldsToggle">Template Fields</button>
-    </div>
-    <div id="setupExtractedTrips" class="setup-extracted-wrap"></div>
-    <div id="documentFullPreview" class="document-preview-wrap"></div>
-  `;
-
-  if(uploadCard?.parentNode){
-    uploadCard.parentNode.insertBefore(mount,uploadCard.nextSibling);
-  }else{
-    setup.appendChild(mount);
-  }
-
+function organizationSettingsBlocks(){
+  const blocks=[];
   const fieldsEditor=$("fieldsEditor");
   const templateCard=fieldsEditor?.closest(".card") || $("templateName")?.closest(".card");
-  if(templateCard){
-    templateCard.dataset.templateEditorCard="1";
-    templateCard.classList.add("template-editor-collapsed");
-  }
+
+  organizationSettingsBlocks().forEach(block=>{
+    block.dataset.orgSettingsBlock="1";
+    block.classList.add("template-editor-collapsed");
+  });
 
   const settingsToggle=document.getElementById("templateFieldsToggle");
   const templatesPanel=$("templatesPanel");
   if(settingsToggle && templatesPanel){
     settingsToggle.textContent="Open Settings";
+    settingsToggle.hidden=!state.selected?._id;
     templatesPanel.appendChild(settingsToggle);
   }
 
-  document.getElementById("templateFieldsToggle")?.addEventListener("click",()=>{
-    if(!templateCard) return;
-    const opening=templateCard.classList.contains("template-editor-collapsed");
-    templateCard.classList.toggle("template-editor-collapsed",!opening);
-    document.getElementById("templateFieldsToggle").textContent=
-      opening ? "Close Settings" : "Open Settings";
-    if(opening){
-      templateCard.scrollIntoView({behavior:"smooth",block:"start"});
-    }
+  settingsToggle?.addEventListener("click",()=>{
+    const anyOpen=organizationSettingsBlocks().some(
+      block=>!block.classList.contains("template-editor-collapsed")
+    );
+    if(anyOpen) closeOrganizationSettings();
+    else openOrganizationSettings();
   });
 
   if(uploadBtn){
@@ -444,10 +504,17 @@ function installSetupWorkflowUI(){
   renderDocumentPreview([]);
   renderSetupExtractedTrips();
   normalizeOrganizationSidebar();
+  closeOrganizationSettings();
+  removeReviewDocumentPanel();
 
   const sidebarObserver=new MutationObserver(()=>normalizeOrganizationSidebar());
   if($("templatesPanel")){
     sidebarObserver.observe($("templatesPanel"),{childList:true,subtree:true});
+  }
+
+  if($("reviewPanel")){
+    const reviewObserver=new MutationObserver(()=>removeReviewDocumentPanel());
+    reviewObserver.observe($("reviewPanel"),{childList:true,subtree:true});
   }
 }
 
@@ -1140,6 +1207,7 @@ function shareRatingText(row){
 }
 
 function renderReview(){
+  removeReviewDocumentPanel();
   const imp=state.currentImport;
   const selectAll=$("selectAllRows");
   if(selectAll) selectAll.checked=false;
