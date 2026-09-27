@@ -1265,18 +1265,32 @@ router.get("/", requireTenantApi, async (req,res)=>{
       intentionally NOT returned by the polling endpoint. This keeps old rows
       out of every Dispatch Review refresh.
     */
-    const liveTrips =
-      await queryReviewTripsForRange(
-        req,
-        {
-          tripDate:{
-            $gte:todayKey
+    const [historicalTrips, liveTrips] =
+      await Promise.all([
+        syncHistoricalArchive(
+          req,
+          todayKey
+        ),
+        queryReviewTripsForRange(
+          req,
+          {
+            tripDate:{
+              $gte:todayKey
+            }
           }
-        }
-      );
+        )
+      ]);
 
+    /*
+      Keep ALL Dispatch Review rows visible.
+      Historical rows are served from the archive/memory cache; only the live
+      date window is queried from Trip during normal refreshes.
+    */
     const reviewTrips =
-      safeArray(liveTrips)
+      [
+        ...safeArray(historicalTrips),
+        ...safeArray(liveTrips)
+      ]
         .sort(compareReviewTrips);
 
     const payload = {

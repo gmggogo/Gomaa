@@ -2879,19 +2879,35 @@ router.get("/", requireTenantApi, async (req,res)=>{
       Historical rows stay in admin_summary_archive and are not included in
       the normal polling response. The archive has its own endpoint below.
     */
-    const todayTrips =
-      await querySummaryTripsForRange(
-        req,
-        {
-          tripDate:{
-            $gte:todayKey
-          }
-        },
-        serviceMap,
-        overrideMaps
-      );
+    const [historicalTrips, todayTrips] =
+      await Promise.all([
+        syncSummaryHistory(
+          req,
+          todayKey,
+          serviceMap,
+          overrideMaps
+        ),
+        querySummaryTripsForRange(
+          req,
+          {
+            tripDate:{
+              $gte:todayKey
+            }
+          },
+          serviceMap,
+          overrideMaps
+        )
+      ]);
 
-    const closedTrips = todayTrips;
+    /*
+      Keep ALL Summary rows visible exactly as before.
+      Historical rows come from the persistent archive/memory cache, while only
+      today/future rows are recalculated from Trip on normal refreshes.
+    */
+    const closedTrips = [
+      ...historicalTrips,
+      ...todayTrips
+    ];
 
     const facilities =
       [
@@ -2930,6 +2946,7 @@ router.get("/", requireTenantApi, async (req,res)=>{
         httpRequests:1,
         historicalArchive:true,
         liveWindow:"TODAY",
+        historicalRowsFromArchive:historicalTrips.length,
         perTripQueries:0
       }
     };
