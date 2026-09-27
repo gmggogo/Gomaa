@@ -69,7 +69,9 @@ const state = {
   services:[],
   editingRows:new Set(),
   shareRatings:new Map(),
-  sharePlan:null
+  sharePlan:null,
+  selectedFiles:[],
+  previewUrls:[]
 };
 const $ = id=>document.getElementById(id);
 
@@ -102,11 +104,94 @@ async function api(url,options={}){
 function notice(msg,ok=true){const n=$("notice");n.textContent=msg;n.className=`notice ${ok?"ok":"err"}`}
 function clearNotice(){const n=$("notice");n.className="notice";n.textContent=""}
 
+function revokePreviewUrls(){
+  (state.previewUrls||[]).forEach(url=>{
+    try{ URL.revokeObjectURL(url); }catch(_){}
+  });
+  state.previewUrls=[];
+}
+
+function previewCardForFile(file,index){
+  const url=URL.createObjectURL(file);
+  state.previewUrls.push(url);
+  const name=esc(file.name||`Page ${index+1}`);
+  const type=String(file.type||"").toLowerCase();
+  const isImage=type.startsWith("image/");
+  const isPdf=type==="application/pdf" || /\.pdf$/i.test(file.name||"");
+
+  if(isImage){
+    return `<div class="preview-card">
+      <div class="preview-card-head">${index===0?"Front / Page 1":index===1?"Back / Page 2":`Page ${index+1}`} • ${name}</div>
+      <img src="${url}" alt="${name}">
+    </div>`;
+  }
+
+  if(isPdf){
+    return `<div class="preview-card">
+      <div class="preview-card-head">${name}</div>
+      <iframe src="${url}" title="${name}"></iframe>
+    </div>`;
+  }
+
+  return `<div class="preview-card">
+    <div class="preview-card-head">${name}</div>
+    <div class="preview-file-fallback">Preview is not available for this file type.<br>${name}</div>
+  </div>`;
+}
+
+function renderSelectedDocumentPreview(){
+  const files=state.selectedFiles||[];
+  const setupWrap=$("setupDocumentPreview");
+  const setupGrid=$("setupPreviewGrid");
+  const reviewWrap=$("reviewDocumentPreview");
+  if(!setupWrap || !setupGrid || !reviewWrap) return;
+
+  revokePreviewUrls();
+
+  if(!files.length){
+    setupWrap.classList.remove("visible");
+    setupGrid.innerHTML="";
+    reviewWrap.innerHTML='<div class="meta">Select and submit a document from Import Setup to compare it here.</div>';
+    return;
+  }
+
+  const cards=files.map(previewCardForFile).join("");
+  setupGrid.innerHTML=cards;
+  setupWrap.classList.add("visible");
+
+  // Use a second set of object URLs so Review has its own independent viewer.
+  const reviewCards=files.map(previewCardForFile).join("");
+  reviewWrap.innerHTML=`<div class="preview-grid">${reviewCards}</div>`;
+}
+
+function updateIdentityHeading(){
+  const org=clean(state.selected?.organizationName);
+  const name=clean(state.selected?.name);
+  const heading=$("identityHeading");
+  if(heading) heading.textContent=org || name || "Template Identity";
+}
+
+function toggleIdentity(forceOpen=null){
+  const section=$("identitySection");
+  const btn=$("identityToggleBtn");
+  if(!section || !btn) return;
+  const open=forceOpen===null ? section.classList.contains("collapsed") : Boolean(forceOpen);
+  section.classList.toggle("collapsed",!open);
+  btn.textContent=open ? "Close Identity" : "Open Identity";
+}
+
+$("identityToggleBtn")?.addEventListener("click",()=>toggleIdentity());
+$("attachmentFiles")?.addEventListener("change",()=>{
+  state.selectedFiles=[...$("attachmentFiles").files];
+  renderSelectedDocumentPreview();
+});
+
 function setTab(name){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   $("setupPanel").classList.toggle("active",name==="setup");
   $("reviewPanel").classList.toggle("active",name==="review");
   $("aiLayout")?.classList.toggle("review-mode",name==="review");
+  if(name==="review") renderSelectedDocumentPreview();
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 
@@ -447,15 +532,35 @@ function templatePayload(){return {
   signaturePosition:{page:Number($("sigPage").value||1),xPercent:Number($("sigX").value||62),yPercent:Number($("sigY").value||78),widthPercent:Number($("sigW").value||28),heightPercent:Number($("sigH").value||12)}
 }}
 function renderTemplateList(){
-  $("templateList").innerHTML=state.templates.map(t=>`<button class="template-btn ${state.selected?._id===t._id?"active":""}" onclick="selectTemplate('${t._id}')">${esc(t.name)}<div style="font-size:11px;font-weight:600;opacity:.8">${esc(t.organizationName||t.organizationType)}</div></button>`).join("") || `<div class="meta">No templates yet.</div>`;
+  const grouped=new Map();
+
+  state.templates.forEach(t=>{
+    const org=clean(t.organizationName) || clean(t.name) || clean(t.organizationType) || "Organization";
+    const key=org.toLowerCase();
+    if(!grouped.has(key)) grouped.set(key,{org,templates:[]});
+    grouped.get(key).templates.push(t);
+  });
+
+  $("templateList").innerHTML=[...grouped.values()].map(group=>{
+    const selectedInGroup=group.templates.some(t=>state.selected?._id===t._id);
+    const primary=group.templates.find(t=>state.selected?._id===t._id) || group.templates[0];
+
+    return `<button class="template-btn ${selectedInGroup?"active":""}" onclick="selectTemplate('${primary._id}')">
+      <strong>${esc(group.org)}</strong>
+      <div style="font-size:11px;font-weight:600;opacity:.8">
+        ${group.templates.length===1 ? esc(primary.name) : `${group.templates.length} template(s)`}
+      </div>
+    </button>`;
+  }).join("") || `<div class="meta">No organizations yet.</div>`;
 }
-window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList()}
+window.selectTemplate=id=>{state.selected=state.templates.find(t=>t._id===id)||null;fillTemplateForm();renderTemplateList();toggleIdentity(false)}
 async function loadTemplates(){
   const data=await api("/api/attachment-templates");state.templates=data.templates||[];
   if(!state.selected&&state.templates.length)state.selected=state.templates[0];
   renderTemplateList();if(state.selected)fillTemplateForm();
+  updateIdentityHeading();
 }
-$("newTemplateBtn").onclick=()=>newTemplate();
+$("newTemplateBtn").onclick=()=>{newTemplate();toggleIdentity(true)};
 $("duplicateTemplateBtn").onclick=()=>{if(!state.selected)return;const c=JSON.parse(JSON.stringify(state.selected));c._id=null;c.name=`${c.name} Copy`;state.selected=c;fillTemplateForm();renderTemplateList()}
 $("deleteTemplateBtn").onclick=async()=>{if(!state.selected?._id)return;if(!confirm("Delete this template?"))return;try{await api(`/api/attachment-templates/${state.selected._id}`,{method:"DELETE"});state.selected=null;await loadTemplates();notice("Template deleted") }catch(e){notice(e.message,false)}};
 $("saveTemplateBtn").onclick=async()=>{
@@ -495,6 +600,8 @@ $("saveTemplateBtn").onclick=async()=>{
     state.selected=state.templates.find(t=>t._id===data.template._id)||data.template;
     fillTemplateForm();
     renderTemplateList();
+    updateIdentityHeading();
+    toggleIdentity(false);
     notice("Template saved");
   }catch(e){
     notice(e.message,false);
@@ -506,7 +613,8 @@ $("uploadBtn").onclick=async()=>{
     clearNotice();
     if(!state.selected?._id) throw new Error("Save and select a template first");
 
-    const files=[...$("attachmentFiles").files];
+    const files=state.selectedFiles.length ? state.selectedFiles : [...$("attachmentFiles").files];
+    state.selectedFiles=files;
     if(!files.length) throw new Error("Select at least one file");
 
     const fd=new FormData();
@@ -527,6 +635,7 @@ $("uploadBtn").onclick=async()=>{
     state.shareRatings.clear();
     state.sharePlan=null;
 
+    renderSelectedDocumentPreview();
     setTab("review");
     renderReview();
 
@@ -761,6 +870,7 @@ function renderReview(){
   ensureReviewActionButtons();
   injectReviewLockStyles();
   renderDraftPicker();
+  if(state.selectedFiles?.length) renderSelectedDocumentPreview();
 
   if(!imp){
     $("reviewMeta").innerHTML="";

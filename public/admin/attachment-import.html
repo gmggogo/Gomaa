@@ -6,6 +6,48 @@
 <title>Smart Trip Import</title>
 <link rel="stylesheet" href="/admin/style.css">
 <link rel="stylesheet" href="/admin/attachment-import.css">
+<style>
+  .workflow-tabs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  .workflow-tabs .tab{min-height:64px;border:0;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 5px 16px rgba(15,23,42,.10);transition:.18s}
+  .workflow-tabs .tab[data-tab="setup"]{background:#e8f1ff;color:#174ea6}
+  .workflow-tabs .tab[data-tab="review"]{background:#ecfdf3;color:#087443}
+  .workflow-tabs .tab[data-tab="setup"].active{background:#1f5fbf;color:#fff;transform:translateY(-1px)}
+  .workflow-tabs .tab[data-tab="review"].active{background:#13945b;color:#fff;transform:translateY(-1px)}
+  .ai-layout{align-items:start}
+  .ai-sidebar{position:sticky;top:12px}
+  .org-sidebar-title{margin-bottom:4px}
+  .org-sidebar-help{margin-bottom:12px}
+  .template-list{display:flex;flex-direction:column;gap:8px}
+  .template-btn{text-align:left}
+  .identity-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .identity-toggle-row h3{margin:0}
+  .identity-section.collapsed .identity-body{display:none}
+  .identity-section.collapsed{padding-bottom:12px}
+  .document-preview-strip{display:none;margin-top:14px}
+  .document-preview-strip.visible{display:block}
+  .preview-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+  .preview-card{border:1px solid #d7e0ea;border-radius:12px;background:#fff;overflow:hidden}
+  .preview-card-head{padding:8px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:800}
+  .preview-card img{display:block;width:100%;height:310px;object-fit:contain;background:#f8fafc}
+  .preview-card iframe{display:block;width:100%;height:310px;border:0;background:#f8fafc}
+  .preview-file-fallback{min-height:150px;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;color:#475569}
+  .review-workspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.75fr);gap:14px;align-items:start}
+  .review-data-pane{min-width:0;position:sticky;top:10px;max-height:calc(100vh - 34px);overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+  .review-document-pane{min-width:0;border:1px solid #dbe4ee;border-radius:12px;background:#f8fafc;overflow:hidden}
+  .review-document-head{padding:10px 12px;background:#eef4ff;border-bottom:1px solid #dbe4ee;font-weight:800}
+  .review-document-scroll{height:calc(100vh - 190px);min-height:520px;overflow:auto;padding:10px}
+  .review-document-scroll .preview-grid{grid-template-columns:1fr}
+  .review-document-scroll .preview-card img,.review-document-scroll .preview-card iframe{height:auto;min-height:520px;max-height:none;object-fit:contain}
+  .review-document-scroll .preview-card iframe{height:760px}
+  .review-toolbar,.review-meta,#savedDraftPicker{margin-left:10px;margin-right:10px}
+  .review-wrap{overflow:auto}
+  @media(max-width:1050px){
+    .review-workspace{grid-template-columns:1fr}
+    .review-data-pane{position:relative;top:auto;max-height:none}
+    .review-document-scroll{height:560px}
+  }
+</style>
 </head>
 <body>
 <main class="ai-page">
@@ -14,24 +56,26 @@
     <button class="btn btn-muted" type="button" onclick="location.href='/admin/trips-hub.html'">Back to Trips Hub</button>
   </header>
 
+  <div class="workflow-tabs">
+    <button class="tab active" data-tab="setup">Import Setup</button>
+    <button class="tab" data-tab="review">Import Review</button>
+  </div>
+
+  <div id="notice" class="notice"></div>
+
   <div class="ai-layout" id="aiLayout">
     <aside class="ai-sidebar" id="templateSidebar">
-      <h3>Templates</h3>
+      <h3 class="org-sidebar-title">Insurance / Broker / Company</h3>
+      <div class="meta org-sidebar-help">Choose an organization to open its import setup.</div>
       <div id="templateList" class="template-list"></div>
       <div class="side-actions">
-        <button class="btn btn-primary" id="newTemplateBtn">+ Add Template</button>
+        <button class="btn btn-primary" id="newTemplateBtn">+ Add Organization</button>
         <button class="btn btn-muted" id="duplicateTemplateBtn">Duplicate</button>
         <button class="btn btn-red" id="deleteTemplateBtn">Delete</button>
       </div>
     </aside>
 
     <section class="ai-main">
-      <div class="tabs">
-        <button class="tab active" data-tab="setup">Import Setup</button>
-        <button class="tab" data-tab="review">Import Review</button>
-      </div>
-      <div id="notice" class="notice"></div>
-
       <div id="setupPanel" class="panel active">
         <div class="section source-section">
           <div class="source-head">
@@ -45,29 +89,42 @@
           <div class="upload-zone primary-upload-zone">
             <div class="upload-title">Choose the reservation document</div>
             <div class="meta upload-help">
-              For Front + Back paper, select both images in one upload: Front first, then Back.
-              Both sides remain one document.
+              For Front + Back paper, select both images together: Front first, then Back.
+              Both sides stay one document.
             </div>
             <input id="attachmentFiles" type="file" multiple accept=".csv,.xls,.xlsx,.pdf,image/*">
             <div class="upload-actions">
-              <button class="btn btn-primary" id="uploadBtn" type="button">Upload &amp; Extract</button>
+              <button class="btn btn-primary" id="uploadBtn" type="button">Submit Document</button>
               <button class="btn btn-muted" type="button" disabled title="Scanner integration will use the same import flow">Scanner - Next Phase</button>
             </div>
           </div>
+
+          <div id="setupDocumentPreview" class="document-preview-strip">
+            <div class="preview-heading">
+              <strong>Document Preview</strong>
+              <span class="meta">Check the page(s) before Submit.</span>
+            </div>
+            <div id="setupPreviewGrid" class="preview-grid"></div>
+          </div>
         </div>
 
-        <div class="section">
-          <h3>Template Identity</h3>
-          <div class="grid">
-            <div class="field"><label>Template Name</label><input id="templateName"></div>
-            <div class="field"><label>Organization Type</label><select id="organizationType"><option>INSURANCE</option><option>BROKER</option><option>COMPANY</option><option>OTHER</option></select></div>
-            <div class="field full"><label>Insurance / Broker / Company Name</label><input id="organizationName"></div>
+        <div class="section identity-section collapsed" id="identitySection">
+          <div class="identity-toggle-row">
+            <h3 id="identityHeading">Template Identity</h3>
+            <button class="btn btn-muted" id="identityToggleBtn" type="button">Open Identity</button>
+          </div>
+          <div class="identity-body">
+            <div class="grid">
+              <div class="field"><label>Template Name</label><input id="templateName"></div>
+              <div class="field"><label>Organization Type</label><select id="organizationType"><option>INSURANCE</option><option>BROKER</option><option>COMPANY</option><option>OTHER</option></select></div>
+              <div class="field full"><label>Insurance / Broker / Company Name</label><input id="organizationName"></div>
+            </div>
           </div>
         </div>
 
         <div class="section">
           <h3>Match Document Fields</h3>
-          <div class="meta field-map-help">Write the field name as it appears on the document, choose the matching GH Mobility field, and decide whether it appears in Review.</div>
+          <div class="meta field-map-help">Write only the field names that appear on this organization's document.</div>
           <div id="fieldsEditor"></div>
           <button class="btn btn-muted" id="addFieldBtn" type="button">+ Add Field</button>
         </div>
@@ -87,13 +144,23 @@
       </div>
 
       <div id="reviewPanel" class="panel">
-        <div class="review-toolbar">
-          <label class="select-all-control"><input id="selectAllRows" type="checkbox"> <span>Select All</span></label>
-          <button class="btn btn-muted" id="saveReviewBtn">Save Review</button>
-          <button class="btn btn-green" id="submitSelectedBtn">Submit Selected</button>
+        <div class="review-workspace">
+          <div class="review-data-pane">
+            <div class="review-toolbar">
+              <label class="select-all-control"><input id="selectAllRows" type="checkbox"> <span>Select All</span></label>
+              <button class="btn btn-muted" id="saveReviewBtn">Save Review</button>
+              <button class="btn btn-green" id="submitSelectedBtn">Submit Selected</button>
+            </div>
+            <div id="reviewMeta" class="review-meta"></div>
+            <div id="reviewTable" class="review-wrap"></div>
+          </div>
+          <aside class="review-document-pane">
+            <div class="review-document-head">Trip Document</div>
+            <div id="reviewDocumentPreview" class="review-document-scroll">
+              <div class="meta">Select and submit a document from Import Setup to compare it here.</div>
+            </div>
+          </aside>
         </div>
-        <div id="reviewMeta" class="review-meta"></div>
-        <div id="reviewTable" class="review-wrap"></div>
       </div>
     </section>
   </div>
