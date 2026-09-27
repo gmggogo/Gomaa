@@ -107,6 +107,7 @@ function normalizeStops(value){
     .filter(Boolean);
 }
 
+
 function validateRow(row,template,enabledServices){
   const errors = [];
   for(const field of template?.fields || []){
@@ -118,29 +119,24 @@ function validateRow(row,template,enabledServices){
     errors.push("Service must be selected from enabled services");
   }
 
-  // Trips Hub initial loading is date-based. Never confirm an imported trip
-  // without a valid YYYY-MM-DD tripDate, otherwise the Trip can exist in
-  // MongoDB but be excluded from the Trips Hub initial window.
-  const tripDate = first(
+  // Accept the date exactly as users normally see/type it in Import Review
+  // (for example 10/01/2026) and normalize it before the Trip is created.
+  // Trips Hub still receives the canonical YYYY-MM-DD value it needs.
+  const rawTripDate = first(
     row.data || {},
     "tripDate",
     "date",
     "pickupDate",
     "serviceDate"
   );
+  const tripDate = normalizeTripDate(rawTripDate);
 
-  if(!tripDate){
+  if(!rawTripDate){
     errors.push("Trip Date is required");
-  }else if(!/^\d{4}-\d{2}-\d{2}$/.test(tripDate)){
-    errors.push("Trip Date must use YYYY-MM-DD format");
+  }else if(!tripDate){
   }else{
-    const parsed = new Date(`${tripDate}T12:00:00Z`);
-    if(
-      Number.isNaN(parsed.getTime()) ||
-      parsed.toISOString().slice(0,10) !== tripDate
-    ){
-      errors.push("Trip Date is invalid");
-    }
+    row.data = row.data || {};
+    row.data.tripDate = tripDate;
   }
 
   return errors;
@@ -239,13 +235,43 @@ async function allocateDailyEntryNumbers(tenantId,count){
   };
 }
 
+
+function normalizeTripDateForTrip(value){
+  const raw = clean(value);
+  if(!raw) return "";
+
+  // Already in the format used by Trips Hub.
+  let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m){
+    const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+    const dt = new Date(Date.UTC(y,mo-1,d));
+    if(dt.getUTCFullYear()===y && dt.getUTCMonth()===mo-1 && dt.getUTCDate()===d){
+      return `${String(y).padStart(4,"0")}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
+  }
+
+  // Import Review / US documents: M/D/YYYY or MM/DD/YYYY.
+  m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){
+    const mo = Number(m[1]), d = Number(m[2]), y = Number(m[3]);
+    const dt = new Date(Date.UTC(y,mo-1,d));
+    if(dt.getUTCFullYear()===y && dt.getUTCMonth()===mo-1 && dt.getUTCDate()===d){
+      return `${String(y).padStart(4,"0")}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
+  }
+
+  // Do not block editing/saving. If the source uses another format,
+  // preserve it so the admin can correct it in Import Review.
+  return raw;
+}
+
 function tripPayloadFromRow({row,service,importDoc,tenant}){
   const data = row.data || {};
   const customerName = first(data,"clientName","customerName","patientName","memberName","name");
   const phone = first(data,"clientPhone","phone","memberPhone","customerPhone");
   const pickup = first(data,"pickup","pickupAddress","origin","from");
   const dropoff = first(data,"dropoff","dropoffAddress","destination","to");
-  const tripDate = first(data,"tripDate","date","pickupDate","serviceDate");
+  const tripDate = normalizeTripDate(first(data,"tripDate","date","pickupDate","serviceDate"));
   const tripTime = first(data,"tripTime","pickupTime","time");
 
   return {
@@ -269,7 +295,7 @@ function tripPayloadFromRow({row,service,importDoc,tenant}){
     dropoffLat:Number.isFinite(Number(data.dropoffLat)) ? Number(data.dropoffLat) : null,
     dropoffLng:Number.isFinite(Number(data.dropoffLng)) ? Number(data.dropoffLng) : null,
     stopCoords:Array.isArray(data.stopCoords) ? data.stopCoords : [],
-    tripDate,
+    tripDate:normalizeTripDateForTrip(tripDate),
     tripTime,
     notes:first(data,"notes","note","comments"),
     brokerNotes:first(data,"brokerNotes"),
