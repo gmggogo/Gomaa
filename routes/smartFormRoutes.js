@@ -14,6 +14,7 @@ const converter=require("../services/smartFormConverterService");
 const generator=require("../services/smartFormGeneratorService");
 const builder=require("../services/smartFormBuilderService");
 const mapping=require("../services/smartFormMappingService");
+const reconstruction=require("../services/smartFormReconstructionService");
 
 const router=express.Router();
 const JWT_SECRET=process.env.JWT_SECRET||"dev_secret";
@@ -234,6 +235,23 @@ router.get("/templates/:id/source",async(req,res)=>{
   return res.type(t.sourceFile.mimeType||"application/octet-stream").send(t.sourceFile.data);
 });
 
+router.get("/templates/:id/reconstructed",async(req,res)=>{
+  try{
+    const q={_id:req.params.id,tenantId:req.smartTenant._id,archived:{$ne:true}};
+    if(req.query.organizationId)q.organizationId=clean(req.query.organizationId);
+    const t=await SmartFormTemplate.findOne(q).lean();
+    if(!t)return res.status(404).json({success:false,message:"Template not found"});
+    const html=reconstruction.buildHtml(t);
+    res.set("Cache-Control","no-store");
+    res.set("X-Smart-Form-Layout-Elements",String((t.layoutElements||[]).length));
+    res.set("X-Smart-Form-Fields",String((t.fields||[]).length));
+    return res.type("text/html").send(html);
+  }catch(err){
+    console.error("SMART FORM RECONSTRUCTED PREVIEW ERROR",err);
+    return res.status(500).json({success:false,message:err.message});
+  }
+});
+
 router.get("/templates/:id/editable",async(req,res)=>{
   try{
     const q={_id:req.params.id,tenantId:req.smartTenant._id,archived:{$ne:true}};
@@ -260,9 +278,19 @@ router.post("/templates/analyze",upload.single("file"),async(req,res)=>{
     if(!organizationId||!organizationName){
       return res.status(400).json({success:false,message:"Organization is required"});
     }
+
     const analysis=await analyzer.analyzeBlankForm(req.file);
-    const mapped=mapping.applyAutoMappings(analysis.fields);
-    await converter.buildEditablePdf(req.file,mapped);
+    const mapped=mapping.applyAutoMappings(Array.isArray(analysis.fields)?analysis.fields:[]);
+    const layoutElements=Array.isArray(analysis.layoutElements)?analysis.layoutElements:[];
+    const pageSizes=Array.isArray(analysis.pageSizes)?analysis.pageSizes:[];
+
+    if(!layoutElements.length){
+      return res.status(422).json({
+        success:false,
+        message:"The form fields were detected, but the page layout was not reconstructed. Please retry the upload."
+      });
+    }
+
     const doc=await SmartFormTemplate.create({
       tenantId:req.smartTenant._id,
       organizationId,
@@ -278,24 +306,82 @@ router.post("/templates/analyze",upload.single("file"),async(req,res)=>{
         data:req.file.buffer
       },
       pageCount:analysis.pageCount,
-      sections:analysis.sections,
+      pageSizes,
+      sections:Array.isArray(analysis.sections)?analysis.sections:[],
+      layoutElements,
       fields:mapped,
       analysisProvider:analysis.analysisProvider,
       analyzedAt:new Date(),
       createdBy:req.authUser.name,
       updatedBy:req.authUser.name
     });
+
     const out=doc.toObject();
     if(out.sourceFile)delete out.sourceFile.data;
-    return res.status(201).json({success:true,template:out,editableReady:true});
+
+    return res.status(201).json({
+      success:true,
+      template:out,
+      reconstructedReady:true,
+      layoutElementCount:layoutElements.length,
+      fieldCount:mapped.length
+    });
   }catch(err){
     console.error("SMART FORM ANALYZE ERROR",err);
-    return res.status(err?.code===11000?409:err?.code==="SMART_FORM_UNSUPPORTED_SOURCE"?415:500).json({
+    return res.status(err?.code===11000?409:500).json({
       success:false,
       message:err?.code===11000
         ?"A form template already exists with this name for this organization"
         :err.message
     });
+  }
+});
+
+router.post("/templates/:id/rebuild",async(req,res)=>{
+  try{
+    const q={_id:req.params.id,tenantId:req.smartTenant._id,archived:{$ne:true}};
+    if(req.body.organizationId||req.query.organizationId){
+      q.organizationId=clean(req.body.organizationId||req.query.organizationId);
+    }
+    const t=await SmartFormTemplate.findOne(q);
+    if(!t)return res.status(404).json({success:false,message:"Template not found"});
+    if(!t.sourceFile?.data)return res.status(404).json({success:false,message:"Original uploaded form is not stored for this template"});
+
+    const file={
+      originalname:t.sourceFile.originalName||"form",
+      mimetype:t.sourceFile.mimeType||"application/octet-stream",
+      size:t.sourceFile.size||t.sourceFile.data.length,
+      buffer:t.sourceFile.data
+    };
+
+    const analysis=await analyzer.analyzeBlankForm(file);
+    const layoutElements=Array.isArray(analysis.layoutElements)?analysis.layoutElements:[];
+    if(!layoutElements.length){
+      return res.status(422).json({success:false,message:"Layout reconstruction returned no visible elements. Please retry."});
+    }
+
+    t.pageCount=analysis.pageCount;
+    t.pageSizes=Array.isArray(analysis.pageSizes)?analysis.pageSizes:[];
+    t.sections=Array.isArray(analysis.sections)?analysis.sections:[];
+    t.layoutElements=layoutElements;
+    t.fields=mapping.applyAutoMappings(Array.isArray(analysis.fields)?analysis.fields:[]);
+    t.analysisProvider=analysis.analysisProvider;
+    t.analyzedAt=new Date();
+    t.updatedBy=req.authUser.name;
+    await t.save();
+
+    const out=t.toObject();
+    if(out.sourceFile)delete out.sourceFile.data;
+    return res.json({
+      success:true,
+      template:out,
+      reconstructedReady:true,
+      layoutElementCount:t.layoutElements.length,
+      fieldCount:t.fields.length
+    });
+  }catch(err){
+    console.error("SMART FORM REBUILD ERROR",err);
+    return res.status(500).json({success:false,message:err.message});
   }
 });
 
@@ -309,6 +395,8 @@ router.put("/templates/:id",async(req,res)=>{
     }
     if(Array.isArray(req.body.fields))t.fields=req.body.fields;
     if(Array.isArray(req.body.sections))t.sections=req.body.sections;
+    if(Array.isArray(req.body.pageSizes))t.pageSizes=req.body.pageSizes;
+    if(Array.isArray(req.body.layoutElements))t.layoutElements=req.body.layoutElements;
     t.updatedBy=req.authUser.name;
     await t.save();
     const out=t.toObject();

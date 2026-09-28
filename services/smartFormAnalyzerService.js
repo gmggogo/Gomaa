@@ -103,7 +103,7 @@ Allowed layout element types: TEXT, LINE, RECT, CHECKBOX, CIRCLE, IMAGE_PLACEHOL
 Allowed fieldType: TEXT, PHONE, DATE, TIME, NUMBER, ADDRESS, CHECKBOX, SIGNATURE, OTHER.
 Do not invent data. Rebuild only what is visibly present.`;
 
-  const body={contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:mime(file),data:file.buffer.toString("base64")}}]}],generationConfig:{temperature:0,responseMimeType:"application/json"}};
+  const body={contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:mime(file),data:file.buffer.toString("base64")}}]}],generationConfig:{temperature:0,responseMimeType:"application/json",maxOutputTokens:65536}};
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   async function requestAnalysis(requestBody){
@@ -123,8 +123,12 @@ Do not invent data. Rebuild only what is visibly present.`;
     parsed=parseJson(responseText(p));
   }
 
-  const fields=(Array.isArray(parsed.fields)?parsed.fields:[]).map(normalizeField);
-  const layoutElements=(Array.isArray(parsed.layoutElements)?parsed.layoutElements:[]).map(normalizeElement);
+  const fields=(Array.isArray(parsed.fields)?parsed.fields:[]).map(normalizeField)
+    .filter(f=>f.bbox.width>0&&f.bbox.height>0)
+    .sort((a,b)=>(a.page-b.page)||(a.layoutOrder-b.layoutOrder)||(a.bbox.y-b.bbox.y)||(a.bbox.x-b.bbox.x));
+  const layoutElements=(Array.isArray(parsed.layoutElements)?parsed.layoutElements:[]).map(normalizeElement)
+    .filter(e=>e.bbox.width>0&&(e.type==="LINE"||e.bbox.height>0))
+    .sort((a,b)=>(a.page-b.page)||(a.bbox.y-b.bbox.y)||(a.bbox.x-b.bbox.x));
   if(!fields.length && !layoutElements.length)throw new Error("No form layout was detected");
 
   const pageCount=Math.max(1,Number(parsed.pageCount)||1);
