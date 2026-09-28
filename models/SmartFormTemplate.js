@@ -4,7 +4,7 @@ const fieldSchema = new mongoose.Schema({
   fieldId:{type:String,required:true,trim:true}, label:{type:String,default:"",trim:true}, semanticKey:{type:String,default:"",trim:true},
   fieldType:{type:String,enum:["TEXT","PHONE","DATE","TIME","NUMBER","ADDRESS","CHECKBOX","SIGNATURE","OTHER"],default:"TEXT"},
   page:{type:Number,default:1,min:1}, sectionId:{type:String,default:"",trim:true}, sectionLabel:{type:String,default:"",trim:true},
-  occurrenceIndex:{type:Number,default:1,min:1}, bbox:{x:{type:Number,default:0},y:{type:Number,default:0},width:{type:Number,default:0},height:{type:Number,default:0}},
+  occurrenceIndex:{type:Number,default:1,min:1}, layoutOrder:{type:Number,default:0,min:0}, bbox:{x:{type:Number,default:0},y:{type:Number,default:0},width:{type:Number,default:0},height:{type:Number,default:0}},
   enabled:{type:Boolean,default:true}, sourceScope:{type:String,enum:["GLOBAL","CLIENT","TRIP","DRIVER","VEHICLE","SIGNATURE","MANUAL"],default:"MANUAL"},
   sourcePath:{type:String,default:"",trim:true}, repeatGroupId:{type:String,default:"",trim:true},
   repeatMode:{type:String,enum:["NONE","SAME_VALUE","PER_SLOT","ALL_PAGES"],default:"NONE"}, required:{type:Boolean,default:false}, manualAllowed:{type:Boolean,default:true}
