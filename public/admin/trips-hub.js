@@ -90,6 +90,25 @@ function openAttachmentSummaryPage(event){
   window.location.href = "/admin/attachment-summary.html";
 }
 
+function openSmartFormsPage(event){
+  event?.preventDefault?.();
+  syncLegacyAdminAuth();
+  window.location.href = "/admin/smart-forms.html";
+}
+
+async function loadSmartFormsButton(){
+  try{
+    const res=await fetch("/api/smart-forms/feature",{cache:"no-store",headers:{Authorization:`Bearer ${token}`}});
+    const data=await res.json().catch(()=>({}));
+    const wrap=document.getElementById("topAddTripWrap"); if(!wrap)return;
+    let btn=document.getElementById("smartFormsBtn");
+    if(res.ok&&data.enabled===true){
+      if(!btn){btn=document.createElement("button");btn.id="smartFormsBtn";btn.className="top-add-trip-btn";btn.type="button";btn.textContent="Smart Forms";btn.style.marginLeft="10px";btn.addEventListener("click",openSmartFormsPage);wrap.appendChild(btn);}
+      btn.style.display="inline-flex";
+    }else btn?.remove();
+  }catch(_){document.getElementById("smartFormsBtn")?.remove();}
+}
+
 async function loadAttachmentImportButton(){
   try{
     const res = await fetch(
@@ -3332,6 +3351,7 @@ async function refreshTripsOnly(){
 
 (async function initHub(){
   await loadAttachmentImportButton();
+  await loadSmartFormsButton();
   await loadServices();
   await loadHubTrips();
   updateStickyOffsets();
