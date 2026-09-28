@@ -5,16 +5,8 @@ async function api(url,opt={}){let last;for(const token of tokens()){const r=awa
 const state={templates:[],selected:null,services:[],reviewDocs:[],openSlots:1,selectedOrgIds:new Set()}; let previewUrl="";
 function msg(t,bad=false){$("message").innerHTML=t?`<div class="msg" style="${bad?'background:#fee2e2;color:#991b1b':''}">${esc(t)}</div>`:"";}
 function oid(name){return clean(name).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-"+Date.now().toString(36);}
-function slotOf(f){
- const label=clean(f?.label),section=`${f?.sectionId||""} ${f?.sectionLabel||""}`;
- const lm=label.match(/\b([1-9]\d*)\s*(?:st|nd|rd|th)?\s*(?:pick[\s-]*up|drop[\s-]*off)\b/i);
- if(lm)return Number(lm[1]);
- const tripLike=/pick[\s-]*up|drop[\s-]*off|odometer|trip miles|type of trip|reason for visit|escort|relationship|multiple stops|one way/i.test(label);
- if(!tripLike)return null;
- const sm=section.match(/\btrip\s*([1-9]\d*)\b/i);
- return sm?Number(sm[1]):null;
-}
-function physicalOrder(a,b){const ap=Number(a.page)||1,bp=Number(b.page)||1;if(ap!==bp)return ap-bp;const ay=Number(a?.bbox?.y)||0,by=Number(b?.bbox?.y)||0;if(Math.abs(ay-by)>0.012)return ay-by;const ax=Number(a?.bbox?.x)||0,bx=Number(b?.bbox?.x)||0;if(Math.abs(ax-bx)>0.02)return ax-bx;const ao=Number(a.layoutOrder),bo=Number(b.layoutOrder);if(Number.isFinite(ao)&&Number.isFinite(bo)&&ao!==bo)return ao-bo;return (Number(a.occurrenceIndex)||1)-(Number(b.occurrenceIndex)||1);}
+function slotOf(f){const label=clean(f?.label),section=`${f?.sectionId||""} ${f?.sectionLabel||""}`;const explicit=label.match(/\b([1-9]\d*)\s*(?:st|nd|rd|th)?\s*(?:pick[\s-]*up|drop[\s-]*off)\b/i);if(explicit)return Number(explicit[1]);const tripSpecific=/pick[\s-]*up|drop[\s-]*off|odometer|trip miles|type of trip|reason for visit|name of escort|relationship|one way|multiple stops/i.test(label);if(!tripSpecific)return null;const sm=section.match(/\btrip\s*([1-9]\d*)\b/i);return sm?Number(sm[1]):null;}
+function physicalOrder(a,b){const ap=Number(a.page)||1,bp=Number(b.page)||1;if(ap!==bp)return ap-bp;const ao=Number(a.layoutOrder),bo=Number(b.layoutOrder);if(Number.isFinite(ao)&&Number.isFinite(bo)&&ao!==bo)return ao-bo;const ay=Number(a?.bbox?.y)||0,by=Number(b?.bbox?.y)||0;if(Math.abs(ay-by)>0.008)return ay-by;const ax=Number(a?.bbox?.x)||0,bx=Number(b?.bbox?.x)||0;if(ax!==bx)return ax-bx;return (Number(a.occurrenceIndex)||1)-(Number(b.occurrenceIndex)||1);}
 function orderedFields(list){return [...(list||[])].sort(physicalOrder);}
 function maxSlots(){const n=(state.selected?.fields||[]).map(slotOf).filter(Boolean);return Math.max(1,...n);}
 function selectedFields(){return (state.selected?.fields||[]).filter(f=>f.enabled);}
@@ -35,51 +27,9 @@ async function loadTemplates(){const d=await api('/api/smart-forms/templates');s
 async function loadServices(){const d=await api('/api/smart-forms/services');state.services=d.services||[];}
 async function analyze(){const name=clean($('orgName').value),file=$('blankFile').files[0];if(!name||!file)return msg('Organization name and blank form are required',true);const fd=new FormData();fd.append('organizationId',$('newOrgCard').dataset.existingOrg||oid(name));fd.append('organizationName',name);fd.append('organizationType',$('orgType').value);fd.append('name',clean($('templateName').value)||name);fd.append('file',file);const b=$('analyzeBtn');b.disabled=true;b.textContent='Analyzing...';try{const d=await api('/api/smart-forms/templates/analyze',{method:'POST',body:fd});await loadTemplates();selectOrg(d.template.organizationId);state.selected=state.templates.find(t=>t._id===d.template._id)||d.template;renderFields();loadPreview();$('settingsCard').classList.remove('hidden');msg(`Detected ${d.template.fields?.length||0} physical fields. Choose the fields and save settings.`);}catch(e){msg(e.message,true);}finally{b.disabled=false;b.textContent='Analyze Blank Form & Save';}}
 async function saveSettings(){const btn=$('saveSettingsBtn');const fields=(state.selected.fields||[]).map(f=>{const row=document.querySelector(`.field-row[data-id="${CSS.escape(f.fieldId)}"]`);return row?{...f,enabled:row.querySelector('.en').checked,sourceScope:row.querySelector('.scope').value,sourcePath:clean(row.querySelector('.path').value),repeatMode:row.querySelector('.repeat').value}:f;});btn.disabled=true;btn.textContent='Saving...';try{const d=await api(`/api/smart-forms/templates/${state.selected._id}`,{method:'PUT',body:JSON.stringify({organizationId:state.selected.organizationId,fields})});state.selected=d.template;const i=state.templates.findIndex(x=>x._id===state.selected._id);if(i>=0)state.templates[i]=state.selected;renderFields();await loadServices();openEntry();msg('Settings saved. Data Entry Sheet is ready. AI was not rerun.');}catch(e){msg(e.message,true);}finally{btn.disabled=false;btn.textContent='Save Settings & Open Data Entry';}}
-function fieldInput(f,slot){
- const can=canonical(f);const req=slot&&['pickup','dropoff','tripDate','tripTime'].includes(can);
- const box=f?.bbox||{},x=Math.max(0,Math.min(1,Number(box.x)||0)),w=Math.max(.12,Math.min(1-x,Number(box.width)||.35));
- const style=`--sf-x:${(x*100).toFixed(2)}%;--sf-w:${(w*100).toFixed(2)}%`;
- if(f.fieldType==='CHECKBOX')return `<div class="entry-field checkbox-entry sf-physical" style="${style}" data-x="${x}"><label><input class="sfVal" data-field="${esc(f.fieldId)}" data-slot="${slot||0}" data-canonical="${can}" type="checkbox"> ${esc(f.label)}</label></div>`;
- let type='text';if(can==='tripDate'||f.fieldType==='DATE')type='date';else if(can==='tripTime'||f.fieldType==='TIME')type='time';else if(f.fieldType==='PHONE')type='tel';
- return `<div class="entry-field sf-physical" style="${style}" data-x="${x}"><label class="${req?'required':''}">${esc(f.label)}</label><input class="form-input sfVal" data-field="${esc(f.fieldId)}" data-slot="${slot||0}" data-canonical="${can}" type="${type}" ${req?'required':''}></div>`;
-}
-function serviceInput(slot){return `<div class="entry-field sf-service"><label class="required">Service</label><select class="form-input servicePick" data-slot="${slot}" required><option value="">Select Service</option>${state.services.map(s=>`<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('')}</select></div>`;}
-function ensureEntryLayoutStyles(){
- if(document.getElementById('smartFormPhysicalLayout'))return;
- const st=document.createElement('style');st.id='smartFormPhysicalLayout';st.textContent=`
- .sf-layout{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px 12px;align-items:end}
- .sf-layout .sf-physical{grid-column:var(--sf-col,span 6);min-width:0}
- .sf-layout .checkbox-entry{align-self:center}
- .sf-layout .sf-service{grid-column:span 4}
- .sf-section-title{grid-column:1/-1;font-weight:800;margin:8px 0 0}
- @media(max-width:900px){.sf-layout .sf-physical,.sf-layout .sf-service{grid-column:1/-1!important}}
- `;document.head.appendChild(st);
-}
-function gridColFor(f){
- const x=Math.max(0,Math.min(.99,Number(f?.bbox?.x)||0)),w=Math.max(.12,Math.min(1-x,Number(f?.bbox?.width)||.35));
- const start=Math.max(1,Math.min(12,Math.floor(x*12)+1));
- const span=Math.max(2,Math.min(13-start,Math.ceil(w*12)));
- return `${start} / span ${span}`;
-}
-function renderPhysicalFields(list,slot){
- const fs=orderedFields(list);
- return fs.map(f=>{let h=fieldInput(f,slot);return h.replace('class="entry-field','class="entry-field').replace('style="--sf-x:',`style="grid-column:${gridColFor(f)};--sf-x:`);}).join('');
-}
-function renderEntry(){
- ensureEntryLayoutStyles();
- const fields=orderedFields(selectedFields().filter(entryVisible));
- const common=fields.filter(f=>!slotOf(f)&&f.repeatMode!=='PER_SLOT');
- $('commonFields').innerHTML=common.length?`<div class="sf-layout">${renderPhysicalFields(common,0)}</div>`:'';
- let html='';
- for(let slot=1;slot<=state.openSlots;slot++){
-   const slotFields=fields.filter(f=>slotOf(f)===slot || (f.repeatMode==='PER_SLOT'&&!slotOf(f)));
-   html+=`<div class="trip-card"><div class="trip-head"><h3>Trip ${slot}</h3>${slot>1?`<button class="btn red removeSlot" data-slot="${slot}">Remove</button>`:''}</div><div class="sf-layout" style="margin-top:10px">${renderPhysicalFields(slotFields,slot)}${serviceInput(slot)}</div></div>`;
- }
- $('tripSlots').innerHTML=html;$('addTripBtn').disabled=state.openSlots>=maxSlots();
- document.querySelectorAll('.removeSlot').forEach(b=>b.onclick=()=>{const s=Number(b.dataset.slot);if(s===state.openSlots&&s>1){state.openSlots--;renderEntry();}});
- wireClientLookup();
-}
-function openEntry(){state.openSlots=1;$('setupGrid').classList.add('hidden');$('entryCard').classList.remove('hidden');$('entryTitle').textContent=`${state.selected.organizationName} — ${state.selected.name} — Data Entry Sheet`;renderEntry();}
+function fieldInput(f,slot){const can=canonical(f);const req=slot&&['pickup','dropoff','tripDate','tripTime'].includes(can);if(f.fieldType==='CHECKBOX')return `<div class="entry-field checkbox-entry"><label><input class="sfVal" data-field="${esc(f.fieldId)}" data-slot="${slot||0}" data-canonical="${can}" type="checkbox"> ${esc(f.label)}</label></div>`;let type='text';if(can==='tripDate'||f.fieldType==='DATE')type='date';else if(can==='tripTime'||f.fieldType==='TIME')type='time';else if(f.fieldType==='PHONE')type='tel';return `<div class="entry-field"><label class="${req?'required':''}">${esc(f.label)}</label><input class="form-input sfVal" data-field="${esc(f.fieldId)}" data-slot="${slot||0}" data-canonical="${can}" type="${type}" ${req?'required':''}></div>`;}
+function serviceInput(slot){return `<div class="entry-field"><label class="required">Service</label><select class="form-input servicePick" data-slot="${slot}" required><option value="">Select Service</option>${state.services.map(s=>`<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('')}</select></div>`;}
+function renderEntry(){const fields=orderedFields(selectedFields().filter(entryVisible));const common=fields.filter(f=>!slotOf(f)&&f.repeatMode!=='PER_SLOT');$('commonFields').innerHTML=common.length?common.map(f=>fieldInput(f,0)).join(''):'';let html='';for(let slot=1;slot<=state.openSlots;slot++){const slotFields=fields.filter(f=>slotOf(f)===slot || (f.repeatMode==='PER_SLOT'&&!slotOf(f)));html+=`<div class="trip-card"><div class="trip-head"><h3>Trip ${slot}</h3>${slot>1?`<button type="button" class="btn red removeSlot" data-slot="${slot}">Remove</button>`:''}</div><div class="entry-grid" style="margin-top:10px">${slotFields.map(f=>fieldInput(f,slot)).join('')}${serviceInput(slot)}</div></div>`;}$('tripSlots').innerHTML=html;$('addTripBtn').disabled=state.openSlots>=maxSlots();document.querySelectorAll('.removeSlot').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.slot);if(n===state.openSlots&&n>1){state.openSlots--;renderEntry();}});wireClientLookup();}function openEntry(){state.openSlots=1;$('setupGrid').classList.add('hidden');$('entryCard').classList.remove('hidden');$('entryTitle').textContent=`${state.selected.organizationName} — ${state.selected.name} — Data Entry Sheet`;renderEntry();}
 function wireClientLookup(){let timer;document.querySelectorAll('.sfVal[data-canonical="memberId"]').forEach(inp=>{inp.setAttribute('list','sfClientList');inp.oninput=()=>{clearTimeout(timer);timer=setTimeout(async()=>{const q=clean(inp.value);if(q.length<2)return;try{const d=await api(`/api/smart-forms/clients/lookup?q=${encodeURIComponent(q)}`);let dl=$('sfClientList');if(!dl){dl=document.createElement('datalist');dl.id='sfClientList';document.body.appendChild(dl);}dl.innerHTML=(d.clients||[]).map(c=>`<option value="${esc(c.memberId)}" data-name="${esc(c.clientName)}" data-phone="${esc(c.clientPhone)}">${esc(c.clientName)}</option>`).join('');const exact=(d.clients||[]).find(c=>clean(c.memberId)===q);if(exact){const slot=inp.dataset.slot;const name=document.querySelector(`.sfVal[data-slot="${slot}"][data-canonical="clientName"]`);const phone=document.querySelector(`.sfVal[data-slot="${slot}"][data-canonical="clientPhone"]`);if(name&&!clean(name.value))name.value=exact.clientName||'';if(phone&&!clean(phone.value))phone.value=exact.clientPhone||'';}}catch(_){ }},250);};});}
 function collectSheet(){const commonValues={};document.querySelectorAll('.sfVal[data-slot="0"]').forEach(i=>commonValues[i.dataset.field]=i.type==='checkbox'?i.checked:i.value);const trips=[];for(let slot=1;slot<=state.openSlots;slot++){const values={},row={slot};document.querySelectorAll(`.sfVal[data-slot="${slot}"]`).forEach(i=>{const v=i.type==='checkbox'?i.checked:i.value;values[i.dataset.field]=v;if(i.dataset.canonical)row[i.dataset.canonical]=v;});const service=document.querySelector(`.servicePick[data-slot="${slot}"]`);row.serviceKey=service?.value||'';row.values=values;for(const k of ['pickup','dropoff','tripDate','tripTime'])if(!clean(row[k]))throw new Error(`Trip ${slot}: ${k==='tripDate'?'Date':k==='tripTime'?'Time':k==='dropoff'?'Drop-off':'Pickup'} is required`);if(!row.serviceKey)throw new Error(`Trip ${slot}: Service is required`);trips.push(row);}return {organizationId:state.selected.organizationId,templateId:state.selected._id,commonValues,trips};}
 async function submitSheet(){const b=$('submitSheetBtn');try{const payload=collectSheet();b.disabled=true;b.textContent='Submitting...';await api('/api/smart-forms/sheets',{method:'POST',body:JSON.stringify(payload)});msg(`${payload.trips.length} trip(s) sent to Form Review from one sheet.`);state.openSlots=1;renderEntry();showTab('review');}catch(e){msg(e.message,true);}finally{b.disabled=false;b.textContent='Submit Sheet to Review';}}
