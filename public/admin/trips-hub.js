@@ -90,74 +90,6 @@ function openAttachmentSummaryPage(event){
   window.location.href = "/admin/attachment-summary.html";
 }
 
-function openSmartFormsPage(event){
-  event?.preventDefault?.();
-  syncLegacyAdminAuth();
-  window.location.href = "/admin/smart-forms.html";
-}
-
-async function loadSmartFormsButton(){
-  try{
-    /*
-      Smart Forms uses the same staff auth fallback as Attachment Import.
-      Some admin sessions keep the valid JWT under staffToken instead of
-      the legacy `token` variable, so try the known staff token locations
-      only when the server answers 401.
-    */
-    const tokenCandidates = [
-      token,
-      sessionStorage.getItem("staffToken"),
-      localStorage.getItem("staffToken"),
-      sessionStorage.getItem("token"),
-      localStorage.getItem("token")
-    ].filter((value,index,array)=>value && array.indexOf(value)===index);
-
-    let res = null;
-    let data = {};
-
-    for(const candidate of tokenCandidates){
-      res = await fetch("/api/smart-forms/feature",{
-        cache:"no-store",
-        headers:{Authorization:`Bearer ${candidate}`}
-      });
-
-      data = await res.json().catch(()=>({}));
-
-      if(res.status !== 401) break;
-    }
-
-    const wrap = document.getElementById("topAddTripWrap");
-    if(!wrap) return;
-
-    let btn = document.getElementById("smartFormsBtn");
-
-    if(res?.ok && data.enabled === true){
-      if(!btn){
-        btn = document.createElement("button");
-        btn.id = "smartFormsBtn";
-        btn.className = "top-add-trip-btn";
-        btn.type = "button";
-        btn.textContent = "Smart Forms";
-        btn.style.marginLeft = "10px";
-        btn.addEventListener("click",openSmartFormsPage);
-
-        const summaryBtn = document.getElementById("attachmentSummaryBtn");
-        if(summaryBtn?.parentElement === wrap){
-          summaryBtn.insertAdjacentElement("afterend",btn);
-        }else{
-          wrap.appendChild(btn);
-        }
-      }
-
-      btn.style.display = "inline-flex";
-    }else{
-      btn?.remove();
-    }
-  }catch(err){
-    console.error("SMART FORMS FEATURE CHECK ERROR",err);
-    document.getElementById("smartFormsBtn")?.remove();
-  }
-}
 
 async function loadAttachmentImportButton(){
   try{
@@ -3401,7 +3333,6 @@ async function refreshTripsOnly(){
 
 (async function initHub(){
   await loadAttachmentImportButton();
-  await loadSmartFormsButton();
   await loadServices();
   await loadHubTrips();
   updateStickyOffsets();

@@ -485,7 +485,6 @@ th{
             <th>Enabled</th>
             <th>Subscription</th>
             <th>Attachment Import</th>
-            <th>Smart Forms</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -494,7 +493,7 @@ th{
 
           <tr>
             <td
-              colspan="8"
+              colspan="7"
               class="empty"
             >
               Loading companies...
@@ -776,7 +775,7 @@ async function loadTenants(){
 
   body.innerHTML =
     `<tr>
-      <td colspan="8" class="empty">
+      <td colspan="7" class="empty">
         Loading companies...
       </td>
     </tr>`;
@@ -800,7 +799,7 @@ async function loadTenants(){
 
       body.innerHTML =
         `<tr>
-          <td colspan="8" class="empty">
+          <td colspan="7" class="empty">
             No companies yet.
           </td>
         </tr>`;
@@ -878,17 +877,6 @@ async function loadTenants(){
                 ${t.attachmentImportEnabled === true ? "ACTIVE" : "DISABLED"}
               </button>
             </td>
-
-            <td>
-              <button
-                class="small-btn"
-                onclick="toggleSmartForms('${t._id}', ${t.smartFormsEnabled === true})"
-                style="${t.smartFormsEnabled === true ? 'background:#15803d;color:#fff;' : 'background:#991b1b;color:#fff;'}"
-              >
-                ${t.smartFormsEnabled === true ? "ACTIVE" : "DISABLED"}
-              </button>
-            </td>
-
             <td>
 
               <button
@@ -928,7 +916,7 @@ async function loadTenants(){
 
     body.innerHTML =
       `<tr>
-        <td colspan="8" class="empty">
+        <td colspan="7" class="empty">
           ${escapeHtml(err.message)}
         </td>
       </tr>`;
@@ -994,16 +982,6 @@ async function toggleAttachmentImport(
   }
 }
 
-
-async function toggleSmartForms(tenantId,currentlyEnabled){
-  try{
-    await api(`/api/platform-admin/tenants/${tenantId}/status`,{
-      method:"PATCH",
-      body:JSON.stringify({smartFormsEnabled:!currentlyEnabled})
-    });
-    await loadTenants();
-  }catch(err){ showMessage(err.message,false); }
-}
 
 async function deleteTenant(
   tenantId

@@ -1569,9 +1569,6 @@ const attachmentTemplateRoutes =
 const attachmentImportRoutes =
   require("./routes/attachmentImportRoutes");
 
-const smartFormRoutes =
-  require("./routes/smartFormRoutes");
-
 const tripSignatureRoutes =
   require("./routes/tripSignatureRoutes");
 
@@ -1583,11 +1580,6 @@ app.use(
 app.use(
   "/api/attachment-imports",
   attachmentImportRoutes
-);
-
-app.use(
-  "/api/smart-forms",
-  smartFormRoutes
 );
 
 app.use(
