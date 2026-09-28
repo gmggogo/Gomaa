@@ -27,12 +27,6 @@ const tenantSchema = new mongoose.Schema(
       default: false
     },
 
-    /* Platform Admin premium feature gate for Smart Forms. */
-    smartFormsEnabled: {
-      type: Boolean,
-      default: false
-    },
-
     subscriptionStatus: {
       type: String,
       enum: [

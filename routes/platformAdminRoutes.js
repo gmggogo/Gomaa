@@ -745,8 +745,7 @@ router.patch(
       const {
         enabled,
         subscriptionStatus,
-        attachmentImportEnabled,
-        smartFormsEnabled
+        attachmentImportEnabled
       } = req.body || {};
 
       const update = {};
@@ -757,10 +756,6 @@ router.patch(
 
       if (typeof attachmentImportEnabled === "boolean") {
         update.attachmentImportEnabled = attachmentImportEnabled;
-      }
-
-      if (typeof smartFormsEnabled === "boolean") {
-        update.smartFormsEnabled = smartFormsEnabled;
       }
 
       if (
