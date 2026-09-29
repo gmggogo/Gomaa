@@ -94,6 +94,7 @@ function normalizeFields(fields){
       label:clean(f.label) || `Field ${i+1}`,
       type:clean(f.type || "TEXT").toUpperCase(),
       required:f.required===true,
+      requiredUserOverride:f.requiredUserOverride===true,
       placeholder:clean(f.placeholder),
       options:Array.isArray(f.options)?f.options.map(clean).filter(Boolean):[],
       widthPercent:Math.max(10,Math.min(100,Number(f.widthPercent||50))),
@@ -278,7 +279,9 @@ router.put("/templates/:id/fields", async (req,res)=>{
         mapping: plain?.mapping || f?.mapping || undefined,
         mappings: plain?.mappings || f?.mappings || [],
         sourceType:f?.sourceType || plain?.sourceType || "MANUAL",
-        // Repeat is controlled by the user after AI detection. False must be saved as false.
+        // Required and Repeat are manual controls after AI detection. False must remain false.
+        required:f?.required===true,
+        requiredUserOverride:f?.requiredUserOverride===true || plain?.requiredUserOverride===true,
         repeat:f?.repeat===true,
         repeatUserOverride:f?.repeatUserOverride===true || plain?.repeatUserOverride===true
       };
@@ -377,7 +380,10 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
       const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
-      return {_id:old?._id,key,label,type:clean(a.type||"TEXT").toUpperCase(),required:a.required===true,widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
+      return {_id:old?._id,key,label,type:clean(a.type||"TEXT").toUpperCase(),
+        required:old ? old.required===true : a.required===true,
+        requiredUserOverride:old?.requiredUserOverride===true,
+        widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
         // AI may suggest Repeat only for a brand-new field. Existing fields keep the user's saved choice.
         repeat:old ? old.repeat===true : (a.repeat===true),
         repeatUserOverride:old?.repeatUserOverride===true,

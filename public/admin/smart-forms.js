@@ -180,7 +180,8 @@ function renderBuilder(){
     <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>
     <select data-width="${i}">${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
-    <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
+    <label class="sf-field-flag"><input type="checkbox" data-required="${i}" ${f.required===true?"checked":""}> Required</label>
+        <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
     <button data-up="${i}" title="Move up">↑</button>
     <button data-down="${i}" title="Move down">↓</button>
     <button data-del="${i}">Delete</button>
@@ -223,6 +224,15 @@ document.getElementById("builderList").onclick=e=>{
   normalizeBuilderOrder();renderBuilder();
 };
 document.getElementById("builderList").onclick=e=>{
+  const requiredCb=e.target.closest("[data-required]");
+  if(requiredCb){
+    const i=Number(requiredCb.dataset.required);
+    if(builderFields[i]){
+      builderFields[i].required=requiredCb.checked===true;
+      builderFields[i].requiredUserOverride=true;
+    }
+    return;
+  }
   const cb=e.target.closest("[data-repeat]");
   if(!cb)return;
   const i=Number(cb.dataset.repeat);
@@ -232,6 +242,15 @@ document.getElementById("builderList").onclick=e=>{
   }
 };
 document.getElementById("builderList").onchange=e=>{
+  if(e.target.dataset.required!==undefined){
+    const i=Number(e.target.dataset.required);
+    if(builderFields[i]){
+      builderFields[i].required=e.target.checked===true;
+      builderFields[i].requiredUserOverride=true;
+    }
+    msg(`${builderFields[i]?.label||"Field"} Required ${e.target.checked?"enabled":"disabled"}. Save Form Builder to keep it.`);
+    return;
+  }
   if(e.target.dataset.width!==undefined){
     builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
     renderBuilder();
@@ -263,7 +282,17 @@ document.getElementById("saveBuilderBtn").onclick=async()=>{
         builderFields[i].repeatUserOverride=true;
       }
     });
-    const fieldsToSave=builderFields.map(f=>({...f,repeat:f.repeat===true,repeatUserOverride:f.repeatUserOverride===true}));
+    document.querySelectorAll("#builderList [data-required]").forEach(cb=>{
+      const i=Number(cb.dataset.required);
+      if(builderFields[i]){
+        builderFields[i].required=cb.checked===true;
+        builderFields[i].requiredUserOverride=true;
+      }
+    });
+    const fieldsToSave=builderFields.map(f=>({...f,
+      required:f.required===true,requiredUserOverride:f.requiredUserOverride===true,
+      repeat:f.repeat===true,repeatUserOverride:f.repeatUserOverride===true
+    }));
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:fieldsToSave})});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
     activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
