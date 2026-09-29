@@ -5,7 +5,6 @@ const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("sta
 if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)) location.replace("/login.html");
 
 let organizations=[],templates=[],builderFields=[],mapperFields=[],activeBuilderTemplate=null,activeMapperTemplate=null,selectedMapFieldId="",mapViewMode="ALL",pdfDoc=null,pdfPageNumber=1,pdfPageCount=0,pdfjsLib=null;
-let designerLayout={canvasHeight:1200,items:[]},designerLayouts=new Map();
 
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 function msg(t,type="ok"){const b=document.getElementById("sfMessage");b.textContent=t;b.className=`sf-message show ${type}`;clearTimeout(msg.t);msg.t=setTimeout(()=>b.className="sf-message",3500);}
@@ -35,142 +34,12 @@ async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw n
       "err"
     );
   }
-}templates=(await api(`${API}/templates`)).templates||[];syncSelects();
-const entryT=currentTemplate(document.getElementById("entryTemplate").value);
-if(entryT){await loadDesignerLayout(entryT._id);designerLayouts.set(String(entryT._id),JSON.parse(JSON.stringify(designerLayout)));}
-renderEntry(entryT);await activateBuilder();await loadReview();}
+}templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);activateBuilder();}
 function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`;if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${(f.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
-function renderEntry(t){
-  const host=document.getElementById("entryForm");
-  if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}
-  const manual=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
-  const layout=designerLayouts.get(String(t._id));
-  if(!layout?.items?.length){
-    host.className="sf-entry-grid";
-    host.style.height="";
-    host.innerHTML=manual.sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
-    return;
-  }
-  host.className="sf-live-free-form";
-  host.style.height=`${Math.max(300,Number(layout.canvasHeight||1200))}px`;
-  const byKey=new Map(manual.map(f=>[String(f.key),f]));
-  host.innerHTML=layout.items.map(item=>{
-    const s=`left:${Number(item.x||0)}%;top:${Number(item.y||0)}px;width:${Number(item.w||30)}%;height:${Number(item.h||90)}px`;
-    if(item.kind==="SECTION")return `<div class="sf-live-layout-item sf-live-section" style="${s}">${esc(item.text||"Section Title")}</div>`;
-    if(item.kind==="SPACER")return "";
-    const f=byKey.get(String(item.fieldKey||""));
-    return f?`<div class="sf-live-layout-item sf-live-field" style="${s}">${inputControl(f)}</div>`:"";
-  }).join("");
-}
+function renderEntry(t){const host=document.getElementById("entryForm");if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}host.innerHTML=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL").sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
 function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
-async function activateBuilder(){
-  activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);
-  builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));
-  if(activeBuilderTemplate) await loadDesignerLayout(activeBuilderTemplate._id);
-  renderBuilder();
-}
-
-function normalizeBuilderOrder(){builderFields.forEach((f,i)=>f.order=i);}
-
-function defaultDesignerItems(){
-  let x=0,y=10,rowH=105;
-  return builderFields.filter(f=>(f.sourceType||"MANUAL")==="MANUAL").map(f=>{
-    const w=Math.max(12,Math.min(100,Number(f.widthPercent||50)));
-    if(x+w>100){x=0;y+=rowH;}
-    const item={id:`field_${f.key}`,kind:"FIELD",fieldKey:f.key,x,w,y,h:92};
-    x+=w;
-    return item;
-  });
-}
-function reconcileDesigner(){
-  if(!designerLayout||typeof designerLayout!=="object")designerLayout={canvasHeight:1200,items:[]};
-  designerLayout.canvasHeight=Math.max(500,Number(designerLayout.canvasHeight||1200));
-  designerLayout.items=Array.isArray(designerLayout.items)?designerLayout.items:[];
-  const manual=builderFields.filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
-  const keys=new Set(manual.map(f=>String(f.key)));
-  designerLayout.items=designerLayout.items.filter(i=>i.kind!=="FIELD"||keys.has(String(i.fieldKey)));
-  const present=new Set(designerLayout.items.filter(i=>i.kind==="FIELD").map(i=>String(i.fieldKey)));
-  let y=designerLayout.items.reduce((m,i)=>Math.max(m,Number(i.y||0)+Number(i.h||0)),10)+20;
-  for(const f of manual){
-    if(!present.has(String(f.key))){
-      designerLayout.items.push({id:`field_${f.key}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,kind:"FIELD",fieldKey:f.key,x:2,y,w:Math.max(15,Math.min(96,Number(f.widthPercent||50))),h:92});
-      y+=102;
-    }
-  }
-  designerLayout.canvasHeight=Math.max(designerLayout.canvasHeight,y+40);
-}
-async function loadDesignerLayout(templateId){
-  try{
-    const d=await api(`${API}/templates/${templateId}/layout`);
-    designerLayout=d.layout||{canvasHeight:1200,items:[]};
-  }catch(e){
-    console.warn("Designer layout load:",e);
-    designerLayout={canvasHeight:1200,items:[]};
-  }
-  if(!designerLayout.items?.length)designerLayout.items=defaultDesignerItems();
-  reconcileDesigner();
-  designerLayouts.set(String(templateId),JSON.parse(JSON.stringify(designerLayout)));
-}
-async function saveDesignerLayout(templateId){
-  reconcileDesigner();
-  const d=await api(`${API}/templates/${templateId}/layout`,{method:"PUT",body:JSON.stringify({layout:designerLayout})});
-  designerLayout=d.layout||designerLayout;
-  designerLayouts.set(String(templateId),JSON.parse(JSON.stringify(designerLayout)));
-}
-function designerItemHtml(item,index){
-  const style=`left:${Number(item.x||0)}%;top:${Number(item.y||0)}px;width:${Number(item.w||30)}%;height:${Number(item.h||90)}px`;
-  let body="";
-  if(item.kind==="SECTION") body=`<div class="sf-designer-section-text">${esc(item.text||"Section Title")}</div>`;
-  else if(item.kind==="SPACER") body=`<div class="sf-designer-spacer-text">SPACE</div>`;
-  else{
-    const f=builderFields.find(x=>String(x.key)===String(item.fieldKey));
-    if(!f)return "";
-    body=`<div class="sf-designer-field-name">☰ ${esc(f.label)}</div>${inputControl(f)}`;
-  }
-  return `<div class="sf-design-item kind-${item.kind.toLowerCase()}" data-design-index="${index}" style="${style}">
-    ${body}
-    <button type="button" class="sf-design-delete" title="Remove from layout">×</button>
-    ${["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-design-resize ${d}" data-dir="${d}"></span>`).join("")}
-  </div>`;
-}
-function renderDesigner(){
-  const canvas=document.getElementById("builderPreview");
-  if(!canvas)return;
-  reconcileDesigner();
-  canvas.style.height=`${designerLayout.canvasHeight}px`;
-  const h=document.getElementById("designerHeight");if(h)h.value=designerLayout.canvasHeight;
-  canvas.innerHTML=designerLayout.items.map(designerItemHtml).join("");
-  canvas.querySelectorAll(".sf-design-item").forEach(box=>{
-    const i=Number(box.dataset.designIndex),item=designerLayout.items[i];
-    box.querySelector(".sf-design-delete").onclick=e=>{e.stopPropagation();designerLayout.items.splice(i,1);renderDesigner();};
-    box.addEventListener("pointerdown",e=>{
-      if(e.target.closest("input,select,textarea,button"))return;
-      e.preventDefault();e.stopPropagation();
-      const rect=canvas.getBoundingClientRect(),dir=e.target.closest(".sf-design-resize")?.dataset.dir||"move";
-      const sx=e.clientX,sy=e.clientY,start={x:Number(item.x||0),y:Number(item.y||0),w:Number(item.w||30),h:Number(item.h||90)};
-      box.setPointerCapture?.(e.pointerId);
-      const move=ev=>{
-        ev.preventDefault();
-        const dx=(ev.clientX-sx)/rect.width*100,dy=ev.clientY-sy;
-        let x=start.x,y=start.y,w=start.w,h=start.h;
-        if(dir==="move"){x=clamp(start.x+dx,0,100-start.w);y=Math.max(0,start.y+dy);}
-        else{
-          if(dir.includes("e"))w=clamp(start.w+dx,5,100-start.x);
-          if(dir.includes("w")){const r=start.x+start.w;x=clamp(start.x+dx,0,r-5);w=r-x;}
-          if(dir.includes("s"))h=Math.max(34,start.h+dy);
-          if(dir.includes("n")){const b=start.y+start.h;y=Math.max(0,start.y+dy);h=Math.max(34,b-y);}
-        }
-        Object.assign(item,{x,y,w,h});
-        box.style.left=`${x}%`;box.style.top=`${y}px`;box.style.width=`${w}%`;box.style.height=`${h}px`;
-        designerLayout.canvasHeight=Math.max(designerLayout.canvasHeight,y+h+40);
-        canvas.style.height=`${designerLayout.canvasHeight}px`;
-      };
-      const end=ev=>{box.removeEventListener("pointermove",move);box.removeEventListener("pointerup",end);box.removeEventListener("pointercancel",end);try{box.releasePointerCapture?.(ev.pointerId)}catch(_){}};
-      box.addEventListener("pointermove",move);box.addEventListener("pointerup",end);box.addEventListener("pointercancel",end);
-    });
-  });
-}
+function activateBuilder(){activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));renderBuilder();}
 function renderBuilder(){
   const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
   if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
@@ -180,127 +49,37 @@ function renderBuilder(){
     <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>
     <select data-width="${i}">${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
-    <label class="sf-field-flag"><input type="checkbox" data-required="${i}" ${f.required===true?"checked":""}> Required</label>
-        <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
+    <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
     <button data-up="${i}" title="Move up">↑</button>
     <button data-down="${i}" title="Move down">↓</button>
     <button data-del="${i}">Delete</button>
   </div>`).join("");
-  renderDesigner();
+  p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
 }
-document.getElementById("addFieldBtn").onclick=()=>{
-  if(!activeBuilderTemplate)return msg("Select a template.","err");
-  const labelEl=document.getElementById("fieldLabel");
-  const label=String(labelEl?.value||"").trim();
-  if(!label)return msg("Field label required.","err");
+// GH Mobility - choose the official PDF page when creating a field.
+(function ensureFieldPdfPageSelector(){
+  const addBtn=document.getElementById("addFieldBtn");
+  if(!addBtn || document.getElementById("fieldPdfPage"))return;
+  const wrap=document.createElement("div");
+  wrap.className="sf-control";
+  wrap.innerHTML='<label>PDF Page</label><select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>';
+  addBtn.parentNode.insertBefore(wrap,addBtn);
+})();
 
-  let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;
-  let n=2,base=key;
-  while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;
-
-  const type=document.getElementById("fieldType").value;
-  const page=Math.max(1,Number(document.getElementById("fieldPdfPage")?.value||1));
-  const width=Number(document.getElementById("fieldWidth").value||50);
-  const map={mapped:true,page,xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"};
-
-  builderFields.push({
-    key,label,type,sourceType:"MANUAL",repeat:false,
-    required:document.getElementById("fieldRequired").checked,
-    options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),
-    widthPercent:width,order:builderFields.length,
-    mapping:{...map},mappings:[{...map}]
-  });
-
-  labelEl.value="";
-  document.getElementById("fieldOptions").value="";
-  normalizeBuilderOrder();
-  renderBuilder();
-  msg(`${label} added. Save Form Builder to keep it.`);
-};
+document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
 document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
   if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
   if(e.target.dataset.down!==undefined){const i=Number(e.target.dataset.down);if(i<builderFields.length-1)[builderFields[i+1],builderFields[i]]=[builderFields[i],builderFields[i+1]];}
-  normalizeBuilderOrder();renderBuilder();
-};
-document.getElementById("builderList").onclick=e=>{
-  const requiredCb=e.target.closest("[data-required]");
-  if(requiredCb){
-    const i=Number(requiredCb.dataset.required);
-    if(builderFields[i]){
-      builderFields[i].required=requiredCb.checked===true;
-      builderFields[i].requiredUserOverride=true;
-    }
-    return;
-  }
-  const cb=e.target.closest("[data-repeat]");
-  if(!cb)return;
-  const i=Number(cb.dataset.repeat);
-  if(builderFields[i]){
-    builderFields[i].repeat=cb.checked===true;
-    builderFields[i].repeatUserOverride=true;
-  }
+  builderFields.forEach((f,j)=>f.order=j);renderBuilder();
 };
 document.getElementById("builderList").onchange=e=>{
-  if(e.target.dataset.required!==undefined){
-    const i=Number(e.target.dataset.required);
-    if(builderFields[i]){
-      builderFields[i].required=e.target.checked===true;
-      builderFields[i].requiredUserOverride=true;
-    }
-    msg(`${builderFields[i]?.label||"Field"} Required ${e.target.checked?"enabled":"disabled"}. Save Form Builder to keep it.`);
-    return;
-  }
-  if(e.target.dataset.width!==undefined){
-    builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
-    renderBuilder();
-    return;
-  }
-  if(e.target.dataset.source!==undefined){
-    builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
-    renderBuilder();
-    return;
-  }
-  if(e.target.dataset.repeat!==undefined){
-    const i=Number(e.target.dataset.repeat);
-    if(builderFields[i]){
-      builderFields[i].repeat=e.target.checked===true;
-      builderFields[i].repeatUserOverride=true;
-    }
-    // Do not redraw the whole list here. Keep the user's checkbox state exactly as clicked.
-    msg(`${builderFields[i]?.label||"Field"} Repeat ${e.target.checked?"enabled":"disabled"}. Save Form Builder to keep it.`);
-  }
+  if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
+  if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
+  if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
+  renderBuilder();
 };
-document.getElementById("saveBuilderBtn").onclick=async()=>{
-  if(!activeBuilderTemplate)return;
-  try{
-    reconcileDesigner();
-    document.querySelectorAll("#builderList [data-repeat]").forEach(cb=>{
-      const i=Number(cb.dataset.repeat);
-      if(builderFields[i]){
-        builderFields[i].repeat=cb.checked===true;
-        builderFields[i].repeatUserOverride=true;
-      }
-    });
-    document.querySelectorAll("#builderList [data-required]").forEach(cb=>{
-      const i=Number(cb.dataset.required);
-      if(builderFields[i]){
-        builderFields[i].required=cb.checked===true;
-        builderFields[i].requiredUserOverride=true;
-      }
-    });
-    const fieldsToSave=builderFields.map(f=>({...f,
-      required:f.required===true,requiredUserOverride:f.requiredUserOverride===true,
-      repeat:f.repeat===true,repeatUserOverride:f.repeatUserOverride===true
-    }));
-    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:fieldsToSave})});
-    const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
-    activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
-    await saveDesignerLayout(d.template._id);
-    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}
-    renderBuilder();syncSelects();renderEntry(currentTemplate(document.getElementById("entryTemplate").value));msg("Form Builder and layout saved.");
-  }catch(e){msg(e.message,"err");}
-};
+document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
 document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.getElementById("builderOrganization").value,name=prompt("Template name:");if(!org||!name?.trim())return;try{const d=await api(`${API}/templates`,{method:"POST",body:JSON.stringify({organizationId:org,name:name.trim()})});templates.unshift(d.template);syncSelects();document.getElementById("builderTemplate").value=d.template._id;activateBuilder();msg("Template created.");}catch(e){msg(e.message,"err");}};
 
 async function canvasPageBlob(pageNo){
@@ -325,26 +104,6 @@ async function aiDetectFields(){
   }catch(e){msg(e.message,"err");}
   finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
 }
-
-document.getElementById("addSectionBtn").onclick=()=>{
-  if(!activeBuilderTemplate)return msg("Select a template first.","err");
-  const text=prompt("Section title:","TRIP 1");if(!text?.trim())return;
-  designerLayout.items.push({id:`section_${Date.now()}`,kind:"SECTION",text:text.trim(),x:2,y:20,w:96,h:52});
-  renderDesigner();
-};
-document.getElementById("addSpacerBtn").onclick=()=>{
-  if(!activeBuilderTemplate)return msg("Select a template first.","err");
-  designerLayout.items.push({id:`spacer_${Date.now()}`,kind:"SPACER",x:2,y:20,w:96,h:60});
-  renderDesigner();
-};
-document.getElementById("designerHeight").onchange=e=>{
-  designerLayout.canvasHeight=Math.max(500,Math.min(5000,Number(e.target.value||1200)));renderDesigner();
-};
-document.getElementById("autoArrangeBtn").onclick=()=>{
-  const extras=designerLayout.items.filter(i=>i.kind!=="FIELD");
-  designerLayout={canvasHeight:1200,items:[...extras,...defaultDesignerItems()]};reconcileDesigner();renderDesigner();
-};
-
 document.getElementById("aiDetectBtn").onclick=aiDetectFields;
 
 async function ensurePdfJs(){if(pdfjsLib)return pdfjsLib;pdfjsLib=await import("/vendor/pdfjs/pdf.mjs");pdfjsLib.GlobalWorkerOptions.workerSrc="/vendor/pdfjs/pdf.worker.mjs";return pdfjsLib;}
@@ -408,7 +167,6 @@ function renderMapFieldList(){
     const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
     const maps=f?fieldMaps(f):[];
     const targetPage=Number(maps[0]?.page||f?.mapping?.page||pdfPageNumber||1);
-    syncMapSettings();
     if(pdfDoc && targetPage>=1 && targetPage<=pdfPageCount && targetPage!==pdfPageNumber){
       pdfPageNumber=targetPage;
       renderPdfPage();
@@ -417,33 +175,6 @@ function renderMapFieldList(){
     }
     if(f)msg(maps.length?`Selected: ${f.label}. Page ${targetPage}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
   });
-}
-
-
-function syncMapSettings(){
-  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
-  const maps=f?fieldMaps(f):[];
-  const m=maps[0]||f?.mapping;
-  const pageInput=document.getElementById("mapPage");
-  const fontInput=document.getElementById("mapFont");
-  const alignInput=document.getElementById("mapAlign");
-  if(pageInput)pageInput.value=Number(m?.page||pdfPageNumber||1);
-  if(fontInput)fontInput.value=Number(m?.fontSize||10);
-  if(alignInput)alignInput.value=m?.textAlign||"LEFT";
-}
-async function moveSelectedMappingToPage(page){
-  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
-  if(!f)return msg("Select a field first.","err");
-  const maps=fieldMaps(f);
-  if(!maps.length)return msg(`${f.label} is Missing / Not mapped.`,"err");
-  page=Math.max(1,Math.min(Number(page)||1,pdfPageCount||Number(page)||1));
-  maps.forEach(m=>m.page=page);
-  f.mapping={...maps[0]};
-  f.mappings=maps.map(m=>({...m}));
-  pdfPageNumber=page;
-  await renderPdfPage();
-  syncMapSettings();
-  msg(`${f.label} moved to PDF Page ${page}.`);
 }
 
 async function loadPdf(localSource=null){
@@ -581,7 +312,6 @@ async function renderPdfPage(){
 
   renderBoxes();
   requestAnimationFrame(()=>renderBoxes());
-  syncMapSettings();
 }
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 function fieldMaps(f){
@@ -641,21 +371,6 @@ document.getElementById("pdfStage").onclick=e=>{
   // PDF Map is edit-only. Clicking the PDF background must never create a box.
   // Boxes are created by Form Builder / AI and are only moved, resized or deleted here.
   if(e.target.closest(".sf-map-box"))return;
-};
-
-
-document.getElementById("mapPage").onchange=e=>moveSelectedMappingToPage(e.target.value);
-document.getElementById("mapFont").onchange=e=>{
-  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
-  if(!f)return;
-  const maps=fieldMaps(f);maps.forEach(m=>m.fontSize=Number(e.target.value||10));
-  if(maps.length){f.mapping={...maps[0]};f.mappings=maps.map(m=>({...m}));}
-};
-document.getElementById("mapAlign").onchange=e=>{
-  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
-  if(!f)return;
-  const maps=fieldMaps(f);maps.forEach(m=>m.textAlign=e.target.value);
-  if(maps.length){f.mapping={...maps[0]};f.mappings=maps.map(m=>({...m}));}
 };
 
 document.getElementById("uploadPdfBtn").onclick=async()=>{
@@ -760,13 +475,55 @@ document.getElementById("nextPdfPageTop").onclick=async()=>{
 
 async function loadReview(){const b=document.getElementById("reviewBody");b.innerHTML=`<tr><td colspan="7">Loading...</td></tr>`;try{const rows=(await api(`${API}/submissions`)).submissions||[];b.innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(new Date(r.createdAt).toLocaleString())}</td><td>${esc(r.organizationName)}</td><td>${esc(r.templateName)}</td><td><span class="sf-status ${esc(r.status)}">${esc(r.status)}</span></td><td>${esc(r.tripNumber||"")}</td><td>${r.generatedPdf?.hasPdf?"Ready":""}</td><td><div class="sf-actions">${r.status!=="CONFIRMED"?`<button data-review="${r._id}">Review</button>`:""}<button data-generate="${r._id}">Generate PDF</button>${r.generatedPdf?.hasPdf?`<button data-view="${r._id}">View PDF</button>`:""}${r.status!=="CONFIRMED"?`<button data-confirm="${r._id}">Confirm</button><button data-delete="${r._id}">Delete</button>`:""}</div></td></tr>`).join(""):`<tr><td colspan="7">No reservations.</td></tr>`;}catch(e){b.innerHTML=`<tr><td colspan="7">${esc(e.message)}</td></tr>`;}}
 document.getElementById("reviewBody").onclick=async e=>{try{if(e.target.dataset.review)await api(`${API}/submissions/${e.target.dataset.review}/review`,{method:"POST"});if(e.target.dataset.confirm)await api(`${API}/submissions/${e.target.dataset.confirm}/confirm`,{method:"POST"});if(e.target.dataset.generate)await api(`${API}/submissions/${e.target.dataset.generate}/generate-pdf`,{method:"POST"});if(e.target.dataset.delete){if(confirm("Delete this form?"))await api(`${API}/submissions/${e.target.dataset.delete}`,{method:"DELETE"});}if(e.target.dataset.view){const blob=await api(`${API}/submissions/${e.target.dataset.view}/pdf`),u=URL.createObjectURL(blob);window.open(u,"_blank");}await loadReview();}catch(err){msg(err.message,"err");}};
-document.getElementById("refreshReviewBtn").onclick=loadReview;
+if(document.getElementById("refreshReviewBtn"))document.getElementById("refreshReviewBtn").onclick=loadReview;
 document.getElementById("saveDraftBtn").onclick=()=>saveEntry("DRAFT");
 document.getElementById("sendReviewBtn").onclick=()=>saveEntry("REVIEW");
 
 [["entryOrganization","entryTemplate"],["builderOrganization","builderTemplate"],["mapperOrganization","mapperTemplate"]].forEach(([o,t])=>document.getElementById(o).onchange=()=>{templateOptions(document.getElementById(t),document.getElementById(o).value);if(o==="entryOrganization")renderEntry(currentTemplate(document.getElementById(t).value));if(o==="builderOrganization")activateBuilder();if(o==="mapperOrganization")activateMapper();});
-document.getElementById("entryTemplate").onchange=async e=>{const t=currentTemplate(e.target.value);if(t){await loadDesignerLayout(t._id);designerLayouts.set(String(t._id),JSON.parse(JSON.stringify(designerLayout)));}renderEntry(t);};
+document.getElementById("entryTemplate").onchange=e=>{renderEntry(currentTemplate(e.target.value));renderTemplateSidebar();};
 document.getElementById("builderTemplate").onchange=activateBuilder;
 document.getElementById("mapperTemplate").onchange=activateMapper;
+
+
+function companyDisplayName(){
+  const keys=["companyName","staffCompanyName","tenantName","company","tenantSlug"];
+  for(const k of keys){const v=sessionStorage.getItem(k)||localStorage.getItem(k);if(v&&String(v).trim())return String(v).trim();}
+  return "Company";
+}
+function showSmartPanel(name){
+  document.querySelectorAll(".sf-panel").forEach(p=>p.classList.toggle("active",p.id===`panel-${name}`));
+  document.querySelectorAll(".sf-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  document.getElementById("openFormBtn")?.classList.toggle("active",name==="entry");
+  document.getElementById("openSettingsBtn")?.classList.toggle("active",name!=="entry");
+  const settings=document.getElementById("sfSettingsHome");if(settings)settings.classList.toggle("open",name!=="entry");
+  if(name==="builder")activateBuilder();
+  if(name==="mapper")activateMapper(true);
+}
+function selectEntryTemplate(id){
+  const t=currentTemplate(id)||templates[0]||null;
+  if(!t){renderEntry(null);renderTemplateSidebar();return;}
+  const orgId=String(t.organizationId||"");
+  document.getElementById("entryOrganization").value=orgId;
+  templateOptions(document.getElementById("entryTemplate"),orgId,String(t._id));
+  document.getElementById("entryTemplate").value=String(t._id);
+  document.getElementById("builderOrganization").value=orgId;
+  templateOptions(document.getElementById("builderTemplate"),orgId,String(t._id));
+  document.getElementById("builderTemplate").value=String(t._id);
+  document.getElementById("mapperOrganization").value=orgId;
+  templateOptions(document.getElementById("mapperTemplate"),orgId,String(t._id));
+  document.getElementById("mapperTemplate").value=String(t._id);
+  const title=document.getElementById("entryTemplateTitle");if(title)title.textContent=t.name||"New Reservation Form";
+  const pageTitle=document.getElementById("sfPageTitle");if(pageTitle)pageTitle.textContent=t.name||"Smart Form";
+  renderEntry(t);renderTemplateSidebar();showSmartPanel("entry");
+}
+function renderTemplateSidebar(){
+  const host=document.getElementById("sfTemplateList");if(!host)return;
+  const active=String(document.getElementById("entryTemplate")?.value||"");
+  host.innerHTML=templates.length?templates.map(t=>`<button type="button" class="sf-template-item ${String(t._id)===active?"active":""}" data-template-id="${esc(t._id)}"><span>${esc(t.name)}</span></button>`).join(""):`<div class="sf-empty-side">No templates</div>`;
+  host.querySelectorAll("[data-template-id]").forEach(b=>b.onclick=()=>selectEntryTemplate(b.dataset.templateId));
+}
+const companyNameEl=document.getElementById("sfCompanyName");if(companyNameEl)companyNameEl.textContent=companyDisplayName();
+document.getElementById("openFormBtn")?.addEventListener("click",()=>showSmartPanel("entry"));
+document.getElementById("openSettingsBtn")?.addEventListener("click",()=>showSmartPanel("builder"));
 
 start().catch(e=>{console.error(e);msg(e.message,"err");});

@@ -7,75 +7,52 @@
 <link rel="stylesheet" href="/admin/smart-forms.css">
 </head>
 <body>
-<main class="sf-page">
-  <section class="sf-head">
-    <div>
-      <h1>Smart Forms</h1>
-      <p>Build forms, map them to the official PDF, review reservations, and generate the final document.</p>
+<main class="sf-page sf-app-shell">
+  <aside class="sf-leftbar">
+    <div class="sf-brand-block">
+      <div class="sf-mini-title">SMART FORMS</div>
+      <h2 id="sfCompanyName">Company</h2>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <button
-        type="button"
-        class="sf-btn"
-        onclick="window.location.href='/admin/trips-hub.html'"
-        style="
-          min-height:38px;
-          padding:8px 14px;
-          border:1px solid rgba(255,255,255,.45);
-          border-radius:8px;
-          background:#fff;
-          color:#113b63;
-          font-weight:900;
-          cursor:pointer;
-        "
-      >
-        ← Back to Trips Hub
-      </button>
+    <div class="sf-side-label">Templates</div>
+    <div id="sfTemplateList" class="sf-template-list"></div>
+    <div class="sf-side-bottom">
+      <button id="openFormBtn" class="sf-side-action active" type="button">Form</button>
+      <button id="openSettingsBtn" class="sf-side-action" type="button">⚙ Settings</button>
+      <a class="sf-side-action" href="/admin/smart-forms-review.html">Review</a>
+    </div>
+  </aside>
+
+  <section class="sf-workspace">
+    <section class="sf-head sf-head-compact">
+      <div><h1 id="sfPageTitle">Smart Form</h1><p id="sfPageSubtitle">Select a template and complete the form.</p></div>
       <div class="sf-chip">Paid Feature</div>
+    </section>
+    <div id="sfMessage" class="sf-message"></div>
+
+    <div class="sf-compat-selects" aria-hidden="true">
+      <select id="entryOrganization"></select><select id="entryTemplate"></select>
     </div>
-  </section>
 
-  <div id="sfMessage" class="sf-message"></div>
-
-  <nav class="sf-tabs">
-    <button class="sf-tab active" data-tab="entry">Form Entry</button>
-    <button class="sf-tab" data-tab="review">Review</button>
-    <button class="sf-tab" data-tab="builder">Form Builder</button>
-    <button class="sf-tab" data-tab="mapper">PDF Map</button>
-  </nav>
-
-  <section id="panel-entry" class="sf-panel active">
-    <div class="sf-card">
-      <div class="sf-card-head"><h2>New Reservation Form</h2></div>
-      <div class="sf-card-body">
-        <div class="sf-toolbar">
-          <div class="sf-control"><label>Organization</label><select id="entryOrganization"></select></div>
-          <div class="sf-control"><label>Template</label><select id="entryTemplate"></select></div>
-        </div>
-        <div id="entryForm" class="sf-entry-grid" style="margin-top:14px"></div>
-        <div class="sf-toolbar" style="margin-top:14px">
-          <button id="saveDraftBtn" class="sf-btn gray">Save Draft</button>
-          <button id="sendReviewBtn" class="sf-btn primary">Send to Review</button>
+    <section id="panel-entry" class="sf-panel active">
+      <div class="sf-card">
+        <div class="sf-card-head"><h2 id="entryTemplateTitle">New Reservation Form</h2></div>
+        <div class="sf-card-body">
+          <div id="entryForm" class="sf-entry-grid"></div>
+          <div class="sf-toolbar sf-entry-actions" style="margin-top:18px">
+            <button id="saveDraftBtn" class="sf-btn gray">Save Draft</button>
+            <button id="sendReviewBtn" class="sf-btn primary">Send to Review</button>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section id="panel-review" class="sf-panel">
-    <div class="sf-card">
-      <div class="sf-card-head"><h2>Review Reservations</h2><button id="refreshReviewBtn" class="sf-btn gray">Refresh</button></div>
-      <div class="sf-card-body">
-        <div class="sf-table-wrap">
-          <table class="sf-table">
-            <thead><tr><th>Created</th><th>Organization</th><th>Template</th><th>Status</th><th>Trip #</th><th>PDF</th><th>Actions</th></tr></thead>
-            <tbody id="reviewBody"></tbody>
-          </table>
-        </div>
+    <section id="sfSettingsHome" class="sf-settings-home">
+      <div class="sf-settings-tabs">
+        <button class="sf-tab" data-tab="builder" type="button">Form Builder</button>
+        <button class="sf-tab" data-tab="mapper" type="button">PDF Map</button>
       </div>
-    </div>
-  </section>
-
-  <section id="panel-builder" class="sf-panel">
+    </section>
+<section id="panel-builder" class="sf-panel">
     <div class="sf-card">
       <div class="sf-card-head"><h2>Form Builder</h2></div>
       <div class="sf-card-body">
@@ -103,29 +80,14 @@
           <div class="sf-control" style="margin-top:10px"><label>Input Width</label>
             <select id="fieldWidth"><option value="25">25%</option><option value="33">33%</option><option value="50" selected>50%</option><option value="66">66%</option><option value="75">75%</option><option value="100">100%</option></select>
           </div>
-          <div class="sf-control" style="margin-top:10px"><label>PDF Page</label>
-            <select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>
-          </div>
           <label style="display:flex;gap:8px;margin-top:12px;font-weight:900"><input id="fieldRequired" type="checkbox"> Required</label>
           <button id="addFieldBtn" class="sf-btn primary" style="width:100%;margin-top:12px">Add Field</button>
         </div>
         <div class="sf-card-body">
-          <div class="sf-layout-note">AI creates the first layout. Drag fields in Entry Preview to reorder them, choose width/source/Repeat, then save.</div>
+          <div class="sf-layout-note">AI creates the first layout. Use ▲ ▼ to reorder fields, choose width, source, and Repeat, then save.</div>
           <div id="builderList" class="sf-builder-list"></div>
-          <div class="sf-builder-preview sf-designer-shell" style="margin-top:14px">
-            <div class="sf-designer-head">
-              <strong>Form Designer</strong>
-              <div class="sf-designer-tools">
-                <button id="addSectionBtn" class="sf-btn gray" type="button">+ Add Title</button>
-                <button id="addSpacerBtn" class="sf-btn gray" type="button">+ Add Space</button>
-                <label>Canvas Height <input id="designerHeight" type="number" min="500" max="5000" step="50" value="1200"></label>
-                <button id="autoArrangeBtn" class="sf-btn gray" type="button">Auto Arrange</button>
-              </div>
-            </div>
-            <div class="sf-designer-note">Drag any item anywhere. Resize it from the handles. Titles and spaces are layout-only and never go to PDF Map.</div>
-            <div id="builderPreview" class="sf-free-canvas"></div>
-          </div>
-          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder + Layout</button>
+          <div class="sf-builder-preview" style="margin-top:14px"><strong>Entry Preview</strong><div id="builderPreview" class="sf-entry-grid" style="margin-top:10px"></div></div>
+          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder</button>
         </div>
       </div>
     </div>
@@ -197,8 +159,10 @@
       </div>
     </div>
   </section>
-</main>
 
+    <table style="display:none"><tbody id="reviewBody"></tbody></table>
+  </section>
+</main>
 <script type="module" src="/admin/smart-forms.js"></script>
 </body>
 </html>
