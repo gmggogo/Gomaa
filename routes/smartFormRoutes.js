@@ -309,7 +309,7 @@ router.post("/templates/:id/pdf", upload.single("pdf"), async (req,res)=>{
 router.get("/templates/:id/pdf", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId}).select("+originalPdf.data originalPdf");
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId}).select("+originalPdf.data");
     if(!t?.originalPdf?.data?.length) return res.status(404).json({success:false,message:"Official PDF not found"});
     res.setHeader("Content-Type","application/pdf");
     res.setHeader("Content-Disposition",`inline; filename="${String(t.originalPdf.fileName||"official-form.pdf").replace(/"/g,"")}"`);
