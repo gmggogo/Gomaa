@@ -271,13 +271,54 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
     const pages=Array.isArray(req.files)?req.files:[];
     if(!pages.length) return res.status(400).json({success:false,message:"PDF page images are required"});
-    if(!process.env.OPENAI_API_KEY) return res.status(503).json({success:false,message:"OPENAI_API_KEY is not configured on the server"});
-    const content=[{type:"input_text",text:`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`}];
-    for(let i=0;i<pages.length;i++){const p=pages[i];content.push({type:"input_text",text:`PDF page ${i+1}`});content.push({type:"input_image",image_url:`data:${p.mimetype||"image/jpeg"};base64,${p.buffer.toString("base64")}`});}
-    const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,"Content-Type":"application/json"},body:JSON.stringify({model:process.env.SMART_FORMS_AI_MODEL||"gpt-5.6-luna",input:[{role:"user",content}],max_output_tokens:8000})});
+    if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
+
+    const prompt=`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`;
+
+    const parts=[{text:prompt}];
+    for(let i=0;i<pages.length;i++){
+      const p=pages[i];
+      parts.push({text:`PDF page ${i+1}`});
+      parts.push({
+        inlineData:{
+          mimeType:p.mimetype||"image/jpeg",
+          data:p.buffer.toString("base64")
+        }
+      });
+    }
+
+    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const r=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+      {
+        method:"POST",
+        headers:{
+          "x-goog-api-key":process.env.GEMINI_API_KEY,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          contents:[{role:"user",parts}],
+          generationConfig:{
+            responseMimeType:"application/json",
+            maxOutputTokens:8192
+          }
+        })
+      }
+    );
+
     const raw=await r.json();
-    if(!r.ok) throw new Error(raw?.error?.message||"AI request failed");
-    const text=(raw.output||[]).flatMap(o=>o.content||[]).map(c=>c.text||"").join("\n").trim();
+    if(!r.ok){
+      throw new Error(raw?.error?.message||"Gemini AI request failed");
+    }
+
+    const text=(raw?.candidates||[])
+      .flatMap(c=>c?.content?.parts||[])
+      .map(p=>p?.text||"")
+      .join("\n")
+      .trim();
+
+    if(!text) throw new Error("Gemini returned an empty response");
+
     const cleaned=text.replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
     const parsed=JSON.parse(cleaned); const detected=Array.isArray(parsed.fields)?parsed.fields:[];
     const existingByKey=new Map((t.fields||[]).map(f=>[String(f.key),f.toObject?f.toObject():f]));
