@@ -12,6 +12,17 @@ const { generateFinalPdf } = require("../services/smartFormPdfService");
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
+// Smart Forms entry-page designer layout is intentionally stored separately from
+// PDF field mappings so moving/resizing the entry form can never damage the official PDF map.
+const SmartFormLayout = mongoose.models.SmartFormLayout || mongoose.model("SmartFormLayout", new mongoose.Schema({
+  tenantId:{type:mongoose.Schema.Types.ObjectId,required:true,index:true},
+  templateId:{type:mongoose.Schema.Types.ObjectId,required:true,index:true},
+  canvasHeight:{type:Number,default:1200},
+  items:{type:[mongoose.Schema.Types.Mixed],default:[]},
+  updatedBy:{type:String,default:""}
+},{timestamps:true,collection:"smart_form_layouts"}));
+
+
 const upload = multer({
   storage:multer.memoryStorage(),
   limits:{fileSize:8*1024*1024},
@@ -209,6 +220,43 @@ router.post("/templates", async (req,res)=>{
   }
 });
 
+
+router.get("/templates/:id/layout", async (req,res)=>{
+  try{
+    const g=await gate(req,res); if(!g) return;
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId}).select("_id").lean();
+    if(!t) return res.status(404).json({success:false,message:"Template not found"});
+    const row=await SmartFormLayout.findOne({tenantId:g.tenantId,templateId:t._id}).lean();
+    res.json({success:true,layout:row?{canvasHeight:row.canvasHeight||1200,items:Array.isArray(row.items)?row.items:[]}:{canvasHeight:1200,items:[]}});
+  }catch(err){res.status(500).json({success:false,message:err?.message||"Failed to load form layout"});}
+});
+
+router.put("/templates/:id/layout", async (req,res)=>{
+  try{
+    const g=await gate(req,res); if(!g) return;
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId}).select("_id").lean();
+    if(!t) return res.status(404).json({success:false,message:"Template not found"});
+    const src=req.body?.layout&&typeof req.body.layout==="object"?req.body.layout:{};
+    const canvasHeight=Math.max(500,Math.min(5000,Number(src.canvasHeight||1200)));
+    const items=(Array.isArray(src.items)?src.items:[]).slice(0,500).map((i,n)=>({
+      id:clean(i?.id)||`item_${n+1}`,
+      kind:["FIELD","SECTION","SPACER"].includes(clean(i?.kind).toUpperCase())?clean(i.kind).toUpperCase():"FIELD",
+      fieldKey:clean(i?.fieldKey),
+      text:clean(i?.text),
+      x:Math.max(0,Math.min(100,Number(i?.x||0))),
+      y:Math.max(0,Math.min(5000,Number(i?.y||0))),
+      w:Math.max(5,Math.min(100,Number(i?.w||30))),
+      h:Math.max(34,Math.min(1200,Number(i?.h||90)))
+    }));
+    const row=await SmartFormLayout.findOneAndUpdate(
+      {tenantId:g.tenantId,templateId:t._id},
+      {$set:{canvasHeight,items,updatedBy:actor(req)}},
+      {new:true,upsert:true,setDefaultsOnInsert:true}
+    ).lean();
+    res.json({success:true,layout:{canvasHeight:row.canvasHeight,items:row.items||[]}});
+  }catch(err){res.status(500).json({success:false,message:err?.message||"Failed to save form layout"});}
+});
+
 router.put("/templates/:id/fields", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
@@ -287,67 +335,28 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       });
     }
 
-    const configuredModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const geminiModels=[
-      configuredModel,
-      "gemini-3.7-flash",
-      "gemini-3.6-flash",
-      "gemini-3.5-flash-lite"
-    ].filter((model,index,list)=>model && list.indexOf(model)===index);
-
-    const requestBody={
-      contents:[{role:"user",parts}],
-      generationConfig:{
-        responseMimeType:"application/json",
-        maxOutputTokens:8192
+    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const r=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+      {
+        method:"POST",
+        headers:{
+          "x-goog-api-key":process.env.GEMINI_API_KEY,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          contents:[{role:"user",parts}],
+          generationConfig:{
+            responseMimeType:"application/json",
+            maxOutputTokens:8192
+          }
+        })
       }
-    };
+    );
 
-    let raw=null;
-    let lastGeminiError="Gemini AI request failed";
-
-    for(const geminiModel of geminiModels){
-      const r=await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
-        {
-          method:"POST",
-          headers:{
-            "x-goog-api-key":process.env.GEMINI_API_KEY,
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify(requestBody)
-        }
-      );
-
-      const candidateRaw=await r.json().catch(()=>({}));
-      if(r.ok){
-        raw=candidateRaw;
-        break;
-      }
-
-      lastGeminiError=candidateRaw?.error?.message||`Gemini AI request failed (${r.status})`;
-
-      const retryable=
-        r.status===429 ||
-        r.status===500 ||
-        r.status===502 ||
-        r.status===503 ||
-        r.status===504 ||
-        /high demand|overloaded|temporar|unavailable|resource exhausted|deadline/i.test(lastGeminiError);
-
-      console.warn(
-        `SMART FORMS GEMINI MODEL ${geminiModel} FAILED (${r.status}):`,
-        lastGeminiError,
-        retryable ? "Trying fallback model..." : "Not retryable."
-      );
-
-      if(!retryable){
-        throw new Error(lastGeminiError);
-      }
-    }
-
-    if(!raw){
-      throw new Error(lastGeminiError);
+    const raw=await r.json();
+    if(!r.ok){
+      throw new Error(raw?.error?.message||"Gemini AI request failed");
     }
 
     const text=(raw?.candidates||[])
@@ -358,100 +367,8 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
 
     if(!text) throw new Error("Gemini returned an empty response");
 
-    function extractJsonCandidate(value){
-      let s=String(value||"").trim();
-      s=s.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"").trim();
-      const first=s.indexOf("{");
-      const last=s.lastIndexOf("}");
-      if(first>=0 && last>first) s=s.slice(first,last+1);
-      return s.trim();
-    }
-
-    async function repairGeminiJson(brokenJson){
-      const repairPrompt=[
-        "Repair the following malformed JSON.",
-        "Return ONLY valid JSON. No markdown, no explanation.",
-        "Preserve all field values and the top-level {fields:[...]} structure.",
-        "Do not add fields that are not already present.",
-        "",
-        brokenJson
-      ].join("\n");
-
-      let lastRepairError="Gemini JSON repair failed";
-
-      for(const geminiModel of geminiModels){
-        const repairResponse=await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
-          {
-            method:"POST",
-            headers:{
-              "x-goog-api-key":process.env.GEMINI_API_KEY,
-              "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-              contents:[{role:"user",parts:[{text:repairPrompt}]}],
-              generationConfig:{
-                responseMimeType:"application/json",
-                maxOutputTokens:8192
-              }
-            })
-          }
-        );
-
-        const repairRaw=await repairResponse.json().catch(()=>({}));
-
-        if(repairResponse.ok){
-          const repairText=(repairRaw?.candidates||[])
-            .flatMap(c=>c?.content?.parts||[])
-            .map(p=>p?.text||"")
-            .join("\n")
-            .trim();
-
-          if(repairText) return extractJsonCandidate(repairText);
-          lastRepairError="Gemini returned an empty JSON repair response";
-        }else{
-          lastRepairError=repairRaw?.error?.message||`Gemini JSON repair failed (${repairResponse.status})`;
-        }
-
-        const retryable=
-          repairResponse.status===429 ||
-          repairResponse.status===500 ||
-          repairResponse.status===502 ||
-          repairResponse.status===503 ||
-          repairResponse.status===504 ||
-          /high demand|overloaded|temporar|unavailable|resource exhausted|deadline/i.test(lastRepairError);
-
-        if(!retryable) break;
-      }
-
-      throw new Error(lastRepairError);
-    }
-
-    let cleaned=extractJsonCandidate(text);
-    let parsed;
-
-    try{
-      parsed=JSON.parse(cleaned);
-    }catch(firstParseError){
-      console.warn(
-        "SMART FORMS GEMINI RETURNED MALFORMED JSON. ATTEMPTING REPAIR:",
-        firstParseError?.message
-      );
-
-      cleaned=await repairGeminiJson(cleaned);
-
-      try{
-        parsed=JSON.parse(cleaned);
-      }catch(secondParseError){
-        console.error(
-          "SMART FORMS GEMINI JSON REPAIR STILL INVALID:",
-          secondParseError
-        );
-        throw new Error("Gemini returned invalid form data after automatic JSON repair. Please try AI Detect Fields again.");
-      }
-    }
-
-    const detected=Array.isArray(parsed?.fields)?parsed.fields:[];
+    const cleaned=text.replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
+    const parsed=JSON.parse(cleaned); const detected=Array.isArray(parsed.fields)?parsed.fields:[];
     const existingByKey=new Map((t.fields||[]).map(f=>[String(f.key),f.toObject?f.toObject():f]));
     const fields=detected.map((a,i)=>{
       const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;

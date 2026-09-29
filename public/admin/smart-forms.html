@@ -112,8 +112,20 @@
         <div class="sf-card-body">
           <div class="sf-layout-note">AI creates the first layout. Drag fields in Entry Preview to reorder them, choose width/source/Repeat, then save.</div>
           <div id="builderList" class="sf-builder-list"></div>
-          <div class="sf-builder-preview" style="margin-top:14px"><strong>Entry Preview</strong><div id="builderPreview" class="sf-entry-grid" style="margin-top:10px"></div></div>
-          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder</button>
+          <div class="sf-builder-preview sf-designer-shell" style="margin-top:14px">
+            <div class="sf-designer-head">
+              <strong>Form Designer</strong>
+              <div class="sf-designer-tools">
+                <button id="addSectionBtn" class="sf-btn gray" type="button">+ Add Title</button>
+                <button id="addSpacerBtn" class="sf-btn gray" type="button">+ Add Space</button>
+                <label>Canvas Height <input id="designerHeight" type="number" min="500" max="5000" step="50" value="1200"></label>
+                <button id="autoArrangeBtn" class="sf-btn gray" type="button">Auto Arrange</button>
+              </div>
+            </div>
+            <div class="sf-designer-note">Drag any item anywhere. Resize it from the handles. Titles and spaces are layout-only and never go to PDF Map.</div>
+            <div id="builderPreview" class="sf-free-canvas"></div>
+          </div>
+          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder + Layout</button>
         </div>
       </div>
     </div>
