@@ -20,18 +20,52 @@ function twoLetters(value){
   const x=clean(value).toUpperCase().replace(/[^A-Z0-9]/g,"");
   return (x+"XX").slice(0,2);
 }
-function boundValue(template,formData,binding){
-  const f=(template.fields||[]).find(x=>clean(x.tripBinding).toUpperCase()===binding);
-  return f ? clean(formData?.[f.key]) : "";
+function normalizedFieldText(f){
+  return `${clean(f?.label)} ${clean(f?.key)}`.toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();
+}
+function hasValue(v){
+  if(Array.isArray(v)) return v.length>0;
+  if(typeof v==="boolean") return v;
+  return clean(v)!=="";
+}
+function explicitBoundField(template,binding){
+  return (template.fields||[]).find(x=>clean(x.tripBinding).toUpperCase()===binding) || null;
+}
+function inferredField(template,binding){
+  const fields=template.fields||[];
+  const tests={
+    CLIENT_NAME:[/\bmember name\b/,/\bclient name\b/,/\bpassenger name\b/,/^name$/],
+    PICKUP_ADDRESS:[/\b1st pick up location\b/,/\b1st pickup location\b/,/\bpick up address\b/,/\bpickup address\b/,/\bpickup location\b/],
+    DROPOFF_ADDRESS:[/\b1st drop off location\b/,/\b1st dropoff location\b/,/\bdrop off address\b/,/\bdropoff address\b/,/\bdropoff location\b/],
+    TRIP_DATE:[/^date$/, /\btrip date\b/,/\bservice date\b/,/\bappointment date\b/],
+    PICKUP_TIME:[/\bpick up time\b/,/\bpickup time\b/,/\btrip time\b/,/^time$/],
+    SERVICE:[/^service$/, /\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/]
+  };
+  for(const re of tests[binding]||[]){
+    const f=fields.find(x=>re.test(normalizedFieldText(x)));
+    if(f) return f;
+  }
+  return null;
+}
+function fieldValueForBinding(template,formData,binding){
+  const f=explicitBoundField(template,binding) || inferredField(template,binding);
+  if(!f) return "";
+  const raw=formData?.[f.key];
+  if(binding==="SERVICE" && typeof raw==="boolean"){
+    if(!raw) return "";
+    return clean(f.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"") || "Service";
+  }
+  if(Array.isArray(raw)) return raw.map(clean).filter(Boolean).join(", ");
+  return clean(raw);
 }
 function operationalData(template,formData){
   return {
-    clientName:boundValue(template,formData,"CLIENT_NAME"),
-    pickupAddress:boundValue(template,formData,"PICKUP_ADDRESS"),
-    dropoffAddress:boundValue(template,formData,"DROPOFF_ADDRESS"),
-    tripDate:boundValue(template,formData,"TRIP_DATE"),
-    pickupTime:boundValue(template,formData,"PICKUP_TIME"),
-    serviceName:boundValue(template,formData,"SERVICE")
+    clientName:fieldValueForBinding(template,formData,"CLIENT_NAME"),
+    pickupAddress:fieldValueForBinding(template,formData,"PICKUP_ADDRESS"),
+    dropoffAddress:fieldValueForBinding(template,formData,"DROPOFF_ADDRESS"),
+    tripDate:fieldValueForBinding(template,formData,"TRIP_DATE"),
+    pickupTime:fieldValueForBinding(template,formData,"PICKUP_TIME"),
+    serviceName:fieldValueForBinding(template,formData,"SERVICE")
   };
 }
 async function nextSmartFormTripNumber(tenantId,serviceName){
@@ -486,8 +520,6 @@ router.post("/submissions", async (req,res)=>{
     const op=operationalData(t,formData);
     if(status==="REVIEW"){
       const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
-      const unbound=requiredOps.filter(([binding])=>!(t.fields||[]).some(f=>clean(f.tripBinding).toUpperCase()===binding)).map(([,label])=>label);
-      if(unbound.length) return res.status(400).json({success:false,message:`Smart Review fields not assigned: ${unbound.join(", ")}`});
       const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
       if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
     }
@@ -520,8 +552,6 @@ router.post("/submissions/:id/review", async (req,res)=>{
       if(!t) return res.status(404).json({success:false,message:"Template not found"});
       const op=operationalData(t,s.formData||{});
       const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
-      const unbound=requiredOps.filter(([binding])=>!(t.fields||[]).some(f=>clean(f.tripBinding).toUpperCase()===binding)).map(([,label])=>label);
-      if(unbound.length) return res.status(400).json({success:false,message:`Smart Review fields not assigned: ${unbound.join(", ")}`});
       const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
       if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
       Object.assign(s,op);
