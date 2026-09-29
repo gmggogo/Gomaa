@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Form Review - GH Mobility</title>
+  <style>
+    :root{
+      --bg:#f4f6f9;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#6b7280;
+      --border:#d9dee7;
+      --primary:#c99a2e;
+      --primary-dark:#a97c17;
+      --danger:#c62828;
+      --edit:#263238;
+      --success:#1b7f4b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Arial,Helvetica,sans-serif;
+    }
+    .page{
+      width:100%;
+      padding:24px;
+    }
+    .title-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+    h1{
+      margin:0;
+      font-size:25px;
+      font-weight:700;
+    }
+    .count{
+      color:var(--muted);
+      font-size:14px;
+    }
+    .toolbar{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+    .select-tools,.actions{
+      display:flex;
+      gap:9px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    button{
+      border:0;
+      border-radius:8px;
+      padding:10px 16px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .btn-light{
+      background:#eef1f5;
+      color:#263238;
+      border:1px solid #d7dce4;
+    }
+    .btn-edit{background:var(--edit);color:#fff}
+    .btn-confirm{background:var(--primary);color:#fff}
+    .btn-confirm:hover{background:var(--primary-dark)}
+    .btn-delete{background:var(--danger);color:#fff}
+    .table-card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+    }
+    .table-wrap{overflow:auto}
+    table{
+      width:100%;
+      min-width:1450px;
+      border-collapse:collapse;
+    }
+    th,td{
+      padding:12px 11px;
+      border-bottom:1px solid #e8ebf0;
+      text-align:left;
+      vertical-align:middle;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    th{
+      background:#f8f9fb;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.25px;
+      color:#4b5563;
+      position:sticky;
+      top:0;
+      z-index:1;
+    }
+    tr:hover td{background:#fafbfc}
+    .empty{
+      padding:48px 20px;
+      text-align:center;
+      color:var(--muted);
+      font-size:15px;
+    }
+    .status{
+      display:inline-block;
+      padding:5px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      background:#fff3cd;
+      color:#7a5a00;
+    }
+    .modal{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      z-index:1000;
+    }
+    .modal.open{display:flex}
+    .modal-card{
+      width:min(760px,100%);
+      max-height:90vh;
+      overflow:auto;
+      background:#fff;
+      border-radius:14px;
+      padding:20px;
+    }
+    .modal-card h2{margin:0 0 16px}
+    .form-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field.full{grid-column:1/-1}
+    label{font-size:12px;font-weight:700;color:#4b5563}
+    input,textarea{
+      width:100%;
+      border:1px solid #cfd5df;
+      border-radius:8px;
+      padding:10px;
+      font:inherit;
+    }
+    textarea{min-height:80px;resize:vertical}
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:9px;
+      margin-top:18px;
+    }
+    @media(max-width:700px){
+      .page{padding:14px}
+      .form-grid{grid-template-columns:1fr}
+      .field.full{grid-column:auto}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="title-row">
+      <h1>Smart Form Review</h1>
+      <div class="count" id="tripCount">0 trips</div>
+    </div>
+
+    <section class="toolbar">
+      <div class="select-tools">
+        <button class="btn-light" id="selectAllBtn" type="button">Select All</button>
+        <button class="btn-light" id="selectNoneBtn" type="button">Select None</button>
+        <span class="count" id="selectedCount">0 selected</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-edit" id="editBtn" type="button" disabled>Edit</button>
+        <button class="btn-confirm" id="confirmBtn" type="button" disabled>Confirm</button>
+        <button class="btn-delete" id="deleteBtn" type="button" disabled>Delete</button>
+      </div>
+    </section>
+
+    <section class="table-card">
+      <div class="table-wrap">
+        <table id="reviewTable">
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Trip #</th>
+              <th>Client</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Dropoff</th>
+              <th>Trip Date</th>
+              <th>Pickup Time</th>
+              <th>Appointment Time</th>
+              <th>Return Time</th>
+              <th>Service</th>
+              <th>Passengers</th>
+              <th>Notes</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reviewBody"></tbody>
+        </table>
+        <div class="empty" id="emptyState">No Smart Form trips waiting for review.</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="editModal">
+    <div class="modal-card">
+      <h2>Edit Smart Form Trip</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>Client</label>
+          <input id="editClient">
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input id="editPhone">
+        </div>
+        <div class="field full">
+          <label>Pickup</label>
+          <input id="editPickup">
+        </div>
+        <div class="field full">
+          <label>Dropoff</label>
+          <input id="editDropoff">
+        </div>
+        <div class="field">
+          <label>Trip Date</label>
+          <input id="editDate" type="date">
+        </div>
+        <div class="field">
+          <label>Pickup Time</label>
+          <input id="editTime" type="time">
+        </div>
+        <div class="field">
+          <label>Appointment Time</label>
+          <input id="editAppointment" type="time">
+        </div>
+        <div class="field">
+          <label>Return Time</label>
+          <input id="editReturn" type="time">
+        </div>
+        <div class="field">
+          <label>Service</label>
+          <input id="editService">
+        </div>
+        <div class="field">
+          <label>Passengers</label>
+          <input id="editPassengers" type="number" min="1">
+        </div>
+        <div class="field full">
+          <label>Notes</label>
+          <textarea id="editNotes"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-light" id="cancelEditBtn" type="button">Cancel</button>
+        <button class="btn-confirm" id="saveEditBtn" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const API = {
+    list: '/api/smart-form/review',
+    update: id => `/api/smart-form/review/${encodeURIComponent(id)}`,
+    confirm: '/api/smart-form/review/confirm',
+    remove: '/api/smart-form/review/delete'
+  };
+
+  let trips = [];
+  let selected = new Set();
+  let editingId = null;
+
+  const body = document.getElementById('reviewBody');
+  const empty = document.getElementById('emptyState');
+  const editBtn = document.getElementById('editBtn');
+  const confirmBtn = document.getElementById('confirmBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+
+  function esc(v='') {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    })[c]);
+  }
+
+  function tripId(t) {
+    return String(t._id || t.id || t.tripId || '');
+  }
+
+  function render() {
+    body.innerHTML = '';
+    empty.style.display = trips.length ? 'none' : 'block';
+
+    for (const t of trips) {
+      const id = tripId(t);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="trip-check" type="checkbox" data-id="${esc(id)}" ${selected.has(id) ? 'checked' : ''}></td>
+        <td>${esc(t.tripNumber || t.tripNo || '')}</td>
+        <td>${esc(t.clientName || t.client || t.memberName || '')}</td>
+        <td>${esc(t.phone || t.clientPhone || '')}</td>
+        <td>${esc(t.pickupAddress || t.pickup || '')}</td>
+        <td>${esc(t.dropoffAddress || t.dropoff || '')}</td>
+        <td>${esc(t.tripDate || t.date || '')}</td>
+        <td>${esc(t.pickupTime || t.time || '')}</td>
+        <td>${esc(t.appointmentTime || '')}</td>
+        <td>${esc(t.returnTime || '')}</td>
+        <td>${esc(t.serviceName || t.service || t.serviceKey || '')}</td>
+        <td>${esc(t.totalPassengers || t.passengers || 1)}</td>
+        <td>${esc(t.notes || '')}</td>
+        <td><span class="status">${esc(t.status || 'REVIEW')}</span></td>
+      `;
+      body.appendChild(tr);
+    }
+
+    document.getElementById('tripCount').textContent = `${trips.length} trip${trips.length === 1 ? '' : 's'}`;
+    document.getElementById('selectedCount').textContent = `${selected.size} selected`;
+    editBtn.disabled = selected.size !== 1;
+    confirmBtn.disabled = selected.size === 0;
+    deleteBtn.disabled = selected.size === 0;
+  }
+
+  async function loadTrips() {
+    try {
+      const res = await fetch(API.list, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      trips = Array.isArray(data) ? data : (data.trips || data.items || []);
+    } catch (err) {
+      console.warn('Smart Form Review API is not available yet:', err);
+      trips = [];
+    }
+    selected.clear();
+    render();
+  }
+
+  body.addEventListener('change', e => {
+    if (!e.target.classList.contains('trip-check')) return;
+    const id = e.target.dataset.id;
+    if (e.target.checked) selected.add(id);
+    else selected.delete(id);
+    render();
+  });
+
+  document.getElementById('selectAllBtn').addEventListener('click', () => {
+    selected = new Set(trips.map(tripId).filter(Boolean));
+    render();
+  });
+
+  document.getElementById('selectNoneBtn').addEventListener('click', () => {
+    selected.clear();
+    render();
+  });
+
+  editBtn.addEventListener('click', () => {
+    const id = [...selected][0];
+    const t = trips.find(x => tripId(x) === id);
+    if (!t) return;
+    editingId = id;
+    document.getElementById('editClient').value = t.clientName || t.client || t.memberName || '';
+    document.getElementById('editPhone').value = t.phone || t.clientPhone || '';
+    document.getElementById('editPickup').value = t.pickupAddress || t.pickup || '';
+    document.getElementById('editDropoff').value = t.dropoffAddress || t.dropoff || '';
+    document.getElementById('editDate').value = t.tripDate || t.date || '';
+    document.getElementById('editTime').value = t.pickupTime || t.time || '';
+    document.getElementById('editAppointment').value = t.appointmentTime || '';
+    document.getElementById('editReturn').value = t.returnTime || '';
+    document.getElementById('editService').value = t.serviceName || t.service || t.serviceKey || '';
+    document.getElementById('editPassengers').value = t.totalPassengers || t.passengers || 1;
+    document.getElementById('editNotes').value = t.notes || '';
+    document.getElementById('editModal').classList.add('open');
+  });
+
+  document.getElementById('cancelEditBtn').addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('editModal').classList.remove('open');
+  });
+
+  document.getElementById('saveEditBtn').addEventListener('click', async () => {
+    if (!editingId) return;
+    const payload = {
+      clientName: document.getElementById('editClient').value.trim(),
+      phone: document.getElementById('editPhone').value.trim(),
+      pickupAddress: document.getElementById('editPickup').value.trim(),
+      dropoffAddress: document.getElementById('editDropoff').value.trim(),
+      tripDate: document.getElementById('editDate').value,
+      pickupTime: document.getElementById('editTime').value,
+      appointmentTime: document.getElementById('editAppointment').value,
+      returnTime: document.getElementById('editReturn').value,
+      serviceName: document.getElementById('editService').value.trim(),
+      totalPassengers: Number(document.getElementById('editPassengers').value || 1),
+      notes: document.getElementById('editNotes').value.trim()
+    };
+
+    const res = await fetch(API.update(editingId), {
+      method:'PUT',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      alert('Could not save the trip.');
+      return;
+    }
+    document.getElementById('editModal').classList.remove('open');
+    editingId = null;
+    await loadTrips();
+  });
+
+  confirmBtn.addEventListener('click', async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`Confirm ${ids.length} selected trip(s)?`)) return;
+
+    const res = await fetch(API.confirm, {
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ ids })
+    });
+    if (!res.ok) {
+      alert('Could not confirm the selected trips.');
+      return;
+    }
+    await loadTrips();
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} selected trip(s)?`)) return;
+
+    const res = await fetch(API.remove, {
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ ids })
+    });
+    if (!res.ok) {
+      alert('Could not delete the selected trips.');
+      return;
+    }
+    await loadTrips();
+  });
+
+  loadTrips();
+})();
+</script>
+</body>
+</html>
