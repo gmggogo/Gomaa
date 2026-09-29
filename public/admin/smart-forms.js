@@ -205,363 +205,101 @@ async function renderPdfPage(){
 
   renderBoxes();
 }
-
-function clamp(value,min,max){
-  return Math.min(
-    max,
-    Math.max(min,value)
-  );
-}
-
-function getStageRect(){
-  return document
-    .getElementById("pdfStage")
-    .getBoundingClientRect();
-}
-
-function setBoxFromMapping(box,mapping){
-  box.style.left=
-    `${mapping.xPercent}%`;
-
-  box.style.top=
-    `${mapping.yPercent}%`;
-
-  box.style.width=
-    `${mapping.widthPercent}%`;
-
-  box.style.height=
-    `${mapping.heightPercent}%`;
-}
-
-function beginBoxInteraction(
-  event,
-  field,
-  box,
-  mode
-){
-  event.preventDefault();
-  event.stopPropagation();
-
-  selectedMapFieldId=
-    String(field._id);
-
-  renderMapFieldList();
-
-  box.classList.add(
-    "active",
-    "dragging"
-  );
-
-  const stage=
-    document.getElementById(
-      "pdfStage"
-    );
-
-  const stageRect=
-    stage.getBoundingClientRect();
-
-  const startClientX=
-    event.clientX;
-
-  const startClientY=
-    event.clientY;
-
-  const startX=
-    Number(
-      field.mapping?.xPercent || 0
-    );
-
-  const startY=
-    Number(
-      field.mapping?.yPercent || 0
-    );
-
-  const startW=
-    Number(
-      field.mapping?.widthPercent || 20
-    );
-
-  const startH=
-    Number(
-      field.mapping?.heightPercent || 4
-    );
-
-  /*
-    Minimum visible size in percent.
-    It scales with the PDF viewport instead of forcing fixed pixels.
-  */
-  const minW=
-    Math.max(
-      1.2,
-      (22 / stageRect.width) * 100
-    );
-
-  const minH=
-    Math.max(
-      1.2,
-      (16 / stageRect.height) * 100
-    );
-
-  let framePending=false;
-  let lastEvent=event;
-
-  function applyPointer(){
-    framePending=false;
-
-    const ev=lastEvent;
-
-    const dx=
-      ((ev.clientX-startClientX) /
-        stageRect.width) *
-      100;
-
-    const dy=
-      ((ev.clientY-startClientY) /
-        stageRect.height) *
-      100;
-
-    let x=startX;
-    let y=startY;
-    let w=startW;
-    let h=startH;
-
-    if(mode==="move"){
-      x=
-        clamp(
-          startX + dx,
-          0,
-          100-startW
-        );
-
-      y=
-        clamp(
-          startY + dy,
-          0,
-          100-startH
-        );
-    }else{
-
-      if(mode.includes("e")){
-        w=
-          clamp(
-            startW + dx,
-            minW,
-            100-startX
-          );
-      }
-
-      if(mode.includes("s")){
-        h=
-          clamp(
-            startH + dy,
-            minH,
-            100-startY
-          );
-      }
-
-      if(mode.includes("w")){
-        const maxX=
-          startX + startW - minW;
-
-        x=
-          clamp(
-            startX + dx,
-            0,
-            maxX
-          );
-
-        w=
-          startW +
-          (startX-x);
-      }
-
-      if(mode.includes("n")){
-        const maxY=
-          startY + startH - minH;
-
-        y=
-          clamp(
-            startY + dy,
-            0,
-            maxY
-          );
-
-        h=
-          startH +
-          (startY-y);
-      }
-    }
-
-    field.mapping.xPercent=
-      Number(x.toFixed(4));
-
-    field.mapping.yPercent=
-      Number(y.toFixed(4));
-
-    field.mapping.widthPercent=
-      Number(w.toFixed(4));
-
-    field.mapping.heightPercent=
-      Number(h.toFixed(4));
-
-    setBoxFromMapping(
-      box,
-      field.mapping
-    );
-  }
-
-  function onPointerMove(ev){
-    lastEvent=ev;
-
-    if(!framePending){
-      framePending=true;
-
-      requestAnimationFrame(
-        applyPointer
-      );
-    }
-  }
-
-  function onPointerUp(){
-    if(framePending){
-      applyPointer();
-    }
-
-    box.classList.remove(
-      "dragging"
-    );
-
-    window.removeEventListener(
-      "pointermove",
-      onPointerMove
-    );
-
-    window.removeEventListener(
-      "pointerup",
-      onPointerUp
-    );
-
-    window.removeEventListener(
-      "pointercancel",
-      onPointerUp
-    );
-  }
-
-  window.addEventListener(
-    "pointermove",
-    onPointerMove
-  );
-
-  window.addEventListener(
-    "pointerup",
-    onPointerUp,
-    { once:true }
-  );
-
-  window.addEventListener(
-    "pointercancel",
-    onPointerUp,
-    { once:true }
-  );
-}
-
+function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 function renderBoxes(){
-  const stage=
-    document.getElementById(
-      "pdfStage"
-    );
-
-  stage
-    .querySelectorAll(
-      ".sf-map-box"
-    )
-    .forEach(
-      box=>box.remove()
-    );
-
-  if(!pdfDoc){
-    return;
-  }
+  const stage=document.getElementById("pdfStage");
+  stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());
+  if(!pdfDoc)return;
 
   mapperFields
-    .filter(
-      field=>
-        field.mapping?.mapped &&
-        Number(
-          field.mapping.page || 1
-        ) === pdfPageNumber
-    )
-    .forEach(field=>{
+    .filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber)
+    .forEach(f=>{
+      const b=document.createElement("div");
+      const active=String(f._id)===String(selectedMapFieldId);
+      b.className=`sf-map-box ${active?"active":""}`;
+      b.dataset.fieldId=String(f._id);
+      b.style.left=`${f.mapping.xPercent}%`;
+      b.style.top=`${f.mapping.yPercent}%`;
+      b.style.width=`${f.mapping.widthPercent}%`;
+      b.style.height=`${f.mapping.heightPercent}%`;
+      b.innerHTML=`<span class="label">${esc(f.label)}</span>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
 
-      const box=
-        document.createElement(
-          "div"
-        );
+      b.addEventListener("pointerdown",e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        selectedMapFieldId=f._id;
+        if(!b.classList.contains("active")){
+          renderMapFieldList();
+          renderBoxes();
+          return;
+        }
 
-      box.className=
-        `sf-map-box ${
-          String(field._id)===
-          String(selectedMapFieldId)
-            ? "active"
-            : ""
-        }`;
+        const handle=e.target.closest(".sf-resize-handle");
+        const dir=handle?.dataset.dir||"move";
+        const rect=stage.getBoundingClientRect();
+        const startX=e.clientX;
+        const startY=e.clientY;
+        const start={
+          x:Number(f.mapping.xPercent)||0,
+          y:Number(f.mapping.yPercent)||0,
+          w:Number(f.mapping.widthPercent)||20,
+          h:Number(f.mapping.heightPercent)||4
+        };
+        const minW=Math.max(1.5,1000/Math.max(rect.width,1));
+        const minH=Math.max(1.2,700/Math.max(rect.height,1));
+        b.setPointerCapture?.(e.pointerId);
 
-      box.dataset.fieldId=
-        String(field._id);
+        const move=ev=>{
+          ev.preventDefault();
+          const dx=((ev.clientX-startX)/rect.width)*100;
+          const dy=((ev.clientY-startY)/rect.height)*100;
+          let x=start.x,y=start.y,w=start.w,h=start.h;
 
-      setBoxFromMapping(
-        box,
-        field.mapping
-      );
-
-      box.innerHTML=`
-        <span class="label">
-          ${esc(field.label)}
-        </span>
-
-        <span class="sf-resize-handle nw" data-resize="nw"></span>
-        <span class="sf-resize-handle n"  data-resize="n"></span>
-        <span class="sf-resize-handle ne" data-resize="ne"></span>
-        <span class="sf-resize-handle e"  data-resize="e"></span>
-        <span class="sf-resize-handle se" data-resize="se"></span>
-        <span class="sf-resize-handle s"  data-resize="s"></span>
-        <span class="sf-resize-handle sw" data-resize="sw"></span>
-        <span class="sf-resize-handle w"  data-resize="w"></span>
-      `;
-
-      box.addEventListener(
-        "pointerdown",
-        event=>{
-
-          const handle=
-            event.target.closest(
-              "[data-resize]"
-            );
-
-          if(handle){
-            beginBoxInteraction(
-              event,
-              field,
-              box,
-              handle.dataset.resize
-            );
-
-            return;
+          if(dir==="move"){
+            x=clamp(start.x+dx,0,100-start.w);
+            y=clamp(start.y+dy,0,100-start.h);
+          }else{
+            if(dir.includes("e")) w=clamp(start.w+dx,minW,100-start.x);
+            if(dir.includes("s")) h=clamp(start.h+dy,minH,100-start.y);
+            if(dir.includes("w")){
+              const right=start.x+start.w;
+              x=clamp(start.x+dx,0,right-minW);
+              w=right-x;
+            }
+            if(dir.includes("n")){
+              const bottom=start.y+start.h;
+              y=clamp(start.y+dy,0,bottom-minH);
+              h=bottom-y;
+            }
           }
 
-          beginBoxInteraction(
-            event,
-            field,
-            box,
-            "move"
-          );
-        }
-      );
+          f.mapping.xPercent=x;
+          f.mapping.yPercent=y;
+          f.mapping.widthPercent=w;
+          f.mapping.heightPercent=h;
+          b.style.left=`${x}%`;
+          b.style.top=`${y}%`;
+          b.style.width=`${w}%`;
+          b.style.height=`${h}%`;
+        };
 
-      stage.appendChild(box);
+        const end=ev=>{
+          b.removeEventListener("pointermove",move);
+          b.removeEventListener("pointerup",end);
+          b.removeEventListener("pointercancel",end);
+          try{b.releasePointerCapture?.(ev.pointerId);}catch(_){ }
+          renderMapFieldList();
+          renderBoxes();
+        };
+
+        b.addEventListener("pointermove",move);
+        b.addEventListener("pointerup",end);
+        b.addEventListener("pointercancel",end);
+      });
+
+      stage.appendChild(b);
     });
 }
-
 document.getElementById("pdfStage").onclick=e=>{
   if(
     e.target.closest(".sf-map-box")
