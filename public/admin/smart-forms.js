@@ -478,7 +478,7 @@ if(document.getElementById("refreshReviewBtn"))document.getElementById("refreshR
 document.getElementById("saveDraftBtn").onclick=()=>saveEntry("DRAFT");
 document.getElementById("sendReviewBtn").onclick=()=>saveEntry("REVIEW");
 
-[["entryOrganization","entryTemplate"],["builderOrganization","builderTemplate"],["mapperOrganization","mapperTemplate"]].forEach(([o,t])=>document.getElementById(o).onchange=()=>{templateOptions(document.getElementById(t),document.getElementById(o).value);if(o==="entryOrganization")renderEntry(currentTemplate(document.getElementById(t).value));if(o==="builderOrganization")activateBuilder();if(o==="mapperOrganization")activateMapper();});
+[["entryOrganization","entryTemplate"],["builderOrganization","builderTemplate"],["mapperOrganization","mapperTemplate"]].forEach(([o,t])=>document.getElementById(o).onchange=()=>{templateOptions(document.getElementById(t),document.getElementById(o).value);if(o==="entryOrganization"){renderEntry(currentTemplate(document.getElementById(t).value));renderTemplateSidebar();}if(o==="builderOrganization")activateBuilder();if(o==="mapperOrganization")activateMapper();});
 document.getElementById("entryTemplate").onchange=e=>{renderEntry(currentTemplate(e.target.value));renderTemplateSidebar();};
 document.getElementById("builderTemplate").onchange=activateBuilder;
 document.getElementById("mapperTemplate").onchange=activateMapper;
@@ -518,7 +518,9 @@ function selectEntryTemplate(id){
 function renderTemplateSidebar(){
   const host=document.getElementById("sfTemplateList");if(!host)return;
   const active=String(document.getElementById("entryTemplate")?.value||"");
-  host.innerHTML=templates.length?templates.map(t=>`<button type="button" class="sf-template-item ${String(t._id)===active?"active":""}" data-template-id="${esc(t._id)}"><span>${esc(t.name)}</span></button>`).join(""):`<div class="sf-empty-side">No templates</div>`;
+  const organizationId=String(document.getElementById("entryOrganization")?.value||"");
+  const rows=templates.filter(t=>String(t.organizationId||"")===organizationId);
+  host.innerHTML=rows.length?rows.map(t=>`<button type="button" class="sf-template-item ${String(t._id)===active?"active":""}" data-template-id="${esc(t._id)}"><span>${esc(t.name)}</span></button>`).join(""):`<div class="sf-empty-side">No templates</div>`;
   host.querySelectorAll("[data-template-id]").forEach(b=>b.onclick=()=>selectEntryTemplate(b.dataset.templateId));
 }
 const companyNameEl=document.getElementById("sfCompanyName");if(companyNameEl)companyNameEl.textContent=companyDisplayName();

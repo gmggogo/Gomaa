@@ -158,7 +158,8 @@ router.get("/organizations", async (req,res)=>{
       await SmartFormOrganization.aggregate([
         {
           $match:{
-            active:{ $ne:false }
+            active:{ $ne:false },
+            createdByPlatformAdmin:true
           }
         },
         {
@@ -200,15 +201,33 @@ router.get("/organizations", async (req,res)=>{
 router.get("/templates", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-    const q={tenantId:g.tenantId};
-    if(mongoose.Types.ObjectId.isValid(req.query.organizationId)) q.organizationId=req.query.organizationId;
-    const templates=await SmartFormTemplate.find(q).sort({active:-1,updatedAt:-1}).lean();
+    const allowedOrganizations=await SmartFormOrganization.find({
+      tenantId:g.tenantId,
+      active:{ $ne:false },
+      createdByPlatformAdmin:true
+    }).select("_id").lean();
+
+    const allowedIds=allowedOrganizations.map(o=>o._id);
+    const q={tenantId:g.tenantId,active:true,organizationId:{$in:allowedIds}};
+
+    if(mongoose.Types.ObjectId.isValid(req.query.organizationId)){
+      const requested=String(req.query.organizationId);
+      if(!allowedIds.some(id=>String(id)===requested)){
+        return res.json({success:true,templates:[]});
+      }
+      q.organizationId=req.query.organizationId;
+    }
+
+    const templates=await SmartFormTemplate.find(q).sort({updatedAt:-1}).lean();
     res.json({success:true,templates:templates.map(sanitizeTemplate)});
   }catch(err){res.status(500).json({success:false,message:"Failed to load templates"});}
 });
 
 router.post("/templates", async (req,res)=>{
   try{
+    if(req.authUser?.role!=="PLATFORM_ADMIN"){
+      return res.status(403).json({success:false,message:"Templates are created by Platform Admin only"});
+    }
     const g=await gate(req,res); if(!g) return;
     const organizationId=clean(req.body.organizationId), name=clean(req.body.name);
     if(!mongoose.Types.ObjectId.isValid(organizationId)) return res.status(400).json({success:false,message:"Organization is required"});
