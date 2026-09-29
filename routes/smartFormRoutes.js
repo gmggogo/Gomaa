@@ -47,16 +47,71 @@ function inferredField(template,binding){
   }
   return null;
 }
+function formDataValueByNames(formData, patterns){
+  for(const [key,value] of Object.entries(formData||{})){
+    const text=String(key||"").toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();
+    if(patterns.some(re=>re.test(text)) && hasValue(value)) return value;
+  }
+  return "";
+}
+function serviceFromVehicleFields(template,formData){
+  const picked=[];
+  for(const f of template.fields||[]){
+    const text=normalizedFieldText(f);
+    if(!(/\bvehicle type\b/.test(text)||/\bservice type\b/.test(text)||/^service\b/.test(text))) continue;
+    const raw=formData?.[f.key];
+    if(!hasValue(raw)) continue;
+    if(typeof raw==="boolean"){
+      const label=clean(f.label)
+        .replace(/^vehicle\s*type\s*[:\-]?\s*/i,"")
+        .replace(/^service\s*type\s*[:\-]?\s*/i,"");
+      if(label) picked.push(label);
+    }else if(Array.isArray(raw)){
+      picked.push(...raw.map(clean).filter(Boolean));
+    }else{
+      const value=clean(raw);
+      if(value && !/^(true|on|yes|1)$/i.test(value)) picked.push(value);
+      else {
+        const label=clean(f.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"").replace(/^service\s*type\s*[:\-]?\s*/i,"");
+        if(label) picked.push(label);
+      }
+    }
+  }
+  return picked[0]||"";
+}
 function fieldValueForBinding(template,formData,binding){
   const f=explicitBoundField(template,binding) || inferredField(template,binding);
-  if(!f) return "";
-  const raw=formData?.[f.key];
-  if(binding==="SERVICE" && typeof raw==="boolean"){
-    if(!raw) return "";
-    return clean(f.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"") || "Service";
+  if(f){
+    const raw=formData?.[f.key];
+    if(binding==="SERVICE"){
+      if(typeof raw==="boolean" && raw){
+        return clean(f.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"").replace(/^service\s*type\s*[:\-]?\s*/i,"") || "Service";
+      }
+      if(Array.isArray(raw) && raw.length) return raw.map(clean).filter(Boolean).join(", ");
+      if(hasValue(raw)){
+        const v=clean(raw);
+        if(!/^(true|on|yes|1)$/i.test(v)) return v;
+        const label=clean(f.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"").replace(/^service\s*type\s*[:\-]?\s*/i,"");
+        if(label) return label;
+      }
+    }else if(hasValue(raw)){
+      if(Array.isArray(raw)) return raw.map(clean).filter(Boolean).join(", ");
+      return clean(raw);
+    }
   }
-  if(Array.isArray(raw)) return raw.map(clean).filter(Boolean).join(", ");
-  return clean(raw);
+
+  // Final fallbacks for imported/legacy forms whose saved field metadata has no binding.
+  if(binding==="TRIP_DATE"){
+    const v=formDataValueByNames(formData,[/^date$/, /\btrip date\b/, /\bservice date\b/, /\bappointment date\b/]);
+    return clean(v);
+  }
+  if(binding==="SERVICE"){
+    const vehicle=serviceFromVehicleFields(template,formData);
+    if(vehicle) return vehicle;
+    const v=formDataValueByNames(formData,[/^service$/, /\bservice type\b/, /\bvehicle type\b/, /\btransportation type\b/]);
+    return clean(v);
+  }
+  return "";
 }
 function operationalData(template,formData){
   return {
