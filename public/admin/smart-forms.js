@@ -3,7 +3,7 @@ const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffTok
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
 if(!token || !["SUPER_ADMIN","ADMIN","DISPATCHER"].includes(role)) location.replace("/login.html");
 
-let organizations=[],templates=[],builderFields=[],mapperFields=[],activeBuilderTemplate=null,activeMapperTemplate=null,selectedMapFieldId="",pdfDoc=null,pdfPageNumber=1,pdfPageCount=0,pdfjsLib=null;
+let organizations=[],templates=[],builderFields=[],mapperFields=[],activeBuilderTemplate=null,activeMapperTemplate=null,selectedMapFieldId="",mapViewMode="ALL",pdfDoc=null,pdfPageNumber=1,pdfPageCount=0,pdfjsLib=null;
 
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 function msg(t,type="ok"){const b=document.getElementById("sfMessage");b.textContent=t;b.className=`sf-message show ${type}`;clearTimeout(msg.t);msg.t=setTimeout(()=>b.className="sf-message",3500);}
@@ -55,7 +55,7 @@ function renderBuilder(){
   </div>`).join("");
   p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
 }
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
+document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:1,xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
 document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
   if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
@@ -117,28 +117,48 @@ async function activateMapper(refreshFromServer=false){
   await loadPdf();
   requestAnimationFrame(()=>renderBoxes());
 }
-function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${(f.mapping?.mapped||(f.mappings||[]).some(m=>m.mapped))?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(
-  b=>b.onclick=()=>{
-    selectedMapFieldId=
-      b.dataset.id;
+function renderMapFieldList(){
+  const h=document.getElementById("mapFieldList");
+  const mappedCount=mapperFields.filter(f=>fieldMaps(f).length>0).length;
+  const missingCount=mapperFields.length-mappedCount;
 
+  let controls=document.getElementById("sfMapViewControls");
+  if(!controls){
+    controls=document.createElement("div");
+    controls.id="sfMapViewControls";
+    controls.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px 0";
+    controls.innerHTML=`<button type="button" id="sfShowSelectedBtn">Show Selected Only</button><button type="button" id="sfShowAllBtn">Show All</button>`;
+    h.parentElement.insertBefore(controls,h);
+    document.getElementById("sfShowSelectedBtn").onclick=()=>{mapViewMode="SELECTED";renderMapFieldList();renderBoxes();};
+    document.getElementById("sfShowAllBtn").onclick=()=>{mapViewMode="ALL";renderMapFieldList();renderBoxes();};
+  }
+  const selectedBtn=document.getElementById("sfShowSelectedBtn"),allBtn=document.getElementById("sfShowAllBtn");
+  if(selectedBtn)selectedBtn.style.fontWeight=mapViewMode==="SELECTED"?"700":"400";
+  if(allBtn)allBtn.style.fontWeight=mapViewMode==="ALL"?"700":"400";
+
+  let status=document.getElementById("sfMapStatus");
+  if(!status){
+    status=document.createElement("div");
+    status.id="sfMapStatus";
+    status.style.cssText="font-size:12px;margin:0 0 8px 0;color:#555";
+    h.parentElement.insertBefore(status,h);
+  }
+  status.textContent=`Mapped: ${mappedCount} · Missing: ${missingCount}`;
+
+  h.innerHTML=mapperFields.map(f=>{
+    const count=fieldMaps(f).length;
+    return `<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${count?`Mapped${count>1?` (${count})`:""}`:"Missing / Not mapped"}</small></button>`;
+  }).join("");
+
+  h.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
+    selectedMapFieldId=b.dataset.id;
     renderMapFieldList();
     renderBoxes();
+    const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+    if(f)msg(fieldMaps(f).length?`Selected: ${f.label}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
+  });
+}
 
-    const f=
-      mapperFields.find(
-        x=>
-          String(x._id)===
-          String(selectedMapFieldId)
-      );
-
-    if(f){
-      msg(
-        `Selected: ${f.label}. Click once on the PDF where you want it.`
-      );
-    }
-  }
-);}
 async function loadPdf(localSource=null){
   try{
     if(!localSource && !activeMapperTemplate?.originalPdf?.hasPdf){
@@ -286,13 +306,32 @@ function renderBoxes(){
   stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());
   if(!pdfDoc)return;
   mapperFields.forEach(f=>{
-    fieldMaps(f).forEach((m,mapIndex)=>{
+    if(mapViewMode==="SELECTED" && String(f._id)!==String(selectedMapFieldId))return;
+    const maps=fieldMaps(f);
+    maps.forEach((m,mapIndex)=>{
       if(Number(m.page||1)!==pdfPageNumber)return;
       const b=document.createElement("div"),active=String(f._id)===String(selectedMapFieldId);
       b.className=`sf-map-box ${active?"active":""}`;b.dataset.fieldId=String(f._id);b.dataset.mapIndex=String(mapIndex);
       b.style.left=`${m.xPercent}%`;b.style.top=`${m.yPercent}%`;b.style.width=`${m.widthPercent}%`;b.style.height=`${m.heightPercent}%`;b.style.zIndex=active?"30":"10";
-      b.innerHTML=`<span class="label">${esc(f.label)}${fieldMaps(f).length>1?` #${mapIndex+1}`:""}</span>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
+      b.innerHTML=`<span class="label">${esc(f.label)}${maps.length>1?` #${mapIndex+1}`:""}</span><button type="button" class="sf-map-delete" title="Delete mapping" aria-label="Delete mapping" style="position:absolute;right:-9px;top:-9px;width:20px;height:20px;border-radius:50%;border:1px solid #b91c1c;background:#fff;color:#b91c1c;font-weight:700;line-height:16px;padding:0;cursor:pointer;z-index:50">×</button>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
+
+      b.querySelector(".sf-map-delete").onclick=e=>{
+        e.preventDefault();e.stopPropagation();
+        const current=fieldMaps(f);
+        current.splice(mapIndex,1);
+        if(current.length){
+          f.mapping={...current[0]};
+          f.mappings=current.map(x=>({...x}));
+        }else{
+          f.mapping={...(f.mapping||{}),mapped:false};
+          f.mappings=[];
+        }
+        renderMapFieldList();renderBoxes();
+        msg(current.length?`${f.label}: mapping deleted. ${current.length} remaining.`:`${f.label}: last box deleted — now Missing / Not mapped.`);
+      };
+
       b.addEventListener("pointerdown",e=>{
+        if(e.target.closest(".sf-map-delete"))return;
         e.preventDefault();e.stopPropagation();selectedMapFieldId=f._id;
         if(!b.classList.contains("active")){renderMapFieldList();renderBoxes();return;}
         const dir=e.target.closest(".sf-resize-handle")?.dataset.dir||"move",rect=stage.getBoundingClientRect(),startX=e.clientX,startY=e.clientY;
@@ -309,113 +348,13 @@ function renderBoxes(){
     });
   });
 }
+
 document.getElementById("pdfStage").onclick=e=>{
-  if(
-    e.target.closest(".sf-map-box")
-  ){
-    return;
-  }
-
-  const f=
-    mapperFields.find(
-      x=>
-        String(x._id)===
-        String(selectedMapFieldId)
-    );
-
-  if(!f || !pdfDoc){
-    return;
-  }
-
-  // A mapped field must never jump to a new position just because the PDF
-  // background was clicked. Existing mappings are moved only by dragging
-  // their box (or resized with the handles).
-  if(f.mapping?.mapped && f.repeat!==true){
-    msg(`${f.label} is already mapped. Drag its box to move it, or use the handles to resize it.`);
-    return;
-  }
-
-  const r=
-    e.currentTarget
-      .getBoundingClientRect();
-
-  const clickX=
-    ((e.clientX-r.left)/r.width)*100;
-
-  const clickY=
-    ((e.clientY-r.top)/r.height)*100;
-
-  const width=
-    Number(
-      f.mapping?.widthPercent ||
-      (f.type==="SIGNATURE" ? 25 : 20)
-    );
-
-  const height=
-    Number(
-      f.mapping?.heightPercent ||
-      (f.type==="SIGNATURE" ? 8 : 4)
-    );
-
-  const newMap={
-    ...(f.mapping||{}),
-
-    mapped:true,
-    page:pdfPageNumber,
-
-    xPercent:
-      Math.max(
-        0,
-        Math.min(
-          100-width,
-          clickX
-        )
-      ),
-
-    yPercent:
-      Math.max(
-        0,
-        Math.min(
-          100-height,
-          clickY
-        )
-      ),
-
-    widthPercent:width,
-    heightPercent:height,
-
-    fontSize:
-      Number(
-        document
-          .getElementById(
-            "mapFont"
-          )
-          .value || 10
-      ),
-
-    textAlign:
-      document
-        .getElementById(
-          "mapAlign"
-        )
-        .value
-  };
-  if(f.mapping?.mapped && f.repeat===true){
-    f.mappings=Array.isArray(f.mappings)?f.mappings:[];
-    if(!f.mappings.length)f.mappings.push({...f.mapping});
-    f.mappings.push(newMap);
-  }else{
-    f.mapping=newMap;
-    f.mappings=[{...newMap}];
-  }
-
-  renderMapFieldList();
-  renderBoxes();
-
-  msg(
-    `${f.label} placed on page ${pdfPageNumber}.`
-  );
+  // PDF Map is edit-only. Clicking the PDF background must never create a box.
+  // Boxes are created by Form Builder / AI and are only moved, resized or deleted here.
+  if(e.target.closest(".sf-map-box"))return;
 };
+
 document.getElementById("uploadPdfBtn").onclick=async()=>{
   if(!activeMapperTemplate){
     return msg(
