@@ -48,7 +48,28 @@ document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.g
 
 async function ensurePdfJs(){if(pdfjsLib)return pdfjsLib;pdfjsLib=await import("/vendor/pdfjs/pdf.mjs");pdfjsLib.GlobalWorkerOptions.workerSrc="/vendor/pdfjs/pdf.worker.mjs";return pdfjsLib;}
 async function activateMapper(){activeMapperTemplate=currentTemplate(document.getElementById("mapperTemplate").value);mapperFields=JSON.parse(JSON.stringify(activeMapperTemplate?.fields||[]));selectedMapFieldId=mapperFields[0]?._id||"";renderMapFieldList();await loadPdf();}
-function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${f.mapping?.mapped?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{selectedMapFieldId=b.dataset.id;renderMapFieldList();renderBoxes();});}
+function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${f.mapping?.mapped?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(
+  b=>b.onclick=()=>{
+    selectedMapFieldId=
+      b.dataset.id;
+
+    renderMapFieldList();
+    renderBoxes();
+
+    const f=
+      mapperFields.find(
+        x=>
+          String(x._id)===
+          String(selectedMapFieldId)
+      );
+
+    if(f){
+      msg(
+        `Selected: ${f.label}. Click once on the PDF where you want it.`
+      );
+    }
+  }
+);}
 async function loadPdf(localSource=null){
   try{
     if(!localSource && !activeMapperTemplate?.originalPdf?.hasPdf){
@@ -185,7 +206,97 @@ async function renderPdfPage(){
   renderBoxes();
 }
 function renderBoxes(){const stage=document.getElementById("pdfStage");stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());if(!pdfDoc)return;mapperFields.filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber).forEach(f=>{const b=document.createElement("div");b.className=`sf-map-box ${String(f._id)===String(selectedMapFieldId)?"active":""}`;b.style.left=`${f.mapping.xPercent}%`;b.style.top=`${f.mapping.yPercent}%`;b.style.width=`${f.mapping.widthPercent}%`;b.style.height=`${f.mapping.heightPercent}%`;b.innerHTML=`<span class="label">${esc(f.label)}</span><span class="resize"></span>`;stage.appendChild(b);});}
-document.getElementById("pdfStage").ondblclick=e=>{const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));if(!f||!pdfDoc)return;const r=e.currentTarget.getBoundingClientRect();f.mapping={...(f.mapping||{}),mapped:true,page:pdfPageNumber,xPercent:Math.max(0,Math.min(95,((e.clientX-r.left)/r.width)*100)),yPercent:Math.max(0,Math.min(95,((e.clientY-r.top)/r.height)*100)),widthPercent:Number(f.mapping?.widthPercent||20),heightPercent:Number(f.mapping?.heightPercent||(f.type==="SIGNATURE"?8:4)),fontSize:Number(document.getElementById("mapFont").value||10),textAlign:document.getElementById("mapAlign").value};renderMapFieldList();renderBoxes();};
+document.getElementById("pdfStage").onclick=e=>{
+  if(
+    e.target.closest(".sf-map-box")
+  ){
+    return;
+  }
+
+  const f=
+    mapperFields.find(
+      x=>
+        String(x._id)===
+        String(selectedMapFieldId)
+    );
+
+  if(!f || !pdfDoc){
+    return;
+  }
+
+  const r=
+    e.currentTarget
+      .getBoundingClientRect();
+
+  const clickX=
+    ((e.clientX-r.left)/r.width)*100;
+
+  const clickY=
+    ((e.clientY-r.top)/r.height)*100;
+
+  const width=
+    Number(
+      f.mapping?.widthPercent ||
+      (f.type==="SIGNATURE" ? 25 : 20)
+    );
+
+  const height=
+    Number(
+      f.mapping?.heightPercent ||
+      (f.type==="SIGNATURE" ? 8 : 4)
+    );
+
+  f.mapping={
+    ...(f.mapping||{}),
+
+    mapped:true,
+    page:pdfPageNumber,
+
+    xPercent:
+      Math.max(
+        0,
+        Math.min(
+          100-width,
+          clickX
+        )
+      ),
+
+    yPercent:
+      Math.max(
+        0,
+        Math.min(
+          100-height,
+          clickY
+        )
+      ),
+
+    widthPercent:width,
+    heightPercent:height,
+
+    fontSize:
+      Number(
+        document
+          .getElementById(
+            "mapFont"
+          )
+          .value || 10
+      ),
+
+    textAlign:
+      document
+        .getElementById(
+          "mapAlign"
+        )
+        .value
+  };
+
+  renderMapFieldList();
+  renderBoxes();
+
+  msg(
+    `${f.label} placed on page ${pdfPageNumber}.`
+  );
+};
 document.getElementById("uploadPdfBtn").onclick=async()=>{
   if(!activeMapperTemplate){
     return msg(
