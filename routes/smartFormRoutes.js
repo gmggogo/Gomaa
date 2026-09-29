@@ -118,10 +118,55 @@ router.get("/feature", async (req,res)=>{
 
 router.get("/organizations", async (req,res)=>{
   try{
-    const g=await gate(req,res); if(!g) return;
-    const organizations=await SmartFormOrganization.find({tenantId:g.tenantId,active:true}).sort({name:1}).lean();
-    res.json({success:true,organizations});
-  }catch(err){res.status(500).json({success:false,message:"Failed to load organizations"});}
+    const g=await gate(req,res);
+    if(!g) return;
+
+    /*
+      Compare tenantId by string inside Mongo.
+      This also supports any older organization row whose tenantId
+      may have been stored with a different BSON representation.
+    */
+    const organizations =
+      await SmartFormOrganization.aggregate([
+        {
+          $match:{
+            active:{ $ne:false }
+          }
+        },
+        {
+          $match:{
+            $expr:{
+              $eq:[
+                { $toString:"$tenantId" },
+                String(g.tenantId)
+              ]
+            }
+          }
+        },
+        {
+          $sort:{
+            name:1
+          }
+        }
+      ]);
+
+    return res.json({
+      success:true,
+      tenantId:String(g.tenantId),
+      organizations
+    });
+
+  }catch(err){
+    console.error(
+      "SMART FORMS ORGANIZATIONS ERROR:",
+      err
+    );
+
+    return res.status(500).json({
+      success:false,
+      message:"Failed to load organizations"
+    });
+  }
 });
 
 router.get("/templates", async (req,res)=>{
@@ -140,7 +185,7 @@ router.post("/templates", async (req,res)=>{
     const organizationId=clean(req.body.organizationId), name=clean(req.body.name);
     if(!mongoose.Types.ObjectId.isValid(organizationId)) return res.status(400).json({success:false,message:"Organization is required"});
     if(!name) return res.status(400).json({success:false,message:"Template name is required"});
-    const org=await SmartFormOrganization.findOne({_id:organizationId,tenantId:g.tenantId,active:true}).lean();
+    const org=await SmartFormOrganization.findOne({_id:organizationId,tenantId:g.tenantId,active:{ $ne:false }}).lean();
     if(!org) return res.status(404).json({success:false,message:"Organization not found"});
     const template=await SmartFormTemplate.create({tenantId:g.tenantId,organizationId,name,description:clean(req.body.description),fields:[],createdBy:actor(req),updatedBy:actor(req)});
     res.status(201).json({success:true,template:sanitizeTemplate(template)});
@@ -212,7 +257,7 @@ router.post("/submissions", async (req,res)=>{
     const g=await gate(req,res); if(!g) return;
     const t=await SmartFormTemplate.findOne({_id:req.body.templateId,tenantId:g.tenantId,active:true}).lean();
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
-    const org=await SmartFormOrganization.findOne({_id:t.organizationId,tenantId:g.tenantId,active:true}).lean();
+    const org=await SmartFormOrganization.findOne({_id:t.organizationId,tenantId:g.tenantId,active:{ $ne:false }}).lean();
     if(!org) return res.status(404).json({success:false,message:"Organization not found"});
     const formData=req.body.formData && typeof req.body.formData==="object" ? req.body.formData : {};
     const missing=(t.fields||[]).filter(f=>f.required && f.type!=="SIGNATURE" && (formData[f.key]===undefined || formData[f.key]===null || formData[f.key]==="")).map(f=>f.label);

@@ -15,8 +15,25 @@ function syncSelects(){[["entryOrganization","entryTemplate"],["builderOrganizat
 
 document.querySelectorAll(".sf-tab").forEach(b=>b.onclick=()=>{const tab=b.dataset.tab;document.querySelectorAll(".sf-tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".sf-panel").forEach(p=>p.classList.toggle("active",p.id===`panel-${tab}`));if(tab==="review")loadReview();if(tab==="mapper")activateMapper();});
 
-async function loadHeader(){try{const h=await fetch("/admin/header.html",{cache:"no-store"}).then(r=>r.text());document.getElementById("header").innerHTML=h;const s=document.createElement("script");s.src="/admin/header.js";document.body.appendChild(s);}catch{}}
-async function start(){await loadHeader();const f=await api(`${API}/feature`);if(!f.enabled)throw new Error("Smart Forms disabled");organizations=(await api(`${API}/organizations`)).organizations||[];["entryOrganization","builderOrganization","mapperOrganization"].forEach(id=>orgOptions(document.getElementById(id)));templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderEntry(currentTemplate(document.getElementById("entryTemplate").value));activateBuilder();await loadReview();}
+async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw new Error("Smart Forms disabled");{
+  const organizationResponse =
+    await api(`${API}/organizations`);
+
+  organizations =
+    organizationResponse.organizations || [];
+
+  ["entryOrganization","builderOrganization","mapperOrganization"]
+    .forEach(
+      id=>orgOptions(document.getElementById(id))
+    );
+
+  if(!organizations.length){
+    msg(
+      "No Smart Forms organizations are assigned to this company.",
+      "err"
+    );
+  }
+}templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderEntry(currentTemplate(document.getElementById("entryTemplate").value));activateBuilder();await loadReview();}
 function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`;if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${(f.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
 function renderEntry(t){const host=document.getElementById("entryForm");if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}host.innerHTML=(t.fields||[]).sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
 function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
