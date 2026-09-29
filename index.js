@@ -464,6 +464,18 @@ app.disable("x-powered-by");
 app.use(securityHeaders);
 app.use(cors(corsOptions));
 
+app.use(
+  "/vendor/pdfjs",
+  express.static(
+    path.join(
+      __dirname,
+      "node_modules",
+      "pdfjs-dist",
+      "build"
+    )
+  )
+);
+
 app.use(express.static(
   path.join(__dirname, "public")
 ));
