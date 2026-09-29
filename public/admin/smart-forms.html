@@ -103,11 +103,14 @@
           <div class="sf-control" style="margin-top:10px"><label>Input Width</label>
             <select id="fieldWidth"><option value="25">25%</option><option value="33">33%</option><option value="50" selected>50%</option><option value="66">66%</option><option value="75">75%</option><option value="100">100%</option></select>
           </div>
+          <div class="sf-control" style="margin-top:10px"><label>PDF Page</label>
+            <select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>
+          </div>
           <label style="display:flex;gap:8px;margin-top:12px;font-weight:900"><input id="fieldRequired" type="checkbox"> Required</label>
           <button id="addFieldBtn" class="sf-btn primary" style="width:100%;margin-top:12px">Add Field</button>
         </div>
         <div class="sf-card-body">
-          <div class="sf-layout-note">AI creates the first layout. Use ▲ ▼ to reorder fields, choose width, source, and Repeat, then save.</div>
+          <div class="sf-layout-note">AI creates the first layout. Drag fields in Entry Preview to reorder them, choose width/source/Repeat, then save.</div>
           <div id="builderList" class="sf-builder-list"></div>
           <div class="sf-builder-preview" style="margin-top:14px"><strong>Entry Preview</strong><div id="builderPreview" class="sf-entry-grid" style="margin-top:10px"></div></div>
           <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder</button>

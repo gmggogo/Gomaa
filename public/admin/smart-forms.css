@@ -40,3 +40,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica
 
 .sf-layout-note{margin-bottom:10px;padding:10px 12px;border-radius:8px;background:#eef5ff;color:#274d70;font-size:12px;font-weight:800}.sf-builder-row select{min-height:36px;border:1px solid #cbd6df;border-radius:7px;padding:5px;background:#fff}.sf-repeat-wrap{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:900}.sf-source-badge{font-size:10px;color:#697785}.sf-ai-busy{opacity:.65;pointer-events:none}
 @media(max-width:1200px){.sf-builder-row{grid-template-columns:28px minmax(140px,1fr) 76px 120px 72px 40px 40px 70px}}
+
+
+/* GH Mobility Smart Forms - visual layout editor */
+.sf-builder-preview .sf-entry-grid{align-items:flex-start}
+.sf-layout-field{position:relative;border:1px solid #d7e1e9;border-radius:10px;background:#fff;margin:0;transition:box-shadow .15s,border-color .15s;cursor:default}
+.sf-layout-field.dragging{opacity:.45}
+.sf-layout-field.drag-over{border-color:#246eb9;box-shadow:0 0 0 2px rgba(36,110,185,.14)}
+.sf-layout-drag{margin:-1px -1px 8px;padding:7px 9px;border-radius:9px 9px 0 0;background:#eef5fb;color:#274d70;font-size:11px;font-weight:900;cursor:grab;user-select:none}
+.sf-layout-drag:active{cursor:grabbing}
+.sf-layout-resize-row{display:flex;justify-content:flex-end;margin-top:7px}
+.sf-layout-resize-row label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:900;color:#697785}
+.sf-layout-resize-row select{min-height:28px;padding:3px 6px;border:1px solid #cbd6df;border-radius:6px;background:#fff}
+#builderPreview{min-height:140px}

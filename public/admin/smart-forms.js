@@ -40,6 +40,32 @@ function renderEntry(t){const host=document.getElementById("entryForm");if(!t){h
 function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
 function activateBuilder(){activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));renderBuilder();}
+
+function normalizeBuilderOrder(){
+  builderFields.forEach((f,i)=>f.order=i);
+}
+function moveBuilderField(from,to){
+  from=Number(from);to=Number(to);
+  if(!Number.isInteger(from)||!Number.isInteger(to)||from===to||from<0||to<0||from>=builderFields.length||to>=builderFields.length)return;
+  const [item]=builderFields.splice(from,1);
+  builderFields.splice(to,0,item);
+  normalizeBuilderOrder();
+  renderBuilder();
+}
+function builderPreviewField(f,i){
+  return `<div class="sf-entry-field sf-layout-field" draggable="true" data-layout-index="${i}" style="width:${Number(f.widthPercent||50)}%">
+    <div class="sf-layout-drag" title="Drag to move">☰ ${esc(f.label)}</div>
+    ${inputControl(f)}
+    <div class="sf-layout-resize-row">
+      <label>Width
+        <select data-preview-width="${i}">
+          ${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}
+        </select>
+      </label>
+    </div>
+  </div>`;
+}
+
 function renderBuilder(){
   const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
   if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
@@ -54,24 +80,61 @@ function renderBuilder(){
     <button data-down="${i}" title="Move down">↓</button>
     <button data-del="${i}">Delete</button>
   </div>`).join("");
-  p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
+  p.innerHTML=builderFields.map((f,i)=>builderPreviewField(f,i)).join("");
+  p.querySelectorAll(".sf-layout-field").forEach(card=>{
+    card.addEventListener("dragstart",e=>{
+      e.dataTransfer.effectAllowed="move";
+      e.dataTransfer.setData("text/plain",card.dataset.layoutIndex);
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend",()=>card.classList.remove("dragging"));
+    card.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";card.classList.add("drag-over");});
+    card.addEventListener("dragleave",()=>card.classList.remove("drag-over"));
+    card.addEventListener("drop",e=>{
+      e.preventDefault();card.classList.remove("drag-over");
+      moveBuilderField(e.dataTransfer.getData("text/plain"),card.dataset.layoutIndex);
+    });
+  });
+  p.querySelectorAll("[data-preview-width]").forEach(sel=>sel.onchange=e=>{
+    const i=Number(e.target.dataset.previewWidth);
+    builderFields[i].widthPercent=Number(e.target.value);
+    renderBuilder();
+  });
 }
-// GH Mobility - choose the official PDF page when creating a field.
-(function ensureFieldPdfPageSelector(){
-  const addBtn=document.getElementById("addFieldBtn");
-  if(!addBtn || document.getElementById("fieldPdfPage"))return;
-  const wrap=document.createElement("div");
-  wrap.className="sf-control";
-  wrap.innerHTML='<label>PDF Page</label><select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>';
-  addBtn.parentNode.insertBefore(wrap,addBtn);
-})();
+document.getElementById("addFieldBtn").onclick=()=>{
+  if(!activeBuilderTemplate)return msg("Select a template.","err");
+  const labelEl=document.getElementById("fieldLabel");
+  const label=String(labelEl?.value||"").trim();
+  if(!label)return msg("Field label required.","err");
 
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
+  let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;
+  let n=2,base=key;
+  while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;
+
+  const type=document.getElementById("fieldType").value;
+  const page=Math.max(1,Number(document.getElementById("fieldPdfPage")?.value||1));
+  const width=Number(document.getElementById("fieldWidth").value||50);
+  const map={mapped:true,page,xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"};
+
+  builderFields.push({
+    key,label,type,sourceType:"MANUAL",repeat:false,
+    required:document.getElementById("fieldRequired").checked,
+    options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),
+    widthPercent:width,order:builderFields.length,
+    mapping:{...map},mappings:[{...map}]
+  });
+
+  labelEl.value="";
+  document.getElementById("fieldOptions").value="";
+  normalizeBuilderOrder();
+  renderBuilder();
+  msg(`${label} added. Save Form Builder to keep it.`);
+};
 document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
   if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
   if(e.target.dataset.down!==undefined){const i=Number(e.target.dataset.down);if(i<builderFields.length-1)[builderFields[i+1],builderFields[i]]=[builderFields[i],builderFields[i+1]];}
-  builderFields.forEach((f,j)=>f.order=j);renderBuilder();
+  normalizeBuilderOrder();renderBuilder();
 };
 document.getElementById("builderList").onchange=e=>{
   if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
@@ -167,6 +230,7 @@ function renderMapFieldList(){
     const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
     const maps=f?fieldMaps(f):[];
     const targetPage=Number(maps[0]?.page||f?.mapping?.page||pdfPageNumber||1);
+    syncMapSettings();
     if(pdfDoc && targetPage>=1 && targetPage<=pdfPageCount && targetPage!==pdfPageNumber){
       pdfPageNumber=targetPage;
       renderPdfPage();
@@ -175,6 +239,33 @@ function renderMapFieldList(){
     }
     if(f)msg(maps.length?`Selected: ${f.label}. Page ${targetPage}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
   });
+}
+
+
+function syncMapSettings(){
+  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+  const maps=f?fieldMaps(f):[];
+  const m=maps[0]||f?.mapping;
+  const pageInput=document.getElementById("mapPage");
+  const fontInput=document.getElementById("mapFont");
+  const alignInput=document.getElementById("mapAlign");
+  if(pageInput)pageInput.value=Number(m?.page||pdfPageNumber||1);
+  if(fontInput)fontInput.value=Number(m?.fontSize||10);
+  if(alignInput)alignInput.value=m?.textAlign||"LEFT";
+}
+async function moveSelectedMappingToPage(page){
+  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+  if(!f)return msg("Select a field first.","err");
+  const maps=fieldMaps(f);
+  if(!maps.length)return msg(`${f.label} is Missing / Not mapped.`,"err");
+  page=Math.max(1,Math.min(Number(page)||1,pdfPageCount||Number(page)||1));
+  maps.forEach(m=>m.page=page);
+  f.mapping={...maps[0]};
+  f.mappings=maps.map(m=>({...m}));
+  pdfPageNumber=page;
+  await renderPdfPage();
+  syncMapSettings();
+  msg(`${f.label} moved to PDF Page ${page}.`);
 }
 
 async function loadPdf(localSource=null){
@@ -312,6 +403,7 @@ async function renderPdfPage(){
 
   renderBoxes();
   requestAnimationFrame(()=>renderBoxes());
+  syncMapSettings();
 }
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 function fieldMaps(f){
@@ -371,6 +463,21 @@ document.getElementById("pdfStage").onclick=e=>{
   // PDF Map is edit-only. Clicking the PDF background must never create a box.
   // Boxes are created by Form Builder / AI and are only moved, resized or deleted here.
   if(e.target.closest(".sf-map-box"))return;
+};
+
+
+document.getElementById("mapPage").onchange=e=>moveSelectedMappingToPage(e.target.value);
+document.getElementById("mapFont").onchange=e=>{
+  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+  if(!f)return;
+  const maps=fieldMaps(f);maps.forEach(m=>m.fontSize=Number(e.target.value||10));
+  if(maps.length){f.mapping={...maps[0]};f.mappings=maps.map(m=>({...m}));}
+};
+document.getElementById("mapAlign").onchange=e=>{
+  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+  if(!f)return;
+  const maps=fieldMaps(f);maps.forEach(m=>m.textAlign=e.target.value);
+  if(maps.length){f.mapping={...maps[0]};f.mappings=maps.map(m=>({...m}));}
 };
 
 document.getElementById("uploadPdfBtn").onclick=async()=>{
