@@ -19,6 +19,7 @@
     "node-fetch": "^2.7.0",
     "nodemailer": "^8.0.7",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "socket.io": "^4.8.3",
     "stripe": "^22.1.0",
     "twilio": "^6.0.0",
