@@ -15,7 +15,26 @@
       <h1>Smart Forms</h1>
       <p>Build forms, map them to the official PDF, review reservations, and generate the final document.</p>
     </div>
-    <div class="sf-chip">Paid Feature</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button
+        type="button"
+        class="sf-btn"
+        onclick="window.location.href='/admin/trips-hub.html'"
+        style="
+          min-height:38px;
+          padding:8px 14px;
+          border:1px solid rgba(255,255,255,.45);
+          border-radius:8px;
+          background:#fff;
+          color:#113b63;
+          font-weight:900;
+          cursor:pointer;
+        "
+      >
+        ← Back to Trips Hub
+      </button>
+      <div class="sf-chip">Paid Feature</div>
+    </div>
   </section>
 
   <div id="sfMessage" class="sf-message"></div>
