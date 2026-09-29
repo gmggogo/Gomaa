@@ -35,16 +35,65 @@ async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw n
   }
 }templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderEntry(currentTemplate(document.getElementById("entryTemplate").value));activateBuilder();await loadReview();}
 function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`;if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${(f.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
-function renderEntry(t){const host=document.getElementById("entryForm");if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}host.innerHTML=(t.fields||[]).sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
+function renderEntry(t){const host=document.getElementById("entryForm");if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}host.innerHTML=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL").sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
 function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
 function activateBuilder(){activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));renderBuilder();}
-function renderBuilder(){const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}h.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-row"><span>☰</span><div><strong>${esc(f.label)}</strong><div style="font-size:11px">${esc(f.type)}</div></div><select data-width="${i}">${[25,33,50,66,75,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select><button data-up="${i}">↑</button><button data-del="${i}">Delete</button></div>`).join("");p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
-document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);renderBuilder();}if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
-document.getElementById("builderList").onchange=e=>{if(e.target.dataset.width!==undefined){builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);renderBuilder();}};
+function renderBuilder(){
+  const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
+  if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
+  const sources=["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"];
+  h.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-row">
+    <span>☰</span>
+    <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>
+    <select data-width="${i}">${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select>
+    <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
+    <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
+    <button data-up="${i}" title="Move up">↑</button>
+    <button data-down="${i}" title="Move down">↓</button>
+    <button data-del="${i}">Delete</button>
+  </div>`).join("");
+  p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
+}
+document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
+document.getElementById("builderList").onclick=e=>{
+  if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
+  if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
+  if(e.target.dataset.down!==undefined){const i=Number(e.target.dataset.down);if(i<builderFields.length-1)[builderFields[i+1],builderFields[i]]=[builderFields[i],builderFields[i+1]];}
+  builderFields.forEach((f,j)=>f.order=j);renderBuilder();
+};
+document.getElementById("builderList").onchange=e=>{
+  if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
+  if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
+  if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
+  renderBuilder();
+};
 document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
 document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.getElementById("builderOrganization").value,name=prompt("Template name:");if(!org||!name?.trim())return;try{const d=await api(`${API}/templates`,{method:"POST",body:JSON.stringify({organizationId:org,name:name.trim()})});templates.unshift(d.template);syncSelects();document.getElementById("builderTemplate").value=d.template._id;activateBuilder();msg("Template created.");}catch(e){msg(e.message,"err");}};
+
+async function canvasPageBlob(pageNo){
+  if(!pdfDoc)throw new Error("Upload the official PDF first.");
+  const page=await pdfDoc.getPage(pageNo),viewport=page.getViewport({scale:1.45});
+  const canvas=document.createElement("canvas");canvas.width=viewport.width;canvas.height=viewport.height;
+  await page.render({canvasContext:canvas.getContext("2d"),viewport}).promise;
+  return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not render PDF page")),"image/jpeg",0.78));
+}
+async function aiDetectFields(){
+  if(!activeBuilderTemplate)return msg("Select a template first.","err");
+  const mapperTemplate=currentTemplate(activeBuilderTemplate._id);activeMapperTemplate=mapperTemplate;
+  if(!mapperTemplate?.originalPdf?.hasPdf)return msg("Upload the official PDF in PDF Map first.","err");
+  const btn=document.getElementById("aiDetectBtn");btn.classList.add("sf-ai-busy");btn.textContent="✦ AI analyzing PDF...";
+  try{
+    await loadPdf();const fd=new FormData();
+    for(let n=1;n<=Math.min(pdfPageCount,8);n++){const blob=await canvasPageBlob(n);fd.append("pages",blob,`page-${n}.jpg`);}
+    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/ai-detect`,{method:"POST",body:fd});
+    const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
+    activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    renderBuilder();renderMapFieldList();msg(`AI detected ${builderFields.length} fields. Review layout, sources and PDF positions, then save.`);
+  }catch(e){msg(e.message,"err");}
+  finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
+}
+document.getElementById("aiDetectBtn").onclick=aiDetectFields;
 
 async function ensurePdfJs(){if(pdfjsLib)return pdfjsLib;pdfjsLib=await import("/vendor/pdfjs/pdf.mjs");pdfjsLib.GlobalWorkerOptions.workerSrc="/vendor/pdfjs/pdf.worker.mjs";return pdfjsLib;}
 async function activateMapper(refreshFromServer=false){
@@ -68,7 +117,7 @@ async function activateMapper(refreshFromServer=false){
   await loadPdf();
   requestAnimationFrame(()=>renderBoxes());
 }
-function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${f.mapping?.mapped?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(
+function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${(f.mapping?.mapped||(f.mappings||[]).some(m=>m.mapped))?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(
   b=>b.onclick=()=>{
     selectedMapFieldId=
       b.dataset.id;
@@ -227,101 +276,38 @@ async function renderPdfPage(){
   requestAnimationFrame(()=>renderBoxes());
 }
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+function fieldMaps(f){
+  const arr=Array.isArray(f.mappings)?f.mappings.filter(m=>m?.mapped):[];
+  if(arr.length)return arr;
+  return f.mapping?.mapped?[f.mapping]:[];
+}
 function renderBoxes(){
   const stage=document.getElementById("pdfStage");
   stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());
   if(!pdfDoc)return;
-
-  mapperFields
-    .filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber)
-    .forEach(f=>{
-      const b=document.createElement("div");
-      const active=String(f._id)===String(selectedMapFieldId);
-      b.className=`sf-map-box ${active?"active":""}`;
-      b.dataset.fieldId=String(f._id);
-      b.style.left=`${f.mapping.xPercent}%`;
-      b.style.top=`${f.mapping.yPercent}%`;
-      b.style.width=`${f.mapping.widthPercent}%`;
-      b.style.height=`${f.mapping.heightPercent}%`;
-      b.style.zIndex=active?"30":"10";
-      b.style.display="block";
-      b.innerHTML=`<span class="label">${esc(f.label)}</span>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
-
+  mapperFields.forEach(f=>{
+    fieldMaps(f).forEach((m,mapIndex)=>{
+      if(Number(m.page||1)!==pdfPageNumber)return;
+      const b=document.createElement("div"),active=String(f._id)===String(selectedMapFieldId);
+      b.className=`sf-map-box ${active?"active":""}`;b.dataset.fieldId=String(f._id);b.dataset.mapIndex=String(mapIndex);
+      b.style.left=`${m.xPercent}%`;b.style.top=`${m.yPercent}%`;b.style.width=`${m.widthPercent}%`;b.style.height=`${m.heightPercent}%`;b.style.zIndex=active?"30":"10";
+      b.innerHTML=`<span class="label">${esc(f.label)}${fieldMaps(f).length>1?` #${mapIndex+1}`:""}</span>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
       b.addEventListener("pointerdown",e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        selectedMapFieldId=f._id;
-        if(!b.classList.contains("active")){
-          renderMapFieldList();
-          renderBoxes();
-          return;
-        }
-
-        const handle=e.target.closest(".sf-resize-handle");
-        const dir=handle?.dataset.dir||"move";
-        const rect=stage.getBoundingClientRect();
-        const startX=e.clientX;
-        const startY=e.clientY;
-        const start={
-          x:Number(f.mapping.xPercent)||0,
-          y:Number(f.mapping.yPercent)||0,
-          w:Number(f.mapping.widthPercent)||20,
-          h:Number(f.mapping.heightPercent)||4
+        e.preventDefault();e.stopPropagation();selectedMapFieldId=f._id;
+        if(!b.classList.contains("active")){renderMapFieldList();renderBoxes();return;}
+        const dir=e.target.closest(".sf-resize-handle")?.dataset.dir||"move",rect=stage.getBoundingClientRect(),startX=e.clientX,startY=e.clientY;
+        const start={x:Number(m.xPercent)||0,y:Number(m.yPercent)||0,w:Number(m.widthPercent)||20,h:Number(m.heightPercent)||4};
+        const minW=Math.max(1.5,1000/Math.max(rect.width,1)),minH=Math.max(1.2,700/Math.max(rect.height,1));b.setPointerCapture?.(e.pointerId);
+        const move=ev=>{ev.preventDefault();const dx=((ev.clientX-startX)/rect.width)*100,dy=((ev.clientY-startY)/rect.height)*100;let x=start.x,y=start.y,w=start.w,h=start.h;
+          if(dir==="move"){x=clamp(start.x+dx,0,100-start.w);y=clamp(start.y+dy,0,100-start.h);}else{if(dir.includes("e"))w=clamp(start.w+dx,minW,100-start.x);if(dir.includes("s"))h=clamp(start.h+dy,minH,100-start.y);if(dir.includes("w")){const right=start.x+start.w;x=clamp(start.x+dx,0,right-minW);w=right-x;}if(dir.includes("n")){const bottom=start.y+start.h;y=clamp(start.y+dy,0,bottom-minH);h=bottom-y;}}
+          Object.assign(m,{xPercent:x,yPercent:y,widthPercent:w,heightPercent:h});if(mapIndex===0)f.mapping={...m};b.style.left=`${x}%`;b.style.top=`${y}%`;b.style.width=`${w}%`;b.style.height=`${h}%`;
         };
-        const minW=Math.max(1.5,1000/Math.max(rect.width,1));
-        const minH=Math.max(1.2,700/Math.max(rect.height,1));
-        b.setPointerCapture?.(e.pointerId);
-
-        const move=ev=>{
-          ev.preventDefault();
-          const dx=((ev.clientX-startX)/rect.width)*100;
-          const dy=((ev.clientY-startY)/rect.height)*100;
-          let x=start.x,y=start.y,w=start.w,h=start.h;
-
-          if(dir==="move"){
-            x=clamp(start.x+dx,0,100-start.w);
-            y=clamp(start.y+dy,0,100-start.h);
-          }else{
-            if(dir.includes("e")) w=clamp(start.w+dx,minW,100-start.x);
-            if(dir.includes("s")) h=clamp(start.h+dy,minH,100-start.y);
-            if(dir.includes("w")){
-              const right=start.x+start.w;
-              x=clamp(start.x+dx,0,right-minW);
-              w=right-x;
-            }
-            if(dir.includes("n")){
-              const bottom=start.y+start.h;
-              y=clamp(start.y+dy,0,bottom-minH);
-              h=bottom-y;
-            }
-          }
-
-          f.mapping.xPercent=x;
-          f.mapping.yPercent=y;
-          f.mapping.widthPercent=w;
-          f.mapping.heightPercent=h;
-          b.style.left=`${x}%`;
-          b.style.top=`${y}%`;
-          b.style.width=`${w}%`;
-          b.style.height=`${h}%`;
-        };
-
-        const end=ev=>{
-          b.removeEventListener("pointermove",move);
-          b.removeEventListener("pointerup",end);
-          b.removeEventListener("pointercancel",end);
-          try{b.releasePointerCapture?.(ev.pointerId);}catch(_){ }
-          renderMapFieldList();
-          renderBoxes();
-        };
-
-        b.addEventListener("pointermove",move);
-        b.addEventListener("pointerup",end);
-        b.addEventListener("pointercancel",end);
+        const end=ev=>{b.removeEventListener("pointermove",move);b.removeEventListener("pointerup",end);b.removeEventListener("pointercancel",end);try{b.releasePointerCapture?.(ev.pointerId)}catch(_){}renderMapFieldList();renderBoxes();};
+        b.addEventListener("pointermove",move);b.addEventListener("pointerup",end);b.addEventListener("pointercancel",end);
       });
-
       stage.appendChild(b);
     });
+  });
 }
 document.getElementById("pdfStage").onclick=e=>{
   if(
@@ -344,7 +330,7 @@ document.getElementById("pdfStage").onclick=e=>{
   // A mapped field must never jump to a new position just because the PDF
   // background was clicked. Existing mappings are moved only by dragging
   // their box (or resized with the handles).
-  if(f.mapping?.mapped){
+  if(f.mapping?.mapped && f.repeat!==true){
     msg(`${f.label} is already mapped. Drag its box to move it, or use the handles to resize it.`);
     return;
   }
@@ -371,7 +357,7 @@ document.getElementById("pdfStage").onclick=e=>{
       (f.type==="SIGNATURE" ? 8 : 4)
     );
 
-  f.mapping={
+  const newMap={
     ...(f.mapping||{}),
 
     mapped:true,
@@ -414,6 +400,14 @@ document.getElementById("pdfStage").onclick=e=>{
         )
         .value
   };
+  if(f.mapping?.mapped && f.repeat===true){
+    f.mappings=Array.isArray(f.mappings)?f.mappings:[];
+    if(!f.mappings.length)f.mappings.push({...f.mapping});
+    f.mappings.push(newMap);
+  }else{
+    f.mapping=newMap;
+    f.mappings=[{...newMap}];
+  }
 
   renderMapFieldList();
   renderBoxes();
@@ -498,7 +492,7 @@ document.getElementById("uploadPdfBtn").onclick=async()=>{
     );
   }
 };
-document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeBuilderTemplate&&String(activeBuilderTemplate._id)===String(d.template._id)){activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));renderBuilder();}msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
+document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping,mappings:f.mappings||[]}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeBuilderTemplate&&String(activeBuilderTemplate._id)===String(d.template._id)){activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));renderBuilder();}msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
 document.getElementById("prevPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage();}};
 document.getElementById("nextPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber<pdfPageCount){pdfPageNumber++;await renderPdfPage();}};
 

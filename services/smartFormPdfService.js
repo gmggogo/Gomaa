@@ -60,7 +60,8 @@ async function generateFinalPdf({tenantId,submissionId}){
   const fields = [...(template.fields || [])].sort((a,b)=>Number(a.order||0)-Number(b.order||0));
 
   for(const field of fields){
-    const m = field.mapping || {};
+    const savedMaps=Array.isArray(field.mappings)&&field.mappings.length?field.mappings:[field.mapping||{}];
+    for(const m of savedMaps){
     if(m.mapped !== true) continue;
     const page = pages[Math.max(0,Number(m.page||1)-1)];
     if(!page) continue;
@@ -88,6 +89,7 @@ async function generateFinalPdf({tenantId,submissionId}){
     if(m.textAlign==="RIGHT") drawX = x + Math.max(0,boxW-width);
 
     page.drawText(text,{x:drawX,y:y+Math.max(0,boxH-fontSize),size:fontSize,font,color:rgb(0,0,0),maxWidth:boxW});
+    }
   }
 
   const bytes = await pdfDoc.save();

@@ -22,10 +22,13 @@ const fieldSchema = new mongoose.Schema({
   required:{type:Boolean,default:false},
   placeholder:{type:String,default:""},
   options:{type:[String],default:[]},
-  widthPercent:{type:Number,default:50,min:20,max:100},
+  widthPercent:{type:Number,default:50,min:10,max:100},
   order:{type:Number,default:0},
   tripBinding:{type:String,default:""},
-  mapping:{type:mappingSchema,default:()=>({})}
+  sourceType:{type:String,enum:["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"],default:"MANUAL"},
+  repeat:{type:Boolean,default:false},
+  mapping:{type:mappingSchema,default:()=>({})},
+  mappings:{type:[mappingSchema],default:[]}
 },{_id:true,minimize:false});
 
 const schema = new mongoose.Schema({

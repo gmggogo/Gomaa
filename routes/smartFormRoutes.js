@@ -21,6 +21,12 @@ const upload = multer({
   }
 });
 
+const aiUpload = multer({
+  storage:multer.memoryStorage(),
+  limits:{fileSize:4*1024*1024,files:8},
+  fileFilter(req,file,cb){const ok=String(file?.mimetype||"").startsWith("image/");cb(ok?null:new Error("Only page images are allowed"),ok);}
+});
+
 const clean = v => String(v ?? "").trim();
 const allowedRoles = new Set(["SUPER_ADMIN","ADMIN","DISPATCHER","PLATFORM_ADMIN"]);
 
@@ -79,9 +85,11 @@ function normalizeFields(fields){
       required:f.required===true,
       placeholder:clean(f.placeholder),
       options:Array.isArray(f.options)?f.options.map(clean).filter(Boolean):[],
-      widthPercent:Math.max(20,Math.min(100,Number(f.widthPercent||50))),
+      widthPercent:Math.max(10,Math.min(100,Number(f.widthPercent||50))),
       order:i,
       tripBinding:clean(f.tripBinding),
+      sourceType:["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"].includes(clean(f.sourceType).toUpperCase())?clean(f.sourceType).toUpperCase():"MANUAL",
+      repeat:f.repeat===true,
       mapping:{
         mapped:m.mapped===true,
         page:Math.max(1,Number(m.page||1)),
@@ -91,7 +99,14 @@ function normalizeFields(fields){
         heightPercent:Math.max(.1,Math.min(100,Number(m.heightPercent||4))),
         fontSize:Math.max(5,Math.min(48,Number(m.fontSize||10))),
         textAlign:["LEFT","CENTER","RIGHT"].includes(clean(m.textAlign).toUpperCase()) ? clean(m.textAlign).toUpperCase() : "LEFT"
-      }
+      },
+      mappings:(Array.isArray(f.mappings)?f.mappings:[]).map(mm=>({
+        mapped:mm?.mapped===true,page:Math.max(1,Number(mm?.page||1)),
+        xPercent:Math.max(0,Math.min(100,Number(mm?.xPercent||0))),yPercent:Math.max(0,Math.min(100,Number(mm?.yPercent||0))),
+        widthPercent:Math.max(.1,Math.min(100,Number(mm?.widthPercent||20))),heightPercent:Math.max(.1,Math.min(100,Number(mm?.heightPercent||4))),
+        fontSize:Math.max(5,Math.min(48,Number(mm?.fontSize||10))),
+        textAlign:["LEFT","CENTER","RIGHT"].includes(clean(mm?.textAlign).toUpperCase())?clean(mm.textAlign).toUpperCase():"LEFT"
+      }))
     };
   });
 }
@@ -211,7 +226,10 @@ router.put("/templates/:id/fields", async (req,res)=>{
       return {
         ...f,
         _id: old?._id || f?._id || undefined,
-        mapping: plain?.mapping || f?.mapping || undefined
+        mapping: plain?.mapping || f?.mapping || undefined,
+        mappings: plain?.mappings || f?.mappings || [],
+        sourceType:f?.sourceType || plain?.sourceType || "MANUAL",
+        repeat:f?.repeat===true
       };
     });
     t.fields=normalizeFields(merged);
@@ -226,9 +244,10 @@ router.put("/templates/:id/mapping", async (req,res)=>{
     const g=await gate(req,res); if(!g) return;
     const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
-    const map=new Map((req.body.fields||[]).filter(x=>x?._id).map(x=>[String(x._id),x.mapping||{}]));
+    const map=new Map((req.body.fields||[]).filter(x=>x?._id).map(x=>[String(x._id),x]));
     t.fields.forEach(f=>{
-      const m=map.get(String(f._id)); if(!m) return;
+      const row=map.get(String(f._id)); if(!row) return;
+      const m=row.mapping||{};
       f.mapping={
         mapped:m.mapped===true,page:Math.max(1,Number(m.page||1)),
         xPercent:Math.max(0,Math.min(100,Number(m.xPercent||0))),
@@ -238,10 +257,41 @@ router.put("/templates/:id/mapping", async (req,res)=>{
         fontSize:Math.max(5,Math.min(48,Number(m.fontSize||10))),
         textAlign:["LEFT","CENTER","RIGHT"].includes(clean(m.textAlign).toUpperCase())?clean(m.textAlign).toUpperCase():"LEFT"
       };
+      f.mappings=(Array.isArray(row.mappings)?row.mappings:[]).map(mm=>({mapped:mm?.mapped===true,page:Math.max(1,Number(mm?.page||1)),xPercent:Math.max(0,Math.min(100,Number(mm?.xPercent||0))),yPercent:Math.max(0,Math.min(100,Number(mm?.yPercent||0))),widthPercent:Math.max(.1,Math.min(100,Number(mm?.widthPercent||20))),heightPercent:Math.max(.1,Math.min(100,Number(mm?.heightPercent||4))),fontSize:Math.max(5,Math.min(48,Number(mm?.fontSize||10))),textAlign:["LEFT","CENTER","RIGHT"].includes(clean(mm?.textAlign).toUpperCase())?clean(mm.textAlign).toUpperCase():"LEFT"}));
     });
     await t.save();
     res.json({success:true,template:sanitizeTemplate(t)});
   }catch(err){res.status(500).json({success:false,message:"Failed to save mapping"});}
+});
+
+router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,res)=>{
+  try{
+    const g=await gate(req,res); if(!g) return;
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
+    if(!t) return res.status(404).json({success:false,message:"Template not found"});
+    const pages=Array.isArray(req.files)?req.files:[];
+    if(!pages.length) return res.status(400).json({success:false,message:"PDF page images are required"});
+    if(!process.env.OPENAI_API_KEY) return res.status(503).json({success:false,message:"OPENAI_API_KEY is not configured on the server"});
+    const content=[{type:"input_text",text:`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`}];
+    for(let i=0;i<pages.length;i++){const p=pages[i];content.push({type:"input_text",text:`PDF page ${i+1}`});content.push({type:"input_image",image_url:`data:${p.mimetype||"image/jpeg"};base64,${p.buffer.toString("base64")}`});}
+    const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Authorization":`Bearer ${process.env.OPENAI_API_KEY}`,"Content-Type":"application/json"},body:JSON.stringify({model:process.env.SMART_FORMS_AI_MODEL||"gpt-5.6-luna",input:[{role:"user",content}],max_output_tokens:8000})});
+    const raw=await r.json();
+    if(!r.ok) throw new Error(raw?.error?.message||"AI request failed");
+    const text=(raw.output||[]).flatMap(o=>o.content||[]).map(c=>c.text||"").join("\n").trim();
+    const cleaned=text.replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
+    const parsed=JSON.parse(cleaned); const detected=Array.isArray(parsed.fields)?parsed.fields:[];
+    const existingByKey=new Map((t.fields||[]).map(f=>[String(f.key),f.toObject?f.toObject():f]));
+    const fields=detected.map((a,i)=>{
+      const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
+      const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
+      const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
+      return {_id:old?._id,key,label,type:clean(a.type||"TEXT").toUpperCase(),required:a.required===true,widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),repeat:a.repeat===true||maps.length>1,tripBinding:old?.tripBinding||"",options:old?.options||[],mapping:maps[0]||old?.mapping||{},mappings:maps};
+    });
+    const detectedKeys=new Set(fields.map(f=>f.key));
+    for(const old of (t.fields||[])){const plain=old.toObject?old.toObject():old;if(!detectedKeys.has(String(plain.key)))fields.push(plain);}
+    t.fields=normalizeFields(fields); t.updatedBy=actor(req); await t.save();
+    res.json({success:true,template:sanitizeTemplate(t),detected:t.fields.length});
+  }catch(err){console.error("SMART FORMS AI DETECT ERROR:",err);res.status(500).json({success:false,message:err?.message||"AI field detection failed"});}
 });
 
 router.post("/templates/:id/pdf", upload.single("pdf"), async (req,res)=>{
