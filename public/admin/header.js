@@ -405,7 +405,8 @@ async function loadSharedBrokerVisibility(){
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
-{g:"Smart Forms",i:"doc",items:[["Smart Forms","smart-forms.html","doc"],["Smart Forms Review","smart-forms-review.html","check"]]},
+{l:"Smart Forms",h:"smart-forms.html",i:"doc"},
+{l:"Smart Forms Review",h:"smart-forms-review.html",i:"check"},
 {l:"Dispatch",h:"dispatch.html",i:"car"},
 {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
 {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
