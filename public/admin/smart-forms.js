@@ -223,16 +223,32 @@ document.getElementById("builderList").onclick=e=>{
   normalizeBuilderOrder();renderBuilder();
 };
 document.getElementById("builderList").onchange=e=>{
-  if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
-  if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
-  if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
-  renderBuilder();
+  if(e.target.dataset.width!==undefined){
+    builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
+    renderBuilder();
+    return;
+  }
+  if(e.target.dataset.source!==undefined){
+    builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
+    renderBuilder();
+    return;
+  }
+  if(e.target.dataset.repeat!==undefined){
+    const i=Number(e.target.dataset.repeat);
+    if(builderFields[i]){
+      builderFields[i].repeat=e.target.checked===true;
+      builderFields[i].repeatUserOverride=true;
+    }
+    // Do not redraw the whole list here. Keep the user's checkbox state exactly as clicked.
+    msg(`${builderFields[i]?.label||"Field"} Repeat ${e.target.checked?"enabled":"disabled"}. Save Form Builder to keep it.`);
+  }
 };
 document.getElementById("saveBuilderBtn").onclick=async()=>{
   if(!activeBuilderTemplate)return;
   try{
     reconcileDesigner();
-    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});
+    const fieldsToSave=builderFields.map(f=>({...f,repeat:f.repeat===true,repeatUserOverride:f.repeatUserOverride===true}));
+    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:fieldsToSave})});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
     activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
     await saveDesignerLayout(d.template._id);
