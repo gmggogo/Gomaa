@@ -56,7 +56,17 @@ function renderBuilder(){
   </div>`).join("");
   p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
 }
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
+// GH Mobility - choose the official PDF page when creating a field.
+(function ensureFieldPdfPageSelector(){
+  const addBtn=document.getElementById("addFieldBtn");
+  if(!addBtn || document.getElementById("fieldPdfPage"))return;
+  const wrap=document.createElement("div");
+  wrap.className="sf-control";
+  wrap.innerHTML='<label>PDF Page</label><select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>';
+  addBtn.parentNode.insertBefore(wrap,addBtn);
+})();
+
+document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
 document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
   if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
@@ -154,9 +164,16 @@ function renderMapFieldList(){
   h.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
     selectedMapFieldId=b.dataset.id;
     renderMapFieldList();
-    renderBoxes();
     const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
-    if(f)msg(fieldMaps(f).length?`Selected: ${f.label}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
+    const maps=f?fieldMaps(f):[];
+    const targetPage=Number(maps[0]?.page||f?.mapping?.page||pdfPageNumber||1);
+    if(pdfDoc && targetPage>=1 && targetPage<=pdfPageCount && targetPage!==pdfPageNumber){
+      pdfPageNumber=targetPage;
+      renderPdfPage();
+    }else{
+      renderBoxes();
+    }
+    if(f)msg(maps.length?`Selected: ${f.label}. Page ${targetPage}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
   });
 }
 
