@@ -222,6 +222,15 @@ document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.down!==undefined){const i=Number(e.target.dataset.down);if(i<builderFields.length-1)[builderFields[i+1],builderFields[i]]=[builderFields[i],builderFields[i+1]];}
   normalizeBuilderOrder();renderBuilder();
 };
+document.getElementById("builderList").onclick=e=>{
+  const cb=e.target.closest("[data-repeat]");
+  if(!cb)return;
+  const i=Number(cb.dataset.repeat);
+  if(builderFields[i]){
+    builderFields[i].repeat=cb.checked===true;
+    builderFields[i].repeatUserOverride=true;
+  }
+};
 document.getElementById("builderList").onchange=e=>{
   if(e.target.dataset.width!==undefined){
     builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
@@ -247,6 +256,13 @@ document.getElementById("saveBuilderBtn").onclick=async()=>{
   if(!activeBuilderTemplate)return;
   try{
     reconcileDesigner();
+    document.querySelectorAll("#builderList [data-repeat]").forEach(cb=>{
+      const i=Number(cb.dataset.repeat);
+      if(builderFields[i]){
+        builderFields[i].repeat=cb.checked===true;
+        builderFields[i].repeatUserOverride=true;
+      }
+    });
     const fieldsToSave=builderFields.map(f=>({...f,repeat:f.repeat===true,repeatUserOverride:f.repeatUserOverride===true}));
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:fieldsToSave})});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;

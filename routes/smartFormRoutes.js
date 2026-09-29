@@ -379,7 +379,7 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
       return {_id:old?._id,key,label,type:clean(a.type||"TEXT").toUpperCase(),required:a.required===true,widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
         // AI may suggest Repeat only for a brand-new field. Existing fields keep the user's saved choice.
-        repeat:old ? old.repeat===true : (a.repeat===true||maps.length>1),
+        repeat:old ? old.repeat===true : (a.repeat===true),
         repeatUserOverride:old?.repeatUserOverride===true,
         tripBinding:old?.tripBinding||"",options:old?.options||[],mapping:maps[0]||old?.mapping||{},mappings:maps};
     });
