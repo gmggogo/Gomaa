@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
+const SmartFormTemplate = require("../models/SmartFormTemplate");
 const { verifyToken, requireRole } = require("../middleware/authmiddleware");
 
 const router = express.Router();
@@ -46,6 +47,50 @@ router.post("/", async (req,res)=>{
       message:err?.code===11000?"Organization already exists":(err?.message || "Failed to create organization")
     });
   }
+});
+
+
+router.get("/:id/templates", async (req,res)=>{
+  try{
+    const organization=await SmartFormOrganization.findById(req.params.id).lean();
+    if(!organization)return res.status(404).json({success:false,message:"Organization not found"});
+    const templates=await SmartFormTemplate.find({tenantId:organization.tenantId,organizationId:organization._id})
+      .sort({active:-1,updatedAt:-1}).select("-originalPdf.data").lean();
+    res.json({success:true,templates});
+  }catch(err){res.status(500).json({success:false,message:"Failed to load templates"});}
+});
+
+router.post("/:id/templates", async (req,res)=>{
+  try{
+    const organization=await SmartFormOrganization.findById(req.params.id);
+    if(!organization||organization.active===false)return res.status(404).json({success:false,message:"Active organization not found"});
+    const name=clean(req.body?.name);
+    if(!name)return res.status(400).json({success:false,message:"Template name is required"});
+    const template=await SmartFormTemplate.create({
+      tenantId:organization.tenantId,organizationId:organization._id,name,
+      description:clean(req.body?.description),active:true,fields:[],
+      createdBy:req.user?.name||req.user?.username||"Platform Admin",
+      updatedBy:req.user?.name||req.user?.username||"Platform Admin"
+    });
+    res.status(201).json({success:true,template});
+  }catch(err){
+    res.status(err?.code===11000?409:500).json({success:false,message:err?.code===11000?"Template already exists":(err?.message||"Failed to create template")});
+  }
+});
+
+router.put("/:orgId/templates/:templateId", async (req,res)=>{
+  try{
+    const organization=await SmartFormOrganization.findById(req.params.orgId).lean();
+    if(!organization)return res.status(404).json({success:false,message:"Organization not found"});
+    const template=await SmartFormTemplate.findOne({_id:req.params.templateId,tenantId:organization.tenantId,organizationId:organization._id});
+    if(!template)return res.status(404).json({success:false,message:"Template not found"});
+    if(req.body?.name!==undefined){const name=clean(req.body.name);if(!name)return res.status(400).json({success:false,message:"Template name is required"});template.name=name;}
+    if(req.body?.description!==undefined)template.description=clean(req.body.description);
+    if(req.body?.active!==undefined)template.active=req.body.active===true;
+    template.updatedBy=req.user?.name||req.user?.username||"Platform Admin";
+    await template.save();
+    res.json({success:true,template});
+  }catch(err){res.status(err?.code===11000?409:500).json({success:false,message:err?.message||"Failed to update template"});}
 });
 
 router.put("/:id", async (req,res)=>{

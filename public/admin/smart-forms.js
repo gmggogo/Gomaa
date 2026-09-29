@@ -80,7 +80,6 @@ document.getElementById("builderList").onchange=e=>{
   renderBuilder();
 };
 document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
-document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.getElementById("builderOrganization").value,name=prompt("Template name:");if(!org||!name?.trim())return;try{const d=await api(`${API}/templates`,{method:"POST",body:JSON.stringify({organizationId:org,name:name.trim()})});templates.unshift(d.template);syncSelects();document.getElementById("builderTemplate").value=d.template._id;activateBuilder();msg("Template created.");}catch(e){msg(e.message,"err");}};
 
 async function canvasPageBlob(pageNo){
   if(!pdfDoc)throw new Error("Upload the official PDF first.");

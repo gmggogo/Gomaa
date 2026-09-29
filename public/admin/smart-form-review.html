@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Form Review - GH Mobility</title>
+  <link rel="stylesheet" href="style.css">
   <style>
     :root{
       --bg:#f4f6f9;
@@ -27,6 +28,29 @@
     .page{
       width:100%;
       padding:24px;
+    }
+
+    #adminHeader{width:100%;z-index:1000}
+
+    .page-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:84px;
+      margin:16px 24px 12px;
+      padding:16px 20px;
+      border:1px solid #e0be5a;
+      border-radius:18px;
+      background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+      box-shadow:0 8px 22px rgba(146,102,14,.13);
+      text-align:center;
+    }
+    .page-head-title{
+      margin:0;
+      font-size:28px;
+      line-height:1.1;
+      font-weight:900;
+      color:#111827;
     }
     .title-row{
       display:flex;
@@ -180,9 +204,15 @@
   </style>
 </head>
 <body>
+  <div id="adminHeader"></div>
+
+  <div class="page-head">
+    <h1 class="page-head-title">Smart Form Review</h1>
+  </div>
+
   <main class="page">
     <div class="title-row">
-      <h1>Smart Form Review</h1>
+      <div></div>
       <div class="count" id="tripCount">0 trips</div>
     </div>
 
@@ -283,6 +313,13 @@
       </div>
     </div>
   </div>
+
+<script src="header.js"></script>
+<script>
+if (typeof loadHeader === "function") {
+  loadHeader("Smart Form Review");
+}
+</script>
 
 <script>
 (() => {

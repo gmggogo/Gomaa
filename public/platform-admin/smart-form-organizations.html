@@ -20,6 +20,14 @@
 <button id="addBtn" class="primary">+ Add</button>
 </div></div></section>
 <section class="card"><div class="card-head">Organizations</div><div class="body" style="overflow:auto"><table><thead><tr><th>Name</th><th>Type</th><th>Code</th><th>Status</th><th>Actions</th></tr></thead><tbody id="organizationBody"></tbody></table></div></section>
+<section class="card"><div class="card-head">Paid Smart Form Templates</div><div class="body">
+<div class="grid" style="grid-template-columns:2fr 2fr auto">
+<div><label>Organization</label><select id="templateOrganization"></select></div>
+<div><label>Template Name</label><input id="templateName" placeholder="Reservation Form"></div>
+<button id="addTemplateBtn" class="primary">+ Add Template</button>
+</div>
+<div style="overflow:auto;margin-top:16px"><table><thead><tr><th>Template</th><th>Organization</th><th>Status</th><th>Actions</th></tr></thead><tbody id="templateBody"></tbody></table></div>
+</div></section>
 </main>
 <script src="/platform-admin/smart-form-organizations.js"></script>
 </body>
