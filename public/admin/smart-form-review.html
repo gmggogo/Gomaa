@@ -235,20 +235,8 @@
         <table id="reviewTable">
           <thead>
             <tr>
-              <th>Select</th>
-              <th>Trip #</th>
-              <th>Client</th>
-              <th>Phone</th>
-              <th>Pickup</th>
-              <th>Dropoff</th>
-              <th>Trip Date</th>
-              <th>Pickup Time</th>
-              <th>Appointment Time</th>
-              <th>Return Time</th>
-              <th>Service</th>
-              <th>Passengers</th>
-              <th>Notes</th>
-              <th>Status</th>
+              <th>Select</th><th>Trip #</th><th>Client</th><th>Pickup</th><th>Dropoff</th>
+              <th>Trip Date</th><th>Pickup Time</th><th>Service</th><th>Status</th><th>Eye</th>
             </tr>
           </thead>
           <tbody id="reviewBody"></tbody>
@@ -314,6 +302,14 @@
     </div>
   </div>
 
+<div class="modal" id="eyeModal">
+  <div class="modal-card" style="max-width:900px">
+    <h2 id="eyeTitle">Smart Form Details</h2>
+    <div id="eyeDetails" class="form-grid"></div>
+    <div class="modal-actions"><button class="btn-light" id="closeEyeBtn" type="button">Close</button></div>
+  </div>
+</div>
+
 <script src="header.js"></script>
 <script>
 if (typeof loadHeader === "function") {
@@ -352,37 +348,40 @@ if (typeof loadHeader === "function") {
     return String(t._id || t.id || t.tripId || '');
   }
 
+  function fieldValue(t,f){
+    const v=t.formData?.[f.key];
+    if(Array.isArray(v)) return v.join(", ");
+    if(v && typeof v==="object") return JSON.stringify(v);
+    if(typeof v==="boolean") return v?"Yes":"No";
+    return v ?? "";
+  }
+
+  function openEye(t){
+    const operational=new Set(["CLIENT_NAME","PICKUP_ADDRESS","DROPOFF_ADDRESS","TRIP_DATE","PICKUP_TIME","SERVICE"]);
+    const fields=(t.fieldSnapshot||[]).filter(f=>!operational.has(String(f.tripBinding||"").toUpperCase()));
+    document.getElementById("eyeTitle").textContent=`${t.tripNumber||"Smart Form"} — Details`;
+    document.getElementById("eyeDetails").innerHTML=fields.length?fields.map(f=>`<div class="field"><label>${esc(f.label||f.key)}</label><div style="padding:10px;border:1px solid #d9dee8;border-radius:8px;min-height:40px;background:#fff">${esc(fieldValue(t,f))}</div></div>`).join(""):`<div class="field full">No additional information.</div>`;
+    document.getElementById("eyeModal").classList.add("open");
+  }
+
   function render() {
     body.innerHTML = '';
     empty.style.display = trips.length ? 'none' : 'block';
-
     for (const t of trips) {
       const id = tripId(t);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><input class="trip-check" type="checkbox" data-id="${esc(id)}" ${selected.has(id) ? 'checked' : ''}></td>
-        <td>${esc(t.tripNumber || t.tripNo || '')}</td>
-        <td>${esc(t.formData?.clientName || t.formData?.client || t.formData?.memberName || '')}</td>
-        <td>${esc(t.formData?.phone || t.formData?.clientPhone || '')}</td>
-        <td>${esc(t.formData?.pickupAddress || t.formData?.pickup || t.formData?.["1st_pick_up_location"] || '')}</td>
-        <td>${esc(t.formData?.dropoffAddress || t.formData?.dropoff || '')}</td>
-        <td>${esc(t.formData?.tripDate || t.formData?.date || '')}</td>
-        <td>${esc(t.formData?.pickupTime || t.formData?.time || '')}</td>
-        <td>${esc(t.formData?.appointmentTime || '')}</td>
-        <td>${esc(t.formData?.returnTime || '')}</td>
-        <td>${esc(t.formData?.serviceName || t.formData?.service || t.formData?.serviceKey || '')}</td>
-        <td>${esc(t.formData?.totalPassengers || t.formData?.passengers || 1)}</td>
-        <td>${esc(t.formData?.notes || '')}</td>
-        <td><span class="status">${esc(t.status || 'REVIEW')}</span></td>
-      `;
+        <td>${esc(t.tripNumber || '')}</td><td>${esc(t.clientName || '')}</td>
+        <td>${esc(t.pickupAddress || '')}</td><td>${esc(t.dropoffAddress || '')}</td>
+        <td>${esc(t.tripDate || '')}</td><td>${esc(t.pickupTime || '')}</td>
+        <td>${esc(t.serviceName || '')}</td><td><span class="status">${esc(t.status || 'REVIEW')}</span></td>
+        <td><button type="button" class="btn-light eye-btn" data-eye="${esc(id)}" title="View all form details">👁</button></td>`;
       body.appendChild(tr);
     }
-
     document.getElementById('tripCount').textContent = `${trips.length} trip${trips.length === 1 ? '' : 's'}`;
     document.getElementById('selectedCount').textContent = `${selected.size} selected`;
-    editBtn.disabled = true;
-    confirmBtn.disabled = selected.size === 0;
-    deleteBtn.disabled = selected.size === 0;
+    editBtn.disabled = true; confirmBtn.disabled = selected.size === 0; deleteBtn.disabled = selected.size === 0;
   }
 
   async function loadTrips() {
@@ -399,6 +398,14 @@ if (typeof loadHeader === "function") {
     selected.clear();
     render();
   }
+
+  body.addEventListener('click', e => {
+    const id=e.target.closest('[data-eye]')?.dataset.eye;
+    if(!id)return;
+    const t=trips.find(x=>tripId(x)===id);
+    if(t)openEye(t);
+  });
+  document.getElementById('closeEyeBtn').addEventListener('click',()=>document.getElementById('eyeModal').classList.remove('open'));
 
   body.addEventListener('change', e => {
     if (!e.target.classList.contains('trip-check')) return;

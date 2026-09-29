@@ -44,11 +44,13 @@ function renderBuilder(){
   const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
   if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
   const sources=["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"];
+  const bindings=[["","Not a review column"],["CLIENT_NAME","Client Name"],["PICKUP_ADDRESS","Pickup Address"],["DROPOFF_ADDRESS","Dropoff Address"],["TRIP_DATE","Trip Date"],["PICKUP_TIME","Pickup Time"],["SERVICE","Service"]];
   h.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-row">
     <span>☰</span>
     <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>
     <select data-width="${i}">${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
+    <select data-binding="${i}" title="Smart Review field">${bindings.map(([v,l])=>`<option value="${v}" ${(f.tripBinding||"")===v?"selected":""}>${l}</option>`).join("")}</select>
     <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
     <button data-up="${i}" title="Move up">↑</button>
     <button data-down="${i}" title="Move down">↓</button>
@@ -66,7 +68,7 @@ function renderBuilder(){
   addBtn.parentNode.insertBefore(wrap,addBtn);
 })();
 
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
+document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
 document.getElementById("builderList").onclick=e=>{
   if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
   if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
@@ -76,6 +78,7 @@ document.getElementById("builderList").onclick=e=>{
 document.getElementById("builderList").onchange=e=>{
   if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
   if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
+  if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value;if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v)f.tripBinding="";});builderFields[i].tripBinding=v;}
   if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
   renderBuilder();
 };

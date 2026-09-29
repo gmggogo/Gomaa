@@ -10,6 +10,40 @@ const SmartFormSubmission = require("../models/SmartFormSubmission");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 
 const router = express.Router();
+// Atomic per-company Smart Form trip sequence.
+const SmartFormTripSequence = mongoose.models.SmartFormTripSequence || mongoose.model("SmartFormTripSequence", new mongoose.Schema({
+  tenantId:{type:mongoose.Schema.Types.ObjectId,required:true,unique:true,index:true},
+  seq:{type:Number,default:0}
+},{timestamps:true,collection:"smart_form_trip_sequences"}));
+
+function twoLetters(value){
+  const x=clean(value).toUpperCase().replace(/[^A-Z0-9]/g,"");
+  return (x+"XX").slice(0,2);
+}
+function boundValue(template,formData,binding){
+  const f=(template.fields||[]).find(x=>clean(x.tripBinding).toUpperCase()===binding);
+  return f ? clean(formData?.[f.key]) : "";
+}
+function operationalData(template,formData){
+  return {
+    clientName:boundValue(template,formData,"CLIENT_NAME"),
+    pickupAddress:boundValue(template,formData,"PICKUP_ADDRESS"),
+    dropoffAddress:boundValue(template,formData,"DROPOFF_ADDRESS"),
+    tripDate:boundValue(template,formData,"TRIP_DATE"),
+    pickupTime:boundValue(template,formData,"PICKUP_TIME"),
+    serviceName:boundValue(template,formData,"SERVICE")
+  };
+}
+async function nextSmartFormTripNumber(tenantId,serviceName){
+  const tenant=await Tenant.findById(tenantId).select("name branding.companyName").lean();
+  const companyName=clean(tenant?.branding?.companyName)||clean(tenant?.name)||"XX";
+  const row=await SmartFormTripSequence.findOneAndUpdate(
+    {tenantId},{$inc:{seq:1}},
+    {new:true,upsert:true,setDefaultsOnInsert:true}
+  ).lean();
+  return `SF${twoLetters(companyName)}${String(row.seq).padStart(6,"0")}${twoLetters(serviceName)}`;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
 // Smart Forms entry-page designer layout is intentionally stored separately from
@@ -449,9 +483,18 @@ router.post("/submissions", async (req,res)=>{
     const missing=(t.fields||[]).filter(f=>f.required && f.type!=="SIGNATURE" && (formData[f.key]===undefined || formData[f.key]===null || formData[f.key]==="")).map(f=>f.label);
     if(missing.length) return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
     const status=String(req.body.status||"").toUpperCase()==="REVIEW"?"REVIEW":"DRAFT";
+    const op=operationalData(t,formData);
+    if(status==="REVIEW"){
+      const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
+      const unbound=requiredOps.filter(([binding])=>!(t.fields||[]).some(f=>clean(f.tripBinding).toUpperCase()===binding)).map(([,label])=>label);
+      if(unbound.length) return res.status(400).json({success:false,message:`Smart Review fields not assigned: ${unbound.join(", ")}`});
+      const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
+      if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
+    }
+    const tripNumber=status==="REVIEW"?await nextSmartFormTripNumber(g.tenantId,op.serviceName):"";
     const s=await SmartFormSubmission.create({
       tenantId:g.tenantId,organizationId:org._id,templateId:t._id,templateName:t.name,organizationName:org.name,
-      status,formData,fieldSnapshot:t.fields||[],signatureRequired:(t.fields||[]).some(f=>f.type==="SIGNATURE"),
+      status,formData,fieldSnapshot:t.fields||[],tripNumber,...op,signatureRequired:(t.fields||[]).some(f=>f.type==="SIGNATURE"),
       submittedBy:actor(req),submittedAt:status==="REVIEW"?new Date():null
     });
     res.status(201).json({success:true,submission:sanitizeSubmission(s)});
@@ -472,6 +515,18 @@ router.post("/submissions/:id/review", async (req,res)=>{
     const s=await SmartFormSubmission.findOne({_id:req.params.id,tenantId:g.tenantId});
     if(!s) return res.status(404).json({success:false,message:"Submission not found"});
     if(s.status==="CONFIRMED") return res.status(409).json({success:false,message:"Already confirmed"});
+    if(!s.tripNumber){
+      const t=await SmartFormTemplate.findOne({_id:s.templateId,tenantId:g.tenantId}).lean();
+      if(!t) return res.status(404).json({success:false,message:"Template not found"});
+      const op=operationalData(t,s.formData||{});
+      const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
+      const unbound=requiredOps.filter(([binding])=>!(t.fields||[]).some(f=>clean(f.tripBinding).toUpperCase()===binding)).map(([,label])=>label);
+      if(unbound.length) return res.status(400).json({success:false,message:`Smart Review fields not assigned: ${unbound.join(", ")}`});
+      const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
+      if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
+      Object.assign(s,op);
+      s.tripNumber=await nextSmartFormTripNumber(g.tenantId,op.serviceName);
+    }
     s.status="REVIEW"; s.reviewedBy=actor(req); s.reviewedAt=new Date(); if(!s.submittedAt) s.submittedAt=new Date();
     await s.save();
     res.json({success:true,submission:sanitizeSubmission(s)});

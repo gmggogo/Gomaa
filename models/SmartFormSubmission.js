@@ -11,6 +11,12 @@ const schema = new mongoose.Schema({
   fieldSnapshot:{type:[mongoose.Schema.Types.Mixed],default:[]},
   tripId:{type:mongoose.Schema.Types.ObjectId,ref:"Trip",default:null,index:true},
   tripNumber:{type:String,default:"",index:true},
+  clientName:{type:String,default:""},
+  pickupAddress:{type:String,default:""},
+  dropoffAddress:{type:String,default:""},
+  tripDate:{type:String,default:""},
+  pickupTime:{type:String,default:""},
+  serviceName:{type:String,default:""},
   signatureRequired:{type:Boolean,default:false},
   submittedBy:{type:String,default:""},
   submittedAt:{type:Date,default:null},
@@ -29,6 +35,7 @@ const schema = new mongoose.Schema({
 },{timestamps:true,minimize:false});
 
 schema.index({tenantId:1,status:1,createdAt:-1});
+schema.index({tenantId:1,tripNumber:1},{unique:true,partialFilterExpression:{tripNumber:{$type:"string",$gt:""}}});
 schema.index({tenantId:1,organizationId:1,templateId:1,createdAt:-1});
 
 module.exports = mongoose.models.SmartFormSubmission || mongoose.model("SmartFormSubmission",schema);
