@@ -358,8 +358,100 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
 
     if(!text) throw new Error("Gemini returned an empty response");
 
-    const cleaned=text.replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
-    const parsed=JSON.parse(cleaned); const detected=Array.isArray(parsed.fields)?parsed.fields:[];
+    function extractJsonCandidate(value){
+      let s=String(value||"").trim();
+      s=s.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/i,"").trim();
+      const first=s.indexOf("{");
+      const last=s.lastIndexOf("}");
+      if(first>=0 && last>first) s=s.slice(first,last+1);
+      return s.trim();
+    }
+
+    async function repairGeminiJson(brokenJson){
+      const repairPrompt=[
+        "Repair the following malformed JSON.",
+        "Return ONLY valid JSON. No markdown, no explanation.",
+        "Preserve all field values and the top-level {fields:[...]} structure.",
+        "Do not add fields that are not already present.",
+        "",
+        brokenJson
+      ].join("\n");
+
+      let lastRepairError="Gemini JSON repair failed";
+
+      for(const geminiModel of geminiModels){
+        const repairResponse=await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+          {
+            method:"POST",
+            headers:{
+              "x-goog-api-key":process.env.GEMINI_API_KEY,
+              "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+              contents:[{role:"user",parts:[{text:repairPrompt}]}],
+              generationConfig:{
+                responseMimeType:"application/json",
+                maxOutputTokens:8192
+              }
+            })
+          }
+        );
+
+        const repairRaw=await repairResponse.json().catch(()=>({}));
+
+        if(repairResponse.ok){
+          const repairText=(repairRaw?.candidates||[])
+            .flatMap(c=>c?.content?.parts||[])
+            .map(p=>p?.text||"")
+            .join("\n")
+            .trim();
+
+          if(repairText) return extractJsonCandidate(repairText);
+          lastRepairError="Gemini returned an empty JSON repair response";
+        }else{
+          lastRepairError=repairRaw?.error?.message||`Gemini JSON repair failed (${repairResponse.status})`;
+        }
+
+        const retryable=
+          repairResponse.status===429 ||
+          repairResponse.status===500 ||
+          repairResponse.status===502 ||
+          repairResponse.status===503 ||
+          repairResponse.status===504 ||
+          /high demand|overloaded|temporar|unavailable|resource exhausted|deadline/i.test(lastRepairError);
+
+        if(!retryable) break;
+      }
+
+      throw new Error(lastRepairError);
+    }
+
+    let cleaned=extractJsonCandidate(text);
+    let parsed;
+
+    try{
+      parsed=JSON.parse(cleaned);
+    }catch(firstParseError){
+      console.warn(
+        "SMART FORMS GEMINI RETURNED MALFORMED JSON. ATTEMPTING REPAIR:",
+        firstParseError?.message
+      );
+
+      cleaned=await repairGeminiJson(cleaned);
+
+      try{
+        parsed=JSON.parse(cleaned);
+      }catch(secondParseError){
+        console.error(
+          "SMART FORMS GEMINI JSON REPAIR STILL INVALID:",
+          secondParseError
+        );
+        throw new Error("Gemini returned invalid form data after automatic JSON repair. Please try AI Detect Fields again.");
+      }
+    }
+
+    const detected=Array.isArray(parsed?.fields)?parsed.fields:[];
     const existingByKey=new Map((t.fields||[]).map(f=>[String(f.key),f.toObject?f.toObject():f]));
     const fields=detected.map((a,i)=>{
       const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
