@@ -205,7 +205,363 @@ async function renderPdfPage(){
 
   renderBoxes();
 }
-function renderBoxes(){const stage=document.getElementById("pdfStage");stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());if(!pdfDoc)return;mapperFields.filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber).forEach(f=>{const b=document.createElement("div");b.className=`sf-map-box ${String(f._id)===String(selectedMapFieldId)?"active":""}`;b.style.left=`${f.mapping.xPercent}%`;b.style.top=`${f.mapping.yPercent}%`;b.style.width=`${f.mapping.widthPercent}%`;b.style.height=`${f.mapping.heightPercent}%`;b.innerHTML=`<span class="label">${esc(f.label)}</span><span class="resize"></span>`;stage.appendChild(b);});}
+
+function clamp(value,min,max){
+  return Math.min(
+    max,
+    Math.max(min,value)
+  );
+}
+
+function getStageRect(){
+  return document
+    .getElementById("pdfStage")
+    .getBoundingClientRect();
+}
+
+function setBoxFromMapping(box,mapping){
+  box.style.left=
+    `${mapping.xPercent}%`;
+
+  box.style.top=
+    `${mapping.yPercent}%`;
+
+  box.style.width=
+    `${mapping.widthPercent}%`;
+
+  box.style.height=
+    `${mapping.heightPercent}%`;
+}
+
+function beginBoxInteraction(
+  event,
+  field,
+  box,
+  mode
+){
+  event.preventDefault();
+  event.stopPropagation();
+
+  selectedMapFieldId=
+    String(field._id);
+
+  renderMapFieldList();
+
+  box.classList.add(
+    "active",
+    "dragging"
+  );
+
+  const stage=
+    document.getElementById(
+      "pdfStage"
+    );
+
+  const stageRect=
+    stage.getBoundingClientRect();
+
+  const startClientX=
+    event.clientX;
+
+  const startClientY=
+    event.clientY;
+
+  const startX=
+    Number(
+      field.mapping?.xPercent || 0
+    );
+
+  const startY=
+    Number(
+      field.mapping?.yPercent || 0
+    );
+
+  const startW=
+    Number(
+      field.mapping?.widthPercent || 20
+    );
+
+  const startH=
+    Number(
+      field.mapping?.heightPercent || 4
+    );
+
+  /*
+    Minimum visible size in percent.
+    It scales with the PDF viewport instead of forcing fixed pixels.
+  */
+  const minW=
+    Math.max(
+      1.2,
+      (22 / stageRect.width) * 100
+    );
+
+  const minH=
+    Math.max(
+      1.2,
+      (16 / stageRect.height) * 100
+    );
+
+  let framePending=false;
+  let lastEvent=event;
+
+  function applyPointer(){
+    framePending=false;
+
+    const ev=lastEvent;
+
+    const dx=
+      ((ev.clientX-startClientX) /
+        stageRect.width) *
+      100;
+
+    const dy=
+      ((ev.clientY-startClientY) /
+        stageRect.height) *
+      100;
+
+    let x=startX;
+    let y=startY;
+    let w=startW;
+    let h=startH;
+
+    if(mode==="move"){
+      x=
+        clamp(
+          startX + dx,
+          0,
+          100-startW
+        );
+
+      y=
+        clamp(
+          startY + dy,
+          0,
+          100-startH
+        );
+    }else{
+
+      if(mode.includes("e")){
+        w=
+          clamp(
+            startW + dx,
+            minW,
+            100-startX
+          );
+      }
+
+      if(mode.includes("s")){
+        h=
+          clamp(
+            startH + dy,
+            minH,
+            100-startY
+          );
+      }
+
+      if(mode.includes("w")){
+        const maxX=
+          startX + startW - minW;
+
+        x=
+          clamp(
+            startX + dx,
+            0,
+            maxX
+          );
+
+        w=
+          startW +
+          (startX-x);
+      }
+
+      if(mode.includes("n")){
+        const maxY=
+          startY + startH - minH;
+
+        y=
+          clamp(
+            startY + dy,
+            0,
+            maxY
+          );
+
+        h=
+          startH +
+          (startY-y);
+      }
+    }
+
+    field.mapping.xPercent=
+      Number(x.toFixed(4));
+
+    field.mapping.yPercent=
+      Number(y.toFixed(4));
+
+    field.mapping.widthPercent=
+      Number(w.toFixed(4));
+
+    field.mapping.heightPercent=
+      Number(h.toFixed(4));
+
+    setBoxFromMapping(
+      box,
+      field.mapping
+    );
+  }
+
+  function onPointerMove(ev){
+    lastEvent=ev;
+
+    if(!framePending){
+      framePending=true;
+
+      requestAnimationFrame(
+        applyPointer
+      );
+    }
+  }
+
+  function onPointerUp(){
+    if(framePending){
+      applyPointer();
+    }
+
+    box.classList.remove(
+      "dragging"
+    );
+
+    window.removeEventListener(
+      "pointermove",
+      onPointerMove
+    );
+
+    window.removeEventListener(
+      "pointerup",
+      onPointerUp
+    );
+
+    window.removeEventListener(
+      "pointercancel",
+      onPointerUp
+    );
+  }
+
+  window.addEventListener(
+    "pointermove",
+    onPointerMove
+  );
+
+  window.addEventListener(
+    "pointerup",
+    onPointerUp,
+    { once:true }
+  );
+
+  window.addEventListener(
+    "pointercancel",
+    onPointerUp,
+    { once:true }
+  );
+}
+
+function renderBoxes(){
+  const stage=
+    document.getElementById(
+      "pdfStage"
+    );
+
+  stage
+    .querySelectorAll(
+      ".sf-map-box"
+    )
+    .forEach(
+      box=>box.remove()
+    );
+
+  if(!pdfDoc){
+    return;
+  }
+
+  mapperFields
+    .filter(
+      field=>
+        field.mapping?.mapped &&
+        Number(
+          field.mapping.page || 1
+        ) === pdfPageNumber
+    )
+    .forEach(field=>{
+
+      const box=
+        document.createElement(
+          "div"
+        );
+
+      box.className=
+        `sf-map-box ${
+          String(field._id)===
+          String(selectedMapFieldId)
+            ? "active"
+            : ""
+        }`;
+
+      box.dataset.fieldId=
+        String(field._id);
+
+      setBoxFromMapping(
+        box,
+        field.mapping
+      );
+
+      box.innerHTML=`
+        <span class="label">
+          ${esc(field.label)}
+        </span>
+
+        <span class="sf-resize-handle nw" data-resize="nw"></span>
+        <span class="sf-resize-handle n"  data-resize="n"></span>
+        <span class="sf-resize-handle ne" data-resize="ne"></span>
+        <span class="sf-resize-handle e"  data-resize="e"></span>
+        <span class="sf-resize-handle se" data-resize="se"></span>
+        <span class="sf-resize-handle s"  data-resize="s"></span>
+        <span class="sf-resize-handle sw" data-resize="sw"></span>
+        <span class="sf-resize-handle w"  data-resize="w"></span>
+      `;
+
+      box.addEventListener(
+        "pointerdown",
+        event=>{
+
+          const handle=
+            event.target.closest(
+              "[data-resize]"
+            );
+
+          if(handle){
+            beginBoxInteraction(
+              event,
+              field,
+              box,
+              handle.dataset.resize
+            );
+
+            return;
+          }
+
+          beginBoxInteraction(
+            event,
+            field,
+            box,
+            "move"
+          );
+        }
+      );
+
+      stage.appendChild(box);
+    });
+}
+
 document.getElementById("pdfStage").onclick=e=>{
   if(
     e.target.closest(".sf-map-box")
