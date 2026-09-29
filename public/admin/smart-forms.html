@@ -139,7 +139,43 @@
             </div>
             <button id="saveMappingBtn" class="sf-btn success" style="width:100%;margin-top:10px">Save PDF Mapping</button>
           </div>
-          <div class="sf-map-stage-wrap"><div id="pdfStage" class="sf-map-stage"><canvas id="sfPdfCanvas"></canvas></div></div>
+          <div>
+            <div
+              style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                gap:10px;
+                margin-bottom:10px;
+              "
+            >
+              <button
+                id="prevPdfPageTop"
+                class="sf-btn gray"
+                type="button"
+              >
+                ◀ Previous
+              </button>
+
+              <strong id="pdfPageInfo">
+                Page 1 of 1
+              </strong>
+
+              <button
+                id="nextPdfPageTop"
+                class="sf-btn gray"
+                type="button"
+              >
+                Next ▶
+              </button>
+            </div>
+
+            <div class="sf-map-stage-wrap">
+              <div id="pdfStage" class="sf-map-stage">
+                <canvas id="sfPdfCanvas"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -108,7 +108,82 @@ async function loadPdf(localSource=null){
     );
   }
 }
-async function renderPdfPage(){if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPageNumber),v=page.getViewport({scale:1.35}),c=document.getElementById("sfPdfCanvas"),stage=document.getElementById("pdfStage");c.width=v.width;c.height=v.height;stage.style.width=`${v.width}px`;stage.style.height=`${v.height}px`;await page.render({canvasContext:c.getContext("2d"),viewport:v}).promise;renderBoxes();}
+async function renderPdfPage(){
+  if(!pdfDoc) return;
+
+  const page=
+    await pdfDoc.getPage(
+      pdfPageNumber
+    );
+
+  const v=
+    page.getViewport({
+      scale:1.35
+    });
+
+  const c=
+    document.getElementById(
+      "sfPdfCanvas"
+    );
+
+  const stage=
+    document.getElementById(
+      "pdfStage"
+    );
+
+  c.width=v.width;
+  c.height=v.height;
+
+  stage.style.width=
+    `${v.width}px`;
+
+  stage.style.height=
+    `${v.height}px`;
+
+  await page.render({
+    canvasContext:
+      c.getContext("2d"),
+    viewport:v
+  }).promise;
+
+  const info=
+    document.getElementById(
+      "pdfPageInfo"
+    );
+
+  if(info){
+    info.textContent=
+      `Page ${pdfPageNumber} of ${pdfPageCount}`;
+  }
+
+  [
+    "prevPdfPage",
+    "prevPdfPageTop"
+  ].forEach(id=>{
+    const btn=
+      document.getElementById(id);
+
+    if(btn){
+      btn.disabled=
+        pdfPageNumber <= 1;
+    }
+  });
+
+  [
+    "nextPdfPage",
+    "nextPdfPageTop"
+  ].forEach(id=>{
+    const btn=
+      document.getElementById(id);
+
+    if(btn){
+      btn.disabled=
+        pdfPageNumber >= pdfPageCount;
+    }
+  });
+
+  renderBoxes();
+}
 function renderBoxes(){const stage=document.getElementById("pdfStage");stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());if(!pdfDoc)return;mapperFields.filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber).forEach(f=>{const b=document.createElement("div");b.className=`sf-map-box ${String(f._id)===String(selectedMapFieldId)?"active":""}`;b.style.left=`${f.mapping.xPercent}%`;b.style.top=`${f.mapping.yPercent}%`;b.style.width=`${f.mapping.widthPercent}%`;b.style.height=`${f.mapping.heightPercent}%`;b.innerHTML=`<span class="label">${esc(f.label)}</span><span class="resize"></span>`;stage.appendChild(b);});}
 document.getElementById("pdfStage").ondblclick=e=>{const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));if(!f||!pdfDoc)return;const r=e.currentTarget.getBoundingClientRect();f.mapping={...(f.mapping||{}),mapped:true,page:pdfPageNumber,xPercent:Math.max(0,Math.min(95,((e.clientX-r.left)/r.width)*100)),yPercent:Math.max(0,Math.min(95,((e.clientY-r.top)/r.height)*100)),widthPercent:Number(f.mapping?.widthPercent||20),heightPercent:Number(f.mapping?.heightPercent||(f.type==="SIGNATURE"?8:4)),fontSize:Number(document.getElementById("mapFont").value||10),textAlign:document.getElementById("mapAlign").value};renderMapFieldList();renderBoxes();};
 document.getElementById("uploadPdfBtn").onclick=async()=>{
@@ -190,6 +265,26 @@ document.getElementById("uploadPdfBtn").onclick=async()=>{
 document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
 document.getElementById("prevPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage();}};
 document.getElementById("nextPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber<pdfPageCount){pdfPageNumber++;await renderPdfPage();}};
+
+document.getElementById("prevPdfPageTop").onclick=async()=>{
+  if(
+    pdfDoc &&
+    pdfPageNumber>1
+  ){
+    pdfPageNumber--;
+    await renderPdfPage();
+  }
+};
+
+document.getElementById("nextPdfPageTop").onclick=async()=>{
+  if(
+    pdfDoc &&
+    pdfPageNumber<pdfPageCount
+  ){
+    pdfPageNumber++;
+    await renderPdfPage();
+  }
+};
 
 async function loadReview(){const b=document.getElementById("reviewBody");b.innerHTML=`<tr><td colspan="7">Loading...</td></tr>`;try{const rows=(await api(`${API}/submissions`)).submissions||[];b.innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(new Date(r.createdAt).toLocaleString())}</td><td>${esc(r.organizationName)}</td><td>${esc(r.templateName)}</td><td><span class="sf-status ${esc(r.status)}">${esc(r.status)}</span></td><td>${esc(r.tripNumber||"")}</td><td>${r.generatedPdf?.hasPdf?"Ready":""}</td><td><div class="sf-actions">${r.status!=="CONFIRMED"?`<button data-review="${r._id}">Review</button>`:""}<button data-generate="${r._id}">Generate PDF</button>${r.generatedPdf?.hasPdf?`<button data-view="${r._id}">View PDF</button>`:""}${r.status!=="CONFIRMED"?`<button data-confirm="${r._id}">Confirm</button><button data-delete="${r._id}">Delete</button>`:""}</div></td></tr>`).join(""):`<tr><td colspan="7">No reservations.</td></tr>`;}catch(e){b.innerHTML=`<tr><td colspan="7">${esc(e.message)}</td></tr>`;}}
 document.getElementById("reviewBody").onclick=async e=>{try{if(e.target.dataset.review)await api(`${API}/submissions/${e.target.dataset.review}/review`,{method:"POST"});if(e.target.dataset.confirm)await api(`${API}/submissions/${e.target.dataset.confirm}/confirm`,{method:"POST"});if(e.target.dataset.generate)await api(`${API}/submissions/${e.target.dataset.generate}/generate-pdf`,{method:"POST"});if(e.target.dataset.delete){if(confirm("Delete this form?"))await api(`${API}/submissions/${e.target.dataset.delete}`,{method:"DELETE"});}if(e.target.dataset.view){const blob=await api(`${API}/submissions/${e.target.dataset.view}/pdf`),u=URL.createObjectURL(blob);window.open(u,"_blank");}await loadReview();}catch(err){msg(err.message,"err");}};
