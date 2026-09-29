@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GH Mobility - Smart Forms</title>
+<link rel="stylesheet" href="/admin/smart-forms.css">
+</head>
+<body>
+<div id="header"></div>
+
+<main class="sf-page">
+  <section class="sf-head">
+    <div>
+      <h1>Smart Forms</h1>
+      <p>Build forms, map them to the official PDF, review reservations, and generate the final document.</p>
+    </div>
+    <div class="sf-chip">Paid Feature</div>
+  </section>
+
+  <div id="sfMessage" class="sf-message"></div>
+
+  <nav class="sf-tabs">
+    <button class="sf-tab active" data-tab="entry">Form Entry</button>
+    <button class="sf-tab" data-tab="review">Review</button>
+    <button class="sf-tab" data-tab="builder">Form Builder</button>
+    <button class="sf-tab" data-tab="mapper">PDF Map</button>
+  </nav>
+
+  <section id="panel-entry" class="sf-panel active">
+    <div class="sf-card">
+      <div class="sf-card-head"><h2>New Reservation Form</h2></div>
+      <div class="sf-card-body">
+        <div class="sf-toolbar">
+          <div class="sf-control"><label>Organization</label><select id="entryOrganization"></select></div>
+          <div class="sf-control"><label>Template</label><select id="entryTemplate"></select></div>
+        </div>
+        <div id="entryForm" class="sf-entry-grid" style="margin-top:14px"></div>
+        <div class="sf-toolbar" style="margin-top:14px">
+          <button id="saveDraftBtn" class="sf-btn gray">Save Draft</button>
+          <button id="sendReviewBtn" class="sf-btn primary">Send to Review</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-review" class="sf-panel">
+    <div class="sf-card">
+      <div class="sf-card-head"><h2>Review Reservations</h2><button id="refreshReviewBtn" class="sf-btn gray">Refresh</button></div>
+      <div class="sf-card-body">
+        <div class="sf-table-wrap">
+          <table class="sf-table">
+            <thead><tr><th>Created</th><th>Organization</th><th>Template</th><th>Status</th><th>Trip #</th><th>PDF</th><th>Actions</th></tr></thead>
+            <tbody id="reviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-builder" class="sf-panel">
+    <div class="sf-card">
+      <div class="sf-card-head"><h2>Form Builder</h2></div>
+      <div class="sf-card-body">
+        <div class="sf-toolbar">
+          <div class="sf-control"><label>Organization</label><select id="builderOrganization"></select></div>
+          <div class="sf-control"><label>Template</label><select id="builderTemplate"></select></div>
+          <button id="newTemplateBtn" class="sf-btn gold">+ New Template</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sf-card">
+      <div class="sf-builder">
+        <div class="sf-card-body sf-builder-toolbox">
+          <div class="sf-control"><label>Field Label</label><input id="fieldLabel" placeholder="Client Name"></div>
+          <div class="sf-control" style="margin-top:10px"><label>Field Type</label>
+            <select id="fieldType">
+              <option>TEXT</option><option>NUMBER</option><option>PHONE</option><option>ADDRESS</option>
+              <option>DATE</option><option>TIME</option><option>SELECT</option><option>RADIO</option>
+              <option>CHECKBOX</option><option>TEXTAREA</option><option>SIGNATURE</option>
+            </select>
+          </div>
+          <div class="sf-control" style="margin-top:10px"><label>Options</label><textarea id="fieldOptions" placeholder="Ambulatory&#10;Wheelchair"></textarea></div>
+          <div class="sf-control" style="margin-top:10px"><label>Input Width</label>
+            <select id="fieldWidth"><option value="25">25%</option><option value="33">33%</option><option value="50" selected>50%</option><option value="66">66%</option><option value="75">75%</option><option value="100">100%</option></select>
+          </div>
+          <label style="display:flex;gap:8px;margin-top:12px;font-weight:900"><input id="fieldRequired" type="checkbox"> Required</label>
+          <button id="addFieldBtn" class="sf-btn primary" style="width:100%;margin-top:12px">Add Field</button>
+        </div>
+        <div class="sf-card-body">
+          <div id="builderList" class="sf-builder-list"></div>
+          <div class="sf-builder-preview" style="margin-top:14px"><strong>Entry Preview</strong><div id="builderPreview" class="sf-entry-grid" style="margin-top:10px"></div></div>
+          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-mapper" class="sf-panel">
+    <div class="sf-card">
+      <div class="sf-card-head"><h2>Official PDF Mapping</h2></div>
+      <div class="sf-card-body">
+        <div class="sf-toolbar">
+          <div class="sf-control"><label>Organization</label><select id="mapperOrganization"></select></div>
+          <div class="sf-control"><label>Template</label><select id="mapperTemplate"></select></div>
+          <div class="sf-control"><label>Official PDF</label><input id="pdfUpload" type="file" accept="application/pdf"></div>
+          <button id="uploadPdfBtn" class="sf-btn gold">Upload PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="sf-card">
+      <div class="sf-card-body">
+        <div class="sf-mapper">
+          <div>
+            <div id="mapFieldList" class="sf-map-fields"></div>
+            <div id="mapSettings" class="sf-map-settings">
+              <div class="sf-control"><label>Page</label><input id="mapPage" type="number" min="1" value="1"></div>
+              <div class="sf-control"><label>Font</label><input id="mapFont" type="number" min="5" max="48" value="10"></div>
+              <div class="sf-control"><label>Align</label><select id="mapAlign"><option>LEFT</option><option>CENTER</option><option>RIGHT</option></select></div>
+              <div class="sf-control"><label>PDF Page</label><div style="display:flex;gap:5px"><button id="prevPdfPage" class="sf-btn gray">◀</button><button id="nextPdfPage" class="sf-btn gray">▶</button></div></div>
+            </div>
+            <button id="saveMappingBtn" class="sf-btn success" style="width:100%;margin-top:10px">Save PDF Mapping</button>
+          </div>
+          <div class="sf-map-stage-wrap"><div id="pdfStage" class="sf-map-stage"><canvas id="sfPdfCanvas"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="/admin/smart-forms.js"></script>
+</body>
+</html>

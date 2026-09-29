@@ -1592,6 +1592,33 @@ console.log(
 );
 
 /* =========================
+   SMART FORMS
+   Paid tenant feature:
+   Platform Admin Organizations + Builder + PDF Mapper + Review
+   Mounted after Trip model registration.
+========================= */
+
+const smartFormRoutes =
+  require("./routes/smartFormRoutes");
+
+const smartFormOrganizationRoutes =
+  require("./routes/smartFormOrganizationRoutes");
+
+app.use(
+  "/api/smart-forms",
+  smartFormRoutes
+);
+
+app.use(
+  "/api/smart-form-organizations",
+  smartFormOrganizationRoutes
+);
+
+console.log(
+  "✅ Smart Forms routes mounted"
+);
+
+/* =========================
    EXTERNAL BROKER INTEGRATION
    Broker intake -> External Trips Hub -> GH Trips Hub
 

@@ -145,6 +145,120 @@ async function loadAttachmentImportButton(){
   }
 }
 
+
+/* =========================
+   SMART FORMS — PAID FEATURE
+   Separate from the old Attachment Import feature.
+========================= */
+
+function openSmartFormsPage(event){
+  event?.preventDefault?.();
+  syncLegacyAdminAuth();
+
+  window.location.href =
+    "/admin/smart-forms.html";
+}
+
+async function loadSmartFormsButton(){
+
+  try{
+
+    const res =
+      await fetch(
+        "/api/smart-forms/feature",
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      );
+
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
+
+    const wrap =
+      document.getElementById(
+        "topAddTripWrap"
+      );
+
+    if(!wrap){
+      return;
+    }
+
+    let smartFormsBtn =
+      document.getElementById(
+        "smartFormsTripBtn"
+      );
+
+    if(
+      res.ok &&
+      data.enabled === true
+    ){
+
+      if(!smartFormsBtn){
+
+        smartFormsBtn =
+          document.createElement(
+            "button"
+          );
+
+        smartFormsBtn.id =
+          "smartFormsTripBtn";
+
+        smartFormsBtn.className =
+          "top-add-trip-btn";
+
+        smartFormsBtn.type =
+          "button";
+
+        smartFormsBtn.textContent =
+          "+ Smart Form";
+
+        smartFormsBtn.style.marginLeft =
+          "10px";
+
+        smartFormsBtn.addEventListener(
+          "click",
+          openSmartFormsPage
+        );
+
+        wrap.appendChild(
+          smartFormsBtn
+        );
+
+      }
+
+      smartFormsBtn.style.display =
+        "inline-flex";
+
+    }else{
+
+      smartFormsBtn?.remove();
+
+    }
+
+  }catch(err){
+
+    document
+      .getElementById(
+        "smartFormsTripBtn"
+      )
+      ?.remove();
+
+    console.log(
+      "SMART FORMS BUTTON ERROR:",
+      err
+    );
+
+  }
+
+}
+
+
 function openAddTripPage(event){
   event?.preventDefault?.();
 
@@ -3319,7 +3433,8 @@ Object.assign(window,{
   cancelEdit,
   openTripView,
   closeTripView,
-  openAddTripPage
+  openAddTripPage,
+  openSmartFormsPage
 });
 
 /* ================= INIT ================= */
@@ -3332,6 +3447,7 @@ async function refreshTripsOnly(){
 }
 
 (async function initHub(){
+  await loadSmartFormsButton();
   await loadAttachmentImportButton();
   await loadServices();
   await loadHubTrips();
