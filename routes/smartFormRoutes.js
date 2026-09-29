@@ -199,7 +199,22 @@ router.put("/templates/:id/fields", async (req,res)=>{
     const g=await gate(req,res); if(!g) return;
     const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
-    t.fields=normalizeFields(req.body.fields);
+    // Form Builder owns field definitions/order, but it must NOT erase a PDF
+    // mapping that was already saved in PDF Map. Preserve the database mapping
+    // for every existing field and only give a blank mapping to genuinely new fields.
+    const existingById = new Map((t.fields||[]).map(f=>[String(f._id), f]));
+    const existingByKey = new Map((t.fields||[]).map(f=>[String(f.key), f]));
+    const incoming = Array.isArray(req.body.fields) ? req.body.fields : [];
+    const merged = incoming.map(f=>{
+      const old = (f?._id && existingById.get(String(f._id))) || existingByKey.get(String(f?.key||""));
+      const plain = old?.toObject ? old.toObject() : old;
+      return {
+        ...f,
+        _id: old?._id || f?._id || undefined,
+        mapping: plain?.mapping || f?.mapping || undefined
+      };
+    });
+    t.fields=normalizeFields(merged);
     t.updatedBy=actor(req);
     await t.save();
     res.json({success:true,template:sanitizeTemplate(t)});

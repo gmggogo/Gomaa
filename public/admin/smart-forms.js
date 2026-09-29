@@ -318,6 +318,14 @@ document.getElementById("pdfStage").onclick=e=>{
     return;
   }
 
+  // A mapped field must never jump to a new position just because the PDF
+  // background was clicked. Existing mappings are moved only by dragging
+  // their box (or resized with the handles).
+  if(f.mapping?.mapped){
+    msg(`${f.label} is already mapped. Drag its box to move it, or use the handles to resize it.`);
+    return;
+  }
+
   const r=
     e.currentTarget
       .getBoundingClientRect();
@@ -467,7 +475,7 @@ document.getElementById("uploadPdfBtn").onclick=async()=>{
     );
   }
 };
-document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
+document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeBuilderTemplate&&String(activeBuilderTemplate._id)===String(d.template._id)){activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));renderBuilder();}msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
 document.getElementById("prevPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage();}};
 document.getElementById("nextPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber<pdfPageCount){pdfPageNumber++;await renderPdfPage();}};
 
