@@ -287,28 +287,67 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       });
     }
 
-    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const r=await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
-      {
-        method:"POST",
-        headers:{
-          "x-goog-api-key":process.env.GEMINI_API_KEY,
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          contents:[{role:"user",parts}],
-          generationConfig:{
-            responseMimeType:"application/json",
-            maxOutputTokens:8192
-          }
-        })
-      }
-    );
+    const configuredModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const geminiModels=[
+      configuredModel,
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash-lite"
+    ].filter((model,index,list)=>model && list.indexOf(model)===index);
 
-    const raw=await r.json();
-    if(!r.ok){
-      throw new Error(raw?.error?.message||"Gemini AI request failed");
+    const requestBody={
+      contents:[{role:"user",parts}],
+      generationConfig:{
+        responseMimeType:"application/json",
+        maxOutputTokens:8192
+      }
+    };
+
+    let raw=null;
+    let lastGeminiError="Gemini AI request failed";
+
+    for(const geminiModel of geminiModels){
+      const r=await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+        {
+          method:"POST",
+          headers:{
+            "x-goog-api-key":process.env.GEMINI_API_KEY,
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify(requestBody)
+        }
+      );
+
+      const candidateRaw=await r.json().catch(()=>({}));
+      if(r.ok){
+        raw=candidateRaw;
+        break;
+      }
+
+      lastGeminiError=candidateRaw?.error?.message||`Gemini AI request failed (${r.status})`;
+
+      const retryable=
+        r.status===429 ||
+        r.status===500 ||
+        r.status===502 ||
+        r.status===503 ||
+        r.status===504 ||
+        /high demand|overloaded|temporar|unavailable|resource exhausted|deadline/i.test(lastGeminiError);
+
+      console.warn(
+        `SMART FORMS GEMINI MODEL ${geminiModel} FAILED (${r.status}):`,
+        lastGeminiError,
+        retryable ? "Trying fallback model..." : "Not retryable."
+      );
+
+      if(!retryable){
+        throw new Error(lastGeminiError);
+      }
+    }
+
+    if(!raw){
+      throw new Error(lastGeminiError);
     }
 
     const text=(raw?.candidates||[])
