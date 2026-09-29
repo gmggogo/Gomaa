@@ -406,7 +406,7 @@ const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
 {l:"Smart Forms",h:"smart-forms.html",i:"doc"},
-{l:"Smart Forms Review",h:"smart-forms-review.html",i:"check"},
+{l:"Smart Forms Review",h:"smart-form-review.html",i:"check"},
 {l:"Dispatch",h:"dispatch.html",i:"car"},
 {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
 {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
