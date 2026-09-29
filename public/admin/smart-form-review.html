@@ -324,11 +324,13 @@ if (typeof loadHeader === "function") {
 <script>
 (() => {
   const API = {
-    list: '/api/smart-form/review',
-    update: id => `/api/smart-form/review/${encodeURIComponent(id)}`,
-    confirm: '/api/smart-form/review/confirm',
-    remove: '/api/smart-form/review/delete'
+    list: '/api/smart-forms/submissions',
+    confirm: id => `/api/smart-forms/submissions/${encodeURIComponent(id)}/confirm`,
+    remove: id => `/api/smart-forms/submissions/${encodeURIComponent(id)}`
   };
+
+  const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
+  const authHeaders=(extra={})=>({...extra,...(token?{Authorization:`Bearer ${token}`}:{})});
 
   let trips = [];
   let selected = new Set();
@@ -360,17 +362,17 @@ if (typeof loadHeader === "function") {
       tr.innerHTML = `
         <td><input class="trip-check" type="checkbox" data-id="${esc(id)}" ${selected.has(id) ? 'checked' : ''}></td>
         <td>${esc(t.tripNumber || t.tripNo || '')}</td>
-        <td>${esc(t.clientName || t.client || t.memberName || '')}</td>
-        <td>${esc(t.phone || t.clientPhone || '')}</td>
-        <td>${esc(t.pickupAddress || t.pickup || '')}</td>
-        <td>${esc(t.dropoffAddress || t.dropoff || '')}</td>
-        <td>${esc(t.tripDate || t.date || '')}</td>
-        <td>${esc(t.pickupTime || t.time || '')}</td>
-        <td>${esc(t.appointmentTime || '')}</td>
-        <td>${esc(t.returnTime || '')}</td>
-        <td>${esc(t.serviceName || t.service || t.serviceKey || '')}</td>
-        <td>${esc(t.totalPassengers || t.passengers || 1)}</td>
-        <td>${esc(t.notes || '')}</td>
+        <td>${esc(t.formData?.clientName || t.formData?.client || t.formData?.memberName || '')}</td>
+        <td>${esc(t.formData?.phone || t.formData?.clientPhone || '')}</td>
+        <td>${esc(t.formData?.pickupAddress || t.formData?.pickup || t.formData?.["1st_pick_up_location"] || '')}</td>
+        <td>${esc(t.formData?.dropoffAddress || t.formData?.dropoff || '')}</td>
+        <td>${esc(t.formData?.tripDate || t.formData?.date || '')}</td>
+        <td>${esc(t.formData?.pickupTime || t.formData?.time || '')}</td>
+        <td>${esc(t.formData?.appointmentTime || '')}</td>
+        <td>${esc(t.formData?.returnTime || '')}</td>
+        <td>${esc(t.formData?.serviceName || t.formData?.service || t.formData?.serviceKey || '')}</td>
+        <td>${esc(t.formData?.totalPassengers || t.formData?.passengers || 1)}</td>
+        <td>${esc(t.formData?.notes || '')}</td>
         <td><span class="status">${esc(t.status || 'REVIEW')}</span></td>
       `;
       body.appendChild(tr);
@@ -378,17 +380,18 @@ if (typeof loadHeader === "function") {
 
     document.getElementById('tripCount').textContent = `${trips.length} trip${trips.length === 1 ? '' : 's'}`;
     document.getElementById('selectedCount').textContent = `${selected.size} selected`;
-    editBtn.disabled = selected.size !== 1;
+    editBtn.disabled = true;
     confirmBtn.disabled = selected.size === 0;
     deleteBtn.disabled = selected.size === 0;
   }
 
   async function loadTrips() {
     try {
-      const res = await fetch(API.list, { credentials: 'include' });
+      const res = await fetch(API.list, { credentials:'include', headers:authHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      trips = Array.isArray(data) ? data : (data.trips || data.items || []);
+      const rows = Array.isArray(data) ? data : (data.submissions || []);
+      trips = rows.filter(x => String(x.status||'').toUpperCase()==='REVIEW');
     } catch (err) {
       console.warn('Smart Form Review API is not available yet:', err);
       trips = [];
@@ -416,6 +419,9 @@ if (typeof loadHeader === "function") {
   });
 
   editBtn.addEventListener('click', () => {
+    alert('Editing Smart Form submissions is not enabled by the current Smart Forms API.');
+    return;
+    /*
     const id = [...selected][0];
     const t = trips.find(x => tripId(x) === id);
     if (!t) return;
@@ -432,6 +438,7 @@ if (typeof loadHeader === "function") {
     document.getElementById('editPassengers').value = t.totalPassengers || t.passengers || 1;
     document.getElementById('editNotes').value = t.notes || '';
     document.getElementById('editModal').classList.add('open');
+    */
   });
 
   document.getElementById('cancelEditBtn').addEventListener('click', () => {
@@ -439,69 +446,32 @@ if (typeof loadHeader === "function") {
     document.getElementById('editModal').classList.remove('open');
   });
 
-  document.getElementById('saveEditBtn').addEventListener('click', async () => {
-    if (!editingId) return;
-    const payload = {
-      clientName: document.getElementById('editClient').value.trim(),
-      phone: document.getElementById('editPhone').value.trim(),
-      pickupAddress: document.getElementById('editPickup').value.trim(),
-      dropoffAddress: document.getElementById('editDropoff').value.trim(),
-      tripDate: document.getElementById('editDate').value,
-      pickupTime: document.getElementById('editTime').value,
-      appointmentTime: document.getElementById('editAppointment').value,
-      returnTime: document.getElementById('editReturn').value,
-      serviceName: document.getElementById('editService').value.trim(),
-      totalPassengers: Number(document.getElementById('editPassengers').value || 1),
-      notes: document.getElementById('editNotes').value.trim()
-    };
-
-    const res = await fetch(API.update(editingId), {
-      method:'PUT',
-      credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      alert('Could not save the trip.');
-      return;
-    }
-    document.getElementById('editModal').classList.remove('open');
-    editingId = null;
-    await loadTrips();
+  document.getElementById('saveEditBtn').addEventListener('click', () => {
+    alert('Editing Smart Form submissions is not enabled by the current Smart Forms API.');
   });
 
   confirmBtn.addEventListener('click', async () => {
-    const ids = [...selected];
-    if (!ids.length) return;
-    if (!confirm(`Confirm ${ids.length} selected trip(s)?`)) return;
-
-    const res = await fetch(API.confirm, {
-      method:'POST',
-      credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ ids })
-    });
-    if (!res.ok) {
-      alert('Could not confirm the selected trips.');
-      return;
+    const ids=[...selected];
+    if(!ids.length)return;
+    if(!confirm(`Confirm ${ids.length} selected trip(s)?`))return;
+    for(const id of ids){
+      const res=await fetch(API.confirm(id),{
+        method:'POST',credentials:'include',headers:authHeaders({'Content-Type':'application/json'})
+      });
+      if(!res.ok){alert('Could not confirm one of the selected trips.');return;}
     }
     await loadTrips();
   });
 
   deleteBtn.addEventListener('click', async () => {
-    const ids = [...selected];
-    if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} selected trip(s)?`)) return;
-
-    const res = await fetch(API.remove, {
-      method:'POST',
-      credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ ids })
-    });
-    if (!res.ok) {
-      alert('Could not delete the selected trips.');
-      return;
+    const ids=[...selected];
+    if(!ids.length)return;
+    if(!confirm(`Delete ${ids.length} selected trip(s)?`))return;
+    for(const id of ids){
+      const res=await fetch(API.remove(id),{
+        method:'DELETE',credentials:'include',headers:authHeaders()
+      });
+      if(!res.ok){alert('Could not delete one of the selected trips.');return;}
     }
     await loadTrips();
   });
