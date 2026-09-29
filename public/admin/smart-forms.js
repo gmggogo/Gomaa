@@ -13,7 +13,7 @@ function orgOptions(sel){sel.innerHTML=organizations.length?organizations.map(o=
 function templateOptions(sel,org,keep=""){const rows=templates.filter(t=>String(t.organizationId)===String(org));sel.innerHTML=rows.length?rows.map(t=>`<option value="${esc(t._id)}">${esc(t.name)}</option>`).join(""):`<option value="">No templates</option>`;if(keep&&rows.some(t=>String(t._id)===String(keep)))sel.value=keep;}
 function syncSelects(){[["entryOrganization","entryTemplate"],["builderOrganization","builderTemplate"],["mapperOrganization","mapperTemplate"]].forEach(([o,t])=>templateOptions(document.getElementById(t),document.getElementById(o).value,document.getElementById(t).value));}
 
-document.querySelectorAll(".sf-tab").forEach(b=>b.onclick=()=>{const tab=b.dataset.tab;document.querySelectorAll(".sf-tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".sf-panel").forEach(p=>p.classList.toggle("active",p.id===`panel-${tab}`));if(tab==="review")loadReview();if(tab==="mapper")activateMapper();});
+document.querySelectorAll(".sf-tab").forEach(b=>b.onclick=()=>{const tab=b.dataset.tab;document.querySelectorAll(".sf-tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".sf-panel").forEach(p=>p.classList.toggle("active",p.id===`panel-${tab}`));if(tab==="review")loadReview();if(tab==="builder")activateBuilder();if(tab==="mapper")activateMapper(true);});
 
 async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw new Error("Smart Forms disabled");{
   const organizationResponse =
@@ -43,11 +43,31 @@ function renderBuilder(){const h=document.getElementById("builderList"),p=docume
 document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
 document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);renderBuilder();}if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
 document.getElementById("builderList").onchange=e=>{if(e.target.dataset.width!==undefined){builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);renderBuilder();}};
-document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
+document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
 document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.getElementById("builderOrganization").value,name=prompt("Template name:");if(!org||!name?.trim())return;try{const d=await api(`${API}/templates`,{method:"POST",body:JSON.stringify({organizationId:org,name:name.trim()})});templates.unshift(d.template);syncSelects();document.getElementById("builderTemplate").value=d.template._id;activateBuilder();msg("Template created.");}catch(e){msg(e.message,"err");}};
 
 async function ensurePdfJs(){if(pdfjsLib)return pdfjsLib;pdfjsLib=await import("/vendor/pdfjs/pdf.mjs");pdfjsLib.GlobalWorkerOptions.workerSrc="/vendor/pdfjs/pdf.worker.mjs";return pdfjsLib;}
-async function activateMapper(){activeMapperTemplate=currentTemplate(document.getElementById("mapperTemplate").value);mapperFields=JSON.parse(JSON.stringify(activeMapperTemplate?.fields||[]));selectedMapFieldId=mapperFields[0]?._id||"";renderMapFieldList();await loadPdf();}
+async function activateMapper(refreshFromServer=false){
+  const templateId=document.getElementById("mapperTemplate").value;
+  if(refreshFromServer){
+    try{
+      const d=await api(`${API}/templates`);
+      const fresh=d.templates||[];
+      if(fresh.length){
+        templates=fresh;
+        syncSelects();
+        document.getElementById("mapperTemplate").value=templateId;
+      }
+    }catch(e){ console.warn("Could not refresh Smart Form templates:",e); }
+  }
+  activeMapperTemplate=currentTemplate(document.getElementById("mapperTemplate").value);
+  mapperFields=JSON.parse(JSON.stringify(activeMapperTemplate?.fields||[]));
+  const stillExists=mapperFields.some(f=>String(f._id)===String(selectedMapFieldId));
+  if(!stillExists) selectedMapFieldId=mapperFields[0]?._id||"";
+  renderMapFieldList();
+  await loadPdf();
+  requestAnimationFrame(()=>renderBoxes());
+}
 function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${f.mapping?.mapped?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(
   b=>b.onclick=()=>{
     selectedMapFieldId=
@@ -204,6 +224,7 @@ async function renderPdfPage(){
   });
 
   renderBoxes();
+  requestAnimationFrame(()=>renderBoxes());
 }
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 function renderBoxes(){
@@ -222,6 +243,8 @@ function renderBoxes(){
       b.style.top=`${f.mapping.yPercent}%`;
       b.style.width=`${f.mapping.widthPercent}%`;
       b.style.height=`${f.mapping.heightPercent}%`;
+      b.style.zIndex=active?"30":"10";
+      b.style.display="block";
       b.innerHTML=`<span class="label">${esc(f.label)}</span>${active?["nw","n","ne","e","se","s","sw","w"].map(d=>`<span class="sf-resize-handle ${d}" data-dir="${d}"></span>`).join(""):""}`;
 
       b.addEventListener("pointerdown",e=>{
