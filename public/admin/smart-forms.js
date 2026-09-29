@@ -49,11 +49,144 @@ document.getElementById("newTemplateBtn").onclick=async()=>{const org=document.g
 async function ensurePdfJs(){if(pdfjsLib)return pdfjsLib;pdfjsLib=await import("/vendor/pdfjs/pdf.mjs");pdfjsLib.GlobalWorkerOptions.workerSrc="/vendor/pdfjs/pdf.worker.mjs";return pdfjsLib;}
 async function activateMapper(){activeMapperTemplate=currentTemplate(document.getElementById("mapperTemplate").value);mapperFields=JSON.parse(JSON.stringify(activeMapperTemplate?.fields||[]));selectedMapFieldId=mapperFields[0]?._id||"";renderMapFieldList();await loadPdf();}
 function renderMapFieldList(){const h=document.getElementById("mapFieldList");h.innerHTML=mapperFields.map(f=>`<button class="sf-map-field ${String(f._id)===String(selectedMapFieldId)?"active":""}" data-id="${esc(f._id)}"><span>${esc(f.label)}</span><small>${f.mapping?.mapped?"Mapped":"Not mapped"}</small></button>`).join("");h.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{selectedMapFieldId=b.dataset.id;renderMapFieldList();renderBoxes();});}
-async function loadPdf(){if(!activeMapperTemplate?.originalPdf?.hasPdf){pdfDoc=null;return;}const blob=await api(`${API}/templates/${activeMapperTemplate._id}/pdf`),bytes=await blob.arrayBuffer(),lib=await ensurePdfJs();pdfDoc=await lib.getDocument({data:bytes}).promise;pdfPageCount=pdfDoc.numPages;pdfPageNumber=1;await renderPdfPage();}
+async function loadPdf(localSource=null){
+  try{
+    if(!localSource && !activeMapperTemplate?.originalPdf?.hasPdf){
+      pdfDoc=null;
+      return;
+    }
+
+    let bytes;
+
+    if(localSource){
+      if(localSource instanceof ArrayBuffer){
+        bytes=localSource;
+      }else if(localSource?.arrayBuffer){
+        bytes=await localSource.arrayBuffer();
+      }else{
+        throw new Error("Invalid local PDF source");
+      }
+    }else{
+      const blob=
+        await api(
+          `${API}/templates/${activeMapperTemplate._id}/pdf`
+        );
+
+      bytes=
+        await blob.arrayBuffer();
+    }
+
+    const lib=
+      await ensurePdfJs();
+
+    pdfDoc=
+      await lib.getDocument({
+        data:new Uint8Array(bytes)
+      }).promise;
+
+    pdfPageCount=
+      pdfDoc.numPages;
+
+    pdfPageNumber=1;
+
+    await renderPdfPage();
+
+    msg(
+      "PDF loaded successfully."
+    );
+
+  }catch(err){
+    console.error(
+      "SMART FORMS PDF LOAD ERROR:",
+      err
+    );
+
+    pdfDoc=null;
+
+    throw new Error(
+      `Failed to load PDF: ${err?.message || "Unknown error"}`
+    );
+  }
+}
 async function renderPdfPage(){if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPageNumber),v=page.getViewport({scale:1.35}),c=document.getElementById("sfPdfCanvas"),stage=document.getElementById("pdfStage");c.width=v.width;c.height=v.height;stage.style.width=`${v.width}px`;stage.style.height=`${v.height}px`;await page.render({canvasContext:c.getContext("2d"),viewport:v}).promise;renderBoxes();}
 function renderBoxes(){const stage=document.getElementById("pdfStage");stage.querySelectorAll(".sf-map-box").forEach(x=>x.remove());if(!pdfDoc)return;mapperFields.filter(f=>f.mapping?.mapped&&Number(f.mapping.page||1)===pdfPageNumber).forEach(f=>{const b=document.createElement("div");b.className=`sf-map-box ${String(f._id)===String(selectedMapFieldId)?"active":""}`;b.style.left=`${f.mapping.xPercent}%`;b.style.top=`${f.mapping.yPercent}%`;b.style.width=`${f.mapping.widthPercent}%`;b.style.height=`${f.mapping.heightPercent}%`;b.innerHTML=`<span class="label">${esc(f.label)}</span><span class="resize"></span>`;stage.appendChild(b);});}
 document.getElementById("pdfStage").ondblclick=e=>{const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));if(!f||!pdfDoc)return;const r=e.currentTarget.getBoundingClientRect();f.mapping={...(f.mapping||{}),mapped:true,page:pdfPageNumber,xPercent:Math.max(0,Math.min(95,((e.clientX-r.left)/r.width)*100)),yPercent:Math.max(0,Math.min(95,((e.clientY-r.top)/r.height)*100)),widthPercent:Number(f.mapping?.widthPercent||20),heightPercent:Number(f.mapping?.heightPercent||(f.type==="SIGNATURE"?8:4)),fontSize:Number(document.getElementById("mapFont").value||10),textAlign:document.getElementById("mapAlign").value};renderMapFieldList();renderBoxes();};
-document.getElementById("uploadPdfBtn").onclick=async()=>{if(!activeMapperTemplate)return msg("Select a template.","err");const file=document.getElementById("pdfUpload").files?.[0];if(!file)return msg("Choose a PDF.","err");const fd=new FormData();fd.append("pdf",file);try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/pdf`,{method:"POST",body:fd});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;msg("PDF uploaded.");await loadPdf();}catch(e){msg(e.message,"err");}};
+document.getElementById("uploadPdfBtn").onclick=async()=>{
+  if(!activeMapperTemplate){
+    return msg(
+      "Select a template.",
+      "err"
+    );
+  }
+
+  const file=
+    document
+      .getElementById(
+        "pdfUpload"
+      )
+      .files?.[0];
+
+  if(!file){
+    return msg(
+      "Choose a PDF.",
+      "err"
+    );
+  }
+
+  const fd=
+    new FormData();
+
+  fd.append(
+    "pdf",
+    file
+  );
+
+  try{
+    const d=
+      await api(
+        `${API}/templates/${activeMapperTemplate._id}/pdf`,
+        {
+          method:"POST",
+          body:fd
+        }
+      );
+
+    const i=
+      templates.findIndex(
+        x=>
+          String(x._id)===
+          String(d.template._id)
+      );
+
+    if(i>=0){
+      templates[i]=d.template;
+    }
+
+    activeMapperTemplate=
+      d.template;
+
+    msg(
+      "PDF uploaded. Loading preview..."
+    );
+
+    /*
+      Preview the exact local file that was just uploaded.
+      This avoids a second immediate server round-trip.
+    */
+    await loadPdf(file);
+
+  }catch(e){
+    console.error(
+      "SMART FORMS PDF UPLOAD/PREVIEW ERROR:",
+      e
+    );
+
+    msg(
+      e.message,
+      "err"
+    );
+  }
+};
 document.getElementById("saveMappingBtn").onclick=async()=>{if(!activeMapperTemplate)return;try{const d=await api(`${API}/templates/${activeMapperTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mapperFields.map(f=>({_id:f._id,mapping:f.mapping}))})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));msg("Mapping saved.");renderMapFieldList();renderBoxes();}catch(e){msg(e.message,"err");}};
 document.getElementById("prevPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage();}};
 document.getElementById("nextPdfPage").onclick=async()=>{if(pdfDoc&&pdfPageNumber<pdfPageCount){pdfPageNumber++;await renderPdfPage();}};
