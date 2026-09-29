@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="/admin/smart-forms.css">
 </head>
 <body>
+<div id="adminHeader"></div>
+<div class="sf-main-page-head">
+  <h1>Smart Forms</h1>
+</div>
 <main class="sf-page sf-app-shell">
   <aside class="sf-leftbar">
     <div class="sf-brand-block">
@@ -23,10 +27,6 @@
   </aside>
 
   <section class="sf-workspace">
-    <section class="sf-head sf-head-compact">
-      <div><h1 id="sfPageTitle">Smart Form</h1><p id="sfPageSubtitle">Select a template and complete the form.</p></div>
-      <div class="sf-chip">Paid Feature</div>
-    </section>
     <div id="sfMessage" class="sf-message"></div>
 
     <div class="sf-compat-selects" aria-hidden="true">
@@ -163,6 +163,12 @@
     <table style="display:none"><tbody id="reviewBody"></tbody></table>
   </section>
 </main>
+<script src="/admin/header.js"></script>
+<script>
+  if (typeof loadHeader === "function") {
+    loadHeader("Smart Forms");
+  }
+</script>
 <script type="module" src="/admin/smart-forms.js"></script>
 </body>
 </html>
