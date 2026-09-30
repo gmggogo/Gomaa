@@ -1583,10 +1583,6 @@ app.use(
   tripSignatureRoutes
 );
 
-console.log(
-  "✅ Customer Signature routes mounted"
-);
-
 /* =========================
    SMART FORMS
    Paid tenant feature:
