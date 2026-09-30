@@ -574,12 +574,41 @@ document.addEventListener("DOMContentLoaded",async()=>{
          .json()
          .catch(()=>({}));
 
+     // The backend feature endpoint is authoritative. Do not accept
+     // unrelated truthy flags from another payload shape.
      smartFormEnabled =
-       smartFormFeature?.enabled === true ||
-       smartFormFeature?.active === true ||
-       smartFormFeature?.featureEnabled === true ||
-       smartFormFeature?.smartFormEnabled === true ||
-       smartFormFeature?.available === true;
+       smartFormFeature?.enabled === true;
+
+     /*
+       Header-only safety gate:
+       when the tenant has no active Smart Form template available,
+       hide Smart Form / Review / Summary / Pricing from the header.
+       This also prevents stale navigation from remaining visible after
+       Platform Admin removes Smart Form availability for the company.
+     */
+     if(smartFormEnabled){
+       const templateResponse = await fetch(
+         `/api/smart-forms/templates?_ghHeader=${Date.now()}`,
+         {
+           cache:"no-store",
+           headers:{
+             Authorization:
+               `Bearer ${localStorage.getItem("token") || ""}`
+           }
+         }
+       );
+
+       if(!templateResponse.ok){
+         smartFormEnabled = false;
+       }else{
+         const templateData =
+           await templateResponse.json().catch(()=>({}));
+
+         smartFormEnabled =
+           Array.isArray(templateData?.templates) &&
+           templateData.templates.length > 0;
+       }
+     }
    }
  }catch(error){
    console.warn(
