@@ -1319,7 +1319,7 @@ Use EXACT configured keys only.`;
     const txt=(raw?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(x=>x?.text||"").join("\n").replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
     const parsed=JSON.parse(txt||"{}");
 
-    if(upper(parsed?.matchStatus)!=="MATCH"){
+    if(String(parsed?.matchStatus||"").trim().toUpperCase()!=="MATCH"){
       return res.status(422).json({
         success:false,
         code:"SMART_FORM_MISMATCH",
