@@ -149,6 +149,12 @@ function actualMiles(trip){
 function automaticValue(field,ctx){
   const {submission,trip,signature,driver,schedule,tenant}=ctx;
   const source=upper(field?.sourceType || "MANUAL");
+
+  // Final certification fields are always automatic, even if the Builder field
+  // was accidentally left as MANUAL. This keeps normal MANUAL fields unchanged.
+  if(isDriverSignatureField(field)) return driverDisplayName(ctx);
+  if(isTripDateField(field)) return formatTripDate(first(trip?.tripDate,submission?.tripDate));
+
   if(source==="MANUAL") return submission.formData?.[field.key];
 
   const bound=exactBindingValue(field,ctx);
@@ -156,9 +162,6 @@ function automaticValue(field,ctx){
 
   const id=norm(`${field?.key || ""} ${field?.label || ""}`);
 
-  // Final certification fields: always come from the completed trip context.
-  if(isDriverSignatureField(field)) return driverDisplayName(ctx);
-  if(isTripDateField(field)) return formatTripDate(first(trip?.tripDate,submission?.tripDate));
 
   if(source==="DRIVER_DATA"){
     if(id.includes("DRIVER NAME") || id==="DRIVER" || id.includes("DRIVER S NAME")){
@@ -318,13 +321,17 @@ async function generateFinalPdf({tenantId,submissionId}){
       const {x,y,boxW,boxH} = calc(page,m);
 
       const source=upper(field.sourceType || "MANUAL");
-      const value=source==="MANUAL"
-        ? submission.formData?.[field.key]
-        : automaticValue(field,{submission,trip,signature,driver,schedule,tenant});
+      const autoCtx={submission,trip,signature,driver,schedule,tenant};
+      const forceFinalField=isDriverSignatureField(field) || isTripDateField(field);
+      const value=forceFinalField
+        ? automaticValue(field,autoCtx)
+        : (source==="MANUAL"
+            ? submission.formData?.[field.key]
+            : automaticValue(field,autoCtx));
 
       // Driver Signature is NOT the member signature image.
       // It is the assigned driver's real name rendered in a signature-like handwritten style.
-      if(isDriverSignatureField(field) && source!=="MANUAL"){
+      if(isDriverSignatureField(field)){
         const driverName=driverDisplayName({trip,signature,driver});
         if(driverName){
           const sigSize=Math.max(11,Math.min(18,Number(m.fontSize||14)+3));
