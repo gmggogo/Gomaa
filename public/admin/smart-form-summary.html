@@ -1,17 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Smart Form Summary - GH Mobility</title>
-<link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
+<link rel="stylesheet" href="/admin/style.css">
+<link rel="stylesheet" href="/admin/header.css">
 <style>
-body{margin:0;background:#f4f6f9;font-family:Arial}.head{text-align:center;margin:16px 24px;padding:20px;border:1px solid #e0be5a;border-radius:18px;background:#fff4cf;font-size:28px;font-weight:900}
-.wrap{padding:24px}.card{background:#fff;border:1px solid #ddd;border-radius:12px;overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:1450px}th,td{padding:11px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}th{background:#f8f9fb}
-.stops{min-width:180px}.stop{display:block;margin-bottom:4px}.btn{border:0;border-radius:7px;padding:8px 11px;font-weight:700;cursor:pointer}.eye{background:#263238;color:#fff;font-size:18px;line-height:1;padding:8px 10px}.review{background:#c99a2e;color:#fff}
-</style></head>
-<body><div id="adminHeader"></div><div class="head">Smart Form Summary</div>
-<main class="wrap"><div class="card"><table><thead><tr>
-<th>Trip #</th><th>Template</th><th>Client</th><th>Pickup</th><th>Stops</th><th>Dropoff</th><th>Date</th><th>Time</th><th>Service</th><th>Miles</th><th>Price</th><th>👁</th><th>Review</th>
-</tr></thead><tbody id="body"></tbody></table></div></main>
-<script src="/admin/header.js"></script><script src="/admin/js/smart-form-summary.js"></script></body></html>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;color:#111827}
+.page-body{padding:0 24px 24px}
+.page-head{display:flex;align-items:center;justify-content:center;min-height:84px;margin:16px 24px 12px;padding:16px 20px;border:1px solid #e0be5a;border-radius:18px;background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);box-shadow:0 8px 22px rgba(146,102,14,.13);text-align:center}
+.page-title{margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#111827}
+.table-wrap{width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;background:#fff;border-radius:14px;box-shadow:0 8px 22px rgba(15,23,42,.08);margin-bottom:20px}
+.summary-table{width:100%;min-width:1450px;table-layout:fixed;border-collapse:collapse;background:#fff;border-top:6px solid #000}
+.summary-table th,.summary-table td{border:1px solid #dbe3ee;padding:5px;text-align:center;font-size:10.5px;vertical-align:middle;line-height:1.25;box-sizing:border-box}
+.summary-table th{background:#1f2937;color:#fff;font-weight:900;white-space:nowrap;font-size:10.5px}
+.col-num{width:34px}.col-trip{width:78px}.col-template{width:110px}.col-service{width:82px}.col-date{width:78px}.col-time{width:62px}.col-miles{width:64px}.col-money{width:76px}.col-eye{width:42px}.col-review{width:72px}
+.wide-passenger{width:115px;text-align:left!important;white-space:normal;word-break:break-word}
+.wide-address{width:225px;text-align:left!important;white-space:normal;word-break:break-word;font-size:10px}
+.wide-stops{width:300px;text-align:left!important;white-space:normal;word-break:break-word;font-size:10px}
+.cell-box{border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;background:#fff}
+.cell-item{padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:10px;white-space:normal;word-break:break-word}
+.cell-item:last-child{border-bottom:0}
+.wide-stops .cell-item{white-space:nowrap;word-break:normal}
+.date-row td{background:#bfdbfe!important;color:#1e3a8a!important;font-weight:900!important;text-align:center!important;padding:6px!important;font-size:13px!important;border-top:2px solid #60a5fa!important;border-bottom:2px solid #60a5fa!important}
+.trip-divider td{border-bottom:3px solid #000!important}
+.eye-btn,.review-btn{border:0;border-radius:7px;padding:7px 9px;font-weight:800;cursor:pointer}
+.eye-btn{background:#263238;color:#fff;font-size:17px;line-height:1}
+.review-btn{background:#c99a2e;color:#fff}
+.empty-state{padding:42px 20px;text-align:center;color:#64748b;font-weight:700}
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:5000;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal-card{position:relative;width:min(980px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.28);padding:22px}
+.modal-close{position:absolute;right:12px;top:10px;border:0;background:#111827;color:#fff;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:30px;cursor:pointer}
+.modal-title{margin:0 44px 18px 0;font-size:22px}
+.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.detail{border:1px solid #dbe3ee;border-radius:8px;background:#f8fafc;padding:9px;min-height:58px}
+.detail.full{grid-column:1/-1}.detail-label{font-size:11px;font-weight:900;color:#475569;margin-bottom:5px}.detail-value{font-size:13px;white-space:pre-wrap;word-break:break-word}
+@media(max-width:760px){.page-body{padding:0 12px 18px}.page-head{margin:12px}.details-grid{grid-template-columns:1fr}.detail.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<div id="adminHeader"></div>
+<div class="page-head"><h1 class="page-title">Smart Form Summary</h1></div>
+<main class="page-body">
+  <div id="summaryContent"></div>
+</main>
+
+<div class="modal" id="eyeModal" aria-hidden="true">
+  <div class="modal-card">
+    <button class="modal-close" id="closeEyeBtn" type="button" aria-label="Close">×</button>
+    <h2 class="modal-title" id="eyeTitle">Smart Form Details</h2>
+    <div class="details-grid" id="eyeDetails"></div>
+  </div>
+</div>
+
+<script src="/admin/header.js"></script>
+<script>
+if(typeof loadHeader==="function"){ loadHeader("Smart Form Summary"); }
+</script>
+<script src="/admin/js/smart-form-summary.js"></script>
+</body>
+</html>
