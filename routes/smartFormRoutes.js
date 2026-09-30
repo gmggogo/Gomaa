@@ -1241,7 +1241,9 @@ router.get("/submissions/:id/pdf", async (req,res)=>{
 });
 
 
-// Upload a completed copy of the SAME Smart Form template and extract only configured fields.
+// Upload a completed copy of the SAME or a substantially similar Smart Form and extract only configured fields.
+// Missing values are allowed so staff can complete them manually before Send to Review.
+// A clearly different/unrelated document is rejected and never creates a submission.
 const completedFormUpload = multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
 router.post("/templates/:id/import-completed", completedFormUpload.single("file"), async (req,res)=>{
   try{
@@ -1250,16 +1252,79 @@ router.post("/templates/:id/import-completed", completedFormUpload.single("file"
     const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId,active:true}).lean();
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
     if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
-    const fields=(t.fields||[]).filter(f=>f.type!=="SIGNATURE").map(f=>({key:f.key,label:f.label,type:f.type}));
-    const prompt=`This uploaded document is a completed copy of the configured transportation form named ${JSON.stringify(t.name)}. Extract ONLY the configured fields below. Do not invent values. Return JSON only as {formData:{...}} using EXACT keys. If a field is blank or unreadable return an empty string. Configured fields: ${JSON.stringify(fields)}`;
+
+    const fields=(t.fields||[])
+      .filter(f=>f.type!=="SIGNATURE")
+      .map(f=>({key:f.key,label:f.label,type:f.type,required:f.required===true}));
+
+    const prompt=`You validate and extract a completed transportation form for GH Mobility.
+The selected GH Mobility template is named ${JSON.stringify(t.name)}.
+Configured fields: ${JSON.stringify(fields)}
+
+FIRST decide whether the uploaded document is the same form or a substantially similar version of this selected template.
+Compatibility is based on the document purpose, recognizable field labels/meaning, and overall transportation-form structure.
+Missing or blank values DO NOT make the document incompatible; staff will complete missing data later.
+A different layout/version is allowed when it clearly represents the same kind of form and its data maps reliably to these configured fields.
+REJECT an unrelated document, a different form type whose fields do not correspond to the configured template, or a document where mapping would require guessing.
+
+If compatible, extract ONLY the configured fields. Never invent a value. If blank/unreadable/missing, return an empty string.
+Return JSON only in exactly this shape:
+{"matchStatus":"MATCH","reason":"","formData":{"EXACT_CONFIGURED_KEY":"value"}}
+If incompatible return:
+{"matchStatus":"REJECT","reason":"short factual reason","formData":{}}
+Use EXACT configured keys only.`;
+
     const model=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:req.file.mimetype||"application/pdf",data:req.file.buffer.toString("base64")}}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}})});
-    const raw=await r.json(); if(!r.ok) throw new Error(raw?.error?.message||"Form extraction failed");
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
+      method:"POST",
+      headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        contents:[{role:"user",parts:[
+          {text:prompt},
+          {inlineData:{mimeType:req.file.mimetype||"application/pdf",data:req.file.buffer.toString("base64")}}
+        ]}],
+        generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}
+      })
+    });
+    const raw=await r.json();
+    if(!r.ok) throw new Error(raw?.error?.message||"Form extraction failed");
     const txt=(raw?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(x=>x?.text||"").join("\n").replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
-    const parsed=JSON.parse(txt||"{}"); const incoming=parsed.formData&&typeof parsed.formData==="object"?parsed.formData:{}; const allowed=new Set(fields.map(f=>f.key)); const formData={}; for(const [k,v] of Object.entries(incoming)){if(allowed.has(k))formData[k]=v;}
+    const parsed=JSON.parse(txt||"{}");
+
+    if(upper(parsed?.matchStatus)!=="MATCH"){
+      return res.status(422).json({
+        success:false,
+        code:"SMART_FORM_MISMATCH",
+        message:clean(parsed?.reason)||"Uploaded form does not match the selected Smart Form template"
+      });
+    }
+
+    const incoming=parsed.formData&&typeof parsed.formData==="object"?parsed.formData:{};
+    const allowed=new Set(fields.map(f=>f.key));
+    const formData={};
+    for(const f of fields) formData[f.key]="";
+    for(const [k,v] of Object.entries(incoming)){
+      if(allowed.has(k)) formData[k]=v??"";
+    }
+
     const op=operationalData(t,formData);
-    res.json({success:true,templateId:String(t._id),templateName:t.name,formData,operationalData:op,importSource:{fileName:req.file.originalname||"completed-form",mimeType:req.file.mimetype||"",imported:true}});
-  }catch(err){console.error("SMART FORM IMPORT ERROR",err);res.status(500).json({success:false,message:err?.message||"Failed to extract completed form"});}
+    return res.json({
+      success:true,
+      templateId:String(t._id),
+      templateName:t.name,
+      matchStatus:"MATCH",
+      formData,
+      operationalData:op,
+      importSource:{
+        fileName:req.file.originalname||"completed-form",
+        mimeType:req.file.mimetype||"",
+        imported:true
+      }
+    });
+  }catch(err){
+    console.error("SMART FORM IMPORT ERROR",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to extract completed form"});
+  }
 });
 
 // Price a Smart Form trip using the selected template's private pricing engine.

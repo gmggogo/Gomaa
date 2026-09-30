@@ -38,6 +38,10 @@
       <div class="sf-card">
         <div class="sf-card-head"><h2 id="entryTemplateTitle">New Reservation Form</h2></div>
         <div class="sf-card-body">
+          <div style="display:flex;justify-content:center;align-items:center;margin-bottom:12px">
+            <input id="completedFormUpload" type="file" accept="application/pdf,image/*" hidden>
+            <button id="completedFormUploadBtn" class="sf-btn success" type="button">Upload</button>
+          </div>
           <div id="entryForm" class="sf-entry-grid"></div>
           <div class="sf-toolbar sf-entry-actions" style="margin-top:18px">
             <button id="saveDraftBtn" class="sf-btn gray">Save Draft</button>

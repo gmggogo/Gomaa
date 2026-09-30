@@ -626,6 +626,49 @@ if(document.getElementById("refreshReviewBtn"))document.getElementById("refreshR
 document.getElementById("saveDraftBtn").onclick=()=>saveEntry("DRAFT");
 document.getElementById("sendReviewBtn").onclick=()=>saveEntry("REVIEW");
 
+// Completed-form import: extract into the CURRENT Smart Form only.
+// The user can complete any missing values before sending the form to Review.
+const completedFormUploadBtn=document.getElementById("completedFormUploadBtn");
+const completedFormUpload=document.getElementById("completedFormUpload");
+if(completedFormUploadBtn&&completedFormUpload){
+  completedFormUploadBtn.onclick=()=>{
+    const t=currentTemplate(document.getElementById("entryTemplate").value);
+    if(!t)return msg("Choose a template first.","err");
+    completedFormUpload.click();
+  };
+  completedFormUpload.onchange=async()=>{
+    const file=completedFormUpload.files?.[0];
+    const t=currentTemplate(document.getElementById("entryTemplate").value);
+    if(!file||!t){completedFormUpload.value="";return;}
+    const oldText=completedFormUploadBtn.textContent;
+    completedFormUploadBtn.disabled=true;
+    completedFormUploadBtn.textContent="Reading...";
+    try{
+      const fd=new FormData();
+      fd.append("file",file);
+      const d=await api(`${API}/templates/${encodeURIComponent(t._id)}/import-completed`,{method:"POST",body:fd});
+      const formData=d.formData&&typeof d.formData==="object"?d.formData:{};
+      await renderEntry(t);
+      for(const f of t.fields||[]){
+        if((f.sourceType||"MANUAL")!=="MANUAL"||f.type==="SIGNATURE")continue;
+        const el=document.getElementById(`entry_${f.key}`);
+        if(!el)continue;
+        const value=formData[f.key];
+        if(value===undefined||value===null||value==="")continue;
+        if(f.type==="CHECKBOX")el.checked=value===true||String(value).toLowerCase()==="true"||String(value)==="1";
+        else el.value=String(value);
+      }
+      msg("Form matched. Extracted data loaded — complete any missing fields, then Send to Review.");
+    }catch(e){
+      msg(e.message||"Uploaded form does not match this Smart Form.","err");
+    }finally{
+      completedFormUpload.value="";
+      completedFormUploadBtn.disabled=false;
+      completedFormUploadBtn.textContent=oldText;
+    }
+  };
+}
+
 [["entryOrganization","entryTemplate"],["builderOrganization","builderTemplate"],["mapperOrganization","mapperTemplate"]].forEach(([o,t])=>document.getElementById(o).onchange=()=>{templateOptions(document.getElementById(t),document.getElementById(o).value);if(o==="entryOrganization"){renderEntry(currentTemplate(document.getElementById(t).value));renderTemplateSidebar();}if(o==="builderOrganization")activateBuilder();if(o==="mapperOrganization")activateMapper();});
 document.getElementById("entryTemplate").onchange=e=>{renderEntry(currentTemplate(e.target.value));renderTemplateSidebar();};
 document.getElementById("builderTemplate").onchange=activateBuilder;
