@@ -36,53 +36,140 @@ async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw n
   }
 }templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);activateBuilder();}
 function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`;if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${(f.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
-function renderEntry(t){const host=document.getElementById("entryForm");if(!t){host.innerHTML=`<div>No template selected.</div>`;return;}host.innerHTML=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL").sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");}
+async function renderEntry(t){
+  const host=document.getElementById("entryForm");
+  if(!t){host.classList.remove("sf-entry-designer-view");host.innerHTML=`<div>No template selected.</div>`;return;}
+  const manual=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
+  try{
+    const d=await api(`${API}/templates/${t._id}/layout`),layout=d.layout||{},items=Array.isArray(layout.items)?layout.items.filter(i=>i.kind==="FIELD"):[];
+    if(items.length){
+      host.classList.add("sf-entry-designer-view");host.style.height=`${Math.max(500,Number(layout.canvasHeight||900))}px`;
+      const map=new Map(manual.map(f=>[String(f.key),f]));
+      host.innerHTML=items.map(i=>{const f=map.get(String(i.fieldKey));if(!f)return "";return `<div class="sf-entry-layout-item" style="left:${Number(i.x||0)}%;top:${Number(i.y||0)}px;width:${Number(i.w||30)}%;height:${Number(i.h||90)}px">${inputControl(f)}</div>`;}).join("");
+      return;
+    }
+  }catch(e){console.warn("Smart Form layout fallback:",e);}
+  host.classList.remove("sf-entry-designer-view");host.style.height="";
+  host.innerHTML=manual.sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
+}
 function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
-function activateBuilder(){activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));renderBuilder();}
+let builderLayout={canvasHeight:900,items:[]},selectedBuilderItemId="",builderLayoutLoadedFor="";
+
+function defaultBuilderLayout(fields){
+  const manual=(fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
+  const items=[];let x=2,y=18,rowH=92;
+  for(const f of manual){
+    const w=Math.max(12,Math.min(96,Number(f.widthPercent||50)));
+    if(x+w>98){x=2;y+=rowH+12;}
+    items.push({id:`field_${f.key}`,kind:"FIELD",fieldKey:f.key,text:"",x,y,w:Math.min(w,96),h:f.type==="TEXTAREA"?132:92});
+    x+=w+2;
+  }
+  return {canvasHeight:Math.max(650,y+rowH+80),items};
+}
+async function loadBuilderLayout(){
+  if(!activeBuilderTemplate){builderLayout={canvasHeight:900,items:[]};return;}
+  try{
+    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/layout`);
+    const saved=d.layout||{};
+    builderLayout={canvasHeight:Number(saved.canvasHeight||900),items:Array.isArray(saved.items)?saved.items:[]};
+    if(!builderLayout.items.length)builderLayout=defaultBuilderLayout(builderFields);
+  }catch(e){builderLayout=defaultBuilderLayout(builderFields);}
+  builderLayoutLoadedFor=String(activeBuilderTemplate._id);
+}
+async function activateBuilder(){
+  activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);
+  builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));
+  selectedBuilderItemId="";
+  await loadBuilderLayout();
+  renderBuilder();
+}
+function builderField(key){return builderFields.find(f=>String(f.key)===String(key));}
+function syncLayoutWithFields(){
+  const valid=new Set(builderFields.map(f=>String(f.key)));
+  builderLayout.items=(builderLayout.items||[]).filter(i=>i.kind!=="FIELD"||valid.has(String(i.fieldKey)));
+  const existing=new Set(builderLayout.items.filter(i=>i.kind==="FIELD").map(i=>String(i.fieldKey)));
+  const missing=builderFields.filter(f=>(f.sourceType||"MANUAL")==="MANUAL"&&!existing.has(String(f.key)));
+  if(missing.length){
+    const generated=defaultBuilderLayout(missing);
+    let y=Math.max(18,...builderLayout.items.map(i=>Number(i.y||0)+Number(i.h||90)+12));
+    generated.items.forEach(i=>builderLayout.items.push({...i,y:y+(i.y-18)}));
+    builderLayout.canvasHeight=Math.max(Number(builderLayout.canvasHeight||900),y+generated.canvasHeight);
+  }
+}
 function renderBuilder(){
-  const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
-  if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
+  const list=document.getElementById("builderList"),canvas=document.getElementById("builderPreview");
+  if(!activeBuilderTemplate){list.innerHTML="Create or select a template.";canvas.innerHTML="";return;}
+  syncLayoutWithFields();
   const sources=["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"];
   const bindings=[["","Not a review column"],["CLIENT_NAME","Client Name"],["PICKUP_ADDRESS","Pickup Address"],["DROPOFF_ADDRESS","Dropoff Address"],["STOPS","Stops"],["TRIP_DATE","Trip Date"],["PICKUP_TIME","Pickup Time"],["SERVICE","Service"]];
-  h.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-row">
-    <span>☰</span>
-    <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>
-    <select data-width="${i}">${[10,20,25,33,40,50,60,66,75,80,100].map(w=>`<option value="${w}" ${Number(f.widthPercent||50)===w?"selected":""}>${w}%</option>`).join("")}</select>
+  list.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-property-row">
+    <div class="sf-builder-property-title"><strong>${esc(f.label)}</strong><span>${esc(f.type)}</span></div>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
     <select data-binding="${i}" title="Smart Review field">${bindings.map(([v,l])=>`<option value="${v}" ${(f.tripBinding||"")===v?"selected":""}>${l}</option>`).join("")}</select>
     <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
-    <button data-up="${i}" title="Move up">↑</button>
-    <button data-down="${i}" title="Move down">↓</button>
-    <button data-del="${i}">Delete</button>
+    <button class="sf-mini-delete" data-del="${i}" type="button">Delete</button>
   </div>`).join("");
-  p.innerHTML=builderFields.map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
+  canvas.style.height=`${Math.max(500,Number(builderLayout.canvasHeight||900))}px`;
+  canvas.innerHTML=(builderLayout.items||[]).map(item=>{
+    if(item.kind!=="FIELD")return "";
+    const f=builderField(item.fieldKey);if(!f)return "";
+    return `<div class="sf-design-item ${item.id===selectedBuilderItemId?"selected":""}" data-layout-id="${esc(item.id)}" style="left:${Number(item.x||0)}%;top:${Number(item.y||0)}px;width:${Number(item.w||30)}%;height:${Number(item.h||90)}px">
+      <div class="sf-design-drag">⋮⋮ ${esc(f.label)}</div>
+      <div class="sf-design-control">${inputControl(f)}</div>
+      <span class="sf-design-resize" title="Resize"></span>
+    </div>`;
+  }).join("");
+  bindDesignerInteractions();
 }
-// GH Mobility - choose the official PDF page when creating a field.
-(function ensureFieldPdfPageSelector(){
-  const addBtn=document.getElementById("addFieldBtn");
-  if(!addBtn || document.getElementById("fieldPdfPage"))return;
-  const wrap=document.createElement("div");
-  wrap.className="sf-control";
-  wrap.innerHTML='<label>PDF Page</label><select id="fieldPdfPage"><option value="1">Page 1</option><option value="2">Page 2</option></select>';
-  addBtn.parentNode.insertBefore(wrap,addBtn);
-})();
-
-document.getElementById("addFieldBtn").onclick=()=>{if(!activeBuilderTemplate)return msg("Select a template.","err");const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;const type=document.getElementById("fieldType").value;builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";renderBuilder();};
-document.getElementById("builderList").onclick=e=>{
-  if(e.target.dataset.del!==undefined){builderFields.splice(Number(e.target.dataset.del),1);}
-  if(e.target.dataset.up!==undefined){const i=Number(e.target.dataset.up);if(i>0)[builderFields[i-1],builderFields[i]]=[builderFields[i],builderFields[i-1]];}
-  if(e.target.dataset.down!==undefined){const i=Number(e.target.dataset.down);if(i<builderFields.length-1)[builderFields[i+1],builderFields[i]]=[builderFields[i],builderFields[i+1]];}
-  builderFields.forEach((f,j)=>f.order=j);renderBuilder();
+function bindDesignerInteractions(){
+  const canvas=document.getElementById("builderPreview");if(!canvas)return;
+  canvas.querySelectorAll(".sf-design-item").forEach(el=>{
+    el.addEventListener("pointerdown",ev=>{
+      if(ev.target.closest("input,select,textarea,button")&&!ev.target.classList.contains("sf-design-resize"))return;
+      ev.preventDefault();
+      selectedBuilderItemId=el.dataset.layoutId;renderBuilder();
+      const target=document.querySelector(`[data-layout-id="${CSS.escape(selectedBuilderItemId)}"]`);if(!target)return;
+      const item=builderLayout.items.find(i=>i.id===selectedBuilderItemId);if(!item)return;
+      const rect=canvas.getBoundingClientRect(),sx=ev.clientX,sy=ev.clientY,ox=Number(item.x||0),oy=Number(item.y||0),ow=Number(item.w||30),oh=Number(item.h||90),resize=ev.target.classList.contains("sf-design-resize");
+      target.setPointerCapture?.(ev.pointerId);
+      const move=e=>{
+        const dx=(e.clientX-sx)/rect.width*100,dy=e.clientY-sy;
+        if(resize){item.w=Math.max(10,Math.min(100-ox,ow+dx));item.h=Math.max(54,Math.min(700,oh+dy));}
+        else{item.x=Math.max(0,Math.min(100-ow,ox+dx));item.y=Math.max(0,Math.min(Number(builderLayout.canvasHeight||900)-oh,oy+dy));}
+        target.style.left=`${item.x}%`;target.style.top=`${item.y}px`;target.style.width=`${item.w}%`;target.style.height=`${item.h}px`;
+      };
+      const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);};
+      window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
+    });
+  });
+}
+document.getElementById("addFieldBtn").onclick=()=>{
+  if(!activeBuilderTemplate)return msg("Select a template.","err");
+  const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");
+  let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;
+  const type=document.getElementById("fieldType").value;
+  builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});
+  document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";syncLayoutWithFields();renderBuilder();
 };
+document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){const i=Number(e.target.dataset.del),key=builderFields[i]?.key;builderFields.splice(i,1);builderLayout.items=builderLayout.items.filter(x=>String(x.fieldKey)!==String(key));builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
 document.getElementById("builderList").onchange=e=>{
-  if(e.target.dataset.width!==undefined)builderFields[Number(e.target.dataset.width)].widthPercent=Number(e.target.value);
   if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
   if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value;if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v)f.tripBinding="";});builderFields[i].tripBinding=v;}
   if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
-  renderBuilder();
+  syncLayoutWithFields();renderBuilder();
 };
-document.getElementById("saveBuilderBtn").onclick=async()=>{if(!activeBuilderTemplate)return;try{const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}renderBuilder();syncSelects();msg("Form Builder saved.");}catch(e){msg(e.message,"err");}};
+document.getElementById("saveBuilderBtn").onclick=async()=>{
+  if(!activeBuilderTemplate)return;
+  try{
+    const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});
+    await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
+    const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
+    activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}
+    renderBuilder();syncSelects();msg("Form Builder layout saved.");
+  }catch(e){msg(e.message,"err");}
+};
 
 async function canvasPageBlob(pageNo){
   if(!pdfDoc)throw new Error("Upload the official PDF first.");

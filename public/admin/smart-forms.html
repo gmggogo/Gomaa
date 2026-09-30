@@ -84,10 +84,13 @@
           <button id="addFieldBtn" class="sf-btn primary" style="width:100%;margin-top:12px">Add Field</button>
         </div>
         <div class="sf-card-body">
-          <div class="sf-layout-note">AI creates the first layout. Use ▲ ▼ to reorder fields, choose width, source, and Repeat, then save.</div>
+          <div class="sf-layout-note">Drag each field to the exact position you want. Drag the bottom-right corner to resize it. The saved position and size are used on the real Smart Form after refresh.</div>
           <div id="builderList" class="sf-builder-list"></div>
-          <div class="sf-builder-preview" style="margin-top:14px"><strong>Entry Preview</strong><div id="builderPreview" class="sf-entry-grid" style="margin-top:10px"></div></div>
-          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder</button>
+          <div class="sf-designer-shell" style="margin-top:14px">
+            <div class="sf-designer-title"><strong>Form Layout Designer</strong><span>Drag + Resize</span></div>
+            <div id="builderPreview" class="sf-builder-preview sf-design-canvas"></div>
+          </div>
+          <button id="saveBuilderBtn" class="sf-btn success" style="margin-top:14px">Save Form Builder & Layout</button>
         </div>
       </div>
     </div>
