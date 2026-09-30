@@ -816,13 +816,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       bookingSource:"SMART_FORM",
 
       status:"Scheduled",
-
-      /*
-        Dispatch GET only loads Trip rows where:
-        dispatchSelected:true and disabled:false.
-        A confirmed Smart Form trip must enter Dispatch immediately.
-      */
-      dispatchSelected:true,
+      dispatchSelected:false,
       disabled:false,
 
       bookedAt:new Date(),
@@ -854,14 +848,97 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       engine globally. Reuse it so Pickup / Dropoff / Stops receive Lat/Lng
       exactly like normal GH Mobility trips before Dispatch uses them.
     */
-    if(typeof global.ensureTripCoords==="function"){
-      await global.ensureTripCoords(trip);
-      trip=await Trip.findById(trip._id) || trip;
+    /*
+      Coordinates are mandatory for Smart Form trips before Confirm succeeds.
+      Reuse GH Mobility's central coordinate engine so Pickup / Dropoff / Stops
+      are geocoded and saved exactly like normal trips.
+    */
+    if(typeof global.ensureTripCoords!=="function"){
+      await Trip.deleteOne({
+        _id:trip._id,
+        tenantId:g.tenantId
+      });
+
+      return res.status(503).json({
+        success:false,
+        message:"Trip coordinate engine is not available"
+      });
+    }
+
+    await global.ensureTripCoords(trip);
+    trip=await Trip.findOne({
+      _id:trip._id,
+      tenantId:g.tenantId
+    });
+
+    const validCoord=(lat,lng)=>{
+      const a=Number(lat);
+      const b=Number(lng);
+
+      return (
+        Number.isFinite(a) &&
+        Number.isFinite(b) &&
+        a>=-90 &&
+        a<=90 &&
+        b>=-180 &&
+        b<=180 &&
+        !(a===0 && b===0)
+      );
+    };
+
+    const missingCoords=[];
+
+    if(!validCoord(trip?.pickupLat,trip?.pickupLng)){
+      missingCoords.push("Pickup");
+    }
+
+    if(!validCoord(trip?.dropoffLat,trip?.dropoffLng)){
+      missingCoords.push("Dropoff");
+    }
+
+    const tripStops=Array.isArray(trip?.stops)
+      ? trip.stops.map(clean).filter(Boolean)
+      : [];
+
+    const tripStopCoords=Array.isArray(trip?.stopCoords)
+      ? trip.stopCoords
+      : [];
+
+    for(let i=0;i<tripStops.length;i++){
+      const row=tripStopCoords[i];
+
+      if(
+        !row ||
+        clean(row.address)!==tripStops[i] ||
+        !validCoord(row.lat,row.lng)
+      ){
+        missingCoords.push(`Stop ${i+1}`);
+      }
     }
 
     /*
-      Do not mark the Smart Form confirmed until the normal Trip exists.
-      This keeps Review -> Confirm -> Dispatch atomic from the user's view.
+      Never send an address-only Smart Form trip to Dispatch / Driver.
+      If geocoding failed, remove the newly-created Trip and keep the
+      Smart Form in REVIEW so the user can correct the address and retry.
+    */
+    if(missingCoords.length){
+      await Trip.deleteOne({
+        _id:trip._id,
+        tenantId:g.tenantId
+      });
+
+      return res.status(400).json({
+        success:false,
+        message:
+          "Could not create map coordinates for: "+
+          missingCoords.join(", ")+
+          ". Check the address and try Confirm again."
+      });
+    }
+
+    /*
+      Do not mark the Smart Form confirmed until the normal Trip exists
+      AND every route address has valid saved coordinates.
     */
     Object.assign(s,{
       ...op,
