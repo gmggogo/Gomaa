@@ -162,11 +162,23 @@ document.getElementById("builderList").onchange=e=>{
 document.getElementById("saveBuilderBtn").onclick=async()=>{
   if(!activeBuilderTemplate)return;
   try{
+    // Keep the PDF page/mapping chosen when the field was created.
+    // The /fields endpoint may normalize the field object, so save mapping explicitly afterwards.
+    const localMappingByKey=new Map(builderFields.map(f=>[String(f.key),{mapping:f.mapping?{...f.mapping}:null,mappings:Array.isArray(f.mappings)?f.mappings.map(m=>({...m})):[]} ]));
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});
+    const savedFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    const mappingPayload=savedFields.map(f=>{
+      const local=localMappingByKey.get(String(f.key));
+      const maps=local?.mappings?.length?local.mappings:(local?.mapping?.mapped?[local.mapping]:[]);
+      const firstMap=maps[0]||local?.mapping||f.mapping||{};
+      return {_id:f._id,mapping:{...firstMap},mappings:maps.map(m=>({...m}))};
+    });
+    const mapped=await api(`${API}/templates/${activeBuilderTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mappingPayload})});
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
-    const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
-    activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
-    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}
+    const finalTemplate=mapped.template||d.template;
+    const i=templates.findIndex(x=>String(x._id)===String(finalTemplate._id));if(i>=0)templates[i]=finalTemplate;
+    activeBuilderTemplate=finalTemplate;builderFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));
+    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(finalTemplate._id)){activeMapperTemplate=finalTemplate;mapperFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));}
     renderBuilder();syncSelects();msg("Form Builder layout saved.");
   }catch(e){msg(e.message,"err");}
 };

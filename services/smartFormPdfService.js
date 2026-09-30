@@ -59,6 +59,25 @@ function formatTime(value){
   return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 }
 
+function formatTripDate(value){
+  if(!value) return "";
+  const raw=clean(value);
+  const m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${String(m[2]).padStart(2,"0")}/${String(m[3]).padStart(2,"0")}/${m[1]}`;
+  const d=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"});
+}
+
+function isDriverSignatureField(field){
+  const id=norm(`${field?.key || ""} ${field?.label || ""} ${field?.tripBinding || ""}`);
+  return id.includes("DRIVER SIGNATURE") || id.includes("DRIVER SIGN");
+}
+
+function driverSignatureName(ctx){
+  return clean(first(ctx?.trip?.driverName,ctx?.signature?.driverName,ctx?.driver?.name,ctx?.driver?.username));
+}
+
 function calc(page,m){
   const w = page.getWidth(), h = page.getHeight();
   const boxW = w * (Number(m.widthPercent || 20)/100);
@@ -192,7 +211,7 @@ function automaticValue(field,ctx){
     if(id.includes("CLIENT PHONE") || id.includes("MEMBER PHONE") || id.includes("PASSENGER PHONE")) return first(trip?.clientPhone);
     if(id.includes("PICK UP") && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.pickup,submission?.pickupAddress);
     if((id.includes("DROP OFF") || id.includes("DROPOFF")) && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.dropoff,submission?.dropoffAddress);
-    if(id.includes("TRIP DATE") || id==="DATE") return first(trip?.tripDate,submission?.tripDate);
+    if(id.includes("TRIP DATE") || id==="DATE") return formatTripDate(first(trip?.tripDate,submission?.tripDate));
     if(id.includes("PICK UP TIME") || id.includes("PICKUP TIME") || id==="TIME") return first(trip?.tripTime,trip?.pickupTime,submission?.pickupTime);
     if(id.includes("SERVICE")) return first(trip?.serviceName,trip?.serviceType,trip?.serviceKey,submission?.serviceName);
     if(id.includes("TRIP NUMBER")) return first(trip?.tripNumber,submission?.tripNumber);
@@ -246,7 +265,7 @@ async function loadAutomaticContext({tenantId,submission}){
 }
 
 async function generateFinalPdf({tenantId,submissionId}){
-  const {PDFDocument,StandardFonts,rgb} = requirePdfLib();
+  const {PDFDocument,StandardFonts,rgb,degrees} = requirePdfLib();
 
   const submission = await SmartFormSubmission.findOne({_id:submissionId,tenantId}).select("+generatedPdf.data");
   if(!submission){ const e=new Error("Submission not found"); e.statusCode=404; throw e; }
@@ -258,6 +277,8 @@ async function generateFinalPdf({tenantId,submissionId}){
   const pdfDoc = await PDFDocument.load(template.originalPdf.data);
   const pages = pdfDoc.getPages();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // Built-in italic serif is deployment-safe and gives the driver name a signature-like handwritten appearance.
+  const driverSignatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
 
   const {trip,signature,driver,schedule,tenant}=await loadAutomaticContext({tenantId,submission});
 
@@ -294,7 +315,25 @@ async function generateFinalPdf({tenantId,submissionId}){
         : automaticValue(field,{submission,trip,signature,driver,schedule,tenant});
 
       if(field.type === "SIGNATURE"){
-        if(signatureImage && source!=="MANUAL"){
+        if(isDriverSignatureField(field)){
+          const driverName=driverSignatureName({trip,signature,driver});
+          if(driverName){
+            const requested=Math.max(10,Number(m.fontSize||14)+3);
+            const widthAtRequested=driverSignatureFont.widthOfTextAtSize(driverName,requested);
+            const signatureSize=widthAtRequested>boxW && widthAtRequested>0
+              ? Math.max(8,requested*(boxW/widthAtRequested))
+              : requested;
+            page.drawText(driverName,{
+              x:x+2,
+              y:y+Math.max(1,(boxH-signatureSize)*0.45),
+              size:signatureSize,
+              font:driverSignatureFont,
+              color:rgb(0,0,0),
+              maxWidth:boxW-2,
+              rotate:degrees(-2)
+            });
+          }
+        }else if(signatureImage && source!=="MANUAL"){
           const size = signatureImage.scale(1);
           const ratio = Math.min(boxW/size.width,boxH/size.height);
           page.drawImage(signatureImage,{
