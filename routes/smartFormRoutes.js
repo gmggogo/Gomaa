@@ -816,7 +816,13 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       bookingSource:"SMART_FORM",
 
       status:"Scheduled",
-      dispatchSelected:false,
+
+      /*
+        Dispatch GET only loads Trip rows where:
+        dispatchSelected:true and disabled:false.
+        A confirmed Smart Form trip must enter Dispatch immediately.
+      */
+      dispatchSelected:true,
       disabled:false,
 
       bookedAt:new Date(),
