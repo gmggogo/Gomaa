@@ -848,14 +848,47 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       engine globally. Reuse it so Pickup / Dropoff / Stops receive Lat/Lng
       exactly like normal GH Mobility trips before Dispatch uses them.
     */
+    /*
+      Keep the already-working Review -> Trip -> Dispatch path unchanged.
+      Only enrich that SAME Trip with coordinates before finishing Confirm.
+    */
     if(typeof global.ensureTripCoords==="function"){
-      /*
-        Keep the existing Smart Form Confirm/auth flow unchanged.
-        Only ask the central GH Mobility coordinate engine to geocode and
-        persist Pickup / Dropoff / Stops on the newly-created Trip.
-      */
       await global.ensureTripCoords(trip);
-      trip=await Trip.findById(trip._id) || trip;
+
+      const tripWithCoords=await Trip.findOne({
+        _id:trip._id,
+        tenantId:g.tenantId
+      });
+
+      if(tripWithCoords){
+        trip=tripWithCoords;
+      }
+    }
+
+    /*
+      IMPORTANT:
+      Coordinate enrichment must never change Dispatch eligibility.
+      Preserve the Trip created above and its normal Dispatch fields.
+    */
+    if(trip && trip._id){
+      await Trip.updateOne(
+        {
+          _id:trip._id,
+          tenantId:g.tenantId
+        },
+        {
+          $set:{
+            dispatchSelected:false,
+            disabled:false,
+            status:"Scheduled"
+          }
+        }
+      );
+
+      trip=await Trip.findOne({
+        _id:trip._id,
+        tenantId:g.tenantId
+      }) || trip;
     }
 
     /*
