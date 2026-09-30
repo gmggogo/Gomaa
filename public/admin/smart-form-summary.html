@@ -38,13 +38,29 @@ body{margin:0;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;color:#1
 .details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .detail{border:1px solid #dbe3ee;border-radius:8px;background:#f8fafc;padding:9px;min-height:58px}
 .detail.full{grid-column:1/-1}.detail-label{font-size:11px;font-weight:900;color:#475569;margin-bottom:5px}.detail-value{font-size:13px;white-space:pre-wrap;word-break:break-word}
-@media(max-width:760px){.page-body{padding:0 12px 18px}.page-head{margin:12px}.details-grid{grid-template-columns:1fr}.detail.full{grid-column:auto}}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #dbe3ee;border-radius:12px;padding:12px;margin-bottom:14px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
+.toolbar input,.toolbar select{height:38px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:0 11px;font:inherit;color:#111827}
+.toolbar input{min-width:280px;flex:1}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat-card{background:#fff;border:1px solid #dbe3ee;border-left:5px solid #c99a2e;border-radius:10px;padding:12px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
+.stat-number{font-size:24px;font-weight:900;color:#111827}.stat-label{font-size:11px;font-weight:800;color:#64748b;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shared-row td{background:#ede9fe!important}
+@media(max-width:760px){.page-body{padding:0 12px 18px}.page-head{margin:12px}.details-grid{grid-template-columns:1fr}.detail.full{grid-column:auto}.toolbar input{min-width:100%;width:100%}}
 </style>
 </head>
 <body>
 <div id="adminHeader"></div>
 <div class="page-head"><h1 class="page-title">Smart Form Summary</h1></div>
 <main class="page-body">
+  <section class="toolbar">
+    <input id="searchInput" type="search" placeholder="Search trip, template, client, pickup, stop, dropoff...">
+    <select id="templateFilter"><option value="ALL">All Templates</option></select>
+    <select id="serviceFilter"><option value="ALL">All Services</option></select>
+    <select id="statusFilter"><option value="ALL">All Status</option></select>
+    <input id="dateFilter" type="date" title="Trip Date">
+    <button id="clearFiltersBtn" class="review-btn" type="button">Clear</button>
+  </section>
+  <section class="stats-grid" id="statsGrid"></section>
   <div id="summaryContent"></div>
 </main>
 
