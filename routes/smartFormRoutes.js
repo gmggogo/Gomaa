@@ -1274,8 +1274,11 @@ If incompatible return:
 {"matchStatus":"REJECT","reason":"short factual reason","formData":{}}
 Use EXACT configured keys only.`;
 
-    const primaryModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const fallbackModel=clean(process.env.SMART_FORMS_GEMINI_FALLBACK_MODEL)||"gemini-2.5-flash";
+    // Completed-form extraction uses its own low-cost Gemini model settings.
+    // This deliberately does not inherit SMART_FORMS_GEMINI_MODEL, so a model
+    // selected for PDF field detection cannot accidentally make imports costly.
+    const primaryModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_MODEL)||"gemini-2.5-flash-lite";
+    const fallbackModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_FALLBACK_MODEL)||"gemini-2.5-flash";
     const requestBody={
       contents:[{role:"user",parts:[
         {text:prompt},
