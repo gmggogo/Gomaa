@@ -742,22 +742,60 @@ router.get("/submissions", async (req,res)=>{
     const tripIds=rows.map(x=>x.tripId).filter(Boolean);
     const trips=tripIds.length
       ? await Trip.find({_id:{$in:tripIds},tenantId:g.tenantId})
-          .select("_id stops distanceMiles durationMinutes priceAmount")
+          .select("_id status passengerStatus stops miles distanceMiles durationMinutes priceAmount finalPrice totalPassengers isShared groupId tripType")
           .lean()
       : [];
     const tripMap=new Map(trips.map(t=>[String(t._id),t]));
 
-    const submissions=rows.map(row=>{
+    /*
+      Smart Form Summary rule:
+      CONFIRMED means the form was approved and a normal Trip was created.
+      It does NOT mean the ride was completed.
+
+      Therefore, when the Summary asks for CONFIRMED Smart Forms, expose only
+      submissions whose linked normal Trip is actually Completed. Review/Draft
+      screens keep their existing behavior unchanged.
+    */
+    const completedTripStatus=value=>
+      ["COMPLETED","COMPLETE"].includes(clean(value).toUpperCase());
+
+    const sourceRows=requestedStatus==="CONFIRMED"
+      ? rows.filter(row=>{
+          const trip=row.tripId ? tripMap.get(String(row.tripId)) : null;
+          return !!trip && completedTripStatus(trip.status);
+        })
+      : rows;
+
+    const submissions=sourceRows.map(row=>{
       const out=sanitizeSubmission(row);
       const trip=row.tripId ? tripMap.get(String(row.tripId)) : null;
 
       if(trip){
-        if(Array.isArray(trip.stops) && trip.stops.length) out.stops=trip.stops;
-        if(Number(trip.distanceMiles)>0) out.distanceMiles=Number(trip.distanceMiles);
-        if(Number(trip.durationMinutes)>0) out.durationMinutes=Number(trip.durationMinutes);
-        if(Number(trip.priceAmount)>0 && !Number(out?.pricing?.amount)){
-          out.pricing={...(out.pricing||{}),calculated:true,amount:Number(trip.priceAmount),currency:"USD"};
+        // Summary must use the final normal-Trip state, not Smart Form CONFIRMED.
+        out.tripStatus=clean(trip.status);
+        out.passengerStatus=clean(trip.passengerStatus) || (completedTripStatus(trip.status) ? "Completed" : "");
+
+        if(Array.isArray(trip.stops)) out.stops=trip.stops;
+
+        const finalMiles=Number(trip.distanceMiles ?? trip.miles);
+        if(Number.isFinite(finalMiles)) out.distanceMiles=finalMiles;
+
+        const finalMinutes=Number(trip.durationMinutes);
+        if(Number.isFinite(finalMinutes)) out.durationMinutes=finalMinutes;
+
+        // Always prefer the final Trip price in Summary, including a legitimate $0.00.
+        const rawFinalPrice=trip.finalPrice ?? trip.priceAmount;
+        const finalPrice=Number(rawFinalPrice);
+        if(rawFinalPrice!==undefined && rawFinalPrice!==null && rawFinalPrice!=="" && Number.isFinite(finalPrice)){
+          out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
+          out.priceAmount=finalPrice;
+          out.finalPrice=finalPrice;
         }
+
+        out.totalPassengers=Number(trip.totalPassengers||out.totalPassengers||1)||1;
+        out.isShared=trip.isShared===true;
+        out.groupId=clean(trip.groupId);
+        out.tripType=clean(trip.tripType);
       }
 
       return out;
