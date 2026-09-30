@@ -45,7 +45,7 @@ async function generateFinalPdf({tenantId,submissionId}){
 
   let signatureImage = null;
   if(submission.tripId){
-    const signature = await TripSignature.findOne({tenantId,tripId:submission.tripId}).lean();
+    const signature = await TripSignature.findOne({tenantId,tripId:submission.tripId}).select("+signatureData").lean();
     if(signature?.signatureData?.length){
       try{
         signatureImage = String(signature.signatureMimeType || "").toLowerCase().includes("jpeg")

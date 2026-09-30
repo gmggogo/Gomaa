@@ -42,7 +42,7 @@ async function load(){
     <td>${esc(s.serviceName)}</td>
     <td>${Number(s.distanceMiles||0).toFixed(1)}</td>
     <td>$${Number(s.pricing?.amount||0).toFixed(2)}</td>
-    <td><button class="btn eye" data-eye="${encodeURIComponent(JSON.stringify(s.formData||{}))}">Eye</button></td>
+    <td><button class="btn eye" data-eye="${encodeURIComponent(JSON.stringify(s.formData||{}))}" title="View details" aria-label="View details">👁</button></td>
     <td><button class="btn review" data-id="${esc(s._id)}">Review</button></td>
   </tr>`).join("");
   document.querySelectorAll("[data-eye]").forEach(b=>b.onclick=()=>alert(JSON.stringify(JSON.parse(decodeURIComponent(b.dataset.eye)),null,2)));

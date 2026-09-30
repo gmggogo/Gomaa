@@ -1079,12 +1079,48 @@ router.post("/submissions/:id/generate-pdf", async (req,res)=>{
 router.get("/submissions/:id/pdf", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-    const s=await SmartFormSubmission.findOne({_id:req.params.id,tenantId:g.tenantId}).select("+generatedPdf.data generatedPdf");
-    if(!s?.generatedPdf?.data?.length) return res.status(404).json({success:false,message:"Generated PDF not found"});
+
+    /*
+      generatedPdf.data is select:false in the submission model.
+      Select the binary field explicitly. Do not mix the parent generatedPdf
+      projection with +generatedPdf.data because that can make the PDF read
+      fail even though generation succeeded.
+    */
+    const s=await SmartFormSubmission
+      .findOne({_id:req.params.id,tenantId:g.tenantId})
+      .select("+generatedPdf.data");
+
+    if(!s){
+      return res.status(404).json({
+        success:false,
+        message:"Submission not found"
+      });
+    }
+
+    const pdfData=s?.generatedPdf?.data;
+
+    if(!pdfData || !pdfData.length){
+      return res.status(404).json({
+        success:false,
+        message:"Generated PDF not found"
+      });
+    }
+
     res.setHeader("Content-Type","application/pdf");
-    res.setHeader("Content-Disposition",`inline; filename="${String(s.generatedPdf.fileName||"smart-form.pdf").replace(/"/g,"")}"`);
-    res.end(s.generatedPdf.data);
-  }catch(err){res.status(500).json({success:false,message:"Failed to load generated PDF"});}
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${String(s.generatedPdf.fileName||"smart-form.pdf").replace(/"/g,"")}"`
+    );
+    res.setHeader("Content-Length",String(pdfData.length));
+    return res.end(pdfData);
+
+  }catch(err){
+    console.error("SMART FORM PDF LOAD ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:err?.message||"Failed to load generated PDF"
+    });
+  }
 });
 
 
