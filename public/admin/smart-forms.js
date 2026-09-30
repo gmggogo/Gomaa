@@ -44,7 +44,7 @@ function renderBuilder(){
   const h=document.getElementById("builderList"),p=document.getElementById("builderPreview");
   if(!activeBuilderTemplate){h.innerHTML="Create or select a template.";p.innerHTML="";return;}
   const sources=["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"];
-  const bindings=[["","Not a review column"],["CLIENT_NAME","Client Name"],["PICKUP_ADDRESS","Pickup Address"],["DROPOFF_ADDRESS","Dropoff Address"],["TRIP_DATE","Trip Date"],["PICKUP_TIME","Pickup Time"],["SERVICE","Service"]];
+  const bindings=[["","Not a review column"],["CLIENT_NAME","Client Name"],["PICKUP_ADDRESS","Pickup Address"],["DROPOFF_ADDRESS","Dropoff Address"],["STOPS","Stops"],["TRIP_DATE","Trip Date"],["PICKUP_TIME","Pickup Time"],["SERVICE","Service"]];
   h.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-row">
     <span>☰</span>
     <div><strong>${esc(f.label)}</strong><div class="sf-source-badge">${esc(f.type)} · ${esc(f.sourceType||"MANUAL")}</div></div>

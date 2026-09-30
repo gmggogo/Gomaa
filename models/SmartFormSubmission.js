@@ -14,6 +14,7 @@ const schema = new mongoose.Schema({
   clientName:{type:String,default:""},
   pickupAddress:{type:String,default:""},
   dropoffAddress:{type:String,default:""},
+  stops:{type:[String],default:[]},
   tripDate:{type:String,default:""},
   pickupTime:{type:String,default:""},
   serviceName:{type:String,default:""},

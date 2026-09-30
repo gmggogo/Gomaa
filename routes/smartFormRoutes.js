@@ -7,6 +7,7 @@ const Tenant = require("../models/Tenant");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
 const SmartFormTemplate = require("../models/SmartFormTemplate");
 const SmartFormSubmission = require("../models/SmartFormSubmission");
+const Trip = require("../models/Trip");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 
@@ -114,11 +115,29 @@ function fieldValueForBinding(template,formData,binding){
   }
   return "";
 }
+function stopValues(template,formData){
+  const explicit=(template.fields||[]).find(x=>clean(x.tripBinding).toUpperCase()==="STOPS");
+  let value=explicit ? formData?.[explicit.key] : undefined;
+
+  if(value===undefined || value===null || value===""){
+    const inferred=(template.fields||[]).find(f=>{
+      const text=normalizedFieldText(f);
+      return /(^|\b)stops?(\b|$)/.test(text);
+    });
+    if(inferred) value=formData?.[inferred.key];
+  }
+
+  if(Array.isArray(value)) return value.map(clean).filter(Boolean);
+  const text=clean(value);
+  if(!text) return [];
+  return text.split(/\r?\n|\s*;\s*/).map(clean).filter(Boolean);
+}
 function operationalData(template,formData){
   return {
     clientName:fieldValueForBinding(template,formData,"CLIENT_NAME"),
     pickupAddress:fieldValueForBinding(template,formData,"PICKUP_ADDRESS"),
     dropoffAddress:fieldValueForBinding(template,formData,"DROPOFF_ADDRESS"),
+    stops:stopValues(template,formData),
     tripDate:fieldValueForBinding(template,formData,"TRIP_DATE"),
     pickupTime:fieldValueForBinding(template,formData,"PICKUP_TIME"),
     serviceName:fieldValueForBinding(template,formData,"SERVICE")
@@ -592,9 +611,43 @@ router.post("/submissions", async (req,res)=>{
 router.get("/submissions", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-    const rows=await SmartFormSubmission.find({tenantId:g.tenantId}).sort({createdAt:-1}).limit(500).lean();
-    res.json({success:true,submissions:rows.map(sanitizeSubmission)});
-  }catch(err){res.status(500).json({success:false,message:"Failed to load review"});}
+
+    const query={tenantId:g.tenantId};
+    const requestedStatus=clean(req.query.status).toUpperCase();
+    if(["DRAFT","REVIEW","CONFIRMED","ARCHIVED"].includes(requestedStatus)){
+      query.status=requestedStatus;
+    }
+
+    const rows=await SmartFormSubmission.find(query).sort({createdAt:-1}).limit(500).lean();
+
+    const tripIds=rows.map(x=>x.tripId).filter(Boolean);
+    const trips=tripIds.length
+      ? await Trip.find({_id:{$in:tripIds},tenantId:g.tenantId})
+          .select("_id stops distanceMiles durationMinutes priceAmount")
+          .lean()
+      : [];
+    const tripMap=new Map(trips.map(t=>[String(t._id),t]));
+
+    const submissions=rows.map(row=>{
+      const out=sanitizeSubmission(row);
+      const trip=row.tripId ? tripMap.get(String(row.tripId)) : null;
+
+      if(trip){
+        if(Array.isArray(trip.stops) && trip.stops.length) out.stops=trip.stops;
+        if(Number(trip.distanceMiles)>0) out.distanceMiles=Number(trip.distanceMiles);
+        if(Number(trip.durationMinutes)>0) out.durationMinutes=Number(trip.durationMinutes);
+        if(Number(trip.priceAmount)>0 && !Number(out?.pricing?.amount)){
+          out.pricing={...(out.pricing||{}),calculated:true,amount:Number(trip.priceAmount),currency:"USD"};
+        }
+      }
+
+      return out;
+    });
+
+    res.json({success:true,submissions});
+  }catch(err){
+    res.status(500).json({success:false,message:"Failed to load review"});
+  }
 });
 
 router.post("/submissions/:id/review", async (req,res)=>{

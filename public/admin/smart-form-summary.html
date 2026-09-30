@@ -1,1 +1,17 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Smart Form Summary - GH Mobility</title><link rel="stylesheet" href="style.css"><style>body{margin:0;background:#f4f6f9;font-family:Arial}.head{text-align:center;margin:16px 24px;padding:20px;border:1px solid #e0be5a;border-radius:18px;background:#fff4cf;font-size:28px;font-weight:900}.wrap{padding:24px}.card{background:#fff;border:1px solid #ddd;border-radius:12px;overflow:auto}table{width:100%;border-collapse:collapse;min-width:1200px}th,td{padding:11px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f9fb}.btn{border:0;border-radius:7px;padding:8px 11px;font-weight:700;cursor:pointer}.eye{background:#263238;color:#fff}.review{background:#c99a2e;color:#fff}</style></head><body><div id="adminHeader"></div><div class="head">Smart Form Summary</div><main class="wrap"><div class="card"><table><thead><tr><th>Trip #</th><th>Template</th><th>Client</th><th>Pickup</th><th>Dropoff</th><th>Date</th><th>Time</th><th>Service</th><th>Miles</th><th>Price</th><th>Eye</th><th>Review</th></tr></thead><tbody id="body"></tbody></table></div></main><script src="header.js"></script><script src="js/smart-form-summary.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Form Summary - GH Mobility</title>
+<link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
+<style>
+body{margin:0;background:#f4f6f9;font-family:Arial}.head{text-align:center;margin:16px 24px;padding:20px;border:1px solid #e0be5a;border-radius:18px;background:#fff4cf;font-size:28px;font-weight:900}
+.wrap{padding:24px}.card{background:#fff;border:1px solid #ddd;border-radius:12px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:1450px}th,td{padding:11px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}th{background:#f8f9fb}
+.stops{min-width:180px}.stop{display:block;margin-bottom:4px}.btn{border:0;border-radius:7px;padding:8px 11px;font-weight:700;cursor:pointer}.eye{background:#263238;color:#fff}.review{background:#c99a2e;color:#fff}
+</style></head>
+<body><div id="adminHeader"></div><div class="head">Smart Form Summary</div>
+<main class="wrap"><div class="card"><table><thead><tr>
+<th>Trip #</th><th>Template</th><th>Client</th><th>Pickup</th><th>Stops</th><th>Dropoff</th><th>Date</th><th>Time</th><th>Service</th><th>Miles</th><th>Price</th><th>Eye</th><th>Review</th>
+</tr></thead><tbody id="body"></tbody></table></div></main>
+<script src="/admin/header.js"></script><script src="/admin/js/smart-form-summary.js"></script></body></html>

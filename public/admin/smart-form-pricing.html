@@ -1,1 +1,64 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Smart Form Pricing - GH Mobility</title><link rel="stylesheet" href="style.css"><style>body{margin:0;background:#f4f6f9;font-family:Arial;color:#1f2937}.wrap{padding:24px}.head{text-align:center;margin:16px 24px;padding:20px;border:1px solid #e0be5a;border-radius:18px;background:#fff4cf;font-size:28px;font-weight:900}.layout{display:grid;grid-template-columns:260px 1fr;gap:18px}.card{background:#fff;border:1px solid #d9dee7;border-radius:12px;padding:16px}.template{width:100%;text-align:left;margin:0 0 8px;padding:11px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer}.template.active{background:#263238;color:#fff}.service{display:grid;grid-template-columns:1.2fr .8fr repeat(4,.7fr);gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #eee}.service input,.service select{padding:8px;border:1px solid #ccd2db;border-radius:7px;width:100%}.save{margin-top:15px;background:#c99a2e;color:#fff;border:0;border-radius:8px;padding:11px 18px;font-weight:700;cursor:pointer}@media(max-width:900px){.layout{grid-template-columns:1fr}.service{grid-template-columns:1fr 1fr}}</style></head><body><div id="adminHeader"></div><div class="head">Smart Form Pricing</div><main class="wrap"><div class="layout"><aside class="card"><h3>Templates</h3><div id="templates"></div></aside><section class="card"><h3 id="title">Select a template</h3><div id="services"></div><button id="save" class="save" hidden>Save Pricing</button></section></div></main><script src="header.js"></script><script src="js/smart-form-pricing.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Smart Form Pricing - GH Mobility</title>
+  <link rel="stylesheet" href="/admin/style.css">
+  <link rel="stylesheet" href="/admin/header.css">
+  <style>
+    *{box-sizing:border-box}
+    :root{--navy:#173f59;--gold:#c5a04c;--gold-bg:#fff4cf;--bg:#eef4f7;--panel:#fff;--line:#d7e1e7;--text:#17232d;--muted:#6a7a86;--green:#218a61}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Arial,sans-serif}
+    .page{width:100%;padding:14px 16px 30px}
+    .page-head{background:linear-gradient(135deg,#fff8dc,#f1dd9d,#fff4cf);border:1px solid #dfc56d;border-radius:16px;padding:15px 18px;text-align:center;margin-bottom:12px}
+    .page-title{margin:0;font-size:25px;font-weight:900}.page-sub{margin-top:4px;color:var(--muted);font-size:12px;font-weight:700}
+    .layout{display:grid;grid-template-columns:290px minmax(0,1fr);gap:14px;align-items:start}
+    .sidebar,.main-panel{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .sidebar-head{padding:13px;background:var(--navy);color:#fff;font-weight:900;text-align:center}
+    .template-list{max-height:72vh;overflow:auto}.template-item{padding:12px;border-bottom:1px solid #e5ebef;cursor:pointer;background:#fff}
+    .template-item:hover{background:#f7fafc}.template-item.active{background:#e7f0f6;box-shadow:inset 4px 0 0 var(--navy)}
+    .template-name{font-weight:900;font-size:13px}.main-content{padding:14px}
+    .selected-box{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#f8fafb;border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
+    .selected-name{font-size:18px;font-weight:900}.services-grid{display:grid;grid-template-columns:1fr;gap:12px}
+    .service-card{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+    .service-head{padding:11px 13px;background:#eef4f7;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .service-title{font-size:17px;font-weight:900}.service-code{font-size:10px;font-weight:900;color:var(--muted)}
+    .service-body{padding:13px}.service-enable-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .fields{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px}
+    .field label{display:block;font-size:10px;font-weight:900;color:#53636e;margin-bottom:4px;text-transform:uppercase}
+    .field input,.field select{width:100%;padding:9px;border:1px solid #cbd6dd;border-radius:8px;background:#fff}
+    .stop-section{margin-top:12px;padding:11px;border:1px solid #e5d39a;border-radius:10px;background:#fffaf0}
+    .stop-title{font-weight:900;margin-bottom:8px}.stop-note{font-size:11px;color:var(--muted);margin-top:6px}
+    .actions{display:flex;justify-content:flex-end;margin-top:14px}.save{border:0;border-radius:9px;background:var(--gold);color:#fff;font-weight:900;padding:10px 18px;cursor:pointer}
+    .empty{padding:30px;text-align:center;color:var(--muted);font-weight:800}
+    @media(max-width:1000px){.layout{grid-template-columns:1fr}.fields{grid-template-columns:repeat(2,minmax(140px,1fr))}}
+  </style>
+</head>
+<body>
+  <div id="adminHeader"></div>
+  <main class="page">
+    <div class="page-head">
+      <h1 class="page-title">Smart Form Pricing</h1>
+      <div class="page-sub">Independent pricing for each Smart Form template</div>
+    </div>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-head">Smart Form Templates</div>
+        <div id="templates" class="template-list"></div>
+      </aside>
+      <section class="main-panel">
+        <div class="main-content">
+          <div class="selected-box">
+            <div><div class="selected-name" id="title">Select a template</div><div class="page-sub">Each template keeps its own service pricing.</div></div>
+          </div>
+          <div id="services" class="services-grid"><div class="empty">Select a template.</div></div>
+          <div class="actions"><button id="save" class="save" hidden>Save Pricing</button></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/smart-form-pricing.js"></script>
+</body>
+</html>
