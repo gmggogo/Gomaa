@@ -904,6 +904,116 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       op.dropoffAddress
     );
 
+    /*
+      SMART FORM ROUTE + PRICING
+      Confirm must calculate the route BEFORE the Trip is created.
+      Previously priceAmount only copied s.pricing.amount, but nothing in
+      Confirm calculated miles/price, so Summary showed 0.0 / $0.00.
+    */
+    let smartFormMiles=0;
+    let smartFormMinutes=0;
+    let smartFormDistanceMeters=0;
+    let smartFormDurationSeconds=0;
+
+    try{
+      const routePoints=[
+        smartFormValidCoords(smartFormCoords.pickupLat,smartFormCoords.pickupLng)
+          ? {lat:Number(smartFormCoords.pickupLat),lng:Number(smartFormCoords.pickupLng)}
+          : clean(op.pickupAddress),
+        ...(Array.isArray(smartFormCoords.stopCoords)
+          ? smartFormCoords.stopCoords.map((c,i)=>
+              smartFormValidCoords(c?.lat,c?.lng)
+                ? {lat:Number(c.lat),lng:Number(c.lng)}
+                : clean((op.stops||[])[i])
+            )
+          : []),
+        smartFormValidCoords(smartFormCoords.dropoffLat,smartFormCoords.dropoffLng)
+          ? {lat:Number(smartFormCoords.dropoffLat),lng:Number(smartFormCoords.dropoffLng)}
+          : clean(op.dropoffAddress)
+      ].filter(Boolean);
+
+      let routeResult=null;
+      if(routeMapEngine && typeof routeMapEngine.calculateRouteMiles === "function"){
+        routeResult=await routeMapEngine.calculateRouteMiles(routePoints);
+      }else if(routeMapEngine && typeof routeMapEngine.calculateRoute === "function"){
+        routeResult=await routeMapEngine.calculateRoute(routePoints);
+      }
+
+      const legs=
+        routeResult?.legs ||
+        routeResult?.googleRoute?.legs ||
+        routeResult?.route?.legs ||
+        routeResult?.routes?.[0]?.legs ||
+        [];
+
+      const legMeters=Array.isArray(legs)
+        ? legs.reduce((sum,leg)=>sum+Number(leg?.distance?.value||leg?.distanceMeters||0),0)
+        : 0;
+      const legSeconds=Array.isArray(legs)
+        ? legs.reduce((sum,leg)=>sum+Number(leg?.duration?.value||leg?.durationSeconds||0),0)
+        : 0;
+
+      smartFormDistanceMeters=Number(
+        routeResult?.distanceMeters ||
+        routeResult?.totalDistanceMeters ||
+        routeResult?.distance?.value ||
+        legMeters ||
+        0
+      );
+      smartFormDurationSeconds=Number(
+        routeResult?.durationSeconds ||
+        routeResult?.totalDurationSeconds ||
+        routeResult?.duration?.value ||
+        legSeconds ||
+        0
+      );
+      smartFormMiles=Number(
+        routeResult?.miles ||
+        routeResult?.distanceMiles ||
+        routeResult?.routeMiles ||
+        (smartFormDistanceMeters>0 ? smartFormDistanceMeters*0.000621371 : 0) ||
+        0
+      );
+      smartFormMinutes=Number(
+        routeResult?.estimatedMinutes ||
+        routeResult?.minutes ||
+        routeResult?.durationMinutes ||
+        (smartFormDurationSeconds>0 ? smartFormDurationSeconds/60 : 0) ||
+        0
+      );
+
+      smartFormMiles=Number(smartFormMiles.toFixed(2));
+      smartFormMinutes=Math.ceil(smartFormMinutes);
+    }catch(routeErr){
+      console.error("SMART FORM ROUTE CALC ERROR:",routeErr);
+    }
+
+    let smartFormPrice=0;
+    try{
+      const priceResult=await calculateSmartFormPrice({
+        tenantId:g.tenantId,
+        templateId:t._id,
+        serviceKey:clean(op.serviceName),
+        serviceName:clean(op.serviceName),
+        miles:smartFormMiles,
+        minutes:smartFormMinutes,
+        stops:Array.isArray(op.stops) ? op.stops.filter(x=>clean(x)).length : 0,
+        passengers:Number(s.totalPassengers||1)||1
+      });
+
+      smartFormPrice=Number(priceResult?.total||0);
+      s.pricing={
+        calculated:true,
+        amount:smartFormPrice,
+        currency:priceResult?.currency||"USD",
+        pricingMode:priceResult?.pricingMode||"",
+        miles:smartFormMiles,
+        minutes:smartFormMinutes
+      };
+    }catch(priceErr){
+      console.error("SMART FORM PRICE CALC ERROR:",priceErr);
+    }
+
     const tripPayload={
       tenantId:g.tenantId,
 
@@ -946,8 +1056,15 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       tripType:"INDIVIDUAL",
       totalPassengers:Number(s.totalPassengers||1) || 1,
 
-      priceAmount:Number(s?.pricing?.amount||0),
-      finalPrice:Number(s?.pricing?.amount||0),
+      miles:smartFormMiles,
+      distanceMiles:smartFormMiles,
+      distanceMeters:smartFormDistanceMeters,
+      durationSeconds:smartFormDurationSeconds,
+      durationMinutes:smartFormMinutes,
+      estimatedMinutes:smartFormMinutes,
+
+      priceAmount:smartFormPrice,
+      finalPrice:smartFormPrice,
 
       source:"SMART_FORM",
       bookingSource:"SMART_FORM",
