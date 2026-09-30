@@ -1274,20 +1274,45 @@ If incompatible return:
 {"matchStatus":"REJECT","reason":"short factual reason","formData":{}}
 Use EXACT configured keys only.`;
 
-    const model=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
-      method:"POST",
-      headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
-      body:JSON.stringify({
-        contents:[{role:"user",parts:[
-          {text:prompt},
-          {inlineData:{mimeType:req.file.mimetype||"application/pdf",data:req.file.buffer.toString("base64")}}
-        ]}],
-        generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}
-      })
-    });
-    const raw=await r.json();
-    if(!r.ok) throw new Error(raw?.error?.message||"Form extraction failed");
+    const primaryModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const fallbackModel=clean(process.env.SMART_FORMS_GEMINI_FALLBACK_MODEL)||"gemini-2.5-flash";
+    const requestBody={
+      contents:[{role:"user",parts:[
+        {text:prompt},
+        {inlineData:{mimeType:req.file.mimetype||"application/pdf",data:req.file.buffer.toString("base64")}}
+      ]}],
+      generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}
+    };
+
+    async function requestExtraction(model){
+      const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
+        method:"POST",
+        headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
+        body:JSON.stringify(requestBody)
+      });
+      let raw={};
+      try{raw=await response.json();}catch(_){raw={};}
+      return {response,raw};
+    }
+
+    let attempt=await requestExtraction(primaryModel);
+    if(!attempt.response.ok && [429,500,502,503,504].includes(attempt.response.status)){
+      await new Promise(resolve=>setTimeout(resolve,700));
+      attempt=await requestExtraction(primaryModel);
+    }
+    if(!attempt.response.ok && [429,500,502,503,504].includes(attempt.response.status) && fallbackModel && fallbackModel!==primaryModel){
+      attempt=await requestExtraction(fallbackModel);
+    }
+
+    const r=attempt.response;
+    const raw=attempt.raw;
+    if(!r.ok){
+      const providerMessage=clean(raw?.error?.message);
+      if([429,500,502,503,504].includes(r.status)){
+        return res.status(503).json({success:false,code:"SMART_FORM_AI_TEMPORARILY_UNAVAILABLE",message:"Form reader is temporarily busy. Please try the upload again."});
+      }
+      throw new Error(providerMessage||"Form extraction failed");
+    }
     const txt=(raw?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(x=>x?.text||"").join("\n").replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
     const parsed=JSON.parse(txt||"{}");
 
