@@ -274,6 +274,7 @@ function renderMapFieldList(){
     }else{
       renderBoxes();
     }
+    syncMapPageControl();
     if(f)msg(maps.length?`Selected: ${f.label}. Page ${targetPage}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
   });
 }
@@ -411,6 +412,7 @@ async function renderPdfPage(){
     }
   });
 
+  syncMapPageControl();
   renderBoxes();
   requestAnimationFrame(()=>renderBoxes());
 }
@@ -466,6 +468,44 @@ function renderBoxes(){
       stage.appendChild(b);
     });
   });
+}
+
+
+function selectedMapField(){
+  return mapperFields.find(f=>String(f._id)===String(selectedMapFieldId))||null;
+}
+function selectedMapRecord(f){
+  if(!f)return null;
+  const maps=fieldMaps(f);
+  return maps[0]||null;
+}
+function syncMapPageControl(){
+  const el=document.getElementById("mapPage");
+  if(!el)return;
+  const f=selectedMapField(),m=selectedMapRecord(f);
+  el.value=String(Number(m?.page||f?.mapping?.page||pdfPageNumber||1));
+  if(pdfPageCount>0)el.max=String(pdfPageCount);
+}
+async function moveSelectedMappingToPage(rawPage){
+  const f=selectedMapField();
+  if(!f)return msg("Select a field first.","err");
+  const maps=fieldMaps(f);
+  if(!maps.length)return msg(`${f.label}: Missing / Not mapped.`,"err");
+  const maxPage=Math.max(1,Number(pdfPageCount||1));
+  const page=clamp(Math.round(Number(rawPage)||1),1,maxPage);
+  maps.forEach(m=>m.page=page);
+  f.mapping={...maps[0],page};
+  f.mappings=maps.map(m=>({...m,page}));
+  pdfPageNumber=page;
+  const el=document.getElementById("mapPage");if(el)el.value=String(page);
+  await renderPdfPage();
+  renderMapFieldList();
+  msg(`${f.label} moved to PDF Page ${page}. Click Save PDF Mapping to save it.`);
+}
+const mapPageInput=document.getElementById("mapPage");
+if(mapPageInput){
+  mapPageInput.addEventListener("change",()=>moveSelectedMappingToPage(mapPageInput.value));
+  mapPageInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();moveSelectedMappingToPage(mapPageInput.value);}});
 }
 
 document.getElementById("pdfStage").onclick=e=>{
