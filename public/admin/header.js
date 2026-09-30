@@ -589,6 +589,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
  }
 
  /*
+   Smart Form is a tenant-level feature. When Platform Admin disables it,
+   remove the whole Smart Form navigation group (Smart Form + Review).
+   Smart Form Summary and Smart Form Pricing are gated below by the same flag.
+ */
+ if(!smartFormEnabled){
+   nav = nav.filter(item => item?.g !== "Smart Form");
+ }
+
+ /*
    Broker navigation is visible only when the tenant has an enabled
    Broker Contract.
 
@@ -719,11 +728,13 @@ document.addEventListener("DOMContentLoaded",async()=>{
      ]);
    }
 
-   pricingItems.push([
-     "Smart Form Pricing",
-     "smart-form-pricing.html",
-     "money"
-   ]);
+   if(smartFormEnabled){
+     pricingItems.push([
+       "Smart Form Pricing",
+       "smart-form-pricing.html",
+       "money"
+     ]);
+   }
 
    nav.push({
      g:"Pricing",
