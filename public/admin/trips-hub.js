@@ -78,74 +78,6 @@ function syncLegacyAdminAuth(){
   }
 }
 
-function openAttachmentImportPage(event){
-  event?.preventDefault?.();
-  syncLegacyAdminAuth();
-  window.location.href = "/admin/attachment-import.html";
-}
-
-function openAttachmentSummaryPage(event){
-  event?.preventDefault?.();
-  syncLegacyAdminAuth();
-  window.location.href = "/admin/attachment-summary.html";
-}
-
-
-async function loadAttachmentImportButton(){
-  try{
-    const res = await fetch(
-      "/api/attachment-imports/feature",
-      {
-        cache:"no-store",
-        headers:{
-          Authorization:`Bearer ${token}`
-        }
-      }
-    );
-
-    const data = await res.json().catch(()=>({}));
-    const wrap = document.getElementById("topAddTripWrap");
-    if(!wrap) return;
-
-    let importBtn = document.getElementById("addAttachmentTripBtn");
-    let summaryBtn = document.getElementById("attachmentSummaryBtn");
-
-    if(res.ok && data.enabled === true){
-      if(!importBtn){
-        importBtn = document.createElement("button");
-        importBtn.id = "addAttachmentTripBtn";
-        importBtn.className = "top-add-trip-btn";
-        importBtn.type = "button";
-        importBtn.textContent = "+ Add Trip Attachment";
-        importBtn.style.marginLeft = "10px";
-        importBtn.addEventListener("click",openAttachmentImportPage);
-        wrap.appendChild(importBtn);
-      }
-
-      if(!summaryBtn){
-        summaryBtn = document.createElement("button");
-        summaryBtn.id = "attachmentSummaryBtn";
-        summaryBtn.className = "top-add-trip-btn attachment-summary-btn";
-        summaryBtn.type = "button";
-        summaryBtn.textContent = "Attachment Summary";
-        summaryBtn.style.marginLeft = "10px";
-        summaryBtn.addEventListener("click",openAttachmentSummaryPage);
-        wrap.appendChild(summaryBtn);
-      }
-
-      importBtn.style.display = "inline-flex";
-      summaryBtn.style.display = "inline-flex";
-    }else{
-      importBtn?.remove();
-      summaryBtn?.remove();
-    }
-  }catch(err){
-    document.getElementById("addAttachmentTripBtn")?.remove();
-    document.getElementById("attachmentSummaryBtn")?.remove();
-  }
-}
-
-
 function openAddTripPage(event){
   event?.preventDefault?.();
 
@@ -3333,7 +3265,6 @@ async function refreshTripsOnly(){
 }
 
 (async function initHub(){
-  await loadAttachmentImportButton();
   await loadServices();
   await loadHubTrips();
   updateStickyOffsets();
