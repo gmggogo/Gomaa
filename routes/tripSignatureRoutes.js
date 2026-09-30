@@ -42,35 +42,76 @@ async function signatureRequiredForTrip(trip){
   const serviceKey = upper(trip?.serviceKey || trip?.serviceCode || trip?.serviceSuffix);
   if(!serviceKey) return false;
 
-  /* Broker pricing owns the signature option for Broker trips. */
-  if(upper(trip?.externalSource || trip?.source || trip?.bookingSource) === "BROKER" || clean(trip?.brokerCode)){
-    const brokerCode = upper(trip?.brokerCode);
-    if(brokerCode){
-      const brokerPricing = await BrokerPricing.findOne({
-        tenantId:trip.tenantId,
-        brokerCode
-      }).sort({updatedAt:-1}).lean();
-      const brokerService = brokerPricing?.services?.find(s=>upper(s.serviceKey || s.serviceSuffix) === serviceKey);
-      if(brokerService && typeof brokerService.customerSignatureRequired === "boolean"){
-        return brokerService.customerSignatureRequired === true;
-      }
+  /*
+    Source-specific signature options take priority over the tenant-wide
+    Service Management setting. This lets each Broker / Smart Form template
+    independently turn customer signature ON or OFF for the same service.
+  */
+  const source = upper(trip?.source || trip?.bookingSource || trip?.externalSource);
+
+  /*
+    Smart Form is identified by its actual SmartFormSubmission -> tripId link.
+    Do not depend on trip.source because confirmed Smart Form trips may not
+    carry SMART_FORM in that field.
+  */
+  const smartSubmission = await SmartFormSubmission.findOne({
+    tenantId:trip.tenantId,
+    tripId:trip._id
+  }).select("templateId signatureRequired serviceName").lean();
+
+  if(smartSubmission?.templateId){
+    const pricing = await SmartFormPricing.findOne({
+      tenantId:trip.tenantId,
+      templateId:smartSubmission.templateId
+    }).sort({updatedAt:-1}).lean();
+
+    const tripServiceName = upper(
+      trip?.serviceName ||
+      trip?.service ||
+      smartSubmission?.serviceName
+    );
+
+    const os = pricing?.services?.find(s=>{
+      const keys = [
+        upper(s?.serviceKey),
+        upper(s?.serviceSuffix),
+        upper(s?.serviceName)
+      ].filter(Boolean);
+
+      return (
+        keys.includes(serviceKey) ||
+        (tripServiceName && keys.includes(tripServiceName))
+      );
+    });
+
+    if(
+      os &&
+      os.enabled !== false &&
+      typeof os.customerSignatureRequired === "boolean"
+    ){
+      return os.customerSignatureRequired === true;
+    }
+
+    if(smartSubmission.signatureRequired === true){
+      return true;
     }
   }
 
-  /* Smart Form pricing owns the signature option for Smart Form trips. */
-  if(upper(trip?.source || trip?.bookingSource) === "SMART_FORM"){
-    const submission = await SmartFormSubmission.findOne({
-      tenantId:trip.tenantId,
-      tripId:trip._id
-    }).select("templateId").lean();
-    if(submission?.templateId){
-      const smartPricing = await SmartFormPricing.findOne({
-        tenantId:trip.tenantId,
-        templateId:submission.templateId
-      }).sort({updatedAt:-1}).lean();
-      const smartService = smartPricing?.services?.find(s=>upper(s.serviceKey || s.serviceSuffix) === serviceKey);
-      if(smartService && typeof smartService.customerSignatureRequired === "boolean"){
-        return smartService.customerSignatureRequired === true;
+  if(source === "BROKER" || clean(trip?.brokerCode) || clean(trip?.brokerName)){
+    const brokerCode = upper(trip?.brokerCode);
+    const brokerName = clean(trip?.brokerName);
+    const brokerMatch = {tenantId:trip.tenantId,active:true};
+    if(brokerCode) brokerMatch.brokerCode = brokerCode;
+    else if(brokerName) brokerMatch.brokerName = {
+      $regex:`^${brokerName.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}$`,
+      $options:"i"
+    };
+
+    if(brokerCode || brokerName){
+      const pricing = await BrokerPricing.findOne(brokerMatch).sort({updatedAt:-1}).lean();
+      const os = pricing?.services?.find(s=>upper(s.serviceKey || s.serviceSuffix) === serviceKey);
+      if(os && os.enabled !== false && typeof os.customerSignatureRequired === "boolean"){
+        return os.customerSignatureRequired === true;
       }
     }
   }
