@@ -816,7 +816,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       bookingSource:"SMART_FORM",
 
       status:"Scheduled",
-      dispatchSelected:false,
+      dispatchSelected:true,
       disabled:false,
 
       bookedAt:new Date(),
@@ -878,7 +878,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
         },
         {
           $set:{
-            dispatchSelected:false,
+            dispatchSelected:true,
             disabled:false,
             status:"Scheduled"
           }
