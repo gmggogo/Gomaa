@@ -1196,36 +1196,37 @@ function ensureCustomerSignatureUi(){
 
   const style = document.createElement("style");
   style.textContent = `
-    #customerSignatureBtn{display:none;width:100%;min-height:56px;margin:10px 0 0;border:0;border-radius:14px;background:#173f66;color:#fff;font-weight:900;font-size:17px}
-    #customerSignatureOverlay{display:none;position:fixed;inset:0;z-index:99999;background:rgba(6,17,29,.78);align-items:center;justify-content:center;padding:16px}
-    #customerSignatureCard{width:min(620px,100%);background:#fff;border-radius:18px;padding:18px;box-shadow:0 20px 70px #0007}
-    #customerSignatureCanvas{display:block;width:100%;height:230px;border:2px solid #aeb8c4;border-radius:12px;background:#fff;touch-action:none}
-    .customer-signature-actions{display:flex;gap:10px;margin-top:14px}.customer-signature-actions button{flex:1;min-height:46px;border:0;border-radius:10px;font-weight:900}.sig-clear{background:#e5e7eb}.sig-save{background:#15803d;color:#fff}.sig-cancel{background:#991b1b;color:#fff}
+    #customerSignatureBtn{display:none;width:100%;margin:12px 0 10px;padding:16px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;box-sizing:border-box}
+    #customerSignatureRiderName{margin:0 0 10px;color:#0d3155;font-weight:900;font-size:18px;text-align:center}
+    #customerSignatureRequiredText{margin:0 0 10px;color:#991b1b;font-weight:800;font-size:14px;text-align:center}
+    #customerSignatureCanvas{display:block;width:100%;height:210px;border:2px solid #aeb8c4;border-radius:12px;background:#fff;touch-action:none;box-sizing:border-box}
+    .customer-signature-actions{display:flex;gap:10px;margin-top:12px}.customer-signature-actions button{flex:1;min-height:46px;border:0;border-radius:10px;font-weight:900}.sig-clear{background:#e5e7eb}.sig-save{background:#15803d;color:#fff}
   `;
   document.head.appendChild(style);
 
-  customerSignatureButton = document.createElement("button");
+  /*
+    Keep the existing signature gate and save logic unchanged.
+    Only render the required signature box inline immediately ABOVE Complete.
+  */
+  customerSignatureButton = document.createElement("div");
   customerSignatureButton.id = "customerSignatureBtn";
-  customerSignatureButton.type = "button";
-  customerSignatureButton.textContent = "✍ Customer Signature";
-  btnPrimaryAction?.parentElement?.appendChild(customerSignatureButton);
-
-  customerSignatureOverlay = document.createElement("div");
-  customerSignatureOverlay.id = "customerSignatureOverlay";
-  customerSignatureOverlay.innerHTML = `
-    <div id="customerSignatureCard">
-      <h2 style="margin:0 0 6px;color:#0d3155">Customer Signature</h2>
-      <div style="margin-bottom:12px;color:#5b6572">Signature is required before this trip can be completed.</div>
-      <canvas id="customerSignatureCanvas" width="900" height="330"></canvas>
-      <div class="customer-signature-actions">
-        <button type="button" class="sig-clear" id="sigClearBtn">Clear</button>
-        <button type="button" class="sig-cancel" id="sigCancelBtn">Cancel</button>
-        <button type="button" class="sig-save" id="sigSaveBtn">Save Signature</button>
-      </div>
+  customerSignatureButton.innerHTML = `
+    <div id="customerSignatureRiderName"></div>
+    <div id="customerSignatureRequiredText">Customer signature is required before Complete.</div>
+    <canvas id="customerSignatureCanvas" width="900" height="330"></canvas>
+    <div class="customer-signature-actions">
+      <button type="button" class="sig-clear" id="sigClearBtn">Clear</button>
+      <button type="button" class="sig-save" id="sigSaveBtn">Save Signature</button>
     </div>`;
-  document.body.appendChild(customerSignatureOverlay);
 
-  const canvas = customerSignatureOverlay.querySelector("#customerSignatureCanvas");
+  if(btnPrimaryAction?.parentElement){
+    btnPrimaryAction.parentElement.insertBefore(
+      customerSignatureButton,
+      btnPrimaryAction
+    );
+  }
+
+  const canvas = customerSignatureButton.querySelector("#customerSignatureCanvas");
   const ctx = canvas.getContext("2d");
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
@@ -1272,21 +1273,14 @@ function ensureCustomerSignatureUi(){
   canvas.addEventListener("touchmove",move,{passive:false});
   canvas.addEventListener("touchend",end,{passive:false});
 
-  customerSignatureButton.addEventListener("click",()=>{
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    hasInk = false;
-    customerSignatureOverlay.style.display = "flex";
-  });
-  customerSignatureOverlay.querySelector("#sigClearBtn").addEventListener("click",()=>{
+  customerSignatureButton.querySelector("#sigClearBtn").addEventListener("click",()=>{
     ctx.clearRect(0,0,canvas.width,canvas.height);
     hasInk = false;
   });
-  customerSignatureOverlay.querySelector("#sigCancelBtn").addEventListener("click",()=>{
-    customerSignatureOverlay.style.display = "none";
-  });
-  customerSignatureOverlay.querySelector("#sigSaveBtn").addEventListener("click",async()=>{
+
+  customerSignatureButton.querySelector("#sigSaveBtn").addEventListener("click",async()=>{
     if(!hasInk){ alert("Customer signature is required."); return; }
-    const saveBtn = customerSignatureOverlay.querySelector("#sigSaveBtn");
+    const saveBtn = customerSignatureButton.querySelector("#sigSaveBtn");
     saveBtn.disabled = true;
     try{
       const res = await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}`,{
@@ -1304,7 +1298,6 @@ function ensureCustomerSignatureUi(){
         tripDoc.customerSignatureCaptured = true;
         tripDoc.customerSignatureAt = data.signedAt || new Date().toISOString();
       }
-      customerSignatureOverlay.style.display = "none";
       renderExecutionState();
     }catch(err){
       alert(err.message || "Signature save failed");
@@ -1338,6 +1331,10 @@ function hideCustomerSignatureButton(){
 
 function applyCustomerSignatureDropoffGate(){
   ensureCustomerSignatureUi();
+  const riderName = customerSignatureButton?.querySelector("#customerSignatureRiderName");
+  if(riderName){
+    riderName.textContent = `Rider: ${tripDoc?.clientName || "Customer"}`;
+  }
   if(customerSignatureRequired && !customerSignatureSigned){
     customerSignatureButton.style.display = "block";
     btnPrimaryAction.disabled = true;

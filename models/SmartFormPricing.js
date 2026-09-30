@@ -12,6 +12,7 @@ const SmartFormServicePricingSchema = new mongoose.Schema({
   serviceName:{type:String,default:"",trim:true},
   serviceSuffix:{type:String,default:"",trim:true,uppercase:true},
   enabled:{type:Boolean,default:false},
+  customerSignatureRequired:{type:Boolean,default:false},
   shared:{type:Boolean,default:false},
   pricingMode:{type:String,enum:["MILE","HOURLY","SHARED"],default:"MILE"},
   baseFare:{type:Number,default:0,min:0},

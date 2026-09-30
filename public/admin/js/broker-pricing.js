@@ -350,6 +350,9 @@ server/public/admin/js/broker-pricing.js
           enabled:
             existing.enabled === true,
 
+          customerSignatureRequired:
+            existing.customerSignatureRequired === true,
+
           shared:
             shared ||
             existing.shared === true,
@@ -608,6 +611,7 @@ server/public/admin/js/broker-pricing.js
     const booleanStatusField =
       [
         "enabled",
+        "customerSignatureRequired",
         "cancelEnabled",
         "addStopEnabled",
         "addStopCustomTimeEnabled",
@@ -873,6 +877,22 @@ server/public/admin/js/broker-pricing.js
                 )
               : ""
           }
+
+          <div class="policy-title">
+            Customer Signature
+          </div>
+
+          ${selectInput(
+            idx,
+            "customerSignatureRequired",
+            "Customer Signature Before Complete",
+            String(service.customerSignatureRequired === true),
+            [
+              {value:"true",label:"ENABLED"},
+              {value:"false",label:"DISABLED"}
+            ],
+            locked || !state.draftActive
+          )}
 
           <div class="policy-title">
             Broker Cancellation Policy
@@ -1153,6 +1173,7 @@ server/public/admin/js/broker-pricing.js
 
     if([
       "enabled",
+      "customerSignatureRequired",
       "cancelEnabled",
       "addStopEnabled",
       "addStopCustomTimeEnabled",

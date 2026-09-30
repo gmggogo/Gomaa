@@ -4,6 +4,9 @@ const mongoose = require("mongoose");
 const TripSignature = require("../models/TripSignature");
 const Service = require("../models/Service");
 const FacilityPricingOverride = require("../models/FacilityPricingOverride");
+const BrokerPricing = require("../models/BrokerPricing");
+const SmartFormPricing = require("../models/SmartFormPricing");
+const SmartFormSubmission = require("../models/SmartFormSubmission");
 const AttachmentImport = require("../models/AttachmentImport");
 const signatureDocumentService = require("../services/signatureDocumentService");
 
@@ -38,6 +41,39 @@ async function signatureRequiredForTrip(trip){
   if(trip?.attachmentSignatureRequired === true) return true;
   const serviceKey = upper(trip?.serviceKey || trip?.serviceCode || trip?.serviceSuffix);
   if(!serviceKey) return false;
+
+  /* Broker pricing owns the signature option for Broker trips. */
+  if(upper(trip?.externalSource || trip?.source || trip?.bookingSource) === "BROKER" || clean(trip?.brokerCode)){
+    const brokerCode = upper(trip?.brokerCode);
+    if(brokerCode){
+      const brokerPricing = await BrokerPricing.findOne({
+        tenantId:trip.tenantId,
+        brokerCode
+      }).sort({updatedAt:-1}).lean();
+      const brokerService = brokerPricing?.services?.find(s=>upper(s.serviceKey || s.serviceSuffix) === serviceKey);
+      if(brokerService && typeof brokerService.customerSignatureRequired === "boolean"){
+        return brokerService.customerSignatureRequired === true;
+      }
+    }
+  }
+
+  /* Smart Form pricing owns the signature option for Smart Form trips. */
+  if(upper(trip?.source || trip?.bookingSource) === "SMART_FORM"){
+    const submission = await SmartFormSubmission.findOne({
+      tenantId:trip.tenantId,
+      tripId:trip._id
+    }).select("templateId").lean();
+    if(submission?.templateId){
+      const smartPricing = await SmartFormPricing.findOne({
+        tenantId:trip.tenantId,
+        templateId:submission.templateId
+      }).sort({updatedAt:-1}).lean();
+      const smartService = smartPricing?.services?.find(s=>upper(s.serviceKey || s.serviceSuffix) === serviceKey);
+      if(smartService && typeof smartService.customerSignatureRequired === "boolean"){
+        return smartService.customerSignatureRequired === true;
+      }
+    }
+  }
 
   if(clean(trip?.company)){
     const override = await FacilityPricingOverride.findOne({

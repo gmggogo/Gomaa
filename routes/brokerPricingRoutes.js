@@ -226,6 +226,9 @@ function normalizeServiceInput(
     enabled:
       bool(row.enabled),
 
+    customerSignatureRequired:
+      bool(row.customerSignatureRequired),
+
     shared,
 
     pricingMode:
