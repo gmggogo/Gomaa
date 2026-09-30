@@ -2,6 +2,9 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
+const https = require("https");
+
+const routeMapEngine = require("../utils/routeMapEngine");
 
 const Tenant = require("../models/Tenant");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
@@ -12,6 +15,122 @@ const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 
 const router = express.Router();
+
+/* =====================================================
+   SMART FORM COORDINATE ENRICHMENT
+   - Does NOT change the existing Review -> Confirm -> Dispatch flow.
+   - Resolves Pickup / Dropoff / Stops before the normal Trip is created.
+   - Never blocks Dispatch if a coordinate lookup temporarily fails.
+   - Keeps global.ensureTripCoords as a second existing repair pass below.
+===================================================== */
+function smartFormValidCoords(lat,lng){
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
+function smartFormGoogleKey(){
+  return (
+    process.env.GOOGLE_SERVER_KEY ||
+    process.env.GOOGLE_SERVER_API_KEY ||
+    process.env.GOOGLE_MAPS_SERVER_KEY ||
+    process.env.SERVER_GOOGLE_MAPS_KEY ||
+    ""
+  );
+}
+
+function smartFormHttpsJson(url){
+  return new Promise((resolve,reject)=>{
+    https.get(url,response=>{
+      let data="";
+      response.on("data",chunk=>{ data+=chunk; });
+      response.on("end",()=>{
+        try{ resolve(JSON.parse(data)); }
+        catch(err){ reject(err); }
+      });
+    }).on("error",reject);
+  });
+}
+
+async function smartFormGeocodeAddress(address){
+  const value=clean(address);
+  if(!value) return null;
+
+  const fn=
+    routeMapEngine?.geocodeAddress ||
+    routeMapEngine?.geocode ||
+    routeMapEngine?.getCoordinates ||
+    routeMapEngine?.getLatLng ||
+    null;
+
+  if(typeof fn==="function"){
+    try{
+      const result=await fn(value);
+      const lat=
+        result?.lat ??
+        result?.latitude ??
+        result?.location?.lat ??
+        result?.geometry?.location?.lat;
+      const lng=
+        result?.lng ??
+        result?.lon ??
+        result?.longitude ??
+        result?.location?.lng ??
+        result?.location?.lon ??
+        result?.geometry?.location?.lng;
+
+      if(smartFormValidCoords(lat,lng)){
+        return {lat:Number(lat),lng:Number(lng)};
+      }
+    }catch(err){
+      console.log("SMART FORM routeMapEngine geocode failed:",value,err.message);
+    }
+  }
+
+  const key=smartFormGoogleKey();
+  if(!key) return null;
+
+  try{
+    const url=
+      "https://maps.googleapis.com/maps/api/geocode/json?address="+
+      encodeURIComponent(value)+
+      "&key="+
+      encodeURIComponent(key);
+    const json=await smartFormHttpsJson(url);
+    const location=json?.results?.[0]?.geometry?.location;
+    if(json?.status==="OK" && smartFormValidCoords(location?.lat,location?.lng)){
+      return {lat:Number(location.lat),lng:Number(location.lng)};
+    }
+    console.log("SMART FORM Google geocode failed:",value,json?.status||"NO_STATUS",json?.error_message||"");
+  }catch(err){
+    console.log("SMART FORM Google geocode error:",value,err.message);
+  }
+
+  return null;
+}
+
+async function smartFormResolveTripCoords(pickup,stops,dropoff){
+  const stopList=Array.isArray(stops) ? stops.map(clean).filter(Boolean) : [];
+  const results=await Promise.all([
+    smartFormGeocodeAddress(pickup),
+    ...stopList.map(address=>smartFormGeocodeAddress(address)),
+    smartFormGeocodeAddress(dropoff)
+  ]);
+
+  const pickupCoords=results[0]||null;
+  const dropoffCoords=results[results.length-1]||null;
+  const stopResults=results.slice(1,-1);
+
+  return {
+    pickupLat:pickupCoords?.lat ?? null,
+    pickupLng:pickupCoords?.lng ?? null,
+    dropoffLat:dropoffCoords?.lat ?? null,
+    dropoffLng:dropoffCoords?.lng ?? null,
+    stopCoords:stopList.map((address,index)=>({
+      address,
+      lat:stopResults[index]?.lat ?? null,
+      lng:stopResults[index]?.lng ?? null
+    }))
+  };
+}
 // Atomic per-company Smart Form trip sequence.
 const SmartFormTripSequence = mongoose.models.SmartFormTripSequence || mongoose.model("SmartFormTripSequence", new mongoose.Schema({
   tenantId:{type:mongoose.Schema.Types.ObjectId,required:true,unique:true,index:true},
@@ -774,6 +893,17 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       Keep the Smart Form SF number exactly as generated in Review.
       Dispatch reads normal Trip records, so Confirm now creates one.
     */
+    /*
+      Resolve coordinates BEFORE creating the normal Trip so Dispatch and
+      Driver Map receive the same trip with Pickup / Dropoff / Stop Lat/Lng.
+      A temporary geocode failure does not cancel the already-working Confirm.
+    */
+    const smartFormCoords=await smartFormResolveTripCoords(
+      op.pickupAddress,
+      Array.isArray(op.stops) ? op.stops : [],
+      op.dropoffAddress
+    );
+
     const tripPayload={
       tenantId:g.tenantId,
 
@@ -796,10 +926,17 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       serviceCode:clean(op.serviceName),
 
       pickup:clean(op.pickupAddress),
+      pickupLat:smartFormCoords.pickupLat,
+      pickupLng:smartFormCoords.pickupLng,
+
       dropoff:clean(op.dropoffAddress),
+      dropoffLat:smartFormCoords.dropoffLat,
+      dropoffLng:smartFormCoords.dropoffLng,
+
       stops:Array.isArray(op.stops)
         ? op.stops.map(clean).filter(Boolean)
         : [],
+      stopCoords:smartFormCoords.stopCoords,
 
       tripDate:clean(op.tripDate),
       tripTime:clean(op.pickupTime),
