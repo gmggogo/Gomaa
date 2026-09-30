@@ -1277,8 +1277,8 @@ Use EXACT configured keys only.`;
     // Completed-form extraction uses its own low-cost Gemini model settings.
     // This deliberately does not inherit SMART_FORMS_GEMINI_MODEL, so a model
     // selected for PDF field detection cannot accidentally make imports costly.
-    const primaryModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_MODEL)||"gemini-2.5-flash-lite";
-    const fallbackModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_FALLBACK_MODEL)||"gemini-2.5-flash";
+    const primaryModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_MODEL)||"gemini-3.5-flash-lite";
+    const fallbackModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_FALLBACK_MODEL)||"gemini-3.8-flash";
     const requestBody={
       contents:[{role:"user",parts:[
         {text:prompt},
@@ -1299,11 +1299,11 @@ Use EXACT configured keys only.`;
     }
 
     let attempt=await requestExtraction(primaryModel);
-    if(!attempt.response.ok && [429,500,502,503,504].includes(attempt.response.status)){
+    if(!attempt.response.ok && [404,429,500,502,503,504].includes(attempt.response.status)){
       await new Promise(resolve=>setTimeout(resolve,700));
       attempt=await requestExtraction(primaryModel);
     }
-    if(!attempt.response.ok && [429,500,502,503,504].includes(attempt.response.status) && fallbackModel && fallbackModel!==primaryModel){
+    if(!attempt.response.ok && [404,429,500,502,503,504].includes(attempt.response.status) && fallbackModel && fallbackModel!==primaryModel){
       attempt=await requestExtraction(fallbackModel);
     }
 
@@ -1311,7 +1311,7 @@ Use EXACT configured keys only.`;
     const raw=attempt.raw;
     if(!r.ok){
       const providerMessage=clean(raw?.error?.message);
-      if([429,500,502,503,504].includes(r.status)){
+      if([404,429,500,502,503,504].includes(r.status)){
         return res.status(503).json({success:false,code:"SMART_FORM_AI_TEMPORARILY_UNAVAILABLE",message:"Form reader is temporarily busy. Please try the upload again."});
       }
       throw new Error(providerMessage||"Form extraction failed");
