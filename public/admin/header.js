@@ -323,8 +323,7 @@ async function loadSharedBrokerVisibility(){
       ){
         return {
           sharedEnabled: cached.sharedEnabled === true,
-          brokerEnabled: cached.brokerEnabled === true,
-          smartFormEnabled: cached.smartFormEnabled === true
+          brokerEnabled: cached.brokerEnabled === true
         };
       }
     }
@@ -338,8 +337,7 @@ async function loadSharedBrokerVisibility(){
 
   const fallback = {
     sharedEnabled:false,
-    brokerEnabled:false,
-    smartFormEnabled:false
+    brokerEnabled:false
   };
 
   if(!token){
@@ -348,11 +346,8 @@ async function loadSharedBrokerVisibility(){
 
   try{
 
-    const [
-      sharedResponse,
-      servicesResponse
-    ] = await Promise.all([
-      fetch(
+    const response =
+      await fetch(
         "/api/shared-engine/settings",
         {
           cache:"no-store",
@@ -361,56 +356,19 @@ async function loadSharedBrokerVisibility(){
               `Bearer ${token}`
           }
         }
-      ),
-      fetch(
-        "/api/services",
-        {
-          cache:"no-store",
-          headers:{
-            Authorization:
-              `Bearer ${token}`
-          }
-        }
-      )
-    ]);
+      );
+
+    if(!response.ok){
+      return fallback;
+    }
 
     const data =
-      sharedResponse.ok
-        ? await sharedResponse.json().catch(()=>({}))
-        : {};
-
-    const services =
-      servicesResponse.ok
-        ? await servicesResponse.json().catch(()=>([]))
-        : [];
+      await response
+        .json()
+        .catch(()=>({}));
 
     const capabilities =
       data?.capabilities || {};
-
-    const smartFormEnabled =
-      Array.isArray(services) &&
-      services.some(service=>{
-        const identity = [
-          service?.serviceKey,
-          service?.serviceCode,
-          service?.customServiceCode,
-          service?.title,
-          service?.name
-        ]
-        .map(value=>
-          String(value || "")
-            .trim()
-            .toUpperCase()
-            .replace(/[\s-]+/g,"_")
-        );
-
-        return identity.some(value=>
-          value === "SMART_FORM" ||
-          value === "SMART_FORMS" ||
-          value === "SMARTFORM" ||
-          value === "SMARTFORMS"
-        );
-      });
 
     const result = {
       sharedEnabled:
@@ -418,9 +376,7 @@ async function loadSharedBrokerVisibility(){
         capabilities.sharedServiceFound === true,
 
       brokerEnabled:
-        capabilities.brokerContractEnabled === true,
-
-      smartFormEnabled
+        capabilities.brokerContractEnabled === true
     };
 
     try{
@@ -449,7 +405,10 @@ async function loadSharedBrokerVisibility(){
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
-{g:"Smart Form",i:"doc",smartFormOnly:true,items:[["Smart Form","smart-forms.html","doc"],["Smart Form Review","smart-form-review.html","check"]]},
+{g:"Smart Form",i:"doc",items:[
+  ["Smart Form","smart-forms.html","doc"],
+  ["Smart Form Review","smart-form-review.html","check"]
+]},
 {l:"Dispatch",h:"dispatch.html",i:"car"},
 {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
 {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
@@ -594,14 +553,40 @@ document.addEventListener("DOMContentLoaded",async()=>{
  const visibility =
    await loadSharedBrokerVisibility();
 
- /*
-   Smart Form navigation is a tenant service capability.
-   Smart Form + Smart Form Review stay together under one button.
- */
- nav = nav.filter(item=>
-   item?.smartFormOnly !== true ||
-   visibility.smartFormEnabled === true
- );
+ let smartFormEnabled = false;
+
+ try{
+   const smartFormFeatureResponse =
+     await fetch(
+       "/api/smart-forms/feature",
+       {
+         cache:"no-store",
+         headers:{
+           Authorization:
+             `Bearer ${localStorage.getItem("token") || ""}`
+         }
+       }
+     );
+
+   if(smartFormFeatureResponse.ok){
+     const smartFormFeature =
+       await smartFormFeatureResponse
+         .json()
+         .catch(()=>({}));
+
+     smartFormEnabled =
+       smartFormFeature?.enabled === true ||
+       smartFormFeature?.active === true ||
+       smartFormFeature?.featureEnabled === true ||
+       smartFormFeature?.smartFormEnabled === true ||
+       smartFormFeature?.available === true;
+   }
+ }catch(error){
+   console.warn(
+     "Smart Form feature visibility check failed:",
+     error
+   );
+ }
 
  /*
    Broker navigation is visible only when the tenant has an enabled
@@ -699,7 +684,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
            : []
        ),
        ...(
-         visibility.smartFormEnabled
+         smartFormEnabled
            ? [[
                "Smart Form Summary",
                "smart-form-summary.html",
@@ -734,13 +719,11 @@ document.addEventListener("DOMContentLoaded",async()=>{
      ]);
    }
 
-   if(visibility.smartFormEnabled){
-     pricingItems.push([
-       "Smart Form Pricing",
-       "smart-form-pricing.html",
-       "money"
-     ]);
-   }
+   pricingItems.push([
+     "Smart Form Pricing",
+     "smart-form-pricing.html",
+     "money"
+   ]);
 
    nav.push({
      g:"Pricing",
