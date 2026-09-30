@@ -1320,7 +1320,7 @@ async function loadCustomerSignatureRequirement(){
     customerSignatureSigned = data.signed === true || tripDoc?.customerSignatureCaptured === true;
   }catch(err){
     console.log("SIGNATURE REQUIREMENT ERROR:",err);
-    customerSignatureRequired = tripDoc?.attachmentSignatureRequired === true;
+    customerSignatureRequired = false;
     customerSignatureSigned = tripDoc?.customerSignatureCaptured === true;
   }
 }
@@ -1344,19 +1344,6 @@ function applyCustomerSignatureDropoffGate(){
   }
   hideCustomerSignatureButton();
   return true;
-}
-
-async function archiveCompletedAttachmentTrip(){
-  if(!tripDoc?.attachmentImport && !tripDoc?.attachmentImportId) return;
-  try{
-    await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}/archive`,{
-      method:"POST",
-      headers:driverAuthHeaders({"Content-Type":"application/json"}),
-      body:"{}"
-    });
-  }catch(err){
-    console.log("ATTACHMENT ARCHIVE ERROR:",err);
-  }
 }
 
 async function updateTrip(body){
@@ -5512,7 +5499,6 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
-    await archiveCompletedAttachmentTrip();
 
     if(allTripPassengersTerminal()){
       await finishTripAndReturnToTrips();

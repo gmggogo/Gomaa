@@ -1571,28 +1571,12 @@ global.Trip = Trip;
 global.User = User;
 
 /* =========================
-   SMART TRIP IMPORT + CUSTOMER SIGNATURE
+   CUSTOMER SIGNATURE
    Mounted after Trip model registration.
 ========================= */
 
-const attachmentTemplateRoutes =
-  require("./routes/attachmentTemplateRoutes");
-
-const attachmentImportRoutes =
-  require("./routes/attachmentImportRoutes");
-
 const tripSignatureRoutes =
   require("./routes/tripSignatureRoutes");
-
-app.use(
-  "/api/attachment-templates",
-  attachmentTemplateRoutes
-);
-
-app.use(
-  "/api/attachment-imports",
-  attachmentImportRoutes
-);
 
 app.use(
   "/api/trip-signatures",
@@ -1600,7 +1584,7 @@ app.use(
 );
 
 console.log(
-  "✅ Smart Trip Import routes mounted"
+  "✅ Customer Signature routes mounted"
 );
 
 /* =========================

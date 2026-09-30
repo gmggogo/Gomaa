@@ -744,18 +744,13 @@ router.patch(
 
       const {
         enabled,
-        subscriptionStatus,
-        attachmentImportEnabled
+        subscriptionStatus
       } = req.body || {};
 
       const update = {};
 
       if (typeof enabled === "boolean") {
         update.enabled = enabled;
-      }
-
-      if (typeof attachmentImportEnabled === "boolean") {
-        update.attachmentImportEnabled = attachmentImportEnabled;
       }
 
       if (

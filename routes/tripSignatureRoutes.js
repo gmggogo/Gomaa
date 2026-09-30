@@ -7,8 +7,6 @@ const FacilityPricingOverride = require("../models/FacilityPricingOverride");
 const BrokerPricing = require("../models/BrokerPricing");
 const SmartFormPricing = require("../models/SmartFormPricing");
 const SmartFormSubmission = require("../models/SmartFormSubmission");
-const AttachmentImport = require("../models/AttachmentImport");
-const signatureDocumentService = require("../services/signatureDocumentService");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
@@ -38,7 +36,6 @@ async function getTrip(req,id){
 }
 
 async function signatureRequiredForTrip(trip){
-  if(trip?.attachmentSignatureRequired === true) return true;
   const serviceKey = upper(trip?.serviceKey || trip?.serviceCode || trip?.serviceSuffix);
   if(!serviceKey) return false;
 
@@ -187,47 +184,6 @@ router.post("/:tripId",express.json({limit:"3mb"}),async(req,res)=>{
     console.error("TRIP SIGNATURE SAVE ERROR:",err);
     return res.status(500).json({success:false,message:err?.message || "Failed to save signature"});
   }
-});
-
-router.post("/:tripId/archive",async(req,res)=>{
-  try{
-    const trip = await getTrip(req,req.params.tripId);
-    if(!trip) return res.status(404).json({success:false,message:"Trip not found"});
-    const required = await signatureRequiredForTrip(trip);
-    if(required){
-      const signature = await TripSignature.findOne({tripId:trip._id}).lean();
-      if(!signature) return res.status(409).json({success:false,message:"Customer signature is required before archive"});
-    }
-    if(!trip.attachmentImportId) return res.json({success:true,archived:false,message:"Trip is not an Attachment Import trip"});
-    const html = await signatureDocumentService.archiveTrip(trip);
-    if(!html) return res.status(409).json({success:false,message:"Signed document could not be generated"});
-    trip.attachmentArchived = true;
-    trip.attachmentArchivedAt = new Date();
-    await trip.save();
-    return res.json({success:true,archived:true});
-  }catch(err){
-    console.error("TRIP SIGNATURE ARCHIVE ERROR:",err);
-    return res.status(500).json({success:false,message:err?.message || "Failed to archive signed document"});
-  }
-});
-
-router.get("/:tripId/document",async(req,res)=>{
-  try{
-    const trip = await getTrip(req,req.params.tripId);
-    if(!trip) return res.status(404).send("Trip not found");
-    if(!trip.attachmentImportId) return res.status(404).send("No attachment document for this trip");
-
-    const importDoc = await AttachmentImport.findById(trip.attachmentImportId).lean();
-    const archived = importDoc?.archiveEntries?.find(e=>String(e.tripId) === String(trip._id));
-    let html = archived?.finalDocumentHtml || "";
-    if(!html){
-      const built = await signatureDocumentService.buildForTrip(trip);
-      html = built?.html || "";
-    }
-    if(!html) return res.status(404).send("Signed document is not available yet");
-    res.setHeader("Content-Type","text/html; charset=utf-8");
-    return res.send(html);
-  }catch(err){ return res.status(500).send("Failed to load signed document"); }
 });
 
 router.get("/:tripId",async(req,res)=>{

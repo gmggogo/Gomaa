@@ -75,25 +75,8 @@ const tripSchema = new mongoose.Schema({
 
 
   /* =========================
-     SMART ATTACHMENT IMPORT
-     Lightweight references only; source files live in AttachmentImport.
+     CUSTOMER SIGNATURE
   ========================= */
-  attachmentImport:{ type:Boolean, default:false, index:true },
-  attachmentImportId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"AttachmentImport",
-    default:null,
-    index:true
-  },
-  attachmentTemplateId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"AttachmentTemplate",
-    default:null
-  },
-  attachmentDocumentNumber:{ type:String, default:"", trim:true, index:true },
-  attachmentDailyEntryNumber:{ type:Number, default:null },
-  attachmentRowIndex:{ type:Number, default:-1 },
-  attachmentSignatureRequired:{ type:Boolean, default:false },
   customerSignatureCaptured:{ type:Boolean, default:false },
   customerSignatureAt:{ type:Date, default:null },
   customerSignatureId:{
@@ -101,8 +84,6 @@ const tripSchema = new mongoose.Schema({
     ref:"TripSignature",
     default:null
   },
-  attachmentArchived:{ type:Boolean, default:false, index:true },
-  attachmentArchivedAt:{ type:Date, default:null },
 
   type: { type: String, default: "company" },
   company: { type: String, default: "" },
