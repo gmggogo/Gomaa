@@ -323,7 +323,8 @@ async function loadSharedBrokerVisibility(){
       ){
         return {
           sharedEnabled: cached.sharedEnabled === true,
-          brokerEnabled: cached.brokerEnabled === true
+          brokerEnabled: cached.brokerEnabled === true,
+          smartFormEnabled: cached.smartFormEnabled === true
         };
       }
     }
@@ -337,7 +338,8 @@ async function loadSharedBrokerVisibility(){
 
   const fallback = {
     sharedEnabled:false,
-    brokerEnabled:false
+    brokerEnabled:false,
+    smartFormEnabled:false
   };
 
   if(!token){
@@ -346,8 +348,11 @@ async function loadSharedBrokerVisibility(){
 
   try{
 
-    const response =
-      await fetch(
+    const [
+      sharedResponse,
+      servicesResponse
+    ] = await Promise.all([
+      fetch(
         "/api/shared-engine/settings",
         {
           cache:"no-store",
@@ -356,19 +361,56 @@ async function loadSharedBrokerVisibility(){
               `Bearer ${token}`
           }
         }
-      );
-
-    if(!response.ok){
-      return fallback;
-    }
+      ),
+      fetch(
+        "/api/services",
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      )
+    ]);
 
     const data =
-      await response
-        .json()
-        .catch(()=>({}));
+      sharedResponse.ok
+        ? await sharedResponse.json().catch(()=>({}))
+        : {};
+
+    const services =
+      servicesResponse.ok
+        ? await servicesResponse.json().catch(()=>([]))
+        : [];
 
     const capabilities =
       data?.capabilities || {};
+
+    const smartFormEnabled =
+      Array.isArray(services) &&
+      services.some(service=>{
+        const identity = [
+          service?.serviceKey,
+          service?.serviceCode,
+          service?.customServiceCode,
+          service?.title,
+          service?.name
+        ]
+        .map(value=>
+          String(value || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[\s-]+/g,"_")
+        );
+
+        return identity.some(value=>
+          value === "SMART_FORM" ||
+          value === "SMART_FORMS" ||
+          value === "SMARTFORM" ||
+          value === "SMARTFORMS"
+        );
+      });
 
     const result = {
       sharedEnabled:
@@ -376,7 +418,9 @@ async function loadSharedBrokerVisibility(){
         capabilities.sharedServiceFound === true,
 
       brokerEnabled:
-        capabilities.brokerContractEnabled === true
+        capabilities.brokerContractEnabled === true,
+
+      smartFormEnabled
     };
 
     try{
@@ -405,8 +449,7 @@ async function loadSharedBrokerVisibility(){
 const core=[
 {l:"Dashboard",h:"dashboard.html",i:"home"},
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
-{l:"Smart Forms",h:"smart-forms.html",i:"doc"},
-{l:"Smart Forms Review",h:"smart-form-review.html",i:"check"},
+{g:"Smart Form",i:"doc",smartFormOnly:true,items:[["Smart Form","smart-forms.html","doc"],["Smart Form Review","smart-form-review.html","check"]]},
 {l:"Dispatch",h:"dispatch.html",i:"car"},
 {l:"Final Confirmation",h:"dispatch-final-confirmation.html",i:"check"},
 {l:"Dispatch Review",h:"dispatch-review.html",i:"doc"},
@@ -471,7 +514,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
    "broker-review.html":
      "Broker Review",
    "broker-pricing.html":
-     "Broker Pricing"
+     "Broker Pricing",
+   "smart-forms.html":
+     "Smart Form",
+   "smart-form-review.html":
+     "Smart Form Review",
+   "smart-form-summary.html":
+     "Smart Form Summary",
+   "smart-form-pricing.html":
+     "Smart Form Pricing"
  };
 
  const pageHeaderTitle =
@@ -542,6 +593,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
  const visibility =
    await loadSharedBrokerVisibility();
+
+ /*
+   Smart Form navigation is a tenant service capability.
+   Smart Form + Smart Form Review stay together under one button.
+ */
+ nav = nav.filter(item=>
+   item?.smartFormOnly !== true ||
+   visibility.smartFormEnabled === true
+ );
 
  /*
    Broker navigation is visible only when the tenant has an enabled
@@ -637,6 +697,15 @@ document.addEventListener("DOMContentLoaded",async()=>{
                "chart"
              ]]
            : []
+       ),
+       ...(
+         visibility.smartFormEnabled
+           ? [[
+               "Smart Form Summary",
+               "smart-form-summary.html",
+               "chart"
+             ]]
+           : []
        )
      ]
    });
@@ -661,6 +730,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
      pricingItems.push([
        "Broker Pricing",
        "broker-pricing.html",
+       "money"
+     ]);
+   }
+
+   if(visibility.smartFormEnabled){
+     pricingItems.push([
+       "Smart Form Pricing",
+       "smart-form-pricing.html",
        "money"
      ]);
    }

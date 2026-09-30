@@ -224,6 +224,9 @@
       </div>
 
       <div class="actions">
+        <select id="importTemplate" class="btn-light" style="padding:10px"></select>
+        <input id="completedFormFile" type="file" accept="application/pdf,image/*" hidden>
+        <button class="btn-light" id="importFormBtn" type="button">Upload Completed Form</button>
         <button class="btn-edit" id="editBtn" type="button" disabled>Edit</button>
         <button class="btn-confirm" id="confirmBtn" type="button" disabled>Confirm</button>
         <button class="btn-delete" id="deleteBtn" type="button" disabled>Delete</button>
@@ -483,6 +486,30 @@ if (typeof loadHeader === "function") {
     await loadTrips();
   });
 
+  async function loadImportTemplates(){
+    try{
+      const r=await fetch('/api/smart-forms/templates',{credentials:'include',headers:authHeaders()});
+      const x=await r.json(); const rows=Array.isArray(x)?x:(x.templates||[]);
+      const sel=document.getElementById('importTemplate');
+      sel.innerHTML='<option value="">Select Template</option>'+rows.filter(t=>t.active!==false).map(t=>`<option value="${t._id}">${escapeHtml(t.name||'Template')}</option>`).join('');
+    }catch(e){console.error(e);}
+  }
+  document.getElementById('importFormBtn').addEventListener('click',()=>{
+    if(!document.getElementById('importTemplate').value){alert('Select the matching Smart Form template first.');return;}
+    document.getElementById('completedFormFile').click();
+  });
+  document.getElementById('completedFormFile').addEventListener('change',async e=>{
+    const file=e.target.files?.[0]; const templateId=document.getElementById('importTemplate').value; if(!file||!templateId)return;
+    try{
+      const fd=new FormData();fd.append('file',file);
+      const r=await fetch(`/api/smart-forms/templates/${encodeURIComponent(templateId)}/import-completed`,{method:'POST',credentials:'include',headers:authHeaders(),body:fd});
+      const x=await r.json();if(!r.ok)throw new Error(x.message||'Import failed');
+      const save=await fetch('/api/smart-forms/submissions',{method:'POST',credentials:'include',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({templateId,status:'REVIEW',formData:x.formData,importSource:x.importSource})});
+      const y=await save.json();if(!save.ok)throw new Error(y.message||'Could not add imported form to review');
+      alert('Completed form extracted and added to Smart Form Review.');await loadTrips();
+    }catch(err){alert(err.message);}finally{e.target.value='';}
+  });
+  loadImportTemplates();
   loadTrips();
 })();
 </script>

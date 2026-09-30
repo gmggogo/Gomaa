@@ -18,6 +18,24 @@ const schema = new mongoose.Schema({
   pickupTime:{type:String,default:""},
   serviceName:{type:String,default:""},
   signatureRequired:{type:Boolean,default:false},
+  distanceMiles:{type:Number,default:0,min:0},
+  durationMinutes:{type:Number,default:0,min:0},
+  pricing:{
+    calculated:{type:Boolean,default:false},
+    templateId:{type:mongoose.Schema.Types.ObjectId,ref:"SmartFormTemplate",default:null},
+    serviceKey:{type:String,default:""},
+    serviceName:{type:String,default:""},
+    pricingMode:{type:String,default:""},
+    amount:{type:Number,default:0,min:0},
+    currency:{type:String,default:"USD"},
+    calculatedAt:{type:Date,default:null}
+  },
+  importSource:{
+    imported:{type:Boolean,default:false},
+    fileName:{type:String,default:""},
+    mimeType:{type:String,default:""},
+    importedAt:{type:Date,default:null}
+  },
   submittedBy:{type:String,default:""},
   submittedAt:{type:Date,default:null},
   reviewedBy:{type:String,default:""},

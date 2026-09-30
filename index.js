@@ -1626,8 +1626,16 @@ app.use(
   smartFormOrganizationRoutes
 );
 
+const smartFormPricingRoutes =
+  require("./routes/smartFormPricingRoutes");
+
+app.use(
+  "/api/smart-form-pricing",
+  smartFormPricingRoutes
+);
+
 console.log(
-  "✅ Smart Forms routes mounted"
+  "✅ Smart Forms + Smart Form Pricing routes mounted"
 );
 
 /* =========================

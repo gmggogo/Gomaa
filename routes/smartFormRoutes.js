@@ -8,6 +8,7 @@ const SmartFormOrganization = require("../models/SmartFormOrganization");
 const SmartFormTemplate = require("../models/SmartFormTemplate");
 const SmartFormSubmission = require("../models/SmartFormSubmission");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
+const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 
 const router = express.Router();
 // Atomic per-company Smart Form trip sequence.
@@ -657,6 +658,34 @@ router.get("/submissions/:id/pdf", async (req,res)=>{
     res.setHeader("Content-Disposition",`inline; filename="${String(s.generatedPdf.fileName||"smart-form.pdf").replace(/"/g,"")}"`);
     res.end(s.generatedPdf.data);
   }catch(err){res.status(500).json({success:false,message:"Failed to load generated PDF"});}
+});
+
+
+// Upload a completed copy of the SAME Smart Form template and extract only configured fields.
+const completedFormUpload = multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
+router.post("/templates/:id/import-completed", completedFormUpload.single("file"), async (req,res)=>{
+  try{
+    const g=await gate(req,res); if(!g) return;
+    if(!req.file?.buffer?.length) return res.status(400).json({success:false,message:"Completed form file is required"});
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId,active:true}).lean();
+    if(!t) return res.status(404).json({success:false,message:"Template not found"});
+    if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
+    const fields=(t.fields||[]).filter(f=>f.type!=="SIGNATURE").map(f=>({key:f.key,label:f.label,type:f.type}));
+    const prompt=`This uploaded document is a completed copy of the configured transportation form named ${JSON.stringify(t.name)}. Extract ONLY the configured fields below. Do not invent values. Return JSON only as {formData:{...}} using EXACT keys. If a field is blank or unreadable return an empty string. Configured fields: ${JSON.stringify(fields)}`;
+    const model=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:req.file.mimetype||"application/pdf",data:req.file.buffer.toString("base64")}}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}})});
+    const raw=await r.json(); if(!r.ok) throw new Error(raw?.error?.message||"Form extraction failed");
+    const txt=(raw?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(x=>x?.text||"").join("\n").replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
+    const parsed=JSON.parse(txt||"{}"); const incoming=parsed.formData&&typeof parsed.formData==="object"?parsed.formData:{}; const allowed=new Set(fields.map(f=>f.key)); const formData={}; for(const [k,v] of Object.entries(incoming)){if(allowed.has(k))formData[k]=v;}
+    const op=operationalData(t,formData);
+    res.json({success:true,templateId:String(t._id),templateName:t.name,formData,operationalData:op,importSource:{fileName:req.file.originalname||"completed-form",mimeType:req.file.mimetype||"",imported:true}});
+  }catch(err){console.error("SMART FORM IMPORT ERROR",err);res.status(500).json({success:false,message:err?.message||"Failed to extract completed form"});}
+});
+
+// Price a Smart Form trip using the selected template's private pricing engine.
+router.post("/templates/:id/calculate-price", async (req,res)=>{
+  try{const g=await gate(req,res);if(!g)return;const result=await calculateSmartFormPrice({...req.body,tenantId:g.tenantId,templateId:req.params.id});res.json(result);}
+  catch(err){res.status(err?.statusCode||500).json({success:false,message:err?.message||"Failed to calculate Smart Form price"});}
 });
 
 module.exports = router;
