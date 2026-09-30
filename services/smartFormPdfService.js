@@ -4,6 +4,8 @@ const SmartFormSubmission = require("../models/SmartFormSubmission");
 const TripSignature = require("../models/TripSignature");
 const Trip = require("../models/Trip");
 const User = require("../models/User");
+const DriverSchedule = require("../models/DriverSchedule");
+const Tenant = require("../models/Tenant");
 
 function requirePdfLib(){
   try{return require("pdf-lib");}
@@ -92,14 +94,34 @@ function vehicleTypeMatches(label,trip){
   return (aliases[wanted] || [wanted]).some(x=>actual===x || actual.includes(x));
 }
 
-function automaticValue(field,{submission,trip,signature,driver}){
+function hasWords(id,...words){
+  return words.every(w=>id.includes(norm(w)));
+}
+
+function milesValue(trip){
+  const candidates=[
+    trip?.stopEndMiles,
+    trip?.stopExecution?.miles,
+    trip?.miles,
+    trip?.distanceMiles,
+    trip?.totalMiles
+  ];
+  for(const v of candidates){
+    const n=Number(v);
+    if(Number.isFinite(n) && n>0) return n.toFixed(1).replace(/\.0$/,'');
+  }
+  const meters=Number(trip?.distanceMeters || 0);
+  return meters>0 ? (meters/1609.344).toFixed(1).replace(/\.0$/,'') : '';
+}
+
+function automaticValue(field,{submission,trip,signature,driver,schedule,tenant}){
   const source=upper(field?.sourceType || "MANUAL");
   if(source==="MANUAL") return submission.formData?.[field.key];
 
-  // If the Builder stored an explicit canonical binding, it wins.
+  // Explicit Builder binding always wins. Supported roots make the source deterministic.
   const binding=clean(field?.tripBinding);
   if(binding){
-    const roots={trip,driver,signature,submission};
+    const roots={trip,driver,signature,submission,schedule,tenant};
     const [root,...rest]=binding.split(".");
     if(roots[root] && rest.length){
       const v=getPath(roots[root],rest.join("."));
@@ -110,102 +132,96 @@ function automaticValue(field,{submission,trip,signature,driver}){
   }
 
   const id=norm(`${field?.key || ""} ${field?.label || ""}`);
+  const isOdometer=hasWords(id,"ODOMETER");
+  const isPickup= id.includes("PICKUP") || hasWords(id,"PICK","UP");
+  const isDropoff= id.includes("DROPOFF") || hasWords(id,"DROP","OFF");
 
   if(source==="DRIVER_DATA"){
-    if(id.includes("DRIVER NAME")) return first(trip?.driverName,signature?.driverName,driver?.name);
-    if(id.includes("PHONE")) return first(driver?.phone);
+    if(id.includes("NAME") && id.includes("DRIVER")) return first(trip?.driverName,signature?.driverName,driver?.name);
+    if(id.includes("PHONE")) return first(schedule?.phone,driver?.phone);
     if(id.includes("EMAIL")) return first(driver?.email);
-    if(id.includes("ADDRESS")) return first(trip?.driverAddress,driver?.address);
-    if(id.includes("DRIVER ID")) return first(trip?.driverId,signature?.driverId);
-    return "";
+    if(id.includes("ADDRESS")) return first(trip?.driverAddress,schedule?.address,driver?.address);
+    if(id.includes("ID")) return first(trip?.driverId,signature?.driverId,driver?._id);
+    return first(trip?.driverName,signature?.driverName,driver?.name);
   }
 
   if(source==="VEHICLE_DATA"){
-    if(field?.type==="CHECKBOX" && id.includes("VEHICLE TYPE")) return vehicleTypeMatches(field.label,trip);
-    if(id.includes("LICENSE") || id.includes("FLEET") || id.includes("VEHICLE ID") || id.includes("VEHICLE NUMBER")){
-      return first(trip?.vehicle,driver?.vehicleNumber);
+    if(field?.type==="CHECKBOX" && id.includes("VEHICLE") && id.includes("TYPE")) return vehicleTypeMatches(field.label,trip);
+    if(id.includes("LICENSE") || id.includes("FLEET") || hasWords(id,"VEHICLE","ID") || hasWords(id,"VEHICLE","NUMBER")){
+      return first(trip?.vehicle,schedule?.vehicleNumber,driver?.vehicleNumber);
     }
-    if(id.includes("MAKE") || id.includes("COLOR")){
-      // Current Trip/User models do not store make/color separately.
-      // Keep blank rather than inventing a value.
-      return "";
-    }
-    if(id.includes("VEHICLE TYPE")) return first(trip?.vehicleTypeFromQuote,trip?.serviceType);
-    return first(trip?.vehicle,driver?.vehicleNumber);
+    if(id.includes("MAKE") || id.includes("COLOR")) return ""; // no such stored field in supplied models
+    if(id.includes("TYPE") || id.includes("CATEGORY")) return first(schedule?.vehicleCategory,trip?.vehicleTypeFromQuote,trip?.serviceType);
+    return first(trip?.vehicle,schedule?.vehicleNumber,driver?.vehicleNumber);
   }
 
   if(source==="SYSTEM_AFTER_TRIP"){
     if(field?.type==="SIGNATURE" || id.includes("SIGNATURE")) return signature?.signatureData?.length ? "__SIGNATURE__" : "";
-    if(id.includes("TRIP MILES") || id==="MILES" || id.includes("MILEAGE")){
-      const miles=Number(trip?.miles || 0);
-      if(miles>0) return miles.toFixed(1).replace(/\.0$/,"");
-      const meters=Number(trip?.distanceMeters || 0);
-      return meters>0 ? (meters/1609.344).toFixed(1) : "";
-    }
-    if(id.includes("DROP OFF TIME") || id.includes("DROPOFF TIME")){
+
+    // Odometer fields must NEVER receive a time/mileage guess.
+    if(isOdometer) return "";
+
+    if(id.includes("MILE")) return milesValue(trip);
+
+    if(isDropoff && id.includes("TIME")){
       return formatTime(first(
-        trip?.customerSignatureAt,
-        signature?.signedAt,
         trip?.stopEndAt,
-        trip?.finalStatusConfirmedAt
+        trip?.finalStatusConfirmedAt,
+        trip?.dispatchFinalConfirmedAt,
+        trip?.sharedFinalConfirmedAt,
+        trip?.customerSignatureAt,
+        signature?.signedAt
       ));
     }
-    if(id.includes("PICK UP TIME") || id.includes("PICKUP TIME")){
-      return first(trip?.tripTime,trip?.pickupTime);
-    }
-    if(id.includes("DROP OFF ODOMETER") || id.includes("DROPOFF ODOMETER")) return "";
-    if(id.includes("PICK UP ODOMETER") || id.includes("PICKUP ODOMETER")) return "";
-    if(id.includes("COMPLETED") || id.includes("COMPLETE TIME")){
-      return formatTime(first(trip?.customerSignatureAt,signature?.signedAt,trip?.stopEndAt,trip?.finalStatusConfirmedAt));
+    if(isPickup && id.includes("TIME")) return first(trip?.pickupTime,trip?.tripTime,submission?.pickupTime);
+    if(id.includes("COMPLETE") && id.includes("TIME")){
+      return formatTime(first(trip?.finalStatusConfirmedAt,trip?.dispatchFinalConfirmedAt,trip?.stopEndAt,trip?.customerSignatureAt,signature?.signedAt));
     }
   }
 
   if(source==="TRIP_DATA" || source==="SYSTEM_AFTER_TRIP"){
-    if(id.includes("MEMBER NAME") || id.includes("CLIENT NAME")) return first(trip?.clientName,submission?.clientName);
-    if(id.includes("CLIENT PHONE") || id.includes("MEMBER PHONE")) return first(trip?.clientPhone);
-    if(id.includes("PICK UP") && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.pickup,submission?.pickupAddress);
-    if((id.includes("DROP OFF") || id.includes("DROPOFF")) && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.dropoff,submission?.dropoffAddress);
-    if(id.includes("TRIP DATE")) return first(trip?.tripDate,submission?.tripDate);
-    if(id.includes("PICK UP TIME") || id.includes("PICKUP TIME")) return first(trip?.tripTime,submission?.pickupTime);
-    if(id.includes("SERVICE")) return first(trip?.serviceName,trip?.serviceType,trip?.serviceKey,submission?.serviceName);
-    if(id.includes("TRIP NUMBER")) return first(trip?.tripNumber,submission?.tripNumber);
-    if(id.includes("TRIP MILES") || id==="MILES"){
-      const miles=Number(trip?.miles || 0);
-      return miles>0 ? miles.toFixed(1).replace(/\.0$/,"") : "";
-    }
+    if((id.includes("MEMBER") || id.includes("CLIENT") || id.includes("PASSENGER")) && id.includes("NAME")) return first(trip?.clientName,trip?.name,submission?.clientName);
+    if((id.includes("CLIENT") || id.includes("MEMBER") || id.includes("PASSENGER")) && id.includes("PHONE")) return first(trip?.clientPhone,trip?.phone);
+    if(isPickup && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.pickup,trip?.pickupAddress,submission?.pickupAddress);
+    if(isDropoff && (id.includes("LOCATION") || id.includes("ADDRESS"))) return first(trip?.dropoff,trip?.dropoffAddress,submission?.dropoffAddress);
+    if(id.includes("DATE")) return first(trip?.tripDate,submission?.tripDate);
+    if(!isOdometer && isPickup && id.includes("TIME")) return first(trip?.pickupTime,trip?.tripTime,submission?.pickupTime);
+    if(id.includes("SERVICE")) return first(trip?.serviceName,trip?.serviceTitle,trip?.serviceType,trip?.serviceKey,submission?.serviceName);
+    if(id.includes("TRIP") && (id.includes("NUMBER") || id.includes("NO"))) return first(trip?.tripNumber,submission?.tripNumber);
+    if(id.includes("MILE")) return milesValue(trip);
+    if(id.includes("COMPANY") || id.includes("PROVIDER") || id.includes("TENANT")) return first(trip?.companyName,trip?.company,tenant?.branding?.companyName,tenant?.name);
   }
 
   return "";
 }
-
 async function loadAutomaticContext({tenantId,submission}){
-  let trip=null,signature=null,driver=null;
+  let trip=null,signature=null,driver=null,schedule=null,tenant=null;
+
+  tenant=await Tenant.findById(tenantId).lean();
 
   if(submission.tripId){
-    [trip,signature]=await Promise.all([
-      Trip.findOne({_id:submission.tripId,tenantId}).lean(),
-      TripSignature.findOne({tenantId,tripId:submission.tripId}).select("+signatureData").lean()
-    ]);
+    trip=await Trip.findOne({_id:submission.tripId,tenantId}).lean();
+    if(trip){
+      signature=await TripSignature.findOne({tripId:trip._id}).select("+signatureData").lean();
+    }
   }
 
-  if(trip?.driverId){
-    const q={tenantId,role:"driver"};
-    if(mongoose.Types.ObjectId.isValid(String(trip.driverId))) q._id=trip.driverId;
-    else q.username=String(trip.driverId);
-    driver=await User.findOne(q).lean();
+  const driverRef=first(trip?.driverId,signature?.driverId);
+  if(driverRef){
+    const ref=String(driverRef);
+    const ors=[{username:ref}];
+    if(mongoose.Types.ObjectId.isValid(ref)) ors.unshift({_id:ref});
+    driver=await User.findOne({tenantId,role:"driver",$or:ors}).lean();
+
+    // DriverSchedule is the system source for vehicle number/category and schedule contact data.
+    const scheduleRefs=[ref];
+    if(driver?._id) scheduleRefs.push(String(driver._id));
+    if(driver?.username) scheduleRefs.push(String(driver.username));
+    schedule=await DriverSchedule.findOne({tenantId,driverId:{$in:[...new Set(scheduleRefs)]}}).lean();
   }
 
-  // Fallback: signature may identify the driver when the Trip snapshot does not.
-  if(!driver && signature?.driverId){
-    const q={tenantId,role:"driver"};
-    if(mongoose.Types.ObjectId.isValid(String(signature.driverId))) q._id=signature.driverId;
-    else q.username=String(signature.driverId);
-    driver=await User.findOne(q).lean();
-  }
-
-  return {trip,signature,driver};
+  return {trip,signature,driver,schedule,tenant};
 }
-
 async function generateFinalPdf({tenantId,submissionId}){
   const {PDFDocument,StandardFonts,rgb} = requirePdfLib();
 
@@ -220,7 +236,7 @@ async function generateFinalPdf({tenantId,submissionId}){
   const pages = pdfDoc.getPages();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  const {trip,signature,driver}=await loadAutomaticContext({tenantId,submission});
+  const {trip,signature,driver,schedule,tenant}=await loadAutomaticContext({tenantId,submission});
 
   let signatureImage = null;
   if(signature?.signatureData?.length){
@@ -247,7 +263,7 @@ async function generateFinalPdf({tenantId,submissionId}){
       const source=upper(field.sourceType || "MANUAL");
       const value=source==="MANUAL"
         ? submission.formData?.[field.key]
-        : automaticValue(field,{submission,trip,signature,driver});
+        : automaticValue(field,{submission,trip,signature,driver,schedule,tenant});
 
       if(field.type === "SIGNATURE"){
         if(signatureImage && source!=="MANUAL"){
