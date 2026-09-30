@@ -162,23 +162,11 @@ document.getElementById("builderList").onchange=e=>{
 document.getElementById("saveBuilderBtn").onclick=async()=>{
   if(!activeBuilderTemplate)return;
   try{
-    // Keep the PDF page/mapping chosen when the field was created.
-    // The /fields endpoint may normalize the field object, so save mapping explicitly afterwards.
-    const localMappingByKey=new Map(builderFields.map(f=>[String(f.key),{mapping:f.mapping?{...f.mapping}:null,mappings:Array.isArray(f.mappings)?f.mappings.map(m=>({...m})):[]} ]));
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/fields`,{method:"PUT",body:JSON.stringify({fields:builderFields})});
-    const savedFields=JSON.parse(JSON.stringify(d.template.fields||[]));
-    const mappingPayload=savedFields.map(f=>{
-      const local=localMappingByKey.get(String(f.key));
-      const maps=local?.mappings?.length?local.mappings:(local?.mapping?.mapped?[local.mapping]:[]);
-      const firstMap=maps[0]||local?.mapping||f.mapping||{};
-      return {_id:f._id,mapping:{...firstMap},mappings:maps.map(m=>({...m}))};
-    });
-    const mapped=await api(`${API}/templates/${activeBuilderTemplate._id}/mapping`,{method:"PUT",body:JSON.stringify({fields:mappingPayload})});
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
-    const finalTemplate=mapped.template||d.template;
-    const i=templates.findIndex(x=>String(x._id)===String(finalTemplate._id));if(i>=0)templates[i]=finalTemplate;
-    activeBuilderTemplate=finalTemplate;builderFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));
-    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(finalTemplate._id)){activeMapperTemplate=finalTemplate;mapperFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));}
+    const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
+    activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(d.template._id)){activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));}
     renderBuilder();syncSelects();msg("Form Builder layout saved.");
   }catch(e){msg(e.message,"err");}
 };
@@ -264,18 +252,16 @@ function renderMapFieldList(){
 
   h.querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
     selectedMapFieldId=b.dataset.id;
-    renderMapFieldList();
     const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
     const maps=f?fieldMaps(f):[];
-    const targetPage=Number(maps[0]?.page||f?.mapping?.page||pdfPageNumber||1);
-    if(pdfDoc && targetPage>=1 && targetPage<=pdfPageCount && targetPage!==pdfPageNumber){
-      pdfPageNumber=targetPage;
-      renderPdfPage();
-    }else{
-      renderBoxes();
-    }
-    syncMapPageControl();
-    if(f)msg(maps.length?`Selected: ${f.label}. Page ${targetPage}. Drag or resize its existing box.`:`${f.label} is Missing / Not mapped. Create its box from Form Builder.`);
+    const pageInput=document.getElementById("mapPage");
+    // IMPORTANT: selecting a field must NEVER force the PDF back to page 1.
+    // Keep the page the user is currently viewing. The Page control below is
+    // the explicit control used to move the selected mapping to another page.
+    if(pageInput) pageInput.value=String(Number(maps[0]?.page||f?.mapping?.page||pdfPageNumber||1));
+    renderMapFieldList();
+    renderBoxes();
+    if(f)msg(maps.length?`Selected: ${f.label}. Mapping is on Page ${Number(maps[0]?.page||f?.mapping?.page||1)}. Current PDF view stays on Page ${pdfPageNumber}.`:`${f.label} is Missing / Not mapped.`);
   });
 }
 
@@ -412,7 +398,11 @@ async function renderPdfPage(){
     }
   });
 
-  syncMapPageControl();
+  const pageInput=document.getElementById("mapPage");
+  const selectedField=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
+  const selectedMaps=selectedField?fieldMaps(selectedField):[];
+  if(pageInput && selectedMaps.length) pageInput.value=String(Number(selectedMaps[0]?.page||1));
+
   renderBoxes();
   requestAnimationFrame(()=>renderBoxes());
 }
@@ -471,37 +461,24 @@ function renderBoxes(){
 }
 
 
-function selectedMapField(){
-  return mapperFields.find(f=>String(f._id)===String(selectedMapFieldId))||null;
-}
-function selectedMapRecord(f){
-  if(!f)return null;
-  const maps=fieldMaps(f);
-  return maps[0]||null;
-}
-function syncMapPageControl(){
-  const el=document.getElementById("mapPage");
-  if(!el)return;
-  const f=selectedMapField(),m=selectedMapRecord(f);
-  el.value=String(Number(m?.page||f?.mapping?.page||pdfPageNumber||1));
-  if(pdfPageCount>0)el.max=String(pdfPageCount);
-}
-async function moveSelectedMappingToPage(rawPage){
-  const f=selectedMapField();
+function moveSelectedMappingToPage(pageNo){
+  const f=mapperFields.find(x=>String(x._id)===String(selectedMapFieldId));
   if(!f)return msg("Select a field first.","err");
+  const target=Math.max(1,Math.min(Number(pdfPageCount||pageNo||1),Number(pageNo||1)));
   const maps=fieldMaps(f);
-  if(!maps.length)return msg(`${f.label}: Missing / Not mapped.`,"err");
-  const maxPage=Math.max(1,Number(pdfPageCount||1));
-  const page=clamp(Math.round(Number(rawPage)||1),1,maxPage);
-  maps.forEach(m=>m.page=page);
-  f.mapping={...maps[0],page};
-  f.mappings=maps.map(m=>({...m,page}));
-  pdfPageNumber=page;
-  const el=document.getElementById("mapPage");if(el)el.value=String(page);
-  await renderPdfPage();
+  if(!maps.length)return msg(`${f.label} is Missing / Not mapped.`,"err");
+  // Move the first/current mapping itself; do not create a duplicate on Page 1.
+  maps[0].page=target;
+  f.mapping={...maps[0],mapped:true,page:target};
+  f.mappings=maps.map((m,i)=>i===0?{...m,mapped:true,page:target}:{...m});
+  pdfPageNumber=target;
+  const pageInput=document.getElementById("mapPage");
+  if(pageInput)pageInput.value=String(target);
+  renderPdfPage();
   renderMapFieldList();
-  msg(`${f.label} moved to PDF Page ${page}. Click Save PDF Mapping to save it.`);
+  msg(`${f.label} moved to PDF Page ${target}. Click Save PDF Mapping.`);
 }
+
 const mapPageInput=document.getElementById("mapPage");
 if(mapPageInput){
   mapPageInput.addEventListener("change",()=>moveSelectedMappingToPage(mapPageInput.value));
