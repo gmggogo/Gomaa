@@ -675,12 +675,211 @@ router.post("/submissions/:id/review", async (req,res)=>{
 router.post("/submissions/:id/confirm", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-    const s=await SmartFormSubmission.findOne({_id:req.params.id,tenantId:g.tenantId});
-    if(!s) return res.status(404).json({success:false,message:"Submission not found"});
-    s.status="CONFIRMED"; s.confirmedBy=actor(req); s.confirmedAt=new Date();
+
+    const s=await SmartFormSubmission.findOne({
+      _id:req.params.id,
+      tenantId:g.tenantId
+    });
+
+    if(!s){
+      return res.status(404).json({
+        success:false,
+        message:"Submission not found"
+      });
+    }
+
+    /*
+      Idempotency:
+      If this Smart Form was already confirmed and already owns a Trip,
+      never create a duplicate Trip when Confirm is clicked again.
+    */
+    if(s.tripId){
+      const existingTrip=await Trip.findOne({
+        _id:s.tripId,
+        tenantId:g.tenantId
+      });
+
+      if(existingTrip){
+        if(s.status!=="CONFIRMED"){
+          s.status="CONFIRMED";
+          s.confirmedBy=actor(req);
+          s.confirmedAt=s.confirmedAt||new Date();
+          await s.save();
+        }
+
+        return res.json({
+          success:true,
+          alreadyConfirmed:true,
+          trip:existingTrip,
+          submission:sanitizeSubmission(s)
+        });
+      }
+    }
+
+    if(String(s.status||"").toUpperCase()!=="REVIEW"){
+      return res.status(409).json({
+        success:false,
+        message:"Only Smart Form trips in Review can be confirmed"
+      });
+    }
+
+    const t=await SmartFormTemplate.findOne({
+      _id:s.templateId,
+      tenantId:g.tenantId,
+      active:true
+    }).lean();
+
+    if(!t){
+      return res.status(404).json({
+        success:false,
+        message:"Template not found"
+      });
+    }
+
+    /*
+      Re-read operational values from the saved formData.
+      This guarantees Confirm uses the same configured Smart Form bindings
+      that produced the Review row.
+    */
+    const op=operationalData(t,s.formData||{});
+
+    const requiredOps=[
+      ["Client Name",op.clientName],
+      ["Pickup Address",op.pickupAddress],
+      ["Dropoff Address",op.dropoffAddress],
+      ["Trip Date",op.tripDate],
+      ["Pickup Time",op.pickupTime],
+      ["Service",op.serviceName]
+    ];
+
+    const missing=requiredOps
+      .filter(([,value])=>!clean(value))
+      .map(([label])=>label);
+
+    if(missing.length){
+      return res.status(400).json({
+        success:false,
+        message:`Confirm fields missing: ${missing.join(", ")}`
+      });
+    }
+
+    if(!s.tripNumber){
+      s.tripNumber=await nextSmartFormTripNumber(
+        g.tenantId,
+        op.serviceName
+      );
+    }
+
+    /*
+      Keep the Smart Form SF number exactly as generated in Review.
+      Dispatch reads normal Trip records, so Confirm now creates one.
+    */
+    const tripPayload={
+      tenantId:g.tenantId,
+
+      type:"company",
+      tripNumber:s.tripNumber,
+
+      company:clean(s.organizationName||t.name||"Smart Form"),
+      entryName:actor(req),
+      entryPhone:"",
+
+      clientName:clean(op.clientName),
+      clientPhone:clean(
+        s.clientPhone ||
+        s.phone ||
+        ""
+      ),
+
+      serviceType:clean(op.serviceName),
+      serviceKey:clean(op.serviceName),
+      serviceCode:clean(op.serviceName),
+
+      pickup:clean(op.pickupAddress),
+      dropoff:clean(op.dropoffAddress),
+      stops:Array.isArray(op.stops)
+        ? op.stops.map(clean).filter(Boolean)
+        : [],
+
+      tripDate:clean(op.tripDate),
+      tripTime:clean(op.pickupTime),
+
+      isShared:false,
+      groupId:"",
+      tripType:"INDIVIDUAL",
+      totalPassengers:Number(s.totalPassengers||1) || 1,
+
+      priceAmount:Number(s?.pricing?.amount||0),
+      finalPrice:Number(s?.pricing?.amount||0),
+
+      source:"SMART_FORM",
+      bookingSource:"SMART_FORM",
+
+      status:"Scheduled",
+      dispatchSelected:false,
+      disabled:false,
+
+      bookedAt:new Date(),
+      createdAt:new Date()
+    };
+
+    let trip;
+
+    try{
+      trip=await Trip.create(tripPayload);
+    }catch(createErr){
+      /*
+        tripNumber is unique. If the Trip was created but the request was
+        interrupted before the submission was linked, recover that Trip
+        instead of creating a duplicate.
+      */
+      if(createErr?.code===11000){
+        trip=await Trip.findOne({
+          tenantId:g.tenantId,
+          tripNumber:s.tripNumber
+        });
+      }
+
+      if(!trip) throw createErr;
+    }
+
+    /*
+      The main GH Mobility server exposes its existing coordinate repair
+      engine globally. Reuse it so Pickup / Dropoff / Stops receive Lat/Lng
+      exactly like normal GH Mobility trips before Dispatch uses them.
+    */
+    if(typeof global.ensureTripCoords==="function"){
+      await global.ensureTripCoords(trip);
+      trip=await Trip.findById(trip._id) || trip;
+    }
+
+    /*
+      Do not mark the Smart Form confirmed until the normal Trip exists.
+      This keeps Review -> Confirm -> Dispatch atomic from the user's view.
+    */
+    Object.assign(s,{
+      ...op,
+      tripId:trip._id,
+      status:"CONFIRMED",
+      confirmedBy:actor(req),
+      confirmedAt:new Date()
+    });
+
     await s.save();
-    res.json({success:true,submission:sanitizeSubmission(s)});
-  }catch(err){res.status(500).json({success:false,message:"Failed to confirm form"});}
+
+    return res.json({
+      success:true,
+      trip,
+      submission:sanitizeSubmission(s)
+    });
+
+  }catch(err){
+    console.error("SMART FORM CONFIRM ERROR:",err);
+    return res.status(500).json({
+      success:false,
+      message:err?.message||"Failed to confirm form"
+    });
+  }
 });
 
 router.delete("/submissions/:id", async (req,res)=>{
