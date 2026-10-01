@@ -1,4 +1,4 @@
-/* DESTINATION PATH: server/public/admin/smart-form-workflow.css */
+DESTINATION: server/public/admin/smart-form-workflow.css
 *{box-sizing:border-box}
 :root{--navy:#163d57;--navy2:#244f6a;--gold:#b58a3a;--bg:#eef4f7;--panel:#fff;--line:#d8e1e7;--text:#13212d;--muted:#687784;--green:#218a61;--red:#c83e3e;--blue:#315f9c}
 html,body{width:100%;max-width:100%;overflow-x:hidden}
@@ -37,7 +37,14 @@ tbody tr:nth-child(even) td{background:#f8fbfc}tbody tr:hover td{background:#eef
 @media print{#adminHeader,.review-toolbar,.filters,.eye-btn,.no-print{display:none!important}.page{padding:6px!important}.table-wrap{overflow:visible!important}table{min-width:0!important;width:100%!important}thead th,tbody td{padding:2px!important;font-size:6px!important}}
 
 /* Smart Form Review keeps every shared rider aligned with that rider's route. */
-.smart-form-review-page .review-table{min-width:1420px}
+.smart-form-review-page .stats{display:grid;grid-template-columns:repeat(6,minmax(102px,1fr));gap:6px}
+.smart-form-review-page .stat{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#fff7d8 0%,#ecd07a 48%,#fff0b2 100%);border:1px solid #c7a13a;border-left:1px solid #c7a13a;border-radius:9px;padding:6px;text-align:center;box-shadow:0 3px 8px rgba(146,102,14,.1)}
+.smart-form-review-page .stat span{width:100%;font-size:8px;line-height:1.1;font-weight:900;color:#4b3908;text-transform:uppercase;letter-spacing:.02em;text-align:center;white-space:nowrap}
+.smart-form-review-page .stat strong{width:100%;margin-top:4px;font-size:19px;line-height:1;font-weight:900;color:#111827;text-align:center}
+.smart-form-review-page .review-toolbar .confirm-btn{background:#16804f;color:#fff;border:1px solid #0d623b}
+.smart-form-review-page .review-toolbar .select-btn{background:#eef4f7;color:#163d57;border:1px solid #cbd8df}
+.smart-form-review-page .selected-count{color:#687784;font-size:11px;font-weight:900}
+.smart-form-review-page .review-table{min-width:1680px}
 .smart-form-review-page .cell-box{display:grid;border-color:#111;border-radius:4px}
 .smart-form-review-page .cell-item{display:flex;align-items:center;justify-content:center;min-height:26px;padding:5px;text-align:center;line-height:1.25}
 .smart-form-review-page .cell-item+.cell-item{border-top-color:#111}
@@ -45,6 +52,19 @@ tbody tr:nth-child(even) td{background:#f8fbfc}tbody tr:hover td{background:#eef
 .smart-form-review-page .review-stop-box{display:flex;align-items:flex-start;width:100%;padding:5px 6px;border:1px solid #94a3b8;border-radius:5px;background:#fff;text-align:left;white-space:normal;overflow-wrap:anywhere}
 .smart-form-review-page .review-stop-number{margin-right:4px;font-weight:900}
 .smart-form-review-page .review-stop-box.empty-stop{justify-content:center;text-align:center}
+.smart-form-review-page .review-actions{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}
+.smart-form-review-page .review-actions .mini{min-width:48px;padding:6px 7px;font-size:9px}
+.smart-form-review-page .w-group{width:92px}.smart-form-review-page .w-phone{width:105px}.smart-form-review-page .w-notes{width:120px}
+.smart-form-review-page .review-edit-box .view-body{gap:12px}
+.smart-form-review-page .edit-section{border:1px solid #e0e8ed;border-radius:10px;overflow:hidden;background:#fff}
+.smart-form-review-page .edit-section h3{margin:0;padding:9px 11px;background:#f3f7f9;color:#163d57;font-size:12px;font-weight:900}
+.smart-form-review-page .edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:11px}
+.smart-form-review-page .edit-field{display:grid;gap:4px}
+.smart-form-review-page .edit-field.full{grid-column:1/-1}
+.smart-form-review-page .edit-field span{font-size:10px;font-weight:900;color:#4b5563}
+.smart-form-review-page .edit-field input,.smart-form-review-page .edit-field select,.smart-form-review-page .edit-field textarea{width:100%;min-height:36px;border:1px solid #cbd5e1;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;color:#13212d}
+.smart-form-review-page .edit-field textarea{min-height:74px;resize:vertical}
+.smart-form-review-page .edit-actions{display:flex;justify-content:flex-end;gap:8px}
 
 /* Broker Trip Split layout, reused by Smart Form Split with template data. */
 .smart-form-split-page{--splitText:#0f172a;--splitMuted:#64748b;--splitBorder:#dbe3ee;--splitBlue:#1f4f7a;--splitGreen:#176b45;--splitGold:#b6892d;--splitRed:#a92d2d;--splitPurple:#6d3fc0;background:#f1f5f9;color:var(--splitText)}

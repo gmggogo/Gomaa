@@ -1,4 +1,4 @@
-/* DESTINATION: server/routes/smartFormRoutes.js */
+DESTINATION: server/routes/smartFormRoutes.js
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -1810,6 +1810,130 @@ router.post("/workflow/review/confirm",async(req,res)=>{
   }catch(err){
     console.error("SMART FORM FINAL CONFIRM ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to send Smart Form trips to Dispatch"});
+  }
+});
+
+router.patch("/workflow/review/edit/:tripId",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    if(!mongoose.Types.ObjectId.isValid(req.params.tripId)){
+      return res.status(400).json({success:false,message:"Invalid Smart Form Review trip id"});
+    }
+
+    const trip=await Trip.findOne({_id:req.params.tripId,tenantId:g.tenantId,source:"SMART_FORM"});
+    if(!trip)return res.status(404).json({success:false,message:"Smart Form Review trip not found"});
+
+    const linked=await SmartFormSubmission.find({
+      tenantId:g.tenantId,
+      tripId:trip._id,
+      status:"REVIEW",
+      workflowStage:"FINAL_REVIEW"
+    });
+    if(!linked.length){
+      return res.status(409).json({success:false,message:"This Smart Form trip is not editable in Review"});
+    }
+
+    const byId=new Map(linked.map(row=>[String(row._id),row]));
+    const updates=Array.isArray(req.body?.updates)?req.body.updates:[];
+
+    for(const update of updates){
+      const submission=byId.get(String(update?.submissionId||""));
+      if(!submission)continue;
+      const template=await SmartFormTemplate.findOne({_id:submission.templateId,tenantId:g.tenantId}).lean();
+      if(!template)return res.status(404).json({success:false,message:"Saved Smart Form template not found"});
+
+      const incoming=update?.formData&&typeof update.formData==="object"?update.formData:{};
+      const nextData={...(submission.formData||{})};
+      for(const field of submission.fieldSnapshot||[]){
+        const key=clean(field?.key);
+        const label=clean(field?.label).toLowerCase();
+        const locked=`${key.toLowerCase()} ${label}`;
+        if(!key||locked.includes("date")||locked.includes("time"))continue;
+        if(Object.prototype.hasOwnProperty.call(incoming,key))nextData[key]=incoming[key];
+      }
+
+      const missing=(submission.fieldSnapshot||[])
+        .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+        .filter(field=>!hasValue(nextData[field.key]))
+        .map(field=>clean(field.label)||clean(field.key));
+      if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
+
+      const operational=operationalData(
+        {...template,fields:Array.isArray(submission.fieldSnapshot)?submission.fieldSnapshot:[]},
+        nextData
+      );
+      const requiredOps=[
+        ["Client Name",operational.clientName],
+        ["Pickup Address",operational.pickupAddress],
+        ["Dropoff Address",operational.dropoffAddress],
+        ["Trip Date",operational.tripDate],
+        ["Pickup Time",operational.pickupTime],
+        ["Service",operational.serviceName]
+      ].filter(([,value])=>!value).map(([label])=>label);
+      if(requiredOps.length)return res.status(400).json({success:false,message:`Review fields missing: ${requiredOps.join(", ")}`});
+
+      submission.formData=nextData;
+      submission.clientName=operational.clientName;
+      submission.pickupAddress=operational.pickupAddress;
+      submission.dropoffAddress=operational.dropoffAddress;
+      submission.stops=operational.stops;
+      submission.serviceName=operational.serviceName;
+      await submission.save();
+    }
+
+    const refreshed=await SmartFormSubmission.find({
+      tenantId:g.tenantId,
+      tripId:trip._id,
+      status:"REVIEW",
+      workflowStage:"FINAL_REVIEW"
+    }).lean();
+    const payload=buildSmartFormTripPayload({
+      tenantId:g.tenantId,
+      submissions:refreshed,
+      actorName:actor(req)
+    });
+
+    Object.assign(trip,payload,{
+      _id:trip._id,
+      tenantId:g.tenantId,
+      source:"SMART_FORM",
+      tripDate:trip.tripDate,
+      tripTime:trip.tripTime,
+      pickupTime:trip.pickupTime
+    });
+    await trip.save();
+
+    return res.json({success:true,tripId:String(trip._id)});
+  }catch(err){
+    console.error("SMART FORM REVIEW EDIT ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to edit Smart Form Review trip"});
+  }
+});
+
+router.post("/workflow/review/delete",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const tripIds=[...new Set((Array.isArray(req.body?.tripIds)?req.body.tripIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(!tripIds.length)return res.status(400).json({success:false,message:"Select Smart Form Review trips to delete"});
+
+    const linked=await SmartFormSubmission.find({
+      tenantId:g.tenantId,
+      tripId:{$in:tripIds},
+      status:"REVIEW",
+      workflowStage:"FINAL_REVIEW"
+    }).lean();
+    const allowedTripIds=[...new Set(linked.map(row=>String(row.tripId)))];
+    if(allowedTripIds.length!==tripIds.length){
+      return res.status(409).json({success:false,message:"One or more selected trips cannot be deleted from Review"});
+    }
+
+    await SmartFormSubmission.deleteMany({_id:{$in:linked.map(row=>row._id)},tenantId:g.tenantId});
+    await Trip.deleteMany({_id:{$in:allowedTripIds},tenantId:g.tenantId,source:"SMART_FORM",dispatchSelected:{$ne:true}});
+    return res.json({success:true,deletedCount:allowedTripIds.length});
+  }catch(err){
+    console.error("SMART FORM REVIEW DELETE ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to delete Smart Form Review trips"});
   }
 });
 
