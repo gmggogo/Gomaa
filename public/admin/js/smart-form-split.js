@@ -6,7 +6,7 @@
   const $=id=>document.getElementById(id);
   const clean=value=>String(value??"").trim();
   const esc=value=>clean(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  const token=localStorage.getItem("token")||sessionStorage.getItem("token")||localStorage.getItem("staffToken")||sessionStorage.getItem("staffToken")||"";
+  const token=sessionStorage.getItem("token")||sessionStorage.getItem("staffToken")||localStorage.getItem("token")||localStorage.getItem("staffToken")||"";
   const authHeaders=token?{Authorization:`Bearer ${token}`} : {};
   const state={submissions:[],groups:[],activeTab:"ORIGINAL",selectedOriginal:new Set(),selectedIndividual:new Set(),selectedGroups:new Set(),template:"ALL",day:"ALL",search:"",confirmedCount:0,today:"",tomorrow:"",editingId:""};
 
