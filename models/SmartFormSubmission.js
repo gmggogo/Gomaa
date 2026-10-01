@@ -1,3 +1,4 @@
+/* DESTINATION: server/models/SmartFormSubmission.js */
 const mongoose = require("mongoose");
 
 const schema = new mongoose.Schema({
@@ -8,6 +9,7 @@ const schema = new mongoose.Schema({
   organizationName:{type:String,default:""},
   status:{type:String,enum:["DRAFT","REVIEW","CONFIRMED","ARCHIVED"],default:"DRAFT",index:true},
   workflowStage:{type:String,enum:["HUB","SPLIT","FINAL_REVIEW","DISPATCHED"],default:"HUB",index:true},
+  splitDisposition:{type:String,enum:["ORIGINAL","INDIVIDUAL","SHARED"],default:"ORIGINAL",index:true},
   sharedGroupId:{type:String,default:"",index:true},
   formData:{type:mongoose.Schema.Types.Mixed,default:{}},
   fieldSnapshot:{type:[mongoose.Schema.Types.Mixed],default:[]},

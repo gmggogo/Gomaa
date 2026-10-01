@@ -1,3 +1,4 @@
+/* DESTINATION: server/routes/smartFormRoutes.js */
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -16,7 +17,7 @@ const Trip = require("../models/Trip");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 const { planSharedTrips, mergeSettings } = require("../services/sharedEngine");
-const { buildSmartFormTripPayload } = require("../services/smartFormWorkflow");
+const { buildSmartFormTripPayload, smartFormSplitDateWindow } = require("../services/smartFormWorkflow");
 
 const router = express.Router();
 
@@ -339,11 +340,11 @@ async function gate(req,res){
   if(!mongoose.Types.ObjectId.isValid(tenantId)){
     res.status(400).json({success:false,message:"Valid tenantId is required"}); return null;
   }
-  const tenant = await Tenant.findById(tenantId).select("_id enabled smartFormsEnabled").lean();
+  const tenant = await Tenant.findById(tenantId).select("_id enabled smartFormsEnabled timezone settings.timezone").lean();
   if(!tenant){ res.status(404).json({success:false,message:"Company not found"}); return null; }
   if(tenant.enabled!==true){ res.status(403).json({success:false,message:"Company is disabled"}); return null; }
   if(tenant.smartFormsEnabled!==true){ res.status(403).json({success:false,message:"Smart Forms is disabled"}); return null; }
-  return {tenantId};
+  return {tenantId,timezone:clean(tenant?.timezone||tenant?.settings?.timezone)||"America/Phoenix"};
 }
 
 const actor = req => req.authUser?.name || req.authUser?.username || "";
@@ -1509,6 +1510,7 @@ router.patch("/workflow/hub/:id",async(req,res)=>{
     submission.pickupTime=operational.pickupTime;
     submission.serviceName=operational.serviceName;
     submission.workflowStage="HUB";
+    submission.splitDisposition="ORIGINAL";
     submission.sharedGroupId="";
     await submission.save();
     return res.json({success:true,submission:sanitizeSubmission(submission)});
@@ -1550,7 +1552,7 @@ router.post("/workflow/split/enter",async(req,res)=>{
     if(!ids.length)return res.status(400).json({success:false,message:"Select Smart Form trips to open in Split"});
     const result=await SmartFormSubmission.updateMany(
       {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",$or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}],tripId:null},
-      {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+      {$set:{workflowStage:"SPLIT",splitDisposition:"ORIGINAL",sharedGroupId:""}}
     );
     const moved=Number(result.modifiedCount??result.nModified??0);
     return res.json({success:true,movedCount:moved,submissionIds:ids});
@@ -1563,11 +1565,14 @@ router.post("/workflow/split/enter",async(req,res)=>{
 router.get("/workflow/split/bootstrap",async(req,res)=>{
   try{
     const g=await gate(req,res);if(!g)return;
-    const [rows,groups]=await Promise.all([
-      SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT"})
+    const {today,tomorrow}=smartFormSplitDateWindow(new Date(),g.timezone);
+    const splitDates={$in:[today,tomorrow]};
+    const [rows,groups,confirmedCount]=await Promise.all([
+      SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",tripDate:splitDates})
         .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean(),
-      SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN"})
-        .sort({tripDate:1,createdAt:1}).lean()
+      SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN",tripDate:splitDates})
+        .sort({tripDate:1,createdAt:1}).lean(),
+      SmartFormSubmission.countDocuments({tenantId:g.tenantId,workflowStage:{$in:["FINAL_REVIEW","DISPATCHED"]},tripDate:splitDates})
     ]);
     const ids=[...new Set(groups.flatMap(x=>(Array.isArray(x.tripIds)?x.tripIds:[]).map(String)))];
     const groupRows=ids.length?await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW"}).lean():[];
@@ -1577,10 +1582,49 @@ router.get("/workflow/split/bootstrap",async(req,res)=>{
       tripIds:(group.tripIds||[]).map(String),
       trips:(group.tripIds||[]).map(id=>rowMap.get(String(id))).filter(Boolean)
     }));
-    return res.json({success:true,submissions:rows.map(sanitizeSubmission),groups:outGroups});
+    return res.json({success:true,submissions:rows.map(sanitizeSubmission),groups:outGroups,confirmedCount,today,tomorrow});
   }catch(err){
     console.error("SMART FORM SPLIT BOOTSTRAP ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form Split"});
+  }
+});
+
+router.patch("/workflow/split/:id",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    if(!mongoose.Types.ObjectId.isValid(req.params.id))return res.status(400).json({success:false,message:"Invalid Smart Form trip id"});
+    const submission=await SmartFormSubmission.findOne({
+      _id:req.params.id,tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",
+      tripId:null,sharedGroupId:{$in:["",null]}
+    });
+    if(!submission)return res.status(409).json({success:false,message:"Only an ungrouped Split trip can be edited"});
+    const template=await SmartFormTemplate.findOne({_id:submission.templateId,tenantId:g.tenantId}).lean();
+    if(!template)return res.status(404).json({success:false,message:"Smart Form template not found"});
+    const incoming=req.body?.formData&&typeof req.body.formData==="object"?req.body.formData:{};
+    const nextData={...(submission.formData||{})};
+    for(const field of Array.isArray(submission.fieldSnapshot)?submission.fieldSnapshot:[]){
+      const key=clean(field?.key);
+      if(key&&Object.prototype.hasOwnProperty.call(incoming,key))nextData[key]=incoming[key];
+    }
+    const missing=(submission.fieldSnapshot||[])
+      .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+      .filter(field=>!hasValue(nextData[field.key]))
+      .map(field=>clean(field.label)||clean(field.key));
+    if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
+    const operational=operationalData({...template,fields:submission.fieldSnapshot||[]},nextData);
+    const requiredOps=[["Client Name",operational.clientName],["Pickup Address",operational.pickupAddress],["Dropoff Address",operational.dropoffAddress],["Trip Date",operational.tripDate],["Pickup Time",operational.pickupTime],["Service",operational.serviceName]]
+      .filter(([,value])=>!value).map(([label])=>label);
+    if(requiredOps.length)return res.status(400).json({success:false,message:`Review fields missing: ${requiredOps.join(", ")}`});
+    Object.assign(submission,{
+      formData:nextData,clientName:operational.clientName,pickupAddress:operational.pickupAddress,
+      dropoffAddress:operational.dropoffAddress,stops:operational.stops,tripDate:operational.tripDate,
+      pickupTime:operational.pickupTime,serviceName:operational.serviceName
+    });
+    await submission.save();
+    return res.json({success:true,submission:sanitizeSubmission(submission)});
+  }catch(err){
+    console.error("SMART FORM SPLIT EDIT ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to update Smart Form Split trip"});
   }
 });
 
@@ -1630,7 +1674,7 @@ router.post("/workflow/split/share",async(req,res)=>{
       });
       await SmartFormSubmission.updateMany(
         {_id:{$in:tripIds},tenantId:g.tenantId,status:"REVIEW"},
-        {$set:{workflowStage:"SPLIT",sharedGroupId:groupId}}
+        {$set:{workflowStage:"SPLIT",splitDisposition:"SHARED",sharedGroupId:groupId}}
       );
       tripIds.forEach(id=>claimed.add(id));
       savedGroups.push({...saved.toObject(),tripIds,trips:tripIds.map(id=>sanitizeSubmission(rowMap.get(id)))});
@@ -1640,7 +1684,7 @@ router.post("/workflow/split/share",async(req,res)=>{
     if(individualIds.length){
       await SmartFormSubmission.updateMany(
         {_id:{$in:individualIds},tenantId:g.tenantId,status:"REVIEW",tripId:null},
-        {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+        {$set:{workflowStage:"SPLIT",splitDisposition:"INDIVIDUAL",sharedGroupId:""}}
       );
     }
     return res.json({success:true,groups:savedGroups,individualSubmissionIds:individualIds,plan});
@@ -1659,13 +1703,30 @@ router.post("/workflow/split/restore",async(req,res)=>{
     const ids=(group.tripIds||[]).map(String);
     await SmartFormSubmission.updateMany(
       {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:groupId},
-      {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+      {$set:{workflowStage:"SPLIT",splitDisposition:"INDIVIDUAL",sharedGroupId:""}}
     );
     group.status="RESTORED";group.restoredAt=new Date();group.restoredBy=actor(req);await group.save();
     return res.json({success:true,restoredSubmissionIds:ids});
   }catch(err){
     console.error("SMART FORM SPLIT RESTORE ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to restore Smart Form trips"});
+  }
+});
+
+router.post("/workflow/split/restore-individuals",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const ids=[...new Set((Array.isArray(req.body?.submissionIds)?req.body.submissionIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(!ids.length)return res.status(400).json({success:false,message:"Select individual Smart Form trips to restore"});
+    const result=await SmartFormSubmission.updateMany({
+      _id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",
+      sharedGroupId:{$in:["",null]},splitDisposition:"INDIVIDUAL",tripId:null
+    },{$set:{splitDisposition:"ORIGINAL"}});
+    return res.json({success:true,restoredCount:Number(result.modifiedCount??result.nModified??0),submissionIds:ids});
+  }catch(err){
+    console.error("SMART FORM SPLIT INDIVIDUAL RESTORE ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to restore individual Smart Form trips"});
   }
 });
 

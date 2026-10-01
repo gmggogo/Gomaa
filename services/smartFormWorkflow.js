@@ -1,3 +1,4 @@
+/* DESTINATION: server/services/smartFormWorkflow.js */
 "use strict";
 
 function clean(value) {
@@ -8,6 +9,18 @@ function finite(value, fallback = 0) {
   if (value === null || value === undefined || value === "") return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function smartFormSplitDateWindow(now = new Date(), timeZone = "America/Phoenix") {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: clean(timeZone) || "America/Phoenix",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(now);
+  const [year, month, day] = today.split("-").map(Number);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+  return { today, tomorrow };
 }
 
 function submissionPrice(submission) {
@@ -138,5 +151,6 @@ function buildSmartFormTripPayload({
 module.exports = {
   buildSmartFormTripPayload,
   templateSnapshot,
-  passengerFromSubmission
+  passengerFromSubmission,
+  smartFormSplitDateWindow
 };
