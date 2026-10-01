@@ -64,6 +64,7 @@ tbody tr:nth-child(even) td{background:#f8fbfc}tbody tr:hover td{background:#eef
 .smart-form-split-page .split-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;margin:0 0 14px;border:1px solid #c7a13a;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 6px 16px rgba(15,23,42,.06)}
 .smart-form-split-page .split-tab{min-height:62px;border:0;border-right:1px solid #d7bd6a;background:linear-gradient(180deg,#fffaf0 0%,#f7e7ad 100%);color:#3f3208;font-size:16px;font-weight:900;letter-spacing:.02em;cursor:pointer;text-align:center;box-shadow:inset 0 -2px 0 rgba(138,107,22,.14)}
 .smart-form-split-page .split-tab:last-child{border-right:0}.smart-form-split-page .split-tab.active{background:linear-gradient(135deg,#e6c55a 0%,#cda72e 100%);color:#111827;box-shadow:inset 0 -5px 0 #7d6113,0 4px 10px rgba(125,97,19,.18)}
+.smart-form-split-page .split-tabs.two-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
 .smart-form-split-page .trip-panel-hidden{display:none!important}
 .smart-form-split-page .panel{width:100%;max-width:none;background:#fff;border:1px solid var(--splitBorder);border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 8px 22px rgba(15,23,42,.08)}
 .smart-form-split-page .table-wrap{width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;background:#fff}

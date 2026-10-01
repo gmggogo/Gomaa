@@ -8,7 +8,7 @@
   const esc=value=>clean(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const token=sessionStorage.getItem("token")||sessionStorage.getItem("staffToken")||localStorage.getItem("token")||localStorage.getItem("staffToken")||"";
   const authHeaders=token?{Authorization:`Bearer ${token}`} : {};
-  const state={submissions:[],groups:[],activeTab:"ORIGINAL",selectedOriginal:new Set(),selectedIndividual:new Set(),selectedGroups:new Set(),template:"ALL",day:"ALL",search:"",confirmedCount:0,today:"",tomorrow:"",editingId:""};
+  const state={submissions:[],groups:[],capabilities:{},activeTab:"ORIGINAL",selectedOriginal:new Set(),selectedIndividual:new Set(),selectedGroups:new Set(),template:"ALL",day:"ALL",search:"",confirmedCount:0,today:"",tomorrow:"",editingId:""};
 
   async function request(url,options={}){
     const response=await fetch(url,{credentials:"include",cache:"no-store",...options,headers:{...authHeaders,...(options.headers||{})}});
@@ -33,6 +33,7 @@
     return[row.tripNumber,row.templateName,row.clientName,row.pickupAddress,row.dropoffAddress,row.serviceName,row.notes,...stops(row)].join(" ").toLowerCase().includes(state.search);
   }
   function rowsFor(target){return state.submissions.filter(row=>lane(row)===target&&matches(row));}
+  function sharedFeatureEnabled(){return state.capabilities?.sharedServiceEnabled===true||state.capabilities?.sharedServiceFound===true;}
   function address(value){return`<span class="address-box">${esc(value||"—")}</span>`;}
   function stopBoxes(row){const list=stops(row);return list.length?list.map(value=>`<span class="gh-stop-box">${esc(value)}</span>`).join(""):`<span class="gh-stop-box">—</span>`;}
   function selectedSet(target=state.activeTab){return target==="ORIGINAL"?state.selectedOriginal:target==="INDIVIDUAL"?state.selectedIndividual:state.selectedGroups;}
@@ -90,7 +91,8 @@
     document.querySelectorAll("[data-tab]").forEach(button=>button.classList.toggle("active",button.dataset.tab===state.activeTab));
     document.querySelectorAll("[data-trip-panel]").forEach(panel=>panel.classList.toggle("trip-panel-hidden",panel.dataset.tripPanel!==state.activeTab));
   }
-  function render(){renderOriginal();renderIndividual();renderGroups();renderStats();renderTabs();}
+  function renderShareVisibility(){const sharedAllowed=sharedFeatureEnabled();$("sharedTabBtn").classList.toggle("hidden",!sharedAllowed);$("shareBtn").classList.toggle("hidden",!sharedAllowed);$("splitTabs").classList.toggle("two-tabs",!sharedAllowed);if(!sharedAllowed&&state.activeTab==="SHARED")state.activeTab="ORIGINAL";}
+  function render(){renderOriginal();renderIndividual();renderGroups();renderShareVisibility();renderStats();renderTabs();}
 
   function detailLine(label,value){let output=value;if(Array.isArray(value))output=value.join("\n");else if(value&&typeof value==="object")output=JSON.stringify(value,null,2);return`<div class="view-line"><div class="view-label">${esc(label)}</div><div class="view-value">${esc(output||"—")}</div></div>`;}
   function closeDetails(){document.getElementById("smartFormSplitDetails")?.remove();}
@@ -120,13 +122,13 @@
   async function removeTrip(id){if(!confirm("Delete this Smart Form trip? This cannot be undone."))return;await request(`/api/smart-forms/workflow/hub/${encodeURIComponent(id)}`,{method:"DELETE"});state.selectedOriginal.delete(String(id));state.selectedIndividual.delete(String(id));notice("Smart Form trip deleted.");await load();}
 
   async function load(){
-    const data=await request("/api/smart-forms/workflow/split/bootstrap");state.submissions=Array.isArray(data.submissions)?data.submissions:[];state.groups=Array.isArray(data.groups)?data.groups:[];state.confirmedCount=Number(data.confirmedCount||0);state.today=clean(data.today);state.tomorrow=clean(data.tomorrow);
+    const [data,settings]=await Promise.all([request("/api/smart-forms/workflow/split/bootstrap"),request("/api/shared-engine/settings").catch(()=>({capabilities:{}}))]);state.submissions=Array.isArray(data.submissions)?data.submissions:[];state.groups=Array.isArray(data.groups)?data.groups:[];state.capabilities=settings?.capabilities||{};state.confirmedCount=Number(data.confirmedCount||0);state.today=clean(data.today);state.tomorrow=clean(data.tomorrow);
     const rowIds=new Set(state.submissions.map(row=>String(row._id))),groupIds=new Set(state.groups.map(group=>clean(group.groupId)));
     state.selectedOriginal=new Set([...state.selectedOriginal].filter(id=>rowIds.has(id)));state.selectedIndividual=new Set([...state.selectedIndividual].filter(id=>rowIds.has(id)));state.selectedGroups=new Set([...state.selectedGroups].filter(id=>groupIds.has(id)));
     renderFilters();renderDayFilter();render();
   }
 
-  document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{state.activeTab=button.dataset.tab;render();}));
+  document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{if(button.dataset.tab==="SHARED"&&!sharedFeatureEnabled())return;state.activeTab=button.dataset.tab;render();}));
   $("templateFilter").addEventListener("change",event=>{state.template=event.target.value;render();});
   $("dayFilter").addEventListener("change",event=>{state.day=event.target.value;render();});
   $("tripSearch").addEventListener("input",event=>{state.search=clean(event.target.value).toLowerCase();render();});
@@ -134,7 +136,7 @@
   document.body.addEventListener("click",event=>{const eye=event.target.closest("[data-eye]"),edit=event.target.closest("[data-edit]"),remove=event.target.closest("[data-delete]");if(eye)openDetails(eye.dataset.eye);else if(edit)openEdit(edit.dataset.edit);else if(remove)removeTrip(remove.dataset.delete).catch(error=>notice(error.message,true));});
 
   $("selectAllBtn").onclick=()=>{const set=selectedSet(),values=state.activeTab==="SHARED"?state.groups.filter(groupMatches).map(group=>clean(group.groupId)):rowsFor(state.activeTab).map(row=>String(row._id));const allSelected=values.length&&values.every(id=>set.has(id));values.forEach(id=>allSelected?set.delete(id):set.add(id));render();};
-  $("shareBtn").onclick=async()=>{try{const data=await request("/api/smart-forms/workflow/split/share",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({submissionIds:[...state.selectedOriginal]})});state.selectedOriginal.clear();notice(`${(data.groups||[]).length} share group(s) built. Unmatched trips moved to Individual Trips.`);await load();}catch(error){notice(error.message,true);}};
+  $("shareBtn").onclick=async()=>{try{if(!sharedFeatureEnabled())throw new Error("Shared service is disabled for this company.");const data=await request("/api/smart-forms/workflow/split/share",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({submissionIds:[...state.selectedOriginal]})});state.selectedOriginal.clear();notice(`${(data.groups||[]).length} share group(s) built. Unmatched trips moved to Individual Trips.`);await load();}catch(error){notice(error.message,true);}};
   $("restoreBtn").onclick=async()=>{try{if(state.activeTab==="INDIVIDUAL"){await request("/api/smart-forms/workflow/split/restore-individuals",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({submissionIds:[...state.selectedIndividual]})});state.selectedIndividual.clear();}else if(state.activeTab==="SHARED"){for(const groupId of state.selectedGroups)await request("/api/smart-forms/workflow/split/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId})});state.selectedGroups.clear();}state.activeTab="ORIGINAL";notice("Selected trips restored to Original Trips.");await load();}catch(error){notice(error.message,true);}};
   $("confirmAllBtn").onclick=async()=>{try{const groupIds=state.activeTab==="SHARED"?[...state.selectedGroups]:[];const individualSubmissionIds=state.activeTab==="ORIGINAL"?[...state.selectedOriginal]:state.activeTab==="INDIVIDUAL"?[...state.selectedIndividual]:[];const data=await request("/api/smart-forms/workflow/split/confirm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupIds,individualSubmissionIds})});selectedSet().clear();notice(`${data.movedCount||0} trip(s) moved to Smart Form Review.`);await load();}catch(error){notice(error.message,true);}};
   $("closeEditBtn").onclick=()=>$("editDialog").close();$("editForm").addEventListener("submit",event=>saveEdit(event).catch(error=>notice(error.message,true)));document.addEventListener("keydown",event=>{if(event.key==="Escape")closeDetails();});
