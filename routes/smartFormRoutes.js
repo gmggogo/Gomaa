@@ -1802,8 +1802,13 @@ router.post("/workflow/review/confirm",async(req,res)=>{
     if(selected.length!==ids.length)return res.status(409).json({success:false,message:"One or more selected trips are not ready for Dispatch"});
     const tripIds=[...new Set(selected.map(row=>String(row.tripId)))];
     const linked=await SmartFormSubmission.find({tenantId:g.tenantId,tripId:{$in:tripIds},status:"REVIEW",workflowStage:"FINAL_REVIEW"}).lean();
-    const dispatchResult=await Trip.updateMany({_id:{$in:tripIds},tenantId:g.tenantId,source:"SMART_FORM"},{$set:{dispatchSelected:true,disabled:false,status:"Scheduled"}});
-    if(Number(dispatchResult.matchedCount??dispatchResult.n??0)!==tripIds.length)return res.status(409).json({success:false,message:"One or more staged Smart Form trips are missing"});
+    const stagedTrips=await Trip.find({_id:{$in:tripIds},tenantId:g.tenantId,source:"SMART_FORM"})
+      .select("_id tripNumber").lean();
+    if(stagedTrips.length!==tripIds.length)return res.status(409).json({success:false,message:"One or more staged Smart Form trips are missing"});
+    await Trip.updateMany(
+      {_id:{$in:tripIds},tenantId:g.tenantId,source:"SMART_FORM"},
+      {$set:{dispatchSelected:true,disabled:false,status:"Scheduled"}}
+    );
     await SmartFormSubmission.updateMany({_id:{$in:linked.map(row=>row._id)},tenantId:g.tenantId,status:"REVIEW"},{$set:{status:"CONFIRMED",workflowStage:"DISPATCHED",confirmedBy:actor(req),confirmedAt:new Date()}});
     return res.json({success:true,confirmedCount:linked.length,tripIds});
   }catch(err){
