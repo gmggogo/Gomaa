@@ -1437,13 +1437,14 @@ async function resolveSmartFormSubmissionCoords(row){
   return {...row,...coords};
 }
 
-/* SMART FORM HUB FIXED V2 — Hub list, edit, confirm and delete workflow */
+/* SMART FORM HUB FIXED V3 — Hub list, edit, confirm and delete workflow */
 router.get("/workflow/hub",async(req,res)=>{
   try{
     const g=await gate(req,res);if(!g)return;
     const rows=await SmartFormSubmission.find({
       tenantId:g.tenantId,
       status:"REVIEW",
+      sharedGroupId:{$in:["",null]},
       $or:[{workflowStage:{$in:["HUB","SPLIT"]}},{workflowStage:{$exists:false}}]
     }).sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
     return res.json({success:true,submissions:rows.map(sanitizeSubmission)});
@@ -1460,9 +1461,14 @@ router.patch("/workflow/hub/:id",async(req,res)=>{
       return res.status(400).json({success:false,message:"Invalid Smart Form trip id"});
     }
     const submission=await SmartFormSubmission.findOne({
-      _id:req.params.id,tenantId:g.tenantId,status:"REVIEW",workflowStage:"HUB",tripId:null
+      _id:req.params.id,
+      tenantId:g.tenantId,
+      status:"REVIEW",
+      tripId:null,
+      sharedGroupId:{$in:["",null]},
+      $or:[{workflowStage:{$in:["HUB","SPLIT"]}},{workflowStage:{$exists:false}}]
     });
-    if(!submission)return res.status(404).json({success:false,message:"Unconfirmed Smart Form trip not found"});
+    if(!submission)return res.status(409).json({success:false,message:"This trip has already moved to final Review and cannot be edited from the Hub."});
     const template=await SmartFormTemplate.findOne({
       _id:submission.templateId,tenantId:g.tenantId
     }).lean();
@@ -1480,7 +1486,10 @@ router.patch("/workflow/hub/:id",async(req,res)=>{
       .map(field=>clean(field.label)||clean(field.key));
     if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
 
-    const operational=operationalData(template,nextData);
+    const operational=operationalData(
+      {...template,fields:Array.isArray(submission.fieldSnapshot)?submission.fieldSnapshot:[]},
+      nextData
+    );
     const requiredOps=[
       ["Client Name",operational.clientName],
       ["Pickup Address",operational.pickupAddress],
@@ -1499,11 +1508,37 @@ router.patch("/workflow/hub/:id",async(req,res)=>{
     submission.tripDate=operational.tripDate;
     submission.pickupTime=operational.pickupTime;
     submission.serviceName=operational.serviceName;
+    submission.workflowStage="HUB";
+    submission.sharedGroupId="";
     await submission.save();
     return res.json({success:true,submission:sanitizeSubmission(submission)});
   }catch(err){
     console.error("SMART FORM HUB EDIT ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to update Smart Form trip"});
+  }
+});
+
+router.delete("/workflow/hub/:id",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    if(!mongoose.Types.ObjectId.isValid(req.params.id)){
+      return res.status(400).json({success:false,message:"Invalid Smart Form trip id"});
+    }
+    const submission=await SmartFormSubmission.findOne({
+      _id:req.params.id,
+      tenantId:g.tenantId,
+      status:"REVIEW",
+      tripId:null,
+      sharedGroupId:{$in:["",null]},
+      $or:[{workflowStage:{$in:["HUB","SPLIT"]}},{workflowStage:{$exists:false}}]
+    });
+    if(!submission)return res.status(409).json({success:false,message:"This trip has already moved to final Review and cannot be deleted from the Hub."});
+
+    await submission.deleteOne();
+    return res.json({success:true,deletedId:String(submission._id)});
+  }catch(err){
+    console.error("SMART FORM HUB DELETE ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to delete Smart Form trip"});
   }
 });
 
