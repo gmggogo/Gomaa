@@ -1283,7 +1283,10 @@ router.get("/submissions/:id/pdf", async (req,res)=>{
 });
 
 
-// Upload a completed copy of the SAME or a substantially similar Smart Form and extract only configured fields.
+// Upload a completed copy of the SAME or a substantially similar Smart Form.
+// Extract configured fields AND preserve every additional labeled value the AI can reliably read.
+// Newly discovered fields are learned by this template as optional MANUAL fields, so future
+// uploads can keep reading/saving them instead of silently discarding unknown data.
 // Missing values are allowed so staff can complete them manually before Send to Review.
 // A clearly different/unrelated document is rejected and never creates a submission.
 const completedFormUpload = multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
@@ -1309,12 +1312,17 @@ Missing or blank values DO NOT make the document incompatible; staff will comple
 A different layout/version is allowed when it clearly represents the same kind of form and its data maps reliably to these configured fields.
 REJECT an unrelated document, a different form type whose fields do not correspond to the configured template, or a document where mapping would require guessing.
 
-If compatible, extract ONLY the configured fields. Never invent a value. If blank/unreadable/missing, return an empty string.
+If compatible, extract every reliably readable labeled value from the uploaded form. Never invent a value.
+For fields that match a configured field, put the value in formData using that field's EXACT configured key.
+For any other labeled field/value that is present on the document but is not configured yet, put it in extraFields.
+Preserve the visible label and the value as read. Do not discard an unfamiliar field just because its meaning is unknown.
+If a configured field is blank/unreadable/missing, return an empty string for that configured key.
+Do not put the same field in both formData and extraFields.
 Return JSON only in exactly this shape:
-{"matchStatus":"MATCH","reason":"","formData":{"EXACT_CONFIGURED_KEY":"value"}}
+{"matchStatus":"MATCH","reason":"","formData":{"EXACT_CONFIGURED_KEY":"value"},"extraFields":[{"label":"Visible field label","value":"value"}]}
 If incompatible return:
-{"matchStatus":"REJECT","reason":"short factual reason","formData":{}}
-Use EXACT configured keys only.`;
+{"matchStatus":"REJECT","reason":"short factual reason","formData":{},"extraFields":[]}
+Use EXACT configured keys for formData. extraFields is only for additional fields that are not already configured.`;
 
     // Completed-form extraction uses its own low-cost Gemini model settings.
     // This deliberately does not inherit SMART_FORMS_GEMINI_MODEL, so a model
@@ -1377,13 +1385,78 @@ Use EXACT configured keys only.`;
       if(allowed.has(k)) formData[k]=v??"";
     }
 
-    const op=operationalData(t,formData);
+    // Learn every additional labeled value instead of throwing it away.
+    // A learned field is optional and MANUAL by default. It has no PDF mapping until
+    // an admin chooses to map it, but its value is immediately preserved in formData.
+    const extras=Array.isArray(parsed.extraFields)?parsed.extraFields:[];
+    const existingLabels=new Set((t.fields||[]).map(f=>clean(f.label).toLowerCase()).filter(Boolean));
+    const existingKeys=new Set((t.fields||[]).map(f=>clean(f.key)).filter(Boolean));
+    const learnedFields=[];
+    let learnedIndex=0;
+
+    for(const row of extras){
+      const label=clean(row?.label);
+      if(!label) continue;
+      const value=row?.value??"";
+      const labelKey=label.toLowerCase();
+
+      // If Gemini returned an already-known label as an extra, keep the configured field
+      // authoritative and do not create a duplicate template field.
+      const known=(t.fields||[]).find(f=>clean(f.label).toLowerCase()===labelKey);
+      if(known){
+        if(!hasValue(formData[known.key]) && hasValue(value)) formData[known.key]=value;
+        continue;
+      }
+      if(existingLabels.has(labelKey)) continue;
+
+      let base=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+      if(!base) base="learned_field";
+      let key=`ai_${base}`;
+      while(existingKeys.has(key)){
+        learnedIndex+=1;
+        key=`ai_${base}_${learnedIndex}`;
+      }
+
+      const learned={
+        key,
+        label,
+        type:"TEXT",
+        required:false,
+        placeholder:"",
+        options:[],
+        widthPercent:50,
+        order:(t.fields||[]).length+learnedFields.length,
+        tripBinding:"",
+        sourceType:"MANUAL",
+        repeat:false,
+        mapping:{mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:4,fontSize:10,textAlign:"LEFT"},
+        mappings:[]
+      };
+
+      learnedFields.push(learned);
+      existingLabels.add(labelKey);
+      existingKeys.add(key);
+      formData[key]=value;
+    }
+
+    if(learnedFields.length){
+      t.fields=[...(t.fields||[]),...learnedFields];
+      t.updatedBy=actor(req);
+      await t.save();
+    }
+
+    const learnedTemplate=learnedFields.length
+      ? await SmartFormTemplate.findOne({_id:t._id,tenantId:g.tenantId}).lean()
+      : t;
+    const op=operationalData(learnedTemplate,formData);
     return res.json({
       success:true,
       templateId:String(t._id),
       templateName:t.name,
       matchStatus:"MATCH",
       formData,
+      learnedFields:learnedFields.map(f=>({key:f.key,label:f.label})),
+      template:sanitizeTemplate(learnedTemplate),
       operationalData:op,
       importSource:{
         fileName:req.file.originalname||"completed-form",

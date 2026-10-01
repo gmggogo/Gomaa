@@ -648,8 +648,20 @@ if(completedFormUploadBtn&&completedFormUpload){
       fd.append("file",file);
       const d=await api(`${API}/templates/${encodeURIComponent(t._id)}/import-completed`,{method:"POST",body:fd});
       const formData=d.formData&&typeof d.formData==="object"?d.formData:{};
-      await renderEntry(t);
-      for(const f of t.fields||[]){
+
+      // The server may learn new fields from this completed form. Replace the local
+      // template immediately so those fields are visible, editable and included when
+      // Save Draft / Send to Review calls collectEntry().
+      let activeTemplate=t;
+      if(d.template&&d.template._id){
+        const index=templates.findIndex(x=>String(x._id)===String(d.template._id));
+        if(index>=0) templates[index]=d.template;
+        else templates.push(d.template);
+        activeTemplate=d.template;
+      }
+
+      await renderEntry(activeTemplate);
+      for(const f of activeTemplate.fields||[]){
         if((f.sourceType||"MANUAL")!=="MANUAL"||f.type==="SIGNATURE")continue;
         const el=document.getElementById(`entry_${f.key}`);
         if(!el)continue;
@@ -658,7 +670,10 @@ if(completedFormUploadBtn&&completedFormUpload){
         if(f.type==="CHECKBOX")el.checked=value===true||String(value).toLowerCase()==="true"||String(value)==="1";
         else el.value=String(value);
       }
-      msg("Form matched. Extracted data loaded — complete any missing fields, then Send to Review.");
+      const learnedCount=Array.isArray(d.learnedFields)?d.learnedFields.length:0;
+      msg(learnedCount
+        ? `Form matched. Extracted data loaded and ${learnedCount} new field${learnedCount===1?"":"s"} learned.`
+        : "Form matched. Extracted data loaded — complete any missing fields, then Send to Review.");
     }catch(e){
       msg(e.message||"Uploaded form does not match this Smart Form.","err");
     }finally{
