@@ -17,7 +17,7 @@ const Trip = require("../models/Trip");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 const { planSharedTrips, mergeSettings } = require("../services/sharedEngine");
-const { buildSmartFormTripPayload, smartFormSplitDateWindow } = require("../services/smartFormWorkflow");
+const { buildSmartFormTripPayload, smartFormSplitDateWindow, smartFormSplitDateKey } = require("../services/smartFormWorkflow");
 
 const router = express.Router();
 
@@ -1566,14 +1566,18 @@ router.get("/workflow/split/bootstrap",async(req,res)=>{
   try{
     const g=await gate(req,res);if(!g)return;
     const {today,tomorrow}=smartFormSplitDateWindow(new Date(),g.timezone);
-    const splitDates={$in:[today,tomorrow]};
-    const [rows,groups,confirmedCount]=await Promise.all([
-      SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",tripDate:splitDates})
-        .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean(),
-      SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN",tripDate:splitDates})
-        .sort({tripDate:1,createdAt:1}).lean(),
-      SmartFormSubmission.countDocuments({tenantId:g.tenantId,workflowStage:{$in:["FINAL_REVIEW","DISPATCHED"]},tripDate:splitDates})
+    const allowedDates=new Set([today,tomorrow]);
+    const [splitRows,openGroups,confirmedRows]=await Promise.all([
+      SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT"})
+        .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(3000).lean(),
+      SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN"})
+        .sort({tripDate:1,createdAt:1}).limit(1000).lean(),
+      SmartFormSubmission.find({tenantId:g.tenantId,workflowStage:{$in:["FINAL_REVIEW","DISPATCHED"]}})
+        .select("tripDate").limit(5000).lean()
     ]);
+    const rows=splitRows.filter(row=>allowedDates.has(smartFormSplitDateKey(row.tripDate,g.timezone)));
+    const groups=openGroups.filter(group=>allowedDates.has(smartFormSplitDateKey(group.tripDate,g.timezone)));
+    const confirmedCount=confirmedRows.filter(row=>allowedDates.has(smartFormSplitDateKey(row.tripDate,g.timezone))).length;
     const ids=[...new Set(groups.flatMap(x=>(Array.isArray(x.tripIds)?x.tripIds:[]).map(String)))];
     const groupRows=ids.length?await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW"}).lean():[];
     const rowMap=new Map(groupRows.map(x=>[String(x._id),sanitizeSubmission(x)]));

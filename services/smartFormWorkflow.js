@@ -23,6 +23,20 @@ function smartFormSplitDateWindow(now = new Date(), timeZone = "America/Phoenix"
   return { today, tomorrow };
 }
 
+function smartFormSplitDateKey(value, timeZone = "America/Phoenix") {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return smartFormSplitDateWindow(value, timeZone).today;
+  }
+  const text = clean(value);
+  if (!text) return "";
+  let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s])/);
+  if (match) return `${match[1]}-${String(Number(match[2])).padStart(2, "0")}-${String(Number(match[3])).padStart(2, "0")}`;
+  match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:$|[T\s])/);
+  if (match) return `${match[3]}-${String(Number(match[1])).padStart(2, "0")}-${String(Number(match[2])).padStart(2, "0")}`;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? "" : smartFormSplitDateWindow(parsed, timeZone).today;
+}
+
 function submissionPrice(submission) {
   if (submission?.pricing?.calculated === true) {
     return finite(submission.pricing.amount, null);
@@ -152,5 +166,6 @@ module.exports = {
   buildSmartFormTripPayload,
   templateSnapshot,
   passengerFromSubmission,
-  smartFormSplitDateWindow
+  smartFormSplitDateWindow,
+  smartFormSplitDateKey
 };
