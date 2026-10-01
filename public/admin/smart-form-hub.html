@@ -1,4 +1,4 @@
-<!-- SMART FORM HUB FIXED V3 — 2026-10-01 -->
+<!-- SMART FORM HUB FIXED V5 — 2026-10-01 -->
 <!-- DESTINATION: server/public/admin/smart-form-hub.html -->
 <!doctype html>
 <html lang="en">
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
   <link rel="stylesheet" href="/admin/smart-form-workflow.css">
   <style>
-    .sf-hub-stats{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:0 0 12px}
+    .sf-hub-stats{display:flex;flex-direction:row;flex-wrap:nowrap;direction:ltr;gap:10px;margin:0 0 12px}.sf-hub-stat{flex:1 1 0;min-width:0}
     .sf-hub-stat{min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 10px;border:1px solid #c9a23a;border-radius:12px;background:linear-gradient(135deg,#fff7d8 0%,#efd88c 48%,#fff0b4 100%);box-shadow:0 6px 16px rgba(146,102,14,.14);text-align:center}
     .sf-hub-stat span{color:#4a3a0a;font-size:10px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;text-align:center}
     .sf-hub-stat strong{display:block;margin-top:6px;color:#111827;font-size:24px;line-height:1;font-weight:900;text-align:center}
@@ -23,8 +23,8 @@
     .sf-edit-field input,.sf-edit-field select,.sf-edit-field textarea{width:100%;min-height:36px;border:1px solid #cbd5e1;border-radius:7px;padding:8px;font:inherit}
     .sf-edit-field textarea{min-height:76px;resize:vertical}.sf-edit-field.full{grid-column:1/-1}
     .sf-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;border-top:1px solid #d8e1e7}
-    @media(max-width:950px){.sf-hub-stats{grid-template-columns:repeat(3,minmax(100px,1fr))}}
-    @media(max-width:600px){.sf-hub-stats{grid-template-columns:repeat(2,minmax(90px,1fr));gap:7px}.sf-hub-stat{min-height:66px;padding:8px}.sf-edit-fields{grid-template-columns:1fr}.sf-edit-field.full{grid-column:auto}}
+    @media(max-width:950px){.sf-hub-stats{flex-wrap:wrap}.sf-hub-stat{flex:1 1 calc(33.333% - 10px)}}
+    @media(max-width:600px){.sf-hub-stats{gap:7px}.sf-hub-stat{flex:1 1 calc(50% - 7px);min-height:66px;padding:8px}.sf-edit-fields{grid-template-columns:1fr}.sf-edit-field.full{grid-column:auto}}
   </style>
 </head>
 <body>
@@ -33,12 +33,12 @@
     <header class="page-head"><h1 class="page-title">Smart Form Hub</h1><div class="page-sub">Smart Form trips arrive here automatically. Confirm each trip to continue to Split.</div></header>
     <div id="notice" class="notice"></div>
     <section class="sf-hub-stats" aria-label="Smart Form Hub totals">
-      <div class="sf-hub-stat"><span>Confirmed</span><strong id="statConfirmed">0</strong></div>
-      <div class="sf-hub-stat"><span>Not Confirmed</span><strong id="statNotConfirmed">0</strong></div>
-      <div class="sf-hub-stat"><span>With Stops</span><strong id="statWithStops">0</strong></div>
-      <div class="sf-hub-stat"><span>Active Templates</span><strong id="statActiveTemplates">0</strong></div>
-      <div class="sf-hub-stat"><span>New Trips</span><strong id="statNewTrips">0</strong></div>
       <div class="sf-hub-stat"><span>Total Trips</span><strong id="statTotalTrips">0</strong></div>
+      <div class="sf-hub-stat"><span>New Trips</span><strong id="statNewTrips">0</strong></div>
+      <div class="sf-hub-stat"><span>Active Templates</span><strong id="statActiveTemplates">0</strong></div>
+      <div class="sf-hub-stat"><span>With Stops</span><strong id="statWithStops">0</strong></div>
+      <div class="sf-hub-stat"><span>Not Confirmed</span><strong id="statNotConfirmed">0</strong></div>
+      <div class="sf-hub-stat"><span>Confirmed</span><strong id="statConfirmed">0</strong></div>
     </section>
     <section class="panel">
       <div class="panel-head"><span>Trips submitted from Smart Form templates</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, address"><select id="statusFilter"><option value="">All Confirmation Statuses</option><option value="CONFIRMED">Confirmed</option><option value="NOT_CONFIRMED">Not Confirmed</option></select><input id="dateFilter" type="date" aria-label="Trip date"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
