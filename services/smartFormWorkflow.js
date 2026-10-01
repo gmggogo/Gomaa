@@ -1,4 +1,4 @@
-/* DESTINATION: server/services/smartFormWorkflow.js */
+/* DESTINATION PATH: server/services/smartFormWorkflow.js */
 "use strict";
 
 function clean(value) {
@@ -9,6 +9,25 @@ function finite(value, fallback = 0) {
   if (value === null || value === undefined || value === "") return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function stopAddress(value) {
+  if (value && typeof value === "object") {
+    return clean(
+      value.address ||
+      value.value ||
+      value.location ||
+      value.name ||
+      value.label
+    );
+  }
+  return clean(value);
+}
+
+function submissionStops(submission) {
+  return Array.isArray(submission?.stops)
+    ? submission.stops.map(stopAddress).filter(Boolean)
+    : [];
 }
 
 function smartFormSplitDateWindow(now = new Date(), timeZone = "America/Phoenix") {
@@ -79,6 +98,7 @@ function passengerFromSubmission(submission, index) {
     pickupTime: clean(submission?.pickupTime),
     pickup: clean(submission?.pickupAddress),
     dropoff: clean(submission?.dropoffAddress),
+    stops: submissionStops(submission),
     pickupLat: finite(submission?.pickupLat, null),
     pickupLng: finite(submission?.pickupLng, null),
     dropoffLat: finite(submission?.dropoffLat, null),
@@ -113,9 +133,7 @@ function buildSmartFormTripPayload({
   const firstPickup = clean(first?.pickupAddress);
   const last = rows[rows.length - 1];
   const lastDropoff = clean(last?.dropoffAddress);
-  const allStops = rows.flatMap(row =>
-    Array.isArray(row?.stops) ? row.stops.map(clean).filter(Boolean) : []
-  );
+  const allStops = rows.flatMap(submissionStops);
 
   return {
     tenantId,
