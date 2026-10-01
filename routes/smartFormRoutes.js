@@ -1707,7 +1707,7 @@ router.post("/workflow/split/restore",async(req,res)=>{
     const ids=(group.tripIds||[]).map(String);
     await SmartFormSubmission.updateMany(
       {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:groupId},
-      {$set:{workflowStage:"SPLIT",splitDisposition:"INDIVIDUAL",sharedGroupId:""}}
+      {$set:{workflowStage:"SPLIT",splitDisposition:"ORIGINAL",sharedGroupId:""}}
     );
     group.status="RESTORED";group.restoredAt=new Date();group.restoredBy=actor(req);await group.save();
     return res.json({success:true,restoredSubmissionIds:ids});
