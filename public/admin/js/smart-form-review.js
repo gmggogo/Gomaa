@@ -80,6 +80,7 @@
     const source=members.length?members:[trip];
     return source.map(member=>({
       id:String(member._id||member.id||trip._id||""),
+      tripNumber:clean(member.tripNumber||trip.tripNumber)||"—",
       templateName:clean(member.templateName)||"—",
       serviceName:clean(member.serviceName||trip.serviceName||trip.serviceKey)||"—",
       clientName:clean(member.clientName||member.name)||"—",
@@ -98,8 +99,8 @@
     const rows=reviewMemberRows(trip);
     return [
       trip.tripNumber,
-      trip.groupId,
       ...rows.flatMap(member=>[
+        member.tripNumber,
         member.templateName,
         member.serviceName,
         member.clientName,
@@ -185,10 +186,9 @@
 
       return `<tr>
         <td><input type="checkbox" data-select="${esc(id)}" ${selected?"checked":""} aria-label="Select ${esc(trip.tripNumber)}"></td>
-        <td><span class="trip-number">${esc(trip.tripNumber||"—")}</span></td>
+        <td>${cell(rows.map(member=>member.tripNumber))}</td>
         <td>${cell(rows.map(member=>member.templateName))}</td>
         <td><span class="mode-pill ${shared?"shared":"individual"}">${shared?"Shared":"Individual"}</span></td>
-        <td>${esc(trip.groupId||trip.sharedGroupId||"—")}</td>
         <td>${cell(rows.map(member=>member.tripDate))}</td>
         <td>${cell(rows.map(member=>member.pickupTime))}</td>
         <td>${cell(rows.map(member=>member.clientName))}</td>
