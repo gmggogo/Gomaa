@@ -10,9 +10,13 @@ const Tenant = require("../models/Tenant");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
 const SmartFormTemplate = require("../models/SmartFormTemplate");
 const SmartFormSubmission = require("../models/SmartFormSubmission");
+const SharedTripGroup = require("../models/SharedTripGroup");
+const SharedEngineSettings = require("../models/SharedEngineSettings");
 const Trip = require("../models/Trip");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
+const { planSharedTrips, mergeSettings } = require("../services/sharedEngine");
+const { buildSmartFormTripPayload } = require("../services/smartFormWorkflow");
 
 const router = express.Router();
 
@@ -1397,6 +1401,261 @@ Use EXACT configured keys only.`;
 router.post("/templates/:id/calculate-price", async (req,res)=>{
   try{const g=await gate(req,res);if(!g)return;const result=await calculateSmartFormPrice({...req.body,tenantId:g.tenantId,templateId:req.params.id});res.json(result);}
   catch(err){res.status(err?.statusCode||500).json({success:false,message:err?.message||"Failed to calculate Smart Form price"});}
+});
+
+/* =====================================================
+   SMART FORM HUB -> SPLIT -> FINAL REVIEW
+   These routes are isolated to SmartFormSubmission records.
+   They never read or update Broker ExternalTrip records.
+===================================================== */
+function smartFormEngineTrip(row){
+  return {
+    ...row,
+    id:String(row._id),
+    _id:row._id,
+    tripId:String(row._id),
+    tripNumber:clean(row.tripNumber),
+    tripDate:clean(row.tripDate),
+    tripTime:clean(row.pickupTime),
+    pickup:clean(row.pickupAddress),
+    dropoff:clean(row.dropoffAddress),
+    pickupAddress:clean(row.pickupAddress),
+    dropoffAddress:clean(row.dropoffAddress),
+    serviceName:clean(row.serviceName),
+    serviceKey:clean(row.serviceName),
+    source:"COMPANY",
+    passengers:1
+  };
+}
+
+async function resolveSmartFormSubmissionCoords(row){
+  const coords=await smartFormResolveTripCoords(
+    row.pickupAddress,
+    Array.isArray(row.stops)?row.stops:[],
+    row.dropoffAddress
+  );
+  return {...row,...coords};
+}
+
+router.get("/workflow/hub",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const rows=await SmartFormSubmission.find({
+      tenantId:g.tenantId,
+      status:"REVIEW",
+      $or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}]
+    }).sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
+    return res.json({success:true,submissions:rows.map(sanitizeSubmission)});
+  }catch(err){
+    console.error("SMART FORM HUB ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form Hub"});
+  }
+});
+
+router.post("/workflow/split/enter",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const ids=[...new Set((Array.isArray(req.body?.submissionIds)?req.body.submissionIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(!ids.length)return res.status(400).json({success:false,message:"Select Smart Form trips to open in Split"});
+    const result=await SmartFormSubmission.updateMany(
+      {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",$or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}],tripId:null},
+      {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+    );
+    const moved=Number(result.modifiedCount??result.nModified??0);
+    return res.json({success:true,movedCount:moved,submissionIds:ids});
+  }catch(err){
+    console.error("SMART FORM SPLIT ENTER ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to move trips into Split"});
+  }
+});
+
+router.get("/workflow/split/bootstrap",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const [rows,groups]=await Promise.all([
+      SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT"})
+        .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean(),
+      SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN"})
+        .sort({tripDate:1,createdAt:1}).lean()
+    ]);
+    const ids=[...new Set(groups.flatMap(x=>(Array.isArray(x.tripIds)?x.tripIds:[]).map(String)))];
+    const groupRows=ids.length?await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW"}).lean():[];
+    const rowMap=new Map(groupRows.map(x=>[String(x._id),sanitizeSubmission(x)]));
+    const outGroups=groups.map(group=>({
+      ...group,
+      tripIds:(group.tripIds||[]).map(String),
+      trips:(group.tripIds||[]).map(id=>rowMap.get(String(id))).filter(Boolean)
+    }));
+    return res.json({success:true,submissions:rows.map(sanitizeSubmission),groups:outGroups});
+  }catch(err){
+    console.error("SMART FORM SPLIT BOOTSTRAP ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form Split"});
+  }
+});
+
+router.post("/workflow/split/share",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const ids=[...new Set((Array.isArray(req.body?.submissionIds)?req.body.submissionIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(ids.length<2)return res.status(400).json({success:false,message:"Select at least two Smart Form trips"});
+    const rows=await SmartFormSubmission.find({
+      _id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",
+      workflowStage:{$in:["HUB","SPLIT"]},tripId:null
+    }).lean();
+    if(rows.length!==ids.length)return res.status(404).json({success:false,message:"One or more selected Smart Form trips are unavailable"});
+    const openGroup=await SharedTripGroup.findOne({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN",tripIds:{$in:ids}}).lean();
+    if(openGroup)return res.status(409).json({success:false,message:"One or more selected trips already belong to an open Smart Form share group"});
+
+    const withCoords=await Promise.all(rows.map(resolveSmartFormSubmissionCoords));
+    const settingsDoc=await SharedEngineSettings.findOne({tenantId:g.tenantId}).lean();
+    const plan=await planSharedTrips({
+      trips:withCoords.map(smartFormEngineTrip),
+      source:"COMPANY",
+      settings:mergeSettings(settingsDoc||{})
+    });
+    const rowMap=new Map(withCoords.map(row=>[String(row._id),row]));
+    const savedGroups=[];
+    const claimed=new Set();
+    for(const engineGroup of Array.isArray(plan?.groups)?plan.groups:[]){
+      const tripIds=(Array.isArray(engineGroup.tripIds)?engineGroup.tripIds:[])
+        .map(String).filter(id=>rowMap.has(id));
+      if(tripIds.length<2)continue;
+      const groupId=`SF-${new mongoose.Types.ObjectId().toString()}`;
+      const data={...engineGroup,groupId,tripIds};
+      const saved=await SharedTripGroup.create({
+        tenantId:g.tenantId,sourceType:"SMART_FORM",groupId,
+        tripDate:clean(engineGroup.tripDate||rowMap.get(tripIds[0])?.tripDate),
+        tripIds:tripIds.map(id=>new mongoose.Types.ObjectId(id)),
+        tripNumbers:tripIds.map(id=>clean(rowMap.get(id)?.tripNumber)),
+        routePlan:Array.isArray(engineGroup.routePlan)?engineGroup.routePlan:[],
+        routePoints:Array.isArray(engineGroup.routePoints)?engineGroup.routePoints:[],
+        schedule:engineGroup.schedule||{},
+        calculatedFirstPickupTime:clean(engineGroup.calculatedFirstPickupTime),
+        routeMiles:Number(engineGroup.routeMiles||0),
+        routeMinutes:Number(engineGroup.routeMinutes||0),
+        polyline:clean(engineGroup.polyline),engineData:data,
+        status:"OPEN",createdBy:actor(req)
+      });
+      await SmartFormSubmission.updateMany(
+        {_id:{$in:tripIds},tenantId:g.tenantId,status:"REVIEW"},
+        {$set:{workflowStage:"SPLIT",sharedGroupId:groupId}}
+      );
+      tripIds.forEach(id=>claimed.add(id));
+      savedGroups.push({...saved.toObject(),tripIds,trips:tripIds.map(id=>sanitizeSubmission(rowMap.get(id)))});
+    }
+
+    const individualIds=ids.filter(id=>!claimed.has(id));
+    if(individualIds.length){
+      await SmartFormSubmission.updateMany(
+        {_id:{$in:individualIds},tenantId:g.tenantId,status:"REVIEW",tripId:null},
+        {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+      );
+    }
+    return res.json({success:true,groups:savedGroups,individualSubmissionIds:individualIds,plan});
+  }catch(err){
+    console.error("SMART FORM SPLIT SHARE ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to build Smart Form share groups"});
+  }
+});
+
+router.post("/workflow/split/restore",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const groupId=clean(req.body?.groupId);
+    const group=await SharedTripGroup.findOne({tenantId:g.tenantId,sourceType:"SMART_FORM",groupId,status:"OPEN"});
+    if(!group)return res.status(404).json({success:false,message:"Open Smart Form share group not found"});
+    const ids=(group.tripIds||[]).map(String);
+    await SmartFormSubmission.updateMany(
+      {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:groupId},
+      {$set:{workflowStage:"SPLIT",sharedGroupId:""}}
+    );
+    group.status="RESTORED";group.restoredAt=new Date();group.restoredBy=actor(req);await group.save();
+    return res.json({success:true,restoredSubmissionIds:ids});
+  }catch(err){
+    console.error("SMART FORM SPLIT RESTORE ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to restore Smart Form trips"});
+  }
+});
+
+router.post("/workflow/split/confirm",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const groupIds=[...new Set((Array.isArray(req.body?.groupIds)?req.body.groupIds:[]).map(clean).filter(Boolean))];
+    const individualIds=[...new Set((Array.isArray(req.body?.individualSubmissionIds)?req.body.individualSubmissionIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(!groupIds.length&&!individualIds.length)return res.status(400).json({success:false,message:"Select share groups or individual trips to move to Review"});
+    const createdTrips=[];
+    const allSubmissionIds=[];
+    const groups=groupIds.length?await SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN",groupId:{$in:groupIds}}):[];
+    if(groups.length!==groupIds.length)return res.status(404).json({success:false,message:"One or more Smart Form share groups are unavailable"});
+
+    for(const group of groups){
+      const ids=(group.tripIds||[]).map(String);
+      if(ids.length<2)throw new Error("A Smart Form share group needs at least two trips");
+      let rows=await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:group.groupId}).lean();
+      if(rows.length!==ids.length)throw new Error("One or more trips in a Smart Form share group are missing");
+      rows=await Promise.all(rows.map(resolveSmartFormSubmissionCoords));
+      const ordered=ids.map(id=>rows.find(row=>String(row._id)===id)).filter(Boolean);
+      const payload=buildSmartFormTripPayload({tenantId:g.tenantId,submissions:ordered,group:group.engineData||group,actorName:actor(req)});
+      let trip=await Trip.findOne({tenantId:g.tenantId,source:"SMART_FORM",groupId:group.groupId,isShared:true});
+      if(!trip)trip=await Trip.create(payload);
+      await SmartFormSubmission.updateMany({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW"},{$set:{tripId:trip._id,workflowStage:"FINAL_REVIEW"}});
+      group.status="CONFIRMED";group.confirmedAt=new Date();group.confirmedBy=actor(req);group.dispatchTripId=trip._id;await group.save();
+      createdTrips.push(trip);allSubmissionIds.push(...ids);
+    }
+
+    for(const id of individualIds){
+      const row=await SmartFormSubmission.findOne({_id:id,tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:""}).lean();
+      if(!row)throw new Error("One or more selected individual Smart Form trips are unavailable");
+      const [withCoords]=await Promise.all([resolveSmartFormSubmissionCoords(row)]);
+      const payload=buildSmartFormTripPayload({tenantId:g.tenantId,submissions:[withCoords],actorName:actor(req)});
+      let trip=await Trip.findOne({tenantId:g.tenantId,tripNumber:payload.tripNumber,source:"SMART_FORM"});
+      if(!trip)trip=await Trip.create(payload);
+      await SmartFormSubmission.updateOne({_id:id,tenantId:g.tenantId,status:"REVIEW"},{$set:{tripId:trip._id,workflowStage:"FINAL_REVIEW"}});
+      createdTrips.push(trip);allSubmissionIds.push(id);
+    }
+    return res.json({success:true,movedCount:allSubmissionIds.length,submissionIds:allSubmissionIds,trips:createdTrips});
+  }catch(err){
+    console.error("SMART FORM SPLIT CONFIRM ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to move Smart Form trips to Review"});
+  }
+});
+
+router.get("/workflow/review",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const rows=await SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"FINAL_REVIEW",tripId:{$ne:null}})
+      .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
+    const tripIds=[...new Set(rows.map(row=>String(row.tripId)))];
+    const trips=tripIds.length?await Trip.find({_id:{$in:tripIds},tenantId:g.tenantId}).lean():[];
+    const tripMap=new Map(trips.map(trip=>[String(trip._id),trip]));
+    return res.json({success:true,submissions:rows.map(row=>({...sanitizeSubmission(row),dispatchTrip:tripMap.get(String(row.tripId))||null}))});
+  }catch(err){
+    console.error("SMART FORM FINAL REVIEW ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form final Review"});
+  }
+});
+
+router.post("/workflow/review/confirm",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    const ids=[...new Set((Array.isArray(req.body?.submissionIds)?req.body.submissionIds:[])
+      .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
+    if(!ids.length)return res.status(400).json({success:false,message:"Select Smart Form trips to send to Dispatch"});
+    const selected=await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"FINAL_REVIEW",tripId:{$ne:null}}).lean();
+    if(selected.length!==ids.length)return res.status(409).json({success:false,message:"One or more selected trips are not ready for Dispatch"});
+    const tripIds=[...new Set(selected.map(row=>String(row.tripId)))];
+    const linked=await SmartFormSubmission.find({tenantId:g.tenantId,tripId:{$in:tripIds},status:"REVIEW",workflowStage:"FINAL_REVIEW"}).lean();
+    const dispatchResult=await Trip.updateMany({_id:{$in:tripIds},tenantId:g.tenantId,source:"SMART_FORM"},{$set:{dispatchSelected:true,disabled:false,status:"Scheduled"}});
+    if(Number(dispatchResult.matchedCount??dispatchResult.n??0)!==tripIds.length)return res.status(409).json({success:false,message:"One or more staged Smart Form trips are missing"});
+    await SmartFormSubmission.updateMany({_id:{$in:linked.map(row=>row._id)},tenantId:g.tenantId,status:"REVIEW"},{$set:{status:"CONFIRMED",workflowStage:"DISPATCHED",confirmedBy:actor(req),confirmedAt:new Date()}});
+    return res.json({success:true,confirmedCount:linked.length,tripIds});
+  }catch(err){
+    console.error("SMART FORM FINAL CONFIRM ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to send Smart Form trips to Dispatch"});
+  }
 });
 
 module.exports = router;

@@ -407,6 +407,8 @@ const core=[
 {g:"Operations",i:"car",items:[["Trips Hub","trips-hub.html","list"],["Trips","trips.html","list"]]},
 {g:"Smart Form",i:"doc",items:[
   ["Smart Form","smart-forms.html","doc"],
+  ["Smart Form Hub","smart-form-hub.html","list"],
+  ["Split Smart Form","smart-form-split.html","list"],
   ["Smart Form Review","smart-form-review.html","check"]
 ]},
 {l:"Dispatch",h:"dispatch.html",i:"car"},
@@ -476,6 +478,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
      "Broker Pricing",
    "smart-forms.html":
      "Smart Form",
+   "smart-form-hub.html":
+     "Smart Form Hub",
+   "smart-form-split.html":
+     "Split Smart Form",
    "smart-form-review.html":
      "Smart Form Review",
    "smart-form-summary.html":

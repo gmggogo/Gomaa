@@ -1,0 +1,36 @@
+<!-- DESTINATION: server/public/admin/smart-form-hub.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Smart Form Hub - GH Mobility</title>
+  <link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
+  <link rel="stylesheet" href="/admin/smart-form-workflow.css">
+</head>
+<body>
+  <div id="adminHeader"></div>
+  <main class="page">
+    <header class="page-head"><h1 class="page-title">Smart Form Hub</h1><div class="page-sub">All Smart Form trips waiting for sharing and final review.</div></header>
+    <div id="notice" class="notice"></div>
+    <section class="review-toolbar">
+      <div class="toolbar-left"><button id="selectAllBtn" class="btn" type="button">Select All</button><button id="selectNoneBtn" class="btn" type="button">Select None</button><span id="selectedCount" class="toolbar-right">0 selected</span></div>
+      <div class="toolbar-right"><span>Move selected template trips to Split Smart Form.</span><button id="openSplitBtn" class="btn primary" type="button" disabled>Open in Split</button></div>
+    </section>
+    <section class="stats-board"><div class="stats-day-title">Smart Form Hub</div><div class="stats">
+      <div class="stat"><span>Waiting Trips</span><strong id="statTrips">0</strong></div>
+      <div class="stat"><span>Templates</span><strong id="statTemplates">0</strong></div>
+      <div class="stat"><span>Selected</span><strong id="statSelected">0</strong></div>
+      <div class="stat"><span>Route Ready</span><strong id="statShared">0</strong></div>
+      <div class="stat"><span>With Price</span><strong id="statPriced">0</strong></div>
+      <div class="stat"><span>With Stops</span><strong id="statStops">0</strong></div>
+    </div></section>
+    <section class="panel">
+      <div class="panel-head"><span>Smart Form trips from existing templates</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, pickup, dropoff"><select id="templateFilter"><option value="">All Templates</option></select><input id="fromDate" type="date" aria-label="From date"><input id="toDate" type="date" aria-label="To date"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
+      <div class="table-wrap"><table><thead><tr>
+        <th class="w-select">Select</th><th class="w-trip">Trip #</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Trip Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-stops">Stops</th><th class="w-address">Drop-off</th><th class="w-price">Price</th><th class="w-status">Status</th><th class="w-eye">Details</th>
+      </tr></thead><tbody id="hubRows"></tbody></table><div id="emptyState" class="empty" hidden>No Smart Form trips are waiting in the Hub.</div></div>
+    </section>
+  </main>
+  <script src="/admin/header.js"></script><script src="/admin/js/smart-form-hub.js"></script>
+</body>
+</html>

@@ -7,6 +7,8 @@ const schema = new mongoose.Schema({
   templateName:{type:String,default:""},
   organizationName:{type:String,default:""},
   status:{type:String,enum:["DRAFT","REVIEW","CONFIRMED","ARCHIVED"],default:"DRAFT",index:true},
+  workflowStage:{type:String,enum:["HUB","SPLIT","FINAL_REVIEW","DISPATCHED"],default:"HUB",index:true},
+  sharedGroupId:{type:String,default:"",index:true},
   formData:{type:mongoose.Schema.Types.Mixed,default:{}},
   fieldSnapshot:{type:[mongoose.Schema.Types.Mixed],default:[]},
   tripId:{type:mongoose.Schema.Types.ObjectId,ref:"Trip",default:null,index:true},
@@ -54,6 +56,7 @@ const schema = new mongoose.Schema({
 },{timestamps:true,minimize:false});
 
 schema.index({tenantId:1,status:1,createdAt:-1});
+schema.index({tenantId:1,status:1,workflowStage:1,tripDate:1,pickupTime:1});
 schema.index({tenantId:1,tripNumber:1},{unique:true,partialFilterExpression:{tripNumber:{$type:"string",$gt:""}}});
 schema.index({tenantId:1,organizationId:1,templateId:1,createdAt:-1});
 

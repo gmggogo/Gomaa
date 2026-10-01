@@ -27,7 +27,7 @@ const SharedTripGroupSchema = new mongoose.Schema(
 
     sourceType:{
       type:String,
-      enum:["BROKER","COMPANY","RESERVED"],
+      enum:["BROKER","COMPANY","RESERVED","SMART_FORM"],
       required:true,
       index:true
     },

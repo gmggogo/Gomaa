@@ -1,0 +1,33 @@
+<!-- DESTINATION: server/public/admin/smart-form-split.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Split Smart Form - GH Mobility</title>
+  <link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
+  <link rel="stylesheet" href="/admin/smart-form-workflow.css">
+</head>
+<body>
+  <div id="adminHeader"></div>
+  <main class="page">
+    <header class="page-head"><h1 class="page-title">Split Smart Form</h1><div class="page-sub">Build shared groups or send individual template trips to the final Review.</div></header>
+    <div id="notice" class="notice"></div>
+    <section class="review-toolbar">
+      <div class="toolbar-left"><button id="selectAllBtn" class="btn" type="button">Select All</button><button id="selectNoneBtn" class="btn" type="button">Select None</button><span id="selectedCount" class="toolbar-right">0 selected</span></div>
+      <div class="toolbar-right"><button id="buildShareBtn" class="btn navy" type="button" disabled>Build Share Group</button><button id="restoreBtn" class="btn" type="button" disabled>Return to Original</button><button id="confirmBtn" class="btn primary" type="button" disabled>Move Selected to Review</button></div>
+    </section>
+    <section class="stats-board"><div class="stats-day-title">Split Smart Form</div><div class="stats">
+      <div class="stat"><span>Trips in Split</span><strong id="statTrips">0</strong></div><div class="stat"><span>Shared Groups</span><strong id="statGroups">0</strong></div><div class="stat"><span>Shared Trips</span><strong id="statSharedTrips">0</strong></div><div class="stat"><span>Individual Trips</span><strong id="statIndividuals">0</strong></div><div class="stat"><span>Selected</span><strong id="statSelected">0</strong></div><div class="stat"><span>Templates</span><strong id="statTemplates">0</strong></div>
+    </div></section>
+    <section class="panel">
+      <div class="panel-head"><span>Trips available for sharing</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, address"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th class="w-select">Select</th><th class="w-trip">Trip #</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-address">Drop-off</th><th class="w-mode">Mode</th><th class="w-eye">Details</th></tr></thead><tbody id="individualRows"></tbody></table><div id="individualEmpty" class="empty" hidden>No individual Smart Form trips are waiting in Split.</div></div>
+    </section>
+    <section class="panel" style="margin-top:10px">
+      <div class="panel-head"><span>Shared groups</span><span id="groupCount">0 groups</span></div>
+      <div id="groupList" class="group-list"></div><div id="groupEmpty" class="empty" hidden>No shared groups have been built.</div>
+    </section>
+  </main>
+  <script src="/admin/header.js"></script><script src="/admin/js/smart-form-split.js"></script>
+</body>
+</html>
