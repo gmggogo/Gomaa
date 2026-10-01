@@ -1,4 +1,3 @@
-DESTINATION: server/public/admin/js/smart-form-review.js
 /* DESTINATION: server/public/admin/js/smart-form-review.js */
 (()=>{
   "use strict";
@@ -35,23 +34,6 @@ DESTINATION: server/public/admin/js/smart-form-review.js
 
   function tripKey(row){
     return String(row.tripId||row.dispatchTrip?._id||row._id);
-  }
-
-  function recordPrice(row){
-    const members=row.submissions||[];
-    if(
-      !members.length||
-      members.some(member=>
-        member.pricing?.calculated!==true||
-        member.pricing?.amount===null||
-        member.pricing?.amount===undefined
-      )
-    )return null;
-    return members.reduce((sum,member)=>sum+Number(member.pricing.amount),0);
-  }
-
-  function money(value){
-    return value===null||!Number.isFinite(value)?"—":`$${value.toFixed(2)}`;
   }
 
   function normalize(row){
@@ -216,7 +198,6 @@ DESTINATION: server/public/admin/js/smart-form-review.js
         <td>${cell(rows.map(member=>member.dropoff))}</td>
         <td>${cell(rows.map(member=>member.serviceName))}</td>
         <td>${cell(rows.map(member=>member.notes))}</td>
-        <td>${money(recordPrice(trip))}</td>
         <td><span class="status-pill review">Final Review</span></td>
         <td>${actionButtons(id)}</td>
       </tr>`;

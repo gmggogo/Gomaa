@@ -1780,9 +1780,9 @@ router.post("/workflow/split/confirm",async(req,res)=>{
 router.get("/workflow/review",async(req,res)=>{
   try{
     const g=await gate(req,res);if(!g)return;
-    const rows=await SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"FINAL_REVIEW",tripId:{$ne:null}})
+    const rows=await SmartFormSubmission.find({tenantId:g.tenantId,status:"REVIEW",workflowStage:"FINAL_REVIEW"})
       .sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
-    const tripIds=[...new Set(rows.map(row=>String(row.tripId)))];
+    const tripIds=[...new Set(rows.map(row=>clean(row.tripId)).filter(Boolean))];
     const trips=tripIds.length?await Trip.find({_id:{$in:tripIds},tenantId:g.tenantId}).lean():[];
     const tripMap=new Map(trips.map(trip=>[String(trip._id),trip]));
     return res.json({success:true,submissions:rows.map(row=>({...sanitizeSubmission(row),dispatchTrip:tripMap.get(String(row.tripId))||null}))});
