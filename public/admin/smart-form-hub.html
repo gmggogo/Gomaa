@@ -1,3 +1,4 @@
+<!-- SMART FORM HUB FIXED V2 — 2026-10-01 -->
 <!-- DESTINATION: server/public/admin/smart-form-hub.html -->
 <!doctype html>
 <html lang="en">
@@ -6,31 +7,47 @@
   <title>Smart Form Hub - GH Mobility</title>
   <link rel="stylesheet" href="/admin/style.css"><link rel="stylesheet" href="/admin/header.css">
   <link rel="stylesheet" href="/admin/smart-form-workflow.css">
+  <style>
+    .sf-hub-stats{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:0 0 12px}
+    .sf-hub-stat{min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 10px;border:1px solid #c9a23a;border-radius:12px;background:linear-gradient(135deg,#fff7d8 0%,#efd88c 48%,#fff0b4 100%);box-shadow:0 6px 16px rgba(146,102,14,.14);text-align:center}
+    .sf-hub-stat span{color:#4a3a0a;font-size:10px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;text-align:center}
+    .sf-hub-stat strong{display:block;margin-top:6px;color:#111827;font-size:24px;line-height:1;font-weight:900;text-align:center}
+    .sf-hub-actions{display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap}
+    .sf-hub-actions .btn{padding:6px 8px;font-size:10px}
+    .sf-edit-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58)}
+    .sf-edit-modal.open{display:flex}
+    .sf-edit-card{width:min(900px,96vw);max-height:90vh;overflow:auto;border-radius:14px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .sf-edit-head{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#163d57;color:#fff;font-weight:900}
+    .sf-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px}
+    .sf-edit-field label{display:block;margin-bottom:5px;color:#52606c;font-size:11px;font-weight:900}
+    .sf-edit-field input,.sf-edit-field select,.sf-edit-field textarea{width:100%;min-height:36px;border:1px solid #cbd5e1;border-radius:7px;padding:8px;font:inherit}
+    .sf-edit-field textarea{min-height:76px;resize:vertical}.sf-edit-field.full{grid-column:1/-1}
+    .sf-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;border-top:1px solid #d8e1e7}
+    @media(max-width:950px){.sf-hub-stats{grid-template-columns:repeat(3,minmax(100px,1fr))}}
+    @media(max-width:600px){.sf-hub-stats{grid-template-columns:repeat(2,minmax(90px,1fr));gap:7px}.sf-hub-stat{min-height:66px;padding:8px}.sf-edit-fields{grid-template-columns:1fr}.sf-edit-field.full{grid-column:auto}}
+  </style>
 </head>
 <body>
   <div id="adminHeader"></div>
   <main class="page">
-    <header class="page-head"><h1 class="page-title">Smart Form Hub</h1><div class="page-sub">All Smart Form trips waiting for sharing and final review.</div></header>
+    <header class="page-head"><h1 class="page-title">Smart Form Hub</h1><div class="page-sub">Smart Form trips arrive here automatically. Confirm each trip to continue to Split.</div></header>
     <div id="notice" class="notice"></div>
-    <section class="review-toolbar">
-      <div class="toolbar-left"><button id="selectAllBtn" class="btn" type="button">Select All</button><button id="selectNoneBtn" class="btn" type="button">Select None</button><span id="selectedCount" class="toolbar-right">0 selected</span></div>
-      <div class="toolbar-right"><span>Move selected template trips to Split Smart Form.</span><button id="openSplitBtn" class="btn primary" type="button" disabled>Open in Split</button></div>
+    <section class="sf-hub-stats" aria-label="Smart Form Hub totals">
+      <div class="sf-hub-stat"><span>Confirmed</span><strong id="statConfirmed">0</strong></div>
+      <div class="sf-hub-stat"><span>Not Confirmed</span><strong id="statNotConfirmed">0</strong></div>
+      <div class="sf-hub-stat"><span>With Stops</span><strong id="statWithStops">0</strong></div>
+      <div class="sf-hub-stat"><span>Active Templates</span><strong id="statActiveTemplates">0</strong></div>
+      <div class="sf-hub-stat"><span>New Trips</span><strong id="statNewTrips">0</strong></div>
+      <div class="sf-hub-stat"><span>Total Trips</span><strong id="statTotalTrips">0</strong></div>
     </section>
-    <section class="stats-board"><div class="stats-day-title">Smart Form Hub</div><div class="stats">
-      <div class="stat"><span>Waiting Trips</span><strong id="statTrips">0</strong></div>
-      <div class="stat"><span>Templates</span><strong id="statTemplates">0</strong></div>
-      <div class="stat"><span>Selected</span><strong id="statSelected">0</strong></div>
-      <div class="stat"><span>Route Ready</span><strong id="statShared">0</strong></div>
-      <div class="stat"><span>With Price</span><strong id="statPriced">0</strong></div>
-      <div class="stat"><span>With Stops</span><strong id="statStops">0</strong></div>
-    </div></section>
     <section class="panel">
-      <div class="panel-head"><span>Smart Form trips from existing templates</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, pickup, dropoff"><select id="templateFilter"><option value="">All Templates</option></select><input id="fromDate" type="date" aria-label="From date"><input id="toDate" type="date" aria-label="To date"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
+      <div class="panel-head"><span>Trips submitted from Smart Form templates</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, address"><select id="statusFilter"><option value="">All Confirmation Statuses</option><option value="CONFIRMED">Confirmed</option><option value="NOT_CONFIRMED">Not Confirmed</option></select><input id="dateFilter" type="date" aria-label="Trip date"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
       <div class="table-wrap"><table><thead><tr>
-        <th class="w-select">Select</th><th class="w-trip">Trip #</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Trip Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-stops">Stops</th><th class="w-address">Drop-off</th><th class="w-price">Price</th><th class="w-status">Status</th><th class="w-eye">Details</th>
+        <th class="w-trip">Trip #</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Trip Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-stops">Stops</th><th class="w-address">Drop-off</th><th class="w-status">Confirmation</th><th class="w-eye">Details</th><th class="w-actions">Actions</th>
       </tr></thead><tbody id="hubRows"></tbody></table><div id="emptyState" class="empty" hidden>No Smart Form trips are waiting in the Hub.</div></div>
     </section>
   </main>
+  <div id="editModal" class="sf-edit-modal" aria-hidden="true"><section class="sf-edit-card"><header class="sf-edit-head"><span id="editTitle">Edit Smart Form Trip</span><button id="closeEditBtn" class="view-close" type="button" aria-label="Close">×</button></header><div id="editFields" class="sf-edit-fields"></div><footer class="sf-edit-actions"><button id="cancelEditBtn" class="btn" type="button">Cancel</button><button id="saveEditBtn" class="btn primary" type="button">Save Changes</button></footer></section></div>
   <script src="/admin/header.js"></script><script src="/admin/js/smart-form-hub.js"></script>
 </body>
 </html>

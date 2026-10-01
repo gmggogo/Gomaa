@@ -1437,18 +1437,73 @@ async function resolveSmartFormSubmissionCoords(row){
   return {...row,...coords};
 }
 
+/* SMART FORM HUB FIXED V2 — Hub list, edit, confirm and delete workflow */
 router.get("/workflow/hub",async(req,res)=>{
   try{
     const g=await gate(req,res);if(!g)return;
     const rows=await SmartFormSubmission.find({
       tenantId:g.tenantId,
       status:"REVIEW",
-      $or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}]
+      $or:[{workflowStage:{$in:["HUB","SPLIT"]}},{workflowStage:{$exists:false}}]
     }).sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
     return res.json({success:true,submissions:rows.map(sanitizeSubmission)});
   }catch(err){
     console.error("SMART FORM HUB ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form Hub"});
+  }
+});
+
+router.patch("/workflow/hub/:id",async(req,res)=>{
+  try{
+    const g=await gate(req,res);if(!g)return;
+    if(!mongoose.Types.ObjectId.isValid(req.params.id)){
+      return res.status(400).json({success:false,message:"Invalid Smart Form trip id"});
+    }
+    const submission=await SmartFormSubmission.findOne({
+      _id:req.params.id,tenantId:g.tenantId,status:"REVIEW",workflowStage:"HUB",tripId:null
+    });
+    if(!submission)return res.status(404).json({success:false,message:"Unconfirmed Smart Form trip not found"});
+    const template=await SmartFormTemplate.findOne({
+      _id:submission.templateId,tenantId:g.tenantId
+    }).lean();
+    if(!template)return res.status(404).json({success:false,message:"Saved Smart Form template not found"});
+
+    const incoming=req.body?.formData&&typeof req.body.formData==="object"?req.body.formData:{};
+    const nextData={...(submission.formData||{})};
+    for(const field of submission.fieldSnapshot||[]){
+      const key=clean(field?.key);
+      if(key&&Object.prototype.hasOwnProperty.call(incoming,key))nextData[key]=incoming[key];
+    }
+    const missing=(submission.fieldSnapshot||[])
+      .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+      .filter(field=>!hasValue(nextData[field.key]))
+      .map(field=>clean(field.label)||clean(field.key));
+    if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
+
+    const operational=operationalData(template,nextData);
+    const requiredOps=[
+      ["Client Name",operational.clientName],
+      ["Pickup Address",operational.pickupAddress],
+      ["Dropoff Address",operational.dropoffAddress],
+      ["Trip Date",operational.tripDate],
+      ["Pickup Time",operational.pickupTime],
+      ["Service",operational.serviceName]
+    ].filter(([,value])=>!value).map(([label])=>label);
+    if(requiredOps.length)return res.status(400).json({success:false,message:`Review fields missing: ${requiredOps.join(", ")}`});
+
+    submission.formData=nextData;
+    submission.clientName=operational.clientName;
+    submission.pickupAddress=operational.pickupAddress;
+    submission.dropoffAddress=operational.dropoffAddress;
+    submission.stops=operational.stops;
+    submission.tripDate=operational.tripDate;
+    submission.pickupTime=operational.pickupTime;
+    submission.serviceName=operational.serviceName;
+    await submission.save();
+    return res.json({success:true,submission:sanitizeSubmission(submission)});
+  }catch(err){
+    console.error("SMART FORM HUB EDIT ERROR:",err);
+    return res.status(500).json({success:false,message:err?.message||"Failed to update Smart Form trip"});
   }
 });
 
