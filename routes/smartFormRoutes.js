@@ -781,18 +781,30 @@ router.get("/submissions", async (req,res)=>{
 
         if(Array.isArray(trip.stops)) out.stops=trip.stops;
 
-        const finalMiles=Number(trip.distanceMiles ?? trip.miles);
+        const tripMiles=Number(trip.distanceMiles ?? trip.miles);
+        const savedSubmissionMiles=Number(out.pricing?.miles);
+        const finalMiles=
+          Number.isFinite(tripMiles) && tripMiles > 0
+            ? tripMiles
+            : (Number.isFinite(savedSubmissionMiles) && savedSubmissionMiles > 0
+                ? savedSubmissionMiles
+                : (Number.isFinite(tripMiles) ? tripMiles : savedSubmissionMiles));
         if(Number.isFinite(finalMiles)) out.distanceMiles=finalMiles;
 
         const finalMinutes=Number(trip.durationMinutes);
         if(Number.isFinite(finalMinutes)) out.durationMinutes=finalMinutes;
 
         // Always prefer the final Trip price in Summary, including a legitimate $0.00.
-        const finalPriceValue=Number(trip.finalPrice);
+        const priceCandidates=[
+          trip.finalPrice,
+          trip.priceAmount,
+          out.pricing?.amount,
+          out.priceAmount,
+          out.finalPrice
+        ].map(Number).filter(Number.isFinite);
         const rawFinalPrice=
-          Number.isFinite(finalPriceValue) && finalPriceValue > 0
-            ? trip.finalPrice
-            : (trip.priceAmount ?? trip.finalPrice);
+          priceCandidates.find(value=>value>0) ??
+          priceCandidates[0];
         const finalPrice=Number(rawFinalPrice);
         if(rawFinalPrice!==undefined && rawFinalPrice!==null && rawFinalPrice!=="" && Number.isFinite(finalPrice)){
           out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
