@@ -1,4 +1,3 @@
-// Destination: server/index.js (attached GH Mobility server entry point)
 const config = require("./config/env");
 const { connectDatabase } = require("./config/database");
 const { requireTenantApi } = require("./middleware/tenantApiAuth");
@@ -1572,28 +1571,12 @@ global.Trip = Trip;
 global.User = User;
 
 /* =========================
-   ATTACHMENT IMPORT + CUSTOMER SIGNATURE
+   CUSTOMER SIGNATURE
    Mounted after Trip model registration.
 ========================= */
 
-const attachmentTemplateRoutes =
-  require("./routes/attachmentTemplateRoutes");
-
-const attachmentImportRoutes =
-  require("./routes/attachmentImportRoutes");
-
 const tripSignatureRoutes =
   require("./routes/tripSignatureRoutes");
-
-app.use(
-  "/api/attachment-templates",
-  attachmentTemplateRoutes
-);
-
-app.use(
-  "/api/attachment-imports",
-  attachmentImportRoutes
-);
 
 app.use(
   "/api/trip-signatures",
