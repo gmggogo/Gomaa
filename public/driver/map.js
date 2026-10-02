@@ -5511,12 +5511,14 @@ btnPrimaryAction?.addEventListener("click", async () => {
       return;
     }
 
+    /* Keep the existing signature gate exactly before final Complete. */
     if(customerSignatureRequired && !customerSignatureSigned){
       alert("Customer signature is required before Complete.");
       applyCustomerSignatureDropoffGate();
       return;
     }
 
+    /* Odometer is only a gate. It does not calculate or overwrite trip price. */
     if(odometerRequired && !dropoffOdometerSaved){
       alert("Ending odometer is required before Complete.");
       showOdometerUi("DROPOFF");
@@ -5554,38 +5556,63 @@ btnPrimaryAction?.addEventListener("click", async () => {
           );
         });
 
-        /* Keep local passenger state in sync before deciding the final status. */
+        /*
+          Restore the original pricing payload:
+          keep the price already calculated on the trip.
+          Do not derive price from odometer.
+        */
+        await updateTrip({
+          status: allCompleted ? "Completed" : "InProgress",
+          dispatchStatus: allCompleted ? "COMPLETED" : "ON_TRIP",
+          passengers,
+          finalPrice: Number(
+            tripDoc.finalPrice ||
+            tripDoc.priceAmount ||
+            0
+          )
+        });
+
         tripDoc.passengers = passengers;
 
         if(allCompleted){
-          /*
-            One final server update only. Do NOT write finalPrice from the
-            driver here; the existing backend pricing flow remains untouched.
-          */
-          await finishTripAndReturnToTrips("Completed", { passengers });
+          clearTripLocalState();
+          localStorage.removeItem("activeDriverTripId");
+          window.location.replace("/driver/trips.html");
           return;
         }
-
-        await updateTrip({
-          status: "InProgress",
-          dispatchStatus: "ON_TRIP",
-          passengers
-        });
 
         await advanceStop(true);
         return;
       }
 
       /*
-        Single-rider final dropoff: complete the trip in ONE update.
-        Odometer/signature were already saved before this point.
-        Do not send finalPrice=0 and do not perform a second Completed edit.
+        Restore the original single-trip Complete payload.
+        This is the one and only Completed server update.
       */
-      tripDoc.passengerStatus = "Completed";
-      await finishTripAndReturnToTrips("Completed", {
-        passengerStatus: "Completed"
+      await updateTrip({
+        status: "Completed",
+        dispatchStatus: "COMPLETED",
+        completedAt: serverNow(),
+        passengerStatus: "Completed",
+        finalPrice: Number(
+          tripDoc.finalPrice ||
+          tripDoc.priceAmount ||
+          0
+        )
       });
+
+      tripDoc.passengerStatus = "Completed";
+
+      /*
+        Do NOT call finishTripAndReturnToTrips() here.
+        That would attempt a second edit after the trip is already Completed
+        and the backend correctly rejects it.
+      */
+      clearTripLocalState();
+      localStorage.removeItem("activeDriverTripId");
+      window.location.replace("/driver/trips.html");
       return;
+
     }catch(err){
       alert(err.message);
       return;
