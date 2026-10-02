@@ -1368,7 +1368,13 @@ function showOdometerUi(stage){
   const input=odometerBox.querySelector("#driverOdometerInput");
   const save=odometerBox.querySelector("#driverOdometerSave");
   label.textContent=stage==="PICKUP" ? "Starting Odometer" : "Ending Odometer";
-  input.value=""; odometerBox.dataset.stage=stage; odometerBox.style.display="block";
+  // Do not clear the driver's typed value when renderExecutionState() refreshes
+  // the same odometer stage. Clear only when moving to a different stage.
+  if(odometerBox.dataset.stage !== stage){
+    input.value="";
+  }
+  odometerBox.dataset.stage=stage;
+  odometerBox.style.display="block";
   save.onclick=async()=>{
     const value=Number(input.value);
     if(!Number.isFinite(value)||value<0){alert("Enter a valid odometer reading.");return;}
