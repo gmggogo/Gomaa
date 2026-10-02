@@ -215,6 +215,12 @@ const servicePricingSchema =
         default:false
       },
 
+      /* Facility can require driver odometer capture per service. */
+      odometerRequired:{
+        type:Boolean,
+        default:false
+      },
+
       warningMinutes:{
         type:Number,
         default:0

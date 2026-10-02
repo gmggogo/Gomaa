@@ -353,6 +353,9 @@ server/public/admin/js/broker-pricing.js
           customerSignatureRequired:
             existing.customerSignatureRequired === true,
 
+          odometerRequired:
+            existing.odometerRequired === true,
+
           shared:
             shared ||
             existing.shared === true,
@@ -612,6 +615,7 @@ server/public/admin/js/broker-pricing.js
       [
         "enabled",
         "customerSignatureRequired",
+        "odometerRequired",
         "cancelEnabled",
         "addStopEnabled",
         "addStopCustomTimeEnabled",
@@ -887,6 +891,18 @@ server/public/admin/js/broker-pricing.js
             "customerSignatureRequired",
             "Customer Signature Before Complete",
             String(service.customerSignatureRequired === true),
+            [
+              {value:"true",label:"ENABLED"},
+              {value:"false",label:"DISABLED"}
+            ],
+            locked || !state.draftActive
+          )}
+
+          ${selectInput(
+            idx,
+            "odometerRequired",
+            "Odometer Before Pickup & Complete",
+            String(service.odometerRequired === true),
             [
               {value:"true",label:"ENABLED"},
               {value:"false",label:"DISABLED"}
@@ -1174,6 +1190,7 @@ server/public/admin/js/broker-pricing.js
     if([
       "enabled",
       "customerSignatureRequired",
+      "odometerRequired",
       "cancelEnabled",
       "addStopEnabled",
       "addStopCustomTimeEnabled",

@@ -578,6 +578,9 @@ function serviceDefaultPricing(s){
     customerSignatureRequired:
       false,
 
+    odometerRequired:
+      false,
+
     warningMinutes:
       num(
         s?.companyWarningMinutes ??
@@ -753,6 +756,11 @@ function normalizeServiceInput(s){
     customerSignatureRequired:
       bool(
         s?.customerSignatureRequired
+      ),
+
+    odometerRequired:
+      bool(
+        s?.odometerRequired
       ),
 
     warningMinutes:

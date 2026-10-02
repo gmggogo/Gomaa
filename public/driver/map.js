@@ -314,6 +314,12 @@ let customerSignatureSigned = false;
 let customerSignatureButton = null;
 let customerSignatureOverlay = null;
 
+/* Service-controlled odometer gate. */
+let odometerRequired = false;
+let pickupOdometerSaved = false;
+let dropoffOdometerSaved = false;
+let odometerBox = null;
+
 let map = null;
 let driverMarker = null;
 let routePolyline = null;
@@ -1344,6 +1350,46 @@ function applyCustomerSignatureDropoffGate(){
   }
   hideCustomerSignatureButton();
   return true;
+}
+
+function ensureOdometerUi(){
+  if(odometerBox) return;
+  const style=document.createElement("style");
+  style.textContent=`#driverOdometerBox{display:none;width:100%;margin:12px 0 10px;padding:16px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;box-sizing:border-box}#driverOdometerBox label{display:block;margin-bottom:8px;color:#0d3155;font-weight:900}#driverOdometerInput{width:100%;box-sizing:border-box;padding:13px;border:1px solid #aeb8c4;border-radius:10px;font-size:18px}#driverOdometerSave{width:100%;margin-top:10px;min-height:46px;border:0;border-radius:10px;background:#15803d;color:#fff;font-weight:900}`;
+  document.head.appendChild(style);
+  odometerBox=document.createElement("div"); odometerBox.id="driverOdometerBox";
+  odometerBox.innerHTML=`<label id="driverOdometerLabel">Odometer</label><input id="driverOdometerInput" type="number" min="0" step="1" inputmode="numeric" placeholder="Enter vehicle odometer"><button type="button" id="driverOdometerSave">Save Odometer</button>`;
+  if(btnPrimaryAction?.parentElement) btnPrimaryAction.parentElement.insertBefore(odometerBox,btnPrimaryAction);
+}
+function hideOdometerUi(){ if(odometerBox) odometerBox.style.display="none"; }
+function showOdometerUi(stage){
+  ensureOdometerUi();
+  const label=odometerBox.querySelector("#driverOdometerLabel");
+  const input=odometerBox.querySelector("#driverOdometerInput");
+  const save=odometerBox.querySelector("#driverOdometerSave");
+  label.textContent=stage==="PICKUP" ? "Starting Odometer" : "Ending Odometer";
+  input.value=""; odometerBox.dataset.stage=stage; odometerBox.style.display="block";
+  save.onclick=async()=>{
+    const value=Number(input.value);
+    if(!Number.isFinite(value)||value<0){alert("Enter a valid odometer reading.");return;}
+    save.disabled=true;
+    try{
+      const res=await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}/odometer`,{method:"POST",headers:driverAuthHeaders({"Content-Type":"application/json"}),body:JSON.stringify({stage,value})});
+      const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.message||"Odometer save failed");
+      if(stage==="PICKUP"){ pickupOdometerSaved=true; tripDoc.pickupOdometer=data.pickupOdometer; }
+      else { dropoffOdometerSaved=true; tripDoc.dropoffOdometer=data.dropoffOdometer; tripDoc.odometerMiles=data.odometerMiles; }
+      renderExecutionState();
+    }catch(err){alert(err.message||"Odometer save failed");}finally{save.disabled=false;}
+  };
+}
+async function loadOdometerRequirement(){
+  ensureOdometerUi();
+  try{
+    const res=await fetch(`/api/trip-signatures/${encodeURIComponent(TRIP_ID)}/odometer-requirement`,{cache:"no-store",headers:driverAuthHeaders()});
+    const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.message||"Odometer settings failed");
+    odometerRequired=data.required===true; pickupOdometerSaved=data.pickupOdometer !== null && data.pickupOdometer !== "" && Number.isFinite(Number(data.pickupOdometer)); dropoffOdometerSaved=data.dropoffOdometer !== null && data.dropoffOdometer !== "" && Number.isFinite(Number(data.dropoffOdometer));
+    if(tripDoc){tripDoc.odometerRequired=odometerRequired;tripDoc.pickupOdometer=data.pickupOdometer;tripDoc.dropoffOdometer=data.dropoffOdometer;tripDoc.odometerMiles=data.odometerMiles;}
+  }catch(err){console.log("ODOMETER REQUIREMENT ERROR:",err);odometerRequired=false;}
 }
 
 async function updateTrip(body){
@@ -4958,6 +5004,8 @@ function renderExecutionState(){
     STRICT FLOW:
     Before ARRIVED, no passenger execution controls are visible.
   */
+  hideOdometerUi();
+
   if(state.arrived !== true){
     passengersSection.style.display = "none";
     currentPassengersEl.innerHTML = "";
@@ -5033,6 +5081,16 @@ function renderExecutionState(){
     btnStartRide.style.display =
       "none";
 
+    return;
+  }
+
+  if(stop.type === "pickup" && odometerRequired && !pickupOdometerSaved){
+    passengersSection.style.display="none";
+    currentPassengersEl.innerHTML="";
+    btnStartRide.style.display="none";
+    hidePrimaryButton();
+    setStopStatus("Enter starting odometer before pickup");
+    showOdometerUi("PICKUP");
     return;
   }
 
@@ -5246,7 +5304,18 @@ function renderExecutionState(){
     );
 
     btnPrimaryAction.dataset.mode = "complete-dropoff";
-    applyCustomerSignatureDropoffGate();
+    if(!applyCustomerSignatureDropoffGate()){
+      hideOdometerUi();
+      return;
+    }
+    if(odometerRequired && !dropoffOdometerSaved){
+      btnPrimaryAction.disabled=true;
+      btnPrimaryAction.setAttribute("aria-disabled","true");
+      setStopStatus("Enter ending odometer before Complete");
+      showOdometerUi("DROPOFF");
+      return;
+    }
+    hideOdometerUi();
   }else{
     hideCustomerSignatureButton();
   }
@@ -5438,6 +5507,12 @@ btnPrimaryAction?.addEventListener("click", async () => {
     if(customerSignatureRequired && !customerSignatureSigned){
       alert("Customer signature is required before Complete.");
       applyCustomerSignatureDropoffGate();
+      return;
+    }
+
+    if(odometerRequired && !dropoffOdometerSaved){
+      alert("Ending odometer is required before Complete.");
+      showOdometerUi("DROPOFF");
       return;
     }
 
@@ -5914,6 +5989,7 @@ async function initPage(){
     tripDoc = await fetchTrip();
 
     await loadCustomerSignatureRequirement();
+    await loadOdometerRequirement();
     await loadTripServiceWaitConfig();
 
     routeStops = buildRouteStops(tripDoc);

@@ -77,6 +77,17 @@ const tripSchema = new mongoose.Schema({
   /* =========================
      CUSTOMER SIGNATURE
   ========================= */
+  /* =========================
+     SERVICE ODOMETER CAPTURE
+     Required only when the source/service setting enables it.
+  ========================= */
+  odometerRequired:{ type:Boolean, default:false },
+  pickupOdometer:{ type:Number, default:null },
+  pickupOdometerAt:{ type:Date, default:null },
+  dropoffOdometer:{ type:Number, default:null },
+  dropoffOdometerAt:{ type:Date, default:null },
+  odometerMiles:{ type:Number, default:null },
+
   customerSignatureCaptured:{ type:Boolean, default:false },
   customerSignatureAt:{ type:Date, default:null },
   customerSignatureId:{

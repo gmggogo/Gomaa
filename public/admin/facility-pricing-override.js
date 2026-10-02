@@ -398,6 +398,8 @@ function serviceDefaultCopy(s){
 
     customerSignatureRequired:
       s.customerSignatureRequired === true,
+    odometerRequired:
+      s.odometerRequired === true,
 
     pricingMode:
       upper(
@@ -637,6 +639,8 @@ function buildDraftForFacility(facility){
 
           customerSignatureRequired:
             bool(saved.customerSignatureRequired),
+          odometerRequired:
+            bool(saved.odometerRequired),
 
           addStopEnabled:
             bool(saved.addStopEnabled),
@@ -1294,6 +1298,16 @@ function serviceCardHTML(s,idx){
           )
         }
 
+        ${
+          onOffInput(
+            idx,
+            "odometerRequired",
+            "Odometer Before Pickup & Complete",
+            s.odometerRequired === true,
+            cardLocked || !draftActive
+          )
+        }
+
         <div class="policy-title">Facility Warning Policy</div>
 
         ${
@@ -1581,6 +1595,7 @@ function updateServiceField(idx,field,value){
     "shared",
     "disableCancel",
     "customerSignatureRequired",
+    "odometerRequired",
     "addStopEnabled",
     "addStopCustomTimeEnabled"
   ].includes(field)){
@@ -1743,6 +1758,8 @@ function prepareServicesForSave(){
 
       customerSignatureRequired:
         bool(s.customerSignatureRequired),
+      odometerRequired:
+        bool(s.odometerRequired),
 
       warningMinutes:
         num(s.warningMinutes),

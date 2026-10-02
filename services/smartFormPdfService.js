@@ -203,8 +203,19 @@ function automaticValue(field,ctx){
     if(field?.type==="SIGNATURE" || id.includes("MEMBER SIGNATURE") || id.includes("CLIENT SIGNATURE") || id.includes("CUSTOMER SIGNATURE")){
       return signature?.signatureData?.length ? "__SIGNATURE__" : "";
     }
-    // Never substitute time/miles into odometer fields. There is no odometer source in current Trip schema.
-    if(id.includes("ODOMETER")) return "";
+    // Odometer values are captured by Driver App when the source/service requires them.
+    if(id.includes("ODOMETER") || id.includes("METER READING")){
+      if(id.includes("START") || id.includes("BEGIN") || id.includes("PICK UP") || id.includes("PICKUP") || id.includes("OUT")){
+        return trip?.pickupOdometer ?? "";
+      }
+      if(id.includes("END") || id.includes("FINAL") || id.includes("DROP OFF") || id.includes("DROPOFF") || id.includes("IN")){
+        return trip?.dropoffOdometer ?? "";
+      }
+      if(id.includes("MILES") || id.includes("DIFFERENCE") || id.includes("TOTAL")){
+        return trip?.odometerMiles ?? "";
+      }
+      return trip?.dropoffOdometer ?? trip?.pickupOdometer ?? "";
+    }
     if(id.includes("TRIP MILES") || id==="MILES" || id.includes("MILEAGE")){
       const miles=actualMiles(trip);
       return miles>0 ? miles.toFixed(2).replace(/\.00$/,"").replace(/(\.\d)0$/,"$1") : "";

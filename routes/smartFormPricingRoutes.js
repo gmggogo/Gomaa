@@ -229,6 +229,9 @@ function normalizeServiceInput(
     customerSignatureRequired:
       bool(row.customerSignatureRequired),
 
+    odometerRequired:
+      bool(row.odometerRequired),
+
     shared,
 
     pricingMode:
