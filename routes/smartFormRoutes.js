@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const https = require("https");
 
 const routeMapEngine = require("../utils/routeMapEngine");
+const { smartFormAiDetectModels, smartFormAiShouldFallback } = require("../utils/smartFormAiModels");
 
 const Tenant = require("../models/Tenant");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
@@ -626,28 +627,40 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       });
     }
 
-    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const r=await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
-      {
-        method:"POST",
-        headers:{
-          "x-goog-api-key":process.env.GEMINI_API_KEY,
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          contents:[{role:"user",parts}],
-          generationConfig:{
-            responseMimeType:"application/json",
-            maxOutputTokens:8192
-          }
-        })
+    const requestBody={
+      contents:[{role:"user",parts}],
+      generationConfig:{
+        responseMimeType:"application/json",
+        maxOutputTokens:8192
       }
-    );
+    };
 
-    const raw=await r.json();
-    if(!r.ok){
-      throw new Error(raw?.error?.message||"Gemini AI request failed");
+    let r=null;
+    let raw={};
+    let lastProviderMessage="";
+    for(const geminiModel of smartFormAiDetectModels(process.env)){
+      r=await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+        {
+          method:"POST",
+          headers:{
+            "x-goog-api-key":process.env.GEMINI_API_KEY,
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify(requestBody)
+        }
+      );
+      try{raw=await r.json();}catch(_){raw={};}
+      if(r.ok) break;
+      lastProviderMessage=clean(raw?.error?.message);
+      if(!smartFormAiShouldFallback(r.status)) break;
+    }
+
+    if(!r || !r.ok){
+      if(r && smartFormAiShouldFallback(r.status)){
+        return res.status(503).json({success:false,code:"SMART_FORM_AI_TEMPORARILY_UNAVAILABLE",message:"Form reader is temporarily busy. Please try again."});
+      }
+      throw new Error(lastProviderMessage||"Gemini AI request failed");
     }
 
     const text=(raw?.candidates||[])
