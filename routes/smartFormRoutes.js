@@ -1,3 +1,4 @@
+// Destination: server/routes/smartFormRoutes.js
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -788,7 +789,11 @@ router.get("/submissions", async (req,res)=>{
         if(Number.isFinite(finalMinutes)) out.durationMinutes=finalMinutes;
 
         // Always prefer the final Trip price in Summary, including a legitimate $0.00.
-        const rawFinalPrice=trip.finalPrice ?? trip.priceAmount;
+        const finalPriceValue=Number(trip.finalPrice);
+        const rawFinalPrice=
+          Number.isFinite(finalPriceValue) && finalPriceValue > 0
+            ? trip.finalPrice
+            : (trip.priceAmount ?? trip.finalPrice);
         const finalPrice=Number(rawFinalPrice);
         if(rawFinalPrice!==undefined && rawFinalPrice!==null && rawFinalPrice!=="" && Number.isFinite(finalPrice)){
           out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};

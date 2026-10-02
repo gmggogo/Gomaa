@@ -1,3 +1,4 @@
+// Destination: server/public/admin/js/smart-form-summary.js
 (()=>{
 "use strict";
 const $=id=>document.getElementById(id);
@@ -71,7 +72,14 @@ function statusClass(v){
 }
 function statusHTML(v){const s=normalizeStatus(v);return `<span class="status-pill ${statusClass(s)}">${safe(s)}</span>`;}
 function miles(s){return num(s?.distanceMiles||s?.miles||s?.trip?.miles||s?.tripData?.miles);}
-function price(s){return num(s?.pricing?.amount||s?.total||s?.tripPrice||s?.price||s?.trip?.price||s?.tripData?.price);}
+function price(s){
+  const values=[
+    s?.finalPrice,s?.priceAmount,s?.pricing?.amount,s?.total,s?.tripPrice,s?.price,
+    s?.trip?.finalPrice,s?.trip?.priceAmount,s?.trip?.price,
+    s?.tripData?.finalPrice,s?.tripData?.priceAmount,s?.tripData?.price
+  ].filter(v=>v!==undefined&&v!==null&&v!==""&&Number.isFinite(Number(v)));
+  return num(values.find(v=>Number(v)!==0) ?? values[0] ?? 0);
+}
 function count(s){return Math.min(10,Math.max(1,num(s?.passengerCount||s?.totalPassengers||passengers(s).length||1)));}
 
 function buildFilters(){
