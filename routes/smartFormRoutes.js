@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const https = require("https");
 
 const routeMapEngine = require("../utils/routeMapEngine");
-const { smartFormAiDetectModels, smartFormAiShouldFallback } = require("../utils/smartFormAiModels");
 
 const Tenant = require("../models/Tenant");
 const SmartFormOrganization = require("../models/SmartFormOrganization");
@@ -627,40 +626,28 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       });
     }
 
-    const requestBody={
-      contents:[{role:"user",parts}],
-      generationConfig:{
-        responseMimeType:"application/json",
-        maxOutputTokens:8192
+    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
+    const r=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+      {
+        method:"POST",
+        headers:{
+          "x-goog-api-key":process.env.GEMINI_API_KEY,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          contents:[{role:"user",parts}],
+          generationConfig:{
+            responseMimeType:"application/json",
+            maxOutputTokens:8192
+          }
+        })
       }
-    };
+    );
 
-    let r=null;
-    let raw={};
-    let lastProviderMessage="";
-    for(const geminiModel of smartFormAiDetectModels(process.env)){
-      r=await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
-        {
-          method:"POST",
-          headers:{
-            "x-goog-api-key":process.env.GEMINI_API_KEY,
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify(requestBody)
-        }
-      );
-      try{raw=await r.json();}catch(_){raw={};}
-      if(r.ok) break;
-      lastProviderMessage=clean(raw?.error?.message);
-      if(!smartFormAiShouldFallback(r.status)) break;
-    }
-
-    if(!r || !r.ok){
-      if(r && smartFormAiShouldFallback(r.status)){
-        return res.status(503).json({success:false,code:"SMART_FORM_AI_TEMPORARILY_UNAVAILABLE",message:"Form reader is temporarily busy. Please try again."});
-      }
-      throw new Error(lastProviderMessage||"Gemini AI request failed");
+    const raw=await r.json();
+    if(!r.ok){
+      throw new Error(raw?.error?.message||"Gemini AI request failed");
     }
 
     const text=(raw?.candidates||[])
@@ -794,30 +781,14 @@ router.get("/submissions", async (req,res)=>{
 
         if(Array.isArray(trip.stops)) out.stops=trip.stops;
 
-        const tripMiles=Number(trip.distanceMiles ?? trip.miles);
-        const savedSubmissionMiles=Number(out.pricing?.miles);
-        const finalMiles=
-          Number.isFinite(tripMiles) && tripMiles > 0
-            ? tripMiles
-            : (Number.isFinite(savedSubmissionMiles) && savedSubmissionMiles > 0
-                ? savedSubmissionMiles
-                : (Number.isFinite(tripMiles) ? tripMiles : savedSubmissionMiles));
+        const finalMiles=Number(trip.distanceMiles ?? trip.miles);
         if(Number.isFinite(finalMiles)) out.distanceMiles=finalMiles;
 
         const finalMinutes=Number(trip.durationMinutes);
         if(Number.isFinite(finalMinutes)) out.durationMinutes=finalMinutes;
 
         // Always prefer the final Trip price in Summary, including a legitimate $0.00.
-        const priceCandidates=[
-          trip.finalPrice,
-          trip.priceAmount,
-          out.pricing?.amount,
-          out.priceAmount,
-          out.finalPrice
-        ].map(Number).filter(Number.isFinite);
-        const rawFinalPrice=
-          priceCandidates.find(value=>value>0) ??
-          priceCandidates[0];
+        const rawFinalPrice=trip.finalPrice ?? trip.priceAmount;
         const finalPrice=Number(rawFinalPrice);
         if(rawFinalPrice!==undefined && rawFinalPrice!==null && rawFinalPrice!=="" && Number.isFinite(finalPrice)){
           out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
@@ -1073,12 +1044,6 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       });
 
       smartFormPrice=Number(priceResult?.total||0);
-      if(!Number.isFinite(smartFormPrice) || smartFormPrice<=0){
-        throw Object.assign(
-          new Error("Smart Form price calculated as $0.00. Check this template's pricing and the trip route miles before confirming."),
-          {statusCode:400}
-        );
-      }
       s.pricing={
         calculated:true,
         amount:smartFormPrice,
@@ -1089,11 +1054,6 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       };
     }catch(priceErr){
       console.error("SMART FORM PRICE CALC ERROR:",priceErr);
-      return res.status(priceErr?.statusCode||400).json({
-        success:false,
-        code:"SMART_FORM_PRICING_FAILED",
-        message:priceErr?.message||"Smart Form pricing failed. Confirm was stopped."
-      });
     }
 
     const tripPayload={
@@ -1550,6 +1510,72 @@ async function resolveSmartFormSubmissionCoords(row){
   return {...row,...coords};
 }
 
+async function priceSmartFormWorkflowSubmission(tenantId,row){
+  const enriched=await resolveSmartFormSubmissionCoords(row);
+  let miles=Number(enriched.distanceMiles||enriched.miles||0);
+  let minutes=Number(enriched.durationMinutes||enriched.estimatedMinutes||0);
+
+  try{
+    const points=[
+      smartFormValidCoords(enriched.pickupLat,enriched.pickupLng)
+        ? {lat:Number(enriched.pickupLat),lng:Number(enriched.pickupLng)}
+        : clean(enriched.pickupAddress),
+      ...(Array.isArray(enriched.stopCoords)&&enriched.stopCoords.length
+        ? enriched.stopCoords.map((c,i)=>
+            smartFormValidCoords(c?.lat,c?.lng)
+              ? {lat:Number(c.lat),lng:Number(c.lng)}
+              : clean((enriched.stops||[])[i])
+          )
+        : (enriched.stops||[]).map(clean)),
+      smartFormValidCoords(enriched.dropoffLat,enriched.dropoffLng)
+        ? {lat:Number(enriched.dropoffLat),lng:Number(enriched.dropoffLng)}
+        : clean(enriched.dropoffAddress)
+    ].filter(Boolean);
+
+    let routeResult=null;
+    if(routeMapEngine&&typeof routeMapEngine.calculateRouteMiles==="function")
+      routeResult=await routeMapEngine.calculateRouteMiles(points);
+    else if(routeMapEngine&&typeof routeMapEngine.calculateRoute==="function")
+      routeResult=await routeMapEngine.calculateRoute(points);
+
+    const legs=routeResult?.legs||routeResult?.googleRoute?.legs||routeResult?.route?.legs||routeResult?.routes?.[0]?.legs||[];
+    const meters=Number(routeResult?.distanceMeters||routeResult?.totalDistanceMeters||routeResult?.distance?.value||(Array.isArray(legs)?legs.reduce((sum,leg)=>sum+Number(leg?.distance?.value||leg?.distanceMeters||0),0):0)||0);
+    const seconds=Number(routeResult?.durationSeconds||routeResult?.totalDurationSeconds||routeResult?.duration?.value||(Array.isArray(legs)?legs.reduce((sum,leg)=>sum+Number(leg?.duration?.value||leg?.durationSeconds||0),0):0)||0);
+    miles=Number(Number(routeResult?.miles||routeResult?.distanceMiles||routeResult?.routeMiles||(meters>0?meters*0.000621371:0)||miles||0).toFixed(2));
+    minutes=Math.ceil(Number(routeResult?.estimatedMinutes||routeResult?.minutes||routeResult?.durationMinutes||(seconds>0?seconds/60:0)||minutes||0));
+  }catch(routeErr){
+    console.error("SMART FORM WORKFLOW ROUTE CALC ERROR:",routeErr);
+  }
+
+  const priceResult=await calculateSmartFormPrice({
+    tenantId,
+    templateId:enriched.templateId,
+    serviceKey:clean(enriched.serviceName),
+    serviceName:clean(enriched.serviceName),
+    miles,
+    minutes,
+    stops:Array.isArray(enriched.stops)?enriched.stops.filter(x=>clean(x)).length:0,
+    passengers:Number(enriched.totalPassengers||1)||1
+  });
+
+  const amount=Number(priceResult?.total||0);
+  const pricing={
+    calculated:true,
+    amount,
+    currency:priceResult?.currency||"USD",
+    pricingMode:priceResult?.pricingMode||"",
+    miles,
+    minutes
+  };
+
+  await SmartFormSubmission.updateOne(
+    {_id:enriched._id,tenantId},
+    {$set:{pricing,distanceMiles:miles,durationMinutes:minutes}}
+  );
+
+  return {...enriched,pricing,distanceMiles:miles,durationMinutes:minutes,priceAmount:amount,finalPrice:amount};
+}
+
 /* SMART FORM HUB FIXED V3 — Hub list, edit, confirm and delete workflow */
 router.get("/workflow/hub",async(req,res)=>{
   try{
@@ -1863,7 +1889,7 @@ router.post("/workflow/split/confirm",async(req,res)=>{
       if(ids.length<2)throw new Error("A Smart Form share group needs at least two trips");
       let rows=await SmartFormSubmission.find({_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:group.groupId}).lean();
       if(rows.length!==ids.length)throw new Error("One or more trips in a Smart Form share group are missing");
-      rows=await Promise.all(rows.map(resolveSmartFormSubmissionCoords));
+      rows=await Promise.all(rows.map(row=>priceSmartFormWorkflowSubmission(g.tenantId,row)));
       const ordered=ids.map(id=>rows.find(row=>String(row._id)===id)).filter(Boolean);
       const payload=buildSmartFormTripPayload({tenantId:g.tenantId,submissions:ordered,group:group.engineData||group,actorName:actor(req)});
       let trip=await Trip.findOne({tenantId:g.tenantId,source:"SMART_FORM",groupId:group.groupId,isShared:true});
@@ -1876,7 +1902,7 @@ router.post("/workflow/split/confirm",async(req,res)=>{
     for(const id of individualIds){
       const row=await SmartFormSubmission.findOne({_id:id,tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT",sharedGroupId:""}).lean();
       if(!row)throw new Error("One or more selected individual Smart Form trips are unavailable");
-      const [withCoords]=await Promise.all([resolveSmartFormSubmissionCoords(row)]);
+      const withCoords=await priceSmartFormWorkflowSubmission(g.tenantId,row);
       const payload=buildSmartFormTripPayload({tenantId:g.tenantId,submissions:[withCoords],actorName:actor(req)});
       let trip=await Trip.findOne({tenantId:g.tenantId,tripNumber:payload.tripNumber,source:"SMART_FORM"});
       if(!trip)trip=await Trip.create(payload);
