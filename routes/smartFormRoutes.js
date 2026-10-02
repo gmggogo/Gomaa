@@ -1049,6 +1049,12 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       });
 
       smartFormPrice=Number(priceResult?.total||0);
+      if(!Number.isFinite(smartFormPrice) || smartFormPrice<=0){
+        throw Object.assign(
+          new Error("Smart Form price calculated as $0.00. Check this template's pricing and the trip route miles before confirming."),
+          {statusCode:400}
+        );
+      }
       s.pricing={
         calculated:true,
         amount:smartFormPrice,
@@ -1059,6 +1065,11 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       };
     }catch(priceErr){
       console.error("SMART FORM PRICE CALC ERROR:",priceErr);
+      return res.status(priceErr?.statusCode||400).json({
+        success:false,
+        code:"SMART_FORM_PRICING_FAILED",
+        message:priceErr?.message||"Smart Form pricing failed. Confirm was stopped."
+      });
     }
 
     const tripPayload={
