@@ -5553,9 +5553,14 @@ btnPrimaryAction?.addEventListener("click", async () => {
           );
         });
 
+        /*
+          Save the final passenger/dropoff data FIRST.
+          Do not mark the whole trip Completed here; the final completion
+          update is done once by finishTripAndReturnToTrips() below.
+        */
         await updateTrip({
-          status: allCompleted ? "Completed" : "InProgress",
-          dispatchStatus: allCompleted ? "COMPLETED" : "ON_TRIP",
+          status: "InProgress",
+          dispatchStatus: "ON_TRIP",
           passengers,
           finalPrice: Number(
             tripDoc.finalPrice ||
@@ -5564,10 +5569,15 @@ btnPrimaryAction?.addEventListener("click", async () => {
           )
         });
       }else{
+        /*
+          Same rule for a single-rider trip: persist the rider's final
+          state and final price first, then let finishTripAndReturnToTrips()
+          perform the one and only Completed transition.
+        */
         await updateTrip({
-          status: "Completed",
-          dispatchStatus: "COMPLETED",
-          completedAt: serverNow(),
+          status: "InProgress",
+          dispatchStatus: "ON_TRIP",
+          passengerStatus: "Completed",
           finalPrice: Number(
             tripDoc.finalPrice ||
             tripDoc.priceAmount ||
