@@ -1,0 +1,73 @@
+<!-- DESTINATION: server/public/admin/smart-form-split.html -->
+<!-- DESTINATION: server/public/admin/smart-form-split.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Split Smart Form - GH Mobility</title>
+  <link rel="stylesheet" href="/admin/style.css">
+  <link rel="stylesheet" href="/admin/header.css">
+  <link rel="stylesheet" href="/admin/smart-form-workflow.css">
+</head>
+<body class="smart-form-split-page">
+  <div id="adminHeader"></div>
+  <main class="page" id="smartFormSplitPage">
+    <div class="page-head"><div><h1 class="page-title">Split Smart Form</h1><div class="page-sub">Prepare Smart Form template trips for Review.</div></div></div>
+    <div id="pageNotice" class="notice"></div>
+
+    <section class="controls-panel">
+      <div class="filter-row">
+        <div class="filter-field"><label for="templateFilter">Template</label><select id="templateFilter"><option value="ALL">All Templates</option></select></div>
+        <div class="filter-field"><label for="dayFilter">Day</label><select id="dayFilter"><option value="ALL">Today &amp; Tomorrow</option><option value="TODAY">Today</option><option value="TOMORROW">Tomorrow</option></select></div>
+        <div class="search-field"><label for="tripSearch">Search</label><input id="tripSearch" type="search" placeholder="Trip #, template, client, pickup, stop, drop-off..." autocomplete="off"></div>
+      </div>
+      <div class="action-row">
+        <div class="action-left"><button id="selectAllBtn" class="btn btn-blue" type="button">Select All</button><button id="shareBtn" class="btn btn-gold" type="button" disabled>Share</button><button id="restoreBtn" class="btn btn-restore" type="button" disabled>Restore Original</button></div>
+        <div class="action-right"><button id="confirmAllBtn" class="btn btn-confirm-glow" type="button" disabled>Confirm Selected</button></div>
+      </div>
+    </section>
+
+    <div class="stats" aria-label="Smart Form Split totals">
+      <div class="stat stat-gold"><div class="stat-label">Total Trips</div><div id="statTotalTrips" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">New Trips</div><div id="statNewTrips" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">Individual Trips</div><div id="statIndividual" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">Shared Group Trips</div><div id="statGroups" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">Selected</div><div id="statSelected" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">Confirmed</div><div id="statConfirmed" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">Active Templates</div><div id="statActiveTemplates" class="stat-value">0</div></div>
+      <div class="stat stat-gold"><div class="stat-label">With Stops</div><div id="statWithStops" class="stat-value">0</div></div>
+    </div>
+
+    <div class="split-tabs" id="splitTabs">
+      <button type="button" class="split-tab active" id="originalTabBtn" data-tab="ORIGINAL">Original Trips</button>
+      <button type="button" class="split-tab" id="sharedTabBtn" data-tab="SHARED">Share Trips</button>
+      <button type="button" class="split-tab" id="individualTabBtn" data-tab="INDIVIDUAL">Individual Trips</button>
+    </div>
+
+    <section class="panel" id="originalTripsSection" data-trip-panel="ORIGINAL">
+      <span id="originalCount" class="hidden">0</span>
+      <div class="table-wrap"><table class="original-table"><thead><tr><th class="check-cell"></th><th>Trip Number</th><th>Template</th><th>Pickup Time</th><th>Client</th><th>Pickup</th><th>Stops</th><th>Drop-off</th><th>Service</th><th>Notes</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead><tbody id="originalTripRows"></tbody></table></div>
+      <div id="originalEmpty" class="empty" hidden>No original Smart Form trips are waiting.</div>
+    </section>
+
+    <section class="panel trip-panel-hidden" id="individualTripsSection" data-trip-panel="INDIVIDUAL">
+      <span id="individualCount" class="hidden">0</span>
+      <div class="table-wrap"><table class="individual-table"><thead><tr><th>Select</th><th class="individual-trip-number-head">Trip Number</th><th>Template</th><th>Pickup Time</th><th>Client</th><th>Pickup</th><th>Stops</th><th>Drop-off</th><th>Service</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead><tbody id="individualTripRows"></tbody></table></div>
+      <div id="individualEmpty" class="empty" hidden>No individual Smart Form trips are waiting.</div>
+    </section>
+
+    <section class="panel trip-panel-hidden" id="sharedGroupsSection" data-trip-panel="SHARED">
+      <span id="groupCount" class="hidden">0</span><div id="sharedGroups"></div><div id="sharedEmpty" class="empty" hidden>No Smart Form shared groups have been built.</div>
+    </section>
+  </main>
+
+  <dialog id="editDialog">
+    <div class="dialog-head"><strong id="editDialogTitle">Edit Smart Form Trip</strong><button id="closeEditBtn" class="btn btn-gray" type="button">Close</button></div>
+    <div class="dialog-body"><form id="editForm"><div id="editFields" class="dynamic-edit-grid"></div><div class="dialog-actions"><button id="saveEditBtn" class="btn btn-green" type="submit">Save</button></div></form></div>
+  </dialog>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/smart-form-split.js"></script>
+</body>
+</html>

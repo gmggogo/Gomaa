@@ -1,0 +1,94 @@
+{
+  "id": "CH-004",
+  "page": "summary.html",
+  "name": "Summary",
+  "description": "Search and review company trip history, filter by service, view detailed trip information, and export or print reports.",
+  "tasks": [
+    {
+      "id": "CH-004-T01",
+      "title": "Search the Summary",
+      "summary": "Search by Trip Number, Company, Entry, Client, Passenger, or Phone.",
+      "steps": [
+        "Open Summary.",
+        "Use the search field.",
+        "Enter the Trip Number, name, or phone information.",
+        "Review the filtered results."
+      ],
+      "keywords": [
+        "summary",
+        "search the summary"
+      ]
+    },
+    {
+      "id": "CH-004-T02",
+      "title": "Filter by service",
+      "summary": "Use the service tabs to display the required service only.",
+      "steps": [
+        "Open Summary.",
+        "Select the required service tab.",
+        "Review the trips shown for that service."
+      ],
+      "keywords": [
+        "summary",
+        "filter by service"
+      ]
+    },
+    {
+      "id": "CH-004-T03",
+      "title": "View trip details",
+      "summary": "Use the View action to inspect the complete trip record.",
+      "steps": [
+        "Locate the trip.",
+        "Select the View / eye action.",
+        "Review the complete trip details."
+      ],
+      "keywords": [
+        "summary",
+        "view trip details"
+      ]
+    },
+    {
+      "id": "CH-004-T04",
+      "title": "Print the Summary",
+      "summary": "Use Print to print the currently displayed report.",
+      "steps": [
+        "Apply the required search or service filter.",
+        "Select Print.",
+        "Review the browser print preview.",
+        "Print or save as PDF using the browser."
+      ],
+      "keywords": [
+        "summary",
+        "print the summary"
+      ]
+    },
+    {
+      "id": "CH-004-T05",
+      "title": "Export to Excel",
+      "summary": "Export the current Summary data to Excel.",
+      "steps": [
+        "Apply the required filters.",
+        "Select Excel.",
+        "Open the exported file and verify the data."
+      ],
+      "keywords": [
+        "summary",
+        "export to excel"
+      ]
+    },
+    {
+      "id": "CH-004-T06",
+      "title": "Export to CSV",
+      "summary": "Export the current Summary data to CSV.",
+      "steps": [
+        "Apply the required filters.",
+        "Select CSV.",
+        "Open the exported file and verify the data."
+      ],
+      "keywords": [
+        "summary",
+        "export to csv"
+      ]
+    }
+  ]
+}

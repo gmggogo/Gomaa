@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dispatch Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box;}
+
+:root{
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#f59e0b;
+  --purple:#7c3aed;
+  --text:#0f172a;
+  --muted:#64748b;
+  --bg:#f4f8fb;
+  --card:#fff;
+  --border:#dbe3ee;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:Arial,sans-serif;
+  color:var(--text);
+}
+
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+.page-content{
+  padding:18px 22px 30px;
+  width:100%;
+}
+
+.page-head{
+  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  min-height:84px;
+  padding:16px 20px;
+  margin-bottom:12px;
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.role-badge{display:none;}
+
+.review-stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.stat-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:13px;
+  text-align:center;
+  box-shadow:0 6px 16px rgba(15,23,42,.07);
+}
+
+.stat-card.total{background:linear-gradient(135deg,#075fe8,#13a4ff);color:#fff;}
+.stat-card.today{background:linear-gradient(135deg,#f472b6,#db2777);color:#fff;}
+.stat-card.month{background:linear-gradient(135deg,#0891b2,#22d3ee);color:#fff;}
+.stat-card.completed{background:linear-gradient(135deg,#11983f,#39c65d);color:#fff;}
+.stat-card.cancelled{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;}
+.stat-card.noshow{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;}
+.stat-card.notcompleted{background:linear-gradient(135deg,#64748b,#475569);color:#fff;}
+.stat-card.company,.stat-card.facility{background:linear-gradient(135deg,#6d28d9,#c026d3);color:#fff;}
+.stat-card.gq{background:linear-gradient(135deg,#16a34a,#4ade80);color:#fff;}
+.stat-card.reserved{background:linear-gradient(135deg,#f59e0b,#fb923c);color:#fff;}
+.stat-card.broker{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;}
+
+.stat-number{
+  font-size:25px;
+  line-height:1;
+  font-weight:900;
+  color:inherit;
+}
+
+.stat-label{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:900;
+  color:inherit;
+}
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-bottom:14px;
+}
+
+.search-input,
+.filter-select{
+  padding:12px 14px;
+  border-radius:11px;
+  border:1px solid #cbd5e1;
+  background:#fff;
+  font-size:14px;
+  font-weight:800;
+  outline:none;
+}
+
+.search-input{
+  flex:1;
+  min-width:260px;
+}
+
+.search-input:focus,
+.filter-select:focus{
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+.service-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+
+/* ===================================================
+   تعديلات الـ CSS لجعل الكروت تفاعلية وقابلة للضغط
+   =================================================== */
+.service-card{
+  background:linear-gradient(135deg,#fff8dc 0%,#f7e4a5 52%,#fff2c4 100%);
+  border:1px solid #dfbd58;
+  border-radius:15px;
+  padding:14px;
+  box-shadow:0 7px 18px rgba(146,102,14,.12);
+  cursor:pointer;
+  transition:all 0.2s ease-in-out;
+}
+
+.service-card:hover{
+  transform:translateY(-3px); /* تأثير ارتفاع خفيف عند الماوس */
+  box-shadow:0 12px 24px rgba(15,23,42,.12);
+  border-color:var(--blue);
+}
+
+/* كلاس الكارت النشط أو المحدد حالياً بالفلتر */
+.service-card.active-card {
+  border:3px solid #111827 !important;
+  background:linear-gradient(135deg,#ffe99a,#f4cf5f,#ffe7a1) !important;
+}
+
+.service-card-title{
+  font-size:14px;
+  font-weight:900;
+  color:#0f172a;
+  margin-bottom:8px;
+}
+
+.service-line{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  border-top:1px dashed #e2e8f0;
+  padding:6px 0;
+  font-size:12px;
+  font-weight:900;
+  color:#475569;
+}
+
+.service-line span:last-child{
+  color:#0f172a;
+  font-size:14px;
+}
+
+.day-title{
+  margin:18px 0 8px;
+  padding:10px 13px;
+  background:#e0edff;
+  color:#1e3a8a;
+  border-left:6px solid #2563eb;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:900;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  margin-bottom:20px;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+}
+
+.review-table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  min-width:2495px;
+}
+
+.review-table th,
+.review-table td{
+  border:1px solid var(--border);
+  padding:8px;
+  text-align:center;
+  font-size:13px;
+  vertical-align:middle;
+  line-height:1.4;
+  font-weight:600;
+}
+
+.review-table th{
+  background:#2563eb;
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.review-table tbody tr:hover td {
+  background-color: rgba(37, 99, 235, 0.04) !important;
+}
+
+.wide-address{
+  min-width:240px;
+  max-width:360px;
+  text-align:left!important;
+  white-space:pre-line;
+  word-break:break-word;
+  font-size:12px!important;
+}
+
+.wide-client{
+  min-width:120px;
+  max-width:180px;
+  text-align:left!important;
+  white-space:pre-line;
+  word-break:break-word;
+}
+
+.wide-stops{
+  min-width:240px;
+  max-width:320px;
+  text-align:left!important;
+}
+
+.col-trip{
+  width:175px!important;
+  min-width:175px!important;
+}
+
+.col-company,
+.company-cell{
+  width:75px!important;
+  min-width:75px!important;
+}
+
+.col-trip .cell-item,
+.trip-number-badge{
+  white-space:nowrap!important;
+  word-break:normal!important;
+}
+
+.col-broker-trip{
+  width:110px!important;
+  min-width:110px!important;
+}
+
+.col-service{
+  width:105px!important;
+  min-width:105px!important;
+}
+
+
+.wide-stops .cell-item{
+  white-space:nowrap;
+  word-break:normal;
+}
+
+.trip-number-badge{
+  font-weight:900;
+  color:#1d4ed8;
+  white-space:nowrap;
+}
+
+/* =========================
+   PILLS SIZE (UNIFIED)
+========================= */
+.service-pill,
+.source-pill,
+.status-pill{
+  display:inline-block;
+  width:90px;
+  min-width:90px;
+  max-width:90px;
+  padding:6px 0;
+  text-align:center;
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.2;
+  border-radius:8px;
+  box-sizing:border-box;
+}
+
+.service-pill{
+  background:#dbeafe;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
+}
+
+.source-pill.company{
+  background:#dbeafe;
+  color:#1e3a8a;
+  border:1px solid #93c5fd;
+  font-size:10px;
+  font-weight:600;
+  height:24px;
+  line-height:24px;
+  padding:0;
+}
+
+.source-pill.gq{
+  background:#fce7f3;
+  color:#9d174d;
+  border:1px solid #f9a8d4;
+}
+
+.source-pill.reserved{
+  background:#fef3c7;
+  color:#92400e;
+  border:1px solid #fcd34d;
+}
+
+.source-pill.broker{
+  background:#ccfbf1;
+  color:#115e59;
+  border:1px solid #5eead4;
+}
+
+.status-pill.completed{
+  background:#bbf7d0;
+  color:#14532d;
+  border:1px solid #86efac;
+}
+
+.status-pill.cancelled{
+  background:#fecaca;
+  color:#7f1d1d;
+  border:1px solid #fca5a5;
+}
+
+.status-pill.noshow{
+  background:#fde68a;
+  color:#78350f;
+  border:1px solid #fcd34d;
+}
+
+.status-pill.notcompleted{
+  background:#e5e7eb;
+  color:#374151;
+  border:1px solid #cbd5e1;
+}
+
+.status-td{
+  text-align:center;
+  font-size:13px;
+  font-weight:900;
+  color:#111827;
+}
+
+.status-td.completed{ background:#bbf7d0 !important; }
+.status-td.cancelled{ background:#fecaca !important; }
+.status-td.noshow{ background:#fde68a !important; }
+.status-td.notcompleted{ background:#e5e7eb !important; }
+
+.date-row td{
+  background:#eff6ff;
+  color:#1e40af;
+  font-size:14px;
+  font-weight:900;
+  text-align:left;
+  padding:12px;
+  border-top:3px solid #2563eb;
+}
+
+.shared-separator td{ border-bottom:2px dashed #cbd5e1; }
+.trip-divider-line td{ height:3px; padding:0; background:#cbd5e1; }
+.trip-divider td{ height:10px; padding:0; background:#f8fafc; }
+
+.btn-action {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  margin: 2px;
+  transition: all 0.2s;
+}
+
+.btn-action.btn-view:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-action.btn-edit:hover { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+.view-passenger-list{
+  display:grid!important;
+  gap:14px!important;
+  margin-top:6px!important;
+}
+
+.view-passenger-card{
+  border:2px solid #c4b5fd!important;
+  border-radius:12px!important;
+  overflow:hidden!important;
+  background:#faf7ff!important;
+}
+
+.view-passenger-title{
+  padding:10px 12px!important;
+  background:#7c3aed!important;
+  color:#fff!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+
+.view-passenger-lines{
+  padding:10px!important;
+  display:grid!important;
+  gap:7px!important;
+}
+
+.empty-state{
+  background:#fff;
+  padding:22px;
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+  color:#475569;
+  font-weight:900;
+  text-align:center;
+}
+
+.company-name{ color:#1d4ed8; font-size:13px; font-weight:700; }
+.row-company td,.row-facility td{ background:linear-gradient(90deg,#f4ecff,#eadcff) !important; }
+.row-getquote td{ background:linear-gradient(90deg,#e9f9ed,#d8f5df) !important; }
+.row-broker td{ background:linear-gradient(90deg,#ecfeff,#ccfbf1) !important; }
+.completed-row td{ background:#dcfce7 !important; }
+.cancelled-row td{ background:#fee2e2 !important; }
+.noshow-row td{ background:#fef3c7 !important; }
+.notcompleted-row td{ background:#f1f5f9 !important; }
+.shared-row td{ box-shadow:inset 0 0 0 9999px rgba(124,58,237,.03); }
+
+@media(max-width:768px){
+  .page-content{
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .search-input,.filter-select{width:100%;}
+  .review-table{min-width:1550px;}
+}
+</style>
+</head>
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-content">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">Dispatch Review</div>
+      <div class="page-sub">Completed • Cancelled • No Show • Not Completed Trips</div>
+    </div>
+  </div>
+
+  <div id="reviewStats" class="review-stats"></div>
+
+<div class="toolbar">
+
+    <select id="sourceFilter" class="filter-select">
+      <option value="ALL">All Bookings</option>
+      <option value="GQ">Get Quote</option>
+      <option value="FACILITY">Facility</option>
+      <option value="RV">Reserved</option>
+    </select>
+
+    <input id="searchInput" class="search-input" type="text" placeholder="Search trip #, broker trip ID, company, broker, passenger, phone, email, address">
+    <select id="statusFilter" class="filter-select">
+      <option value="">All Statuses</option>
+      <option value="Completed">Completed</option>
+      <option value="Cancelled">Cancelled</option>
+      <option value="No Show">No Show</option>
+      <option value="Not Completed">Not Completed</option>
+    </select>
+    <select id="yearFilter" class="filter-select"></select>
+    <select id="monthFilter" class="filter-select"></select>
+  </div>
+
+  <div id="serviceCards" class="service-cards"></div>
+  <div id="reviewContent"></div>
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/dispatch-review.js?v=20260815-4"></script>
+
+</body>
+</html>

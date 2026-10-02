@@ -1,0 +1,907 @@
+<!--
+DESTINATION PATH:
+server/public/admin/external-trips.html
+
+EXTERNAL TRIPS HUB REBUILD R1
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>External Trips Hub</title>
+
+  <link
+    rel="stylesheet"
+    href="/admin/style.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="/admin/header.css"
+  />
+
+  <style>
+    *{
+      box-sizing:border-box;
+    }
+
+    :root{
+      --text:#0f172a;
+      --muted:#64748b;
+      --bg:#f1f5f9;
+      --border:#dbe3ee;
+      --blue:#2563eb;
+      --blueDark:#1d4ed8;
+      --red:#dc2626;
+      --date:#dcecff;
+    }
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    .page{
+      width:100%;
+      padding:12px 16px 28px;
+    }
+
+    .page-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:74px;
+      margin-bottom:10px;
+      padding:13px 18px;
+      border:1px solid #e0be5a;
+      border-radius:16px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff8dc 0%,
+          #f8e6ae 48%,
+          #fff4cf 100%
+        );
+      box-shadow:
+        0 8px 22px
+        rgba(146,102,14,.13);
+      text-align:center;
+    }
+
+    .page-title{
+      margin:0;
+      font-size:27px;
+      line-height:1.1;
+      font-weight:900;
+      color:#111827;
+    }
+
+    .page-head .sub{
+      margin-top:5px;
+      color:#64748b;
+      font-size:12px;
+      font-weight:800;
+    }
+
+
+    .hub-stats{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(0,1fr));
+      gap:10px;
+      margin:0 0 12px;
+    }
+
+    .hub-stat{
+      min-height:78px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:12px 10px;
+      border:1px solid #c9a23a;
+      border-radius:12px;
+      background:
+        linear-gradient(
+          135deg,
+          #fff7d8 0%,
+          #efd88c 48%,
+          #fff0b4 100%
+        );
+      box-shadow:
+        0 6px 16px
+        rgba(146,102,14,.14);
+      text-align:center;
+    }
+
+    .hub-stat-label{
+      color:#4a3a0a;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+      text-align:center;
+    }
+
+    .hub-stat-value{
+      margin-top:5px;
+      color:#111827;
+      font-size:25px;
+      line-height:1;
+      font-weight:900;
+      text-align:center;
+    }
+
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:10px;
+    }
+
+    .filters{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    select,
+    input,
+    textarea{
+      border:1px solid #cbd5e1;
+      border-radius:7px;
+      padding:9px 10px;
+      font:inherit;
+      background:#fff;
+    }
+
+    .btn{
+      border:0;
+      border-radius:8px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-size:11px;
+      font-weight:900;
+    }
+
+    .btn-primary{
+      background:var(--blue);
+      color:#fff;
+    }
+
+    .btn-primary:hover{
+      background:var(--blueDark);
+    }
+
+    .btn-light{
+      background:#e8edf2;
+      color:#102d4f;
+    }
+
+    .btn-danger{
+      background:var(--red);
+      color:#fff;
+    }
+
+    #addTripBtn{
+      min-width:132px;
+      min-height:42px;
+      padding:10px 18px;
+      font-size:13px;
+    }
+
+    .panel{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.08);
+    }
+
+    .table-wrap{
+      width:100%;
+      max-width:100%;
+      overflow-x:auto;
+      overflow-y:visible;
+      -webkit-overflow-scrolling:touch;
+      background:#fff;
+    }
+
+    table{
+      width:100%;
+      min-width:1550px;
+      table-layout:fixed;
+      border-collapse:collapse;
+      background:#fff;
+      border-top:6px solid #000;
+    }
+
+    th,
+    td{
+      border:1px solid var(--border);
+      padding:5px;
+      text-align:center;
+      font-size:10px;
+      vertical-align:middle;
+      line-height:1.25;
+    }
+
+    th{
+      background:#1f2937;
+      color:#fff;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    /*
+      16 columns:
+      External Trip, Broker, Broker Trip ID, Pickup Time, Appointment,
+      Return Time, Passenger, Phone, Pickup, Stops, Drop-off, Service,
+      Notes, Status, Source, Actions.
+    */
+    th:nth-child(1),
+    td:nth-child(1){width:82px}
+
+    th:nth-child(2),
+    td:nth-child(2){width:64px}
+
+    th:nth-child(3),
+    td:nth-child(3){width:78px}
+
+    th:nth-child(4),
+    td:nth-child(4){width:62px}
+
+    th:nth-child(5),
+    td:nth-child(5){width:74px}
+
+    th:nth-child(6),
+    td:nth-child(6){width:72px}
+
+    th:nth-child(7),
+    td:nth-child(7){width:92px}
+
+    th:nth-child(8),
+    td:nth-child(8){width:88px}
+
+    th:nth-child(9),
+    td:nth-child(9){width:215px}
+
+    th:nth-child(10),
+    td:nth-child(10){width:230px}
+
+    th:nth-child(11),
+    td:nth-child(11){width:215px}
+
+    th:nth-child(12),
+    td:nth-child(12){width:105px}
+
+    th:nth-child(13),
+    td:nth-child(13){width:110px}
+
+    th:nth-child(14),
+    td:nth-child(14){width:76px}
+
+    th:nth-child(15),
+    td:nth-child(15){width:62px}
+
+    th:nth-child(16),
+    td:nth-child(16){width:88px}
+
+    .trip-id{
+      font-weight:900;
+      color:#1d4ed8;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      font-size:8.8px;
+    }
+
+    td:nth-child(9),
+    td:nth-child(10),
+    td:nth-child(11),
+    .notes{
+      text-align:left;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    .date-group-row td{
+      padding:8px 12px;
+      background:var(--date);
+      color:#214b76;
+      text-align:left;
+      font-size:12px;
+      font-weight:900;
+      border-top:2px solid #85a9d0;
+      border-bottom:2px solid #85a9d0;
+    }
+
+    .address-box,
+    .gh-stop-box{
+      display:block;
+      width:100%;
+      min-height:28px;
+      padding:6px 7px;
+      border:1px solid #111;
+      border-radius:4px;
+      background:#fff;
+      color:#1f2937;
+      line-height:1.3;
+      box-sizing:border-box;
+    }
+
+    .gh-stop-box{
+      margin:0 0 5px;
+    }
+
+    .gh-stop-box:last-child{
+      margin-bottom:0;
+    }
+
+    .service-cell-select{
+      width:100%;
+      min-width:0;
+      height:30px;
+      padding:3px 5px;
+      border:1px solid #9eabb8;
+      border-radius:5px;
+      background:#fff;
+      font-size:9px;
+      font-weight:800;
+    }
+
+    .notes{
+      white-space:pre-wrap;
+      font-size:9px;
+    }
+
+    .status{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      max-width:100%;
+      padding:4px 6px;
+      border-radius:999px;
+      background:#edf1f4;
+      font-size:8px;
+      font-weight:900;
+      white-space:normal;
+      text-align:center;
+      overflow-wrap:anywhere;
+    }
+
+    .status.CANCELLED{
+      background:#fde1e1;
+      color:#8a1d1d;
+    }
+
+    .status.ERROR{
+      background:#ffe9d5;
+      color:#8a4b0c;
+    }
+
+    .trip-row-overdue td{
+      background:#cbd5e1;
+      color:#334155;
+    }
+
+    .trip-row-overdue .address-box,
+    .trip-row-overdue .gh-stop-box{
+      background:#e2e8f0;
+      color:#334155;
+      border-color:#64748b;
+    }
+
+    .trip-row-overdue .trip-id{
+      color:#1e3a8a;
+    }
+
+    .action-stack{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:4px;
+    }
+
+    .action-stack .btn{
+      width:auto;
+      min-width:36px;
+      padding:5px 6px;
+      font-size:8px;
+      border-radius:5px;
+    }
+
+    dialog{
+      border:0;
+      border-radius:12px;
+      width:min(900px,94vw);
+      max-height:90vh;
+      overflow:auto;
+      padding:0;
+      box-shadow:
+        0 20px 60px
+        rgba(0,0,0,.25);
+    }
+
+    dialog::backdrop{
+      background:
+        rgba(10,20,30,.45);
+    }
+
+    .modal-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px 18px;
+      border-bottom:
+        1px solid #e1e6eb;
+    }
+
+    .modal-body{
+      padding:18px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:
+        repeat(
+          3,
+          minmax(180px,1fr)
+        );
+      gap:12px;
+    }
+
+    .field label{
+      display:block;
+      font-size:11px;
+      font-weight:800;
+      color:#52606c;
+      margin-bottom:5px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea{
+      width:100%;
+    }
+
+    .wide{
+      grid-column:1/-1;
+    }
+
+    .stop-input-list{
+      display:grid;
+      gap:7px;
+    }
+
+    .stop-input-row{
+      display:grid;
+      grid-template-columns:
+        minmax(0,1fr)
+        auto;
+      gap:7px;
+      align-items:center;
+    }
+
+    .stop-input-row .btn{
+      min-width:72px;
+    }
+
+    .stop-controls{
+      display:flex;
+      justify-content:flex-start;
+      margin-top:8px;
+    }
+
+    #addStopBtn{
+      min-width:130px;
+    }
+
+    .trip-search-input{
+      min-width:240px;
+    }
+
+    @media(max-width:768px){
+      .trip-search-input{
+        min-width:190px;
+      }
+    }
+
+    .modal-actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      padding:16px 18px;
+      border-top:
+        1px solid #e1e6eb;
+    }
+
+    @media(max-width:768px){
+      .hub-stats{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:7px;
+      }
+
+      .hub-stat{
+        min-height:66px;
+        padding:9px 7px;
+      }
+
+      .hub-stat-label{
+        font-size:9px;
+      }
+
+      .hub-stat-value{
+        font-size:21px;
+      }
+
+      .page{
+        padding:8px 6px 18px;
+      }
+
+      .page-head{
+        min-height:68px;
+        padding:10px;
+      }
+
+      .page-title{
+        font-size:21px;
+      }
+
+      .page-head .sub{
+        font-size:10px;
+      }
+
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .filters{
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        width:100%;
+      }
+
+      table{
+        min-width:1260px;
+        border-top-width:4px;
+      }
+
+      th,
+      td{
+        font-size:7.5px;
+        padding:3px;
+        line-height:1.15;
+      }
+
+      th{
+        font-size:7.3px;
+      }
+
+      .trip-id{
+        font-size:7px;
+      }
+
+      .address-box,
+      .gh-stop-box{
+        padding:4px 5px;
+        min-height:22px;
+        font-size:7.5px;
+      }
+
+      .status{
+        font-size:6.5px;
+        padding:3px 4px;
+      }
+
+      .action-stack{
+        gap:2px;
+      }
+
+      .action-stack .btn{
+        padding:4px 3px;
+        min-width:30px;
+        font-size:6.5px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="page">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">
+          External Trips Hub
+        </h1>
+
+        <div class="sub">
+          Broker trips stay in the broker workflow before Trip Split and Broker Review.
+        </div>
+      </div>
+    </div>
+
+
+    <section class="hub-stats" aria-label="External trip statistics">
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Total Trips</div>
+        <div class="hub-stat-value" id="statTotalTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">New Trips</div>
+        <div class="hub-stat-value" id="statNewTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Active Brokers</div>
+        <div class="hub-stat-value" id="statActiveBrokers">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">Return Trips</div>
+        <div class="hub-stat-value" id="statReturnTrips">0</div>
+      </div>
+
+      <div class="hub-stat">
+        <div class="hub-stat-label">With Stops</div>
+        <div class="hub-stat-value" id="statWithStops">0</div>
+      </div>
+
+    </section>
+
+    <div class="toolbar">
+
+      <div class="filters">
+
+        <input
+          id="searchInput"
+          class="trip-search-input"
+          type="search"
+          placeholder="Search trips..."
+          autocomplete="off"
+        />
+
+        <select id="brokerFilter">
+          <option value="">
+            All Brokers
+          </option>
+        </select>
+
+        <select id="statusFilter">
+          <option value="">
+            All Statuses
+          </option>
+          <option value="RECEIVED">Received</option>
+          <option value="READY">Ready</option>
+          <option value="HELD">Held</option>
+          <option value="UPDATED">Updated</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="ERROR">Error</option>
+        </select>
+
+        <input
+          id="dateFilter"
+          type="date"
+        />
+
+        <button
+          class="btn btn-light"
+          id="refreshBtn"
+        >
+          Refresh
+        </button>
+
+      </div>
+
+      <button
+        class="btn btn-primary"
+        id="addTripBtn"
+      >
+        Add Trip
+      </button>
+
+    </div>
+
+    <section class="panel">
+
+      <div class="table-wrap">
+
+        <table class="external-table">
+
+          <thead>
+            <tr>
+              <th>External Trip</th>
+              <th>Broker</th>
+              <th>Broker Trip ID</th>
+              <th>Pickup Time</th>
+              <th>Appointment</th>
+              <th>Return Time</th>
+              <th>Passenger</th>
+              <th>Phone</th>
+              <th>Pickup</th>
+              <th>Stops</th>
+              <th>Drop-off</th>
+              <th>Service</th>
+              <th>Notes</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="tripRows"></tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <dialog id="tripDialog">
+
+    <div class="modal-head">
+      <strong id="dialogTitle">
+        Add External Trip
+      </strong>
+
+      <button
+        class="btn btn-light"
+        id="closeDialogBtn"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="grid">
+
+        <div class="field">
+          <label>Broker</label>
+          <select id="brokerCode"></select>
+        </div>
+
+        <div class="field">
+          <label>Broker Trip ID</label>
+          <input id="externalTripId" />
+        </div>
+
+        <div class="field">
+          <label>Service</label>
+          <select id="serviceKey"></select>
+        </div>
+
+        <div class="field">
+          <label>Trip Date</label>
+          <input
+            id="tripDate"
+            type="date"
+          />
+        </div>
+
+        <div class="field">
+          <label>Pickup Time</label>
+          <input
+            id="tripTime"
+            type="time"
+          />
+        </div>
+
+        <div class="field">
+          <label>Appointment Time</label>
+          <input
+            id="appointmentTime"
+            type="time"
+          />
+        </div>
+
+        <div class="field">
+          <label>Return Time</label>
+          <input
+            id="returnTime"
+            type="time"
+          />
+        </div>
+
+        <div class="field">
+          <label>Passenger Name</label>
+          <input id="clientName" />
+        </div>
+
+        <div class="field">
+          <label>Passenger Phone</label>
+          <input id="clientPhone" />
+        </div>
+
+        <div class="field">
+          <label>Member ID</label>
+          <input id="memberId" />
+        </div>
+
+        <div class="field wide">
+          <label>Pickup Address</label>
+          <input id="pickup" />
+        </div>
+
+        <div class="field wide">
+          <label>Stops</label>
+
+          <div
+            id="stopInputs"
+            class="stop-input-list"
+          ></div>
+
+          <div class="stop-controls">
+            <button
+              id="addStopBtn"
+              class="btn btn-light"
+              type="button"
+            >
+              Add Stop (1/5)
+            </button>
+          </div>
+        </div>
+
+        <div class="field wide">
+          <label>Drop-off Address</label>
+          <input id="dropoff" />
+        </div>
+
+        <div class="field wide">
+          <label>Notes</label>
+          <textarea id="notes"></textarea>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+
+      <button
+        class="btn btn-light"
+        id="cancelDialogBtn"
+      >
+        Cancel
+      </button>
+
+      <button
+        class="btn btn-primary"
+        id="saveTripBtn"
+      >
+        Save Trip
+      </button>
+
+    </div>
+
+  </dialog>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/external-trips.js?v=20260911-1"></script>
+
+</body>
+</html>

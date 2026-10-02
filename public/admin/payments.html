@@ -1,0 +1,446 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SaaS Payments - GH Mobility</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef4f8;color:#172033}
+.page{width:min(1380px,calc(100% - 28px));margin:22px auto 40px}
+.shell{background:#fff;border:1px solid #d8e1e8;border-radius:16px;box-shadow:0 10px 28px rgba(7,26,54,.09);overflow:hidden}
+.head{padding:22px 26px;text-align:center;color:#fff;background:linear-gradient(135deg,#9e730e,#c99b20 45%,#e0b63b 70%,#a7780a);border-bottom:4px solid #765507}
+.head h1{margin:0;font-size:26px;font-weight:950}
+.head .company{margin-top:6px;font-size:16px;font-weight:900}
+.head .product{margin-top:4px;font-size:12px;font-weight:850;letter-spacing:1.2px}
+.statusbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;background:#f8fafc;border-bottom:1px solid #d8e1e8}
+.badge{padding:7px 11px;border-radius:999px;font-size:11px;font-weight:950}
+.badge.active{background:#dcfce7;color:#166534}.badge.trial{background:#dbeafe;color:#1d4ed8}.badge.past_due{background:#ffedd5;color:#9a3412}.badge.suspended{background:#fee2e2;color:#991b1b}.badge.none{background:#e5e7eb;color:#374151}
+.message{display:none;margin:16px 20px 0;padding:11px 13px;border-radius:8px;font-size:12px;font-weight:850}
+.message.show{display:block}.message.ok{background:#dcfce7;color:#166534}.message.error{background:#fee2e2;color:#991b1b}.message.info{background:#dbeafe;color:#1e40af}
+.summary{display:grid;grid-template-columns:repeat(8,minmax(145px,1fr));gap:12px;padding:20px}
+.card{min-height:106px;padding:15px;border:1px solid #d8e1e8;border-radius:12px;background:linear-gradient(180deg,#fff,#f8fbfd)}
+.label{font-size:11px;font-weight:900;color:#6b7585;text-transform:uppercase}.value{margin-top:12px;font-size:24px;font-weight:950;color:#071a36}.money{color:#137a4a}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 20px 20px}
+.panel{border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.panel-title{padding:12px 14px;background:linear-gradient(180deg,#10345c,#071a36);color:#fff;font-size:13px;font-weight:900}.panel-body{padding:16px}
+.info-row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #edf1f4;font-size:12px}.info-row:last-child{border-bottom:0}.info-row span:first-child{color:#697486;font-weight:750}.info-row span:last-child{font-weight:900}
+.methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.method{border:1px solid #cbd5df;border-radius:10px;padding:12px}.method strong{display:block;font-size:12px;margin-bottom:4px}.method span{color:#6c7787;font-size:11px}
+.note{margin-bottom:14px;padding:11px 12px;border-radius:9px;background:#f7fafc;color:#536072;font-size:12px;line-height:1.5}
+.pay{width:100%;min-height:48px;border:0;border-radius:9px;background:linear-gradient(180deg,#cda32d,#a87a0c);color:#fff;font-size:14px;font-weight:950;cursor:pointer}.pay:disabled{opacity:.55;cursor:not-allowed}
+.invoice-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.print-invoice-btn{min-height:36px;border:0;border-radius:8px;padding:0 13px;background:#10345c;color:#fff;font-size:11px;font-weight:900;cursor:pointer}
+.print-invoice-btn:hover{background:#071a36}
+.print-invoice-btn.small{min-height:30px;padding:0 10px;font-size:10px}
+
+.breakdown{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.breakdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.breakdown-item{border:1px solid #e2e8f0;border-radius:9px;padding:11px;background:#f8fafc}.breakdown-item span{display:block;font-size:10px;font-weight:850;color:#6b7280;text-transform:uppercase}.breakdown-item strong{display:block;margin-top:6px;font-size:14px;color:#172033}.breakdown-item.wide-detail{grid-column:span 2}.breakdown-item.wide-detail strong{line-height:1.45;word-break:break-word}.breakdown-total{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;background:#fff8da;border-top:1px solid #e6d58d;color:#7a5700;font-weight:950}.history{margin:0 20px 20px;border:1px solid #d8e1e8;border-radius:12px;overflow:hidden}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:11px 12px;border-bottom:1px solid #e5ebf0;font-size:12px;text-align:left}th{background:#edf3f8;color:#344155;font-weight:900}td.amount{font-weight:900;color:#166534}.empty{padding:28px;text-align:center;color:#798493}
+@media(max-width:1150px){.summary{grid-template-columns:repeat(4,1fr)}}@media(max-width:950px){.summary{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){.breakdown-grid{grid-template-columns:1fr}}
+
+
+/* =========================================================
+   SAAS PAYMENTS — TOP VISUAL ALIGNMENT WITH TRIPS
+   Visual only:
+   - Header uses the exact Trips page gold treatment.
+   - Only the TOP summary row typography/spacing is refined.
+   - Lower billing sections are intentionally left unchanged.
+   ========================================================= */
+
+/* Header: same visual language as Trips */
+.head{
+  min-height:84px;
+  padding:16px 20px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+
+  color:#111827;
+
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+
+  border-bottom:1px solid #e0be5a;
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+}
+
+.head h1{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+  letter-spacing:0;
+}
+
+.head .company{
+  margin-top:5px;
+  font-size:13px;
+  line-height:1.2;
+  font-weight:800;
+  color:#475569;
+}
+
+.head .product{
+  margin-top:3px;
+  font-size:10px;
+  line-height:1.1;
+  font-weight:900;
+  letter-spacing:.9px;
+  color:#64748b;
+}
+
+/* Subscription strip */
+.statusbar{
+  min-height:42px;
+  padding:10px 18px;
+}
+
+.statusbar > strong{
+  font-size:11px;
+  line-height:1.15;
+  font-weight:800;
+  color:#475569;
+}
+
+.statusbar .badge{
+  padding:5px 9px;
+  font-size:9px;
+  line-height:1;
+  font-weight:900;
+}
+
+/* TOP SUMMARY ROW ONLY */
+.summary{
+  gap:10px;
+  padding:16px 18px 18px;
+}
+
+.summary .card{
+  min-height:88px;
+  padding:12px 12px 11px;
+  border-radius:10px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.summary .label{
+  font-size:9px;
+  line-height:1.1;
+  font-weight:850;
+  letter-spacing:.28px;
+  color:#667085;
+}
+
+.summary .value{
+  margin-top:8px;
+  font-size:18px;
+  line-height:1.12;
+  font-weight:850;
+  letter-spacing:-.15px;
+  color:#172033;
+  overflow-wrap:anywhere;
+}
+
+.summary .value.money{
+  color:#137a4a;
+}
+
+/* Date is intentionally smaller so it never dominates its card */
+#nextPayment{
+  font-size:16px;
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:-.1px;
+}
+
+/* Keep the remaining top values balanced */
+#planName,
+#vehicleUsage,
+#serviceUsage,
+#brokerUsage,
+#gracePeriod{
+  font-size:17px;
+}
+
+/* Desktop: keep all 8 cards on one clean row */
+@media(min-width:1151px){
+  .summary{
+    grid-template-columns:repeat(8,minmax(0,1fr));
+  }
+}
+
+/* Tablet/mobile */
+@media(max-width:1150px){
+  .summary .value{
+    font-size:17px;
+  }
+
+  #nextPayment{
+    font-size:15px;
+  }
+}
+
+@media(max-width:620px){
+  .head{
+    min-height:72px;
+    padding:12px;
+  }
+
+  .head h1{
+    font-size:22px;
+  }
+
+  .head .company{
+    font-size:11px;
+  }
+
+  .head .product{
+    font-size:9px;
+  }
+
+  .summary{
+    gap:8px;
+    padding:12px;
+  }
+
+  .summary .card{
+    min-height:78px;
+    padding:10px;
+  }
+
+  .summary .label{
+    font-size:8px;
+  }
+
+  .summary .value,
+  #planName,
+  #vehicleUsage,
+  #serviceUsage,
+  #brokerUsage,
+  #gracePeriod{
+    font-size:15px;
+  }
+
+  #nextPayment{
+    font-size:14px;
+  }
+}
+
+</style>
+</head>
+
+<body>
+<div id="adminHeader"></div>
+
+<main class="page">
+<section class="shell">
+
+  <div class="head">
+    <h1>SaaS Payments</h1>
+    <div class="company" id="companyName">Loading company...</div>
+    <div class="product">GH MOBILITY</div>
+  </div>
+
+  <div class="statusbar">
+    <strong>Subscription Status</strong>
+    <span class="badge none" id="subscriptionStatus">LOADING</span>
+  </div>
+
+  <div class="message" id="messageBox"></div>
+
+  <div class="summary">
+    <div class="card"><div class="label">Plan</div><div class="value" id="planName">--</div></div>
+    <div class="card"><div class="label">Package Price</div><div class="value money" id="planPrice">$0.00</div></div>
+    <div class="card"><div class="label">Vehicles</div><div class="value" id="vehicleUsage">--</div></div>
+    <div class="card"><div class="label">Services</div><div class="value" id="serviceUsage">--</div></div>
+    <div class="card"><div class="label">Brokers</div><div class="value" id="brokerUsage">--</div></div>
+    <div class="card"><div class="label">Amount Due</div><div class="value money" id="invoiceAmount">$0.00</div></div>
+    <div class="card"><div class="label">Next Payment</div><div class="value" id="nextPayment">--</div></div>
+    <div class="card"><div class="label">Grace Period</div><div class="value" id="gracePeriod">--</div></div>
+  </div>
+
+  <div class="grid">
+
+    <section class="panel">
+      <div class="panel-title">Current Invoice</div>
+      <div class="panel-body">
+        <div class="info-row"><span>Billing Cycle</span><span id="billingCycle">--</span></div>
+        <div class="info-row"><span>Due Date</span><span id="dueDate">--</span></div>
+        <div class="info-row"><span>Last Payment</span><span id="lastPayment">--</span></div>
+        <div class="info-row"><span>Account Access</span><span id="accessState">--</span></div>
+        <div class="invoice-actions">
+          <button class="print-invoice-btn" id="printCurrentInvoiceBtn" type="button">Print Invoice</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Pay Subscription</div>
+      <div class="panel-body">
+        <div class="methods">
+          <div class="method"><strong>ACH Bank Account</strong><span>Pay directly from a U.S. bank account.</span></div>
+          <div class="method"><strong>Credit / Debit Card</strong><span>Pay securely by card.</span></div>
+        </div>
+        <div class="note">Stripe Checkout will show ACH and card payment options when available.</div>
+        <button class="pay" id="payNowBtn" type="button" disabled>Pay Now</button>
+      </div>
+    </section>
+
+  </div>
+
+
+  <section class="breakdown">
+    <div class="panel-title">Plan Details & Billing</div>
+
+    <div class="breakdown-grid">
+      <div class="breakdown-item">
+        <span>Package Price</span>
+        <strong id="packagePriceAmount">$0.00</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Vehicle Limit</span>
+        <strong id="vehicleLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Vehicles</span>
+        <strong id="actualVehicles">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Service Limit</span>
+        <strong id="serviceLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Services</span>
+        <strong id="enabledServices">0</strong>
+      </div>
+
+      <div class="breakdown-item wide-detail">
+        <span>Enabled Services</span>
+        <strong id="enabledServiceNames">--</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Broker Limit</span>
+        <strong id="brokerLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Brokers</span>
+        <strong id="activeBrokers">0</strong>
+      </div>
+
+      <div class="breakdown-item wide-detail">
+        <span>Enabled Brokers</span>
+        <strong id="enabledBrokerNames">--</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Driver Limit</span>
+        <strong id="driverLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Drivers</span>
+        <strong id="activeDrivers">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Dispatcher Limit</span>
+        <strong id="dispatcherLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Dispatchers</span>
+        <strong id="activeDispatchers">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Admin Limit</span>
+        <strong id="adminLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Admins</span>
+        <strong id="activeAdmins">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Super Admin Limit</span>
+        <strong id="superAdminLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Super Admins</span>
+        <strong id="activeSuperAdmins">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Company Limit</span>
+        <strong id="companyLimit">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Active Companies</span>
+        <strong id="activeCompanies">0</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Extra Vehicles</span>
+        <strong id="extraVehiclesLine">0 × $0.00 = $0.00</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Extra Brokers</span>
+        <strong id="extraBrokersLine">0 × $0.00 = $0.00</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Discount</span>
+        <strong id="discountAmount">-$0.00</strong>
+      </div>
+
+      <div class="breakdown-item">
+        <span>Credit</span>
+        <strong id="creditAmount">-$0.00</strong>
+      </div>
+    </div>
+
+    <div class="breakdown-total">
+      <span>Final Plan Price</span>
+      <strong id="finalPlanPrice">$0.00</strong>
+    </div>
+  </section>
+
+  <section class="history">
+    <div class="panel-title">Payment History</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Invoice</th><th>Cycle</th><th>Method</th><th>Status</th><th>Amount</th><th>Invoice</th></tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7" class="empty">Loading payment history...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</section>
+</main>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/payments.js?v=PRINT-INVOICE-TZ-V2-20260918"></script>
+</body>
+</html>

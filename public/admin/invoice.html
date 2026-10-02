@@ -1,0 +1,582 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Company Invoice - GH Mobility</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#eef3f9;
+  color:#0f172a;
+  font-family:Segoe UI,Arial,sans-serif;
+  line-height:1.35;
+}
+.invoice-page{
+  width:min(980px,calc(100% - 28px));
+  margin:22px auto 36px;
+}
+.actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-bottom:12px;
+}
+.action-btn{
+  border:0;
+  border-radius:10px;
+  padding:11px 16px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.action-btn.dark{background:#111827;color:#fff}
+.invoice{
+  background:#fff;
+  border:1px solid #dbe4ee;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 12px 32px rgba(15,23,42,.08);
+}
+.invoice-head{
+  background:linear-gradient(135deg,#0b2747,#10345c 62%,#174d82);
+  color:#fff;
+  padding:26px 30px;
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:flex-start;
+}
+.brand h1{
+  margin:0;
+  font-size:28px;
+  font-weight:950;
+}
+.brand .sub{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:1.2px;
+  color:#dbeafe;
+}
+.meta{
+  text-align:right;
+  font-size:12px;
+  line-height:1.8;
+}
+.meta strong{color:#bfdbfe}
+.invoice-body{padding:22px 26px}
+
+.company-strip{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border:1px solid #1d4ed8;
+  border-radius:14px;
+  overflow:hidden;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#1e40af);
+  margin-bottom:18px;
+}
+.company-item{
+  padding:15px 16px;
+  text-align:center;
+  color:#fff;
+  border-right:1px solid rgba(255,255,255,.22);
+}
+.company-item:last-child{border-right:0}
+.company-item span{
+  display:block;
+  font-size:11px;
+  text-transform:uppercase;
+  font-weight:900;
+  color:#dbeafe;
+  letter-spacing:.6px;
+  text-align:center;
+}
+.company-item strong{
+  display:block;
+  margin-top:6px;
+  font-size:17px;
+  line-height:1.3;
+  text-align:center;
+}
+
+.invoice-section{
+  margin-top:18px;
+  border:1px solid #dbe4ee;
+  border-radius:12px;
+  overflow:hidden;
+}
+.invoice-section-title{
+  padding:11px 14px;
+  background:#10345c;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  text-align:center;
+}
+.invoice-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.invoice-item{
+  padding:12px;
+  border-right:1px solid #e5ebf0;
+  border-bottom:1px solid #e5ebf0;
+  min-height:72px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.invoice-item:nth-child(3n){border-right:0}
+.invoice-item span{
+  display:block;
+  font-size:12px;
+  color:#64748b;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.3px;
+  text-align:center;
+}
+.invoice-item strong{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
+  line-height:1.15;
+  font-weight:900;
+  text-align:center;
+}
+.billing-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+}
+.billing-item{
+  padding:14px;
+  min-height:78px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  border-right:1px solid #e5ebf0;
+}
+.billing-item:last-child{border-right:0}
+.billing-item span{
+  font-size:11px;
+  color:#64748b;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.billing-item strong{
+  margin-top:7px;
+  font-size:15px;
+  font-weight:900;
+}
+.invoice-total{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:16px 18px;
+  background:#fff8da;
+  border-top:2px solid #d6b24e;
+  font-size:18px;
+  font-weight:950;
+  color:#7a5700;
+}
+.invoice-footer{
+  padding:18px 30px 26px;
+  text-align:center;
+  color:#64748b;
+  font-size:10px;
+  font-weight:700;
+}
+.invoice-loading{
+  padding:60px;
+  text-align:center;
+  font-size:14px;
+  font-weight:800;
+  color:#64748b;
+}
+@media(max-width:760px){
+  .invoice-head{flex-direction:column}
+  .meta{text-align:left}
+  .company-strip,.invoice-grid,.billing-grid{grid-template-columns:1fr}
+  .company-item,.invoice-item,.billing-item{
+    border-right:0;
+    border-bottom:1px solid rgba(255,255,255,.22);
+  }
+}
+
+@page{
+  size:Letter;
+  margin:0.35in;
+}
+
+@media print{
+  html,body{
+    background:#fff !important;
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+  }
+
+  .actions{
+    display:none !important;
+  }
+
+  .invoice-page{
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  .invoice{
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    break-inside:avoid;
+  }
+
+  .invoice-head,
+  .company-strip,
+  .invoice-section,
+  .invoice-total{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .invoice-head{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .company-strip,
+  .invoice-section-title,
+  .invoice-total{
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+
+  .invoice-body{
+    padding:16px 18px !important;
+  }
+
+  .invoice-item,
+  .billing-item{
+    min-height:60px !important;
+    padding:9px !important;
+  }
+
+  .invoice-footer{
+    padding:12px 18px 0 !important;
+  }
+}
+
+</style>
+</head>
+<body>
+<div class="invoice-page">
+  <div class="actions">
+    <button class="action-btn dark" type="button" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <div class="invoice" id="invoiceRoot">
+    <div class="invoice-loading">Loading invoice...</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const token =
+  String(
+    sessionStorage.getItem("staffToken") ||
+    localStorage.getItem("token") ||
+    ""
+  ).trim();
+
+const role =
+  String(
+    sessionStorage.getItem("staffRole") ||
+    localStorage.getItem("role") ||
+    ""
+  )
+  .trim()
+  .toUpperCase()
+  .replace(/[\s-]+/g,"_");
+
+if(!token || role !== "SUPER_ADMIN"){
+  window.location.replace("/login.html");
+}
+
+const $root = document.getElementById("invoiceRoot");
+const params = new URLSearchParams(location.search);
+const companyId = String(params.get("id") || "").trim();
+const historyId = String(params.get("historyId") || "").trim();
+const autoPrint = params.get("print") === "1";
+
+function money(v){
+  return "$" + Number(v || 0).toFixed(2);
+}
+
+function formatDate(value){
+  if(!value) return "--";
+  const d = new Date(
+    new Date(value).toLocaleString(
+      "en-US",
+      {timeZone:"America/Phoenix"}
+    )
+  );
+  if(Number.isNaN(d.getTime())) return "--";
+  return d.toLocaleDateString(
+    "en-US",
+    {year:"numeric",month:"short",day:"numeric"}
+  );
+}
+
+function esc(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+async function loadInvoice(){
+  try{
+    if(!companyId){
+      throw new Error("Company ID is missing");
+    }
+
+    let c = null;
+    let historyRow = null;
+
+    if(historyId){
+      const historyRes = await fetch(
+        `/api/admin/billing-history/${encodeURIComponent(companyId)}/${encodeURIComponent(historyId)}`,
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
+
+      const historyData =
+        await historyRes.json().catch(()=>null);
+
+      if(!historyRes.ok){
+        throw new Error(
+          historyData?.message ||
+          "Unable to load historical invoice"
+        );
+      }
+
+      historyRow =
+        historyData?.invoice || null;
+
+      if(!historyRow){
+        throw new Error(
+          "Historical invoice not found"
+        );
+      }
+
+      c = {
+        _id:companyId,
+        name:
+          historyRow.companyName ||
+          historyData.company?.name ||
+          "--",
+        email:
+          historyRow.companyEmail ||
+          historyData.company?.email ||
+          "--",
+        phone:
+          historyRow.companyPhone ||
+          historyData.company?.phone ||
+          "--",
+        billingStatus:"PAID",
+        billingStartDate:
+          historyRow.billingStartDate,
+        billingEndDate:
+          historyRow.billingEndDate,
+        lastPaymentDate:
+          historyRow.paidDate,
+        totalTrips:
+          historyRow.totalTrips,
+        completedTrips:
+          historyRow.completedTrips,
+        sharedTrips:
+          historyRow.sharedTrips,
+        noShowTrips:
+          historyRow.noShowTrips,
+        revenue:
+          historyRow.revenue,
+        invoiceAmount:
+          historyRow.invoiceAmount
+      };
+
+    }else{
+      const res = await fetch(
+        "/api/admin/billing",
+        {
+          headers:{
+            Authorization:"Bearer " + token
+          },
+          cache:"no-store"
+        }
+      );
+
+      const data =
+        await res.json().catch(()=>null);
+
+      if(!res.ok){
+        throw new Error(
+          data?.message ||
+          "Unable to load invoice"
+        );
+      }
+
+      const list =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data?.companies)
+            ? data.companies
+            : [];
+
+      c =
+        list.find(row =>
+          String(row?._id || "") === companyId
+        );
+
+      if(!c){
+        throw new Error(
+          "Company invoice not found"
+        );
+      }
+    }
+
+    const invoiceNo =
+      historyRow?.invoiceNumber ||
+      (
+        "GH-COMP-" +
+        String(
+          historyRow?._id ||
+          c._id ||
+          ""
+        )
+          .slice(-8)
+          .toUpperCase()
+      );
+
+    $root.innerHTML = `
+      <div class="invoice-head">
+        <div class="brand">
+          <h1>GH Mobility</h1>
+          <div class="sub">COMPANY BILLING INVOICE</div>
+        </div>
+
+        <div class="meta">
+          <div><strong>Invoice:</strong> ${esc(invoiceNo)}</div>
+          <div><strong>Billing Start:</strong> ${esc(formatDate(c.billingStartDate))}</div>
+          <div><strong>Billing End:</strong> ${esc(formatDate(c.billingEndDate))}</div>
+          <div><strong>Status:</strong> ${esc(c.billingStatus || "ACTIVE")}</div>
+          ${
+            historyRow
+              ? `<div><strong>Paid Date:</strong> ${esc(formatDate(historyRow.paidDate))}</div>
+                 <div><strong>Method:</strong> ${esc(historyRow.paymentMethod || "STRIPE")}</div>`
+              : ""
+          }
+        </div>
+      </div>
+
+      <div class="invoice-body">
+
+        <div class="company-strip">
+          <div class="company-item">
+            <span>Company Name</span>
+            <strong>${esc(c.name || "--")}</strong>
+          </div>
+
+          <div class="company-item">
+            <span>Email</span>
+            <strong>${esc(c.email || "--")}</strong>
+          </div>
+
+          <div class="company-item">
+            <span>Phone</span>
+            <strong>${esc(c.phone || "--")}</strong>
+          </div>
+        </div>
+
+        <div class="invoice-section">
+          <div class="invoice-section-title">Billing Summary</div>
+          <div class="invoice-grid">
+            <div class="invoice-item"><span>Trips</span><strong>${Number(c.totalTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Completed</span><strong>${Number(c.completedTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Shared</span><strong>${Number(c.sharedTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>No Show</span><strong>${Number(c.noShowTrips || 0)}</strong></div>
+            <div class="invoice-item"><span>Revenue</span><strong>${esc(money(c.revenue))}</strong></div>
+            <div class="invoice-item"><span>Invoice</span><strong>${esc(money(c.invoiceAmount))}</strong></div>
+          </div>
+        </div>
+
+        <div class="invoice-section">
+          <div class="invoice-section-title">Billing Details</div>
+          <div class="billing-grid">
+            <div class="billing-item">
+              <span>Billing Start</span>
+              <strong>${esc(formatDate(c.billingStartDate))}</strong>
+            </div>
+
+            <div class="billing-item">
+              <span>Billing End</span>
+              <strong>${esc(formatDate(c.billingEndDate))}</strong>
+            </div>
+
+            <div class="billing-item">
+              <span>Last Payment</span>
+              <strong>${esc(formatDate(c.lastPaymentDate))}</strong>
+            </div>
+          </div>
+
+          <div class="invoice-total">
+            <span>Invoice Amount</span>
+            <strong>${esc(money(c.invoiceAmount))}</strong>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="invoice-footer">
+        Generated by GH Mobility Company Billing
+      </div>
+    `;
+
+    if(autoPrint){
+      setTimeout(
+        ()=>window.print(),
+        350
+      );
+    }
+
+  }catch(err){
+    console.error("INVOICE LOAD ERROR:",err);
+    $root.innerHTML =
+      `<div class="invoice-loading">${esc(err.message || "Unable to load invoice")}</div>`;
+  }
+}
+
+loadInvoice();
+</script>
+</body>
+</html>

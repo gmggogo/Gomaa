@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Platform Support</title>
+<link rel="stylesheet" href="/admin/style.css">
+<style>
+body{margin:0;background:#f4f7fb;color:#172033;font-family:Arial,sans-serif}
+.support-shell{max-width:1250px;margin:22px auto 60px;padding:0 18px}
+.support-title{margin:0 0 18px;text-align:center;font-size:25px;font-weight:900;color:#0f172a}
+.support-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}
+.card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;box-shadow:0 5px 16px rgba(15,23,42,.06)}
+.side{padding:16px}
+.identity{background:#fff9df;border:1px solid #e3c75f;border-radius:13px;padding:13px;margin-bottom:14px}
+.identity div{margin:5px 0;font-size:13px}
+.identity b{color:#725000}
+.new-btn{width:100%;border:0;border-radius:11px;padding:12px;background:#0f6f9f;color:#fff;font-weight:900;cursor:pointer}
+.conv-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.conv-item{border:1px solid #dde6ef;border-radius:11px;padding:11px;background:#f9fbfd;cursor:pointer}
+.conv-item.active{border-color:#d4a823;background:#fff7d8}
+.conv-item-title{font-weight:900;font-size:14px}
+.conv-item-meta{font-size:12px;color:#687386;margin-top:5px}
+.chat{min-height:650px;display:flex;flex-direction:column}
+.chat-head{padding:15px 18px;border-bottom:1px solid #e5eaf0;background:#fff9df;border-radius:16px 16px 0 0}
+.chat-head h2{margin:0;font-size:18px}
+.chat-head p{margin:5px 0 0;color:#687386;font-size:13px}
+.messages{flex:1;padding:18px;overflow:auto;max-height:520px;background:#f8fafc}
+.msg{max-width:78%;padding:11px 13px;border-radius:14px;margin-bottom:11px}
+.msg.staff{background:#e5f3ff;margin-right:auto;border:1px solid #b9ddf3}
+.msg.platform{background:#fff0b8;margin-left:auto;border:1px solid #e3c45f}
+.msg-meta{font-size:11px;color:#687386;margin-bottom:5px;font-weight:700}
+.msg-text{white-space:pre-wrap;line-height:1.45}
+.composer{display:flex;gap:9px;padding:14px;border-top:1px solid #e5eaf0}
+.composer textarea{flex:1;min-height:70px;resize:vertical;border:1px solid #cbd5e1;border-radius:11px;padding:11px}
+.composer button{width:130px;border:0;border-radius:11px;background:#c98a00;color:#fff;font-weight:900;cursor:pointer}
+.empty{display:flex;align-items:center;justify-content:center;height:100%;color:#718096;text-align:center;padding:30px}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.48);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px}
+.modal.show{display:flex}
+.modal-box{width:min(560px,100%);background:#fff;border-radius:16px;padding:18px}
+.modal-box h3{margin:0 0 13px}
+.modal-box input,.modal-box textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;padding:11px;margin-bottom:10px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+.modal-actions button{border:0;border-radius:9px;padding:10px 15px;font-weight:800;cursor:pointer}
+.cancel{background:#e5e7eb}
+.start{background:#0f6f9f;color:#fff}
+@media(max-width:850px){.support-grid{grid-template-columns:1fr}.chat{min-height:560px}.msg{max-width:90%}}
+</style>
+</head>
+<body>
+<div id="adminHeader"></div>
+
+<main class="support-shell">
+  <h1 class="support-title">Platform Support</h1>
+
+  <div class="support-grid">
+    <aside class="card side">
+      <div class="identity" id="identityCard">
+        <div><b>Company:</b> <span id="companyName">Loading...</span></div>
+        <div><b>Company Phone:</b> <span id="companyPhone">-</span></div>
+        <div><b>User:</b> <span id="userName">-</span></div>
+        <div><b>Role:</b> <span id="userRole">-</span></div>
+        <div><b>User Phone:</b> <span id="userPhone">-</span></div>
+      </div>
+
+      <button class="new-btn" id="newConversationBtn" type="button">
+        + New Support Request
+      </button>
+
+      <div class="conv-list" id="conversationList"></div>
+    </aside>
+
+    <section class="card chat">
+      <div id="chatEmpty" class="empty">
+        Select a conversation or create a new support request.
+      </div>
+
+      <div id="chatView" style="display:none;min-height:650px;display:none;flex-direction:column">
+        <div class="chat-head">
+          <h2 id="chatSubject"></h2>
+          <p id="chatStatus"></p>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="composer">
+          <textarea id="messageInput" placeholder="Write your message to Platform Support..."></textarea>
+          <button id="sendMessageBtn" type="button">Send</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="modal" id="newConversationModal">
+  <div class="modal-box">
+    <h3>New Support Request</h3>
+    <input id="newSubject" maxlength="180" placeholder="Subject">
+    <textarea id="newMessage" rows="7" maxlength="5000" placeholder="Describe your issue"></textarea>
+    <div class="modal-actions">
+      <button class="cancel" id="cancelNewBtn" type="button">Cancel</button>
+      <button class="start" id="startNewBtn" type="button">Start Conversation</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/support-chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,914 @@
+<!-- summary.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sunbeam Summary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="layout.css">
+
+<style>
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  background:#f4f8fb;
+  font-family:'Segoe UI',sans-serif;
+  color:#111827;
+  overflow-x:hidden;
+}
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+
+.page{
+  width:100%;
+  max-width:1700px;
+  margin:auto;
+  padding:88px 14px 24px;
+}
+
+.top-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+}
+
+.title-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.page-title{
+  font-size:34px;
+  font-weight:900;
+  color:#1e3a8a;
+  line-height:1;
+}
+
+.filters{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.search-input,
+.filter-select{
+  height:40px;
+  border:none;
+  border-radius:10px;
+  background:#fff;
+  padding:0 12px;
+  font-size:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+  font-weight:700;
+}
+
+.search-input{
+  flex:1;
+  min-width:220px;
+}
+
+.print-btn{
+  border:none;
+  background:#145cff;
+  color:#fff;
+  border-radius:10px;
+  padding:0 18px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:12px;
+  overflow-x:auto;
+  padding-bottom:3px;
+}
+
+.tab{
+  min-width:120px;
+  flex:1;
+  height:38px;
+  border:none;
+  border-radius:10px;
+  background:#dbe4f0;
+  color:#111827;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.tab.active{
+  background:#145cff;
+  color:#fff;
+}
+
+.services-stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.services-stats .stat{
+  background:linear-gradient(135deg,#16a34a,#22c55e);
+  border-radius:16px;
+  padding:14px 14px;
+  min-height:105px;
+  color:#fff;
+  box-shadow:0 8px 22px rgba(22,163,74,.24);
+  transition:.2s ease;
+}
+
+.services-stats .stat:hover{
+  transform:translateY(-3px);
+  box-shadow:0 12px 28px rgba(22,163,74,.32);
+}
+
+.services-stats .stat-title{
+  font-size:13px;
+  color:#dcfce7;
+  font-weight:900;
+  margin-bottom:8px;
+}
+
+.services-stats .stat-lines{
+  font-size:13px;
+  line-height:1.65;
+  font-weight:900;
+}
+
+.services-stats .big{
+  font-size:17px;
+}
+
+.totals-stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:8px;
+  margin-bottom:18px;
+}
+
+.totals-stats .stat{
+  background:#145cff;
+  border-radius:12px;
+  padding:9px 10px;
+  min-height:65px;
+  color:#fff;
+  box-shadow:0 3px 10px rgba(20,92,255,.16);
+}
+
+.totals-stats .stat-title{
+  font-size:10px;
+  color:#dbeafe;
+  font-weight:900;
+}
+
+.totals-stats .stat-value{
+  margin-top:7px;
+  font-size:20px;
+  font-weight:900;
+}
+
+.day-title{
+  margin:22px 0 8px;
+  font-size:14px;
+  font-weight:900;
+  color:#374151;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:auto;
+  background:#fff;
+  border-radius:14px;
+  border:1px solid #d1d5db;
+  margin-bottom:18px;
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
+}
+
+.summary-table{
+  width:100%;
+  min-width:1600px;
+  border-collapse:collapse;
+  table-layout:fixed;
+}
+
+.summary-table th{
+  background:#cfd8e3;
+  color:#111827;
+  font-size:10px;
+  font-weight:900;
+  text-align:left;
+  padding:10px 6px;
+  white-space:nowrap;
+  border-bottom:2px solid #94a3b8;
+  border-right:1px solid #cbd5e1;
+}
+
+.summary-table td{
+  padding:8px 6px;
+  font-size:9px;
+  border-bottom:1px solid #e5e7eb;
+  border-right:1px solid #e5e7eb;
+  vertical-align:top;
+  line-height:1.5;
+  font-weight:700;
+  color:#111827;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  background:#fff;
+}
+
+.summary-table th:last-child,
+.summary-table td:last-child{
+  border-right:none;
+}
+
+.location-cell{
+  padding:5px !important;
+}
+
+.location-boxes{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  width:100%;
+}
+
+.location-box{
+  width:100%;
+  min-height:28px;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:7px;
+  background:#fff;
+  color:#111827;
+  font-size:9px;
+  font-weight:700;
+  line-height:1.35;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+}
+
+
+.summary-table tr:nth-child(even) td{
+  background:#f8fafc;
+}
+
+.summary-table tr:hover td{
+  background:#eef4ff;
+}
+
+.shared-separator td{
+  border-bottom:1px solid #cbd5e1 !important;
+}
+
+.trip-divider-line td{
+  padding:0 !important;
+  height:4px;
+  background:#94a3b8;
+  border:none !important;
+}
+
+.trip-divider td{
+  padding:0 !important;
+  height:12px;
+  background:#f4f8fb;
+  border:none !important;
+}
+
+.status{
+  display:inline-block;
+  padding:3px 7px;
+  border-radius:999px;
+  font-size:8px;
+  font-weight:900;
+}
+
+.completed{background:#dcfce7;color:#166534;}
+.cancelled{background:#fee2e2;color:#991b1b;}
+.noshow{background:#fef9c3;color:#854d0e;}
+.notcompleted{background:#374151;color:#fff;}
+.scheduled{background:#dbeafe;color:#1d4ed8;}
+.confirmed{background:#bbf7d0;color:#15803d;}
+
+.total{
+  font-weight:900;
+  color:#145cff;
+}
+
+.summary-table td:first-child{
+  background:#dbeafe !important;
+  color:#1d4ed8;
+  font-weight:900;
+}
+
+.summary-table td:nth-child(15){
+  background:#fef9c3 !important;
+  color:#854d0e;
+  font-weight:900;
+}
+
+.summary-table td:nth-child(16){
+  background:#dcfce7 !important;
+  color:#166534;
+  font-weight:900;
+}
+
+.empty-state{
+  background:#fff;
+  border-radius:14px;
+  padding:30px;
+  text-align:center;
+  font-size:14px;
+  font-weight:900;
+  color:#64748b;
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
+}
+
+@media(max-width:768px){
+  .page{padding:84px 6px 18px;}
+  .top-bar{gap:6px;}
+  .page-title{font-size:25px;}
+  .filters{width:100%;}
+  .search-input,.filter-select,.print-btn{
+    height:38px;
+    font-size:11px;
+  }
+  .tab{
+    font-size:11px;
+    height:36px;
+    min-width:105px;
+  }
+  .services-stats{grid-template-columns:1fr 1fr;}
+  .totals-stats{grid-template-columns:1fr 1fr;}
+  .summary-table{min-width:1450px;}
+  .summary-table th,
+  .summary-table td{
+    font-size:8px;
+    padding:5px 4px;
+  }
+}
+
+
+/* =========================================================
+   SUMMARY TABLE FINAL COLUMN LAYOUT
+   Display-only:
+   Company / Entry / Booking / Note are inside View.
+   Pickup / Stops / Dropoff are wider.
+   ========================================================= */
+
+.summary-table{
+  min-width:1500px;
+}
+
+.summary-table .col-trip-number{
+  width:90px;
+}
+
+.summary-table .col-passenger{
+  width:120px;
+  max-width:120px;
+}
+
+.summary-table .col-phone{
+  width:105px;
+}
+
+.summary-table .col-pickup,
+.summary-table .col-stops,
+.summary-table .col-dropoff{
+  width:290px;
+}
+
+.summary-table .col-date{
+  width:90px;
+}
+
+.summary-table .col-time{
+  width:78px;
+}
+
+.summary-table .col-miles{
+  width:62px;
+}
+
+.summary-table .col-status{
+  width:92px;
+}
+
+.summary-table .col-price,
+.summary-table .col-total{
+  width:82px;
+}
+
+.summary-table .col-eye{
+  width:54px;
+  text-align:center;
+}
+
+.location-box{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+}
+
+.stop-box{
+  display:flex;
+  align-items:flex-start;
+  gap:5px;
+}
+
+.stop-number{
+  flex:0 0 auto;
+  font-weight:900;
+  color:#1d4ed8;
+}
+
+.summary-eye-btn{
+  width:32px;
+  height:30px;
+  border:none;
+  border-radius:8px;
+  background:#0f172a;
+  color:#fff;
+  cursor:pointer;
+  font-size:15px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.summary-eye-btn:hover{
+  background:#145cff;
+}
+
+.summary-details-overlay{
+  position:fixed;
+  inset:0;
+  z-index:5000;
+  background:rgba(15,23,42,.48);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+
+.summary-details-modal{
+  width:min(620px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 22px 60px rgba(0,0,0,.28);
+}
+
+.summary-details-head{
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  background:#0f172a;
+  color:#fff;
+  font-size:15px;
+  font-weight:900;
+}
+
+.summary-details-close{
+  width:30px;
+  height:30px;
+  border:none;
+  border-radius:8px;
+  background:#fff;
+  color:#0f172a;
+  font-size:20px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.summary-details-body{
+  padding:14px;
+}
+
+.summary-details-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.summary-detail-item{
+  border:1px solid #dbe3ee;
+  border-radius:10px;
+  background:#f8fafc;
+  padding:10px;
+}
+
+.summary-detail-label{
+  margin-bottom:4px;
+  color:#64748b;
+  font-size:10px;
+  font-weight:900;
+}
+
+.summary-detail-value{
+  color:#0f172a;
+  font-size:12px;
+  font-weight:800;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+.summary-detail-empty{
+  padding:18px;
+  text-align:center;
+  font-weight:900;
+  color:#64748b;
+}
+
+/* Old positional cell colors updated to the new 13-column layout. */
+.summary-table td:nth-child(11){
+  background:#fef9c3 !important;
+  color:#854d0e;
+  font-weight:900;
+}
+
+.summary-table td:nth-child(12){
+  background:#dcfce7 !important;
+  color:#166534;
+  font-weight:900;
+}
+
+/* Cancel the previous 15/16 positional styling after columns moved. */
+.summary-table td:nth-child(15),
+.summary-table td:nth-child(16){
+  background:inherit !important;
+  color:inherit;
+}
+
+@media(max-width:768px){
+  .summary-table{
+    min-width:1420px;
+  }
+
+  .summary-table .col-passenger{
+    width:105px;
+    max-width:105px;
+  }
+
+  .summary-table .col-pickup,
+  .summary-table .col-stops,
+  .summary-table .col-dropoff{
+    width:260px;
+  }
+
+  .summary-details-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
+@media print{
+  #layoutHeader,
+  .top-bar,
+  .tabs{
+    display:none !important;
+  }
+  .page{padding:0;}
+  body{background:#fff;}
+}
+
+/* =========================================================
+   SUMMARY FULL-WIDTH TABLE
+   ========================================================= */
+
+.page{
+  max-width:none;
+  width:100%;
+  padding-left:10px;
+  padding-right:10px;
+}
+
+.export-btn{
+  border:none;
+  background:#0f172a;
+  color:#fff;
+  border-radius:10px;
+  padding:0 18px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.summary-day-section{
+  width:100%;
+  margin:0 0 18px;
+}
+
+.day-title{
+  width:100%;
+  margin:18px 0 0;
+  padding:10px 12px;
+  text-align:center;
+  background:#dbeafe;
+  color:#1e3a8a;
+  border:1px solid #bfdbfe;
+  border-bottom:none;
+  border-radius:12px 12px 0 0;
+  font-size:15px;
+}
+
+.table-wrap{
+  width:100%;
+  overflow-x:visible;
+  border-radius:0 0 12px 12px;
+  margin-bottom:0;
+}
+
+.summary-table{
+  width:100%;
+  min-width:0 !important;
+  table-layout:fixed;
+}
+
+.summary-table th,
+.summary-table td{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+
+.summary-table .col-trip-number{
+  width:7%;
+}
+
+.summary-table .col-passenger{
+  width:8%;
+  max-width:none;
+}
+
+.summary-table .col-phone{
+  width:7%;
+}
+
+.summary-table .col-pickup{
+  width:15%;
+}
+
+.summary-table .col-stops{
+  width:17%;
+}
+
+.summary-table .col-dropoff{
+  width:15%;
+}
+
+.summary-table .col-date{
+  width:7%;
+}
+
+.summary-table .col-time{
+  width:6%;
+}
+
+.summary-table .col-miles{
+  width:5%;
+}
+
+.summary-table .col-status{
+  width:7%;
+}
+
+.summary-table .col-price{
+  width:6%;
+}
+
+.summary-table .col-total{
+  width:6%;
+}
+
+.summary-table .col-eye{
+  width:4%;
+}
+
+.single-value-cell,
+.shared-master-cell{
+  vertical-align:middle !important;
+}
+
+.shared-master-cell{
+  text-align:center;
+}
+
+.summary-table td.col-trip-number,
+.summary-table td.col-date,
+.summary-table td.col-time,
+.summary-table td.col-miles,
+.summary-table td.col-status,
+.summary-table td.col-price,
+.summary-table td.col-total,
+.summary-table td.col-eye{
+  vertical-align:middle !important;
+}
+
+.summary-table td.col-passenger,
+.summary-table td.col-phone{
+  vertical-align:middle !important;
+}
+
+.trip-divider{
+  display:none;
+}
+
+@media(max-width:1200px){
+  .summary-table{
+    min-width:0 !important;
+  }
+
+  .summary-table th{
+    font-size:9px;
+    padding:8px 4px;
+  }
+
+  .summary-table td{
+    font-size:8px;
+    padding:6px 4px;
+  }
+
+  .location-box{
+    font-size:8px;
+    padding:5px 6px;
+  }
+}
+
+@media(max-width:768px){
+  .page{
+    padding-left:4px;
+    padding-right:4px;
+  }
+
+  .summary-table{
+    min-width:0 !important;
+  }
+
+  .summary-table th{
+    font-size:7px;
+    padding:6px 2px;
+  }
+
+  .summary-table td{
+    font-size:7px;
+    padding:4px 2px;
+  }
+
+  .location-box{
+    min-height:24px;
+    font-size:7px;
+    padding:4px;
+  }
+
+  .summary-eye-btn{
+    width:26px;
+    height:26px;
+    font-size:12px;
+  }
+
+  .export-btn{
+    height:38px;
+    font-size:11px;
+  }
+}
+
+@media print{
+  .export-btn{
+    display:none !important;
+  }
+}
+
+
+
+/* =========================================================
+   FINAL TRIP SEPARATION + FULL CELL CENTERING
+   ========================================================= */
+
+.summary-table th,
+.summary-table td{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.location-cell{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.location-boxes{
+  align-items:stretch;
+  justify-content:center;
+}
+
+.location-box{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center !important;
+}
+
+.stop-box{
+  justify-content:center;
+  text-align:center !important;
+}
+
+.summary-table .single-value-cell,
+.summary-table .shared-master-cell{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+
+.summary-table .trip-divider-line td{
+  height:5px !important;
+  padding:0 !important;
+  background:#64748b !important;
+  border:none !important;
+}
+
+.summary-table tbody > tr:not(.trip-divider-line):last-of-type td{
+  border-bottom:1px solid #cbd5e1;
+}
+
+.shared-separator td{
+  border-bottom:1px solid #d7dee8 !important;
+}
+
+.summary-eye-btn{
+  margin:0 auto;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="layoutHeader"></div>
+
+<div class="page">
+
+  <div class="top-bar">
+
+    <div class="title-wrap">
+      <div class="page-title">Summary</div>
+    </div>
+
+    <div class="filters">
+      <input
+        type="text"
+        id="searchInput"
+        class="search-input"
+        placeholder="Search Trip# / Company / Entry / Client / Passenger / Phone">
+
+      <select id="yearFilter" class="filter-select"></select>
+      <select id="monthFilter" class="filter-select"></select>
+
+      <button class="print-btn" onclick="window.print()">Print</button>
+      <button class="export-btn" onclick="exportSummaryExcel()">Excel</button>
+      <button class="export-btn" onclick="exportSummaryCSV()">CSV</button>
+    </div>
+
+  </div>
+
+  <div class="tabs" id="serviceTabs"></div>
+
+  <div class="services-stats" id="servicesStats"></div>
+
+  <div class="totals-stats" id="totalsStats"></div>
+
+  <div id="summaryContent"></div>
+
+</div>
+
+<script src="layout.js"></script>
+<script src="summary.js"></script>
+
+</body>
+</html>

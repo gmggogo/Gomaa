@@ -1,0 +1,1699 @@
+/*
+=========================================================
+ADMIN DASHBOARD — PROFESSIONAL DATA CARDS
+- NO quick-access button section
+- HEADER APPEARANCE IS NOT CHANGED
+- Shared Passengers card appears only when SH service is visible
+- New Trips + Final Confirmation are alert cards
+- Organization counts use tenant-isolated /api/users/:role
+- Company billing uses /api/admin/billing
+=========================================================
+*/
+
+(function(){
+"use strict";
+
+const token=String(localStorage.getItem("token")||"").trim();
+const rawRole=String(localStorage.getItem("role")||"").trim().toUpperCase().replace(/[\s-]+/g,"_");
+const role=rawRole==="SUPERADMIN"?"SUPER_ADMIN":rawRole;
+const isSuper=role==="SUPER_ADMIN";
+const isAdmin=role==="ADMIN";
+const canAdminData=isSuper||isAdmin;
+
+if(!token){
+  location.href="/login.html";
+  return;
+}
+
+const $=id=>document.getElementById(id);
+const n=v=>Number.isFinite(Number(v))?Number(v):0;
+const clean=v=>String(v??"").trim();
+
+function money(v){
+  return "$"+n(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function headers(){return {Authorization:"Bearer "+token};}
+
+const BROKER_NEW_WINDOW_MS=2*60*60*1000;
+
+const BROKER_VIEWED_NEW_TRIPS_KEY=
+  "brokerTripsHubViewedNewTrips:"+
+  String(
+    sessionStorage.getItem("staffTenantId")||
+    localStorage.getItem("tenantId")||
+    sessionStorage.getItem("staffTenantSlug")||
+    localStorage.getItem("tenantSlug")||
+    "default"
+  );
+
+let normalDashboardNewCount=0;
+let normalDashboardPendingCount=0;
+let brokerDashboardPendingCount=0;
+
+function externalTripId(t){
+  return clean(
+    t?._id||
+    t?.id||
+    t?.ghExternalTripNumber||
+    t?.externalTripNumber||
+    t?.externalTripId
+  );
+}
+
+function externalTripReceivedAt(t){
+  return new Date(
+    t?.receivedAt||
+    t?.createdAt||
+    t?.updatedAt||
+    0
+  );
+}
+
+function readBrokerViewedNewTrips(){
+  let viewed={};
+
+  try{
+    viewed=JSON.parse(
+      localStorage.getItem(
+        BROKER_VIEWED_NEW_TRIPS_KEY
+      )||"{}"
+    );
+  }catch(err){
+    viewed={};
+  }
+
+  const now=Date.now();
+  let changed=false;
+
+  Object.keys(viewed).forEach(key=>{
+    if(n(viewed[key])<=now){
+      delete viewed[key];
+      changed=true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem(
+      BROKER_VIEWED_NEW_TRIPS_KEY,
+      JSON.stringify(viewed)
+    );
+  }
+
+  return viewed;
+}
+
+function isBrokerHubNewTrip(t,viewed){
+  const d=externalTripReceivedAt(t);
+  const age=Date.now()-d.getTime();
+
+  if(
+    isNaN(d.getTime())||
+    age<0||
+    age>BROKER_NEW_WINDOW_MS
+  ){
+    return false;
+  }
+
+  const id=externalTripId(t);
+  if(!id)return false;
+
+  return !viewed[id];
+}
+
+function publishDashboardAlerts(
+  brokerNewCount=0
+){
+  const newTrips=
+    normalDashboardNewCount+
+    n(brokerNewCount);
+
+  const pendingConfirmation=
+    normalDashboardPendingCount+
+    brokerDashboardPendingCount;
+
+  localStorage.setItem(
+    "dashboardNewTripsCount",
+    String(newTrips)
+  );
+
+  localStorage.setItem(
+    "dashboardPendingConfirmationCount",
+    String(pendingConfirmation)
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "gh-dashboard-alerts",
+      {
+        detail:{
+          newTrips,
+          pendingConfirmation
+        }
+      }
+    )
+  );
+}
+
+async function getJson(url){
+  const r=await fetch(url,{headers:headers(),cache:"no-store"});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error(data?.message||`Request failed ${r.status}`);
+  return data;
+}
+function tz(){
+  return localStorage.getItem("systemTimezone")||
+         localStorage.getItem("appTimezone")||
+         "America/Phoenix";
+}
+function dateKey(value){
+  if(!value)return "";
+  if(typeof value==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
+  const d=new Date(value);
+  if(isNaN(d.getTime()))return "";
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:tz(),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+  const y=p.find(x=>x.type==="year")?.value||"";
+  const m=p.find(x=>x.type==="month")?.value||"";
+  const day=p.find(x=>x.type==="day")?.value||"";
+  return `${y}-${m}-${day}`;
+}
+function todayKey(){return dateKey(new Date());}
+function monthKey(){return todayKey().slice(0,7);}
+function tripDateKey(t){
+  const d=clean(t?.tripDate);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:dateKey(d);
+}
+function norm(v){return clean(v).toLowerCase().replace(/[\s_-]+/g,"");}
+function isCompleted(v){const s=norm(v);return ["completed","complete","dropoff","droppedoff"].includes(s);}
+function isCancelled(v){return norm(v).includes("cancel");}
+function isNoShow(v){return norm(v).includes("noshow");}
+function isOnTrip(v){return ["accepted","ontrip","inprogress","arrived","pickup","pickedup"].includes(norm(v));}
+function isFinalStatus(v){return isCompleted(v)||isCancelled(v)||isNoShow(v)||norm(v)==="notcompleted";}
+function isFinalConfirmed(t){
+  return t?.finalStatusConfirmed===true||
+         t?.sharedFinalConfirmed===true||
+         !!t?.dispatchFinalConfirmedAt||
+         !!t?.finalStatusConfirmedAt||
+         !!t?.sharedFinalConfirmedAt;
+}
+function isBrokerTrip(t){
+  if(!t)return false;
+
+  const direct=clean(
+    t?.externalSource ||
+    t?.integrationSource ||
+    t?.tripSource ||
+    t?.sharedSource ||
+    t?.routeSource ||
+    ""
+  ).toUpperCase();
+
+  if(
+    direct==="BROKER" ||
+    direct.includes("BROKER")
+  ){
+    return true;
+  }
+
+  if(
+    clean(t?.brokerCode) ||
+    clean(t?.brokerName) ||
+    clean(t?.brokerTripId)
+  ){
+    return true;
+  }
+
+  const sourceText=[
+    t?.source,
+    t?.bookingSource,
+    t?.createdBy,
+    t?.from,
+    t?.sharedSource,
+    t?.routeSource
+  ].map(clean).join(" ").toUpperCase();
+
+  return sourceText.includes("BROKER");
+}
+
+function isShared(t){
+  return t?.isShared===true||
+         clean(t?.tripType).toUpperCase()==="SHARED"||
+         clean(t?.serviceKey).toUpperCase()==="SH"||
+         clean(t?.serviceCode).toUpperCase()==="SH"||
+         (Array.isArray(t?.passengers)&&t.passengers.length>0);
+}
+function sharedKey(t){
+  return clean(t?.groupId)||clean(t?.tripNumber)||clean(t?._id||t?.id);
+}
+function buildItems(trips){
+  const seen=new Set(), groups=new Map(), out=[];
+  trips.forEach(t=>{
+    if(isShared(t)){
+      const k=sharedKey(t);
+      if(!groups.has(k))groups.set(k,[]);
+      groups.get(k).push(t);
+    }
+  });
+  trips.forEach(t=>{
+    if(isShared(t)){
+      const k=sharedKey(t);
+      if(seen.has(k))return;
+      seen.add(k);
+      const g=groups.get(k)||[t];
+      out.push({kind:"shared",trip:g[0],group:g});
+    }else out.push({kind:"trip",trip:t,group:[t]});
+  });
+  return out;
+}
+function passengers(item){
+  const p=item?.trip?.passengers;
+  if(Array.isArray(p)&&p.length)return p;
+  return item.kind==="shared"?item.group.map(t=>({status:t.status,finalPrice:t.finalPrice,priceAmount:t.priceAmount})): [];
+}
+function statuses(item){
+  if(item.kind==="shared"){
+    const p=passengers(item);
+    return p.length?p.map(x=>x.status||item.trip?.status||""):item.group.map(x=>x.status||"");
+  }
+  return [item.trip?.status||""];
+}
+function itemMiles(item){
+  if(item.kind==="shared"){
+    return n(item.trip?.sharedRouteMiles||item.trip?.miles||0);
+  }
+  return n(item.trip?.miles||0);
+}
+function itemRevenue(item){
+  const t=item.trip||{};
+  if(!isFinalConfirmed(t)&&t.isFinalized!==true)return 0;
+  if(item.kind==="shared"){
+    if(n(t.groupTotal)>0)return n(t.groupTotal);
+    if(n(t.finalPrice)>0)return n(t.finalPrice);
+    if(n(t.priceAmount)>0)return n(t.priceAmount);
+    const p=passengers(item);
+    return p.reduce((s,x)=>s+n(x.finalPrice||x.priceAmount||0),0);
+  }
+  return n(t.finalPrice||t.priceAmount||t.capturedAmount||0);
+}
+function itemSharedPassengers(item){
+  if(item.kind!=="shared")return 0;
+  const p=passengers(item);
+  return p.length||n(item.trip?.totalPassengers||item.trip?.passengerCount||item.group.length);
+}
+
+/* exact service visibility rule */
+function bool(v){
+  if(v===true)return true;
+  if(v===false||v===null||v===undefined)return false;
+  return ["true","1","yes","on","enabled","enable"].includes(clean(v).toLowerCase());
+}
+function quoteOn(s){return bool(s?.getQuoteEnabled??s?.getQuoteDisplay??s?.quoteEnabled??s?.displayInGetQuote??s?.showInGetQuote);}
+function reservedOn(s){return bool(s?.reservedEnabled??s?.reservedDisplay??s?.displayInReserved??s?.showInReserved??s?.reservationEnabled);}
+function companiesOn(s){return bool(s?.companyEnabled??s?.companiesEnabled??s?.companyEnable??s?.companiesEnable??s?.displayInCompanies??s?.showInCompanies);}
+function serviceVisible(s){return quoteOn(s)||reservedOn(s)||companiesOn(s);}
+function serviceCode(s){return clean(s?.customServiceCode||s?.serviceCode||s?.companySuffix||s?.serviceKey||s?.serviceType||s?.suffix||s?.code).toUpperCase();}
+function serviceName(s){return s?.title||s?.serviceName||s?.name||serviceCode(s)||"Service";}
+function hasSharedService(services){
+  return services.some(s=>serviceVisible(s)&&(["SH","SHARED"].includes(serviceCode(s))||clean(serviceName(s)).toLowerCase().includes("shared")));
+}
+
+/* refund only when a real refund amount/flag exists */
+function refundDate(t){
+  return t?.refundedAt||t?.refundDateTime||t?.refundProcessedAt||t?.paymentRefundedAt||null;
+}
+function isRefundedTrip(t){
+  return n(t?.refundAmount)>0||
+         t?.refunded===true||
+         t?.refundProcessed===true||
+         norm(t?.paymentStatus)==="refunded";
+}
+
+function setBrokerFeatureVisible(visible){
+  document
+    .querySelectorAll(".broker-dynamic")
+    .forEach(el=>el.classList.toggle("hidden",!visible));
+}
+
+function renderRoleVisibility(){
+  document.querySelectorAll(".super-only").forEach(el=>el.style.display=isSuper?"":"none");
+
+  if(role==="DISPATCHER"){
+    $("dashboardSub").textContent="Live dispatch operations, alerts and active staff overview";
+  }else if(isSuper){
+    $("dashboardSub").textContent="Operations, services, organization and active staff overview";
+  }else{
+    $("dashboardSub").textContent="Operations, services and organization overview";
+  }
+}
+
+function renderTrips(trips,finalTrips,services){
+  const allTrips=Array.isArray(trips)?trips:[];
+  const allFinalTrips=Array.isArray(finalTrips)?finalTrips:[];
+
+  const normalTrips=allTrips.filter(t=>!isBrokerTrip(t));
+  const brokerTrips=allTrips.filter(isBrokerTrip);
+
+  const normalFinalTrips=allFinalTrips.filter(t=>!isBrokerTrip(t));
+  const brokerFinalTrips=allFinalTrips.filter(isBrokerTrip);
+
+  const normalItems=buildItems(normalTrips);
+  const brokerItems=buildItems(brokerTrips);
+
+  const today=todayKey();
+  const month=monthKey();
+
+  const normalTodayItems=normalItems.filter(i=>tripDateKey(i.trip)===today);
+  const normalMonthItems=normalItems.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
+
+  const brokerTodayItems=brokerItems.filter(i=>tripDateKey(i.trip)===today);
+  const brokerMonthItems=brokerItems.filter(i=>tripDateKey(i.trip).slice(0,7)===month);
+
+  const recentItems=items=>items.filter(i=>{
+    const d=new Date(i.trip?.bookedAt||i.trip?.createdAt||0);
+    return !isNaN(d.getTime())&&(Date.now()-d.getTime()<=2*60*60*1000);
+  });
+
+  const pendingFinalCount=list=>list.filter(t=>{
+    const ready=isShared(t)
+      ? (Array.isArray(t.passengers)&&t.passengers.some(p=>isFinalStatus(p.status||t.status)))
+      : isFinalStatus(t.status);
+    return ready && !isFinalConfirmed(t) && tripDateKey(t)===today;
+  }).length;
+
+  const normalNewItems=recentItems(normalItems);
+  const brokerNewItems=recentItems(brokerItems);
+
+  const normalPendingFinal=pendingFinalCount(normalFinalTrips);
+  const brokerPendingFinal=pendingFinalCount(brokerFinalTrips);
+
+  normalDashboardNewCount=normalNewItems.length;
+  normalDashboardPendingCount=normalPendingFinal;
+  brokerDashboardPendingCount=brokerPendingFinal;
+
+  /* NORMAL / NON-BROKER */
+  $("normalTotalTrips").textContent=normalItems.length;
+  $("newTrips").textContent=normalNewItems.length;
+  $("needsConfirmation").textContent=normalPendingFinal;
+  $("newTripAlert").classList.toggle("is-hot",normalNewItems.length>0);
+  $("confirmAlert").classList.toggle("is-hot",normalPendingFinal>0);
+
+  $("todayTrips").textContent=normalTodayItems.length;
+  $("todayOnTrip").textContent=normalTodayItems.filter(i=>statuses(i).some(isOnTrip)).length;
+  $("todayCompleted").textContent=normalTodayItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("todayCancelled").textContent=normalTodayItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("todayNoShow").textContent=normalTodayItems.filter(i=>statuses(i).some(isNoShow)).length;
+
+  $("todayRefunds").textContent=normalTrips.filter(t=>{
+    if(!isRefundedTrip(t))return false;
+    const d=refundDate(t);
+    return d?dateKey(d)===today:tripDateKey(t)===today;
+  }).length;
+
+  $("monthTrips").textContent=normalMonthItems.length;
+  $("monthCompleted").textContent=normalMonthItems.filter(i=>statuses(i).some(isCompleted)).length;
+  $("monthCancelled").textContent=normalMonthItems.filter(i=>statuses(i).some(isCancelled)).length;
+  $("monthNoShow").textContent=normalMonthItems.filter(i=>statuses(i).some(isNoShow)).length;
+  $("monthMiles").textContent=normalMonthItems.reduce((s,i)=>s+itemMiles(i),0).toFixed(1);
+
+  const sharedEnabled=hasSharedService(services);
+  $("sharedPassengersCard").classList.toggle("hidden",!sharedEnabled);
+  if(sharedEnabled){
+    $("sharedPassengers").textContent=normalMonthItems.reduce((s,i)=>s+itemSharedPassengers(i),0);
+  }
+
+  /* BROKER FINAL CONFIRMATION
+     Every other Broker card is rendered in renderBrokerCards()
+     from one unified Broker source-row model.
+  */
+  $("brokerNeedsConfirmation").textContent=
+    brokerPendingFinal;
+
+  $("brokerConfirmAlert").classList.toggle(
+    "is-hot",
+    brokerPendingFinal>0
+  );
+
+  publishDashboardAlerts(0);
+}
+
+function renderServices(services){
+  const visible=services.filter(serviceVisible);
+  const grid=$("servicesGrid");
+  if(!visible.length){
+    grid.innerHTML='<div class="empty">No enabled services</div>';
+    return;
+  }
+  grid.innerHTML=visible.map(s=>{
+    const channels=[];
+    if(quoteOn(s))channels.push("Get Quote");
+    if(reservedOn(s))channels.push("Reserved");
+    if(companiesOn(s))channels.push("Companies");
+    return `<div class="service-card">
+      <div class="service-name">${String(serviceName(s)).replace(/[<>]/g,"")}</div>
+      <div class="service-state">ACTIVE</div>
+      <div class="service-channels">${channels.join(" · ")}</div>
+    </div>`;
+  }).join("");
+}
+
+function userIsActive(u){
+  if(!u) return false;
+
+  if(u.active !== undefined) return u.active === true;
+  if(u.isActive !== undefined) return u.isActive === true;
+  if(u.enabled !== undefined) return u.enabled === true;
+
+  const s=clean(u.status).toUpperCase();
+  if(s) return ["ACTIVE","ENABLED","ONLINE"].includes(s);
+
+  return true;
+}
+
+function vehicleKey(u){
+  return clean(
+    u?.vehicleNumber ||
+    u?.vehicleNo ||
+    u?.vehiclePlate ||
+    u?.plateNumber ||
+    u?.vehicleId ||
+    u?.vehicle?._id ||
+    u?.vehicle?.plate ||
+    u?.vehicle?.plateNumber ||
+    ""
+  ).toUpperCase();
+}
+
+function scheduleDayKey(){
+  const day=new Intl.DateTimeFormat(
+    "en-US",
+    {weekday:"short",timeZone:tz()}
+  ).format(new Date()).toLowerCase();
+
+  if(day.startsWith("sun"))return "sun";
+  if(day.startsWith("mon"))return "mon";
+  if(day.startsWith("tue"))return "tue";
+  if(day.startsWith("wed"))return "wed";
+  if(day.startsWith("thu"))return "thu";
+  if(day.startsWith("fri"))return "fri";
+  return "sat";
+}
+
+function scheduleVehicleKey(row){
+  return clean(row?.vehicleNumber||"").toUpperCase();
+}
+
+function scheduleRowIsActiveToday(row){
+  if(!row||row.enabled===false)return false;
+  return row.days?.[scheduleDayKey()]===true;
+}
+
+function externalTripDateKey(t){
+  const raw =
+    clean(
+      t?.tripDate ||
+      t?.serviceDate ||
+      t?.appointmentDate ||
+      t?.pickupDate ||
+      t?.scheduledDate ||
+      t?.date ||
+      t?.rideDate ||
+      t?.requestedDate ||
+      ""
+    );
+
+  if(
+    /^\d{4}-\d{2}-\d{2}$/.test(raw)
+  ){
+    return raw;
+  }
+
+  return dateKey(raw);
+}
+
+function externalTripStatus(t){
+  return clean(
+    t?.status ||
+    t?.tripStatus ||
+    t?.externalStatus ||
+    t?.rideStatus ||
+    t?.dispatchStatus ||
+    t?.brokerStatus ||
+    t?.finalStatus ||
+    ""
+  );
+}
+
+function externalTripMiles(t){
+  return n(
+    t?.sharedRouteMiles ||
+    t?.miles ||
+    t?.distanceMiles ||
+    t?.routeMiles ||
+    t?.tripMiles ||
+    t?.totalMiles ||
+    t?.distance ||
+    0
+  );
+}
+
+function externalTripPassengerCount(t){
+  if(
+    Array.isArray(t?.passengers) &&
+    t.passengers.length
+  ){
+    return t.passengers.length;
+  }
+
+  return Math.max(
+    1,
+    n(
+      t?.passengerCount ||
+      t?.passengersCount ||
+      t?.totalPassengers ||
+      1
+    )
+  );
+}
+
+function externalTripIsShared(t){
+  return (
+    t?.isShared === true ||
+    clean(t?.tripType)
+      .toUpperCase() === "SHARED" ||
+    clean(t?.serviceKey)
+      .toUpperCase() === "SH" ||
+    clean(t?.serviceCode)
+      .toUpperCase() === "SH" ||
+    clean(t?.serviceType)
+      .toUpperCase() === "SHARED" ||
+    clean(t?.serviceName)
+      .toUpperCase()
+      .includes("SHARED")
+  );
+}
+
+function brokerObjectId(t){
+  return clean(
+    t?._id ||
+    t?.id ||
+    ""
+  );
+}
+
+function brokerExternalBusinessId(t){
+  return clean(
+    t?.externalTripId ||
+    t?.brokerTripId ||
+    t?.ghExternalTripNumber ||
+    t?.externalTripNumber ||
+    t?.tripNumber ||
+    ""
+  ).toUpperCase();
+}
+
+function brokerRowStatusValue(row){
+  return clean(
+    row?.effectiveStatus ||
+    row?.passenger?.dispatchReviewStatus ||
+    row?.passenger?.finalStatus ||
+    row?.passenger?.status ||
+    row?.operationalTrip?.dispatchReviewStatus ||
+    row?.operationalTrip?.finalStatus ||
+    row?.operationalTrip?.groupStatus ||
+    row?.operationalTrip?.status ||
+    row?.externalTrip?.brokerStatus ||
+    row?.externalTrip?.status ||
+    ""
+  );
+}
+
+function brokerStatusCategory(value){
+  const s=norm(value);
+
+  if(
+    isCompleted(s) ||
+    [
+      "completed",
+      "complete",
+      "done",
+      "finished",
+      "dropoff",
+      "droppedoff",
+      "dropped",
+      "ridecompleted"
+    ].includes(s)
+  ){
+    return "COMPLETED";
+  }
+
+  if(
+    isNoShow(s) ||
+    s.includes("noshow")
+  ){
+    return "NO_SHOW";
+  }
+
+  if(
+    isCancelled(s) ||
+    s.includes("cancelled") ||
+    s.includes("canceled")
+  ){
+    return "CANCELLED";
+  }
+
+  if(
+    isOnTrip(s) ||
+    [
+      "accepted",
+      "arrived",
+      "atpickup",
+      "pickup",
+      "pickedup",
+      "ontrip",
+      "inprogress",
+      "started",
+      "enroute",
+      "driverenroute"
+    ].includes(s)
+  ){
+    return "ON_TRIP";
+  }
+
+  return "OTHER";
+}
+
+function brokerRefundDateFromRow(row){
+  const p=row?.passenger || {};
+  const t=row?.operationalTrip || {};
+  const e=row?.externalTrip || {};
+
+  return (
+    p.refundedAt ||
+    p.refundDateTime ||
+    p.refundProcessedAt ||
+    p.paymentRefundedAt ||
+    t.refundedAt ||
+    t.refundDateTime ||
+    t.refundProcessedAt ||
+    t.paymentRefundedAt ||
+    t.refundDate ||
+    e.refundedAt ||
+    e.refundDateTime ||
+    e.refundProcessedAt ||
+    e.paymentRefundedAt ||
+    e.refundDate ||
+    null
+  );
+}
+
+function brokerRowIsRefunded(row){
+  const p=row?.passenger || {};
+  const t=row?.operationalTrip || {};
+  const e=row?.externalTrip || {};
+
+  return (
+    n(p.refundAmount)>0 ||
+    n(p.refundedAmount)>0 ||
+    p.refunded===true ||
+    p.refundProcessed===true ||
+    norm(p.paymentStatus)==="refunded" ||
+    norm(p.refundStatus)==="refunded" ||
+
+    n(t.refundAmount)>0 ||
+    n(t.refundedAmount)>0 ||
+    t.refunded===true ||
+    t.refundProcessed===true ||
+    norm(t.paymentStatus)==="refunded" ||
+    norm(t.refundStatus)==="refunded" ||
+
+    n(e.refundAmount)>0 ||
+    n(e.refundedAmount)>0 ||
+    e.refunded===true ||
+    e.refundProcessed===true ||
+    norm(e.paymentStatus)==="refunded" ||
+    norm(e.refundStatus)==="refunded"
+  );
+}
+
+function buildBrokerSourceRows(
+  externalTrips,
+  operationalTrips
+){
+  const externalList=
+    Array.isArray(externalTrips)
+      ? externalTrips
+      : [];
+
+  const operationalList=
+    Array.isArray(operationalTrips)
+      ? operationalTrips.filter(isBrokerTrip)
+      : [];
+
+  const rows=[];
+  const byObjectId=new Map();
+  const byBusinessId=new Map();
+
+  externalList.forEach(externalTrip=>{
+    const row={
+      key:
+        brokerObjectId(externalTrip) ||
+        brokerExternalBusinessId(externalTrip),
+      externalTrip,
+      operationalTrip:null,
+      passenger:null,
+      effectiveStatus:
+        clean(
+          externalTrip?.brokerStatus ||
+          externalTrip?.status ||
+          ""
+        )
+    };
+
+    rows.push(row);
+
+    const objectId=
+      brokerObjectId(externalTrip);
+
+    const businessIds=[
+      externalTrip?.externalTripId,
+      externalTrip?.ghExternalTripNumber,
+      externalTrip?.externalTripNumber
+    ]
+      .map(v=>clean(v).toUpperCase())
+      .filter(Boolean);
+
+    if(objectId){
+      byObjectId.set(
+        objectId,
+        row
+      );
+    }
+
+    businessIds.forEach(id=>{
+      if(!byBusinessId.has(id)){
+        byBusinessId.set(id,row);
+      }
+    });
+  });
+
+  function createFallbackRow(
+    operationalTrip,
+    passenger=null
+  ){
+    const passengerId=
+      clean(
+        passenger?.passengerId ||
+        passenger?._id ||
+        passenger?.id ||
+        ""
+      );
+
+    const businessId=
+      brokerExternalBusinessId(
+        passenger ||
+        operationalTrip
+      );
+
+    const row={
+      key:
+        passengerId ||
+        businessId ||
+        (
+          brokerObjectId(operationalTrip) +
+          ":" +
+          String(rows.length)
+        ),
+      externalTrip:null,
+      operationalTrip,
+      passenger,
+      effectiveStatus:
+        clean(
+          passenger?.dispatchReviewStatus ||
+          passenger?.finalStatus ||
+          passenger?.status ||
+          operationalTrip?.dispatchReviewStatus ||
+          operationalTrip?.finalStatus ||
+          operationalTrip?.groupStatus ||
+          operationalTrip?.status ||
+          ""
+        )
+    };
+
+    rows.push(row);
+    return row;
+  }
+
+  operationalList.forEach(trip=>{
+    const shared=
+      isShared(trip) &&
+      Array.isArray(trip?.passengers) &&
+      trip.passengers.length>0;
+
+    if(shared){
+      trip.passengers.forEach(passenger=>{
+        const passengerId=
+          clean(
+            passenger?.passengerId ||
+            passenger?._id ||
+            passenger?.id ||
+            ""
+          );
+
+        const passengerBusinessId=
+          brokerExternalBusinessId(
+            passenger
+          );
+
+        const row=
+          (
+            passengerId &&
+            byObjectId.get(passengerId)
+          ) ||
+          (
+            passengerBusinessId &&
+            byBusinessId.get(
+              passengerBusinessId
+            )
+          ) ||
+          createFallbackRow(
+            trip,
+            passenger
+          );
+
+        row.operationalTrip=trip;
+        row.passenger=passenger;
+        row.effectiveStatus=
+          clean(
+            passenger?.dispatchReviewStatus ||
+            passenger?.finalStatus ||
+            passenger?.status ||
+            trip?.dispatchReviewStatus ||
+            trip?.groupStatus ||
+            trip?.status ||
+            row.effectiveStatus ||
+            ""
+          );
+      });
+
+      return;
+    }
+
+    const candidateIds=[
+      trip?.brokerTripId,
+      trip?.externalTripId,
+      trip?.externalTripNumber,
+      trip?.tripNumber
+    ]
+      .map(v=>clean(v).toUpperCase())
+      .filter(Boolean);
+
+    let row=null;
+
+    for(const id of candidateIds){
+      if(byBusinessId.has(id)){
+        row=byBusinessId.get(id);
+        break;
+      }
+    }
+
+    if(!row){
+      row=createFallbackRow(trip,null);
+    }
+
+    row.operationalTrip=trip;
+    row.effectiveStatus=
+      clean(
+        trip?.dispatchReviewStatus ||
+        trip?.finalStatus ||
+        trip?.status ||
+        row.effectiveStatus ||
+        ""
+      );
+  });
+
+  return rows;
+}
+
+function brokerRowDateKey(row){
+  return externalTripDateKey(
+    row?.externalTrip ||
+    row?.operationalTrip ||
+    {}
+  );
+}
+
+function brokerOperationalTripsForMonth(
+  operationalTrips,
+  month
+){
+  const seen=new Set();
+
+  return (
+    Array.isArray(operationalTrips)
+      ? operationalTrips
+      : []
+  )
+    .filter(isBrokerTrip)
+    .filter(
+      trip=>
+        externalTripDateKey(trip)
+          .slice(0,7) ===
+        month
+    )
+    .filter(trip=>{
+      const key=
+        brokerObjectId(trip) ||
+        clean(trip?.tripNumber);
+
+      if(!key){
+        return true;
+      }
+
+      if(seen.has(key)){
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
+function renderBrokerCards(
+  externalTrips,
+  operationalTrips,
+  services,
+  newCount
+){
+  const rows=
+    buildBrokerSourceRows(
+      externalTrips,
+      operationalTrips
+    );
+
+  const today=todayKey();
+  const month=monthKey();
+
+  const todayRows=
+    rows.filter(
+      row=>
+        brokerRowDateKey(row) ===
+        today
+    );
+
+  const monthRows=
+    rows.filter(
+      row=>
+        brokerRowDateKey(row)
+          .slice(0,7) ===
+        month
+    );
+
+  const countStatus=
+    (list,category)=>
+      list.filter(
+        row=>
+          brokerStatusCategory(
+            brokerRowStatusValue(row)
+          ) === category
+      ).length;
+
+  if($("brokerTotalTrips")){
+    $("brokerTotalTrips")
+      .textContent=
+      String(rows.length);
+  }
+
+  if($("brokerNewTrips")){
+    $("brokerNewTrips")
+      .textContent=
+      String(n(newCount));
+  }
+
+  if($("brokerNewTripAlert")){
+    $("brokerNewTripAlert")
+      .classList.toggle(
+        "is-hot",
+        n(newCount)>0
+      );
+  }
+
+  if($("brokerTodayTrips")){
+    $("brokerTodayTrips")
+      .textContent=
+      String(todayRows.length);
+  }
+
+  if($("brokerTodayOnTrip")){
+    $("brokerTodayOnTrip")
+      .textContent=
+      String(
+        countStatus(
+          todayRows,
+          "ON_TRIP"
+        )
+      );
+  }
+
+  if($("brokerTodayCompleted")){
+    $("brokerTodayCompleted")
+      .textContent=
+      String(
+        countStatus(
+          todayRows,
+          "COMPLETED"
+        )
+      );
+  }
+
+  if($("brokerTodayCancelled")){
+    $("brokerTodayCancelled")
+      .textContent=
+      String(
+        countStatus(
+          todayRows,
+          "CANCELLED"
+        )
+      );
+  }
+
+  if($("brokerTodayNoShow")){
+    $("brokerTodayNoShow")
+      .textContent=
+      String(
+        countStatus(
+          todayRows,
+          "NO_SHOW"
+        )
+      );
+  }
+
+  if($("brokerTodayRefunds")){
+    $("brokerTodayRefunds")
+      .textContent=
+      String(
+        rows.filter(row=>{
+          if(
+            !brokerRowIsRefunded(row)
+          ){
+            return false;
+          }
+
+          const refundDate=
+            brokerRefundDateFromRow(row);
+
+          return refundDate
+            ? dateKey(refundDate)===today
+            : brokerRowDateKey(row)===today;
+        }).length
+      );
+  }
+
+  if($("brokerMonthTrips")){
+    $("brokerMonthTrips")
+      .textContent=
+      String(monthRows.length);
+  }
+
+  if($("brokerMonthCompleted")){
+    $("brokerMonthCompleted")
+      .textContent=
+      String(
+        countStatus(
+          monthRows,
+          "COMPLETED"
+        )
+      );
+  }
+
+  if($("brokerMonthCancelled")){
+    $("brokerMonthCancelled")
+      .textContent=
+      String(
+        countStatus(
+          monthRows,
+          "CANCELLED"
+        )
+      );
+  }
+
+  if($("brokerMonthNoShow")){
+    $("brokerMonthNoShow")
+      .textContent=
+      String(
+        countStatus(
+          monthRows,
+          "NO_SHOW"
+        )
+      );
+  }
+
+  const monthOperational=
+    brokerOperationalTripsForMonth(
+      operationalTrips,
+      month
+    );
+
+  if($("brokerMonthMiles")){
+    $("brokerMonthMiles")
+      .textContent=
+      monthOperational
+        .reduce(
+          (sum,trip)=>
+            sum +
+            externalTripMiles(trip),
+          0
+        )
+        .toFixed(1);
+  }
+
+  const sharedEnabled=
+    hasSharedService(
+      Array.isArray(services)
+        ? services
+        : []
+    );
+
+  if($("brokerSharedPassengersCard")){
+    $("brokerSharedPassengersCard")
+      .classList.toggle(
+        "hidden",
+        !sharedEnabled
+      );
+  }
+
+  if(
+    sharedEnabled &&
+    $("brokerSharedPassengers")
+  ){
+    const sharedPassengers=
+      monthOperational
+        .filter(
+          trip=>
+            isShared(trip)
+        )
+        .reduce(
+          (sum,trip)=>
+            sum +
+            (
+              Array.isArray(
+                trip?.passengers
+              )
+                ? trip.passengers.length
+                : n(
+                    trip?.totalPassengers ||
+                    trip?.passengerCount ||
+                    trip?.passengersCount
+                  )
+            ),
+          0
+        );
+
+    $("brokerSharedPassengers")
+      .textContent=
+      String(sharedPassengers);
+  }
+
+  publishDashboardAlerts(
+    n(newCount)
+  );
+
+  return {
+    total:rows.length,
+    newTrips:n(newCount),
+    todayTrips:todayRows.length,
+    monthTrips:monthRows.length
+  };
+}
+
+
+function brokerSummaryStatus(item){
+  return clean(item?.status);
+}
+
+function brokerSummaryIsCompleted(item){
+  return brokerSummaryStatus(item)==="Completed";
+}
+
+function brokerSummaryIsCancelled(item){
+  return brokerSummaryStatus(item)==="Cancelled";
+}
+
+function brokerSummaryIsNoShow(item){
+  return brokerSummaryStatus(item)==="No Show";
+}
+
+function brokerSummaryIsOnTrip(item){
+  const s=norm(
+    brokerSummaryStatus(item)
+  );
+
+  return [
+    "ontrip",
+    "accepted",
+    "arrived",
+    "pickup",
+    "pickedup",
+    "inprogress",
+    "started",
+    "enroute",
+    "driverenroute"
+  ].includes(s);
+}
+
+function brokerSummaryPassengerCount(item){
+  if(
+    Array.isArray(item?.passengers) &&
+    item.passengers.length
+  ){
+    return item.passengers.length;
+  }
+
+  return Math.max(
+    1,
+    n(item?.passengerCount || 1)
+  );
+}
+
+function renderBrokerSummaryCards(
+  items,
+  services
+){
+  const list=
+    Array.isArray(items)
+      ? items
+      : [];
+
+  const today=
+    todayKey();
+
+  const month=
+    monthKey();
+
+  const todayItems=
+    list.filter(
+      item=>
+        clean(item?.tripDate) ===
+        today
+    );
+
+  const monthItems=
+    list.filter(
+      item=>
+        clean(item?.tripDate)
+          .slice(0,7) ===
+        month
+    );
+
+  if($("brokerTodayTrips")){
+    $("brokerTodayTrips")
+      .textContent=
+      String(todayItems.length);
+  }
+
+  if($("brokerTodayOnTrip")){
+    $("brokerTodayOnTrip")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsOnTrip
+        ).length
+      );
+  }
+
+  if($("brokerTodayCompleted")){
+    $("brokerTodayCompleted")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsCompleted
+        ).length
+      );
+  }
+
+  if($("brokerTodayCancelled")){
+    $("brokerTodayCancelled")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsCancelled
+        ).length
+      );
+  }
+
+  if($("brokerTodayNoShow")){
+    $("brokerTodayNoShow")
+      .textContent=
+      String(
+        todayItems.filter(
+          brokerSummaryIsNoShow
+        ).length
+      );
+  }
+
+  if($("brokerMonthTrips")){
+    $("brokerMonthTrips")
+      .textContent=
+      String(monthItems.length);
+  }
+
+  if($("brokerMonthCompleted")){
+    $("brokerMonthCompleted")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsCompleted
+        ).length
+      );
+  }
+
+  if($("brokerMonthCancelled")){
+    $("brokerMonthCancelled")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsCancelled
+        ).length
+      );
+  }
+
+  if($("brokerMonthNoShow")){
+    $("brokerMonthNoShow")
+      .textContent=
+      String(
+        monthItems.filter(
+          brokerSummaryIsNoShow
+        ).length
+      );
+  }
+
+  if($("brokerMonthMiles")){
+    $("brokerMonthMiles")
+      .textContent=
+      monthItems
+        .reduce(
+          (sum,item)=>
+            sum +
+            n(item?.miles),
+          0
+        )
+        .toFixed(1);
+  }
+
+  const sharedEnabled=
+    hasSharedService(
+      Array.isArray(services)
+        ? services
+        : []
+    );
+
+  if($("brokerSharedPassengersCard")){
+    $("brokerSharedPassengersCard")
+      .classList.toggle(
+        "hidden",
+        !sharedEnabled
+      );
+  }
+
+  if(
+    sharedEnabled &&
+    $("brokerSharedPassengers")
+  ){
+    $("brokerSharedPassengers")
+      .textContent=
+      String(
+        monthItems
+          .filter(
+            item=>
+              item?.isShared===true
+          )
+          .reduce(
+            (sum,item)=>
+              sum +
+              brokerSummaryPassengerCount(
+                item
+              ),
+            0
+          )
+      );
+  }
+
+  return {
+    today:todayItems.length,
+    month:monthItems.length
+  };
+}
+
+async function loadBrokerSummaryCards(
+  services=[]
+){
+  const today=
+    todayKey();
+
+  const monthStart=
+    `${monthKey()}-01`;
+
+  const params=
+    new URLSearchParams({
+      from:monthStart,
+      to:today
+    });
+
+  const data=
+    await getJson(
+      `/api/external-summary?${params.toString()}`
+    );
+
+  const items=
+    Array.isArray(data?.items)
+      ? data.items
+      : [];
+
+  return renderBrokerSummaryCards(
+    items,
+    services
+  );
+}
+
+async function loadBrokerHubCounts(
+  services=[],
+  operationalTrips=[]
+){
+  try{
+    const data=
+      await getJson(
+        "/api/external-trips"
+      );
+
+    const trips=
+      Array.isArray(data?.trips)
+        ? data.trips
+        : [];
+
+    const viewed=
+      readBrokerViewedNewTrips();
+
+    const newCount=
+      trips.filter(
+        trip=>
+          isBrokerHubNewTrip(
+            trip,
+            viewed
+          )
+      ).length;
+
+    return renderBrokerCards(
+      trips,
+      operationalTrips,
+      services,
+      newCount
+    );
+
+  }catch(err){
+    console.log(
+      "DASHBOARD BROKER HUB COUNT ERROR:",
+      err
+    );
+
+    /*
+      Do not destroy operational Broker counters just because the
+      External Trips request failed. Render from the Trip records that
+      are still available to the dashboard.
+    */
+    return renderBrokerCards(
+      [],
+      operationalTrips,
+      services,
+      0
+    );
+  }
+}
+
+async function loadBrokerCounts(
+  services=[],
+  operationalTrips=[]
+){
+  /*
+    BROKERS card follows the tenant-level Broker capability used by
+    Broker Operations / Trip Split.
+
+    - BROKERS: enabled + visible broker integrations returned for this tenant.
+    - If Broker is disabled for the tenant, every Broker dashboard section disappears completely.
+  */
+  try{
+    const data=await getJson("/api/trip-split/bootstrap");
+    const brokerEnabled=data?.capabilities?.brokerContractEnabled===true;
+
+    setBrokerFeatureVisible(brokerEnabled);
+
+    if(!brokerEnabled){
+      if($("brokerCount")) $("brokerCount").textContent="0";
+      publishDashboardAlerts(0);
+      return;
+    }
+
+    const integrations=Array.isArray(data?.integrations)?data.integrations:[];
+
+    if($("brokerCount")){
+      $("brokerCount").textContent=String(integrations.length);
+    }
+
+    await loadBrokerHubCounts(
+      services,
+      operationalTrips
+    );
+
+    try{
+      await loadBrokerSummaryCards(
+        services
+      );
+    }catch(summaryErr){
+      console.log(
+        "DASHBOARD BROKER SUMMARY ERROR:",
+        summaryErr
+      );
+    }
+
+  }catch(err){
+    setBrokerFeatureVisible(false);
+
+    if($("brokerCount")) $("brokerCount").textContent="0";
+
+    publishDashboardAlerts(0);
+
+    console.log("DASHBOARD BROKER COUNT ERROR:",err);
+  }
+}
+
+async function loadUserCounts(){
+  const roles=["driver","dispatcher"];
+
+  if(isSuper){
+    roles.push("admin","superadmin");
+  }
+
+  if(canAdminData){
+    roles.push("company");
+  }
+
+  const dataByRole={};
+
+  let scheduleData={};
+
+  await Promise.all([
+    ...roles.map(async r=>{
+      try{
+        const data=await getJson("/api/users/"+r);
+        dataByRole[r]=Array.isArray(data)?data:[];
+      }catch(e){
+        dataByRole[r]=[];
+      }
+    }),
+    (async()=>{
+      try{
+        const data=await getJson("/api/driver-schedule");
+        scheduleData=data&&typeof data==="object"?data:{};
+      }catch(e){
+        scheduleData={};
+      }
+    })()
+  ]);
+
+  const drivers=dataByRole.driver||[];
+  const dispatchers=dataByRole.dispatcher||[];
+  const admins=dataByRole.admin||[];
+  const supers=dataByRole.superadmin||[];
+  const companies=dataByRole.company||[];
+
+  if($("facilityCount")) $("facilityCount").textContent=companies.length;
+
+  $("driverCount").textContent=drivers.length;
+  $("activeDriverCount").textContent=drivers.filter(userIsActive).length;
+
+  const scheduleRows=Object.values(scheduleData||{});
+
+  const allVehicles=new Set(
+    scheduleRows.map(scheduleVehicleKey).filter(Boolean)
+  );
+
+  const activeVehicles=new Set(
+    scheduleRows
+      .filter(scheduleRowIsActiveToday)
+      .map(scheduleVehicleKey)
+      .filter(Boolean)
+  );
+
+  $("vehicleCount").textContent=allVehicles.size;
+  $("activeVehicleCount").textContent=activeVehicles.size;
+
+  $("dispatcherCount").textContent=dispatchers.length;
+  $("activeDispatcherCount").textContent=dispatchers.filter(userIsActive).length;
+
+  if(isSuper){
+    $("adminCount").textContent=admins.length;
+    $("activeAdminCount").textContent=admins.filter(userIsActive).length;
+
+    $("superAdminCount").textContent=supers.length;
+    $("activeSuperAdminCount").textContent=supers.filter(userIsActive).length;
+  }
+}
+
+
+async function init(){
+  renderRoleVisibility();
+
+  $("monthLabel").textContent=new Date().toLocaleDateString("en-US",{timeZone:tz(),month:"long",year:"numeric"});
+
+  let trips=[],services=[],finalTrips=[];
+
+  const [tripsR,servicesR,finalR]=await Promise.allSettled([
+    getJson("/api/admin-summary/dashboard"),
+    getJson("/api/services/admin"),
+    getJson("/api/dispatch-final-confirmation")
+  ]);
+
+  if(tripsR.status==="fulfilled"){
+    trips=Array.isArray(tripsR.value)?tripsR.value:(tripsR.value?.trips||[]);
+  }
+  if(servicesR.status==="fulfilled"){
+    services=Array.isArray(servicesR.value)?servicesR.value:(servicesR.value?.services||servicesR.value?.items||[]);
+  }
+  if(finalR.status==="fulfilled"){
+    finalTrips=Array.isArray(finalR.value)?finalR.value:(finalR.value?.trips||[]);
+  }
+
+  renderServices(services);
+  renderTrips(trips,finalTrips,services);
+
+  setBrokerFeatureVisible(false);
+
+  await Promise.allSettled([
+    loadUserCounts(),
+    loadBrokerCounts(
+      services,
+      trips
+    )
+  ]);
+}
+
+document.addEventListener("DOMContentLoaded",init);
+
+})();

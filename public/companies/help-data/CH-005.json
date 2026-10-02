@@ -1,0 +1,67 @@
+{
+  "id": "CH-005",
+  "page": "payment.html",
+  "name": "Payment",
+  "description": "Review account status, the current invoice, next payment date, billing cycle, available payment methods, and payment history.",
+  "tasks": [
+    {
+      "id": "CH-005-T01",
+      "title": "Review the current invoice",
+      "summary": "Check the account status and current invoice before making a payment.",
+      "steps": [
+        "Open Payment.",
+        "Review Account Status.",
+        "Review Invoice Amount.",
+        "Check Next Payment Date and Billing Cycle."
+      ],
+      "keywords": [
+        "payment",
+        "review the current invoice"
+      ]
+    },
+    {
+      "id": "CH-005-T02",
+      "title": "Pay by ACH bank payment",
+      "summary": "Use Pay With Bank when ACH is available for the company account.",
+      "steps": [
+        "Open the Current Invoice section.",
+        "Review the invoice amount.",
+        "Locate ACH Bank Payment.",
+        "Select Pay With Bank.",
+        "Complete the bank payment flow."
+      ],
+      "keywords": [
+        "payment",
+        "pay by ach bank payment"
+      ]
+    },
+    {
+      "id": "CH-005-T03",
+      "title": "Review manual payment information",
+      "summary": "Use the Manual Payment section when the tenant provides a manual payment method.",
+      "steps": [
+        "Open Payment.",
+        "Review Manual Payment information.",
+        "Follow the displayed payment instructions."
+      ],
+      "keywords": [
+        "payment",
+        "review manual payment information"
+      ]
+    },
+    {
+      "id": "CH-005-T04",
+      "title": "Review payment history",
+      "summary": "Use Payment History to review previous billing transactions.",
+      "steps": [
+        "Open Payment.",
+        "Scroll to Payment History.",
+        "Review previous payment records and dates."
+      ],
+      "keywords": [
+        "payment",
+        "review payment history"
+      ]
+    }
+  ]
+}

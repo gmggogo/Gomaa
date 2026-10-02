@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<title>Driver Schedule</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f4f6fb;
+}
+
+/* ===== PAGE — SAME SPACING AS TRIPS HUB ===== */
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+.page-content{
+  padding:18px 22px 30px;
+  width:100%;
+}
+
+/* ===== GOLD PAGE TITLE — SAME AS TRIPS HUB ===== */
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
+/* ===== TABLE ===== */
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+}
+
+th{
+  background:#111;
+  color:#fff;
+  padding:10px;
+  font-size:13px;
+}
+
+td{
+  border-bottom:1px solid #eee;
+  padding:8px;
+  text-align:center;
+}
+
+/* ===== DRIVER ===== */
+.driver-name{
+  background:#e8f0ff;
+  font-weight:700;
+  color:#1e3a8a;
+}
+
+/* ===== WEEK ===== */
+.week{
+  display:flex;
+  gap:4px;
+  justify-content:center;
+}
+
+.day{
+  width:36px;
+  height:32px;
+  font-size:10px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+.day.active{
+  background:#16a34a;
+  color:#fff;
+}
+
+/* ===== SERVICE ===== */
+.service-badge{
+  padding:5px 10px;
+  border-radius:20px;
+  background:#e5e7eb;
+  font-size:11px;
+}
+
+.service-badge.active{
+  background:#16a34a;
+  color:#fff;
+}
+
+/* ===== STATUS ===== */
+.status{
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+}
+
+.status.on{background:#16a34a;color:#fff;}
+.status.off{background:#dc2626;color:#fff;}
+
+/* ===== INPUT ===== */
+input,select{
+  width:100%;
+  padding:4px;
+  border-radius:5px;
+  border:1px solid #ccc;
+}
+
+/* ===== BUTTONS ===== */
+.btn{
+  padding:5px 10px;
+  border:none;
+  border-radius:6px;
+  font-size:11px;
+  cursor:pointer;
+}
+
+.edit{background:#2563eb;color:#fff;}
+.save{background:#16a34a;color:#fff;}
+.disable{background:#dc2626;color:#fff;}
+.enable{background:#f59e0b;color:#fff;}
+
+@media(max-width:768px){
+  .page-content{
+    padding:10px 8px 20px;
+  }
+
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-title{
+    font-size:22px;
+  }
+
+  .page-sub{
+    font-size:11px;
+  }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ✅ HEADER رجع زي ما هو -->
+<div id="adminHeader"></div>
+
+<div class="page-content">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Driver Schedule</h1>
+      <div class="page-sub">Driver availability, services and weekly schedule management</div>
+    </div>
+  </div>
+
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Driver</th>
+<th>Car</th>
+<th>Phone</th>
+<th>Address</th>
+<th>Week</th>
+<th>Service</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+</div>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/driver-schedule.js"></script>
+
+</body>
+</html>

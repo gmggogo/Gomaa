@@ -1,0 +1,621 @@
+function getCompanyToken(){
+  const own = String(localStorage.getItem("companyToken") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("token") || "").trim();
+  }
+  return "";
+}
+function getCompanyRole(){
+  const own = String(localStorage.getItem("companyRole") || "").trim();
+  if(own) return own;
+  const legacy = String(localStorage.getItem("role") || "").trim();
+  return legacy.toLowerCase() === "company" ? legacy : "";
+}
+function getCompanyName(){
+  const own = String(localStorage.getItem("companyName") || "").trim();
+  if(own) return own;
+  if(String(localStorage.getItem("role") || "").toLowerCase() === "company"){
+    return String(localStorage.getItem("name") || "").trim();
+  }
+  return "";
+}
+function getCompanyTenantSlug(){
+  return String(
+    localStorage.getItem("companyTenantSlug") ||
+    sessionStorage.getItem("companyTenantSlug") ||
+    ""
+  ).trim().toLowerCase();
+}
+function companyLoginUrl(){
+  const slug = getCompanyTenantSlug();
+  return slug
+    ? `/companies/company-login.html?tenant=${encodeURIComponent(slug)}`
+    : "/companies/company-login.html";
+}
+function companyStorageKey(baseKey){
+  const scope =
+    getCompanyTenantSlug() ||
+    String(localStorage.getItem("companyTenantId") || "").trim() ||
+    "company";
+  return `${baseKey}:${scope}`;
+}
+
+const token = getCompanyToken();
+
+const companyName = getCompanyName();
+
+if(!token || getCompanyRole() !== "company"){
+  window.location.href = companyLoginUrl();
+}
+
+/* =========================
+   ELEMENTS
+========================= */
+
+const billingStatusEl =
+  document.getElementById("billingStatus");
+
+const invoiceAmountEl =
+  document.getElementById("invoiceAmount");
+
+const nextBillingDateEl =
+  document.getElementById("nextBillingDate");
+
+const billingCycleEl =
+  document.getElementById("billingCycle");
+
+const billingAlert =
+  document.getElementById("billingAlert");
+
+const achPayBtn =
+  document.getElementById("achPayBtn");
+
+const paymentHistoryBody =
+  document.getElementById("paymentHistoryBody");
+
+/* =========================
+   HELPERS
+========================= */
+
+function formatMoney(value){
+
+  return "$" +
+    Number(value || 0).toFixed(2);
+
+}
+
+function getBillingTimezone(){
+
+  return String(
+    localStorage.getItem("systemTimezone") ||
+    localStorage.getItem("appTimezone") ||
+    sessionStorage.getItem("staffCompat:systemTimezone") ||
+    sessionStorage.getItem("staffCompat:appTimezone") ||
+    "America/Phoenix"
+  ).trim();
+
+}
+
+function calendarDateKey(value){
+
+  if(!value) return null;
+
+  const d =
+    new Date(value);
+
+  if(Number.isNaN(d.getTime())){
+    return null;
+  }
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-US",
+      {
+        timeZone:getBillingTimezone(),
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit"
+      }
+    )
+    .formatToParts(d);
+
+  const map = {};
+
+  for(const part of parts){
+
+    if(
+      part.type === "year" ||
+      part.type === "month" ||
+      part.type === "day"
+    ){
+      map[part.type] =
+        Number(part.value);
+    }
+
+  }
+
+  return Date.UTC(
+    map.year,
+    map.month - 1,
+    map.day
+  );
+
+}
+
+function formatDate(value){
+
+  if(!value) return "--";
+
+  const d =
+    new Date(value);
+
+  if(Number.isNaN(d.getTime())){
+    return "--";
+  }
+
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      year:"numeric",
+      month:"short",
+      day:"numeric",
+      timeZone:getBillingTimezone()
+    }
+  );
+
+}
+
+function daysUntil(dateValue){
+
+  if(!dateValue){
+    return null;
+  }
+
+  const dueKey =
+    calendarDateKey(
+      dateValue
+    );
+
+  const todayKey =
+    calendarDateKey(
+      new Date()
+    );
+
+  if(
+    dueKey === null ||
+    todayKey === null
+  ){
+    return null;
+  }
+
+  return Math.ceil(
+    (dueKey - todayKey) /
+    (1000 * 60 * 60 * 24)
+  );
+
+}
+
+function setStatusColor(status){
+
+  billingStatusEl.className = "";
+
+  if(status === "ACTIVE"){
+
+    billingStatusEl.classList.add(
+      "status-active"
+    );
+
+  }
+
+  if(status === "PAST_DUE"){
+
+    billingStatusEl.classList.add(
+      "status-past"
+    );
+
+  }
+
+  if(status === "SUSPENDED"){
+
+    billingStatusEl.classList.add(
+      "status-suspended"
+    );
+
+  }
+
+}
+
+/* =========================
+   ALERT
+========================= */
+
+function renderAlert(company){
+
+  billingAlert.className =
+    "alert";
+
+  const status =
+    company.billingStatus ||
+    "ACTIVE";
+
+  const locked =
+    company.billingLocked === true;
+
+  const dueDays =
+    daysUntil(
+      company.nextBillingDate
+    );
+
+  if(
+    locked ||
+    status === "SUSPENDED"
+  ){
+
+    billingAlert.classList.add(
+      "active",
+      "alert-red"
+    );
+
+    billingAlert.innerHTML = `
+      ACCOUNT SUSPENDED — Payment is required to continue adding trips.
+    `;
+
+    return;
+
+  }
+
+  if(status === "PAST_DUE"){
+
+    billingAlert.classList.add(
+      "active",
+      "alert-red"
+    );
+
+    billingAlert.innerHTML = `
+      PAYMENT OVERDUE — Please complete payment to avoid account suspension.
+    `;
+
+    return;
+
+  }
+
+  if(
+    dueDays !== null &&
+    dueDays <= 3 &&
+    dueDays >= 0
+  ){
+
+    billingAlert.classList.add(
+      "active",
+      "alert-yellow"
+    );
+
+    billingAlert.innerHTML = `
+      Payment due in ${dueDays} day${dueDays === 1 ? "" : "s"}.
+    `;
+
+    return;
+
+  }
+
+  if(status === "ACTIVE"){
+
+    billingAlert.classList.add(
+      "active",
+      "alert-green"
+    );
+
+    billingAlert.innerHTML = `
+      Account active. Next payment date: ${formatDate(company.nextBillingDate)}.
+    `;
+
+  }
+
+}
+
+/* =========================
+   LOAD PAYMENT DATA
+========================= */
+
+async function loadPayment(){
+
+  try{
+
+    const res =
+      await fetch(
+
+`/api/company/billing?company=${encodeURIComponent(companyName)}`,
+
+      {
+        headers:{
+          Authorization:
+            "Bearer " + token
+        }
+      }
+
+    );
+
+    if(!res.ok){
+
+      throw new Error(
+        "Unable to load billing data"
+      );
+
+    }
+
+    const company =
+      await res.json();
+
+    renderBilling(company);
+
+  }catch(err){
+
+    console.log(err);
+
+    billingAlert.className =
+      "alert active alert-red";
+
+    billingAlert.innerText =
+      "Unable to load payment information.";
+
+  }
+
+}
+
+/* =========================
+   RENDER BILLING
+========================= */
+
+function renderBilling(company){
+
+  const status =
+    company.billingStatus ||
+    "ACTIVE";
+
+  billingStatusEl.innerText =
+    status;
+
+  setStatusColor(status);
+
+  invoiceAmountEl.innerText =
+    formatMoney(
+      company.invoiceAmount || 0
+    );
+
+  nextBillingDateEl.innerText =
+    formatDate(
+      company.nextBillingDate
+    );
+
+  billingCycleEl.innerText =
+    company.billingCycle ||
+    "MONTHLY";
+
+  renderAlert(company);
+
+  if(
+    company.billingLocked ||
+    status === "SUSPENDED"
+  ){
+
+    achPayBtn.innerText =
+      "Pay To Unlock Account";
+
+  }else{
+
+    achPayBtn.innerText =
+      "Pay With Bank";
+
+  }
+
+}
+
+/* =========================
+   VERIFY STRIPE PAYMENT
+========================= */
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+const success =
+  params.get("success");
+
+const sessionId =
+  params.get("session_id");
+
+const companyId =
+  params.get("companyId");
+
+/* 🔥 PREVENT DOUBLE PAYMENT VERIFY */
+
+const alreadyVerified =
+  sessionStorage.getItem(
+    "paymentVerified"
+  );
+
+if(
+  success &&
+  sessionId &&
+  companyId &&
+  alreadyVerified !== sessionId
+){
+
+  verifyStripePayment(
+    sessionId,
+    companyId
+  );
+
+}
+
+async function verifyStripePayment(
+  sessionId,
+  companyId
+){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/company/check-payment?session_id=${encodeURIComponent(sessionId)}&companyId=${encodeURIComponent(companyId)}`,
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
+        }
+      );
+
+    const data =
+      await res.json();
+
+    if(data.paid){
+
+      /* 🔥 SAVE VERIFIED SESSION */
+
+      sessionStorage.setItem(
+        "paymentVerified",
+        sessionId
+      );
+
+      alert(
+        "Payment Successful"
+      );
+
+      /* 🔥 REMOVE URL PARAMS */
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      /* 🔥 RELOAD BILLING */
+
+      await loadPayment();
+
+    }
+
+  }catch(err){
+
+    console.log(err);
+
+  }
+
+}
+
+/* =========================
+   ACH PAYMENT
+========================= */
+
+achPayBtn.addEventListener(
+  "click",
+  async ()=>{
+
+    try{
+
+      achPayBtn.disabled =
+        true;
+
+      achPayBtn.innerText =
+        "Creating Payment...";
+
+      const res =
+        await fetch(
+
+          "/api/company/create-ach-payment",
+
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                "Bearer " + token
+            },
+
+            body:JSON.stringify({
+              company:companyName
+            })
+
+          }
+
+        );
+
+      const text =
+        await res.text();
+
+      let data = {};
+
+      try{
+
+        data =
+          JSON.parse(text);
+
+      }catch{
+
+        console.log(
+          "SERVER RESPONSE:"
+        );
+
+        console.log(text);
+
+        throw new Error(
+          "Server did not return JSON.\nCheck backend route."
+        );
+
+      }
+
+      if(!res.ok){
+
+        throw new Error(
+
+          data.message ||
+          "Payment error"
+
+        );
+
+      }
+
+      if(data.url){
+
+        window.location.href =
+          data.url;
+
+        return;
+
+      }
+
+      alert(
+        "Payment session created, but no checkout URL returned."
+      );
+
+    }catch(err){
+
+      console.log(err);
+
+      alert(
+        err.message ||
+        "Payment failed"
+      );
+
+      achPayBtn.disabled =
+        false;
+
+      achPayBtn.innerText =
+        "Pay With Bank";
+
+    }
+
+  }
+);
+
+/* =========================
+   INIT
+========================= */
+
+loadPayment();

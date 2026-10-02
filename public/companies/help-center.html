@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Company Help Center</title>
+<link rel="stylesheet" href="layout.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6fb;color:#172033;font-family:"Segoe UI",Arial,sans-serif}
+.help-shell{width:100%;max-width:none;margin:24px 0 60px;padding:0 28px}
+.help-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:start}
+.card{background:#fff;border:1px solid #dce4ef;border-radius:18px;box-shadow:0 9px 24px rgba(15,23,42,.07);overflow:hidden}
+.panel-head{padding:18px 20px;background:linear-gradient(135deg,#173f66,#0d3155 55%,#294f70);color:#fff;border-bottom:4px solid #d5b85e}
+.panel-head h1,.panel-head h2{margin:0;font-family:Georgia,"Times New Roman",serif}
+.panel-head p{margin:6px 0 0;color:#d9e8f5;font-size:13px;font-weight:700}
+.search-body{padding:18px}
+.search-row{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:10px}
+input,select,textarea{font:inherit}
+.search-row input,.search-row select{width:100%;min-height:46px;border:1px solid #cbd5e1;border-radius:11px;padding:0 12px;background:#fff}
+.selected-page{margin-top:14px;padding:14px;border-radius:12px;background:#eef8ff;border:1px solid #a9d5ee;border-left:5px solid #1678aa}
+.selected-page h3{margin:0 0 6px;color:#075f8c}
+.results{margin-top:14px}
+.result{border:1px solid #dbe3ee;border-radius:12px;margin-bottom:10px;overflow:hidden;background:#fff}
+.result button{width:100%;border:0;text-align:left;padding:13px 14px;background:linear-gradient(90deg,#fff3c7,#fffdf4);cursor:pointer;font-weight:900;color:#172033}
+.result-body{display:none;padding:14px;border-top:1px solid #eadba8}
+.result.open .result-body{display:block}
+.result ol{margin:0;padding-left:22px;line-height:1.7}
+.result-summary{margin:0 0 10px;color:#667085;font-size:13px}
+.empty{padding:26px;text-align:center;color:#718096}
+.support-identity{margin:14px;padding:12px;border-radius:12px;background:#fff8dc;border:1px solid #e3c75f;display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:12px}
+.support-identity b{display:block;color:#765100;font-size:11px}
+.support-actions{padding:0 14px 12px}
+.primary{width:100%;border:0;border-radius:10px;padding:11px;background:linear-gradient(135deg,#d99b00,#b97800);color:#fff;font-weight:900;cursor:pointer}
+.support-tabs{display:flex;gap:7px;padding:0 14px 12px}
+.support-tab{flex:1;border:1px solid #cbd5e1;border-radius:9px;padding:8px;background:#fff;font-weight:900;cursor:pointer}
+.support-tab.active{background:#0b1933;color:#fff;border-color:#0b1933}
+.new-form{display:none;margin:0 14px 14px;padding:13px;border:1px solid #b9ddec;border-radius:12px;background:#f4fbff}
+.new-form.show{display:block}
+.new-form input,.new-form textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;margin-bottom:9px}
+.form-actions{display:flex;justify-content:flex-end;gap:8px}
+.form-actions button{border:0;border-radius:8px;padding:9px 12px;font-weight:900;cursor:pointer}
+.cancel{background:#e5e7eb}.send{background:#0f6f9f;color:#fff}
+.support-body{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:500px;border-top:1px solid #e5e7eb}
+.conv-list{padding:8px;background:#f8fafc;border-right:1px solid #e5e7eb;max-height:500px;overflow:auto}
+.conv-item{padding:9px;border:1px solid #dbe5ee;border-radius:9px;background:#fff;margin-bottom:7px;cursor:pointer}
+.conv-item.active{background:#fff3bf;border-color:#d5a520}
+.conv-title{font-size:12px;font-weight:900}.conv-meta{font-size:10px;color:#697386;margin-top:4px}
+.chat-area{display:flex;flex-direction:column;min-width:0}
+.chat-empty{min-height:500px;display:flex;align-items:center;justify-content:center;text-align:center;color:#718096;padding:22px}
+.chat-view{display:none;flex-direction:column;min-height:500px}.chat-view.show{display:flex}
+.chat-head{padding:11px 13px;border-bottom:1px solid #e5e7eb;background:#fbfcfe}.chat-head h3{margin:0}.chat-head p{margin:4px 0 0;color:#64748b;font-size:11px}
+.messages{flex:1;padding:12px;overflow:auto;max-height:330px;background:#f7f9fc}
+.msg{max-width:88%;margin-bottom:9px;padding:9px 10px;border-radius:12px}.msg.company{margin-right:auto;background:#e6f5ff;border:1px solid #b9ddf3}.msg.super{margin-left:auto;background:#fff0b8;border:1px solid #e1c45c}
+.msg-meta{font-size:9px;color:#697386;font-weight:800;margin-bottom:4px}.msg-text{white-space:pre-wrap;font-size:12px;line-height:1.4}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid #e5e7eb}.composer textarea{flex:1;min-height:58px;border:1px solid #cbd5e1;border-radius:9px;padding:9px;resize:vertical}.composer button{width:88px;border:0;border-radius:9px;background:#0f6f9f;color:#fff;font-weight:900}
+.resolved-info{display:none;margin-top:7px;padding:7px 9px;border-radius:8px;background:#ecfdf3;border:1px solid #bbf7d0;color:#166534;font-size:10px}
+@media(max-width:1000px){.help-grid{grid-template-columns:1fr;gap:22px}.help-shell{padding:0 14px}.support-body{grid-template-columns:1fr}.conv-list{border-right:0;border-bottom:1px solid #e5e7eb;max-height:190px}}
+@media(max-width:650px){.search-row{grid-template-columns:1fr}.support-identity{grid-template-columns:1fr}}
+
+@media(max-width:1000px){
+}
+
+
+.company-page-title{
+  margin:64px 28px 18px;
+  font-size:34px;
+  font-weight:900;
+  color:#1e3a8a;
+  line-height:1;
+}
+
+
+@media(max-width:768px){
+  .company-page-title{
+    margin:60px 14px 16px;
+    font-size:25px;
+  }
+}
+
+</style>
+</head>
+<body class="company-help-page">
+<div id="layoutHeader"></div>
+<div class="company-page-title">Help Center</div>
+<main class="help-shell">
+  <div class="help-grid">
+
+    <section class="card">
+      <div class="panel-head">
+        <h1>Company Operations Help</h1>
+        <p>Search the operating guide using the same page order as the company navigation.</p>
+      </div>
+
+      <div class="search-body">
+        <div class="search-row">
+          <input id="helpSearch" type="search" placeholder="Example: submit trip, add stop, pay invoice, export CSV">
+          <select id="helpPageFilter">
+            <option value="">All Pages</option>
+          </select>
+        </div>
+
+        <div id="selectedPage" class="selected-page" style="display:none">
+          <h3 id="selectedPageTitle"></h3>
+          <div id="selectedPageDescription"></div>
+        </div>
+
+        <div id="helpResults" class="results"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="panel-head">
+        <h2>Contact Super Admin</h2>
+        <p>Send an operating or account issue directly to the Super Admin for your organization.</p>
+      </div>
+
+      <div class="support-identity">
+        <div><b>Company</b><span id="supportCompanyName">Loading...</span></div>
+        <div><b>Company Phone</b><span id="supportCompanyPhone">-</span></div>
+        <div><b>Current User</b><span id="supportUserName">-</span></div>
+        <div><b>Role</b><span>Company</span></div>
+      </div>
+
+      <div class="support-actions">
+        <button id="newSupportBtn" class="primary" type="button">+ New Support Request</button>
+      </div>
+
+      <div class="support-tabs">
+        <button id="activeTabBtn" class="support-tab active" type="button">Active</button>
+        <button id="historyTabBtn" class="support-tab" type="button">History</button>
+      </div>
+
+      <div id="newSupportForm" class="new-form">
+        <input id="supportSubject" maxlength="180" placeholder="Subject">
+        <textarea id="supportDescription" rows="6" maxlength="5000" placeholder="Describe your issue"></textarea>
+        <div class="form-actions">
+          <button id="cancelSupportBtn" class="cancel" type="button">Cancel</button>
+          <button id="sendSupportBtn" class="send" type="button">Send Request</button>
+        </div>
+      </div>
+
+      <div class="support-body">
+        <div id="conversationList" class="conv-list"></div>
+
+        <section class="chat-area">
+          <div id="chatEmpty" class="chat-empty">Select a conversation or create a new support request.</div>
+
+          <div id="chatView" class="chat-view">
+            <div class="chat-head">
+              <h3 id="chatSubject"></h3>
+              <p id="chatStatus"></p>
+              <div id="resolvedInfo" class="resolved-info"></div>
+            </div>
+
+            <div id="messages" class="messages"></div>
+
+            <div id="composer" class="composer">
+              <textarea id="messageInput" maxlength="5000" placeholder="Write your message to Super Admin..."></textarea>
+              <button id="sendMessageBtn" type="button">Send</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="layout.js"></script>
+<script src="help-center.js"></script>
+</body>
+</html>

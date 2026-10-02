@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+Service Management
+</title>
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+/>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+/* =========================
+   BODY
+========================= */
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:#f1f5f9;
+  font-family:'Segoe UI',sans-serif;
+  color:#0f172a;
+}
+
+#adminHeader{
+  width:100%;
+  z-index:1000;
+}
+
+/* =========================
+   PAGE
+========================= */
+
+.page-body{
+  max-width:1850px;
+  width:100%;
+  margin:auto;
+  padding:18px 22px 90px;
+}
+
+@media(max-width:768px){
+  .page-body{
+    padding:10px 8px 40px;
+  }
+}
+
+/* =========================
+   GOLD PAGE TITLE — SAME AS TRIPS HUB
+========================= */
+
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:84px;
+  margin-bottom:12px;
+  padding:16px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(
+    135deg,
+    #fff8dc 0%,
+    #f8e6ae 48%,
+    #fff4cf 100%
+  );
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+
+.page-main-title{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:#111827;
+}
+
+.page-main-sub{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+  line-height:1.5;
+}
+
+@media(max-width:768px){
+  .page-head{
+    min-height:72px;
+    padding:12px;
+    margin-bottom:10px;
+  }
+
+  .page-main-title{
+    font-size:22px;
+  }
+
+  .page-main-sub{
+    font-size:11px;
+  }
+}
+
+/* =========================
+   SECTION HEAD
+========================= */
+
+.section-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:22px;
+}
+
+@media(max-width:768px){
+  .section-head{
+    flex-direction:column;
+  }
+}
+
+.section-title-wrap{
+  min-width:0;
+}
+
+.page-title{
+  font-size:34px;
+  font-weight:900;
+  margin:0 0 10px;
+  color:#0f172a;
+}
+
+.section-subtitle{
+  color:#64748b;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.7;
+  max-width:980px;
+}
+
+.section-badge{
+  padding:11px 17px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+
+.badge-getquote{
+  background:#dcfce7;
+  color:#166534;
+  border-color:#bbf7d0;
+}
+
+.badge-facility{
+  background:#dbeafe;
+  color:#1e40af;
+  border-color:#bfdbfe;
+}
+
+.badge-reserved{
+  background:#fef3c7;
+  color:#92400e;
+  border-color:#fde68a;
+}
+
+/* =========================
+   DIVIDER
+========================= */
+
+.section-divider{
+  margin:60px 0 45px;
+  border:none;
+  border-top:3px dashed #cbd5e1;
+}
+
+/* =========================
+   GRID
+========================= */
+
+.services-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
+  gap:24px;
+}
+
+@media(max-width:768px){
+  .services-grid{
+    grid-template-columns:1fr;
+    gap:18px;
+  }
+}
+
+/* =========================
+   SERVICE CARD
+========================= */
+
+.service-card{
+  background:#fff;
+  border-radius:28px;
+  padding:24px;
+  overflow:hidden;
+  box-shadow:0 15px 35px rgba(0,0,0,.08);
+  border:1px solid #e2e8f0;
+  position:relative;
+}
+
+.service-card::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:7px;
+  background:#145cff;
+}
+
+.service-card.getquote-card::before{
+  background:#16a34a;
+}
+
+.service-card.facility-card::before{
+  background:#2563eb;
+}
+
+.service-card.reserved-card::before{
+  background:#f59e0b;
+}
+
+.service-card.driver-timer-card::before{
+  background:#0f766e;
+}
+
+.badge-driver{
+  background:#ccfbf1;
+  color:#115e59;
+  border-color:#99f6e4;
+}
+
+@media(max-width:768px){
+  .service-card{
+    padding:18px;
+    border-radius:22px;
+  }
+}
+
+/* =========================
+   TOP
+========================= */
+
+.service-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:22px;
+}
+
+@media(max-width:768px){
+  .service-top{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+}
+
+.service-info{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  min-width:0;
+}
+
+.service-icon{
+  width:72px;
+  height:72px;
+  min-width:72px;
+  border-radius:22px;
+  background:#eff6ff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:38px;
+}
+
+@media(max-width:768px){
+  .service-icon{
+    width:62px;
+    height:62px;
+    min-width:62px;
+    font-size:32px;
+    border-radius:18px;
+  }
+}
+
+.service-name{
+  font-size:25px;
+  font-weight:900;
+  line-height:1.2;
+  word-break:break-word;
+}
+
+@media(max-width:768px){
+  .service-name{
+    font-size:22px;
+  }
+}
+
+.service-status{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:700;
+  color:#64748b;
+  line-height:1.5;
+}
+
+/* =========================
+   MAIN TOGGLE
+========================= */
+
+.toggle-btn{
+  border:none;
+  padding:14px 22px;
+  border-radius:18px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  color:#fff;
+  transition:.2s;
+}
+
+.toggle-btn:hover{
+  transform:translateY(-1px);
+}
+
+.toggle-on{
+  background:#16a34a;
+}
+
+.toggle-off{
+  background:#dc2626;
+}
+
+@media(max-width:768px){
+  .toggle-btn{
+    width:100%;
+    padding:15px;
+  }
+}
+
+/* =========================
+   WARNING BOX
+========================= */
+
+.warning-box{
+  padding:14px 16px;
+  border-radius:16px;
+  font-size:14px;
+  font-weight:700;
+  margin-bottom:22px;
+  line-height:1.6;
+}
+
+.warning-green{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.warning-red{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.warning-blue{
+  background:#dbeafe;
+  color:#1e40af;
+}
+
+.warning-yellow{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+/* =========================
+   FIELDS
+========================= */
+
+.fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:start;
+  gap:16px;
+}
+
+@media(max-width:768px){
+  .fields{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.field.full{
+  grid-column:1/-1;
+}
+
+.field label{
+  font-size:13px;
+  font-weight:800;
+  color:#475569;
+  line-height:1.4;
+}
+
+.field input,
+.field select:not(.status-on):not(.status-off):not(.status-gray):not(.addstop-on):not(.addstop-off){
+  width:100%;
+  border:1px solid #cbd5e1;
+  border-radius:16px;
+  padding:14px;
+  font-size:15px;
+  background:#f8fafc;
+  outline:none;
+  transition:.2s;
+  min-height:54px;
+}
+
+.field input:focus,
+.field select:focus{
+  border-color:#145cff;
+  background:#fff;
+}
+
+.field input:disabled,
+.field select:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+/* =========================
+   STATUS SELECT COLORS
+========================= */
+
+.field select.status-on,
+.status-on{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:2px solid #16a34a !important;
+  font-weight:900 !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.field select.status-off,
+.status-off{
+  background:#dc2626 !important;
+  color:#fff !important;
+  border:2px solid #dc2626 !important;
+  font-weight:900 !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.field select.status-gray,
+.status-gray{
+  background:#dc2626 !important;
+  color:#fff !important;
+  border:2px solid #dc2626 !important;
+  font-weight:900 !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.status-on option,
+.status-off option,
+.status-gray option{
+  color:#000;
+  background:#fff;
+}
+
+/* =========================
+   ADD STOP POLICY
+========================= */
+
+.policy-title{
+  grid-column:1/-1;
+  margin-top:6px;
+  margin-bottom:-2px;
+  padding:11px 14px;
+  border-radius:14px;
+  background:#eff6ff;
+  color:#145cff;
+  font-size:14px;
+  font-weight:900;
+}
+
+.add-stop-title{
+  grid-column:1/-1;
+  margin-top:10px;
+  padding:13px 15px;
+  border-radius:16px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  color:#0f172a;
+  font-size:14px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.add-stop-title span{
+  font-size:12px;
+  color:#64748b;
+  font-weight:800;
+}
+
+.addstop-on{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:2px solid #16a34a !important;
+  font-weight:900 !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.addstop-off{
+  background:#dc2626 !important;
+  color:#fff !important;
+  border:2px solid #dc2626 !important;
+  font-weight:900 !important;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.addstop-on option,
+.addstop-off option{
+  color:#000;
+  background:#fff;
+}
+
+.add-stop-note{
+  grid-column:1/-1;
+  padding:12px 14px;
+  border-radius:14px;
+  background:#f8fafc;
+  border:1px dashed #cbd5e1;
+  color:#475569;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.6;
+}
+
+/* =========================
+   SHARED LOCK
+========================= */
+
+.shared-lock{
+  grid-column:1/-1;
+  padding:13px 15px;
+  border-radius:15px;
+  background:#fee2e2;
+  color:#991b1b;
+  border:1px solid #fecaca;
+  font-size:13px;
+  font-weight:900;
+  line-height:1.6;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.buttons{
+  display:flex;
+  gap:14px;
+  margin-top:26px;
+}
+
+@media(max-width:768px){
+  .buttons{
+    flex-direction:column;
+  }
+}
+
+.edit-btn,
+.save-btn{
+  flex:1;
+  border:none;
+  border-radius:18px;
+  padding:16px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.edit-btn:hover,
+.save-btn:hover{
+  transform:translateY(-1px);
+}
+
+.edit-btn{
+  background:#f59e0b;
+  color:#fff;
+}
+
+.save-btn{
+  background:#145cff;
+  color:#fff;
+}
+
+/* =========================
+   BOOKING HOURS
+========================= */
+
+.booking-hours-card::before{
+  background:#7c3aed;
+}
+
+.badge-booking-hours{
+  background:#ede9fe;
+  color:#5b21b6;
+  border-color:#ddd6fe;
+}
+
+.booking-hours-grid{
+  grid-template-columns:repeat(auto-fit,minmax(560px,1fr));
+}
+
+.booking-hours-card{
+  padding:22px;
+}
+
+.booking-hours-list{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.booking-hours-row{
+  display:grid;
+  grid-template-columns:minmax(145px,1.15fr) minmax(105px,.72fr) minmax(105px,.72fr);
+  gap:8px;
+  align-items:end;
+  padding:13px;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:#f8fafc;
+  min-width:0;
+}
+
+.booking-hours-source{
+  grid-column:1/-1;
+  padding-bottom:9px;
+  margin-bottom:1px;
+  border-bottom:1px solid #e2e8f0;
+  font-size:15px;
+  line-height:1.2;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.booking-hours-field{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:6px;
+}
+
+.booking-hours-field label{
+  font-size:11px;
+  font-weight:900;
+  color:#64748b;
+  white-space:nowrap;
+}
+
+.booking-hours-field select,
+.booking-hours-field input{
+  width:100%;
+  min-width:0;
+  height:42px;
+  min-height:42px;
+  border:1px solid #cbd5e1;
+  border-radius:13px;
+  padding:7px 8px;
+  background:#fff;
+  font-size:11px;
+  font-weight:800;
+  outline:none;
+}
+
+.booking-hours-field select:disabled,
+.booking-hours-field input:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+.booking-mode-24{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:2px solid #16a34a !important;
+}
+
+.booking-mode-custom{
+  background:#f59e0b !important;
+  color:#fff !important;
+  border:2px solid #f59e0b !important;
+}
+
+.booking-mode-disabled{
+  background:#dc2626 !important;
+  color:#fff !important;
+  border:2px solid #dc2626 !important;
+}
+
+.booking-mode-24 option,
+.booking-mode-custom option,
+.booking-mode-disabled option{
+  color:#000;
+  background:#fff;
+}
+
+.booking-time-locked{
+  background:#e5e7eb !important;
+  color:#64748b !important;
+}
+
+.booking-hours-card .warning-box{
+  font-size:12px;
+  padding:11px 13px;
+  margin-bottom:14px;
+}
+
+.booking-hours-card .buttons{
+  margin-top:18px;
+}
+
+@media(max-width:1250px){
+  .booking-hours-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:620px){
+  .booking-hours-row{
+    grid-template-columns:1fr;
+  }
+
+  .booking-hours-source{
+    grid-column:1;
+  }
+}
+
+/* =========================
+   HELPERS
+========================= */
+
+.hidden{
+  display:none !important;
+}
+
+.small-muted{
+  font-size:12px;
+  font-weight:700;
+  color:#64748b;
+  line-height:1.6;
+}
+
+
+</style>
+
+</head>
+
+<body>
+
+<div id="adminHeader"></div>
+
+<div class="page-body">
+
+  <!-- =========================
+       HERO
+  ========================== -->
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-main-title">Service Management</h1>
+      <div class="page-main-sub">
+        Manage Driver Wait Timers, Get Quote, Facility, and Reserved services from one place.
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       DRIVER WAIT TIMERS
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Driver Wait Timers
+      </div>
+
+      <div class="section-subtitle">
+        Configure Pickup and intermediate Stop waiting time for each service.
+        Pickup and Stop timers are independent. Each timer can be enabled or
+        disabled and can use its own number of minutes. Disabled timers do not
+        appear in Driver Map.
+      </div>
+    </div>
+
+    <div class="section-badge badge-driver">
+      Driver App Execution
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="driverServicesGrid"
+  ></div>
+
+  <hr class="section-divider">
+
+  <!-- =========================
+       GET QUOTE SERVICES
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Get Quote Services
+      </div>
+
+      <div class="section-subtitle">
+        Control customer public quote services, pricing, visibility,
+        warning policies, cancellation fees, and Add Stop rules used
+        by the customer email links.
+      </div>
+    </div>
+
+    <div class="section-badge badge-getquote">
+      Public Customer Quotes
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="servicesGrid"
+  ></div>
+
+  <!-- =========================
+       DIVIDER
+  ========================== -->
+
+  <hr class="section-divider">
+
+  <!-- =========================
+       FACILITY SERVICES
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Facility Services
+      </div>
+
+      <div class="section-subtitle">
+        Control facility booking tabs, pricing, visibility,
+        warning policies, cancellation fees, shared booking behavior,
+        and Facility Add Stop rules used in Company Review.
+      </div>
+    </div>
+
+    <div class="section-badge badge-facility">
+      Company / Facility Booking
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="companyServicesGrid"
+  ></div>
+
+  <!-- =========================
+       DIVIDER
+  ========================== -->
+
+  <hr class="section-divider">
+
+  <!-- =========================
+       RESERVED SERVICES
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Reserved Services
+      </div>
+
+      <div class="section-subtitle">
+        Control reserved trip services used by Admin Add Trip,
+        Dispatch Add Trip, Trips Hub RV, and reservation review flows.
+        Reserved Add Stop uses its own rules separate from Get Quote
+        and Facility.
+      </div>
+    </div>
+
+    <div class="section-badge badge-reserved">
+      Admin Reserved Trips
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="reservedServicesGrid"
+  ></div>
+
+  <hr class="section-divider">
+
+  <!-- =========================
+       SERVICE BOOKING HOURS
+  ========================== -->
+
+  <div class="section-head">
+    <div class="section-title-wrap">
+      <div class="page-title">
+        Service Booking Hours
+      </div>
+
+      <div class="section-subtitle">
+        Set booking availability separately for each enabled service and booking source.
+        Use 24 Hours, Custom Hours, or Disabled. Custom Hours can cross midnight.
+      </div>
+    </div>
+
+    <div class="section-badge badge-booking-hours">
+      Booking Availability
+    </div>
+  </div>
+
+  <div
+    class="services-grid"
+    id="bookingHoursServicesGrid"
+  ></div>
+
+</div>
+
+<script src="header.js"></script>
+
+<script>
+
+if(typeof loadHeader === "function"){
+  loadHeader("Service Management");
+}
+
+</script>
+
+<script src="service-management.js"></script>
+
+</body>
+</html>

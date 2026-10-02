@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GH Mobility – Autopilot Mode</title>
+
+  <link rel="stylesheet" href="/admin/style.css">
+
+  <style>
+    *{box-sizing:border-box}
+
+    :root{
+      --navy:#123d5a;
+      --blue:#1e3a8a;
+      --muted:#64748b;
+      --line:#d9e4ef;
+      --soft:#f5f9fc;
+      --card:#ffffff;
+      --active:#15803d;
+      --active-soft:#eaf8ef;
+      --inactive:#b42318;
+      --inactive-soft:#fff0ef;
+    }
+
+    body{
+      margin:0;
+      background:#eef5fa;
+      color:#17324a;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+
+    .autopilot-page{
+      width:100%;
+      max-width:1500px;
+      margin:0 auto;
+      padding:48px 22px 48px;
+    }
+
+    .autopilot-heading{
+      min-height:84px;
+      margin-bottom:24px;
+      padding:16px 20px;
+      text-align:center;
+      color:#111827;
+      background:linear-gradient(
+        135deg,
+        #fff8dc 0%,
+        #f8e6ae 48%,
+        #fff4cf 100%
+      );
+      border:1px solid #e0be5a;
+      border-radius:18px;
+      box-shadow:0 8px 22px rgba(146,102,14,.13);
+    }
+
+    .autopilot-title{
+      margin:0;
+      color:#111827;
+      font-size:26px;
+      font-weight:900;
+      line-height:1.15;
+      letter-spacing:.2px;
+      text-align:center;
+    }
+
+    .autopilot-subtitle{
+      margin:6px 0 0;
+      color:#64748b;
+      font-size:13px;
+      font-weight:800;
+      line-height:1.4;
+      text-align:center;
+    }
+
+    .autopilot-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:18px;
+      align-items:stretch;
+    }
+
+    .autopilot-grid.one-card{
+      grid-template-columns:minmax(0,560px);
+      justify-content:center;
+    }
+
+    .autopilot-grid.two-cards{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      max-width:1040px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+
+    .autopilot-grid.three-cards{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .autopilot-card{
+      min-width:0;
+      background:#fff;
+      border:1px solid #cfdeea;
+      border-radius:16px;
+      box-shadow:0 6px 18px rgba(23,50,74,.08);
+      overflow:hidden;
+    }
+
+    .autopilot-card-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      min-height:96px;
+      padding:20px 20px 14px;
+      border-bottom:1px solid #e2ebf3;
+    }
+
+    .autopilot-card-title{
+      margin:0;
+      color:#123d5a;
+      font-size:19px;
+      font-weight:900;
+      line-height:1.2;
+    }
+
+    .autopilot-card-desc{
+      margin:7px 0 0;
+      color:#64748b;
+      font-size:13px;
+      line-height:1.45;
+      font-weight:600;
+    }
+
+    .status-pill{
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:96px;
+      height:34px;
+      padding:0 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.2px;
+      border:1px solid transparent;
+    }
+
+    .status-pill.active{
+      color:#0b6b32;
+      background:#eaf8ef;
+      border-color:#9ed7af;
+    }
+
+    .status-pill.inactive{
+      color:#a11b12;
+      background:#fff0ef;
+      border-color:#efb0aa;
+    }
+
+    .autopilot-card-body{
+      padding:18px 20px 20px;
+    }
+
+    #operationGrid .autopilot-card-body > .autopilot-rule{
+      min-height:38px;
+    }
+
+    .autopilot-rule{
+      display:flex;
+      gap:9px;
+      align-items:flex-start;
+      margin:0 0 8px;
+      color:#466276;
+      font-size:13px;
+      font-weight:700;
+      line-height:1.45;
+    }
+
+    .autopilot-rule::before{
+      content:"✓";
+      color:#16803c;
+      font-weight:1000;
+    }
+
+    .autopilot-actions{
+      display:flex;
+      gap:10px;
+      margin-top:18px;
+    }
+
+    .mode-btn{
+      flex:1 1 0;
+      min-height:44px;
+      border-radius:10px;
+      border:2px solid transparent;
+      font-size:13px;
+      font-weight:900;
+      cursor:pointer;
+      transition:filter .12s ease,transform .12s ease;
+    }
+
+    .mode-btn:hover:not(:disabled){
+      filter:brightness(1.04);
+      transform:translateY(-1px);
+    }
+
+    .mode-btn:disabled{
+      cursor:not-allowed;
+      opacity:.56;
+    }
+
+    .mode-btn.on{
+      color:#fff;
+      background:linear-gradient(180deg,#35b85b,#16803c);
+      border-color:#0f7133;
+    }
+
+    .mode-btn.off{
+      color:#fff;
+      background:linear-gradient(180deg,#e45e55,#b42318);
+      border-color:#951c14;
+    }
+
+    .mode-btn.selected{
+      box-shadow:0 0 0 3px rgba(30,58,138,.16);
+    }
+
+    .sub-control{
+      margin-top:18px;
+      padding-top:16px;
+      border-top:1px solid #e2ebf3;
+    }
+
+    .sub-control-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      min-height:58px;
+      margin-bottom:10px;
+    }
+
+    .sub-control-title{
+      margin:0;
+      color:#17324a;
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .sub-control-desc{
+      margin:4px 0 0;
+      color:#64748b;
+      font-size:12px;
+      font-weight:600;
+      line-height:1.4;
+    }
+
+    .sub-control .autopilot-actions{
+      margin-top:0;
+    }
+
+    .share-service-wrap{
+      margin-top:18px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .share-service-wrap .autopilot-card{
+      width:min(100%,720px);
+    }
+
+    .capability-note{
+      margin-top:12px;
+      min-height:18px;
+      color:#64748b;
+      font-size:12px;
+      font-weight:700;
+      line-height:1.4;
+    }
+
+    .autopilot-footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-top:20px;
+      padding:16px 18px;
+      background:#fff;
+      border:1px solid #d3e0ea;
+      border-radius:14px;
+    }
+
+    .save-state{
+      color:#64748b;
+      font-size:13px;
+      font-weight:800;
+      line-height:1.4;
+    }
+
+    .save-btn{
+      min-width:160px;
+      min-height:46px;
+      padding:0 20px;
+      border:0;
+      border-radius:11px;
+      background:linear-gradient(180deg,#2478a5,#14506f);
+      color:#fff;
+      font-size:14px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 4px 10px rgba(20,80,111,.18);
+    }
+
+    .save-btn:disabled{
+      cursor:wait;
+      opacity:.65;
+    }
+
+    .notice{
+      display:none;
+      margin:0 0 18px;
+      padding:12px 14px;
+      border-radius:10px;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .notice.show{display:block}
+    .notice.ok{background:#eaf8ef;color:#0b6b32;border:1px solid #a9dcb7}
+    .notice.error{background:#fff0ef;color:#a11b12;border:1px solid #efb0aa}
+
+    .hidden{display:none!important}
+
+    @media(max-width:1050px){
+      .autopilot-grid.two-cards,
+      .autopilot-grid.three-cards{
+        grid-template-columns:1fr 1fr;
+      }
+
+      .autopilot-grid.one-card{
+        grid-template-columns:minmax(0,560px);
+      }
+    }
+
+    @media(max-width:760px){
+      .autopilot-page{padding:34px 14px 34px}
+      .autopilot-heading{padding:15px 16px}
+      .autopilot-title{font-size:25px}
+      .autopilot-card-head{min-height:0}
+      #operationGrid .autopilot-card-body > .autopilot-rule{min-height:0}
+      .sub-control-head{min-height:0}
+      .autopilot-grid,
+      .autopilot-grid.one-card,
+      .autopilot-grid.two-cards,
+      .autopilot-grid.three-cards{
+        grid-template-columns:1fr;
+        max-width:none;
+      }
+      .autopilot-footer{align-items:stretch;flex-direction:column}
+      .save-btn{width:100%}
+    }
+  </style>
+</head>
+<body>
+
+  <div id="adminHeader"></div>
+
+  <main class="autopilot-page">
+    <section class="autopilot-heading">
+      <h1 class="autopilot-title">Autopilot Mode</h1>
+      <p class="autopilot-subtitle">
+        Control automatic operating commands while keeping all manual review and editing available.
+      </p>
+    </section>
+
+    <div id="autopilotNotice" class="notice" role="status" aria-live="polite"></div>
+
+    <section class="autopilot-grid" id="operationGrid" aria-label="Autopilot operation controls">
+
+      <article class="autopilot-card" id="operationCard">
+        <div class="autopilot-card-head">
+          <div>
+            <h2 class="autopilot-card-title">Operation</h2>
+            <p class="autopilot-card-desc">
+              Automatic operating command for normal company trips.
+            </p>
+          </div>
+          <span class="status-pill inactive" id="operationStatus">Not Active</span>
+        </div>
+
+        <div class="autopilot-card-body">
+          <p class="autopilot-rule">Controls the normal company trip workflow and dispatch automation.</p>
+          <p class="autopilot-rule">Manual edits and staff intervention remain available.</p>
+          <div class="autopilot-actions">
+            <button class="mode-btn on" id="operationOn" type="button">Active</button>
+            <button class="mode-btn off" id="operationOff" type="button">Not Active</button>
+          </div>
+
+          <div class="sub-control">
+            <div class="sub-control-head">
+              <div>
+                <h3 class="sub-control-title">Final Confirmation</h3>
+                <p class="sub-control-desc">Automatically final-confirms completed/closed company trips.</p>
+              </div>
+              <span class="status-pill inactive" id="operationFinalConfirmationStatus">OFF</span>
+            </div>
+            <div class="autopilot-actions">
+              <button class="mode-btn on" id="operationFinalConfirmationOn" type="button">ON</button>
+              <button class="mode-btn off" id="operationFinalConfirmationOff" type="button">OFF</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="autopilot-card hidden" id="brokerOperationCard">
+        <div class="autopilot-card-head">
+          <div>
+            <h2 class="autopilot-card-title">Broker Operation</h2>
+            <p class="autopilot-card-desc">
+              Automatic operating command for enabled Broker Operations.
+            </p>
+          </div>
+          <span class="status-pill inactive" id="brokerOperationStatus">Not Active</span>
+        </div>
+
+        <div class="autopilot-card-body">
+          <p class="autopilot-rule">Shown only when the tenant has an active Broker Contract.</p>
+          <p class="autopilot-rule">Controls Broker Review, Dispatch, and the normal broker workflow.</p>
+          <div class="autopilot-actions">
+            <button class="mode-btn on" id="brokerOperationOn" type="button">Active</button>
+            <button class="mode-btn off" id="brokerOperationOff" type="button">Not Active</button>
+          </div>
+
+          <div class="sub-control">
+            <div class="sub-control-head">
+              <div>
+                <h3 class="sub-control-title">Final Confirmation</h3>
+                <p class="sub-control-desc">Automatically final-confirms closed Broker trips, including shared Broker trips.</p>
+              </div>
+              <span class="status-pill inactive" id="brokerFinalConfirmationStatus">OFF</span>
+            </div>
+            <div class="autopilot-actions">
+              <button class="mode-btn on" id="brokerFinalConfirmationOn" type="button">ON</button>
+              <button class="mode-btn off" id="brokerFinalConfirmationOff" type="button">OFF</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <section class="share-service-wrap hidden" id="shareServiceWrap" aria-label="Share Service control">
+      <article class="autopilot-card" id="shareServiceCard">
+        <div class="autopilot-card-head">
+          <div>
+            <h2 class="autopilot-card-title">Share Service</h2>
+            <p class="autopilot-card-desc">
+              Automatic shared-ride grouping feature for Broker trips.
+            </p>
+          </div>
+          <span class="status-pill inactive" id="shareServiceStatus">Not Active</span>
+        </div>
+        <div class="autopilot-card-body">
+          <p class="autopilot-rule">Shown only when Broker Contract and SHARED service are both active.</p>
+          <p class="autopilot-rule">This feature only controls Shared Engine grouping; it is not a separate operation engine.</p>
+          <div class="autopilot-actions">
+            <button class="mode-btn on" id="shareServiceOn" type="button">Active</button>
+            <button class="mode-btn off" id="shareServiceOff" type="button">Not Active</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="autopilot-footer">
+      <div class="save-state" id="autopilotSaveState">
+        Loading Autopilot settings...
+      </div>
+      <button class="save-btn" id="saveAutopilotSettings" type="button">
+        Save Settings
+      </button>
+    </section>
+  </main>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/autopilot-settings.js"></script>
+</body>
+</html>

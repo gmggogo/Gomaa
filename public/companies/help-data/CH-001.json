@@ -1,0 +1,67 @@
+{
+  "id": "CH-001",
+  "page": "dashboard.html",
+  "name": "Dashboard",
+  "description": "Use the Dashboard to review the company\u2019s current trip activity, monthly performance, service totals, revenue, miles, and billing status.",
+  "tasks": [
+    {
+      "id": "CH-001-T01",
+      "title": "Read today\u2019s trip counters",
+      "summary": "Use the Today cards to review total trips and cancelled trips for the current day.",
+      "steps": [
+        "Open Dashboard.",
+        "Review Total Trips Today.",
+        "Review Cancelled Today.",
+        "Use these counters as a quick operating snapshot."
+      ],
+      "keywords": [
+        "dashboard",
+        "read today\u2019s trip counters"
+      ]
+    },
+    {
+      "id": "CH-001-T02",
+      "title": "Review monthly activity",
+      "summary": "Use the monthly cards to review trip volume, Shared passengers, completed trips, cancelled trips, and No Show trips.",
+      "steps": [
+        "Open Dashboard.",
+        "Review Monthly Trips.",
+        "Review Shared Passengers.",
+        "Review Completed, Cancelled, and No Show totals."
+      ],
+      "keywords": [
+        "dashboard",
+        "review monthly activity"
+      ]
+    },
+    {
+      "id": "CH-001-T03",
+      "title": "Review service performance",
+      "summary": "Use the service cards to compare trip count, revenue, and miles by enabled service.",
+      "steps": [
+        "Scroll to the service performance area.",
+        "Open or review the card for the required service.",
+        "Compare Trips, Revenue, and Miles."
+      ],
+      "keywords": [
+        "dashboard",
+        "review service performance"
+      ]
+    },
+    {
+      "id": "CH-001-T04",
+      "title": "Check billing status",
+      "summary": "Use the billing section to review the current invoice, last payment, and payment due date.",
+      "steps": [
+        "Open Dashboard.",
+        "Review Current Invoice.",
+        "Check Last Payment.",
+        "Check Payment Due Date."
+      ],
+      "keywords": [
+        "dashboard",
+        "check billing status"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Company Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="layout.css">
+
+<style>
+*{box-sizing:border-box;}
+
+:root{
+  --blue:#145cff;
+  --blueDark:#0f46c9;
+  --green:#16a34a;
+  --red:#dc2626;
+  --orange:#ea580c;
+  --yellow:#facc15;
+  --purple:#7c3aed;
+  --bg:#eef3f9;
+  --text:#0f172a;
+  --muted:#64748b;
+  --card:#ffffff;
+  --border:#dbe3ee;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:'Segoe UI',Arial,sans-serif;
+  color:var(--text);
+  overflow-x:hidden;
+  padding-bottom:60px;
+}
+
+#layoutHeader{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  background:#fff;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+}
+
+.container{
+  width:100%;
+  max-width:1800px;
+  margin:auto;
+  padding:34px 34px 40px;
+}
+
+.section-title{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  font-size:28px;
+  font-weight:900;
+  margin:34px 0 20px;
+  color:#111827;
+}
+
+.section-title::before{
+  content:"";
+  width:7px;
+  height:40px;
+  border-radius:999px;
+  background:var(--blue);
+}
+
+.section-sub{
+  margin-top:-12px;
+  margin-bottom:18px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:18px;
+  margin-bottom:36px;
+}
+
+.card{
+  background:#fff;
+  border-radius:22px;
+  padding:22px;
+  min-height:142px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  position:relative;
+  overflow:hidden;
+  border:1px solid #edf2f7;
+}
+
+.card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:6px;
+  background:var(--blue);
+}
+
+.card.green::before{background:var(--green);}
+.card.red::before{background:var(--red);}
+.card.orange::before{background:var(--orange);}
+.card.yellow::before{background:var(--yellow);}
+.card.purple::before{background:var(--purple);}
+
+.card-title{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.card-value{
+  margin-top:28px;
+  font-size:36px;
+  font-weight:900;
+  line-height:1;
+}
+
+.service-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px;
+  margin-bottom:36px;
+}
+
+.service-card{
+  background:linear-gradient(135deg,#ffffff,#f8fbff);
+  border:1px solid #e5edf7;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:0 8px 22px rgba(15,23,42,.06);
+  position:relative;
+  overflow:hidden;
+}
+
+.service-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:6px;
+  background:var(--blue);
+}
+
+.service-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.service-name{
+  font-size:20px;
+  font-weight:900;
+  color:#111827;
+}
+
+.service-icon{
+  font-size:28px;
+}
+
+.service-lines{
+  display:grid;
+  gap:10px;
+}
+
+.service-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding-bottom:9px;
+  border-bottom:1px dashed #dbe3ee;
+  gap:12px;
+}
+
+.service-label{
+  color:#64748b;
+  font-size:13px;
+  font-weight:800;
+}
+
+.service-value{
+  color:#0f172a;
+  font-size:15px;
+  font-weight:900;
+}
+
+.billing-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:22px;
+  margin-bottom:26px;
+}
+
+.billing-card{
+  background:linear-gradient(135deg,#f0fff4,#ffffff);
+  border:1px solid #bbf7d0;
+  border-radius:24px;
+  padding:28px;
+  min-height:230px;
+  text-align:center;
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+  position:relative;
+  overflow:hidden;
+}
+
+.billing-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:6px;
+  background:var(--green);
+}
+
+.billing-card.yellow{
+  background:linear-gradient(135deg,#fffbea,#ffffff);
+  border-color:#fde68a;
+}
+
+.billing-card.yellow::before{background:var(--yellow);}
+
+.billing-card.orange{
+  background:linear-gradient(135deg,#fff7ed,#ffffff);
+  border-color:#fed7aa;
+}
+
+.billing-card.orange::before{background:var(--orange);}
+
+.billing-card.red{
+  background:linear-gradient(135deg,#fff1f2,#ffffff);
+  border-color:#fecaca;
+}
+
+.billing-card.red::before{background:var(--red);}
+
+.billing-title{
+  color:#166534;
+  font-size:15px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:22px;
+}
+
+.billing-icon{
+  font-size:48px;
+  margin-bottom:18px;
+}
+
+.billing-value{
+  font-size:36px;
+  font-weight:900;
+  color:#0f172a;
+}
+
+.billing-sub{
+  margin-top:14px;
+  font-size:18px;
+  font-weight:900;
+  color:#16a34a;
+}
+
+.billing-yellow-text{color:#ca8a04;}
+.billing-orange-text{color:#ea580c;}
+.billing-red-text{color:#dc2626;}
+
+.payment-legend{
+  display:flex;
+  justify-content:center;
+  gap:34px;
+  flex-wrap:wrap;
+  background:#fff;
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 8px 22px rgba(15,23,42,.05);
+  margin-bottom:26px;
+}
+
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:14px;
+  font-weight:800;
+}
+
+.dot{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  display:inline-block;
+}
+
+.dot.green{background:var(--green);}
+.dot.yellow{background:var(--yellow);}
+.dot.orange{background:var(--orange);}
+.dot.red{background:var(--red);}
+
+.empty{
+  padding:24px;
+  text-align:center;
+  color:var(--muted);
+  font-weight:900;
+  background:#fff;
+  border-radius:18px;
+}
+
+@media(max-width:900px){
+  .container{
+    padding:24px 16px 36px;
+  }
+
+  .cards{
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+
+  .service-grid{
+    grid-template-columns:1fr;
+  }
+
+  .billing-grid{
+    grid-template-columns:1fr;
+  }
+
+  .card{
+    padding:18px;
+    min-height:130px;
+  }
+
+  .card-title{
+    font-size:11px;
+  }
+
+  .card-value{
+    font-size:28px;
+  }
+
+  .section-title{
+    font-size:24px;
+  }
+}
+
+@media(max-width:520px){
+  .cards{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .card-value{
+    font-size:25px;
+  }
+
+  .billing-value{
+    font-size:30px;
+  }
+}
+
+@media print{
+  #layoutHeader{
+    display:none !important;
+  }
+
+  body{
+    background:#fff;
+  }
+
+  .container{
+    padding:0 !important;
+    max-width:100% !important;
+  }
+
+  .card,
+  .service-card,
+  .billing-card{
+    box-shadow:none !important;
+    break-inside:avoid;
+  }
+}
+
+.company-page-shell{
+  padding-top:0;
+}
+
+
+
+@media(max-width:1000px){
+  .company-page-shell{
+    padding-top:0;
+  }
+}
+
+@media print{
+  .company-page-shell{
+    padding-top:0 !important;
+  }
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="layoutHeader"></div>
+
+<div class="company-page-shell">
+
+  <div class="container">
+
+  <div class="section-title">Today's Activity</div>
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="card-title">Total Trips Today</div>
+      <div class="card-value" id="todayTotalTrips">0</div>
+    </div>
+
+    <div class="card green">
+      <div class="card-title">Completed Today</div>
+      <div class="card-value" id="todayCompleted">0</div>
+    </div>
+
+    <div class="card red">
+      <div class="card-title">Cancelled Today</div>
+      <div class="card-value" id="todayCancelled">0</div>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">No Show Today</div>
+      <div class="card-value" id="todayNoShow">0</div>
+    </div>
+
+    <div class="card green">
+      <div class="card-title">Today's Revenue</div>
+      <div class="card-value" id="todayRevenue">$0.00</div>
+    </div>
+
+    <div class="card purple">
+      <div class="card-title">Today's Miles</div>
+      <div class="card-value" id="todayMiles">0.0</div>
+    </div>
+
+  </div>
+
+  <div class="section-title">Monthly Overview</div>
+
+  <div class="cards">
+
+    <div class="card green">
+      <div class="card-title">Monthly Revenue</div>
+      <div class="card-value" id="monthlyRevenue">$0.00</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Monthly Trips</div>
+      <div class="card-value" id="monthlyTrips">0</div>
+    </div>
+
+    <div class="card purple">
+      <div class="card-title">Monthly Miles</div>
+      <div class="card-value" id="monthlyMiles">0.0</div>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">Shared Passengers</div>
+      <div class="card-value" id="monthlySharedPassengers">0</div>
+    </div>
+
+    <div class="card green">
+      <div class="card-title">Completed Trips</div>
+      <div class="card-value" id="monthlyCompleted">0</div>
+    </div>
+
+    <div class="card red">
+      <div class="card-title">Cancelled Trips</div>
+      <div class="card-value" id="monthlyCancelled">0</div>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">No Show Trips</div>
+      <div class="card-value" id="monthlyNoShow">0</div>
+    </div>
+
+  </div>
+
+  <div class="section-title">Service Performance</div>
+
+  <div class="section-sub">
+    Services are loaded dynamically from Service Management.
+  </div>
+
+  <div class="service-grid" id="serviceCards"></div>
+
+  <div class="section-title">Billing Overview</div>
+
+  <div class="billing-grid">
+
+    <div class="billing-card" id="invoiceCard">
+
+      <div class="billing-title">Current Invoice</div>
+
+      <div class="billing-icon">💲</div>
+
+      <div class="billing-value" id="invoiceAmount">
+        $0.00
+      </div>
+
+      <div class="billing-sub" id="billingStatus">
+        ACTIVE
+      </div>
+
+    </div>
+
+    <div class="billing-card" id="billingPeriodCard">
+
+      <div class="billing-title">Billing Period</div>
+
+      <div class="billing-icon">🗓️</div>
+
+      <div class="billing-value" id="billingPeriod">
+        --
+      </div>
+
+      <div class="billing-sub" id="lastPayment">
+        Last Payment: --
+      </div>
+
+    </div>
+
+    <div class="billing-card" id="paymentCard">
+
+      <div class="billing-title">Payment Due Date</div>
+
+      <div class="billing-icon">✅</div>
+
+      <div class="billing-value" id="paymentDue">
+        --
+      </div>
+
+      <div class="billing-sub" id="paymentStatus">
+        --
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="payment-legend">
+
+    <div class="legend-item">
+      <span class="dot green"></span>
+      Safe 10+ days
+    </div>
+
+    <div class="legend-item">
+      <span class="dot yellow"></span>
+      Due Soon 3-9 days
+    </div>
+
+    <div class="legend-item">
+      <span class="dot orange"></span>
+      Due Very Soon 1-2 days
+    </div>
+
+    <div class="legend-item">
+      <span class="dot red"></span>
+      Past Due
+    </div>
+
+  </div>
+
+</div>
+
+</div>
+
+<script src="layout.js"></script>
+
+<script>
+let allTrips = [];
+let services = [];
+let billing = {};
+let systemDesign = {};
+let dashboardRefreshRunning = false;
+
+function getCompanyToken(){
+  const own =
+    String(
+      localStorage.getItem("companyToken") ||
+      ""
+    ).trim();
+
+  if(own){
+    return own;
+  }
+
+  if(
+    String(
+      localStorage.getItem("role") ||
+      ""
+    ).toLowerCase() === "company"
+  ){
+    return String(
+      localStorage.getItem("token") ||
+      ""
+    ).trim();
+  }
+
+  return "";
+}
+
+function getCompanyName(){
+  return String(
+    localStorage.getItem("companyName") ||
+    localStorage.getItem("name") ||
+    "Facility"
+  ).trim();
+}
+
+const companyToken =
+  getCompanyToken();
+
+const facilityName =
+  getCompanyName();
+
+/* ================= HELPERS ================= */
+
+function money(v){
+  return "$" + Number(v || 0).toFixed(2);
+}
+
+function num(v){
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function cleanStatus(v){
+  return String(v || "")
+    .toLowerCase()
+    .replace(/\s+/g,"")
+    .trim();
+}
+
+function statusKey(v){
+
+  const s = cleanStatus(v);
+
+  if(s.includes("complete")){
+    return "completed";
+  }
+
+  if(s.includes("cancel")){
+    return "cancelled";
+  }
+
+  if(s.includes("noshow") || s.includes("no")){
+    return "noshow";
+  }
+
+  return s || "scheduled";
+
+}
+
+function isCompleted(v){
+  return statusKey(v) === "completed";
+}
+
+function isCancelled(v){
+  return statusKey(v) === "cancelled";
+}
+
+function isNoShow(v){
+  return statusKey(v) === "noshow";
+}
+
+function localDateKey(d = new Date()){
+
+  const y = d.getFullYear();
+
+  const m = String(d.getMonth() + 1)
+    .padStart(2,"0");
+
+  const day = String(d.getDate())
+    .padStart(2,"0");
+
+  return `${y}-${m}-${day}`;
+
+}
+
+function isSharedTrip(t){
+
+  return (
+    t?.isShared === true ||
+    String(t?.tripNumber || "")
+      .toUpperCase()
+      .includes("-SH") ||
+    String(t?.groupId || "")
+      .trim() !== "" ||
+    String(t?.tripType || "")
+      .toUpperCase()
+      .includes("SHARED") ||
+    Array.isArray(t?.passengers)
+  );
+
+}
+
+function formatDate(value){
+
+  if(!value){
+    return "--";
+  }
+
+  const d = new Date(value);
+
+  if(isNaN(d.getTime())){
+    return "--";
+  }
+
+  return d.toLocaleDateString(
+    "en-US",
+    {
+      month:"short",
+      day:"numeric"
+    }
+  );
+
+}
+
+function getTripDateObj(t){
+
+  if(!t.tripDate){
+    return null;
+  }
+
+  const d =
+    new Date(t.tripDate + "T12:00:00");
+
+  if(isNaN(d.getTime())){
+    return null;
+  }
+
+  return d;
+
+}
+
+function getTripServiceCode(t){
+
+  const direct =
+    String(
+      t.serviceCode ||
+      t.serviceKey ||
+      t.serviceType ||
+      ""
+    )
+    .trim()
+    .toUpperCase();
+
+  if(direct){
+    if(direct === "STANDARD") return "ST";
+    if(direct === "WHEELCHAIR") return "WH";
+    if(direct === "SHARED") return "SH";
+    if(direct === "LIMO" || direct === "LIMOUSINE") return "LM";
+    if(direct === "TAXI") return "TX";
+    if(direct === "XL") return "XL";
+    return direct;
+  }
+
+  const parts =
+    String(t.tripNumber || "")
+      .split("-");
+
+  return String(
+    parts[parts.length - 1] || ""
+  )
+    .trim()
+    .toUpperCase();
+
+}
+
+function getServiceCode(service){
+
+  const key =
+    String(
+      service.serviceKey ||
+      service.key ||
+      service.code ||
+      service.title ||
+      ""
+    )
+    .trim()
+    .toUpperCase();
+
+  const suffix =
+    String(
+      service.companySuffix ||
+      service.suffix ||
+      ""
+    )
+    .trim()
+    .toUpperCase();
+
+  if(suffix){
+    return suffix;
+  }
+
+  if(key === "STANDARD") return "ST";
+  if(key === "WHEELCHAIR") return "WH";
+  if(key === "SHARED") return "SH";
+  if(key === "LIMO" || key === "LIMOUSINE") return "LM";
+  if(key === "TAXI") return "TX";
+  if(key === "XL") return "XL";
+
+  return key;
+
+}
+
+function getServiceTitle(service){
+
+  return (
+    service.title ||
+    service.name ||
+    service.serviceName ||
+    service.serviceKey ||
+    "Service"
+  );
+
+}
+
+function getPassengerRevenue(p,t){
+
+  if(isCompleted(p.status)){
+    return num(
+      p.finalPrice ||
+      p.priceAmount ||
+      p.price ||
+      0
+    );
+  }
+
+  if(isCancelled(p.status)){
+    return num(
+      p.cancelFee ||
+      p.finalPrice ||
+      p.priceAmount ||
+      t.cancelFee ||
+      0
+    );
+  }
+
+  if(isNoShow(p.status)){
+    return num(
+      p.noShowFee ||
+      p.finalPrice ||
+      p.priceAmount ||
+      t.noShowFee ||
+      0
+    );
+  }
+
+  return 0;
+
+}
+
+function getTripRevenue(t){
+
+  if(isSharedTrip(t)){
+
+    const passengers =
+      Array.isArray(t.passengers)
+        ? t.passengers
+        : [];
+
+    return passengers.reduce((sum,p)=>{
+      return sum + getPassengerRevenue(p,t);
+    },0);
+
+  }
+
+  if(isCompleted(t.status)){
+    return num(
+      t.finalPrice ||
+      t.priceAmount ||
+      t.price ||
+      0
+    );
+  }
+
+  if(isCancelled(t.status)){
+    return num(
+      t.cancelFee ||
+      t.finalPrice ||
+      t.priceAmount ||
+      0
+    );
+  }
+
+  if(isNoShow(t.status)){
+    return num(
+      t.noShowFee ||
+      t.finalPrice ||
+      t.priceAmount ||
+      0
+    );
+  }
+
+  return 0;
+
+}
+
+function getTripMiles(t){
+
+  if(isSharedTrip(t)){
+
+    const passengers =
+      Array.isArray(t.passengers)
+        ? t.passengers
+        : [];
+
+    const hasCompleted =
+      passengers.some(p =>
+        isCompleted(p.status)
+      );
+
+    return hasCompleted
+      ? num(t.miles)
+      : 0;
+
+  }
+
+  return isCompleted(t.status)
+    ? num(t.miles)
+    : 0;
+
+}
+
+/* ================= LOAD ================= */
+
+async function loadSystemDesign(){
+
+  try{
+
+    const res =
+      await fetch("/api/system-design");
+
+    systemDesign =
+      await res.json();
+
+  }catch(err){
+
+    systemDesign = {};
+
+  }
+
+  document.title =
+    (
+      systemDesign.companyName ||
+      "Company Dashboard"
+    ) + " – Company Dashboard";
+
+}
+
+async function loadServices(){
+
+  try{
+
+    const res =
+      await fetch("/api/services?company=true");
+
+    const data =
+      await res.json();
+
+    services =
+      Array.isArray(data)
+        ? data.filter(s =>
+            s &&
+            s.companyEnabled !== false &&
+            s.enabled !== false
+          )
+        : [];
+
+  }catch(err){
+
+    services = [];
+
+  }
+
+}
+
+async function loadTrips(){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/company-dashboard/trips?company=${encodeURIComponent(facilityName)}`,
+        {
+          cache:"no-store",
+          headers:{
+            Authorization:
+              "Bearer " +
+              companyToken
+          }
+        }
+      );
+
+    const data =
+      await res.json();
+
+    allTrips =
+      Array.isArray(data?.trips)
+        ? data.trips
+        : [];
+
+  }catch(err){
+
+    allTrips = [];
+
+  }
+
+}
+
+async function loadBilling(){
+
+  try{
+
+    const res =
+      await fetch(
+        `/api/company/billing?company=${encodeURIComponent(facilityName)}`
+      );
+
+    billing =
+      await res.json();
+
+  }catch(err){
+
+    billing = {};
+
+  }
+
+}
+
+async function load(){
+
+  /*
+    Static / slow-changing lookup data loads once.
+    Live dashboard data loads with it on first page open.
+  */
+  await Promise.all([
+    loadSystemDesign(),
+    loadServices(),
+    loadTrips(),
+    loadBilling()
+  ]);
+
+  render();
+
+}
+
+async function refreshDashboardLiveData(){
+
+  if(dashboardRefreshRunning){
+    return;
+  }
+
+  dashboardRefreshRunning = true;
+
+  try{
+
+    /*
+      Every 30 seconds only refresh the data that can actually change.
+      Do not refetch System Design and Services each cycle.
+    */
+    await Promise.all([
+      loadTrips(),
+      loadBilling()
+    ]);
+
+    render();
+
+  }finally{
+
+    dashboardRefreshRunning = false;
+
+  }
+
+}
+
+/* ================= RENDER ================= */
+
+function render(){
+
+  const now =
+    new Date();
+
+  const todayKey =
+    localDateKey(now);
+
+  const month =
+    now.getMonth();
+
+  const year =
+    now.getFullYear();
+
+  let todayTotal = 0;
+  let todayCompleted = 0;
+  let todayCancelled = 0;
+  let todayNoShow = 0;
+  let todayRevenue = 0;
+  let todayMiles = 0;
+
+  let monthlyTrips = 0;
+  let monthlyRevenue = 0;
+  let monthlyMiles = 0;
+  let monthlySharedPassengers = 0;
+  let monthlyCompleted = 0;
+  let monthlyCancelled = 0;
+  let monthlyNoShow = 0;
+
+  allTrips.forEach(t=>{
+
+    const d =
+      getTripDateObj(t);
+
+    if(!d){
+      return;
+    }
+
+    const revenue =
+      getTripRevenue(t);
+
+    const miles =
+      getTripMiles(t);
+
+    const tripDateKey =
+      String(t.tripDate || "").trim();
+
+    const shared =
+      isSharedTrip(t);
+
+    const passengers =
+      Array.isArray(t.passengers)
+        ? t.passengers
+        : [];
+
+    if(tripDateKey === todayKey){
+
+      todayTotal++;
+      todayRevenue += revenue;
+      todayMiles += miles;
+
+      if(shared){
+
+        passengers.forEach(p=>{
+
+          if(isCompleted(p.status)){
+            todayCompleted++;
+          }
+
+          if(isCancelled(p.status)){
+            todayCancelled++;
+          }
+
+          if(isNoShow(p.status)){
+            todayNoShow++;
+          }
+
+        });
+
+      }else{
+
+        if(isCompleted(t.status)){
+          todayCompleted++;
+        }
+
+        if(isCancelled(t.status)){
+          todayCancelled++;
+        }
+
+        if(isNoShow(t.status)){
+          todayNoShow++;
+        }
+
+      }
+
+    }
+
+    if(
+      d.getMonth() === month &&
+      d.getFullYear() === year
+    ){
+
+      monthlyTrips++;
+      monthlyRevenue += revenue;
+      monthlyMiles += miles;
+
+      if(shared){
+
+        monthlySharedPassengers +=
+          passengers.length;
+
+        passengers.forEach(p=>{
+
+          if(isCompleted(p.status)){
+            monthlyCompleted++;
+          }
+
+          if(isCancelled(p.status)){
+            monthlyCancelled++;
+          }
+
+          if(isNoShow(p.status)){
+            monthlyNoShow++;
+          }
+
+        });
+
+      }else{
+
+        if(isCompleted(t.status)){
+          monthlyCompleted++;
+        }
+
+        if(isCancelled(t.status)){
+          monthlyCancelled++;
+        }
+
+        if(isNoShow(t.status)){
+          monthlyNoShow++;
+        }
+
+      }
+
+    }
+
+  });
+
+  document.getElementById("todayTotalTrips").innerText =
+    todayTotal;
+
+  document.getElementById("todayCompleted").innerText =
+    todayCompleted;
+
+  document.getElementById("todayCancelled").innerText =
+    todayCancelled;
+
+  document.getElementById("todayNoShow").innerText =
+    todayNoShow;
+
+  document.getElementById("todayRevenue").innerText =
+    money(todayRevenue);
+
+  document.getElementById("todayMiles").innerText =
+    todayMiles.toFixed(1);
+
+  document.getElementById("monthlyRevenue").innerText =
+    money(monthlyRevenue);
+
+  document.getElementById("monthlyTrips").innerText =
+    monthlyTrips;
+
+  document.getElementById("monthlyMiles").innerText =
+    monthlyMiles.toFixed(1);
+
+  document.getElementById("monthlySharedPassengers").innerText =
+    monthlySharedPassengers;
+
+  document.getElementById("monthlyCompleted").innerText =
+    monthlyCompleted;
+
+  document.getElementById("monthlyCancelled").innerText =
+    monthlyCancelled;
+
+  document.getElementById("monthlyNoShow").innerText =
+    monthlyNoShow;
+
+  renderServices();
+  renderBilling();
+
+}
+
+/* ================= SERVICES ================= */
+
+function renderServices(){
+
+  const wrap =
+    document.getElementById("serviceCards");
+
+  if(!wrap){
+    return;
+  }
+
+  if(!services.length){
+
+    wrap.innerHTML = `
+      <div class="empty">
+        No company services enabled
+      </div>
+    `;
+
+    return;
+
+  }
+
+  wrap.innerHTML =
+    services.map(service=>{
+
+      const code =
+        getServiceCode(service);
+
+      const title =
+        getServiceTitle(service);
+
+      const serviceTrips =
+        allTrips.filter(t =>
+          getTripServiceCode(t) === code
+        );
+
+      let trips = 0;
+      let revenue = 0;
+      let miles = 0;
+      let passengers = 0;
+
+      serviceTrips.forEach(t=>{
+
+        trips++;
+        revenue += getTripRevenue(t);
+        miles += getTripMiles(t);
+
+        if(isSharedTrip(t)){
+          passengers +=
+            Array.isArray(t.passengers)
+              ? t.passengers.length
+              : 0;
+        }
+
+      });
+
+      return `
+        <div class="service-card">
+
+          <div class="service-top">
+
+            <div class="service-name">
+              ${title}
+            </div>
+
+            <div class="service-icon">
+              ${service.icon || "🚘"}
+            </div>
+
+          </div>
+
+          <div class="service-lines">
+
+            <div class="service-line">
+              <span class="service-label">Trips</span>
+              <span class="service-value">${trips}</span>
+            </div>
+
+            <div class="service-line">
+              <span class="service-label">Revenue</span>
+              <span class="service-value">${money(revenue)}</span>
+            </div>
+
+            <div class="service-line">
+              <span class="service-label">Miles</span>
+              <span class="service-value">${miles.toFixed(1)}</span>
+            </div>
+
+            ${
+              code === "SH" || passengers > 0
+              ? `
+                <div class="service-line">
+                  <span class="service-label">Passengers</span>
+                  <span class="service-value">${passengers}</span>
+                </div>
+              `
+              : ""
+            }
+
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
+
+}
+
+/* ================= BILLING ================= */
+
+function renderBilling(){
+
+  document.getElementById("invoiceAmount").innerText =
+    money(
+      billing.invoiceAmount ||
+      billing.revenue ||
+      0
+    );
+
+  document.getElementById("billingStatus").innerText =
+    billing.billingStatus ||
+    "ACTIVE";
+
+  const start =
+    billing.billingStartDate
+      ? new Date(billing.billingStartDate)
+      : null;
+
+  const end =
+    billing.billingEndDate
+      ? new Date(billing.billingEndDate)
+      : null;
+
+  document.getElementById("billingPeriod").innerText =
+    start && end
+      ? `${formatDate(start)} – ${formatDate(end)}`
+      : "--";
+
+  document.getElementById("lastPayment").innerText =
+    "Last Payment: " +
+    (
+      billing.lastPaymentDate
+        ? formatDate(billing.lastPaymentDate)
+        : "--"
+    );
+
+  const due =
+    billing.nextBillingDate
+      ? new Date(billing.nextBillingDate)
+      : null;
+
+  document.getElementById("paymentDue").innerText =
+    due
+      ? formatDate(due)
+      : "--";
+
+  const card =
+    document.getElementById("paymentCard");
+
+  const text =
+    document.getElementById("paymentStatus");
+
+  card.classList.remove(
+    "yellow",
+    "orange",
+    "red"
+  );
+
+  text.className =
+    "billing-sub";
+
+  if(!due){
+
+    text.innerText = "--";
+    return;
+
+  }
+
+  const now =
+    new Date();
+
+  const diff =
+    Math.ceil(
+      (due.getTime() - now.getTime()) /
+      (1000 * 60 * 60 * 24)
+    );
+
+  if(diff > 9){
+
+    text.innerText =
+      diff + " Days Left";
+
+  }else if(diff >= 3){
+
+    card.classList.add("yellow");
+    text.classList.add("billing-yellow-text");
+
+    text.innerText =
+      diff + " Days Left";
+
+  }else if(diff >= 1){
+
+    card.classList.add("orange");
+    text.classList.add("billing-orange-text");
+
+    text.innerText =
+      diff + " Days Left";
+
+  }else{
+
+    card.classList.add("red");
+    text.classList.add("billing-red-text");
+
+    text.innerText =
+      "Past Due";
+
+  }
+
+}
+
+/* ================= AUTO ================= */
+
+setInterval(
+  refreshDashboardLiveData,
+  30000
+);
+
+load();
+</script>
+
+</body>
+</html>

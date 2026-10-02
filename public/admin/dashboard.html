@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard</title>
+<link rel="stylesheet" href="/admin/style.css">
+
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f3f7fb;
+  --ink:#1f2937;
+  --muted:#708090;
+  --line:#dce6ee;
+  --shadow:0 8px 22px rgba(28,57,80,.08);
+}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--ink);
+  background:var(--bg);
+}
+.dashboard-page{
+  width:100%;
+  max-width:1560px;
+  margin:0 auto;
+  padding:18px 26px 34px;
+}
+.page-head{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:82px;
+  margin-bottom:16px;
+  padding:15px 20px;
+  border:1px solid #e0be5a;
+  border-radius:18px;
+  background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
+  box-shadow:0 8px 22px rgba(146,102,14,.13);
+  text-align:center;
+}
+.page-title{margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#111827}
+.page-sub{margin-top:5px;font-size:12px;font-weight:800;color:#64748b}
+
+.section{margin-top:18px}
+.section-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 3px 9px;
+}
+.section-title{
+  margin:0;
+  padding-left:10px;
+  border-left:4px solid #2563eb;
+  font-size:19px;
+  font-weight:900;
+  color:#213044;
+}
+.section-note{font-size:10px;font-weight:750;color:#7b8996}
+
+.grid{display:grid;gap:12px}
+.alert-grid{grid-template-columns:repeat(3,minmax(220px,1fr))}
+.today-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
+.month-grid{grid-template-columns:repeat(6,minmax(135px,1fr))}
+.org-grid{grid-template-columns:repeat(5,minmax(130px,1fr))}
+.money-grid{grid-template-columns:repeat(2,minmax(240px,1fr))}
+.billing-grid{grid-template-columns:repeat(4,minmax(150px,1fr))}
+.services-grid{grid-template-columns:repeat(6,minmax(125px,1fr))}
+
+.card{
+  position:relative;
+  min-height:112px;
+  padding:16px 15px 14px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.card:before{
+  content:"";
+  position:absolute;left:0;right:0;top:0;height:5px;
+  background:#2f80ed;
+}
+.card.green:before{background:#2ebd6e}
+.card.red:before{background:#e24b5b}
+.card.orange:before{background:#f3a11a}
+.card.purple:before{background:#8d57df}
+.card.teal:before{background:#1594a5}
+.card.navy:before{background:#425c78}
+.card.gold:before{background:#dcae2e}
+.card.cyan:before{background:#30a8d8}
+
+.card-label{
+  min-height:27px;
+  font-size:9.5px;
+  line-height:1.3;
+  font-weight:900;
+  letter-spacing:.35px;
+  text-transform:uppercase;
+  color:#687686;
+}
+.card-value{
+  margin-top:9px;
+  font-size:31px;
+  line-height:1;
+  font-weight:900;
+  color:#1f2a38;
+}
+.card-note{
+  margin-top:8px;
+  font-size:8.7px;
+  line-height:1.45;
+  font-weight:700;
+  color:#8a96a2;
+}
+
+/* ALERT CARDS */
+.alert-card{
+  min-height:128px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:12px;
+  padding:18px 20px;
+}
+.alert-card.new{
+  border-color:#e0c566;
+  background:linear-gradient(135deg,#fffdf3,#fff7d2);
+}
+.alert-card.confirm{
+  border-color:#efb45c;
+  background:linear-gradient(135deg,#fffaf2,#ffedd0);
+}
+.alert-card:before{height:6px}
+.alert-card.new:before{background:#d9ad23}
+.alert-card.confirm:before{background:#ef9418}
+.alert-card .card-value{
+  margin-top:6px;
+  font-size:42px;
+}
+.alert-icon{
+  width:62px;height:62px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;
+  background:rgba(255,255,255,.72);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 5px 12px rgba(70,60,20,.08);
+}
+.alert-card.is-hot{
+  animation:softPulse 1.8s ease-in-out infinite;
+}
+@keyframes softPulse{
+  0%,100%{box-shadow:0 8px 22px rgba(28,57,80,.08)}
+  50%{box-shadow:0 0 0 3px rgba(241,175,31,.17),0 10px 25px rgba(194,126,13,.16)}
+}
+
+/* MONEY */
+.money-card{
+  min-height:140px;
+  padding:20px 18px;
+  background:linear-gradient(135deg,#fbfffc,#f0fbf4);
+  border-color:#cfe8d7;
+}
+.money-card:before{height:6px;background:#2ebd6e}
+.money-card .card-value{font-size:36px;color:#167a42}
+.money-card.monthly{
+  background:linear-gradient(135deg,#fbfcff,#eef6ff);
+  border-color:#d3e4f6;
+}
+.money-card.monthly:before{background:#2f80ed}
+.money-card.monthly .card-value{color:#235e9e}
+
+/* SERVICES */
+.services-wrap{
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#fff;
+  box-shadow:var(--shadow);
+}
+.service-card{
+  min-height:94px;
+  padding:13px 10px;
+  text-align:center;
+  border:1px solid #d8e5eb;
+  border-radius:14px;
+  background:linear-gradient(180deg,#f9fdfe,#eff8fa);
+}
+.service-name{font-size:11px;font-weight:900;color:#244553}
+.service-state{margin-top:8px;font-size:18px;font-weight:900;color:#177486}
+.service-channels{margin-top:7px;font-size:8px;line-height:1.4;font-weight:800;color:#74838f}
+
+/* BILLING */
+.billing-card{
+  min-height:130px;
+  text-align:center;
+  padding:18px 14px;
+}
+.billing-card .card-value{font-size:25px}
+.billing-icon{font-size:25px;margin-bottom:8px}
+.platform-card{
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease;
+  background:linear-gradient(135deg,#f8fbff,#edf5ff);
+}
+.platform-card:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(28,57,80,.12)}
+.platform-card:before{background:#7255d9}
+
+.hidden{display:none!important}
+.empty{
+  grid-column:1/-1;
+  padding:22px;
+  text-align:center;
+  font-size:11px;
+  font-weight:800;
+  color:#7c8994;
+}
+
+/* role visibility */
+.super-only{display:none}
+
+@media(max-width:1250px){
+  .today-grid,.month-grid{grid-template-columns:repeat(3,1fr)}
+  .org-grid{grid-template-columns:repeat(3,1fr)}
+  .billing-grid{grid-template-columns:repeat(2,1fr)}
+  .services-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:760px){
+  .dashboard-page{padding:10px 8px 22px}
+  .page-head{min-height:72px;padding:12px}
+  .page-title{font-size:22px}
+  .page-sub{font-size:10px}
+  .section-head{align-items:flex-start;flex-direction:column}
+  .section-title{font-size:16px}
+  .alert-grid,.money-grid{grid-template-columns:1fr}
+  .today-grid,.month-grid,.org-grid,.billing-grid,.services-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .card{min-height:96px;padding:13px 10px}
+  .card-value{font-size:27px}
+  .alert-card{min-height:112px;padding:15px}
+  .alert-card .card-value{font-size:36px}
+  .alert-icon{width:52px;height:52px;font-size:25px}
+}
+</style>
+
+<style id="dashboardProfessionalAlignmentFix">
+/* =========================================================
+   DASHBOARD PROFESSIONAL ALIGNMENT FIX
+   - Section titles centered inside their own header bars
+   - All cards same height within each section
+   - No orphan / half-empty rows
+   - Cards stay centered automatically when count changes
+   ========================================================= */
+
+.dashboard-page{
+  max-width:1480px !important;
+  margin:0 auto !important;
+  padding:18px 24px 34px !important;
+}
+
+/* SECTION TITLES AS CENTERED HEADER BARS */
+.section{
+  margin-top:18px !important;
+}
+
+.section-head{
+  min-height:48px !important;
+  margin:0 0 10px !important;
+  padding:9px 14px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:3px !important;
+  text-align:center !important;
+  border:1px solid #d8e4ec !important;
+  border-radius:13px !important;
+  background:linear-gradient(180deg,#ffffff 0%,#f5f9fc 100%) !important;
+  box-shadow:0 4px 12px rgba(35,64,86,.06) !important;
+}
+
+.section-title{
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  font-size:18px !important;
+  line-height:1.1 !important;
+  font-weight:900 !important;
+  color:#23364a !important;
+  text-align:center !important;
+}
+
+.section-note{
+  margin:0 !important;
+  font-size:9px !important;
+  line-height:1.2 !important;
+  font-weight:750 !important;
+  color:#7a8895 !important;
+  text-align:center !important;
+}
+
+/* UNIFIED CARD SYSTEM */
+.grid{
+  display:grid !important;
+  gap:12px !important;
+  align-items:stretch !important;
+}
+
+.card{
+  height:100% !important;
+  min-height:112px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+}
+
+/* ACTION: always balanced */
+.alert-grid{
+  grid-template-columns:repeat(3,minmax(240px,1fr)) !important;
+}
+
+/* TODAY: 6 clean equal cards */
+.today-grid{
+  grid-template-columns:repeat(6,minmax(0,1fr)) !important;
+}
+
+/* MONTH: centered cards; no ugly empty slot */
+.month-grid{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr)) !important;
+  justify-content:center !important;
+}
+
+/* ORGANIZATION:
+   fixed card width + center, so if 7/8/9/10/11 cards exist
+   remaining row sits centered, not hanging on left */
+.org-grid{
+  grid-template-columns:repeat(auto-fit,minmax(190px,220px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+}
+
+.org-grid .card{
+  width:100% !important;
+  min-height:118px !important;
+}
+
+/* SERVICES: auto-center according to enabled count */
+.services-grid{
+  grid-template-columns:repeat(auto-fit,minmax(165px,205px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+}
+
+.service-card{
+  width:100% !important;
+  min-height:98px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+/* Keep service container visually centered */
+.services-wrap{
+  padding:16px !important;
+}
+
+/* Cleaner internal typography */
+.card-label,
+.card-value,
+.card-note{
+  width:100% !important;
+  text-align:center !important;
+}
+
+.card-label{
+  min-height:24px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+.card-value{
+  margin-top:7px !important;
+}
+
+.card-note{
+  margin-top:7px !important;
+}
+
+/* ACTION CARDS retain icon but align evenly */
+.alert-card{
+  min-height:124px !important;
+  display:grid !important;
+  grid-template-columns:1fr 58px !important;
+  align-items:center !important;
+}
+
+.alert-card .card-label,
+.alert-card .card-value,
+.alert-card .card-note{
+  text-align:left !important;
+}
+
+.alert-icon{
+  justify-self:end !important;
+}
+
+/* Large desktop */
+@media(min-width:1251px){
+  .today-grid .card{
+    min-height:112px !important;
+  }
+}
+
+/* Medium desktop/tablet */
+@media(max-width:1250px){
+  .today-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+
+  .month-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+
+  .org-grid{
+    grid-template-columns:repeat(auto-fit,minmax(180px,210px)) !important;
+  }
+
+  .services-grid{
+    grid-template-columns:repeat(auto-fit,minmax(155px,195px)) !important;
+  }
+}
+
+/* Mobile */
+@media(max-width:760px){
+  .dashboard-page{
+    padding:10px 8px 22px !important;
+  }
+
+  .section-head{
+    min-height:44px !important;
+    padding:8px 10px !important;
+  }
+
+  .section-title{
+    font-size:15px !important;
+  }
+
+  .section-note{
+    font-size:8px !important;
+  }
+
+  .alert-grid{
+    grid-template-columns:1fr !important;
+  }
+
+  .today-grid,
+  .month-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+
+  .org-grid,
+  .services-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .card,
+  .org-grid .card{
+    min-height:100px !important;
+  }
+}
+</style>
+
+
+<style id="dashboardMetallicSectionsFinal">
+/* =========================================================
+   DASHBOARD — METALLIC SECTION SYSTEM
+   - Every section has its own metallic identity
+   - Section title lives inside a metallic header bar
+   - Last organization row is centered
+   - Enabled Services stay centered as cards appear/disappear
+   ========================================================= */
+
+/* ---------- COMMON SECTION HEADER ---------- */
+.section-head{
+  min-height:52px !important;
+  padding:10px 16px !important;
+  border-radius:13px !important;
+  border:1px solid rgba(255,255,255,.32) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -1px 0 rgba(0,0,0,.14),
+    0 5px 13px rgba(32,58,79,.12) !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.30) !important;
+}
+
+.section-head .section-title{
+  color:#fff !important;
+  font-size:18px !important;
+  letter-spacing:.18px !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35) !important;
+}
+
+.section-head .section-note{
+  color:rgba(255,255,255,.88) !important;
+  font-size:9px !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.25) !important;
+}
+
+/* ---------- ACTION CENTER: METALLIC GOLD ---------- */
+.section:nth-of-type(1) .section-head{
+  background:
+    linear-gradient(180deg,#f4ce66 0%,#d9ae39 16%,#b88b17 50%,#9a710f 51%,#7f5b08 100%) !important;
+  border-color:#9e7413 !important;
+}
+.section:nth-of-type(1) .alert-card.new{
+  background:
+    linear-gradient(145deg,#fff8de 0%,#f5df96 100%) !important;
+  border-color:#d1ad42 !important;
+}
+.section:nth-of-type(1) .alert-card.confirm{
+  background:
+    linear-gradient(145deg,#fff4e2 0%,#f5d09a 100%) !important;
+  border-color:#df9c3e !important;
+}
+
+/* ---------- TODAY: METALLIC BLUE / TEAL ---------- */
+.section:nth-of-type(2) .section-head{
+  background:
+    linear-gradient(180deg,#4699a0 0%,#2c7f88 15%,#126773 50%,#0b5868 51%,#07465a 100%) !important;
+  border-color:#0b5e6a !important;
+}
+
+/* ---------- MONTHLY: METALLIC PURPLE ---------- */
+.section:nth-of-type(3) .section-head{
+  background:
+    linear-gradient(180deg,#9c87df 0%,#7c66c7 15%,#644eb2 50%,#563f9d 51%,#463180 100%) !important;
+  border-color:#5d49a4 !important;
+}
+
+/* ---------- ORGANIZATION: METALLIC NAVY ---------- */
+.section:nth-of-type(4) .section-head{
+  background:
+    linear-gradient(180deg,#58728b 0%,#405c76 15%,#2d4864 50%,#233b55 51%,#1b3049 100%) !important;
+  border-color:#2d4a65 !important;
+}
+
+/* ---------- SERVICES: METALLIC GREEN/TEAL ---------- */
+.section:nth-of-type(5) .section-head{
+  background:
+    linear-gradient(180deg,#4aa88f 0%,#2c8c76 15%,#18725f 50%,#105f50 51%,#0a4e42 100%) !important;
+  border-color:#176c5b !important;
+}
+
+/* ---------- METALLIC CARD SHEEN ---------- */
+.card,
+.service-card{
+  position:relative !important;
+  overflow:hidden !important;
+}
+
+.card:after,
+.service-card:after{
+  content:"" !important;
+  position:absolute !important;
+  top:1px !important;
+  left:5% !important;
+  right:5% !important;
+  height:34% !important;
+  border-radius:12px 12px 50% 50% !important;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.02)) !important;
+  pointer-events:none !important;
+}
+
+.card > *,
+.service-card > *{
+  position:relative !important;
+  z-index:1 !important;
+}
+
+/* ---------- SECTION CARD COLOR FAMILIES ---------- */
+
+/* Today Operations cards: cool metallic palette */
+.section:nth-of-type(2) .card{
+  border-color:#bfd7e2 !important;
+  background:linear-gradient(145deg,#fbfdff 0%,#eef6fa 100%) !important;
+}
+
+/* Monthly Reports cards: light metallic lavender */
+.section:nth-of-type(3) .card{
+  border-color:#d6cff0 !important;
+  background:linear-gradient(145deg,#fdfcff 0%,#f2effc 100%) !important;
+}
+
+/* Organization cards: light metallic blue-gray */
+.section:nth-of-type(4) .card{
+  border-color:#cbd8e2 !important;
+  background:linear-gradient(145deg,#fcfdff 0%,#eef3f7 100%) !important;
+}
+
+/* Enabled Services cards: metallic mint */
+.section:nth-of-type(5) .service-card{
+  border-color:#c9e0d8 !important;
+  background:linear-gradient(145deg,#fbfffd 0%,#edf8f3 100%) !important;
+}
+
+/* ---------- ORGANIZATION: CENTER EVERY ROW ---------- */
+/*
+  auto-fit + fixed max card width makes the remainder row
+  sit in the middle instead of starting at the far left.
+*/
+.org-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(190px,220px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.org-grid .card{
+  width:220px !important;
+  max-width:220px !important;
+  min-width:190px !important;
+  justify-self:center !important;
+}
+
+/* Explicitly center last row for modern browsers */
+@supports selector(:has(*)){
+  .org-grid{
+    place-content:start center !important;
+  }
+}
+
+/* ---------- SERVICES: CENTER DYNAMIC COUNT ---------- */
+.services-grid{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(165px,205px)) !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  width:205px !important;
+  max-width:205px !important;
+  justify-self:center !important;
+}
+
+/* ---------- SMALL VISUAL POLISH ---------- */
+.card-value{
+  font-weight:950 !important;
+}
+
+.section:nth-of-type(2) .card-value{color:#244f67 !important;}
+.section:nth-of-type(3) .card-value{color:#584695 !important;}
+.section:nth-of-type(4) .card-value{color:#2d455b !important;}
+.section:nth-of-type(5) .service-state{color:#16745f !important;}
+
+@media(max-width:760px){
+  .section-head{
+    min-height:46px !important;
+    padding:8px 10px !important;
+  }
+
+  .section-head .section-title{
+    font-size:15px !important;
+  }
+
+  .org-grid,
+  .services-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .org-grid .card,
+  .services-grid .service-card{
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
+
+<style id="dashboardSectionHeaderSoftUnified">
+/* =========================================================
+   DASHBOARD SECTION HEADERS — SOFT UNIFIED COLOR
+   Keeps cards metallic, but makes all section title bars
+   calm, flat, and the same color.
+   ========================================================= */
+
+.section-head{
+  min-height:50px !important;
+  padding:10px 16px !important;
+  border-radius:13px !important;
+  border:1px solid #c7d9e6 !important;
+
+  background:
+    linear-gradient(180deg,#eaf5fc 0%,#dcecf7 100%) !important;
+
+  box-shadow:
+    0 4px 10px rgba(47,78,100,.07) !important;
+
+  text-shadow:none !important;
+}
+
+.section-head .section-title{
+  color:#28475d !important;
+  font-size:18px !important;
+  font-weight:900 !important;
+  text-shadow:none !important;
+}
+
+.section-head .section-note{
+  color:#718594 !important;
+  font-size:9px !important;
+  font-weight:750 !important;
+  text-shadow:none !important;
+}
+
+/* Override all previous per-section metallic header colors */
+.section:nth-of-type(1) .section-head,
+.section:nth-of-type(2) .section-head,
+.section:nth-of-type(3) .section-head,
+.section:nth-of-type(4) .section-head,
+.section:nth-of-type(5) .section-head{
+  background:
+    linear-gradient(180deg,#eaf5fc 0%,#dcecf7 100%) !important;
+  border-color:#c7d9e6 !important;
+}
+
+@media(max-width:760px){
+  .section-head .section-title{
+    font-size:15px !important;
+  }
+}
+</style>
+
+
+<style id="servicesCenterLastRowOverride">
+/* Center the last Enabled Services cards cleanly */
+.services-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  flex:0 0 205px !important;
+  width:205px !important;
+  max-width:205px !important;
+  min-width:205px !important;
+  justify-self:auto !important;
+}
+
+@media (max-width:760px){
+  .services-grid{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .services-grid .service-card{
+    flex:none !important;
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
+
+<style id="organizationLastRowCenteredFix">
+/* =========================================================
+   ORGANIZATION OVERVIEW
+   Center the incomplete last row above Enabled Services.
+   ========================================================= */
+
+.org-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.org-grid .card{
+  flex:0 0 220px !important;
+  width:220px !important;
+  max-width:220px !important;
+  min-width:220px !important;
+  min-height:118px !important;
+}
+
+/* Keep service row centered too */
+.services-grid{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  justify-content:center !important;
+  align-items:stretch !important;
+  gap:12px !important;
+  width:100% !important;
+}
+
+.services-grid .service-card{
+  flex:0 0 205px !important;
+  width:205px !important;
+  max-width:205px !important;
+  min-width:205px !important;
+}
+
+@media(max-width:760px){
+  .org-grid,
+  .services-grid{
+    display:grid !important;
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    justify-content:stretch !important;
+  }
+
+  .org-grid .card,
+  .services-grid .service-card{
+    flex:none !important;
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+  }
+}
+</style>
+
+</head>
+
+<body>
+<div id="adminHeader"></div>
+
+<main class="dashboard-page">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Operations Dashboard</h1>
+      <div class="page-sub" id="dashboardSub">Live operations overview</div>
+    </div>
+  </div>
+
+  <!-- ACTION CENTER -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Action Center</h2>
+      <div class="section-note">Items requiring dispatcher attention</div>
+    </div>
+
+    <div class="grid alert-grid">
+      <div class="card alert-card">
+        <div>
+          <div class="card-label">Total Trips</div>
+          <div class="card-value" id="normalTotalTrips">0</div>
+          <div class="card-note">Company / Get Quote / Reserved only</div>
+        </div>
+        <div class="alert-icon">#</div>
+      </div>
+
+      <div class="card alert-card new" id="newTripAlert">
+        <div>
+          <div class="card-label">New Trips</div>
+          <div class="card-value" id="newTrips">0</div>
+          <div class="card-note">New reservations waiting in Trips Hub</div>
+        </div>
+        <div class="alert-icon">✦</div>
+      </div>
+
+      <div class="card alert-card confirm" id="confirmAlert">
+        <div>
+          <div class="card-label">Needs Final Confirmation Today</div>
+          <div class="card-value" id="needsConfirmation">0</div>
+          <div class="card-note">Completed / final-status trips waiting for confirmation</div>
+        </div>
+        <div class="alert-icon">✓</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROKER ACTION CENTER -->
+  <section class="section broker-dynamic hidden" id="brokerActionSection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Action Center</h2>
+      <div class="section-note">Broker trips only</div>
+    </div>
+
+    <div class="grid alert-grid">
+      <div class="card alert-card">
+        <div>
+          <div class="card-label">Broker Total Trips</div>
+          <div class="card-value" id="brokerTotalTrips">0</div>
+          <div class="card-note">All broker trips</div>
+        </div>
+        <div class="alert-icon">#</div>
+      </div>
+
+      <div class="card alert-card new" id="brokerNewTripAlert">
+        <div>
+          <div class="card-label">Broker New Trips</div>
+          <div class="card-value" id="brokerNewTrips">0</div>
+          <div class="card-note">New broker reservations</div>
+        </div>
+        <div class="alert-icon">✦</div>
+      </div>
+
+      <div class="card alert-card confirm" id="brokerConfirmAlert">
+        <div>
+          <div class="card-label">Broker Needs Final Confirmation Today</div>
+          <div class="card-value" id="brokerNeedsConfirmation">0</div>
+          <div class="card-note">Broker final-status trips waiting for confirmation</div>
+        </div>
+        <div class="alert-icon">✓</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TODAY -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Today's Operations</h2>
+      <div class="section-note">Today in tenant timezone</div>
+    </div>
+
+    <div class="grid today-grid">
+      <div class="card">
+        <div class="card-label">Total Trips Today</div>
+        <div class="card-value" id="todayTrips">0</div>
+        <div class="card-note">Scheduled today</div>
+      </div>
+      <div class="card teal">
+        <div class="card-label">On Trip</div>
+        <div class="card-value" id="todayOnTrip">0</div>
+        <div class="card-note">Currently active</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Completed Today</div>
+        <div class="card-value" id="todayCompleted">0</div>
+        <div class="card-note">Completed trips</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Cancelled Today</div>
+        <div class="card-value" id="todayCancelled">0</div>
+        <div class="card-note">Cancelled trips</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">No Show Today</div>
+        <div class="card-value" id="todayNoShow">0</div>
+        <div class="card-note">No-show trips</div>
+      </div>
+      <div class="card purple">
+        <div class="card-label">Refunded Today</div>
+        <div class="card-value" id="todayRefunds">0</div>
+        <div class="card-note">Trips with refund processed today</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROKER TODAY -->
+  <section class="section broker-dynamic hidden" id="brokerTodaySection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Today's Operations</h2>
+      <div class="section-note">Broker trips today</div>
+    </div>
+
+    <div class="grid today-grid">
+      <div class="card">
+        <div class="card-label">Broker Trips Today</div>
+        <div class="card-value" id="brokerTodayTrips">0</div>
+        <div class="card-note">Broker trips scheduled today</div>
+      </div>
+      <div class="card teal">
+        <div class="card-label">Broker On Trip</div>
+        <div class="card-value" id="brokerTodayOnTrip">0</div>
+        <div class="card-note">Currently active broker trips</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Broker Completed Today</div>
+        <div class="card-value" id="brokerTodayCompleted">0</div>
+        <div class="card-note">Completed broker trips</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Broker Cancelled Today</div>
+        <div class="card-value" id="brokerTodayCancelled">0</div>
+        <div class="card-note">Cancelled broker trips</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">Broker No Show Today</div>
+        <div class="card-value" id="brokerTodayNoShow">0</div>
+        <div class="card-note">Broker no-show trips</div>
+      </div>
+      <div class="card purple">
+        <div class="card-label">Broker Refunded Today</div>
+        <div class="card-value" id="brokerTodayRefunds">0</div>
+        <div class="card-note">Broker refunds processed today</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MONTH -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Monthly Reports</h2>
+      <div class="section-note" id="monthLabel">Current month</div>
+    </div>
+
+    <div class="grid month-grid">
+      <div class="card">
+        <div class="card-label">Monthly Trips</div>
+        <div class="card-value" id="monthTrips">0</div>
+        <div class="card-note">All trips this month</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Completed</div>
+        <div class="card-value" id="monthCompleted">0</div>
+        <div class="card-note">Completed this month</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Cancelled</div>
+        <div class="card-value" id="monthCancelled">0</div>
+        <div class="card-note">Cancelled this month</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">No Show</div>
+        <div class="card-value" id="monthNoShow">0</div>
+        <div class="card-note">No-show this month</div>
+      </div>
+      <div class="card navy">
+        <div class="card-label">Monthly Miles</div>
+        <div class="card-value" id="monthMiles">0.0</div>
+        <div class="card-note">Recorded trip miles</div>
+      </div>
+      <div class="card purple hidden" id="sharedPassengersCard">
+        <div class="card-label">Shared Passengers</div>
+        <div class="card-value" id="sharedPassengers">0</div>
+        <div class="card-note">Shown only when Shared service is active</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROKER MONTH -->
+  <section class="section broker-dynamic hidden" id="brokerMonthSection">
+    <div class="section-head">
+      <h2 class="section-title">Broker Monthly Reports</h2>
+      <div class="section-note">Current month · Broker trips only</div>
+    </div>
+
+    <div class="grid month-grid">
+      <div class="card">
+        <div class="card-label">Broker Monthly Trips</div>
+        <div class="card-value" id="brokerMonthTrips">0</div>
+        <div class="card-note">All broker trips this month</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Broker Completed</div>
+        <div class="card-value" id="brokerMonthCompleted">0</div>
+        <div class="card-note">Broker completed this month</div>
+      </div>
+      <div class="card red">
+        <div class="card-label">Broker Cancelled</div>
+        <div class="card-value" id="brokerMonthCancelled">0</div>
+        <div class="card-note">Broker cancelled this month</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">Broker No Show</div>
+        <div class="card-value" id="brokerMonthNoShow">0</div>
+        <div class="card-note">Broker no-show this month</div>
+      </div>
+      <div class="card navy">
+        <div class="card-label">Broker Monthly Miles</div>
+        <div class="card-value" id="brokerMonthMiles">0.0</div>
+        <div class="card-note">Recorded broker trip miles</div>
+      </div>
+      <div class="card purple hidden" id="brokerSharedPassengersCard">
+        <div class="card-label">Broker Shared Passengers</div>
+        <div class="card-value" id="brokerSharedPassengers">0</div>
+        <div class="card-note">Shown only when Shared service is active</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ORGANIZATION -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Organization Overview</h2>
+      <div class="section-note">Users and vehicles from tenant user accounts</div>
+    </div>
+
+    <div class="grid org-grid">
+      <div class="card gold">
+        <div class="card-label">Facilities / Companies</div>
+        <div class="card-value" id="facilityCount">0</div>
+        <div class="card-note">Contracted accounts</div>
+      </div>
+
+      <div class="card purple broker-dynamic hidden" id="brokerCountCard">
+        <div class="card-label">Brokers</div>
+        <div class="card-value" id="brokerCount">0</div>
+        <div class="card-note">Configured broker connections</div>
+      </div>
+
+      <div class="card teal">
+        <div class="card-label">Drivers</div>
+        <div class="card-value" id="driverCount">0</div>
+        <div class="card-note">Total driver accounts</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-label">Active Drivers Today</div>
+        <div class="card-value" id="activeDriverCount">0</div>
+        <div class="card-note">Active driver accounts</div>
+      </div>
+
+      <div class="card cyan">
+        <div class="card-label">Vehicles</div>
+        <div class="card-value" id="vehicleCount">0</div>
+        <div class="card-note">Unique vehicles assigned to drivers</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-label">Active Vehicles Today</div>
+        <div class="card-value" id="activeVehicleCount">0</div>
+        <div class="card-note">Vehicles assigned to active drivers</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Dispatchers</div>
+        <div class="card-value" id="dispatcherCount">0</div>
+        <div class="card-note">Total dispatcher accounts</div>
+      </div>
+
+      <div class="card green">
+        <div class="card-label">Active Dispatchers</div>
+        <div class="card-value" id="activeDispatcherCount">0</div>
+        <div class="card-note">Active dispatcher accounts</div>
+      </div>
+
+      <div class="card navy super-only">
+        <div class="card-label">Admins</div>
+        <div class="card-value" id="adminCount">0</div>
+        <div class="card-note">Total admin accounts</div>
+      </div>
+
+      <div class="card green super-only">
+        <div class="card-label">Active Admins</div>
+        <div class="card-value" id="activeAdminCount">0</div>
+        <div class="card-note">Active admin accounts</div>
+      </div>
+
+      <div class="card purple super-only">
+        <div class="card-label">Super Admins</div>
+        <div class="card-value" id="superAdminCount">0</div>
+        <div class="card-note">Total Super Admin accounts</div>
+      </div>
+
+      <div class="card green super-only">
+        <div class="card-label">Active Super Admins</div>
+        <div class="card-value" id="activeSuperAdminCount">0</div>
+        <div class="card-note">Active Super Admin accounts</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title">Enabled Services</h2>
+      <div class="section-note">Shown only when at least one channel is enabled</div>
+    </div>
+
+    <div class="services-wrap">
+      <div class="grid services-grid" id="servicesGrid">
+        <div class="empty">Loading services...</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/admin/header.js"></script>
+<script src="/admin/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+{
+  "pageId": "ADM-031",
+  "pageTitle": "Platform Support",
+  "pageFile": "support-chat.html",
+  "module": "Platform Support",
+  "roles": [
+    "ADMIN",
+    "DISPATCHER",
+    "SUPER_ADMIN"
+  ],
+  "requiredFeature": "",
+  "sourceFiles": [
+    "server/public/admin/support-chat.html",
+    "server/public/admin/support-chat.js"
+  ],
+  "apiDependencies": [
+    "/api/platform-support/tenant/me",
+    "/api/platform-support/tenant/conversations",
+    "/api/platform-support/unread-count"
+  ],
+  "sourceFunctions": [
+    "loadIdentity",
+    "loadList",
+    "openConversation",
+    "renderMessages",
+    "sendMessage",
+    "startNew",
+    "startPolling"
+  ],
+  "articles": [
+    {
+      "id": "ADM-031-T01",
+      "pageId": "ADM-031",
+      "pageTitle": "Platform Support",
+      "pageFile": "support-chat.html",
+      "module": "Platform Support",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Start a New Platform Support Request",
+      "summary": "Create a new conversation with Platform Support.",
+      "keywords": [
+        "new support request",
+        "platform support",
+        "start conversation",
+        "طلب دعم جديد",
+        "الدعم"
+      ],
+      "steps": [
+        "Open Platform Support.",
+        "Click + New Support Request.",
+        "Enter Subject.",
+        "Describe your issue.",
+        "Click Start Conversation."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/support-chat.html",
+        "server/public/admin/support-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/platform-support/tenant/me",
+        "/api/platform-support/tenant/conversations",
+        "/api/platform-support/unread-count"
+      ],
+      "sourceFunctions": [
+        "loadIdentity",
+        "loadList",
+        "openConversation",
+        "renderMessages",
+        "sendMessage",
+        "startNew",
+        "startPolling"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-031-T02",
+      "pageId": "ADM-031",
+      "pageTitle": "Platform Support",
+      "pageFile": "support-chat.html",
+      "module": "Platform Support",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Send a Message to Platform Support",
+      "summary": "Send a message in an existing support conversation.",
+      "keywords": [
+        "send support message",
+        "platform message",
+        "رسالة للدعم"
+      ],
+      "steps": [
+        "Open Platform Support.",
+        "Select a conversation from the conversation list.",
+        "Write your message in Write your message to Platform Support...",
+        "Click Send."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/support-chat.html",
+        "server/public/admin/support-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/platform-support/tenant/me",
+        "/api/platform-support/tenant/conversations",
+        "/api/platform-support/unread-count"
+      ],
+      "sourceFunctions": [
+        "loadIdentity",
+        "loadList",
+        "openConversation",
+        "renderMessages",
+        "sendMessage",
+        "startNew",
+        "startPolling"
+      ],
+      "active": true
+    },
+    {
+      "id": "ADM-031-T03",
+      "pageId": "ADM-031",
+      "pageTitle": "Platform Support",
+      "pageFile": "support-chat.html",
+      "module": "Platform Support",
+      "roles": [
+        "ADMIN",
+        "DISPATCHER",
+        "SUPER_ADMIN"
+      ],
+      "requiredFeature": "",
+      "title": "How to Open an Existing Support Conversation",
+      "summary": "Continue a previous support request.",
+      "keywords": [
+        "open support conversation",
+        "support history",
+        "محادثة الدعم"
+      ],
+      "steps": [
+        "Open Platform Support.",
+        "Choose a conversation from the conversation list.",
+        "Review the subject, status, and messages.",
+        "Send a new message if needed."
+      ],
+      "warnings": [],
+      "sourceFiles": [
+        "server/public/admin/support-chat.html",
+        "server/public/admin/support-chat.js"
+      ],
+      "apiDependencies": [
+        "/api/platform-support/tenant/me",
+        "/api/platform-support/tenant/conversations",
+        "/api/platform-support/unread-count"
+      ],
+      "sourceFunctions": [
+        "loadIdentity",
+        "loadList",
+        "openConversation",
+        "renderMessages",
+        "sendMessage",
+        "startNew",
+        "startPolling"
+      ],
+      "active": true
+    }
+  ]
+}

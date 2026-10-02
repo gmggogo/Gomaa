@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>Earnings</title>
+
+<link rel="stylesheet" href="driver.css">
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100%;
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:#fff;
+  background:
+    linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)),
+    url("assets/map-bg.jpeg") center/cover fixed,
+    #dce9f5;
+  padding-bottom:125px;
+}
+
+.earnings-header{
+  background:linear-gradient(180deg,#03182f,#071f40);
+  border-bottom:4px solid #ffd21f;
+  text-align:center;
+  padding:20px 14px 15px;
+}
+
+.earnings-title{
+  margin:0;
+  color:#ffd21f;
+  font-size:32px;
+  font-weight:900;
+}
+
+.earnings-subtitle{
+  margin-top:7px;
+  font-size:15px;
+  font-weight:800;
+}
+
+.shell{
+  width:min(100%,760px);
+  margin:0 auto;
+  padding:12px 12px 140px;
+}
+
+.period-card,
+.total-card,
+.stat{
+  background:linear-gradient(145deg,#0d3768,#061a36);
+  border:2px solid rgba(255,210,31,.58);
+  box-shadow:0 10px 16px rgba(0,0,0,.18);
+}
+
+.period-card{
+  border-radius:18px;
+  padding:11px 14px;
+  margin-bottom:8px;
+  text-align:center;
+}
+
+.period-label{
+  color:#cbd5e1;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.period-value{
+  margin-top:4px;
+  color:#ffd21f;
+  font-size:17px;
+  font-weight:900;
+}
+
+.period-zone{
+  margin-top:3px;
+  color:#dbe7f6;
+  font-size:10px;
+  font-weight:700;
+}
+
+.total-card{
+  border-radius:19px;
+  padding:12px 16px 11px;
+  margin-bottom:8px;
+}
+
+.total-card small{
+  color:#d4dceb;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.total-card b{
+  display:block;
+  margin-top:5px;
+  color:#ffd21f;
+  font-size:32px;
+  line-height:1;
+  font-weight:900;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+
+.stat{
+  min-height:70px;
+  border-radius:17px;
+  padding:8px 10px 7px;
+}
+
+.stat small{
+  display:block;
+  color:#d4dceb;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+
+.stat b{
+  display:block;
+  margin-top:4px;
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+}
+
+#overtimeHours,
+#overtimeRate{
+  color:#ffd21f;
+}
+
+.day-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:7px;
+  padding:9px 12px;
+  border-radius:16px;
+  background:linear-gradient(145deg,#0d3768,#061a36);
+  border:1px solid rgba(255,210,31,.50);
+}
+
+.day-date{
+  font-size:12px;
+  font-weight:900;
+}
+
+.day-hours{
+  color:#ffd21f;
+  font-size:15px;
+  font-weight:900;
+}
+
+.empty,
+.error{
+  margin-top:8px;
+  padding:11px 12px;
+  border-radius:16px;
+  background:linear-gradient(145deg,#0d3768,#061a36);
+  border:1px solid rgba(255,210,31,.50);
+  text-align:center;
+  font-size:12px;
+  font-weight:800;
+}
+</style>
+</head>
+
+<body>
+
+<header class="earnings-header">
+  <h1 class="earnings-title">
+    EARNINGS
+  </h1>
+
+  <div class="earnings-subtitle">
+    Current pay period
+  </div>
+</header>
+
+<main class="shell">
+
+  <section class="period-card">
+
+    <div class="period-label">
+      Pay Period
+    </div>
+
+    <div
+      class="period-value"
+      id="periodLabel">
+      Loading...
+    </div>
+
+    <div
+      class="period-zone"
+      id="timezoneLabel">
+    </div>
+
+  </section>
+
+  <section class="total-card">
+
+    <small>
+      Estimated Earnings
+    </small>
+
+    <b id="totalDue">
+      $0.00
+    </b>
+
+  </section>
+
+  <section class="stats">
+
+    <div class="stat">
+      <small>Total Hours</small>
+      <b id="totalHours">
+        0 H 00 MIN
+      </b>
+    </div>
+
+    <div class="stat">
+      <small>Regular Hours</small>
+      <b id="regularHours">
+        0 H 00 MIN
+      </b>
+    </div>
+
+    <div class="stat">
+      <small>Overtime Hours</small>
+      <b id="overtimeHours">
+        0 H 00 MIN
+      </b>
+    </div>
+
+    <div class="stat">
+      <small>Hourly Rate</small>
+      <b id="hourlyRate">
+        $0.00
+      </b>
+    </div>
+
+    <div class="stat">
+      <small>Overtime Rate</small>
+      <b id="overtimeRate">
+        $0.00
+      </b>
+    </div>
+
+    <div class="stat">
+      <small>Period Length</small>
+      <b id="periodLength">
+        0 DAYS
+      </b>
+    </div>
+
+  </section>
+
+  <div id="list"></div>
+
+</main>
+
+<div id="driverNav"></div>
+
+<script src="driver-nav.js"></script>
+<script src="Earnings.js"></script>
+
+</body>
+</html>

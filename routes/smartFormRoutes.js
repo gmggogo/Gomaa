@@ -1559,6 +1559,15 @@ async function priceSmartFormWorkflowSubmission(tenantId,row){
   });
 
   const amount=Number(priceResult?.total||0);
+  if(!Number.isFinite(amount) || amount<=0){
+    const err=new Error(
+      "Smart Form price calculated as $0.00. Check this template pricing, selected service, and route miles before confirming."
+    );
+    err.statusCode=400;
+    err.code="SMART_FORM_PRICING_ZERO";
+    throw err;
+  }
+
   const pricing={
     calculated:true,
     amount,

@@ -1,0 +1,160 @@
+/* ===============================
+   PAGE
+=============================== */
+.page {
+  padding: 14px;
+}
+
+/* ===============================
+   HEADER
+=============================== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+/* ===============================
+   TABLE
+=============================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 5px;                 /* ⬅️ أصغر */
+  text-align: center;
+  font-size: 12px;              /* ⬅️ أصغر */
+}
+
+th {
+  background: #020617;
+  color: #facc15;
+  font-size: 12px;
+}
+
+/* ===============================
+   INPUTS
+=============================== */
+input {
+  width: 100%;
+  padding: 3px;                 /* ⬅️ أصغر */
+  font-size: 11px;
+}
+
+input:disabled {
+  background: #f1f1f1;
+}
+
+/* ===============================
+   WEEK GRID
+=============================== */
+.week-box{
+  display:grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap:4px;                      /* ⬅️ أصغر */
+}
+
+/* ===============================
+   DAY BOX (DEFAULT)
+=============================== */
+.day-box{
+  border:1px solid #d1d5db;
+  padding:4px;                  /* ⬅️ أصغر */
+  border-radius:5px;
+  font-size:10px;               /* ⬅️ أصغر */
+  text-align:center;
+  background:#e5e7eb;
+  color:#6b7280;
+  cursor:pointer;
+  transition:0.15s;
+}
+
+/* ===============================
+   DAY ACTIVE (CHECKED)
+=============================== */
+.day-box.on{
+  background:#22c55e;           /* أخضر */
+  color:#ffffff;
+  border-color:#16a34a;
+  font-weight:bold;
+}
+
+/* ===============================
+   DAY INACTIVE
+=============================== */
+.day-box.off{
+  background:#e5e7eb;
+  color:#6b7280;
+}
+
+/* ===============================
+   TODAY HIGHLIGHT
+=============================== */
+.day-box.today{
+  outline:2px solid #2563eb;    /* أزرق */
+}
+
+/* ===============================
+   STATUS
+=============================== */
+.active{
+  color:#16a34a;
+  font-weight:bold;
+  font-size:12px;
+}
+
+.inactive{
+  color:#dc2626;
+  font-weight:bold;
+  font-size:12px;
+}
+
+/* ===============================
+   ACTION BUTTONS
+=============================== */
+.btn{
+  padding:4px 8px;              /* ⬅️ أصغر */
+  border-radius:4px;
+  border:none;
+  cursor:pointer;
+  font-size:11px;
+  margin:1px;
+}
+
+.btn.edit{
+  background:#2563eb;
+  color:#fff;
+}
+
+.btn.save{
+  background:#16a34a;
+  color:#fff;
+}
+
+.btn.disable{
+  background:#dc2626;
+  color:#fff;
+}
+
+.btn.enable{
+  background:#16a34a;
+  color:#fff;
+}
+
+/* ===============================
+   DISABLED DRIVER ROW
+=============================== */
+tr.disabled{
+  opacity:0.35;
+  pointer-events:none;
+}
