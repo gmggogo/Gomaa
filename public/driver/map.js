@@ -5504,21 +5504,19 @@ btnPrimaryAction?.addEventListener("click", async () => {
 
   if(mode === "complete-dropoff"){
 
-    if(
-      !requireArrived(stop)
-    ){
+    if(!requireArrived(stop)){
       renderExecutionState();
       return;
     }
 
-    /* Keep the existing signature gate exactly before final Complete. */
+    /* Customer Signature stays before final Complete. */
     if(customerSignatureRequired && !customerSignatureSigned){
       alert("Customer signature is required before Complete.");
       applyCustomerSignatureDropoffGate();
       return;
     }
 
-    /* Odometer is only a gate. It does not calculate or overwrite trip price. */
+    /* Odometer stays only as the final gate before Complete. */
     if(odometerRequired && !dropoffOdometerSaved){
       alert("Ending odometer is required before Complete.");
       showOdometerUi("DROPOFF");
@@ -5531,24 +5529,20 @@ btnPrimaryAction?.addEventListener("click", async () => {
           (stop.passengers || []).map(p => String(p.passengerId))
         );
 
-        const passengers = (tripDoc.passengers || [])
-          .map((p, index) => {
-            const id = passengerId(p, index);
+        const passengers = (tripDoc.passengers || []).map((p,index)=>{
+          const id = passengerId(p,index);
+          if(ids.has(String(id))){
+            return {
+              ...p,
+              status:"Completed",
+              completedAt:serverNow()
+            };
+          }
+          return p;
+        });
 
-            if(ids.has(String(id))){
-              return {
-                ...p,
-                status: "Completed",
-                completedAt: serverNow()
-              };
-            }
-
-            return p;
-          });
-
-        const allCompleted = passengers.every(p => {
+        const allCompleted = passengers.every(p=>{
           const s = canonicalPickupState(p.status);
-
           return (
             s === "CANCELLED" ||
             s === "NO_SHOW" ||
@@ -5557,57 +5551,54 @@ btnPrimaryAction?.addEventListener("click", async () => {
         });
 
         /*
-          Restore the original pricing payload:
-          keep the price already calculated on the trip.
-          Do not derive price from odometer.
+          Save the passenger state first, but do NOT finalize the trip through
+          the generic PUT route. The original driver Complete endpoint owns
+          the finalization/pricing lifecycle.
         */
         await updateTrip({
-          status: allCompleted ? "Completed" : "InProgress",
-          dispatchStatus: allCompleted ? "COMPLETED" : "ON_TRIP",
-          passengers,
-          finalPrice: Number(
-            tripDoc.finalPrice ||
-            tripDoc.priceAmount ||
-            0
-          )
+          status:"InProgress",
+          dispatchStatus:"ON_TRIP",
+          passengers
         });
 
         tripDoc.passengers = passengers;
 
-        if(allCompleted){
-          clearTripLocalState();
-          localStorage.removeItem("activeDriverTripId");
-          window.location.replace("/driver/trips.html");
+        if(!allCompleted){
+          await advanceStop(true);
           return;
         }
-
-        await advanceStop(true);
-        return;
       }
 
       /*
-        Restore the original single-trip Complete payload.
-        This is the one and only Completed server update.
+        Finalize exactly once through the original driver Complete endpoint.
+        Do not send finalPrice from the browser and do not perform a second
+        Completed PUT afterwards.
       */
-      await updateTrip({
-        status: "Completed",
-        dispatchStatus: "COMPLETED",
-        completedAt: serverNow(),
-        passengerStatus: "Completed",
-        finalPrice: Number(
-          tripDoc.finalPrice ||
-          tripDoc.priceAmount ||
-          0
-        )
-      });
+      const completeRes = await fetch(
+        `/api/driver/trips/${encodeURIComponent(TRIP_ID)}/complete`,
+        {
+          method:"PATCH",
+          headers:driverAuthHeaders({
+            "Content-Type":"application/json"
+          }),
+          body:JSON.stringify({})
+        }
+      );
 
-      tripDoc.passengerStatus = "Completed";
+      const completedTrip = await completeRes.json().catch(()=>({}));
 
-      /*
-        Do NOT call finishTripAndReturnToTrips() here.
-        That would attempt a second edit after the trip is already Completed
-        and the backend correctly rejects it.
-      */
+      if(!completeRes.ok){
+        throw new Error(
+          completedTrip.message ||
+          completedTrip.error ||
+          "Complete trip failed"
+        );
+      }
+
+      if(completedTrip && typeof completedTrip === "object"){
+        tripDoc = completedTrip;
+      }
+
       clearTripLocalState();
       localStorage.removeItem("activeDriverTripId");
       window.location.replace("/driver/trips.html");
