@@ -309,7 +309,13 @@ const role=()=>{
 
 async function loadSharedBrokerVisibility(){
 
-  const cacheKey = "ghHeaderSharedBrokerVisibility";
+  const tenantCacheKey =
+    staffSessionValue("staffTenantId","tenantId") ||
+    staffSessionValue("staffTenantSlug","tenantSlug") ||
+    "unknown";
+
+  const cacheKey =
+    "ghHeaderSharedBrokerVisibility:" + tenantCacheKey;
   const cacheTtlMs = 30000;
 
   try{
@@ -370,13 +376,27 @@ async function loadSharedBrokerVisibility(){
     const capabilities =
       data?.capabilities || {};
 
+    const truthy = value =>
+      value === true ||
+      value === "true" ||
+      value === 1 ||
+      value === "1" ||
+      String(value || "").toUpperCase() === "ACTIVE" ||
+      String(value || "").toUpperCase() === "ENABLED";
+
     const result = {
       sharedEnabled:
-        capabilities.sharedServiceEnabled === true ||
-        capabilities.sharedServiceFound === true,
+        truthy(capabilities.sharedServiceEnabled) ||
+        truthy(capabilities.sharedServiceFound) ||
+        truthy(data?.sharedEnabled) ||
+        truthy(data?.tenant?.sharedEnabled),
 
       brokerEnabled:
-        capabilities.brokerContractEnabled === true
+        truthy(capabilities.brokerContractEnabled) ||
+        truthy(capabilities.brokerContractFound) ||
+        truthy(capabilities.brokerEnabled) ||
+        truthy(data?.brokerEnabled) ||
+        truthy(data?.tenant?.brokerEnabled)
     };
 
     try{
@@ -580,41 +600,21 @@ document.addEventListener("DOMContentLoaded",async()=>{
          .json()
          .catch(()=>({}));
 
-     // The backend feature endpoint is authoritative. Do not accept
-     // unrelated truthy flags from another payload shape.
+     const featureTruthy = value =>
+       value === true ||
+       value === "true" ||
+       value === 1 ||
+       value === "1" ||
+       String(value || "").toUpperCase() === "ACTIVE" ||
+       String(value || "").toUpperCase() === "ENABLED";
+
+     // The backend feature endpoint is authoritative for tenant visibility.
      smartFormEnabled =
-       smartFormFeature?.enabled === true;
-
-     /*
-       Header-only safety gate:
-       when the tenant has no active Smart Form template available,
-       hide Smart Form / Review / Summary / Pricing from the header.
-       This also prevents stale navigation from remaining visible after
-       Platform Admin removes Smart Form availability for the company.
-     */
-     if(smartFormEnabled){
-       const templateResponse = await fetch(
-         `/api/smart-forms/templates?_ghHeader=${Date.now()}`,
-         {
-           cache:"no-store",
-           headers:{
-             Authorization:
-               `Bearer ${localStorage.getItem("token") || ""}`
-           }
-         }
-       );
-
-       if(!templateResponse.ok){
-         smartFormEnabled = false;
-       }else{
-         const templateData =
-           await templateResponse.json().catch(()=>({}));
-
-         smartFormEnabled =
-           Array.isArray(templateData?.templates) &&
-           templateData.templates.length > 0;
-       }
-     }
+       featureTruthy(smartFormFeature?.enabled) ||
+       featureTruthy(smartFormFeature?.smartFormsEnabled) ||
+       featureTruthy(smartFormFeature?.smartFormEnabled) ||
+       featureTruthy(smartFormFeature?.tenant?.smartFormsEnabled) ||
+       featureTruthy(smartFormFeature?.feature?.enabled);
    }
  }catch(error){
    console.warn(
