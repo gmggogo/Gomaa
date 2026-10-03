@@ -1,5 +1,6 @@
 // GH Mobility Smart Forms - mapping fix 2026-09-29
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
+// SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -103,9 +104,12 @@ function renderBuilder(){
   if(!activeBuilderTemplate){list.innerHTML="Create or select a template.";canvas.innerHTML="";return;}
   syncLayoutWithFields();
   const sources=["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"];
+  const fieldTypes=["TEXT","NUMBER","PHONE","ADDRESS","DATE","TIME","SELECT","RADIO","CHECKBOX","TEXTAREA","SIGNATURE"];
   const bindings=[["","Not a review column"],["CLIENT_NAME","Client Name"],["PICKUP_ADDRESS","Pickup Address"],["DROPOFF_ADDRESS","Dropoff Address"],["STOPS","Stops"],["TRIP_DATE","Trip Date"],["PICKUP_TIME","Pickup Time"],["SERVICE","Service"]];
   list.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-property-row">
     <div class="sf-builder-property-title"><strong>${esc(f.label)}</strong><span>${esc(f.type)}</span></div>
+    <select data-field-type="${i}" title="Field type">${fieldTypes.map(v=>`<option value="${v}" ${(f.type||"TEXT")===v?"selected":""}>${v}</option>`).join("")}</select>
+    <textarea data-field-options="${i}" placeholder="Options for SELECT / RADIO / CHECKBOX" style="min-height:54px;border:1px solid #cbd6df;border-radius:7px;padding:6px">${esc((f.options||[]).join("\n"))}</textarea>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
     <select data-binding="${i}" title="Smart Review field">${bindings.map(([v,l])=>`<option value="${v}" ${(f.tripBinding||"")===v?"selected":""}>${l}</option>`).join("")}</select>
     <div class="sf-control"><label>Trip #</label><input data-trip-index="${i}" type="number" min="0" step="1" value="${Number(f.tripIndex||0)}" placeholder="0"></div>
@@ -156,6 +160,8 @@ document.getElementById("addFieldBtn").onclick=()=>{
 };
 document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){const i=Number(e.target.dataset.del),key=builderFields[i]?.key;builderFields.splice(i,1);builderLayout.items=builderLayout.items.filter(x=>String(x.fieldKey)!==String(key));builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
 document.getElementById("builderList").onchange=e=>{
+  if(e.target.dataset.fieldType!==undefined)builderFields[Number(e.target.dataset.fieldType)].type=e.target.value;
+  if(e.target.dataset.fieldOptions!==undefined)builderFields[Number(e.target.dataset.fieldOptions)].options=e.target.value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
   if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
   if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value,idx=Number(builderFields[i]?.tripIndex||0);if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v&&Number(f.tripIndex||0)===idx)f.tripBinding="";});builderFields[i].tripBinding=v;}
   if(e.target.dataset.tripIndex!==undefined)builderFields[Number(e.target.dataset.tripIndex)].tripIndex=Math.max(0,Math.floor(Number(e.target.value||0)||0));

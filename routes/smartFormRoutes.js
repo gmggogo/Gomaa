@@ -1,6 +1,7 @@
 const express = require("express");
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
+// SMART_FORM_AI_SELECTS_AND_FULL_FIELD_DETECTION_2026_10_03_0412
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
@@ -580,6 +581,38 @@ function normalizeFields(fields){
   });
 }
 
+function smartFormAiFieldType(field){
+  const incoming=clean(field?.type || "TEXT").toUpperCase();
+  if(["NUMBER","PHONE","ADDRESS","DATE","TIME","SELECT","RADIO","CHECKBOX","TEXTAREA","SIGNATURE"].includes(incoming)){
+    return incoming;
+  }
+  return "TEXT";
+}
+
+function smartFormAiFinalFieldType(field){
+  const incoming=smartFormAiFieldType(field);
+  const label=clean(field?.label).toLowerCase();
+  const options=Array.isArray(field?.options)?field.options.map(clean).filter(Boolean):[];
+
+  if(["SELECT","RADIO","CHECKBOX"].includes(incoming)) return incoming;
+  if(options.length) return "SELECT";
+  if(
+    /\btype of trip\b/.test(label) ||
+    /\btrip type\b/.test(label) ||
+    /\bvehicle type\b/.test(label) ||
+    /\bservice type\b/.test(label) ||
+    /\btransportation type\b/.test(label) ||
+    /\blevel of service\b/.test(label) ||
+    /\bmethod of payment\b/.test(label) ||
+    /\bpayor\b/.test(label) ||
+    /\bgender\b/.test(label) ||
+    /\byes\s*\/\s*no\b/.test(label)
+  ){
+    return "SELECT";
+  }
+  return incoming;
+}
+
 function sanitizeTemplate(t){
   const o=t?.toObject?t.toObject():{...t};
   if(o.originalPdf){ delete o.originalPdf.data; o.originalPdf.hasPdf=!!o.originalPdf.fileName; }
@@ -844,7 +877,17 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
     if(!pages.length) return res.status(400).json({success:false,message:"PDF page images are required"});
     if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
 
-    const prompt=`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent,options,tripBinding,tripIndex. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, vehicle type choices, or multiple visible options; put the visible option labels in options. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PICKUP_TIME,SERVICE when the field clearly feeds trip creation. tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`;
+    const prompt=`Analyze this official transportation form. Detect EVERY visible field a user/system could fill in, including blank lines, boxes, dropdown-like choices, checkboxes, radio choices, date/time fields, addresses, phone/member fields, authorization fields, and signature areas. Do not stop early and do not omit lower-page fields.
+Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent,options,tripBinding,tripIndex.
+type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE.
+Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, trip type choices, service/vehicle choices, payor choices, or multiple visible options; put the visible option labels in options.
+If a label says Type of Trip, Trip Type, Vehicle Type, Service Type, Transportation Type, Level of Service, Method of Payment, Payor, Gender, or Yes/No, do NOT return TEXT; return SELECT/RADIO/CHECKBOX.
+sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP.
+tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PICKUP_TIME,SERVICE when the field clearly feeds trip creation.
+tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0.
+IMPORTANT: repeated trip blocks are separate trips, not duplicate occurrences. For Pickup 1 and Pickup 2, create two separate fields with tripIndex 1 and 2. Do NOT use repeat=true to merge different trips.
+Use repeat=true only when the exact same logical field appears in multiple printed places for the same trip/person; then return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.
+Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100).`;
 
     const parts=[{text:prompt}];
     for(let i=0;i<pages.length;i++){
@@ -864,7 +907,7 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
         contents:[{role:"user",parts}],
         generationConfig:{
           responseMimeType:"application/json",
-          maxOutputTokens:8192
+          maxOutputTokens:16384
         }
       },
       "Smart Forms AI detect"
@@ -886,7 +929,7 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
       const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
-      const detectedType=clean(a.type||"TEXT").toUpperCase();
+      const detectedType=smartFormAiFinalFieldType(a);
       const detectedOptions=Array.isArray(a.options)?a.options.map(clean).filter(Boolean):[];
       const detectedBinding=clean(a.tripBinding).toUpperCase();
       return {_id:old?._id,key,label,type:detectedType,
