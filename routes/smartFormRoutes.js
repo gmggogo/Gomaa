@@ -2,6 +2,7 @@ const express = require("express");
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_AI_SELECTS_AND_FULL_FIELD_DETECTION_2026_10_03_0412
+// SMART_FORM_AI_LAYOUT_FROM_PDF_AND_NO_FIELD_MERGE_2026_10_03_0434
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
@@ -882,6 +883,8 @@ Return JSON only with {fields:[...]}. Each field: label,type,required,widthPerce
 type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE.
 Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, trip type choices, service/vehicle choices, payor choices, or multiple visible options; put the visible option labels in options.
 If a label says Type of Trip, Trip Type, Vehicle Type, Service Type, Transportation Type, Level of Service, Method of Payment, Payor, Gender, or Yes/No, do NOT return TEXT; return SELECT/RADIO/CHECKBOX.
+If a field has several adjacent empty boxes/lines but each box captures a different value, return each one as a separate field. Never merge different labels into one field.
+If the form has multiple pickup/dropoff/date/time rows, return every row separately. Do not summarize them, do not combine them, and do not put several values in one options array unless they are true choices for one field.
 sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP.
 tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PICKUP_TIME,SERVICE when the field clearly feeds trip creation.
 tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0.
@@ -926,7 +929,10 @@ Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading or
     const parsed=JSON.parse(cleaned); const detected=Array.isArray(parsed.fields)?parsed.fields:[];
     const existingByKey=new Map((t.fields||[]).map(f=>[String(f.key),f.toObject?f.toObject():f]));
     const fields=detected.map((a,i)=>{
-      const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
+      const label=clean(a.label)||`Field ${i+1}`;
+      const aiTripIndex=Math.max(0,Math.floor(Number(a.tripIndex||0)||0));
+      const baseKey=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
+      const key=aiTripIndex>0 ? `${baseKey}_trip_${aiTripIndex}` : baseKey;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
       const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
       const detectedType=smartFormAiFinalFieldType(a);
@@ -937,10 +943,11 @@ Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading or
         requiredUserOverride:old?.requiredUserOverride===true,
         widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
         // AI may suggest Repeat only for a brand-new field. Existing fields keep the user's saved choice.
-        repeat:old ? old.repeat===true : (a.repeat===true),
+        // Trip-indexed fields are separate trips and must never be merged as Repeat.
+        repeat:aiTripIndex>0 ? false : (old ? old.repeat===true : (a.repeat===true)),
         repeatUserOverride:old?.repeatUserOverride===true,
         tripBinding:old?.tripBinding||(["CLIENT_NAME","PICKUP_ADDRESS","DROPOFF_ADDRESS","STOPS","TRIP_DATE","PICKUP_TIME","SERVICE"].includes(detectedBinding)?detectedBinding:""),
-        tripIndex:old?.tripIndex || Math.max(0,Math.floor(Number(a.tripIndex||0)||0)),
+        tripIndex:old?.tripIndex || aiTripIndex,
         options:(old?.options&&old.options.length)?old.options:detectedOptions,
         mapping:maps[0]||old?.mapping||{},mappings:maps};
     });

@@ -1,6 +1,7 @@
 // GH Mobility Smart Forms - mapping fix 2026-09-29
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
+// SMART_FORM_AI_LAYOUT_FROM_PDF_MAPPING_2026_10_03_0434
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -68,6 +69,25 @@ function defaultBuilderLayout(fields){
     x+=w+2;
   }
   return {canvasHeight:Math.max(650,y+rowH+80),items};
+}
+function builderLayoutFromPdfMappings(fields){
+  const items=[];
+  const pageHeight=1120,pageGap=90;
+  for(const f of (fields||[])){
+    if((f.sourceType||"MANUAL")!=="MANUAL")continue;
+    const m=(Array.isArray(f.mappings)&&f.mappings.length?f.mappings[0]:f.mapping)||{};
+    if(m.mapped!==true)continue;
+    const page=Math.max(1,Number(m.page||1));
+    const x=Math.max(0,Math.min(96,Number(m.xPercent||2)));
+    const y=((page-1)*(pageHeight+pageGap))+Math.max(12,Math.min(pageHeight-40,Number(m.yPercent||2)/100*pageHeight));
+    const w=Math.max(14,Math.min(96-x,Number(m.widthPercent||f.widthPercent||30)));
+    const baseH=f.type==="TEXTAREA"?118:(["SELECT","RADIO","CHECKBOX"].includes(f.type)?104:86);
+    const h=Math.max(baseH,Math.min(220,Number(m.heightPercent||4)/100*pageHeight+54));
+    items.push({id:`field_${f.key}`,kind:"FIELD",fieldKey:f.key,text:"",x,y,w,h});
+  }
+  if(!items.length)return defaultBuilderLayout(fields);
+  const canvasHeight=Math.max(650,...items.map(i=>Number(i.y||0)+Number(i.h||90)+80));
+  return {canvasHeight,items};
 }
 async function loadBuilderLayout(){
   if(!activeBuilderTemplate){builderLayout={canvasHeight:900,items:[]};return;}
@@ -225,6 +245,8 @@ async function aiDetectFields(){
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/ai-detect`,{method:"POST",body:fd});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
     activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    builderLayout=builderLayoutFromPdfMappings(builderFields);
+    await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
     renderBuilder();renderMapFieldList();msg(`AI detected ${builderFields.length} fields. Review layout, sources and PDF positions, then save.`);
   }catch(e){msg(e.message,"err");}
   finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
