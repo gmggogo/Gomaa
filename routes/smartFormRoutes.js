@@ -423,9 +423,19 @@ async function smartFormsFeatureEnabled(tenantId){
 
   if(activeOrganization) return true;
 
+  const activeOrganizations = await SmartFormOrganization.find({
+    tenantId,
+    active:{ $ne:false },
+    createdByPlatformAdmin:true
+  }).select("_id").lean();
+
+  const activeOrganizationIds = activeOrganizations.map(org => org._id);
+  if(!activeOrganizationIds.length) return false;
+
   const activeTemplate = await SmartFormTemplate.exists({
     tenantId,
-    active:{ $ne:false }
+    active:{ $ne:false },
+    organizationId:{ $in:activeOrganizationIds }
   });
 
   return Boolean(activeTemplate);

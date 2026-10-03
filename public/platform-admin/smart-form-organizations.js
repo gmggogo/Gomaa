@@ -21,7 +21,7 @@ async function loadTemplates(){
     const d=await api(`${ORG_API}/${encodeURIComponent(org._id)}/templates`);
     for(const t of (d.templates||[]))templates.push({...t,organizationName:org.name});
   }
-  document.getElementById("templateBody").innerHTML=templates.length?templates.map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.organizationName)}</td><td>${t.active!==false?"ACTIVE":"DISABLED"}</td><td><button class="${t.active!==false?"danger":"primary"}" data-template-id="${esc(t._id)}" data-org-id="${esc(t.organizationId)}" data-template-active="${t.active!==false?"1":"0"}">${t.active!==false?"Disable":"Enable"}</button></td></tr>`).join(""):`<tr><td colspan="4">No paid templates.</td></tr>`;
+  document.getElementById("templateBody").innerHTML=templates.length?templates.map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.organizationName)}</td><td>${t.active!==false?"ACTIVE":"DISABLED"}</td><td><button class="${t.active!==false?"danger":"primary"}" data-template-toggle-id="${esc(t._id)}" data-org-id="${esc(t.organizationId)}" data-template-active="${t.active!==false?"1":"0"}">${t.active!==false?"Disable":"Enable"}</button> <button class="danger" data-template-delete-id="${esc(t._id)}" data-org-id="${esc(t.organizationId)}">Delete</button></td></tr>`).join(""):`<tr><td colspan="4">No paid templates.</td></tr>`;
 }
 document.getElementById("tenantSelect").onchange=loadOrganizations;
 document.getElementById("addBtn").onclick=async()=>{const tenantId=document.getElementById("tenantSelect").value,name=document.getElementById("organizationName").value.trim(),type=document.getElementById("organizationType").value,code=document.getElementById("organizationCode").value.trim();if(!tenantId||!name)return msg("Company and name are required.","err");try{await api(ORG_API,{method:"POST",body:JSON.stringify({tenantId,name,type,code})});document.getElementById("organizationName").value="";document.getElementById("organizationCode").value="";await loadOrganizations();msg("Organization created.");}catch(e){msg(e.message,"err");}};
@@ -34,6 +34,14 @@ document.getElementById("addTemplateBtn").onclick=async()=>{
   try{await api(`${ORG_API}/${encodeURIComponent(organizationId)}/templates`,{method:"POST",body:JSON.stringify({name})});document.getElementById("templateName").value="";await loadTemplates();msg("Paid Smart Form template created.");}catch(e){msg(e.message,"err");}
 };
 document.getElementById("templateBody").onclick=async e=>{
-  const templateId=e.target.dataset.templateId,orgId=e.target.dataset.orgId;if(!templateId||!orgId)return;
+  const orgId=e.target.dataset.orgId;
+  const deleteId=e.target.dataset.templateDeleteId;
+  if(deleteId&&orgId){
+    if(!confirm("Delete this template?"))return;
+    try{await api(`${ORG_API}/${encodeURIComponent(orgId)}/templates/${encodeURIComponent(deleteId)}`,{method:"DELETE"});await loadTemplates();msg("Template deleted.");}catch(err){msg(err.message,"err");}
+    return;
+  }
+  const templateId=e.target.dataset.templateToggleId;
+  if(!templateId||!orgId)return;
   try{await api(`${ORG_API}/${encodeURIComponent(orgId)}/templates/${encodeURIComponent(templateId)}`,{method:"PUT",body:JSON.stringify({active:e.target.dataset.templateActive!=="1"})});await loadTemplates();}catch(err){msg(err.message,"err");}
 };

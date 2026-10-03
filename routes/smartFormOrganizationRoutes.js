@@ -15,7 +15,11 @@ router.get("/", async (req,res)=>{
     if(!mongoose.Types.ObjectId.isValid(tenantId)){
       return res.status(400).json({success:false,message:"Valid tenantId is required"});
     }
-    const organizations = await SmartFormOrganization.find({tenantId}).sort({active:-1,name:1}).lean();
+    const includeInactive = req.query.includeInactive === "true";
+    const query = includeInactive
+      ? {tenantId}
+      : {tenantId, active:{ $ne:false }};
+    const organizations = await SmartFormOrganization.find(query).sort({active:-1,name:1}).lean();
     res.json({success:true,organizations});
   }catch(err){
     console.error("SMART FORM ORG LIST ERROR",err);
@@ -52,9 +56,16 @@ router.post("/", async (req,res)=>{
 
 router.get("/:id/templates", async (req,res)=>{
   try{
+    const includeInactive = req.query.includeInactive === "true";
     const organization=await SmartFormOrganization.findById(req.params.id).lean();
     if(!organization)return res.status(404).json({success:false,message:"Organization not found"});
-    const templates=await SmartFormTemplate.find({tenantId:organization.tenantId,organizationId:organization._id})
+    if(organization.active===false && !includeInactive){
+      return res.json({success:true,templates:[]});
+    }
+    const query = includeInactive
+      ? {tenantId:organization.tenantId,organizationId:organization._id}
+      : {tenantId:organization.tenantId,organizationId:organization._id,active:{ $ne:false }};
+    const templates=await SmartFormTemplate.find(query)
       .sort({active:-1,updatedAt:-1}).select("-originalPdf.data").lean();
     res.json({success:true,templates});
   }catch(err){res.status(500).json({success:false,message:"Failed to load templates"});}
@@ -93,6 +104,25 @@ router.put("/:orgId/templates/:templateId", async (req,res)=>{
   }catch(err){res.status(err?.code===11000?409:500).json({success:false,message:err?.message||"Failed to update template"});}
 });
 
+router.delete("/:orgId/templates/:templateId", async (req,res)=>{
+  try{
+    const organization=await SmartFormOrganization.findById(req.params.orgId).lean();
+    if(!organization)return res.status(404).json({success:false,message:"Organization not found"});
+    const template=await SmartFormTemplate.findOne({
+      _id:req.params.templateId,
+      tenantId:organization.tenantId,
+      organizationId:organization._id
+    });
+    if(!template)return res.status(404).json({success:false,message:"Template not found"});
+    template.active=false;
+    template.updatedBy=req.user?.name||req.user?.username||"Platform Admin";
+    await template.save();
+    res.json({success:true,template});
+  }catch(err){
+    res.status(500).json({success:false,message:err?.message||"Failed to delete template"});
+  }
+});
+
 router.put("/:id", async (req,res)=>{
   try{
     const organization = await SmartFormOrganization.findById(req.params.id);
@@ -103,6 +133,23 @@ router.put("/:id", async (req,res)=>{
     if(req.body?.active !== undefined) organization.active = req.body.active === true;
     organization.updatedBy = req.user?.name || req.user?.username || "";
     await organization.save();
+
+    if(organization.active === false){
+      await SmartFormTemplate.updateMany(
+        {
+          tenantId:organization.tenantId,
+          organizationId:organization._id
+        },
+        {
+          $set:{
+            active:false,
+            updatedBy:req.user?.name || req.user?.username || "",
+            updatedAt:new Date()
+          }
+        }
+      );
+    }
+
     res.json({success:true,organization});
   }catch(err){
     console.error("SMART FORM ORG UPDATE ERROR",err);
@@ -115,8 +162,26 @@ router.delete("/:id", async (req,res)=>{
     const organization = await SmartFormOrganization.findById(req.params.id);
     if(!organization) return res.status(404).json({success:false,message:"Organization not found"});
     organization.active = false;
+    organization.updatedBy = req.user?.name || req.user?.username || "";
     await organization.save();
-    res.json({success:true});
+    const templateResult = await SmartFormTemplate.updateMany(
+      {
+        tenantId:organization.tenantId,
+        organizationId:organization._id
+      },
+      {
+        $set:{
+          active:false,
+          updatedBy:req.user?.name || req.user?.username || "",
+          updatedAt:new Date()
+        }
+      }
+    );
+
+    res.json({
+      success:true,
+      disabledTemplates:templateResult.modifiedCount || 0
+    });
   }catch(err){
     res.status(500).json({success:false,message:"Failed to disable organization"});
   }
