@@ -824,8 +824,10 @@ function getCancelSource(trip,passenger=null){
   return upper(
     passenger?.cancelSource ||
     passenger?.cancellationSource ||
+    passenger?.cancelledByRole ||
     trip?.cancelSource ||
     trip?.cancellationSource ||
+    trip?.cancelledByRole ||
     ""
   );
 }
@@ -841,6 +843,8 @@ function isCustomerCancellation(trip,passenger=null){
   return (
     src === "CUSTOMER" ||
     src === "CLIENT" ||
+    src === "COMPANY" ||
+    src === "BROKER" ||
     passenger?.customerCancelled === true ||
     trip?.customerCancelled === true
   );

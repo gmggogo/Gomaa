@@ -330,7 +330,9 @@
             "CLIENT",
             "PASSENGER",
             "RIDER",
-            "MEMBER"
+            "MEMBER",
+            "COMPANY",
+            "BROKER"
           ].includes(value)
       );
     }
@@ -404,14 +406,31 @@
         return;
       }
 
+      const chargeableRole = [
+        target.cancelSource,
+        target.cancellationSource,
+        target.cancelledByRole,
+        target.cancelledByType
+      ]
+        .map(value=>clean(value).toUpperCase())
+        .find(value=>[
+          "CUSTOMER",
+          "CLIENT",
+          "PASSENGER",
+          "RIDER",
+          "MEMBER",
+          "COMPANY",
+          "BROKER"
+        ].includes(value)) || "CUSTOMER";
+
       target.cancelSource =
-        "CUSTOMER";
+        chargeableRole;
 
       target.cancellationSource =
-        "CUSTOMER";
+        chargeableRole;
 
       target.cancelledByRole =
-        "CUSTOMER";
+        chargeableRole;
 
       target.cancellationChargeable =
         true;
@@ -1521,8 +1540,8 @@
           RESERVED -> Reserved Service Management
 
           Cancellation fee:
-          CUSTOMER cancellation only.
-          Company / Dispatch / Driver cancellation = $0 cancellation fee.
+          Customer / Company / Broker requested cancellation may be charged.
+          Dispatch / Employee / Driver cancellation remains $0.
         */
 
         const customerCancellation =

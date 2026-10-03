@@ -787,14 +787,29 @@ router.get("/submissions", async (req,res)=>{
         const finalMinutes=Number(trip.durationMinutes);
         if(Number.isFinite(finalMinutes)) out.durationMinutes=finalMinutes;
 
-        // Always prefer the final Trip price in Summary, including a legitimate $0.00.
-        const rawFinalPrice=trip.finalPrice ?? trip.priceAmount;
-        const finalPrice=Number(rawFinalPrice);
-        if(rawFinalPrice!==undefined && rawFinalPrice!==null && rawFinalPrice!=="" && Number.isFinite(finalPrice)){
-          out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
-          out.priceAmount=finalPrice;
-          out.finalPrice=finalPrice;
-        }
+        // A normal Trip may keep finalPrice=0 as its default while the
+        // actual fare is in priceAmount or the saved Smart Form pricing.
+        // Prefer a positive final price, then positive trip/submission prices;
+        // only return $0 when every available price is actually zero.
+        const priceCandidates=[
+          trip.finalPrice,
+          trip.priceAmount,
+          out.finalPrice,
+          out.priceAmount,
+          out.pricing?.amount
+        ].filter(value=>
+          value!==undefined &&
+          value!==null &&
+          value!=="" &&
+          Number.isFinite(Number(value))
+        ).map(Number);
+        const finalPrice=
+          priceCandidates.find(value=>value>0) ??
+          priceCandidates[0] ??
+          0;
+        out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
+        out.priceAmount=finalPrice;
+        out.finalPrice=finalPrice;
 
         out.totalPassengers=Number(trip.totalPassengers||out.totalPassengers||1)||1;
         out.isShared=trip.isShared===true;

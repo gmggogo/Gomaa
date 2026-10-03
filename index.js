@@ -12880,20 +12880,30 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
       }
       if(requestedFinalStatus === "Cancelled"){
 
+        const reservedCompanyCancellation =
+          req.body?.routeSource === "dispatch-add-trip-cancel" &&
+          req.body?.reservationStatus === "RV" &&
+          normalizeActorRole(req.body?.cancelledByRole) === "COMPANY" &&
+          req.body?.cancellationChargeable === true;
+
         const operationalCancel =
-          isOperationalCancellationRole(
-            req.authUser?.role
-          );
+          isOperationalCancellationRole(req.authUser?.role) &&
+          !reservedCompanyCancellation;
 
         existing.cancelledByRole =
-          normalizeActorRole(
-            req.authUser?.role
-          ) || "UNKNOWN";
+          reservedCompanyCancellation
+            ? "COMPANY"
+            : normalizeActorRole(req.authUser?.role) || "UNKNOWN";
 
         existing.cancellationChargeable =
-          operationalCancel
+          reservedCompanyCancellation
+            ? true
+            : operationalCancel
             ? false
-            : existing.cancellationChargeable;
+            : (
+                req.body?.cancellationChargeable ??
+                existing.cancellationChargeable
+              );
 
         if(operationalCancel){
           existing.cancelFee = 0;
@@ -13105,6 +13115,11 @@ finalPrice:
     ? Number(req.body.finalPrice)
     : Number(existing.finalPrice || 0),
 
+cancelFee:
+  req.body.cancelFee !== undefined
+    ? Number(req.body.cancelFee)
+    : Number(existing.cancelFee || 0),
+
 pricePerPassenger:
   req.body.pricePerPassenger !== undefined
     ? Number(req.body.pricePerPassenger)
@@ -13287,6 +13302,8 @@ routeUpdatedAt:
 
       // STATUS
       status: req.body.status ?? existing.status,
+      reservationStatus:
+        req.body.reservationStatus ?? existing.reservationStatus,
       bookedAt: req.body.bookedAt ?? existing.bookedAt
 };
 
@@ -13396,18 +13413,25 @@ if(updateData.status === "Confirmed"){
 
 if(updateData.status === "Cancelled"){
 
+  const reservedCompanyCancellation =
+    updateData.routeSource === "dispatch-add-trip-cancel" &&
+    updateData.reservationStatus === "RV" &&
+    normalizeActorRole(req.body?.cancelledByRole) === "COMPANY" &&
+    req.body?.cancellationChargeable === true;
+
   const operationalCancel =
-    isOperationalCancellationRole(
-      req.authUser?.role
-    );
+    isOperationalCancellationRole(req.authUser?.role) &&
+    !reservedCompanyCancellation;
 
   updateData.cancelledByRole =
-    normalizeActorRole(
-      req.authUser?.role
-    ) || "UNKNOWN";
+    reservedCompanyCancellation
+      ? "COMPANY"
+      : normalizeActorRole(req.authUser?.role) || "UNKNOWN";
 
   updateData.cancellationChargeable =
-    operationalCancel
+    reservedCompanyCancellation
+      ? true
+      : operationalCancel
       ? false
       : (
           existing.cancellationChargeable !== null &&

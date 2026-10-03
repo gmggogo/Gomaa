@@ -651,7 +651,8 @@ function cancellationChargeable(trip,passenger=null){
   /*
     BROKER CANCELLATION FEE RULE
 
-    Charge ONLY when the cancellation is explicitly customer-originated.
+    Charge when cancellation was explicitly requested by the customer,
+    contracted company, or broker.
 
     Internal GH cancellations are always free:
     Driver / Dispatcher / Dispatch / Admin / Super Admin /
@@ -717,7 +718,9 @@ function cancellationChargeable(trip,passenger=null){
       "CLIENT",
       "PASSENGER",
       "RIDER",
-      "MEMBER"
+      "MEMBER",
+      "COMPANY",
+      "BROKER"
     ]);
 
   return sourceValues.some(

@@ -5780,6 +5780,12 @@ async function handleCancelTrip(btn){
     reviewOnly:false,
     dispatchSelected:false,
 
+    // This Reserved cancel action records a cancellation requested by the
+    // contracting company/customer. Keep its origin so the server does not
+    // mistake it for a free dispatcher/driver cancellation.
+    cancelledByRole:"COMPANY",
+    cancellationChargeable:cancelFee > 0,
+
     priceAmount:isShared ? cancelFee * count : cancelFee,
     finalPrice:isShared ? cancelFee * count : cancelFee,
     cancelFee,
@@ -5790,7 +5796,9 @@ async function handleCancelTrip(btn){
           status:"Cancelled",
           cancelFee,
           priceAmount:cancelFee,
-          finalPrice:cancelFee
+          finalPrice:cancelFee,
+          cancelledByRole:"COMPANY",
+          cancellationChargeable:cancelFee > 0
         }))
       : passengers,
 

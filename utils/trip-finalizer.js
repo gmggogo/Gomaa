@@ -58,7 +58,8 @@ function cancellationRoleFrom(record,options = {}){
 function isCustomerCancellationRole(role){
   return [
     "CUSTOMER",
-    "COMPANY"
+    "COMPANY",
+    "BROKER"
   ].includes(
     normalizeCancellationRole(role)
   );
