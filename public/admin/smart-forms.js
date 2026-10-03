@@ -2,6 +2,7 @@
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
 // SMART_FORM_AI_LAYOUT_FROM_PDF_MAPPING_2026_10_03_0434
+// SMART_FORM_AI_REDRAW_NEW_MAPPINGS_2026_10_03_0450
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -245,6 +246,12 @@ async function aiDetectFields(){
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/ai-detect`,{method:"POST",body:fd});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
     activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));
+    selectedMapFieldId=mapperFields[0]?._id||"";
+    mapViewMode="ALL";
+    const firstMap=mapperFields.flatMap(fieldMaps)[0];
+    pdfPageNumber=Math.max(1,Math.min(pdfPageCount,Number(firstMap?.page||1)));
+    renderMapFieldList();
+    await renderPdfPage();
     builderLayout=builderLayoutFromPdfMappings(builderFields);
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
     renderBuilder();renderMapFieldList();msg(`AI detected ${builderFields.length} fields. Review layout, sources and PDF positions, then save.`);
