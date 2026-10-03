@@ -403,26 +403,12 @@ function tenantIdFor(req){
 async function smartFormsFeatureEnabled(tenantId){
   if(!mongoose.Types.ObjectId.isValid(tenantId)) return false;
 
-  const tenant = await Tenant.findById(tenantId)
-    .select("smartFormsEnabled")
-    .lean();
-
-  if(tenant?.smartFormsEnabled===true) return true;
-
   /*
-    Platform Admin can enable Smart Forms by creating/activating an
-    organization/template for the tenant. Older tenants may not have the
-    legacy Tenant.smartFormsEnabled flag set, so do not hide the module when
-    active Smart Form setup rows already exist.
+    Smart Forms should be visible to a tenant only when there is at least one
+    active Platform Admin organization with at least one active template.
+    The legacy Tenant.smartFormsEnabled flag alone is not enough because the
+    tenant could be enabled globally while every paid template is disabled.
   */
-  const activeOrganization = await SmartFormOrganization.exists({
-    tenantId,
-    active:{ $ne:false },
-    createdByPlatformAdmin:true
-  });
-
-  if(activeOrganization) return true;
-
   const activeOrganizations = await SmartFormOrganization.find({
     tenantId,
     active:{ $ne:false },
