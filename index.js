@@ -15241,32 +15241,14 @@ app.post("/api/company/cancel-trip/:id", async (req,res)=>{
     const service =
       await getServiceByTrip(trip);
 
-    const settings =
-      await SystemDesign.findOne({});
-
-    const systemTimezone =
-      settings?.timezone ||
-      "America/Phoenix";
-
     const now =
-      new Date(
-        new Date().toLocaleString(
-          "en-US",
-          {timeZone:systemTimezone}
-        )
-      );
+      getSystemNow();
 
-    const tripTimeRaw =
-      new Date(
-        `${trip.tripDate}T${trip.tripTime}:00`
-      );
-
+    // tripDate/tripTime are already stored as the program wall-clock time.
+    // Compare them with the system clock without converting the trip time twice.
     const tripTime =
       new Date(
-        tripTimeRaw.toLocaleString(
-          "en-US",
-          {timeZone:systemTimezone}
-        )
+        `${trip.tripDate}T${trip.tripTime}:00`
       );
 
     if(isNaN(tripTime.getTime())){
