@@ -257,7 +257,84 @@ function stopValues(template,formData){
   if(!text) return [];
   return text.split(/\r?\n|\s*;\s*/).map(clean).filter(Boolean);
 }
-function operationalData(template,formData){
+function ordinalTripIndex(text){
+  const value=String(text||"").toLowerCase();
+  const ordinal=value.match(/\b(\d+)(?:st|nd|rd|th)\b/);
+  if(ordinal) return Number(ordinal[1])||0;
+  const labeled=value.match(/\b(?:trip|ride|leg|pickup|pick\s*up|dropoff|drop\s*off|stop|date|time|service)\s*#?\s*(\d+)\b/);
+  if(labeled) return Number(labeled[1])||0;
+  const trailing=value.match(/\b(\d+)\s*(?:pickup|pick\s*up|dropoff|drop\s*off|trip|ride|leg)\b/);
+  if(trailing) return Number(trailing[1])||0;
+  return 0;
+}
+function fieldTripIndex(field){
+  const direct=Number(field?.tripIndex||field?.tripNumber||field?.tripGroup||0);
+  if(Number.isFinite(direct) && direct>0) return Math.floor(direct);
+  return ordinalTripIndex(normalizedFieldText(field));
+}
+function fieldLooksLikeBinding(field,binding){
+  const text=normalizedFieldText(field);
+  const tests={
+    CLIENT_NAME:[/\bmember name\b/,/\bclient name\b/,/\bpassenger name\b/,/^name$/],
+    PICKUP_ADDRESS:[/\bpick\s*up\b/,/\bpickup\b/],
+    DROPOFF_ADDRESS:[/\bdrop\s*off\b/,/\bdropoff\b/],
+    STOPS:[/\bstops?\b/],
+    TRIP_DATE:[/^date$/,/\btrip date\b/,/\bservice date\b/,/\bappointment date\b/],
+    PICKUP_TIME:[/\bpick\s*up time\b/,/\bpickup time\b/,/\btrip time\b/,/^time$/],
+    SERVICE:[/^service$/,/\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/]
+  };
+  return (tests[binding]||[]).some(re=>re.test(text));
+}
+function valueFromFieldForBinding(field,raw,binding){
+  if(binding==="SERVICE"){
+    if(typeof raw==="boolean" && raw){
+      return clean(field.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"").replace(/^service\s*type\s*[:\-]?\s*/i,"") || "Service";
+    }
+    if(Array.isArray(raw) && raw.length) return raw.map(clean).filter(Boolean).join(", ");
+    if(hasValue(raw)){
+      const v=clean(raw);
+      if(!/^(true|on|yes|1)$/i.test(v)) return v;
+      const label=clean(field.label).replace(/^vehicle\s*type\s*[:\-]?\s*/i,"").replace(/^service\s*type\s*[:\-]?\s*/i,"");
+      if(label) return label;
+    }
+    return "";
+  }
+  if(Array.isArray(raw)) return raw.map(clean).filter(Boolean).join(", ");
+  return hasValue(raw) ? clean(raw) : "";
+}
+function fieldForBindingTrip(template,binding,index){
+  const fields=template.fields||[];
+  const explicit=fields.find(f=>clean(f.tripBinding).toUpperCase()===binding && fieldTripIndex(f)===index);
+  if(explicit) return explicit;
+  return fields.find(f=>fieldTripIndex(f)===index && fieldLooksLikeBinding(f,binding)) || null;
+}
+function fieldValueForBindingTrip(template,formData,binding,index,baseValue=""){
+  const f=fieldForBindingTrip(template,binding,index);
+  if(f){
+    const value=valueFromFieldForBinding(f,formData?.[f.key],binding);
+    if(value) return value;
+  }
+  return index===1 ? clean(baseValue) : clean(baseValue);
+}
+function stopValuesForTrip(template,formData,index,baseStops=[]){
+  const f=fieldForBindingTrip(template,"STOPS",index);
+  if(!f) return Array.isArray(baseStops) ? baseStops : [];
+  const value=formData?.[f.key];
+  if(Array.isArray(value)) return value.map(clean).filter(Boolean);
+  const text=clean(value);
+  return text ? text.split(/\r?\n|\s*;\s*/).map(clean).filter(Boolean) : (Array.isArray(baseStops) ? baseStops : []);
+}
+function operationalTripIndexes(template,formData){
+  const indexes=new Set([1]);
+  for(const f of template.fields||[]){
+    const idx=fieldTripIndex(f);
+    if(idx>0 && hasValue(formData?.[f.key]) && ["PICKUP_ADDRESS","DROPOFF_ADDRESS","TRIP_DATE","PICKUP_TIME","SERVICE","STOPS"].some(b=>fieldLooksLikeBinding(f,b))){
+      indexes.add(idx);
+    }
+  }
+  return [...indexes].filter(n=>Number.isFinite(n)&&n>0).sort((a,b)=>a-b);
+}
+function baseOperationalData(template,formData){
   return {
     clientName:fieldValueForBinding(template,formData,"CLIENT_NAME"),
     pickupAddress:fieldValueForBinding(template,formData,"PICKUP_ADDRESS"),
@@ -267,6 +344,24 @@ function operationalData(template,formData){
     pickupTime:fieldValueForBinding(template,formData,"PICKUP_TIME"),
     serviceName:fieldValueForBinding(template,formData,"SERVICE")
   };
+}
+function operationalTrips(template,formData){
+  const base=baseOperationalData(template,formData);
+  return operationalTripIndexes(template,formData).map((tripIndex,position)=>({
+    ...base,
+    clientName:fieldValueForBindingTrip(template,formData,"CLIENT_NAME",tripIndex,base.clientName),
+    pickupAddress:fieldValueForBindingTrip(template,formData,"PICKUP_ADDRESS",tripIndex,base.pickupAddress),
+    dropoffAddress:fieldValueForBindingTrip(template,formData,"DROPOFF_ADDRESS",tripIndex,base.dropoffAddress),
+    stops:stopValuesForTrip(template,formData,tripIndex,base.stops),
+    tripDate:fieldValueForBindingTrip(template,formData,"TRIP_DATE",tripIndex,base.tripDate),
+    pickupTime:fieldValueForBindingTrip(template,formData,"PICKUP_TIME",tripIndex,base.pickupTime),
+    serviceName:fieldValueForBindingTrip(template,formData,"SERVICE",tripIndex,base.serviceName),
+    smartFormTripIndex:tripIndex,
+    smartFormTripLabel:`Trip ${position+1}`
+  }));
+}
+function operationalData(template,formData){
+  return operationalTrips(template,formData)[0] || baseOperationalData(template,formData);
 }
 async function nextSmartFormTripNumber(tenantId,serviceName){
   const tenant=await Tenant.findById(tenantId).select("name branding.companyName").lean();
@@ -459,6 +554,7 @@ function normalizeFields(fields){
       widthPercent:Math.max(10,Math.min(100,Number(f.widthPercent||50))),
       order:i,
       tripBinding:clean(f.tripBinding),
+      tripIndex:Math.max(0,Math.floor(Number(f.tripIndex||0)||0)),
       sourceType:["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"].includes(clean(f.sourceType).toUpperCase())?clean(f.sourceType).toUpperCase():"MANUAL",
       repeat:f.repeat===true,
       repeatUserOverride:f.repeatUserOverride===true,
@@ -600,6 +696,23 @@ router.post("/templates", async (req,res)=>{
   }
 });
 
+router.delete("/templates/:id", async (req,res)=>{
+  try{
+    const g=await gate(req,res); if(!g) return;
+    if(!["SUPER_ADMIN","ADMIN","PLATFORM_ADMIN"].includes(req.authUser?.role)){
+      return res.status(403).json({success:false,message:"Template delete is admin only"});
+    }
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
+    if(!t) return res.status(404).json({success:false,message:"Template not found"});
+    t.active=false;
+    t.updatedBy=actor(req);
+    await t.save();
+    res.json({success:true,template:sanitizeTemplate(t)});
+  }catch(err){
+    res.status(500).json({success:false,message:err?.message||"Failed to delete template"});
+  }
+});
+
 
 router.get("/templates/:id/layout", async (req,res)=>{
   try{
@@ -705,7 +818,7 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
     if(!pages.length) return res.status(400).json({success:false,message:"PDF page images are required"});
     if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
 
-    const prompt=`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`;
+    const prompt=`Analyze this official transportation form. Detect only fields a user/system would fill in. Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent,options,tripBinding,tripIndex. type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE. Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, vehicle type choices, or multiple visible options; put the visible option labels in options. sourceType must be MANUAL,TRIP_DATA,DRIVER_DATA,VEHICLE_DATA,SYSTEM_AFTER_TRIP. tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PICKUP_TIME,SERVICE when the field clearly feeds trip creation. tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0. Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100). repeat=true only when the same logical value visibly occurs more than once; return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.`;
 
     const parts=[{text:prompt}];
     for(let i=0;i<pages.length;i++){
@@ -747,14 +860,20 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       const label=clean(a.label)||`Field ${i+1}`; const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
       const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
-      return {_id:old?._id,key,label,type:clean(a.type||"TEXT").toUpperCase(),
+      const detectedType=clean(a.type||"TEXT").toUpperCase();
+      const detectedOptions=Array.isArray(a.options)?a.options.map(clean).filter(Boolean):[];
+      const detectedBinding=clean(a.tripBinding).toUpperCase();
+      return {_id:old?._id,key,label,type:detectedType,
         required:old ? old.required===true : a.required===true,
         requiredUserOverride:old?.requiredUserOverride===true,
         widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
         // AI may suggest Repeat only for a brand-new field. Existing fields keep the user's saved choice.
         repeat:old ? old.repeat===true : (a.repeat===true),
         repeatUserOverride:old?.repeatUserOverride===true,
-        tripBinding:old?.tripBinding||"",options:old?.options||[],mapping:maps[0]||old?.mapping||{},mappings:maps};
+        tripBinding:old?.tripBinding||(["CLIENT_NAME","PICKUP_ADDRESS","DROPOFF_ADDRESS","STOPS","TRIP_DATE","PICKUP_TIME","SERVICE"].includes(detectedBinding)?detectedBinding:""),
+        tripIndex:old?.tripIndex || Math.max(0,Math.floor(Number(a.tripIndex||0)||0)),
+        options:(old?.options&&old.options.length)?old.options:detectedOptions,
+        mapping:maps[0]||old?.mapping||{},mappings:maps};
     });
     const detectedKeys=new Set(fields.map(f=>f.key));
     for(const old of (t.fields||[])){const plain=old.toObject?old.toObject():old;if(!detectedKeys.has(String(plain.key)))fields.push(plain);}
@@ -797,16 +916,22 @@ router.post("/submissions", async (req,res)=>{
     const missing=(t.fields||[]).filter(f=>f.required && f.type!=="SIGNATURE" && (formData[f.key]===undefined || formData[f.key]===null || formData[f.key]==="")).map(f=>f.label);
     if(missing.length) return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
     const status=String(req.body.status||"").toUpperCase()==="REVIEW"?"REVIEW":"DRAFT";
-    const op=operationalData(t,formData);
+    const tripOps=operationalTrips(t,formData);
+    const op=tripOps[0] || operationalData(t,formData);
     if(status==="REVIEW"){
-      const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
-      const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
+      const empty=[];
+      tripOps.forEach((row,index)=>{
+        const requiredOps=[["Client Name",row.clientName],["Pickup Address",row.pickupAddress],["Dropoff Address",row.dropoffAddress],["Trip Date",row.tripDate],["Pickup Time",row.pickupTime],["Service",row.serviceName]];
+        requiredOps.filter(([,value])=>!value).forEach(([label])=>empty.push(`${row.smartFormTripLabel||`Trip ${index+1}`} ${label}`));
+      });
       if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
     }
     const tripNumber=status==="REVIEW"?await nextSmartFormTripNumber(g.tenantId,op.serviceName):"";
     const s=await SmartFormSubmission.create({
       tenantId:g.tenantId,organizationId:org._id,templateId:t._id,templateName:t.name,organizationName:org.name,
-      status,formData,fieldSnapshot:t.fields||[],tripNumber,...op,signatureRequired:(t.fields||[]).some(f=>f.type==="SIGNATURE"),
+      status,formData,fieldSnapshot:t.fields||[],tripNumber,multiTripCount:Math.max(1,tripOps.length),
+      smartFormTrips:tripOps.map((row,index)=>({tripIndex:row.smartFormTripIndex||index+1,tripLabel:row.smartFormTripLabel||`Trip ${index+1}`})),
+      ...op,signatureRequired:(t.fields||[]).some(f=>f.type==="SIGNATURE"),
       submittedBy:actor(req),submittedAt:status==="REVIEW"?new Date():null
     });
     res.status(201).json({success:true,submission:sanitizeSubmission(s)});
@@ -917,12 +1042,18 @@ router.post("/submissions/:id/review", async (req,res)=>{
     if(!s.tripNumber){
       const t=await SmartFormTemplate.findOne({_id:s.templateId,tenantId:g.tenantId}).lean();
       if(!t) return res.status(404).json({success:false,message:"Template not found"});
-      const op=operationalData(t,s.formData||{});
-      const requiredOps=[["CLIENT_NAME","Client Name",op.clientName],["PICKUP_ADDRESS","Pickup Address",op.pickupAddress],["DROPOFF_ADDRESS","Dropoff Address",op.dropoffAddress],["TRIP_DATE","Trip Date",op.tripDate],["PICKUP_TIME","Pickup Time",op.pickupTime],["SERVICE","Service",op.serviceName]];
-      const empty=requiredOps.filter(([, ,value])=>!value).map(([,label])=>label);
+      const tripOps=operationalTrips(t,s.formData||{});
+      const op=tripOps[0] || operationalData(t,s.formData||{});
+      const empty=[];
+      tripOps.forEach((row,index)=>{
+        const requiredOps=[["Client Name",row.clientName],["Pickup Address",row.pickupAddress],["Dropoff Address",row.dropoffAddress],["Trip Date",row.tripDate],["Pickup Time",row.pickupTime],["Service",row.serviceName]];
+        requiredOps.filter(([,value])=>!value).forEach(([label])=>empty.push(`${row.smartFormTripLabel||`Trip ${index+1}`} ${label}`));
+      });
       if(empty.length) return res.status(400).json({success:false,message:`Review fields missing: ${empty.join(", ")}`});
       Object.assign(s,op);
       s.tripNumber=await nextSmartFormTripNumber(g.tenantId,op.serviceName);
+      s.multiTripCount=Math.max(1,tripOps.length);
+      s.smartFormTrips=tripOps.map((row,index)=>({tripIndex:row.smartFormTripIndex||index+1,tripLabel:row.smartFormTripLabel||`Trip ${index+1}`}));
     }
     s.status="REVIEW"; s.reviewedBy=actor(req); s.reviewedAt=new Date(); if(!s.submittedAt) s.submittedAt=new Date();
     await s.save();
@@ -951,13 +1082,18 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       If this Smart Form was already confirmed and already owns a Trip,
       never create a duplicate Trip when Confirm is clicked again.
     */
-    if(s.tripId){
-      const existingTrip=await Trip.findOne({
-        _id:s.tripId,
-        tenantId:g.tenantId
-      });
+    const existingTripIds=[
+      ...(Array.isArray(s.tripIds)?s.tripIds:[]),
+      s.tripId
+    ].filter(Boolean);
 
-      if(existingTrip){
+    if(existingTripIds.length){
+      const existingTrips=await Trip.find({
+        _id:{$in:existingTripIds},
+        tenantId:g.tenantId
+      }).sort({smartFormTripIndex:1,createdAt:1});
+
+      if(existingTrips.length){
         if(s.status!=="CONFIRMED"){
           s.status="CONFIRMED";
           s.confirmedBy=actor(req);
@@ -968,7 +1104,8 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
         return res.json({
           success:true,
           alreadyConfirmed:true,
-          trip:existingTrip,
+          trip:existingTrips[0],
+          trips:existingTrips,
           submission:sanitizeSubmission(s)
         });
       }
@@ -997,22 +1134,26 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
     /*
       Re-read operational values from the saved formData.
       This guarantees Confirm uses the same configured Smart Form bindings
-      that produced the Review row.
+      that produced the Review row. A multi-trip form becomes multiple
+      normal Trips, but every Trip still uses the same route/pricing logic.
     */
-    const op=operationalData(t,s.formData||{});
+    const tripOps=operationalTrips(t,s.formData||{});
+    const op=tripOps[0] || operationalData(t,s.formData||{});
 
-    const requiredOps=[
-      ["Client Name",op.clientName],
-      ["Pickup Address",op.pickupAddress],
-      ["Dropoff Address",op.dropoffAddress],
-      ["Trip Date",op.tripDate],
-      ["Pickup Time",op.pickupTime],
-      ["Service",op.serviceName]
-    ];
-
-    const missing=requiredOps
-      .filter(([,value])=>!clean(value))
-      .map(([label])=>label);
+    const missing=[];
+    tripOps.forEach((row,index)=>{
+      const requiredOps=[
+        ["Client Name",row.clientName],
+        ["Pickup Address",row.pickupAddress],
+        ["Dropoff Address",row.dropoffAddress],
+        ["Trip Date",row.tripDate],
+        ["Pickup Time",row.pickupTime],
+        ["Service",row.serviceName]
+      ];
+      requiredOps
+        .filter(([,value])=>!clean(value))
+        .forEach(([label])=>missing.push(`${row.smartFormTripLabel||`Trip ${index+1}`} ${label}`));
+    });
 
     if(missing.length){
       return res.status(400).json({
@@ -1028,261 +1169,178 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       );
     }
 
-    /*
-      Keep the Smart Form SF number exactly as generated in Review.
-      Dispatch reads normal Trip records, so Confirm now creates one.
-    */
-    /*
-      Resolve coordinates BEFORE creating the normal Trip so Dispatch and
-      Driver Map receive the same trip with Pickup / Dropoff / Stop Lat/Lng.
-      A temporary geocode failure does not cancel the already-working Confirm.
-    */
-    const smartFormCoords=await smartFormResolveTripCoords(
-      op.pickupAddress,
-      Array.isArray(op.stops) ? op.stops : [],
-      op.dropoffAddress
-    );
-
-    /*
-      SMART FORM ROUTE + PRICING
-      Confirm must calculate the route BEFORE the Trip is created.
-      Previously priceAmount only copied s.pricing.amount, but nothing in
-      Confirm calculated miles/price, so Summary showed 0.0 / $0.00.
-    */
-    let smartFormMiles=0;
-    let smartFormMinutes=0;
-    let smartFormDistanceMeters=0;
-    let smartFormDurationSeconds=0;
-
-    try{
-      const routePoints=[
-        smartFormValidCoords(smartFormCoords.pickupLat,smartFormCoords.pickupLng)
-          ? {lat:Number(smartFormCoords.pickupLat),lng:Number(smartFormCoords.pickupLng)}
-          : clean(op.pickupAddress),
-        ...(Array.isArray(smartFormCoords.stopCoords)
-          ? smartFormCoords.stopCoords.map((c,i)=>
-              smartFormValidCoords(c?.lat,c?.lng)
-                ? {lat:Number(c.lat),lng:Number(c.lng)}
-                : clean((op.stops||[])[i])
-            )
-          : []),
-        smartFormValidCoords(smartFormCoords.dropoffLat,smartFormCoords.dropoffLng)
-          ? {lat:Number(smartFormCoords.dropoffLat),lng:Number(smartFormCoords.dropoffLng)}
-          : clean(op.dropoffAddress)
-      ].filter(Boolean);
-
-      let routeResult=null;
-      if(routeMapEngine && typeof routeMapEngine.calculateRouteMiles === "function"){
-        routeResult=await routeMapEngine.calculateRouteMiles(routePoints);
-      }else if(routeMapEngine && typeof routeMapEngine.calculateRoute === "function"){
-        routeResult=await routeMapEngine.calculateRoute(routePoints);
-      }
-
-      const legs=
-        routeResult?.legs ||
-        routeResult?.googleRoute?.legs ||
-        routeResult?.route?.legs ||
-        routeResult?.routes?.[0]?.legs ||
-        [];
-
-      const legMeters=Array.isArray(legs)
-        ? legs.reduce((sum,leg)=>sum+Number(leg?.distance?.value||leg?.distanceMeters||0),0)
-        : 0;
-      const legSeconds=Array.isArray(legs)
-        ? legs.reduce((sum,leg)=>sum+Number(leg?.duration?.value||leg?.durationSeconds||0),0)
-        : 0;
-
-      smartFormDistanceMeters=Number(
-        routeResult?.distanceMeters ||
-        routeResult?.totalDistanceMeters ||
-        routeResult?.distance?.value ||
-        legMeters ||
-        0
-      );
-      smartFormDurationSeconds=Number(
-        routeResult?.durationSeconds ||
-        routeResult?.totalDurationSeconds ||
-        routeResult?.duration?.value ||
-        legSeconds ||
-        0
-      );
-      smartFormMiles=Number(
-        routeResult?.miles ||
-        routeResult?.distanceMiles ||
-        routeResult?.routeMiles ||
-        (smartFormDistanceMeters>0 ? smartFormDistanceMeters*0.000621371 : 0) ||
-        0
-      );
-      smartFormMinutes=Number(
-        routeResult?.estimatedMinutes ||
-        routeResult?.minutes ||
-        routeResult?.durationMinutes ||
-        (smartFormDurationSeconds>0 ? smartFormDurationSeconds/60 : 0) ||
-        0
+    async function createSmartFormTrip(row,index,total){
+      const smartFormCoords=await smartFormResolveTripCoords(
+        row.pickupAddress,
+        Array.isArray(row.stops) ? row.stops : [],
+        row.dropoffAddress
       );
 
-      smartFormMiles=Number(smartFormMiles.toFixed(2));
-      smartFormMinutes=Math.ceil(smartFormMinutes);
-    }catch(routeErr){
-      console.error("SMART FORM ROUTE CALC ERROR:",routeErr);
-    }
+      let smartFormMiles=0;
+      let smartFormMinutes=0;
+      let smartFormDistanceMeters=0;
+      let smartFormDurationSeconds=0;
 
-    let smartFormPrice=0;
-    try{
-      const priceResult=await calculateSmartFormPrice({
-        tenantId:g.tenantId,
-        templateId:t._id,
-        serviceKey:clean(op.serviceName),
-        serviceName:clean(op.serviceName),
-        miles:smartFormMiles,
-        minutes:smartFormMinutes,
-        stops:Array.isArray(op.stops) ? op.stops.filter(x=>clean(x)).length : 0,
-        passengers:Number(s.totalPassengers||1)||1
-      });
+      try{
+        const routePoints=[
+          smartFormValidCoords(smartFormCoords.pickupLat,smartFormCoords.pickupLng)
+            ? {lat:Number(smartFormCoords.pickupLat),lng:Number(smartFormCoords.pickupLng)}
+            : clean(row.pickupAddress),
+          ...(Array.isArray(smartFormCoords.stopCoords)
+            ? smartFormCoords.stopCoords.map((c,i)=>
+                smartFormValidCoords(c?.lat,c?.lng)
+                  ? {lat:Number(c.lat),lng:Number(c.lng)}
+                  : clean((row.stops||[])[i])
+              )
+            : []),
+          smartFormValidCoords(smartFormCoords.dropoffLat,smartFormCoords.dropoffLng)
+            ? {lat:Number(smartFormCoords.dropoffLat),lng:Number(smartFormCoords.dropoffLng)}
+            : clean(row.dropoffAddress)
+        ].filter(Boolean);
 
-      smartFormPrice=Number(priceResult?.total||0);
-      s.pricing={
-        calculated:true,
-        amount:smartFormPrice,
-        currency:priceResult?.currency||"USD",
-        pricingMode:priceResult?.pricingMode||"",
-        miles:smartFormMiles,
-        minutes:smartFormMinutes
-      };
-    }catch(priceErr){
-      console.error("SMART FORM PRICE CALC ERROR:",priceErr);
-    }
-
-    const tripPayload={
-      tenantId:g.tenantId,
-
-      type:"company",
-      tripNumber:s.tripNumber,
-
-      company:clean(s.organizationName||t.name||"Smart Form"),
-      entryName:actor(req),
-      entryPhone:"",
-
-      clientName:clean(op.clientName),
-      clientPhone:clean(
-        s.clientPhone ||
-        s.phone ||
-        ""
-      ),
-
-      serviceType:clean(op.serviceName),
-      serviceKey:clean(op.serviceName),
-      serviceCode:clean(op.serviceName),
-
-      pickup:clean(op.pickupAddress),
-      pickupLat:smartFormCoords.pickupLat,
-      pickupLng:smartFormCoords.pickupLng,
-
-      dropoff:clean(op.dropoffAddress),
-      dropoffLat:smartFormCoords.dropoffLat,
-      dropoffLng:smartFormCoords.dropoffLng,
-
-      stops:Array.isArray(op.stops)
-        ? op.stops.map(clean).filter(Boolean)
-        : [],
-      stopCoords:smartFormCoords.stopCoords,
-
-      tripDate:clean(op.tripDate),
-      tripTime:clean(op.pickupTime),
-
-      isShared:false,
-      groupId:"",
-      tripType:"INDIVIDUAL",
-      totalPassengers:Number(s.totalPassengers||1) || 1,
-
-      miles:smartFormMiles,
-      distanceMiles:smartFormMiles,
-      distanceMeters:smartFormDistanceMeters,
-      durationSeconds:smartFormDurationSeconds,
-      durationMinutes:smartFormMinutes,
-      estimatedMinutes:smartFormMinutes,
-
-      priceAmount:smartFormPrice,
-      finalPrice:smartFormPrice,
-
-      source:"SMART_FORM",
-      bookingSource:"SMART_FORM",
-
-      status:"Scheduled",
-      dispatchSelected:true,
-      disabled:false,
-
-      bookedAt:new Date(),
-      createdAt:new Date()
-    };
-
-    let trip;
-
-    try{
-      trip=await Trip.create(tripPayload);
-    }catch(createErr){
-      /*
-        tripNumber is unique. If the Trip was created but the request was
-        interrupted before the submission was linked, recover that Trip
-        instead of creating a duplicate.
-      */
-      if(createErr?.code===11000){
-        trip=await Trip.findOne({
-          tenantId:g.tenantId,
-          tripNumber:s.tripNumber
-        });
-      }
-
-      if(!trip) throw createErr;
-    }
-
-    /*
-      The main GH Mobility server exposes its existing coordinate repair
-      engine globally. Reuse it so Pickup / Dropoff / Stops receive Lat/Lng
-      exactly like normal GH Mobility trips before Dispatch uses them.
-    */
-    /*
-      Keep the already-working Review -> Trip -> Dispatch path unchanged.
-      Only enrich that SAME Trip with coordinates before finishing Confirm.
-    */
-    if(typeof global.ensureTripCoords==="function"){
-      await global.ensureTripCoords(trip);
-
-      const tripWithCoords=await Trip.findOne({
-        _id:trip._id,
-        tenantId:g.tenantId
-      });
-
-      if(tripWithCoords){
-        trip=tripWithCoords;
-      }
-    }
-
-    /*
-      IMPORTANT:
-      Coordinate enrichment must never change Dispatch eligibility.
-      Preserve the Trip created above and its normal Dispatch fields.
-    */
-    if(trip && trip._id){
-      await Trip.updateOne(
-        {
-          _id:trip._id,
-          tenantId:g.tenantId
-        },
-        {
-          $set:{
-            dispatchSelected:true,
-            disabled:false,
-            status:"Scheduled"
-          }
+        let routeResult=null;
+        if(routeMapEngine && typeof routeMapEngine.calculateRouteMiles === "function"){
+          routeResult=await routeMapEngine.calculateRouteMiles(routePoints);
+        }else if(routeMapEngine && typeof routeMapEngine.calculateRoute === "function"){
+          routeResult=await routeMapEngine.calculateRoute(routePoints);
         }
-      );
 
-      trip=await Trip.findOne({
-        _id:trip._id,
-        tenantId:g.tenantId
-      }) || trip;
+        const legs=
+          routeResult?.legs ||
+          routeResult?.googleRoute?.legs ||
+          routeResult?.route?.legs ||
+          routeResult?.routes?.[0]?.legs ||
+          [];
+
+        const legMeters=Array.isArray(legs)
+          ? legs.reduce((sum,leg)=>sum+Number(leg?.distance?.value||leg?.distanceMeters||0),0)
+          : 0;
+        const legSeconds=Array.isArray(legs)
+          ? legs.reduce((sum,leg)=>sum+Number(leg?.duration?.value||leg?.durationSeconds||0),0)
+          : 0;
+
+        smartFormDistanceMeters=Number(routeResult?.distanceMeters || routeResult?.totalDistanceMeters || routeResult?.distance?.value || legMeters || 0);
+        smartFormDurationSeconds=Number(routeResult?.durationSeconds || routeResult?.totalDurationSeconds || routeResult?.duration?.value || legSeconds || 0);
+        smartFormMiles=Number(routeResult?.miles || routeResult?.distanceMiles || routeResult?.routeMiles || (smartFormDistanceMeters>0 ? smartFormDistanceMeters*0.000621371 : 0) || 0);
+        smartFormMinutes=Number(routeResult?.estimatedMinutes || routeResult?.minutes || routeResult?.durationMinutes || (smartFormDurationSeconds>0 ? smartFormDurationSeconds/60 : 0) || 0);
+
+        smartFormMiles=Number(smartFormMiles.toFixed(2));
+        smartFormMinutes=Math.ceil(smartFormMinutes);
+      }catch(routeErr){
+        console.error("SMART FORM ROUTE CALC ERROR:",routeErr);
+      }
+
+      let smartFormPrice=0;
+      try{
+        const priceResult=await calculateSmartFormPrice({
+          tenantId:g.tenantId,
+          templateId:t._id,
+          serviceKey:clean(row.serviceName),
+          serviceName:clean(row.serviceName),
+          miles:smartFormMiles,
+          minutes:smartFormMinutes,
+          stops:Array.isArray(row.stops) ? row.stops.filter(x=>clean(x)).length : 0,
+          passengers:Number(s.totalPassengers||1)||1
+        });
+        smartFormPrice=Number(priceResult?.total||0);
+      }catch(priceErr){
+        console.error("SMART FORM PRICE CALC ERROR:",priceErr);
+      }
+
+      const tripLabel=row.smartFormTripLabel||`Trip ${index+1}`;
+      const tripNumber=total>1 ? `${s.tripNumber}-T${index+1}` : s.tripNumber;
+      const tripPayload={
+        tenantId:g.tenantId,
+        type:"company",
+        tripNumber,
+        smartFormSubmissionId:s._id,
+        smartFormBaseTripNumber:s.tripNumber,
+        smartFormTripIndex:index+1,
+        smartFormTripLabel:tripLabel,
+        company:clean(s.organizationName||t.name||"Smart Form"),
+        entryName:actor(req),
+        entryPhone:"",
+        clientName:clean(row.clientName),
+        clientPhone:clean(s.clientPhone || s.phone || ""),
+        serviceType:clean(row.serviceName),
+        serviceKey:clean(row.serviceName),
+        serviceCode:clean(row.serviceName),
+        pickup:clean(row.pickupAddress),
+        pickupLat:smartFormCoords.pickupLat,
+        pickupLng:smartFormCoords.pickupLng,
+        dropoff:clean(row.dropoffAddress),
+        dropoffLat:smartFormCoords.dropoffLat,
+        dropoffLng:smartFormCoords.dropoffLng,
+        stops:Array.isArray(row.stops) ? row.stops.map(clean).filter(Boolean) : [],
+        stopCoords:smartFormCoords.stopCoords,
+        tripDate:clean(row.tripDate),
+        tripTime:clean(row.pickupTime),
+        isShared:false,
+        groupId:"",
+        tripType:"INDIVIDUAL",
+        totalPassengers:Number(s.totalPassengers||1) || 1,
+        miles:smartFormMiles,
+        distanceMiles:smartFormMiles,
+        distanceMeters:smartFormDistanceMeters,
+        durationSeconds:smartFormDurationSeconds,
+        durationMinutes:smartFormMinutes,
+        estimatedMinutes:smartFormMinutes,
+        priceAmount:smartFormPrice,
+        finalPrice:smartFormPrice,
+        source:"SMART_FORM",
+        bookingSource:"SMART_FORM",
+        bookingData:{
+          smartFormBaseTripNumber:s.tripNumber,
+          smartFormTripNumber:tripNumber,
+          smartFormTripLabel:tripLabel
+        },
+        status:"Scheduled",
+        dispatchSelected:true,
+        disabled:false,
+        bookedAt:new Date(),
+        createdAt:new Date()
+      };
+
+      let trip;
+      try{
+        trip=await Trip.create(tripPayload);
+      }catch(createErr){
+        if(createErr?.code===11000){
+          trip=await Trip.findOne({tenantId:g.tenantId,tripNumber});
+        }
+        if(!trip) throw createErr;
+      }
+
+      if(typeof global.ensureTripCoords==="function"){
+        await global.ensureTripCoords(trip);
+        trip=await Trip.findOne({_id:trip._id,tenantId:g.tenantId}) || trip;
+      }
+
+      if(trip && trip._id){
+        await Trip.updateOne(
+          {_id:trip._id,tenantId:g.tenantId},
+          {$set:{dispatchSelected:true,disabled:false,status:"Scheduled"}}
+        );
+        trip=await Trip.findOne({_id:trip._id,tenantId:g.tenantId}) || trip;
+      }
+
+      return {trip,price:smartFormPrice,miles:smartFormMiles,minutes:smartFormMinutes,tripNumber,tripLabel};
     }
+
+    const createdTrips=[];
+    for(let i=0;i<tripOps.length;i++){
+      createdTrips.push(await createSmartFormTrip(tripOps[i],i,tripOps.length));
+    }
+
+    const firstCreated=createdTrips[0];
+    s.pricing={
+      calculated:true,
+      amount:Number(firstCreated?.price||0),
+      currency:"USD",
+      pricingMode:"",
+      miles:Number(firstCreated?.miles||0),
+      minutes:Number(firstCreated?.minutes||0)
+    };
 
     /*
       Do not mark the Smart Form confirmed until the normal Trip exists.
@@ -1290,7 +1348,15 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
     */
     Object.assign(s,{
       ...op,
-      tripId:trip._id,
+      tripId:createdTrips[0]?.trip?._id || null,
+      tripIds:createdTrips.map(row=>row.trip?._id).filter(Boolean),
+      multiTripCount:Math.max(1,createdTrips.length),
+      smartFormTrips:createdTrips.map((row,index)=>({
+        tripId:row.trip?._id || null,
+        tripNumber:row.tripNumber,
+        tripIndex:index+1,
+        tripLabel:row.tripLabel
+      })),
       status:"CONFIRMED",
       confirmedBy:actor(req),
       confirmedAt:new Date()
@@ -1300,7 +1366,8 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
 
     return res.json({
       success:true,
-      trip,
+      trip:createdTrips[0]?.trip || null,
+      trips:createdTrips.map(row=>row.trip).filter(Boolean),
       submission:sanitizeSubmission(s)
     });
 

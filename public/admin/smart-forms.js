@@ -35,7 +35,7 @@ async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw n
     );
   }
 }templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);activateBuilder();}
-function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`;if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${(f.options||[]).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
+function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`,opts=f.options||[];if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="RADIO")return `<div class="sf-control"><label>${label}</label><div id="entry_${esc(f.key)}" data-radio-group="${esc(f.key)}">${opts.map(o=>`<label style="display:block;font-weight:600"><input name="entry_${esc(f.key)}" type="radio" value="${esc(o)}"> ${esc(o)}</label>`).join("")}</div></div>`;if(f.type==="CHECKBOX"&&opts.length)return `<div class="sf-control"><label>${label}</label><div id="entry_${esc(f.key)}" data-checkbox-group="${esc(f.key)}">${opts.map(o=>`<label style="display:block;font-weight:600"><input type="checkbox" value="${esc(o)}"> ${esc(o)}</label>`).join("")}</div></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
 async function renderEntry(t){
   const host=document.getElementById("entryForm");
   if(!t){host.classList.remove("sf-entry-designer-view");host.innerHTML=`<div>No template selected.</div>`;return;}
@@ -52,7 +52,7 @@ async function renderEntry(t){
   host.classList.remove("sf-entry-designer-view");host.style.height="";
   host.innerHTML=manual.sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
 }
-function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
+function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;if(f.type==="RADIO"){d[f.key]=el.querySelector("input:checked")?.value||"";}else if(f.type==="CHECKBOX"&&(f.options||[]).length){d[f.key]=[...el.querySelectorAll("input:checked")].map(x=>x.value);}else d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
 let builderLayout={canvasHeight:900,items:[]},selectedBuilderItemId="",builderLayoutLoadedFor="";
 
@@ -107,6 +107,7 @@ function renderBuilder(){
     <div class="sf-builder-property-title"><strong>${esc(f.label)}</strong><span>${esc(f.type)}</span></div>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
     <select data-binding="${i}" title="Smart Review field">${bindings.map(([v,l])=>`<option value="${v}" ${(f.tripBinding||"")===v?"selected":""}>${l}</option>`).join("")}</select>
+    <div class="sf-control"><label>Trip #</label><input data-trip-index="${i}" type="number" min="0" step="1" value="${Number(f.tripIndex||0)}" placeholder="0"></div>
     <label class="sf-repeat-wrap"><input type="checkbox" data-repeat="${i}" ${f.repeat===true?"checked":""}> Repeat</label>
     <button class="sf-mini-delete" data-del="${i}" type="button">Delete</button>
   </div>`).join("");
@@ -149,13 +150,14 @@ document.getElementById("addFieldBtn").onclick=()=>{
   const label=document.getElementById("fieldLabel").value.trim();if(!label)return msg("Field label required.","err");
   let key=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${builderFields.length+1}`;let n=2,base=key;while(builderFields.some(f=>f.key===key))key=`${base}_${n++}`;
   const type=document.getElementById("fieldType").value;
-  builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});
+  builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",tripIndex:0,repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});
   document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";syncLayoutWithFields();renderBuilder();
 };
 document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){const i=Number(e.target.dataset.del),key=builderFields[i]?.key;builderFields.splice(i,1);builderLayout.items=builderLayout.items.filter(x=>String(x.fieldKey)!==String(key));builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
 document.getElementById("builderList").onchange=e=>{
   if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
-  if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value;if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v)f.tripBinding="";});builderFields[i].tripBinding=v;}
+  if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value,idx=Number(builderFields[i]?.tripIndex||0);if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v&&Number(f.tripIndex||0)===idx)f.tripBinding="";});builderFields[i].tripBinding=v;}
+  if(e.target.dataset.tripIndex!==undefined)builderFields[Number(e.target.dataset.tripIndex)].tripIndex=Math.max(0,Math.floor(Number(e.target.value||0)||0));
   if(e.target.dataset.repeat!==undefined)builderFields[Number(e.target.dataset.repeat)].repeat=e.target.checked;
   syncLayoutWithFields();renderBuilder();
 };
@@ -180,6 +182,19 @@ document.getElementById("saveBuilderBtn").onclick=async()=>{
     activeBuilderTemplate=finalTemplate;builderFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));
     if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(finalTemplate._id)){activeMapperTemplate=finalTemplate;mapperFields=JSON.parse(JSON.stringify(finalTemplate.fields||[]));}
     renderBuilder();syncSelects();msg("Form Builder layout saved.");
+  }catch(e){msg(e.message,"err");}
+};
+document.getElementById("deleteTemplateBtn").onclick=async()=>{
+  const t=activeBuilderTemplate||currentTemplate(document.getElementById("builderTemplate").value);
+  if(!t)return msg("Select a template first.","err");
+  if(!confirm(`Delete form "${t.name}"? Existing submitted forms stay saved.`))return;
+  try{
+    await api(`${API}/templates/${t._id}`,{method:"DELETE"});
+    templates=templates.filter(x=>String(x._id)!==String(t._id));
+    activeBuilderTemplate=null;builderFields=[];builderLayout={canvasHeight:900,items:[]};
+    activeMapperTemplate=null;mapperFields=[];
+    syncSelects();renderBuilder();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);
+    msg("Form deleted.");
   }catch(e){msg(e.message,"err");}
 };
 

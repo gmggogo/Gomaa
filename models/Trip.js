@@ -55,6 +55,17 @@ const tripSchema = new mongoose.Schema({
 
   tripNumber: { type: String },
 
+  smartFormSubmissionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SmartFormSubmission",
+    default: null,
+    index: true
+  },
+
+  smartFormBaseTripNumber: { type: String, default: "", index: true },
+  smartFormTripIndex: { type: Number, default: 0 },
+  smartFormTripLabel: { type: String, default: "" },
+
   /* =========================
      MULTI-TENANT OWNER
   ========================= */

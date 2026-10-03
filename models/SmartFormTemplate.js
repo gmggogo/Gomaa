@@ -25,6 +25,7 @@ const fieldSchema = new mongoose.Schema({
   widthPercent:{type:Number,default:50,min:10,max:100},
   order:{type:Number,default:0},
   tripBinding:{type:String,default:""},
+  tripIndex:{type:Number,default:0,min:0},
   sourceType:{type:String,enum:["MANUAL","TRIP_DATA","DRIVER_DATA","VEHICLE_DATA","SYSTEM_AFTER_TRIP"],default:"MANUAL"},
   repeat:{type:Boolean,default:false},
   mapping:{type:mappingSchema,default:()=>({})},
