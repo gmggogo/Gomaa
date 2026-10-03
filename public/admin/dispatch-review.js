@@ -5,6 +5,7 @@
    Passenger Status Column
    Shared Group Status Logic
    Dynamic Service Cards Same Row
+   Platform Admin Active Services Only
    Print + CSV + Excel Export
    Mobile Horizontal Cards
    ========================================================================== */
@@ -1442,15 +1443,9 @@ function serviceEnabled(s){
 }
 
 function serviceVisibleInDispatchReview(s){
-
-  const slot =
-    Number(s?.customSlot || 0);
-
-  if(slot >= 1 && slot <= 4){
-    return s?.customConfigured === true;
-  }
-
-  return true;
+  return Boolean(
+    getServiceCodeFromService(s)
+  );
 }
 
 function normalizeKnownCode(code){
@@ -2122,7 +2117,6 @@ async function loadServices(){
 
     services =
       extractServices(data)
-      .filter(serviceEnabled)
       .filter(serviceVisibleInDispatchReview);
 
     if(
