@@ -20,6 +20,7 @@ const { planSharedTrips, mergeSettings } = require("../services/sharedEngine");
 const { buildSmartFormTripPayload, smartFormSplitDateWindow, smartFormSplitDateKey } = require("../services/smartFormWorkflow");
 
 const router = express.Router();
+const SMART_FORMS_AI_FIX_VERSION = "dynamic-gemini-model-list-and-import-save-fix-2026-10-02-2227";
 
 /* =====================================================
    SMART FORM COORDINATE ENRICHMENT
@@ -1363,7 +1364,7 @@ router.post("/templates/:id/import-completed", completedFormUpload.single("file"
   try{
     const g=await gate(req,res); if(!g) return;
     if(!req.file?.buffer?.length) return res.status(400).json({success:false,message:"Completed form file is required"});
-    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId,active:true}).lean();
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId,active:true});
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
     if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
 
