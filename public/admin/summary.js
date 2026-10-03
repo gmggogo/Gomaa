@@ -500,9 +500,23 @@ function serviceEnabled(s){
   if(!s) return false;
   return (
     s.enabled === true ||
-    s.companyEnabled === true ||
-    s.reservedEnabled === true
+    s.active === true ||
+    s.isActive === true ||
+    s.platformEnabled === true ||
+    s.tenantEnabled === true
   );
+}
+
+function serviceVisibleInAdminSummary(s){
+
+  const slot =
+    Number(s?.customSlot || 0);
+
+  if(slot >= 1 && slot <= 4){
+    return s?.customConfigured === true;
+  }
+
+  return true;
 }
 
 function normalizeKnownCode(code){
@@ -754,6 +768,30 @@ function getServiceByTrip(t){
     ) ||
     null
   );
+}
+
+function activePlatformServiceCodes(){
+
+  return new Set(
+    services
+      .map(
+        getServiceCodeFromService
+      )
+      .filter(Boolean)
+  );
+}
+
+function tripUsesActivePlatformService(t){
+
+  const code =
+    getServiceCodeFromTrip(t);
+
+  if(!code){
+    return false;
+  }
+
+  return activePlatformServiceCodes()
+    .has(code);
 }
 
 
@@ -1516,27 +1554,33 @@ async function loadSummaryBundle(){
 
   try{
 
-    /*
-      ONE HTTP REQUEST ONLY.
-      Server returns:
-      - trips
-      - services
-      - facilities
-    */
-    const res =
-      await fetch(
-        API_URL,
-        {
-          headers:
-            token
-              ? {
-                  Authorization:
-                    "Bearer " +
-                    token
-                }
-              : {}
-        }
-      );
+    const headers =
+      token
+        ? {
+            Authorization:
+              "Bearer " +
+              token
+          }
+        : {};
+
+    const [
+      res,
+      servicesRes
+    ] =
+      await Promise.all([
+        fetch(
+          API_URL,
+          {
+            headers
+          }
+        ),
+        fetch(
+          SERVICES_URL,
+          {
+            headers
+          }
+        )
+      ]);
 
     if(!res.ok){
       throw new Error(
@@ -1546,6 +1590,20 @@ async function loadSummaryBundle(){
 
     const data =
       await res.json();
+
+    let platformServices =
+      [];
+
+    if(servicesRes.ok){
+
+      const serviceData =
+        await servicesRes.json();
+
+      platformServices =
+        extractServices(
+          serviceData
+        );
+    }
 
     const tripList =
       Array.isArray(data)
@@ -1596,16 +1654,22 @@ async function loadSummaryBundle(){
         return t;
       });
 
-    const serviceList =
+    const bundledServices =
       Array.isArray(data?.services)
         ? data.services
         : [];
 
     services =
-      serviceList
-        .filter(
-          serviceEnabled
-        );
+      (
+        platformServices.length
+          ? platformServices
+          : bundledServices.filter(
+              serviceEnabled
+            )
+      )
+      .filter(
+        serviceVisibleInAdminSummary
+      );
 
     if(
       activeService !== "ALL"
@@ -1615,12 +1679,6 @@ async function loadSummaryBundle(){
         services.some(
           s =>
             getServiceCodeFromService(s) ===
-            activeService
-        ) ||
-        allTrips.some(
-          trip =>
-            isClosedTrip(trip) &&
-            getServiceCodeFromTrip(trip) ===
             activeService
         );
 
@@ -1842,42 +1900,6 @@ function summaryServiceCatalog(){
     );
   });
 
-  allTrips.forEach(trip=>{
-
-    if(!isClosedTrip(trip)){
-      return;
-    }
-
-    const code =
-      getServiceCodeFromTrip(
-        trip
-      );
-
-    if(
-      !code ||
-      map.has(code)
-    ){
-      return;
-    }
-
-    map.set(
-      code,
-      {
-        code,
-        title:
-          getServiceTitleByTrip(
-            trip
-          ) ||
-          code,
-        historical:true,
-        serviceIdentity:
-          getServiceIdentityFromTrip(
-            trip
-          )
-      }
-    );
-  });
-
   return [
     {
       code:"ALL",
@@ -1950,12 +1972,8 @@ function buildDisplayItems(trips){
 
   trips.forEach(t=>{
 
-    /*
-      Summary is historical/financial. Never hide a closed trip only because
-      its custom service was renamed, disabled, or its Platform gate was later
-      closed.
-    */
     if(!isClosedTrip(t)) return;
+    if(!tripUsesActivePlatformService(t)) return;
 
     if(isSharedTrip(t)){
 
