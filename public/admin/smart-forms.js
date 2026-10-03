@@ -4,6 +4,7 @@
 // SMART_FORM_AI_LAYOUT_FROM_PDF_MAPPING_2026_10_03_0434
 // SMART_FORM_AI_REDRAW_NEW_MAPPINGS_2026_10_03_0450
 // SMART_FORM_DESIGNER_ALL_SOURCES_AND_FIRST_DRAG_2026_10_03_0503
+// SMART_FORM_AI_SEND_EVERY_SUPPORTED_PDF_PAGE_2026_10_03_0535
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -231,10 +232,10 @@ document.getElementById("deleteTemplateBtn").onclick=async()=>{
 
 async function canvasPageBlob(pageNo){
   if(!pdfDoc)throw new Error("Upload the official PDF first.");
-  const page=await pdfDoc.getPage(pageNo),viewport=page.getViewport({scale:1.45});
+  const page=await pdfDoc.getPage(pageNo),viewport=page.getViewport({scale:1.65});
   const canvas=document.createElement("canvas");canvas.width=viewport.width;canvas.height=viewport.height;
   await page.render({canvasContext:canvas.getContext("2d"),viewport}).promise;
-  return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not render PDF page")),"image/jpeg",0.78));
+  return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Could not render PDF page")),"image/jpeg",0.88));
 }
 async function aiDetectFields(){
   if(!activeBuilderTemplate)return msg("Select a template first.","err");
@@ -242,8 +243,10 @@ async function aiDetectFields(){
   if(!mapperTemplate?.originalPdf?.hasPdf)return msg("Upload the official PDF in PDF Map first.","err");
   const btn=document.getElementById("aiDetectBtn");btn.classList.add("sf-ai-busy");btn.textContent="✦ AI analyzing PDF...";
   try{
-    await loadPdf();const fd=new FormData();
-    for(let n=1;n<=Math.min(pdfPageCount,8);n++){const blob=await canvasPageBlob(n);fd.append("pages",blob,`page-${n}.jpg`);}
+    await loadPdf();
+    if(pdfPageCount>12)throw new Error("AI detection supports up to 12 PDF pages at a time. Split this document and use separate templates.");
+    const fd=new FormData();
+    for(let n=1;n<=pdfPageCount;n++){const blob=await canvasPageBlob(n);fd.append("pages",blob,`page-${n}.jpg`);}
     const d=await api(`${API}/templates/${activeBuilderTemplate._id}/ai-detect`,{method:"POST",body:fd});
     const i=templates.findIndex(x=>String(x._id)===String(d.template._id));if(i>=0)templates[i]=d.template;
     activeBuilderTemplate=d.template;builderFields=JSON.parse(JSON.stringify(d.template.fields||[]));activeMapperTemplate=d.template;mapperFields=JSON.parse(JSON.stringify(d.template.fields||[]));
@@ -255,7 +258,9 @@ async function aiDetectFields(){
     await renderPdfPage();
     builderLayout=builderLayoutFromPdfMappings(builderFields);
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
-    renderBuilder();renderMapFieldList();msg(`AI detected ${builderFields.length} fields. Review layout, sources and PDF positions, then save.`);
+    renderBuilder();renderMapFieldList();
+    const mapped=mapperFields.reduce((sum,f)=>sum+fieldMaps(f).length,0);
+    msg(`AI detected ${builderFields.length} fields across ${pdfPageCount} pages; ${mapped} have usable PDF positions. Review the full list and save.`);
   }catch(e){msg(e.message,"err");}
   finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
 }

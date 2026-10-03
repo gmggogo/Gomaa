@@ -3,6 +3,7 @@ const express = require("express");
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_AI_SELECTS_AND_FULL_FIELD_DETECTION_2026_10_03_0412
 // SMART_FORM_AI_LAYOUT_FROM_PDF_AND_NO_FIELD_MERGE_2026_10_03_0434
+// SMART_FORM_AI_PROCESS_UP_TO_12_PAGES_FULL_FIELD_RECALL_2026_10_03_0535
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
@@ -400,7 +401,7 @@ const upload = multer({
 
 const aiUpload = multer({
   storage:multer.memoryStorage(),
-  limits:{fileSize:4*1024*1024,files:8},
+  limits:{fileSize:2*1024*1024,files:12},
   fileFilter(req,file,cb){const ok=String(file?.mimetype||"").startsWith("image/");cb(ok?null:new Error("Only page images are allowed"),ok);}
 });
 
@@ -585,10 +586,13 @@ function normalizeFields(fields){
 function smartFormAiMapping(field,pageCount){
   const numeric=value=>(typeof value==="number" || (typeof value==="string" && value.trim()!=="")) && Number.isFinite(Number(value));
   const values=[field.page,field.xPercent,field.yPercent,field.widthMapPercent,field.heightMapPercent];
-  const [page,x,y,w,h]=values.map(Number);
+  const [page,x,y,requestedW,requestedH]=values.map(Number);
   const valid=values.every(numeric) && Number.isInteger(page) && page>=1 && page<=pageCount &&
-    x>=0 && y>=0 && w>0 && h>0 && x+w<=100 && y+h<=100;
+    x>=0 && x<100 && y>=0 && y<100 && requestedW>0 && requestedH>0;
   // Missing or out-of-page AI coordinates must not become fabricated mapped boxes.
+  // A rectangle may extend slightly past the paper edge; clip its size, preserving its detected top-left.
+  const w=valid?Math.min(requestedW,100-x):20;
+  const h=valid?Math.min(requestedH,100-y):4;
   return valid ? {mapped:true,page,xPercent:x,yPercent:y,widthPercent:w,heightPercent:h,fontSize:10,textAlign:"LEFT"} :
     {mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:4,fontSize:10,textAlign:"LEFT"};
 }
@@ -880,7 +884,7 @@ router.put("/templates/:id/mapping", async (req,res)=>{
   }catch(err){res.status(500).json({success:false,message:"Failed to save mapping"});}
 });
 
-router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,res)=>{
+router.post("/templates/:id/ai-detect", aiUpload.array("pages",12), async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
     const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
@@ -889,7 +893,8 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
     if(!pages.length) return res.status(400).json({success:false,message:"PDF page images are required"});
     if(!process.env.GEMINI_API_KEY) return res.status(503).json({success:false,message:"GEMINI_API_KEY is not configured on the server"});
 
-    const prompt=`Analyze this official transportation form. Detect EVERY visible field a user/system could fill in, including blank lines, boxes, dropdown-like choices, checkboxes, radio choices, date/time fields, addresses, phone/member fields, authorization fields, and signature areas. Do not stop early and do not omit lower-page fields.
+    const prompt=`Analyze EVERY supplied page of this official transportation form. Return EVERY visible fillable field on EVERY page, including all repeated trip rows and all boxes in every row. Do not stop after the first group or first 20 fields. The expected form may contain more than 50 fields. Count and include every distinct box, line, checkbox, and choice separately. Include page number for each.
+Detect blank lines, boxes, dropdown-like choices, checkboxes, radio choices, date/time fields, addresses, phone/member fields, authorization fields, and signature areas. Do not stop early and do not omit lower-page fields.
 Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent,options,tripBinding,tripIndex.
 type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE.
 Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, trip type choices, service/vehicle choices, payor choices, or multiple visible options; put the visible option labels in options.
@@ -924,7 +929,7 @@ Preserve visual reading order and current form design; detection must not redesi
         contents:[{role:"user",parts}],
         generationConfig:{
           responseMimeType:"application/json",
-          maxOutputTokens:16384
+          maxOutputTokens:32768
         }
       },
       "Smart Forms AI detect"
