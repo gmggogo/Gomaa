@@ -1,4 +1,5 @@
 const express = require("express");
+// SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
@@ -305,9 +306,10 @@ const aiUpload = multer({
 });
 
 const clean = v => String(v ?? "").trim();
+const smartFormGeminiModelName = v => clean(v).replace(/^models\//i,"");
 const smartFormGeminiModels = (...values) => {
-  const fallback = ["gemini-2.0-flash-001", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
-  return [...new Set([...values, ...fallback].map(clean).filter(Boolean))];
+  const fallback = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-2.0-flash-lite"];
+  return [...new Set([...values, ...fallback].map(smartFormGeminiModelName).filter(Boolean))];
 };
 const smartFormGeminiCanFallback = (status,message) => {
   const text = String(message || "").toLowerCase();
@@ -316,9 +318,35 @@ const smartFormGeminiCanFallback = (status,message) => {
     text.includes("not supported") ||
     (text.includes("model") && text.includes("generatecontent"));
 };
+async function smartFormGeminiListGenerateModels(){
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models",{
+    method:"GET",
+    headers:{"x-goog-api-key":process.env.GEMINI_API_KEY}
+  });
+  let raw = {};
+  try{raw=await response.json();}catch(_){raw={};}
+  if(!response.ok) throw new Error(clean(raw?.error?.message)||"Gemini model list failed");
+  return (Array.isArray(raw?.models)?raw.models:[])
+    .filter(model=>(model?.supportedGenerationMethods||[]).includes("generateContent"))
+    .map(model=>smartFormGeminiModelName(model?.name))
+    .filter(Boolean)
+    .sort((a,b)=>{
+      const score = name => {
+        const value = String(name).toLowerCase();
+        if(value.includes("flash-lite")) return 0;
+        if(value.includes("flash")) return 1;
+        if(value.includes("pro")) return 2;
+        return 3;
+      };
+      return score(a)-score(b) || a.localeCompare(b);
+    });
+}
 async function smartFormGeminiGenerateContent(models,requestBody,label){
   let lastError = null;
-  for(const model of smartFormGeminiModels(...models)){
+  let available = [];
+  try{available=await smartFormGeminiListGenerateModels();}
+  catch(err){console.error(`${label || "Gemini"} model list failed:`,err.message);}
+  for(const model of [...new Set([...models.map(smartFormGeminiModelName).filter(Boolean), ...available, ...smartFormGeminiModels()])]){
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
