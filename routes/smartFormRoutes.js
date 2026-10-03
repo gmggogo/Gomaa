@@ -305,6 +305,43 @@ const aiUpload = multer({
 });
 
 const clean = v => String(v ?? "").trim();
+const smartFormGeminiModels = (...values) => {
+  const fallback = ["gemini-2.0-flash-001", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+  return [...new Set([...values, ...fallback].map(clean).filter(Boolean))];
+};
+const smartFormGeminiCanFallback = (status,message) => {
+  const text = String(message || "").toLowerCase();
+  return [400,404,429,500,502,503,504].includes(Number(status)) ||
+    text.includes("not found") ||
+    text.includes("not supported") ||
+    (text.includes("model") && text.includes("generatecontent"));
+};
+async function smartFormGeminiGenerateContent(models,requestBody,label){
+  let lastError = null;
+  for(const model of smartFormGeminiModels(...models)){
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method:"POST",
+        headers:{
+          "x-goog-api-key":process.env.GEMINI_API_KEY,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify(requestBody)
+      }
+    );
+    let raw = {};
+    try{raw=await response.json();}catch(_){raw={};}
+    if(response.ok) return {response,raw,model};
+
+    const message = clean(raw?.error?.message) || `${label || "Gemini"} request failed`;
+    lastError = new Error(message);
+    lastError.status = response.status;
+    console.error(`${label || "Gemini"} model failed:`,model,message);
+    if(!smartFormGeminiCanFallback(response.status,message)) throw lastError;
+  }
+  throw lastError || new Error(`${label || "Gemini"} request failed`);
+}
 const allowedRoles = new Set(["SUPER_ADMIN","ADMIN","DISPATCHER","PLATFORM_ADMIN"]);
 
 function auth(req,res,next){
@@ -626,29 +663,18 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",8), async (req,re
       });
     }
 
-    const geminiModel=clean(process.env.SMART_FORMS_GEMINI_MODEL)||"gemini-3.8-flash";
-    const r=await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,
+    const aiAttempt=await smartFormGeminiGenerateContent(
+      [process.env.SMART_FORMS_GEMINI_MODEL],
       {
-        method:"POST",
-        headers:{
-          "x-goog-api-key":process.env.GEMINI_API_KEY,
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          contents:[{role:"user",parts}],
-          generationConfig:{
-            responseMimeType:"application/json",
-            maxOutputTokens:8192
-          }
-        })
-      }
+        contents:[{role:"user",parts}],
+        generationConfig:{
+          responseMimeType:"application/json",
+          maxOutputTokens:8192
+        }
+      },
+      "Smart Forms AI detect"
     );
-
-    const raw=await r.json();
-    if(!r.ok){
-      throw new Error(raw?.error?.message||"Gemini AI request failed");
-    }
+    const raw=aiAttempt.raw;
 
     const text=(raw?.candidates||[])
       .flatMap(c=>c?.content?.parts||[])
@@ -1339,11 +1365,9 @@ If incompatible return:
 {"matchStatus":"REJECT","reason":"short factual reason","formData":{},"extraFields":[]}
 Use EXACT configured keys for formData. extraFields is only for additional fields that are not already configured.`;
 
-    // Completed-form extraction uses its own low-cost Gemini model settings.
+    // Completed-form extraction uses its own Gemini model settings.
     // This deliberately does not inherit SMART_FORMS_GEMINI_MODEL, so a model
-    // selected for PDF field detection cannot accidentally make imports costly.
-    const primaryModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_MODEL)||"gemini-3.5-flash-lite";
-    const fallbackModel=clean(process.env.SMART_FORMS_IMPORT_GEMINI_FALLBACK_MODEL)||"gemini-3.8-flash";
+    // selected for PDF field detection cannot accidentally affect imports.
     const requestBody={
       contents:[{role:"user",parts:[
         {text:prompt},
@@ -1352,35 +1376,20 @@ Use EXACT configured keys for formData. extraFields is only for additional field
       generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192}
     };
 
-    async function requestExtraction(model){
-      const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{
-        method:"POST",
-        headers:{"x-goog-api-key":process.env.GEMINI_API_KEY,"Content-Type":"application/json"},
-        body:JSON.stringify(requestBody)
-      });
-      let raw={};
-      try{raw=await response.json();}catch(_){raw={};}
-      return {response,raw};
-    }
-
-    let attempt=await requestExtraction(primaryModel);
-    if(!attempt.response.ok && [404,429,500,502,503,504].includes(attempt.response.status)){
-      await new Promise(resolve=>setTimeout(resolve,700));
-      attempt=await requestExtraction(primaryModel);
-    }
-    if(!attempt.response.ok && [404,429,500,502,503,504].includes(attempt.response.status) && fallbackModel && fallbackModel!==primaryModel){
-      attempt=await requestExtraction(fallbackModel);
-    }
-
-    const r=attempt.response;
-    const raw=attempt.raw;
-    if(!r.ok){
-      const providerMessage=clean(raw?.error?.message);
-      if([404,429,500,502,503,504].includes(r.status)){
+    let attempt;
+    try{
+      attempt=await smartFormGeminiGenerateContent(
+        [process.env.SMART_FORMS_IMPORT_GEMINI_MODEL,process.env.SMART_FORMS_IMPORT_GEMINI_FALLBACK_MODEL],
+        requestBody,
+        "Smart Forms import"
+      );
+    }catch(err){
+      if(smartFormGeminiCanFallback(err?.status,err?.message)){
         return res.status(503).json({success:false,code:"SMART_FORM_AI_TEMPORARILY_UNAVAILABLE",message:"Form reader is temporarily busy. Please try the upload again."});
       }
-      throw new Error(providerMessage||"Form extraction failed");
+      throw err;
     }
+    const raw=attempt.raw;
     const txt=(raw?.candidates||[]).flatMap(c=>c?.content?.parts||[]).map(x=>x?.text||"").join("\n").replace(/^```(?:json)?/i,"").replace(/```$/i,"").trim();
     const parsed=JSON.parse(txt||"{}");
 
