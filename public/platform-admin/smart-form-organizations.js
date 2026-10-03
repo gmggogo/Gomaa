@@ -18,7 +18,7 @@ async function loadOrganizations(){
 async function loadTemplates(){
   templates=[];
   for(const org of organizations.filter(o=>o.active!==false)){
-    const d=await api(`${ORG_API}/${encodeURIComponent(org._id)}/templates`);
+    const d=await api(`${ORG_API}/${encodeURIComponent(org._id)}/templates?includeInactive=true`);
     for(const t of (d.templates||[]))templates.push({...t,organizationName:org.name});
   }
   document.getElementById("templateBody").innerHTML=templates.length?templates.map(t=>`<tr><td>${esc(t.name)}</td><td>${esc(t.organizationName)}</td><td>${t.active!==false?"ACTIVE":"DISABLED"}</td><td><button class="${t.active!==false?"danger":"primary"}" data-template-toggle-id="${esc(t._id)}" data-org-id="${esc(t.organizationId)}" data-template-active="${t.active!==false?"1":"0"}">${t.active!==false?"Disable":"Enable"}</button> <button class="danger" data-template-delete-id="${esc(t._id)}" data-org-id="${esc(t.organizationId)}">Delete</button></td></tr>`).join(""):`<tr><td colspan="4">No paid templates.</td></tr>`;
