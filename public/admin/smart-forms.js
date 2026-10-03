@@ -724,9 +724,13 @@ function selectEntryTemplate(id){
 function renderTemplateSidebar(){
   const host=document.getElementById("sfTemplateList");if(!host)return;
   const active=String(document.getElementById("entryTemplate")?.value||"");
-  const organizationId=String(document.getElementById("entryOrganization")?.value||"");
-  const rows=templates.filter(t=>String(t.organizationId||"")===organizationId);
-  host.innerHTML=rows.length?rows.map(t=>`<button type="button" class="sf-template-item ${String(t._id)===active?"active":""}" data-template-id="${esc(t._id)}"><span>${esc(t.name)}</span></button>`).join(""):`<div class="sf-empty-side">No templates</div>`;
+  const orgNameById=new Map(organizations.map(o=>[String(o._id),o.name||"Organization"]));
+  const rows=[...templates].sort((a,b)=>{
+    const ao=String(orgNameById.get(String(a.organizationId))||"");
+    const bo=String(orgNameById.get(String(b.organizationId))||"");
+    return ao.localeCompare(bo)||String(a.name||"").localeCompare(String(b.name||""));
+  });
+  host.innerHTML=rows.length?rows.map(t=>`<button type="button" class="sf-template-item ${String(t._id)===active?"active":""}" data-template-id="${esc(t._id)}"><span>${esc(t.name)}</span><small>${esc(orgNameById.get(String(t.organizationId))||"")}</small></button>`).join(""):`<div class="sf-empty-side">No templates</div>`;
   host.querySelectorAll("[data-template-id]").forEach(b=>b.onclick=()=>selectEntryTemplate(b.dataset.templateId));
 }
 const companyNameEl=document.getElementById("sfCompanyName");if(companyNameEl)companyNameEl.textContent=companyDisplayName();
