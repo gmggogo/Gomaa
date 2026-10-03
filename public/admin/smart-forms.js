@@ -1,4 +1,5 @@
 // GH Mobility Smart Forms - mapping fix 2026-09-29
+// SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -187,14 +188,16 @@ document.getElementById("saveBuilderBtn").onclick=async()=>{
 document.getElementById("deleteTemplateBtn").onclick=async()=>{
   const t=activeBuilderTemplate||currentTemplate(document.getElementById("builderTemplate").value);
   if(!t)return msg("Select a template first.","err");
-  if(!confirm(`Delete form "${t.name}"? Existing submitted forms stay saved.`))return;
+  if(!confirm(`Delete the form fields for "${t.name}"? The template, organization and uploaded PDF stay saved.`))return;
   try{
-    await api(`${API}/templates/${t._id}`,{method:"DELETE"});
-    templates=templates.filter(x=>String(x._id)!==String(t._id));
-    activeBuilderTemplate=null;builderFields=[];builderLayout={canvasHeight:900,items:[]};
-    activeMapperTemplate=null;mapperFields=[];
-    syncSelects();renderBuilder();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);
-    msg("Form deleted.");
+    const d=await api(`${API}/templates/${t._id}`,{method:"DELETE"});
+    const finalTemplate=d.template||{...t,fields:[]};
+    const index=templates.findIndex(x=>String(x._id)===String(t._id));
+    if(index>=0)templates[index]=finalTemplate;
+    activeBuilderTemplate=finalTemplate;builderFields=[];builderLayout={canvasHeight:900,items:[]};
+    if(activeMapperTemplate&&String(activeMapperTemplate._id)===String(t._id)){activeMapperTemplate=finalTemplate;mapperFields=[];}
+    syncSelects();renderBuilder();renderTemplateSidebar();renderEntry(finalTemplate);
+    msg("Form fields deleted. Template is still available.");
   }catch(e){msg(e.message,"err");}
 };
 

@@ -1,5 +1,6 @@
 const express = require("express");
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
+// SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const mongoose = require("mongoose");
@@ -698,21 +699,46 @@ router.post("/templates", async (req,res)=>{
 
 router.delete("/templates/:id", async (req,res)=>{
   try{
-    const g=await gate(req,res); if(!g) return;
     if(!["SUPER_ADMIN","ADMIN","PLATFORM_ADMIN"].includes(req.authUser?.role)){
-      return res.status(403).json({success:false,message:"Template delete is admin only"});
+      return res.status(403).json({success:false,message:"Form reset is admin only"});
     }
-    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId:g.tenantId});
+    const tenantId=tenantIdFor(req);
+    if(!mongoose.Types.ObjectId.isValid(tenantId)){
+      return res.status(400).json({success:false,message:"Valid tenantId is required"});
+    }
+    const tenant=await Tenant.findById(tenantId).select("_id enabled").lean();
+    if(!tenant) return res.status(404).json({success:false,message:"Company not found"});
+    if(tenant.enabled!==true) return res.status(403).json({success:false,message:"Company is disabled"});
+
+    const t=await SmartFormTemplate.findOne({_id:req.params.id,tenantId});
     if(!t) return res.status(404).json({success:false,message:"Template not found"});
-    t.active=false;
+
+    /*
+      Delete Form means reset the builder form only.
+      Keep the template active/visible and keep its organization/PDF.
+      This also protects deployments that still have a cached frontend
+      calling DELETE /templates/:id from disabling the whole template.
+    */
+    t.active=true;
+    t.fields=[];
     t.updatedBy=actor(req);
     await t.save();
-    res.json({success:true,template:sanitizeTemplate(t)});
+
+    await SmartFormLayout.findOneAndUpdate(
+      {tenantId,templateId:t._id},
+      {$set:{canvasHeight:900,items:[],updatedBy:actor(req)}},
+      {upsert:true,setDefaultsOnInsert:true}
+    );
+
+    res.json({
+      success:true,
+      mode:"FORM_RESET_ONLY_TEMPLATE_STAYS_ACTIVE",
+      template:sanitizeTemplate(t)
+    });
   }catch(err){
-    res.status(500).json({success:false,message:err?.message||"Failed to delete template"});
+    res.status(500).json({success:false,message:err?.message||"Failed to reset form"});
   }
 });
-
 
 router.get("/templates/:id/layout", async (req,res)=>{
   try{
