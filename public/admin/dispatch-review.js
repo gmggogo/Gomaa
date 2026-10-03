@@ -66,6 +66,7 @@ const reviewContent = document.getElementById("reviewContent");
     source.innerHTML = `
       <option value="ALL">All Bookings</option>
       <option value="GQ">Individual</option>
+      <option value="SMART_FORM">Smart Form</option>
       <option value="FACILITY">Facilities</option>
       <option value="RV">Reserved</option>
     `;
@@ -1433,9 +1434,23 @@ function serviceEnabled(s){
   if(!s) return false;
   return (
     s.enabled === true ||
-    s.companyEnabled === true ||
-    s.reservedEnabled === true
+    s.active === true ||
+    s.isActive === true ||
+    s.platformEnabled === true ||
+    s.tenantEnabled === true
   );
+}
+
+function serviceVisibleInDispatchReview(s){
+
+  const slot =
+    Number(s?.customSlot || 0);
+
+  if(slot >= 1 && slot <= 4){
+    return s?.customConfigured === true;
+  }
+
+  return true;
 }
 
 function normalizeKnownCode(code){
@@ -1645,6 +1660,30 @@ function getServiceTitleByTrip(t){
     : code;
 }
 
+function activePlatformServiceCodes(){
+
+  return new Set(
+    services
+      .map(
+        getServiceCodeFromService
+      )
+      .filter(Boolean)
+  );
+}
+
+function tripUsesActivePlatformService(t){
+
+  const code =
+    getServiceCodeFromTrip(t);
+
+  if(!code){
+    return false;
+  }
+
+  return activePlatformServiceCodes()
+    .has(code);
+}
+
 
 function tripMatchesService(t,code){
   if(code === "ALL") return true;
@@ -1672,10 +1711,22 @@ function getSourceCode(t){
     t?.reservationType,
     t?.sourceType,
     t?.tripNumber,
+    t?.smartFormId ? "smart form" : "",
+    t?.smartFormTemplateId ? "smart form" : "",
+    t?.smartFormSubmissionId ? "smart form" : "",
+    t?.isSmartFormTrip ? "smart form" : "",
     t?.isReserved ? "reserved" : "",
     t?.reserved ? "reserved" : "",
     t?.reservationId ? "reserved" : ""
   ].join(" ").toLowerCase();
+
+  if(
+    raw.includes("smart form") ||
+    raw.includes("smartform") ||
+    raw.includes("smart_form")
+  ){
+    return "SMART_FORM";
+  }
 
   if(
     raw.includes("reserved") ||
@@ -1714,6 +1765,10 @@ function getSourceCode(t){
 function sourceHTML(t){
   const code = getSourceCode(t);
 
+  if(code === "SMART_FORM"){
+    return `<span class="source-pill gq">Smart Form</span>`;
+  }
+
   if(code === "BROKER"){
     return `<span class="source-pill broker">Broker</span>`;
   }
@@ -1732,6 +1787,7 @@ function sourceHTML(t){
 function sourceLabel(t){
   const code = getSourceCode(t);
 
+  if(code === "SMART_FORM") return "Smart Form";
   if(code === "BROKER") return "Broker";
   if(code === "RV") return "Reserved";
   if(code === "FACILITY") return "Facility";
@@ -2066,7 +2122,8 @@ async function loadServices(){
 
     services =
       extractServices(data)
-      .filter(serviceEnabled);
+      .filter(serviceEnabled)
+      .filter(serviceVisibleInDispatchReview);
 
     if(
       activeService !== "ALL" &&
@@ -2227,12 +2284,8 @@ function buildDisplayItems(trips){
 
   trips.forEach(t=>{
 
-    /*
-      Review is historical. A trip must remain visible even when its
-      custom service is later renamed, disabled, or its Platform gate
-      is closed.
-    */
     if(!isClosedTrip(t)) return;
+    if(!tripUsesActivePlatformService(t)) return;
 
     if(isSharedTrip(t)){
 
@@ -2329,6 +2382,17 @@ function filterItems(items,options = {}){
           : item.group[0];
 
       return getSourceCode(t) === "BROKER";
+    });
+  }
+
+  if(activeSource === "SMART_FORM"){
+    out = out.filter(item=>{
+      const t =
+        item.kind === "trip"
+          ? item.trip
+          : item.group[0];
+
+      return getSourceCode(t) === "SMART_FORM";
     });
   }
 
@@ -2470,6 +2534,7 @@ function createStats(){
     notCompleted:0,
     facility:0,
     gq:0,
+    smartForm:0,
     reserved:0,
     broker:0,
     shared:0
@@ -2506,6 +2571,8 @@ function countItem(stats,item){
 
   if(src === "BROKER"){
     stats.broker++;
+  }else if(src === "SMART_FORM"){
+    stats.smartForm++;
   }else if(src === "RV"){
     stats.reserved++;
   }else if(src === "FACILITY"){
@@ -2584,6 +2651,7 @@ function renderStats(){
     <div class="stat-card notcompleted"><div class="stat-number">${stats.notCompleted}</div><div class="stat-label">Not Completed</div></div>
     <div class="stat-card facility"><div class="stat-number">${stats.facility}</div><div class="stat-label">Facilities</div></div>
     <div class="stat-card gq"><div class="stat-number">${stats.gq}</div><div class="stat-label">Individual</div></div>
+    <div class="stat-card gq"><div class="stat-number">${stats.smartForm}</div><div class="stat-label">Smart Form</div></div>
     <div class="stat-card reserved"><div class="stat-number">${stats.reserved}</div><div class="stat-label">Reserved</div></div>
     ${
       brokerFeatureEnabled
@@ -2641,37 +2709,6 @@ function reviewServiceCards(){
     );
   });
 
-  /*
-    Keep a card for historical services even when the Platform gate or
-    current Service Management configuration no longer exposes them.
-  */
-  allTrips.forEach(trip=>{
-
-    const code =
-      getServiceCodeFromTrip(
-        trip
-      );
-
-    if(
-      !code ||
-      map.has(code)
-    ){
-      return;
-    }
-
-    map.set(
-      code,
-      {
-        code,
-        title:
-          getServiceTitleByTrip(
-            trip
-          ) ||
-          code
-      }
-    );
-  });
-
   return [
     {
       code:"ALL",
@@ -2702,6 +2739,7 @@ function renderServiceCards(){
         <div class="service-card-title">${safe(card.title)}</div>
         <div class="service-line"><span>Total Closed</span><span>${c.total}</span></div>
         <div class="service-line"><span>Individual</span><span>${c.gq}</span></div>
+        <div class="service-line"><span>Smart Form</span><span>${c.smartForm}</span></div>
         <div class="service-line"><span>Facilities</span><span>${c.facility}</span></div>
         <div class="service-line"><span>Reserved</span><span>${c.reserved}</span></div>
         ${
