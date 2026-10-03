@@ -3,6 +3,7 @@
 // SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
 // SMART_FORM_AI_LAYOUT_FROM_PDF_MAPPING_2026_10_03_0434
 // SMART_FORM_AI_REDRAW_NEW_MAPPINGS_2026_10_03_0450
+// SMART_FORM_DESIGNER_ALL_SOURCES_AND_FIRST_DRAG_2026_10_03_0503
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -61,7 +62,7 @@ async function saveEntry(status){const t=currentTemplate(document.getElementById
 let builderLayout={canvasHeight:900,items:[]},selectedBuilderItemId="",builderLayoutLoadedFor="";
 
 function defaultBuilderLayout(fields){
-  const manual=(fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
+  const manual=fields||[];
   const items=[];let x=2,y=18,rowH=92;
   for(const f of manual){
     const w=Math.max(12,Math.min(96,Number(f.widthPercent||50)));
@@ -75,7 +76,6 @@ function builderLayoutFromPdfMappings(fields){
   const items=[];
   const pageHeight=1120,pageGap=90;
   for(const f of (fields||[])){
-    if((f.sourceType||"MANUAL")!=="MANUAL")continue;
     const m=(Array.isArray(f.mappings)&&f.mappings.length?f.mappings[0]:f.mapping)||{};
     if(m.mapped!==true)continue;
     const page=Math.max(1,Number(m.page||1));
@@ -112,7 +112,7 @@ function syncLayoutWithFields(){
   const valid=new Set(builderFields.map(f=>String(f.key)));
   builderLayout.items=(builderLayout.items||[]).filter(i=>i.kind!=="FIELD"||valid.has(String(i.fieldKey)));
   const existing=new Set(builderLayout.items.filter(i=>i.kind==="FIELD").map(i=>String(i.fieldKey)));
-  const missing=builderFields.filter(f=>(f.sourceType||"MANUAL")==="MANUAL"&&!existing.has(String(f.key)));
+  const missing=builderFields.filter(f=>!existing.has(String(f.key)));
   if(missing.length){
     const generated=defaultBuilderLayout(missing);
     let y=Math.max(18,...builderLayout.items.map(i=>Number(i.y||0)+Number(i.h||90)+12));
@@ -155,8 +155,9 @@ function bindDesignerInteractions(){
     el.addEventListener("pointerdown",ev=>{
       if(ev.target.closest("input,select,textarea,button")&&!ev.target.classList.contains("sf-design-resize"))return;
       ev.preventDefault();
-      selectedBuilderItemId=el.dataset.layoutId;renderBuilder();
-      const target=document.querySelector(`[data-layout-id="${CSS.escape(selectedBuilderItemId)}"]`);if(!target)return;
+      selectedBuilderItemId=el.dataset.layoutId;
+      canvas.querySelectorAll(".sf-design-item").forEach(node=>node.classList.toggle("selected",node===el));
+      const target=el;
       const item=builderLayout.items.find(i=>i.id===selectedBuilderItemId);if(!item)return;
       const rect=canvas.getBoundingClientRect(),sx=ev.clientX,sy=ev.clientY,ox=Number(item.x||0),oy=Number(item.y||0),ow=Number(item.w||30),oh=Number(item.h||90),resize=ev.target.classList.contains("sf-design-resize");
       target.setPointerCapture?.(ev.pointerId);
@@ -166,8 +167,8 @@ function bindDesignerInteractions(){
         else{item.x=Math.max(0,Math.min(100-ow,ox+dx));item.y=Math.max(0,Math.min(Number(builderLayout.canvasHeight||900)-oh,oy+dy));}
         target.style.left=`${item.x}%`;target.style.top=`${item.y}px`;target.style.width=`${item.w}%`;target.style.height=`${item.h}px`;
       };
-      const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);};
-      window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
+      const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);window.removeEventListener("pointercancel",up);};
+      window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);window.addEventListener("pointercancel",up);
     });
   });
 }
@@ -513,7 +514,7 @@ function renderBoxes(){
       b.addEventListener("pointerdown",e=>{
         if(e.target.closest(".sf-map-delete"))return;
         e.preventDefault();e.stopPropagation();selectedMapFieldId=f._id;
-        if(!b.classList.contains("active")){renderMapFieldList();renderBoxes();return;}
+        stage.querySelectorAll(".sf-map-box").forEach(node=>node.classList.toggle("active",node===b));
         const dir=e.target.closest(".sf-resize-handle")?.dataset.dir||"move",rect=stage.getBoundingClientRect(),startX=e.clientX,startY=e.clientY;
         const start={x:Number(m.xPercent)||0,y:Number(m.yPercent)||0,w:Number(m.widthPercent)||20,h:Number(m.heightPercent)||4};
         const minW=Math.max(1.5,1000/Math.max(rect.width,1)),minH=Math.max(1.2,700/Math.max(rect.height,1));b.setPointerCapture?.(e.pointerId);

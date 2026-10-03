@@ -582,6 +582,17 @@ function normalizeFields(fields){
   });
 }
 
+function smartFormAiMapping(field,pageCount){
+  const numeric=value=>(typeof value==="number" || (typeof value==="string" && value.trim()!=="")) && Number.isFinite(Number(value));
+  const values=[field.page,field.xPercent,field.yPercent,field.widthMapPercent,field.heightMapPercent];
+  const [page,x,y,w,h]=values.map(Number);
+  const valid=values.every(numeric) && Number.isInteger(page) && page>=1 && page<=pageCount &&
+    x>=0 && y>=0 && w>0 && h>0 && x+w<=100 && y+h<=100;
+  // Missing or out-of-page AI coordinates must not become fabricated mapped boxes.
+  return valid ? {mapped:true,page,xPercent:x,yPercent:y,widthPercent:w,heightPercent:h,fontSize:10,textAlign:"LEFT"} :
+    {mapped:false,page:1,xPercent:0,yPercent:0,widthPercent:20,heightPercent:4,fontSize:10,textAlign:"LEFT"};
+}
+
 function smartFormAiFieldType(field){
   const incoming=clean(field?.type || "TEXT").toUpperCase();
   if(["NUMBER","PHONE","ADDRESS","DATE","TIME","SELECT","RADIO","CHECKBOX","TEXTAREA","SIGNATURE"].includes(incoming)){
@@ -890,7 +901,10 @@ tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PI
 tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0.
 IMPORTANT: repeated trip blocks are separate trips, not duplicate occurrences. For Pickup 1 and Pickup 2, create two separate fields with tripIndex 1 and 2. Do NOT use repeat=true to merge different trips.
 Use repeat=true only when the exact same logical field appears in multiple printed places for the same trip/person; then return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.
-Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100).`;
+Use normalized percentages 0-100 for PDF coordinates, measured from the TOP LEFT of each complete page image (not bottom-left PDF coordinates and not 0-1000).
+xPercent and yPercent are the top-left of the blank input area, excluding its printed label. widthMapPercent and heightMapPercent are that input area's width and height, not the lower-right coordinates. The whole rectangle must fit inside the page.
+Return exact visible input rectangles. If you cannot locate a field reliably, leave its coordinates null; never invent a default rectangle.
+Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100).`;
 
     const parts=[{text:prompt}];
     for(let i=0;i<pages.length;i++){
@@ -934,7 +948,7 @@ Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading or
       const baseKey=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
       const key=aiTripIndex>0 ? `${baseKey}_trip_${aiTripIndex}` : baseKey;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
-      const maps=occ.map(o=>({mapped:true,page:Number(o.page||1),xPercent:Number(o.xPercent||0),yPercent:Number(o.yPercent||0),widthPercent:Number(o.widthMapPercent||20),heightPercent:Number(o.heightMapPercent||4),fontSize:10,textAlign:"LEFT"}));
+      const maps=occ.map(o=>smartFormAiMapping(o,pages.length)).filter(m=>m.mapped);
       const detectedType=smartFormAiFinalFieldType(a);
       const detectedOptions=Array.isArray(a.options)?a.options.map(clean).filter(Boolean):[];
       const detectedBinding=clean(a.tripBinding).toUpperCase();
@@ -949,7 +963,7 @@ Use normalized percentages 0-100 for PDF coordinates. Preserve visual reading or
         tripBinding:old?.tripBinding||(["CLIENT_NAME","PICKUP_ADDRESS","DROPOFF_ADDRESS","STOPS","TRIP_DATE","PICKUP_TIME","SERVICE"].includes(detectedBinding)?detectedBinding:""),
         tripIndex:old?.tripIndex || aiTripIndex,
         options:(old?.options&&old.options.length)?old.options:detectedOptions,
-        mapping:maps[0]||old?.mapping||{},mappings:maps};
+        mapping:maps[0]||{mapped:false},mappings:maps};
     });
     const detectedKeys=new Set(fields.map(f=>f.key));
     for(const old of (t.fields||[])){const plain=old.toObject?old.toObject():old;if(!detectedKeys.has(String(plain.key)))fields.push(plain);}
