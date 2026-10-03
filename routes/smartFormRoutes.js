@@ -400,15 +400,46 @@ function tenantIdFor(req){
     : clean(req.authUser?.tenantId);
 }
 
+async function smartFormsFeatureEnabled(tenantId){
+  if(!mongoose.Types.ObjectId.isValid(tenantId)) return false;
+
+  const tenant = await Tenant.findById(tenantId)
+    .select("smartFormsEnabled")
+    .lean();
+
+  if(tenant?.smartFormsEnabled===true) return true;
+
+  /*
+    Platform Admin can enable Smart Forms by creating/activating an
+    organization/template for the tenant. Older tenants may not have the
+    legacy Tenant.smartFormsEnabled flag set, so do not hide the module when
+    active Smart Form setup rows already exist.
+  */
+  const activeOrganization = await SmartFormOrganization.exists({
+    tenantId,
+    active:{ $ne:false },
+    createdByPlatformAdmin:true
+  });
+
+  if(activeOrganization) return true;
+
+  const activeTemplate = await SmartFormTemplate.exists({
+    tenantId,
+    active:{ $ne:false }
+  });
+
+  return Boolean(activeTemplate);
+}
+
 async function gate(req,res){
   const tenantId = tenantIdFor(req);
   if(!mongoose.Types.ObjectId.isValid(tenantId)){
     res.status(400).json({success:false,message:"Valid tenantId is required"}); return null;
   }
-  const tenant = await Tenant.findById(tenantId).select("_id enabled smartFormsEnabled timezone settings.timezone").lean();
+  const tenant = await Tenant.findById(tenantId).select("_id enabled timezone settings.timezone").lean();
   if(!tenant){ res.status(404).json({success:false,message:"Company not found"}); return null; }
   if(tenant.enabled!==true){ res.status(403).json({success:false,message:"Company is disabled"}); return null; }
-  if(tenant.smartFormsEnabled!==true){ res.status(403).json({success:false,message:"Smart Forms is disabled"}); return null; }
+  if(!await smartFormsFeatureEnabled(tenantId)){ res.status(403).json({success:false,message:"Smart Forms is disabled"}); return null; }
   return {tenantId,timezone:clean(tenant?.timezone||tenant?.settings?.timezone)||"America/Phoenix"};
 }
 
@@ -472,8 +503,8 @@ router.use(auth);
 router.get("/feature", async (req,res)=>{
   const id = tenantIdFor(req);
   if(!mongoose.Types.ObjectId.isValid(id)) return res.json({success:true,enabled:false});
-  const t = await Tenant.findById(id).select("smartFormsEnabled").lean();
-  res.json({success:true,enabled:t?.smartFormsEnabled===true});
+  const enabled = await smartFormsFeatureEnabled(id);
+  res.json({success:true,enabled});
 });
 
 router.get("/organizations", async (req,res)=>{

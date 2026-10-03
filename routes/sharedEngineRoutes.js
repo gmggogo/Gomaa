@@ -105,6 +105,11 @@ const Tenant =
     "../models/Tenant"
   );
 
+const TenantSubscription =
+  require(
+    "../models/TenantSubscription"
+  );
+
 const {
   DEFAULT_SETTINGS,
   mergeSettings,
@@ -324,6 +329,9 @@ async function getCapabilities(
   let brokerContractEnabled =
     false;
 
+  let brokerLimitEnabled =
+    false;
+
   let sharedServiceEnabled =
     false;
 
@@ -347,6 +355,38 @@ async function getCapabilities(
 
   }catch(err){
     brokerContractEnabled =
+      false;
+  }
+
+  try{
+    /*
+      Broker Integration records are created after setup, but Platform Admin
+      can grant Broker access first through the tenant subscription limits.
+      Keep the Broker button visible whenever the tenant is allowed to add at
+      least one broker, even before the first integration row exists.
+    */
+    const subscription =
+      await TenantSubscription
+        .findOne({
+          tenantId:id
+        })
+        .select(
+          "includedBrokers maxBrokers status"
+        )
+        .lean();
+
+    brokerLimitEnabled =
+      Boolean(
+        subscription &&
+        clean(subscription.status || "ACTIVE").toUpperCase() !== "DISABLED" &&
+        (
+          Number(subscription.includedBrokers || 0) > 0 ||
+          Number(subscription.maxBrokers || 0) > 0
+        )
+      );
+
+  }catch(err){
+    brokerLimitEnabled =
       false;
   }
 
@@ -392,7 +432,19 @@ async function getCapabilities(
   }
 
   return {
-    brokerContractEnabled,
+    brokerContractEnabled:
+      brokerContractEnabled ||
+      brokerLimitEnabled,
+
+    brokerEnabled:
+      brokerContractEnabled ||
+      brokerLimitEnabled,
+
+    brokerIntegrationFound:
+      brokerContractEnabled,
+
+    brokerLimitEnabled,
+
     sharedServiceEnabled,
 
     /*
