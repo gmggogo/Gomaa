@@ -5,6 +5,7 @@
 // SMART_FORM_AI_REDRAW_NEW_MAPPINGS_2026_10_03_0450
 // SMART_FORM_DESIGNER_ALL_SOURCES_AND_FIRST_DRAG_2026_10_03_0503
 // SMART_FORM_AI_SEND_EVERY_SUPPORTED_PDF_PAGE_2026_10_03_0535
+// SMART_FORM_UNMAPPED_ENTRY_FIELDS_FALLBACK_2026_10_04_0218
 const API="/api/smart-forms";
 const token=sessionStorage.getItem("staffToken")||localStorage.getItem("staffToken")||sessionStorage.getItem("token")||localStorage.getItem("token")||"";
 const role=String(sessionStorage.getItem("staffRole")||localStorage.getItem("staffRole")||sessionStorage.getItem("role")||localStorage.getItem("role")||"").toUpperCase();
@@ -52,7 +53,18 @@ async function renderEntry(t){
     if(items.length){
       host.classList.add("sf-entry-designer-view");host.style.height=`${Math.max(500,Number(layout.canvasHeight||900))}px`;
       const map=new Map(manual.map(f=>[String(f.key),f]));
-      host.innerHTML=items.map(i=>{const f=map.get(String(i.fieldKey));if(!f)return "";return `<div class="sf-entry-layout-item" style="left:${Number(i.x||0)}%;top:${Number(i.y||0)}px;width:${Number(i.w||30)}%;height:${Number(i.h||90)}px">${inputControl(f)}</div>`;}).join("");
+      const placedKeys=new Set(items.map(i=>String(i.fieldKey)));
+      const placedMarkup=items.map(i=>{const f=map.get(String(i.fieldKey));if(!f)return "";return `<div class="sf-entry-layout-item" style="left:${Number(i.x||0)}%;top:${Number(i.y||0)}px;width:${Number(i.w||30)}%;height:${Number(i.h||90)}px">${inputControl(f)}</div>`;}).join("");
+      const unplaced=manual.filter(f=>!placedKeys.has(String(f.key)));
+      if(unplaced.length){
+        const layoutBottom=items.reduce((bottom,i)=>Math.max(bottom,Number(i.y||0)+Number(i.h||90)),0);
+        const fallbackTop=Math.max(Number(layout.canvasHeight||900),layoutBottom)+24;
+        host.style.height=`${fallbackTop+unplaced.length*140+24}px`;
+        const fallbackMarkup=`<section class="sf-entry-unmapped-fields" aria-label="Additional entry fields" style="position:absolute;left:0;right:0;top:${fallbackTop}px;padding:12px;border-top:2px solid #d4a72c;background:#fff;box-sizing:border-box"><strong>Additional entry fields</strong><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${unplaced.map(f=>`<div class="sf-entry-field" style="width:100%;box-sizing:border-box">${inputControl(f)}</div>`).join("")}</div></section>`;
+        host.innerHTML=placedMarkup+fallbackMarkup;
+      }else{
+        host.innerHTML=placedMarkup;
+      }
       return;
     }
   }catch(e){console.warn("Smart Form layout fallback:",e);}

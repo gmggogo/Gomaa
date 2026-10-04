@@ -1,4 +1,7 @@
 const express = require("express");
+// SMART_FORM_SERVICE_CHECKBOX_DETECTION_FIX_2026_10_03_2307
+const SMART_FORM_SERVICE_CHECKBOX_DETECTION_VERSION="2026-10-03-2307";
+console.info("[SMART_FORMS] Service checkbox detection loaded:",SMART_FORM_SERVICE_CHECKBOX_DETECTION_VERSION);
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_AI_SELECTS_AND_FULL_FIELD_DETECTION_2026_10_03_0412
@@ -185,11 +188,20 @@ function formDataValueByNames(formData, patterns){
   }
   return "";
 }
+function isSmartFormServiceOption(field){
+  const text=normalizedFieldText(field);
+  if(clean(field?.tripBinding).toUpperCase()==="SERVICE") return true;
+  if(/\b(vehicle|service|transportation)\s*type\b/.test(text)) return true;
+  const label=clean(field?.label).toLowerCase()
+    .replace(/^\s*\d+(?:st|nd|rd|th)\s+/i,"")
+    .replace(/^\s*(?:vehicle|service|transportation)\s*type\s*[:\-]?\s*/i,"")
+    .replace(/\s+/g," ").trim();
+  return /^(wheelchair(?: van)?|taxi|bus|stretcher(?: car)?|ambulatory|sedan|van|suv|black suv|limo|limousine|mile|hourly|shared|custom(?:\s*[_-]?\s*\d+)?|other(?:\s*\([^)]*\))?)$/.test(label);
+}
 function serviceFromVehicleFields(template,formData){
   const picked=[];
   for(const f of template.fields||[]){
-    const text=normalizedFieldText(f);
-    if(!(/\bvehicle type\b/.test(text)||/\bservice type\b/.test(text)||/^service\b/.test(text))) continue;
+    if(!isSmartFormServiceOption(f)) continue;
     const raw=formData?.[f.key];
     if(!hasValue(raw)) continue;
     if(typeof raw==="boolean"){
