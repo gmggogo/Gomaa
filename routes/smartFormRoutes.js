@@ -173,7 +173,8 @@ function inferredField(template,binding){
     DROPOFF_ADDRESS:[/\b1st drop off location\b/,/\b1st dropoff location\b/,/\bdrop off address\b/,/\bdropoff address\b/,/\bdropoff location\b/],
     TRIP_DATE:[/^date$/, /\btrip date\b/,/\bservice date\b/,/\bappointment date\b/],
     PICKUP_TIME:[/\bpick up time\b/,/\bpickup time\b/,/\btrip time\b/,/^time$/],
-    SERVICE:[/^service$/, /\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/]
+    SERVICE:[/^service$/, /\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/],
+    NOTES:[/^notes?$/, /\btrip notes?\b/]
   };
   for(const re of tests[binding]||[]){
     const f=fields.find(x=>re.test(normalizedFieldText(x)));
@@ -302,7 +303,8 @@ function fieldLooksLikeBinding(field,binding){
     STOPS:[/\bstops?\b/],
     TRIP_DATE:[/^date$/,/\btrip date\b/,/\bservice date\b/,/\bappointment date\b/],
     PICKUP_TIME:[/\bpick\s*up time\b/,/\bpickup time\b/,/\btrip time\b/,/^time$/],
-    SERVICE:[/^service$/,/\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/]
+    SERVICE:[/^service$/,/\bservice type\b/,/\bvehicle type\b/,/\btransportation type\b/],
+    NOTES:[/^notes?$/, /\btrip notes?\b/]
   };
   return (tests[binding]||[]).some(re=>re.test(text));
 }
@@ -363,7 +365,8 @@ function baseOperationalData(template,formData){
     stops:stopValues(template,formData),
     tripDate:fieldValueForBinding(template,formData,"TRIP_DATE"),
     pickupTime:fieldValueForBinding(template,formData,"PICKUP_TIME"),
-    serviceName:fieldValueForBinding(template,formData,"SERVICE")
+    serviceName:fieldValueForBinding(template,formData,"SERVICE"),
+    notes:cleanSmartFormNote(fieldValueForBinding(template,formData,"NOTES"))
   };
 }
 function operationalTrips(template,formData){
@@ -378,6 +381,7 @@ function operationalTrips(template,formData){
     tripDate:fieldValueForBindingTrip(template,formData,"TRIP_DATE",tripIndex,base.tripDate),
     pickupTime:fieldValueForBindingTrip(template,formData,"PICKUP_TIME",tripIndex,base.pickupTime),
     serviceName:fieldValueForBindingTrip(template,formData,"SERVICE",tripIndex,base.serviceName),
+    notes:cleanSmartFormNote(fieldValueForBindingTrip(template,formData,"NOTES",tripIndex,base.notes)),
     smartFormTripIndex:tripIndex,
     smartFormTripLabel:smartFormPartLabel(position,indexes.length)
   }));

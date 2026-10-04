@@ -63,19 +63,24 @@
   }
 
   function stopAddress(value){
-    let address="";
+    if(typeof value==="boolean") return "";
     if(value&&typeof value==="object"){
-      address=clean(value.address||value.value||value.location||value.name||value.label);
-    }else{
-      address=clean(value);
+      value=value.address||value.value||value.location||value.name||value.label||"";
     }
-    return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i.test(address)?"":address;
+    const address=clean(value);
+    return /^(?:true|false|route|route optimized(?: per passenger)?|route order will be calculated by the shared engine)[.!]?$/i.test(address)?"":address;
   }
 
   function stops(source){
     return Array.isArray(source?.stops)
       ? source.stops.map(stopAddress).filter(Boolean)
       : [];
+  }
+
+  function smartFormNote(value){
+    if(typeof value==="boolean") return "";
+    const note=clean(value);
+    return /^(?:true|false|route|route optimized(?: per passenger)?|route order will be calculated by the shared engine)[.!]?$/i.test(note)?"":note;
   }
 
   function reviewMemberRows(trip){
@@ -94,7 +99,7 @@
       pickup:clean(member.pickupAddress||member.pickup)||"—",
       stops:stops(member),
       dropoff:clean(member.dropoffAddress||member.dropoff)||"—",
-      notes:(()=>{const value=clean(member.notes||member.driverInstructions||member.formData?.notes||member.formData?.Notes);return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i.test(value)?"—":value||"—";})(),
+      notes:smartFormNote(member.notes||member.formData?.notes||member.formData?.Notes)||"—",
       raw:member
     }));
   }
@@ -192,7 +197,7 @@
       return `<tr>
         <td><input type="checkbox" data-select="${esc(id)}" ${selected?"checked":""} aria-label="Select ${esc(trip.tripNumber)}"></td>
         <td>${cell(rows.map(member=>member.tripNumber))}</td>
-        <td>${cell(rows.map(member=>member.partLabel))}</td>
+        <td class="w-part">${cell(rows.map(member=>member.partLabel))}</td>
         <td>${cell(rows.map(member=>member.templateName))}</td>
         <td><span class="mode-pill ${shared?"shared":"individual"}">${shared?"Shared":"Individual"}</span></td>
         <td>${cell(rows.map(member=>member.tripDate))}</td>

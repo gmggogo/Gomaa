@@ -12,8 +12,9 @@ function isSyntheticRouteText(value) {
 }
 
 function cleanSmartFormNote(value) {
+  if (typeof value === "boolean") return "";
   const note = clean(value);
-  return isSyntheticRouteText(note) ? "" : note;
+  return isSyntheticRouteText(note) || /^(?:true|false)$/i.test(note) ? "" : note;
 }
 
 function finite(value, fallback = 0) {
@@ -23,6 +24,7 @@ function finite(value, fallback = 0) {
 }
 
 function stopAddress(value) {
+  if (typeof value === "boolean") return "";
   let address = "";
   if (value && typeof value === "object") {
     address = clean(
@@ -35,7 +37,7 @@ function stopAddress(value) {
   } else {
     address = clean(value);
   }
-  return isSyntheticRouteText(address) ? "" : address;
+  return isSyntheticRouteText(address) || /^(?:true|false)$/i.test(address) ? "" : address;
 }
 
 function cleanStopAddresses(values) {
@@ -107,6 +109,7 @@ function templateSnapshot(submission) {
 function passengerFromSubmission(submission, index) {
   const id = String(submission?._id || submission?.id || "");
   const price = submissionPrice(submission);
+  const notes = cleanSmartFormNote(submission?.notes);
   const passenger = {
     passengerId: id,
     name: clean(submission?.clientName),
@@ -125,7 +128,8 @@ function passengerFromSubmission(submission, index) {
     status: "Scheduled",
     source: "SMART_FORM",
     bookingSource: "SMART_FORM",
-    pickupOrder: index + 1
+    pickupOrder: index + 1,
+    ...(notes ? { notes } : {})
   };
   if (price !== null) {
     passenger.priceAmount = price;
@@ -153,6 +157,7 @@ function buildSmartFormTripPayload({
   const last = rows[rows.length - 1];
   const lastDropoff = clean(last?.dropoffAddress);
   const allStops = rows.flatMap(submissionStops);
+  const notes = rows.map(row => cleanSmartFormNote(row?.notes)).filter(Boolean).join("\n");
 
   return {
     tenantId,
@@ -178,6 +183,7 @@ function buildSmartFormTripPayload({
     dropoffLat: finite(last?.dropoffLat, null),
     dropoffLng: finite(last?.dropoffLng, null),
     stops: allStops,
+    ...(notes ? { notes } : {}),
     stopCoords: Array.isArray(first?.stopCoords) ? first.stopCoords : [],
     tripDate: clean(group?.tripDate || first?.tripDate),
     tripTime: clean(group?.calculatedFirstPickupTime || first?.pickupTime),

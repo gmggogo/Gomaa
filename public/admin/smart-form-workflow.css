@@ -54,7 +54,7 @@ tbody tr:nth-child(even) td{background:#f8fbfc}tbody tr:hover td{background:#eef
 .smart-form-review-page .review-stop-box.empty-stop{justify-content:center;text-align:center}
 .smart-form-review-page .review-actions{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}
 .smart-form-review-page .review-actions .mini{min-width:48px;padding:6px 7px;font-size:9px}
-.smart-form-review-page .w-group{width:92px}.smart-form-review-page .w-phone{width:105px}.smart-form-review-page .w-notes{width:120px}
+.smart-form-review-page .w-part{width:82px!important;min-width:82px!important;max-width:82px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.smart-form-review-page .w-group{width:92px}.smart-form-review-page .w-phone{width:105px}.smart-form-review-page .w-notes{width:120px}
 .smart-form-review-page .review-edit-box .view-body{gap:12px}
 .smart-form-review-page .edit-section{border:1px solid #e0e8ed;border-radius:10px;overflow:hidden;background:#fff}
 .smart-form-review-page .edit-section h3{margin:0;padding:9px 11px;background:#f3f7f9;color:#163d57;font-size:12px;font-weight:900}

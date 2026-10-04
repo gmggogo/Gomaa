@@ -14,6 +14,8 @@
     .sf-hub-stat strong{display:block;margin-top:6px;color:#111827;font-size:24px;line-height:1;font-weight:900;text-align:center}
     .sf-hub-actions{display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap}
     .sf-hub-actions .btn{padding:6px 8px;font-size:10px}
+    .sf-hub-table{min-width:1580px;table-layout:fixed}
+    .sf-hub-table .w-part,.sf-hub-table .part-cell{width:82px!important;min-width:82px!important;max-width:82px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .sf-edit-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.58)}
     .sf-edit-modal.open{display:flex}
     .sf-edit-card{width:min(900px,96vw);max-height:90vh;overflow:auto;border-radius:14px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -42,8 +44,8 @@
     </section>
     <section class="panel">
       <div class="panel-head"><span>Trips submitted from Smart Form templates</span><div class="filters"><input id="searchInput" type="search" placeholder="Search trip, template, client, address"><select id="statusFilter"><option value="">All Confirmation Statuses</option><option value="CONFIRMED">Confirmed</option><option value="NOT_CONFIRMED">Not Confirmed</option></select><input id="dateFilter" type="date" aria-label="Trip date"><button id="refreshBtn" class="btn navy" type="button">Refresh</button></div></div>
-      <div class="table-wrap"><table><thead><tr>
-        <th class="w-trip">Trip #</th><th>Part</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Trip Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-stops">Stops</th><th class="w-address">Drop-off</th><th class="w-status">Confirmation</th><th class="w-eye">Details</th><th class="w-actions">Actions</th>
+      <div class="table-wrap"><table class="sf-hub-table"><thead><tr>
+        <th class="w-trip">Trip #</th><th class="w-part">Part</th><th class="w-template">Template</th><th class="w-service">Service</th><th class="w-name">Client</th><th class="w-date">Trip Date</th><th class="w-time">Pickup Time</th><th class="w-address">Pickup</th><th class="w-stops">Stops</th><th class="w-address">Drop-off</th><th class="w-status">Confirmation</th><th class="w-eye">Details</th><th class="w-actions">Actions</th>
       </tr></thead><tbody id="hubRows"></tbody></table><div id="emptyState" class="empty" hidden>No Smart Form trips are waiting in the Hub.</div></div>
     </section>
   </main>
