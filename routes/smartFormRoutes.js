@@ -24,7 +24,7 @@ const Trip = require("../models/Trip");
 const { generateFinalPdf } = require("../services/smartFormPdfService");
 const { calculateSmartFormPrice } = require("../services/smartFormPricingEngine");
 const { planSharedTrips, mergeSettings } = require("../services/sharedEngine");
-const { buildSmartFormTripPayload, smartFormSplitDateWindow, smartFormSplitDateKey } = require("../services/smartFormWorkflow");
+const { buildSmartFormTripPayload, cleanSmartFormNote, cleanStopAddresses, smartFormSplitDateWindow, smartFormSplitDateKey } = require("../services/smartFormWorkflow");
 
 const router = express.Router();
 const SMART_FORMS_AI_FIX_VERSION = "dynamic-gemini-model-list-and-import-save-fix-2026-10-02-2227";
@@ -268,10 +268,10 @@ function stopValues(template,formData){
     if(inferred) value=formData?.[inferred.key];
   }
 
-  if(Array.isArray(value)) return value.map(clean).filter(Boolean);
+  if(Array.isArray(value)) return cleanStopAddresses(value);
   const text=clean(value);
   if(!text) return [];
-  return text.split(/\r?\n|\s*;\s*/).map(clean).filter(Boolean);
+  return cleanStopAddresses(text.split(/\r?\n|\s*;\s*/));
 }
 function ordinalTripIndex(text){
   const value=String(text||"").toLowerCase();
@@ -341,9 +341,9 @@ function stopValuesForTrip(template,formData,index,baseStops=[]){
   const f=fieldForBindingTrip(template,"STOPS",index);
   if(!f) return Array.isArray(baseStops) ? baseStops : [];
   const value=formData?.[f.key];
-  if(Array.isArray(value)) return value.map(clean).filter(Boolean);
+  if(Array.isArray(value)) return cleanStopAddresses(value);
   const text=clean(value);
-  return text ? text.split(/\r?\n|\s*;\s*/).map(clean).filter(Boolean) : (Array.isArray(baseStops) ? baseStops : []);
+  return text ? cleanStopAddresses(text.split(/\r?\n|\s*;\s*/)) : cleanStopAddresses(baseStops);
 }
 function operationalTripIndexes(template,formData){
   const indexes=new Set([1]);
@@ -1312,7 +1312,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
     async function createSmartFormTrip(row,index,total){
       const smartFormCoords=await smartFormResolveTripCoords(
         row.pickupAddress,
-        Array.isArray(row.stops) ? row.stops : [],
+        cleanStopAddresses(row.stops),
         row.dropoffAddress
       );
 
@@ -1330,7 +1330,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
             ? smartFormCoords.stopCoords.map((c,i)=>
                 smartFormValidCoords(c?.lat,c?.lng)
                   ? {lat:Number(c.lat),lng:Number(c.lng)}
-                  : clean((row.stops||[])[i])
+                  : clean(cleanStopAddresses(row.stops)[i])
               )
             : []),
           smartFormValidCoords(smartFormCoords.dropoffLat,smartFormCoords.dropoffLng)
@@ -1379,7 +1379,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
           serviceName:clean(row.serviceName),
           miles:smartFormMiles,
           minutes:smartFormMinutes,
-          stops:Array.isArray(row.stops) ? row.stops.filter(x=>clean(x)).length : 0,
+          stops:cleanStopAddresses(row.stops).length,
           passengers:Number(s.totalPassengers||1)||1
         });
         smartFormPrice=Number(priceResult?.total||0);
@@ -1413,7 +1413,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
         dropoff:clean(row.dropoffAddress),
         dropoffLat:smartFormCoords.dropoffLat,
         dropoffLng:smartFormCoords.dropoffLng,
-        stops:Array.isArray(row.stops) ? row.stops.map(clean).filter(Boolean) : [],
+        stops:cleanStopAddresses(row.stops),
         stopCoords:smartFormCoords.stopCoords,
         tripDate:clean(row.tripDate),
         tripTime:clean(row.pickupTime),
@@ -1795,7 +1795,7 @@ function smartFormEngineTrip(row){
 async function resolveSmartFormSubmissionCoords(row){
   const coords=await smartFormResolveTripCoords(
     row.pickupAddress,
-    Array.isArray(row.stops)?row.stops:[],
+    cleanStopAddresses(row.stops),
     row.dropoffAddress
   );
   return {...row,...coords};
@@ -1845,7 +1845,7 @@ async function priceSmartFormWorkflowSubmission(tenantId,row){
     serviceName:clean(enriched.serviceName),
     miles,
     minutes,
-    stops:Array.isArray(enriched.stops)?enriched.stops.filter(x=>clean(x)).length:0,
+    stops:cleanStopAddresses(enriched.stops).length,
     passengers:Number(enriched.totalPassengers||1)||1
   });
 
@@ -2034,7 +2034,7 @@ router.post("/workflow/split/enter",async(req,res)=>{
           clientName:part.clientName,pickupAddress:part.pickupAddress,dropoffAddress:part.dropoffAddress,
           stops:part.stops,tripDate:part.tripDate,pickupTime:part.pickupTime,serviceName:part.serviceName,
           signatureRequired:parent.signatureRequired,submittedBy:parent.submittedBy,submittedAt:parent.submittedAt,
-          notes:parent.notes
+          notes:cleanSmartFormNote(parent.notes)
         });
         childIds.push(child._id);movedIds.push(String(child._id));moved++;
       }

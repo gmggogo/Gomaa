@@ -63,10 +63,13 @@
   }
 
   function stopAddress(value){
+    let address="";
     if(value&&typeof value==="object"){
-      return clean(value.address||value.value||value.location||value.name||value.label);
+      address=clean(value.address||value.value||value.location||value.name||value.label);
+    }else{
+      address=clean(value);
     }
-    return clean(value);
+    return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i.test(address)?"":address;
   }
 
   function stops(source){
@@ -91,7 +94,7 @@
       pickup:clean(member.pickupAddress||member.pickup)||"—",
       stops:stops(member),
       dropoff:clean(member.dropoffAddress||member.dropoff)||"—",
-      notes:clean(member.notes||member.driverInstructions||member.formData?.notes||member.formData?.Notes)||"—",
+      notes:(()=>{const value=clean(member.notes||member.driverInstructions||member.formData?.notes||member.formData?.Notes);return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i.test(value)?"—":value||"—";})(),
       raw:member
     }));
   }

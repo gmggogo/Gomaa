@@ -6,6 +6,16 @@ function clean(value) {
   return String(value ?? "").trim();
 }
 
+function isSyntheticRouteText(value) {
+  return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i
+    .test(clean(value));
+}
+
+function cleanSmartFormNote(value) {
+  const note = clean(value);
+  return isSyntheticRouteText(note) ? "" : note;
+}
+
 function finite(value, fallback = 0) {
   if (value === null || value === undefined || value === "") return fallback;
   const number = Number(value);
@@ -13,21 +23,29 @@ function finite(value, fallback = 0) {
 }
 
 function stopAddress(value) {
+  let address = "";
   if (value && typeof value === "object") {
-    return clean(
+    address = clean(
       value.address ||
       value.value ||
       value.location ||
       value.name ||
       value.label
     );
+  } else {
+    address = clean(value);
   }
-  return clean(value);
+  return isSyntheticRouteText(address) ? "" : address;
+}
+
+function cleanStopAddresses(values) {
+  const list = Array.isArray(values) ? values : [values];
+  return list.map(stopAddress).filter(Boolean);
 }
 
 function submissionStops(submission) {
   return Array.isArray(submission?.stops)
-    ? submission.stops.map(stopAddress).filter(Boolean)
+    ? cleanStopAddresses(submission.stops)
     : [];
 }
 
@@ -191,6 +209,9 @@ function buildSmartFormTripPayload({
 
 module.exports = {
   buildSmartFormTripPayload,
+  cleanSmartFormNote,
+  cleanStopAddresses,
+  isSyntheticRouteText,
   templateSnapshot,
   passengerFromSubmission,
   smartFormSplitDateWindow,

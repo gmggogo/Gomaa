@@ -3161,7 +3161,7 @@ function renderSharedRow(item,rowNumber){
     <td class="wide-address">${pickups}</td>
 
     <td class="wide-stops">
-      ${cellBox("Route optimized per passenger")}
+      ${cellBox("")}
     </td>
 
     <td class="wide-address">${dropoffs}</td>

@@ -23,7 +23,9 @@
     clearTimeout(notice.timer);notice.timer=setTimeout(()=>box.className="notice",4500);
   }
 
-  function stops(row){return(Array.isArray(row?.stops)?row.stops:[]).map(item=>typeof item==="string"?item:item?.address||"").map(clean).filter(Boolean);}
+  function isRoutePlaceholder(value){return /^(?:route|route\s+optimized(?:\s+per\s+passenger)?|route\s+order\s+will\s+be\s+calculated\s+by\s+the\s+shared\s+engine)[.!]?$/i.test(clean(value));}
+  function notes(row){const value=clean(row?.notes);return isRoutePlaceholder(value)?"":value;}
+  function stops(row){return(Array.isArray(row?.stops)?row.stops:[]).map(item=>typeof item==="string"?item:item?.address||"").map(clean).filter(value=>value&&!isRoutePlaceholder(value));}
   function displayTrip(row){const base=clean(row.smartFormBaseTripNumber)||clean(row.tripNumber).replace(/-T\d+$/i,"");const part=clean(row.smartFormTripLabel)||(Number(row.smartFormTripIndex)>0?`T${row.smartFormTripIndex}`:"");return `${base||"—"}${part?` · ${part}`:""}`;}
   function lane(row){if(clean(row?.sharedGroupId))return"SHARED";const value=clean(row?.splitDisposition).toUpperCase();return value==="INDIVIDUAL"?"INDIVIDUAL":"ORIGINAL";}
   function matches(row){
@@ -31,7 +33,7 @@
     if(state.day==="TODAY"&&clean(row.tripDate)!==state.today)return false;
     if(state.day==="TOMORROW"&&clean(row.tripDate)!==state.tomorrow)return false;
     if(!state.search)return true;
-    return[row.tripNumber,row.templateName,row.clientName,row.pickupAddress,row.dropoffAddress,row.serviceName,row.notes,...stops(row)].join(" ").toLowerCase().includes(state.search);
+    return[row.tripNumber,row.templateName,row.clientName,row.pickupAddress,row.dropoffAddress,row.serviceName,notes(row),...stops(row)].join(" ").toLowerCase().includes(state.search);
   }
   function rowsFor(target){return state.submissions.filter(row=>lane(row)===target&&matches(row));}
   function sharedFeatureEnabled(){return state.capabilities?.sharedServiceEnabled===true||state.capabilities?.sharedServiceFound===true;}
@@ -42,7 +44,7 @@
 
   function originalRow(row){
     const id=String(row._id),checked=state.selectedOriginal.has(id)?" checked":"";
-    return`<tr><td class="check-cell"><input type="checkbox" data-select-original="${esc(id)}"${checked}></td><td class="trip-id">${esc(displayTrip(row))}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="address-cell">${address(row.pickupAddress)}</td><td class="stops-cell">${stopBoxes(row)}</td><td class="address-cell">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td class="notes-cell">${esc(row.notes||"—")}</td><td><span class="status ready">Original</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button" aria-label="View details">◉</button></td><td>${rowActions(row)}</td></tr>`;
+    return`<tr><td class="check-cell"><input type="checkbox" data-select-original="${esc(id)}"${checked}></td><td class="trip-id">${esc(displayTrip(row))}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="address-cell">${address(row.pickupAddress)}</td><td class="stops-cell">${stopBoxes(row)}</td><td class="address-cell">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td class="notes-cell">${esc(notes(row)||"—")}</td><td><span class="status ready">Original</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button" aria-label="View details">◉</button></td><td>${rowActions(row)}</td></tr>`;
   }
   function renderOriginal(){
     const rows=rowsFor("ORIGINAL"),groups=new Map();

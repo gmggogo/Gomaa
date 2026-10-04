@@ -1969,7 +1969,7 @@ function passengerStops(t,p){
       .map((value,i)=>`${i+1}. ${value}`).join("\n") || "-";
   }
 
-  return "Route optimized";
+  return "";
 }
 
 function renderSharedTripRows(t,index){
@@ -2015,7 +2015,7 @@ function renderSharedTripRows(t,index){
       <td class="wide-client">${cellBox(names)}</td>
       <td class="wide-phone">${cellBox(phones)}</td>
       <td class="wide-address">${cellBox(pickups)}</td>
-      <td class="wide-stops">${cellBox("Route optimized per passenger")}</td>
+      <td class="wide-stops">${cellBox("")}</td>
       <td class="wide-address">${cellBox(dropoffs)}</td>
       <td class="wide-notes">${cellBox(notes)}</td>
       <td>${cellBox(escorts)}</td>
