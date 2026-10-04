@@ -640,6 +640,10 @@ function smartFormAiFinalFieldType(field){
   return incoming;
 }
 
+function smartFormAiCheckboxInstructions(){
+  return `Checkbox mapping rule: Detect each individual square checkbox as its own separate field record. Use type CHECKBOX, put the exact label printed beside that checkbox in the field label, leave options empty, and return the page and coordinates of that one checkbox only. Do not combine checkbox options into one field, one SELECT, or one options array. For example, a Vehicle Type row with Wheelchair Van, Taxi, Bus, Stretcher Car, and Other has five separate CHECKBOX fields with five separate rectangles and labels. A printed dropdown remains one SELECT field.`;
+}
+
 function sanitizeTemplate(t){
   const o=t?.toObject?t.toObject():{...t};
   if(o.originalPdf){ delete o.originalPdf.data; o.originalPdf.hasPdf=!!o.originalPdf.fileName; }
@@ -909,6 +913,7 @@ Detect blank lines, boxes, dropdown-like choices, checkboxes, radio choices, dat
 Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,pdfMapping:{page,xPercent,yPercent,widthPercent,heightPercent},options,tripBinding,tripIndex.
 type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE.
 Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, trip type choices, service/vehicle choices, payor choices, or multiple visible options; put the visible option labels in options.
+${smartFormAiCheckboxInstructions()}
 If a label says Type of Trip, Trip Type, Vehicle Type, Service Type, Transportation Type, Level of Service, Method of Payment, Payor, Gender, or Yes/No, do NOT return TEXT; return SELECT/RADIO/CHECKBOX.
 If a field has several adjacent empty boxes/lines but each box captures a different value, return each one as a separate field. Never merge different labels into one field.
 If the form has multiple pickup/dropoff/date/time rows, return every row separately. Do not summarize them, do not combine them, and do not put several values in one options array unless they are true choices for one field.
