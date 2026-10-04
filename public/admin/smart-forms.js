@@ -1,3 +1,4 @@
+// Original path: server/public/admin/smart-forms.js
 // GH Mobility Smart Forms - mapping fix 2026-09-29
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
@@ -260,7 +261,7 @@ async function aiDetectFields(){
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
     renderBuilder();renderMapFieldList();
     const mapped=mapperFields.reduce((sum,f)=>sum+fieldMaps(f).length,0);
-    msg(`AI detected ${builderFields.length} fields across ${pdfPageCount} pages; ${mapped} have PDF boxes. ${d.withoutPosition||0} still need a position. Review the list and save.`);
+    msg(`AI (${d.model||"model unknown"}) detected ${builderFields.length} fields across ${pdfPageCount} pages; ${mapped} have PDF boxes. ${d.withoutPosition||0} still need a position${d.finishReason?` (finish: ${d.finishReason})`:""}. Review the list and save.`);
   }catch(e){msg(e.message,"err");}
   finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
 }

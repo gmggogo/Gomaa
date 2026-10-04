@@ -1,3 +1,4 @@
+// Original path: server/routes/smartFormRoutes.js
 const express = require("express");
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
@@ -411,6 +412,19 @@ const smartFormGeminiModels = (...values) => {
   const fallback = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-001", "gemini-2.0-flash-lite"];
   return [...new Set([...values, ...fallback].map(smartFormGeminiModelName).filter(Boolean))];
 };
+function smartFormGeminiModelRank(name){
+  const value=String(name||"").toLowerCase();
+  if(value.includes("flash-lite")){
+    if(value.includes("2.5")) return 2;
+    if(value.includes("2.0")) return 3;
+    return 5;
+  }
+  if(value.includes("2.5") && value.includes("flash")) return 0;
+  if(value.includes("2.0") && value.includes("flash")) return 1;
+  if(value.includes("pro")) return 4;
+  if(value.includes("flash")) return 3;
+  return 6;
+}
 const smartFormGeminiCanFallback = (status,message) => {
   const text = String(message || "").toLowerCase();
   return [400,404,429,500,502,503,504].includes(Number(status)) ||
@@ -431,14 +445,7 @@ async function smartFormGeminiListGenerateModels(){
     .map(model=>smartFormGeminiModelName(model?.name))
     .filter(Boolean)
     .sort((a,b)=>{
-      const score = name => {
-        const value = String(name).toLowerCase();
-        if(value.includes("flash-lite")) return 0;
-        if(value.includes("flash")) return 1;
-        if(value.includes("pro")) return 2;
-        return 3;
-      };
-      return score(a)-score(b) || a.localeCompare(b);
+      return smartFormGeminiModelRank(a)-smartFormGeminiModelRank(b) || a.localeCompare(b);
     });
 }
 async function smartFormGeminiGenerateContent(models,requestBody,label){
@@ -928,7 +935,8 @@ Preserve visual reading order and current form design; detection must not redesi
     }
 
     const aiAttempt=await smartFormGeminiGenerateContent(
-      [process.env.SMART_FORMS_GEMINI_MODEL],
+      smartFormGeminiModels(process.env.SMART_FORMS_GEMINI_MODEL)
+        .sort((a,b)=>smartFormGeminiModelRank(a)-smartFormGeminiModelRank(b)),
       {
         contents:[{role:"user",parts}],
         generationConfig:{
@@ -979,7 +987,8 @@ Preserve visual reading order and current form design; detection must not redesi
     for(const old of (t.fields||[])){const plain=old.toObject?old.toObject():old;if(!detectedKeys.has(String(plain.key)))fields.push(plain);}
     t.fields=normalizeFields(fields); t.updatedBy=actor(req); await t.save();
     res.json({success:true,template:sanitizeTemplate(t),detected:detected.length,mappedPositions:detectedMappedPositions,
-      withoutPosition:Math.max(0,detected.length-detectedMappedPositions)});
+      withoutPosition:Math.max(0,detected.length-detectedMappedPositions),model:aiAttempt.model,
+      finishReason:clean(raw?.candidates?.[0]?.finishReason)});
   }catch(err){console.error("SMART FORMS AI DETECT ERROR:",err);res.status(500).json({success:false,message:err?.message||"AI field detection failed"});}
 });
 
