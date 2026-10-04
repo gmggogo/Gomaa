@@ -260,7 +260,7 @@ async function aiDetectFields(){
     await api(`${API}/templates/${activeBuilderTemplate._id}/layout`,{method:"PUT",body:JSON.stringify({layout:builderLayout})});
     renderBuilder();renderMapFieldList();
     const mapped=mapperFields.reduce((sum,f)=>sum+fieldMaps(f).length,0);
-    msg(`AI detected ${builderFields.length} fields across ${pdfPageCount} pages; ${mapped} have usable PDF positions. Review the full list and save.`);
+    msg(`AI detected ${builderFields.length} fields across ${pdfPageCount} pages; ${mapped} have PDF boxes. ${d.withoutPosition||0} still need a position. Review the list and save.`);
   }catch(e){msg(e.message,"err");}
   finally{btn.classList.remove("sf-ai-busy");btn.textContent="✦ AI Detect Fields";}
 }

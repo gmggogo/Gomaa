@@ -584,8 +584,12 @@ function normalizeFields(fields){
 }
 
 function smartFormAiMapping(field,pageCount){
+  const geometry=field?.pdfMapping||field?.mapping||field?.coordinates||field;
   const numeric=value=>(typeof value==="number" || (typeof value==="string" && value.trim()!=="")) && Number.isFinite(Number(value));
-  const values=[field.page,field.xPercent,field.yPercent,field.widthMapPercent,field.heightMapPercent];
+  const values=[geometry.page,geometry.xPercent??geometry.leftPercent??geometry.left,
+    geometry.yPercent??geometry.topPercent??geometry.top,
+    geometry.widthPercent??geometry.widthMapPercent??geometry.width,
+    geometry.heightPercent??geometry.heightMapPercent??geometry.height];
   const [page,x,y,requestedW,requestedH]=values.map(Number);
   const valid=values.every(numeric) && Number.isInteger(page) && page>=1 && page<=pageCount &&
     x>=0 && x<100 && y>=0 && y<100 && requestedW>0 && requestedH>0;
@@ -895,7 +899,7 @@ router.post("/templates/:id/ai-detect", aiUpload.array("pages",12), async (req,r
 
     const prompt=`Analyze EVERY supplied page of this official transportation form. Return EVERY visible fillable field on EVERY page, including all repeated trip rows and all boxes in every row. Do not stop after the first group or first 20 fields. The expected form may contain more than 50 fields. Count and include every distinct box, line, checkbox, and choice separately. Include page number for each.
 Detect blank lines, boxes, dropdown-like choices, checkboxes, radio choices, date/time fields, addresses, phone/member fields, authorization fields, and signature areas. Do not stop early and do not omit lower-page fields.
-Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,page,xPercent,yPercent,widthMapPercent,heightMapPercent,options,tripBinding,tripIndex.
+Return JSON only with {fields:[...]}. Each field: label,type,required,widthPercent,sourceType,repeat,pdfMapping:{page,xPercent,yPercent,widthPercent,heightPercent},options,tripBinding,tripIndex.
 type must be TEXT,NUMBER,PHONE,ADDRESS,DATE,TIME,SELECT,RADIO,CHECKBOX,TEXTAREA,SIGNATURE.
 Detect visual choice controls as SELECT/RADIO/CHECKBOX when the form shows dropdowns, boxes, yes/no choices, trip type choices, service/vehicle choices, payor choices, or multiple visible options; put the visible option labels in options.
 If a label says Type of Trip, Trip Type, Vehicle Type, Service Type, Transportation Type, Level of Service, Method of Payment, Payor, Gender, or Yes/No, do NOT return TEXT; return SELECT/RADIO/CHECKBOX.
@@ -906,8 +910,8 @@ tripBinding may be CLIENT_NAME,PICKUP_ADDRESS,DROPOFF_ADDRESS,STOPS,TRIP_DATE,PI
 tripIndex is 1,2,3... for repeated trip blocks such as Pickup 1/Dropoff 1 and Pickup 2/Dropoff 2; otherwise use 0.
 IMPORTANT: repeated trip blocks are separate trips, not duplicate occurrences. For Pickup 1 and Pickup 2, create two separate fields with tripIndex 1 and 2. Do NOT use repeat=true to merge different trips.
 Use repeat=true only when the exact same logical field appears in multiple printed places for the same trip/person; then return one logical field and use occurrences:[{page,xPercent,yPercent,widthMapPercent,heightMapPercent}] for all locations.
-Use normalized percentages 0-100 for PDF coordinates, measured from the TOP LEFT of each complete page image (not bottom-left PDF coordinates and not 0-1000).
-xPercent and yPercent are the top-left of the blank input area, excluding its printed label. widthMapPercent and heightMapPercent are that input area's width and height, not the lower-right coordinates. The whole rectangle must fit inside the page.
+pdfMapping must be an object for EVERY field. Use normalized percentages 0-100, measured from the TOP LEFT of each complete page image (not bottom-left PDF coordinates and not 0-1000).
+pdfMapping.xPercent and yPercent are the top-left of the blank input area, excluding its printed label. pdfMapping.widthPercent and heightPercent are that input area's width and height, not the lower-right coordinates. The whole rectangle must fit inside the page.
 Return exact visible input rectangles. If you cannot locate a field reliably, leave its coordinates null; never invent a default rectangle.
 Preserve visual reading order and current form design; detection must not redesign the page. widthPercent is form-entry layout width (10-100).`;
 
@@ -970,10 +974,12 @@ Preserve visual reading order and current form design; detection must not redesi
         options:(old?.options&&old.options.length)?old.options:detectedOptions,
         mapping:maps[0]||{mapped:false},mappings:maps};
     });
+    const detectedMappedPositions=fields.reduce((sum,f)=>sum+(f.mappings||[]).filter(m=>m.mapped).length,0);
     const detectedKeys=new Set(fields.map(f=>f.key));
     for(const old of (t.fields||[])){const plain=old.toObject?old.toObject():old;if(!detectedKeys.has(String(plain.key)))fields.push(plain);}
     t.fields=normalizeFields(fields); t.updatedBy=actor(req); await t.save();
-    res.json({success:true,template:sanitizeTemplate(t),detected:t.fields.length});
+    res.json({success:true,template:sanitizeTemplate(t),detected:detected.length,mappedPositions:detectedMappedPositions,
+      withoutPosition:Math.max(0,detected.length-detectedMappedPositions)});
   }catch(err){console.error("SMART FORMS AI DETECT ERROR:",err);res.status(500).json({success:false,message:err?.message||"AI field detection failed"});}
 });
 
