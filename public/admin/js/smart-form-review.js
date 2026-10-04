@@ -1,4 +1,4 @@
-/* DESTINATION: server/public/admin/js/smart-form-review.js */
+/* SMART FORM LINKED MULTI-TRIP REVIEW — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04 */
 (()=>{
   "use strict";
 
@@ -80,7 +80,8 @@
     const source=members.length?members:[trip];
     return source.map(member=>({
       id:String(member._id||member.id||trip._id||""),
-      tripNumber:clean(member.tripNumber||trip.tripNumber)||"—",
+      tripNumber:clean(member.smartFormBaseTripNumber||trip.smartFormBaseTripNumber||member.tripNumber||trip.tripNumber)||"—",
+      partLabel:clean(member.smartFormTripLabel||trip.smartFormTripLabel)||(Number(member.smartFormTripIndex||trip.smartFormTripIndex)>0?`T${Number(member.smartFormTripIndex||trip.smartFormTripIndex)}`:"—"),
       templateName:clean(member.templateName)||"—",
       serviceName:clean(member.serviceName||trip.serviceName||trip.serviceKey)||"—",
       clientName:clean(member.clientName||member.name)||"—",
@@ -101,6 +102,7 @@
       trip.tripNumber,
       ...rows.flatMap(member=>[
         member.tripNumber,
+        member.partLabel,
         member.templateName,
         member.serviceName,
         member.clientName,
@@ -187,6 +189,7 @@
       return `<tr>
         <td><input type="checkbox" data-select="${esc(id)}" ${selected?"checked":""} aria-label="Select ${esc(trip.tripNumber)}"></td>
         <td>${cell(rows.map(member=>member.tripNumber))}</td>
+        <td>${cell(rows.map(member=>member.partLabel))}</td>
         <td>${cell(rows.map(member=>member.templateName))}</td>
         <td><span class="mode-pill ${shared?"shared":"individual"}">${shared?"Shared":"Individual"}</span></td>
         <td>${cell(rows.map(member=>member.tripDate))}</td>
@@ -263,7 +266,7 @@
     overlay.id="reviewDetails";
     overlay.className="view-overlay";
     overlay.innerHTML=`<section class="view-box">
-      <header class="view-head"><span>${esc(trip.tripNumber||"Smart Form Trip")} · Original template data</span><button class="view-close" type="button" data-close>×</button></header>
+      <header class="view-head"><span>${esc(trip.smartFormBaseTripNumber||trip.tripNumber||"Smart Form Trip")} · ${esc(trip.smartFormTripLabel||"")} · Original template data</span><button class="view-close" type="button" data-close>×</button></header>
       <div class="view-body">${line("Service",trip.serviceName||trip.serviceKey)}${line("Trip Date",trip.tripDate)}${routeBlocks}${templateBlocks||line("Template data","No saved template snapshot")}</div>
     </section>`;
     overlay.onclick=event=>{

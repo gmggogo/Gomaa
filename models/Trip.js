@@ -1,3 +1,4 @@
+// SMART FORM LINKED MULTI-TRIP — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04
 // GH Mobility - Trip model
 // Extracted from the legacy server index without changing schema or indexes.
 const mongoose = require("mongoose");
@@ -56,6 +57,13 @@ const tripSchema = new mongoose.Schema({
   tripNumber: { type: String },
 
   smartFormSubmissionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SmartFormSubmission",
+    default: null,
+    index: true
+  },
+
+  smartFormParentSubmissionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "SmartFormSubmission",
     default: null,

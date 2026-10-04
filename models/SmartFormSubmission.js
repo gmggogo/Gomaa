@@ -1,3 +1,4 @@
+/* SMART FORM LINKED MULTI-TRIP — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04 */
 /* DESTINATION: server/models/SmartFormSubmission.js */
 const mongoose = require("mongoose");
 
@@ -8,7 +9,7 @@ const schema = new mongoose.Schema({
   templateName:{type:String,default:""},
   organizationName:{type:String,default:""},
   status:{type:String,enum:["DRAFT","REVIEW","CONFIRMED","ARCHIVED"],default:"DRAFT",index:true},
-  workflowStage:{type:String,enum:["HUB","SPLIT","FINAL_REVIEW","DISPATCHED"],default:"HUB",index:true},
+  workflowStage:{type:String,enum:["HUB","SPLIT","FINAL_REVIEW","DISPATCHED","ARCHIVED"],default:"HUB",index:true},
   splitDisposition:{type:String,enum:["ORIGINAL","INDIVIDUAL","SHARED"],default:"ORIGINAL",index:true},
   sharedGroupId:{type:String,default:"",index:true},
   formData:{type:mongoose.Schema.Types.Mixed,default:{}},
@@ -16,6 +17,10 @@ const schema = new mongoose.Schema({
   tripId:{type:mongoose.Schema.Types.ObjectId,ref:"Trip",default:null,index:true},
   tripIds:{type:[mongoose.Schema.Types.ObjectId],ref:"Trip",default:[]},
   tripNumber:{type:String,default:"",index:true},
+  smartFormParentSubmissionId:{type:mongoose.Schema.Types.ObjectId,ref:"SmartFormSubmission",default:null,index:true},
+  smartFormBaseTripNumber:{type:String,default:"",index:true},
+  smartFormTripIndex:{type:Number,default:0},
+  smartFormTripLabel:{type:String,default:""},
   multiTripCount:{type:Number,default:1,min:1},
   smartFormTrips:{type:[mongoose.Schema.Types.Mixed],default:[]},
   clientName:{type:String,default:""},

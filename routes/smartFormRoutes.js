@@ -1883,10 +1883,27 @@ router.get("/workflow/hub",async(req,res)=>{
     const rows=await SmartFormSubmission.find({
       tenantId:g.tenantId,
       status:"REVIEW",
+      smartFormParentSubmissionId:null,
       sharedGroupId:{$in:["",null]},
       $or:[{workflowStage:{$in:["HUB","SPLIT"]}},{workflowStage:{$exists:false}}]
     }).sort({tripDate:1,pickupTime:1,createdAt:1}).limit(1000).lean();
-    return res.json({success:true,submissions:rows.map(sanitizeSubmission)});
+    // SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04
+    const templateIds=[...new Set(rows.map(row=>String(row.templateId||"")).filter(Boolean))];
+    const templates=templateIds.length?await SmartFormTemplate.find({_id:{$in:templateIds},tenantId:g.tenantId}).lean():[];
+    const templateMap=new Map(templates.map(template=>[String(template._id),template]));
+    const submissions=rows.map(row=>{
+      const template=templateMap.get(String(row.templateId));
+      const parts=template?operationalTrips({...template,fields:Array.isArray(row.fieldSnapshot)?row.fieldSnapshot:[]},row.formData||{}):[];
+      const tripParts=(parts.length?parts:[row]).map((part,index)=>({
+        ...part,
+        tripIndex:Number(part.smartFormTripIndex||index+1),
+        partLabel:`T${Number(part.smartFormTripIndex||index+1)}`,
+        tripNumber:clean(row.tripNumber),
+        tripPartCount:Math.max(1,parts.length)
+      }));
+      return {...sanitizeSubmission(row),tripParts};
+    });
+    return res.json({success:true,submissions});
   }catch(err){
     console.error("SMART FORM HUB ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to load Smart Form Hub"});
@@ -1988,12 +2005,44 @@ router.post("/workflow/split/enter",async(req,res)=>{
     const ids=[...new Set((Array.isArray(req.body?.submissionIds)?req.body.submissionIds:[])
       .map(clean).filter(id=>mongoose.Types.ObjectId.isValid(id)))];
     if(!ids.length)return res.status(400).json({success:false,message:"Select Smart Form trips to open in Split"});
-    const result=await SmartFormSubmission.updateMany(
-      {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",$or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}],tripId:null},
-      {$set:{workflowStage:"SPLIT",splitDisposition:"ORIGINAL",sharedGroupId:""}}
+    const parents=await SmartFormSubmission.find(
+      {_id:{$in:ids},tenantId:g.tenantId,status:"REVIEW",$or:[{workflowStage:"HUB"},{workflowStage:{$exists:false}}],tripId:null}
     );
-    const moved=Number(result.modifiedCount??result.nModified??0);
-    return res.json({success:true,movedCount:moved,submissionIds:ids});
+    const movedIds=[];let moved=0;
+    for(const parent of parents){
+      const template=await SmartFormTemplate.findOne({_id:parent.templateId,tenantId:g.tenantId}).lean();
+      const parts=template?operationalTrips({...template,fields:Array.isArray(parent.fieldSnapshot)?parent.fieldSnapshot:[]},parent.formData||{}):[];
+      if(parts.length<=1){
+        parent.workflowStage="SPLIT";parent.splitDisposition="ORIGINAL";parent.sharedGroupId="";
+        await parent.save();moved++;movedIds.push(String(parent._id));continue;
+      }
+      const baseTripNumber=clean(parent.tripNumber);
+      const existing=await SmartFormSubmission.find({tenantId:g.tenantId,smartFormParentSubmissionId:parent._id}).select("_id smartFormTripIndex").lean();
+      const existingIndexes=new Set(existing.map(row=>Number(row.smartFormTripIndex)));
+      const childIds=existing.map(row=>row._id);
+      for(let index=0;index<parts.length;index++){
+        const part=parts[index],tripIndex=Number(part.smartFormTripIndex||index+1);
+        if(existingIndexes.has(tripIndex))continue;
+        const child=await SmartFormSubmission.create({
+          tenantId:parent.tenantId,organizationId:parent.organizationId,templateId:parent.templateId,
+          templateName:parent.templateName,organizationName:parent.organizationName,
+          status:"REVIEW",workflowStage:"SPLIT",splitDisposition:"ORIGINAL",sharedGroupId:"",
+          formData:parent.formData,fieldSnapshot:parent.fieldSnapshot,tripNumber:`${baseTripNumber}-T${tripIndex}`,
+          smartFormParentSubmissionId:parent._id,smartFormBaseTripNumber:baseTripNumber,
+          smartFormTripIndex:tripIndex,smartFormTripLabel:`T${tripIndex}`,
+          multiTripCount:parts.length,smartFormTrips:[{tripIndex,tripLabel:`T${tripIndex}`}],
+          clientName:part.clientName,pickupAddress:part.pickupAddress,dropoffAddress:part.dropoffAddress,
+          stops:part.stops,tripDate:part.tripDate,pickupTime:part.pickupTime,serviceName:part.serviceName,
+          signatureRequired:parent.signatureRequired,submittedBy:parent.submittedBy,submittedAt:parent.submittedAt,
+          notes:parent.notes
+        });
+        childIds.push(child._id);movedIds.push(String(child._id));moved++;
+      }
+      parent.tripIds=[...new Set([...(parent.tripIds||[]).map(String),...childIds.map(String)])];
+      parent.status="ARCHIVED";parent.workflowStage="ARCHIVED";
+      await parent.save();
+    }
+    return res.json({success:true,movedCount:moved,submissionIds:movedIds,parentSubmissionIds:ids});
   }catch(err){
     console.error("SMART FORM SPLIT ENTER ERROR:",err);
     return res.status(500).json({success:false,message:err?.message||"Failed to move trips into Split"});

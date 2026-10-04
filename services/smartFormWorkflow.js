@@ -1,3 +1,4 @@
+/* SMART FORM LINKED MULTI-TRIP — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04 */
 /* DESTINATION PATH: server/services/smartFormWorkflow.js */
 "use strict";
 
@@ -139,6 +140,11 @@ function buildSmartFormTripPayload({
     tenantId,
     type: "company",
     tripNumber: clean(group?.tripNumber || first?.tripNumber),
+    smartFormSubmissionId:first?._id||null,
+    smartFormParentSubmissionId:first?.smartFormParentSubmissionId||first?._id||null,
+    smartFormBaseTripNumber:clean(first?.smartFormBaseTripNumber||first?.tripNumber),
+    smartFormTripIndex:Number(first?.smartFormTripIndex||0),
+    smartFormTripLabel:clean(first?.smartFormTripLabel),
     company: clean(first?.organizationName || first?.templateName || "Smart Form"),
     entryName: clean(actorName),
     entryPhone: "",
@@ -168,6 +174,9 @@ function buildSmartFormTripPayload({
     durationMinutes: finite(group?.routeMinutes ?? first?.durationMinutes),
     ...(totalPrice === null ? {} : { priceAmount: totalPrice, finalPrice: totalPrice }),
     bookingData: {
+      smartFormBaseTripNumber:clean(first?.smartFormBaseTripNumber||first?.tripNumber),
+      smartFormTripIndex:Number(first?.smartFormTripIndex||0),
+      smartFormTripLabel:clean(first?.smartFormTripLabel),
       smartFormSubmissions: rows.map(templateSnapshot)
     },
     source: "SMART_FORM",

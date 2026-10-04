@@ -1,4 +1,4 @@
-/* DESTINATION: server/public/admin/js/smart-form-split.js */
+/* SMART FORM LINKED MULTI-TRIP SPLIT — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04 */
 /* DESTINATION: server/public/admin/js/smart-form-split.js */
 (()=>{
   "use strict";
@@ -24,6 +24,7 @@
   }
 
   function stops(row){return(Array.isArray(row?.stops)?row.stops:[]).map(item=>typeof item==="string"?item:item?.address||"").map(clean).filter(Boolean);}
+  function displayTrip(row){const base=clean(row.smartFormBaseTripNumber)||clean(row.tripNumber).replace(/-T\d+$/i,"");const part=clean(row.smartFormTripLabel)||(Number(row.smartFormTripIndex)>0?`T${row.smartFormTripIndex}`:"");return `${base||"—"}${part?` · ${part}`:""}`;}
   function lane(row){if(clean(row?.sharedGroupId))return"SHARED";const value=clean(row?.splitDisposition).toUpperCase();return value==="INDIVIDUAL"?"INDIVIDUAL":"ORIGINAL";}
   function matches(row){
     if(state.template!=="ALL"&&clean(row.templateId)!==state.template)return false;
@@ -41,7 +42,7 @@
 
   function originalRow(row){
     const id=String(row._id),checked=state.selectedOriginal.has(id)?" checked":"";
-    return`<tr><td class="check-cell"><input type="checkbox" data-select-original="${esc(id)}"${checked}></td><td class="trip-id">${esc(row.tripNumber||"—")}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="address-cell">${address(row.pickupAddress)}</td><td class="stops-cell">${stopBoxes(row)}</td><td class="address-cell">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td class="notes-cell">${esc(row.notes||"—")}</td><td><span class="status ready">Original</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button" aria-label="View details">◉</button></td><td>${rowActions(row)}</td></tr>`;
+    return`<tr><td class="check-cell"><input type="checkbox" data-select-original="${esc(id)}"${checked}></td><td class="trip-id">${esc(displayTrip(row))}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="address-cell">${address(row.pickupAddress)}</td><td class="stops-cell">${stopBoxes(row)}</td><td class="address-cell">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td class="notes-cell">${esc(row.notes||"—")}</td><td><span class="status ready">Original</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button" aria-label="View details">◉</button></td><td>${rowActions(row)}</td></tr>`;
   }
   function renderOriginal(){
     const rows=rowsFor("ORIGINAL"),groups=new Map();
@@ -52,7 +53,7 @@
 
   function individualRow(row){
     const id=String(row._id),checked=state.selectedIndividual.has(id)?" checked":"";
-    return`<tr><td><input type="checkbox" data-select-individual="${esc(id)}"${checked}></td><td class="individual-trip-number">${esc(row.tripNumber||"—")}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="individual-address">${address(row.pickupAddress)}</td><td class="individual-stops">${stopBoxes(row)}</td><td class="individual-address">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td><span class="status ready">Individual</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button">◉</button></td><td>${rowActions(row)}</td></tr>`;
+    return`<tr><td><input type="checkbox" data-select-individual="${esc(id)}"${checked}></td><td class="individual-trip-number">${esc(displayTrip(row))}</td><td>${esc(row.templateName||"—")}</td><td>${esc(row.pickupTime||"—")}</td><td>${esc(row.clientName||"—")}</td><td class="individual-address">${address(row.pickupAddress)}</td><td class="individual-stops">${stopBoxes(row)}</td><td class="individual-address">${address(row.dropoffAddress)}</td><td>${esc(row.serviceName||"—")}</td><td><span class="status ready">Individual</span></td><td><button class="eye-btn" data-eye="${esc(id)}" type="button">◉</button></td><td>${rowActions(row)}</td></tr>`;
   }
   function renderIndividual(){const rows=rowsFor("INDIVIDUAL");$("individualTripRows").innerHTML=rows.map(individualRow).join("");$("individualCount").textContent=String(rows.length);$("individualEmpty").hidden=rows.length>0;}
 
@@ -101,7 +102,7 @@
     const data=row.formData||{},snapshot=Array.isArray(row.fieldSnapshot)?row.fieldSnapshot:[],known=new Set(snapshot.map(field=>String(field.key)));
     const templateFields=snapshot.map(field=>detailLine(field.label||field.key,data[field.key])).join("");
     const extras=Object.entries(data).filter(([key])=>!known.has(String(key))).map(([key,value])=>detailLine(key,value)).join("");
-    const overlay=document.createElement("div");overlay.id="smartFormSplitDetails";overlay.className="view-overlay";overlay.innerHTML=`<section class="view-box"><header class="view-head"><span>${esc(row.tripNumber||"Smart Form Trip")} · ${esc(row.templateName||"")}</span><button class="view-close" data-close-details type="button">×</button></header><div class="view-body">${detailLine("Client",row.clientName)}${detailLine("Service",row.serviceName)}${detailLine("Pickup",row.pickupAddress)}${detailLine("Stops",stops(row))}${detailLine("Drop-off",row.dropoffAddress)}${detailLine("Trip Date",row.tripDate)}${detailLine("Pickup Time",row.pickupTime)}${templateFields}${extras}</div></section>`;
+    const overlay=document.createElement("div");overlay.id="smartFormSplitDetails";overlay.className="view-overlay";overlay.innerHTML=`<section class="view-box"><header class="view-head"><span>${esc(displayTrip(row))} · ${esc(row.templateName||"")}</span><button class="view-close" data-close-details type="button">×</button></header><div class="view-body">${detailLine("Part",row.smartFormTripLabel||"")}${detailLine("Client",row.clientName)}${detailLine("Service",row.serviceName)}${detailLine("Pickup",row.pickupAddress)}${detailLine("Stops",stops(row))}${detailLine("Drop-off",row.dropoffAddress)}${detailLine("Trip Date",row.tripDate)}${detailLine("Pickup Time",row.pickupTime)}${templateFields}${extras}</div></section>`;
     overlay.onclick=event=>{if(event.target===overlay||event.target.closest("[data-close-details]"))closeDetails();};document.body.appendChild(overlay);
   }
 
