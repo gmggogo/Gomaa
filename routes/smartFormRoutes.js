@@ -1,4 +1,3 @@
-// Original path: server/routes/smartFormRoutes.js
 const express = require("express");
 // SMART_FORMS_AI_GEMINI_DYNAMIC_MODEL_LIST_FIX_2026_10_02_RENDER_FORCE
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
@@ -277,6 +276,11 @@ function fieldTripIndex(field){
   if(Number.isFinite(direct) && direct>0) return Math.floor(direct);
   return ordinalTripIndex(normalizedFieldText(field));
 }
+function smartFormPartLabel(position,total){
+  const part=Math.max(1,Math.floor(Number(position)||0)+1);
+  const count=Math.max(1,Math.floor(Number(total)||0));
+  return `Trip ${part} of ${count}`;
+}
 function fieldLooksLikeBinding(field,binding){
   const text=normalizedFieldText(field);
   const tests={
@@ -352,7 +356,8 @@ function baseOperationalData(template,formData){
 }
 function operationalTrips(template,formData){
   const base=baseOperationalData(template,formData);
-  return operationalTripIndexes(template,formData).map((tripIndex,position)=>({
+  const indexes=operationalTripIndexes(template,formData);
+  return indexes.map((tripIndex,position)=>({
     ...base,
     clientName:fieldValueForBindingTrip(template,formData,"CLIENT_NAME",tripIndex,base.clientName),
     pickupAddress:fieldValueForBindingTrip(template,formData,"PICKUP_ADDRESS",tripIndex,base.pickupAddress),
@@ -362,7 +367,7 @@ function operationalTrips(template,formData){
     pickupTime:fieldValueForBindingTrip(template,formData,"PICKUP_TIME",tripIndex,base.pickupTime),
     serviceName:fieldValueForBindingTrip(template,formData,"SERVICE",tripIndex,base.serviceName),
     smartFormTripIndex:tripIndex,
-    smartFormTripLabel:`Trip ${position+1}`
+    smartFormTripLabel:smartFormPartLabel(position,indexes.length)
   }));
 }
 function operationalData(template,formData){
@@ -560,6 +565,8 @@ function normalizeFields(fields){
       type:clean(f.type || "TEXT").toUpperCase(),
       required:f.required===true,
       requiredUserOverride:f.requiredUserOverride===true,
+      hideFromEntry:f.hideFromEntry===true,
+      pdfPageUserOverride:f.pdfPageUserOverride===true,
       placeholder:clean(f.placeholder),
       options:Array.isArray(f.options)?f.options.map(clean).filter(Boolean):[],
       widthPercent:Math.max(10,Math.min(100,Number(f.widthPercent||50))),
@@ -863,6 +870,8 @@ router.put("/templates/:id/fields", async (req,res)=>{
         // Required and Repeat are manual controls after AI detection. False must remain false.
         required:f?.required===true,
         requiredUserOverride:f?.requiredUserOverride===true || plain?.requiredUserOverride===true,
+        hideFromEntry:f?.hideFromEntry===true,
+        pdfPageUserOverride:f?.pdfPageUserOverride===true || plain?.pdfPageUserOverride===true,
         repeat:f?.repeat===true,
         repeatUserOverride:f?.repeatUserOverride===true || plain?.repeatUserOverride===true
       };
@@ -970,13 +979,17 @@ Preserve visual reading order and current form design; detection must not redesi
       const baseKey=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||`field_${i+1}`;
       const key=aiTripIndex>0 ? `${baseKey}_trip_${aiTripIndex}` : baseKey;
       const old=existingByKey.get(key); const occ=Array.isArray(a.occurrences)&&a.occurrences.length?a.occurrences:[a];
-      const maps=occ.map(o=>smartFormAiMapping(o,pages.length)).filter(m=>m.mapped);
+      const detectedMaps=occ.map(o=>smartFormAiMapping(o,pages.length)).filter(m=>m.mapped);
+      const oldMaps=Array.isArray(old?.mappings)&&old.mappings.length?old.mappings.filter(m=>m?.mapped===true):(old?.mapping?.mapped?[old.mapping]:[]);
+      const savedMaps=old?.pdfPageUserOverride===true&&oldMaps.length?oldMaps:(detectedMaps.length?detectedMaps:oldMaps);
       const detectedType=smartFormAiFinalFieldType(a);
       const detectedOptions=Array.isArray(a.options)?a.options.map(clean).filter(Boolean):[];
       const detectedBinding=clean(a.tripBinding).toUpperCase();
       return {_id:old?._id,key,label,type:detectedType,
         required:old ? old.required===true : a.required===true,
         requiredUserOverride:old?.requiredUserOverride===true,
+        hideFromEntry:old?.hideFromEntry===true,
+        pdfPageUserOverride:old?.pdfPageUserOverride===true,
         widthPercent:Number(a.widthPercent||50),sourceType:clean(a.sourceType||"MANUAL").toUpperCase(),
         // AI may suggest Repeat only for a brand-new field. Existing fields keep the user's saved choice.
         // Trip-indexed fields are separate trips and must never be merged as Repeat.
@@ -985,7 +998,7 @@ Preserve visual reading order and current form design; detection must not redesi
         tripBinding:old?.tripBinding||(["CLIENT_NAME","PICKUP_ADDRESS","DROPOFF_ADDRESS","STOPS","TRIP_DATE","PICKUP_TIME","SERVICE"].includes(detectedBinding)?detectedBinding:""),
         tripIndex:old?.tripIndex || aiTripIndex,
         options:(old?.options&&old.options.length)?old.options:detectedOptions,
-        mapping:maps[0]||{mapped:false},mappings:maps};
+        mapping:savedMaps[0]||old?.mapping||{mapped:false},mappings:savedMaps.length?savedMaps:(old?.mappings||[])};
     });
     const detectedMappedPositions=fields.reduce((sum,f)=>sum+(f.mappings||[]).filter(m=>m.mapped).length,0);
     const detectedKeys=new Set(fields.map(f=>f.key));
@@ -1028,7 +1041,7 @@ router.post("/submissions", async (req,res)=>{
     const org=await SmartFormOrganization.findOne({_id:t.organizationId,tenantId:g.tenantId,active:{ $ne:false }}).lean();
     if(!org) return res.status(404).json({success:false,message:"Organization not found"});
     const formData=req.body.formData && typeof req.body.formData==="object" ? req.body.formData : {};
-    const missing=(t.fields||[]).filter(f=>f.required && f.type!=="SIGNATURE" && (formData[f.key]===undefined || formData[f.key]===null || formData[f.key]==="")).map(f=>f.label);
+    const missing=(t.fields||[]).filter(f=>f.required && f.hideFromEntry!==true && f.type!=="SIGNATURE" && (formData[f.key]===undefined || formData[f.key]===null || formData[f.key]==="")).map(f=>f.label);
     if(missing.length) return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
     const status=String(req.body.status||"").toUpperCase()==="REVIEW"?"REVIEW":"DRAFT";
     const tripOps=operationalTrips(t,formData);
@@ -1363,14 +1376,16 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       }
 
       const tripLabel=row.smartFormTripLabel||`Trip ${index+1}`;
-      const tripNumber=total>1 ? `${s.tripNumber}-T${index+1}` : s.tripNumber;
+      const tripPartIndex=index+1;
+      const tripSlotIndex=Number(row.smartFormTripIndex)||tripPartIndex;
+      const tripNumber=total>1 ? `${s.tripNumber}-T${tripSlotIndex}` : s.tripNumber;
       const tripPayload={
         tenantId:g.tenantId,
         type:"company",
         tripNumber,
         smartFormSubmissionId:s._id,
         smartFormBaseTripNumber:s.tripNumber,
-        smartFormTripIndex:index+1,
+        smartFormTripIndex:tripSlotIndex,
         smartFormTripLabel:tripLabel,
         company:clean(s.organizationName||t.name||"Smart Form"),
         entryName:actor(req),
@@ -1439,7 +1454,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
         trip=await Trip.findOne({_id:trip._id,tenantId:g.tenantId}) || trip;
       }
 
-      return {trip,price:smartFormPrice,miles:smartFormMiles,minutes:smartFormMinutes,tripNumber,tripLabel};
+      return {trip,price:smartFormPrice,miles:smartFormMiles,minutes:smartFormMinutes,tripNumber,tripLabel,tripIndex:tripSlotIndex,tripPartIndex,tripPartCount:total};
     }
 
     const createdTrips=[];
@@ -1469,8 +1484,10 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       smartFormTrips:createdTrips.map((row,index)=>({
         tripId:row.trip?._id || null,
         tripNumber:row.tripNumber,
-        tripIndex:index+1,
-        tripLabel:row.tripLabel
+        tripIndex:row.tripIndex||index+1,
+        tripPartIndex:row.tripPartIndex||index+1,
+        tripPartCount:row.tripPartCount||createdTrips.length,
+        tripLabel:row.tripLabel||smartFormPartLabel(index,createdTrips.length)
       })),
       status:"CONFIRMED",
       confirmedBy:actor(req),
@@ -1891,7 +1908,7 @@ router.patch("/workflow/hub/:id",async(req,res)=>{
       if(key&&Object.prototype.hasOwnProperty.call(incoming,key))nextData[key]=incoming[key];
     }
     const missing=(submission.fieldSnapshot||[])
-      .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+      .filter(field=>field?.required===true&&field?.hideFromEntry!==true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
       .filter(field=>!hasValue(nextData[field.key]))
       .map(field=>clean(field.label)||clean(field.key));
     if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
@@ -2020,7 +2037,7 @@ router.patch("/workflow/split/:id",async(req,res)=>{
       if(key&&Object.prototype.hasOwnProperty.call(incoming,key))nextData[key]=incoming[key];
     }
     const missing=(submission.fieldSnapshot||[])
-      .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+      .filter(field=>field?.required===true&&field?.hideFromEntry!==true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
       .filter(field=>!hasValue(nextData[field.key]))
       .map(field=>clean(field.label)||clean(field.key));
     if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});
@@ -2267,7 +2284,7 @@ router.patch("/workflow/review/edit/:tripId",async(req,res)=>{
       }
 
       const missing=(submission.fieldSnapshot||[])
-        .filter(field=>field?.required===true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
+        .filter(field=>field?.required===true&&field?.hideFromEntry!==true&&clean(field?.type).toUpperCase()!=="SIGNATURE")
         .filter(field=>!hasValue(nextData[field.key]))
         .map(field=>clean(field.label)||clean(field.key));
       if(missing.length)return res.status(400).json({success:false,message:`Required fields missing: ${missing.join(", ")}`});

@@ -21,6 +21,8 @@ const fieldSchema = new mongoose.Schema({
   },
   required:{type:Boolean,default:false},
   placeholder:{type:String,default:""},
+  hideFromEntry:{type:Boolean,default:false},
+  pdfPageUserOverride:{type:Boolean,default:false},
   options:{type:[String],default:[]},
   widthPercent:{type:Number,default:50,min:10,max:100},
   order:{type:Number,default:0},

@@ -1,4 +1,3 @@
-// Original path: server/public/admin/smart-forms.js
 // GH Mobility Smart Forms - mapping fix 2026-09-29
 // SMART_FORM_DELETE_FORM_RESETS_FIELDS_NOT_TEMPLATE_DISABLE_2026_10_03_0403
 // SMART_FORM_BUILDER_EDIT_AI_FIELD_TYPES_OPTIONS_2026_10_03_0412
@@ -42,11 +41,12 @@ async function start(){const f=await api(`${API}/feature`);if(!f.enabled)throw n
     );
   }
 }templates=(await api(`${API}/templates`)).templates||[];syncSelects();renderTemplateSidebar();selectEntryTemplate(document.getElementById("entryTemplate").value);activateBuilder();}
+function entryVisibleFields(fields){return (fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL"&&f.hideFromEntry!==true);}
 function inputControl(f,v=""){const label=`${esc(f.label)}${f.required?" *":""}`,opts=f.options||[];if(f.type==="TEXTAREA")return `<div class="sf-control"><label>${label}</label><textarea id="entry_${esc(f.key)}">${esc(v)}</textarea></div>`;if(f.type==="SELECT")return `<div class="sf-control"><label>${label}</label><select id="entry_${esc(f.key)}"><option value="">Select...</option>${opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")}</select></div>`;if(f.type==="RADIO")return `<div class="sf-control"><label>${label}</label><div id="entry_${esc(f.key)}" data-radio-group="${esc(f.key)}">${opts.map(o=>`<label style="display:block;font-weight:600"><input name="entry_${esc(f.key)}" type="radio" value="${esc(o)}"> ${esc(o)}</label>`).join("")}</div></div>`;if(f.type==="CHECKBOX"&&opts.length)return `<div class="sf-control"><label>${label}</label><div id="entry_${esc(f.key)}" data-checkbox-group="${esc(f.key)}">${opts.map(o=>`<label style="display:block;font-weight:600"><input type="checkbox" value="${esc(o)}"> ${esc(o)}</label>`).join("")}</div></div>`;if(f.type==="CHECKBOX")return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="checkbox"></div>`;if(f.type==="SIGNATURE")return `<div class="sf-control"><label>${label}</label><div style="padding:12px;border:1px dashed #bbb;border-radius:8px">Captured in Driver App</div></div>`;const m={NUMBER:"number",PHONE:"tel",DATE:"date",TIME:"time"};return `<div class="sf-control"><label>${label}</label><input id="entry_${esc(f.key)}" type="${m[f.type]||"text"}" value="${esc(v)}"></div>`;}
 async function renderEntry(t){
   const host=document.getElementById("entryForm");
   if(!t){host.classList.remove("sf-entry-designer-view");host.innerHTML=`<div>No template selected.</div>`;return;}
-  const manual=(t.fields||[]).filter(f=>(f.sourceType||"MANUAL")==="MANUAL");
+  const manual=entryVisibleFields(t.fields);
   try{
     const d=await api(`${API}/templates/${t._id}/layout`),layout=d.layout||{},items=Array.isArray(layout.items)?layout.items.filter(i=>i.kind==="FIELD"):[];
     if(items.length){
@@ -59,7 +59,7 @@ async function renderEntry(t){
   host.classList.remove("sf-entry-designer-view");host.style.height="";
   host.innerHTML=manual.sort((a,b)=>(a.order||0)-(b.order||0)).map(f=>`<div class="sf-entry-field" style="width:${Number(f.widthPercent||50)}%">${inputControl(f)}</div>`).join("");
 }
-function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE")continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;if(f.type==="RADIO"){d[f.key]=el.querySelector("input:checked")?.value||"";}else if(f.type==="CHECKBOX"&&(f.options||[]).length){d[f.key]=[...el.querySelectorAll("input:checked")].map(x=>x.value);}else d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
+function collectEntry(t){const d={};for(const f of t.fields||[]){if(f.type==="SIGNATURE"||f.hideFromEntry===true)continue;const el=document.getElementById(`entry_${f.key}`);if(!el)continue;if(f.type==="RADIO"){d[f.key]=el.querySelector("input:checked")?.value||"";}else if(f.type==="CHECKBOX"&&(f.options||[]).length){d[f.key]=[...el.querySelectorAll("input:checked")].map(x=>x.value);}else d[f.key]=f.type==="CHECKBOX"?el.checked:el.value;}return d;}
 async function saveEntry(status){const t=currentTemplate(document.getElementById("entryTemplate").value);if(!t)return msg("Choose a template first.","err");try{await api(`${API}/submissions`,{method:"POST",body:JSON.stringify({templateId:t._id,formData:collectEntry(t),status})});msg(status==="REVIEW"?"Sent to Review.":"Draft saved.");renderEntry(t);if(status==="REVIEW")loadReview();}catch(e){msg(e.message,"err");}}
 let builderLayout={canvasHeight:900,items:[]},selectedBuilderItemId="",builderLayoutLoadedFor="";
 
@@ -74,6 +74,24 @@ function defaultBuilderLayout(fields){
   }
   return {canvasHeight:Math.max(650,y+rowH+80),items};
 }
+function packBuilderItems(items,pageHeight=1120,gap=18){
+  const packed=[];
+  const ordered=(items||[]).map((item,index)=>({...item,_index:index})).sort((a,b)=>Number(a.page||1)-Number(b.page||1)||Number(a.y||0)-Number(b.y||0)||Number(a.x||0)-Number(b.x||0)||a._index-b._index);
+  for(const item of ordered){
+    let y=Math.max(0,Number(item.y)||0),h=Math.max(1,Number(item.h)||90),x=Math.max(0,Number(item.x)||0),w=Math.max(1,Number(item.w)||30),changed=true;
+    while(changed){
+      changed=false;
+      for(const prior of packed){
+        if(Number(prior.page||1)!==Number(item.page||1))continue;
+        const overlapsX=x<Number(prior.x)+Number(prior.w)&&Number(prior.x)<x+w;
+        const overlapsY=y<Number(prior.y)+Number(prior.h)+gap&&Number(prior.y)<y+h+gap;
+        if(overlapsX&&overlapsY){y=Number(prior.y)+Number(prior.h)+gap;changed=true;break;}
+      }
+    }
+    packed.push({...item,x,y,w,h});
+  }
+  return packed.sort((a,b)=>a._index-b._index).map(({_index,...item})=>item);
+}
 function builderLayoutFromPdfMappings(fields){
   const items=[];
   const pageHeight=1120,pageGap=90;
@@ -82,15 +100,16 @@ function builderLayoutFromPdfMappings(fields){
     if(m.mapped!==true)continue;
     const page=Math.max(1,Number(m.page||1));
     const x=Math.max(0,Math.min(96,Number(m.xPercent||2)));
-    const y=((page-1)*(pageHeight+pageGap))+Math.max(12,Math.min(pageHeight-40,Number(m.yPercent||2)/100*pageHeight));
+    const localY=Math.max(12,Math.min(pageHeight-40,Number(m.yPercent||2)/100*pageHeight));
     const w=Math.max(14,Math.min(96-x,Number(m.widthPercent||f.widthPercent||30)));
     const baseH=f.type==="TEXTAREA"?118:(["SELECT","RADIO","CHECKBOX"].includes(f.type)?104:86);
     const h=Math.max(baseH,Math.min(220,Number(m.heightPercent||4)/100*pageHeight+54));
-    items.push({id:`field_${f.key}`,kind:"FIELD",fieldKey:f.key,text:"",x,y,w,h});
+    items.push({id:`field_${f.key}`,kind:"FIELD",fieldKey:f.key,text:"",page,y:localY,x,w,h});
   }
   if(!items.length)return defaultBuilderLayout(fields);
-  const canvasHeight=Math.max(650,...items.map(i=>Number(i.y||0)+Number(i.h||90)+80));
-  return {canvasHeight,items};
+  const packed=packBuilderItems(items,pageHeight,18).map(item=>({...item,y:((Number(item.page||1)-1)*(pageHeight+pageGap))+Number(item.y||12)}));
+  const canvasHeight=Math.max(650,...packed.map(i=>Number(i.y||0)+Number(i.h||90)+80));
+  return {canvasHeight,items:packed.map(({page,...item})=>item),source:"PDF_MAPPING_AUTO_LAYOUT"};
 }
 async function loadBuilderLayout(){
   if(!activeBuilderTemplate){builderLayout={canvasHeight:900,items:[]};return;}
@@ -105,6 +124,8 @@ async function loadBuilderLayout(){
 async function activateBuilder(){
   activeBuilderTemplate=currentTemplate(document.getElementById("builderTemplate").value);
   builderFields=JSON.parse(JSON.stringify(activeBuilderTemplate?.fields||[]));
+  const pageLimit=Math.max(1,Number(activeBuilderTemplate?.originalPdf?.pageCount||12));
+  const addPage=document.getElementById("fieldPdfPage");if(addPage){addPage.max=String(pageLimit);if(Number(addPage.value||1)>pageLimit)addPage.value=String(pageLimit);}
   selectedBuilderItemId="";
   await loadBuilderLayout();
   renderBuilder();
@@ -132,6 +153,7 @@ function renderBuilder(){
   list.innerHTML=builderFields.map((f,i)=>`<div class="sf-builder-property-row">
     <div class="sf-builder-property-title"><strong>${esc(f.label)}</strong><span>${esc(f.type)}</span></div>
     <select data-field-type="${i}" title="Field type">${fieldTypes.map(v=>`<option value="${v}" ${(f.type||"TEXT")===v?"selected":""}>${v}</option>`).join("")}</select>
+    <div class="sf-builder-field-flags"><label><input type="checkbox" data-required="${i}" ${f.required===true?"checked":""}> Required</label><button type="button" class="sf-field-visibility ${f.hideFromEntry===true?"hidden":"visible"}" data-hide-entry="${i}">${f.hideFromEntry===true?"Show in Entry":"Hide from Entry"}</button><label>PDF page <input data-pdf-page="${i}" type="number" min="1" max="${Math.max(1,Number(activeBuilderTemplate?.originalPdf?.pageCount||12))}" step="1" value="${Number((f.mappings?.[0]||f.mapping)?.page||1)}"></label></div>
     <textarea data-field-options="${i}" placeholder="Options for SELECT / RADIO / CHECKBOX" style="min-height:54px;border:1px solid #cbd6df;border-radius:7px;padding:6px">${esc((f.options||[]).join("\n"))}</textarea>
     <select data-source="${i}">${sources.map(v=>`<option value="${v}" ${(f.sourceType||"MANUAL")===v?"selected":""}>${v.replaceAll("_"," ")}</option>`).join("")}</select>
     <select data-binding="${i}" title="Smart Review field">${bindings.map(([v,l])=>`<option value="${v}" ${(f.tripBinding||"")===v?"selected":""}>${l}</option>`).join("")}</select>
@@ -182,9 +204,11 @@ document.getElementById("addFieldBtn").onclick=()=>{
   builderFields.push({key,label,type,sourceType:"MANUAL",tripBinding:"",tripIndex:0,repeat:false,required:document.getElementById("fieldRequired").checked,options:document.getElementById("fieldOptions").value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean),widthPercent:Number(document.getElementById("fieldWidth").value),order:builderFields.length,mapping:{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"},mappings:[{mapped:true,page:Number(document.getElementById("fieldPdfPage")?.value||1),xPercent:2,yPercent:2,widthPercent:20,heightPercent:type==="SIGNATURE"?8:4,fontSize:10,textAlign:"LEFT"}]});
   document.getElementById("fieldLabel").value="";document.getElementById("fieldOptions").value="";syncLayoutWithFields();renderBuilder();
 };
-document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){const i=Number(e.target.dataset.del),key=builderFields[i]?.key;builderFields.splice(i,1);builderLayout.items=builderLayout.items.filter(x=>String(x.fieldKey)!==String(key));builderFields.forEach((f,j)=>f.order=j);renderBuilder();}};
+document.getElementById("builderList").onclick=e=>{if(e.target.dataset.del!==undefined){const i=Number(e.target.dataset.del),key=builderFields[i]?.key;builderFields.splice(i,1);builderLayout.items=builderLayout.items.filter(x=>String(x.fieldKey)!==String(key));builderFields.forEach((f,j)=>f.order=j);renderBuilder();return;}if(e.target.dataset.hideEntry!==undefined){const i=Number(e.target.dataset.hideEntry),f=builderFields[i];if(!f)return;f.hideFromEntry=f.hideFromEntry!==true;renderBuilder();msg(`${f.label}: ${f.hideFromEntry?"hidden from entry, retained for automatic use":"shown in entry"}. Click Save Form Builder & Layout to save.`);}};
 document.getElementById("builderList").onchange=e=>{
   if(e.target.dataset.fieldType!==undefined)builderFields[Number(e.target.dataset.fieldType)].type=e.target.value;
+  if(e.target.dataset.required!==undefined){const f=builderFields[Number(e.target.dataset.required)];if(f){f.required=e.target.checked;f.requiredUserOverride=true;}}
+  if(e.target.dataset.pdfPage!==undefined){const f=builderFields[Number(e.target.dataset.pdfPage)],limit=Math.max(1,Number(activeBuilderTemplate?.originalPdf?.pageCount||12)),page=Math.max(1,Math.min(limit,Math.floor(Number(e.target.value)||1)));if(f){const oldPage=Math.max(1,Number((f.mappings?.[0]||f.mapping)?.page||1)),source=Array.isArray(f.mappings)&&f.mappings.length?f.mappings:(f.mapping?.mapped?[f.mapping]:[]);if(source.length){f.mappings=source.map(m=>({...m,page}));f.mapping={...f.mappings[0],page};}else f.mapping={...(f.mapping||{}),page};f.pdfPageUserOverride=true;const item=builderLayout.items.find(x=>x.kind==="FIELD"&&String(x.fieldKey)===String(f.key));if(item&&oldPage!==page){item.y=Math.max(0,Number(item.y||0)+(page-oldPage)*1210);builderLayout.canvasHeight=Math.max(Number(builderLayout.canvasHeight||900),item.y+Number(item.h||90)+80);}e.target.value=String(page);}}
   if(e.target.dataset.fieldOptions!==undefined)builderFields[Number(e.target.dataset.fieldOptions)].options=e.target.value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
   if(e.target.dataset.source!==undefined)builderFields[Number(e.target.dataset.source)].sourceType=e.target.value;
   if(e.target.dataset.binding!==undefined){const i=Number(e.target.dataset.binding),v=e.target.value,idx=Number(builderFields[i]?.tripIndex||0);if(v)builderFields.forEach((f,j)=>{if(j!==i&&f.tripBinding===v&&Number(f.tripIndex||0)===idx)f.tripBinding="";});builderFields[i].tripBinding=v;}
@@ -562,6 +586,7 @@ async function moveSelectedMappingToPage(rawPage){
   maps.forEach(m=>m.page=page);
   f.mapping={...maps[0],page};
   f.mappings=maps.map(m=>({...m,page}));
+  f.pdfPageUserOverride=true;
   pdfPageNumber=page;
   const el=document.getElementById("mapPage");if(el)el.value=String(page);
   await renderPdfPage();
