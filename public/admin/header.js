@@ -496,6 +496,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
      "Broker Review",
    "broker-pricing.html":
      "Broker Pricing",
+   "mtm-marketplace.html":
+     "MTM Marketplace",
+   "mtm-marketplace-settings.html":
+     "MTM Marketplace Settings",
    "smart-forms.html":
      "Smart Form",
    "smart-form-hub.html":
@@ -668,6 +672,11 @@ document.addEventListener("DOMContentLoaded",async()=>{
          "Broker Review",
          "broker-review.html",
          "doc"
+       ],
+       [
+         "MTM Marketplace",
+         "mtm-marketplace.html",
+         "bolt"
        ]
      ]
    };
@@ -703,6 +712,20 @@ document.addEventListener("DOMContentLoaded",async()=>{
        "Shared Engine",
        "shared-engine-settings.html",
        "car"
+     ]
+   );
+ }
+
+ /*
+   MTM Marketplace Settings follows the SAME Broker capability.
+   Broker OFF hides this page together with Broker Operations.
+ */
+ if(visibility.brokerEnabled){
+   settings.items.push(
+     [
+       "MTM Marketplace Settings",
+       "mtm-marketplace-settings.html",
+       "gear"
      ]
    );
  }

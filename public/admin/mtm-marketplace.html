@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MTM Marketplace | GH Mobility</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;color:#171717}.wrap{max-width:1250px;margin:28px auto;padding:0 18px}.top,.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:18px;margin-bottom:16px}.top{display:flex;justify-content:space-between;align-items:center}.status{font-weight:700}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.engine h2{margin:0 0 14px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}label{font-size:13px;font-weight:700;display:block;margin-bottom:5px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px}button{border:0;border-radius:8px;padding:11px 18px;font-weight:700;cursor:pointer}.save{background:#171717;color:#fff}.muted{color:#666;font-size:13px}.switch{display:flex;gap:14px;align-items:center;margin-bottom:14px}.switch input{width:auto}.activity{font-size:13px;max-height:260px;overflow:auto}.activity div{padding:8px;border-bottom:1px solid #eee}@media(max-width:850px){.grid,.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="top"><div><h1>MTM Marketplace</h1><div class="muted">Long and Short engines run independently.</div></div><div class="status" id="status">DISCONNECTED</div></div>
+ <div class="card"><div class="row"><div><label>Connection Method</label><select id="connectionMethod"><option value="MTM_PORTAL">MTM Provider Portal</option><option value="MTM_API">Official MTM API (future)</option></select></div><div><label>Search Next Days</label><input id="dateWindowDays" type="number" min="1" max="31" value="7"></div></div><div class="switch"><label><input id="enabled" type="checkbox"> Marketplace Enabled</label><label>Total Daily Limit <input id="totalDailyTripLimit" type="number" min="0" value="0" style="width:90px"></label></div></div>
+ <div class="grid"><div class="card engine" id="longEngine"><h2>Long Trips Engine</h2></div><div class="card engine" id="shortEngine"><h2>Short Trips Engine</h2></div></div>
+ <div class="card"><button class="save" id="saveBtn">Save Marketplace Settings</button> <span id="msg" class="muted"></span></div>
+ <div class="card"><h2>Activity</h2><div id="activity" class="activity">No activity yet.</div></div>
+</div>
+<script src="/admin/js/mtm-marketplace.js"></script>
+</body></html>
