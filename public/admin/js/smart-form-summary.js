@@ -27,12 +27,33 @@ function asStops(s){
   return [];
 }
 function sharedMembers(s){
+  if(Array.isArray(s?.linkedParts)&&s.linkedParts.length>1)return s.linkedParts;
   for(const v of [s?.sharedTrips,s?.sharedMembers,s?.members,s?.passengers,s?.group,s?.trips]){
     if(Array.isArray(v)&&v.length&&v.some(x=>x&&typeof x==="object"))return v.slice(0,10);
   }
   return [];
 }
 function isShared(s){return sharedMembers(s).length>1||s?.isShared===true||/^SHARED$/i.test(clean(s?.serviceName))||/^SH$/i.test(clean(s?.serviceCode));}
+function groupLinkedSmartFormRows(rows){
+  const groups=new Map();
+  for(const row of rows){
+    const key=clean(row.smartFormParentSubmissionId||row._id);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(row);
+  }
+  return [...groups.entries()].map(([parentId,parts])=>{
+    if(parts.length<2)return parts[0];
+    parts.sort((a,b)=>num(a.smartFormTripIndex)-num(b.smartFormTripIndex));
+    const first=parts[0];
+    const total=parts.reduce((sum,part)=>sum+price(part),0);
+    return {...first,_id:parentId,tripNumber:clean(first.smartFormBaseTripNumber)||clean(first.tripNumber).replace(/-T\d+$/i,""),
+      linkedParts:parts.map(part=>({...part,total:price(part),name:part.clientName,
+        passengerStatus:tripStatus(part),status:tripStatus(part)})),
+      distanceMiles:parts.reduce((sum,part)=>sum+miles(part),0),
+      pricing:{...(first.pricing||{}),amount:total},priceAmount:total,finalPrice:total,
+      totalPassengers:parts.length};
+  });
+}
 function cellBox(items){
   const arr=(Array.isArray(items)?items:[items]).slice(0,10);
   return `<div class="cell-box">${(arr.length?arr:["--"]).map(v=>`<div class="cell-item">${safe(v||"--")}</div>`).join("")}</div>`;
@@ -167,6 +188,7 @@ function openEye(id){
   const o=document.createElement("div");o.id="smartSummaryViewOverlay";o.className="view-overlay";
   o.innerHTML=`<div class="view-box"><div class="view-head"><div>${safe(s.tripNumber||"Smart Form")} — Details</div><button class="view-close" type="button" data-close>×</button></div><div class="view-body">
   ${viewLine("Template",s.templateName)}${viewLine("Trip Status",tripStatus(s))}${viewLine("Service",s.serviceName)}${viewLine("Passenger",s.clientName)}
+  ${(s.linkedParts||[]).map((part,i)=>viewLine(`T${part.smartFormTripIndex||i+1} — Pickup / Dropoff / Odometer`,`${part.pickupAddress||""} → ${part.dropoffAddress||""} | ${part.tripNumber||""}`)).join("")}
   ${viewLine("Pickup",s.pickupAddress)}${viewLine("Stops",stopItems(s).join("\n"))}${viewLine("Dropoff",s.dropoffAddress)}
   ${viewLine("Trip Date",s.tripDate)}${viewLine("Pickup Time",s.pickupTime)}${viewLine("Appointment Time",s.appointmentTime)}${viewLine("Return Time",s.returnTime)}
   ${viewLine("Miles",miles(s).toFixed(1))}${viewLine("Trip Price",money(price(s)))}${sharedMembers(s).length?viewLine("Shared Trips",sharedMembers(s)):""}${fields}${extra}${viewLine("Notes",s.notes)}
@@ -207,7 +229,7 @@ function exportExcel(){
 async function load(){
   const f=await json("/api/smart-forms/feature");if(!f.enabled){location.href="summary.html";return;}
   const x=await json("/api/smart-forms/submissions?status=CONFIRMED");
-  state.allItems=Array.isArray(x)?x:(x.submissions||[]);
+  state.allItems=groupLinkedSmartFormRows(Array.isArray(x)?x:(x.submissions||[]));
   buildFilters();render();
 }
 $("searchInput")?.addEventListener("input",render);$("templateFilter")?.addEventListener("change",render);$("serviceFilter")?.addEventListener("change",render);$("statusFilter")?.addEventListener("change",render);

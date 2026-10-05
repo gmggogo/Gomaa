@@ -63,7 +63,22 @@ function formatTripDate(value){
 
 function isDriverSignatureField(field){
   const id=norm(`${field?.key||""} ${field?.label||""}`);
-  return id.includes("DRIVER SIGNATURE") || id.includes("DRIVER SIGN");
+  return (id.includes("DRIVER SIGNATURE") || id.includes("DRIVER SIGN")) && !id.includes("DATE");
+}
+
+function isDriverSignatureDateField(field){
+  const id=norm(`${field?.key||""} ${field?.label||""}`);
+  return id.includes("DATE") && (id.includes("DRIVER SIGNATURE") || id.includes("DRIVER SIGN"));
+}
+
+function smartFormPdfPartIndex(field){
+  const explicit=Number(field?.tripIndex||field?.tripNumber||0);
+  if(Number.isInteger(explicit) && explicit>0) return explicit;
+  const id=norm(`${field?.key||""} ${field?.label||""}`);
+  const ordinal=id.match(/\b(\d+)(?:ST|ND|RD|TH)\b/);
+  if(ordinal) return Number(ordinal[1]);
+  const labeled=id.match(/\b(?:TRIP|PICK UP|PICKUP|DROP OFF|DROPOFF)\s+(\d+)\b/);
+  return labeled?Number(labeled[1]):0;
 }
 
 function isTripDateField(field){
@@ -151,6 +166,15 @@ function actualMiles(trip){
   return Number.isFinite(meters) && meters>0 ? meters/1609.344 : 0;
 }
 
+function tripMilesForPdf(trip){
+  const reading=value=>value!==undefined && value!==null && clean(value)!=="" && Number.isFinite(Number(value))?Number(value):null;
+  const pickup=reading(trip?.pickupOdometer);
+  const dropoff=reading(trip?.dropoffOdometer);
+  if(pickup!==null && dropoff!==null && dropoff>=pickup) return dropoff-pickup;
+  const saved=reading(trip?.odometerMiles);
+  return saved!==null && saved>=0 ? saved : actualMiles(trip);
+}
+
 function automaticValue(field,ctx){
   const {submission,trip,signature,driver,schedule,tenant}=ctx;
   const source=upper(field?.sourceType || "MANUAL");
@@ -158,6 +182,7 @@ function automaticValue(field,ctx){
   // Final certification fields are always automatic, even if the Builder field
   // was accidentally left as MANUAL. This keeps normal MANUAL fields unchanged.
   if(isDriverSignatureField(field)) return driverDisplayName(ctx);
+  if(isDriverSignatureDateField(field)) return formatTripDate(first(signature?.signedAt,trip?.customerSignatureAt,trip?.finalStatusConfirmedAt));
   if(isTripDateField(field)) return formatTripDate(first(trip?.tripDate,submission?.tripDate));
 
   if(source==="MANUAL") return submission.formData?.[field.key];
@@ -217,7 +242,7 @@ function automaticValue(field,ctx){
       return trip?.dropoffOdometer ?? trip?.pickupOdometer ?? "";
     }
     if(id.includes("TRIP MILES") || id==="MILES" || id.includes("MILEAGE")){
-      const miles=actualMiles(trip);
+      const miles=tripMilesForPdf(trip);
       return miles>0 ? miles.toFixed(2).replace(/\.00$/,"").replace(/(\.\d)0$/,"$1") : "";
     }
     if(id.includes("DROP OFF TIME") || id.includes("DROPOFF TIME")){
@@ -295,8 +320,12 @@ async function loadAutomaticContext({tenantId,submission}){
 async function generateFinalPdf({tenantId,submissionId}){
   const {PDFDocument,StandardFonts,rgb} = requirePdfLib();
 
-  const submission = await SmartFormSubmission.findOne({_id:submissionId,tenantId}).select("+generatedPdf.data");
-  if(!submission){ const e=new Error("Submission not found"); e.statusCode=404; throw e; }
+  const requested = await SmartFormSubmission.findOne({_id:submissionId,tenantId}).select("+generatedPdf.data");
+  if(!requested){ const e=new Error("Submission not found"); e.statusCode=404; throw e; }
+  const parent=requested.smartFormParentSubmissionId
+    ? await SmartFormSubmission.findOne({_id:requested.smartFormParentSubmissionId,tenantId}).select("+generatedPdf.data")
+    : requested;
+  const submission=parent||requested;
 
   const template = await SmartFormTemplate.findOne({_id:submission.templateId,tenantId}).select("+originalPdf.data");
   if(!template){ const e=new Error("Template not found"); e.statusCode=404; throw e; }
@@ -308,15 +337,53 @@ async function generateFinalPdf({tenantId,submissionId}){
   const driverSignatureFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
 
   const {trip,signature,driver,schedule,tenant}=await loadAutomaticContext({tenantId,submission});
+  const children=await SmartFormSubmission.find({tenantId,smartFormParentSubmissionId:submission._id}).lean();
+  const tripIds=[...new Set([
+    ...(submission.tripIds||[]),submission.tripId,
+    ...children.map(child=>child.tripId)
+  ].filter(Boolean).map(String))];
+  const relatedTrips=tripIds.length?await Trip.find({_id:{$in:tripIds},tenantId}).lean():[];
+  const byId=new Map(relatedTrips.map(row=>[String(row._id),row]));
+  const tripByIndex=new Map();
+  for(const row of relatedTrips){
+    const index=Number(row.smartFormTripIndex||row.bookingData?.smartFormTripIndex||0);
+    if(index>0)tripByIndex.set(index,row);
+  }
+  for(const child of children){
+    const index=Number(child.smartFormTripIndex||0);
+    const row=byId.get(String(child.tripId||""));
+    if(index>0&&row)tripByIndex.set(index,row);
+  }
+  if(trip&&!tripByIndex.has(1))tripByIndex.set(1,trip);
+  const partContexts=new Map();
+  async function contextForPart(index){
+    if(partContexts.has(index))return partContexts.get(index);
+    const partTrip=tripByIndex.get(index);
+    const child=children.find(row=>Number(row.smartFormTripIndex)===index);
+    const partSubmission=child||submission;
+    const partSignature=partTrip
+      ? await TripSignature.findOne({tenantId,tripId:partTrip._id}).select("+signatureData").lean()
+      : null;
+    const partDriver=await findDriver({tenantId,trip:partTrip,signature:partSignature});
+    const partSchedule=await findSchedule({tenantId,trip:partTrip,signature:partSignature,driver:partDriver});
+    const context={submission:partSubmission,trip:partTrip,signature:partSignature,driver:partDriver,schedule:partSchedule,tenant};
+    partContexts.set(index,context);
+    return context;
+  }
+
+  const firstPartContext=tripByIndex.has(1)?await contextForPart(1):null;
+  const commonCtx={submission,trip:trip||firstPartContext?.trip,signature:signature||firstPartContext?.signature,
+    driver:driver||firstPartContext?.driver,schedule:schedule||firstPartContext?.schedule,tenant};
 
   let signatureImage = null;
-  if(signature?.signatureData){
+  const memberSignature=commonCtx.signature;
+  if(memberSignature?.signatureData){
     try{
-      const signatureBuffer = Buffer.isBuffer(signature.signatureData)
-        ? signature.signatureData
-        : Buffer.from(signature.signatureData?.buffer || signature.signatureData);
+      const signatureBuffer = Buffer.isBuffer(memberSignature.signatureData)
+        ? memberSignature.signatureData
+        : Buffer.from(memberSignature.signatureData?.buffer || memberSignature.signatureData);
       if(signatureBuffer.length){
-        signatureImage = String(signature.signatureMimeType || "").toLowerCase().includes("jpeg")
+        signatureImage = String(memberSignature.signatureMimeType || "").toLowerCase().includes("jpeg")
           ? await pdfDoc.embedJpg(signatureBuffer)
           : await pdfDoc.embedPng(signatureBuffer);
       }
@@ -328,6 +395,10 @@ async function generateFinalPdf({tenantId,submissionId}){
   const fields = [...(template.fields || [])].sort((a,b)=>Number(a.order||0)-Number(b.order||0));
 
   for(const field of fields){
+    const partIndex=smartFormPdfPartIndex(field);
+    const partTrip=partIndex?tripByIndex.get(partIndex):null;
+    if(partIndex && !partTrip) continue;
+    const autoCtx=partIndex?await contextForPart(partIndex):commonCtx;
     const savedMaps=Array.isArray(field.mappings)&&field.mappings.length?field.mappings:[field.mapping||{}];
 
     for(const m of savedMaps){
@@ -337,8 +408,7 @@ async function generateFinalPdf({tenantId,submissionId}){
       const {x,y,boxW,boxH} = calc(page,m);
 
       const source=upper(field.sourceType || "MANUAL");
-      const autoCtx={submission,trip,signature,driver,schedule,tenant};
-      const forceFinalField=isDriverSignatureField(field) || isTripDateField(field);
+      const forceFinalField=isDriverSignatureField(field) || isDriverSignatureDateField(field) || isTripDateField(field);
       const value=forceFinalField
         ? automaticValue(field,autoCtx)
         : (source==="MANUAL"
@@ -348,7 +418,7 @@ async function generateFinalPdf({tenantId,submissionId}){
       // Driver Signature is NOT the member signature image.
       // Draw the real driver name with a signature-like handwritten effect.
       if(isDriverSignatureField(field)){
-        const driverName=driverDisplayName({trip,signature,driver});
+        const driverName=driverDisplayName(autoCtx);
         if(driverName){
           const baseSize=Math.max(13,Math.min(21,Number(m.fontSize||14)+5));
           const naturalWidth=driverSignatureFont.widthOfTextAtSize(driverName,baseSize);
