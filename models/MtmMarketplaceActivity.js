@@ -1,4 +1,3 @@
-DESTINATION: server/models/MtmMarketplaceActivity.js
 
 "use strict";
 
