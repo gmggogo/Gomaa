@@ -113,6 +113,16 @@ function calc(page,m){
   return {x,y,boxW,boxH};
 }
 
+function memberSignaturePlacement(box,image,page){
+  // Leave the saved mapping intact; enlarge only the final PDF rendering.
+  const maxW=Math.min(box.boxW*1.65,page.getWidth()-box.x);
+  const maxH=Math.min(box.boxH*1.65,page.getHeight()-box.y);
+  const ratio=Math.min(maxW/image.width,maxH/image.height);
+  const width=image.width*ratio;
+  const height=image.height*ratio;
+  return {x:box.x,y:Math.max(0,box.y-(height-box.boxH)*0.25),width,height};
+}
+
 function vehicleTypeMatches(label,trip){
   const wanted=norm(label)
     .replace(/^VEHICLE TYPE /,"")
@@ -420,48 +430,25 @@ async function generateFinalPdf({tenantId,submissionId}){
       if(isDriverSignatureField(field)){
         const driverName=driverDisplayName(autoCtx);
         if(driverName){
-          const baseSize=Math.max(13,Math.min(21,Number(m.fontSize||14)+5));
-          const naturalWidth=driverSignatureFont.widthOfTextAtSize(driverName,baseSize);
-          const fit=Math.min(1,boxW/Math.max(naturalWidth*0.82,1));
-          const sigSize=baseSize*fit;
-          let penX=x;
-          const chars=[...driverName];
-          for(let i=0;i<chars.length;i++){
-            const ch=chars[i];
-            const rise=(i%3===0?1.1:(i%3===1?-0.5:0.4))*fit;
-            page.drawText(ch,{
-              x:penX,
-              y:y+Math.max(0,(boxH-sigSize)*0.35)+rise,
-              size:sigSize,
-              font:driverSignatureFont,
-              color:rgb(0,0,0)
-            });
-            const cw=driverSignatureFont.widthOfTextAtSize(ch,sigSize);
-            penX += cw*(ch===" "?0.55:0.72);
-          }
-          const flourishEnd=Math.min(x+boxW,penX+Math.max(10,sigSize*0.8));
-          if(flourishEnd>x+4){
-            page.drawLine({
-              start:{x:x+2,y:y+Math.max(1,boxH*0.12)},
-              end:{x:flourishEnd,y:y+Math.max(1,boxH*0.08)},
-              thickness:0.55,
-              color:rgb(0,0,0)
-            });
-          }
+          const targetSize=Math.max(13,Math.min(21,Number(m.fontSize||14)+4));
+          const availableWidth=Math.max(1,Math.min(boxW*1.3,page.getWidth()-x-3));
+          const naturalWidth=driverSignatureFont.widthOfTextAtSize(driverName,targetSize);
+          const sigSize=targetSize*Math.min(1,availableWidth/Math.max(naturalWidth,1));
+          page.drawText(driverName,{
+            x:x+2,
+            y:y+Math.max(0,(boxH-sigSize)*0.32),
+            size:sigSize,
+            font:driverSignatureFont,
+            color:rgb(0.07,0.1,0.23),
+            maxWidth:availableWidth
+          });
         }
         continue;
       }
 
       if(field.type === "SIGNATURE"){
         if(signatureImage && source!=="MANUAL"){
-          const size = signatureImage.scale(1);
-          const ratio = Math.min(boxW/size.width,boxH/size.height);
-          page.drawImage(signatureImage,{
-            x,
-            y,
-            width:size.width*ratio,
-            height:size.height*ratio
-          });
+          page.drawImage(signatureImage,memberSignaturePlacement({x,y,boxW,boxH},signatureImage,page));
         }
         continue;
       }
