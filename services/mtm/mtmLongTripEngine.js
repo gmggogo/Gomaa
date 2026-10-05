@@ -1,44 +1,37 @@
-“use strict”;
+"use strict";
 
-/ DESTINATION PATH: server/services/mtm/mtmLongTripEngine.js /
+const text = v => String(v == null ? "" : v).trim();
+const number = v => Number(v || 0);
+const zipMatch = (zip, list) => !Array.isArray(list) || !list.length || list.includes(text(zip));
+const timeMatch = (value, from, to) => {
+  const v = text(value);
+  if (!v) return true;
+  return v >= (text(from) || "00:00") && v <= (text(to) || "23:59");
+};
 
-function toMinutes(value) { const m = /^():()$/.exec(String(value ||
-““)); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+function matches(trip, settings = {}) {
+  const miles = number(trip.tripMiles ?? trip.miles ?? trip.distance);
+  if (miles < number(settings.milesMin)) return false;
+  if (settings.milesMax && miles > number(settings.milesMax)) return false;
+  if (!timeMatch(trip.pickupTime, settings.pickupTimeFrom, settings.pickupTimeTo)) return false;
+  if (!timeMatch(trip.dropoffTime || trip.appointmentTime, settings.dropoffTimeFrom, settings.dropoffTimeTo)) return false;
 
-function inWindow(value, from, to) { if (!from && !to) return true;
-const v = toMinutes(value); if (v === null) return true; const a =
-toMinutes(from); const b = toMinutes(to); if (a !== null && v < a)
-return false; if (b !== null && v > b) return false; return true; }
+  const pickup = zipMatch(trip.pickupZip, settings.pickupZipCodes);
+  const dropoff = zipMatch(trip.dropoffZip, settings.dropoffZipCodes);
+  const zone = text(settings.zoneMatch).toUpperCase() || "ANY";
+  if (zone === "PICKUP" && !pickup) return false;
+  if (zone === "DROPOFF" && !dropoff) return false;
+  if (zone === "EITHER" && !(pickup || dropoff)) return false;
+  if (zone === "BOTH" && !(pickup && dropoff)) return false;
 
-function zipMatch(trip, cfg) { const pickup = String(trip.pickupZip ||
-““); const dropoff = String(trip.dropoffZip ||”“); const pickupZips =
-Array.isArray(cfg.pickupZips) ? cfg.pickupZips.map(String) : []; const
-dropoffZips = Array.isArray(cfg.dropoffZips) ?
-cfg.dropoffZips.map(String) : [];
+  const modes = Array.isArray(settings.modes) ? settings.modes.map(x => text(x).toLowerCase()) : [];
+  if (modes.length && !modes.includes(text(trip.mode).toLowerCase())) return false;
+  return true;
+}
 
-const p = !pickupZips.length || pickupZips.includes(pickup); const d =
-!dropoffZips.length || dropoffZips.includes(dropoff);
+function select(trips = [], settings = {}) {
+  if (!settings.enabled) return [];
+  return trips.filter(t => matches(t, settings)).sort((a,b) => number(b.tripMiles) - number(a.tripMiles));
+}
 
-switch (String(cfg.zoneLogic || “BOTH”).toUpperCase()) { case “PICKUP”:
-return p; case “DROPOFF”: return d; case “EITHER”: return p || d;
-default: return p && d; } }
-
-function matchesLongTrip(trip, cfg = {}) { const miles =
-Number(trip.tripMiles || 0); const min = Number(cfg.minMiles ?? 100);
-const max = Number(cfg.maxMiles ?? 1000); if (miles < min || miles >
-max) return false;
-
-if (!inWindow(trip.pickupTime, cfg.pickupTimeFrom, cfg.pickupTimeTo))
-return false; if (!inWindow(trip.estimatedDropoffTime ||
-trip.dropoffTime, cfg.dropoffTimeFrom, cfg.dropoffTimeTo)) return false;
-
-const modes = Array.isArray(cfg.modes) ? cfg.modes.map(String) : []; if
-(modes.length && !modes.includes(String(trip.mode || ““))) return false;
-
-return zipMatch(trip, cfg); }
-
-function selectLongTrips(trips = [], cfg = {}) { return trips
-.filter((trip) => matchesLongTrip(trip, cfg)) .sort((a, b) =>
-Number(b.tripMiles || 0) - Number(a.tripMiles || 0)); }
-
-module.exports = { matchesLongTrip, selectLongTrips };
+module.exports = { matches, select };

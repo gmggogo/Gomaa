@@ -1,31 +1,16 @@
-“use strict”;
+"use strict";
 
-/* DESTINATION PATH: server/services/mtm/mtmConnector.js
-
-Base contract shared by MOCK, PORTAL and future official API connectors.
-*/
-
-class MtmConnector { constructor(options = {}) { this.options = options;
+class MtmConnector {
+  constructor(options = {}) {
+    this.options = options;
+    this.connected = false;
+  }
+  async connect() { throw new Error("connect() must be implemented by the MTM connector"); }
+  async disconnect() { this.connected = false; return { success: true }; }
+  async health() { return { connected: this.connected }; }
+  async listAvailableTrips() { throw new Error("listAvailableTrips() must be implemented"); }
+  async getTripDetails() { throw new Error("getTripDetails() must be implemented"); }
+  async claimTrip() { throw new Error("claimTrip() must be implemented"); }
+  async getAcceptedTrip() { throw new Error("getAcceptedTrip() must be implemented"); }
 }
-
-async connect() { throw new Error(“connect() must be implemented by the
-MTM connector”); }
-
-async disconnect() { return true; }
-
-async health() { return { connected: false, verificationRequired: false
-}; }
-
-async listAvailableTrips(_query = {}) { throw new
-Error(“listAvailableTrips() must be implemented”); }
-
-async getTripDetails(_externalTripId) { throw new
-Error(“getTripDetails() must be implemented”); }
-
-async claimTrip(_externalTripId, _options = {}) { throw new
-Error(“claimTrip() must be implemented”); }
-
-async getAcceptedTrip(_externalTripId, _claimResult = {}) { throw new
-Error(“getAcceptedTrip() must be implemented”); } }
-
 module.exports = MtmConnector;

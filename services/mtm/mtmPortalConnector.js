@@ -1,38 +1,45 @@
-“use strict”;
+"use strict";
 
-/* DESTINATION PATH: server/services/mtm/mtmPortalConnector.js
+const MtmConnector = require("./mtmConnector");
 
-IMPORTANT: This is the real Provider Portal connector shell. It
-intentionally does NOT contain guessed MTM selectors/endpoints. Those
-must be captured from an authorized real MTM session before activation.
-MFA/OTP is never bypassed or stored here. */
-
-const MtmConnector = require(“./mtmConnector”);
-
-class MtmPortalConnector extends MtmConnector { constructor(options =
-{}) { super(options); this.tenantId = options.tenantId;
-this.integrationId = options.integrationId; this.session =
-options.session || null; }
-
-async connect() { return { connected: false, verificationRequired: true,
-status: “REAL_PORTAL_MAPPING_REQUIRED”, message: “Portal connector is
-ready for real MTM DOM/network mapping. No selectors or MTM endpoints
-are guessed.” }; }
-
-async health() { return { connected: false, verificationRequired: true,
-status: “REAL_PORTAL_MAPPING_REQUIRED” }; }
-
-async listAvailableTrips() { throw new Error( “MTM Portal mapping is not
-configured yet. Capture the authorized Marketplace DOM/network flow
-first.” ); }
-
-async getTripDetails() { throw new Error(“MTM Portal trip-detail mapping
-is not configured yet”); }
-
-async claimTrip() { throw new Error(“MTM Portal claim mapping is not
-configured yet”); }
-
-async getAcceptedTrip() { throw new Error(“MTM Portal Assignments
-mapping is not configured yet”); } }
-
+class MtmPortalConnector extends MtmConnector {
+  constructor(options = {}) {
+    super(options);
+    this.verificationRequired = false;
+  }
+  async connect({ username, password } = {}) {
+    if (!username || !password) throw new Error("MTM username and password are required");
+    this.connected = false;
+    return {
+      connected: false,
+      verificationRequired: false,
+      status: "REAL_PORTAL_MAPPING_REQUIRED",
+      message: "MTM Provider Portal connector is ready for authorized real portal mapping. No selectors or endpoints are guessed."
+    };
+  }
+  async verifyMfa() {
+    return {
+      connected: false,
+      verificationRequired: true,
+      status: "REAL_PORTAL_MAPPING_REQUIRED",
+      message: "Authorized MTM MFA mapping is not configured yet."
+    };
+  }
+  async disconnect() {
+    this.connected = false;
+    this.verificationRequired = false;
+    return { success: true, connected: false };
+  }
+  async health() {
+    return {
+      connected: this.connected,
+      verificationRequired: this.verificationRequired,
+      status: this.connected ? "CONNECTED" : "REAL_PORTAL_MAPPING_REQUIRED"
+    };
+  }
+  async listAvailableTrips() { throw new Error("Authorized MTM Provider Portal mapping is required before scanning"); }
+  async getTripDetails() { throw new Error("Authorized MTM Provider Portal mapping is required"); }
+  async claimTrip() { throw new Error("Authorized MTM Provider Portal mapping is required before claiming"); }
+  async getAcceptedTrip() { throw new Error("Authorized MTM Provider Portal mapping is required"); }
+}
 module.exports = MtmPortalConnector;

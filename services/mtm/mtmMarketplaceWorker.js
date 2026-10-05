@@ -1,98 +1,69 @@
-“use strict”;
+"use strict";
 
-/* DESTINATION PATH: server/services/mtm/mtmMarketplaceWorker.js
+const longEngine = require("./mtmLongTripEngine");
+const shortEngine = require("./mtmShortTripEngine");
+const lockService = require("./mtmTripLockService");
+const fullExtractor = require("./mtmFullTripExtractor");
+const normalizer = require("./mtmTripNormalizer");
 
-Orchestrates BOTH independent engines against one connector session.
-Long and Short scans are evaluated independently and can run
-concurrently. No real MTM portal selectors/endpoints live in this file.
-*/
+let receiveTrip = null;
+try {
+  const brokerService = require("../brokerIntegrationService");
+  receiveTrip = brokerService.receiveTrip || null;
+} catch (_err) {}
 
-const { selectLongTrips } = require(“./mtmLongTripEngine”); const {
-selectShortTrips } = require(“./mtmShortTripEngine”); const {
-acquireTripLock, releaseTripLock } = require(“./mtmTripLockService”);
-const { extractFullAcceptedTrip } = require(“./mtmFullTripExtractor”);
-const { normalizeMtmAcceptedTrip } = require(“./mtmTripNormalizer”);
+class MtmMarketplaceWorker {
+  constructor(options = {}) {
+    this.tenantId = options.tenantId;
+    this.tenantSlug = options.tenantSlug || "";
+    this.integrationId = options.integrationId || null;
+    this.connector = options.connector;
+    this.settings = options.settings || {};
+    this.integration = options.integration || null;
+  }
 
-async function processCandidate({ tenantId, integration, connector,
-trip, autoAccept, receiveTrip }) { const externalTripId =
-trip.externalTripId || trip.tripNumber; if (!externalTripId) return {
-status: “SKIPPED”, reason: “NO_EXTERNAL_ID” };
+  async processCandidate(trip, engineName, engineSettings) {
+    const id = trip.externalTripId || trip.tripNumber;
+    return lockService.withLock(this.tenantId, id, async () => {
+      if (!engineSettings.autoAccept) return { engine: engineName, externalTripId: id, matched: true, claimed: false, reason: "AUTO_ACCEPT_OFF" };
 
-if (!autoAccept) { return { status: “MATCHED”, externalTripId, trip }; }
+      const claim = await this.connector.claimTrip(id);
+      if (!claim || claim.claimed !== true) return { engine: engineName, externalTripId: id, claimed: false, reason: claim?.reason || "CLAIM_FAILED" };
 
-if (!acquireTripLock({ tenantId, externalTripId })) { return { status:
-“SKIPPED”, reason: “LOCKED”, externalTripId }; }
+      const full = await fullExtractor.extract({ connector: this.connector, externalTripId: id, claimResult: claim });
+      const payload = normalizer.normalize(full);
 
-try { const claimResult = await connector.claimTrip(externalTripId, {
-legs: trip.legs || [] });
+      let imported = null;
+      if (receiveTrip && this.integration) {
+        imported = await receiveTrip({ integration: this.integration, payload, eventType: "CREATE" });
+      }
 
-    if (!claimResult?.success) {
-      return {
-        status: "CLAIM_FAILED",
-        externalTripId,
-        reason: claimResult?.reason || "UNKNOWN"
-      };
-    }
+      return { engine: engineName, externalTripId: id, claimed: true, payload, imported };
+    });
+  }
 
-    const rawAccepted = await extractFullAcceptedTrip({
-      connector,
-      externalTripId,
-      claimResult
+  async runEngine(name, candidates, settings) {
+    const limit = Math.max(0, Number(settings.dailyTripLimit || 0));
+    const selected = limit > 0 ? candidates.slice(0, limit) : candidates;
+    return Promise.all(selected.map(t => this.processCandidate(t, name, settings)));
+  }
+
+  async runOnce() {
+    if (!this.connector) throw new Error("MTM connector is required");
+    const trips = await this.connector.listAvailableTrips({
+      dateWindowDays: Number(this.settings.dateWindowDays || 7)
     });
 
-    const payload = normalizeMtmAcceptedTrip(rawAccepted);
+    const longTrips = longEngine.select(trips, this.settings.longEngine || {});
+    const shortTrips = shortEngine.select(trips, this.settings.shortEngine || {});
 
-    let imported = null;
-    if (typeof receiveTrip === "function" && integration) {
-      imported = await receiveTrip({
-        integration,
-        payload,
-        eventType: "CREATE"
-      });
-    }
+    const [longResults, shortResults] = await Promise.all([
+      this.runEngine("LONG", longTrips, this.settings.longEngine || {}),
+      this.runEngine("SHORT", shortTrips, this.settings.shortEngine || {})
+    ]);
 
-    return {
-      status: "CLAIMED",
-      externalTripId,
-      assignmentNumber: claimResult.assignmentNumber || "",
-      payload,
-      imported
-    };
+    return { scanned: trips.length, longResults, shortResults };
+  }
+}
 
-} finally { releaseTripLock({ tenantId, externalTripId }); } }
-
-async function runEngine({ engine, tenantId, integration, connector,
-settings, query, receiveTrip }) { const trips = await
-connector.listAvailableTrips(query);
-
-const selected = engine === “LONG” ? selectLongTrips(trips, settings) :
-selectShortTrips(trips, settings);
-
-const limit = Math.max(0, Number(settings.tripLimit ??
-selected.length)); const candidates = limit ? selected.slice(0, limit) :
-[];
-
-const results = []; for (const trip of candidates) { results.push( await
-processCandidate({ tenantId, integration, connector, trip, autoAccept:
-settings.autoAccept === true, receiveTrip }) ); }
-
-return { engine, seen: trips.length, matched: selected.length, results
-}; }
-
-async function runMarketplaceCycle({ tenantId, integration, connector,
-longSettings = {}, shortSettings = {}, query = {}, receiveTrip }) { if
-(!connector) throw new Error(“MTM connector is required”);
-
-const health = await connector.health(); if (!health?.connected) {
-return { status: “CONNECTION_REQUIRED”, health }; }
-
-const [longResult, shortResult] = await Promise.all([ runEngine({
-engine: “LONG”, tenantId, integration, connector, settings:
-longSettings, query, receiveTrip }), runEngine({ engine: “SHORT”,
-tenantId, integration, connector, settings: shortSettings, query,
-receiveTrip }) ]);
-
-return { status: “OK”, scannedAt: new Date().toISOString(), long:
-longResult, short: shortResult }; }
-
-module.exports = { runMarketplaceCycle, runEngine, processCandidate };
+module.exports = MtmMarketplaceWorker;

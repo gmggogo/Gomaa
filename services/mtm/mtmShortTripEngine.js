@@ -1,16 +1,10 @@
-“use strict”;
+"use strict";
 
-/ DESTINATION PATH: server/services/mtm/mtmShortTripEngine.js /
+const longEngine = require("./mtmLongTripEngine");
 
-const { matchesLongTrip } = require(“./mtmLongTripEngine”);
+function select(trips = [], settings = {}) {
+  if (!settings.enabled) return [];
+  return trips.filter(t => longEngine.matches(t, settings));
+}
 
-function matchesShortTrip(trip, cfg = {}) { // Reuse the exact same
-filter logic, but with the Short Engine’s own range. return
-matchesLongTrip(trip, { …cfg, minMiles: Number(cfg.minMiles ?? 0),
-maxMiles: Number(cfg.maxMiles ?? 99.99) }); }
-
-function selectShortTrips(trips = [], cfg = {}) { return trips
-.filter((trip) => matchesShortTrip(trip, cfg)) .sort((a, b) =>
-Number(b.tripMiles || 0) - Number(a.tripMiles || 0)); }
-
-module.exports = { matchesShortTrip, selectShortTrips };
+module.exports = { matches: longEngine.matches, select };
