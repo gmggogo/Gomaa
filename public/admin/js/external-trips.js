@@ -718,6 +718,89 @@ EXTERNAL TRIPS HUB R5
     return row?.value ?? "";
   }
 
+
+  function brokerEyeFields(){
+    return (
+      Array.isArray(state.brokerFields)
+        ? state.brokerFields
+        : []
+    )
+      .filter(
+        field=>
+          field &&
+          field.showEye === true &&
+          clean(field.key)
+      )
+      .sort(
+        (a,b)=>
+          Number(a?.order || 0) -
+          Number(b?.order || 0)
+      );
+  }
+
+  function openBrokerEye(trip){
+    if(!trip) return;
+
+    const title = $("brokerEyeTitle");
+    const body = $("brokerEyeBody");
+    const dialog = $("brokerEyeDialog");
+
+    if(!body || !dialog) return;
+
+    if(title){
+      title.textContent =
+        `Trip Details — ${
+          clean(
+            trip.ghExternalTripNumber ||
+            trip.externalTripNumber ||
+            trip.externalTripId
+          ) || "External Trip"
+        }`;
+    }
+
+    const fields = brokerEyeFields();
+
+    if(!fields.length){
+      body.innerHTML = `
+        <div class="eye-empty">
+          No Broker fields are assigned to Eye in Platform Admin.
+        </div>
+      `;
+    }else{
+      body.innerHTML = fields
+        .map(field=>{
+          const value =
+            brokerDynamicValue(
+              trip,
+              field.key
+            );
+
+          return `
+            <div class="eye-item">
+              <div class="eye-label">
+                ${escapeHtml(
+                  clean(field.label) ||
+                  field.key
+                )}
+              </div>
+              <div class="eye-value">
+                ${escapeHtml(
+                  value === "" ||
+                  value === null ||
+                  value === undefined
+                    ? "-"
+                    : value
+                )}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    dialog.showModal();
+  }
+
   function brokerDynamicCells(trip){
     return brokerColumnFields()
       .map(
@@ -1112,6 +1195,16 @@ EXTERNAL TRIPS HUB R5
           <td>
             <div class="action-stack">
               <button
+                class="btn btn-eye"
+                type="button"
+                title="View Broker Details"
+                aria-label="View Broker Details"
+                data-eye="${escapeHtml(trip._id)}"
+              >
+                👁
+              </button>
+
+              <button
                 class="btn btn-light"
                 type="button"
                 data-edit="${escapeHtml(trip._id)}"
@@ -1163,13 +1256,38 @@ EXTERNAL TRIPS HUB R5
 
     body
       .querySelectorAll(
+        "[data-eye]"
+      )
+      .forEach(
+        button=>{
+          button.addEventListener(
+            "click",
+            event=>{
+              event.stopPropagation();
+
+              const trip =
+                state.trips.find(
+                  item=>
+                    String(item._id) ===
+                    String(button.dataset.eye)
+                );
+
+              openBrokerEye(trip);
+            }
+          );
+        }
+      );
+
+    body
+      .querySelectorAll(
         "[data-edit]"
       )
       .forEach(
         button=>{
           button.addEventListener(
             "click",
-            ()=>{
+            event=>{
+              event.stopPropagation();
               editTrip(
                 button.dataset.edit
               );
@@ -1186,7 +1304,8 @@ EXTERNAL TRIPS HUB R5
         button=>{
           button.addEventListener(
             "click",
-            ()=>{
+            event=>{
+              event.stopPropagation();
               deleteTrip(
                 button.dataset.delete
               );
@@ -1809,6 +1928,15 @@ EXTERNAL TRIPS HUB R5
   }
 
   function bindEvents(){
+
+    $("closeBrokerEyeBtn")
+      ?.addEventListener(
+        "click",
+        ()=>{
+          $("brokerEyeDialog")
+            ?.close();
+        }
+      );
 
     $("searchInput")
       ?.addEventListener(

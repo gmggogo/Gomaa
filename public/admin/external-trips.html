@@ -196,6 +196,57 @@ EXTERNAL TRIPS HUB REBUILD R1
       color:#fff;
     }
 
+    .btn-eye{
+      background:#fff7d8;
+      color:#111827;
+      border:1px solid #c9a23a;
+      font-size:14px !important;
+      line-height:1;
+    }
+
+    .eye-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .eye-item{
+      border:1px solid #dbe3ee;
+      border-radius:8px;
+      background:#f8fafc;
+      padding:10px;
+      min-width:0;
+    }
+
+    .eye-label{
+      margin-bottom:5px;
+      color:#64748b;
+      font-size:10px;
+      font-weight:900;
+      text-transform:uppercase;
+    }
+
+    .eye-value{
+      color:#0f172a;
+      font-size:12px;
+      font-weight:800;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+    }
+
+    .eye-empty{
+      padding:20px;
+      text-align:center;
+      color:#64748b;
+      font-weight:800;
+    }
+
+    @media(max-width:768px){
+      .eye-grid{
+        grid-template-columns:1fr;
+      }
+    }
+
     #addTripBtn{
       min-width:132px;
       min-height:42px;
@@ -761,6 +812,23 @@ EXTERNAL TRIPS HUB REBUILD R1
 
   </main>
 
+  <dialog id="brokerEyeDialog">
+    <div class="modal-head">
+      <strong id="brokerEyeTitle">Trip Details</strong>
+      <button
+        class="btn btn-light"
+        id="closeBrokerEyeBtn"
+        type="button"
+      >
+        Close
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div id="brokerEyeBody" class="eye-grid"></div>
+    </div>
+  </dialog>
+
   <dialog id="tripDialog">
 
     <div class="modal-head">
@@ -901,7 +969,7 @@ EXTERNAL TRIPS HUB REBUILD R1
   </dialog>
 
   <script src="/admin/header.js"></script>
-  <script src="/admin/js/external-trips.js?v=20260911-1"></script>
+  <script src="/admin/js/external-trips.js?v=20261005-eye1"></script>
 
 </body>
 </html>

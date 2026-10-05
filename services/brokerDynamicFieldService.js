@@ -116,6 +116,45 @@ function shouldIgnorePath(path){
   ].some(prefix=>p.startsWith(prefix));
 }
 
+
+/*
+  Canonical identity for Broker Auto Fields.
+
+  Brokers (especially normalized MTM payloads) may expose the same logical
+  value through wrapper paths such as:
+    mtm.raw.memberName
+    mtm.rawPayload.memberName
+    mtm.raw.claimResult.memberName
+
+  Those are ONE logical Broker Auto Field, not three columns.
+  We keep the full raw payload on the trip, but discovery uses the logical
+  leaf identity so Platform Admin does not accumulate duplicate columns.
+*/
+function logicalFieldName(path){
+  const parts =
+    clean(path)
+      .split(".")
+      .map(clean)
+      .filter(Boolean);
+
+  return clean(parts[parts.length - 1])
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,"");
+}
+
+function canonicalAutoFieldKey(brokerCode,path){
+  const logical = logicalFieldName(path);
+
+  const hash = crypto
+    .createHash("sha1")
+    .update(`${upper(brokerCode)}|${logical}`)
+    .digest("hex")
+    .slice(0,12)
+    .toUpperCase();
+
+  return `BROKER_${upper(brokerCode)}_${hash}`;
+}
+
 function autoFieldKey(brokerCode,path){
   const hash = crypto
     .createHash("sha1")
@@ -175,14 +214,26 @@ async function captureBrokerDynamicData({
     Object.keys(mapped.unmapped || {})
   );
 
+  const discoveredLogicalFields = new Set();
+
   for(const item of unknown){
     if(!unmappedPaths.has(item.path)) continue;
+
+    const logicalName = logicalFieldName(item.path);
+    if(!logicalName) continue;
+
+    /*
+      The same logical value can appear in raw/rawPayload/claimResult.
+      Discover it once per broker payload.
+    */
+    if(discoveredLogicalFields.has(logicalName)) continue;
+    discoveredLogicalFields.add(logicalName);
 
     const value = item.value;
     const text = value === null || value === undefined ? "" : String(value);
     if(!text.trim()) continue;
 
-    const fieldKey = autoFieldKey(brokerCode,item.path);
+    const fieldKey = canonicalAutoFieldKey(brokerCode,item.path);
     const label = slugLabel(item.path);
     const fieldType = fieldTypeFromValue(value);
 
@@ -190,7 +241,7 @@ async function captureBrokerDynamicData({
       {
         tenantId,
         brokerCode:upper(brokerCode),
-        fieldPath:item.path
+        fieldKey
       },
       {
         $set:{
@@ -251,13 +302,26 @@ async function listBrokerFields(tenantId){
     });
   });
 
+  const seenAutoFields = new Set();
+
   auto.forEach((field,index)=>{
+
+    const brokerCode = upper(field.brokerCode);
+    const logicalName = logicalFieldName(field.fieldPath || field.label);
+    const dedupeKey = `${brokerCode}|${logicalName}`;
+
+    if(!logicalName || seenAutoFields.has(dedupeKey)){
+      return;
+    }
+
+    seenAutoFields.add(dedupeKey);
+
     rows.push({
       key:clean(field.fieldKey),
       label:clean(field.label || field.fieldPath),
       fieldType:upper(field.fieldType || "TEXT"),
       source:"BROKER_AUTO",
-      brokerCode:upper(field.brokerCode),
+      brokerCode,
       brokerName:clean(field.brokerName),
       fieldPath:clean(field.fieldPath),
       showColumn:field.showColumn === true,
