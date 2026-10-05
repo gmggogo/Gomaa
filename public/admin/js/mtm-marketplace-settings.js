@@ -1,4 +1,3 @@
-DESTINATION: server/public/admin/js/mtm-marketplace-settings.js
 
 "use strict";
 /* DESTINATION PATH: server/public/admin/js/mtm-marketplace-settings.js */
