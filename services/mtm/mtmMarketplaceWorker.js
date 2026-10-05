@@ -6,6 +6,7 @@ const lockService = require("./mtmTripLockService");
 const fullExtractor = require("./mtmFullTripExtractor");
 const normalizer = require("./mtmTripNormalizer");
 const Activity = require("../../models/MtmMarketplaceActivity");
+const BrokerIntegration = require("../../models/BrokerIntegration");
 const { receiveTrip } = require("../brokerIntegrationService");
 
 const num = v => Number(v || 0);
@@ -63,6 +64,36 @@ class MtmMarketplaceWorker {
     return Math.min(engineRemaining, totalRemaining);
   }
 
+  async resolveIntegration() {
+    if (this.integration && this.integration.enabled === true) {
+      return this.integration;
+    }
+
+    const id =
+      this.integration?._id ||
+      this.integrationId ||
+      this.settings?.integrationId ||
+      null;
+
+    if (!id) {
+      throw new Error("MTM BrokerIntegration id is missing");
+    }
+
+    const integration = await BrokerIntegration.findOne({
+      _id: id,
+      tenantId: this.tenantId,
+      enabled: true
+    });
+
+    if (!integration) {
+      throw new Error("Enabled MTM BrokerIntegration was not found");
+    }
+
+    this.integration = integration;
+    this.integrationId = integration._id;
+    return integration;
+  }
+
   async processCandidate(trip, engineName, engineSettings) {
     const id = text(trip.externalTripId || trip.tripNumber);
     return lockService.withLock(this.tenantId, id, async () => {
@@ -83,21 +114,65 @@ class MtmMarketplaceWorker {
 
       await this.log("CLAIMED", { engine: engineName, trip, assignmentNumber: claim.assignmentNumber, message: `Trip ${id} accepted successfully` });
 
-      const full = await fullExtractor.extract({ connector: this.connector, externalTripId: id, claimResult: claim });
-      const payload = normalizer.normalize(full);
+      try {
+        const full = await fullExtractor.extract({
+          connector: this.connector,
+          externalTripId: id,
+          claimResult: claim
+        });
 
-      if (!this.integration) throw new Error("MTM BrokerIntegration is required before importing accepted trips");
-      const imported = await receiveTrip({ integration: this.integration, payload, eventType: "CREATE" });
+        const payload = normalizer.normalize(full);
+        const integration = await this.resolveIntegration();
 
-      await this.log("IMPORTED", {
-        engine: engineName,
-        trip: full,
-        assignmentNumber: full.assignmentNumber || claim.assignmentNumber,
-        message: `Trip ${id} imported to Broker Hub`,
-        meta: { importedId: imported?._id || imported?.id || null }
-      });
+        const imported = await receiveTrip({
+          integration,
+          payload,
+          eventType: "CREATE"
+        });
 
-      return { engine: engineName, externalTripId: id, claimed: true, payload, imported };
+        const importedTrip =
+          imported?.trip ||
+          imported?.externalTrip ||
+          imported;
+
+        await this.log("IMPORTED", {
+          engine: engineName,
+          trip: full,
+          assignmentNumber: full.assignmentNumber || claim.assignmentNumber,
+          message: `Trip ${id} imported to Broker Hub`,
+          meta: {
+            importedId:
+              importedTrip?._id ||
+              importedTrip?.id ||
+              null,
+            duplicate: imported?.duplicate === true
+          }
+        });
+
+        return {
+          engine: engineName,
+          externalTripId: id,
+          claimed: true,
+          payload,
+          imported
+        };
+      } catch (err) {
+        await this.log("IMPORT_FAILED", {
+          engine: engineName,
+          trip,
+          assignmentNumber: claim.assignmentNumber,
+          reason: "POST_CLAIM_IMPORT_FAILED",
+          message: `Trip ${id} was claimed but Broker Hub import failed: ${err?.message || err}`
+        });
+
+        return {
+          engine: engineName,
+          externalTripId: id,
+          claimed: true,
+          imported: false,
+          error: err?.message || String(err)
+        };
+      }
     });
   }
 
