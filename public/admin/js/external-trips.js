@@ -864,6 +864,8 @@ EXTERNAL TRIPS HUB R5
         .brokerDynamicHead =
         field.key;
 
+      th.className = "broker-dynamic-head";
+
       th.textContent =
         clean(field.label) ||
         field.key;
@@ -1082,7 +1084,7 @@ EXTERNAL TRIPS HUB R5
         }
 
         tr.innerHTML = `
-          <td class="trip-id">
+          <td class="trip-id col-external-trip">
             ${escapeHtml(
               trip.ghExternalTripNumber ||
               trip.externalTripNumber ||
@@ -1090,7 +1092,7 @@ EXTERNAL TRIPS HUB R5
             )}
           </td>
 
-          <td>
+          <td class="col-broker">
             ${escapeHtml(
               trip.brokerName ||
               trip.brokerCode ||
@@ -1098,73 +1100,73 @@ EXTERNAL TRIPS HUB R5
             )}
           </td>
 
-          <td>
+          <td class="col-broker-trip">
             ${escapeHtml(
               trip.externalTripId ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-pickup-time">
             ${escapeHtml(
               trip.tripTime ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-appointment">
             ${escapeHtml(
               trip.appointmentTime ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-return-time">
             ${escapeHtml(
               trip.returnTime ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-passenger">
             ${escapeHtml(
               trip.clientName ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-phone">
             ${escapeHtml(
               trip.clientPhone ||
               "-"
             )}
           </td>
 
-          <td>
+          <td class="col-pickup">
             ${addressBox(
               trip.pickup
             )}
           </td>
 
-          <td>
+          <td class="col-stops">
             ${stopBoxes(
               trip.stops
             )}
           </td>
 
-          <td>
+          <td class="col-dropoff">
             ${addressBox(
               trip.dropoff
             )}
           </td>
 
-          <td>
+          <td class="col-service">
             ${escapeHtml(
               serviceDisplayName(trip)
             )}
           </td>
 
-          <td class="notes">
+          <td class="notes col-notes">
             ${escapeHtml(
               displayTripNotes(trip)
             )}
@@ -1172,7 +1174,7 @@ EXTERNAL TRIPS HUB R5
 
           ${brokerDynamicCells(trip)}
 
-          <td>
+          <td class="col-status">
             <span class="status ${escapeHtml(
               clean(trip.status)
                 .toUpperCase()
@@ -1184,7 +1186,7 @@ EXTERNAL TRIPS HUB R5
             </span>
           </td>
 
-          <td>
+          <td class="col-source">
             ${escapeHtml(
               trip.source ||
               trip.connectionType ||
@@ -1192,7 +1194,7 @@ EXTERNAL TRIPS HUB R5
             )}
           </td>
 
-          <td>
+          <td class="col-actions">
             <div class="action-stack">
               <button
                 class="btn btn-eye"
