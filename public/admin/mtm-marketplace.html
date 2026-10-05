@@ -1,19 +1,69 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MTM Marketplace | GH Mobility</title>
-<style>
-body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;color:#171717}.wrap{max-width:1250px;margin:28px auto;padding:0 18px}.top,.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:18px;margin-bottom:16px}.top{display:flex;justify-content:space-between;align-items:center}.status{font-weight:700}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.engine h2{margin:0 0 14px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}label{font-size:13px;font-weight:700;display:block;margin-bottom:5px}input,select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px}button{border:0;border-radius:8px;padding:11px 18px;font-weight:700;cursor:pointer}.save{background:#171717;color:#fff}.muted{color:#666;font-size:13px}.switch{display:flex;gap:14px;align-items:center;margin-bottom:14px}.switch input{width:auto}.activity{font-size:13px;max-height:260px;overflow:auto}.activity div{padding:8px;border-bottom:1px solid #eee}@media(max-width:850px){.grid,.row{grid-template-columns:1fr}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MTM Marketplace | GH Mobility</title>
+  <link rel="stylesheet" href="/admin/header.css">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}
+    .page{max-width:1280px;margin:26px auto;padding:0 18px 40px}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+    .card{background:#fff;border:1px solid #e1e5eb;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+    .metric{text-align:center}.metric .n{font-size:25px;font-weight:900;margin-top:8px}.metric .l{font-size:12px;color:#68707d;font-weight:800}
+    .goldline{border-top:4px solid #d79a00}
+    .status-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .badge{padding:7px 11px;border-radius:999px;font-size:12px;font-weight:900;background:#eceff3}
+    .ok{background:#dff5e5;color:#126b2e}.warn{background:#fff0c7;color:#7a5200}.bad{background:#fde1e1;color:#8a1616}
+    button{border:0;border-radius:8px;padding:10px 16px;font-weight:900;cursor:pointer}
+    .gold{background:linear-gradient(180deg,#f6c85f,#d79a00);color:#241900}.dark{background:#171717;color:#fff}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #e8ebef;text-align:left}th{background:#faf7ef}
+    .muted{color:#68707d;font-size:13px}.activity{max-height:320px;overflow:auto}.activity-item{padding:10px 0;border-bottom:1px solid #eceff3}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    @media(max-width:900px){.cards{grid-template-columns:1fr 1fr}.page{padding:0 10px 30px}}@media(max-width:560px){.cards{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<div class="wrap">
- <div class="top"><div><h1>MTM Marketplace</h1><div class="muted">Long and Short engines run independently.</div></div><div class="status" id="status">DISCONNECTED</div></div>
- <div class="card"><div class="row"><div><label>Connection Method</label><select id="connectionMethod"><option value="MTM_PORTAL">MTM Provider Portal</option><option value="MTM_API">Official MTM API (future)</option></select></div><div><label>Search Next Days</label><input id="dateWindowDays" type="number" min="1" max="31" value="7"></div></div><div class="switch"><label><input id="enabled" type="checkbox"> Marketplace Enabled</label><label>Total Daily Limit <input id="totalDailyTripLimit" type="number" min="0" value="0" style="width:90px"></label></div></div>
- <div class="grid"><div class="card engine" id="longEngine"><h2>Long Trips Engine</h2></div><div class="card engine" id="shortEngine"><h2>Short Trips Engine</h2></div></div>
- <div class="card"><button class="save" id="saveBtn">Save Marketplace Settings</button> <span id="msg" class="muted"></span></div>
- <div class="card"><h2>Activity</h2><div id="activity" class="activity">No activity yet.</div></div>
-</div>
-<script src="/admin/js/mtm-marketplace.js"></script>
-</body></html>
+  <div id="adminHeader"></div>
+
+  <main class="page">
+    <section class="card goldline">
+      <div class="toolbar">
+        <div>
+          <div class="status-row">
+            <b>MTM Connection</b>
+            <span id="connectionStatus" class="badge bad">DISCONNECTED</span>
+            <span id="scanStatus" class="muted"></span>
+          </div>
+          <div class="muted" style="margin-top:8px">Accepted MTM trips are imported into the existing External Trips Hub / Broker Hub.</div>
+        </div>
+        <div>
+          <button id="scanBtn" class="gold" type="button">Scan Now</button>
+          <button id="refreshBtn" class="dark" type="button">Refresh</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <div class="card metric goldline"><div class="l">LONG ENGINE</div><div class="n" id="longStatus">OFF</div></div>
+      <div class="card metric goldline"><div class="l">SHORT ENGINE</div><div class="n" id="shortStatus">OFF</div></div>
+      <div class="card metric goldline"><div class="l">CLAIMED TODAY</div><div class="n" id="claimedToday">0</div></div>
+      <div class="card metric goldline"><div class="l">LAST SCAN</div><div class="n" id="lastScan" style="font-size:16px">—</div></div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar"><h2 style="margin:0">Marketplace Activity</h2><span class="muted">Successful claims continue to Broker Hub.</span></div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>Time</th><th>Engine</th><th>Action</th><th>Trip</th><th>Miles</th><th>Message</th></tr></thead>
+          <tbody id="activityRows"><tr><td colspan="6" class="muted">No activity yet.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/admin/header.js"></script>
+  <script src="/admin/js/mtm-marketplace.js"></script>
+</body>
+</html>

@@ -529,8 +529,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
      headerTitle.textContent =
        pageHeaderTitle;
 
-     if(currentPageName === "help-center.html"){
-       headerTitle.textContent = "Help Center";
+     if(
+       currentPageName === "help-center.html" ||
+       currentPageName === "mtm-marketplace.html" ||
+       currentPageName === "mtm-marketplace-settings.html"
+     ){
+       if(currentPageName === "help-center.html"){
+         headerTitle.textContent = "Help Center";
+       }
        headerTitle.style.color = "#f6c453";
        headerTitle.style.fontWeight = "900";
        headerTitle.style.textShadow = "0 1px 2px rgba(0,0,0,.25)";

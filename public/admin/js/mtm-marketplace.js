@@ -1,16 +1,77 @@
 "use strict";
-/* DESTINATION: server/public/admin/js/mtm-marketplace.js */
+/* DESTINATION PATH: server/public/admin/js/mtm-marketplace.js */
 (()=>{
- const $=id=>document.getElementById(id);
- const token=()=>localStorage.getItem("token")||localStorage.getItem("authToken")||localStorage.getItem("adminToken")||"";
- const headers=()=>({"Content-Type":"application/json","Authorization":`Bearer ${token()}`});
- function engineMarkup(prefix,long){return `<div class="switch"><label><input id="${prefix}Enabled" type="checkbox"> Engine Enabled</label><label><input id="${prefix}Auto" type="checkbox"> Auto Accept</label></div><div class="row"><div><label>Miles From</label><input id="${prefix}Min" type="number" min="0" value="${long?100:0}"></div><div><label>Miles To</label><input id="${prefix}Max" type="number" min="0" value="${long?1000:99}"></div></div><div class="row"><div><label>Pickup Time From</label><input id="${prefix}PUFrom" type="time" value="00:00"></div><div><label>Pickup Time To</label><input id="${prefix}PUTo" type="time" value="23:59"></div></div><div class="row"><div><label>Dropoff Time From</label><input id="${prefix}DOFrom" type="time" value="00:00"></div><div><label>Dropoff Time To</label><input id="${prefix}DOTo" type="time" value="23:59"></div></div><div class="row"><div><label>Pickup ZIPs</label><input id="${prefix}PUZip" placeholder="85224, 85225"></div><div><label>Dropoff ZIPs</label><input id="${prefix}DOZip" placeholder="85001, 85701"></div></div><div class="row"><div><label>Zone Match</label><select id="${prefix}Zone"><option>ANY</option><option>PICKUP</option><option>DROPOFF</option><option>EITHER</option><option>BOTH</option></select></div><div><label>Daily Trip Limit</label><input id="${prefix}Limit" type="number" min="0" value="0"></div></div><label>MTM Modes / Services</label><input id="${prefix}Modes" placeholder="Cab, Paralift">`;}
- $("longEngine").insertAdjacentHTML("beforeend",engineMarkup("long",true)); $("shortEngine").insertAdjacentHTML("beforeend",engineMarkup("short",false));
- const arr=v=>String(v||"").split(/[\s,]+/).map(x=>x.trim()).filter(Boolean);
- function read(p){return {enabled:$(`${p}Enabled`).checked,autoAccept:$(`${p}Auto`).checked,milesMin:Number($(`${p}Min`).value)||0,milesMax:Number($(`${p}Max`).value)||0,dailyTripLimit:Number($(`${p}Limit`).value)||0,pickupTimeFrom:$(`${p}PUFrom`).value, pickupTimeTo:$(`${p}PUTo`).value,dropoffTimeFrom:$(`${p}DOFrom`).value,dropoffTimeTo:$(`${p}DOTo`).value,pickupZipCodes:arr($(`${p}PUZip`).value),dropoffZipCodes:arr($(`${p}DOZip`).value),zoneMatch:$(`${p}Zone`).value,modes:arr($(`${p}Modes`).value)};}
- function fill(p,e={}){ $(`${p}Enabled`).checked=!!e.enabled;$(`${p}Auto`).checked=!!e.autoAccept;[["Min","milesMin"],["Max","milesMax"],["Limit","dailyTripLimit"],["PUFrom","pickupTimeFrom"],["PUTo","pickupTimeTo"],["DOFrom","dropoffTimeFrom"],["DOTo","dropoffTimeTo"],["Zone","zoneMatch"]].forEach(([a,b])=>{if(e[b]!==undefined)$(`${p}${a}`).value=e[b]});$(`${p}PUZip`).value=(e.pickupZipCodes||[]).join(", ");$(`${p}DOZip`).value=(e.dropoffZipCodes||[]).join(", ");$(`${p}Modes`).value=(e.modes||[]).join(", ");}
- async function api(path,opt={}){const r=await fetch(`/api/mtm-marketplace${path}`,{...opt,headers:headers()});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||`HTTP ${r.status}`);return j;}
- async function load(){try{const [a,s,l]=await Promise.all([api("/settings"),api("/status"),api("/activity?limit=50")]);const x=a.settings||{};$("enabled").checked=!!x.enabled;$("connectionMethod").value=x.connectionMethod||"MTM_PORTAL";$("dateWindowDays").value=x.dateWindowDays||7;$("totalDailyTripLimit").value=x.totalDailyTripLimit||0;fill("long",x.longEngine);fill("short",x.shortEngine);$("status").textContent=s.session?.status||"DISCONNECTED";$("activity").innerHTML=(l.activity||[]).map(v=>`<div><b>${v.engine}</b> · ${v.action} · ${new Date(v.occurredAt).toLocaleString()} ${v.message?`— ${v.message}`:""}</div>`).join("")||"No activity yet.";}catch(e){$("msg").textContent=e.message;}}
- $("saveBtn").onclick=async()=>{try{$("msg").textContent="Saving...";await api("/settings",{method:"PUT",body:JSON.stringify({enabled:$("enabled").checked,connectionMethod:$("connectionMethod").value,dateWindowDays:Number($("dateWindowDays").value)||7,totalDailyTripLimit:Number($("totalDailyTripLimit").value)||0,longEngine:read("long"),shortEngine:read("short")})});$("msg").textContent="Saved.";}catch(e){$("msg").textContent=e.message;}};
- load();
+  const $=id=>document.getElementById(id);
+  const token=()=>String(localStorage.getItem("token")||"").trim();
+  const headers=()=>({"Content-Type":"application/json","Authorization":`Bearer ${token()}`});
+
+  async function api(path,opt={}){
+    const response=await fetch(`/api/mtm-marketplace${path}`,{...opt,headers:headers()});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.message||`HTTP ${response.status}`);
+    return data;
+  }
+
+  function connection(session={}){
+    const s=String(session.status||"DISCONNECTED").toUpperCase();
+    const el=$("connectionStatus");
+    el.textContent=s.replaceAll("_"," ");
+    el.className="badge "+(s==="CONNECTED"?"ok":s==="VERIFICATION_REQUIRED"||s==="CONNECTING"?"warn":"bad");
+  }
+
+  function engineLabel(engine={}){
+    if(!engine.enabled) return "OFF";
+    return engine.autoAccept ? "AUTO" : "ON";
+  }
+
+  function activityRows(rows=[]){
+    $("activityRows").innerHTML=rows.length?rows.map(row=>`
+      <tr>
+        <td>${row.occurredAt?new Date(row.occurredAt).toLocaleString():"—"}</td>
+        <td>${row.engine||"—"}</td>
+        <td>${row.action||"—"}</td>
+        <td>${row.externalTripId||row.tripNumber||"—"}</td>
+        <td>${row.tripMiles??"—"}</td>
+        <td>${row.message||""}</td>
+      </tr>`).join(""):`<tr><td colspan="6" class="muted">No activity yet.</td></tr>`;
+  }
+
+  async function load(){
+    try{
+      const [settings,status,activity]=await Promise.all([
+        api("/settings"),
+        api("/status"),
+        api("/activity?limit=100")
+      ]);
+      const s=settings.settings||{};
+      connection(status.session||{});
+      $("longStatus").textContent=engineLabel(s.longEngine||{});
+      $("shortStatus").textContent=engineLabel(s.shortEngine||{});
+      $("lastScan").textContent=s.lastScanAt?new Date(s.lastScanAt).toLocaleString():"—";
+      const rows=activity.activity||[];
+      $("claimedToday").textContent=rows.filter(x=>String(x.action||"").toUpperCase().includes("CLAIM") && String(x.action||"").toUpperCase().includes("SUCCESS")).length;
+      activityRows(rows);
+      $("scanStatus").textContent=s.enabled?"Marketplace enabled":"Marketplace disabled";
+    }catch(err){
+      $("scanStatus").textContent=err.message;
+    }
+  }
+
+  $("refreshBtn").addEventListener("click",load);
+  $("scanBtn").addEventListener("click",async()=>{
+    try{
+      $("scanBtn").disabled=true;
+      $("scanStatus").textContent="Scanning...";
+      const result=await api("/scan",{method:"POST",body:"{}"});
+      $("scanStatus").textContent=result.message||"Scan completed.";
+      await load();
+    }catch(err){
+      $("scanStatus").textContent=err.message;
+    }finally{
+      $("scanBtn").disabled=false;
+    }
+  });
+
+  load();
+  setInterval(load,15000);
 })();
