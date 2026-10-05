@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="/admin/header.css">
   <style>
     *{box-sizing:border-box}
+
+    /* Keep the shared GH admin header compact.
+       header.js supplies the real header; this page must not stretch its mount point. */
+    #adminHeader{width:100%;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;position:relative!important;overflow:visible!important}
+    #adminHeader:empty{display:none!important}
+    #adminHeader > *{margin-top:0!important;margin-bottom:0!important}
     body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}
     .page{max-width:1280px;margin:26px auto;padding:0 18px 40px}
     .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
