@@ -92,7 +92,7 @@ function isTripDateField(field){
 }
 
 function driverDisplayName(ctx){
-  return clean(first(ctx?.trip?.driverName,ctx?.signature?.driverName,ctx?.driver?.name,ctx?.driver?.username));
+  return clean(first(ctx?.driver?.name,ctx?.driver?.username,ctx?.trip?.driverName,ctx?.signature?.driverName));
 }
 
 function formatTime(value){
@@ -197,16 +197,16 @@ function automaticValue(field,ctx){
 
   if(source==="MANUAL") return submission.formData?.[field.key];
 
+  const id=norm(`${field?.key || ""} ${field?.label || ""}`);
+  if(source==="DRIVER_DATA" && (id.includes("DRIVER NAME") || id==="DRIVER" || id.includes("DRIVER S NAME"))){
+    return driverDisplayName(ctx);
+  }
+
   const bound=exactBindingValue(field,ctx);
   if(bound !== "" && bound !== null && bound !== undefined) return bound;
 
-  const id=norm(`${field?.key || ""} ${field?.label || ""}`);
-
 
   if(source==="DRIVER_DATA"){
-    if(id.includes("DRIVER NAME") || id==="DRIVER" || id.includes("DRIVER S NAME")){
-      return first(trip?.driverName,signature?.driverName,driver?.name,driver?.username);
-    }
     if(id.includes("PHONE")) return first(schedule?.phone,driver?.phone);
     if(id.includes("EMAIL")) return first(driver?.email);
     if(id.includes("ADDRESS")) return first(trip?.driverAddress,schedule?.address,driver?.address);
