@@ -23,7 +23,16 @@ function normalize(raw = {}) {
     returnTime: String(first(raw.returnTime, raw.dropoffTime)).trim(),
     pickup: String(first(raw.pickupAddress, raw.pickup)).trim(),
     dropoff: String(first(raw.dropoffAddress, raw.dropoff)).trim(),
-    serviceType: String(first(raw.mode, raw.levelOfService)).trim(),
+    // MTM Marketplace -> existing GH core service mapping.
+    // Keep the original MTM mode below as dynamic/raw data.
+    // Cab enters GH as Taxi (TX); Paralift enters GH as Wheelchair (WH).
+    serviceType: (() => {
+      const mtmMode = String(first(raw.mode, raw.levelOfService)).trim();
+      const key = mtmMode.toUpperCase();
+      if (key === "CAB" || key === "TAXI") return "TX";
+      if (key === "PARALIFT" || key === "WHEELCHAIR" || key === "WHEELCHAIR VAN") return "WH";
+      return mtmMode;
+    })(),
     totalPassengers: Number(first(raw.numberOfRiders, raw.totalPassengers, 1)) || 1,
     notes: [raw.driverPickupNotes, raw.driverDropoffNotes, raw.specialNeeds].filter(Boolean).join(" | "),
     priceAmount: Number(first(raw.price, raw.priceAmount, 0)) || 0,
