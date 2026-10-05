@@ -1,14 +1,16 @@
+DESTINATION: server/public/admin/mtm-marketplace-settings.html
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>MTM Marketplace Settings | GH Mobility</title>
-  <link rel="stylesheet" href="/admin/style.css">
+  <link rel="stylesheet" href="/admin/header.css">
   <style>
     *{box-sizing:border-box}
     body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}
-    .page{max-width:1280px;margin:0 auto;padding:0 18px 40px}
+    .page{max-width:1280px;margin:26px auto;padding:0 18px 40px}
     .card{background:#fff;border:1px solid #e2e5ea;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
     .card h2{margin:0 0 14px;font-size:20px}
     .sub{color:#69707d;font-size:13px;margin-top:-6px;margin-bottom:16px}
@@ -32,37 +34,13 @@
     .engine-title{display:flex;justify-content:space-between;align-items:center;gap:12px}
     #message{margin-left:10px;font-weight:700}
     @media(max-width:900px){.grid2,.row,.login-grid{grid-template-columns:1fr}.page{padding:0 10px 30px}}
-  
-/* PAGE TITLE — SAME GH GOLD STYLE */
-.page-body{padding:18px 22px 30px;width:100%}
-.page-head{
-  display:flex;align-items:center;justify-content:center;min-height:84px;
-  margin-bottom:12px;padding:16px 20px;border:1px solid #e0be5a;
-  border-radius:18px;background:linear-gradient(135deg,#fff8dc 0%,#f8e6ae 48%,#fff4cf 100%);
-  box-shadow:0 8px 22px rgba(146,102,14,.13);text-align:center
-}
-.page-title{margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#111827}
-.page-sub{margin-top:5px;font-size:13px;font-weight:800;color:#64748b}
-@media(max-width:768px){
-  .page-head{min-height:72px;padding:12px;margin-bottom:10px}
-  .page-title{font-size:22px}.page-sub{font-size:11px}.page-body{padding:10px 8px 20px}
-}
-
-</style>
+  </style>
 </head>
 <body>
   <div id="adminHeader"></div>
 
-  <div class="page-body">
-    <div class="page-head">
-      <div>
-        <h1 class="page-title">MTM Marketplace Settings</h1>
-        <div class="page-sub">MTM connection and Long / Short engine settings</div>
-      </div>
-    </div>
-  </div>
-
   <main class="page">
+    <section style="background:#f5d77a;border:1px solid #d9ad2b;border-radius:10px;padding:13px;text-align:center;margin-bottom:16px"><div style="font-size:22px;font-weight:900">MTM Marketplace Settings</div><div style="font-size:13px;margin-top:4px">MTM connection and Long / Short engine settings</div></section>
     <section class="card">
       <h2>MTM Provider Portal Connection</h2>
       <div class="sub">Authorized provider login only. GH never bypasses MTM MFA and never stores an OTP.</div>
@@ -104,6 +82,7 @@
         <div>
           <label for="connectionMethod">Connection Method</label>
           <select id="connectionMethod">
+            <option value="MTM_MOCK">TEST MODE - Mock MTM</option>
             <option value="MTM_PORTAL">MTM Provider Portal</option>
             <option value="MTM_API">Official MTM API (future)</option>
           </select>
@@ -125,6 +104,7 @@
     </section>
 
     <section class="card">
+      <button id="resetTestBtn" class="dark" type="button" style="margin-right:8px">Reset Test Trips</button>
       <button id="saveBtn" class="gold" type="button">Save MTM Settings</button>
       <span id="message" class="muted"></span>
     </section>

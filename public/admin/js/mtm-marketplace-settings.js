@@ -1,3 +1,5 @@
+DESTINATION: server/public/admin/js/mtm-marketplace-settings.js
+
 "use strict";
 /* DESTINATION PATH: server/public/admin/js/mtm-marketplace-settings.js */
 (()=>{
@@ -98,6 +100,9 @@
       fillEngine("long",s.longEngine||{milesMin:100,milesMax:1000});
       fillEngine("short",s.shortEngine||{milesMin:0,milesMax:99.99});
       showStatus(status.session||{});
+      const mock=s.connectionMethod==="MTM_MOCK";
+      $("mtmUsername").disabled=mock; $("mtmPassword").disabled=mock; $("connectBtn").disabled=mock; $("disconnectBtn").disabled=mock;
+      $("resetTestBtn").style.display=mock?"inline-block":"none";
     }catch(err){
       $("message").textContent=err.message;
     }
@@ -145,6 +150,21 @@
       const data=await api("/disconnect",{method:"POST",body:"{}"});
       showStatus(data.session||{status:"DISCONNECTED"});
     }catch(err){ $("connectionMessage").textContent=err.message; }
+  });
+
+  $("connectionMethod").addEventListener("change",()=>{
+    const mock=$("connectionMethod").value==="MTM_MOCK";
+    $("mtmUsername").disabled=mock; $("mtmPassword").disabled=mock; $("connectBtn").disabled=mock; $("disconnectBtn").disabled=mock;
+    $("resetTestBtn").style.display=mock?"inline-block":"none";
+    if(mock) $("connectionMessage").textContent="TEST MODE uses simulated MTM trips. No username/password needed.";
+  });
+
+  $("resetTestBtn").addEventListener("click",async()=>{
+    try{
+      $("message").textContent="Resetting test trips...";
+      const data=await api("/test/reset",{method:"POST",body:"{}"});
+      $("message").textContent=data.message||"Test trips reset.";
+    }catch(err){$("message").textContent=err.message;}
   });
 
   load();

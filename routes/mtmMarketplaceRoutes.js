@@ -1,3 +1,5 @@
+DESTINATION: server/routes/mtmMarketplaceRoutes.js
+
 "use strict";
 
 /* DESTINATION PATH: server/routes/mtmMarketplaceRoutes.js
@@ -10,9 +12,11 @@ const router = express.Router();
 const Settings = require("../models/MtmMarketplaceSettings");
 const Session = require("../models/MtmMarketplaceSession");
 const Activity = require("../models/MtmMarketplaceActivity");
+const BrokerIntegration = require("../models/BrokerIntegration");
 
 const MtmPortalConnector = require("../services/mtm/mtmPortalConnector");
 const MtmApiConnector = require("../services/mtm/mtmApiConnector");
+const MtmMockConnector = require("../services/mtm/mtmMockConnector");
 const MtmMarketplaceWorker = require("../services/mtm/mtmMarketplaceWorker");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
@@ -70,9 +74,44 @@ async function getConnector(id,settings){
   const key=connectorKey(id);
   if(connectorCache.has(key)) return connectorCache.get(key);
   const options={tenantId:id,integrationId:settings?.integrationId||null};
-  const connector=settings?.connectionMethod==="MTM_API" ? new MtmApiConnector(options) : new MtmPortalConnector(options);
+  const connector=settings?.connectionMethod==="MTM_MOCK"
+    ? new MtmMockConnector(options)
+    : settings?.connectionMethod==="MTM_API"
+      ? new MtmApiConnector(options)
+      : new MtmPortalConnector(options);
   connectorCache.set(key,connector);
   return connector;
+}
+
+async function resolveBrokerIntegration(id,settings){
+  let integration=null;
+  if(settings?.integrationId){
+    integration=await BrokerIntegration.findOne({_id:settings.integrationId,tenantId:id});
+  }
+  if(!integration){
+    integration=await BrokerIntegration.findOne({tenantId:id,brokerCode:"MT"});
+  }
+  if(!integration && settings?.connectionMethod==="MTM_MOCK"){
+    integration=await BrokerIntegration.create({
+      tenantId:id,
+      tenantSlug:settings.tenantSlug||"",
+      enabled:true,
+      featureVisible:false,
+      brokerName:"MTM",
+      brokerCode:"MT",
+      connectionType:"FILE_IMPORT",
+      environment:"SANDBOX",
+      integrationDirection:"INBOUND",
+      connectionStatus:"TESTING"
+    });
+  }
+  if(!integration) throw new Error("MTM Broker Integration was not found for this company");
+  if(integration.enabled!==true) throw new Error("MTM Broker Integration is disabled");
+  if(String(settings.integrationId||"")!==String(integration._id)){
+    await Settings.updateOne({tenantId:id},{$set:{integrationId:integration._id}});
+    settings.integrationId=integration._id;
+  }
+  return integration;
 }
 
 router.get("/settings",async(req,res)=>{
@@ -90,7 +129,7 @@ router.put("/settings",async(req,res)=>{
     const b=req.body||{};
     const update={
       enabled:b.enabled===true,
-      connectionMethod:clean(b.connectionMethod)==="MTM_API"?"MTM_API":"MTM_PORTAL",
+      connectionMethod:["MTM_MOCK","MTM_PORTAL","MTM_API"].includes(clean(b.connectionMethod))?clean(b.connectionMethod):"MTM_MOCK",
       dateWindowDays:Math.min(31,Math.max(1,Number(b.dateWindowDays)||7)),
       totalDailyTripLimit:Math.max(0,Number(b.totalDailyTripLimit)||0),
       longEngine:engine(b.longEngine),
@@ -108,6 +147,8 @@ router.get("/status",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
+    const settings=await getSettings(id);
+    if(settings.connectionMethod==="MTM_MOCK") return res.json({success:true,session:{status:"CONNECTED",mock:true,message:"TEST MODE - Mock MTM"}});
     const session=await Session.findOne({tenantId:id}).select("-encryptedSessionState");
     res.json({success:true,session:session||{status:"DISCONNECTED"}});
   }catch(e){res.status(500).json({success:false,message:e.message});}
@@ -205,6 +246,18 @@ router.get("/activity",async(req,res)=>{
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });
 
+router.post("/test/reset",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    const settings=await getSettings(id);
+    if(settings.connectionMethod!=="MTM_MOCK") return res.status(409).json({success:false,message:"Test Reset is available only in Mock MTM mode"});
+    const connector=await getConnector(id,settings);
+    if(typeof connector.reset==="function") connector.reset();
+    await Activity.create({tenantId:id,integrationId:settings.integrationId||null,engine:"SYSTEM",action:"SESSION",message:"Mock MTM test trips reset"});
+    res.json({success:true,message:"Mock MTM reset. New test trips are available."});
+  }catch(e){res.status(500).json({success:false,message:e.message});}
+});
+
 router.post("/scan",async(req,res)=>{
   try{
     const id=tenantId(req);
@@ -217,10 +270,12 @@ router.post("/scan",async(req,res)=>{
     }
 
     const connector=await getConnector(id,settings);
+    const integration=await resolveBrokerIntegration(id,settings);
     const worker=new MtmMarketplaceWorker({
       tenantId:id,
       tenantSlug:settings.tenantSlug,
-      integrationId:settings.integrationId,
+      integrationId:integration._id,
+      integration,
       connector,
       settings
     });

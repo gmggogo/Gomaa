@@ -1,3 +1,5 @@
+DESTINATION: server/models/MtmMarketplaceSettings.js
+
 "use strict";
 
 /* DESTINATION: server/models/MtmMarketplaceSettings.js */
@@ -24,7 +26,7 @@ const Schema = new mongoose.Schema({
   tenantSlug:{type:String,default:"",trim:true,lowercase:true,index:true},
   integrationId:{type:mongoose.Schema.Types.ObjectId,ref:"BrokerIntegration",default:null,index:true},
   enabled:{type:Boolean,default:false,index:true},
-  connectionMethod:{type:String,enum:["MTM_PORTAL","MTM_API"],default:"MTM_PORTAL"},
+  connectionMethod:{type:String,enum:["MTM_MOCK","MTM_PORTAL","MTM_API"],default:"MTM_PORTAL"},
   dateWindowDays:{type:Number,default:7,min:1,max:31},
   longEngine:{type:EngineSchema,default:()=>({milesMin:100,milesMax:1000})},
   shortEngine:{type:EngineSchema,default:()=>({milesMin:0,milesMax:99.99})},

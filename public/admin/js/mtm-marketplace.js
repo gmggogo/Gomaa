@@ -1,3 +1,5 @@
+DESTINATION: server/public/admin/js/mtm-marketplace.js
+
 "use strict";
 /* DESTINATION PATH: server/public/admin/js/mtm-marketplace.js */
 (()=>{
@@ -31,7 +33,7 @@
         <td>${row.engine||"—"}</td>
         <td>${row.action||"—"}</td>
         <td>${row.externalTripId||row.tripNumber||"—"}</td>
-        <td>${row.tripMiles??"—"}</td>
+        <td>${row.miles??"—"}</td>
         <td>${row.message||""}</td>
       </tr>`).join(""):`<tr><td colspan="6" class="muted">No activity yet.</td></tr>`;
   }
@@ -49,7 +51,9 @@
       $("shortStatus").textContent=engineLabel(s.shortEngine||{});
       $("lastScan").textContent=s.lastScanAt?new Date(s.lastScanAt).toLocaleString():"—";
       const rows=activity.activity||[];
-      $("claimedToday").textContent=rows.filter(x=>String(x.action||"").toUpperCase().includes("CLAIM") && String(x.action||"").toUpperCase().includes("SUCCESS")).length;
+      const today=new Date().toDateString();
+      $("claimedToday").textContent=rows.filter(x=>String(x.action||"").toUpperCase()==="CLAIMED" && x.occurredAt && new Date(x.occurredAt).toDateString()===today).length;
+      $("resetTestBtn").style.display=s.connectionMethod==="MTM_MOCK"?"inline-block":"none";
       activityRows(rows);
       $("scanStatus").textContent=s.enabled?"Marketplace enabled":"Marketplace disabled";
     }catch(err){
@@ -70,6 +74,15 @@
     }finally{
       $("scanBtn").disabled=false;
     }
+  });
+
+  $("resetTestBtn").addEventListener("click",async()=>{
+    try{
+      $("scanStatus").textContent="Resetting Mock MTM...";
+      const data=await api("/test/reset",{method:"POST",body:"{}"});
+      $("scanStatus").textContent=data.message||"Mock reset.";
+      await load();
+    }catch(err){$("scanStatus").textContent=err.message;}
   });
 
   load();

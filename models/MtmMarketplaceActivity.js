@@ -1,3 +1,5 @@
+DESTINATION: server/models/MtmMarketplaceActivity.js
+
 "use strict";
 
 /* DESTINATION: server/models/MtmMarketplaceActivity.js */
