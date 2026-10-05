@@ -5,12 +5,11 @@ const shortEngine = require("./mtmShortTripEngine");
 const lockService = require("./mtmTripLockService");
 const fullExtractor = require("./mtmFullTripExtractor");
 const normalizer = require("./mtmTripNormalizer");
+const Activity = require("../../models/MtmMarketplaceActivity");
+const { receiveTrip } = require("../brokerIntegrationService");
 
-let receiveTrip = null;
-try {
-  const brokerService = require("../brokerIntegrationService");
-  receiveTrip = brokerService.receiveTrip || null;
-} catch (_err) {}
+const num = v => Number(v || 0);
+const text = v => String(v ?? "").trim();
 
 class MtmMarketplaceWorker {
   constructor(options = {}) {
@@ -22,37 +21,102 @@ class MtmMarketplaceWorker {
     this.integration = options.integration || null;
   }
 
-  async processCandidate(trip, engineName, engineSettings) {
-    const id = trip.externalTripId || trip.tripNumber;
-    return lockService.withLock(this.tenantId, id, async () => {
-      if (!engineSettings.autoAccept) return { engine: engineName, externalTripId: id, matched: true, claimed: false, reason: "AUTO_ACCEPT_OFF" };
+  async log(action, data = {}) {
+    return Activity.create({
+      tenantId: this.tenantId,
+      integrationId: this.integration?._id || this.integrationId || null,
+      engine: data.engine || "SYSTEM",
+      action,
+      externalTripId: text(data.trip?.externalTripId || data.trip?.tripNumber || data.externalTripId),
+      assignmentNumber: text(data.assignmentNumber),
+      message: text(data.message),
+      reason: text(data.reason),
+      miles: data.trip ? num(data.trip.tripMiles ?? data.trip.miles ?? data.trip.distance) : null,
+      tripDate: text(data.trip?.appointmentDate || data.trip?.tripDate || data.trip?.date),
+      pickupTime: text(data.trip?.pickupTime),
+      mode: text(data.trip?.mode),
+      meta: data.meta || {}
+    });
+  }
 
+  dayStart() {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d;
+  }
+
+  async claimedToday(engineName) {
+    const q = { tenantId: this.tenantId, action: "CLAIMED", occurredAt: { $gte: this.dayStart() } };
+    if (engineName) q.engine = engineName;
+    return Activity.countDocuments(q);
+  }
+
+  async remainingLimit(engineName, engineSettings) {
+    const engineLimit = Math.max(0, num(engineSettings.dailyTripLimit));
+    const totalLimit = Math.max(0, num(this.settings.totalDailyTripLimit));
+    const [engineUsed, totalUsed] = await Promise.all([
+      this.claimedToday(engineName),
+      this.claimedToday(null)
+    ]);
+    const engineRemaining = engineLimit > 0 ? Math.max(0, engineLimit - engineUsed) : Infinity;
+    const totalRemaining = totalLimit > 0 ? Math.max(0, totalLimit - totalUsed) : Infinity;
+    return Math.min(engineRemaining, totalRemaining);
+  }
+
+  async processCandidate(trip, engineName, engineSettings) {
+    const id = text(trip.externalTripId || trip.tripNumber);
+    return lockService.withLock(this.tenantId, id, async () => {
+      await this.log("MATCHED", { engine: engineName, trip, message: `${engineName} engine matched trip ${id}` });
+
+      if (!engineSettings.autoAccept) {
+        await this.log("SKIPPED", { engine: engineName, trip, reason: "AUTO_ACCEPT_OFF", message: "Matched trip left available because Auto Accept is OFF" });
+        return { engine: engineName, externalTripId: id, matched: true, claimed: false, reason: "AUTO_ACCEPT_OFF" };
+      }
+
+      await this.log("CLAIM_ATTEMPT", { engine: engineName, trip, message: `Accepting ${id}` });
       const claim = await this.connector.claimTrip(id);
-      if (!claim || claim.claimed !== true) return { engine: engineName, externalTripId: id, claimed: false, reason: claim?.reason || "CLAIM_FAILED" };
+      if (!claim || claim.claimed !== true) {
+        const reason = claim?.reason || "CLAIM_FAILED";
+        await this.log("CLAIM_FAILED", { engine: engineName, trip, reason, message: `Accept failed: ${reason}` });
+        return { engine: engineName, externalTripId: id, claimed: false, reason };
+      }
+
+      await this.log("CLAIMED", { engine: engineName, trip, assignmentNumber: claim.assignmentNumber, message: `Trip ${id} accepted successfully` });
 
       const full = await fullExtractor.extract({ connector: this.connector, externalTripId: id, claimResult: claim });
       const payload = normalizer.normalize(full);
 
-      let imported = null;
-      if (receiveTrip && this.integration) {
-        imported = await receiveTrip({ integration: this.integration, payload, eventType: "CREATE" });
-      }
+      if (!this.integration) throw new Error("MTM BrokerIntegration is required before importing accepted trips");
+      const imported = await receiveTrip({ integration: this.integration, payload, eventType: "CREATE" });
+
+      await this.log("IMPORTED", {
+        engine: engineName,
+        trip: full,
+        assignmentNumber: full.assignmentNumber || claim.assignmentNumber,
+        message: `Trip ${id} imported to Broker Hub`,
+        meta: { importedId: imported?._id || imported?.id || null }
+      });
 
       return { engine: engineName, externalTripId: id, claimed: true, payload, imported };
     });
   }
 
   async runEngine(name, candidates, settings) {
-    const limit = Math.max(0, Number(settings.dailyTripLimit || 0));
-    const selected = limit > 0 ? candidates.slice(0, limit) : candidates;
+    const remaining = await this.remainingLimit(name, settings);
+    if (remaining <= 0) {
+      await this.log("SKIPPED", { engine: name, reason: "DAILY_LIMIT_REACHED", message: `${name} daily limit reached` });
+      return [];
+    }
+    const selected = Number.isFinite(remaining) ? candidates.slice(0, remaining) : candidates;
     return Promise.all(selected.map(t => this.processCandidate(t, name, settings)));
   }
 
   async runOnce() {
     if (!this.connector) throw new Error("MTM connector is required");
-    const trips = await this.connector.listAvailableTrips({
-      dateWindowDays: Number(this.settings.dateWindowDays || 7)
-    });
+    await this.log("SCAN", { message: `Marketplace scan started for next ${Number(this.settings.dateWindowDays || 7)} day(s)` });
+
+    const trips = await this.connector.listAvailableTrips({ dateWindowDays: Number(this.settings.dateWindowDays || 7) });
+    await Promise.all(trips.map(trip => this.log("SEEN", { trip, message: `Marketplace trip seen: ${trip.externalTripId || trip.tripNumber}` })));
 
     const longTrips = longEngine.select(trips, this.settings.longEngine || {});
     const shortTrips = shortEngine.select(trips, this.settings.shortEngine || {});
@@ -62,7 +126,7 @@ class MtmMarketplaceWorker {
       this.runEngine("SHORT", shortTrips, this.settings.shortEngine || {})
     ]);
 
-    return { scanned: trips.length, longResults, shortResults };
+    return { scanned: trips.length, longMatched: longTrips.length, shortMatched: shortTrips.length, longResults, shortResults };
   }
 }
 
