@@ -198,13 +198,13 @@ async function captureBrokerDynamicData({
           fieldKey,
           label,
           fieldType,
-          showColumn:true,
-          showEye:true,
           lastSeenAt:new Date(),
           sampleValue:text.slice(0,200)
         },
         $setOnInsert:{
-          firstSeenAt:new Date()
+          firstSeenAt:new Date(),
+          showColumn:false,
+          showEye:true
         }
       },
       {upsert:true}
@@ -260,8 +260,8 @@ async function listBrokerFields(tenantId){
       brokerCode:upper(field.brokerCode),
       brokerName:clean(field.brokerName),
       fieldPath:clean(field.fieldPath),
-      showColumn:field.showColumn !== false,
-      showEye:field.showEye !== false,
+      showColumn:field.showColumn === true,
+      showEye:field.showEye === true,
       order:10000 + index
     });
   });
