@@ -1,4 +1,3 @@
-DESTINATION: server/routes/mtmMarketplaceRoutes.js
 
 "use strict";
 
