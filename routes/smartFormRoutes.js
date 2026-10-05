@@ -37,7 +37,23 @@ const SMART_FORMS_AI_FIX_VERSION = "dynamic-gemini-model-list-and-import-save-fi
    - Keeps global.ensureTripCoords as a second existing repair pass below.
 ===================================================== */
 function smartFormValidCoords(lat,lng){
-  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+  if(lat===null || lat===undefined || lat==="" || lng===null || lng===undefined || lng==="") return false;
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat))<=90 && Math.abs(Number(lng))<=180 &&
+    !(Number(lat)===0 && Number(lng)===0);
+}
+
+function smartFormRequireTripCoords(coords,label){
+  for(const [point,lat,lng] of [
+    ["Pickup",coords?.pickupLat,coords?.pickupLng],
+    ["Dropoff",coords?.dropoffLat,coords?.dropoffLng]
+  ]){
+    if(!smartFormValidCoords(lat,lng)){
+      const error=new Error(`${label}: ${point} address could not be located. Check the address and retry.`);
+      error.statusCode=422;
+      throw error;
+    }
+  }
 }
 
 function smartFormGoogleKey(){
@@ -46,6 +62,7 @@ function smartFormGoogleKey(){
     process.env.GOOGLE_SERVER_API_KEY ||
     process.env.GOOGLE_MAPS_SERVER_KEY ||
     process.env.SERVER_GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
     ""
   );
 }
@@ -1313,12 +1330,17 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
       );
     }
 
+    const coordsForParts=await Promise.all(tripOps.map(row=>smartFormResolveTripCoords(
+      row.pickupAddress,cleanStopAddresses(row.stops),row.dropoffAddress
+    )));
+    coordsForParts.forEach((coords,index)=>smartFormRequireTripCoords(
+      coords,tripOps[index].smartFormTripLabel||`Trip ${index+1}`
+    ));
+
     async function createSmartFormTrip(row,index,total){
-      const smartFormCoords=await smartFormResolveTripCoords(
-        row.pickupAddress,
-        cleanStopAddresses(row.stops),
-        row.dropoffAddress
-      );
+      const smartFormCoords=coordsForParts[index];
+      const tripLabel=row.smartFormTripLabel||`Trip ${index+1}`;
+      smartFormRequireTripCoords(smartFormCoords,tripLabel);
 
       let smartFormMiles=0;
       let smartFormMinutes=0;
@@ -1391,7 +1413,6 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
         console.error("SMART FORM PRICE CALC ERROR:",priceErr);
       }
 
-      const tripLabel=row.smartFormTripLabel||`Trip ${index+1}`;
       const tripPartIndex=index+1;
       const tripSlotIndex=Number(row.smartFormTripIndex)||tripPartIndex;
       const tripNumber=total>1 ? `${s.tripNumber}-T${tripSlotIndex}` : s.tripNumber;
@@ -1521,7 +1542,7 @@ router.post("/submissions/:id/confirm", async (req,res)=>{
 
   }catch(err){
     console.error("SMART FORM CONFIRM ERROR:",err);
-    return res.status(500).json({
+    return res.status(err?.statusCode||500).json({
       success:false,
       message:err?.message||"Failed to confirm form"
     });
@@ -1802,6 +1823,7 @@ async function resolveSmartFormSubmissionCoords(row){
     cleanStopAddresses(row.stops),
     row.dropoffAddress
   );
+  smartFormRequireTripCoords(coords,clean(row.smartFormTripLabel)||`T${Number(row.smartFormTripIndex)||1}`);
   return {...row,...coords};
 }
 
@@ -2237,6 +2259,13 @@ router.post("/workflow/split/confirm",async(req,res)=>{
     const groups=groupIds.length?await SharedTripGroup.find({tenantId:g.tenantId,sourceType:"SMART_FORM",status:"OPEN",groupId:{$in:groupIds}}):[];
     if(groups.length!==groupIds.length)return res.status(404).json({success:false,message:"One or more Smart Form share groups are unavailable"});
 
+    // Validate all selected parts before creating any normal Trip.
+    const pendingRows=await SmartFormSubmission.find({
+      _id:{$in:[...individualIds,...groups.flatMap(group=>(group.tripIds||[]))]},
+      tenantId:g.tenantId,status:"REVIEW",workflowStage:"SPLIT"
+    }).lean();
+    for(const row of pendingRows) await resolveSmartFormSubmissionCoords(row);
+
     for(const group of groups){
       const ids=(group.tripIds||[]).map(String);
       if(ids.length<2)throw new Error("A Smart Form share group needs at least two trips");
@@ -2265,7 +2294,7 @@ router.post("/workflow/split/confirm",async(req,res)=>{
     return res.json({success:true,movedCount:allSubmissionIds.length,submissionIds:allSubmissionIds,trips:createdTrips});
   }catch(err){
     console.error("SMART FORM SPLIT CONFIRM ERROR:",err);
-    return res.status(500).json({success:false,message:err?.message||"Failed to move Smart Form trips to Review"});
+    return res.status(err?.statusCode||500).json({success:false,message:err?.message||"Failed to move Smart Form trips to Review"});
   }
 });
 
