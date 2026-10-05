@@ -1503,10 +1503,10 @@ function publicBrokerAutoFields(rows){
       ).toUpperCase(),
 
     showColumn:
-      field?.showColumn !== false,
+      field?.showColumn === true,
 
     showEye:
-      field?.showEye !== false,
+      field?.showEye === true,
 
     sampleValue:
       clean(field?.sampleValue),
@@ -1797,5 +1797,80 @@ router.put(
   }
 );
 
+
+
+/* =========================================
+   DELETE BROKER AUTO FIELD
+   - Deletes only the discovered field definition.
+   - Does NOT delete or modify existing trip data.
+   - If the broker sends the field again later,
+     discovery may create it again.
+========================================= */
+router.delete(
+  "/booking-data/:tenantId/broker-auto-fields/:fieldKey",
+  async (req,res)=>{
+
+    try{
+
+      const tenant =
+        await Tenant.findById(
+          req.params.tenantId
+        )
+        .select({
+          _id:1,
+          name:1,
+          slug:1
+        })
+        .lean();
+
+      if(!tenant){
+        return res.status(404).json({
+          message:"Tenant not found"
+        });
+      }
+
+      const fieldKey =
+        clean(req.params.fieldKey);
+
+      if(!fieldKey){
+        return res.status(400).json({
+          message:"Broker Auto Field key is required"
+        });
+      }
+
+      const deleted =
+        await BrokerDynamicField.findOneAndDelete({
+          tenantId:tenant._id,
+          fieldKey
+        })
+        .lean();
+
+      if(!deleted){
+        return res.status(404).json({
+          message:"Broker Auto Field not found"
+        });
+      }
+
+      return res.json({
+        success:true,
+        message:"Broker Auto Field deleted",
+        fieldKey
+      });
+
+    }catch(err){
+
+      console.error(
+        "DELETE BROKER AUTO FIELD ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          err?.message ||
+          "Server error"
+      });
+    }
+  }
+);
 
 module.exports = router;

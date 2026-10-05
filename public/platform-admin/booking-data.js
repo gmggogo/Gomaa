@@ -328,8 +328,8 @@ function normalizeConfig(data){
         fieldPath:clean(field?.fieldPath),
         matrix:{
           broker:(()=>{
-            const showColumn = field?.showColumn !== false;
-            const showEye = field?.showEye === true && !showColumn;
+            const showColumn = field?.showColumn === true;
+            const showEye = field?.showEye !== false && !showColumn;
             return {
               showColumn,
               showEye
@@ -848,8 +848,8 @@ function brokerAutoRows(){
     .map(item=>{
       const broker =
         item.matrix?.broker || {
-          showColumn:true,
-          showEye:false
+          showColumn:false,
+          showEye:true
         };
 
       const identity = {
@@ -888,6 +888,13 @@ function brokerAutoRows(){
             <div class="field-meta">
               Broker Auto Field${item.brokerCode ? ` • ${esc(item.brokerCode)}` : ""}${item.fieldPath ? ` • ${esc(item.fieldPath)}` : ""}
             </div>
+            <button
+              type="button"
+              class="broker-auto-delete editable-control"
+              data-delete-broker-auto="${esc(item.key)}"
+              data-delete-label="${esc(item.label || item.key)}">
+              Delete
+            </button>
           </td>
 
           ${fixedCell("gq")}
@@ -1158,6 +1165,90 @@ function updateCustomProp(input){
   }
 }
 
+
+async function deleteBrokerAutoField(button){
+
+  if(
+    !editMode ||
+    !tenantId ||
+    saving
+  ){
+    return;
+  }
+
+  const fieldKey =
+    clean(button.dataset.deleteBrokerAuto);
+
+  const label =
+    clean(button.dataset.deleteLabel) ||
+    fieldKey;
+
+  if(!fieldKey){
+    return;
+  }
+
+  const confirmed =
+    window.confirm(
+      `Delete "${label}" from Broker Auto Fields?\n\nExisting trip data will NOT be deleted. If the broker sends this field again, it may be discovered again.`
+    );
+
+  if(!confirmed){
+    return;
+  }
+
+  button.disabled = true;
+  clearMessage();
+
+  try{
+
+    const response =
+      await fetch(
+        `${API}/booking-data/${encodeURIComponent(tenantId)}/broker-auto-fields/${encodeURIComponent(fieldKey)}`,
+        {
+          method:"DELETE",
+          headers:authHeaders()
+        }
+      );
+
+    const data =
+      await response
+        .json()
+        .catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(
+        data?.message ||
+        "Unable to delete Broker Auto Field"
+      );
+    }
+
+    savedConfig.brokerAutoFields =
+      (savedConfig.brokerAutoFields || [])
+        .filter(field => field.key !== fieldKey);
+
+    draftConfig.brokerAutoFields =
+      (draftConfig.brokerAutoFields || [])
+        .filter(field => field.key !== fieldKey);
+
+    renderMatrix();
+
+    showMessage(
+      `"${label}" deleted from Broker Auto Fields. Existing trip data was not changed.`,
+      "success"
+    );
+
+  }catch(err){
+
+    button.disabled = false;
+
+    showMessage(
+      err?.message ||
+      "Unable to delete Broker Auto Field",
+      "error"
+    );
+  }
+}
+
 function bindMatrixEvents(){
 
   matrixRows
@@ -1190,6 +1281,17 @@ function bindMatrixEvents(){
           ()=>updateCustomProp(input)
         );
       }
+    });
+
+  matrixRows
+    .querySelectorAll(
+      "[data-delete-broker-auto]"
+    )
+    .forEach(button=>{
+      button.addEventListener(
+        "click",
+        ()=>deleteBrokerAutoField(button)
+      );
     });
 
   matrixRows
