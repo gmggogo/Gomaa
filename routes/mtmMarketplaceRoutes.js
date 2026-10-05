@@ -12,6 +12,7 @@ const Settings = require("../models/MtmMarketplaceSettings");
 const Session = require("../models/MtmMarketplaceSession");
 const Activity = require("../models/MtmMarketplaceActivity");
 const BrokerIntegration = require("../models/BrokerIntegration");
+const ExternalTrip = require("../models/ExternalTrip");
 
 const MtmPortalConnector = require("../services/mtm/mtmPortalConnector");
 const MtmApiConnector = require("../services/mtm/mtmApiConnector");
@@ -251,9 +252,48 @@ router.post("/test/reset",async(req,res)=>{
     const settings=await getSettings(id);
     if(settings.connectionMethod!=="MTM_MOCK") return res.status(409).json({success:false,message:"Test Reset is available only in Mock MTM mode"});
     const connector=await getConnector(id,settings);
-    if(typeof connector.reset==="function") connector.reset();
-    await Activity.create({tenantId:id,integrationId:settings.integrationId||null,engine:"SYSTEM",action:"SESSION",message:"Mock MTM test trips reset"});
-    res.json({success:true,message:"Mock MTM reset. New test trips are available."});
+
+    /*
+      TEST MODE ONLY:
+      Remove old Mock MTM trips from Broker Hub and clear Mock Marketplace
+      activity before generating a fresh test batch.
+
+      Never run this cleanup outside MTM_MOCK mode (guarded above).
+      Match only MT broker trips whose external test id starts with MTM-TEST-.
+    */
+    const mockTripFilter={
+      tenantId:id,
+      brokerCode:"MT",
+      $or:[
+        {externalTripId:/^MTM-TEST-/i},
+        {externalTripNumber:/^MTM-TEST-/i}
+      ]
+    };
+
+    const deletedTrips=await ExternalTrip.deleteMany(mockTripFilter);
+
+    await Activity.deleteMany({tenantId:id});
+
+    if(typeof connector.reset==="function"){
+      await Promise.resolve(connector.reset());
+    }
+
+    await Settings.updateOne(
+      {tenantId:id},
+      {$set:{
+        lastScanAt:null,
+        lastSuccessfulScanAt:null,
+        lastError:""
+      }}
+    );
+
+    connectorCache.delete(connectorKey(id));
+
+    res.json({
+      success:true,
+      deletedMockTrips:Number(deletedTrips?.deletedCount||0),
+      message:"Mock MTM reset complete. Old test trips and test activity were cleared. A fresh test batch is ready."
+    });
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });
 
