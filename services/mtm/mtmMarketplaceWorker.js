@@ -5,7 +5,7 @@ const shortEngine = require("./mtmShortTripEngine");
 const lockService = require("./mtmTripLockService");
 const fullExtractor = require("./mtmFullTripExtractor");
 const normalizer = require("./mtmTripNormalizer");
-const Activity = require("../../models/MtmMarketplaceActivity");
+const Activity = require("../../models/MarketplaceActivity");
 const BrokerIntegration = require("../../models/BrokerIntegration");
 const { receiveTrip } = require("../brokerIntegrationService");
 

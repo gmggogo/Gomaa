@@ -62,7 +62,7 @@ Marketplace multi-broker UI.
     api("/api/provider-portal-bridge",p,o);
 
   const market=(p,o)=>
-    api("/api/mtm-marketplace",p,o);
+    api("/api/marketplace",p,o);
 
   const state={
     connections:[],
@@ -186,7 +186,7 @@ Marketplace multi-broker UI.
             state.selectedConnectionId=
               btn.dataset.brokerId || "";
 
-            renderAll();
+            load();
           }
         );
       });
@@ -457,18 +457,43 @@ Marketplace multi-broker UI.
     }
   }
 
+  let legacyCleanupDone=false;
+
   async function load(){
     try{
-      const [connectionsData,activityData]=
-        await Promise.all([
-          bridge("/connections"),
-          market("/activity?limit=200")
-        ]);
+      const connectionsData=
+        await bridge("/connections");
 
       state.connections=
         Array.isArray(connectionsData.connections)
           ? connectionsData.connections
           : [];
+
+      ensureSelection();
+
+      if(!legacyCleanupDone){
+        legacyCleanupDone=true;
+        await market(
+          "/activity/cleanup-legacy",
+          {
+            method:"POST",
+            body:"{}"
+          }
+        ).catch(()=>{});
+      }
+
+      const connectionId=
+        String(
+          state.selectedConnectionId ||
+          ""
+        );
+
+      const activityData=
+        connectionId
+          ? await market(
+              `/activity?connectionId=${encodeURIComponent(connectionId)}&limit=200`
+            )
+          : {activity:[]};
 
       state.activity=
         Array.isArray(activityData.activity)

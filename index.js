@@ -1642,12 +1642,12 @@ const externalSummaryRoutes =
   require("./routes/externalSummaryRoutes");
 
 /* =========================
-   MTM MARKETPLACE
-   Uses the existing Broker / External Trip pipeline.
+   MARKETPLACE
+   Generic broker Marketplace using the existing Broker / External Trip pipeline.
 ========================= */
 
-const mtmMarketplaceRoutes =
-  require("./routes/mtmMarketplaceRoutes");
+const marketplaceRoutes =
+  require("./routes/marketplaceRoutes");
 
 const providerPortalBridgeRoutes =
   require("./routes/providerPortalBridgeRoutes");
@@ -1678,8 +1678,8 @@ app.use(
 );
 
 app.use(
-  "/api/mtm-marketplace",
-  mtmMarketplaceRoutes
+  "/api/marketplace",
+  marketplaceRoutes
 );
 
 app.use(
@@ -1688,7 +1688,7 @@ app.use(
 );
 
 console.log(
-  "MTM Marketplace mounted on /api/mtm-marketplace"
+  "Marketplace mounted on /api/marketplace"
 );
 
 console.log(
