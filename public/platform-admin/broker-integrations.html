@@ -857,11 +857,65 @@
       </div>
     </section>
 
+
+    <section class="panel" id="marketplaceConnectionPanel">
+      <div class="section-title">Marketplace Paid Connections</div>
+      <div style="font-size:13px;color:#66727d;margin-bottom:14px">
+        Create the paid Marketplace portal connections that will be available to the company's Super Admin. Login and logout are performed by the Super Admin; Platform Admin never stores portal passwords or MFA codes.
+      </div>
+
+      <input id="marketplaceConnectionRecordId" type="hidden" />
+
+      <div class="grid">
+        <div class="field">
+          <label>Broker Integration / Company</label>
+          <select id="marketBrokerIntegration"><option value="">Select Broker Integration</option></select>
+        </div>
+        <div class="field">
+          <label>Account Label</label>
+          <input id="marketAccountLabel" placeholder="Primary Account" />
+        </div>
+        <div class="field">
+          <label>Provider Portal URL</label>
+          <input id="marketPortalUrl" placeholder="https://provider.example.com/..." />
+        </div>
+        <div class="field">
+          <label>Marketplace Monthly Fee</label>
+          <input id="marketMonthlyFee" type="number" min="0" step="0.01" value="0" />
+        </div>
+        <div class="field">
+          <label>Marketplace Access</label>
+          <select id="marketFeatureVisible"><option value="true">Visible to Super Admin</option><option value="false">Hidden</option></select>
+        </div>
+        <div class="field">
+          <label>Connection</label>
+          <select id="marketEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select>
+        </div>
+        <div class="field">
+          <label>Paid Add-on</label>
+          <select id="marketBillingEnabled"><option value="true">Active</option><option value="false">Disabled</option></select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="saveMarketplaceConnectionBtn">Save Marketplace Connection</button>
+        <button type="button" class="btn btn-light" id="clearMarketplaceConnectionBtn">Clear</button>
+      </div>
+
+      <div class="table-wrap" style="margin-top:18px">
+        <table>
+          <thead><tr><th>Company</th><th>Broker</th><th>Account</th><th>Portal</th><th>Paid</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="marketplaceConnectionRows"><tr><td colspan="8">No Marketplace connections configured.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
   <script src="/platform-admin/platform_header.js"></script>
   <script src="/platform-admin/js/broker-integrations.js"></script>
   <script src="/platform-admin/js/broker-company-access.js"></script>
+  <script src="/platform-admin/js/broker-marketplace-connections.js"></script>
 
 </body>
 </html>

@@ -19,6 +19,8 @@ const BrokerIntegration =
   require("../models/BrokerIntegration");
 const TenantSubscription =
   require("../models/TenantSubscription");
+const MarketplaceConnection =
+  require("../models/MarketplaceConnection");
 
 const {
   upsertIntegration,
@@ -399,6 +401,99 @@ router.post(
     }
   }
 );
+
+
+/* =========================
+   MARKETPLACE CONNECTIONS
+   Platform Admin controls paid portal access.
+   Super Admin login/session is handled elsewhere.
+========================= */
+
+function validPortalUrl(value){
+  try{
+    const u=new URL(clean(value));
+    return ["http:","https:"].includes(u.protocol);
+  }catch(_){
+    return false;
+  }
+}
+
+router.get("/marketplace-connections",async(req,res)=>{
+  try{
+    const filter={};
+    if(clean(req.query.tenantId)) filter.tenantId=clean(req.query.tenantId);
+    if(clean(req.query.brokerIntegrationId)) filter.brokerIntegrationId=clean(req.query.brokerIntegrationId);
+    const items=await MarketplaceConnection.find(filter).sort({tenantId:1,brokerName:1,accountLabel:1}).lean();
+    return res.json({success:true,connections:items});
+  }catch(err){
+    return res.status(500).json({success:false,message:err.message||"Failed to load Marketplace connections"});
+  }
+});
+
+router.post("/marketplace-connections",async(req,res)=>{
+  try{
+    const b=req.body||{};
+    const tenantId=clean(b.tenantId);
+    const brokerIntegrationId=clean(b.brokerIntegrationId);
+    const portalUrl=clean(b.portalUrl);
+    const accountLabel=clean(b.accountLabel)||"Primary Account";
+    if(!tenantId || !brokerIntegrationId || !portalUrl){
+      return res.status(400).json({success:false,message:"tenantId, brokerIntegrationId, and portalUrl are required"});
+    }
+    if(!validPortalUrl(portalUrl)){
+      return res.status(400).json({success:false,message:"Portal URL must start with http:// or https://"});
+    }
+    const integration=await BrokerIntegration.findOne({_id:brokerIntegrationId,tenantId});
+    if(!integration){
+      return res.status(404).json({success:false,message:"Broker Integration was not found for this company"});
+    }
+    let item=null;
+    if(clean(b._id)) item=await MarketplaceConnection.findOne({_id:clean(b._id),tenantId});
+    if(!item){
+      item=new MarketplaceConnection({
+        tenantId,
+        brokerIntegrationId,
+        createdBy:req.authUser?.id||req.authUser?.email||"PLATFORM_ADMIN"
+      });
+    }
+    item.tenantSlug=clean(b.tenantSlug||integration.tenantSlug);
+    item.brokerIntegrationId=integration._id;
+    item.brokerName=integration.brokerName;
+    item.brokerCode=integration.brokerCode;
+    item.accountLabel=accountLabel;
+    item.portalUrl=portalUrl;
+    item.enabled=b.enabled!==false;
+    item.featureVisible=b.featureVisible!==false;
+    item.billingEnabled=b.billingEnabled!==false;
+    item.monthlyFlatFee=Math.max(0,Number(b.monthlyFlatFee||0));
+    item.updatedBy=req.authUser?.id||req.authUser?.email||"PLATFORM_ADMIN";
+    if(!item.enabled) item.connectionStatus="DISABLED";
+    else if(item.connectionStatus==="DISABLED") item.connectionStatus="NOT_PAIRED";
+    await item.save();
+    return res.json({success:true,connection:item});
+  }catch(err){
+    return res.status(500).json({success:false,message:err.message||"Failed to save Marketplace connection"});
+  }
+});
+
+router.patch("/marketplace-connections/:id/access",async(req,res)=>{
+  try{
+    const item=await MarketplaceConnection.findById(req.params.id);
+    if(!item) return res.status(404).json({success:false,message:"Marketplace connection not found"});
+    for(const key of ["enabled","featureVisible","billingEnabled"]){
+      if(Object.prototype.hasOwnProperty.call(req.body||{},key)) item[key]=Boolean(req.body[key]);
+    }
+    if(Object.prototype.hasOwnProperty.call(req.body||{},"monthlyFlatFee")){
+      item.monthlyFlatFee=Math.max(0,Number(req.body.monthlyFlatFee||0));
+    }
+    item.connectionStatus=item.enabled?(item.connectionStatus==="DISABLED"?"NOT_PAIRED":item.connectionStatus):"DISABLED";
+    item.updatedBy=req.authUser?.id||req.authUser?.email||"PLATFORM_ADMIN";
+    await item.save();
+    return res.json({success:true,connection:item});
+  }catch(err){
+    return res.status(500).json({success:false,message:err.message||"Failed to update Marketplace connection"});
+  }
+});
 
 module.exports =
   router;

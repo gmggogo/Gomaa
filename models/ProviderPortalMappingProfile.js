@@ -12,6 +12,7 @@ const mongoose = require("mongoose");
 
 const ProviderPortalMappingProfileSchema = new mongoose.Schema({
   tenantId:{type:String,required:true,index:true},
+  connectionId:{type:String,default:"",trim:true,index:true},
   sourceHost:{type:String,required:true,lowercase:true,trim:true,index:true},
   enabled:{type:Boolean,default:true},
   mappingVersion:{type:Number,default:1},
@@ -31,8 +32,8 @@ const ProviderPortalMappingProfileSchema = new mongoose.Schema({
 },{minimize:false});
 
 ProviderPortalMappingProfileSchema.index(
-  {tenantId:1,sourceHost:1},
-  {unique:true,name:"provider_portal_mapping_tenant_host"}
+  {tenantId:1,connectionId:1,sourceHost:1},
+  {unique:true,name:"provider_portal_mapping_tenant_connection_host"}
 );
 
 module.exports =

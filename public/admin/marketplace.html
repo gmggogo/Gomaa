@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Marketplace | GH Mobility</title><link rel="stylesheet" href="/admin/style.css">
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}#adminHeader{width:100%;z-index:1000}.page{max-width:1320px;margin:26px auto;padding:0 18px 40px}
+    .card{background:#fff;border:1px solid #e1e5eb;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:16px}.goldline{border-top:4px solid #d79a00}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.muted{color:#68707d;font-size:13px}
+    .connections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.conn{border:1px solid #dde3e9;border-radius:12px;padding:14px;background:#fff}.conn h3{margin:0 0 5px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}.badge{padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;background:#eceff3}.ok{background:#dff5e5;color:#126b2e}.warn{background:#fff0c7;color:#7a5200}.bad{background:#fde1e1;color:#8a1616}
+    button{border:0;border-radius:8px;padding:10px 14px;font-weight:900;cursor:pointer}.gold{background:linear-gradient(180deg,#f6c85f,#d79a00);color:#241900}.dark{background:#171717;color:#fff}.light{background:#e8edf2;color:#16364a}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #e8ebef;text-align:left}th{background:#faf7ef}.tokenbox{display:none;margin-top:10px;padding:10px;background:#fff9e8;border:1px solid #e4c469;border-radius:9px}.tokenbox input{width:100%;padding:8px;border:1px solid #cfcfcf;border-radius:7px}
+    @media(max-width:900px){.connections{grid-template-columns:1fr}.page{padding:0 10px 30px}}
+  </style>
+</head>
+<body><div id="adminHeader"></div><main class="page">
+  <section style="background:#f5d77a;border:1px solid #d9ad2b;border-radius:10px;padding:13px;text-align:center;margin-bottom:16px"><div style="font-size:22px;font-weight:900">Marketplace</div><div style="font-size:13px;margin-top:4px">Connected broker accounts, portal sessions, and Marketplace activity</div></section>
+  <section class="card goldline"><div class="toolbar"><div><h2 style="margin:0 0 4px">Broker Connections</h2><div class="muted">Only paid connections enabled by Platform Admin appear here. Each account is independent.</div></div><button id="refreshBtn" class="dark">Refresh</button></div><div id="connections" class="connections" style="margin-top:14px"></div></section>
+  <section class="card"><div class="toolbar"><div><h2 style="margin:0">Marketplace Engine</h2><div id="scanStatus" class="muted" style="margin-top:5px"></div></div><button id="scanBtn" class="gold">Scan Marketplace</button></div></section>
+  <section class="card"><div class="toolbar"><h2 style="margin:0">Marketplace Activity</h2><span class="muted">Trips keep their Broker and Connection source.</span></div><div style="overflow:auto;margin-top:12px"><table><thead><tr><th>Time</th><th>Engine</th><th>Action</th><th>Broker / Account</th><th>Trip</th><th>Miles</th><th>Message</th></tr></thead><tbody id="activityRows"><tr><td colspan="7">No activity yet.</td></tr></tbody></table></div></section>
+</main><script src="/admin/header.js"></script><script src="/admin/js/marketplace.js"></script></body></html>

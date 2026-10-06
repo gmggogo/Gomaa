@@ -16,11 +16,26 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const ProviderPortalMappingProfile = require("../models/ProviderPortalMappingProfile");
+const MarketplaceConnection = require("../models/MarketplaceConnection");
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const clean = v => String(v ?? "").trim();
 const TOKEN_TTL = "30m";
+let mappingIndexesPrepared=false;
+async function ensureMappingIndexes(){
+  if(mappingIndexesPrepared) return;
+  try{
+    await ProviderPortalMappingProfile.collection.dropIndex("provider_portal_mapping_tenant_host");
+  }catch(err){
+    if(![26,27].includes(Number(err?.code)) && !/index not found/i.test(String(err?.message||""))) throw err;
+  }
+  await ProviderPortalMappingProfile.collection.createIndex(
+    {tenantId:1,connectionId:1,sourceHost:1},
+    {unique:true,name:"provider_portal_mapping_tenant_connection_host"}
+  );
+  mappingIndexesPrepared=true;
+}
 
 function auth(req,res,next){
   const raw=clean(req.headers.authorization);
@@ -43,10 +58,11 @@ function tenantId(req){
   return clean(req.authUser?.tenantId || req.authUser?.companyId || req.authUser?.organizationId);
 }
 
-function agentTokenFor(id){
+function agentTokenFor(id,connectionId=""){
   return jwt.sign({
     type:"GH_PROVIDER_PORTAL_AGENT",
     tenantId:String(id),
+    connectionId:clean(connectionId),
     nonce:crypto.randomBytes(12).toString("hex")
   },JWT_SECRET,{expiresIn:TOKEN_TTL});
 }
@@ -60,6 +76,7 @@ function verifyAgentToken(req,res,next){
       return res.status(403).json({success:false,message:"Invalid agent token"});
     }
     req.agentTenantId=clean(token.tenantId);
+    req.agentConnectionId=clean(token.connectionId);
     next();
   }catch(_err){
     return res.status(401).json({success:false,message:"Agent token expired or invalid"});
@@ -538,11 +555,12 @@ function mappingReady(mapping){
   return REQUIRED_FOR_READY.every(f=>Boolean(mapping?.[f]) || (f==="tripMiles" && Boolean(mapping?.distanceMeters)));
 }
 
-async function getSavedMappingProfile(tenant,host){
+async function getSavedMappingProfile(tenant,connectionId,host){
   if(!tenant || !host) return null;
   try{
     return await ProviderPortalMappingProfile.findOne({
       tenantId:String(tenant),
+      connectionId:clean(connectionId),
       sourceHost:String(host).toLowerCase(),
       enabled:true
     }).lean();
@@ -551,14 +569,14 @@ async function getSavedMappingProfile(tenant,host){
   }
 }
 
-async function saveMappingProfile({tenant,host,result,aiResult}){
+async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
   if(!tenant || !host || !result?.mapping) return null;
   const finalMapping=aiResult?.used ? aiResult.mapping : result.mapping;
   const method=aiResult?.used ? "AI_ASSISTED" : "AUTO_RULES";
   const confidence=aiResult?.used ? aiResult.confidence : result.confidence;
   try{
     return await ProviderPortalMappingProfile.findOneAndUpdate(
-      {tenantId:String(tenant),sourceHost:String(host).toLowerCase()},
+      {tenantId:String(tenant),connectionId:clean(connectionId),sourceHost:String(host).toLowerCase()},
       {$set:{
         enabled:true,
         mappingVersion:MAPPING_VERSION,
@@ -578,8 +596,8 @@ async function saveMappingProfile({tenant,host,result,aiResult}){
   }
 }
 
-async function resolvePortalMapping(tenant,host,samples){
-  const saved=await getSavedMappingProfile(tenant,host);
+async function resolvePortalMapping(tenant,connectionId,host,samples){
+  const saved=await getSavedMappingProfile(tenant,connectionId,host);
   if(saved?.mapping && mappingReady(saved.mapping)){
     return {
       mapping:saved.mapping,
@@ -595,7 +613,7 @@ async function resolvePortalMapping(tenant,host,samples){
   const auto=buildAutoMapping(samples);
   const ai=await tryAiMapping(samples,auto);
   const mapping=ai.used ? ai.mapping : auto.mapping;
-  const profile=await saveMappingProfile({tenant,host,result:{...auto,mapping},aiResult:ai});
+  const profile=await saveMappingProfile({tenant,connectionId,host,result:{...auto,mapping},aiResult:ai});
 
   return {
     mapping,
@@ -618,7 +636,7 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     };
   }
 
-  const mapper=await resolvePortalMapping(meta.tenantId,meta.sourceHost,found);
+  const mapper=await resolvePortalMapping(meta.tenantId,meta.connectionId,meta.sourceHost,found);
   store.mapperStatus={
     sourceHost:meta.sourceHost,
     ready:mapper.ready,
@@ -644,6 +662,12 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
       if(trip[key]===undefined || trip[key]===null || trip[key]==="") trip[key]=fallback[key];
     }
     trip.raw=raw;
+    trip.connectionId=clean(meta.connectionId);
+    trip.marketplaceConnectionId=clean(meta.connectionId);
+    trip.brokerIntegrationId=clean(meta.brokerIntegrationId);
+    trip.brokerCode=clean(meta.brokerCode);
+    trip.brokerName=clean(meta.brokerName);
+    trip.accountLabel=clean(meta.accountLabel);
     trip.mappingMethod=mapper.method;
     trip.mappingConfidence=mapper.confidence;
 
@@ -673,10 +697,19 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
 }
 
 
-function tenantStore(id){
-  const key=String(id);
+function storeKey(id,connectionId=""){
+  return `${String(id)}::${clean(connectionId)||"LEGACY"}`;
+}
+
+function tenantStore(id,connectionId=""){
+  const key=storeKey(id,connectionId);
   if(!stores.has(key)) stores.set(key,{items:[],normalizedTrips:[],lastReceivedAt:null,hosts:new Set(),mapperStatus:null});
   return stores.get(key);
+}
+
+function allTenantStores(id){
+  const prefix=`${String(id)}::`;
+  return [...stores.entries()].filter(([key])=>key.startsWith(prefix)).map(([key,store])=>({key,store,connectionId:key.slice(prefix.length)}));
 }
 
 function safeHost(url){
@@ -686,7 +719,9 @@ function safeHost(url){
 /* Agent endpoint: intentionally outside admin auth; protected by scoped pairing token. */
 router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req,res)=>{
   try{
+    await ensureMappingIndexes();
     const id=req.agentTenantId;
+    const connectionId=clean(req.agentConnectionId);
     const body=req.body||{};
     if(body.payload===undefined || body.payload===null){
       return res.status(400).json({success:false,message:"Discovery payload is required"});
@@ -694,9 +729,18 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
 
     const sourceUrl=clean(body.sourceUrl).slice(0,2000);
     const host=safeHost(sourceUrl);
-    const store=tenantStore(id);
+    const store=tenantStore(id,connectionId);
+    let connection=null;
+    if(connectionId){
+      connection=await MarketplaceConnection.findOne({tenantId:id,connectionId,enabled:true}).lean();
+      if(!connection){
+        return res.status(403).json({success:false,message:"Marketplace connection is disabled or unavailable"});
+      }
+    }
+
     const item={
       receivedAt:new Date().toISOString(),
+      connectionId,
       sourceUrl,
       sourceHost:host,
       operationName:clean(body.operationName).slice(0,200),
@@ -710,10 +754,28 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
 
     const normalized=await ingestSmartNormalizedTrips(store,body.payload,{
       tenantId:id,
+      connectionId,
+      brokerIntegrationId:connection?.brokerIntegrationId||"",
+      brokerCode:connection?.brokerCode||"",
+      brokerName:connection?.brokerName||"",
+      accountLabel:connection?.accountLabel||"",
       sourceUrl,
       sourceHost:host,
       operationName:item.operationName
     });
+
+    if(connectionId){
+      await MarketplaceConnection.updateOne(
+        {tenantId:id,connectionId},
+        {$set:{
+          connectionStatus:"CONNECTED",
+          sourceHost:host,
+          lastConnectedAt:new Date(),
+          lastReceivedAt:new Date(),
+          lastErrorMessage:""
+        }}
+      ).catch(()=>{});
+    }
 
     res.json({
       success:true,
@@ -733,16 +795,67 @@ router.use(auth);
 
 router.post("/pair",async(req,res)=>{
   try{
+    await ensureMappingIndexes();
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
+    const connectionId=clean(req.body?.connectionId||req.query?.connectionId);
+    let connection=null;
+    if(connectionId){
+      connection=await MarketplaceConnection.findOne({
+        tenantId:id,
+        connectionId,
+        enabled:true,
+        featureVisible:true
+      }).lean();
+      if(!connection) return res.status(404).json({success:false,message:"Marketplace connection not found or disabled"});
+      await MarketplaceConnection.updateOne({tenantId:id,connectionId},{$set:{connectionStatus:"PAIRING",lastErrorMessage:""}}).catch(()=>{});
+    }
     res.json({
       success:true,
-      agentToken:agentTokenFor(id),
+      agentToken:agentTokenFor(id,connectionId),
       expiresInMinutes:30,
       tenantId:id,
+      connectionId,
+      portalUrl:connection?.portalUrl||"",
+      brokerName:connection?.brokerName||"",
+      accountLabel:connection?.accountLabel||"",
       readOnly:true,
       genericPortal:true
     });
+  }catch(e){res.status(500).json({success:false,message:e.message});}
+});
+
+router.get("/connections",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
+    const rows=await MarketplaceConnection.find({tenantId:id,enabled:true,featureVisible:true,billingEnabled:true}).sort({brokerName:1,accountLabel:1}).lean();
+    const connections=rows.map(row=>{
+      const store=tenantStore(id,row.connectionId);
+      return {
+        _id:row._id,connectionId:row.connectionId,brokerIntegrationId:row.brokerIntegrationId,
+        brokerName:row.brokerName,brokerCode:row.brokerCode,accountLabel:row.accountLabel,portalUrl:row.portalUrl,
+        billingEnabled:row.billingEnabled,monthlyFlatFee:row.monthlyFlatFee,connectionStatus:row.connectionStatus,
+        sourceHost:row.sourceHost||[...store.hosts].slice(-1)[0]||"",
+        discoveriesReceived:store.items.length,lastReceivedAt:store.lastReceivedAt,mapper:store.mapperStatus
+      };
+    });
+    res.json({success:true,connections});
+  }catch(e){res.status(500).json({success:false,message:e.message});}
+});
+
+router.post("/connections/:connectionId/disconnect",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    const connectionId=clean(req.params.connectionId);
+    const item=await MarketplaceConnection.findOne({tenantId:id,connectionId});
+    if(!item) return res.status(404).json({success:false,message:"Marketplace connection not found"});
+    stores.delete(storeKey(id,connectionId));
+    item.connectionStatus=item.enabled?"DISCONNECTED":"DISABLED";
+    item.lastDisconnectedAt=new Date();
+    item.lastErrorMessage="";
+    await item.save();
+    res.json({success:true,connectionStatus:item.connectionStatus});
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });
 
@@ -750,7 +863,8 @@ router.get("/status",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const store=tenantStore(id);
+    const connectionId=clean(req.query.connectionId);
+    const store=tenantStore(id,connectionId);
     res.json({
       success:true,
       readOnly:true,
@@ -767,9 +881,10 @@ router.get("/mapping-status",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const store=tenantStore(id);
+    const connectionId=clean(req.query.connectionId);
+    const store=tenantStore(id,connectionId);
     const host=clean(req.query.host || [...store.hosts].slice(-1)[0]).toLowerCase();
-    const saved=host ? await getSavedMappingProfile(id,host) : null;
+    const saved=host ? await getSavedMappingProfile(id,connectionId,host) : null;
     res.json({
       success:true,
       readOnly:true,
@@ -794,10 +909,11 @@ router.delete("/mapping-profile",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
+    const connectionId=clean(req.query.connectionId);
     const host=clean(req.query.host).toLowerCase();
     if(!host) return res.status(400).json({success:false,message:"host is required"});
-    await ProviderPortalMappingProfile.deleteOne({tenantId:String(id),sourceHost:host});
-    const store=tenantStore(id);
+    await ProviderPortalMappingProfile.deleteOne({tenantId:String(id),connectionId,sourceHost:host});
+    const store=tenantStore(id,connectionId);
     store.mapperStatus=null;
     res.json({success:true,message:"Saved portal mapping profile cleared"});
   }catch(e){res.status(500).json({success:false,message:e.message});}
@@ -812,7 +928,8 @@ router.get("/discoveries",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const store=tenantStore(id);
+    const connectionId=clean(req.query.connectionId);
+    const store=tenantStore(id,connectionId);
     const limit=Math.min(100,Math.max(1,Number(req.query.limit)||25));
     res.json({success:true,readOnly:true,items:store.items.slice(-limit)});
   }catch(e){res.status(500).json({success:false,message:e.message});}
@@ -822,10 +939,12 @@ router.get("/normalized-trips",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const store=tenantStore(id);
+    const connectionId=clean(req.query.connectionId);
     const host=clean(req.query.host).toLowerCase();
     const limit=Math.min(250,Math.max(1,Number(req.query.limit)||100));
-    let items=store.normalizedTrips;
+    let items=connectionId
+      ? tenantStore(id,connectionId).normalizedTrips
+      : allTenantStores(id).flatMap(({store})=>store.normalizedTrips||[]);
     if(host) items=items.filter(t=>clean(t.sourceHost).toLowerCase()===host);
     res.json({
       success:true,
@@ -840,7 +959,9 @@ router.delete("/discoveries",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    stores.delete(String(id));
+    const connectionId=clean(req.query.connectionId);
+    if(connectionId) stores.delete(storeKey(id,connectionId));
+    else for(const {key} of allTenantStores(id)) stores.delete(key);
     res.json({success:true,message:"Discovery buffer cleared"});
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });
@@ -851,8 +972,14 @@ router.delete("/discoveries",async(req,res)=>{
   This does not create an HTTP endpoint and does not expose credentials/session data.
 */
 router.getNormalizedTripsForTenant=function(id){
-  const store=tenantStore(String(id));
-  return Array.isArray(store.normalizedTrips) ? store.normalizedTrips.map(t=>({...t})) : [];
+  return allTenantStores(String(id)).flatMap(({store})=>
+    Array.isArray(store.normalizedTrips)?store.normalizedTrips.map(t=>({...t})):[]
+  );
+};
+
+router.getNormalizedTripsForConnection=function(id,connectionId){
+  const store=tenantStore(String(id),clean(connectionId));
+  return Array.isArray(store.normalizedTrips)?store.normalizedTrips.map(t=>({...t})):[];
 };
 
 module.exports=router;

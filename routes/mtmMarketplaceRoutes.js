@@ -316,53 +316,27 @@ router.post("/scan",async(req,res)=>{
   try{
     const id=tenantId(req);
     const settings=await getSettings(id);
-    if(!settings.enabled) return res.status(409).json({success:false,message:"MTM Marketplace is disabled in Settings"});
 
-    const session=await Session.findOne({tenantId:id}).lean();
+    const getNormalizedTrips=providerPortalBridgeRoutes.getNormalizedTripsForTenant;
+    const bridgeNormalizedTrips=typeof getNormalizedTrips==="function" ? getNormalizedTrips(id) : [];
+    const usingGenericPortal=bridgeNormalizedTrips.length>0;
 
-    /*
-      Generic Browser Agent bridge may already have valid normalized portal trips
-      even when the legacy MTM portal connector session is not CONNECTED.
-      In MTM_PORTAL mode, allow READ ONLY engine evaluation when those normalized
-      trips exist. Claim/Accept remains blocked by readOnlyEvaluation below.
-    */
-    let bridgeNormalizedTrips=[];
-    if(settings.connectionMethod==="MTM_PORTAL"){
-      const getNormalizedTrips=providerPortalBridgeRoutes.getNormalizedTripsForTenant;
-      if(typeof getNormalizedTrips==="function"){
-        bridgeNormalizedTrips=getNormalizedTrips(id);
-      }
-      if(session?.status!=="CONNECTED" && bridgeNormalizedTrips.length===0){
-        return res.status(409).json({
-          success:false,
-          message:"MTM Provider Portal is not connected and no Browser Agent normalized trips are available"
-        });
-      }
+    if(!settings.enabled && !usingGenericPortal){
+      return res.status(409).json({success:false,message:"Marketplace is disabled and no connected portal trips are available"});
     }
 
-    const connector=await getConnector(id,settings);
-    const integration=await resolveBrokerIntegration(id,settings);
-
     /*
-      Generic Provider Portal -> Marketplace Engine bridge.
-      In MTM_PORTAL mode, use normalized trips discovered by the authorized
-      external Browser Agent. This phase is READ ONLY: Long/Short engines may
-      match real portal trips, but Claim/Accept is explicitly blocked.
-      MTM_MOCK and MTM_API behavior remains unchanged.
+      Generic Marketplace mode:
+      Any paid/paired Provider Portal connection can contribute normalized trips.
+      The Browser Agent preserves connectionId + broker source on every trip.
+      During this validation phase all generic portal evaluation stays READ ONLY.
     */
     let workerSettings=settings;
     let readOnlyEvaluation=false;
+    let integration=null;
 
-    if(settings.connectionMethod==="MTM_PORTAL"){
-      const getNormalizedTrips=providerPortalBridgeRoutes.getNormalizedTripsForTenant;
-      if(typeof getNormalizedTrips!=="function"){
-        throw new Error("Provider Portal Bridge normalized-trip accessor is not available");
-      }
-
-      const portalTrips=(bridgeNormalizedTrips.length
-        ? bridgeNormalizedTrips
-        : getNormalizedTrips(id)
-      ).map(t=>({
+    if(usingGenericPortal){
+      const portalTrips=bridgeNormalizedTrips.map(t=>({
         ...t,
         externalTripId:clean(t.externalTripId || t.portalTripId),
         tripNumber:clean(t.tripNumber || t.portalTripId),
@@ -375,12 +349,15 @@ router.post("/scan",async(req,res)=>{
         portalDiscoveredTrips:portalTrips
       };
       readOnlyEvaluation=true;
+    }else{
+      integration=await resolveBrokerIntegration(id,settings);
     }
 
+    const connector=await getConnector(id,settings);
     const worker=new MtmMarketplaceWorker({
       tenantId:id,
       tenantSlug:settings.tenantSlug,
-      integrationId:integration._id,
+      integrationId:integration?._id || null,
       integration,
       connector,
       settings:workerSettings,
@@ -397,9 +374,10 @@ router.post("/scan",async(req,res)=>{
 
     res.json({
       success:true,
-      readOnlyEvaluation:settings.connectionMethod==="MTM_PORTAL",
-      message:settings.connectionMethod==="MTM_PORTAL"
-        ?"Portal scan completed in READ ONLY evaluation mode. Long/Short matches were evaluated; Claim/Accept was not executed."
+      readOnlyEvaluation,
+      source:usingGenericPortal?"GENERIC_PROVIDER_PORTAL":settings.connectionMethod,
+      message:usingGenericPortal
+        ?"Marketplace scan completed in READ ONLY evaluation mode across connected provider portals. Claim/Accept was not executed."
         :"Marketplace scan completed. Successful claims are sent to the existing Broker Hub pipeline.",
       result
     });

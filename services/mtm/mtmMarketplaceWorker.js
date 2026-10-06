@@ -20,9 +20,6 @@ class MtmMarketplaceWorker {
     this.connector = options.connector;
     this.settings = options.settings || {};
     this.integration = options.integration || null;
-    // Safe portal-discovery validation mode:
-    // engines evaluate real discovered trips, but Claim/Accept is never executed.
-    this.readOnlyEvaluation = options.readOnlyEvaluation === true;
   }
 
   async log(action, data = {}) {
@@ -39,7 +36,14 @@ class MtmMarketplaceWorker {
       tripDate: text(data.trip?.appointmentDate || data.trip?.tripDate || data.trip?.date),
       pickupTime: text(data.trip?.pickupTime),
       mode: text(data.trip?.mode),
-      meta: data.meta || {}
+      meta:{
+        connectionId:text(data.trip?.connectionId || data.trip?.marketplaceConnectionId),
+        brokerIntegrationId:text(data.trip?.brokerIntegrationId),
+        brokerCode:text(data.trip?.brokerCode),
+        brokerName:text(data.trip?.brokerName),
+        accountLabel:text(data.trip?.accountLabel),
+        ...(data.meta || {})
+      }
     });
   }
 
@@ -101,22 +105,6 @@ class MtmMarketplaceWorker {
     const id = text(trip.externalTripId || trip.tripNumber);
     return lockService.withLock(this.tenantId, id, async () => {
       await this.log("MATCHED", { engine: engineName, trip, message: `${engineName} engine matched trip ${id}` });
-
-      if (this.readOnlyEvaluation) {
-        await this.log("SKIPPED", {
-          engine: engineName,
-          trip,
-          reason: "READ_ONLY_EVALUATION",
-          message: `${engineName} matched trip ${id}; Claim/Accept blocked during portal validation`
-        });
-        return {
-          engine: engineName,
-          externalTripId: id,
-          matched: true,
-          claimed: false,
-          reason: "READ_ONLY_EVALUATION"
-        };
-      }
 
       if (!engineSettings.autoAccept) {
         await this.log("SKIPPED", { engine: engineName, trip, reason: "AUTO_ACCEPT_OFF", message: "Matched trip left available because Auto Accept is OFF" });
@@ -209,9 +197,7 @@ class MtmMarketplaceWorker {
     if (!this.connector) throw new Error("MTM connector is required");
     await this.log("SCAN", { message: `Marketplace scan started for next ${Number(this.settings.dateWindowDays || 7)} day(s)` });
 
-    const trips = Array.isArray(this.settings.portalDiscoveredTrips)
-      ? this.settings.portalDiscoveredTrips
-      : await this.connector.listAvailableTrips({ dateWindowDays: Number(this.settings.dateWindowDays || 7) });
+    const trips = await this.connector.listAvailableTrips({ dateWindowDays: Number(this.settings.dateWindowDays || 7) });
     await Promise.all(trips.map(trip => this.log("SEEN", { trip, message: `Marketplace trip seen: ${trip.externalTripId || trip.tripNumber}` })));
 
     const longTrips = longEngine.select(trips, this.settings.longEngine || {});

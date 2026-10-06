@@ -496,10 +496,10 @@ document.addEventListener("DOMContentLoaded",async()=>{
      "Broker Review",
    "broker-pricing.html":
      "Broker Pricing",
-   "mtm-marketplace.html":
-     "MTM Marketplace",
-   "mtm-marketplace-settings.html":
-     "MTM Marketplace Settings",
+   "marketplace.html":
+     "Marketplace",
+   "marketplace-settings.html":
+     "Marketplace Settings",
    "smart-forms.html":
      "Smart Form",
    "smart-form-hub.html":
@@ -531,8 +531,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
      if(
        currentPageName === "help-center.html" ||
-       currentPageName === "mtm-marketplace.html" ||
-       currentPageName === "mtm-marketplace-settings.html"
+       currentPageName === "marketplace.html" ||
+       currentPageName === "marketplace-settings.html"
      ){
        if(currentPageName === "help-center.html"){
          headerTitle.textContent = "Help Center";
@@ -680,8 +680,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
          "doc"
        ],
        [
-         "MTM Marketplace",
-         "mtm-marketplace.html",
+         "Marketplace",
+         "marketplace.html",
          "bolt"
        ]
      ]
@@ -723,14 +723,14 @@ document.addEventListener("DOMContentLoaded",async()=>{
  }
 
  /*
-   MTM Marketplace Settings follows the SAME Broker capability.
+   Marketplace Settings follows the SAME Broker capability.
    Broker OFF hides this page together with Broker Operations.
  */
  if(visibility.brokerEnabled){
    settings.items.push(
      [
-       "MTM Marketplace Settings",
-       "mtm-marketplace-settings.html",
+       "Marketplace Settings",
+       "marketplace-settings.html",
        "gear"
      ]
    );
