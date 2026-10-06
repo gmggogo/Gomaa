@@ -437,4 +437,60 @@ router.post(
   }
 );
 
+
+/* =========================
+   DELETE CONNECTION
+   Deletes only this BrokerIntegration record.
+   It does NOT delete imported trips/history from other systems.
+========================= */
+
+router.delete(
+  "/:id",
+  async (req,res) => {
+
+    try{
+
+      const integration =
+        await BrokerIntegration.findById(
+          req.params.id
+        );
+
+      if(!integration){
+        return res.status(404).json({
+          success:false,
+          message:"Integration not found"
+        });
+      }
+
+      const deleted = {
+        id:String(integration._id),
+        tenantId:String(integration.tenantId || ""),
+        brokerName:String(integration.brokerName || ""),
+        brokerCode:String(integration.brokerCode || ""),
+        connectionMode:String(integration.connectionMode || "OFFICIAL"),
+        accountLabel:String(integration.accountLabel || "Primary Account")
+      };
+
+      await BrokerIntegration.deleteOne({
+        _id:integration._id
+      });
+
+      return res.json({
+        success:true,
+        deleted,
+        message:"Broker connection deleted."
+      });
+
+    }catch(err){
+
+      return res.status(500).json({
+        success:false,
+        message:
+          err.message ||
+          "Failed to delete broker connection"
+      });
+    }
+  }
+);
+
 module.exports = router;

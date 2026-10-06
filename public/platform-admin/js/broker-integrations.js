@@ -636,6 +636,7 @@ server/public/platform-admin/js/broker-integrations.js
         <td>
           <button class="btn btn-light" data-edit="${escapeHtml(item._id)}">Edit</button>
           ${item.connectionMode === "MARKETPLACE_PORTAL" ? "" : `<button class="btn btn-light" data-test="${escapeHtml(item._id)}">Test</button>`}
+          <button class="btn btn-danger" data-delete="${escapeHtml(item._id)}">Delete</button>
         </td>
       `;
 
@@ -658,6 +659,16 @@ server/public/platform-admin/js/broker-integrations.js
         btn.addEventListener("click", () => {
           testConnection(
             btn.dataset.test
+          );
+        });
+      });
+
+    body
+      .querySelectorAll("[data-delete]")
+      .forEach(btn => {
+        btn.addEventListener("click", () => {
+          deleteConnection(
+            btn.dataset.delete
           );
         });
       });
@@ -995,6 +1006,67 @@ server/public/platform-admin/js/broker-integrations.js
       );
     }
   }
+
+  async function deleteConnection(id){
+
+    const item =
+      state.items.find(
+        row => String(row._id) === String(id)
+      );
+
+    if(!item){
+      alert("Connection not found.");
+      return;
+    }
+
+    const label =
+      [
+        tenantName(item.tenantId,item.tenantSlug),
+        item.brokerName || item.brokerCode || "Broker",
+        item.accountLabel || "Primary Account"
+      ]
+      .filter(Boolean)
+      .join(" — ");
+
+    const confirmed =
+      window.confirm(
+        `Delete this broker connection?\n\n${label}\n\nThis removes the connection record only.`
+      );
+
+    if(!confirmed){
+      return;
+    }
+
+    try{
+
+      const data =
+        await api(
+          `/api/platform/broker-integrations/${encodeURIComponent(id)}`,
+          {
+            method:"DELETE"
+          }
+        );
+
+      if(String(state.editingId) === String(id)){
+        clearEditor();
+      }
+
+      await loadIntegrations();
+
+      alert(
+        data.message ||
+        "Broker connection deleted."
+      );
+
+    }catch(err){
+
+      alert(
+        err.message ||
+        "Failed to delete broker connection"
+      );
+    }
+  }
+
 
   async function testConnection(id){
 
