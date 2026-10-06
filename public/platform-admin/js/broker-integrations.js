@@ -224,14 +224,17 @@ server/public/platform-admin/js/broker-integrations.js
     const mode =
       $("connectionMode")?.value || "OFFICIAL";
 
+    const isPortal =
+      mode === "MARKETPLACE_PORTAL";
+
     const type =
-      mode === "MARKETPLACE_PORTAL"
+      isPortal
         ? "PORTAL"
         : $("connectionType").value;
 
     if($("connectionTypeField")){
       $("connectionTypeField").style.display =
-        mode === "MARKETPLACE_PORTAL" ? "none" : "";
+        isPortal ? "none" : "";
     }
 
     document
@@ -242,6 +245,16 @@ server/public/platform-admin/js/broker-integrations.js
           box.dataset.type === type
         );
       });
+
+    /*
+      Marketplace Portal is not an API/Webhook/SFTP/File Import connection.
+      Hide the normal Test Connection button while Portal mode is selected.
+      The Super Admin will open/login to the provider portal separately.
+    */
+    if($("testBtn")){
+      $("testBtn").style.display =
+        isPortal ? "none" : "";
+    }
   }
 
   function parseHeaders(){
@@ -1029,6 +1042,12 @@ server/public/platform-admin/js/broker-integrations.js
     ?.addEventListener(
       "change",
       applySelectedTenant
+    );
+
+  $("connectionMode")
+    ?.addEventListener(
+      "change",
+      showConnectionBox
     );
 
   $("connectionType")
