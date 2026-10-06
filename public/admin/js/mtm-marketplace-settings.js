@@ -51,6 +51,68 @@
     return data;
   }
 
+  async function portalBridgeApi(path,opt={}){
+    const response=await fetch(`/api/provider-portal-bridge${path}`,{...opt,headers:headers()});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.message||`HTTP ${response.status}`);
+    return data;
+  }
+
+  function installBrowserAgentPairUI(){
+    if($("pairBrowserAgentBtn")) return;
+    const disconnectBtn=$("disconnectBtn");
+    if(!disconnectBtn) return;
+
+    const wrap=document.createElement("div");
+    wrap.style.marginTop="12px";
+    wrap.innerHTML=`
+      <button id="pairBrowserAgentBtn" class="gold" type="button">Pair Browser Agent</button>
+      <span id="pairBrowserAgentMessage" class="muted" style="margin-left:10px"></span>
+      <div id="pairBrowserAgentTokenBox" style="display:none;margin-top:10px;padding:12px;border:1px solid #e4c469;background:#fff9e8;border-radius:10px">
+        <label for="pairBrowserAgentToken">Browser Agent Pair Token</label>
+        <div class="login-grid">
+          <input id="pairBrowserAgentToken" type="text" readonly autocomplete="off">
+          <button id="copyBrowserAgentTokenBtn" class="dark" type="button">Copy Token</button>
+        </div>
+        <div class="muted" style="margin-top:8px">Read-only discovery token. It expires automatically. Portal passwords are never entered here.</div>
+      </div>`;
+
+    disconnectBtn.parentElement.insertAdjacentElement("afterend",wrap);
+
+    $("pairBrowserAgentBtn").addEventListener("click",async()=>{
+      const btn=$("pairBrowserAgentBtn");
+      const msg=$("pairBrowserAgentMessage");
+      try{
+        btn.disabled=true;
+        msg.textContent="Creating secure pair token...";
+        const data=await portalBridgeApi("/pair",{method:"POST",body:"{}"});
+        const pairToken=String(data.agentToken||data.token||"").trim();
+        if(!pairToken) throw new Error("Pair token was not returned by the server.");
+        $("pairBrowserAgentToken").value=pairToken;
+        $("pairBrowserAgentTokenBox").style.display="block";
+        msg.textContent=`Pair token ready${data.expiresInMinutes?` - expires in ${data.expiresInMinutes} minutes`:""}.`;
+      }catch(err){
+        msg.textContent=err.message;
+      }finally{
+        btn.disabled=false;
+      }
+    });
+
+    $("copyBrowserAgentTokenBtn").addEventListener("click",async()=>{
+      const value=$("pairBrowserAgentToken").value;
+      const msg=$("pairBrowserAgentMessage");
+      if(!value) return;
+      try{
+        await navigator.clipboard.writeText(value);
+        msg.textContent="Pair token copied.";
+      }catch(_err){
+        $("pairBrowserAgentToken").focus();
+        $("pairBrowserAgentToken").select();
+        msg.textContent="Token selected. Press Ctrl+C to copy.";
+      }
+    });
+  }
+
   function readEngine(p){
     return {
       enabled:$(`${p}Enabled`).checked,
@@ -166,5 +228,6 @@
     }catch(err){$("message").textContent=err.message;}
   });
 
+  installBrowserAgentPairUI();
   load();
 })();
