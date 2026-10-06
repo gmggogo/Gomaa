@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-06T06:36:19.987Z",
+  "generatedAt": "2026-10-06T06:42:03.775Z",
   "mode": "READ_ONLY_DISCOVERY",
   "count": 20,
   "trips": [
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzQ2MTAz",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.943Z",
+      "discoveredAt": "2026-10-06T06:42:03.720Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -119,7 +119,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NTI3NDMx",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.956Z",
+      "discoveredAt": "2026-10-06T06:42:03.731Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -232,7 +232,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzkwNDI0",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.958Z",
+      "discoveredAt": "2026-10-06T06:42:03.733Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -345,7 +345,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyOTY0",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.960Z",
+      "discoveredAt": "2026-10-06T06:42:03.735Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -458,7 +458,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODI4MjQ2",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.962Z",
+      "discoveredAt": "2026-10-06T06:42:03.737Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -571,7 +571,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyNTky",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.963Z",
+      "discoveredAt": "2026-10-06T06:42:03.739Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -684,7 +684,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NjA1NTM2",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.967Z",
+      "discoveredAt": "2026-10-06T06:42:03.741Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -797,7 +797,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Njc5OTg3",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.968Z",
+      "discoveredAt": "2026-10-06T06:42:03.746Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -910,7 +910,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODE3NzI1",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.970Z",
+      "discoveredAt": "2026-10-06T06:42:03.748Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1023,7 +1023,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODA2NjE3",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.971Z",
+      "discoveredAt": "2026-10-06T06:42:03.751Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1136,7 +1136,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzg0NTQ3",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.973Z",
+      "discoveredAt": "2026-10-06T06:42:03.754Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1249,7 +1249,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzkwNDI1",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.975Z",
+      "discoveredAt": "2026-10-06T06:42:03.756Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1362,7 +1362,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NjEyMzEy",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.976Z",
+      "discoveredAt": "2026-10-06T06:42:03.760Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1475,7 +1475,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzc2NzU4",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.978Z",
+      "discoveredAt": "2026-10-06T06:42:03.761Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1588,7 +1588,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzc4OTAw",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.979Z",
+      "discoveredAt": "2026-10-06T06:42:03.764Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1701,7 +1701,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODE3MTUx",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.980Z",
+      "discoveredAt": "2026-10-06T06:42:03.765Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1814,7 +1814,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzUzNjE3",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.982Z",
+      "discoveredAt": "2026-10-06T06:42:03.768Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1927,7 +1927,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzY2Mzg5",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.984Z",
+      "discoveredAt": "2026-10-06T06:42:03.770Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2040,7 +2040,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzg4MDc1",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.985Z",
+      "discoveredAt": "2026-10-06T06:42:03.773Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2153,7 +2153,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODA3Nzc0",
       "score": 10,
-      "discoveredAt": "2026-10-06T06:36:19.987Z",
+      "discoveredAt": "2026-10-06T06:42:03.775Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
