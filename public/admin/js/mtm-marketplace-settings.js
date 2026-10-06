@@ -113,6 +113,89 @@
     });
   }
 
+
+  function installBrowserAgentStatusUI(){
+    if($("browserAgentStatusBox")) return;
+    const pairBtn=$("pairBrowserAgentBtn");
+    if(!pairBtn) return;
+
+    const box=document.createElement("div");
+    box.id="browserAgentStatusBox";
+    box.style.cssText="margin-top:12px;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff";
+    box.innerHTML=`
+      <div style="font-weight:700;margin-bottom:8px">Browser Agent Status</div>
+      <div><strong>Status:</strong> <span id="browserAgentBridgeStatus">CHECKING...</span></div>
+      <div><strong>Portal:</strong> <span id="browserAgentPortal">—</span></div>
+      <div><strong>Discoveries Received:</strong> <span id="browserAgentDiscoveryCount">0</span></div>
+      <div><strong>Last Received:</strong> <span id="browserAgentLastReceived">—</span></div>
+      <div id="browserAgentStatusMessage" class="muted" style="margin-top:8px"></div>`;
+    pairBtn.parentElement.appendChild(box);
+  }
+
+  async function loadBrowserAgentStatus(){
+    installBrowserAgentStatusUI();
+    const statusEl=$("browserAgentBridgeStatus");
+    const portalEl=$("browserAgentPortal");
+    const countEl=$("browserAgentDiscoveryCount");
+    const lastEl=$("browserAgentLastReceived");
+    const msgEl=$("browserAgentStatusMessage");
+    if(!statusEl) return;
+
+    try{
+      const [statusData,discoveriesData]=await Promise.all([
+        portalBridgeApi("/status"),
+        portalBridgeApi("/discoveries")
+      ]);
+
+      const list=Array.isArray(discoveriesData)
+        ? discoveriesData
+        : Array.isArray(discoveriesData.discoveries)
+          ? discoveriesData.discoveries
+          : Array.isArray(discoveriesData.items)
+            ? discoveriesData.items
+            : [];
+
+      const count=Number(
+        statusData.discoveryCount ??
+        statusData.discoveriesReceived ??
+        statusData.count ??
+        discoveriesData.count ??
+        list.length ??
+        0
+      )||0;
+
+      const latest=list.length ? list[list.length-1] : {};
+      const portal=
+        statusData.sourceHost ||
+        statusData.portal ||
+        statusData.lastSourceHost ||
+        latest.sourceHost ||
+        latest.portal ||
+        "—";
+      const lastReceived=
+        statusData.lastReceivedAt ||
+        statusData.lastReceived ||
+        latest.receivedAt ||
+        latest.createdAt ||
+        "";
+
+      statusEl.textContent=count>0 ? "CONNECTED" : "WAITING";
+      statusEl.style.fontWeight="700";
+      portalEl.textContent=portal;
+      countEl.textContent=String(count);
+      lastEl.textContent=lastReceived ? new Date(lastReceived).toLocaleString() : "—";
+      msgEl.textContent=count>0
+        ? "Read-only portal discovery data is reaching GH Mobility."
+        : "Agent is paired, but GH Mobility has not received discovery data yet.";
+    }catch(err){
+      statusEl.textContent="ERROR";
+      portalEl.textContent="—";
+      countEl.textContent="0";
+      lastEl.textContent="—";
+      msgEl.textContent=err.message;
+    }
+  }
+
   function readEngine(p){
     return {
       enabled:$(`${p}Enabled`).checked,
@@ -229,5 +312,8 @@
   });
 
   installBrowserAgentPairUI();
+  installBrowserAgentStatusUI();
+  loadBrowserAgentStatus();
+  setInterval(loadBrowserAgentStatus,15000);
   load();
 })();
