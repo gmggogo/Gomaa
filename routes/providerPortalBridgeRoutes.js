@@ -111,52 +111,166 @@ function collectTripObjects(value,out=[],seen=new Set()){
   return out;
 }
 
+function deepFindValue(obj,keys,maxDepth=5){
+  const wanted=new Set(keys.map(k=>String(k).toLowerCase()));
+  const seen=new Set();
+  function walk(value,depth){
+    if(value===undefined || value===null || depth>maxDepth) return null;
+    if(typeof value!=="object") return null;
+    if(seen.has(value)) return null;
+    seen.add(value);
+    for(const [key,child] of Object.entries(value)){
+      if(wanted.has(String(key).toLowerCase()) && child!==undefined && child!==null){
+        if(typeof child==="object" || clean(child)!=="") return child;
+      }
+    }
+    for(const [key,child] of Object.entries(value)){
+      if(["password","token","cookie","authorization"].some(x=>String(key).toLowerCase().includes(x))) continue;
+      const found=walk(child,depth+1);
+      if(found!==null) return found;
+    }
+    return null;
+  }
+  return walk(obj,0);
+}
+
+function primitiveText(value,preferredKeys=[]){
+  if(value===undefined || value===null) return "";
+  if(typeof value==="string" || typeof value==="number" || typeof value==="boolean") return clean(value);
+  if(Array.isArray(value)){
+    return value.map(v=>primitiveText(v,preferredKeys)).filter(Boolean).join(", ");
+  }
+  if(typeof value!=="object") return "";
+  for(const key of preferredKeys){
+    const child=value?.[key];
+    if(child!==undefined && child!==null){
+      const txt=primitiveText(child,preferredKeys);
+      if(txt) return txt;
+    }
+  }
+  for(const key of ["label","displayName","name","value","title","description","code","type"]){
+    const child=value?.[key];
+    if(child!==undefined && child!==null && typeof child!=="object"){
+      const txt=clean(child);
+      if(txt) return txt;
+    }
+  }
+  return "";
+}
+
 function textFromLocation(value){
   if(value===undefined || value===null) return "";
   if(typeof value==="string" || typeof value==="number") return clean(value);
   if(typeof value!=="object") return "";
+
+  const nestedAddress=
+    value.address && typeof value.address==="object" ? value.address :
+    value.location && typeof value.location==="object" ? value.location :
+    value.place && typeof value.place==="object" ? value.place :
+    null;
+
+  const candidate=nestedAddress || value;
+  const composed=[
+    candidate.address1 || candidate.addressLine1 || candidate.streetAddress || candidate.street || candidate.street1,
+    candidate.address2 || candidate.addressLine2 || candidate.street2,
+    candidate.city,
+    candidate.state || candidate.stateCode,
+    candidate.zip || candidate.zipCode || candidate.postalCode
+  ].filter(Boolean).join(", ");
+
   return clean(
+    candidate.formattedAddress ||
+    candidate.fullAddress ||
+    candidate.addressText ||
+    candidate.displayAddress ||
+    composed ||
     value.formattedAddress ||
-    value.address ||
     value.fullAddress ||
+    value.addressText ||
+    value.displayAddress ||
     value.displayName ||
-    value.name ||
-    [
-      value.address1 || value.street || value.street1,
-      value.city,
-      value.state || value.stateCode,
-      value.zip || value.zipCode || value.postalCode
-    ].filter(Boolean).join(", ")
+    value.name
   );
+}
+
+function locationFromRaw(raw,kind){
+  const prefix=kind==="pickup" ? "pickup" : "dropoff";
+  const direct=firstValue(raw,[
+    `${prefix}Address`,`${prefix}Location`,prefix,
+    kind==="pickup" ? "origin" : "destination"
+  ]);
+  const deep=deepFindValue(raw,[
+    `${prefix}Address`,`${prefix}Location`,
+    `${prefix}FullAddress`,`${prefix}FormattedAddress`
+  ]);
+  return textFromLocation(deep || direct);
+}
+
+function timeFromRaw(raw,keys){
+  const value=firstValue(raw,keys) ?? deepFindValue(raw,keys);
+  return primitiveText(value,["local","dateTimeLocal","datetimeLocal","dateTime","datetime","time","value"]);
+}
+
+function modeFromRaw(raw){
+  const value=firstValue(raw,["mode","serviceMode","serviceType","levelOfService"]) ??
+    deepFindValue(raw,["mode","serviceMode","serviceType","levelOfService"]);
+  return primitiveText(value,["displayName","name","label","value","code","type"]);
 }
 
 function normalizePortalTrip(raw,meta={}){
   const portalTripId=clean(firstValue(raw,[
     "availableTaskId","tripId","tripNumber","assignmentNumber","reservationId","id"
+  ]) ?? deepFindValue(raw,[
+    "availableTaskId","tripId","tripNumber","assignmentNumber","reservationId"
   ]));
-  const explicitMiles=firstValue(raw,["tripMiles","miles","distanceMiles"]);
-  const meters=Number(firstValue(raw,["distanceMeters","distanceInMeters","meters"]));
-  const miles=explicitMiles!==null ? Number(explicitMiles) :
+  const explicitMiles=firstValue(raw,["tripMiles","miles","distanceMiles"]) ??
+    deepFindValue(raw,["tripMiles","distanceMiles"]);
+  const metersValue=firstValue(raw,["distanceMeters","distanceInMeters","meters"]) ??
+    deepFindValue(raw,["distanceMeters","distanceInMeters"]);
+  const meters=Number(metersValue);
+  const miles=explicitMiles!==null && explicitMiles!==undefined ? Number(explicitMiles) :
     (Number.isFinite(meters) && meters>0 ? Number((meters/1609.344).toFixed(2)) : null);
+
+  const memberValue=firstValue(raw,["memberName","passengerName","riderName","clientName"]) ??
+    deepFindValue(raw,["memberName","passengerName","riderName","clientName"]);
+  const phoneValue=firstValue(raw,["memberPhone","passengerPhone","riderPhone","phone"]) ??
+    deepFindValue(raw,["memberPhone","passengerPhone","riderPhone","phone"]);
 
   return {
     portalTripId,
     sourceHost:clean(meta.sourceHost),
     sourceUrl:clean(meta.sourceUrl),
-    memberName:clean(firstValue(raw,["memberName","passengerName","riderName","clientName","name"])),
-    memberPhone:clean(firstValue(raw,["memberPhone","passengerPhone","riderPhone","phone"])),
-    pickupAddress:textFromLocation(firstValue(raw,["pickupAddress","pickupLocation","pickup","origin"])),
-    dropoffAddress:textFromLocation(firstValue(raw,["dropoffAddress","dropoffLocation","dropoff","destination"])),
-    pickupTime:clean(firstValue(raw,["pickupTime","scheduledPickupTime","pickupDateTime"])),
-    dropoffTime:clean(firstValue(raw,["dropoffTime","scheduledDropoffTime","dropoffDateTime"])),
-    appointmentTime:clean(firstValue(raw,["appointmentTime","appointmentDateTime","apptTime"])),
-    mode:clean(firstValue(raw,["mode","serviceMode","serviceType","levelOfService"])),
-    passengerType:clean(firstValue(raw,["passengerType","riderType"])),
-    riders:firstValue(raw,["numberOfRiders","riders","passengerCount"]),
+    memberName:primitiveText(memberValue,["fullName","displayName","name","value"]),
+    memberPhone:primitiveText(phoneValue,["formatted","number","phone","value"]),
+    pickupAddress:locationFromRaw(raw,"pickup"),
+    dropoffAddress:locationFromRaw(raw,"dropoff"),
+    pickupTime:timeFromRaw(raw,[
+      "pickupTime","scheduledPickupTime","pickupDateTime","pickupDatetime",
+      "pickupDateTimeLocal","pickupDatetimeLocal"
+    ]),
+    dropoffTime:timeFromRaw(raw,[
+      "dropoffTime","scheduledDropoffTime","dropoffDateTime","dropoffDatetime",
+      "dropoffDateTimeLocal","dropoffDatetimeLocal"
+    ]),
+    appointmentTime:timeFromRaw(raw,[
+      "appointmentTime","appointmentDateTime","appointmentDatetime",
+      "appointmentDateTimeLocal","appointmentDatetimeLocal","apptTime"
+    ]),
+    mode:modeFromRaw(raw),
+    passengerType:primitiveText(
+      firstValue(raw,["passengerType","riderType"]) ?? deepFindValue(raw,["passengerType","riderType"]),
+      ["displayName","name","label","value","code","type"]
+    ),
+    riders:firstValue(raw,["numberOfRiders","riders","passengerCount"]) ??
+      deepFindValue(raw,["numberOfRiders","passengerCount"]),
     tripMiles:Number.isFinite(miles) ? miles : null,
     distanceMeters:Number.isFinite(meters) ? meters : null,
-    specialNeeds:firstValue(raw,["specialNeeds","needs"]),
-    driverNotes:clean(firstValue(raw,["driverNotes","notes","specialInstructions"])),
+    specialNeeds:firstValue(raw,["specialNeeds","needs"]) ?? deepFindValue(raw,["specialNeeds","needs"]),
+    driverNotes:primitiveText(
+      firstValue(raw,["driverNotes","notes","specialInstructions"]) ??
+      deepFindValue(raw,["driverNotes","specialInstructions"]),
+      ["text","description","value"]
+    ),
     readOnly:true,
     raw
   };
