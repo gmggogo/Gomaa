@@ -319,8 +319,25 @@ router.post("/scan",async(req,res)=>{
     if(!settings.enabled) return res.status(409).json({success:false,message:"MTM Marketplace is disabled in Settings"});
 
     const session=await Session.findOne({tenantId:id}).lean();
-    if(settings.connectionMethod==="MTM_PORTAL" && session?.status!=="CONNECTED"){
-      return res.status(409).json({success:false,message:"MTM Provider Portal is not connected"});
+
+    /*
+      Generic Browser Agent bridge may already have valid normalized portal trips
+      even when the legacy MTM portal connector session is not CONNECTED.
+      In MTM_PORTAL mode, allow READ ONLY engine evaluation when those normalized
+      trips exist. Claim/Accept remains blocked by readOnlyEvaluation below.
+    */
+    let bridgeNormalizedTrips=[];
+    if(settings.connectionMethod==="MTM_PORTAL"){
+      const getNormalizedTrips=providerPortalBridgeRoutes.getNormalizedTripsForTenant;
+      if(typeof getNormalizedTrips==="function"){
+        bridgeNormalizedTrips=getNormalizedTrips(id);
+      }
+      if(session?.status!=="CONNECTED" && bridgeNormalizedTrips.length===0){
+        return res.status(409).json({
+          success:false,
+          message:"MTM Provider Portal is not connected and no Browser Agent normalized trips are available"
+        });
+      }
     }
 
     const connector=await getConnector(id,settings);
@@ -342,7 +359,10 @@ router.post("/scan",async(req,res)=>{
         throw new Error("Provider Portal Bridge normalized-trip accessor is not available");
       }
 
-      const portalTrips=getNormalizedTrips(id).map(t=>({
+      const portalTrips=(bridgeNormalizedTrips.length
+        ? bridgeNormalizedTrips
+        : getNormalizedTrips(id)
+      ).map(t=>({
         ...t,
         externalTripId:clean(t.externalTripId || t.portalTripId),
         tripNumber:clean(t.tripNumber || t.portalTripId),
