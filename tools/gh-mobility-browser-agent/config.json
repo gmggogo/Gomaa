@@ -4,6 +4,7 @@
   "outputDir": "./discovery-output",
   "maxResponseBytes": 5000000,
   "browserPath": "",
-  "bridgeUrl": "https://ghmobility.com",
-  "agentToken": "PASTE_SHORT_LIVED_PAIR_TOKEN_HERE"
+  "ghBaseUrl": "https://ghmobility.com",
+  "bridgeEnabled": false,
+  "agentToken": ""
 }
