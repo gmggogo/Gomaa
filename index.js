@@ -1649,6 +1649,9 @@ const externalSummaryRoutes =
 const mtmMarketplaceRoutes =
   require("./routes/mtmMarketplaceRoutes");
 
+const providerPortalBridgeRoutes =
+  require("./routes/providerPortalBridgeRoutes");
+
 app.use(
   "/api/platform/broker-integrations",
   brokerIntegrationRoutes
@@ -1679,8 +1682,17 @@ app.use(
   mtmMarketplaceRoutes
 );
 
+app.use(
+  "/api/provider-portal-bridge",
+  providerPortalBridgeRoutes
+);
+
 console.log(
   "MTM Marketplace mounted on /api/mtm-marketplace"
+);
+
+console.log(
+  "Generic Provider Portal Bridge mounted on /api/provider-portal-bridge"
 );
 
 /* =========================
