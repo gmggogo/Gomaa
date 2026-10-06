@@ -29,6 +29,11 @@ const START_URL = String(config.startUrl || "about:blank");
 const OUTPUT_DIR = path.resolve(config.outputDir || path.join(__dirname, "discovery-output"));
 const BROWSER = config.browserPath || findBrowser();
 const MAX_BODY = Math.max(100000, Number(config.maxResponseBytes || 5_000_000));
+const BRIDGE_URL = String(config.bridgeUrl || "").trim().replace(/\/$/, "");
+const AGENT_TOKEN = String(config.agentToken || "").trim();
+const BRIDGE_ENABLED = Boolean(BRIDGE_URL && AGENT_TOKEN);
+const bridgeSent = new Map();
+
 
 if (!BROWSER) {
   console.error("Chrome or Edge was not found. Set browserPath in config.json.");
@@ -167,6 +172,7 @@ function walk(value, source, trail = "$", depth = 0) {
       });
       writeSnapshot();
       console.log(`[DISCOVERED] ${id} score=${score} source=${source.host}`);
+      void sendDiscoveryToBridge(discovered.get(key));
     }
   }
 
@@ -174,6 +180,58 @@ function walk(value, source, trail = "$", depth = 0) {
     if (k.toLowerCase().includes("password") || k.toLowerCase().includes("token") ||
         k.toLowerCase().includes("cookie") || k.toLowerCase().includes("authorization")) continue;
     walk(v, source, `${trail}.${k}`, depth + 1);
+  }
+}
+
+
+function postJson(url, body, token) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const data = Buffer.from(JSON.stringify(body));
+    const transport = target.protocol === "https:" ? require("https") : require("http");
+    const req = transport.request({
+      protocol: target.protocol,
+      hostname: target.hostname,
+      port: target.port || undefined,
+      path: target.pathname + target.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": data.length,
+        "Authorization": `Bearer ${token}`
+      },
+      timeout: 15000
+    }, res => {
+      let text = "";
+      res.on("data", c => text += c);
+      res.on("end", () => {
+        let parsed = null;
+        try { parsed = text ? JSON.parse(text) : {}; } catch (_) {}
+        if (res.statusCode >= 200 && res.statusCode < 300) return resolve(parsed || {});
+        reject(new Error(`Bridge HTTP ${res.statusCode}: ${parsed?.message || text || "request failed"}`));
+      });
+    });
+    req.on("timeout", () => req.destroy(new Error("Bridge request timed out")));
+    req.on("error", reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+async function sendDiscoveryToBridge(entry) {
+  if (!BRIDGE_ENABLED || !entry?.raw) return;
+  const signature = `${entry.id}|${entry.score}|${entry.source?.url || ""}`;
+  if (bridgeSent.get(entry.id) === signature) return;
+  try {
+    const result = await postJson(`${BRIDGE_URL}/api/mtm-marketplace/agent/discovery`, {
+      payload: entry.raw,
+      sourceUrl: entry.source?.url || "",
+      operationName: "LOCAL_BROWSER_DISCOVERY"
+    }, AGENT_TOKEN);
+    bridgeSent.set(entry.id, signature);
+    console.log(`[BRIDGE SENT] ${entry.id} discovered=${result?.discovered ?? "?"}`);
+  } catch (e) {
+    console.error(`[BRIDGE ERROR] ${entry.id}: ${e.message}`);
   }
 }
 
@@ -256,6 +314,8 @@ async function attach() {
   console.log("3) Browse to the available trips/tasks page normally.");
   console.log("4) The agent observes structured JSON responses only.");
   console.log("5) Claim/Accept is NOT performed by this agent.");
+  console.log(`6) GH Bridge: ${BRIDGE_ENABLED ? "ENABLED" : "OFF (local JSON only)"}`);
+
   console.log("");
   console.log(`Output: ${path.join(OUTPUT_DIR, "discovered-trips.json")}`);
   console.log("Press Ctrl+C when finished.");

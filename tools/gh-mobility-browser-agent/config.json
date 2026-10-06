@@ -3,5 +3,7 @@
   "debugPort": 9333,
   "outputDir": "./discovery-output",
   "maxResponseBytes": 5000000,
-  "browserPath": ""
+  "browserPath": "",
+  "bridgeUrl": "https://ghmobility.com",
+  "agentToken": "PASTE_SHORT_LIVED_PAIR_TOKEN_HERE"
 }
