@@ -23,6 +23,7 @@ const ProviderPortalMappingProfileSchema = new mongoose.Schema({
     default:"AUTO_RULES"
   },
   aiStatus:{type:String,default:"NOT_USED"},
+  aiModel:{type:String,default:""},
   ready:{type:Boolean,default:false},
   lastSeenAt:{type:Date,default:Date.now},
   createdAt:{type:Date,default:Date.now},

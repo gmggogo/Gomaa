@@ -434,7 +434,7 @@ async function tryAiMapping(samples,autoResult){
   if(!apiKey) return {used:false,reason:"AI_NOT_CONFIGURED"};
   if(autoResult.confidence>=AI_TRIGGER_THRESHOLD) return {used:false,reason:"AUTO_CONFIDENCE_HIGH"};
 
-  const model=clean(process.env.PROVIDER_PORTAL_AI_MODEL || "gemini-2.0-flash");
+  const model=clean(process.env.PROVIDER_PORTAL_AI_MODEL || "gemini-3.1-pro-preview");
   const schema=describeSchemaForAi(samples);
   const targetFields=Object.keys(FIELD_SPECS);
 
@@ -450,16 +450,31 @@ async function tryAiMapping(samples,autoResult){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),3500);
   try{
-    const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const response=await fetch(url,{
-      method:"POST",
-      headers:{"content-type":"application/json"},
-      body:JSON.stringify({
-        contents:[{parts:[{text:prompt}]}],
-        generationConfig:{temperature:0,responseMimeType:"application/json"}
-      }),
-      signal:controller.signal
-    });
+    const fallbackModel=clean(process.env.PROVIDER_PORTAL_AI_FALLBACK_MODEL || "gemini-3.8-flash");
+
+    async function callGemini(modelName){
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      return fetch(url,{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({
+          contents:[{parts:[{text:prompt}]}],
+          generationConfig:{temperature:0,responseMimeType:"application/json"}
+        }),
+        signal:controller.signal
+      });
+    }
+
+    let response=await callGemini(model);
+    let modelUsed=model;
+
+    // If the high-capability preview model is unavailable for this project,
+    // automatically fall back to the latest stable high-capability Flash model.
+    if(!response.ok && fallbackModel && fallbackModel!==model && [400,403,404,429,503].includes(response.status)){
+      response=await callGemini(fallbackModel);
+      modelUsed=fallbackModel;
+    }
+
     if(!response.ok) return {used:false,reason:`AI_HTTP_${response.status}`};
     const data=await response.json();
     const rawText=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
@@ -474,6 +489,7 @@ async function tryAiMapping(samples,autoResult){
     return {
       used:true,
       reason:"AI_OK",
+      modelUsed,
       mapping:{...autoResult.mapping,...aiMapping},
       confidence:Math.max(autoResult.confidence,Math.min(1,Number(parsed?.confidence)||0.8))
     };
@@ -550,6 +566,7 @@ async function saveMappingProfile({tenant,host,result,aiResult}){
         confidence:Number(confidence||0),
         method,
         aiStatus:aiResult?.reason || "NOT_USED",
+        aiModel:aiResult?.modelUsed || "",
         ready:mappingReady(finalMapping),
         lastSeenAt:new Date(),
         updatedAt:new Date()
@@ -570,6 +587,7 @@ async function resolvePortalMapping(tenant,host,samples){
       confidence:Number(saved.confidence||1),
       ready:true,
       aiStatus:saved.aiStatus||"NOT_NEEDED",
+      aiModel:saved.aiModel||"",
       persisted:true
     };
   }
@@ -585,6 +603,7 @@ async function resolvePortalMapping(tenant,host,samples){
     confidence:Number((ai.used?ai.confidence:auto.confidence)||0),
     ready:mappingReady(mapping),
     aiStatus:ai.reason,
+    aiModel:ai.modelUsed||"",
     persisted:Boolean(profile),
     unresolved:Object.keys(FIELD_SPECS).filter(f=>!mapping[f])
   };
@@ -606,6 +625,7 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     method:mapper.method,
     confidence:mapper.confidence,
     aiStatus:mapper.aiStatus,
+    aiModel:mapper.aiModel||"",
     persisted:mapper.persisted,
     unresolved:mapper.unresolved||[],
     mappedFields:Object.keys(mapper.mapping||{}),
@@ -762,6 +782,7 @@ router.get("/mapping-status",async(req,res)=>{
         confidence:saved.confidence,
         ready:saved.ready,
         aiStatus:saved.aiStatus,
+        aiModel:saved.aiModel||"",
         mappedFields:Object.keys(saved.mapping||{}),
         lastSeenAt:saved.lastSeenAt
       } : null
