@@ -133,36 +133,27 @@ function postJson(urlString, payload, bearerToken) {
 }
 const bridgeQueue=[]; const bridgeSeen=new Set(); let bridgeBusy=false;
 function queueBridgePayload(payload,meta){
-  if(!BRIDGE_ENABLED){
-    console.log("[GH BRIDGE] skipped - bridge is disabled.");
-    return;
-  }
-  const fp=`${meta.url}|${meta.requestId}`;
-  if(bridgeSeen.has(fp)) return;
+  if(!BRIDGE_ENABLED)return;
+  const fp=`${meta.url}|${meta.requestId}`; if(bridgeSeen.has(fp))return;
   bridgeSeen.add(fp);
   bridgeQueue.push({payload,meta});
-  console.log(`[GH BRIDGE] queued host=${meta.host||""} queue=${bridgeQueue.length}`);
+  console.log(`[GH BRIDGE] queued TRIP DATA host=${meta.host||""} queue=${bridgeQueue.length}`);
   flushBridgeQueue().catch(e=>console.error(`[GH BRIDGE] flush error: ${e.message||e}`));
 }
 async function flushBridgeQueue(){
-  if(bridgeBusy||!BRIDGE_ENABLED)return;
-  bridgeBusy=true;
+  if(bridgeBusy||!BRIDGE_ENABLED)return; bridgeBusy=true;
   try{
     while(bridgeQueue.length){
       const item=bridgeQueue[0];
       try{
-        console.log(`[GH BRIDGE] sending -> ${BRIDGE_ENDPOINT}`);
+        console.log(`[GH BRIDGE] sending TRIP DATA -> ${BRIDGE_ENDPOINT}`);
         const result=await postJson(BRIDGE_ENDPOINT,{
-          payload:item.payload,
-          sourceUrl:item.meta.url||"",
-          sourceHost:item.meta.host||"",
-          operationName:"LOCAL_BROWSER_DISCOVERY",
-          readOnly:true
+          payload:item.payload,sourceUrl:item.meta.url||"",operationName:"LOCAL_BROWSER_DISCOVERY"
         },AGENT_TOKEN);
         console.log(`[GH BRIDGE] SENT OK accepted=${result?.accepted===true} buffered=${Number(result?.buffered||0)} host=${result?.sourceHost||item.meta.host||""}`);
         bridgeQueue.shift();
       }catch(e){
-        console.error(`[GH BRIDGE] SEND FAILED status=${e.statusCode||"NETWORK"} message=${e.message||e}`);
+        console.error(`[GH BRIDGE] ${e.message||e}`);
         if(e.statusCode===401||e.statusCode===403){
           bridgeQueue.length=0;
           console.error("[GH BRIDGE] Pairing token expired/invalid. Generate a new generic provider-portal pair token.");
@@ -170,9 +161,7 @@ async function flushBridgeQueue(){
         break;
       }
     }
-  }finally{
-    bridgeBusy=false;
-  }
+  }finally{bridgeBusy=false;}
 }
 
 function lowerKeys(obj) {
@@ -212,15 +201,20 @@ function stableId(obj, fallback) {
 }
 
 function walk(value, source, trail = "$", depth = 0) {
-  if (depth > 12 || value == null) return;
+  if (depth > 12 || value == null) return false;
+  let foundTrip = false;
+
   if (Array.isArray(value)) {
-    value.forEach((v,i) => walk(v, source, `${trail}[${i}]`, depth + 1));
-    return;
+    for (let i=0;i<value.length;i++) {
+      if (walk(value[i], source, `${trail}[${i}]`, depth + 1)) foundTrip = true;
+    }
+    return foundTrip;
   }
-  if (typeof value !== "object") return;
+  if (typeof value !== "object") return false;
 
   const score = scoreTripObject(value);
   if (score >= 5) {
+    foundTrip = true;
     const id = stableId(value, `${source.requestId}:${trail}`);
     const key = `${source.host}|${id}`;
     const previous = discovered.get(key);
@@ -244,8 +238,9 @@ function walk(value, source, trail = "$", depth = 0) {
   for (const [k,v] of Object.entries(value)) {
     if (k.toLowerCase().includes("password") || k.toLowerCase().includes("token") ||
         k.toLowerCase().includes("cookie") || k.toLowerCase().includes("authorization")) continue;
-    walk(v, source, `${trail}.${k}`, depth + 1);
+    if (walk(v, source, `${trail}.${k}`, depth + 1)) foundTrip = true;
   }
+  return foundTrip;
 }
 
 function writeSnapshot() {
@@ -273,8 +268,10 @@ async function inspectResponse(params) {
     if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return;
     const parsed = JSON.parse(trimmed);
     const discoveryMeta={...meta,requestId:params.requestId};
-    queueBridgePayload(parsed,discoveryMeta);
-    walk(parsed,discoveryMeta);
+    const hasTripData = walk(parsed,discoveryMeta);
+    if (hasTripData) {
+      queueBridgePayload(parsed,discoveryMeta);
+    }
   } catch (_) {
     // Ignore non-JSON/evicted response bodies. Discovery continues.
   }
