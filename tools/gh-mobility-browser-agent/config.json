@@ -5,6 +5,6 @@
   "maxResponseBytes": 5000000,
   "browserPath": "",
   "ghBaseUrl": "https://ghmobility.com",
-  "bridgeEnabled": false,
-  "agentToken": ""
+  "bridgeEnabled": true,
+  "agentToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiR0hfUFJPVklERVJfUE9SVEFMX0FHRU5UIiwidGVuYW50SWQiOiI2YWIwOWQyOTlmOWY5YmIyZTQxMDViMTYiLCJub25jZSI6IjNmODY2YmUxNzAxYTVjYTk5YzhiYTU1OCIsImlhdCI6MTc5MTI2MzA4MCwiZXhwIjoxNzkxMjY0ODgwfQ.tp4f9JTziJbfcHrwsgdMOyWkz_M7jeSuwDiLKxEAb-I"
 }
