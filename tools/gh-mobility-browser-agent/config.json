@@ -1,0 +1,7 @@
+{
+  "startUrl": "about:blank",
+  "debugPort": 9333,
+  "outputDir": "./discovery-output",
+  "maxResponseBytes": 5000000,
+  "browserPath": ""
+}

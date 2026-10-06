@@ -1,0 +1,13 @@
+{
+  "name": "gh-mobility-browser-discovery-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only external browser discovery agent for authorized provider portals",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js config.json"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
