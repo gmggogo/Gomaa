@@ -221,8 +221,18 @@ server/public/platform-admin/js/broker-integrations.js
 
   function showConnectionBox(){
 
+    const mode =
+      $("connectionMode")?.value || "OFFICIAL";
+
     const type =
-      $("connectionType").value;
+      mode === "MARKETPLACE_PORTAL"
+        ? "PORTAL"
+        : $("connectionType").value;
+
+    if($("connectionTypeField")){
+      $("connectionTypeField").style.display =
+        mode === "MARKETPLACE_PORTAL" ? "none" : "";
+    }
 
     document
       .querySelectorAll(".connection-box")
@@ -348,15 +358,27 @@ server/public/platform-admin/js/broker-integrations.js
       );
     }
 
+    const connectionMode =
+      $("connectionMode")?.value || "OFFICIAL";
+
     return {
+      _id: state.editingId || undefined,
       tenantId,
       tenantSlug,
 
       brokerName,
       brokerCode,
 
+      connectionMode,
+      accountLabel: $("accountLabel")?.value.trim() || "Primary Account",
+      portalUrl: connectionMode === "MARKETPLACE_PORTAL"
+        ? $("portalUrl")?.value.trim()
+        : "",
+
       connectionType:
-        $("connectionType").value,
+        connectionMode === "MARKETPLACE_PORTAL"
+          ? "PORTAL"
+          : $("connectionType").value,
 
       environment:
         $("environment").value,
@@ -502,6 +524,7 @@ server/public/platform-admin/js/broker-integrations.js
     [
       "brokerName",
       "brokerCode",
+      "portalUrl",
       "providerId",
       "apiEndpoint",
       "apiStatusEndpoint",
@@ -532,6 +555,8 @@ server/public/platform-admin/js/broker-integrations.js
       }
     });
 
+    $("connectionMode").value = "OFFICIAL";
+    $("accountLabel").value = "Primary Account";
     $("connectionType").value = "API";
     $("environment").value = "SANDBOX";
     $("integrationDirection").value = "INBOUND";
@@ -562,7 +587,7 @@ server/public/platform-admin/js/broker-integrations.js
 
       body.innerHTML = `
         <tr>
-          <td colspan="10">
+          <td colspan="12">
             No broker connections configured.
           </td>
         </tr>
@@ -587,7 +612,9 @@ server/public/platform-admin/js/broker-integrations.js
         <td>${escapeHtml(tenantName(item.tenantId,item.tenantSlug))}</td>
         <td>${escapeHtml(item.brokerName || "")}</td>
         <td><strong>${escapeHtml(item.brokerCode || "")}</strong></td>
-        <td>${escapeHtml(item.connectionType || "")}</td>
+        <td>${escapeHtml(item.connectionMode === "MARKETPLACE_PORTAL" ? "Marketplace Portal" : "Official")}</td>
+        <td>${escapeHtml(item.accountLabel || "Primary Account")}</td>
+        <td>${escapeHtml(item.connectionMode === "MARKETPLACE_PORTAL" ? "PORTAL" : (item.connectionType || ""))}</td>
         <td>${item.featureVisible ? "Visible" : "Hidden"}</td>
         <td>${item.billingEnabled ? "Active" : "Disabled"}</td>
         <td>$${Number(item.monthlyFlatFee || 0).toFixed(2)}</td>
@@ -595,7 +622,7 @@ server/public/platform-admin/js/broker-integrations.js
         <td>${escapeHtml(lastReceived)}</td>
         <td>
           <button class="btn btn-light" data-edit="${escapeHtml(item._id)}">Edit</button>
-          <button class="btn btn-light" data-test="${escapeHtml(item._id)}">Test</button>
+          ${item.connectionMode === "MARKETPLACE_PORTAL" ? "" : `<button class="btn btn-light" data-test="${escapeHtml(item._id)}">Test</button>`}
         </td>
       `;
 
@@ -701,8 +728,23 @@ server/public/platform-admin/js/broker-integrations.js
     );
 
     setValue(
+      "connectionMode",
+      item.connectionMode || (item.connectionType === "PORTAL" ? "MARKETPLACE_PORTAL" : "OFFICIAL")
+    );
+
+    setValue(
+      "accountLabel",
+      item.accountLabel || "Primary Account"
+    );
+
+    setValue(
+      "portalUrl",
+      item.portalUrl || ""
+    );
+
+    setValue(
       "connectionType",
-      item.connectionType
+      item.connectionType === "PORTAL" ? "API" : item.connectionType
     );
 
     setValue(

@@ -16,7 +16,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const ProviderPortalMappingProfile = require("../models/ProviderPortalMappingProfile");
-const MarketplaceConnection = require("../models/MarketplaceConnection");
+const BrokerIntegration = require("../models/BrokerIntegration");
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
@@ -732,7 +732,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     const store=tenantStore(id,connectionId);
     let connection=null;
     if(connectionId){
-      connection=await MarketplaceConnection.findOne({tenantId:id,connectionId,enabled:true}).lean();
+      connection=await BrokerIntegration.findOne({_id:connectionId,tenantId:id,connectionMode:"MARKETPLACE_PORTAL",enabled:true}).lean();
       if(!connection){
         return res.status(403).json({success:false,message:"Marketplace connection is disabled or unavailable"});
       }
@@ -755,7 +755,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     const normalized=await ingestSmartNormalizedTrips(store,body.payload,{
       tenantId:id,
       connectionId,
-      brokerIntegrationId:connection?.brokerIntegrationId||"",
+      brokerIntegrationId:connection?._id||"",
       brokerCode:connection?.brokerCode||"",
       brokerName:connection?.brokerName||"",
       accountLabel:connection?.accountLabel||"",
@@ -765,8 +765,8 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     });
 
     if(connectionId){
-      await MarketplaceConnection.updateOne(
-        {tenantId:id,connectionId},
+      await BrokerIntegration.updateOne(
+        {_id:connectionId,tenantId:id},
         {$set:{
           connectionStatus:"CONNECTED",
           sourceHost:host,
@@ -801,14 +801,15 @@ router.post("/pair",async(req,res)=>{
     const connectionId=clean(req.body?.connectionId||req.query?.connectionId);
     let connection=null;
     if(connectionId){
-      connection=await MarketplaceConnection.findOne({
+      connection=await BrokerIntegration.findOne({
+        _id:connectionId,
         tenantId:id,
-        connectionId,
+        connectionMode:"MARKETPLACE_PORTAL",
         enabled:true,
         featureVisible:true
       }).lean();
       if(!connection) return res.status(404).json({success:false,message:"Marketplace connection not found or disabled"});
-      await MarketplaceConnection.updateOne({tenantId:id,connectionId},{$set:{connectionStatus:"PAIRING",lastErrorMessage:""}}).catch(()=>{});
+      await BrokerIntegration.updateOne({_id:connectionId,tenantId:id},{$set:{connectionStatus:"TESTING",lastErrorMessage:""}}).catch(()=>{});
     }
     res.json({
       success:true,
@@ -829,14 +830,15 @@ router.get("/connections",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const rows=await MarketplaceConnection.find({tenantId:id,enabled:true,featureVisible:true,billingEnabled:true}).sort({brokerName:1,accountLabel:1}).lean();
+    const rows=await BrokerIntegration.find({tenantId:id,connectionMode:"MARKETPLACE_PORTAL",enabled:true,featureVisible:true,billingEnabled:true}).sort({brokerName:1,accountLabel:1}).lean();
     const connections=rows.map(row=>{
-      const store=tenantStore(id,row.connectionId);
+      const connectionId=String(row._id);
+      const store=tenantStore(id,connectionId);
       return {
-        _id:row._id,connectionId:row.connectionId,brokerIntegrationId:row.brokerIntegrationId,
-        brokerName:row.brokerName,brokerCode:row.brokerCode,accountLabel:row.accountLabel,portalUrl:row.portalUrl,
+        _id:row._id,connectionId,brokerIntegrationId:row._id,
+        brokerName:row.brokerName,brokerCode:row.brokerCode,accountLabel:row.accountLabel||"Primary Account",portalUrl:row.portalUrl||"",
         billingEnabled:row.billingEnabled,monthlyFlatFee:row.monthlyFlatFee,connectionStatus:row.connectionStatus,
-        sourceHost:row.sourceHost||[...store.hosts].slice(-1)[0]||"",
+        sourceHost:[...store.hosts].slice(-1)[0]||"",
         discoveriesReceived:store.items.length,lastReceivedAt:store.lastReceivedAt,mapper:store.mapperStatus
       };
     });
@@ -848,11 +850,10 @@ router.post("/connections/:connectionId/disconnect",async(req,res)=>{
   try{
     const id=tenantId(req);
     const connectionId=clean(req.params.connectionId);
-    const item=await MarketplaceConnection.findOne({tenantId:id,connectionId});
+    const item=await BrokerIntegration.findOne({_id:connectionId,tenantId:id,connectionMode:"MARKETPLACE_PORTAL"});
     if(!item) return res.status(404).json({success:false,message:"Marketplace connection not found"});
     stores.delete(storeKey(id,connectionId));
-    item.connectionStatus=item.enabled?"DISCONNECTED":"DISABLED";
-    item.lastDisconnectedAt=new Date();
+    item.connectionStatus=item.enabled?"CONFIGURED":"DISABLED";
     item.lastErrorMessage="";
     await item.save();
     res.json({success:true,connectionStatus:item.connectionStatus});

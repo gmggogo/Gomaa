@@ -39,7 +39,8 @@ function connectionTypeSupported(type){
     "API",
     "WEBHOOK",
     "SFTP",
-    "FILE_IMPORT"
+    "FILE_IMPORT",
+    "PORTAL"
   ].includes(
     upper(type)
   );
@@ -201,6 +202,7 @@ function sanitizeIntegrationForClient(doc){
     };
   }
 
+  obj.connectionId = String(obj._id || "");
   return obj;
 }
 
@@ -220,10 +222,14 @@ function preserveOrEncrypt(newValue,oldValue){
 }
 
 async function upsertIntegration({
+  integrationId,
   tenantId,
   tenantSlug,
   brokerCode,
   brokerName,
+  connectionMode,
+  accountLabel,
+  portalUrl,
   connectionType,
   environment,
   integrationDirection,
@@ -240,8 +246,18 @@ async function upsertIntegration({
   updatedBy
 }){
 
+  const mode =
+    upper(connectionMode || "OFFICIAL") === "MARKETPLACE_PORTAL"
+      ? "MARKETPLACE_PORTAL"
+      : "OFFICIAL";
+
+  const label =
+    clean(accountLabel || "Primary Account") || "Primary Account";
+
   const type =
-    upper(connectionType);
+    mode === "MARKETPLACE_PORTAL"
+      ? "PORTAL"
+      : upper(connectionType);
 
   const code =
     upper(brokerCode)
@@ -261,10 +277,14 @@ async function upsertIntegration({
   }
 
   const existing =
-    await BrokerIntegration.findOne({
-      tenantId,
-      brokerCode:code
-    });
+    integrationId
+      ? await BrokerIntegration.findOne({ _id:integrationId, tenantId })
+      : await BrokerIntegration.findOne({
+          tenantId,
+          brokerCode:code,
+          connectionMode:mode,
+          accountLabel:label
+        });
 
   const oldApi =
     existing?.api || {};
@@ -430,6 +450,15 @@ async function upsertIntegration({
     brokerName:
       clean(brokerName),
 
+    connectionMode:
+      mode,
+
+    accountLabel:
+      label,
+
+    portalUrl:
+      mode === "MARKETPLACE_PORTAL" ? clean(portalUrl) : "",
+
     connectionType:
       type,
 
@@ -494,10 +523,14 @@ async function upsertIntegration({
 
   const integration =
     await BrokerIntegration.findOneAndUpdate(
-      {
-        tenantId,
-        brokerCode:code
-      },
+      existing
+        ? { _id:existing._id, tenantId }
+        : {
+            tenantId,
+            brokerCode:code,
+            connectionMode:mode,
+            accountLabel:label
+          },
       {
         $set:update,
         $setOnInsert:{

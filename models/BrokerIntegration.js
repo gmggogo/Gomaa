@@ -54,6 +54,26 @@ const BrokerIntegrationSchema = new mongoose.Schema(
       min:0
     },
 
+    /* One paid connection record: official integration or provider portal. */
+    connectionMode:{
+      type:String,
+      enum:["OFFICIAL","MARKETPLACE_PORTAL"],
+      default:"OFFICIAL",
+      index:true
+    },
+
+    accountLabel:{
+      type:String,
+      default:"Primary Account",
+      trim:true
+    },
+
+    portalUrl:{
+      type:String,
+      default:"",
+      trim:true
+    },
+
     brokerName:{
       type:String,
       required:true,
@@ -82,7 +102,7 @@ const BrokerIntegrationSchema = new mongoose.Schema(
     connectionType:{
       type:String,
       required:true,
-      enum:["API","WEBHOOK","SFTP","FILE_IMPORT"]
+      enum:["API","WEBHOOK","SFTP","FILE_IMPORT","PORTAL"]
     },
 
     environment:{
@@ -275,12 +295,12 @@ const BrokerIntegrationSchema = new mongoose.Schema(
 );
 
 /*
-  Same tenant can have many brokers.
-  The same two-character broker code cannot be reused inside one tenant.
+  Multiple independent paid connections for the same broker are allowed.
+  accountLabel distinguishes multiple accounts of the same broker and mode.
 */
 BrokerIntegrationSchema.index(
-  { tenantId:1, brokerCode:1 },
-  { unique:true }
+  { tenantId:1, brokerCode:1, connectionMode:1, accountLabel:1 },
+  { unique:true, name:"broker_connection_identity" }
 );
 
 module.exports =
