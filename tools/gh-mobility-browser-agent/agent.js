@@ -133,23 +133,36 @@ function postJson(urlString, payload, bearerToken) {
 }
 const bridgeQueue=[]; const bridgeSeen=new Set(); let bridgeBusy=false;
 function queueBridgePayload(payload,meta){
-  if(!BRIDGE_ENABLED)return;
-  const fp=`${meta.url}|${meta.requestId}`; if(bridgeSeen.has(fp))return;
-  bridgeSeen.add(fp); bridgeQueue.push({payload,meta}); flushBridgeQueue().catch(()=>{});
+  if(!BRIDGE_ENABLED){
+    console.log("[GH BRIDGE] skipped - bridge is disabled.");
+    return;
+  }
+  const fp=`${meta.url}|${meta.requestId}`;
+  if(bridgeSeen.has(fp)) return;
+  bridgeSeen.add(fp);
+  bridgeQueue.push({payload,meta});
+  console.log(`[GH BRIDGE] queued host=${meta.host||""} queue=${bridgeQueue.length}`);
+  flushBridgeQueue().catch(e=>console.error(`[GH BRIDGE] flush error: ${e.message||e}`));
 }
 async function flushBridgeQueue(){
-  if(bridgeBusy||!BRIDGE_ENABLED)return; bridgeBusy=true;
+  if(bridgeBusy||!BRIDGE_ENABLED)return;
+  bridgeBusy=true;
   try{
     while(bridgeQueue.length){
       const item=bridgeQueue[0];
       try{
+        console.log(`[GH BRIDGE] sending -> ${BRIDGE_ENDPOINT}`);
         const result=await postJson(BRIDGE_ENDPOINT,{
-          payload:item.payload,sourceUrl:item.meta.url||"",operationName:"LOCAL_BROWSER_DISCOVERY"
+          payload:item.payload,
+          sourceUrl:item.meta.url||"",
+          sourceHost:item.meta.host||"",
+          operationName:"LOCAL_BROWSER_DISCOVERY",
+          readOnly:true
         },AGENT_TOKEN);
-        console.log(`[GH BRIDGE] accepted=${result?.accepted===true} buffered=${Number(result?.buffered||0)} host=${result?.sourceHost||""}`);
+        console.log(`[GH BRIDGE] SENT OK accepted=${result?.accepted===true} buffered=${Number(result?.buffered||0)} host=${result?.sourceHost||item.meta.host||""}`);
         bridgeQueue.shift();
       }catch(e){
-        console.error(`[GH BRIDGE] ${e.message||e}`);
+        console.error(`[GH BRIDGE] SEND FAILED status=${e.statusCode||"NETWORK"} message=${e.message||e}`);
         if(e.statusCode===401||e.statusCode===403){
           bridgeQueue.length=0;
           console.error("[GH BRIDGE] Pairing token expired/invalid. Generate a new generic provider-portal pair token.");
@@ -157,7 +170,9 @@ async function flushBridgeQueue(){
         break;
       }
     }
-  }finally{bridgeBusy=false;}
+  }finally{
+    bridgeBusy=false;
+  }
 }
 
 function lowerKeys(obj) {
