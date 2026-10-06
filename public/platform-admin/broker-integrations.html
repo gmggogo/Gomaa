@@ -317,6 +317,60 @@
         padding:7px 14px;
       }
     }
+
+    /* ===== Broker table action layout fix ===== */
+    .table-wrap{
+      overflow-x:auto;
+      padding-bottom:4px;
+    }
+
+    table{
+      min-width:1380px;
+      table-layout:auto;
+    }
+
+    th:last-child,
+    td:last-child{
+      min-width:300px;
+      width:300px;
+      white-space:nowrap;
+    }
+
+    #integrationRows td:last-child{
+      vertical-align:middle;
+    }
+
+    #integrationRows td:last-child .btn,
+    #integrationRows td:last-child button{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:64px;
+      margin:2px 5px 2px 0;
+      padding:7px 10px;
+      border-radius:7px;
+      line-height:1;
+      white-space:nowrap;
+      vertical-align:middle;
+    }
+
+    #integrationRows td:last-child .status{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin:2px 7px 2px 0;
+      min-width:58px;
+      vertical-align:middle;
+    }
+
+    #integrationRows td:last-child .btn-danger{
+      min-width:70px;
+    }
+
+    #integrationRows td:last-child br{
+      display:none;
+    }
+
   </style>
 </head>
 
