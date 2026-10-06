@@ -21,7 +21,7 @@ const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const clean = v => String(v ?? "").trim();
-const TOKEN_TTL = "30m";
+const TOKEN_TTL = "8h";
 let mappingIndexesPrepared=false;
 async function ensureMappingIndexes(){
   if(mappingIndexesPrepared) return;
@@ -72,8 +72,12 @@ function verifyAgentToken(req,res,next){
     const raw=clean(req.headers.authorization);
     if(!raw.toLowerCase().startsWith("bearer ")) return res.status(401).json({success:false,message:"Agent token is required"});
     const token=jwt.verify(raw.slice(7).trim(),JWT_SECRET);
-    if(token?.type!=="GH_PROVIDER_PORTAL_AGENT" || !clean(token?.tenantId)){
-      return res.status(403).json({success:false,message:"Invalid agent token"});
+    if(
+      token?.type!=="GH_PROVIDER_PORTAL_AGENT" ||
+      !clean(token?.tenantId) ||
+      !clean(token?.connectionId)
+    ){
+      return res.status(403).json({success:false,message:"Invalid connection-scoped agent token"});
     }
     req.agentTenantId=clean(token.tenantId);
     req.agentConnectionId=clean(token.connectionId);
@@ -722,6 +726,9 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     await ensureMappingIndexes();
     const id=req.agentTenantId;
     const connectionId=clean(req.agentConnectionId);
+    if(!connectionId){
+      return res.status(400).json({success:false,message:"connectionId is required"});
+    }
     const body=req.body||{};
     if(body.payload===undefined || body.payload===null){
       return res.status(400).json({success:false,message:"Discovery payload is required"});
@@ -799,27 +806,47 @@ router.post("/pair",async(req,res)=>{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
     const connectionId=clean(req.body?.connectionId||req.query?.connectionId);
-    let connection=null;
-    if(connectionId){
-      connection=await BrokerIntegration.findOne({
-        _id:connectionId,
-        tenantId:id,
-        connectionMode:"MARKETPLACE_PORTAL",
-        enabled:true,
-        featureVisible:true
-      }).lean();
-      if(!connection) return res.status(404).json({success:false,message:"Marketplace connection not found or disabled"});
-      await BrokerIntegration.updateOne({_id:connectionId,tenantId:id},{$set:{connectionStatus:"TESTING",lastErrorMessage:""}}).catch(()=>{});
+    if(!connectionId){
+      return res.status(400).json({
+        success:false,
+        message:"connectionId is required"
+      });
     }
+
+    const connection=await BrokerIntegration.findOne({
+      _id:connectionId,
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    }).lean();
+
+    if(!connection){
+      return res.status(404).json({
+        success:false,
+        message:"Marketplace connection not found, hidden, disabled, or billing inactive"
+      });
+    }
+
+    await BrokerIntegration.updateOne(
+      {_id:connectionId,tenantId:id},
+      {$set:{
+        connectionStatus:"TESTING",
+        lastErrorMessage:""
+      }}
+    ).catch(()=>{});
+
     res.json({
       success:true,
       agentToken:agentTokenFor(id,connectionId),
-      expiresInMinutes:30,
+      expiresInHours:8,
       tenantId:id,
       connectionId,
       portalUrl:connection?.portalUrl||"",
       brokerName:connection?.brokerName||"",
-      accountLabel:connection?.accountLabel||"",
+      brokerCode:connection?.brokerCode||"",
+      accountLabel:connection?.accountLabel||"Primary Account",
       readOnly:true,
       genericPortal:true
     });
@@ -830,18 +857,65 @@ router.get("/connections",async(req,res)=>{
   try{
     const id=tenantId(req);
     if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
-    const rows=await BrokerIntegration.find({tenantId:id,connectionMode:"MARKETPLACE_PORTAL",enabled:true,featureVisible:true,billingEnabled:true}).sort({brokerName:1,accountLabel:1}).lean();
-    const connections=rows.map(row=>{
-      const connectionId=String(row._id);
-      const store=tenantStore(id,connectionId);
-      return {
-        _id:row._id,connectionId,brokerIntegrationId:row._id,
-        brokerName:row.brokerName,brokerCode:row.brokerCode,accountLabel:row.accountLabel||"Primary Account",portalUrl:row.portalUrl||"",
-        billingEnabled:row.billingEnabled,monthlyFlatFee:row.monthlyFlatFee,connectionStatus:row.connectionStatus,
-        sourceHost:[...store.hosts].slice(-1)[0]||"",
-        discoveriesReceived:store.items.length,lastReceivedAt:store.lastReceivedAt,mapper:store.mapperStatus
-      };
-    });
+    const rows=await BrokerIntegration.find({
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    }).sort({brokerName:1,accountLabel:1}).lean();
+
+    const connections=await Promise.all(
+      rows.map(async row=>{
+        const connectionId=String(row._id);
+        const store=tenantStore(id,connectionId);
+
+        const sourceHost=
+          [...store.hosts].slice(-1)[0] ||
+          clean(row.sourceHost);
+
+        let mapper=store.mapperStatus;
+
+        if(!mapper){
+          const saved=await ProviderPortalMappingProfile.findOne({
+            tenantId:String(id),
+            connectionId
+          })
+          .sort({lastSeenAt:-1,updatedAt:-1})
+          .lean()
+          .catch(()=>null);
+
+          if(saved){
+            mapper={
+              method:saved.method,
+              confidence:saved.confidence,
+              ready:saved.ready===true,
+              aiStatus:saved.aiStatus,
+              aiModel:saved.aiModel||"",
+              mappedFields:Object.keys(saved.mapping||{})
+            };
+          }
+        }
+
+        return {
+          _id:row._id,
+          connectionId,
+          brokerIntegrationId:row._id,
+          brokerName:row.brokerName,
+          brokerCode:row.brokerCode,
+          accountLabel:row.accountLabel||"Primary Account",
+          portalUrl:row.portalUrl||"",
+          billingEnabled:row.billingEnabled,
+          monthlyFlatFee:row.monthlyFlatFee,
+          connectionStatus:row.connectionStatus,
+          sourceHost,
+          discoveriesReceived:store.items.length,
+          lastReceivedAt:store.lastReceivedAt||row.lastReceivedAt||null,
+          mapper
+        };
+      })
+    );
+
     res.json({success:true,connections});
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });

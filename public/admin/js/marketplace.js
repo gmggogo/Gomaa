@@ -64,6 +64,47 @@ Marketplace multi-broker UI.
   const market=(p,o)=>
     api("/api/marketplace",p,o);
 
+  /*
+    Local Browser Agent controller.
+    The agent is installed once on the office computer and starts with Windows.
+    Super Admin never sees/copies pairing tokens.
+  */
+  const LOCAL_AGENT_ORIGIN="http://127.0.0.1:18733";
+
+  async function localAgent(path,opt={}){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),5000);
+
+    try{
+      const response=await fetch(
+        `${LOCAL_AGENT_ORIGIN}${path}`,
+        {
+          ...opt,
+          mode:"cors",
+          cache:"no-store",
+          signal:controller.signal,
+          headers:{
+            "Content-Type":"application/json",
+            ...(opt.headers||{})
+          }
+        }
+      );
+
+      const data=await response.json().catch(()=>({}));
+
+      if(!response.ok){
+        throw new Error(
+          data.message ||
+          `Local Agent HTTP ${response.status}`
+        );
+      }
+
+      return data;
+    }finally{
+      clearTimeout(timer);
+    }
+  }
+
   const state={
     connections:[],
     activity:[],
@@ -331,17 +372,16 @@ Marketplace multi-broker UI.
       return;
     }
 
-    /*
-      Super Admin no longer sees/copies a Pair Token.
-      The temporary token is prepared internally for the next local-agent
-      automatic handoff step. Portal credentials/MFA are still entered only
-      on the broker website.
-    */
     try{
       $("connectBtn").disabled=true;
       $("connectionStatus").textContent=
-        "Preparing this broker connection...";
+        "Starting secure browser connection...";
 
+      /*
+        GH creates a short-lived connection-scoped discovery token.
+        It is handed directly to the local GH Browser Agent and is never
+        displayed to the Super Admin.
+      */
       const prepared=
         await bridge(
           "/pair",
@@ -353,35 +393,73 @@ Marketplace multi-broker UI.
           }
         );
 
-      /*
-        Keep the token out of the visible UI.
-        The current browser-agent automatic handoff is the next local-agent
-        transport step; do not expose the token to the Super Admin.
-      */
-      if(prepared?.agentToken){
-        sessionStorage.setItem(
-          `ghMarketplacePair:${item.connectionId}`,
-          prepared.agentToken
+      const portalUrl=
+        prepared.portalUrl ||
+        item.portalUrl ||
+        "";
+
+      if(!portalUrl){
+        throw new Error(
+          "Provider Portal URL is missing for this broker connection."
         );
       }
 
-      if(item.portalUrl){
-        window.open(
-          item.portalUrl,
-          "_blank",
-          "noopener"
+      const result=
+        await localAgent(
+          "/connect",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              ghBaseUrl:
+                window.location.origin,
+              agentToken:
+                prepared.agentToken,
+              connectionId:
+                prepared.connectionId ||
+                item.connectionId,
+              portalUrl,
+              brokerName:
+                prepared.brokerName ||
+                item.brokerName ||
+                "",
+              brokerCode:
+                prepared.brokerCode ||
+                item.brokerCode ||
+                "",
+              accountLabel:
+                prepared.accountLabel ||
+                item.accountLabel ||
+                "Primary Account"
+            })
+          }
         );
-      }
 
       $("connectionStatus").textContent=
-        "Portal opened. Sign in directly on the broker website.";
+        result.alreadyRunning
+          ? "Broker browser is already open. Continue in that window."
+          : "Broker browser opened. Sign in directly on the broker website.";
 
       await load();
 
     }catch(err){
-      $("connectionStatus").textContent=
-        err.message ||
-        "Failed to prepare broker connection.";
+      const message=
+        String(
+          err?.message ||
+          err ||
+          ""
+        );
+
+      if(
+        err?.name==="AbortError" ||
+        /failed to fetch|networkerror|load failed/i.test(message)
+      ){
+        $("connectionStatus").textContent=
+          "GH Browser Agent is not running on this computer. Install/start it once, then press Connect / Login again.";
+      }else{
+        $("connectionStatus").textContent=
+          message ||
+          "Failed to start broker connection.";
+      }
     }finally{
       $("connectBtn").disabled=false;
     }
@@ -395,16 +473,26 @@ Marketplace multi-broker UI.
     }
 
     try{
+      /*
+        Stop only this connection's local browser/profile.
+        If the local agent is offline, still clear the server-side state.
+      */
+      await localAgent(
+        "/disconnect",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            connectionId:item.connectionId
+          })
+        }
+      ).catch(()=>{});
+
       await bridge(
         `/connections/${encodeURIComponent(item.connectionId)}/disconnect`,
         {
           method:"POST",
           body:"{}"
         }
-      );
-
-      sessionStorage.removeItem(
-        `ghMarketplacePair:${item.connectionId}`
       );
 
       $("connectionStatus").textContent=
