@@ -73,10 +73,124 @@ function verifyAgentToken(req,res,next){
 */
 const stores=new Map();
 const MAX_ITEMS_PER_TENANT=250;
+const MAX_NORMALIZED_TRIPS_PER_TENANT=1000;
+
+function firstValue(obj,keys){
+  for(const key of keys){
+    const value=obj?.[key];
+    if(value!==undefined && value!==null && clean(value)!=="") return value;
+  }
+  return null;
+}
+
+function tripScore(obj){
+  if(!obj || typeof obj!=="object" || Array.isArray(obj)) return 0;
+  const keys=Object.keys(obj).map(k=>k.toLowerCase());
+  let score=0;
+  if(keys.some(k=>["availabletaskid","tripid","tripnumber","assignmentnumber","reservationid"].includes(k))) score+=3;
+  if(keys.some(k=>k.includes("pickup"))) score+=2;
+  if(keys.some(k=>k.includes("dropoff"))) score+=2;
+  if(keys.some(k=>k.includes("appointment"))) score+=1;
+  if(keys.some(k=>k.includes("distance") || k.includes("miles"))) score+=1;
+  if(keys.some(k=>k==="mode" || k.includes("service"))) score+=1;
+  return score;
+}
+
+function collectTripObjects(value,out=[],seen=new Set()){
+  if(!value || typeof value!=="object" || seen.has(value)) return out;
+  seen.add(value);
+  if(Array.isArray(value)){
+    for(const item of value) collectTripObjects(item,out,seen);
+    return out;
+  }
+  if(tripScore(value)>=5) out.push(value);
+  for(const [key,child] of Object.entries(value)){
+    if(["password","token","cookie","authorization"].some(x=>key.toLowerCase().includes(x))) continue;
+    collectTripObjects(child,out,seen);
+  }
+  return out;
+}
+
+function textFromLocation(value){
+  if(value===undefined || value===null) return "";
+  if(typeof value==="string" || typeof value==="number") return clean(value);
+  if(typeof value!=="object") return "";
+  return clean(
+    value.formattedAddress ||
+    value.address ||
+    value.fullAddress ||
+    value.displayName ||
+    value.name ||
+    [
+      value.address1 || value.street || value.street1,
+      value.city,
+      value.state || value.stateCode,
+      value.zip || value.zipCode || value.postalCode
+    ].filter(Boolean).join(", ")
+  );
+}
+
+function normalizePortalTrip(raw,meta={}){
+  const portalTripId=clean(firstValue(raw,[
+    "availableTaskId","tripId","tripNumber","assignmentNumber","reservationId","id"
+  ]));
+  const explicitMiles=firstValue(raw,["tripMiles","miles","distanceMiles"]);
+  const meters=Number(firstValue(raw,["distanceMeters","distanceInMeters","meters"]));
+  const miles=explicitMiles!==null ? Number(explicitMiles) :
+    (Number.isFinite(meters) && meters>0 ? Number((meters/1609.344).toFixed(2)) : null);
+
+  return {
+    portalTripId,
+    sourceHost:clean(meta.sourceHost),
+    sourceUrl:clean(meta.sourceUrl),
+    memberName:clean(firstValue(raw,["memberName","passengerName","riderName","clientName","name"])),
+    memberPhone:clean(firstValue(raw,["memberPhone","passengerPhone","riderPhone","phone"])),
+    pickupAddress:textFromLocation(firstValue(raw,["pickupAddress","pickupLocation","pickup","origin"])),
+    dropoffAddress:textFromLocation(firstValue(raw,["dropoffAddress","dropoffLocation","dropoff","destination"])),
+    pickupTime:clean(firstValue(raw,["pickupTime","scheduledPickupTime","pickupDateTime"])),
+    dropoffTime:clean(firstValue(raw,["dropoffTime","scheduledDropoffTime","dropoffDateTime"])),
+    appointmentTime:clean(firstValue(raw,["appointmentTime","appointmentDateTime","apptTime"])),
+    mode:clean(firstValue(raw,["mode","serviceMode","serviceType","levelOfService"])),
+    passengerType:clean(firstValue(raw,["passengerType","riderType"])),
+    riders:firstValue(raw,["numberOfRiders","riders","passengerCount"]),
+    tripMiles:Number.isFinite(miles) ? miles : null,
+    distanceMeters:Number.isFinite(meters) ? meters : null,
+    specialNeeds:firstValue(raw,["specialNeeds","needs"]),
+    driverNotes:clean(firstValue(raw,["driverNotes","notes","specialInstructions"])),
+    readOnly:true,
+    raw
+  };
+}
+
+function normalizedKey(t){
+  return `${clean(t.sourceHost).toLowerCase()}|${clean(t.portalTripId)}`;
+}
+
+function ingestNormalizedTrips(store,payload,meta){
+  const found=collectTripObjects(payload);
+  let added=0,updated=0;
+  for(const raw of found){
+    const trip=normalizePortalTrip(raw,meta);
+    if(!trip.portalTripId) continue;
+    const key=normalizedKey(trip);
+    const index=store.normalizedTrips.findIndex(x=>normalizedKey(x)===key);
+    if(index>=0){
+      store.normalizedTrips[index]=trip;
+      updated++;
+    }else{
+      store.normalizedTrips.push(trip);
+      added++;
+    }
+  }
+  if(store.normalizedTrips.length>MAX_NORMALIZED_TRIPS_PER_TENANT){
+    store.normalizedTrips.splice(0,store.normalizedTrips.length-MAX_NORMALIZED_TRIPS_PER_TENANT);
+  }
+  return {found:found.length,added,updated,total:store.normalizedTrips.length};
+}
 
 function tenantStore(id){
   const key=String(id);
-  if(!stores.has(key)) stores.set(key,{items:[],lastReceivedAt:null,hosts:new Set()});
+  if(!stores.has(key)) stores.set(key,{items:[],normalizedTrips:[],lastReceivedAt:null,hosts:new Set()});
   return stores.get(key);
 }
 
@@ -109,12 +223,19 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     store.lastReceivedAt=item.receivedAt;
     if(host) store.hosts.add(host);
 
+    const normalized=ingestNormalizedTrips(store,body.payload,{
+      sourceUrl,
+      sourceHost:host,
+      operationName:item.operationName
+    });
+
     res.json({
       success:true,
       readOnly:true,
       accepted:true,
       buffered:store.items.length,
       sourceHost:host,
+      normalized,
       message:"Structured provider-portal discovery payload received"
     });
   }catch(e){
@@ -166,6 +287,24 @@ router.get("/discoveries",async(req,res)=>{
     const store=tenantStore(id);
     const limit=Math.min(100,Math.max(1,Number(req.query.limit)||25));
     res.json({success:true,readOnly:true,items:store.items.slice(-limit)});
+  }catch(e){res.status(500).json({success:false,message:e.message});}
+});
+
+router.get("/normalized-trips",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    if(!id) return res.status(400).json({success:false,message:"Tenant is required"});
+    const store=tenantStore(id);
+    const host=clean(req.query.host).toLowerCase();
+    const limit=Math.min(250,Math.max(1,Number(req.query.limit)||100));
+    let items=store.normalizedTrips;
+    if(host) items=items.filter(t=>clean(t.sourceHost).toLowerCase()===host);
+    res.json({
+      success:true,
+      readOnly:true,
+      count:items.length,
+      items:items.slice(-limit)
+    });
   }catch(e){res.status(500).json({success:false,message:e.message});}
 });
 
