@@ -19,6 +19,7 @@ const MtmPortalConnector = require("../services/mtm/mtmPortalConnector");
 const MtmApiConnector = require("../services/mtm/mtmApiConnector");
 const MtmMockConnector = require("../services/mtm/mtmMockConnector");
 const MtmMarketplaceWorker = require("../services/mtm/mtmMarketplaceWorker");
+const providerPortalBridgeRoutes = require("./providerPortalBridgeRoutes");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const clean = v => String(v ?? "").trim();
@@ -324,13 +325,46 @@ router.post("/scan",async(req,res)=>{
 
     const connector=await getConnector(id,settings);
     const integration=await resolveBrokerIntegration(id,settings);
+
+    /*
+      Generic Provider Portal -> Marketplace Engine bridge.
+      In MTM_PORTAL mode, use normalized trips discovered by the authorized
+      external Browser Agent. This phase is READ ONLY: Long/Short engines may
+      match real portal trips, but Claim/Accept is explicitly blocked.
+      MTM_MOCK and MTM_API behavior remains unchanged.
+    */
+    let workerSettings=settings;
+    let readOnlyEvaluation=false;
+
+    if(settings.connectionMethod==="MTM_PORTAL"){
+      const getNormalizedTrips=providerPortalBridgeRoutes.getNormalizedTripsForTenant;
+      if(typeof getNormalizedTrips!=="function"){
+        throw new Error("Provider Portal Bridge normalized-trip accessor is not available");
+      }
+
+      const portalTrips=getNormalizedTrips(id).map(t=>({
+        ...t,
+        externalTripId:clean(t.externalTripId || t.portalTripId),
+        tripNumber:clean(t.tripNumber || t.portalTripId),
+        miles:Number(t.tripMiles ?? t.miles ?? 0),
+        tripMiles:Number(t.tripMiles ?? t.miles ?? 0)
+      }));
+
+      workerSettings={
+        ...(typeof settings.toObject==="function"?settings.toObject():settings),
+        portalDiscoveredTrips:portalTrips
+      };
+      readOnlyEvaluation=true;
+    }
+
     const worker=new MtmMarketplaceWorker({
       tenantId:id,
       tenantSlug:settings.tenantSlug,
       integrationId:integration._id,
       integration,
       connector,
-      settings
+      settings:workerSettings,
+      readOnlyEvaluation
     });
 
     const result=await worker.runOnce();
@@ -341,7 +375,14 @@ router.post("/scan",async(req,res)=>{
       lastError:""
     }});
 
-    res.json({success:true,message:"Marketplace scan completed. Successful claims are sent to the existing Broker Hub pipeline.",result});
+    res.json({
+      success:true,
+      readOnlyEvaluation:settings.connectionMethod==="MTM_PORTAL",
+      message:settings.connectionMethod==="MTM_PORTAL"
+        ?"Portal scan completed in READ ONLY evaluation mode. Long/Short matches were evaluated; Claim/Accept was not executed."
+        :"Marketplace scan completed. Successful claims are sent to the existing Broker Hub pipeline.",
+      result
+    });
   }catch(e){
     const id=tenantId(req);
     if(id) await Settings.updateOne({tenantId:id},{$set:{lastScanAt:new Date(),lastError:e.message}}).catch(()=>{});
