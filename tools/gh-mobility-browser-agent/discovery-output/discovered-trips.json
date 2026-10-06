@@ -1,18 +1,131 @@
 {
-  "generatedAt": "2026-10-06T07:58:41.542Z",
+  "generatedAt": "2026-10-06T08:35:51.987Z",
   "mode": "READ_ONLY_DISCOVERY",
   "count": 20,
   "trips": [
     {
-      "id": "QXZhaWxhYmxlVGFzazoxMDE1NzQ2MTAz",
+      "id": "QXZhaWxhYmxlVGFzazoxMDE1ODM4NjQz",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.417Z",
+      "discoveredAt": "2026-10-06T08:35:51.886Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
         "trail": "$.availableTasks[0]"
+      },
+      "raw": {
+        "__typename": "AvailableTask",
+        "appointmentDatetimeLocal": "2026-10-06T06:00:00.000000",
+        "appointmentDatetimeTzShort": "EDT",
+        "carePartnerEarningsEstimate": null,
+        "distanceMeters": 9642,
+        "dropoffLocation": {
+          "__typename": "Location",
+          "address1": "2432 Warm Springs Rd",
+          "address2": null,
+          "city": "Columbus",
+          "county": "Muscogee",
+          "id": "270287ec-ceb3-4dcf-ae5e-0ed3df121351",
+          "latitude": 32.500904,
+          "latitudeOverride": null,
+          "longitude": -84.954745,
+          "longitudeOverride": null,
+          "name": "Dialysis Clinic, Inc.",
+          "notes": null,
+          "phone": "+17063221959",
+          "phoneExtension": null,
+          "phoneType": null,
+          "state": "GA",
+          "timezone": "America/New_York",
+          "zipcode": "31904"
+        },
+        "durationSeconds": 838,
+        "earningsOverride": null,
+        "estimatedDropoffDatetimeLocal": "2026-10-06T05:23:58.000000",
+        "estimatedDropoffDatetimeTz": "America/New_York",
+        "estimatedDropoffDatetimeTzShort": "EDT",
+        "estimatedDropoffDatetimeUtc": "2026-10-06T09:23:58.000000Z",
+        "id": "QXZhaWxhYmxlVGFzazoxMDE1ODM4NjQz",
+        "incentiveAmount": null,
+        "incentiveMultiplierPercent": null,
+        "insertedAt": "2026-10-06T08:25:03.065400Z",
+        "levelOfService": {
+          "__typename": "LevelOfService",
+          "id": "TGV2ZWxPZlNlcnZpY2U6MTM=",
+          "name": "Ambulatory Door-to-Door"
+        },
+        "member": {
+          "__typename": "Member",
+          "chosenName": null,
+          "firstName": "DERRICK",
+          "lastName": "ADAMS",
+          "middleName": null,
+          "phone": null
+        },
+        "numberOfCompanions": 0,
+        "pickupDatetimeLocal": "2026-10-06T05:10:00.000000",
+        "pickupDatetimeTz": "America/New_York",
+        "pickupDatetimeTzShort": "EDT",
+        "pickupDatetimeUtc": "2026-10-06T09:10:00.000000Z",
+        "pickupLocation": {
+          "__typename": "Location",
+          "address1": "420A 20TH AVE",
+          "address2": null,
+          "city": "PHENIX CITY",
+          "county": "Russell",
+          "id": "a14fc1ed-6410-4c0d-baf9-cdc9a8f6b7cd",
+          "latitude": 32.454379,
+          "latitudeOverride": null,
+          "longitude": -85.020884,
+          "longitudeOverride": null,
+          "name": "Home",
+          "notes": null,
+          "phone": "+13349475512",
+          "phoneExtension": null,
+          "phoneType": null,
+          "state": "AL",
+          "timezone": "America/New_York",
+          "zipcode": "36869"
+        },
+        "reservation": {
+          "__typename": "Reservation",
+          "id": "UmVzZXJ2YXRpb246MTAyMjU2MzE2Mw=="
+        },
+        "status": "UNASSIGNED",
+        "statusReason": null,
+        "updatedAt": "2026-10-06T08:25:03.065400Z",
+        "vendorEarningsEstimate": {
+          "__typename": "TaskEarningsEstimate",
+          "baseEarnings": "20.00",
+          "earningsIfLateCancel": "20.00",
+          "earningsIfLateCancelAfterArrival": "20.00",
+          "earningsIfLateCancelWhileEnRoute": "20.00",
+          "earningsIfProviderFailure": "-20.00",
+          "earningsIfSuccessfulCompletion": "20.00",
+          "effectiveAddOnEarnings": "0.00",
+          "hash": "OdbigYe9aYbIsAv8w3WRYG9tC_nYZ24DHrydLDSoaqY=",
+          "inputIncentiveAmount": null,
+          "inputIncentiveMultiplierPercent": null,
+          "totalEarningsIfLateCancel": "20.00",
+          "totalEarningsIfLateCancelAfterArrival": "20.00",
+          "totalEarningsIfLateCancelWhileEnRoute": "20.00",
+          "totalEarningsIfProviderFailure": "-20.00",
+          "totalEarningsIfSuccessfulCompletion": "20.00",
+          "totalIncentive": "0.00"
+        }
+      }
+    },
+    {
+      "id": "QXZhaWxhYmxlVGFzazoxMDE1NzQ2MTAz",
+      "score": 10,
+      "discoveredAt": "2026-10-06T08:35:51.916Z",
+      "source": {
+        "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
+        "host": "hq.carecar.co",
+        "status": 200,
+        "mimeType": "application/json",
+        "trail": "$.availableTasks[1]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -119,13 +232,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NTI3NDMx",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.439Z",
+      "discoveredAt": "2026-10-06T08:35:51.918Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[1]"
+        "trail": "$.availableTasks[2]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -232,13 +345,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzkwNDI0",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.442Z",
+      "discoveredAt": "2026-10-06T08:35:51.922Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[2]"
+        "trail": "$.availableTasks[3]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -345,13 +458,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyOTY0",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.447Z",
+      "discoveredAt": "2026-10-06T08:35:51.927Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[3]"
+        "trail": "$.availableTasks[4]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -458,13 +571,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODI4MjQ2",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.450Z",
+      "discoveredAt": "2026-10-06T08:35:51.934Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[4]"
+        "trail": "$.availableTasks[5]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -571,13 +684,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyNTky",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.454Z",
+      "discoveredAt": "2026-10-06T08:35:51.937Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[5]"
+        "trail": "$.availableTasks[6]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -684,13 +797,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NjA1NTM2",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.457Z",
+      "discoveredAt": "2026-10-06T08:35:51.939Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[6]"
+        "trail": "$.availableTasks[7]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -797,13 +910,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Njc5OTg3",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.462Z",
+      "discoveredAt": "2026-10-06T08:35:51.943Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[7]"
+        "trail": "$.availableTasks[8]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -910,13 +1023,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODE3NzI1",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.466Z",
+      "discoveredAt": "2026-10-06T08:35:51.946Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[8]"
+        "trail": "$.availableTasks[9]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1023,13 +1136,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODA2NjE3",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.471Z",
+      "discoveredAt": "2026-10-06T08:35:51.950Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[9]"
+        "trail": "$.availableTasks[10]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1136,13 +1249,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzg0NTQ3",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.473Z",
+      "discoveredAt": "2026-10-06T08:35:51.953Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[10]"
+        "trail": "$.availableTasks[11]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1249,13 +1362,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzkwNDI1",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.482Z",
+      "discoveredAt": "2026-10-06T08:35:51.960Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[11]"
+        "trail": "$.availableTasks[12]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1362,13 +1475,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NjEyMzEy",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.488Z",
+      "discoveredAt": "2026-10-06T08:35:51.963Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[12]"
+        "trail": "$.availableTasks[13]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1475,13 +1588,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzc2NzU4",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.490Z",
+      "discoveredAt": "2026-10-06T08:35:51.965Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[13]"
+        "trail": "$.availableTasks[14]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1588,13 +1701,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzc4OTAw",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.502Z",
+      "discoveredAt": "2026-10-06T08:35:51.968Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[14]"
+        "trail": "$.availableTasks[15]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1701,13 +1814,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODE3MTUx",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.505Z",
+      "discoveredAt": "2026-10-06T08:35:51.971Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[15]"
+        "trail": "$.availableTasks[16]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1814,13 +1927,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzUzNjE3",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.510Z",
+      "discoveredAt": "2026-10-06T08:35:51.979Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[16]"
+        "trail": "$.availableTasks[17]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -1927,13 +2040,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzY2Mzg5",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.518Z",
+      "discoveredAt": "2026-10-06T08:35:51.982Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[17]"
+        "trail": "$.availableTasks[18]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -2040,13 +2153,13 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzg4MDc1",
       "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.523Z",
+      "discoveredAt": "2026-10-06T08:35:51.987Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
         "status": 200,
         "mimeType": "application/json",
-        "trail": "$.availableTasks[18]"
+        "trail": "$.availableTasks[19]"
       },
       "raw": {
         "__typename": "AvailableTask",
@@ -2146,119 +2259,6 @@
           "totalEarningsIfLateCancelWhileEnRoute": "18.00",
           "totalEarningsIfProviderFailure": "-18.00",
           "totalEarningsIfSuccessfulCompletion": "18.00",
-          "totalIncentive": "0.00"
-        }
-      }
-    },
-    {
-      "id": "QXZhaWxhYmxlVGFzazoxMDE1ODA3Nzc0",
-      "score": 10,
-      "discoveredAt": "2026-10-06T07:58:41.542Z",
-      "source": {
-        "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
-        "host": "hq.carecar.co",
-        "status": 200,
-        "mimeType": "application/json",
-        "trail": "$.availableTasks[19]"
-      },
-      "raw": {
-        "__typename": "AvailableTask",
-        "appointmentDatetimeLocal": "2026-10-06T09:20:00.000000",
-        "appointmentDatetimeTzShort": "CDT",
-        "carePartnerEarningsEstimate": null,
-        "distanceMeters": 22987,
-        "dropoffLocation": {
-          "__typename": "Location",
-          "address1": "6609 Main St",
-          "address2": null,
-          "city": "Winnsboro",
-          "county": "Franklin",
-          "id": "6f566053-da93-47f5-92e3-2f826d61a020",
-          "latitude": 32.165239,
-          "latitudeOverride": null,
-          "longitude": -91.716205,
-          "longitudeOverride": null,
-          "name": "Gandy Eye Care",
-          "notes": null,
-          "phone": "+13184355145",
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "LA",
-          "timezone": "America/Chicago",
-          "zipcode": "71295"
-        },
-        "durationSeconds": 1012,
-        "earningsOverride": null,
-        "estimatedDropoffDatetimeLocal": "2026-10-06T08:46:52.000000",
-        "estimatedDropoffDatetimeTz": "America/Chicago",
-        "estimatedDropoffDatetimeTzShort": "CDT",
-        "estimatedDropoffDatetimeUtc": "2026-10-06T13:46:52.000000Z",
-        "id": "QXZhaWxhYmxlVGFzazoxMDE1ODA3Nzc0",
-        "incentiveAmount": null,
-        "incentiveMultiplierPercent": null,
-        "insertedAt": "2026-10-02T13:49:00.893265Z",
-        "levelOfService": {
-          "__typename": "LevelOfService",
-          "id": "TGV2ZWxPZlNlcnZpY2U6NA==",
-          "name": "Standard Wheelchair"
-        },
-        "member": {
-          "__typename": "Member",
-          "chosenName": null,
-          "firstName": "CATHERINE",
-          "lastName": "DELAUGHTER",
-          "middleName": null,
-          "phone": null
-        },
-        "numberOfCompanions": 1,
-        "pickupDatetimeLocal": "2026-10-06T08:30:00.000000",
-        "pickupDatetimeTz": "America/Chicago",
-        "pickupDatetimeTzShort": "CDT",
-        "pickupDatetimeUtc": "2026-10-06T13:30:00.000000Z",
-        "pickupLocation": {
-          "__typename": "Location",
-          "address1": "133 Short St",
-          "address2": null,
-          "city": "Wisner",
-          "county": "Franklin",
-          "id": "325b7cc3-dabf-4daa-bb51-e4b256d4eb78",
-          "latitude": 31.985838,
-          "latitudeOverride": null,
-          "longitude": -91.652648,
-          "longitudeOverride": null,
-          "name": "Home ",
-          "notes": null,
-          "phone": "+13184395428",
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "LA",
-          "timezone": "America/Chicago",
-          "zipcode": "71378"
-        },
-        "reservation": {
-          "__typename": "Reservation",
-          "id": "UmVzZXJ2YXRpb246MTAyMjYwMDgyMA=="
-        },
-        "status": "UNASSIGNED",
-        "statusReason": null,
-        "updatedAt": "2026-10-02T13:49:00.893265Z",
-        "vendorEarningsEstimate": {
-          "__typename": "TaskEarningsEstimate",
-          "baseEarnings": "41.64",
-          "earningsIfLateCancel": "32.00",
-          "earningsIfLateCancelAfterArrival": "35.00",
-          "earningsIfLateCancelWhileEnRoute": "32.00",
-          "earningsIfProviderFailure": "-35.00",
-          "earningsIfSuccessfulCompletion": "41.64",
-          "effectiveAddOnEarnings": "0.00",
-          "hash": "F5B9aETwp8YqWnIVqNj2hm6cJNDBQtaTe5B0-q-lJlI=",
-          "inputIncentiveAmount": null,
-          "inputIncentiveMultiplierPercent": null,
-          "totalEarningsIfLateCancel": "32.00",
-          "totalEarningsIfLateCancelAfterArrival": "35.00",
-          "totalEarningsIfLateCancelWhileEnRoute": "32.00",
-          "totalEarningsIfProviderFailure": "-35.00",
-          "totalEarningsIfSuccessfulCompletion": "41.64",
           "totalIncentive": "0.00"
         }
       }
