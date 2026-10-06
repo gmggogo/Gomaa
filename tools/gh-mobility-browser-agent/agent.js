@@ -477,6 +477,81 @@ function stableId(
   );
 }
 
+function payloadHasTripCandidate(
+  value,
+  depth=0
+){
+  if(
+    depth>12 ||
+    value==null
+  ){
+    return false;
+  }
+
+  if(Array.isArray(value)){
+    return value.some(
+      child=>
+        payloadHasTripCandidate(
+          child,
+          depth+1
+        )
+    );
+  }
+
+  if(typeof value!=="object"){
+    return false;
+  }
+
+  if(
+    scoreTripObject(value)>=5
+  ){
+    return true;
+  }
+
+  for(
+    const [key,child]
+    of Object.entries(value)
+  ){
+    const lower=
+      key.toLowerCase();
+
+    if(
+      lower.includes("password") ||
+      lower.includes("token") ||
+      lower.includes("cookie") ||
+      lower.includes("authorization")
+    ){
+      continue;
+    }
+
+    if(
+      payloadHasTripCandidate(
+        child,
+        depth+1
+      )
+    ){
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isTelemetryUrl(urlValue){
+  const value=
+    clean(urlValue)
+      .toLowerCase();
+
+  return (
+    value.includes("sentry.io") ||
+    value.includes("google-analytics.com") ||
+    value.includes("googletagmanager.com") ||
+    value.includes("segment.io") ||
+    value.includes("mixpanel.com") ||
+    value.includes("datadoghq.com")
+  );
+}
+
 class PortalSession{
   constructor(options){
     this.connectionId=
@@ -1203,12 +1278,25 @@ class PortalSession{
           params.requestId
       };
 
-      this.queueBridgePayload(
+      /*
+        Ignore telemetry/error-monitoring JSON such as Sentry.
+        Only send a response to GH when it actually contains a trip-like
+        object. This keeps Discoveries, Mapping and sourceHost tied to
+        real provider-portal trip data.
+      */
+      if(
+        isTelemetryUrl(discoveryMeta.url) ||
+        !payloadHasTripCandidate(parsed)
+      ){
+        return;
+      }
+
+      this.walk(
         parsed,
         discoveryMeta
       );
 
-      this.walk(
+      this.queueBridgePayload(
         parsed,
         discoveryMeta
       );

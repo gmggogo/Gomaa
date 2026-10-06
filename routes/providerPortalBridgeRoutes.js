@@ -870,7 +870,13 @@ router.get("/connections",async(req,res)=>{
         const connectionId=String(row._id);
         const store=tenantStore(id,connectionId);
 
+        let configuredPortalHost="";
+        try{
+          configuredPortalHost=new URL(clean(row.portalUrl)).host;
+        }catch(_){}
+
         const sourceHost=
+          configuredPortalHost ||
           [...store.hosts].slice(-1)[0] ||
           clean(row.sourceHost);
 
