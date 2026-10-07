@@ -610,22 +610,24 @@ Marketplace multi-broker UI.
       badge(item.connectionStatus);
 
     $("selectedBrokerDetails").innerHTML=`
-      <div class="row">
-        <span class="muted">Portal:</span>
-        <strong>${esc(portalHost(item) || "—")}</strong>
+      <div class="detail-cell">
+        <span class="detail-label">Portal</span>
+        <span class="detail-value">${esc(portalHost(item) || "—")}</span>
       </div>
 
-      <div class="row">
-        <span class="muted">Mapping:</span>
-        <strong>${esc(item.mapper?.ready ? "READY" : "WAITING")}</strong>
-        <span class="muted">
-          Discoveries: ${Number(item.discoveriesReceived || 0)}
+      <div class="detail-cell">
+        <span class="detail-label">Mapping</span>
+        <span class="detail-inline">
+          <span class="detail-value ${item.mapper?.ready ? "ready" : ""}">
+            ${esc(item.mapper?.ready ? "READY" : "WAITING")}
+          </span>
+          <span class="detail-sub">Discoveries: ${Number(item.discoveriesReceived || 0)}</span>
         </span>
       </div>
 
-      <div class="row">
-        <span class="muted">Connection ID:</span>
-        <span>${esc(item.connectionId || "—")}</span>
+      <div class="detail-cell">
+        <span class="detail-label">Connection ID</span>
+        <span class="detail-value">${esc(item.connectionId || "—")}</span>
       </div>
     `;
 
@@ -1056,7 +1058,28 @@ Marketplace multi-broker UI.
   }
 
   $("refreshBtn")
-    ?.addEventListener("click",load);
+    ?.addEventListener(
+      "click",
+      async()=>{
+        const btn=$("refreshBtn");
+
+        try{
+          if(btn){
+            btn.disabled=true;
+            btn.classList.add("refreshing");
+            btn.textContent="Refreshing...";
+          }
+
+          await load();
+        }finally{
+          if(btn){
+            btn.disabled=false;
+            btn.classList.remove("refreshing");
+            btn.textContent="Refresh";
+          }
+        }
+      }
+    );
 
   $("connectBtn")
     ?.addEventListener(
