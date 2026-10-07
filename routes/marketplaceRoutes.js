@@ -165,6 +165,77 @@ function zipList(value){
 
 function normalizeEngine(value={}){
 
+  /*
+    Marketplace Settings UI now sends tripMilesMin / tripMilesMax and
+    the full zone-center fields. Keep milesMin / milesMax mirrored for
+    the existing Long/Short matching engines, which still read those
+    legacy names.
+  */
+  const tripMilesMin =
+    Math.max(
+      0,
+      Number(
+        value.tripMilesMin ??
+        value.milesMin
+      ) || 0
+    );
+
+  const tripMilesMax =
+    Math.max(
+      0,
+      Number(
+        value.tripMilesMax ??
+        value.milesMax
+      ) || 0
+    );
+
+  const zoneRadiusMiles =
+    Math.max(
+      0,
+      Number(
+        value.zoneRadiusMiles ??
+        200
+      ) || 0
+    );
+
+  const pickupZoneZip =
+    clean(
+      value.pickupZoneZip
+    );
+
+  const dropoffZoneZip =
+    clean(
+      value.dropoffZoneZip
+    );
+
+  const pickupZipCodes =
+    zipList(
+      value.pickupZipCodes
+    );
+
+  const dropoffZipCodes =
+    zipList(
+      value.dropoffZipCodes
+    );
+
+  if(
+    pickupZoneZip &&
+    !pickupZipCodes.includes(pickupZoneZip)
+  ){
+    pickupZipCodes.unshift(
+      pickupZoneZip
+    );
+  }
+
+  if(
+    dropoffZoneZip &&
+    !dropoffZipCodes.includes(dropoffZoneZip)
+  ){
+    dropoffZipCodes.unshift(
+      dropoffZoneZip
+    );
+  }
+
   return {
     enabled:
       value.enabled === true,
@@ -172,27 +243,20 @@ function normalizeEngine(value={}){
     autoAccept:
       value.autoAccept === true,
 
+    zoneRadiusMiles,
+
+    tripMilesMin,
+    tripMilesMax,
+
+    /*
+      Backward compatibility for mtmLongTripEngine / mtmShortTripEngine.
+      These engines currently evaluate settings.milesMin / milesMax.
+    */
     milesMin:
-      Math.max(
-        0,
-        Number(
-          value.milesMin ??
-          value.tripMilesFrom ??
-          value.milesFrom ??
-          value.minMiles
-        ) || 0
-      ),
+      tripMilesMin,
 
     milesMax:
-      Math.max(
-        0,
-        Number(
-          value.milesMax ??
-          value.tripMilesTo ??
-          value.milesTo ??
-          value.maxMiles
-        ) || 0
-      ),
+      tripMilesMax,
 
     dailyTripLimit:
       Math.max(
@@ -222,14 +286,41 @@ function normalizeEngine(value={}){
         value.dropoffTimeTo
       ) || "23:59",
 
-    pickupZipCodes:
-      zipList(
-        value.pickupZipCodes
+    pickupZipCodes,
+    dropoffZipCodes,
+
+    pickupZoneCity:
+      clean(
+        value.pickupZoneCity
       ),
 
-    dropoffZipCodes:
-      zipList(
-        value.dropoffZipCodes
+    pickupZoneState:
+      clean(
+        value.pickupZoneState
+      ).toUpperCase(),
+
+    pickupZoneZip,
+
+    pickupZoneAddress:
+      clean(
+        value.pickupZoneAddress
+      ),
+
+    dropoffZoneCity:
+      clean(
+        value.dropoffZoneCity
+      ),
+
+    dropoffZoneState:
+      clean(
+        value.dropoffZoneState
+      ).toUpperCase(),
+
+    dropoffZoneZip,
+
+    dropoffZoneAddress:
+      clean(
+        value.dropoffZoneAddress
       ),
 
     zoneMatch:
