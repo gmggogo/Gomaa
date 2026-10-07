@@ -94,6 +94,8 @@ function verifyAgentToken(req,res,next){
   coupling the browser agent to a specific broker.
 */
 const stores=new Map();
+
+const discoveryListeners=new Set();
 const MAX_ITEMS_PER_TENANT=250;
 const MAX_NORMALIZED_TRIPS_PER_TENANT=1000;
 
@@ -1222,6 +1224,71 @@ function safeHost(url){
 }
 
 /* Agent endpoint: intentionally outside admin auth; protected by scoped pairing token. */
+
+function tripEventKey(trip={}){
+  return clean(
+    trip.portalTripId ||
+    trip.externalTripId ||
+    trip.tripNumber ||
+    trip.assignmentNumber ||
+    trip.reservationId
+  ) || [
+    clean(trip.tripDate),
+    clean(trip.pickupTime),
+    clean(trip.pickupAddress),
+    clean(trip.dropoffAddress)
+  ].join("|").toLowerCase();
+}
+
+function tripEventFingerprint(trip={}){
+  const raw=JSON.stringify({
+    id:tripEventKey(trip),
+    tripDate:clean(trip.tripDate),
+    pickupTime:clean(trip.pickupTime),
+    dropoffTime:clean(trip.dropoffTime),
+    pickupAddress:clean(trip.pickupAddress),
+    dropoffAddress:clean(trip.dropoffAddress),
+    mode:clean(trip.mode),
+    tripMiles:Number(trip.tripMiles ?? 0)
+  });
+
+  let hash=0;
+  for(let i=0;i<raw.length;i++){
+    hash=((hash<<5)-hash)+raw.charCodeAt(i);
+    hash|=0;
+  }
+  return String(Math.abs(hash));
+}
+
+async function notifyDiscoveryListeners(event){
+  if(!discoveryListeners.size) return;
+
+  await Promise.all(
+    [...discoveryListeners].map(async listener=>{
+      try{
+        await listener(event);
+      }catch(err){
+        console.error(
+          "[ProviderPortalBridge] discovery listener failed:",
+          err?.message || err
+        );
+      }
+    })
+  );
+}
+
+router.registerDiscoveryListener=function(listener){
+  if(typeof listener!=="function"){
+    throw new Error("Discovery listener must be a function");
+  }
+
+  discoveryListeners.add(listener);
+
+  return ()=>{
+    discoveryListeners.delete(listener);
+  };
+};
+
 router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req,res)=>{
   try{
     await ensureMappingIndexes();
@@ -1318,6 +1385,16 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
     store.lastReceivedAt=item.receivedAt;
     if(host) store.hosts.add(host);
 
+    const beforeFingerprints=
+      new Map(
+        (store.normalizedTrips || []).map(
+          trip=>[
+            tripEventKey(trip),
+            tripEventFingerprint(trip)
+          ]
+        )
+      );
+
     const actionResult=
       await chooseActionProfile(
         body.actionCandidates
@@ -1384,6 +1461,32 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
         Boolean(
           onboardingProfile?.actionReady
         );
+    }
+
+    const changedTrips=
+      (store.normalizedTrips || []).filter(
+        trip=>{
+          const key=tripEventKey(trip);
+          const fingerprint=tripEventFingerprint(trip);
+          return Boolean(
+            key &&
+            beforeFingerprints.get(key)!==fingerprint
+          );
+        }
+      );
+
+    if(changedTrips.length){
+      await notifyDiscoveryListeners({
+        tenantId:String(id),
+        connectionId,
+        brokerName:connection?.brokerName || "",
+        brokerCode:connection?.brokerCode || "",
+        accountLabel:connection?.accountLabel || "",
+        sourceHost:host,
+        discoveryType,
+        receivedAt:item.receivedAt,
+        trips:changedTrips.map(trip=>({...trip}))
+      });
     }
 
     if(connectionId){

@@ -1,20 +1,274 @@
 "use strict";
-/* DESTINATION PATH: server/public/admin/js/marketplace-settings.js\n   Marketplace Settings contains Long/Short engine settings only. */
+
 (()=>{
-  const $=id=>document.getElementById(id);const token=()=>String(localStorage.getItem("token")||"").trim();
-  const headers=()=>({"Content-Type":"application/json",Authorization:`Bearer ${token()}`});const arr=v=>String(v||"").split(/[\s,]+/).map(x=>x.trim()).filter(Boolean);
-  let preserved={enabled:true,dateWindowDays:7,totalDailyTripLimit:0};
-  function engineMarkup(p){return `<div class="checks"><label><input id="${p}Enabled" type="checkbox"> Engine Enabled</label><label><input id="${p}Auto" type="checkbox"> Auto Accept</label></div>
-    <div class="row"><div><label>Miles From</label><input id="${p}Min" type="number" min="0"></div><div><label>Miles To</label><input id="${p}Max" type="number" min="0"></div></div>
-    <div class="row"><div><label>Pickup Time From</label><input id="${p}PUFrom" type="time"></div><div><label>Pickup Time To</label><input id="${p}PUTo" type="time"></div></div>
-    <div class="row"><div><label>Dropoff Time From</label><input id="${p}DOFrom" type="time"></div><div><label>Dropoff Time To</label><input id="${p}DOTo" type="time"></div></div>
-    <div class="row"><div><label>Pickup ZIPs</label><input id="${p}PUZip" placeholder="85224, 85225"></div><div><label>Dropoff ZIPs</label><input id="${p}DOZip" placeholder="85001, 85701"></div></div>
-    <div class="row"><div><label>Zone Match</label><select id="${p}Zone"><option>ANY</option><option>PICKUP</option><option>DROPOFF</option><option>EITHER</option><option>BOTH</option></select></div><div><label>Daily Trip Limit</label><input id="${p}Limit" type="number" min="0"></div></div>
-    <label>Modes / Services</label><input id="${p}Modes" placeholder="Ambulatory, Wheelchair">`;}
-  $("longEngine").insertAdjacentHTML("beforeend",engineMarkup("long"));$("shortEngine").insertAdjacentHTML("beforeend",engineMarkup("short"));
-  async function api(path,opt={}){const r=await fetch(`/api/marketplace${path}`,{...opt,headers:headers(),cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||`HTTP ${r.status}`);return d;}
-  function read(p){return{enabled:$(`${p}Enabled`).checked,autoAccept:$(`${p}Auto`).checked,milesMin:Number($(`${p}Min`).value)||0,milesMax:Number($(`${p}Max`).value)||0,dailyTripLimit:Number($(`${p}Limit`).value)||0,pickupTimeFrom:$(`${p}PUFrom`).value||"00:00",pickupTimeTo:$(`${p}PUTo`).value||"23:59",dropoffTimeFrom:$(`${p}DOFrom`).value||"00:00",dropoffTimeTo:$(`${p}DOTo`).value||"23:59",pickupZipCodes:arr($(`${p}PUZip`).value),dropoffZipCodes:arr($(`${p}DOZip`).value),zoneMatch:$(`${p}Zone`).value,modes:arr($(`${p}Modes`).value)};}
-  function fill(p,e={}){$(`${p}Enabled`).checked=!!e.enabled;$(`${p}Auto`).checked=!!e.autoAccept;for(const [s,k,d] of [["Min","milesMin",p==="long"?10:0],["Max","milesMax",p==="long"?50:9.99],["Limit","dailyTripLimit",0],["PUFrom","pickupTimeFrom","00:00"],["PUTo","pickupTimeTo","23:59"],["DOFrom","dropoffTimeFrom","00:00"],["DOTo","dropoffTimeTo","23:59"],["Zone","zoneMatch","ANY"]])$(`${p}${s}`).value=e[k]??d;$(`${p}PUZip`).value=(e.pickupZipCodes||[]).join(", ");$(`${p}DOZip`).value=(e.dropoffZipCodes||[]).join(", ");$(`${p}Modes`).value=(e.modes||[]).join(", ");}
-  async function load(){try{const d=await api("/settings");const s=d.settings||{};preserved={enabled:s.enabled!==false,dateWindowDays:Number(s.dateWindowDays||7),totalDailyTripLimit:Number(s.totalDailyTripLimit||0)};fill("long",s.longEngine||{});fill("short",s.shortEngine||{});}catch(e){$("message").textContent=e.message;}}
-  $("saveBtn").addEventListener("click",async()=>{try{$("message").textContent="Saving...";await api("/settings",{method:"PUT",body:JSON.stringify({...preserved,longEngine:read("long"),shortEngine:read("short")})});$("message").textContent="Saved.";}catch(e){$("message").textContent=e.message;}});load();
+  const $=id=>document.getElementById(id);
+
+  const token=()=>String(
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token") ||
+    ""
+  ).trim();
+
+  const headers=()=>({
+    "Content-Type":"application/json",
+    Authorization:`Bearer ${token()}`
+  });
+
+  const arr=value=>
+    String(value||"")
+      .split(/[\s,]+/)
+      .map(x=>x.trim())
+      .filter(Boolean);
+
+  async function api(path,opt={}){
+    const response=await fetch(
+      `/api/marketplace${path}`,
+      {
+        ...opt,
+        headers:{
+          ...headers(),
+          ...(opt.headers||{})
+        },
+        cache:"no-store"
+      }
+    );
+
+    const data=await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(
+        data.message ||
+        `HTTP ${response.status}`
+      );
+    }
+
+    return data;
+  }
+
+  function engineMarkup(prefix){
+    return `
+      <div class="checks">
+        <label><input id="${prefix}Enabled" type="checkbox"> Engine Enabled</label>
+        <label><input id="${prefix}Auto" type="checkbox"> Auto Accept</label>
+      </div>
+
+      <div class="section-label">Zone Filter</div>
+
+      <div class="row">
+        <div>
+          <label>Pickup Zone ZIPs</label>
+          <input id="${prefix}PUZip" placeholder="70714">
+          <div class="note">Each ZIP is a center point for the radius.</div>
+        </div>
+
+        <div>
+          <label>Dropoff Zone ZIPs</label>
+          <input id="${prefix}DOZip" placeholder="70714">
+          <div class="note">Used when Zone Match includes Dropoff.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Zone Radius Miles</label>
+          <input id="${prefix}Radius" type="number" min="0" step="1" value="200">
+          <div class="note">This is NOT trip length. It is the radius around the ZIP center(s).</div>
+        </div>
+
+        <div>
+          <label>Zone Match</label>
+          <select id="${prefix}Zone">
+            <option value="ANY">ANY</option>
+            <option value="PICKUP">PICKUP</option>
+            <option value="DROPOFF">DROPOFF</option>
+            <option value="EITHER">EITHER</option>
+            <option value="BOTH">BOTH</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-label">Trip Filters</div>
+
+      <div class="row">
+        <div>
+          <label>Trip Miles From</label>
+          <input id="${prefix}TripMin" type="number" min="0" step="0.1" value="0">
+        </div>
+        <div>
+          <label>Trip Miles To</label>
+          <input id="${prefix}TripMax" type="number" min="0" step="0.1" value="0">
+          <div class="note">0 = no maximum trip-length limit.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Pickup Time From</label>
+          <input id="${prefix}PUFrom" type="time" value="00:00">
+        </div>
+        <div>
+          <label>Pickup Time To</label>
+          <input id="${prefix}PUTo" type="time" value="23:59">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Dropoff Time From</label>
+          <input id="${prefix}DOFrom" type="time" value="00:00">
+        </div>
+        <div>
+          <label>Dropoff Time To</label>
+          <input id="${prefix}DOTo" type="time" value="23:59">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Services / Modes</label>
+          <input id="${prefix}Modes" placeholder="Ambulatory, Wheelchair">
+          <div class="note">Ambulatory also matches Ambulatory Curb / Door-to-Door. Wheelchair also matches Paralift.</div>
+        </div>
+
+        <div>
+          <label>Daily Trip Limit</label>
+          <input id="${prefix}Limit" type="number" min="0" value="0">
+          <div class="note">0 = unlimited.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  $("longEngine").insertAdjacentHTML(
+    "beforeend",
+    engineMarkup("long")
+  );
+
+  $("shortEngine").insertAdjacentHTML(
+    "beforeend",
+    engineMarkup("short")
+  );
+
+  function readEngine(prefix){
+    return {
+      enabled:$(`${prefix}Enabled`).checked,
+      autoAccept:$(`${prefix}Auto`).checked,
+      zoneRadiusMiles:Number($(`${prefix}Radius`).value)||0,
+      tripMilesMin:Number($(`${prefix}TripMin`).value)||0,
+      tripMilesMax:Number($(`${prefix}TripMax`).value)||0,
+      pickupZipCodes:arr($(`${prefix}PUZip`).value),
+      dropoffZipCodes:arr($(`${prefix}DOZip`).value),
+      zoneMatch:$(`${prefix}Zone`).value,
+      pickupTimeFrom:$(`${prefix}PUFrom`).value||"00:00",
+      pickupTimeTo:$(`${prefix}PUTo`).value||"23:59",
+      dropoffTimeFrom:$(`${prefix}DOFrom`).value||"00:00",
+      dropoffTimeTo:$(`${prefix}DOTo`).value||"23:59",
+      modes:arr($(`${prefix}Modes`).value),
+      dailyTripLimit:Number($(`${prefix}Limit`).value)||0
+    };
+  }
+
+  function fillEngine(prefix,engine={}){
+    $(`${prefix}Enabled`).checked=engine.enabled===true;
+    $(`${prefix}Auto`).checked=engine.autoAccept===true;
+
+    const legacyRadius=
+      Number(engine.milesMax)||0;
+
+    $(`${prefix}Radius`).value=
+      engine.zoneRadiusMiles ??
+      legacyRadius ??
+      200;
+
+    $(`${prefix}TripMin`).value=
+      Number(engine.tripMilesMin)||0;
+
+    $(`${prefix}TripMax`).value=
+      Number(engine.tripMilesMax)||0;
+
+    $(`${prefix}PUZip`).value=
+      (engine.pickupZipCodes||[]).join(", ");
+
+    $(`${prefix}DOZip`).value=
+      (engine.dropoffZipCodes||[]).join(", ");
+
+    $(`${prefix}Zone`).value=
+      engine.zoneMatch || "ANY";
+
+    $(`${prefix}PUFrom`).value=
+      engine.pickupTimeFrom || "00:00";
+
+    $(`${prefix}PUTo`).value=
+      engine.pickupTimeTo || "23:59";
+
+    $(`${prefix}DOFrom`).value=
+      engine.dropoffTimeFrom || "00:00";
+
+    $(`${prefix}DOTo`).value=
+      engine.dropoffTimeTo || "23:59";
+
+    $(`${prefix}Modes`).value=
+      (engine.modes||[]).join(", ");
+
+    $(`${prefix}Limit`).value=
+      Number(engine.dailyTripLimit)||0;
+  }
+
+  async function load(){
+    try{
+      const data=await api("/settings");
+      const settings=data.settings||{};
+
+      $("enabled").checked=
+        settings.enabled!==false;
+
+      $("totalDailyTripLimit").value=
+        Number(settings.totalDailyTripLimit)||0;
+
+      fillEngine(
+        "long",
+        settings.longEngine || {}
+      );
+
+      fillEngine(
+        "short",
+        settings.shortEngine || {}
+      );
+
+      $("message").textContent="";
+    }catch(err){
+      $("message").textContent=err.message;
+    }
+  }
+
+  $("saveBtn").addEventListener(
+    "click",
+    async()=>{
+      try{
+        $("saveBtn").disabled=true;
+        $("message").textContent="Saving...";
+
+        await api(
+          "/settings",
+          {
+            method:"PUT",
+            body:JSON.stringify({
+              enabled:$("enabled").checked,
+              totalDailyTripLimit:Number($("totalDailyTripLimit").value)||0,
+              longEngine:readEngine("long"),
+              shortEngine:readEngine("short")
+            })
+          }
+        );
+
+        $("message").textContent="Saved.";
+      }catch(err){
+        $("message").textContent=err.message;
+      }finally{
+        $("saveBtn").disabled=false;
+      }
+    }
+  );
+
+  load();
 })();

@@ -1,32 +1,66 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Marketplace Settings | GH Mobility</title>
-  <link rel="stylesheet" href="/admin/style.css">
+  <title>Marketplace Settings - GH Mobility</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}#adminHeader{width:100%;z-index:1000}
-    .page{max-width:1280px;margin:26px auto;padding:0 18px 40px}.card{background:#fff;border:1px solid #e2e5ea;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-    label{display:block;font-size:13px;font-weight:800;margin-bottom:6px}input,select{width:100%;padding:10px 11px;border:1px solid #cfd4dc;border-radius:8px;background:#fff}.checks{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}.checks label{margin:0;display:flex;gap:7px;align-items:center}.checks input{width:auto}
-    button{border:0;border-radius:8px;padding:11px 18px;font-weight:900;cursor:pointer}.gold{background:linear-gradient(180deg,#f6c85f,#d79a00);color:#241900}.muted{color:#6a717d;font-size:13px}#message{margin-left:10px;font-weight:700}
-    @media(max-width:900px){.grid2,.row{grid-template-columns:1fr}.page{padding:0 10px 30px}}
+    *{box-sizing:border-box}
+    body{margin:0;background:#f5f6f8;color:#111;font-family:Arial,sans-serif}
+    .page{width:min(1500px,calc(100% - 24px));margin:86px auto 30px}
+    .title{background:#fff8df;border:1px solid #d9ad2b;border-radius:12px;padding:14px;text-align:center;margin-bottom:16px}
+    .title h1{margin:0;font-size:24px}
+    .title p{margin:5px 0 0;color:#666;font-size:13px}
+    .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}
+    input,select{width:100%;padding:10px;border:1px solid #cfd4da;border-radius:8px;font-size:14px;background:#fff}
+    .checks{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+    .checks label{display:flex;align-items:center;gap:7px;margin:0}
+    .checks input{width:auto}
+    .note{font-size:12px;color:#667085;margin-top:7px;line-height:1.45}
+    .gold{background:#d7a400;border:0;border-radius:8px;padding:11px 18px;font-weight:900;cursor:pointer}
+    .engine-title{display:flex;justify-content:space-between;align-items:center}
+    .engine-title h2{margin:0}
+    .section-label{font-weight:900;margin-top:16px;border-top:1px solid #eee;padding-top:14px}
+    .msg{margin-left:12px;font-size:13px;color:#555}
+    @media(max-width:900px){.grid2,.row{grid-template-columns:1fr}.page{margin-top:76px}}
   </style>
 </head>
 <body>
-  <div id="adminHeader"></div>
   <main class="page">
-    <section style="background:#f5d77a;border:1px solid #d9ad2b;border-radius:10px;padding:13px;text-align:center;margin-bottom:16px">
-      <div style="font-size:22px;font-weight:900">Marketplace Settings</div>
-      <div style="font-size:13px;margin-top:4px">Long and Short engine settings only</div>
+    <section class="title">
+      <h1>Marketplace Settings</h1>
+      <p>All automatic marketplace trips must pass these filters before they can match.</p>
     </section>
+
+    <section class="card">
+      <div class="checks">
+        <label><input id="enabled" type="checkbox"> Marketplace Enabled</label>
+        <label>Total Daily Limit <input id="totalDailyTripLimit" type="number" min="0" value="0" style="width:100px"></label>
+      </div>
+      <div class="note">
+        The Browser Agent evaluates new trips automatically as soon as they are discovered.
+        The manual button on Marketplace is only a test/re-evaluation tool.
+      </div>
+    </section>
+
     <section class="grid2">
-      <div class="card" id="longEngine"><h2 style="margin-top:0">Long Trips Engine</h2></div>
-      <div class="card" id="shortEngine"><h2 style="margin-top:0">Short Trips Engine</h2></div>
+      <div class="card" id="longEngine">
+        <div class="engine-title"><h2>Long Trips Engine</h2></div>
+      </div>
+      <div class="card" id="shortEngine">
+        <div class="engine-title"><h2>Short Trips Engine</h2></div>
+      </div>
     </section>
-    <section class="card"><button id="saveBtn" class="gold" type="button">Save Marketplace Settings</button><span id="message" class="muted"></span></section>
+
+    <section class="card">
+      <button id="saveBtn" class="gold" type="button">Save Marketplace Settings</button>
+      <span id="message" class="msg"></span>
+    </section>
   </main>
+
   <script src="/admin/header.js"></script>
   <script src="/admin/js/marketplace-settings.js"></script>
 </body>

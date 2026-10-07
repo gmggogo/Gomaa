@@ -26,6 +26,36 @@ const EngineSchema = new mongoose.Schema(
       default:false
     },
 
+    /*
+      Zone = radius around one or more configured ZIP codes.
+      Existing pickupZipCodes / dropoffZipCodes are used as zone centers.
+    */
+    zoneRadiusMiles:{
+      type:Number,
+      default:200,
+      min:0
+    },
+
+    /*
+      Trip length is a separate filter from zone radius.
+      A max of 0 means no upper trip-mile limit.
+    */
+    tripMilesMin:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    tripMilesMax:{
+      type:Number,
+      default:0,
+      min:0
+    },
+
+    /*
+      Legacy values retained so existing settings documents remain readable.
+      New code does not treat milesMax as trip length when zoneRadiusMiles exists.
+    */
     milesMin:{
       type:Number,
       default:0,
@@ -160,6 +190,9 @@ const MarketplaceSettingsSchema =
         default:()=>({
           enabled:false,
           autoAccept:false,
+          zoneRadiusMiles:200,
+          tripMilesMin:0,
+          tripMilesMax:0,
           milesMin:10,
           milesMax:50,
           dailyTripLimit:0,
@@ -179,6 +212,9 @@ const MarketplaceSettingsSchema =
         default:()=>({
           enabled:false,
           autoAccept:false,
+          zoneRadiusMiles:200,
+          tripMilesMin:0,
+          tripMilesMax:0,
           milesMin:0,
           milesMax:9.99,
           dailyTripLimit:0,

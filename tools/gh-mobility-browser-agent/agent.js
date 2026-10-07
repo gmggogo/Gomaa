@@ -930,7 +930,7 @@ class PortalSession{
     this.domTimer=
       setInterval(
         ()=>this.inspectDom().catch(()=>{}),
-        3500
+        1200
       );
 
     this.domTimer.unref?.();
