@@ -176,7 +176,10 @@ function normalizeEngine(value={}){
       Math.max(
         0,
         Number(
-          value.milesMin
+          value.milesMin ??
+          value.tripMilesFrom ??
+          value.milesFrom ??
+          value.minMiles
         ) || 0
       ),
 
@@ -184,7 +187,10 @@ function normalizeEngine(value={}){
       Math.max(
         0,
         Number(
-          value.milesMax
+          value.milesMax ??
+          value.tripMilesTo ??
+          value.milesTo ??
+          value.maxMiles
         ) || 0
       ),
 
