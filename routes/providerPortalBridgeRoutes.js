@@ -601,6 +601,11 @@ function ingestNormalizedTrips(store,payload,meta){
       added++;
     }
   }
+  store.normalizedTrips=
+    store.normalizedTrips.filter(
+      normalizedTripEligible
+    );
+
   if(store.normalizedTrips.length>MAX_NORMALIZED_TRIPS_PER_TENANT){
     store.normalizedTrips.splice(0,store.normalizedTrips.length-MAX_NORMALIZED_TRIPS_PER_TENANT);
   }
@@ -1480,6 +1485,48 @@ async function resolvePortalMapping(tenant,connectionId,host,samples){
   };
 }
 
+
+function normalizedTripYmd(trip={}){
+  const direct=clean(trip.tripDate);
+  let match=direct.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if(match){
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+
+  for(const value of [
+    trip.pickupTime,
+    trip.appointmentTime,
+    trip.dropoffTime
+  ]){
+    match=clean(value).match(/^(\d{4})-(\d{2})-(\d{2})T/);
+
+    if(match){
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+  }
+
+  return "";
+}
+
+function normalizedTodayYmd(){
+  const now=new Date();
+  const y=now.getFullYear();
+  const m=String(now.getMonth()+1).padStart(2,"0");
+  const d=String(now.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function normalizedTripEligible(trip={}){
+  const date=normalizedTripYmd(trip);
+
+  return Boolean(
+    date &&
+    date>=normalizedTodayYmd() &&
+    trip.availableForAccept===true
+  );
+}
+
 async function ingestSmartNormalizedTrips(store,payload,meta){
   const found=
     discoverySamples(
@@ -1542,7 +1589,24 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     trip.mappingConfidence=mapper.confidence;
 
     if(!trip.portalTripId) continue;
+
     const key=normalizedKey(trip);
+
+    if(!normalizedTripEligible(trip)){
+      const staleIndex=
+        store.normalizedTrips.findIndex(
+          x=>normalizedKey(x)===key
+        );
+
+      if(staleIndex>=0){
+        store.normalizedTrips.splice(
+          staleIndex,
+          1
+        );
+      }
+
+      continue;
+    }
     const index=store.normalizedTrips.findIndex(x=>normalizedKey(x)===key);
     if(index>=0){
       store.normalizedTrips[index]=trip;

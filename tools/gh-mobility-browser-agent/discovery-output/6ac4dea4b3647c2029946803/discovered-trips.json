@@ -1,275 +1,15 @@
 {
-  "generatedAt": "2026-10-07T04:36:35.577Z",
+  "generatedAt": "2026-10-07T06:57:35.279Z",
   "connectionId": "6ac4dea4b3647c2029946803",
   "brokerName": "CARCARE",
   "accountLabel": "Primary Account",
   "mode": "READ_ONLY_DISCOVERY",
-  "count": 22,
+  "count": 20,
   "trips": [
-    {
-      "id": "VGFzazoxMDEzMTYyMzkz",
-      "score": 10,
-      "discoveredAt": "2026-10-07T04:36:34.509Z",
-      "source": {
-        "url": "https://hq.carecar.co/manage/providers/104103/tasks?statuses=ARRIVED_AT_PICKUP%2CASSIGNED%2CCOMPLETED%2CEN_ROUTE_TO_PICKUP%2CEN_ROUTE_TO_DROPOFF%2CUNASSIGNED&_data=routes%2F_app.manage.providers.%24providerId.tasks._index",
-        "host": "hq.carecar.co",
-        "status": 200,
-        "mimeType": "application/json",
-        "trail": "$.tasks[0]"
-      },
-      "raw": {
-        "incentiveAmount": null,
-        "pickupLocation": {
-          "__typename": "Location",
-          "address1": "1870 E Rawhide St, Gilbert, AZ 85296, USA",
-          "address2": null,
-          "city": "Gilbert",
-          "county": "Maricopa",
-          "id": "81f7c746-2735-4fea-9d08-ceaf4cc36263",
-          "latitude": 33.3423555,
-          "latitudeOverride": 33.3423555,
-          "longitude": -111.7498822,
-          "longitudeOverride": -111.7498822,
-          "name": null,
-          "notes": null,
-          "phone": null,
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "AZ",
-          "timezone": "America/Phoenix",
-          "zipcode": "85296"
-        },
-        "isDeductableFromMember": null,
-        "currentEarnings": {
-          "__typename": "TaskEarnings",
-          "baseEarnings": "25.00",
-          "incentivizedEarnings": "25.00"
-        },
-        "earningsClassificationOverride": null,
-        "updatedAt": "2025-12-30T18:22:09.335391Z",
-        "levelOfService": {
-          "__typename": "LevelOfService",
-          "id": "TGV2ZWxPZlNlcnZpY2U6Mw==",
-          "name": "Folding Walker"
-        },
-        "completedAtDatetimeTz": "America/Phoenix",
-        "providerAvailabilityRule": null,
-        "pickupDatetimeTz": "America/Phoenix",
-        "estimatedDropoffDatetimeTzShort": "MST",
-        "vehicle": null,
-        "completedAtDatetimeTzShort": "MST",
-        "cancelledAtDatetimeTzShort": null,
-        "isServiceable": true,
-        "internalNotes": null,
-        "failedAtDatetimeTz": null,
-        "status": "COMPLETED",
-        "enRouteToPickupAtDatetimeTzShort": "MST",
-        "pickupDatetimeLocal": "2025-12-30T11:15:00.000000",
-        "contractedDistanceMetersOverride": null,
-        "driverNotes": "Drop-off/Pick-up is Suite #101 (\"OSR Physical Therapy\" is the business name, and entrance faces Val Vista Dr.)",
-        "driver": null,
-        "distanceMeters": 6826,
-        "member": {
-          "__typename": "Member",
-          "chosenName": null,
-          "firstName": "BRAD",
-          "lastName": "FURMAN",
-          "middleName": "E",
-          "phone": "+19283001039"
-        },
-        "contractedDurationSecondsOverride": null,
-        "insertedAt": "2025-12-30T01:46:14.907951Z",
-        "estimatedDropoffDatetimeUtc": "2025-12-30T18:31:07.000000Z",
-        "earningsOverride": null,
-        "failedAtDatetimeLocal": null,
-        "arrivedAtPickupAtDatetimeLocal": "2025-12-30T11:07:03.707864",
-        "pickupDatetimeTzShort": "MST",
-        "appointmentDatetimeTzShort": "MST",
-        "incentiveMultiplierPercent": null,
-        "pickupDatetimeUtc": "2025-12-30T18:15:00.000000Z",
-        "enRouteToPickupAtDatetimeUtc": "2025-12-30T17:55:48.163507Z",
-        "failedAtDatetimeUtc": null,
-        "numberOfCompanions": 0,
-        "cancelledAtDatetimeUtc": null,
-        "isBillableToPayer": null,
-        "appointmentDatetimeLocal": "2025-12-30T12:00:00.000000",
-        "completedAtDatetimeLocal": "2025-12-30T11:22:09.307623",
-        "cancelledAtDatetimeLocal": null,
-        "contractedDurationSeconds": 967,
-        "earningsClassification": "SUCCESSFUL_COMPLETION",
-        "arrivedAtPickupAtDatetimeTz": "America/Phoenix",
-        "completedAtDatetimeUtc": "2025-12-30T18:22:09.307623Z",
-        "durationSeconds": 967,
-        "arrivedAtPickupAtDatetimeTzShort": "MST",
-        "id": "VGFzazoxMDEzMTYyMzkz",
-        "dropoffLocation": {
-          "__typename": "Location",
-          "address1": "3345 S Val Vista Dr v, Gilbert, AZ 85297, USA",
-          "address2": null,
-          "city": "Gilbert",
-          "county": "Maricopa",
-          "id": "e6581ded-2bfc-49f6-9fd6-b24335ba1beb",
-          "latitude": 33.2908316,
-          "latitudeOverride": 33.2908316,
-          "longitude": -111.7545724,
-          "longitudeOverride": -111.7545724,
-          "name": null,
-          "notes": null,
-          "phone": null,
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "AZ",
-          "timezone": "America/Phoenix",
-          "zipcode": "85297"
-        },
-        "statusReason": null,
-        "enRouteToPickupAtDatetimeTz": "America/Phoenix",
-        "__typename": "Task",
-        "cancelledAtDatetimeTz": null,
-        "estimatedDropoffDatetimeLocal": "2025-12-30T11:31:07.000000",
-        "routeGenieOrder": null,
-        "enRouteToPickupAtDatetimeLocal": "2025-12-30T10:55:48.163507",
-        "estimatedDropoffDatetimeTz": "America/Phoenix",
-        "contractedDistanceMeters": 6826,
-        "earningsOverrideDescription": null,
-        "failedAtDatetimeTzShort": null,
-        "arrivedAtPickupAtDatetimeUtc": "2025-12-30T18:07:03.707864Z"
-      }
-    },
-    {
-      "id": "VGFzazoxMDEzMTYyMzk0",
-      "score": 10,
-      "discoveredAt": "2026-10-07T04:36:34.511Z",
-      "source": {
-        "url": "https://hq.carecar.co/manage/providers/104103/tasks?statuses=ARRIVED_AT_PICKUP%2CASSIGNED%2CCOMPLETED%2CEN_ROUTE_TO_PICKUP%2CEN_ROUTE_TO_DROPOFF%2CUNASSIGNED&_data=routes%2F_app.manage.providers.%24providerId.tasks._index",
-        "host": "hq.carecar.co",
-        "status": 200,
-        "mimeType": "application/json",
-        "trail": "$.tasks[1]"
-      },
-      "raw": {
-        "incentiveAmount": null,
-        "pickupLocation": {
-          "__typename": "Location",
-          "address1": "3345 S Val Vista Dr v, Gilbert, AZ 85297, USA",
-          "address2": null,
-          "city": "Gilbert",
-          "county": "Maricopa",
-          "id": "c16789f6-afb7-443e-934a-15eb8777c178",
-          "latitude": 33.2908316,
-          "latitudeOverride": 33.2908316,
-          "longitude": -111.7545724,
-          "longitudeOverride": -111.7545724,
-          "name": null,
-          "notes": null,
-          "phone": null,
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "AZ",
-          "timezone": "America/Phoenix",
-          "zipcode": "85297"
-        },
-        "isDeductableFromMember": null,
-        "currentEarnings": {
-          "__typename": "TaskEarnings",
-          "baseEarnings": "25.00",
-          "incentivizedEarnings": "25.00"
-        },
-        "earningsClassificationOverride": null,
-        "updatedAt": "2025-12-30T20:15:32.828214Z",
-        "levelOfService": {
-          "__typename": "LevelOfService",
-          "id": "TGV2ZWxPZlNlcnZpY2U6Mw==",
-          "name": "Folding Walker"
-        },
-        "completedAtDatetimeTz": "America/Phoenix",
-        "providerAvailabilityRule": null,
-        "pickupDatetimeTz": "America/Phoenix",
-        "estimatedDropoffDatetimeTzShort": "MST",
-        "vehicle": null,
-        "completedAtDatetimeTzShort": "MST",
-        "cancelledAtDatetimeTzShort": null,
-        "isServiceable": true,
-        "internalNotes": null,
-        "failedAtDatetimeTz": null,
-        "status": "COMPLETED",
-        "enRouteToPickupAtDatetimeTzShort": "MST",
-        "pickupDatetimeLocal": "2025-12-30T11:15:00.000000",
-        "contractedDistanceMetersOverride": null,
-        "driverNotes": "Drop-off/Pick-up is Suite #101 (\"OSR Physical Therapy\" is the business name, and entrance faces Val Vista Dr.)",
-        "driver": null,
-        "distanceMeters": 8098,
-        "member": {
-          "__typename": "Member",
-          "chosenName": null,
-          "firstName": "BRAD",
-          "lastName": "FURMAN",
-          "middleName": "E",
-          "phone": "+19283001039"
-        },
-        "contractedDurationSecondsOverride": null,
-        "insertedAt": "2025-12-30T01:46:17.079330Z",
-        "estimatedDropoffDatetimeUtc": "2025-12-30T18:30:42.000000Z",
-        "earningsOverride": null,
-        "failedAtDatetimeLocal": null,
-        "arrivedAtPickupAtDatetimeLocal": "2025-12-30T13:00:08.253701",
-        "pickupDatetimeTzShort": "MST",
-        "appointmentDatetimeTzShort": "MST",
-        "incentiveMultiplierPercent": null,
-        "pickupDatetimeUtc": "2025-12-30T18:15:00.000000Z",
-        "enRouteToPickupAtDatetimeUtc": "2025-12-30T19:54:00.664745Z",
-        "failedAtDatetimeUtc": null,
-        "numberOfCompanions": 0,
-        "cancelledAtDatetimeUtc": null,
-        "isBillableToPayer": null,
-        "appointmentDatetimeLocal": "2025-12-30T12:00:00.000000",
-        "completedAtDatetimeLocal": "2025-12-30T13:15:32.802783",
-        "cancelledAtDatetimeLocal": null,
-        "contractedDurationSeconds": 942,
-        "earningsClassification": "SUCCESSFUL_COMPLETION",
-        "arrivedAtPickupAtDatetimeTz": "America/Phoenix",
-        "completedAtDatetimeUtc": "2025-12-30T20:15:32.802783Z",
-        "durationSeconds": 942,
-        "arrivedAtPickupAtDatetimeTzShort": "MST",
-        "id": "VGFzazoxMDEzMTYyMzk0",
-        "dropoffLocation": {
-          "__typename": "Location",
-          "address1": "1870 E Rawhide St, Gilbert, AZ 85296, USA",
-          "address2": null,
-          "city": "Gilbert",
-          "county": "Maricopa",
-          "id": "3b9d9c9e-1cfd-4022-8f0c-4eb2d199ca12",
-          "latitude": 33.3423555,
-          "latitudeOverride": 33.3423555,
-          "longitude": -111.7498822,
-          "longitudeOverride": -111.7498822,
-          "name": null,
-          "notes": null,
-          "phone": null,
-          "phoneExtension": null,
-          "phoneType": null,
-          "state": "AZ",
-          "timezone": "America/Phoenix",
-          "zipcode": "85296"
-        },
-        "statusReason": null,
-        "enRouteToPickupAtDatetimeTz": "America/Phoenix",
-        "__typename": "Task",
-        "cancelledAtDatetimeTz": null,
-        "estimatedDropoffDatetimeLocal": "2025-12-30T11:30:42.000000",
-        "routeGenieOrder": null,
-        "enRouteToPickupAtDatetimeLocal": "2025-12-30T12:54:00.664745",
-        "estimatedDropoffDatetimeTz": "America/Phoenix",
-        "contractedDistanceMeters": 8098,
-        "earningsOverrideDescription": null,
-        "failedAtDatetimeTzShort": null,
-        "arrivedAtPickupAtDatetimeUtc": "2025-12-30T20:00:08.253701Z"
-      }
-    },
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyOTY3",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.527Z",
+      "discoveredAt": "2026-10-07T06:57:35.145Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -382,7 +122,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzg3NjAw",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.529Z",
+      "discoveredAt": "2026-10-07T06:57:35.148Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -495,7 +235,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzk2MjQ2",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.531Z",
+      "discoveredAt": "2026-10-07T06:57:35.150Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -608,7 +348,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODIwMjM0",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.532Z",
+      "discoveredAt": "2026-10-07T06:57:35.152Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -721,7 +461,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NjgxMjEz",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.534Z",
+      "discoveredAt": "2026-10-07T06:57:35.154Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -834,7 +574,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODMzMTk5",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.536Z",
+      "discoveredAt": "2026-10-07T06:57:35.167Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -947,7 +687,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAxMTU0",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.538Z",
+      "discoveredAt": "2026-10-07T06:57:35.170Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1060,7 +800,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzk2MTUx",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.540Z",
+      "discoveredAt": "2026-10-07T06:57:35.173Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1173,7 +913,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzU1NzM4",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.542Z",
+      "discoveredAt": "2026-10-07T06:57:35.185Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1286,7 +1026,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODUzMjIx",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.546Z",
+      "discoveredAt": "2026-10-07T06:57:35.190Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1399,7 +1139,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODEyNDQy",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.549Z",
+      "discoveredAt": "2026-10-07T06:57:35.213Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1512,7 +1252,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Nzk2MzAw",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.553Z",
+      "discoveredAt": "2026-10-07T06:57:35.220Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1625,7 +1365,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODUzMjgy",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.556Z",
+      "discoveredAt": "2026-10-07T06:57:35.231Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1738,7 +1478,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODIwMjM1",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.559Z",
+      "discoveredAt": "2026-10-07T06:57:35.248Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1851,7 +1591,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1Njk4Mzg4",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.563Z",
+      "discoveredAt": "2026-10-07T06:57:35.252Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -1964,7 +1704,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzI4MzMx",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.566Z",
+      "discoveredAt": "2026-10-07T06:57:35.256Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2077,7 +1817,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzMxNzky",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.569Z",
+      "discoveredAt": "2026-10-07T06:57:35.263Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2190,7 +1930,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1NzUxMTYz",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.572Z",
+      "discoveredAt": "2026-10-07T06:57:35.266Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2303,7 +2043,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAxMTkw",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.574Z",
+      "discoveredAt": "2026-10-07T06:57:35.271Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",
@@ -2416,7 +2156,7 @@
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODExNzky",
       "score": 10,
-      "discoveredAt": "2026-10-07T04:36:35.577Z",
+      "discoveredAt": "2026-10-07T06:57:35.279Z",
       "source": {
         "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
         "host": "hq.carecar.co",

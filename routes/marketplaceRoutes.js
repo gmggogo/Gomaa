@@ -620,6 +620,14 @@ function displayTripNumber(trip={}){
   return "";
 }
 
+function isoDatePart(value){
+  const text=clean(value);
+  const match=text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  return match
+    ? `${match[1]}-${match[2]}-${match[3]}`
+    : "";
+}
+
 function tripDateValue(trip={}){
   return clean(
     trip.tripDate ||
@@ -1210,10 +1218,12 @@ function tripYmd(trip={}){
   return "";
 }
 
-function utcTodayYmd(){
-  return new Date()
-    .toISOString()
-    .slice(0,10);
+function localTodayYmd(){
+  const now=new Date();
+  const year=now.getFullYear();
+  const month=String(now.getMonth()+1).padStart(2,"0");
+  const day=String(now.getDate()).padStart(2,"0");
+  return `${year}-${month}-${day}`;
 }
 
 function marketplaceCandidateGate(trip={}){
@@ -1222,10 +1232,14 @@ function marketplaceCandidateGate(trip={}){
       trip
     );
 
-  if(
-    date &&
-    date < utcTodayYmd()
-  ){
+  if(!date){
+    return {
+      allowed:false,
+      reason:"TRIP_DATE_UNAVAILABLE"
+    };
+  }
+
+  if(date < localTodayYmd()){
     return {
       allowed:false,
       reason:"PAST_TRIP_DATE"
@@ -1845,6 +1859,7 @@ async function autoEvaluateDiscovery(event={}){
         if(
           [
             "PAST_TRIP_DATE",
+            "TRIP_DATE_UNAVAILABLE",
             "NOT_AVAILABLE_FOR_ACCEPT"
           ].includes(
             decision.reason
@@ -2371,6 +2386,7 @@ router.post(
         if(
           [
             "PAST_TRIP_DATE",
+            "TRIP_DATE_UNAVAILABLE",
             "NOT_AVAILABLE_FOR_ACCEPT"
           ].includes(
             decision.reason

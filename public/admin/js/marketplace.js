@@ -41,13 +41,27 @@ Marketplace multi-broker UI.
       ""
     ).trim();
 
+    const internal=String(
+      row.externalTripId ||
+      row.meta?.portalTripId ||
+      ""
+    ).trim();
+
     if(!value){
       return "—";
     }
 
     if(
-      value.length>=28 &&
-      /^[A-Za-z0-9+/_=-]+$/.test(value)
+      internal &&
+      value===internal
+    ){
+      return "—";
+    }
+
+    if(
+      value.length>=16 &&
+      /^[A-Za-z0-9+/_=-]+$/.test(value) &&
+      !/^\d+$/.test(value)
     ){
       return "—";
     }
