@@ -1,10 +1,39 @@
 "use strict";
 
-const longEngine = require("./mtmLongTripEngine");
+/*
+  DESTINATION:
+  server/services/mtm/mtmShortTripEngine.js
 
-function select(trips = [], settings = {}) {
-  if (!settings.enabled) return [];
-  return trips.filter(t => longEngine.matches(t, settings));
+  Short-trip selection intentionally reuses the exact same ZIP, time,
+  service-family, and zone logic as the Long Trip Engine. The Short settings
+  provide the different mileage range.
+*/
+
+const longEngine =
+  require(
+    "./mtmLongTripEngine"
+  );
+
+function select(
+  trips=[],
+  settings={}
+){
+  if(!settings.enabled){
+    return [];
+  }
+
+  return trips.filter(
+    trip=>
+      longEngine.matches(
+        trip,
+        settings
+      )
+  );
 }
 
-module.exports = { matches: longEngine.matches, select };
+module.exports={
+  matches:
+    longEngine.matches,
+
+  select
+};
