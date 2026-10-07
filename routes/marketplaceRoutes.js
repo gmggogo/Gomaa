@@ -584,63 +584,33 @@ async function logEngineMatches(
 
 
 
-async function evaluateNormalizedTripsForConnection({
+/* =========================
+   AUTOMATIC MARKETPLACE EVALUATION
+   - New/changed discoveries are evaluated immediately.
+   - Saving settings re-evaluates the current normalized trip buffer.
+========================= */
+
+async function evaluateConnectionTrips({
   id,
-  connectionId,
-  settings=null,
-  tripsOverride=null,
-  source="AUTO_DISCOVERY"
-}={}){
-  const [connection,resolvedSettings]=await Promise.all([
-    marketplaceConnection(id,connectionId),
-    settings ? Promise.resolve(settings) : getSettings(id)
-  ]);
-
-  if(resolvedSettings.enabled===false){
-    return {
-      success:false,
-      skipped:true,
-      reason:"MARKETPLACE_DISABLED",
-      scanned:0,
-      longMatched:0,
-      shortMatched:0
-    };
-  }
-
-  const getTrips=providerPortalBridgeRoutes.getNormalizedTripsForConnection;
-  if(typeof getTrips!=="function"){
-    throw new Error("Provider Portal Bridge connection accessor is unavailable");
-  }
-
-  const rawTrips=Array.isArray(tripsOverride)
-    ? tripsOverride
-    : getTrips(id,connectionId);
-
-  const trips=(Array.isArray(rawTrips)?rawTrips:[])
-    .map(tripForEngine)
-    .filter(trip=>Boolean(trip.externalTripId||trip.tripNumber));
+  connection,
+  settings,
+  rawTrips,
+  source="AUTO"
+}){
+  const trips =
+    (Array.isArray(rawTrips) ? rawTrips : [])
+      .map(tripForEngine)
+      .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
 
   if(!trips.length){
     return {
-      success:true,
-      skipped:true,
-      reason:"NO_NORMALIZED_TRIPS",
       scanned:0,
       longMatched:0,
-      shortMatched:0
+      shortMatched:0,
+      longResults:[],
+      shortResults:[]
     };
   }
-
-  await logActivity(
-    id,
-    connection,
-    "SCAN",
-    {
-      engine:"SYSTEM",
-      message:`Marketplace automatic evaluation (${source}) for ${connection.brokerName || connection.brokerCode || "broker"} / ${connection.accountLabel || "Primary Account"}`,
-      meta:{scannedCount:trips.length,source}
-    }
-  );
 
   for(const trip of trips){
     await logActivity(
@@ -650,33 +620,113 @@ async function evaluateNormalizedTripsForConnection({
       {
         engine:"SYSTEM",
         trip,
-        message:`Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`,
-        meta:{source}
+        message:`Marketplace trip seen (${source}): ${clean(trip.externalTripId || trip.tripNumber)}`
       }
     );
   }
 
-  const {longTrips,shortTrips}=selectedByEngine(trips,resolvedSettings);
+  const {longTrips,shortTrips}=
+    selectedByEngine(trips,settings);
 
-  const [longResults,shortResults]=await Promise.all([
-    logEngineMatches(id,connection,"LONG",longTrips,resolvedSettings.longEngine||{}),
-    logEngineMatches(id,connection,"SHORT",shortTrips,resolvedSettings.shortEngine||{})
-  ]);
+  const [longResults,shortResults]=
+    await Promise.all([
+      logEngineMatches(
+        id,
+        connection,
+        "LONG",
+        longTrips,
+        settings.longEngine || {}
+      ),
+      logEngineMatches(
+        id,
+        connection,
+        "SHORT",
+        shortTrips,
+        settings.shortEngine || {}
+      )
+    ]);
 
   await Settings.updateOne(
     {tenantId:id},
-    {$set:{lastScanAt:new Date(),lastSuccessfulScanAt:new Date(),lastError:""}}
-  );
+    {$set:{
+      lastScanAt:new Date(),
+      lastSuccessfulScanAt:new Date(),
+      lastError:""
+    }}
+  ).catch(()=>{});
 
   return {
-    success:true,
-    connectionId:String(connection._id),
     scanned:trips.length,
     longMatched:longTrips.length,
     shortMatched:shortTrips.length,
     longResults,
     shortResults
   };
+}
+
+async function reEvaluateCurrentTrips(id,settings){
+  const getTrips=
+    providerPortalBridgeRoutes.getNormalizedTripsForConnection;
+
+  if(typeof getTrips!=="function"){
+    return {connections:0,scanned:0};
+  }
+
+  const connections=
+    await BrokerIntegration.find({
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    });
+
+  let scanned=0;
+
+  for(const connection of connections){
+    const rawTrips=getTrips(id,String(connection._id));
+    const result=await evaluateConnectionTrips({
+      id,
+      connection,
+      settings,
+      rawTrips,
+      source:"SETTINGS_SAVE"
+    });
+    scanned+=Number(result.scanned||0);
+  }
+
+  return {connections:connections.length,scanned};
+}
+
+if(
+  typeof providerPortalBridgeRoutes.registerDiscoveryListener==="function"
+){
+  providerPortalBridgeRoutes.registerDiscoveryListener(
+    async event=>{
+      const id=clean(event?.tenantId);
+      const connectionId=clean(event?.connectionId);
+
+      if(!id || !connectionId){
+        return;
+      }
+
+      const settings=await getSettings(id);
+      if(settings.enabled===false){
+        return;
+      }
+
+      const connection=
+        await marketplaceConnection(id,connectionId);
+
+      await evaluateConnectionTrips({
+        id,
+        connection,
+        settings,
+        rawTrips:Array.isArray(event?.trips) ? event.trips : [],
+        source:"DISCOVERY"
+      });
+    }
+  );
 }
 
 /* =========================
@@ -795,37 +845,13 @@ router.put(
           }
         );
 
-      const connections=
-        await BrokerIntegration.find({
-          tenantId:id,
-          connectionMode:"MARKETPLACE_PORTAL",
-          enabled:true,
-          featureVisible:true,
-          billingEnabled:true
-        })
-        .select("_id")
-        .lean();
-
-      const reEvaluation=[];
-
-      for(const row of connections){
-        try{
-          reEvaluation.push(
-            await evaluateNormalizedTripsForConnection({
+      const reEvaluation =
+        settings.enabled === false
+          ? {connections:0,scanned:0}
+          : await reEvaluateCurrentTrips(
               id,
-              connectionId:String(row._id),
-              settings,
-              source:"SETTINGS_SAVE"
-            })
-          );
-        }catch(evalErr){
-          reEvaluation.push({
-            success:false,
-            connectionId:String(row._id),
-            message:evalErr?.message || String(evalErr)
-          });
-        }
-      }
+              settings
+            );
 
       return res.json({
         success:true,
@@ -1208,39 +1234,6 @@ router.post(
     }
   }
 );
-
-
-if(
-  typeof providerPortalBridgeRoutes.registerDiscoveryListener === "function" &&
-  providerPortalBridgeRoutes.__marketplaceAutoEvaluationListenerInstalled !== true
-){
-  providerPortalBridgeRoutes.__marketplaceAutoEvaluationListenerInstalled=true;
-
-  providerPortalBridgeRoutes.registerDiscoveryListener(
-    async event=>{
-      const id=clean(event?.tenantId);
-      const connectionId=clean(event?.connectionId);
-
-      if(!id || !connectionId){
-        return;
-      }
-
-      try{
-        await evaluateNormalizedTripsForConnection({
-          id,
-          connectionId,
-          tripsOverride:Array.isArray(event?.trips) ? event.trips : null,
-          source:"AUTO_DISCOVERY"
-        });
-      }catch(err){
-        console.error(
-          "[Marketplace] automatic discovery evaluation failed:",
-          err?.message || err
-        );
-      }
-    }
-  );
-}
 
 module.exports =
   router;
