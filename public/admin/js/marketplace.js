@@ -34,6 +34,27 @@ Marketplace multi-broker UI.
     .replaceAll("'","&#039;");
 
 
+  function friendlyTripNumber(row={}){
+    const value=String(
+      row.meta?.tripNumber ||
+      row.tripNumber ||
+      ""
+    ).trim();
+
+    if(!value){
+      return "—";
+    }
+
+    if(
+      value.length>=28 &&
+      /^[A-Za-z0-9+/_=-]+$/.test(value)
+    ){
+      return "—";
+    }
+
+    return value;
+  }
+
   function displayTripDate(row={}){
     const raw=String(
       row.tripDate ||
@@ -653,7 +674,7 @@ Marketplace multi-broker UI.
                   "—"
                 )}
               </td>
-              <td>${esc(r.meta?.tripNumber || r.externalTripId || "—")}</td>
+              <td>${esc(friendlyTripNumber(r))}</td>
               <td>${esc(displayTripDate(r))}</td>
               <td>${esc(displayPickupTime(r))}</td>
               <td>${esc(r.meta?.pickupAddress || "—")}</td>

@@ -537,8 +537,29 @@ function normalizePortalTrip(raw,meta={}){
   const miles=explicitMiles!==null ? Number(explicitMiles) :
     (Number.isFinite(meters) && meters>0 ? Number((meters/1609.344).toFixed(2)) : null);
 
+  const availability=
+    detectAvailability(
+      raw
+    );
+
+  const humanNumber=
+    deepHumanTripNumber(
+      raw
+    );
+
   return {
     portalTripId,
+    tripNumber:humanNumber,
+    availableForAccept:
+      availability.available===true,
+    availabilityEvidence:
+      availability.evidence,
+    availabilityStatus:
+      availability.status,
+    acceptActionText:
+      availability.actionText,
+    acceptActionSelector:
+      availability.actionSelector,
     sourceHost:clean(meta.sourceHost),
     sourceUrl:clean(meta.sourceUrl),
     memberName:clean(firstValue(raw,["memberName","passengerName","riderName","clientName","name"])),
@@ -609,6 +630,9 @@ const FIELD_SPECS={
   portalTripId:{
     aliases:["availabletaskid","tripid","tripnumber","assignmentnumber","reservationid","bookingid","rideid","requestid","id"],
     required:true
+  },
+  tripNumber:{
+    aliases:["tripnumber","tasknumber","confirmationnumber","referencenumber","reservationnumber","bookingnumber","ridenumber","displaytripid","displayid"]
   },
   memberName:{
     aliases:["membername","passengername","ridername","clientname","customername","patientname","member.name","passenger.name","rider.name"]
@@ -919,6 +943,189 @@ async function tryAiMapping(samples,autoResult){
 }
 
 
+
+function looksEncodedInternalId(value){
+  const text=clean(value);
+
+  if(!text){
+    return false;
+  }
+
+  if(
+    text.length>=28 &&
+    /^[A-Za-z0-9+/_=-]+$/.test(text)
+  ){
+    return true;
+  }
+
+  return false;
+}
+
+function deepHumanTripNumber(raw){
+  const wanted=[
+    "tripnumber",
+    "tasknumber",
+    "confirmationnumber",
+    "referencenumber",
+    "reservationnumber",
+    "bookingnumber",
+    "ridenumber",
+    "displaytripid",
+    "displayid"
+  ];
+
+  for(const row of flattenLeafPaths(raw)){
+    const path=
+      lowerPath(
+        row.path
+      )
+      .replace(/\./g,"");
+
+    if(
+      !wanted.some(
+        key=>
+          path.endsWith(key)
+      )
+    ){
+      continue;
+    }
+
+    const value=
+      clean(
+        scalarText(
+          row.value
+        )
+      );
+
+    if(
+      value &&
+      !looksEncodedInternalId(value)
+    ){
+      return value.slice(0,120);
+    }
+  }
+
+  return "";
+}
+
+function detectAvailability(raw){
+  if(
+    raw &&
+    raw.__ghAcceptAvailable===true
+  ){
+    return {
+      available:true,
+      evidence:"DOM_ACCEPT_ACTION",
+      actionText:
+        clean(
+          raw.__ghAcceptActionText
+        ),
+      actionSelector:
+        clean(
+          raw.__ghAcceptSelector
+        ),
+      status:""
+    };
+  }
+
+  const negativeStatus=
+    /\b(completed|complete|cancelled|canceled|expired|closed|claimed|accepted|assigned|finished|history|historical|done|in\s*progress|on\s*trip)\b/i;
+
+  const positiveStatus=
+    /\b(available|open|unclaimed|unassigned|offered|offer|marketplace|ready\s*to\s*claim|ready\s*to\s*accept)\b/i;
+
+  const actionText=
+    /\b(accept|claim|take|book|reserve|assign)\b/i;
+
+  let status="";
+  let positiveEvidence="";
+  let positiveActionText="";
+
+  for(const row of flattenLeafPaths(raw)){
+    const path=
+      lowerPath(
+        row.path
+      );
+
+    const last=
+      path.split(".").pop() ||
+      "";
+
+    const value=
+      clean(
+        scalarText(
+          row.value
+        )
+      );
+
+    if(!value){
+      continue;
+    }
+
+    if(
+      /status|state|availability|tripstatus|taskstatus/.test(last)
+    ){
+      if(
+        negativeStatus.test(value)
+      ){
+        return {
+          available:false,
+          evidence:"NEGATIVE_STATUS",
+          actionText:"",
+          actionSelector:"",
+          status:value.slice(0,120)
+        };
+      }
+
+      if(
+        positiveStatus.test(value)
+      ){
+        status=
+          value.slice(0,120);
+
+        positiveEvidence=
+          "AVAILABLE_STATUS";
+      }
+    }
+
+    if(
+      /action|actions|button|buttons|operation|operations|command|commands/.test(last) &&
+      actionText.test(value)
+    ){
+      positiveEvidence=
+        "ACCEPT_ACTION_FIELD";
+
+      positiveActionText=
+        value.slice(0,120);
+    }
+
+    if(
+      /canaccept|acceptenabled|claimable|canclaim|isavailable|availableforclaim|availableforaccept/.test(last)
+    ){
+      const lower=
+        value.toLowerCase();
+
+      if(
+        ["true","1","yes","enabled","available"].includes(lower)
+      ){
+        positiveEvidence=
+          "ACCEPT_BOOLEAN";
+      }
+    }
+  }
+
+  return {
+    available:Boolean(positiveEvidence),
+    evidence:
+      positiveEvidence ||
+      "NO_ACCEPT_EVIDENCE",
+    actionText:
+      positiveActionText,
+    actionSelector:"",
+    status
+  };
+}
+
 function fiveDigitZip(value){
   const m=clean(value).match(/\b(\d{5})(?:-\d{4})?\b/);
   return m ? m[1] : "";
@@ -1008,8 +1215,41 @@ function tripFromMapping(raw,mapping,meta={}){
   const mappedMode=read("mode");
   const mappedRiders=read("riders");
 
+  const availability=
+    detectAvailability(
+      raw
+    );
+
+  const mappedTripNumber=
+    clean(
+      scalarText(
+        read("tripNumber")
+      )
+    );
+
+  const tripNumber=
+    (
+      mappedTripNumber &&
+      !looksEncodedInternalId(
+        mappedTripNumber
+      )
+    )
+      ? mappedTripNumber
+      : deepHumanTripNumber(raw);
+
   return {
     portalTripId:clean(scalarText(read("portalTripId"))),
+    tripNumber,
+    availableForAccept:
+      availability.available===true,
+    availabilityEvidence:
+      availability.evidence,
+    availabilityStatus:
+      availability.status,
+    acceptActionText:
+      availability.actionText,
+    acceptActionSelector:
+      availability.actionSelector,
     sourceHost:clean(meta.sourceHost),
     sourceUrl:clean(meta.sourceUrl),
     memberName:clean(scalarText(read("memberName"))),

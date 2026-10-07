@@ -1470,6 +1470,62 @@ class PortalSession{
             return value.slice(0,100);
           };
 
+          const actionWords=
+            /\\b(accept|claim|take|book|reserve|assign|select\\s+trip|add\\s+trip|choose\\s+trip)\\b/i;
+
+          const rowAcceptEvidence=container=>{
+            if(!container){
+              return {
+                available:false,
+                text:"",
+                selector:""
+              };
+            }
+
+            const controls=
+              [
+                ...container.querySelectorAll(
+                  'button,a,[role="button"],input[type="button"],input[type="submit"]'
+                )
+              ]
+              .filter(visible);
+
+            for(const el of controls){
+              const text=
+                clean(
+                  el.innerText ||
+                  el.textContent ||
+                  el.value ||
+                  el.getAttribute("aria-label") ||
+                  el.getAttribute("title")
+                )
+                .slice(0,100);
+
+              const disabled=Boolean(
+                el.disabled ||
+                el.getAttribute("aria-disabled")==="true"
+              );
+
+              if(
+                text &&
+                actionWords.test(text) &&
+                !disabled
+              ){
+                return {
+                  available:true,
+                  text,
+                  selector:selectorFor(el)
+                };
+              }
+            }
+
+            return {
+              available:false,
+              text:"",
+              selector:""
+            };
+          };
+
           const rows=[];
 
           const tables=
@@ -1515,6 +1571,20 @@ class PortalSession{
               );
 
               if(Object.keys(obj).length>=3){
+                const accept=
+                  rowAcceptEvidence(
+                    row
+                  );
+
+                obj.__ghAcceptAvailable=
+                  accept.available===true;
+
+                obj.__ghAcceptActionText=
+                  accept.text;
+
+                obj.__ghAcceptSelector=
+                  accept.selector;
+
                 rows.push(obj);
               }
 
@@ -1609,6 +1679,20 @@ class PortalSession{
               }
 
               if(Object.keys(obj).length>=3){
+                const accept=
+                  rowAcceptEvidence(
+                    card
+                  );
+
+                obj.__ghAcceptAvailable=
+                  accept.available===true;
+
+                obj.__ghAcceptActionText=
+                  accept.text;
+
+                obj.__ghAcceptSelector=
+                  accept.selector;
+
                 rows.push(obj);
 
                 if(rows.length>=50){
@@ -1617,9 +1701,6 @@ class PortalSession{
               }
             }
           }
-
-          const actionWords=
-            /\\b(accept|claim|take|book|reserve|assign|select\\s+trip|add\\s+trip|choose\\s+trip)\\b/i;
 
           const actionCandidates=
             [

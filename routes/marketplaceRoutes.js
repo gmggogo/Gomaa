@@ -586,20 +586,38 @@ function tripIdentity(trip={}){
   .toLowerCase();
 }
 
-function displayTripNumber(trip={}){
-  return clean(
-    trip.tripNumber ||
-    trip.externalTripId ||
-    trip.portalTripId ||
-    trip.assignmentNumber ||
-    trip.reservationId
+function looksEncodedInternalId(value){
+  const text=clean(value);
+
+  return Boolean(
+    text &&
+    text.length>=28 &&
+    /^[A-Za-z0-9+/_=-]+$/.test(text)
   );
 }
 
-function isoDatePart(value){
-  const text=clean(value);
-  const m=text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
+function displayTripNumber(trip={}){
+  const candidates=[
+    trip.tripNumber,
+    trip.displayTripNumber,
+    trip.confirmationNumber,
+    trip.referenceNumber,
+    trip.reservationNumber,
+    trip.bookingNumber
+  ];
+
+  for(const value of candidates){
+    const text=clean(value);
+
+    if(
+      text &&
+      !looksEncodedInternalId(text)
+    ){
+      return text;
+    }
+  }
+
+  return "";
 }
 
 function tripDateValue(trip={}){
@@ -659,6 +677,35 @@ function tripForEngine(trip={}){
     tripNumber:
       displayTripNumber(
         trip
+      ),
+
+    portalTripId:
+      clean(
+        trip.portalTripId ||
+        trip.externalTripId
+      ),
+
+    availableForAccept:
+      trip.availableForAccept===true,
+
+    availabilityEvidence:
+      clean(
+        trip.availabilityEvidence
+      ),
+
+    availabilityStatus:
+      clean(
+        trip.availabilityStatus
+      ),
+
+    acceptActionText:
+      clean(
+        trip.acceptActionText
+      ),
+
+    acceptActionSelector:
+      clean(
+        trip.acceptActionSelector
       ),
 
     tripDate:
@@ -825,8 +872,8 @@ async function logActivity(
 
     externalTripId:
       clean(
-        trip.externalTripId ||
         trip.portalTripId ||
+        trip.externalTripId ||
         trip.tripNumber ||
         data.externalTripId
       ),
@@ -931,6 +978,24 @@ async function logActivity(
           trip.mode ||
           trip.serviceType ||
           trip.levelOfService
+        ),
+
+      availableForAccept:
+        trip.availableForAccept===true,
+
+      availabilityEvidence:
+        clean(
+          trip.availabilityEvidence
+        ),
+
+      availabilityStatus:
+        clean(
+          trip.availabilityStatus
+        ),
+
+      acceptActionText:
+        clean(
+          trip.acceptActionText
         ),
 
       ...(data.meta || {})
@@ -1109,6 +1174,79 @@ function buildConfiguredZoneCenters(engineSettings={},side){
   )];
 }
 
+
+function tripYmd(trip={}){
+  const direct=
+    clean(
+      trip.tripDate
+    );
+
+  const directMatch=
+    direct.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+  if(directMatch){
+    return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
+  }
+
+  const values=[
+    trip.pickupTime,
+    trip.appointmentTime,
+    trip.dropoffTime
+  ];
+
+  for(const value of values){
+    const match=
+      clean(value).match(
+        /^(\d{4})-(\d{2})-(\d{2})T/
+      );
+
+    if(match){
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+  }
+
+  return "";
+}
+
+function utcTodayYmd(){
+  return new Date()
+    .toISOString()
+    .slice(0,10);
+}
+
+function marketplaceCandidateGate(trip={}){
+  const date=
+    tripYmd(
+      trip
+    );
+
+  if(
+    date &&
+    date < utcTodayYmd()
+  ){
+    return {
+      allowed:false,
+      reason:"PAST_TRIP_DATE"
+    };
+  }
+
+  if(
+    trip.availableForAccept!==true
+  ){
+    return {
+      allowed:false,
+      reason:"NOT_AVAILABLE_FOR_ACCEPT"
+    };
+  }
+
+  return {
+    allowed:true,
+    reason:"AVAILABLE"
+  };
+}
+
 async function evaluateEngineTrip(
   trip,
   engineName,
@@ -1118,6 +1256,19 @@ async function evaluateEngineTrip(
     return {
       matched:false,
       reason:"ENGINE_DISABLED"
+    };
+  }
+
+  const candidateGate=
+    marketplaceCandidateGate(
+      trip
+    );
+
+  if(!candidateGate.allowed){
+    return {
+      matched:false,
+      reason:
+        candidateGate.reason
     };
   }
 
@@ -1691,6 +1842,17 @@ async function autoEvaluateDiscovery(event={}){
             reason:"NO_DECISION"
           };
 
+        if(
+          [
+            "PAST_TRIP_DATE",
+            "NOT_AVAILABLE_FOR_ACCEPT"
+          ].includes(
+            decision.reason
+          )
+        ){
+          continue;
+        }
+
         await logActivity(
           id,
           connection,
@@ -2206,6 +2368,17 @@ router.post(
           continue;
         }
 
+        if(
+          [
+            "PAST_TRIP_DATE",
+            "NOT_AVAILABLE_FOR_ACCEPT"
+          ].includes(
+            decision.reason
+          )
+        ){
+          continue;
+        }
+
         const zone=
           decision.zone ||
           {};
@@ -2294,6 +2467,13 @@ router.post(
         result:{
           scanned:
             trips.length,
+          eligibleCandidates:
+            trips.filter(
+              trip=>
+                marketplaceCandidateGate(
+                  trip
+                ).allowed
+            ).length,
           longMatched:
             longTrips.length,
           shortMatched:
