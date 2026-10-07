@@ -22,6 +22,58 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const clean = v => String(v ?? "").trim();
 const TOKEN_TTL = "8h";
+
+const CLOUD_AGENT_KEY=clean(process.env.GH_BROWSER_AGENT_KEY);
+const cloudAgentHeartbeats=new Map();
+
+function secureEqual(a,b){
+  const left=Buffer.from(clean(a));
+  const right=Buffer.from(clean(b));
+  if(!left.length || left.length!==right.length) return false;
+  return crypto.timingSafeEqual(left,right);
+}
+
+function verifyCloudAgent(req,res,next){
+  if(!CLOUD_AGENT_KEY){
+    return res.status(503).json({
+      success:false,
+      message:"Cloud Browser Agent is not configured"
+    });
+  }
+
+  const raw=clean(req.headers.authorization);
+  if(!raw.toLowerCase().startsWith("bearer ")){
+    return res.status(401).json({
+      success:false,
+      message:"Cloud Browser Agent key is required"
+    });
+  }
+
+  const supplied=raw.slice(7).trim();
+  if(!secureEqual(supplied,CLOUD_AGENT_KEY)){
+    return res.status(403).json({
+      success:false,
+      message:"Invalid Cloud Browser Agent key"
+    });
+  }
+
+  next();
+}
+
+function publicBaseUrl(req){
+  const configured=clean(process.env.GH_PUBLIC_BASE_URL).replace(/\/+$/,"");
+  if(configured) return configured;
+
+  const proto=clean(req.headers["x-forwarded-proto"] || req.protocol || "https")
+    .split(",")[0]
+    .trim();
+  const host=clean(req.headers["x-forwarded-host"] || req.headers.host)
+    .split(",")[0]
+    .trim();
+
+  if(!host) return "https://ghmobility.com";
+  return `${proto || "https"}://${host}`.replace(/\/+$/,"");
+}
 let mappingIndexesPrepared=false;
 async function ensureMappingIndexes(){
   if(mappingIndexesPrepared) return;
@@ -1975,7 +2027,143 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
   }
 });
 
+
+/*
+  Cloud Browser Agent control plane
+  ---------------------------------
+  The Oracle/Linux agent initiates the connection OUTBOUND to GH Mobility.
+  GH Mobility never connects to the agent's 127.0.0.1 controller.
+
+  Authentication uses GH_BROWSER_AGENT_KEY, configured on both Render and the
+  Oracle host. Portal passwords/MFA/cookies are never accepted here.
+*/
+router.get("/agent/control",verifyCloudAgent,async(req,res)=>{
+  try{
+    const nodeId=clean(req.query.nodeId || "default").slice(0,120);
+    const rows=await BrokerIntegration.find({
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    })
+    .sort({tenantId:1,brokerName:1,accountLabel:1})
+    .lean();
+
+    const connections=rows.map(row=>{
+      const connectionId=String(row._id);
+      const tenant=clean(row.tenantId);
+
+      return {
+        connectionId,
+        tenantId:tenant,
+        portalUrl:clean(row.portalUrl),
+        brokerName:clean(row.brokerName),
+        brokerCode:clean(row.brokerCode),
+        accountLabel:clean(row.accountLabel) || "Primary Account",
+        agentToken:agentTokenFor(tenant,connectionId)
+      };
+    }).filter(row=>row.connectionId && row.tenantId && row.portalUrl);
+
+    cloudAgentHeartbeats.set(nodeId,{
+      nodeId,
+      lastControlAt:new Date(),
+      lastHeartbeatAt:cloudAgentHeartbeats.get(nodeId)?.lastHeartbeatAt || null,
+      sessions:cloudAgentHeartbeats.get(nodeId)?.sessions || []
+    });
+
+    return res.json({
+      success:true,
+      nodeId,
+      ghBaseUrl:publicBaseUrl(req),
+      pollAfterMs:5000,
+      connections
+    });
+  }catch(e){
+    return res.status(500).json({success:false,message:e.message});
+  }
+});
+
+router.post("/agent/heartbeat",verifyCloudAgent,express.json({limit:"1mb"}),async(req,res)=>{
+  try{
+    const nodeId=clean(req.body?.nodeId || "default").slice(0,120);
+    const sessions=Array.isArray(req.body?.sessions)
+      ? req.body.sessions.slice(0,200).map(item=>({
+          connectionId:clean(item?.connectionId),
+          running:item?.running===true,
+          browserFound:item?.browserFound===true,
+          debugAttached:item?.debugAttached===true,
+          loginDetected:item?.loginDetected===true,
+          tripsPageDetected:item?.tripsPageDetected===true,
+          discoveriesPosted:Number(item?.discoveriesPosted || 0),
+          lastDiscoveryAt:item?.lastDiscoveryAt || null,
+          lastError:clean(item?.lastError).slice(0,1000)
+        }))
+      : [];
+
+    cloudAgentHeartbeats.set(nodeId,{
+      nodeId,
+      lastControlAt:cloudAgentHeartbeats.get(nodeId)?.lastControlAt || null,
+      lastHeartbeatAt:new Date(),
+      sessions
+    });
+
+    await Promise.allSettled(
+      sessions
+        .filter(item=>item.connectionId)
+        .map(item=>
+          BrokerIntegration.updateOne(
+            {
+              _id:item.connectionId,
+              connectionMode:"MARKETPLACE_PORTAL"
+            },
+            {
+              $set:{
+                connectionStatus:item.running ? "CONNECTED" : "TESTING",
+                lastConnectedAt:item.running ? new Date() : undefined,
+                lastReceivedAt:item.lastDiscoveryAt ? new Date(item.lastDiscoveryAt) : undefined,
+                lastErrorMessage:item.lastError || ""
+              }
+            }
+          )
+        )
+    );
+
+    return res.json({
+      success:true,
+      nodeId,
+      received:sessions.length
+    });
+  }catch(e){
+    return res.status(500).json({success:false,message:e.message});
+  }
+});
+
 router.use(auth);
+
+
+router.get("/agent-cloud-status",async(req,res)=>{
+  try{
+    const now=Date.now();
+    const nodes=[...cloudAgentHeartbeats.values()].map(item=>({
+      nodeId:item.nodeId,
+      lastControlAt:item.lastControlAt,
+      lastHeartbeatAt:item.lastHeartbeatAt,
+      online:Boolean(
+        item.lastHeartbeatAt &&
+        now-new Date(item.lastHeartbeatAt).getTime()<20000
+      ),
+      sessions:item.sessions || []
+    }));
+
+    return res.json({
+      success:true,
+      configured:Boolean(CLOUD_AGENT_KEY),
+      nodes
+    });
+  }catch(e){
+    return res.status(500).json({success:false,message:e.message});
+  }
+});
 
 router.get("/preflight",async(req,res)=>{
   try{

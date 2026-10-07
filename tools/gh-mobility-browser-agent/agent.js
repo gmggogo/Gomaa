@@ -38,6 +38,56 @@ const CONTROLLER_PORT=18733;
 const MAX_BODY=5_000_000;
 const sessions=new Map();
 
+const cloudManagedSessions=new Set();
+let cloudControlTimer=null;
+let cloudControlBusy=false;
+let shuttingDown=false;
+
+function readLocalConfig(){
+  const file=path.join(__dirname,"config.json");
+  try{
+    if(!fs.existsSync(file)) return {};
+    const parsed=JSON.parse(fs.readFileSync(file,"utf8"));
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(_){
+    return {};
+  }
+}
+
+const LOCAL_CONFIG=readLocalConfig();
+
+const CLOUD_GH_BASE_URL=
+  clean(
+    process.env.GH_BASE_URL ||
+    process.env.GH_PUBLIC_BASE_URL ||
+    LOCAL_CONFIG.ghBaseUrl ||
+    "https://ghmobility.com"
+  )
+  .replace(/\/+$/,"");
+
+const CLOUD_AGENT_KEY=
+  clean(
+    process.env.GH_BROWSER_AGENT_KEY ||
+    LOCAL_CONFIG.cloudAgentKey
+  );
+
+const CLOUD_AGENT_NODE_ID=
+  clean(
+    process.env.GH_AGENT_NODE_ID ||
+    LOCAL_CONFIG.nodeId ||
+    os.hostname()
+  ) || "oracle-agent";
+
+const CLOUD_POLL_MS=
+  Math.max(
+    3000,
+    Number(
+      process.env.GH_AGENT_POLL_MS ||
+      LOCAL_CONFIG.pollMs ||
+      5000
+    ) || 5000
+  );
+
 function clean(value){
   return String(value??"").trim();
 }
@@ -356,6 +406,88 @@ function postJson(
     request.end();
   });
 }
+
+
+function requestJson(urlString,{method="GET",payload=null,bearerToken="",timeout=15000}={}){
+  return new Promise((resolve,reject)=>{
+    let u;
+
+    try{
+      u=new URL(urlString);
+    }catch(err){
+      return reject(err);
+    }
+
+    const transport=u.protocol==="https:" ? https : http;
+    const hasBody=payload!==null && payload!==undefined;
+    const body=hasBody
+      ? Buffer.from(JSON.stringify(payload),"utf8")
+      : null;
+
+    const headers={
+      "Accept":"application/json"
+    };
+
+    if(hasBody){
+      headers["Content-Type"]="application/json";
+      headers["Content-Length"]=body.length;
+    }
+
+    if(bearerToken){
+      headers["Authorization"]=`Bearer ${bearerToken}`;
+    }
+
+    const request=transport.request(
+      {
+        protocol:u.protocol,
+        hostname:u.hostname,
+        port:u.port || undefined,
+        path:`${u.pathname}${u.search}`,
+        method,
+        headers,
+        timeout
+      },
+      response=>{
+        let data="";
+
+        response.on("data",chunk=>data+=chunk);
+        response.on("end",()=>{
+          let parsed={};
+
+          try{
+            parsed=data ? JSON.parse(data) : {};
+          }catch(_){
+            parsed={raw:data};
+          }
+
+          if(response.statusCode>=200 && response.statusCode<300){
+            return resolve(parsed);
+          }
+
+          const err=new Error(
+            parsed.message ||
+            `GH control HTTP ${response.statusCode}`
+          );
+          err.statusCode=response.statusCode;
+          reject(err);
+        });
+      }
+    );
+
+    request.on(
+      "timeout",
+      ()=>request.destroy(new Error("GH control request timed out"))
+    );
+    request.on("error",reject);
+
+    if(body){
+      request.write(body);
+    }
+
+    request.end();
+  });
+}
+
 
 function lowerKeys(obj){
   const out={};
@@ -2398,6 +2530,150 @@ async function disconnectSession(
   };
 }
 
+
+function cloudControlEnabled(){
+  return Boolean(
+    CLOUD_GH_BASE_URL &&
+    CLOUD_AGENT_KEY
+  );
+}
+
+function cloudControlEndpoint(pathname){
+  return `${CLOUD_GH_BASE_URL}/api/provider-portal-bridge${pathname}`;
+}
+
+async function postCloudHeartbeat(){
+  if(!cloudControlEnabled()) return;
+
+  const statuses=[
+    ...cloudManagedSessions
+  ]
+  .map(connectionId=>sessions.get(connectionId))
+  .filter(Boolean)
+  .map(session=>session.status());
+
+  await requestJson(
+    cloudControlEndpoint("/agent/heartbeat"),
+    {
+      method:"POST",
+      payload:{
+        nodeId:CLOUD_AGENT_NODE_ID,
+        sessions:statuses
+      },
+      bearerToken:CLOUD_AGENT_KEY,
+      timeout:10000
+    }
+  );
+}
+
+async function reconcileCloudConnections(control){
+  const desired=
+    Array.isArray(control?.connections)
+      ? control.connections
+      : [];
+
+  const desiredIds=
+    new Set(
+      desired
+        .map(item=>clean(item?.connectionId))
+        .filter(Boolean)
+    );
+
+  for(const item of desired){
+    const connectionId=clean(item?.connectionId);
+    if(!connectionId || !clean(item?.portalUrl) || !clean(item?.agentToken)){
+      continue;
+    }
+
+    try{
+      await connectSession({
+        connectionId,
+        portalUrl:clean(item.portalUrl),
+        ghBaseUrl:clean(control?.ghBaseUrl || CLOUD_GH_BASE_URL),
+        agentToken:clean(item.agentToken),
+        brokerName:clean(item.brokerName),
+        brokerCode:clean(item.brokerCode),
+        accountLabel:clean(item.accountLabel) || "Primary Account"
+      });
+
+      cloudManagedSessions.add(connectionId);
+    }catch(err){
+      console.error(
+        `[cloud-control:${connectionId}] ${err?.message || err}`
+      );
+    }
+  }
+
+  for(const connectionId of [...cloudManagedSessions]){
+    if(desiredIds.has(connectionId)){
+      continue;
+    }
+
+    await disconnectSession(connectionId).catch(()=>{});
+    cloudManagedSessions.delete(connectionId);
+  }
+}
+
+async function cloudControlTick(){
+  if(
+    !cloudControlEnabled() ||
+    cloudControlBusy ||
+    shuttingDown
+  ){
+    return;
+  }
+
+  cloudControlBusy=true;
+
+  try{
+    const control=
+      await requestJson(
+        `${cloudControlEndpoint("/agent/control")}?nodeId=${encodeURIComponent(CLOUD_AGENT_NODE_ID)}`,
+        {
+          method:"GET",
+          bearerToken:CLOUD_AGENT_KEY,
+          timeout:15000
+        }
+      );
+
+    await reconcileCloudConnections(control);
+    await postCloudHeartbeat().catch(err=>{
+      console.error(
+        `[cloud-heartbeat] ${err?.message || err}`
+      );
+    });
+  }catch(err){
+    console.error(
+      `[cloud-control] ${err?.message || err}`
+    );
+  }finally{
+    cloudControlBusy=false;
+  }
+}
+
+function startCloudControlLoop(){
+  if(!cloudControlEnabled()){
+    console.log(
+      "Cloud control disabled: set GH_BROWSER_AGENT_KEY to enable Oracle automatic mode"
+    );
+    return;
+  }
+
+  console.log(
+    `Cloud control enabled for ${CLOUD_GH_BASE_URL} as ${CLOUD_AGENT_NODE_ID}`
+  );
+
+  cloudControlTick().catch(()=>{});
+
+  cloudControlTimer=
+    setInterval(
+      ()=>cloudControlTick().catch(()=>{}),
+      CLOUD_POLL_MS
+    );
+
+  cloudControlTimer.unref?.();
+}
+
 const controller=
   http.createServer(
     async (req,res)=>{
@@ -2622,14 +2898,17 @@ const controller=
     }
   );
 
-let shuttingDown=false;
-
 async function shutdown(){
   if(shuttingDown){
     return;
   }
 
   shuttingDown=true;
+
+  if(cloudControlTimer){
+    clearInterval(cloudControlTimer);
+    cloudControlTimer=null;
+  }
 
   const active=[
     ...sessions.values()
@@ -2672,5 +2951,7 @@ controller.listen(
     console.log(
       `GH Mobility Browser Agent ready on http://${CONTROLLER_HOST}:${CONTROLLER_PORT}`
     );
+
+    startCloudControlLoop();
   }
 );
