@@ -238,6 +238,42 @@
       border-radius:10px;
     }
 
+    .readiness-grid{
+      display:grid;
+      grid-template-columns:repeat(6,minmax(120px,1fr));
+      gap:8px;
+      margin-top:14px;
+    }
+
+    .readiness-item{
+      border:1px solid #e1e5eb;
+      border-radius:10px;
+      padding:9px 10px;
+      background:#fafbfc;
+      min-width:0;
+    }
+
+    .readiness-label{
+      display:block;
+      font-size:11px;
+      color:#68707d;
+      margin-bottom:4px;
+      font-weight:700;
+    }
+
+    .readiness-value{
+      display:block;
+      font-size:12px;
+      font-weight:900;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .ready-yes{color:#126b2e}
+    .ready-warn{color:#8a5a00}
+    .ready-no{color:#8a1616}
+
     @media(max-width:950px){
       .layout{grid-template-columns:1fr}
       .sidebar{position:static;min-height:0}
@@ -248,6 +284,7 @@
       }
       .broker-tab{min-width:190px}
       .page{width:calc(100% - 14px)}
+      .readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
   </style>
 </head>
@@ -288,6 +325,38 @@
 
           <div class="broker-hero-body">
             <div id="selectedBrokerDetails"></div>
+
+            <div class="readiness-grid" id="readinessGrid">
+              <div class="readiness-item">
+                <span class="readiness-label">Local Agent</span>
+                <span id="stageAgent" class="readiness-value ready-warn">Checking...</span>
+              </div>
+
+              <div class="readiness-item">
+                <span class="readiness-label">Browser</span>
+                <span id="stageBrowser" class="readiness-value ready-warn">Not Started</span>
+              </div>
+
+              <div class="readiness-item">
+                <span class="readiness-label">Login / Portal</span>
+                <span id="stageLogin" class="readiness-value ready-warn">Waiting</span>
+              </div>
+
+              <div class="readiness-item">
+                <span class="readiness-label">Discovery</span>
+                <span id="stageDiscovery" class="readiness-value ready-warn">Waiting</span>
+              </div>
+
+              <div class="readiness-item">
+                <span class="readiness-label">Mapping</span>
+                <span id="stageMapping" class="readiness-value ready-warn">Waiting</span>
+              </div>
+
+              <div class="readiness-item">
+                <span class="readiness-label">Accept Action</span>
+                <span id="stageAction" class="readiness-value ready-warn">Not Validated</span>
+              </div>
+            </div>
 
             <div class="row">
               <button id="connectBtn" class="gold">Connect / Login</button>

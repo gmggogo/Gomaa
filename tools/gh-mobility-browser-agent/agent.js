@@ -552,6 +552,158 @@ function isTelemetryUrl(urlValue){
   );
 }
 
+
+function safeHost(urlValue){
+  try{
+    return new URL(clean(urlValue)).hostname.toLowerCase();
+  }catch(_){
+    return "";
+  }
+}
+
+function rootDomain(host){
+  const parts=clean(host).toLowerCase().split(".").filter(Boolean);
+  if(parts.length<=2) return parts.join(".");
+  return parts.slice(-2).join(".");
+}
+
+function samePortalFamily(urlValue,portalUrl){
+  const sourceHost=safeHost(urlValue);
+  const portalHost=safeHost(portalUrl);
+
+  if(!sourceHost || !portalHost) return false;
+  if(sourceHost===portalHost) return true;
+  if(sourceHost.endsWith(`.${portalHost}`)) return true;
+  if(portalHost.endsWith(`.${sourceHost}`)) return true;
+
+  return rootDomain(sourceHost)===rootDomain(portalHost);
+}
+
+function isSensitiveObjectKey(key){
+  const lower=clean(key).toLowerCase();
+
+  return (
+    lower.includes("password") ||
+    lower.includes("passwd") ||
+    lower.includes("token") ||
+    lower.includes("cookie") ||
+    lower.includes("authorization") ||
+    lower.includes("secret") ||
+    lower.includes("session")
+  );
+}
+
+function scalarFieldCount(obj){
+  if(!obj || typeof obj!=="object" || Array.isArray(obj)) return 0;
+
+  let count=0;
+
+  for(const [key,value] of Object.entries(obj)){
+    if(isSensitiveObjectKey(key)) continue;
+
+    if(
+      value===null ||
+      ["string","number","boolean"].includes(typeof value)
+    ){
+      count++;
+    }
+  }
+
+  return count;
+}
+
+function schemaSignature(obj){
+  if(!obj || typeof obj!=="object" || Array.isArray(obj)) return "";
+
+  return Object.keys(obj)
+    .filter(key=>!isSensitiveObjectKey(key))
+    .sort()
+    .slice(0,40)
+    .join("|");
+}
+
+function extractStructuredRows(value,depth=0){
+  if(depth>10 || value==null) return [];
+
+  if(Array.isArray(value)){
+    const objects=value.filter(
+      item=>item && typeof item==="object" && !Array.isArray(item)
+    );
+
+    if(objects.length){
+      const groups=new Map();
+
+      for(const item of objects.slice(0,60)){
+        if(scalarFieldCount(item)<3) continue;
+
+        const signature=schemaSignature(item);
+
+        if(!signature) continue;
+
+        if(!groups.has(signature)){
+          groups.set(signature,[]);
+        }
+
+        groups.get(signature).push(item);
+      }
+
+      const best=
+        [...groups.values()]
+          .sort((a,b)=>b.length-a.length)[0];
+
+      if(best && best.length>=1){
+        return best.slice(0,40);
+      }
+    }
+
+    for(const item of value.slice(0,25)){
+      const nested=
+        extractStructuredRows(
+          item,
+          depth+1
+        );
+
+      if(nested.length){
+        return nested;
+      }
+    }
+
+    return [];
+  }
+
+  if(typeof value!=="object"){
+    return [];
+  }
+
+  for(const [key,child] of Object.entries(value)){
+    if(isSensitiveObjectKey(key)) continue;
+
+    const nested=
+      extractStructuredRows(
+        child,
+        depth+1
+      );
+
+    if(nested.length){
+      return nested;
+    }
+  }
+
+  return [];
+}
+
+function simpleFingerprint(value){
+  const text=JSON.stringify(value);
+  let hash=0;
+
+  for(let i=0;i<text.length;i++){
+    hash=((hash<<5)-hash)+text.charCodeAt(i);
+    hash|=0;
+  }
+
+  return String(Math.abs(hash));
+}
+
 class PortalSession{
   constructor(options){
     this.connectionId=
@@ -616,6 +768,23 @@ class PortalSession{
     this.lastDiscoveryAt=null;
     this.lastError="";
     this.stopping=false;
+
+    this.currentUrl="";
+    this.currentTitle="";
+    this.debugAttached=false;
+    this.loginDetected=false;
+    this.tripsPageDetected=false;
+    this.networkCandidates=0;
+    this.domCandidates=0;
+    this.discoveriesPosted=0;
+    this.lastDiscoveryType="";
+    this.lastMapperReady=false;
+    this.lastMapperMethod="";
+    this.lastActionDetected=false;
+    this.lastActionConfidence=0;
+    this.domTimer=null;
+    this.pageProbeBusy=false;
+    this.lastDomFingerprint="";
   }
 
   bridgeEndpoint(){
@@ -753,6 +922,20 @@ class PortalSession{
     this.startedAt=
       new Date()
         .toISOString();
+
+    /*
+      Network JSON is the primary discovery path. DOM inspection is the
+      fallback for portals that render trip tables/cards without useful JSON.
+    */
+    this.domTimer=
+      setInterval(
+        ()=>this.inspectDom().catch(()=>{}),
+        3500
+      );
+
+    this.domTimer.unref?.();
+
+    this.inspectDom().catch(()=>{});
 
     return this.status();
   }
@@ -942,6 +1125,12 @@ class PortalSession{
     await this.send(
       "Page.enable"
     );
+
+    await this.send(
+      "Runtime.enable"
+    );
+
+    this.debugAttached=true;
   }
 
   queueBridgePayload(
@@ -998,6 +1187,17 @@ class PortalSession{
                   item.meta.url ||
                   "",
 
+                discoveryType:
+                  item.meta.discoveryType ||
+                  "NETWORK_JSON",
+
+                actionCandidates:
+                  Array.isArray(
+                    item.meta.actionCandidates
+                  )
+                    ? item.meta.actionCandidates
+                    : [],
+
                 operationName:
                   "LOCAL_BROWSER_DISCOVERY"
               },
@@ -1008,12 +1208,42 @@ class PortalSession{
             new Date()
               .toISOString();
 
+          this.lastDiscoveryType=
+            clean(
+              item.meta.discoveryType ||
+              "NETWORK_JSON"
+            );
+
+          this.lastMapperReady=
+            result?.normalized?.mapper?.ready===true;
+
+          this.lastMapperMethod=
+            clean(
+              result?.normalized?.mapper?.method ||
+              ""
+            );
+
+          this.lastActionDetected=
+            this.lastActionDetected ||
+            Boolean(
+              result?.actionProfile?.detected
+            );
+
+          this.lastActionConfidence=
+            Number(
+              result?.actionProfile?.confidence ||
+              this.lastActionConfidence ||
+              0
+            );
+
+          this.discoveriesPosted++;
+
           this.lastError="";
 
           this.bridgeQueue.shift();
 
           console.log(
-            `[${this.connectionId}] GH discovery accepted; normalized=${Number(result?.normalized?.total||0)}`
+            `[${this.connectionId}] GH discovery accepted; normalized=${Number(result?.normalized?.total||0)}; mapper=${this.lastMapperMethod||"WAITING"}`
           );
 
         }catch(err){
@@ -1149,6 +1379,417 @@ class PortalSession{
     }
   }
 
+  async inspectDom(){
+    if(
+      this.pageProbeBusy ||
+      this.stopping ||
+      !this.ws ||
+      this.ws.readyState!==WebSocket.OPEN
+    ){
+      return;
+    }
+
+    this.pageProbeBusy=true;
+
+    try{
+      const expression=`
+        (()=>{
+          const clean=v=>String(v??"").replace(/\\s+/g," ").trim();
+
+          const visible=el=>{
+            if(!el) return false;
+            const style=getComputedStyle(el);
+            const rect=el.getBoundingClientRect();
+
+            return (
+              style.display!=="none" &&
+              style.visibility!=="hidden" &&
+              rect.width>0 &&
+              rect.height>0
+            );
+          };
+
+          const selectorFor=el=>{
+            if(!el || !el.tagName) return "";
+
+            if(
+              el.id &&
+              /^[A-Za-z][A-Za-z0-9_\\-:.]*$/.test(el.id)
+            ){
+              return "#"+CSS.escape(el.id);
+            }
+
+            const parts=[];
+            let current=el;
+
+            for(
+              let depth=0;
+              current &&
+              current.nodeType===1 &&
+              depth<6;
+              depth++,current=current.parentElement
+            ){
+              let part=current.tagName.toLowerCase();
+
+              const stable=
+                [...current.classList]
+                  .filter(x=>x && !/active|hover|focus|selected/i.test(x))
+                  .slice(0,2);
+
+              if(stable.length){
+                part+="."+stable.map(x=>CSS.escape(x)).join(".");
+              }
+
+              const parent=current.parentElement;
+
+              if(parent){
+                const siblings=
+                  [...parent.children]
+                    .filter(x=>x.tagName===current.tagName);
+
+                if(siblings.length>1){
+                  part+=":nth-of-type("+(siblings.indexOf(current)+1)+")";
+                }
+              }
+
+              parts.unshift(part);
+
+              if(current.id){
+                break;
+              }
+            }
+
+            return parts.join(" > ");
+          };
+
+          const uniqueKey=(label,index)=>{
+            const value=
+              clean(label) ||
+              ("Column "+(index+1));
+
+            return value.slice(0,100);
+          };
+
+          const rows=[];
+
+          const tables=
+            [...document.querySelectorAll("table")]
+              .filter(visible)
+              .slice(0,12);
+
+          for(const table of tables){
+            let headers=
+              [...table.querySelectorAll("thead th")]
+                .map(x=>clean(x.innerText||x.textContent));
+
+            const tr=
+              [...table.querySelectorAll("tr")]
+                .filter(visible);
+
+            if(!headers.length && tr.length){
+              headers=
+                [...tr[0].querySelectorAll("th,td")]
+                  .map(x=>clean(x.innerText||x.textContent));
+            }
+
+            for(const row of tr.slice(headers.length?1:0,31)){
+              const cells=
+                [...row.querySelectorAll(":scope > th,:scope > td")];
+
+              if(cells.length<3){
+                continue;
+              }
+
+              const obj={};
+
+              cells.slice(0,24).forEach(
+                (cell,index)=>{
+                  const value=
+                    clean(cell.innerText||cell.textContent)
+                      .slice(0,800);
+
+                  if(value){
+                    obj[uniqueKey(headers[index],index)]=value;
+                  }
+                }
+              );
+
+              if(Object.keys(obj).length>=3){
+                rows.push(obj);
+              }
+
+              if(rows.length>=50){
+                break;
+              }
+            }
+
+            if(rows.length>=50){
+              break;
+            }
+          }
+
+          if(rows.length<50){
+            const cardSelectors=[
+              '[role="row"]',
+              '[class*="trip" i]',
+              '[class*="ride" i]',
+              '[class*="task" i]',
+              '[class*="reservation" i]',
+              '.card'
+            ].join(",");
+
+            const cards=
+              [...document.querySelectorAll(cardSelectors)]
+                .filter(visible)
+                .slice(0,80);
+
+            for(const card of cards){
+              const obj={};
+
+              const labelled=
+                [...card.querySelectorAll("[data-label],dt,th,label")]
+                  .slice(0,30);
+
+              for(const labelEl of labelled){
+                const label=
+                  clean(
+                    labelEl.getAttribute("data-label") ||
+                    labelEl.innerText ||
+                    labelEl.textContent
+                  );
+
+                if(!label){
+                  continue;
+                }
+
+                let valueEl=null;
+
+                if(labelEl.matches("dt")){
+                  valueEl=labelEl.nextElementSibling;
+                }
+
+                if(!valueEl && labelEl.parentElement){
+                  valueEl=
+                    [...labelEl.parentElement.children]
+                      .find(x=>x!==labelEl) ||
+                    null;
+                }
+
+                const value=
+                  clean(
+                    valueEl?.innerText ||
+                    valueEl?.textContent ||
+                    ""
+                  );
+
+                if(value && value!==label){
+                  obj[label.slice(0,100)]=
+                    value.slice(0,800);
+                }
+              }
+
+              const lines=
+                String(card.innerText||card.textContent||"")
+                  .split(/\\n+/)
+                  .map(clean)
+                  .filter(Boolean);
+
+              for(const line of lines.slice(0,40)){
+                const match=
+                  line.match(/^([^:]{2,80}):\\s*(.+)$/);
+
+                if(match){
+                  const label=clean(match[1]);
+                  const value=clean(match[2]);
+
+                  if(label && value){
+                    obj[label]=value.slice(0,800);
+                  }
+                }
+              }
+
+              if(Object.keys(obj).length>=3){
+                rows.push(obj);
+
+                if(rows.length>=50){
+                  break;
+                }
+              }
+            }
+          }
+
+          const actionWords=
+            /\\b(accept|claim|take|book|reserve|assign|select\\s+trip|add\\s+trip|choose\\s+trip)\\b/i;
+
+          const actionCandidates=
+            [
+              ...document.querySelectorAll(
+                'button,a,[role="button"],input[type="button"],input[type="submit"]'
+              )
+            ]
+            .filter(visible)
+            .map(el=>{
+              const text=
+                clean(
+                  el.innerText ||
+                  el.textContent ||
+                  el.value ||
+                  el.getAttribute("aria-label") ||
+                  el.getAttribute("title")
+                )
+                .slice(0,100);
+
+              return {
+                text,
+                selector:selectorFor(el),
+                tag:String(el.tagName||"").toLowerCase(),
+                role:clean(el.getAttribute("role")),
+                disabled:Boolean(
+                  el.disabled ||
+                  el.getAttribute("aria-disabled")==="true"
+                )
+              };
+            })
+            .filter(
+              item=>
+                item.text &&
+                actionWords.test(item.text) &&
+                !item.disabled
+            )
+            .slice(0,30);
+
+          const bodyText=
+            clean(document.body?.innerText||"")
+              .slice(0,12000);
+
+          const hasPassword=
+            Boolean(
+              document.querySelector('input[type="password"]')
+            );
+
+          const loginDetected=
+            !hasPassword &&
+            bodyText.length>80;
+
+          const tripsPageDetected=
+            rows.length>0 ||
+            /\\b(trip|ride|reservation|available\\s+task|available\\s+trip|transportation)\\b/i.test(bodyText);
+
+          return {
+            url:location.href,
+            title:document.title||"",
+            loginDetected,
+            tripsPageDetected,
+            rows:rows.slice(0,50),
+            actionCandidates
+          };
+        })()
+      `;
+
+      const evaluated=
+        await this.send(
+          "Runtime.evaluate",
+          {
+            expression,
+            returnByValue:true,
+            awaitPromise:true
+          }
+        );
+
+      const value=
+        evaluated?.result?.value ||
+        {};
+
+      this.currentUrl=
+        clean(
+          value.url
+        );
+
+      this.currentTitle=
+        clean(
+          value.title
+        );
+
+      this.loginDetected=
+        value.loginDetected===true;
+
+      this.tripsPageDetected=
+        value.tripsPageDetected===true;
+
+      const rows=
+        Array.isArray(value.rows)
+          ? value.rows
+          : [];
+
+      const actionCandidates=
+        Array.isArray(value.actionCandidates)
+          ? value.actionCandidates
+          : [];
+
+      this.lastActionDetected=
+        actionCandidates.length>0;
+
+      if(
+        !rows.length &&
+        !actionCandidates.length
+      ){
+        return;
+      }
+
+      const fingerprint=
+        simpleFingerprint({
+          url:this.currentUrl,
+          rows:rows.slice(0,10),
+          actions:
+            actionCandidates
+              .map(x=>x.text)
+        });
+
+      if(
+        fingerprint===
+        this.lastDomFingerprint
+      ){
+        return;
+      }
+
+      this.lastDomFingerprint=
+        fingerprint;
+
+      if(rows.length){
+        this.domCandidates+=rows.length;
+      }
+
+      this.queueBridgePayload(
+        {
+          __ghOnboarding:true,
+          __ghDiscoveryType:"DOM",
+          rows
+        },
+        {
+          url:
+            this.currentUrl ||
+            this.portalUrl,
+
+          host:
+            safeHost(
+              this.currentUrl ||
+              this.portalUrl
+            ),
+
+          status:200,
+          mimeType:"text/html",
+          requestId:
+            `DOM:${fingerprint}`,
+          discoveryType:"DOM",
+          actionCandidates
+        }
+      );
+
+    }finally{
+      this.pageProbeBusy=false;
+    }
+  }
+
   writeSnapshot(){
     const payload={
       generatedAt:
@@ -1279,27 +1920,79 @@ class PortalSession{
       };
 
       /*
-        Ignore telemetry/error-monitoring JSON such as Sentry.
-        Only send a response to GH when it actually contains a trip-like
-        object. This keeps Discoveries, Mapping and sourceHost tied to
-        real provider-portal trip data.
+        Ignore telemetry/error-monitoring JSON. For an unknown provider portal,
+        accept either known trip-shaped JSON OR a repeated structured row set
+        from the provider's own domain. This gives the server-side AI mapper
+        enough schema information without broker-specific code.
       */
       if(
         isTelemetryUrl(discoveryMeta.url) ||
-        !payloadHasTripCandidate(parsed)
+        !samePortalFamily(
+          discoveryMeta.url,
+          this.portalUrl
+        )
       ){
         return;
       }
 
-      this.walk(
-        parsed,
-        discoveryMeta
-      );
+      const knownTripPayload=
+        payloadHasTripCandidate(
+          parsed
+        );
 
-      this.queueBridgePayload(
-        parsed,
-        discoveryMeta
-      );
+      const structuredRows=
+        knownTripPayload
+          ? []
+          : extractStructuredRows(
+              parsed
+            );
+
+      if(
+        !knownTripPayload &&
+        !structuredRows.length
+      ){
+        return;
+      }
+
+      this.networkCandidates+=
+        knownTripPayload
+          ? 1
+          : structuredRows.length;
+
+      if(knownTripPayload){
+        this.walk(
+          parsed,
+          discoveryMeta
+        );
+
+        this.queueBridgePayload(
+          parsed,
+          {
+            ...discoveryMeta,
+            discoveryType:"NETWORK_JSON"
+          }
+        );
+
+      }else{
+        const fingerprint=
+          simpleFingerprint(
+            structuredRows.slice(0,10)
+          );
+
+        this.queueBridgePayload(
+          {
+            __ghOnboarding:true,
+            __ghDiscoveryType:"STRUCTURED_JSON",
+            rows:structuredRows
+          },
+          {
+            ...discoveryMeta,
+            requestId:
+              `STRUCTURED:${params.requestId}:${fingerprint}`,
+            discoveryType:"STRUCTURED_JSON"
+          }
+        );
+      }
 
     }catch(_){
       /*
@@ -1326,14 +2019,58 @@ class PortalSession{
           !this.browserProcess.killed
         ),
 
+      browserFound:
+        Boolean(
+          this.browserPath
+        ),
+
+      debugAttached:
+        this.debugAttached===true,
+
+      currentUrl:
+        this.currentUrl,
+
+      currentTitle:
+        this.currentTitle,
+
+      loginDetected:
+        this.loginDetected===true,
+
+      tripsPageDetected:
+        this.tripsPageDetected===true,
+
       startedAt:
         this.startedAt,
 
       lastDiscoveryAt:
         this.lastDiscoveryAt,
 
+      lastDiscoveryType:
+        this.lastDiscoveryType,
+
       discovered:
         this.discovered.size,
+
+      networkCandidates:
+        this.networkCandidates,
+
+      domCandidates:
+        this.domCandidates,
+
+      discoveriesPosted:
+        this.discoveriesPosted,
+
+      mapperReady:
+        this.lastMapperReady===true,
+
+      mapperMethod:
+        this.lastMapperMethod,
+
+      actionDetected:
+        this.lastActionDetected===true,
+
+      actionConfidence:
+        this.lastActionConfidence,
 
       lastError:
         this.lastError
@@ -1346,6 +2083,14 @@ class PortalSession{
     }
 
     this.stopping=true;
+
+    if(this.domTimer){
+      clearInterval(
+        this.domTimer
+      );
+
+      this.domTimer=null;
+    }
 
     try{
       this.writeSnapshot();
@@ -1378,6 +2123,83 @@ class PortalSession{
       this.profileDir
     );
   }
+}
+
+function preflightCheck(body={}){
+  const connectionId=
+    clean(
+      body.connectionId
+    );
+
+  const portalUrl=
+    clean(
+      body.portalUrl
+    );
+
+  const ghBaseUrl=
+    clean(
+      body.ghBaseUrl
+    );
+
+  const browserPath=
+    findBrowser();
+
+  const checks={
+    controller:true,
+    connectionId:Boolean(connectionId),
+    browserFound:Boolean(browserPath),
+    portalUrl:false,
+    ghUrl:false
+  };
+
+  try{
+    const portal=
+      new URL(
+        portalUrl
+      );
+
+    checks.portalUrl=
+      ["http:","https:"]
+        .includes(
+          portal.protocol
+        );
+  }catch(_){}
+
+  try{
+    const gh=
+      new URL(
+        ghBaseUrl
+      );
+
+    checks.ghUrl=
+      gh.protocol==="https:" ||
+      [
+        "localhost",
+        "127.0.0.1"
+      ].includes(
+        gh.hostname
+      );
+  }catch(_){}
+
+  const ready=
+    checks.controller &&
+    checks.connectionId &&
+    checks.browserFound &&
+    checks.portalUrl &&
+    checks.ghUrl;
+
+  return {
+    success:ready,
+    ready,
+    checks,
+    browserPath:
+      browserPath ||
+      "",
+    message:
+      ready
+        ? "Local Browser Agent preflight passed"
+        : "Local Browser Agent preflight failed"
+  };
 }
 
 async function connectSession(body){
@@ -1557,6 +2379,77 @@ const controller=
                 session=>
                   session.status()
               )
+          },
+          origin
+        );
+      }
+
+      if(
+        req.method==="POST" &&
+        requestUrl.pathname==="/preflight"
+      ){
+        try{
+          const body=
+            await readRequestBody(
+              req
+            );
+
+          const result=
+            preflightCheck(
+              body
+            );
+
+          return json(
+            res,
+            result.ready ? 200 : 409,
+            result,
+            origin
+          );
+
+        }catch(err){
+          return json(
+            res,
+            500,
+            {
+              success:false,
+              ready:false,
+              message:
+                err.message ||
+                String(err)
+            },
+            origin
+          );
+        }
+      }
+
+      if(
+        req.method==="GET" &&
+        requestUrl.pathname==="/status"
+      ){
+        const connectionId=
+          clean(
+            requestUrl
+              .searchParams
+              .get("connectionId")
+          );
+
+        const session=
+          connectionId
+            ? sessions.get(
+                connectionId
+              )
+            : null;
+
+        return json(
+          res,
+          200,
+          {
+            success:true,
+            connectionId,
+            session:
+              session
+                ? session.status()
+                : null
           },
           origin
         );

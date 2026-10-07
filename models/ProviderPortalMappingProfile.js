@@ -26,6 +26,27 @@ const ProviderPortalMappingProfileSchema = new mongoose.Schema({
   aiStatus:{type:String,default:"NOT_USED"},
   aiModel:{type:String,default:""},
   ready:{type:Boolean,default:false},
+
+  /*
+    Generic portal onboarding telemetry.
+    These fields describe how the portal was discovered and do not store
+    passwords, cookies, MFA material, or browser session state.
+  */
+  discoveryMethods:{type:[String],default:[]},
+  lastDiscoveryType:{type:String,default:""},
+  lastSourceUrl:{type:String,default:""},
+
+  /*
+    Generic Action Profile foundation.
+    Detection does NOT execute Accept / Claim. It only records a candidate
+    action so the portal can be validated safely before automation is enabled.
+  */
+  actionProfile:{type:mongoose.Schema.Types.Mixed,default:{}},
+  actionConfidence:{type:Number,default:0},
+  actionMethod:{type:String,default:""},
+  actionReady:{type:Boolean,default:false},
+  actionVerifiedAt:{type:Date,default:null},
+
   lastSeenAt:{type:Date,default:Date.now},
   createdAt:{type:Date,default:Date.now},
   updatedAt:{type:Date,default:Date.now}

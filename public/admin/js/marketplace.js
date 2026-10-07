@@ -108,7 +108,9 @@ Marketplace multi-broker UI.
   const state={
     connections:[],
     activity:[],
-    selectedConnectionId:""
+    selectedConnectionId:"",
+    localStatus:null,
+    serverPreflight:null
   };
 
   const palette=[
@@ -245,6 +247,253 @@ Marketplace multi-broker UI.
     }
   }
 
+  function setStage(
+    id,
+    text,
+    stateName="warn"
+  ){
+    const el=$(id);
+
+    if(!el){
+      return;
+    }
+
+    el.textContent=
+      text;
+
+    el.classList.remove(
+      "ready-yes",
+      "ready-warn",
+      "ready-no"
+    );
+
+    el.classList.add(
+      stateName==="yes"
+        ? "ready-yes"
+        : (
+            stateName==="no"
+              ? "ready-no"
+              : "ready-warn"
+          )
+    );
+  }
+
+  function renderReadiness(){
+    const item=
+      selectedConnection();
+
+    const local=
+      state.localStatus?.session ||
+      null;
+
+    const preflight=
+      state.serverPreflight ||
+      null;
+
+    if(!item){
+      setStage(
+        "stageAgent",
+        "No Connection",
+        "no"
+      );
+
+      setStage(
+        "stageBrowser",
+        "Not Started",
+        "warn"
+      );
+
+      setStage(
+        "stageLogin",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageDiscovery",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageMapping",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageAction",
+        "Not Validated",
+        "warn"
+      );
+
+      return;
+    }
+
+    if(
+      state.localStatus?.agentOnline===true
+    ){
+      setStage(
+        "stageAgent",
+        "READY",
+        "yes"
+      );
+    }else{
+      setStage(
+        "stageAgent",
+        "OFFLINE",
+        "no"
+      );
+    }
+
+    if(
+      local?.running &&
+      local?.debugAttached
+    ){
+      setStage(
+        "stageBrowser",
+        "CONNECTED",
+        "yes"
+      );
+
+    }else if(local?.running){
+      setStage(
+        "stageBrowser",
+        "STARTING",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageBrowser",
+        "Not Started",
+        "warn"
+      );
+    }
+
+    if(local?.loginDetected){
+      setStage(
+        "stageLogin",
+        "DETECTED",
+        "yes"
+      );
+
+    }else if(local?.running){
+      setStage(
+        "stageLogin",
+        "Waiting Login",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageLogin",
+        "Waiting",
+        "warn"
+      );
+    }
+
+    const discoveries=
+      Number(
+        item.discoveriesReceived ||
+        0
+      );
+
+    const posted=
+      Number(
+        local?.discoveriesPosted ||
+        0
+      );
+
+    if(
+      discoveries>0 ||
+      posted>0
+    ){
+      const method=
+        local?.lastDiscoveryType ||
+        item?.mapper?.lastDiscoveryType ||
+        "DISCOVERY";
+
+      setStage(
+        "stageDiscovery",
+        `${method} · ${Math.max(discoveries,posted)}`,
+        "yes"
+      );
+
+    }else if(
+      local?.tripsPageDetected
+    ){
+      setStage(
+        "stageDiscovery",
+        "Trips Page Seen",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageDiscovery",
+        "Waiting",
+        "warn"
+      );
+    }
+
+    if(item?.mapper?.ready){
+      setStage(
+        "stageMapping",
+        item.mapper.method ||
+        "READY",
+        "yes"
+      );
+
+    }else if(
+      preflight?.mapping?.method
+    ){
+      setStage(
+        "stageMapping",
+        `${preflight.mapping.method} · WAITING`,
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageMapping",
+        "WAITING",
+        "warn"
+      );
+    }
+
+    const actionReady=
+      item?.mapper?.actionReady===true ||
+      preflight?.action?.ready===true;
+
+    const actionDetected=
+      item?.mapper?.actionDetected===true ||
+      preflight?.action?.detected===true ||
+      local?.actionDetected===true;
+
+    if(actionReady){
+      setStage(
+        "stageAction",
+        "VERIFIED",
+        "yes"
+      );
+
+    }else if(actionDetected){
+      setStage(
+        "stageAction",
+        "Detected · Needs Validation",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageAction",
+        "Not Detected",
+        "warn"
+      );
+    }
+  }
+
   function renderSelectedConnection(){
     const item=selectedConnection();
     const hero=$("brokerHero");
@@ -258,6 +507,7 @@ Marketplace multi-broker UI.
       $("connectBtn").disabled=true;
       $("disconnectBtn").disabled=true;
       $("scanBtn").disabled=true;
+      renderReadiness();
       return;
     }
 
@@ -297,7 +547,11 @@ Marketplace multi-broker UI.
 
     $("connectBtn").disabled=false;
     $("disconnectBtn").disabled=false;
-    $("scanBtn").disabled=false;
+
+    $("scanBtn").disabled=
+      item?.mapper?.ready!==true;
+
+    renderReadiness();
   }
 
   function rowConnectionId(row){
@@ -365,6 +619,69 @@ Marketplace multi-broker UI.
     renderActivity();
   }
 
+  async function refreshPreflight(){
+    const item=
+      selectedConnection();
+
+    if(!item){
+      state.localStatus=null;
+      state.serverPreflight=null;
+      renderReadiness();
+      return;
+    }
+
+    const connectionId=
+      encodeURIComponent(
+        item.connectionId
+      );
+
+    const [
+      localResult,
+      serverResult
+    ]=
+      await Promise.all([
+        localAgent(
+          `/status?connectionId=${connectionId}`,
+          {
+            method:"GET"
+          }
+        )
+        .then(
+          data=>({
+            agentOnline:true,
+            ...(data||{})
+          })
+        )
+        .catch(
+          ()=>({
+            agentOnline:false,
+            session:null
+          })
+        ),
+
+        bridge(
+          `/preflight?connectionId=${connectionId}`
+        )
+        .catch(
+          err=>({
+            success:false,
+            ready:false,
+            message:
+              err.message ||
+              "Server preflight failed"
+          })
+        )
+      ]);
+
+    state.localStatus=
+      localResult;
+
+    state.serverPreflight=
+      serverResult;
+
+    renderReadiness();
+  }
+
   async function connectSelected(){
     const item=selectedConnection();
 
@@ -375,7 +692,50 @@ Marketplace multi-broker UI.
     try{
       $("connectBtn").disabled=true;
       $("connectionStatus").textContent=
-        "Starting secure browser connection...";
+        "Running preflight checks...";
+
+      const serverCheck=
+        await bridge(
+          `/preflight?connectionId=${encodeURIComponent(item.connectionId)}`
+        );
+
+      if(serverCheck.ready!==true){
+        throw new Error(
+          serverCheck.message ||
+          "Server-side Marketplace preflight did not pass."
+        );
+      }
+
+      const localCheck=
+        await localAgent(
+          "/preflight",
+          {
+            method:"POST",
+            body:
+              JSON.stringify({
+                connectionId:
+                  item.connectionId,
+
+                portalUrl:
+                  item.portalUrl ||
+                  serverCheck.portalUrl ||
+                  "",
+
+                ghBaseUrl:
+                  window.location.origin
+              })
+          }
+        );
+
+      if(localCheck.ready!==true){
+        throw new Error(
+          localCheck.message ||
+          "Local Browser Agent preflight did not pass."
+        );
+      }
+
+      $("connectionStatus").textContent=
+        "Preflight passed. Starting secure browser connection...";
 
       /*
         GH creates a short-lived connection-scoped discovery token.
@@ -440,6 +800,7 @@ Marketplace multi-broker UI.
           : "Broker browser opened. Sign in directly on the broker website.";
 
       await load();
+      await refreshPreflight();
 
     }catch(err){
       const message=
@@ -498,7 +859,11 @@ Marketplace multi-broker UI.
       $("connectionStatus").textContent=
         "Disconnected.";
 
+      state.localStatus=null;
+      state.serverPreflight=null;
+
       await load();
+      await refreshPreflight();
 
     }catch(err){
       $("connectionStatus").textContent=
@@ -589,6 +954,8 @@ Marketplace multi-broker UI.
           : [];
 
       renderAll();
+
+      await refreshPreflight();
 
     }catch(err){
       $("scanStatus").textContent=

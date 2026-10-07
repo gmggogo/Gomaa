@@ -133,6 +133,380 @@ function collectTripObjects(value,out=[],seen=new Set()){
   return out;
 }
 
+
+function onboardingRows(payload){
+  if(
+    payload &&
+    typeof payload==="object" &&
+    payload.__ghOnboarding===true &&
+    Array.isArray(payload.rows)
+  ){
+    return payload.rows
+      .filter(
+        row=>
+          row &&
+          typeof row==="object" &&
+          !Array.isArray(row)
+      )
+      .slice(0,100);
+  }
+
+  return [];
+}
+
+function discoverySamples(payload){
+  const direct=
+    collectTripObjects(
+      payload
+    );
+
+  if(direct.length){
+    return direct;
+  }
+
+  const rows=
+    onboardingRows(
+      payload
+    );
+
+  if(rows.length){
+    return rows;
+  }
+
+  return [];
+}
+
+function configuredPortalHost(connection){
+  try{
+    return new URL(
+      clean(
+        connection?.portalUrl
+      )
+    )
+    .host
+    .toLowerCase();
+  }catch(_){
+    return "";
+  }
+}
+
+function normalizeActionCandidates(value){
+  if(!Array.isArray(value)){
+    return [];
+  }
+
+  return value
+    .filter(
+      item=>
+        item &&
+        typeof item==="object"
+    )
+    .map(
+      (item,index)=>({
+        index,
+        text:
+          clean(
+            item.text
+          ).slice(0,120),
+
+        selector:
+          clean(
+            item.selector
+          ).slice(0,500),
+
+        tag:
+          clean(
+            item.tag
+          ).slice(0,40),
+
+        role:
+          clean(
+            item.role
+          ).slice(0,80),
+
+        disabled:
+          item.disabled===true
+      })
+    )
+    .filter(
+      item=>
+        item.text &&
+        item.selector &&
+        !item.disabled
+    )
+    .slice(0,50);
+}
+
+function scoreAcceptAction(candidate){
+  const text=
+    clean(
+      candidate?.text
+    )
+    .toLowerCase();
+
+  if(!text){
+    return 0;
+  }
+
+  if(/^\s*(accept|claim)\s*$/.test(text)) return 1;
+  if(/\b(accept trip|claim trip|accept ride|claim ride)\b/.test(text)) return 0.98;
+  if(/\b(accept|claim)\b/.test(text)) return 0.92;
+  if(/\b(take trip|take ride|book trip|reserve trip)\b/.test(text)) return 0.82;
+  if(/\b(take|book|reserve|assign)\b/.test(text)) return 0.68;
+
+  return 0;
+}
+
+async function chooseActionProfile(actionCandidates){
+  const candidates=
+    normalizeActionCandidates(
+      actionCandidates
+    );
+
+  if(!candidates.length){
+    return {
+      detected:false,
+      confidence:0,
+      method:"NONE",
+      profile:{}
+    };
+  }
+
+  const ranked=
+    candidates
+      .map(
+        item=>({
+          ...item,
+          score:
+            scoreAcceptAction(
+              item
+            )
+        })
+      )
+      .sort(
+        (a,b)=>
+          b.score-a.score
+      );
+
+  if(ranked[0]?.score>=0.80){
+    return {
+      detected:true,
+      confidence:
+        Number(
+          ranked[0].score
+            .toFixed(2)
+        ),
+      method:"AUTO_RULES",
+      profile:{
+        accept:{
+          text:
+            ranked[0].text,
+          selector:
+            ranked[0].selector,
+          tag:
+            ranked[0].tag,
+          role:
+            ranked[0].role,
+          verified:false
+        }
+      }
+    };
+  }
+
+  const apiKey=
+    clean(
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_GEMINI_API_KEY
+    );
+
+  if(!apiKey){
+    return {
+      detected:true,
+      confidence:
+        Number(
+          ranked[0]?.score ||
+          0
+        ),
+      method:"CANDIDATES_ONLY",
+      profile:{
+        candidates:
+          ranked.slice(0,10)
+      }
+    };
+  }
+
+  const model=
+    clean(
+      process.env.PROVIDER_PORTAL_AI_MODEL ||
+      "gemini-3.1-pro-preview"
+    );
+
+  const prompt=[
+    "You identify the provider-portal action that means Accept/Claim/Take a transportation marketplace trip.",
+    "Return JSON only.",
+    "Never invent a selector. Choose only from candidates by index.",
+    `candidates=${JSON.stringify(ranked.slice(0,20).map(x=>({index:x.index,text:x.text,tag:x.tag,role:x.role})))}`,
+    'Return exactly: {"index":0,"confidence":0.0} or {"index":null,"confidence":0.0}'
+  ].join("\\n");
+
+  const controller=
+    new AbortController();
+
+  const timeout=
+    setTimeout(
+      ()=>controller.abort(),
+      3000
+    );
+
+  try{
+    const url=
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    const response=
+      await fetch(
+        url,
+        {
+          method:"POST",
+          headers:{
+            "content-type":
+              "application/json"
+          },
+          body:
+            JSON.stringify({
+              contents:[
+                {
+                  parts:[
+                    {
+                      text:prompt
+                    }
+                  ]
+                }
+              ],
+              generationConfig:{
+                temperature:0,
+                responseMimeType:
+                  "application/json"
+              }
+            }),
+          signal:
+            controller.signal
+        }
+      );
+
+    if(!response.ok){
+      return {
+        detected:true,
+        confidence:
+          Number(
+            ranked[0]?.score ||
+            0
+          ),
+        method:"CANDIDATES_ONLY",
+        profile:{
+          candidates:
+            ranked.slice(0,10)
+        }
+      };
+    }
+
+    const data=
+      await response.json();
+
+    const rawText=
+      data?.candidates?.[0]?.content?.parts
+        ?.map(
+          part=>
+            part.text ||
+            ""
+        )
+        .join("") ||
+      "";
+
+    let parsed={};
+
+    try{
+      parsed=
+        JSON.parse(
+          rawText
+        );
+    }catch(_){}
+
+    const selected=
+      candidates.find(
+        item=>
+          item.index===
+          Number(
+            parsed?.index
+          )
+      );
+
+    if(!selected){
+      return {
+        detected:true,
+        confidence:
+          Number(
+            ranked[0]?.score ||
+            0
+          ),
+        method:"CANDIDATES_ONLY",
+        profile:{
+          candidates:
+            ranked.slice(0,10)
+        }
+      };
+    }
+
+    return {
+      detected:true,
+      confidence:
+        Math.max(
+          0,
+          Math.min(
+            1,
+            Number(
+              parsed?.confidence
+            ) ||
+            0.8
+          )
+        ),
+      method:"AI_ASSISTED",
+      profile:{
+        accept:{
+          text:
+            selected.text,
+          selector:
+            selected.selector,
+          tag:
+            selected.tag,
+          role:
+            selected.role,
+          verified:false
+        }
+      }
+    };
+
+  }catch(_){
+    return {
+      detected:true,
+      confidence:
+        Number(
+          ranked[0]?.score ||
+          0
+        ),
+      method:"CANDIDATES_ONLY",
+      profile:{
+        candidates:
+          ranked.slice(0,10)
+      }
+    };
+
+  }finally{
+    clearTimeout(
+      timeout
+    );
+  }
+}
+
 function textFromLocation(value){
   if(value===undefined || value===null) return "";
   if(typeof value==="string" || typeof value==="number") return clean(value);
@@ -600,6 +974,112 @@ async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
   }
 }
 
+async function updateOnboardingProfile({
+  tenant,
+  connectionId,
+  host,
+  discoveryType,
+  sourceUrl,
+  actionResult
+}){
+  if(
+    !tenant ||
+    !connectionId ||
+    !host
+  ){
+    return null;
+  }
+
+  const set={
+    lastSeenAt:
+      new Date(),
+
+    updatedAt:
+      new Date(),
+
+    lastDiscoveryType:
+      clean(
+        discoveryType
+      ),
+
+    lastSourceUrl:
+      clean(
+        sourceUrl
+      )
+      .slice(0,2000)
+  };
+
+  if(actionResult?.detected){
+    set.actionProfile=
+      actionResult.profile ||
+      {};
+
+    set.actionConfidence=
+      Number(
+        actionResult.confidence ||
+        0
+      );
+
+    set.actionMethod=
+      clean(
+        actionResult.method
+      );
+
+    set.actionReady=
+      Boolean(
+        actionResult.profile?.accept?.verified===true
+      );
+  }
+
+  const update={
+    $set:set,
+
+    $addToSet:{
+      discoveryMethods:
+        clean(
+          discoveryType ||
+          "UNKNOWN"
+        )
+    },
+
+    $setOnInsert:{
+      createdAt:
+        new Date(),
+
+      enabled:true,
+      mappingVersion:
+        MAPPING_VERSION
+    }
+  };
+
+  return ProviderPortalMappingProfile
+    .findOneAndUpdate(
+      {
+        tenantId:
+          String(tenant),
+
+        connectionId:
+          clean(
+            connectionId
+          ),
+
+        sourceHost:
+          String(host)
+            .toLowerCase()
+      },
+      update,
+      {
+        new:true,
+        upsert:true,
+        setDefaultsOnInsert:true
+      }
+    )
+    .lean()
+    .catch(
+      ()=>null
+    );
+}
+
 async function resolvePortalMapping(tenant,connectionId,host,samples){
   const saved=await getSavedMappingProfile(tenant,connectionId,host);
   if(saved?.mapping && mappingReady(saved.mapping)){
@@ -632,15 +1112,32 @@ async function resolvePortalMapping(tenant,connectionId,host,samples){
 }
 
 async function ingestSmartNormalizedTrips(store,payload,meta){
-  const found=collectTripObjects(payload);
+  const found=
+    discoverySamples(
+      payload
+    );
+
   if(!found.length){
     return {
-      found:0,added:0,updated:0,total:store.normalizedTrips.length,
-      mapper:{ready:false,method:"NO_TRIPS",confidence:0}
+      found:0,
+      added:0,
+      updated:0,
+      total:store.normalizedTrips.length,
+      mapper:{
+        ready:false,
+        method:"NO_TRIPS",
+        confidence:0
+      }
     };
   }
 
-  const mapper=await resolvePortalMapping(meta.tenantId,meta.connectionId,meta.sourceHost,found);
+  const mapper=
+    await resolvePortalMapping(
+      meta.tenantId,
+      meta.connectionId,
+      meta.sourceHost,
+      found
+    );
   store.mapperStatus={
     sourceHost:meta.sourceHost,
     ready:mapper.ready,
@@ -734,42 +1231,156 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
       return res.status(400).json({success:false,message:"Discovery payload is required"});
     }
 
-    const sourceUrl=clean(body.sourceUrl).slice(0,2000);
-    const host=safeHost(sourceUrl);
-    const store=tenantStore(id,connectionId);
+    const sourceUrl=
+      clean(
+        body.sourceUrl
+      )
+      .slice(0,2000);
+
+    const rawHost=
+      safeHost(
+        sourceUrl
+      );
+
+    const discoveryType=
+      clean(
+        body.discoveryType ||
+        body.payload?.__ghDiscoveryType ||
+        "NETWORK_JSON"
+      )
+      .slice(0,80);
+
+    const store=
+      tenantStore(
+        id,
+        connectionId
+      );
+
     let connection=null;
+
     if(connectionId){
-      connection=await BrokerIntegration.findOne({_id:connectionId,tenantId:id,connectionMode:"MARKETPLACE_PORTAL",enabled:true}).lean();
+      connection=
+        await BrokerIntegration
+          .findOne({
+            _id:connectionId,
+            tenantId:id,
+            connectionMode:"MARKETPLACE_PORTAL",
+            enabled:true
+          })
+          .lean();
+
       if(!connection){
-        return res.status(403).json({success:false,message:"Marketplace connection is disabled or unavailable"});
+        return res.status(403).json({
+          success:false,
+          message:
+            "Marketplace connection is disabled or unavailable"
+        });
       }
     }
 
+    /*
+      Keep mapping identity stable on the configured provider portal host even
+      if the portal fetches trip data from an API subdomain.
+    */
+    const host=
+      configuredPortalHost(
+        connection
+      ) ||
+      rawHost;
+
     const item={
-      receivedAt:new Date().toISOString(),
+      receivedAt:
+        new Date()
+          .toISOString(),
+
       connectionId,
       sourceUrl,
       sourceHost:host,
-      operationName:clean(body.operationName).slice(0,200),
+      rawSourceHost:rawHost,
+      discoveryType,
+
+      operationName:
+        clean(
+          body.operationName
+        )
+        .slice(0,200),
+
       readOnly:true,
-      payload:body.payload
+      payload:
+        body.payload
     };
     store.items.push(item);
     if(store.items.length>MAX_ITEMS_PER_TENANT) store.items.splice(0,store.items.length-MAX_ITEMS_PER_TENANT);
     store.lastReceivedAt=item.receivedAt;
     if(host) store.hosts.add(host);
 
-    const normalized=await ingestSmartNormalizedTrips(store,body.payload,{
-      tenantId:id,
-      connectionId,
-      brokerIntegrationId:connection?._id||"",
-      brokerCode:connection?.brokerCode||"",
-      brokerName:connection?.brokerName||"",
-      accountLabel:connection?.accountLabel||"",
-      sourceUrl,
-      sourceHost:host,
-      operationName:item.operationName
-    });
+    const actionResult=
+      await chooseActionProfile(
+        body.actionCandidates
+      );
+
+    const normalized=
+      await ingestSmartNormalizedTrips(
+        store,
+        body.payload,
+        {
+          tenantId:id,
+          connectionId,
+          brokerIntegrationId:
+            connection?._id ||
+            "",
+          brokerCode:
+            connection?.brokerCode ||
+            "",
+          brokerName:
+            connection?.brokerName ||
+            "",
+          accountLabel:
+            connection?.accountLabel ||
+            "",
+          sourceUrl,
+          sourceHost:host,
+          operationName:
+            item.operationName,
+          discoveryType
+        }
+      );
+
+    const onboardingProfile=
+      await updateOnboardingProfile({
+        tenant:id,
+        connectionId,
+        host,
+        discoveryType,
+        sourceUrl,
+        actionResult
+      });
+
+    if(store.mapperStatus){
+      store.mapperStatus.discoveryType=
+        discoveryType;
+
+      store.mapperStatus.actionDetected=
+        Boolean(
+          actionResult?.detected
+        );
+
+      store.mapperStatus.actionConfidence=
+        Number(
+          actionResult?.confidence ||
+          0
+        );
+
+      store.mapperStatus.actionMethod=
+        clean(
+          actionResult?.method
+        );
+
+      store.mapperStatus.actionReady=
+        Boolean(
+          onboardingProfile?.actionReady
+        );
+    }
 
     if(connectionId){
       await BrokerIntegration.updateOne(
@@ -790,8 +1401,35 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
       accepted:true,
       buffered:store.items.length,
       sourceHost:host,
+      rawSourceHost:rawHost,
+      discoveryType,
       normalized,
-      message:"Structured provider-portal discovery payload received"
+
+      actionProfile:{
+        detected:
+          Boolean(
+            actionResult?.detected
+          ),
+
+        confidence:
+          Number(
+            actionResult?.confidence ||
+            0
+          ),
+
+        method:
+          clean(
+            actionResult?.method
+          ),
+
+        ready:
+          Boolean(
+            onboardingProfile?.actionReady
+          )
+      },
+
+      message:
+        "Structured provider-portal discovery payload received"
     });
   }catch(e){
     res.status(500).json({success:false,message:e.message});
@@ -799,6 +1437,211 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
 });
 
 router.use(auth);
+
+router.get("/preflight",async(req,res)=>{
+  try{
+    const id=
+      tenantId(
+        req
+      );
+
+    if(!id){
+      return res.status(400).json({
+        success:false,
+        message:
+          "Tenant is required"
+      });
+    }
+
+    const connectionId=
+      clean(
+        req.query.connectionId
+      );
+
+    if(!connectionId){
+      return res.status(400).json({
+        success:false,
+        message:
+          "connectionId is required"
+      });
+    }
+
+    const connection=
+      await BrokerIntegration
+        .findOne({
+          _id:connectionId,
+          tenantId:id,
+          connectionMode:
+            "MARKETPLACE_PORTAL"
+        })
+        .lean();
+
+    if(!connection){
+      return res.status(404).json({
+        success:false,
+        message:
+          "Marketplace connection not found"
+      });
+    }
+
+    const portalHost=
+      configuredPortalHost(
+        connection
+      );
+
+    const profile=
+      portalHost
+        ? await ProviderPortalMappingProfile
+            .findOne({
+              tenantId:
+                String(id),
+              connectionId,
+              sourceHost:
+                portalHost
+            })
+            .lean()
+            .catch(
+              ()=>null
+            )
+        : null;
+
+    const checks={
+      enabled:
+        connection.enabled===true,
+
+      featureVisible:
+        connection.featureVisible===true,
+
+      billingEnabled:
+        connection.billingEnabled===true,
+
+      portalUrl:
+        Boolean(
+          clean(
+            connection.portalUrl
+          )
+        ),
+
+      portalHost:
+        Boolean(
+          portalHost
+        ),
+
+      mappingReady:
+        profile?.ready===true,
+
+      actionDetected:
+        Boolean(
+          profile?.actionProfile &&
+          Object.keys(
+            profile.actionProfile
+          ).length
+        ),
+
+      actionReady:
+        profile?.actionReady===true,
+
+      aiConfigured:
+        Boolean(
+          clean(
+            process.env.GEMINI_API_KEY ||
+            process.env.GOOGLE_GEMINI_API_KEY
+          )
+        )
+    };
+
+    const connectionReady=
+      checks.enabled &&
+      checks.featureVisible &&
+      checks.billingEnabled &&
+      checks.portalUrl &&
+      checks.portalHost;
+
+    return res.json({
+      success:true,
+      ready:
+        connectionReady,
+      connectionId,
+
+      brokerName:
+        connection.brokerName ||
+        "",
+
+      accountLabel:
+        connection.accountLabel ||
+        "Primary Account",
+
+      portalUrl:
+        connection.portalUrl ||
+        "",
+
+      portalHost,
+      checks,
+
+      mapping:
+        profile
+          ? {
+              ready:
+                profile.ready===true,
+
+              confidence:
+                Number(
+                  profile.confidence ||
+                  0
+                ),
+
+              method:
+                profile.method ||
+                "",
+
+              aiStatus:
+                profile.aiStatus ||
+                "",
+
+              discoveryMethods:
+                profile.discoveryMethods ||
+                [],
+
+              lastDiscoveryType:
+                profile.lastDiscoveryType ||
+                ""
+            }
+          : null,
+
+      action:
+        profile
+          ? {
+              detected:
+                checks.actionDetected,
+
+              ready:
+                profile.actionReady===true,
+
+              confidence:
+                Number(
+                  profile.actionConfidence ||
+                  0
+                ),
+
+              method:
+                profile.actionMethod ||
+                "",
+
+              profile:
+                profile.actionProfile ||
+                {}
+            }
+          : null
+    });
+
+  }catch(e){
+    return res.status(500).json({
+      success:false,
+      message:
+        e.message
+    });
+  }
+});
 
 router.post("/pair",async(req,res)=>{
   try{
@@ -898,7 +1741,40 @@ router.get("/connections",async(req,res)=>{
               ready:saved.ready===true,
               aiStatus:saved.aiStatus,
               aiModel:saved.aiModel||"",
-              mappedFields:Object.keys(saved.mapping||{})
+              mappedFields:
+                Object.keys(
+                  saved.mapping ||
+                  {}
+                ),
+
+              discoveryMethods:
+                saved.discoveryMethods ||
+                [],
+
+              lastDiscoveryType:
+                saved.lastDiscoveryType ||
+                "",
+
+              actionDetected:
+                Boolean(
+                  saved.actionProfile &&
+                  Object.keys(
+                    saved.actionProfile
+                  ).length
+                ),
+
+              actionConfidence:
+                Number(
+                  saved.actionConfidence ||
+                  0
+                ),
+
+              actionMethod:
+                saved.actionMethod ||
+                "",
+
+              actionReady:
+                saved.actionReady===true
             };
           }
         }
@@ -979,8 +1855,43 @@ router.get("/mapping-status",async(req,res)=>{
         ready:saved.ready,
         aiStatus:saved.aiStatus,
         aiModel:saved.aiModel||"",
-        mappedFields:Object.keys(saved.mapping||{}),
-        lastSeenAt:saved.lastSeenAt
+        mappedFields:
+          Object.keys(
+            saved.mapping ||
+            {}
+          ),
+
+        discoveryMethods:
+          saved.discoveryMethods ||
+          [],
+
+        lastDiscoveryType:
+          saved.lastDiscoveryType ||
+          "",
+
+        actionDetected:
+          Boolean(
+            saved.actionProfile &&
+            Object.keys(
+              saved.actionProfile
+            ).length
+          ),
+
+        actionConfidence:
+          Number(
+            saved.actionConfidence ||
+            0
+          ),
+
+        actionMethod:
+          saved.actionMethod ||
+          "",
+
+        actionReady:
+          saved.actionReady===true,
+
+        lastSeenAt:
+          saved.lastSeenAt
       } : null
     });
   }catch(e){res.status(500).json({success:false,message:e.message});}

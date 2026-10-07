@@ -540,18 +540,19 @@ async function logEngineMatches(
     );
 
     /*
-      Generic portal scan is still discovery/evaluation only.
-      A broker-specific authorized Claim/Accept adapter will replace
-      this SKIPPED phase later.
+      Discovery, mapping, and action detection are generic now.
+      Actual Claim/Accept remains disabled until the detected action profile
+      has been validated for the authorized provider portal. This prevents an
+      unknown portal from being clicked based only on a guessed selector.
     */
     const reason =
       engineSettings?.autoAccept === true
-        ? "PORTAL_CLAIM_ADAPTER_NOT_ACTIVE"
+        ? "PORTAL_ACTION_NOT_VERIFIED"
         : "AUTO_ACCEPT_OFF";
 
     const message =
       engineSettings?.autoAccept === true
-        ? `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Claim/Accept is blocked until this broker's authorized claim adapter is active`
+        ? `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Accept/Claim action must be validated before execution is enabled`
         : `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Auto Accept is OFF`;
 
     await logActivity(
