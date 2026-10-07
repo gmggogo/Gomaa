@@ -250,6 +250,94 @@
       #selectedBrokerDetails .detail-cell{border-right:0;border-bottom:1px solid #e6ebf0}
       #selectedBrokerDetails .detail-cell:last-child{border-bottom:0}
     }
+
+    /* Clear colored readiness cards */
+    .readiness-grid{
+      gap:10px;
+    }
+
+    .readiness-item{
+      border:0;
+      color:#fff;
+      box-shadow:0 4px 12px rgba(15,23,42,.10);
+      min-height:76px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+    }
+
+    .readiness-item:nth-child(1){
+      background:linear-gradient(135deg,#0f766e,#14b8a6);
+    }
+    .readiness-item:nth-child(2){
+      background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+    }
+    .readiness-item:nth-child(3){
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+    }
+    .readiness-item:nth-child(4){
+      background:linear-gradient(135deg,#b45309,#f59e0b);
+    }
+    .readiness-item:nth-child(5){
+      background:linear-gradient(135deg,#047857,#22c55e);
+    }
+    .readiness-item:nth-child(6){
+      background:linear-gradient(135deg,#b91c1c,#ef4444);
+    }
+
+    .readiness-label{
+      color:rgba(255,255,255,.82);
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.45px;
+    }
+
+    .readiness-value,
+    .ready-yes,
+    .ready-warn,
+    .ready-no{
+      color:#fff !important;
+      font-size:13px;
+    }
+
+    /* Marketplace Engine becomes a full-width colored header */
+    .engine-card-colored{
+      padding:0;
+      overflow:hidden;
+      border:0;
+      box-shadow:0 4px 14px rgba(15,23,42,.08);
+    }
+
+    .engine-panel{
+      background:linear-gradient(135deg,#183b67,#2f6ea8);
+      padding:15px 18px;
+      color:#fff;
+      border-radius:14px;
+      min-height:76px;
+    }
+
+    .engine-panel h2{
+      color:#fff;
+      font-size:21px;
+    }
+
+    .engine-panel .muted{
+      color:rgba(255,255,255,.82);
+    }
+
+    .engine-panel .gold{
+      background:linear-gradient(180deg,#ffd45f,#e0a800);
+      color:#231900;
+      box-shadow:0 3px 8px rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.35);
+      min-width:170px;
+    }
+
+    .engine-panel .gold:hover{
+      filter:brightness(1.04);
+      transform:translateY(-1px);
+    }
+
     @media(max-width:950px){
       .layout{grid-template-columns:1fr}
       .sidebar{position:static;min-height:0}
@@ -340,7 +428,7 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card engine-card-colored">
           <div class="engine-panel">
             <div>
               <h2 style="margin:0">Marketplace Engine</h2>
