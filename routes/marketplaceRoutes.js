@@ -1727,7 +1727,8 @@ async function logEngineMatches(
           message,
           meta:{
             eventFingerprint:
-              clean(options.eventFingerprint)
+              clean(options.eventFingerprint),
+            ...(options.meta || {})
           }
         }
       );
@@ -1975,6 +1976,215 @@ if(
   );
 }
 
+
+/*
+  Re-evaluate the CURRENT normalized Marketplace buffer immediately after
+  Marketplace Settings are saved.
+
+  Why this exists:
+  - The Browser Agent intentionally suppresses an unchanged DOM fingerprint.
+  - Changing Long/Short settings must therefore NOT wait for CareCar/another
+    broker portal to change before the same currently visible trips are tested
+    against the new settings.
+  - This is evaluation only. It does not bypass the existing Claim/Accept
+    validation guard.
+*/
+async function reevaluateCurrentTripsAfterSettingsSave(
+  id,
+  settings
+){
+  const getTrips=
+    providerPortalBridgeRoutes
+      .getNormalizedTripsForConnection;
+
+  if(typeof getTrips!=="function"){
+    return {
+      connections:0,
+      trips:0,
+      matched:0,
+      rejected:0
+    };
+  }
+
+  const connections=
+    await BrokerIntegration.find({
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    });
+
+  const runId=
+    `SETTINGS:${Date.now()}`;
+
+  let totalTrips=0;
+  let totalMatched=0;
+  let totalRejected=0;
+
+  for(const connection of connections){
+    const connectionId=
+      String(
+        connection._id
+      );
+
+    const rawTrips=
+      getTrips(
+        id,
+        connectionId
+      );
+
+    const trips=
+      (Array.isArray(rawTrips)?rawTrips:[])
+        .map(
+          tripForEngine
+        )
+        .filter(
+          trip=>
+            Boolean(
+              trip.externalTripId ||
+              trip.tripNumber
+            )
+        );
+
+    if(!trips.length){
+      continue;
+    }
+
+    totalTrips+=trips.length;
+
+    const {
+      longTrips,
+      shortTrips,
+      decisions
+    }=
+      await selectedByEngine(
+        trips,
+        settings
+      );
+
+    for(const decision of decisions){
+      if(decision.matched===true){
+        totalMatched++;
+        continue;
+      }
+
+      if(
+        [
+          "PAST_TRIP_DATE",
+          "TRIP_DATE_UNAVAILABLE",
+          "NOT_AVAILABLE_FOR_ACCEPT"
+        ].includes(
+          decision.reason
+        )
+      ){
+        continue;
+      }
+
+      totalRejected++;
+
+      const zone=
+        decision.zone ||
+        {};
+
+      const distances=[
+        Number.isFinite(zone.pickupDistanceMiles)
+          ? `pickup ${zone.pickupDistanceMiles} mi`
+          : "",
+        Number.isFinite(zone.dropoffDistanceMiles)
+          ? `dropoff ${zone.dropoffDistanceMiles} mi`
+          : ""
+      ]
+      .filter(Boolean)
+      .join(", ");
+
+      await logActivity(
+        id,
+        connection,
+        "SEEN",
+        {
+          engine:"SYSTEM",
+          trip:decision.trip,
+          reason:decision.reason,
+          message:
+            `Re-evaluated after Settings save: ${decision.reason}` +
+            (
+              distances
+                ? ` (${distances}; radius ${zone.radiusMiles} mi)`
+                : ""
+            ),
+          meta:{
+            filterDecision:"REJECTED",
+            settingsReevaluation:true,
+            settingsRunId:runId,
+            zone,
+            longReason:
+              decision.longReason ||
+              "",
+            shortReason:
+              decision.shortReason ||
+              ""
+          }
+        }
+      );
+    }
+
+    await Promise.all([
+      logEngineMatches(
+        id,
+        connection,
+        "LONG",
+        longTrips,
+        settings.longEngine || {},
+        {
+          meta:{
+            settingsReevaluation:true,
+            settingsRunId:runId
+          }
+        }
+      ),
+
+      logEngineMatches(
+        id,
+        connection,
+        "SHORT",
+        shortTrips,
+        settings.shortEngine || {},
+        {
+          meta:{
+            settingsReevaluation:true,
+            settingsRunId:runId
+          }
+        }
+      )
+    ]);
+  }
+
+  await Settings.updateOne(
+    {
+      tenantId:id
+    },
+    {
+      $set:{
+        lastScanAt:new Date(),
+        lastSuccessfulScanAt:new Date(),
+        lastError:""
+      }
+    }
+  );
+
+  return {
+    connections:
+      connections.length,
+    trips:
+      totalTrips,
+    matched:
+      totalMatched,
+    rejected:
+      totalRejected
+  };
+}
+
 /* =========================
    ENGINE SETTINGS
    Generic endpoint; retains the existing stored settings through the MarketplaceSettings compatibility model.
@@ -2091,9 +2301,39 @@ router.put(
           }
         );
 
+      /*
+        Start immediately, but do not make the Save button wait for geocoding
+        or a large Marketplace buffer. The work uses the settings document
+        that was just saved above.
+      */
+      reevaluateCurrentTripsAfterSettingsSave(
+        id,
+        settings
+      )
+      .catch(async err=>{
+        console.error(
+          "[Marketplace settings re-evaluate]",
+          err?.message || err
+        );
+
+        await Settings.updateOne(
+          {
+            tenantId:id
+          },
+          {
+            $set:{
+              lastError:
+                err?.message ||
+                String(err)
+            }
+          }
+        ).catch(()=>{});
+      });
+
       return res.json({
         success:true,
-        settings
+        settings,
+        reEvaluationStarted:true
       });
 
     }catch(err){
