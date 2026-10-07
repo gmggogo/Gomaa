@@ -104,6 +104,16 @@ const EngineSchema = new mongoose.Schema(
       default:[]
     },
 
+    pickupZoneCity:{type:String,default:"",trim:true},
+    pickupZoneState:{type:String,default:"",trim:true},
+    pickupZoneZip:{type:String,default:"",trim:true},
+    pickupZoneAddress:{type:String,default:"",trim:true},
+
+    dropoffZoneCity:{type:String,default:"",trim:true},
+    dropoffZoneState:{type:String,default:"",trim:true},
+    dropoffZoneZip:{type:String,default:"",trim:true},
+    dropoffZoneAddress:{type:String,default:"",trim:true},
+
     zoneMatch:{
       type:String,
       enum:[

@@ -1,63 +1,200 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Marketplace Settings - GH Mobility</title>
+  <title>Marketplace Settings | GH Mobility</title>
+  <link rel="stylesheet" href="/admin/header.css">
+  <link rel="stylesheet" href="/admin/style.css">
+
   <style>
     *{box-sizing:border-box}
-    body{margin:0;background:#f5f6f8;color:#111;font-family:Arial,sans-serif}
-    .page{width:min(1500px,calc(100% - 24px));margin:86px auto 30px}
-    .title{background:#fff8df;border:1px solid #d9ad2b;border-radius:12px;padding:14px;text-align:center;margin-bottom:16px}
-    .title h1{margin:0;font-size:24px}
-    .title p{margin:5px 0 0;color:#666;font-size:13px}
-    .card{background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px}
+    body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}
+    #adminHeader{width:100%;z-index:1000}
+    .page{width:calc(100% - 26px);max-width:1500px;margin:18px auto 34px;padding:0}
+
+    .page-title{
+      background:linear-gradient(135deg,#f5d77a,#e7b940);
+      border:1px solid #d9ad2b;border-radius:12px;padding:14px 18px;text-align:center;
+      margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,.05)
+    }
+    .page-title h1{margin:0;font-size:24px}
+    .page-title p{margin:5px 0 0;color:#55451a;font-size:13px}
+
+    .topbar{
+      background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:14px 16px;
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+      margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)
+    }
+
+    .status-strip{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .status-pill{
+      display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;
+      font-size:12px;font-weight:900;border:1px solid #cfd7df;background:#eef2f6
+    }
+    .status-pill.on{background:#dff5e5;color:#126b2e;border-color:#a9d9b7}
+    .status-pill.off{background:#fde1e1;color:#8a1616;border-color:#efb6b6}
+
+    .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{border:0;border-radius:9px;padding:11px 18px;font-weight:900;cursor:pointer}
+    .edit-btn{background:#171717;color:#fff}
+    .cancel-btn{background:#e7ebf0;color:#24384b;display:none}
+    .save-btn{background:linear-gradient(180deg,#f6c85f,#d79a00);color:#241900}
+    .save-btn.saved{background:#22a447;color:#fff}
+    .save-btn:disabled{opacity:.45;cursor:not-allowed}
+
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-    label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}
-    input,select{width:100%;padding:10px;border:1px solid #cfd4da;border-radius:8px;font-size:14px;background:#fff}
-    .checks{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px}
-    .checks label{display:flex;align-items:center;gap:7px;margin:0}
-    .checks input{width:auto}
-    .note{font-size:12px;color:#667085;margin-top:7px;line-height:1.45}
-    .gold{background:#d7a400;border:0;border-radius:8px;padding:11px 18px;font-weight:900;cursor:pointer}
-    .engine-title{display:flex;justify-content:space-between;align-items:center}
-    .engine-title h2{margin:0}
-    .section-label{font-weight:900;margin-top:16px;border-top:1px solid #eee;padding-top:14px}
-    .msg{margin-left:12px;font-size:13px;color:#555}
-    @media(max-width:900px){.grid2,.row{grid-template-columns:1fr}.page{margin-top:76px}}
+
+    .engine-card{
+      background:#fff;border:1px solid #dfe4ea;border-radius:14px;overflow:hidden;
+      box-shadow:0 3px 10px rgba(0,0,0,.05)
+    }
+
+    .engine-head{
+      color:#fff;padding:16px;text-align:center;
+      box-shadow:inset 0 -1px rgba(255,255,255,.18)
+    }
+    .engine-head.long{background:linear-gradient(135deg,#7f570d,#d5a11f)}
+    .engine-head.short{background:linear-gradient(135deg,#124b68,#2a86a6)}
+    .engine-title{font-size:22px;font-weight:900;margin:0}
+
+    .engine-flags{
+      display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:11px
+    }
+    .flag{
+      display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.34);padding:8px 11px;border-radius:999px;
+      font-size:12px;font-weight:900;color:#fff
+    }
+    .flag input{width:auto;margin:0;accent-color:#18a34a}
+
+    .engine-body{padding:16px}
+
+    /* Global-style colored section headers */
+    .filter-head{
+      margin:5px 0 12px;
+      border-radius:9px;
+      padding:10px 12px;
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:.2px;
+      text-align:center;
+      border:1px solid transparent;
+      box-shadow:0 1px 3px rgba(0,0,0,.04)
+    }
+    .filter-head.zone{
+      background:linear-gradient(135deg,#e8f1fb,#cfe3f7);
+      color:#174a72;
+      border-color:#b8d4ed
+    }
+    .filter-head.trip{
+      background:linear-gradient(135deg,#fff4cd,#f7dea0);
+      color:#6d4b00;
+      border-color:#e8ca75
+    }
+    .filter-head.time{
+      background:linear-gradient(135deg,#e9f7ef,#cfead9);
+      color:#17683a;
+      border-color:#b8dcc7
+    }
+    .filter-head.service{
+      background:linear-gradient(135deg,#f2eafc,#dfcff5);
+      color:#5d347f;
+      border-color:#cfb7ec
+    }
+
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .row3{display:grid;grid-template-columns:1fr 100px 130px;gap:10px;margin-bottom:12px}
+
+    label{display:block;font-size:12px;font-weight:900;margin-bottom:5px;color:#25313d}
+    input,select{
+      width:100%;padding:10px 11px;border:1px solid #cfd6de;border-radius:8px;
+      background:#fff;font-size:14px
+    }
+    input:disabled,select:disabled{
+      background:#eef1f4;color:#6b7280;border-color:#d8dde3;cursor:not-allowed
+    }
+
+    .note{font-size:11px;color:#6b7280;margin-top:5px;line-height:1.4}
+    .lock-note{font-size:12px;color:#6b7280;font-weight:700}
+    #message{font-size:13px;font-weight:800}
+    #message.ok{color:#15803d}
+    #message.bad{color:#b42318}
+
+    @media(max-width:980px){
+      .grid2,.row,.row3{grid-template-columns:1fr}
+      .page{width:calc(100% - 14px)}
+    }
   </style>
 </head>
+
 <body>
+  <div id="adminHeader"></div>
+
   <main class="page">
-    <section class="title">
+    <section class="page-title">
       <h1>Marketplace Settings</h1>
-      <p>All automatic marketplace trips must pass these filters before they can match.</p>
+      <p>Automatic marketplace trips must pass these filters before they can match.</p>
     </section>
 
-    <section class="card">
-      <div class="checks">
-        <label><input id="enabled" type="checkbox"> Marketplace Enabled</label>
-        <label>Total Daily Limit <input id="totalDailyTripLimit" type="number" min="0" value="0" style="width:100px"></label>
+    <section class="topbar">
+      <div>
+        <div class="status-strip">
+          <span id="marketStatus" class="status-pill">Marketplace</span>
+          <span class="status-pill">Total Daily Limit: <strong id="totalLimitView">0</strong></span>
+        </div>
+        <div class="lock-note" id="lockNote" style="margin-top:9px">
+          Settings are locked. Click Edit to make changes.
+        </div>
       </div>
-      <div class="note">
-        The Browser Agent evaluates new trips automatically as soon as they are discovered.
-        The manual button on Marketplace is only a test/re-evaluation tool.
+
+      <div class="actions">
+        <button id="editBtn" class="edit-btn" type="button">Edit</button>
+        <button id="cancelBtn" class="cancel-btn" type="button">Cancel</button>
+        <button id="saveBtn" class="save-btn" type="button" disabled>Save Marketplace Settings</button>
+        <span id="message"></span>
+      </div>
+
+      <div style="width:100%;display:none" id="generalEditRow">
+        <div class="row" style="margin:8px 0 0">
+          <div>
+            <label>Marketplace Enabled</label>
+            <select id="enabled">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div>
+            <label>Total Daily Limit</label>
+            <input id="totalDailyTripLimit" type="number" min="0" value="0">
+            <div class="note">0 = unlimited.</div>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="grid2">
-      <div class="card" id="longEngine">
-        <div class="engine-title"><h2>Long Trips Engine</h2></div>
-      </div>
-      <div class="card" id="shortEngine">
-        <div class="engine-title"><h2>Short Trips Engine</h2></div>
-      </div>
-    </section>
+      <article class="engine-card" id="longEngine">
+        <div class="engine-head long">
+          <h2 class="engine-title">Long Trips Engine</h2>
+          <div class="engine-flags">
+            <label class="flag"><input id="longEnabled" type="checkbox"> Engine Enabled</label>
+            <label class="flag"><input id="longAuto" type="checkbox"> Auto Accept</label>
+          </div>
+        </div>
+        <div class="engine-body" id="longBody"></div>
+      </article>
 
-    <section class="card">
-      <button id="saveBtn" class="gold" type="button">Save Marketplace Settings</button>
-      <span id="message" class="msg"></span>
+      <article class="engine-card" id="shortEngine">
+        <div class="engine-head short">
+          <h2 class="engine-title">Short Trips Engine</h2>
+          <div class="engine-flags">
+            <label class="flag"><input id="shortEnabled" type="checkbox"> Engine Enabled</label>
+            <label class="flag"><input id="shortAuto" type="checkbox"> Auto Accept</label>
+          </div>
+        </div>
+        <div class="engine-body" id="shortBody"></div>
+      </article>
     </section>
   </main>
 

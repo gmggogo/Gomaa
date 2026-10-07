@@ -504,6 +504,30 @@ function normalizeEngine(value={}){
     dropoffZipCodes:
       zipList(value.dropoffZipCodes),
 
+    pickupZoneCity:
+      clean(value.pickupZoneCity),
+
+    pickupZoneState:
+      clean(value.pickupZoneState),
+
+    pickupZoneZip:
+      extractZip(value.pickupZoneZip),
+
+    pickupZoneAddress:
+      clean(value.pickupZoneAddress),
+
+    dropoffZoneCity:
+      clean(value.dropoffZoneCity),
+
+    dropoffZoneState:
+      clean(value.dropoffZoneState),
+
+    dropoffZoneZip:
+      extractZip(value.dropoffZoneZip),
+
+    dropoffZoneAddress:
+      clean(value.dropoffZoneAddress),
+
     zoneMatch:
       ["ANY","PICKUP","DROPOFF","EITHER","BOTH"].includes(
         clean(value.zoneMatch).toUpperCase()
@@ -1024,6 +1048,67 @@ async function minDistanceToZipCenters(point,zips=[]){
   return Math.min(...distances);
 }
 
+
+function buildConfiguredZoneCenters(engineSettings={},side){
+  const isPickup=side==="PICKUP";
+
+  const city=clean(
+    isPickup
+      ? engineSettings.pickupZoneCity
+      : engineSettings.dropoffZoneCity
+  );
+
+  const state=clean(
+    isPickup
+      ? engineSettings.pickupZoneState
+      : engineSettings.dropoffZoneState
+  );
+
+  const zip=extractZip(
+    isPickup
+      ? engineSettings.pickupZoneZip
+      : engineSettings.dropoffZoneZip
+  );
+
+  const fullAddress=clean(
+    isPickup
+      ? engineSettings.pickupZoneAddress
+      : engineSettings.dropoffZoneAddress
+  );
+
+  const legacy=
+    zipList(
+      isPickup
+        ? engineSettings.pickupZipCodes
+        : engineSettings.dropoffZipCodes
+    );
+
+  const centers=[];
+
+  if(fullAddress){
+    centers.push(fullAddress);
+  }
+
+  const cityStateZip=
+    [city,state,zip]
+      .filter(Boolean)
+      .join(", ");
+
+  if(cityStateZip){
+    centers.push(cityStateZip);
+  }
+
+  if(zip){
+    centers.push(zip);
+  }
+
+  centers.push(...legacy);
+
+  return [...new Set(
+    centers.map(clean).filter(Boolean)
+  )];
+}
+
 async function evaluateEngineTrip(
   trip,
   engineName,
@@ -1128,13 +1213,15 @@ async function evaluateEngineTrip(
     );
 
   const pickupCenters=
-    zipList(
-      engineSettings.pickupZipCodes
+    buildConfiguredZoneCenters(
+      engineSettings,
+      "PICKUP"
     );
 
   const dropoffCenters=
-    zipList(
-      engineSettings.dropoffZipCodes
+    buildConfiguredZoneCenters(
+      engineSettings,
+      "DROPOFF"
     );
 
   /*
