@@ -669,8 +669,19 @@ Marketplace multi-broker UI.
 
     $("activityRows").innerHTML=
       rows.length
-        ? rows.map(r=>`
-            <tr>
+        ? rows.map(r=>{
+            const action=String(r.action || "").toUpperCase();
+            const rowClass=
+              action==="MATCHED"
+                ? "activity-matched"
+                : (
+                    action==="SEEN"
+                      ? "activity-seen"
+                      : ""
+                  );
+
+            return `
+            <tr class="${rowClass}">
               <td>
                 ${r.occurredAt
                   ? esc(new Date(r.occurredAt).toLocaleString())
@@ -701,7 +712,8 @@ Marketplace multi-broker UI.
               <td>${esc(zoneDistance(r))}</td>
               <td>${esc(r.message || "")}</td>
             </tr>
-          `).join("")
+          `;
+          }).join("")
         : '<tr><td colspan="14">No activity for this broker/account yet.</td></tr>';
   }
 

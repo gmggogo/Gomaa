@@ -461,6 +461,31 @@
       padding:14px 16px 16px;
     }
 
+
+    /* Activity row status colors */
+    tbody tr.activity-matched td{
+      background:#e8f7ec !important;
+      color:#174d2a;
+    }
+
+    tbody tr.activity-matched:hover td{
+      background:#dcf2e2 !important;
+    }
+
+    tbody tr.activity-seen td{
+      background:#fff7d8 !important;
+      color:#5e4a00;
+    }
+
+    tbody tr.activity-seen:hover td{
+      background:#ffefb8 !important;
+    }
+
+    tbody tr.activity-matched td:nth-child(3),
+    tbody tr.activity-seen td:nth-child(3){
+      font-weight:900;
+    }
+
     @media(max-width:950px){
       .layout{grid-template-columns:1fr}
       .sidebar{position:static;min-height:0}
