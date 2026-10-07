@@ -1,3 +1,4 @@
+
 "use strict";
 
 /*
@@ -1260,21 +1261,26 @@ function tripEventFingerprint(trip={}){
   return String(Math.abs(hash));
 }
 
-async function notifyDiscoveryListeners(event){
+function notifyDiscoveryListeners(event){
   if(!discoveryListeners.size) return;
 
-  await Promise.all(
-    [...discoveryListeners].map(async listener=>{
-      try{
-        await listener(event);
-      }catch(err){
+  /*
+    IMPORTANT:
+    Discovery POST must return immediately to the local Browser Agent.
+    Marketplace filtering/geocoding can take longer, so listeners run
+    asynchronously in the background and must NEVER block the next portal
+    discovery payload.
+  */
+  for(const listener of [...discoveryListeners]){
+    Promise.resolve()
+      .then(()=>listener(event))
+      .catch(err=>{
         console.error(
           "[ProviderPortalBridge] discovery listener failed:",
           err?.message || err
         );
-      }
-    })
-  );
+      });
+  }
 }
 
 router.registerDiscoveryListener=function(listener){
@@ -1476,7 +1482,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
       );
 
     if(changedTrips.length){
-      await notifyDiscoveryListeners({
+      notifyDiscoveryListeners({
         tenantId:String(id),
         connectionId,
         brokerName:connection?.brokerName || "",
