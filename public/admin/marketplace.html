@@ -338,6 +338,129 @@
       transform:translateY(-1px);
     }
 
+
+    /* Unified top information cards */
+    #selectedBrokerDetails{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      border:0;
+      border-radius:0;
+      overflow:visible;
+      background:transparent;
+      margin-bottom:12px;
+    }
+
+    #selectedBrokerDetails .detail-cell{
+      min-height:78px;
+      padding:12px 14px;
+      border:1px solid #cbd9e7;
+      border-radius:11px;
+      background:linear-gradient(180deg,#edf4fa,#e3edf6);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      gap:6px;
+      box-shadow:0 3px 10px rgba(39,70,95,.06);
+    }
+
+    #selectedBrokerDetails .detail-cell:last-child{
+      border-right:1px solid #cbd9e7;
+    }
+
+    .detail-label{
+      color:#45627a;
+      font-size:11px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.6px;
+      text-align:center;
+    }
+
+    .detail-value{
+      font-size:14px;
+      font-weight:900;
+      color:#18354d;
+      word-break:break-word;
+      text-align:center;
+      line-height:1.25;
+    }
+
+    .detail-value.ready{
+      color:#168344;
+    }
+
+    .detail-inline{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      flex-wrap:wrap;
+      text-align:center;
+    }
+
+    .detail-sub{
+      font-size:11px;
+      color:#60788f;
+      font-weight:800;
+      text-align:center;
+    }
+
+    /* Center all readiness cards */
+    .readiness-item{
+      align-items:center;
+      text-align:center;
+      justify-content:center;
+      min-height:82px;
+    }
+
+    .readiness-label{
+      text-align:center;
+      width:100%;
+      font-weight:900;
+    }
+
+    .readiness-value{
+      text-align:center;
+      width:100%;
+      font-size:13px;
+      font-weight:900;
+    }
+
+    /* Calm unified Marketplace Activity header */
+    .activity-card{
+      padding:0;
+      overflow:hidden;
+    }
+
+    .activity-head{
+      background:linear-gradient(135deg,#dbe8f3,#c9dceb);
+      border-bottom:1px solid #b9cfdf;
+      padding:13px 16px;
+      text-align:center;
+    }
+
+    .activity-head h2{
+      margin:0;
+      color:#274860;
+      font-size:20px;
+      font-weight:900;
+      letter-spacing:.2px;
+      text-align:center;
+    }
+
+    .activity-head .muted{
+      color:#5d7488;
+      margin-top:4px;
+      text-align:center;
+    }
+
+    .activity-body{
+      padding:14px 16px 16px;
+    }
+
     @media(max-width:950px){
       .layout{grid-template-columns:1fr}
       .sidebar{position:static;min-height:0}
@@ -438,17 +561,16 @@
           </div>
         </section>
 
-        <section class="card">
-          <div class="toolbar">
-            <div>
-              <h2 style="margin:0">Marketplace Activity</h2>
-              <div class="muted" style="margin-top:4px">
-                Only activity for the selected broker/account appears here.
-              </div>
+        <section class="card activity-card">
+          <div class="activity-head">
+            <h2>Marketplace Activity</h2>
+            <div class="muted">
+              Only activity for the selected broker/account appears here.
             </div>
           </div>
 
-          <div class="table-wrap">
+          <div class="activity-body">
+            <div class="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -472,6 +594,7 @@
                 <tr><td colspan="14">No activity yet.</td></tr>
               </tbody>
             </table>
+            </div>
           </div>
         </section>
 
