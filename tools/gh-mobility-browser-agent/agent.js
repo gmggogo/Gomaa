@@ -808,6 +808,17 @@ class PortalSession{
     this.pageProbeBusy=false;
     this.lastDomFingerprint="";
     this.lastDomSentAt=0;
+
+    // Generic SaaS auto-monitoring state. These are isolated per connectionId.
+    this.lastAutoNavigateAt=0;
+    this.lastAutoRefreshAt=0;
+    this.visitedPortalUrls=new Set();
+    this.learnedListingUrl="";
+    this.portalDiscoveryStateFile=
+      path.join(
+        this.profileDir,
+        "gh-marketplace-discovery.json"
+      );
   }
 
   bridgeEndpoint(){
@@ -906,6 +917,27 @@ class PortalSession{
         recursive:true
       }
     );
+
+    try{
+      const saved=
+        JSON.parse(
+          fs.readFileSync(
+            this.portalDiscoveryStateFile,
+            "utf8"
+          )
+        );
+
+      const candidate=clean(saved?.learnedListingUrl);
+
+      if(candidate){
+        const parsed=new URL(candidate);
+        const portal=new URL(this.portalUrl);
+
+        if(parsed.origin===portal.origin){
+          this.learnedListingUrl=candidate;
+        }
+      }
+    }catch(_){}
 
     this.debugPort=
       await getFreePort();
@@ -1771,21 +1803,164 @@ class PortalSession{
               document.querySelector('input[type="password"]')
             );
 
+          const urlLooksLikeLogin=
+            /\/(login|signin|sign-in|auth)(?:[\/?#]|$)/i.test(
+              String(location.pathname||"")+
+              String(location.search||"")
+            );
+
           const loginDetected=
             !hasPassword &&
+            !urlLooksLikeLogin &&
             bodyText.length>80;
 
+          /*
+            Structural trip-page detection.
+            It does not depend on portal menu/page names.
+          */
+          const datePattern=
+            /\b(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\b/;
+
+          const timePattern=
+            /\b(?:\d{1,2}:\d{2}\s*(?:AM|PM)?|\d{1,2}\s*(?:AM|PM))\b/i;
+
+          const addressPattern=
+            /\b\d{1,6}\s+[A-Za-z0-9.'#\- ]{2,60}\b/;
+
+          const semanticKeyPattern=
+            /\b(pick.?up|drop.?off|origin|destination|address|date|time|appointment|member|client|rider|passenger|service|miles?|distance|trip|ride|reservation|task|job|reference|confirmation|id)\b/i;
+
+          const tripLikeRows=
+            rows.filter(row=>{
+              const entries=
+                Object.entries(row||{})
+                  .filter(([key])=>!String(key).startsWith("__gh"));
+
+              if(entries.length<3){
+                return false;
+              }
+
+              let score=0;
+              const keys=
+                entries.map(([key])=>clean(key)).join(" ");
+
+              if(semanticKeyPattern.test(keys)){
+                score+=2;
+              }
+
+              const values=
+                entries.map(([,value])=>clean(value)).join(" ");
+
+              if(datePattern.test(values)) score++;
+              if(timePattern.test(values)) score++;
+              if(addressPattern.test(values)) score++;
+              if(/\b\d+(?:\.\d+)?\s*(?:mi|mile|miles)\b/i.test(values)) score++;
+
+              return score>=3;
+            });
+
           const tripsPageDetected=
-            rows.length>0 ||
-            /\\b(trip|ride|reservation|available\\s+task|available\\s+trip|transportation)\\b/i.test(bodyText);
+            tripLikeRows.length>0;
+
+          /*
+            Safe generic crawler:
+            only same-origin anchors are visited. Arbitrary buttons are not
+            clicked, and transactional/destructive destinations are excluded.
+          */
+          const dangerousNavigation=
+            /\b(accept|claim|book|reserve|assign|delete|remove|cancel|decline|reject|logout|log.?out|sign.?out|pay|payment|billing|purchase|checkout|submit|confirm)\b/i;
+
+          const navigationCandidates=
+            [
+              ...document.querySelectorAll('a[href]')
+            ]
+            .filter(visible)
+            .map(el=>{
+              const text=
+                clean(
+                  el.innerText ||
+                  el.textContent ||
+                  el.getAttribute("aria-label") ||
+                  el.getAttribute("title")
+                )
+                .slice(0,160);
+
+              let href="";
+
+              try{
+                const parsed=
+                  new URL(
+                    el.getAttribute("href"),
+                    location.href
+                  );
+
+                if(
+                  ["http:","https:"].includes(parsed.protocol) &&
+                  parsed.origin===location.origin
+                ){
+                  parsed.hash="";
+                  href=parsed.href;
+                }
+              }catch(_){}
+
+              return {
+                text,
+                href
+              };
+            })
+            .filter(item=>
+              item.href &&
+              item.href!==location.href &&
+              !dangerousNavigation.test(
+                String(item.text||"")+" "+String(item.href||"")
+              )
+            )
+            .slice(0,100);
+
+          const refreshCandidates=
+            [
+              ...document.querySelectorAll(
+                'button,a,[role="button"]'
+              )
+            ]
+            .filter(visible)
+            .map(el=>{
+              const text=
+                clean(
+                  el.innerText ||
+                  el.textContent ||
+                  el.getAttribute("aria-label") ||
+                  el.getAttribute("title")
+                )
+                .slice(0,80);
+
+              return {
+                text,
+                selector:selectorFor(el),
+                disabled:Boolean(
+                  el.disabled ||
+                  el.getAttribute("aria-disabled")==="true"
+                )
+              };
+            })
+            .filter(item=>
+              item.text &&
+              /\b(refresh|reload|update)\b/i.test(item.text) &&
+              !actionWords.test(item.text) &&
+              !item.disabled
+            )
+            .slice(0,10);
 
           return {
             url:location.href,
             title:document.title||"",
             loginDetected,
             tripsPageDetected,
+            structuralTripCount:tripLikeRows.length,
             rows:rows.slice(0,50),
-            actionCandidates
+            actionCandidates,
+            navigationCandidates,
+            refreshCandidates
           };
         })()
       `;
@@ -1830,8 +2005,136 @@ class PortalSession{
           ? value.actionCandidates
           : [];
 
+      const navigationCandidates=
+        Array.isArray(value.navigationCandidates)
+          ? value.navigationCandidates
+          : [];
+
+      const refreshCandidates=
+        Array.isArray(value.refreshCandidates)
+          ? value.refreshCandidates
+          : [];
+
       this.lastActionDetected=
         actionCandidates.length>0;
+
+      const now=Date.now();
+
+      /*
+        Generic automatic portal discovery:
+        crawl safe same-origin links until a structurally trip-like page is
+        found. The learned listing URL is persisted per connectionId.
+      */
+      if(this.loginDetected===true){
+        try{
+          const current=
+            new URL(
+              this.currentUrl ||
+              this.portalUrl
+            );
+
+          current.hash="";
+          this.visitedPortalUrls.add(current.href);
+        }catch(_){}
+
+        if(
+          this.tripsPageDetected===true &&
+          this.currentUrl
+        ){
+          this.learnedListingUrl=this.currentUrl;
+
+          try{
+            fs.writeFileSync(
+              this.portalDiscoveryStateFile,
+              JSON.stringify(
+                {
+                  learnedListingUrl:this.learnedListingUrl,
+                  learnedAt:new Date().toISOString()
+                },
+                null,
+                2
+              )
+            );
+          }catch(_){}
+        }
+
+        if(
+          this.tripsPageDetected!==true &&
+          (now-this.lastAutoNavigateAt)>=2500
+        ){
+          this.lastAutoNavigateAt=now;
+
+          let nextUrl="";
+
+          if(
+            this.learnedListingUrl &&
+            !this.visitedPortalUrls.has(this.learnedListingUrl)
+          ){
+            nextUrl=this.learnedListingUrl;
+          }
+
+          if(!nextUrl){
+            const next=
+              navigationCandidates.find(
+                item=>
+                  item?.href &&
+                  !this.visitedPortalUrls.has(item.href)
+              );
+
+            nextUrl=clean(next?.href);
+          }
+
+          if(nextUrl){
+            this.visitedPortalUrls.add(nextUrl);
+
+            await this.send(
+              "Page.navigate",
+              {
+                url:nextUrl
+              }
+            ).catch(()=>{});
+
+            return;
+          }
+        }
+      }
+
+      /*
+        Keep the structurally-detected trip listing alive automatically.
+        Prefer a harmless Refresh/Reload/Update control; otherwise reload the
+        current page. Accept/Claim/Book is never triggered.
+      */
+      if(
+        this.loginDetected===true &&
+        this.tripsPageDetected===true &&
+        (now-this.lastAutoRefreshAt)>=8000
+      ){
+        this.lastAutoRefreshAt=now;
+
+        const refreshSelector=
+          clean(
+            refreshCandidates[0]?.selector
+          );
+
+        if(refreshSelector){
+          await this.send(
+            "Runtime.evaluate",
+            {
+              expression:
+                `(()=>{const el=document.querySelector(${JSON.stringify(refreshSelector)});if(el){el.click();return true;}return false;})()`,
+              returnByValue:true,
+              awaitPromise:true
+            }
+          ).catch(()=>{});
+        }else{
+          await this.send(
+            "Page.reload",
+            {
+              ignoreCache:true
+            }
+          ).catch(()=>{});
+        }
+      }
 
       if(
         !rows.length &&
@@ -1849,7 +2152,6 @@ class PortalSession{
               .map(x=>x.text)
         });
 
-      const now=Date.now();
       const unchanged=
         fingerprint===
         this.lastDomFingerprint;
@@ -1897,7 +2199,7 @@ class PortalSession{
           status:200,
           mimeType:"text/html",
           requestId:
-            `DOM:${fingerprint}`,
+            `DOM:${fingerprint}:${Math.floor(now/30000)}`,
           discoveryType:"DOM",
           actionCandidates
         }
