@@ -620,6 +620,9 @@ const FIELD_SPECS={
   dropoffAddress:{
     aliases:["dropoffaddress","dropoff.location.address","dropofflocation.address","destinationaddress","toaddress","dropoff.fulladdress","dropofflocation","dropoff","destination"]
   },
+  tripDate:{
+    aliases:["tripdate","servicedate","pickupdate","ridedate","transportdate","date","service.date","trip.date","pickup.date"]
+  },
   pickupTime:{
     aliases:["pickuptime","scheduledpickuptime","pickupdatetime","pickupdatetimelocal","requestedpickuptime","readytime","pickup.time"]
   },
@@ -914,6 +917,7 @@ function tripFromMapping(raw,mapping,meta={}){
     memberPhone:clean(scalarText(read("memberPhone"))),
     pickupAddress:normalizeAddressValue(read("pickupAddress")),
     dropoffAddress:normalizeAddressValue(read("dropoffAddress")),
+    tripDate:clean(scalarText(read("tripDate"))),
     pickupTime:clean(scalarText(read("pickupTime"))),
     dropoffTime:clean(scalarText(read("dropoffTime"))),
     appointmentTime:clean(scalarText(read("appointmentTime"))),

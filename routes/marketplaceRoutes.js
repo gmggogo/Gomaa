@@ -272,6 +272,71 @@ async function getSettings(id){
   return doc;
 }
 
+function tripIdentity(trip={}){
+  const explicit=
+    clean(
+      trip.externalTripId ||
+      trip.portalTripId ||
+      trip.tripNumber ||
+      trip.assignmentNumber ||
+      trip.reservationId
+    );
+
+  if(explicit){
+    return explicit;
+  }
+
+  return [
+    clean(trip.tripDate || trip.appointmentDate || trip.date),
+    clean(trip.pickupTime || trip.appointmentTime),
+    clean(trip.pickup || trip.pickupAddress),
+    clean(trip.dropoff || trip.dropoffAddress)
+  ]
+  .join("|")
+  .toLowerCase();
+}
+
+function displayTripNumber(trip={}){
+  return clean(
+    trip.tripNumber ||
+    trip.externalTripId ||
+    trip.portalTripId ||
+    trip.assignmentNumber ||
+    trip.reservationId
+  );
+}
+
+function tripDateValue(trip={}){
+  return clean(
+    trip.tripDate ||
+    trip.serviceDate ||
+    trip.appointmentDate ||
+    trip.date
+  );
+}
+
+function tripTimeValue(trip={}){
+  return clean(
+    trip.pickupTime ||
+    trip.tripTime ||
+    trip.appointmentTime
+  );
+}
+
+function tripPickupAddress(trip={}){
+  return clean(
+    trip.pickup ||
+    trip.pickupAddress
+  );
+}
+
+function tripDropoffAddress(trip={}){
+  return clean(
+    trip.dropoff ||
+    trip.dropoffAddress
+  );
+}
+
 function tripForEngine(trip={}){
 
   const miles =
@@ -291,9 +356,23 @@ function tripForEngine(trip={}){
       ),
 
     tripNumber:
-      clean(
-        trip.tripNumber ||
-        trip.portalTripId
+      displayTripNumber(
+        trip
+      ),
+
+    tripDate:
+      tripDateValue(
+        trip
+      ),
+
+    tripTime:
+      tripTimeValue(
+        trip
+      ),
+
+    pickupTime:
+      tripTimeValue(
+        trip
       ),
 
     miles:
@@ -452,6 +531,63 @@ async function logActivity(
         connection,
         trip
       ),
+
+      tripKey:
+        tripIdentity(
+          trip
+        ),
+
+      tripNumber:
+        displayTripNumber(
+          trip
+        ),
+
+      tripDate:
+        tripDateValue(
+          trip
+        ),
+
+      tripTime:
+        tripTimeValue(
+          trip
+        ),
+
+      appointmentTime:
+        clean(
+          trip.appointmentTime
+        ),
+
+      pickupAddress:
+        tripPickupAddress(
+          trip
+        ),
+
+      dropoffAddress:
+        tripDropoffAddress(
+          trip
+        ),
+
+      pickupZip:
+        clean(
+          trip.pickupZip ||
+          trip.pickupPostalCode ||
+          trip.originZip
+        ),
+
+      dropoffZip:
+        clean(
+          trip.dropoffZip ||
+          trip.dropoffPostalCode ||
+          trip.destinationZip
+        ),
+
+      mode:
+        clean(
+          trip.mode ||
+          trip.serviceType ||
+          trip.levelOfService
+        ),
+
       ...(data.meta || {})
     }
   });
@@ -493,7 +629,7 @@ function selectedByEngine(
   settings
 ){
 
-  const longTrips =
+  const longRaw =
     settings?.longEngine?.enabled
       ? longEngine.select(
           trips,
@@ -501,13 +637,54 @@ function selectedByEngine(
         )
       : [];
 
-  const shortTrips =
+  const shortRaw =
     settings?.shortEngine?.enabled
       ? shortEngine.select(
           trips,
           settings.shortEngine || {}
         )
       : [];
+
+  /*
+    A marketplace trip may only belong to ONE engine per scan.
+    LONG gets first priority when custom ranges overlap; SHORT receives
+    only trips that were not already selected by LONG.
+  */
+  const claimedKeys =
+    new Set();
+
+  const unique = list => {
+    const out = [];
+
+    for(const trip of list){
+      const key =
+        tripIdentity(
+          trip
+        );
+
+      if(
+        !key ||
+        claimedKeys.has(key)
+      ){
+        continue;
+      }
+
+      claimedKeys.add(key);
+      out.push(trip);
+    }
+
+    return out;
+  };
+
+  const longTrips =
+    unique(
+      longRaw
+    );
+
+  const shortTrips =
+    unique(
+      shortRaw
+    );
 
   return {
     longTrips,
@@ -524,27 +701,74 @@ async function logEngineMatches(
 ){
 
   const results = [];
+  const scanSeen = new Set();
 
   for(const trip of trips){
 
-    await logActivity(
-      id,
-      connection,
-      "MATCHED",
-      {
-        engine:engineName,
-        trip,
-        message:
-          `${engineName} engine matched trip ${clean(trip.externalTripId || trip.portalTripId)}`
-      }
-    );
+    const key =
+      tripIdentity(
+        trip
+      );
+
+    if(
+      !key ||
+      scanSeen.has(key)
+    ){
+      continue;
+    }
+
+    scanSeen.add(key);
 
     /*
-      Discovery, mapping, and action detection are generic now.
-      Actual Claim/Accept remains disabled until the detected action profile
-      has been validated for the authorized provider portal. This prevents an
-      unknown portal from being clicked based only on a guessed selector.
+      Permanent safety guard for when Claim/Accept is enabled later:
+      a trip already recorded as CLAIMED for this broker connection
+      can never be claimed a second time.
     */
+    const alreadyClaimed =
+      await Activity.exists({
+        tenantId:id,
+        action:"CLAIMED",
+        externalTripId:
+          clean(
+            trip.externalTripId ||
+            trip.portalTripId ||
+            trip.tripNumber
+          ),
+        "meta.connectionId":
+          String(
+            connection._id
+          )
+      });
+
+    if(alreadyClaimed){
+
+      await logActivity(
+        id,
+        connection,
+        "SKIPPED",
+        {
+          engine:engineName,
+          trip,
+          reason:"ALREADY_CLAIMED",
+          message:
+            `${engineName} ignored already-claimed trip ${displayTripNumber(trip)}`
+        }
+      );
+
+      results.push({
+        engine:engineName,
+        externalTripId:
+          displayTripNumber(
+            trip
+          ),
+        matched:false,
+        claimed:false,
+        reason:"ALREADY_CLAIMED"
+      });
+
+      continue;
+    }
+
     const reason =
       engineSettings?.autoAccept === true
         ? "PORTAL_ACTION_NOT_VERIFIED"
@@ -552,13 +776,17 @@ async function logEngineMatches(
 
     const message =
       engineSettings?.autoAccept === true
-        ? `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Accept/Claim action must be validated before execution is enabled`
-        : `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Auto Accept is OFF`;
+        ? `${engineName} matched trip ${displayTripNumber(trip)}; Accept/Claim action must be validated before execution is enabled`
+        : `${engineName} matched trip ${displayTripNumber(trip)}; Auto Accept is OFF`;
 
+    /*
+      One activity row per matched trip, not MATCHED + SKIPPED duplicates.
+      The reason field still explains why an automatic claim did not run.
+    */
     await logActivity(
       id,
       connection,
-      "SKIPPED",
+      "MATCHED",
       {
         engine:engineName,
         trip,
@@ -570,9 +798,8 @@ async function logEngineMatches(
     results.push({
       engine:engineName,
       externalTripId:
-        clean(
-          trip.externalTripId ||
-          trip.portalTripId
+        displayTripNumber(
+          trip
         ),
       matched:true,
       claimed:false,

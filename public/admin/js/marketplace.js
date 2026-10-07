@@ -604,12 +604,17 @@ Marketplace multi-broker UI.
                   "—"
                 )}
               </td>
-              <td>${esc(r.externalTripId || "—")}</td>
+              <td>${esc(r.meta?.tripNumber || r.externalTripId || "—")}</td>
+              <td>${esc(r.tripDate || r.meta?.tripDate || "—")}</td>
+              <td>${esc(r.pickupTime || r.meta?.tripTime || r.meta?.appointmentTime || "—")}</td>
+              <td>${esc(r.meta?.pickupAddress || "—")}</td>
+              <td>${esc(r.meta?.dropoffAddress || "—")}</td>
+              <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
               <td>${esc(r.message || "")}</td>
             </tr>
           `).join("")
-        : '<tr><td colspan="7">No activity for this broker/account yet.</td></tr>';
+        : '<tr><td colspan="12">No activity for this broker/account yet.</td></tr>';
   }
 
   function renderAll(){

@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-07T03:22:22.850Z",
+  "generatedAt": "2026-10-07T03:50:17.933Z",
   "connectionId": "6ac4dea4b3647c2029946803",
   "brokerName": "CARCARE",
   "accountLabel": "Primary Account",
   "mode": "READ_ONLY_DISCOVERY",
-  "count": 20,
+  "count": 21,
   "trips": [
     {
       "id": "QXZhaWxhYmxlVGFzazoxMDE1ODAyOTY3",
@@ -2262,6 +2262,119 @@
           "totalEarningsIfLateCancelWhileEnRoute": "16.00",
           "totalEarningsIfProviderFailure": "-16.00",
           "totalEarningsIfSuccessfulCompletion": "18.09",
+          "totalIncentive": "0.00"
+        }
+      }
+    },
+    {
+      "id": "QXZhaWxhYmxlVGFzazoxMDE1ODExNzky",
+      "score": 10,
+      "discoveredAt": "2026-10-07T03:50:17.933Z",
+      "source": {
+        "url": "https://hq.carecar.co/manage/providers/104103/available-tasks?_data=routes%2F_app.manage.providers.%24providerId.available-tasks._index",
+        "host": "hq.carecar.co",
+        "status": 200,
+        "mimeType": "application/json",
+        "trail": "$.availableTasks[19]"
+      },
+      "raw": {
+        "__typename": "AvailableTask",
+        "appointmentDatetimeLocal": null,
+        "appointmentDatetimeTzShort": null,
+        "carePartnerEarningsEstimate": null,
+        "distanceMeters": 45018,
+        "dropoffLocation": {
+          "__typename": "Location",
+          "address1": "1930 Winfield Dunn Pkwy",
+          "address2": null,
+          "city": "Sevierville",
+          "county": "Sevier",
+          "id": "0f9a32b4-aa6c-4e5a-a7fc-7297aa44701e",
+          "latitude": 35.921841,
+          "latitudeOverride": null,
+          "longitude": -83.583279,
+          "longitudeOverride": null,
+          "name": null,
+          "notes": null,
+          "phone": null,
+          "phoneExtension": null,
+          "phoneType": null,
+          "state": "TN",
+          "timezone": "America/New_York",
+          "zipcode": "37876"
+        },
+        "durationSeconds": 2349,
+        "earningsOverride": null,
+        "estimatedDropoffDatetimeLocal": "2026-10-07T10:24:09.000000",
+        "estimatedDropoffDatetimeTz": "America/New_York",
+        "estimatedDropoffDatetimeTzShort": "EDT",
+        "estimatedDropoffDatetimeUtc": "2026-10-07T14:24:09.000000Z",
+        "id": "QXZhaWxhYmxlVGFzazoxMDE1ODExNzky",
+        "incentiveAmount": null,
+        "incentiveMultiplierPercent": null,
+        "insertedAt": "2026-10-02T16:47:42.019773Z",
+        "levelOfService": {
+          "__typename": "LevelOfService",
+          "id": "TGV2ZWxPZlNlcnZpY2U6MQ==",
+          "name": "Ambulatory Curb"
+        },
+        "member": {
+          "__typename": "Member",
+          "chosenName": null,
+          "firstName": "NANCY",
+          "lastName": "SENSER",
+          "middleName": null,
+          "phone": null
+        },
+        "numberOfCompanions": 0,
+        "pickupDatetimeLocal": "2026-10-07T09:45:00.000000",
+        "pickupDatetimeTz": "America/New_York",
+        "pickupDatetimeTzShort": "EDT",
+        "pickupDatetimeUtc": "2026-10-07T13:45:00.000000Z",
+        "pickupLocation": {
+          "__typename": "Location",
+          "address1": "1934 Alcoa Hwy",
+          "address2": null,
+          "city": "Knoxville",
+          "county": "Knox",
+          "id": "c0362018-cf2b-45df-b938-e610fb645001",
+          "latitude": 35.938947,
+          "latitudeOverride": null,
+          "longitude": -83.943745,
+          "longitudeOverride": null,
+          "name": null,
+          "notes": null,
+          "phone": null,
+          "phoneExtension": null,
+          "phoneType": null,
+          "state": "TN",
+          "timezone": "America/New_York",
+          "zipcode": "37920"
+        },
+        "reservation": {
+          "__typename": "Reservation",
+          "id": "UmVzZXJ2YXRpb246MTAyMjYwMjAwNQ=="
+        },
+        "status": "UNASSIGNED",
+        "statusReason": null,
+        "updatedAt": "2026-10-02T16:47:42.019773Z",
+        "vendorEarningsEstimate": {
+          "__typename": "TaskEarningsEstimate",
+          "baseEarnings": "49.45",
+          "earningsIfLateCancel": "18.00",
+          "earningsIfLateCancelAfterArrival": "18.00",
+          "earningsIfLateCancelWhileEnRoute": "18.00",
+          "earningsIfProviderFailure": "-18.00",
+          "earningsIfSuccessfulCompletion": "49.45",
+          "effectiveAddOnEarnings": "0.00",
+          "hash": "xIQtqXdUgP8SU_vUC8y18AXUToWWxkwWBqSHPQQI7CM=",
+          "inputIncentiveAmount": null,
+          "inputIncentiveMultiplierPercent": null,
+          "totalEarningsIfLateCancel": "18.00",
+          "totalEarningsIfLateCancelAfterArrival": "18.00",
+          "totalEarningsIfLateCancelWhileEnRoute": "18.00",
+          "totalEarningsIfProviderFailure": "-18.00",
+          "totalEarningsIfSuccessfulCompletion": "49.45",
           "totalIncentive": "0.00"
         }
       }
