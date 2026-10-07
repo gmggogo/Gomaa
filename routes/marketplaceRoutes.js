@@ -163,380 +163,90 @@ function zipList(value){
   .filter(Boolean);
 }
 
-
-const geoCache=new Map();
-
-function extractZip(value){
-  const text=clean(value);
-  if(!text) return "";
-
-  const match=text.match(/\b(\d{5})(?:-\d{4})?\b/);
-  return match ? match[1] : "";
-}
-
-
-function deepFindRawValue(raw,aliases=[]){
-  if(!raw || typeof raw!=="object") return "";
-
-  const stack=[{value:raw,path:""}];
-  const normalizedAliases=aliases.map(x=>
-    String(x).toLowerCase().replace(/[^a-z0-9]/g,"")
-  );
-
-  while(stack.length){
-    const {value,path}=stack.pop();
-
-    if(!value || typeof value!=="object") continue;
-
-    for(const [key,next] of Object.entries(value)){
-      const nextPath=path ? `${path}.${key}` : key;
-      const normalized=nextPath
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g,"");
-
-      if(
-        normalizedAliases.some(alias=>
-          normalized.endsWith(alias) ||
-          normalized.includes(alias)
-        )
-      ){
-        if(
-          typeof next==="string" ||
-          typeof next==="number"
-        ){
-          return next;
-        }
-      }
-
-      if(next && typeof next==="object"){
-        stack.push({
-          value:next,
-          path:nextPath
-        });
-      }
-    }
-  }
-
-  return "";
-}
-
-function rawPostalCode(trip,side){
-  const raw=trip?.raw || {};
-  const aliases=
-    side==="pickup"
-      ? [
-          "pickupzip","pickupzipcode","pickuppostalcode",
-          "originzip","originzipcode","originpostalcode"
-        ]
-      : [
-          "dropoffzip","dropoffzipcode","dropoffpostalcode",
-          "destinationzip","destinationzipcode","destinationpostalcode"
-        ];
-
-  return extractZip(
-    deepFindRawValue(
-      raw,
-      aliases
-    )
-  );
-}
-
-function rawCoordinate(trip,side,kind){
-  const raw=trip?.raw || {};
-
-  const aliases=
-    side==="pickup"
-      ? (
-          kind==="lat"
-            ? ["pickuplat","pickuplatitude","originlat","originlatitude"]
-            : ["pickuplng","pickuplon","pickuplongitude","originlng","originlon","originlongitude"]
-        )
-      : (
-          kind==="lat"
-            ? ["dropofflat","dropofflatitude","destinationlat","destinationlatitude"]
-            : ["dropofflng","dropofflon","dropofflongitude","destinationlng","destinationlon","destinationlongitude"]
-        );
-
-  const value=Number(
-    deepFindRawValue(
-      raw,
-      aliases
-    )
-  );
-
-  if(!Number.isFinite(value)) return null;
-  if(kind==="lat" && (value < -90 || value > 90)) return null;
-  if(kind==="lng" && (value < -180 || value > 180)) return null;
-
-  return value;
-}
-
-function normalizeMode(value){
-  return clean(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-}
-
-function serviceMatches(actual,configured=[]){
-  if(!configured.length) return true;
-
-  const value=normalizeMode(actual);
-  if(!value) return false;
-
-  return configured.some(raw=>{
-    const wanted=normalizeMode(raw);
-    if(!wanted) return false;
-
-    if(value===wanted) return true;
-    if(value.startsWith(wanted+" ")) return true;
-    if(wanted.startsWith(value+" ")) return true;
-
-    if(
-      wanted==="wheelchair" &&
-      /\b(wheelchair|paralift)\b/.test(value)
-    ){
-      return true;
-    }
-
-    if(
-      wanted==="ambulatory" &&
-      value.startsWith("ambulatory")
-    ){
-      return true;
-    }
-
-    return false;
-  });
-}
-
-function validCoord(lat,lng){
-  const a=Number(lat);
-  const b=Number(lng);
-  return (
-    Number.isFinite(a) &&
-    Number.isFinite(b) &&
-    a>=-90 && a<=90 &&
-    b>=-180 && b<=180 &&
-    !(a===0 && b===0)
-  );
-}
-
-async function geocodeAddress(value){
-  const address=clean(value);
-  if(!address) return null;
-
-  const key=address.toLowerCase();
-  if(geoCache.has(key)) return geoCache.get(key);
-
-  let result=null;
-
-  try{
-    const googleKey=clean(process.env.GOOGLE_KEY);
-
-    if(googleKey && typeof fetch==="function"){
-      const url=
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${encodeURIComponent(googleKey)}`;
-
-      const response=await fetch(url);
-      const data=await response.json().catch(()=>({}));
-      const location=data?.results?.[0]?.geometry?.location;
-
-      if(validCoord(location?.lat,location?.lng)){
-        result={
-          lat:Number(location.lat),
-          lng:Number(location.lng),
-          source:"GOOGLE"
-        };
-      }
-    }
-
-    if(!result){
-      const zip=extractZip(address);
-
-      if(zip && typeof fetch==="function"){
-        const response=
-          await fetch(
-            `https://api.zippopotam.us/us/${encodeURIComponent(zip)}`
-          );
-
-        if(response.ok){
-          const data=await response.json().catch(()=>({}));
-          const place=data?.places?.[0];
-          const lat=Number(place?.latitude);
-          const lng=Number(place?.longitude);
-
-          if(validCoord(lat,lng)){
-            result={
-              lat,
-              lng,
-              source:"ZIP_CENTROID"
-            };
-          }
-        }
-      }
-    }
-  }catch(_err){
-    result=null;
-  }
-
-  geoCache.set(key,result);
-  return result;
-}
-
-function haversineMiles(a,b){
-  if(
-    !a ||
-    !b ||
-    !validCoord(a.lat,a.lng) ||
-    !validCoord(b.lat,b.lng)
-  ){
-    return null;
-  }
-
-  const R=3958.7613;
-  const toRad=v=>v*Math.PI/180;
-  const dLat=toRad(b.lat-a.lat);
-  const dLng=toRad(b.lng-a.lng);
-  const lat1=toRad(a.lat);
-  const lat2=toRad(b.lat);
-
-  const h=
-    Math.sin(dLat/2)**2 +
-    Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
-
-  return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
-}
-
-function timeMinutes(value){
-  const text=clean(value);
-  if(!text) return null;
-
-  const iso=text.match(/T(\d{2}):(\d{2})/);
-  if(iso){
-    return Number(iso[1])*60+Number(iso[2]);
-  }
-
-  const simple=text.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)?\b/i);
-  if(!simple) return null;
-
-  let hour=Number(simple[1]);
-  const minute=Number(simple[2]);
-  const ap=clean(simple[3]).toUpperCase();
-
-  if(ap==="PM" && hour<12) hour+=12;
-  if(ap==="AM" && hour===12) hour=0;
-
-  return hour*60+minute;
-}
-
-function withinTime(value,from,to){
-  const minute=timeMinutes(value);
-  if(minute===null) return false;
-
-  const start=timeMinutes(from || "00:00");
-  const end=timeMinutes(to || "23:59");
-
-  if(start===null || end===null) return true;
-  if(start<=end) return minute>=start && minute<=end;
-  return minute>=start || minute<=end;
-}
-
 function normalizeEngine(value={}){
-  const legacyRadius=
-    Math.max(
-      0,
-      Number(value.milesMax) || 0
-    );
 
   return {
-    enabled:value.enabled===true,
-    autoAccept:value.autoAccept===true,
+    enabled:
+      value.enabled === true,
 
-    zoneRadiusMiles:
+    autoAccept:
+      value.autoAccept === true,
+
+    milesMin:
       Math.max(
         0,
         Number(
-          value.zoneRadiusMiles ??
-          legacyRadius ??
-          0
+          value.milesMin
         ) || 0
       ),
 
-    tripMilesMin:
-      Math.max(
-        0,
-        Number(value.tripMilesMin) || 0
-      ),
-
-    tripMilesMax:
-      Math.max(
-        0,
-        Number(value.tripMilesMax) || 0
-      ),
-
-    /* keep legacy values so old saved documents are not destroyed */
-    milesMin:
-      Math.max(0,Number(value.milesMin)||0),
-
     milesMax:
-      Math.max(0,Number(value.milesMax)||0),
+      Math.max(
+        0,
+        Number(
+          value.milesMax
+        ) || 0
+      ),
 
     dailyTripLimit:
-      Math.max(0,Number(value.dailyTripLimit)||0),
+      Math.max(
+        0,
+        Number(
+          value.dailyTripLimit
+        ) || 0
+      ),
 
     pickupTimeFrom:
-      clean(value.pickupTimeFrom) || "00:00",
+      clean(
+        value.pickupTimeFrom
+      ) || "00:00",
 
     pickupTimeTo:
-      clean(value.pickupTimeTo) || "23:59",
+      clean(
+        value.pickupTimeTo
+      ) || "23:59",
 
     dropoffTimeFrom:
-      clean(value.dropoffTimeFrom) || "00:00",
+      clean(
+        value.dropoffTimeFrom
+      ) || "00:00",
 
     dropoffTimeTo:
-      clean(value.dropoffTimeTo) || "23:59",
+      clean(
+        value.dropoffTimeTo
+      ) || "23:59",
 
     pickupZipCodes:
-      zipList(value.pickupZipCodes),
+      zipList(
+        value.pickupZipCodes
+      ),
 
     dropoffZipCodes:
-      zipList(value.dropoffZipCodes),
-
-    pickupZoneCity:
-      clean(value.pickupZoneCity),
-
-    pickupZoneState:
-      clean(value.pickupZoneState),
-
-    pickupZoneZip:
-      extractZip(value.pickupZoneZip),
-
-    pickupZoneAddress:
-      clean(value.pickupZoneAddress),
-
-    dropoffZoneCity:
-      clean(value.dropoffZoneCity),
-
-    dropoffZoneState:
-      clean(value.dropoffZoneState),
-
-    dropoffZoneZip:
-      extractZip(value.dropoffZoneZip),
-
-    dropoffZoneAddress:
-      clean(value.dropoffZoneAddress),
+      zipList(
+        value.dropoffZipCodes
+      ),
 
     zoneMatch:
-      ["ANY","PICKUP","DROPOFF","EITHER","BOTH"].includes(
-        clean(value.zoneMatch).toUpperCase()
+      [
+        "ANY",
+        "PICKUP",
+        "DROPOFF",
+        "EITHER",
+        "BOTH"
+      ].includes(
+        clean(
+          value.zoneMatch
+        ).toUpperCase()
       )
-        ? clean(value.zoneMatch).toUpperCase()
+        ? clean(
+            value.zoneMatch
+          ).toUpperCase()
         : "ANY",
 
     modes:
-      zipList(value.modes)
+      zipList(
+        value.modes
+      )
   };
 }
 
@@ -562,108 +272,6 @@ async function getSettings(id){
   return doc;
 }
 
-function tripIdentity(trip={}){
-  const explicit=
-    clean(
-      trip.externalTripId ||
-      trip.portalTripId ||
-      trip.tripNumber ||
-      trip.assignmentNumber ||
-      trip.reservationId
-    );
-
-  if(explicit){
-    return explicit;
-  }
-
-  return [
-    clean(trip.tripDate || trip.appointmentDate || trip.date),
-    clean(trip.pickupTime || trip.appointmentTime),
-    clean(trip.pickup || trip.pickupAddress),
-    clean(trip.dropoff || trip.dropoffAddress)
-  ]
-  .join("|")
-  .toLowerCase();
-}
-
-function looksEncodedInternalId(value){
-  const text=clean(value);
-
-  return Boolean(
-    text &&
-    text.length>=28 &&
-    /^[A-Za-z0-9+/_=-]+$/.test(text)
-  );
-}
-
-function displayTripNumber(trip={}){
-  const candidates=[
-    trip.tripNumber,
-    trip.displayTripNumber,
-    trip.confirmationNumber,
-    trip.referenceNumber,
-    trip.reservationNumber,
-    trip.bookingNumber
-  ];
-
-  for(const value of candidates){
-    const text=clean(value);
-
-    if(
-      text &&
-      !looksEncodedInternalId(text)
-    ){
-      return text;
-    }
-  }
-
-  return "";
-}
-
-function isoDatePart(value){
-  const text=clean(value);
-  const match=text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
-  return match
-    ? `${match[1]}-${match[2]}-${match[3]}`
-    : "";
-}
-
-function tripDateValue(trip={}){
-  return clean(
-    trip.tripDate ||
-    trip.serviceDate ||
-    trip.appointmentDate ||
-    trip.date ||
-    isoDatePart(
-      trip.pickupTime ||
-      trip.tripTime ||
-      trip.appointmentTime
-    )
-  );
-}
-
-function tripTimeValue(trip={}){
-  return clean(
-    trip.pickupTime ||
-    trip.tripTime ||
-    trip.appointmentTime
-  );
-}
-
-function tripPickupAddress(trip={}){
-  return clean(
-    trip.pickup ||
-    trip.pickupAddress
-  );
-}
-
-function tripDropoffAddress(trip={}){
-  return clean(
-    trip.dropoff ||
-    trip.dropoffAddress
-  );
-}
-
 function tripForEngine(trip={}){
 
   const miles =
@@ -683,52 +291,9 @@ function tripForEngine(trip={}){
       ),
 
     tripNumber:
-      displayTripNumber(
-        trip
-      ),
-
-    portalTripId:
       clean(
-        trip.portalTripId ||
-        trip.externalTripId
-      ),
-
-    availableForAccept:
-      trip.availableForAccept===true,
-
-    availabilityEvidence:
-      clean(
-        trip.availabilityEvidence
-      ),
-
-    availabilityStatus:
-      clean(
-        trip.availabilityStatus
-      ),
-
-    acceptActionText:
-      clean(
-        trip.acceptActionText
-      ),
-
-    acceptActionSelector:
-      clean(
-        trip.acceptActionSelector
-      ),
-
-    tripDate:
-      tripDateValue(
-        trip
-      ),
-
-    tripTime:
-      tripTimeValue(
-        trip
-      ),
-
-    pickupTime:
-      tripTimeValue(
-        trip
+        trip.tripNumber ||
+        trip.portalTripId
       ),
 
     miles:
@@ -750,50 +315,6 @@ function tripForEngine(trip={}){
       trip.dropoff ||
       trip.dropoffAddress ||
       "",
-
-    pickupZip:
-      clean(
-        trip.pickupZip ||
-        trip.pickupPostalCode ||
-        trip.originZip ||
-        rawPostalCode(trip,"pickup") ||
-        extractZip(
-          trip.pickup ||
-          trip.pickupAddress
-        )
-      ),
-
-    dropoffZip:
-      clean(
-        trip.dropoffZip ||
-        trip.dropoffPostalCode ||
-        trip.destinationZip ||
-        rawPostalCode(trip,"dropoff") ||
-        extractZip(
-          trip.dropoff ||
-          trip.dropoffAddress
-        )
-      ),
-
-    pickupLat:
-      Number.isFinite(Number(trip.pickupLat))
-        ? Number(trip.pickupLat)
-        : rawCoordinate(trip,"pickup","lat"),
-
-    pickupLng:
-      Number.isFinite(Number(trip.pickupLng))
-        ? Number(trip.pickupLng)
-        : rawCoordinate(trip,"pickup","lng"),
-
-    dropoffLat:
-      Number.isFinite(Number(trip.dropoffLat))
-        ? Number(trip.dropoffLat)
-        : rawCoordinate(trip,"dropoff","lat"),
-
-    dropoffLng:
-      Number.isFinite(Number(trip.dropoffLng))
-        ? Number(trip.dropoffLng)
-        : rawCoordinate(trip,"dropoff","lng"),
 
     mode:
       clean(
@@ -880,8 +401,8 @@ async function logActivity(
 
     externalTripId:
       clean(
-        trip.portalTripId ||
         trip.externalTripId ||
+        trip.portalTripId ||
         trip.tripNumber ||
         data.externalTripId
       ),
@@ -931,81 +452,6 @@ async function logActivity(
         connection,
         trip
       ),
-
-      tripKey:
-        tripIdentity(
-          trip
-        ),
-
-      tripNumber:
-        displayTripNumber(
-          trip
-        ),
-
-      tripDate:
-        tripDateValue(
-          trip
-        ),
-
-      tripTime:
-        tripTimeValue(
-          trip
-        ),
-
-      appointmentTime:
-        clean(
-          trip.appointmentTime
-        ),
-
-      pickupAddress:
-        tripPickupAddress(
-          trip
-        ),
-
-      dropoffAddress:
-        tripDropoffAddress(
-          trip
-        ),
-
-      pickupZip:
-        clean(
-          trip.pickupZip ||
-          trip.pickupPostalCode ||
-          trip.originZip
-        ),
-
-      dropoffZip:
-        clean(
-          trip.dropoffZip ||
-          trip.dropoffPostalCode ||
-          trip.destinationZip
-        ),
-
-      mode:
-        clean(
-          trip.mode ||
-          trip.serviceType ||
-          trip.levelOfService
-        ),
-
-      availableForAccept:
-        trip.availableForAccept===true,
-
-      availabilityEvidence:
-        clean(
-          trip.availabilityEvidence
-        ),
-
-      availabilityStatus:
-        clean(
-          trip.availabilityStatus
-        ),
-
-      acceptActionText:
-        clean(
-          trip.acceptActionText
-        ),
-
       ...(data.meta || {})
     }
   });
@@ -1042,703 +488,90 @@ async function marketplaceConnection(
   return connection;
 }
 
-async function pointForTripSide(trip,side){
-  const isPickup=side==="PICKUP";
-  const lat=isPickup ? trip.pickupLat : trip.dropoffLat;
-  const lng=isPickup ? trip.pickupLng : trip.dropoffLng;
-
-  if(validCoord(lat,lng)){
-    return {
-      lat:Number(lat),
-      lng:Number(lng),
-      source:"TRIP_COORDS"
-    };
-  }
-
-  /*
-    Prefer the trip's own ZIP before full-address geocoding.
-    CareCar and other portals often carry a postal code in raw JSON even
-    when the visible address text does not show it.
-  */
-  const zip=
-    isPickup
-      ? clean(
-          trip.pickupZip ||
-          rawPostalCode(trip,"pickup")
-        )
-      : clean(
-          trip.dropoffZip ||
-          rawPostalCode(trip,"dropoff")
-        );
-
-  if(zip){
-    const zipPoint=
-      await geocodeAddress(zip);
-
-    if(zipPoint){
-      return {
-        ...zipPoint,
-        source:"TRIP_ZIP"
-      };
-    }
-  }
-
-  const address=
-    isPickup
-      ? trip.pickup
-      : trip.dropoff;
-
-  const addressPoint=
-    await geocodeAddress(address);
-
-  if(addressPoint){
-    return {
-      ...addressPoint,
-      source:"ADDRESS_GEOCODE"
-    };
-  }
-
-  return null;
-}
-
-async function minDistanceToZipCenters(point,zips=[]){
-  if(!point || !zips.length) return null;
-
-  const centers=
-    await Promise.all(
-      zips.map(
-        zip=>geocodeAddress(zip)
-      )
-    );
-
-  const distances=
-    centers
-      .filter(Boolean)
-      .map(center=>haversineMiles(point,center))
-      .filter(Number.isFinite);
-
-  if(!distances.length) return null;
-  return Math.min(...distances);
-}
-
-
-function buildConfiguredZoneCenters(engineSettings={},side){
-  const isPickup=side==="PICKUP";
-
-  const city=clean(
-    isPickup
-      ? engineSettings.pickupZoneCity
-      : engineSettings.dropoffZoneCity
-  );
-
-  const state=clean(
-    isPickup
-      ? engineSettings.pickupZoneState
-      : engineSettings.dropoffZoneState
-  );
-
-  const zip=extractZip(
-    isPickup
-      ? engineSettings.pickupZoneZip
-      : engineSettings.dropoffZoneZip
-  );
-
-  const fullAddress=clean(
-    isPickup
-      ? engineSettings.pickupZoneAddress
-      : engineSettings.dropoffZoneAddress
-  );
-
-  const legacy=
-    zipList(
-      isPickup
-        ? engineSettings.pickupZipCodes
-        : engineSettings.dropoffZipCodes
-    );
-
-  const centers=[];
-
-  if(fullAddress){
-    centers.push(fullAddress);
-  }
-
-  const cityStateZip=
-    [city,state,zip]
-      .filter(Boolean)
-      .join(", ");
-
-  if(cityStateZip){
-    centers.push(cityStateZip);
-  }
-
-  if(zip){
-    centers.push(zip);
-  }
-
-  centers.push(...legacy);
-
-  return [...new Set(
-    centers.map(clean).filter(Boolean)
-  )];
-}
-
-
-function tripYmd(trip={}){
-  const direct=
-    clean(
-      trip.tripDate
-    );
-
-  const directMatch=
-    direct.match(
-      /^(\d{4})-(\d{2})-(\d{2})/
-    );
-
-  if(directMatch){
-    return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
-  }
-
-  const values=[
-    trip.pickupTime,
-    trip.appointmentTime,
-    trip.dropoffTime
-  ];
-
-  for(const value of values){
-    const match=
-      clean(value).match(
-        /^(\d{4})-(\d{2})-(\d{2})T/
-      );
-
-    if(match){
-      return `${match[1]}-${match[2]}-${match[3]}`;
-    }
-  }
-
-  return "";
-}
-
-function localTodayYmd(){
-  const now=new Date();
-  const year=now.getFullYear();
-  const month=String(now.getMonth()+1).padStart(2,"0");
-  const day=String(now.getDate()).padStart(2,"0");
-  return `${year}-${month}-${day}`;
-}
-
-function marketplaceCandidateGate(trip={}){
-  const date=
-    tripYmd(
-      trip
-    );
-
-  if(!date){
-    return {
-      allowed:false,
-      reason:"TRIP_DATE_UNAVAILABLE"
-    };
-  }
-
-  if(date < localTodayYmd()){
-    return {
-      allowed:false,
-      reason:"PAST_TRIP_DATE"
-    };
-  }
-
-  if(
-    trip.availableForAccept!==true
-  ){
-    return {
-      allowed:false,
-      reason:"NOT_AVAILABLE_FOR_ACCEPT"
-    };
-  }
-
-  return {
-    allowed:true,
-    reason:"AVAILABLE"
-  };
-}
-
-async function evaluateEngineTrip(
-  trip,
-  engineName,
-  engineSettings={}
-){
-  if(engineSettings.enabled!==true){
-    return {
-      matched:false,
-      reason:"ENGINE_DISABLED"
-    };
-  }
-
-  const candidateGate=
-    marketplaceCandidateGate(
-      trip
-    );
-
-  if(!candidateGate.allowed){
-    return {
-      matched:false,
-      reason:
-        candidateGate.reason
-    };
-  }
-
-  const tripMiles=
-    Number(
-      trip.tripMiles ??
-      trip.miles ??
-      0
-    );
-
-  const minTripMiles=
-    Math.max(
-      0,
-      Number(engineSettings.tripMilesMin)||0
-    );
-
-  const maxTripMiles=
-    Math.max(
-      0,
-      Number(engineSettings.tripMilesMax)||0
-    );
-
-  if(
-    Number.isFinite(tripMiles) &&
-    tripMiles<minTripMiles
-  ){
-    return {
-      matched:false,
-      reason:"TRIP_MILES_BELOW_MIN"
-    };
-  }
-
-  if(
-    maxTripMiles>0 &&
-    Number.isFinite(tripMiles) &&
-    tripMiles>maxTripMiles
-  ){
-    return {
-      matched:false,
-      reason:"TRIP_MILES_ABOVE_MAX"
-    };
-  }
-
-  if(
-    !withinTime(
-      trip.pickupTime,
-      engineSettings.pickupTimeFrom,
-      engineSettings.pickupTimeTo
-    )
-  ){
-    return {
-      matched:false,
-      reason:"PICKUP_TIME_OUTSIDE_FILTER"
-    };
-  }
-
-  if(
-    clean(trip.dropoffTime) &&
-    !withinTime(
-      trip.dropoffTime,
-      engineSettings.dropoffTimeFrom,
-      engineSettings.dropoffTimeTo
-    )
-  ){
-    return {
-      matched:false,
-      reason:"DROPOFF_TIME_OUTSIDE_FILTER"
-    };
-  }
-
-  if(
-    !serviceMatches(
-      trip.mode,
-      engineSettings.modes || []
-    )
-  ){
-    return {
-      matched:false,
-      reason:"SERVICE_NOT_ALLOWED"
-    };
-  }
-
-  const zoneMatch=
-    clean(
-      engineSettings.zoneMatch ||
-      "ANY"
-    ).toUpperCase();
-
-  const radius=
-    Math.max(
-      0,
-      Number(engineSettings.zoneRadiusMiles)||0
-    );
-
-  const pickupCenters=
-    buildConfiguredZoneCenters(
-      engineSettings,
-      "PICKUP"
-    );
-
-  const dropoffCenters=
-    buildConfiguredZoneCenters(
-      engineSettings,
-      "DROPOFF"
-    );
-
-  /*
-    If no zone centers/radius are configured, the zone filter is disabled.
-    If a zone IS configured and geocoding fails, fail closed — never accept
-    a trip outside verified settings just because coordinates are missing.
-  */
-  const zoneConfigured=
-    radius>0 &&
-    (
-      pickupCenters.length>0 ||
-      dropoffCenters.length>0
-    );
-
-  let pickupDistance=null;
-  let dropoffDistance=null;
-  let pickupInside=false;
-  let dropoffInside=false;
-
-  if(zoneConfigured){
-    if(pickupCenters.length){
-      const pickupPoint=
-        await pointForTripSide(
-          trip,
-          "PICKUP"
-        );
-
-      pickupDistance=
-        await minDistanceToZipCenters(
-          pickupPoint,
-          pickupCenters
-        );
-
-      pickupInside=
-        Number.isFinite(pickupDistance) &&
-        pickupDistance<=radius;
-    }
-
-    if(dropoffCenters.length){
-      const dropoffPoint=
-        await pointForTripSide(
-          trip,
-          "DROPOFF"
-        );
-
-      dropoffDistance=
-        await minDistanceToZipCenters(
-          dropoffPoint,
-          dropoffCenters
-        );
-
-      dropoffInside=
-        Number.isFinite(dropoffDistance) &&
-        dropoffDistance<=radius;
-    }
-
-    let zonePassed=false;
-
-    switch(zoneMatch){
-      case "PICKUP":
-        zonePassed=
-          pickupCenters.length>0 &&
-          pickupInside;
-        break;
-
-      case "DROPOFF":
-        zonePassed=
-          dropoffCenters.length>0 &&
-          dropoffInside;
-        break;
-
-      case "EITHER":
-        zonePassed=
-          (
-            pickupCenters.length>0 &&
-            pickupInside
-          ) ||
-          (
-            dropoffCenters.length>0 &&
-            dropoffInside
-          );
-        break;
-
-      case "BOTH":
-        zonePassed=
-          (
-            !pickupCenters.length ||
-            pickupInside
-          ) &&
-          (
-            !dropoffCenters.length ||
-            dropoffInside
-          ) &&
-          (
-            pickupCenters.length>0 ||
-            dropoffCenters.length>0
-          );
-        break;
-
-      case "ANY":
-      default:
-        zonePassed=
-          (
-            pickupCenters.length>0 &&
-            pickupInside
-          ) ||
-          (
-            dropoffCenters.length>0 &&
-            dropoffInside
-          );
-        break;
-    }
-
-    if(!zonePassed){
-      return {
-        matched:false,
-        reason:
-          (
-            pickupCenters.length && pickupDistance===null
-          ) ||
-          (
-            dropoffCenters.length && dropoffDistance===null
-          )
-            ? "ZONE_DISTANCE_UNAVAILABLE"
-            : "OUTSIDE_ZONE_RADIUS",
-        zone:{
-          radiusMiles:radius,
-          pickupDistanceMiles:
-            Number.isFinite(pickupDistance)
-              ? Number(pickupDistance.toFixed(2))
-              : null,
-          dropoffDistanceMiles:
-            Number.isFinite(dropoffDistance)
-              ? Number(dropoffDistance.toFixed(2))
-              : null
-        }
-      };
-    }
-  }
-
-  return {
-    matched:true,
-    reason:"MATCHED",
-    engine:engineName,
-    zone:{
-      radiusMiles:radius,
-      pickupDistanceMiles:
-        Number.isFinite(pickupDistance)
-          ? Number(pickupDistance.toFixed(2))
-          : null,
-      dropoffDistanceMiles:
-        Number.isFinite(dropoffDistance)
-          ? Number(dropoffDistance.toFixed(2))
-          : null
-    }
-  };
-}
-
-async function selectedByEngine(
+function selectedByEngine(
   trips,
   settings
 ){
-  const longTrips=[];
-  const shortTrips=[];
-  const decisions=[];
-  const claimedKeys=new Set();
 
-  for(const trip of trips){
-    const key=tripIdentity(trip);
+  const longTrips =
+    settings?.longEngine?.enabled
+      ? longEngine.select(
+          trips,
+          settings.longEngine || {}
+        )
+      : [];
 
-    if(!key || claimedKeys.has(key)){
-      continue;
-    }
-
-    const longDecision=
-      await evaluateEngineTrip(
-        trip,
-        "LONG",
-        settings?.longEngine || {}
-      );
-
-    if(longDecision.matched){
-      claimedKeys.add(key);
-      trip.__marketplaceDecision=longDecision;
-      longTrips.push(trip);
-      decisions.push({
-        trip,
-        engine:"LONG",
-        ...longDecision
-      });
-      continue;
-    }
-
-    const shortDecision=
-      await evaluateEngineTrip(
-        trip,
-        "SHORT",
-        settings?.shortEngine || {}
-      );
-
-    if(shortDecision.matched){
-      claimedKeys.add(key);
-      trip.__marketplaceDecision=shortDecision;
-      shortTrips.push(trip);
-      decisions.push({
-        trip,
-        engine:"SHORT",
-        ...shortDecision
-      });
-      continue;
-    }
-
-    const primaryDecision=
-      longDecision.reason!=="ENGINE_DISABLED"
-        ? longDecision
-        : shortDecision;
-
-    decisions.push({
-      trip,
-      engine:"SYSTEM",
-      matched:false,
-      reason:primaryDecision.reason,
-      zone:primaryDecision.zone || null,
-      longReason:longDecision.reason,
-      shortReason:shortDecision.reason
-    });
-  }
+  const shortTrips =
+    settings?.shortEngine?.enabled
+      ? shortEngine.select(
+          trips,
+          settings.shortEngine || {}
+        )
+      : [];
 
   return {
     longTrips,
-    shortTrips,
-    decisions
+    shortTrips
   };
 }
-
 
 async function logEngineMatches(
   id,
   connection,
   engineName,
   trips,
-  engineSettings,
-  options={}
+  engineSettings
 ){
 
   const results = [];
-  const scanSeen = new Set();
 
   for(const trip of trips){
 
-    const key =
-      tripIdentity(
-        trip
-      );
-
-    if(
-      !key ||
-      scanSeen.has(key)
-    ){
-      continue;
-    }
-
-    scanSeen.add(key);
+    await logActivity(
+      id,
+      connection,
+      "MATCHED",
+      {
+        engine:engineName,
+        trip,
+        message:
+          `${engineName} engine matched trip ${clean(trip.externalTripId || trip.portalTripId)}`
+      }
+    );
 
     /*
-      Permanent safety guard for when Claim/Accept is enabled later:
-      a trip already recorded as CLAIMED for this broker connection
-      can never be claimed a second time.
+      Generic portal scan is still discovery/evaluation only.
+      A broker-specific authorized Claim/Accept adapter will replace
+      this SKIPPED phase later.
     */
-    const alreadyClaimed =
-      await Activity.exists({
-        tenantId:id,
-        action:"CLAIMED",
-        externalTripId:
-          clean(
-            trip.externalTripId ||
-            trip.portalTripId ||
-            trip.tripNumber
-          ),
-        "meta.connectionId":
-          String(
-            connection._id
-          )
-      });
-
-    if(alreadyClaimed){
-
-      await logActivity(
-        id,
-        connection,
-        "SKIPPED",
-        {
-          engine:engineName,
-          trip,
-          reason:"ALREADY_CLAIMED",
-          message:
-            `${engineName} ignored already-claimed trip ${displayTripNumber(trip)}`
-        }
-      );
-
-      results.push({
-        engine:engineName,
-        externalTripId:
-          displayTripNumber(
-            trip
-          ),
-        matched:false,
-        claimed:false,
-        reason:"ALREADY_CLAIMED"
-      });
-
-      continue;
-    }
-
     const reason =
       engineSettings?.autoAccept === true
-        ? "PORTAL_ACTION_NOT_VERIFIED"
+        ? "PORTAL_CLAIM_ADAPTER_NOT_ACTIVE"
         : "AUTO_ACCEPT_OFF";
 
     const message =
       engineSettings?.autoAccept === true
-        ? `${engineName} matched trip ${displayTripNumber(trip)}; Accept/Claim action must be validated before execution is enabled`
-        : `${engineName} matched trip ${displayTripNumber(trip)}; Auto Accept is OFF`;
+        ? `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Claim/Accept is blocked until this broker's authorized claim adapter is active`
+        : `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Auto Accept is OFF`;
 
-    /*
-      Event-driven evaluation may already have written the MATCHED row.
-      Manual re-evaluation still writes it here.
-    */
-    if(options.skipMatchedLog!==true){
-      await logActivity(
-        id,
-        connection,
-        "MATCHED",
-        {
-          engine:engineName,
-          trip,
-          reason,
-          message,
-          meta:{
-            eventFingerprint:
-              clean(options.eventFingerprint),
-            ...(options.meta || {})
-          }
-        }
-      );
-    }
+    await logActivity(
+      id,
+      connection,
+      "SKIPPED",
+      {
+        engine:engineName,
+        trip,
+        reason,
+        message
+      }
+    );
 
     results.push({
       engine:engineName,
       externalTripId:
-        displayTripNumber(
-          trip
+        clean(
+          trip.externalTripId ||
+          trip.portalTripId
         ),
       matched:true,
       claimed:false,
@@ -1749,638 +582,100 @@ async function logEngineMatches(
   return results;
 }
 
-const autoEventLocks=new Map();
-
-function eventFingerprint(trip={}){
-  const raw=JSON.stringify({
-    id:tripIdentity(trip),
-    date:tripDateValue(trip),
-    time:tripTimeValue(trip),
-    pickup:tripPickupAddress(trip),
-    dropoff:tripDropoffAddress(trip),
-    miles:Number(trip.tripMiles ?? trip.miles ?? 0),
-    mode:clean(trip.mode)
-  });
-
-  let hash=0;
-  for(let i=0;i<raw.length;i++){
-    hash=((hash<<5)-hash)+raw.charCodeAt(i);
-    hash|=0;
-  }
-
-  return String(Math.abs(hash));
-}
-
-async function autoEvaluateDiscovery(event={}){
-  const id=clean(event.tenantId);
-  const connectionId=clean(event.connectionId);
-
-  if(!id || !connectionId){
-    return;
-  }
-
-  const lockKey=`${id}:${connectionId}`;
-
-  const previous=
-    autoEventLocks.get(lockKey) ||
-    Promise.resolve();
-
-  const run=previous
-    .catch(()=>{})
-    .then(async()=>{
-      const [
-        connection,
-        settings
-      ]=
-        await Promise.all([
-          marketplaceConnection(
-            id,
-            connectionId
-          ),
-          getSettings(id)
-        ]);
-
-      if(settings.enabled===false){
-        return;
-      }
-
-      const trips=
-        (Array.isArray(event.trips)?event.trips:[])
-          .map(tripForEngine)
-          .filter(
-            trip=>
-              Boolean(
-                trip.externalTripId ||
-                trip.tripNumber
-              )
-          );
-
-      for(const trip of trips){
-        const fingerprint=
-          eventFingerprint(
-            trip
-          );
-
-        const externalTripId=
-          clean(
-            trip.externalTripId ||
-            trip.tripNumber
-          );
-
-        const seenBefore=
-          await Activity.exists({
-            tenantId:id,
-            externalTripId,
-            "meta.connectionId":
-              String(connection._id),
-            "meta.eventFingerprint":
-              fingerprint
-          });
-
-        if(seenBefore){
-          continue;
-        }
-
-        const {
-          longTrips,
-          shortTrips,
-          decisions
-        }=
-          await selectedByEngine(
-            [trip],
-            settings
-          );
-
-        const decision=
-          decisions[0] || {
-            matched:false,
-            reason:"NO_DECISION"
-          };
-
-        if(
-          [
-            "PAST_TRIP_DATE",
-            "TRIP_DATE_UNAVAILABLE",
-            "NOT_AVAILABLE_FOR_ACCEPT"
-          ].includes(
-            decision.reason
-          )
-        ){
-          continue;
-        }
-
-        await logActivity(
-          id,
-          connection,
-          decision.matched
-            ? "MATCHED"
-            : "SEEN",
-          {
-            engine:
-              decision.matched
-                ? decision.engine
-                : "SYSTEM",
-
-            trip,
-
-            reason:
-              decision.reason,
-
-            message:
-              decision.matched
-                ? `${decision.engine} auto-matched trip ${displayTripNumber(trip)}`
-                : `Trip ${displayTripNumber(trip)} seen but rejected by settings: ${decision.reason}`,
-
-            meta:{
-              eventDriven:true,
-              eventFingerprint:fingerprint,
-              discoveryType:
-                clean(event.discoveryType),
-              zone:
-                decision.zone || null,
-              longReason:
-                decision.longReason || "",
-              shortReason:
-                decision.shortReason || ""
-            }
-          }
-        );
-
-        if(longTrips.length){
-          await logEngineMatches(
-            id,
-            connection,
-            "LONG",
-            longTrips,
-            settings.longEngine || {},
-            {
-              skipMatchedLog:true,
-              eventFingerprint
-            }
-          );
-        }else if(shortTrips.length){
-          await logEngineMatches(
-            id,
-            connection,
-            "SHORT",
-            shortTrips,
-            settings.shortEngine || {},
-            {
-              skipMatchedLog:true,
-              eventFingerprint
-            }
-          );
-        }
-      }
-
-      await Settings.updateOne(
-        {tenantId:id},
-        {$set:{
-          lastScanAt:new Date(),
-          lastSuccessfulScanAt:new Date(),
-          lastError:""
-        }}
-      );
-    })
-    .catch(async err=>{
-      console.error(
-        "[Marketplace auto-evaluate]",
-        err?.message || err
-      );
-
-      await Settings.updateOne(
-        {tenantId:id},
-        {$set:{
-          lastError:
-            err?.message ||
-            String(err)
-        }}
-      ).catch(()=>{});
-    });
-
-  autoEventLocks.set(lockKey,run);
-
-  await run;
-
-  if(autoEventLocks.get(lockKey)===run){
-    autoEventLocks.delete(lockKey);
-  }
-}
-
-if(
-  typeof providerPortalBridgeRoutes.registerDiscoveryListener===
-  "function"
-){
-  providerPortalBridgeRoutes.registerDiscoveryListener(
-    autoEvaluateDiscovery
-  );
-}
 
 
-/*
-  Re-evaluate the CURRENT normalized Marketplace buffer immediately after
-  Marketplace Settings are saved.
-
-  Why this exists:
-  - The Browser Agent intentionally suppresses an unchanged DOM fingerprint.
-  - Changing Long/Short settings must therefore NOT wait for CareCar/another
-    broker portal to change before the same currently visible trips are tested
-    against the new settings.
-  - This is evaluation only. It does not bypass the existing Claim/Accept
-    validation guard.
-*/
-
-async function fallbackTripsFromMarketplaceActivity(
+async function evaluateNormalizedTripsForConnection({
   id,
-  connectionId
-){
-  const today=
-    localTodayYmd();
+  connectionId,
+  settings=null,
+  tripsOverride=null,
+  source="AUTO_DISCOVERY"
+}={}){
+  const [connection,resolvedSettings]=await Promise.all([
+    marketplaceConnection(id,connectionId),
+    settings ? Promise.resolve(settings) : getSettings(id)
+  ]);
 
-  const rows=
-    await Activity.find({
-      tenantId:id,
-      "meta.connectionId":
-        String(connectionId),
-      action:{
-        $in:[
-          "SEEN",
-          "MATCHED"
-        ]
-      }
-    })
-    .sort({
-      occurredAt:-1
-    })
-    .limit(500)
-    .lean();
-
-  const trips=[];
-  const used=new Set();
-
-  for(const row of rows){
-    const meta=
-      row?.meta ||
-      {};
-
-    const trip={
-      externalTripId:
-        clean(
-          row.externalTripId ||
-          meta.portalTripId ||
-          meta.tripKey
-        ),
-
-      portalTripId:
-        clean(
-          meta.portalTripId ||
-          row.externalTripId
-        ),
-
-      tripNumber:
-        clean(
-          meta.tripNumber
-        ),
-
-      tripDate:
-        clean(
-          row.tripDate ||
-          meta.tripDate
-        ),
-
-      pickupTime:
-        clean(
-          row.pickupTime ||
-          meta.tripTime ||
-          meta.appointmentTime
-        ),
-
-      appointmentTime:
-        clean(
-          meta.appointmentTime
-        ),
-
-      pickup:
-        clean(
-          meta.pickupAddress
-        ),
-
-      pickupAddress:
-        clean(
-          meta.pickupAddress
-        ),
-
-      dropoff:
-        clean(
-          meta.dropoffAddress
-        ),
-
-      dropoffAddress:
-        clean(
-          meta.dropoffAddress
-        ),
-
-      pickupZip:
-        clean(
-          meta.pickupZip
-        ),
-
-      dropoffZip:
-        clean(
-          meta.dropoffZip
-        ),
-
-      mode:
-        clean(
-          row.mode ||
-          meta.mode
-        ),
-
-      tripMiles:
-        Number.isFinite(
-          Number(row.miles)
-        )
-          ? Number(row.miles)
-          : 0,
-
-      miles:
-        Number.isFinite(
-          Number(row.miles)
-        )
-          ? Number(row.miles)
-          : 0,
-
-      availableForAccept:
-        meta.availableForAccept===true,
-
-      availabilityEvidence:
-        clean(
-          meta.availabilityEvidence
-        ),
-
-      availabilityStatus:
-        clean(
-          meta.availabilityStatus
-        ),
-
-      acceptActionText:
-        clean(
-          meta.acceptActionText
-        ),
-
-      sourceHost:
-        clean(
-          meta.sourceHost
-        )
-    };
-
-    const date=
-      tripYmd(
-        trip
-      );
-
-    if(
-      !date ||
-      date<today ||
-      trip.availableForAccept!==true
-    ){
-      continue;
-    }
-
-    const key=
-      tripIdentity(
-        trip
-      );
-
-    if(
-      !key ||
-      used.has(key)
-    ){
-      continue;
-    }
-
-    used.add(key);
-    trips.push(trip);
-  }
-
-  return trips;
-}
-
-
-async function reevaluateCurrentTripsAfterSettingsSave(
-  id,
-  settings
-){
-  const getTrips=
-    providerPortalBridgeRoutes
-      .getNormalizedTripsForConnection;
-
-  if(typeof getTrips!=="function"){
+  if(resolvedSettings.enabled===false){
     return {
-      connections:0,
-      trips:0,
-      matched:0,
-      rejected:0
+      success:false,
+      skipped:true,
+      reason:"MARKETPLACE_DISABLED",
+      scanned:0,
+      longMatched:0,
+      shortMatched:0
     };
   }
 
-  const connections=
-    await BrokerIntegration.find({
-      tenantId:id,
-      connectionMode:"MARKETPLACE_PORTAL",
-      enabled:true,
-      featureVisible:true,
-      billingEnabled:true
-    });
-
-  const runId=
-    `SETTINGS:${Date.now()}`;
-
-  let totalTrips=0;
-  let totalMatched=0;
-  let totalRejected=0;
-
-  for(const connection of connections){
-    const connectionId=
-      String(
-        connection._id
-      );
-
-    const rawTrips=
-      getTrips(
-        id,
-        connectionId
-      );
-
-    let trips=
-      (Array.isArray(rawTrips)?rawTrips:[])
-        .map(
-          tripForEngine
-        )
-        .filter(
-          trip=>
-            Boolean(
-              trip.externalTripId ||
-              trip.tripNumber
-            )
-        );
-
-    /*
-      Render keeps the normalized portal buffer in process memory. After a
-      deploy/restart that buffer can be empty even while the Oracle Cloud Agent
-      still has the broker browser open. In that case use the latest
-      connection-scoped, currently-available Marketplace activity snapshot so
-      a Settings save can still re-evaluate the visible trips immediately.
-      This remains evaluation-only; Claim/Accept validation is unchanged.
-    */
-    if(!trips.length){
-      trips=
-        (
-          await fallbackTripsFromMarketplaceActivity(
-            id,
-            connectionId
-          )
-        )
-        .map(
-          tripForEngine
-        );
-    }
-
-    if(!trips.length){
-      continue;
-    }
-
-    totalTrips+=trips.length;
-
-    const {
-      longTrips,
-      shortTrips,
-      decisions
-    }=
-      await selectedByEngine(
-        trips,
-        settings
-      );
-
-    for(const decision of decisions){
-      if(decision.matched===true){
-        totalMatched++;
-        continue;
-      }
-
-      if(
-        [
-          "PAST_TRIP_DATE",
-          "TRIP_DATE_UNAVAILABLE",
-          "NOT_AVAILABLE_FOR_ACCEPT"
-        ].includes(
-          decision.reason
-        )
-      ){
-        continue;
-      }
-
-      totalRejected++;
-
-      const zone=
-        decision.zone ||
-        {};
-
-      const distances=[
-        Number.isFinite(zone.pickupDistanceMiles)
-          ? `pickup ${zone.pickupDistanceMiles} mi`
-          : "",
-        Number.isFinite(zone.dropoffDistanceMiles)
-          ? `dropoff ${zone.dropoffDistanceMiles} mi`
-          : ""
-      ]
-      .filter(Boolean)
-      .join(", ");
-
-      await logActivity(
-        id,
-        connection,
-        "SEEN",
-        {
-          engine:"SYSTEM",
-          trip:decision.trip,
-          reason:decision.reason,
-          message:
-            `Re-evaluated after Settings save: ${decision.reason}` +
-            (
-              distances
-                ? ` (${distances}; radius ${zone.radiusMiles} mi)`
-                : ""
-            ),
-          meta:{
-            filterDecision:"REJECTED",
-            settingsReevaluation:true,
-            settingsRunId:runId,
-            zone,
-            longReason:
-              decision.longReason ||
-              "",
-            shortReason:
-              decision.shortReason ||
-              ""
-          }
-        }
-      );
-    }
-
-    await Promise.all([
-      logEngineMatches(
-        id,
-        connection,
-        "LONG",
-        longTrips,
-        settings.longEngine || {},
-        {
-          meta:{
-            settingsReevaluation:true,
-            settingsRunId:runId
-          }
-        }
-      ),
-
-      logEngineMatches(
-        id,
-        connection,
-        "SHORT",
-        shortTrips,
-        settings.shortEngine || {},
-        {
-          meta:{
-            settingsReevaluation:true,
-            settingsRunId:runId
-          }
-        }
-      )
-    ]);
+  const getTrips=providerPortalBridgeRoutes.getNormalizedTripsForConnection;
+  if(typeof getTrips!=="function"){
+    throw new Error("Provider Portal Bridge connection accessor is unavailable");
   }
+
+  const rawTrips=Array.isArray(tripsOverride)
+    ? tripsOverride
+    : getTrips(id,connectionId);
+
+  const trips=(Array.isArray(rawTrips)?rawTrips:[])
+    .map(tripForEngine)
+    .filter(trip=>Boolean(trip.externalTripId||trip.tripNumber));
+
+  if(!trips.length){
+    return {
+      success:true,
+      skipped:true,
+      reason:"NO_NORMALIZED_TRIPS",
+      scanned:0,
+      longMatched:0,
+      shortMatched:0
+    };
+  }
+
+  await logActivity(
+    id,
+    connection,
+    "SCAN",
+    {
+      engine:"SYSTEM",
+      message:`Marketplace automatic evaluation (${source}) for ${connection.brokerName || connection.brokerCode || "broker"} / ${connection.accountLabel || "Primary Account"}`,
+      meta:{scannedCount:trips.length,source}
+    }
+  );
+
+  for(const trip of trips){
+    await logActivity(
+      id,
+      connection,
+      "SEEN",
+      {
+        engine:"SYSTEM",
+        trip,
+        message:`Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`,
+        meta:{source}
+      }
+    );
+  }
+
+  const {longTrips,shortTrips}=selectedByEngine(trips,resolvedSettings);
+
+  const [longResults,shortResults]=await Promise.all([
+    logEngineMatches(id,connection,"LONG",longTrips,resolvedSettings.longEngine||{}),
+    logEngineMatches(id,connection,"SHORT",shortTrips,resolvedSettings.shortEngine||{})
+  ]);
 
   await Settings.updateOne(
-    {
-      tenantId:id
-    },
-    {
-      $set:{
-        lastScanAt:new Date(),
-        lastSuccessfulScanAt:new Date(),
-        lastError:""
-      }
-    }
+    {tenantId:id},
+    {$set:{lastScanAt:new Date(),lastSuccessfulScanAt:new Date(),lastError:""}}
   );
 
   return {
-    connections:
-      connections.length,
-    trips:
-      totalTrips,
-    matched:
-      totalMatched,
-    rejected:
-      totalRejected
+    success:true,
+    connectionId:String(connection._id),
+    scanned:trips.length,
+    longMatched:longTrips.length,
+    shortMatched:shortTrips.length,
+    longResults,
+    shortResults
   };
 }
 
@@ -2500,23 +795,41 @@ router.put(
           }
         );
 
-      /*
-        Re-evaluate before replying so a successful Settings save means the
-        current Marketplace rows have already been tested against the new
-        Long/Short rules. If the live normalized buffer was lost by a Render
-        restart, the safe current-day activity fallback above is used.
-      */
-      const reEvaluation=
-        await reevaluateCurrentTripsAfterSettingsSave(
-          id,
-          settings
-        );
+      const connections=
+        await BrokerIntegration.find({
+          tenantId:id,
+          connectionMode:"MARKETPLACE_PORTAL",
+          enabled:true,
+          featureVisible:true,
+          billingEnabled:true
+        })
+        .select("_id")
+        .lean();
+
+      const reEvaluation=[];
+
+      for(const row of connections){
+        try{
+          reEvaluation.push(
+            await evaluateNormalizedTripsForConnection({
+              id,
+              connectionId:String(row._id),
+              settings,
+              source:"SETTINGS_SAVE"
+            })
+          );
+        }catch(evalErr){
+          reEvaluation.push({
+            success:false,
+            connectionId:String(row._id),
+            message:evalErr?.message || String(evalErr)
+          });
+        }
+      }
 
       return res.json({
         success:true,
         settings,
-        reEvaluationStarted:true,
-        reEvaluationCompleted:true,
         reEvaluation
       });
 
@@ -2787,50 +1100,10 @@ router.post(
         }
       );
 
-
-      const {
-        longTrips,
-        shortTrips,
-        decisions
-      } =
-        await selectedByEngine(
-          trips,
-          settings
-        );
-
-      /*
-        Manual re-evaluation shows the real filter result for every trip.
-        Rejected trips are not shown as vague SEEN rows anymore.
-      */
-      for(const decision of decisions){
-        if(decision.matched===true){
-          continue;
-        }
-
-        if(
-          [
-            "PAST_TRIP_DATE",
-            "TRIP_DATE_UNAVAILABLE",
-            "NOT_AVAILABLE_FOR_ACCEPT"
-          ].includes(
-            decision.reason
-          )
-        ){
-          continue;
-        }
-
-        const zone=
-          decision.zone ||
-          {};
-
-        const distances=[
-          Number.isFinite(zone.pickupDistanceMiles)
-            ? `pickup ${zone.pickupDistanceMiles} mi`
-            : "",
-          Number.isFinite(zone.dropoffDistanceMiles)
-            ? `dropoff ${zone.dropoffDistanceMiles} mi`
-            : ""
-        ].filter(Boolean).join(", ");
+      for(
+        const trip
+        of trips
+      ){
 
         await logActivity(
           id,
@@ -2838,22 +1111,21 @@ router.post(
           "SEEN",
           {
             engine:"SYSTEM",
-            trip:decision.trip,
-            reason:decision.reason,
+            trip,
             message:
-              `Rejected by settings: ${decision.reason}` +
-              (
-                distances
-                  ? ` (${distances}; radius ${zone.radiusMiles} mi)`
-                  : ""
-              ),
-            meta:{
-              filterDecision:"REJECTED",
-              zone
-            }
+              `Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`
           }
         );
       }
+
+      const {
+        longTrips,
+        shortTrips
+      } =
+        selectedByEngine(
+          trips,
+          settings
+        );
 
       const [
         longResults,
@@ -2907,34 +1179,12 @@ router.post(
         result:{
           scanned:
             trips.length,
-          eligibleCandidates:
-            trips.filter(
-              trip=>
-                marketplaceCandidateGate(
-                  trip
-                ).allowed
-            ).length,
           longMatched:
             longTrips.length,
           shortMatched:
             shortTrips.length,
           longResults,
-          shortResults,
-          decisions:
-            decisions.map(row=>({
-              tripNumber:
-                displayTripNumber(
-                  row.trip
-                ),
-              engine:
-                row.engine,
-              matched:
-                row.matched===true,
-              reason:
-                row.reason,
-              zone:
-                row.zone || null
-            }))
+          shortResults
         },
         message:
           `${connection.brokerName || "Broker"} scan complete. Long/Short engines were evaluated for this connection only.`
@@ -2958,6 +1208,39 @@ router.post(
     }
   }
 );
+
+
+if(
+  typeof providerPortalBridgeRoutes.registerDiscoveryListener === "function" &&
+  providerPortalBridgeRoutes.__marketplaceAutoEvaluationListenerInstalled !== true
+){
+  providerPortalBridgeRoutes.__marketplaceAutoEvaluationListenerInstalled=true;
+
+  providerPortalBridgeRoutes.registerDiscoveryListener(
+    async event=>{
+      const id=clean(event?.tenantId);
+      const connectionId=clean(event?.connectionId);
+
+      if(!id || !connectionId){
+        return;
+      }
+
+      try{
+        await evaluateNormalizedTripsForConnection({
+          id,
+          connectionId,
+          tripsOverride:Array.isArray(event?.trips) ? event.trips : null,
+          source:"AUTO_DISCOVERY"
+        });
+      }catch(err){
+        console.error(
+          "[Marketplace] automatic discovery evaluation failed:",
+          err?.message || err
+        );
+      }
+    }
+  );
+}
 
 module.exports =
   router;
