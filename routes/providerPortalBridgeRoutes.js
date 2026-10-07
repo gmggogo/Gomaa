@@ -2913,7 +2913,13 @@ router.get("/connections",async(req,res)=>{
           brokerCode:row.brokerCode,
           accountLabel:row.accountLabel||"Primary Account",
           portalUrl:row.portalUrl||"",
-          billingEnabled:row.billingEnabled,
+          enabled:row.enabled===true,
+          featureVisible:row.featureVisible===true,
+          billingEnabled:row.billingEnabled===true,
+          paidMarketplaceAccess:
+            row.enabled===true &&
+            row.featureVisible===true &&
+            row.billingEnabled===true,
           monthlyFlatFee:row.monthlyFlatFee,
           connectionStatus:row.connectionStatus,
           sourceHost,

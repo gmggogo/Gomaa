@@ -587,9 +587,22 @@ Marketplace multi-broker UI.
   }
 
 
+  function hasPaidMarketplaceAccess(item){
+    return Boolean(
+      item &&
+      item.enabled !== false &&
+      item.featureVisible !== false &&
+      item.billingEnabled === true &&
+      item.paidMarketplaceAccess !== false
+    );
+  }
+
   function consoleConnectionPath(suffix=""){
     const item=selectedConnection();
     if(!item) throw new Error("No broker account selected");
+    if(!hasPaidMarketplaceAccess(item)){
+      throw new Error("Marketplace access for this broker is disabled by Platform Admin or billing is inactive.");
+    }
     return `/connections/${encodeURIComponent(item.connectionId)}/login-console${suffix}`;
   }
 
@@ -794,6 +807,13 @@ Marketplace multi-broker UI.
   async function openLoginConsole(){
     const item=selectedConnection();
     if(!item) return;
+
+    if(!hasPaidMarketplaceAccess(item)){
+      setLoginConsoleStatus(
+        "Marketplace access is disabled by Platform Admin or billing is inactive."
+      );
+      return;
+    }
 
     const overlay=$("loginConsoleOverlay");
     const broker=$("loginConsoleBroker");
