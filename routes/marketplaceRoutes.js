@@ -1989,6 +1989,184 @@ if(
   - This is evaluation only. It does not bypass the existing Claim/Accept
     validation guard.
 */
+
+async function fallbackTripsFromMarketplaceActivity(
+  id,
+  connectionId
+){
+  const today=
+    localTodayYmd();
+
+  const rows=
+    await Activity.find({
+      tenantId:id,
+      "meta.connectionId":
+        String(connectionId),
+      action:{
+        $in:[
+          "SEEN",
+          "MATCHED"
+        ]
+      }
+    })
+    .sort({
+      occurredAt:-1
+    })
+    .limit(500)
+    .lean();
+
+  const trips=[];
+  const used=new Set();
+
+  for(const row of rows){
+    const meta=
+      row?.meta ||
+      {};
+
+    const trip={
+      externalTripId:
+        clean(
+          row.externalTripId ||
+          meta.portalTripId ||
+          meta.tripKey
+        ),
+
+      portalTripId:
+        clean(
+          meta.portalTripId ||
+          row.externalTripId
+        ),
+
+      tripNumber:
+        clean(
+          meta.tripNumber
+        ),
+
+      tripDate:
+        clean(
+          row.tripDate ||
+          meta.tripDate
+        ),
+
+      pickupTime:
+        clean(
+          row.pickupTime ||
+          meta.tripTime ||
+          meta.appointmentTime
+        ),
+
+      appointmentTime:
+        clean(
+          meta.appointmentTime
+        ),
+
+      pickup:
+        clean(
+          meta.pickupAddress
+        ),
+
+      pickupAddress:
+        clean(
+          meta.pickupAddress
+        ),
+
+      dropoff:
+        clean(
+          meta.dropoffAddress
+        ),
+
+      dropoffAddress:
+        clean(
+          meta.dropoffAddress
+        ),
+
+      pickupZip:
+        clean(
+          meta.pickupZip
+        ),
+
+      dropoffZip:
+        clean(
+          meta.dropoffZip
+        ),
+
+      mode:
+        clean(
+          row.mode ||
+          meta.mode
+        ),
+
+      tripMiles:
+        Number.isFinite(
+          Number(row.miles)
+        )
+          ? Number(row.miles)
+          : 0,
+
+      miles:
+        Number.isFinite(
+          Number(row.miles)
+        )
+          ? Number(row.miles)
+          : 0,
+
+      availableForAccept:
+        meta.availableForAccept===true,
+
+      availabilityEvidence:
+        clean(
+          meta.availabilityEvidence
+        ),
+
+      availabilityStatus:
+        clean(
+          meta.availabilityStatus
+        ),
+
+      acceptActionText:
+        clean(
+          meta.acceptActionText
+        ),
+
+      sourceHost:
+        clean(
+          meta.sourceHost
+        )
+    };
+
+    const date=
+      tripYmd(
+        trip
+      );
+
+    if(
+      !date ||
+      date<today ||
+      trip.availableForAccept!==true
+    ){
+      continue;
+    }
+
+    const key=
+      tripIdentity(
+        trip
+      );
+
+    if(
+      !key ||
+      used.has(key)
+    ){
+      continue;
+    }
+
+    used.add(key);
+    trips.push(trip);
+  }
+
+  return trips;
+}
+
+
 async function reevaluateCurrentTripsAfterSettingsSave(
   id,
   settings
@@ -2034,7 +2212,7 @@ async function reevaluateCurrentTripsAfterSettingsSave(
         connectionId
       );
 
-    const trips=
+    let trips=
       (Array.isArray(rawTrips)?rawTrips:[])
         .map(
           tripForEngine
@@ -2046,6 +2224,27 @@ async function reevaluateCurrentTripsAfterSettingsSave(
               trip.tripNumber
             )
         );
+
+    /*
+      Render keeps the normalized portal buffer in process memory. After a
+      deploy/restart that buffer can be empty even while the Oracle Cloud Agent
+      still has the broker browser open. In that case use the latest
+      connection-scoped, currently-available Marketplace activity snapshot so
+      a Settings save can still re-evaluate the visible trips immediately.
+      This remains evaluation-only; Claim/Accept validation is unchanged.
+    */
+    if(!trips.length){
+      trips=
+        (
+          await fallbackTripsFromMarketplaceActivity(
+            id,
+            connectionId
+          )
+        )
+        .map(
+          tripForEngine
+        );
+    }
 
     if(!trips.length){
       continue;
@@ -2302,38 +2501,23 @@ router.put(
         );
 
       /*
-        Start immediately, but do not make the Save button wait for geocoding
-        or a large Marketplace buffer. The work uses the settings document
-        that was just saved above.
+        Re-evaluate before replying so a successful Settings save means the
+        current Marketplace rows have already been tested against the new
+        Long/Short rules. If the live normalized buffer was lost by a Render
+        restart, the safe current-day activity fallback above is used.
       */
-      reevaluateCurrentTripsAfterSettingsSave(
-        id,
-        settings
-      )
-      .catch(async err=>{
-        console.error(
-          "[Marketplace settings re-evaluate]",
-          err?.message || err
+      const reEvaluation=
+        await reevaluateCurrentTripsAfterSettingsSave(
+          id,
+          settings
         );
-
-        await Settings.updateOne(
-          {
-            tenantId:id
-          },
-          {
-            $set:{
-              lastError:
-                err?.message ||
-                String(err)
-            }
-          }
-        ).catch(()=>{});
-      });
 
       return res.json({
         success:true,
         settings,
-        reEvaluationStarted:true
+        reEvaluationStarted:true,
+        reEvaluationCompleted:true,
+        reEvaluation
       });
 
     }catch(err){

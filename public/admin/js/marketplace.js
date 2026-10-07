@@ -850,6 +850,22 @@ Marketplace multi-broker UI.
       serverResult;
 
     renderReadiness();
+
+    const statusEl=
+      $("connectionStatus");
+
+    if(statusEl && cloudSelected?.agentOnline===true){
+      if(
+        cloudSelected?.session?.running ||
+        cloudSelected?.session?.debugAttached
+      ){
+        statusEl.textContent=
+          "Oracle Cloud Agent is connected and monitoring this broker.";
+      }else{
+        statusEl.textContent=
+          "Oracle Cloud Agent is online. Waiting for this broker session.";
+      }
+    }
   }
 
   async function connectSelected(){
@@ -861,6 +877,48 @@ Marketplace multi-broker UI.
 
     try{
       $("connectBtn").disabled=true;
+
+      /*
+        Oracle Cloud Agent is the primary always-on agent. When it is online,
+        never fall back to 127.0.0.1 on the admin's laptop and never show the
+        old "agent is not running on this computer" message.
+      */
+      const cloudResult=
+        await bridge(
+          "/agent-cloud-status"
+        )
+        .catch(
+          ()=>({
+            success:false,
+            nodes:[]
+          })
+        );
+
+      const cloudSelected=
+        selectedCloudAgentState(
+          cloudResult,
+          item
+        );
+
+      if(cloudSelected?.agentOnline===true){
+        state.cloudAgentStatus=
+          cloudResult;
+        state.localStatus=
+          cloudSelected;
+
+        $("connectionStatus").textContent=
+          (
+            cloudSelected?.session?.running ||
+            cloudSelected?.session?.debugAttached
+          )
+            ? "Oracle Cloud Agent is already connected and monitoring this broker."
+            : "Oracle Cloud Agent is online. Waiting for this broker session to start automatically.";
+
+        renderReadiness();
+        await load();
+        return;
+      }
+
       $("connectionStatus").textContent=
         "Running preflight checks...";
 
@@ -985,7 +1043,7 @@ Marketplace multi-broker UI.
         /failed to fetch|networkerror|load failed/i.test(message)
       ){
         $("connectionStatus").textContent=
-          "GH Browser Agent is not running on this computer. Install/start it once, then press Connect / Login again.";
+          "Oracle Cloud Agent is not available right now, and no local fallback agent was found on this computer.";
       }else{
         $("connectionStatus").textContent=
           message ||
