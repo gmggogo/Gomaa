@@ -1583,23 +1583,37 @@ async function resolvePortalMapping(tenant,connectionId,host,samples){
 }
 
 
-function normalizedTripYmd(trip={}){
-  const direct=clean(trip.tripDate);
-  let match=direct.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
-  if(match){
-    return `${match[1]}-${match[2]}-${match[3]}`;
+function normalizedDateValue(value){
+  const text=clean(value);
+  if(!text){
+    return "";
   }
 
+  // ISO / ISO-like: 2026-10-07 or 2026-10-07T08:25:00
+  let match=text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if(match){
+    return `${match[1]}-${String(match[2]).padStart(2,"0")}-${String(match[3]).padStart(2,"0")}`;
+  }
+
+  // U.S. portal date: 10/07/2026 or 10-07-2026
+  match=text.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/);
+  if(match){
+    return `${match[3]}-${String(match[1]).padStart(2,"0")}-${String(match[2]).padStart(2,"0")}`;
+  }
+
+  return "";
+}
+
+function normalizedTripYmd(trip={}){
   for(const value of [
+    trip.tripDate,
     trip.pickupTime,
     trip.appointmentTime,
     trip.dropoffTime
   ]){
-    match=clean(value).match(/^(\d{4})-(\d{2})-(\d{2})T/);
-
-    if(match){
-      return `${match[1]}-${match[2]}-${match[3]}`;
+    const normalized=normalizedDateValue(value);
+    if(normalized){
+      return normalized;
     }
   }
 
@@ -1617,10 +1631,24 @@ function normalizedTodayYmd(){
 function normalizedTripEligible(trip={}){
   const date=normalizedTripYmd(trip);
 
+  /*
+    READ/DISCOVERY phase:
+    Do not require an Accept/Claim action to be present inside the JSON row.
+    Many provider portals expose the trip data in JSON while the actual
+    Accept button exists only in the DOM. Requiring availableForAccept===true
+    therefore drops valid Marketplace rows before they can be displayed.
+
+    Only reject a trip when the provider explicitly reports a negative status.
+    Claim/Accept remains disabled elsewhere.
+  */
+  const explicitlyUnavailable=
+    trip.availableForAccept===false &&
+    clean(trip.availabilityEvidence)==="NEGATIVE_STATUS";
+
   return Boolean(
     date &&
     date>=normalizedTodayYmd() &&
-    trip.availableForAccept===true
+    !explicitlyUnavailable
   );
 }
 
