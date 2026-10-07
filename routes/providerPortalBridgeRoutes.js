@@ -25,6 +25,51 @@ const TOKEN_TTL = "8h";
 
 const CLOUD_AGENT_KEY=clean(process.env.GH_BROWSER_AGENT_KEY);
 const cloudAgentHeartbeats=new Map();
+const cloudConsoleQueues=new Map();
+const cloudConsoleFrames=new Map();
+
+function consoleQueue(connectionId){
+  const id=clean(connectionId);
+  if(!cloudConsoleQueues.has(id)){
+    cloudConsoleQueues.set(id,[]);
+  }
+  return cloudConsoleQueues.get(id);
+}
+
+function enqueueConsoleCommand(connectionId,command={}){
+  const id=clean(connectionId);
+  if(!id) return null;
+
+  const item={
+    commandId:crypto.randomBytes(12).toString("hex"),
+    connectionId:id,
+    createdAt:new Date().toISOString(),
+    ...command
+  };
+
+  const queue=consoleQueue(id);
+  queue.push(item);
+  if(queue.length>50){
+    queue.splice(0,queue.length-50);
+  }
+  return item;
+}
+
+function takeConsoleCommands(connectionIds=[]){
+  const allowed=new Set(connectionIds.map(clean).filter(Boolean));
+  const out=[];
+
+  for(const connectionId of allowed){
+    const queue=consoleQueue(connectionId);
+    while(queue.length && out.length<100){
+      out.push(queue.shift());
+    }
+    if(out.length>=100) break;
+  }
+
+  return out;
+}
+
 
 function secureEqual(a,b){
   const left=Buffer.from(clean(a));
@@ -2035,7 +2080,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
   GH Mobility never connects to the agent's 127.0.0.1 controller.
 
   Authentication uses GH_BROWSER_AGENT_KEY, configured on both Render and the
-  Oracle host. Portal passwords/MFA/cookies are never accepted here.
+  Oracle host. Login text is client-side encrypted for the Oracle agent; plaintext passwords/MFA values are never accepted here.
 */
 router.get("/agent/control",verifyCloudAgent,async(req,res)=>{
   try{
@@ -2075,13 +2120,98 @@ router.get("/agent/control",verifyCloudAgent,async(req,res)=>{
       success:true,
       nodeId,
       ghBaseUrl:publicBaseUrl(req),
-      pollAfterMs:5000,
-      connections
+      pollAfterMs:1500,
+      connections,
+      consoleCommands:
+        takeConsoleCommands(
+          connections.map(row=>row.connectionId)
+        )
     });
   }catch(e){
     return res.status(500).json({success:false,message:e.message});
   }
 });
+
+
+router.post(
+  "/agent/console-result",
+  verifyCloudAgent,
+  express.json({limit:"12mb"}),
+  async(req,res)=>{
+    try{
+      const connectionId=
+        clean(
+          req.body?.connectionId
+        );
+
+      if(!connectionId){
+        return res.status(400).json({
+          success:false,
+          message:"connectionId is required"
+        });
+      }
+
+      const connection=
+        await BrokerIntegration.findOne({
+          _id:connectionId,
+          connectionMode:"MARKETPLACE_PORTAL",
+          enabled:true,
+          featureVisible:true,
+          billingEnabled:true
+        })
+        .select({_id:1,tenantId:1})
+        .lean();
+
+      if(!connection){
+        return res.status(404).json({
+          success:false,
+          message:"Marketplace connection was not found"
+        });
+      }
+
+      const previous=
+        cloudConsoleFrames.get(connectionId) ||
+        {};
+
+      const frame={
+        connectionId,
+        tenantId:clean(connection.tenantId),
+        commandId:clean(req.body?.commandId),
+        success:req.body?.success!==false,
+        message:clean(req.body?.message).slice(0,1000),
+        imageData:clean(req.body?.imageData),
+        width:Number(req.body?.width||previous.width||0),
+        height:Number(req.body?.height||previous.height||0),
+        currentUrl:clean(req.body?.currentUrl||previous.currentUrl),
+        currentTitle:clean(req.body?.currentTitle||previous.currentTitle),
+        loginDetected:req.body?.loginDetected===true,
+        tripsPageDetected:req.body?.tripsPageDetected===true,
+        consolePublicKey:clean(req.body?.consolePublicKey||previous.consolePublicKey),
+        updatedAt:new Date().toISOString()
+      };
+
+      /*
+        Encrypted broker login text is never included in the result and is never
+        stored here. Only the rendered frame/status is retained in memory.
+      */
+      cloudConsoleFrames.set(
+        connectionId,
+        frame
+      );
+
+      return res.json({
+        success:true,
+        connectionId
+      });
+
+    }catch(e){
+      return res.status(500).json({
+        success:false,
+        message:e.message
+      });
+    }
+  }
+);
 
 router.post("/agent/heartbeat",verifyCloudAgent,express.json({limit:"1mb"}),async(req,res)=>{
   try{
@@ -2092,6 +2222,8 @@ router.post("/agent/heartbeat",verifyCloudAgent,express.json({limit:"1mb"}),asyn
           running:item?.running===true,
           browserFound:item?.browserFound===true,
           debugAttached:item?.debugAttached===true,
+          loginConsoleReady:item?.loginConsoleReady===true,
+          profilePersistent:item?.profilePersistent===true,
           loginDetected:item?.loginDetected===true,
           tripsPageDetected:item?.tripsPageDetected===true,
           discoveriesPosted:Number(item?.discoveriesPosted || 0),
@@ -2139,6 +2271,248 @@ router.post("/agent/heartbeat",verifyCloudAgent,express.json({limit:"1mb"}),asyn
 });
 
 router.use(auth);
+
+
+async function authorizedMarketplaceConnection(req,connectionId){
+  const id=tenantId(req);
+  if(!id){
+    const err=new Error("Tenant is required");
+    err.statusCode=400;
+    throw err;
+  }
+
+  const connection=
+    await BrokerIntegration.findOne({
+      _id:clean(connectionId),
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    })
+    .lean();
+
+  if(!connection){
+    const err=new Error("Marketplace connection not found, hidden, disabled, or billing inactive");
+    err.statusCode=404;
+    throw err;
+  }
+
+  return {
+    tenant:id,
+    connection
+  };
+}
+
+router.post(
+  "/connections/:connectionId/login-console/open",
+  async(req,res)=>{
+    try{
+      const connectionId=
+        clean(
+          req.params.connectionId
+        );
+
+      const {connection}=
+        await authorizedMarketplaceConnection(
+          req,
+          connectionId
+        );
+
+      const command=
+        enqueueConsoleCommand(
+          connectionId,
+          {
+            action:"SCREENSHOT"
+          }
+        );
+
+      return res.json({
+        success:true,
+        connectionId,
+        brokerName:clean(connection.brokerName),
+        accountLabel:clean(connection.accountLabel)||"Primary Account",
+        commandId:command?.commandId||"",
+        message:"Secure broker login console is opening."
+      });
+
+    }catch(e){
+      return res
+        .status(Number(e?.statusCode)||500)
+        .json({
+          success:false,
+          message:e.message
+        });
+    }
+  }
+);
+
+router.get(
+  "/connections/:connectionId/login-console/frame",
+  async(req,res)=>{
+    try{
+      const connectionId=
+        clean(
+          req.params.connectionId
+        );
+
+      await authorizedMarketplaceConnection(
+        req,
+        connectionId
+      );
+
+      const frame=
+        cloudConsoleFrames.get(
+          connectionId
+        ) ||
+        null;
+
+      const stale=
+        !frame?.updatedAt ||
+        Date.now()-new Date(frame.updatedAt).getTime()>1800;
+
+      if(stale){
+        enqueueConsoleCommand(
+          connectionId,
+          {
+            action:"SCREENSHOT"
+          }
+        );
+      }
+
+      return res.json({
+        success:true,
+        connectionId,
+        frame,
+        pending:!frame
+      });
+
+    }catch(e){
+      return res
+        .status(Number(e?.statusCode)||500)
+        .json({
+          success:false,
+          message:e.message
+        });
+    }
+  }
+);
+
+router.post(
+  "/connections/:connectionId/login-console/action",
+  express.json({limit:"32kb"}),
+  async(req,res)=>{
+    try{
+      const connectionId=
+        clean(
+          req.params.connectionId
+        );
+
+      await authorizedMarketplaceConnection(
+        req,
+        connectionId
+      );
+
+      const action=
+        clean(
+          req.body?.action
+        )
+        .toUpperCase();
+
+      if(
+        ![
+          "SCREENSHOT",
+          "CLICK",
+          "TEXT",
+          "KEY",
+          "RELOAD"
+        ].includes(action)
+      ){
+        return res.status(400).json({
+          success:false,
+          message:"Unsupported login console action"
+        });
+      }
+
+      const payload={
+        action
+      };
+
+      if(action==="CLICK"){
+        payload.xRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              Number(req.body?.xRatio)||0
+            )
+          );
+
+        payload.yRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              Number(req.body?.yRatio)||0
+            )
+          );
+      }
+
+      if(action==="TEXT"){
+        const encryptedText=
+          clean(
+            req.body?.encryptedText
+          );
+
+        if(
+          !encryptedText ||
+          encryptedText.length>12000
+        ){
+          return res.status(400).json({
+            success:false,
+            message:"Encrypted console text is required"
+          });
+        }
+
+        /*
+          This is RSA-OAEP ciphertext generated in the admin browser.
+          The plaintext username/password/MFA value never reaches this route.
+        */
+        payload.encryptedText=
+          encryptedText;
+      }
+
+      if(action==="KEY"){
+        payload.key=
+          clean(
+            req.body?.key
+          )
+          .slice(0,40);
+      }
+
+      const command=
+        enqueueConsoleCommand(
+          connectionId,
+          payload
+        );
+
+      return res.json({
+        success:true,
+        queued:true,
+        commandId:command?.commandId||""
+      });
+
+    }catch(e){
+      return res
+        .status(Number(e?.statusCode)||500)
+        .json({
+          success:false,
+          message:e.message
+        });
+    }
+  }
+);
+
 
 
 router.get("/agent-cloud-status",async(req,res)=>{

@@ -17,26 +17,39 @@ WHAT IT DOES
 - Discovery is READ ONLY. No Claim/Accept is performed here.
 
 SECURITY
-- No portal username/password/MFA is accepted by this local controller.
-- No portal credentials are sent to GH Mobility.
+- Portal login text entered through the GH Login Console is encrypted in the admin browser with the Oracle agent public key and decrypted only inside this local controller.
+- GH Mobility relays only encrypted login text and does not store broker passwords/MFA values.
 - Pair token is scoped to tenant + BrokerIntegration connectionId.
 - Local controller binds to 127.0.0.1 only.
-- Browser profiles are temporary and removed on Disconnect/agent shutdown.
+- Browser profiles are persistent per BrokerIntegration connectionId so authorized portal login/MFA sessions can survive agent/browser restarts.
+- Disconnect stops the browser session but does not delete the saved provider-portal browser profile.
 */
 
 const {spawn}=require("child_process");
 const fs=require("fs");
-const os=require("os");
 const path=require("path");
 const http=require("http");
 const https=require("https");
 const net=require("net");
 const WebSocket=require("ws");
+const crypto=require("crypto");
 
 const CONTROLLER_HOST="127.0.0.1";
 const CONTROLLER_PORT=18733;
 const MAX_BODY=5_000_000;
 const sessions=new Map();
+
+const CONSOLE_KEYS=crypto.generateKeyPairSync(
+  "rsa",
+  {
+    modulusLength:2048,
+    publicKeyEncoding:{type:"spki",format:"pem"},
+    privateKeyEncoding:{type:"pkcs8",format:"pem"}
+  }
+);
+const CONSOLE_PUBLIC_KEY=CONSOLE_KEYS.publicKey;
+const CONSOLE_PRIVATE_KEY=CONSOLE_KEYS.privateKey;
+
 
 function clean(value){
   return String(value??"").trim();
@@ -172,18 +185,6 @@ function findBrowser(){
     .filter(Boolean)
     .find(file=>fs.existsSync(file)) ||
     null;
-}
-
-function removeDirSafe(dir){
-  try{
-    fs.rmSync(
-      dir,
-      {
-        recursive:true,
-        force:true
-      }
-    );
-  }catch(_){}
 }
 
 function getFreePort(){
@@ -747,7 +748,28 @@ class PortalSession{
       findBrowser();
 
     this.debugPort=0;
-    this.profileDir="";
+
+    /*
+      Keep one persistent Chromium profile per Marketplace connection.
+      This intentionally preserves only the browser's normal local profile
+      state (for example, cookies created after the account owner completes
+      login/MFA directly on the provider portal). GH Mobility never receives
+      the provider password, MFA code, cookies, or authorization headers.
+    */
+    this.profileRoot=
+      clean(process.env.GH_BROWSER_PROFILE_ROOT) ||
+      path.join(
+        __dirname,
+        "browser-profiles"
+      );
+
+    this.profileDir=
+      path.join(
+        this.profileRoot,
+        String(this.connectionId)
+          .replace(/[^A-Za-z0-9._-]/g,"_")
+      );
+
     this.outputDir=
       path.join(
         __dirname,
@@ -878,13 +900,12 @@ class PortalSession{
       }
     );
 
-    this.profileDir=
-      fs.mkdtempSync(
-        path.join(
-          os.tmpdir(),
-          `gh-mobility-${this.connectionId}-`
-        )
-      );
+    fs.mkdirSync(
+      this.profileDir,
+      {
+        recursive:true
+      }
+    );
 
     this.debugPort=
       await getFreePort();
@@ -895,6 +916,7 @@ class PortalSession{
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-background-networking",
+      "--window-size=1440,900",
       "--new-window",
       this.portalUrl
     ];
@@ -2098,6 +2120,283 @@ class PortalSession{
     }
   }
 
+
+  async consoleViewport(){
+    const evaluated=
+      await this.send(
+        "Runtime.evaluate",
+        {
+          expression:
+            `(()=>({
+              width:Math.max(1,Math.round(window.innerWidth||document.documentElement.clientWidth||1440)),
+              height:Math.max(1,Math.round(window.innerHeight||document.documentElement.clientHeight||900)),
+              url:location.href,
+              title:document.title||""
+            }))()`,
+          returnByValue:true
+        }
+      );
+
+    return evaluated?.result?.value || {
+      width:1440,
+      height:900,
+      url:this.currentUrl,
+      title:this.currentTitle
+    };
+  }
+
+  async captureConsoleFrame(){
+    if(
+      !this.ws ||
+      this.ws.readyState!==WebSocket.OPEN
+    ){
+      throw new Error("Broker browser is not connected");
+    }
+
+    const viewport=
+      await this.consoleViewport();
+
+    const frame=
+      await this.send(
+        "Page.captureScreenshot",
+        {
+          format:"png",
+          fromSurface:true,
+          captureBeyondViewport:false
+        }
+      );
+
+    return {
+      success:true,
+      connectionId:this.connectionId,
+      imageData:clean(frame?.data),
+      width:Number(viewport?.width||1440),
+      height:Number(viewport?.height||900),
+      currentUrl:clean(viewport?.url||this.currentUrl),
+      currentTitle:clean(viewport?.title||this.currentTitle),
+      loginDetected:this.loginDetected===true,
+      tripsPageDetected:this.tripsPageDetected===true,
+      consolePublicKey:CONSOLE_PUBLIC_KEY
+    };
+  }
+
+  decryptConsoleText(cipherText){
+    const encrypted=
+      Buffer.from(
+        clean(cipherText),
+        "base64"
+      );
+
+    if(!encrypted.length){
+      throw new Error("Encrypted console text is required");
+    }
+
+    return crypto.privateDecrypt(
+      {
+        key:CONSOLE_PRIVATE_KEY,
+        padding:crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash:"sha256"
+      },
+      encrypted
+    )
+    .toString("utf8")
+    .slice(0,4000);
+  }
+
+  async blockedConsoleClick(x,y){
+    const evaluated=
+      await this.send(
+        "Runtime.evaluate",
+        {
+          expression:
+            `(()=>{
+              const el=document.elementFromPoint(${Number(x)||0},${Number(y)||0});
+              if(!el) return {blocked:false,text:""};
+              const target=el.closest('button,a,[role="button"],input[type="button"],input[type="submit"]')||el;
+              const text=String(
+                target.innerText ||
+                target.textContent ||
+                target.value ||
+                target.getAttribute?.("aria-label") ||
+                target.getAttribute?.("title") ||
+                ""
+              ).replace(/\\s+/g," ").trim().slice(0,160);
+              return {
+                blocked:/\\b(accept|claim|take\\s+trip|take\\s+ride|book\\s+trip|reserve\\s+trip|assign)\\b/i.test(text),
+                text
+              };
+            })()`,
+          returnByValue:true
+        }
+      );
+
+    return evaluated?.result?.value || {blocked:false,text:""};
+  }
+
+  async consoleAction(body={}){
+    if(
+      !this.ws ||
+      this.ws.readyState!==WebSocket.OPEN
+    ){
+      throw new Error("Broker browser is not connected");
+    }
+
+    const action=
+      clean(body.action)
+        .toUpperCase();
+
+    if(action==="SCREENSHOT"){
+      return this.captureConsoleFrame();
+    }
+
+    if(action==="CLICK"){
+      const viewport=
+        await this.consoleViewport();
+
+      const x=
+        Math.max(
+          0,
+          Math.min(
+            Number(viewport.width||1440)-1,
+            Number(body.xRatio||0)*Number(viewport.width||1440)
+          )
+        );
+
+      const y=
+        Math.max(
+          0,
+          Math.min(
+            Number(viewport.height||900)-1,
+            Number(body.yRatio||0)*Number(viewport.height||900)
+          )
+        );
+
+      const guard=
+        await this.blockedConsoleClick(
+          x,
+          y
+        );
+
+      if(guard?.blocked){
+        throw new Error(
+          `Read-only mode blocked marketplace action: ${clean(guard.text)||"Accept/Claim"}`
+        );
+      }
+
+      await this.send(
+        "Input.dispatchMouseEvent",
+        {
+          type:"mousePressed",
+          x,
+          y,
+          button:"left",
+          clickCount:1
+        }
+      );
+
+      await this.send(
+        "Input.dispatchMouseEvent",
+        {
+          type:"mouseReleased",
+          x,
+          y,
+          button:"left",
+          clickCount:1
+        }
+      );
+
+      await new Promise(resolve=>setTimeout(resolve,120));
+      return this.captureConsoleFrame();
+    }
+
+    if(action==="TEXT"){
+      const text=
+        this.decryptConsoleText(
+          body.encryptedText
+        );
+
+      await this.send(
+        "Input.insertText",
+        {
+          text
+        }
+      );
+
+      await new Promise(resolve=>setTimeout(resolve,80));
+      return this.captureConsoleFrame();
+    }
+
+    if(action==="KEY"){
+      const key=
+        clean(body.key)
+          .slice(0,40);
+
+      const allowed=
+        new Set([
+          "Enter",
+          "Tab",
+          "Backspace",
+          "Escape",
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight"
+        ]);
+
+      if(!allowed.has(key)){
+        throw new Error("Console key is not allowed");
+      }
+
+      const keyCodeMap={
+        Enter:13,
+        Tab:9,
+        Backspace:8,
+        Escape:27,
+        ArrowUp:38,
+        ArrowDown:40,
+        ArrowLeft:37,
+        ArrowRight:39
+      };
+
+      await this.send(
+        "Input.dispatchKeyEvent",
+        {
+          type:"keyDown",
+          key,
+          windowsVirtualKeyCode:keyCodeMap[key]||0,
+          nativeVirtualKeyCode:keyCodeMap[key]||0
+        }
+      );
+
+      await this.send(
+        "Input.dispatchKeyEvent",
+        {
+          type:"keyUp",
+          key,
+          windowsVirtualKeyCode:keyCodeMap[key]||0,
+          nativeVirtualKeyCode:keyCodeMap[key]||0
+        }
+      );
+
+      await new Promise(resolve=>setTimeout(resolve,100));
+      return this.captureConsoleFrame();
+    }
+
+    if(action==="RELOAD"){
+      await this.send(
+        "Page.reload",
+        {
+          ignoreCache:false
+        }
+      );
+
+      await new Promise(resolve=>setTimeout(resolve,500));
+      return this.captureConsoleFrame();
+    }
+
+    throw new Error("Unsupported login console action");
+  }
+
   status(){
     return {
       connectionId:
@@ -2108,6 +2407,10 @@ class PortalSession{
 
       accountLabel:
         this.accountLabel,
+
+      profilePersistent:true,
+
+      loginConsoleReady:true,
 
       running:
         Boolean(
@@ -2215,9 +2518,11 @@ class PortalSession{
         )
     );
 
-    removeDirSafe(
-      this.profileDir
-    );
+    /*
+      Deliberately keep this.profileDir on disk.
+      Reusing it on the next start allows an already-authorized provider
+      session to resume without forcing a fresh portal login every time.
+    */
   }
 }
 
@@ -2549,6 +2854,116 @@ const controller=
           },
           origin
         );
+      }
+
+
+      if(
+        req.method==="GET" &&
+        requestUrl.pathname==="/console/frame"
+      ){
+        try{
+          const connectionId=
+            clean(
+              requestUrl
+                .searchParams
+                .get("connectionId")
+            );
+
+          const session=
+            sessions.get(
+              connectionId
+            );
+
+          if(!session){
+            return json(
+              res,
+              404,
+              {
+                success:false,
+                message:"Broker browser session was not found"
+              },
+              origin
+            );
+          }
+
+          const result=
+            await session.captureConsoleFrame();
+
+          return json(
+            res,
+            200,
+            result,
+            origin
+          );
+
+        }catch(err){
+          return json(
+            res,
+            500,
+            {
+              success:false,
+              message:err.message||String(err)
+            },
+            origin
+          );
+        }
+      }
+
+      if(
+        req.method==="POST" &&
+        requestUrl.pathname==="/console/action"
+      ){
+        try{
+          const body=
+            await readRequestBody(
+              req
+            );
+
+          const connectionId=
+            clean(
+              body.connectionId
+            );
+
+          const session=
+            sessions.get(
+              connectionId
+            );
+
+          if(!session){
+            return json(
+              res,
+              404,
+              {
+                success:false,
+                message:"Broker browser session was not found"
+              },
+              origin
+            );
+          }
+
+          const result=
+            await session.consoleAction(
+              body
+            );
+
+          return json(
+            res,
+            200,
+            result,
+            origin
+          );
+
+        }catch(err){
+          return json(
+            res,
+            400,
+            {
+              success:false,
+              message:err.message||String(err)
+            },
+            origin
+          );
+        }
       }
 
       if(

@@ -5,7 +5,7 @@
   Destination: /home/opc/gh-mobility-browser-agent/cloud-agent-runner.js
 
   Polls GH Mobility outbound control plane, keeps local browser-agent sessions
-  synchronized, and posts heartbeats. It does not handle portal passwords/MFA.
+  synchronized, relays the generic secure login-console commands, and posts heartbeats. Plaintext portal passwords/MFA never enter this process.
 */
 
 const http = require("http");
@@ -95,6 +95,84 @@ async function localDisconnect(connectionId) {
   return requestJson("POST", `${LOCAL_BASE}/disconnect`, { connectionId }, {}, 8000);
 }
 
+async function localConsoleFrame(connectionId) {
+  return requestJson(
+    "GET",
+    `${LOCAL_BASE}/console/frame?connectionId=${encodeURIComponent(connectionId)}`,
+    null,
+    {},
+    12000
+  );
+}
+
+async function localConsoleAction(command) {
+  return requestJson(
+    "POST",
+    `${LOCAL_BASE}/console/action`,
+    {
+      connectionId: command.connectionId,
+      action: command.action,
+      xRatio: command.xRatio,
+      yRatio: command.yRatio,
+      encryptedText: command.encryptedText,
+      key: command.key
+    },
+    {},
+    15000
+  );
+}
+
+async function postConsoleResult(command,result) {
+  return requestJson(
+    "POST",
+    `${GH_BASE_URL}/api/provider-portal-bridge/agent/console-result`,
+    {
+      commandId: command.commandId,
+      connectionId: command.connectionId,
+      success: result?.success !== false,
+      message: result?.message || "",
+      imageData: result?.imageData || "",
+      width: result?.width || 0,
+      height: result?.height || 0,
+      currentUrl: result?.currentUrl || "",
+      currentTitle: result?.currentTitle || "",
+      loginDetected: result?.loginDetected === true,
+      tripsPageDetected: result?.tripsPageDetected === true,
+      consolePublicKey: result?.consolePublicKey || ""
+    },
+    authHeaders(),
+    15000
+  );
+}
+
+async function processConsoleCommands(commands=[]) {
+  for (const command of Array.isArray(commands) ? commands.slice(0,100) : []) {
+    const connectionId=String(command?.connectionId || "").trim();
+    if(!connectionId) continue;
+
+    try {
+      let result;
+      if(String(command?.action || "").toUpperCase()==="SCREENSHOT") {
+        result=await localConsoleFrame(connectionId);
+      } else {
+        result=await localConsoleAction(command);
+      }
+      await postConsoleResult(command,result);
+    } catch (err) {
+      try {
+        await postConsoleResult(
+          command,
+          {
+            success:false,
+            message:err.message || String(err)
+          }
+        );
+      } catch (_) {}
+      console.error(`[cloud-runner] console ${connectionId} failed: ${err.message}`);
+    }
+  }
+}
+
 async function syncControl() {
   try {
     const control = await requestJson(
@@ -121,6 +199,8 @@ async function syncControl() {
         console.error(`[cloud-runner] connect ${connection.connectionId} failed: ${err.message}`);
       }
     }
+
+    await processConsoleCommands(control.consoleCommands || []);
 
     lastConnections = desiredMap;
     const next = Math.max(2000, Number(control.pollAfterMs || 5000));

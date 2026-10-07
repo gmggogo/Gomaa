@@ -195,7 +195,14 @@ Marketplace multi-broker UI.
     selectedConnectionId:"",
     localStatus:null,
     cloudAgentStatus:null,
-    serverPreflight:null
+    serverPreflight:null,
+    loginConsole:{
+      open:false,
+      timer:null,
+      frame:null,
+      publicKey:null,
+      busy:false
+    }
   };
 
   const palette=[
@@ -579,6 +586,272 @@ Marketplace multi-broker UI.
     }
   }
 
+
+  function consoleConnectionPath(suffix=""){
+    const item=selectedConnection();
+    if(!item) throw new Error("No broker account selected");
+    return `/connections/${encodeURIComponent(item.connectionId)}/login-console${suffix}`;
+  }
+
+  function pemToArrayBuffer(pem){
+    const body=String(pem||"")
+      .replace(/-----BEGIN PUBLIC KEY-----/g,"")
+      .replace(/-----END PUBLIC KEY-----/g,"")
+      .replace(/\s+/g,"");
+
+    const binary=atob(body);
+    const bytes=new Uint8Array(binary.length);
+
+    for(let i=0;i<binary.length;i++){
+      bytes[i]=binary.charCodeAt(i);
+    }
+
+    return bytes.buffer;
+  }
+
+  async function encryptConsoleText(plainText,pem){
+    if(!window.crypto?.subtle){
+      throw new Error("Secure browser encryption is not available.");
+    }
+
+    if(!pem){
+      throw new Error("Oracle login console encryption key is not ready yet.");
+    }
+
+    const publicKey=
+      await crypto.subtle.importKey(
+        "spki",
+        pemToArrayBuffer(pem),
+        {
+          name:"RSA-OAEP",
+          hash:"SHA-256"
+        },
+        false,
+        ["encrypt"]
+      );
+
+    const bytes=
+      new TextEncoder()
+        .encode(
+          String(plainText||"")
+        );
+
+    if(bytes.length>180){
+      throw new Error("Send login text in shorter parts (maximum about 180 characters at a time).");
+    }
+
+    const encrypted=
+      await crypto.subtle.encrypt(
+        {
+          name:"RSA-OAEP"
+        },
+        publicKey,
+        bytes
+      );
+
+    const data=
+      new Uint8Array(
+        encrypted
+      );
+
+    let binary="";
+    for(const value of data){
+      binary+=String.fromCharCode(value);
+    }
+
+    return btoa(binary);
+  }
+
+  function setLoginConsoleStatus(text){
+    const el=$("loginConsoleStatus");
+    if(el) el.textContent=String(text||"");
+  }
+
+  function renderLoginConsoleFrame(frame){
+    if(!frame) return;
+
+    state.loginConsole.frame=frame;
+
+    if(frame.consolePublicKey){
+      state.loginConsole.publicKey=
+        frame.consolePublicKey;
+    }
+
+    const imageEl=$("loginConsoleImage");
+    if(
+      imageEl &&
+      frame.imageData
+    ){
+      imageEl.src=
+        `data:image/png;base64,${frame.imageData}`;
+    }
+
+    const urlEl=$("loginConsoleUrl");
+    if(urlEl){
+      urlEl.textContent=
+        frame.currentUrl ||
+        "";
+    }
+
+    const status=[];
+    status.push(
+      frame.loginDetected
+        ? "Portal page detected"
+        : "Waiting for portal"
+    );
+
+    if(frame.tripsPageDetected){
+      status.push("Trips page detected");
+    }
+
+    setLoginConsoleStatus(
+      status.join(" · ")
+    );
+  }
+
+  async function pollLoginConsoleFrame(){
+    if(!state.loginConsole.open){
+      return;
+    }
+
+    try{
+      const data=
+        await bridge(
+          consoleConnectionPath("/frame")
+        );
+
+      if(data.frame){
+        renderLoginConsoleFrame(
+          data.frame
+        );
+      }else{
+        setLoginConsoleStatus(
+          "Waiting for Oracle browser frame..."
+        );
+      }
+
+    }catch(err){
+      setLoginConsoleStatus(
+        err.message ||
+        "Login console frame failed."
+      );
+    }
+  }
+
+  function startLoginConsolePolling(){
+    if(state.loginConsole.timer){
+      clearInterval(
+        state.loginConsole.timer
+      );
+    }
+
+    state.loginConsole.timer=
+      setInterval(
+        pollLoginConsoleFrame,
+        1200
+      );
+  }
+
+  function stopLoginConsolePolling(){
+    if(state.loginConsole.timer){
+      clearInterval(
+        state.loginConsole.timer
+      );
+      state.loginConsole.timer=null;
+    }
+  }
+
+  async function queueLoginConsoleAction(action,payload={}){
+    if(state.loginConsole.busy){
+      return;
+    }
+
+    state.loginConsole.busy=true;
+
+    try{
+      await bridge(
+        consoleConnectionPath("/action"),
+        {
+          method:"POST",
+          body:
+            JSON.stringify({
+              action,
+              ...payload
+            })
+        }
+      );
+
+      setTimeout(
+        ()=>pollLoginConsoleFrame(),
+        220
+      );
+
+    }finally{
+      state.loginConsole.busy=false;
+    }
+  }
+
+  async function openLoginConsole(){
+    const item=selectedConnection();
+    if(!item) return;
+
+    const overlay=$("loginConsoleOverlay");
+    const broker=$("loginConsoleBroker");
+
+    if(broker){
+      broker.textContent=
+        `${item.brokerName || item.brokerCode || "Broker"} · ${item.accountLabel || "Primary Account"}`;
+    }
+
+    state.loginConsole.open=true;
+    state.loginConsole.frame=null;
+    state.loginConsole.publicKey=null;
+
+    if(overlay){
+      overlay.classList.add("open");
+      overlay.setAttribute("aria-hidden","false");
+    }
+
+    setLoginConsoleStatus(
+      "Opening Oracle broker browser..."
+    );
+
+    try{
+      await bridge(
+        consoleConnectionPath("/open"),
+        {
+          method:"POST",
+          body:"{}"
+        }
+      );
+
+      await pollLoginConsoleFrame();
+      startLoginConsolePolling();
+
+    }catch(err){
+      setLoginConsoleStatus(
+        err.message ||
+        "Failed to open login console."
+      );
+    }
+  }
+
+  function closeLoginConsole(){
+    state.loginConsole.open=false;
+    stopLoginConsolePolling();
+
+    const overlay=$("loginConsoleOverlay");
+    if(overlay){
+      overlay.classList.remove("open");
+      overlay.setAttribute("aria-hidden","true");
+    }
+
+    const text=$("loginConsoleText");
+    if(text){
+      text.value="";
+    }
+  }
+
   function renderSelectedConnection(){
     const item=selectedConnection();
     const hero=$("brokerHero");
@@ -590,6 +863,7 @@ Marketplace multi-broker UI.
       $("selectedBrokerDetails").innerHTML=
         '<div class="empty">No active Marketplace connection.</div>';
       $("connectBtn").disabled=true;
+      $("loginConsoleBtn").disabled=true;
       $("disconnectBtn").disabled=true;
       $("scanBtn").disabled=true;
       renderReadiness();
@@ -633,6 +907,7 @@ Marketplace multi-broker UI.
     `;
 
     $("connectBtn").disabled=false;
+    $("loginConsoleBtn").disabled=false;
     $("disconnectBtn").disabled=false;
 
     $("scanBtn").disabled=
@@ -1212,6 +1487,171 @@ Marketplace multi-broker UI.
             btn.classList.remove("refreshing");
             btn.textContent="Refresh";
           }
+        }
+      }
+    );
+
+
+  $("loginConsoleBtn")
+    ?.addEventListener(
+      "click",
+      openLoginConsole
+    );
+
+  $("loginConsoleClose")
+    ?.addEventListener(
+      "click",
+      closeLoginConsole
+    );
+
+  $("loginConsoleOverlay")
+    ?.addEventListener(
+      "click",
+      event=>{
+        if(event.target===$("loginConsoleOverlay")){
+          closeLoginConsole();
+        }
+      }
+    );
+
+  $("loginConsoleRefresh")
+    ?.addEventListener(
+      "click",
+      ()=>queueLoginConsoleAction("SCREENSHOT")
+        .catch(err=>setLoginConsoleStatus(err.message))
+    );
+
+  $("loginConsoleReload")
+    ?.addEventListener(
+      "click",
+      ()=>queueLoginConsoleAction("RELOAD")
+        .catch(err=>setLoginConsoleStatus(err.message))
+    );
+
+  $("loginConsoleTab")
+    ?.addEventListener(
+      "click",
+      ()=>queueLoginConsoleAction("KEY",{key:"Tab"})
+        .catch(err=>setLoginConsoleStatus(err.message))
+    );
+
+  $("loginConsoleEnter")
+    ?.addEventListener(
+      "click",
+      ()=>queueLoginConsoleAction("KEY",{key:"Enter"})
+        .catch(err=>setLoginConsoleStatus(err.message))
+    );
+
+  $("loginConsoleBackspace")
+    ?.addEventListener(
+      "click",
+      ()=>queueLoginConsoleAction("KEY",{key:"Backspace"})
+        .catch(err=>setLoginConsoleStatus(err.message))
+    );
+
+  $("loginConsoleImage")
+    ?.addEventListener(
+      "click",
+      event=>{
+        const image=event.currentTarget;
+        const rect=image.getBoundingClientRect();
+
+        if(
+          !rect.width ||
+          !rect.height
+        ){
+          return;
+        }
+
+        const xRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              (event.clientX-rect.left)/rect.width
+            )
+          );
+
+        const yRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              (event.clientY-rect.top)/rect.height
+            )
+          );
+
+        queueLoginConsoleAction(
+          "CLICK",
+          {
+            xRatio,
+            yRatio
+          }
+        )
+        .catch(
+          err=>
+            setLoginConsoleStatus(
+              err.message
+            )
+        );
+      }
+    );
+
+  async function sendSecureLoginConsoleText(){
+    const input=$("loginConsoleText");
+    const value=String(input?.value||"");
+
+    if(!value){
+      return;
+    }
+
+    try{
+      setLoginConsoleStatus(
+        "Encrypting login text..."
+      );
+
+      const encryptedText=
+        await encryptConsoleText(
+          value,
+          state.loginConsole.publicKey
+        );
+
+      if(input){
+        input.value="";
+      }
+
+      await queueLoginConsoleAction(
+        "TEXT",
+        {
+          encryptedText
+        }
+      );
+
+      setLoginConsoleStatus(
+        "Secure text sent to Oracle browser."
+      );
+
+    }catch(err){
+      setLoginConsoleStatus(
+        err.message ||
+        "Secure text failed."
+      );
+    }
+  }
+
+  $("loginConsoleSendText")
+    ?.addEventListener(
+      "click",
+      sendSecureLoginConsoleText
+    );
+
+  $("loginConsoleText")
+    ?.addEventListener(
+      "keydown",
+      event=>{
+        if(event.key==="Enter"){
+          event.preventDefault();
+          sendSecureLoginConsoleText();
         }
       }
     );

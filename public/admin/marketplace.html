@@ -494,6 +494,51 @@
       .page{width:calc(100% - 14px)}
       .readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
+
+
+    /* Generic secure broker login console. Keeps the existing Marketplace page/header unchanged. */
+    .login-console-overlay{
+      position:fixed;inset:0;z-index:5000;display:none;
+      align-items:center;justify-content:center;padding:18px;
+      background:rgba(15,23,42,.68);backdrop-filter:blur(2px);
+    }
+    .login-console-overlay.open{display:flex}
+    .login-console-modal{
+      width:min(1180px,96vw);height:min(820px,92vh);
+      display:flex;flex-direction:column;overflow:hidden;
+      background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);
+    }
+    .login-console-head{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:12px 15px;background:linear-gradient(135deg,#183b67,#2f6ea8);color:#fff;
+    }
+    .login-console-title{font-size:18px;font-weight:900}
+    .login-console-sub{font-size:11px;opacity:.85;margin-top:3px}
+    .login-console-close{background:rgba(255,255,255,.16);color:#fff;padding:8px 11px}
+    .login-console-toolbar{
+      display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;
+      border-bottom:1px solid #dbe3eb;background:#f7fafc;
+    }
+    #loginConsoleText{
+      flex:1 1 320px;min-width:220px;padding:10px 12px;border:1px solid #cbd5df;
+      border-radius:9px;font:inherit;background:#fff;
+    }
+    .login-console-stage{
+      flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;
+      padding:12px;background:#101820;
+    }
+    #loginConsoleImage{max-width:100%;height:auto;display:block;cursor:crosshair;user-select:none}
+    .login-console-foot{
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;
+      border-top:1px solid #dbe3eb;background:#f7fafc;font-size:11px;color:#536779;
+    }
+    .console-secure-note{font-weight:800;color:#17643a}
+    #loginConsoleUrl{margin-left:auto;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    @media(max-width:700px){
+      .login-console-modal{width:99vw;height:96vh}
+      #loginConsoleUrl{max-width:100%;margin-left:0}
+    }
+
   </style>
 </head>
 
@@ -568,6 +613,7 @@
 
             <div class="row">
               <button id="connectBtn" class="gold">Connect / Login</button>
+              <button id="loginConsoleBtn" class="light">Open Login Console</button>
               <button id="disconnectBtn" class="dark">Disconnect</button>
               <button id="refreshBtn" class="light">Refresh</button>
             </div>
@@ -626,6 +672,38 @@
       </section>
     </div>
   </main>
+
+  <div id="loginConsoleOverlay" class="login-console-overlay" aria-hidden="true">
+    <section class="login-console-modal" role="dialog" aria-modal="true" aria-labelledby="loginConsoleTitle">
+      <div class="login-console-head">
+        <div>
+          <div id="loginConsoleTitle" class="login-console-title">Secure Broker Login Console</div>
+          <div id="loginConsoleBroker" class="login-console-sub">Select a broker account.</div>
+        </div>
+        <button id="loginConsoleClose" type="button" class="login-console-close">✕</button>
+      </div>
+
+      <div class="login-console-toolbar">
+        <button id="loginConsoleRefresh" type="button" class="light">Refresh Screen</button>
+        <button id="loginConsoleTab" type="button" class="light">Tab</button>
+        <button id="loginConsoleEnter" type="button" class="light">Enter</button>
+        <button id="loginConsoleBackspace" type="button" class="light">Backspace</button>
+        <button id="loginConsoleReload" type="button" class="light">Reload</button>
+        <input id="loginConsoleText" type="password" autocomplete="off" placeholder="Type username / password / MFA here, then Send Secure Text">
+        <button id="loginConsoleSendText" type="button" class="gold">Send Secure Text</button>
+      </div>
+
+      <div class="login-console-stage">
+        <img id="loginConsoleImage" alt="Broker browser screen">
+      </div>
+
+      <div class="login-console-foot">
+        <span id="loginConsoleStatus">Waiting for Oracle browser...</span>
+        <span class="console-secure-note">Secure login session for the selected broker account.</span>
+        <span id="loginConsoleUrl"></span>
+      </div>
+    </section>
+  </div>
 
   <script src="/admin/header.js"></script>
   <script src="/admin/js/marketplace.js"></script>
