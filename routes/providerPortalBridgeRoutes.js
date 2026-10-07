@@ -2143,6 +2143,28 @@ router.use(auth);
 
 router.get("/agent-cloud-status",async(req,res)=>{
   try{
+    const id=tenantId(req);
+    if(!id){
+      return res.status(400).json({
+        success:false,
+        message:"Tenant is required"
+      });
+    }
+
+    const allowedRows=await BrokerIntegration.find({
+      tenantId:id,
+      connectionMode:"MARKETPLACE_PORTAL",
+      enabled:true,
+      featureVisible:true,
+      billingEnabled:true
+    })
+    .select({_id:1})
+    .lean();
+
+    const allowedConnectionIds=new Set(
+      allowedRows.map(row=>String(row._id))
+    );
+
     const now=Date.now();
     const nodes=[...cloudAgentHeartbeats.values()].map(item=>({
       nodeId:item.nodeId,
@@ -2152,7 +2174,9 @@ router.get("/agent-cloud-status",async(req,res)=>{
         item.lastHeartbeatAt &&
         now-new Date(item.lastHeartbeatAt).getTime()<20000
       ),
-      sessions:item.sessions || []
+      sessions:(item.sessions || []).filter(session=>
+        allowedConnectionIds.has(String(session?.connectionId || ""))
+      )
     }));
 
     return res.json({
@@ -2164,6 +2188,7 @@ router.get("/agent-cloud-status",async(req,res)=>{
     return res.status(500).json({success:false,message:e.message});
   }
 });
+
 
 router.get("/preflight",async(req,res)=>{
   try{

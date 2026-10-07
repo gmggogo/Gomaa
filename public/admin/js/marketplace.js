@@ -194,6 +194,7 @@ Marketplace multi-broker UI.
     activity:[],
     selectedConnectionId:"",
     localStatus:null,
+    cloudAgentStatus:null,
     serverPreflight:null
   };
 
@@ -724,12 +725,52 @@ Marketplace multi-broker UI.
     renderActivity();
   }
 
+  function selectedCloudAgentState(cloudStatus,item){
+    const connectionId=String(item?.connectionId || "");
+    const nodes=Array.isArray(cloudStatus?.nodes)
+      ? cloudStatus.nodes
+      : [];
+
+    const onlineNodes=nodes.filter(node=>node?.online===true);
+
+    for(const node of onlineNodes){
+      const sessions=Array.isArray(node?.sessions)
+        ? node.sessions
+        : [];
+
+      const session=sessions.find(
+        row=>String(row?.connectionId || "")===connectionId
+      );
+
+      if(session){
+        return {
+          agentOnline:true,
+          cloud:true,
+          nodeId:node?.nodeId || "",
+          session
+        };
+      }
+    }
+
+    if(onlineNodes.length){
+      return {
+        agentOnline:true,
+        cloud:true,
+        nodeId:onlineNodes[0]?.nodeId || "",
+        session:null
+      };
+    }
+
+    return null;
+  }
+
   async function refreshPreflight(){
     const item=
       selectedConnection();
 
     if(!item){
       state.localStatus=null;
+      state.cloudAgentStatus=null;
       state.serverPreflight=null;
       renderReadiness();
       return;
@@ -741,10 +782,22 @@ Marketplace multi-broker UI.
       );
 
     const [
+      cloudResult,
       localResult,
       serverResult
     ]=
       await Promise.all([
+        bridge(
+          "/agent-cloud-status"
+        )
+        .catch(
+          ()=>({
+            success:false,
+            configured:false,
+            nodes:[]
+          })
+        ),
+
         localAgent(
           `/status?connectionId=${connectionId}`,
           {
@@ -754,12 +807,14 @@ Marketplace multi-broker UI.
         .then(
           data=>({
             agentOnline:true,
+            cloud:false,
             ...(data||{})
           })
         )
         .catch(
           ()=>({
             agentOnline:false,
+            cloud:false,
             session:null
           })
         ),
@@ -778,7 +833,17 @@ Marketplace multi-broker UI.
         )
       ]);
 
+    state.cloudAgentStatus=
+      cloudResult;
+
+    const cloudSelected=
+      selectedCloudAgentState(
+        cloudResult,
+        item
+      );
+
     state.localStatus=
+      cloudSelected ||
       localResult;
 
     state.serverPreflight=
