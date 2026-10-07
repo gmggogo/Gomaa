@@ -174,6 +174,103 @@ function extractZip(value){
   return match ? match[1] : "";
 }
 
+
+function deepFindRawValue(raw,aliases=[]){
+  if(!raw || typeof raw!=="object") return "";
+
+  const stack=[{value:raw,path:""}];
+  const normalizedAliases=aliases.map(x=>
+    String(x).toLowerCase().replace(/[^a-z0-9]/g,"")
+  );
+
+  while(stack.length){
+    const {value,path}=stack.pop();
+
+    if(!value || typeof value!=="object") continue;
+
+    for(const [key,next] of Object.entries(value)){
+      const nextPath=path ? `${path}.${key}` : key;
+      const normalized=nextPath
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g,"");
+
+      if(
+        normalizedAliases.some(alias=>
+          normalized.endsWith(alias) ||
+          normalized.includes(alias)
+        )
+      ){
+        if(
+          typeof next==="string" ||
+          typeof next==="number"
+        ){
+          return next;
+        }
+      }
+
+      if(next && typeof next==="object"){
+        stack.push({
+          value:next,
+          path:nextPath
+        });
+      }
+    }
+  }
+
+  return "";
+}
+
+function rawPostalCode(trip,side){
+  const raw=trip?.raw || {};
+  const aliases=
+    side==="pickup"
+      ? [
+          "pickupzip","pickupzipcode","pickuppostalcode",
+          "originzip","originzipcode","originpostalcode"
+        ]
+      : [
+          "dropoffzip","dropoffzipcode","dropoffpostalcode",
+          "destinationzip","destinationzipcode","destinationpostalcode"
+        ];
+
+  return extractZip(
+    deepFindRawValue(
+      raw,
+      aliases
+    )
+  );
+}
+
+function rawCoordinate(trip,side,kind){
+  const raw=trip?.raw || {};
+
+  const aliases=
+    side==="pickup"
+      ? (
+          kind==="lat"
+            ? ["pickuplat","pickuplatitude","originlat","originlatitude"]
+            : ["pickuplng","pickuplon","pickuplongitude","originlng","originlon","originlongitude"]
+        )
+      : (
+          kind==="lat"
+            ? ["dropofflat","dropofflatitude","destinationlat","destinationlatitude"]
+            : ["dropofflng","dropofflon","dropofflongitude","destinationlng","destinationlon","destinationlongitude"]
+        );
+
+  const value=Number(
+    deepFindRawValue(
+      raw,
+      aliases
+    )
+  );
+
+  if(!Number.isFinite(value)) return null;
+  if(kind==="lat" && (value < -90 || value > 90)) return null;
+  if(kind==="lng" && (value < -180 || value > 180)) return null;
+
+  return value;
+}
+
 function normalizeMode(value){
   return clean(value)
     .toLowerCase()
@@ -475,12 +572,23 @@ function displayTripNumber(trip={}){
   );
 }
 
+function isoDatePart(value){
+  const text=clean(value);
+  const m=text.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
+}
+
 function tripDateValue(trip={}){
   return clean(
     trip.tripDate ||
     trip.serviceDate ||
     trip.appointmentDate ||
-    trip.date
+    trip.date ||
+    isoDatePart(
+      trip.pickupTime ||
+      trip.tripTime ||
+      trip.appointmentTime
+    )
   );
 }
 
@@ -569,6 +677,7 @@ function tripForEngine(trip={}){
         trip.pickupZip ||
         trip.pickupPostalCode ||
         trip.originZip ||
+        rawPostalCode(trip,"pickup") ||
         extractZip(
           trip.pickup ||
           trip.pickupAddress
@@ -580,6 +689,7 @@ function tripForEngine(trip={}){
         trip.dropoffZip ||
         trip.dropoffPostalCode ||
         trip.destinationZip ||
+        rawPostalCode(trip,"dropoff") ||
         extractZip(
           trip.dropoff ||
           trip.dropoffAddress
@@ -589,22 +699,22 @@ function tripForEngine(trip={}){
     pickupLat:
       Number.isFinite(Number(trip.pickupLat))
         ? Number(trip.pickupLat)
-        : null,
+        : rawCoordinate(trip,"pickup","lat"),
 
     pickupLng:
       Number.isFinite(Number(trip.pickupLng))
         ? Number(trip.pickupLng)
-        : null,
+        : rawCoordinate(trip,"pickup","lng"),
 
     dropoffLat:
       Number.isFinite(Number(trip.dropoffLat))
         ? Number(trip.dropoffLat)
-        : null,
+        : rawCoordinate(trip,"dropoff","lat"),
 
     dropoffLng:
       Number.isFinite(Number(trip.dropoffLng))
         ? Number(trip.dropoffLng)
-        : null,
+        : rawCoordinate(trip,"dropoff","lng"),
 
     mode:
       clean(
@@ -844,8 +954,36 @@ async function pointForTripSide(trip,side){
     return {
       lat:Number(lat),
       lng:Number(lng),
-      source:"TRIP"
+      source:"TRIP_COORDS"
     };
+  }
+
+  /*
+    Prefer the trip's own ZIP before full-address geocoding.
+    CareCar and other portals often carry a postal code in raw JSON even
+    when the visible address text does not show it.
+  */
+  const zip=
+    isPickup
+      ? clean(
+          trip.pickupZip ||
+          rawPostalCode(trip,"pickup")
+        )
+      : clean(
+          trip.dropoffZip ||
+          rawPostalCode(trip,"dropoff")
+        );
+
+  if(zip){
+    const zipPoint=
+      await geocodeAddress(zip);
+
+    if(zipPoint){
+      return {
+        ...zipPoint,
+        source:"TRIP_ZIP"
+      };
+    }
   }
 
   const address=
@@ -853,7 +991,17 @@ async function pointForTripSide(trip,side){
       ? trip.pickup
       : trip.dropoff;
 
-  return geocodeAddress(address);
+  const addressPoint=
+    await geocodeAddress(address);
+
+  if(addressPoint){
+    return {
+      ...addressPoint,
+      source:"ADDRESS_GEOCODE"
+    };
+  }
+
+  return null;
 }
 
 async function minDistanceToZipCenters(point,zips=[]){
@@ -1199,14 +1347,17 @@ async function selectedByEngine(
       continue;
     }
 
+    const primaryDecision=
+      longDecision.reason!=="ENGINE_DISABLED"
+        ? longDecision
+        : shortDecision;
+
     decisions.push({
       trip,
       engine:"SYSTEM",
       matched:false,
-      reason:
-        longDecision.reason!=="ENGINE_DISABLED"
-          ? longDecision.reason
-          : shortDecision.reason,
+      reason:primaryDecision.reason,
+      zone:primaryDecision.zone || null,
       longReason:longDecision.reason,
       shortReason:shortDecision.reason
     });
@@ -1948,23 +2099,6 @@ router.post(
         }
       );
 
-      for(
-        const trip
-        of trips
-      ){
-
-        await logActivity(
-          id,
-          connection,
-          "SEEN",
-          {
-            engine:"SYSTEM",
-            trip,
-            message:
-              `Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`
-          }
-        );
-      }
 
       const {
         longTrips,
@@ -1975,6 +2109,51 @@ router.post(
           trips,
           settings
         );
+
+      /*
+        Manual re-evaluation shows the real filter result for every trip.
+        Rejected trips are not shown as vague SEEN rows anymore.
+      */
+      for(const decision of decisions){
+        if(decision.matched===true){
+          continue;
+        }
+
+        const zone=
+          decision.zone ||
+          {};
+
+        const distances=[
+          Number.isFinite(zone.pickupDistanceMiles)
+            ? `pickup ${zone.pickupDistanceMiles} mi`
+            : "",
+          Number.isFinite(zone.dropoffDistanceMiles)
+            ? `dropoff ${zone.dropoffDistanceMiles} mi`
+            : ""
+        ].filter(Boolean).join(", ");
+
+        await logActivity(
+          id,
+          connection,
+          "SEEN",
+          {
+            engine:"SYSTEM",
+            trip:decision.trip,
+            reason:decision.reason,
+            message:
+              `Rejected by settings: ${decision.reason}` +
+              (
+                distances
+                  ? ` (${distances}; radius ${zone.radiusMiles} mi)`
+                  : ""
+              ),
+            meta:{
+              filterDecision:"REJECTED",
+              zone
+            }
+          }
+        );
+      }
 
       const [
         longResults,

@@ -33,6 +33,55 @@ Marketplace multi-broker UI.
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 
+
+  function displayTripDate(row={}){
+    const raw=String(
+      row.tripDate ||
+      row.meta?.tripDate ||
+      row.pickupTime ||
+      row.meta?.tripTime ||
+      ""
+    );
+
+    const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[2]}/${m[3]}/${m[1]}` : (raw || "—");
+  }
+
+  function displayPickupTime(row={}){
+    const raw=String(
+      row.pickupTime ||
+      row.meta?.tripTime ||
+      row.meta?.appointmentTime ||
+      ""
+    );
+
+    const m=raw.match(/T?(\d{1,2}):(\d{2})/);
+    if(!m) return raw || "—";
+
+    let hour=Number(m[1]);
+    const minute=m[2];
+    const ap=hour>=12 ? "PM" : "AM";
+    hour=hour%12 || 12;
+
+    return `${hour}:${minute} ${ap}`;
+  }
+
+  function zoneDistance(row={}){
+    const zone=row.meta?.zone || {};
+    const parts=[];
+
+    if(Number.isFinite(Number(zone.pickupDistanceMiles))){
+      parts.push(`PU ${Number(zone.pickupDistanceMiles).toFixed(1)} mi`);
+    }
+
+    if(Number.isFinite(Number(zone.dropoffDistanceMiles))){
+      parts.push(`DO ${Number(zone.dropoffDistanceMiles).toFixed(1)} mi`);
+    }
+
+    return parts.join(" / ") || "—";
+  }
+
+
   async function api(base,path,opt={}){
     const res=await fetch(
       base+path,
@@ -605,16 +654,18 @@ Marketplace multi-broker UI.
                 )}
               </td>
               <td>${esc(r.meta?.tripNumber || r.externalTripId || "—")}</td>
-              <td>${esc(r.tripDate || r.meta?.tripDate || "—")}</td>
-              <td>${esc(r.pickupTime || r.meta?.tripTime || r.meta?.appointmentTime || "—")}</td>
+              <td>${esc(displayTripDate(r))}</td>
+              <td>${esc(displayPickupTime(r))}</td>
               <td>${esc(r.meta?.pickupAddress || "—")}</td>
               <td>${esc(r.meta?.dropoffAddress || "—")}</td>
               <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
+              <td>${esc(r.reason || (r.action==="MATCHED" ? "MATCHED" : "—"))}</td>
+              <td>${esc(zoneDistance(r))}</td>
               <td>${esc(r.message || "")}</td>
             </tr>
           `).join("")
-        : '<tr><td colspan="12">No activity for this broker/account yet.</td></tr>';
+        : '<tr><td colspan="14">No activity for this broker/account yet.</td></tr>';
   }
 
   function renderAll(){

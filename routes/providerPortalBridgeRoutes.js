@@ -1,4 +1,3 @@
-
 "use strict";
 
 /*
@@ -623,6 +622,24 @@ const FIELD_SPECS={
   dropoffAddress:{
     aliases:["dropoffaddress","dropoff.location.address","dropofflocation.address","destinationaddress","toaddress","dropoff.fulladdress","dropofflocation","dropoff","destination"]
   },
+  pickupZip:{
+    aliases:["pickupzip","pickupzipcode","pickuppostalcode","pickup.postalcode","pickup.zip","pickup.zipcode","originzip","originzipcode","originpostalcode","origin.postalcode"]
+  },
+  dropoffZip:{
+    aliases:["dropoffzip","dropoffzipcode","dropoffpostalcode","dropoff.postalcode","dropoff.zip","dropoff.zipcode","destinationzip","destinationzipcode","destinationpostalcode","destination.postalcode"]
+  },
+  pickupLat:{
+    aliases:["pickuplat","pickuplatitude","pickup.lat","pickup.latitude","originlat","originlatitude","origin.lat","origin.latitude"]
+  },
+  pickupLng:{
+    aliases:["pickuplng","pickuplon","pickuplongitude","pickup.lng","pickup.lon","pickup.longitude","originlng","originlon","originlongitude"]
+  },
+  dropoffLat:{
+    aliases:["dropofflat","dropofflatitude","dropoff.lat","dropoff.latitude","destinationlat","destinationlatitude"]
+  },
+  dropoffLng:{
+    aliases:["dropofflng","dropofflon","dropofflongitude","dropoff.lng","dropoff.lon","dropoff.longitude","destinationlng","destinationlon","destinationlongitude"]
+  },
   tripDate:{
     aliases:["tripdate","servicedate","pickupdate","ridedate","transportdate","date","service.date","trip.date","pickup.date"]
   },
@@ -901,6 +918,85 @@ async function tryAiMapping(samples,autoResult){
   }
 }
 
+
+function fiveDigitZip(value){
+  const m=clean(value).match(/\b(\d{5})(?:-\d{4})?\b/);
+  return m ? m[1] : "";
+}
+
+function deepFieldCandidates(raw){
+  return flattenLeafPaths(raw)
+    .filter(row=>!isSensitiveKey(row.path));
+}
+
+function deepPostal(raw,side){
+  const wanted=
+    side==="pickup"
+      ? ["pickup","origin","from"]
+      : ["dropoff","destination","to"];
+
+  const postalWords=[
+    "zip","zipcode","postal","postalcode"
+  ];
+
+  let best="";
+
+  for(const row of deepFieldCandidates(raw)){
+    const p=lowerPath(row.path);
+    if(!wanted.some(word=>p.includes(word))) continue;
+    if(!postalWords.some(word=>p.includes(word))) continue;
+
+    const zip=fiveDigitZip(scalarText(row.value));
+    if(zip) return zip;
+  }
+
+  const addressObj=
+    side==="pickup"
+      ? firstValue(raw,["pickup","pickupLocation","origin"])
+      : firstValue(raw,["dropoff","dropoffLocation","destination"]);
+
+  if(addressObj && typeof addressObj==="object"){
+    best=fiveDigitZip(
+      addressObj.zip ||
+      addressObj.zipCode ||
+      addressObj.postalCode ||
+      addressObj.address?.zip ||
+      addressObj.address?.zipCode ||
+      addressObj.address?.postalCode
+    );
+  }
+
+  return best;
+}
+
+function deepCoord(raw,side,kind){
+  const sideWords=
+    side==="pickup"
+      ? ["pickup","origin","from"]
+      : ["dropoff","destination","to"];
+
+  const coordWords=
+    kind==="lat"
+      ? ["lat","latitude"]
+      : ["lng","lon","long","longitude"];
+
+  for(const row of deepFieldCandidates(raw)){
+    const p=lowerPath(row.path);
+    if(!sideWords.some(word=>p.includes(word))) continue;
+
+    const last=p.split(".").pop()||"";
+    if(!coordWords.some(word=>last===word || last.endsWith(word))) continue;
+
+    const n=Number(row.value);
+    if(Number.isFinite(n)){
+      if(kind==="lat" && n>=-90 && n<=90) return n;
+      if(kind==="lng" && n>=-180 && n<=180) return n;
+    }
+  }
+
+  return null;
+}
+
 function tripFromMapping(raw,mapping,meta={}){
   const read=field=>getByPath(raw,mapping?.[field]);
   const explicitMiles=Number(read("tripMiles"));
@@ -920,6 +1016,32 @@ function tripFromMapping(raw,mapping,meta={}){
     memberPhone:clean(scalarText(read("memberPhone"))),
     pickupAddress:normalizeAddressValue(read("pickupAddress")),
     dropoffAddress:normalizeAddressValue(read("dropoffAddress")),
+    pickupZip:
+      fiveDigitZip(
+        scalarText(read("pickupZip"))
+      ) ||
+      deepPostal(raw,"pickup"),
+    dropoffZip:
+      fiveDigitZip(
+        scalarText(read("dropoffZip"))
+      ) ||
+      deepPostal(raw,"dropoff"),
+    pickupLat:
+      Number.isFinite(Number(read("pickupLat")))
+        ? Number(read("pickupLat"))
+        : deepCoord(raw,"pickup","lat"),
+    pickupLng:
+      Number.isFinite(Number(read("pickupLng")))
+        ? Number(read("pickupLng"))
+        : deepCoord(raw,"pickup","lng"),
+    dropoffLat:
+      Number.isFinite(Number(read("dropoffLat")))
+        ? Number(read("dropoffLat"))
+        : deepCoord(raw,"dropoff","lat"),
+    dropoffLng:
+      Number.isFinite(Number(read("dropoffLng")))
+        ? Number(read("dropoffLng"))
+        : deepCoord(raw,"dropoff","lng"),
     tripDate:clean(scalarText(read("tripDate"))),
     pickupTime:clean(scalarText(read("pickupTime"))),
     dropoffTime:clean(scalarText(read("dropoffTime"))),
