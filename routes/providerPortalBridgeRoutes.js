@@ -696,6 +696,17 @@ function ingestNormalizedTrips(store,payload,meta){
     const key=normalizedKey(trip);
     const index=store.normalizedTrips.findIndex(x=>normalizedKey(x)===key);
     if(index>=0){
+      // Preserve complete details when an in-progress portal refresh omits cells.
+      const previous=store.normalizedTrips[index];
+      for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip",
+        "pickupLat","pickupLng","dropoffLat","dropoffLng","tripMiles",
+        "pickupTime","dropoffTime","mode"]){
+        if((trip[field]===undefined || trip[field]===null || trip[field]==="" ||
+            (typeof trip[field]==="string" && /^(--?|n\/a|null)$/i.test(clean(trip[field])))) &&
+           previous[field]!==undefined && previous[field]!==null && previous[field]!==""){
+          trip[field]=previous[field];
+        }
+      }
       store.normalizedTrips[index]=trip;
       updated++;
     }else{
@@ -1383,19 +1394,19 @@ function tripFromMapping(raw,mapping,meta={}){
       ) ||
       deepPostal(raw,"dropoff"),
     pickupLat:
-      Number.isFinite(Number(read("pickupLat")))
+      clean(read("pickupLat")) && Number.isFinite(Number(read("pickupLat")))
         ? Number(read("pickupLat"))
         : deepCoord(raw,"pickup","lat"),
     pickupLng:
-      Number.isFinite(Number(read("pickupLng")))
+      clean(read("pickupLng")) && Number.isFinite(Number(read("pickupLng")))
         ? Number(read("pickupLng"))
         : deepCoord(raw,"pickup","lng"),
     dropoffLat:
-      Number.isFinite(Number(read("dropoffLat")))
+      clean(read("dropoffLat")) && Number.isFinite(Number(read("dropoffLat")))
         ? Number(read("dropoffLat"))
         : deepCoord(raw,"dropoff","lat"),
     dropoffLng:
-      Number.isFinite(Number(read("dropoffLng")))
+      clean(read("dropoffLng")) && Number.isFinite(Number(read("dropoffLng")))
         ? Number(read("dropoffLng"))
         : deepCoord(raw,"dropoff","lng"),
     tripDate:clean(scalarText(read("tripDate"))),
@@ -1573,7 +1584,11 @@ async function resolvePortalMapping(tenant,connectionId,host,samples){
     // connection. Validate stored paths against THIS discovery before reuse.
     const mapping={...auto.mapping};
     for(const [field,path] of Object.entries(saved.mapping)){
-      const hasPath=samples.some(raw=>getByPath(raw,path)!==undefined);
+      const hasPath=samples.some(raw=>{
+        const value=getByPath(raw,path);
+        return value!==undefined && value!==null &&
+          (typeof value!=="string" || (clean(value) && !/^(--?|n\/a|null)$/i.test(clean(value))));
+      });
       if(!hasPath) continue;
       // A date mapping must resolve a date, rather than only a clock time.
       if(field==="tripDate" && mapping.tripDate &&
@@ -1767,6 +1782,17 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     }
     const index=store.normalizedTrips.findIndex(x=>normalizedKey(x)===key);
     if(index>=0){
+      // A partial refresh must not erase the last complete fields for this ID.
+      const previous=store.normalizedTrips[index];
+      for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip",
+        "pickupLat","pickupLng","dropoffLat","dropoffLng","tripMiles",
+        "pickupTime","dropoffTime","mode"]){
+        if((trip[field]===undefined || trip[field]===null || trip[field]==="" ||
+            (typeof trip[field]==="string" && /^(--?|n\/a|null)$/i.test(clean(trip[field])))) &&
+           previous[field]!==undefined && previous[field]!==null && previous[field]!==""){
+          trip[field]=previous[field];
+        }
+      }
       store.normalizedTrips[index]=trip;
       updated++;
     }else{

@@ -454,17 +454,20 @@ function matches(
       "dropoff"
     );
 
-  const pickup =
-    zipMatch(
-      pickupZip,
-      settings.pickupZipCodes
-    );
-
-  const dropoff =
-    zipMatch(
-      dropoffZip,
-      settings.dropoffZipCodes
-    );
+  const radius=Number(settings.zoneRadiusMiles);
+  const measured=trip?.zoneDistances || {};
+  const sideMatch=(distance,zip,configured)=>{
+    // A measured distance takes precedence over ZIP equality. Matching ZIPs
+    // remain a safe fallback when geocoding is unavailable.
+    if(distance!==null && distance!==undefined && distance!=="" &&
+       Number.isFinite(Number(distance)) && Number.isFinite(radius)){
+      return Number(distance)<=radius;
+    }
+    return Array.isArray(configured) && configured.length>0 &&
+      zipMatch(zip,configured);
+  };
+  const pickup=sideMatch(measured.pickupDistanceMiles,pickupZip,settings.pickupZipCodes);
+  const dropoff=sideMatch(measured.dropoffDistanceMiles,dropoffZip,settings.dropoffZipCodes);
 
   const zone =
     text(

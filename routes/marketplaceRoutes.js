@@ -19,6 +19,7 @@ IMPORTANT:
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const https = require("https");
 
 const router = express.Router();
 
@@ -422,6 +423,81 @@ function tripForEngine(trip={}){
   };
 }
 
+// A zone is a circle around its configured center, measured in straight-line
+// miles. Cache geocoding results so a recurring discovery does not re-query
+// the same addresses every scan.
+const geoCache=new Map();
+function googleKey(){
+  return process.env.GOOGLE_SERVER_KEY || process.env.GOOGLE_SERVER_API_KEY ||
+    process.env.GOOGLE_MAPS_SERVER_KEY || process.env.SERVER_GOOGLE_MAPS_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY || "";
+}
+function geocode(address){
+  const key=googleKey();
+  if(!key || !clean(address)) return Promise.resolve(null);
+  const cacheKey=clean(address).toLowerCase();
+  const previous=geoCache.get(cacheKey);
+  if(previous && previous.until>Date.now()) return previous.promise;
+  const url=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${encodeURIComponent(key)}`;
+  const promise=new Promise(resolve=>{
+    const request=https.get(url,response=>{
+      let body="";
+      response.on("data",part=>{ if(body.length<100000) body+=part; });
+      response.on("end",()=>{
+        try{
+          const result=JSON.parse(body);
+          const point=result.status==="OK" ? result.results?.[0]?.geometry?.location : null;
+          resolve(validPoint(point?.lat,point?.lng) ? point : null);
+        }catch(_err){ resolve(null); }
+      });
+    });
+    request.setTimeout(5000,()=>request.destroy());
+    request.on("error",()=>resolve(null));
+  });
+  geoCache.set(cacheKey,{promise,until:Date.now()+60000});
+  promise.then(point=>geoCache.set(cacheKey,{
+    promise:Promise.resolve(point),until:Date.now()+(point?86400000:60000)
+  }));
+  return promise;
+}
+function validPoint(lat,lng){
+  return lat!==null && lat!==undefined && lat!=="" &&
+    lng!==null && lng!==undefined && lng!=="" &&
+    Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat))<=90 && Math.abs(Number(lng))<=180;
+}
+function milesBetween(a,b){
+  const rad=n=>Number(n)*Math.PI/180;
+  const dLat=rad(b.lat)-rad(a.lat),dLng=rad(b.lng)-rad(a.lng);
+  const v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
+  return 3958.7613*2*Math.asin(Math.min(1,Math.sqrt(v)));
+}
+function centerText(settings,side){
+  const prefix=side==="pickup"?"pickup":"dropoff";
+  return clean(settings[`${prefix}ZoneAddress`]) ||
+    [settings[`${prefix}ZoneCity`],settings[`${prefix}ZoneState`],settings[`${prefix}ZoneZip`]]
+      .map(clean).filter(Boolean).join(", ");
+}
+async function enrichZoneDistances(trips,settings){
+  const zone=clean(settings?.zoneMatch).toUpperCase();
+  if(!["PICKUP","DROPOFF","EITHER","BOTH"].includes(zone)) return trips;
+  const sides=zone==="PICKUP"?["pickup"]:zone==="DROPOFF"?["dropoff"]:["pickup","dropoff"];
+  const centers={};
+  await Promise.all(sides.map(async side=>{centers[side]=await geocode(centerText(settings,side));}));
+  return Promise.all(trips.map(async trip=>{
+    const zoneDistances={};
+    await Promise.all(sides.map(async side=>{
+      const center=centers[side];
+      if(!center) return;
+      const lat=trip[`${side}Lat`],lng=trip[`${side}Lng`];
+      const point=validPoint(lat,lng)?{lat:Number(lat),lng:Number(lng)}:
+        await geocode(trip[side] || trip[`${side}Address`]);
+      if(point) zoneDistances[`${side}DistanceMiles`]=milesBetween(center,point);
+    }));
+    return {...trip,zoneDistances};
+  }));
+}
+
 function activityMeta(
   connection,
   trip={}
@@ -549,6 +625,11 @@ async function logActivity(
         connection,
         trip
       ),
+      pickupAddress:clean(trip.pickupAddress || trip.pickup),
+      dropoffAddress:clean(trip.dropoffAddress || trip.dropoff),
+      pickupZip:clean(trip.pickupZip),
+      dropoffZip:clean(trip.dropoffZip),
+      zone:{...(trip.zoneDistances || {})},
       ...(data.meta || {})
     }
   });
@@ -585,26 +666,19 @@ async function marketplaceConnection(
   return connection;
 }
 
-function selectedByEngine(
+async function selectedByEngine(
   trips,
   settings
 ){
 
-  const longTrips =
+  const [longTrips,shortTrips]=await Promise.all([
     settings?.longEngine?.enabled
-      ? longEngine.select(
-          trips,
-          settings.longEngine || {}
-        )
-      : [];
-
-  const shortTrips =
+      ? enrichZoneDistances(trips,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
+      : [],
     settings?.shortEngine?.enabled
-      ? shortEngine.select(
-          trips,
-          settings.shortEngine || {}
-        )
-      : [];
+      ? enrichZoneDistances(trips,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
+      : []
+  ]);
 
   return {
     longTrips,
@@ -723,7 +797,7 @@ async function evaluateConnectionTrips({
   }
 
   const {longTrips,shortTrips}=
-    selectedByEngine(trips,settings);
+    await selectedByEngine(trips,settings);
 
   const [longResults,shortResults]=
     await Promise.all([
@@ -1245,7 +1319,7 @@ router.post(
         longTrips,
         shortTrips
       } =
-        selectedByEngine(
+        await selectedByEngine(
           trips,
           settings
         );
