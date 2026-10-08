@@ -198,6 +198,8 @@ Marketplace multi-broker UI.
     serverPreflight:null,
     loginConsole:{
       open:false,
+      connectionId:"",
+      polling:false,
       timer:null,
       frame:null,
       publicKey:null,
@@ -319,6 +321,7 @@ Marketplace multi-broker UI.
         btn.addEventListener(
           "click",
           ()=>{
+            closeLoginConsole();
             state.selectedConnectionId=
               btn.dataset.brokerId || "";
 
@@ -662,13 +665,11 @@ Marketplace multi-broker UI.
     );
   }
 
-  function consoleConnectionPath(suffix=""){
+  function consoleConnectionPath(suffix="",connectionId=state.loginConsole.connectionId){
     const item=selectedConnection();
-    if(!item) throw new Error("No broker account selected");
-    if(!hasPaidMarketplaceAccess(item)){
-      throw new Error("Marketplace access for this broker is disabled by Platform Admin or billing is inactive.");
-    }
-    return `/connections/${encodeURIComponent(item.connectionId)}/login-console${suffix}`;
+    const id=connectionId || item?.connectionId;
+    if(!id) throw new Error("No broker account selected");
+    return `/connections/${encodeURIComponent(id)}/login-console${suffix}`;
   }
 
   function pemToArrayBuffer(pem){
@@ -877,40 +878,29 @@ Marketplace multi-broker UI.
   }
 
   async function pollLoginConsoleFrame(){
-    if(!state.loginConsole.open){
-      return;
-    }
-
+    if(!state.loginConsole.open || state.loginConsole.polling) return;
+    const connectionId=state.loginConsole.connectionId;
+    state.loginConsole.polling=true;
     try{
-      const data=
-        await bridge(
-          consoleConnectionPath("/frame")
-        );
-
-      if(data.frame){
-        renderLoginConsoleFrame(
-          data.frame
-        );
-
-        if(
-          !data.frame.imageData &&
-          data.frame.message
-        ){
-          setLoginConsoleStatus(
-            data.frame.message
-          );
-        }
+      const data=await bridge(consoleConnectionPath("/frame",connectionId));
+      if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+      const frame=data.frame;
+      if(frame?.success===false){
+        setLoginConsoleStatus(frame.message || "Oracle could not capture the broker page.");
+      }else if(frame?.imageData && Date.now()-new Date(frame.updatedAt).getTime()<20000){
+        renderLoginConsoleFrame(frame);
       }else{
-        setLoginConsoleStatus(
-          "Waiting for Oracle browser frame..."
-        );
+        const cloud=await bridge("/agent-cloud-status");
+        if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+        const online=(cloud.nodes || []).some(node=>node.online===true);
+        setLoginConsoleStatus(online
+          ? "Oracle is online. Waiting for this broker browser screen..."
+          : "Oracle browser service is offline. Start the Oracle Agent and Cloud Runner, then retry.");
       }
-
     }catch(err){
-      setLoginConsoleStatus(
-        err.message ||
-        "Login console frame failed."
-      );
+      if(state.loginConsole.connectionId===connectionId) setLoginConsoleStatus(err.message || "Login console frame failed.");
+    }finally{
+      state.loginConsole.polling=false;
     }
   }
 
@@ -938,14 +928,17 @@ Marketplace multi-broker UI.
   }
 
   function queueLoginConsoleAction(action,payload={}){
+    const connectionId=state.loginConsole.connectionId;
+    const actionPath=consoleConnectionPath("/action",connectionId);
     const run=
       async()=>{
+        if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
         state.loginConsole.busy=true;
 
         try{
           const result=
             await bridge(
-              consoleConnectionPath("/action"),
+              actionPath,
               {
                 method:"POST",
                 body:
@@ -980,57 +973,48 @@ Marketplace multi-broker UI.
 
   async function openLoginConsole(){
     const item=selectedConnection();
-    if(!item){
-      return;
-    }
-
+    if(!item) return;
     if(!hasPaidMarketplaceAccess(item)){
-      const statusEl=$("connectionStatus");
-      if(statusEl){
-        statusEl.textContent=
-          "Marketplace access is disabled by Platform Admin or billing is inactive.";
-      }
+      $("connectionStatus").textContent="Marketplace access is disabled or billing is inactive.";
       return;
     }
 
-    /*
-      Real Oracle browser console.
-      127.0.0.1:6080 is reached through the user's secure SSH tunnel.
-      The broker portal URL itself is NOT changed here; Chrome on Oracle
-      continues to use the Provider Portal URL stored in Platform Admin.
-    */
-    const consoleUrl=
-      "http://127.0.0.1:6080/vnc.html?autoconnect=1&resize=scale&view_only=0";
-
-    const win=
-      window.open(
-        consoleUrl,
-        "GH_ORACLE_BROWSER_CONSOLE",
-        "popup=yes,width=1500,height=950,resizable=yes,scrollbars=yes"
-      );
-
-    if(!win){
-      const statusEl=$("connectionStatus");
-      if(statusEl){
-        statusEl.textContent=
-          "Browser blocked the Oracle console popup. Allow popups for GH Mobility and try again.";
-      }
-      return;
-    }
+    stopLoginConsolePolling();
+    const connectionId=String(item.connectionId);
+    state.loginConsole.connectionId=connectionId;
+    state.loginConsole.open=true;
+    state.loginConsole.frame=null;
+    state.loginConsole.publicKey=null;
+    const overlay=$("loginConsoleOverlay");
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden","false");
+    $("loginConsoleBroker").textContent=
+      `${item.brokerName || item.brokerCode || "Broker"} · ${item.accountLabel || "Primary Account"}`;
+    $("loginConsoleUrl").textContent="";
+    $("loginConsoleKeyboardSink").value="";
+    const canvas=$("loginConsoleCanvas");
+    canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+    setLoginConsoleStatus("Connecting to the broker browser on Oracle...");
+    $("connectionStatus").textContent="Connecting to Oracle...";
 
     try{
-      win.focus();
-    }catch(_){}
-
-    const statusEl=$("connectionStatus");
-    if(statusEl){
-      statusEl.textContent=
-        "Oracle browser console opened. Sign in to the broker portal there.";
+      await bridge(consoleConnectionPath("/open",connectionId),{method:"POST",body:"{}"});
+      if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+      setLoginConsoleStatus("Waiting for the Oracle browser screen...");
+      startLoginConsolePolling();
+      await pollLoginConsoleFrame();
+    }catch(err){
+      if(state.loginConsole.connectionId!==connectionId) return;
+      const message=err.message || "Could not reach the Oracle browser.";
+      setLoginConsoleStatus(message);
+      $("connectionStatus").textContent=message;
     }
   }
 
   function closeLoginConsole(){
     state.loginConsole.open=false;
+    state.loginConsole.connectionId="";
+    state.loginConsole.publicKey=null;
     stopLoginConsolePolling();
 
     const overlay=$("loginConsoleOverlay");
@@ -1297,7 +1281,6 @@ Marketplace multi-broker UI.
 
     const [
       cloudResult,
-      localResult,
       serverResult
     ]=
       await Promise.all([
@@ -1309,27 +1292,6 @@ Marketplace multi-broker UI.
             success:false,
             configured:false,
             nodes:[]
-          })
-        ),
-
-        localAgent(
-          `/status?connectionId=${connectionId}`,
-          {
-            method:"GET"
-          }
-        )
-        .then(
-          data=>({
-            agentOnline:true,
-            cloud:false,
-            ...(data||{})
-          })
-        )
-        .catch(
-          ()=>({
-            agentOnline:false,
-            cloud:false,
-            session:null
           })
         ),
 
@@ -1358,7 +1320,7 @@ Marketplace multi-broker UI.
 
     state.localStatus=
       cloudSelected ||
-      localResult;
+      {agentOnline:false,cloud:true,session:null};
 
     state.serverPreflight=
       serverResult;
@@ -1405,8 +1367,8 @@ Marketplace multi-broker UI.
 
     /*
       The Oracle cloud runner owns the browser session automatically.
-      This button must NEVER wait for cloud-status/local-agent checks before
-      showing the portal. Every click opens/reopens the same portal window.
+      The admin controls the connection-scoped browser through the authenticated
+      GH console. No localhost popup or SSH tunnel is required.
     */
     try{
       $("connectBtn").disabled=true;
