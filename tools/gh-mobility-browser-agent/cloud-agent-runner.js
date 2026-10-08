@@ -174,30 +174,6 @@ async function processConsoleCommands(commands=[]) {
   }
 }
 
-async function processClaimCommands(commands=[],connections=new Map()) {
-  for(const command of Array.isArray(commands)?commands.slice(0,50):[]){
-    const connectionId=String(command?.connectionId||"").trim();
-    if(!connectionId) continue;
-    let result={clicked:false,confirmed:false,message:"Claim not attempted"};
-    try{
-      await requestJson("POST",`${GH_BASE_URL}/api/provider-portal-bridge/agent/claim-authorization`,
-        {connectionId,commandId:command.commandId},authHeaders(),5000);
-      result=await requestJson("POST",`${LOCAL_BASE}/claim`,{
-        connectionId,commandId:command.commandId,externalTripId:command.externalTripId,
-        selector:command.selector,sourceUrl:command.sourceUrl,createdAt:command.createdAt,
-        agentToken:connections.get(connectionId)?.agentToken||""
-      },{},10000);
-    }catch(err){
-      result={clicked:false,confirmed:false,message:err.message||String(err)};
-    }
-    try{
-      await requestJson("POST",`${GH_BASE_URL}/api/provider-portal-bridge/agent/claim-result`,
-        {connectionId,commandId:command.commandId,clicked:result.clicked===true,
-          confirmed:result.confirmed===true,message:result.message||""},authHeaders(),10000);
-    }catch(err){console.error(`[cloud-runner] claim result ${connectionId}: ${err.message}`);}
-  }
-}
-
 async function syncControl() {
   try {
     const control = await requestJson(
@@ -211,17 +187,6 @@ async function syncControl() {
     const desired = Array.isArray(control.connections) ? control.connections : [];
     const desiredMap = new Map(desired.map(c => [String(c.connectionId || "").trim(), c]).filter(([id]) => id));
 
-    // Claim candidates can disappear in seconds. Connect their existing
-    // sessions and process them before routine sync or login-console frames.
-    const urgentIds=new Set((control.claimCommands||[]).map(c=>String(c?.connectionId||"").trim()));
-    for(const id of urgentIds){
-      const connection=desiredMap.get(id);
-      if(!connection) continue;
-      try{await localConnect(connection,control.ghBaseUrl||GH_BASE_URL);}
-      catch(err){console.error(`[cloud-runner] urgent connect ${id}: ${err.message}`);}
-    }
-    await processClaimCommands(control.claimCommands || [],desiredMap);
-
     for (const oldId of lastConnections.keys()) {
       if (!desiredMap.has(oldId)) {
         try { await localDisconnect(oldId); } catch (_) {}
@@ -229,7 +194,6 @@ async function syncControl() {
     }
 
     for (const connection of desiredMap.values()) {
-      if(urgentIds.has(String(connection.connectionId))) continue;
       try {
         await localConnect(connection, control.ghBaseUrl || GH_BASE_URL);
       } catch (err) {
