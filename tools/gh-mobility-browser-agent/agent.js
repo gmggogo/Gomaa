@@ -811,6 +811,7 @@ class PortalSession{
 
     // Generic SaaS auto-monitoring state. These are isolated per connectionId.
     this.lastAutoNavigateAt=0;
+    this.lastListingReturnAt=0;
     this.lastAutoRefreshAt=0;
     this.visitedPortalUrls=new Set();
     this.learnedListingUrl="";
@@ -2210,21 +2211,28 @@ class PortalSession{
 
           let nextUrl="";
 
-          if(
-            this.learnedListingUrl &&
-            !this.visitedPortalUrls.has(this.learnedListingUrl)
-          ){
-            nextUrl=this.learnedListingUrl;
-          }
-
-          if(!nextUrl){
-            const next=
-              navigationCandidates.find(
-                item=>
-                  item?.href &&
-                  !this.visitedPortalUrls.has(item.href)
-              );
-
+          if(this.learnedListingUrl){
+            // A portal can return to its account home after refresh or when
+            // its own session UI redirects. Revisit the learned listing even
+            // when it has already been seen in this browser session.
+            // Limit retries so a temporarily loading page can settle.
+            let onLearnedListing=false;
+            try{
+              const listing=new URL(this.learnedListingUrl);
+              const current=new URL(this.currentUrl);
+              listing.hash="";
+              current.hash="";
+              onLearnedListing=listing.href===current.href;
+            }catch(_){}
+            if(!onLearnedListing &&
+               (now-this.lastListingReturnAt)>=15000){
+              this.lastListingReturnAt=now;
+              nextUrl=this.learnedListingUrl;
+            }
+          }else{
+            const next=navigationCandidates.find(item=>
+              item?.href && !this.visitedPortalUrls.has(item.href)
+            );
             nextUrl=clean(next?.href);
           }
 
