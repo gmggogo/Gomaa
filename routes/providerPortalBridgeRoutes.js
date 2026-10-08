@@ -269,7 +269,12 @@ function discoverySamples(payload){
     );
 
   if(rows.length){
-    return rows;
+    // Web manifests contain icon metadata arrays, not broker rows.
+    // Preserve unknown table schemas for saved/AI mappings on other brokers.
+    return rows.filter(row=>!(
+      typeof row.src==="string" &&
+      Object.keys(row).every(key=>["src","sizes","type","purpose"].includes(key))
+    ));
   }
 
   return [];
@@ -788,7 +793,7 @@ const FIELD_SPECS={
     aliases:["numberofriders","riders","passengercount","ridercount","numberofpassengers","passengers"]
   },
   tripMiles:{
-    aliases:["tripmiles","miles","distancemiles","distanceinmiles","estimatedmiles","route.miles"]
+    aliases:["tripmiles","miles","distancemiles","distancemi","distanceinmiles","estimatedmiles","route.miles"]
   },
   distanceMeters:{
     aliases:["distancemeters","distanceinmeters","meters","routedistancemeters","route.distanceMeters"]
@@ -1306,10 +1311,19 @@ function deepCoord(raw,side,kind){
   return null;
 }
 
+function portalDistanceNumber(value){
+  if(value===undefined || value===null) return NaN;
+  if(typeof value==="number") return Number.isFinite(value)?value:NaN;
+  const text=clean(value).replace(/,/g,"");
+  // DOM tables render numbers with units, e.g. "9.41 miles".
+  const match=text.match(/^(-?\d+(?:\.\d+)?)(?:\s*(?:mi|mile|miles|m|meter|meters))?$/i);
+  return match?Number(match[1]):NaN;
+}
+
 function tripFromMapping(raw,mapping,meta={}){
   const read=field=>getByPath(raw,mapping?.[field]);
-  const explicitMiles=Number(read("tripMiles"));
-  const meters=Number(read("distanceMeters"));
+  const explicitMiles=portalDistanceNumber(read("tripMiles"));
+  const meters=portalDistanceNumber(read("distanceMeters"));
   const miles=Number.isFinite(explicitMiles) && explicitMiles>=0
     ? explicitMiles
     : (Number.isFinite(meters) && meters>=0 ? Number((meters/1609.344).toFixed(2)) : null);
@@ -1553,19 +1567,35 @@ async function updateOnboardingProfile({
 
 async function resolvePortalMapping(tenant,connectionId,host,samples){
   const saved=await getSavedMappingProfile(tenant,connectionId,host);
+  const auto=buildAutoMapping(samples);
   if(saved?.mapping && mappingReady(saved.mapping)){
+    // Network JSON and rendered tables can have different keys for the same
+    // connection. Validate stored paths against THIS discovery before reuse.
+    const mapping={...auto.mapping};
+    for(const [field,path] of Object.entries(saved.mapping)){
+      const hasPath=samples.some(raw=>getByPath(raw,path)!==undefined);
+      if(!hasPath) continue;
+      // A date mapping must resolve a date, rather than only a clock time.
+      if(field==="tripDate" && mapping.tripDate &&
+         !samples.some(raw=>normalizedDateValue(getByPath(raw,path)))) continue;
+      mapping[field]=path;
+    }
+    const changed=JSON.stringify(mapping)!==JSON.stringify(saved.mapping);
+    if(changed && mappingReady(mapping)){
+      await saveMappingProfile({tenant,connectionId,host,
+        result:{...auto,mapping},aiResult:{used:false,reason:"SCHEMA_REFRESH"}});
+    }
     return {
-      mapping:saved.mapping,
-      method:"SAVED_PROFILE",
-      confidence:Number(saved.confidence||1),
-      ready:true,
-      aiStatus:saved.aiStatus||"NOT_NEEDED",
+      mapping,
+      method:changed?"AUTO_SCHEMA_REFRESH":"SAVED_PROFILE",
+      confidence:Number(changed?auto.confidence:(saved.confidence||1)),
+      ready:mappingReady(mapping),
+      aiStatus:changed?"SCHEMA_REFRESH":(saved.aiStatus||"NOT_NEEDED"),
       aiModel:saved.aiModel||"",
-      persisted:true
+      persisted:!changed || mappingReady(mapping)
     };
   }
 
-  const auto=buildAutoMapping(samples);
   const ai=await tryAiMapping(samples,auto);
   const mapping=ai.used ? ai.mapping : auto.mapping;
   const profile=await saveMappingProfile({tenant,connectionId,host,result:{...auto,mapping},aiResult:ai});
@@ -1581,7 +1611,6 @@ async function resolvePortalMapping(tenant,connectionId,host,samples){
     unresolved:Object.keys(FIELD_SPECS).filter(f=>!mapping[f])
   };
 }
-
 
 function normalizedDateValue(value){
   const text=clean(value);
@@ -1718,6 +1747,10 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     const key=normalizedKey(trip);
 
     if(!normalizedTripEligible(trip)){
+      // A table can briefly show "--" during reload. Unknown date is not
+      // evidence that a previously dated trip has expired or disappeared.
+      if(!normalizedTripYmd(trip) &&
+         clean(trip.availabilityEvidence)!=="NEGATIVE_STATUS") continue;
       const staleIndex=
         store.normalizedTrips.findIndex(
           x=>normalizedKey(x)===key
