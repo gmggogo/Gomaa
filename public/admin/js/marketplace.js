@@ -1151,10 +1151,42 @@ Marketplace multi-broker UI.
     ).trim();
   }
 
+  function activityViewKey(connectionId){
+    return `ghMarketplaceActivityView:${connectionId}`;
+  }
+
+  function activityViewCutoff(connectionId){
+    if(!connectionId) return "";
+    try{
+      const value=localStorage.getItem(activityViewKey(connectionId)) || "";
+      return /^[a-f0-9]{24}$/i.test(value) ? value.toLowerCase() : "";
+    }catch(_){return "";}
+  }
+
+  function clearActivityView(){
+    const connectionId=String(state.selectedConnectionId || "");
+    if(!connectionId) return;
+    const newest=state.activity.find(row=>rowConnectionId(row)===connectionId);
+    const marker=String(newest?._id || "").toLowerCase();
+    if(!/^[a-f0-9]{24}$/.test(marker)) return;
+    try{localStorage.setItem(activityViewKey(connectionId),marker);}
+    catch(_){return;}
+    renderActivity();
+  }
+
+  function showActivityHistory(){
+    const connectionId=String(state.selectedConnectionId || "");
+    if(!connectionId) return;
+    try{localStorage.removeItem(activityViewKey(connectionId));}
+    catch(_){return;}
+    renderActivity();
+  }
+
   function renderActivity(){
     const selected=String(
       state.selectedConnectionId || ""
     );
+    const cutoff=activityViewCutoff(selected);
 
     /*
       Hide old legacy rows that do not identify a broker connection.
@@ -1163,8 +1195,20 @@ Marketplace multi-broker UI.
     const rows=
       state.activity.filter(row=>{
         const id=rowConnectionId(row);
-        return Boolean(id) && id===selected;
+        const rowId=String(row?._id || "").toLowerCase();
+        return Boolean(id) && id===selected && (!cutoff || rowId>cutoff);
       });
+
+    if($("showActivityHistoryBtn"))
+      $("showActivityHistoryBtn").hidden=!cutoff;
+    if($("clearActivityViewBtn"))
+      $("clearActivityViewBtn").disabled=!selected || !state.activity.some(row=>
+        rowConnectionId(row)===selected && /^[a-f0-9]{24}$/i.test(String(row?._id || ""))
+      );
+    if($("activityViewStatus"))
+      $("activityViewStatus").textContent=cutoff
+        ? "Earlier activity is hidden for this broker/account. New events appear automatically."
+        : "";
 
     $("activityRows").innerHTML=
       rows.length
@@ -1801,6 +1845,12 @@ Marketplace multi-broker UI.
       "click",
       scanSelected
     );
+
+  $("clearActivityViewBtn")
+    ?.addEventListener("click",clearActivityView);
+
+  $("showActivityHistoryBtn")
+    ?.addEventListener("click",showActivityHistory);
 
   load();
 

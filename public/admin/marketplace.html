@@ -506,6 +506,27 @@
       text-align:center;
     }
 
+    .activity-actions{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .activity-actions button{
+      border:1px solid #a9bfd1;
+      border-radius:8px;
+      background:#fff;
+      color:#274860;
+      padding:7px 12px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .activity-actions button:hover{background:#f3f8fc}
+
     .activity-body{
       padding:14px 16px 16px;
     }
@@ -717,6 +738,11 @@
             <div class="muted">
               Only activity for the selected broker/account appears here.
             </div>
+            <div class="activity-actions">
+              <button id="clearActivityViewBtn" type="button">Clear Activity View</button>
+              <button id="showActivityHistoryBtn" type="button" hidden>Show Previous Activity</button>
+            </div>
+            <div id="activityViewStatus" class="muted" role="status" aria-live="polite"></div>
           </div>
 
           <div class="activity-body">
@@ -784,6 +810,6 @@
   </div>
 
   <script src="/admin/header.js"></script>
-  <script src="/admin/js/marketplace.js?v=oracle-console-20261008"></script>
+  <script src="/admin/js/marketplace.js?v=activity-view-20261008"></script>
 </body>
 </html>
