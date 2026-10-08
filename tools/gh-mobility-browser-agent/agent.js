@@ -1007,15 +1007,65 @@ class PortalSession{
             `http://127.0.0.1:${this.debugPort}/json`
           );
 
-        const page=
-          targets.find(
+        const pages=
+          targets.filter(
             target=>
               target.type==="page" &&
               target.webSocketDebuggerUrl
           );
 
-        if(page){
-          return page;
+        if(pages.length){
+          let portalHost="";
+
+          try{
+            portalHost=
+              new URL(
+                this.portalUrl
+              ).host;
+          }catch(_){}
+
+          /*
+            Persistent Chrome profiles can reopen a blank/new-tab target
+            before the broker tab. Always prefer the broker-origin page.
+          */
+          const brokerPage=
+            pages.find(target=>{
+              try{
+                return (
+                  portalHost &&
+                  new URL(
+                    clean(target.url)
+                  ).host===portalHost
+                );
+              }catch(_){
+                return false;
+              }
+            });
+
+          if(brokerPage){
+            return brokerPage;
+          }
+
+          const realPage=
+            pages.find(target=>{
+              const url=
+                clean(
+                  target.url
+                );
+
+              return Boolean(
+                url &&
+                url!=="about:blank" &&
+                !url.startsWith("chrome://") &&
+                !url.startsWith("edge://") &&
+                !url.startsWith("devtools://")
+              );
+            });
+
+          return (
+            realPage ||
+            pages[0]
+          );
         }
       }catch(_){}
 
@@ -1186,6 +1236,41 @@ class PortalSession{
     );
 
     this.debugAttached=true;
+
+    /*
+      If Chrome reopened only a blank/new-tab target, explicitly send that
+      target to the configured broker portal. This remains generic because
+      portalUrl comes from the paid BrokerIntegration configuration.
+    */
+    try{
+      const locationResult=
+        await this.send(
+          "Runtime.evaluate",
+          {
+            expression:"location.href",
+            returnByValue:true
+          }
+        );
+
+      const attachedUrl=
+        clean(
+          locationResult?.result?.value
+        );
+
+      if(
+        !attachedUrl ||
+        attachedUrl==="about:blank" ||
+        attachedUrl.startsWith("chrome://") ||
+        attachedUrl.startsWith("edge://")
+      ){
+        await this.send(
+          "Page.navigate",
+          {
+            url:this.portalUrl
+          }
+        );
+      }
+    }catch(_){}
   }
 
   queueBridgePayload(

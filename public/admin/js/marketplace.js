@@ -370,6 +370,68 @@ Marketplace multi-broker UI.
     );
   }
 
+  function renderAgentDiagnostics(){
+    const host=$("agentDiagnostics");
+    if(!host){
+      return;
+    }
+
+    const session=
+      state.localStatus?.session ||
+      null;
+
+    const cloud=
+      state.localStatus?.cloud===true;
+
+    if(!cloud || !session){
+      host.hidden=true;
+      return;
+    }
+
+    host.hidden=false;
+
+    const set=(id,value)=>{
+      const el=$(id);
+      if(!el){
+        return;
+      }
+
+      el.textContent=
+        value===undefined ||
+        value===null ||
+        value===""
+          ? "—"
+          : String(value);
+    };
+
+    set("diagCurrentUrl",session.currentUrl);
+    set("diagCurrentTitle",session.currentTitle);
+    set("diagLogin",session.loginDetected===true ? "YES" : "NO");
+    set("diagTripsPage",session.tripsPageDetected===true ? "YES" : "NO");
+    set("diagDiscovered",Number(session.discovered || 0));
+    set("diagPosted",Number(session.discoveriesPosted || 0));
+    set("diagNetwork",Number(session.networkCandidates || 0));
+    set("diagDom",Number(session.domCandidates || 0));
+
+    set(
+      "diagDiscoveryType",
+      [
+        session.lastDiscoveryType || "",
+        session.lastDiscoveryAt || ""
+      ].filter(Boolean).join(" · ") || "—"
+    );
+
+    set(
+      "diagMapper",
+      [
+        session.mapperReady===true ? "READY" : "WAITING",
+        session.mapperMethod || ""
+      ].filter(Boolean).join(" · ")
+    );
+
+    set("diagLastError",session.lastError || "—");
+  }
+
   function renderReadiness(){
     const item=
       selectedConnection();
@@ -381,6 +443,8 @@ Marketplace multi-broker UI.
     const preflight=
       state.serverPreflight ||
       null;
+
+    renderAgentDiagnostics();
 
     if(!item){
       setStage(
