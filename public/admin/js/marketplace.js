@@ -936,6 +936,53 @@ Marketplace multi-broker UI.
     }
   }
 
+  function renderConnectLoginVisibility(){
+    const btn=$("connectBtn");
+    const item=selectedConnection();
+
+    if(!btn){
+      return;
+    }
+
+    if(!item){
+      btn.hidden=true;
+      return;
+    }
+
+    const session=
+      state.localStatus?.session ||
+      null;
+
+    const oracleOnline=
+      state.localStatus?.cloud===true &&
+      state.localStatus?.agentOnline===true;
+
+    const authenticated=
+      oracleOnline &&
+      session?.running===true &&
+      session?.debugAttached===true &&
+      session?.loginDetected===true;
+
+    /*
+      Desired UX:
+      - authenticated Oracle broker session => hide Connect/Login completely
+      - expired/logged-out/not-yet-authenticated => show it again
+      - the same button reopens the secure Oracle login console when needed
+    */
+    btn.hidden=authenticated;
+
+    if(authenticated){
+      btn.disabled=true;
+      btn.textContent="Connect / Login";
+    }else{
+      btn.disabled=false;
+      btn.textContent=
+        oracleOnline && session?.running
+          ? "Login / Reconnect"
+          : "Connect / Login";
+    }
+  }
+
   function renderSelectedConnection(){
     const item=selectedConnection();
     const hero=$("brokerHero");
@@ -946,6 +993,7 @@ Marketplace multi-broker UI.
       $("selectedBrokerBadge").innerHTML="";
       $("selectedBrokerDetails").innerHTML=
         '<div class="empty">No active Marketplace connection.</div>';
+      $("connectBtn").hidden=true;
       $("connectBtn").disabled=true;
       $("loginConsoleBtn").disabled=true;
       $("disconnectBtn").disabled=true;
@@ -990,7 +1038,6 @@ Marketplace multi-broker UI.
       </div>
     `;
 
-    $("connectBtn").disabled=false;
     $("loginConsoleBtn").disabled=false;
     $("disconnectBtn").disabled=false;
 
@@ -998,6 +1045,7 @@ Marketplace multi-broker UI.
       item?.mapper?.ready!==true;
 
     renderReadiness();
+    renderConnectLoginVisibility();
   }
 
   function rowConnectionId(row){
@@ -1214,16 +1262,34 @@ Marketplace multi-broker UI.
       $("connectionStatus");
 
     if(statusEl && cloudSelected?.agentOnline===true){
-      if(
-        cloudSelected?.session?.running ||
-        cloudSelected?.session?.debugAttached
+      const session=
+        cloudSelected?.session ||
+        null;
+
+      const authenticated=
+        session?.running===true &&
+        session?.debugAttached===true &&
+        session?.loginDetected===true;
+
+      if(authenticated){
+        statusEl.textContent=
+          "Oracle Cloud Agent is connected and authenticated for this broker.";
+
+        if(state.loginConsole?.open===true){
+          closeLoginConsole();
+        }
+      }else if(
+        session?.running ||
+        session?.debugAttached
       ){
         statusEl.textContent=
-          "Oracle Cloud Agent is connected and monitoring this broker.";
+          "Oracle Cloud Agent is connected. Broker login is required.";
       }else{
         statusEl.textContent=
           "Oracle Cloud Agent is online. Waiting for this broker session.";
       }
+
+      renderConnectLoginVisibility();
     }
   }
 
@@ -1265,16 +1331,31 @@ Marketplace multi-broker UI.
         state.localStatus=
           cloudSelected;
 
+        const session=
+          cloudSelected?.session ||
+          null;
+
+        const authenticated=
+          session?.running===true &&
+          session?.debugAttached===true &&
+          session?.loginDetected===true;
+
+        if(authenticated){
+          $("connectionStatus").textContent=
+            "Oracle Cloud Agent is connected and authenticated for this broker.";
+          renderReadiness();
+          renderConnectLoginVisibility();
+          await load();
+          return;
+        }
+
         $("connectionStatus").textContent=
-          (
-            cloudSelected?.session?.running ||
-            cloudSelected?.session?.debugAttached
-          )
-            ? "Oracle Cloud Agent is already connected and monitoring this broker."
-            : "Oracle Cloud Agent is online. Waiting for this broker session to start automatically.";
+          "Broker login is required. Opening secure Oracle login...";
 
         renderReadiness();
-        await load();
+        renderConnectLoginVisibility();
+
+        await openLoginConsole();
         return;
       }
 
@@ -1541,6 +1622,7 @@ Marketplace multi-broker UI.
           : [];
 
       renderAll();
+    renderConnectLoginVisibility();
 
       await refreshPreflight();
 

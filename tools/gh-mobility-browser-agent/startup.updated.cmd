@@ -7,6 +7,7 @@ REM
 REM GH Mobility Browser Agent utility:
 REM   1 = Install/start the local Windows agent at Windows login.
 REM   2 = Restart the Oracle Cloud browser agent and show /health.
+REM   3 = Show Oracle Chrome/Chromium browser targets and URLs.
 REM
 REM Existing local-startup behavior is preserved.
 
@@ -22,12 +23,14 @@ echo =========================================
 echo.
 echo   1 - Install / Start Local Windows Agent
 echo   2 - Restart Oracle Cloud Agent
+echo   3 - Show Oracle Browser Targets
 echo   0 - Exit
 echo.
-set /p "CHOICE=Choose 0, 1, or 2: "
+set /p "CHOICE=Choose 0, 1, 2, or 3: "
 
 if "%CHOICE%"=="1" goto LOCAL
 if "%CHOICE%"=="2" goto ORACLE
+if "%CHOICE%"=="3" goto TARGETS
 if "%CHOICE%"=="0" goto END
 
 echo.
@@ -102,6 +105,37 @@ echo Oracle restart command finished.
 echo If HEALTH is shown above, send a photo of it to ChatGPT.
 echo.
 pause
+
+
+:TARGETS
+echo.
+if not exist "%SSH_KEY%" (
+  echo ERROR: Oracle SSH key was not found:
+  echo %SSH_KEY%
+  echo.
+  pause
+  goto END
+)
+
+where ssh >nul 2>nul
+if errorlevel 1 (
+  echo ERROR: Windows OpenSSH client was not found.
+  pause
+  goto END
+)
+
+echo Connecting to Oracle and reading Chrome/Chromium browser targets...
+echo.
+
+ssh -i "%SSH_KEY%" %ORACLE_HOST% "ports=$(ps -eo args | grep -o -- '--remote-debugging-port=[0-9]*' | cut -d= -f2 | sort -u); if [ -z \"$ports\" ]; then echo NO_REMOTE_DEBUGGING_PORTS_FOUND; else for p in $ports; do echo ==== DEBUG_PORT_$p ====; curl -s http://127.0.0.1:$p/json; echo; done; fi"
+
+echo.
+echo.
+echo Browser target check finished.
+echo Send a photo of the output above to ChatGPT.
+echo.
+pause
+goto END
 
 :END
 endlocal
