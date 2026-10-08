@@ -745,6 +745,89 @@ Marketplace multi-broker UI.
     if(el) el.textContent=String(text||"");
   }
 
+  async function drawLoginConsoleFrame(canvas,frame){
+    const raw=
+      String(
+        frame?.imageData ||
+        ""
+      ).trim();
+
+    if(!raw){
+      throw new Error(
+        frame?.message ||
+        "Oracle returned an empty browser frame."
+      );
+    }
+
+    let binary;
+
+    try{
+      binary=atob(raw);
+    }catch(_){
+      throw new Error(
+        "Oracle browser frame was not valid base64."
+      );
+    }
+
+    const bytes=
+      new Uint8Array(
+        binary.length
+      );
+
+    for(let i=0;i<binary.length;i++){
+      bytes[i]=
+        binary.charCodeAt(i);
+    }
+
+    const blob=
+      new Blob(
+        [bytes],
+        {
+          type:"image/png"
+        }
+      );
+
+    const bitmap=
+      await createImageBitmap(
+        blob
+      );
+
+    canvas.width=
+      bitmap.width ||
+      Number(frame?.width) ||
+      1440;
+
+    canvas.height=
+      bitmap.height ||
+      Number(frame?.height) ||
+      900;
+
+    const ctx=
+      canvas.getContext(
+        "2d",
+        {
+          alpha:false
+        }
+      );
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    ctx.drawImage(
+      bitmap,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    bitmap.close?.();
+  }
+
   function renderLoginConsoleFrame(frame){
     if(!frame) return;
 
@@ -755,13 +838,22 @@ Marketplace multi-broker UI.
         frame.consolePublicKey;
     }
 
-    const imageEl=$("loginConsoleImage");
+    const canvas=$("loginConsoleCanvas");
+
     if(
-      imageEl &&
+      canvas &&
       frame.imageData
     ){
-      imageEl.src=
-        `data:image/png;base64,${frame.imageData}`;
+      drawLoginConsoleFrame(
+        canvas,
+        frame
+      ).catch(
+        err=>
+          setLoginConsoleStatus(
+            err.message ||
+            "Broker screen could not be rendered."
+          )
+      );
     }
 
     const urlEl=$("loginConsoleUrl");
@@ -799,6 +891,15 @@ Marketplace multi-broker UI.
         renderLoginConsoleFrame(
           data.frame
         );
+
+        if(
+          !data.frame.imageData &&
+          data.frame.message
+        ){
+          setLoginConsoleStatus(
+            data.frame.message
+          );
+        }
       }else{
         setLoginConsoleStatus(
           "Waiting for Oracle browser frame..."
@@ -1723,12 +1824,12 @@ Marketplace multi-broker UI.
     );
   }
 
-  $("loginConsoleImage")
+  $("loginConsoleCanvas")
     ?.addEventListener(
       "click",
       async event=>{
-        const image=event.currentTarget;
-        const rect=image.getBoundingClientRect();
+        const canvas=event.currentTarget;
+        const rect=canvas.getBoundingClientRect();
 
         if(!rect.width || !rect.height){
           return;

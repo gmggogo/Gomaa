@@ -576,7 +576,7 @@
       flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;
       padding:12px;background:#101820;
     }
-    #loginConsoleImage{max-width:100%;height:auto;display:block;cursor:pointer;user-select:none}
+    #loginConsoleCanvas{max-width:100%;height:auto;display:block;cursor:pointer;user-select:none;background:#fff}
     .login-console-keyboard-sink{
       position:fixed;
       left:-10000px;
@@ -772,7 +772,7 @@
       ></textarea>
 
       <div id="loginConsoleStage" class="login-console-stage" tabindex="0">
-        <img id="loginConsoleImage" alt="Broker browser screen">
+        <canvas id="loginConsoleCanvas" aria-label="Broker browser screen"></canvas>
       </div>
 
       <div class="login-console-foot">

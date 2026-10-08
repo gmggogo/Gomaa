@@ -101,7 +101,7 @@ async function localConsoleFrame(connectionId) {
     `${LOCAL_BASE}/console/frame?connectionId=${encodeURIComponent(connectionId)}`,
     null,
     {},
-    12000
+    20000
   );
 }
 
@@ -142,7 +142,7 @@ async function postConsoleResult(command,result) {
       consolePublicKey: result?.consolePublicKey || ""
     },
     authHeaders(),
-    15000
+    30000
   );
 }
 

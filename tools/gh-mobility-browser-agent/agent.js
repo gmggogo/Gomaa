@@ -2553,10 +2553,18 @@ class PortalSession{
       throw new Error("Broker browser is not connected");
     }
 
+    await this.send(
+      "Page.bringToFront"
+    ).catch(()=>{});
+
+    await new Promise(
+      resolve=>setTimeout(resolve,250)
+    );
+
     const viewport=
       await this.consoleViewport();
 
-    const frame=
+    let frame=
       await this.send(
         "Page.captureScreenshot",
         {
@@ -2566,10 +2574,37 @@ class PortalSession{
         }
       );
 
+    if(!clean(frame?.data)){
+      await new Promise(
+        resolve=>setTimeout(resolve,500)
+      );
+
+      frame=
+        await this.send(
+          "Page.captureScreenshot",
+          {
+            format:"png",
+            fromSurface:true,
+            captureBeyondViewport:false
+          }
+        );
+    }
+
+    const imageData=
+      clean(
+        frame?.data
+      );
+
+    if(!imageData){
+      throw new Error(
+        "Chrome returned an empty browser screenshot"
+      );
+    }
+
     return {
       success:true,
       connectionId:this.connectionId,
-      imageData:clean(frame?.data),
+      imageData,
       width:Number(viewport?.width||1440),
       height:Number(viewport?.height||900),
       currentUrl:clean(viewport?.url||this.currentUrl),

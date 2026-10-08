@@ -2207,7 +2207,9 @@ router.post(
         commandId:clean(req.body?.commandId),
         success:req.body?.success!==false,
         message:clean(req.body?.message).slice(0,1000),
-        imageData:clean(req.body?.imageData),
+        imageData:
+          clean(req.body?.imageData) ||
+          clean(previous.imageData),
         width:Number(req.body?.width||previous.width||0),
         height:Number(req.body?.height||previous.height||0),
         currentUrl:clean(req.body?.currentUrl||previous.currentUrl),
