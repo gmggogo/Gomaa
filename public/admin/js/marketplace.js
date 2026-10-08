@@ -1081,23 +1081,21 @@ Marketplace multi-broker UI.
       session?.loginDetected===true;
 
     /*
-      Desired UX:
-      - authenticated Oracle broker session => hide Connect/Login completely
-      - expired/logged-out/not-yet-authenticated => show it again
-      - the same button reopens the secure Oracle login console when needed
+      Portal window must be reopenable at any time.
+      Authentication changes the label only; it never removes the button.
+      The saved Provider Portal URL remains the Platform Admin portalUrl.
     */
-    btn.hidden=authenticated;
+    btn.hidden=false;
+    btn.disabled=false;
 
-    if(authenticated){
-      btn.disabled=true;
-      btn.textContent="Connect / Login";
-    }else{
-      btn.disabled=false;
-      btn.textContent=
-        oracleOnline && session?.running
-          ? "Login / Reconnect"
-          : "Connect / Login";
-    }
+    btn.textContent=
+      authenticated
+        ? "Open Portal"
+        : (
+            oracleOnline && session?.running
+              ? "Login / Reconnect"
+              : "Connect / Login"
+          );
   }
 
   function renderSelectedConnection(){
@@ -1391,10 +1389,6 @@ Marketplace multi-broker UI.
       if(authenticated){
         statusEl.textContent=
           "Oracle Cloud Agent is connected and authenticated for this broker.";
-
-        if(state.loginConsole?.open===true){
-          closeLoginConsole();
-        }
       }else if(
         session?.running ||
         session?.debugAttached
@@ -1459,10 +1453,11 @@ Marketplace multi-broker UI.
 
         if(authenticated){
           $("connectionStatus").textContent=
-            "Oracle Cloud Agent is connected and authenticated for this broker.";
+            "Oracle Cloud Agent is connected and authenticated for this broker. Opening portal...";
           renderReadiness();
           renderConnectLoginVisibility();
-          await load();
+
+          await openLoginConsole();
           return;
         }
 
