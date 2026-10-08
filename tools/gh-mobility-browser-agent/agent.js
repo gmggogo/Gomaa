@@ -1113,6 +1113,16 @@ class PortalSession{
     const target=
       await this.waitForTarget();
 
+    this.currentUrl=
+      clean(
+        target?.url
+      );
+
+    this.currentTitle=
+      clean(
+        target?.title
+      );
+
     this.ws=
       new WebSocket(
         target.webSocketDebuggerUrl
@@ -1889,7 +1899,7 @@ class PortalSession{
             );
 
           const urlLooksLikeLogin=
-            /\/(login|signin|sign-in|auth)(?:[\/?#]|$)/i.test(
+            /\\/(login|signin|sign-in|auth)(?:[\\/?#]|$)/i.test(
               String(location.pathname||"")+
               String(location.search||"")
             );
@@ -1904,16 +1914,16 @@ class PortalSession{
             It does not depend on portal menu/page names.
           */
           const datePattern=
-            /\b(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\b/;
+            /\\b(?:\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})\\b/;
 
           const timePattern=
-            /\b(?:\d{1,2}:\d{2}\s*(?:AM|PM)?|\d{1,2}\s*(?:AM|PM))\b/i;
+            /\\b(?:\\d{1,2}:\\d{2}\\s*(?:AM|PM)?|\\d{1,2}\\s*(?:AM|PM))\\b/i;
 
           const addressPattern=
-            /\b\d{1,6}\s+[A-Za-z0-9.'#\- ]{2,60}\b/;
+            /\\b\\d{1,6}\\s+[A-Za-z0-9.'#\\- ]{2,60}\\b/;
 
           const semanticKeyPattern=
-            /\b(pick.?up|drop.?off|origin|destination|address|date|time|appointment|member|client|rider|passenger|service|miles?|distance|trip|ride|reservation|task|job|reference|confirmation|id)\b/i;
+            /\\b(pick.?up|drop.?off|origin|destination|address|date|time|appointment|member|client|rider|passenger|service|miles?|distance|trip|ride|reservation|task|job|reference|confirmation|id)\\b/i;
 
           const tripLikeRows=
             rows.filter(row=>{
@@ -1939,7 +1949,7 @@ class PortalSession{
               if(datePattern.test(values)) score++;
               if(timePattern.test(values)) score++;
               if(addressPattern.test(values)) score++;
-              if(/\b\d+(?:\.\d+)?\s*(?:mi|mile|miles)\b/i.test(values)) score++;
+              if(/\\b\\d+(?:\\.\\d+)?\\s*(?:mi|mile|miles)\\b/i.test(values)) score++;
 
               return score>=3;
             });
@@ -1953,7 +1963,7 @@ class PortalSession{
             clicked, and transactional/destructive destinations are excluded.
           */
           const dangerousNavigation=
-            /\b(accept|claim|book|reserve|assign|delete|remove|cancel|decline|reject|logout|log.?out|sign.?out|pay|payment|billing|purchase|checkout|submit|confirm)\b/i;
+            /\\b(accept|claim|book|reserve|assign|delete|remove|cancel|decline|reject|logout|log.?out|sign.?out|pay|payment|billing|purchase|checkout|submit|confirm)\\b/i;
 
           const navigationCandidates=
             [
@@ -2030,7 +2040,7 @@ class PortalSession{
             })
             .filter(item=>
               item.text &&
-              /\b(refresh|reload|update)\b/i.test(item.text) &&
+              /\\b(refresh|reload|update)\\b/i.test(item.text) &&
               !actionWords.test(item.text) &&
               !item.disabled
             )
@@ -2290,6 +2300,9 @@ class PortalSession{
         }
       );
 
+    }catch(err){
+      this.lastError=
+        `DOM probe: ${err?.message || String(err)}`;
     }finally{
       this.pageProbeBusy=false;
     }
