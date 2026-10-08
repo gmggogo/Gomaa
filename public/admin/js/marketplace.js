@@ -201,7 +201,8 @@ Marketplace multi-broker UI.
       timer:null,
       frame:null,
       publicKey:null,
-      busy:false
+      busy:false,
+      actionChain:Promise.resolve()
     }
   };
 
@@ -770,20 +771,17 @@ Marketplace multi-broker UI.
         "";
     }
 
-    const status=[];
-    status.push(
-      frame.loginDetected
-        ? "Portal page detected"
-        : "Waiting for portal"
-    );
-
-    if(frame.tripsPageDetected){
-      status.push("Trips page detected");
+    if(frame.loginDetected){
+      setLoginConsoleStatus(
+        frame.tripsPageDetected
+          ? "Connected. Trips page detected."
+          : "Connected to broker portal."
+      );
+    }else{
+      setLoginConsoleStatus(
+        "Click the broker page and sign in. Type normally after clicking an input."
+      );
     }
-
-    setLoginConsoleStatus(
-      status.join(" · ")
-    );
   }
 
   async function pollLoginConsoleFrame(){
@@ -838,34 +836,45 @@ Marketplace multi-broker UI.
     }
   }
 
-  async function queueLoginConsoleAction(action,payload={}){
-    if(state.loginConsole.busy){
-      return;
-    }
+  function queueLoginConsoleAction(action,payload={}){
+    const run=
+      async()=>{
+        state.loginConsole.busy=true;
 
-    state.loginConsole.busy=true;
+        try{
+          const result=
+            await bridge(
+              consoleConnectionPath("/action"),
+              {
+                method:"POST",
+                body:
+                  JSON.stringify({
+                    action,
+                    ...payload
+                  })
+              }
+            );
 
-    try{
-      await bridge(
-        consoleConnectionPath("/action"),
-        {
-          method:"POST",
-          body:
-            JSON.stringify({
-              action,
-              ...payload
-            })
+          setTimeout(
+            ()=>pollLoginConsoleFrame(),
+            120
+          );
+
+          return result;
+        }finally{
+          state.loginConsole.busy=false;
         }
-      );
+      };
 
-      setTimeout(
-        ()=>pollLoginConsoleFrame(),
-        220
-      );
+    state.loginConsole.actionChain=
+      (
+        state.loginConsole.actionChain ||
+        Promise.resolve()
+      )
+      .catch(()=>{})
+      .then(run);
 
-    }finally{
-      state.loginConsole.busy=false;
-    }
+    return state.loginConsole.actionChain;
   }
 
   async function openLoginConsole(){
@@ -890,6 +899,7 @@ Marketplace multi-broker UI.
     state.loginConsole.open=true;
     state.loginConsole.frame=null;
     state.loginConsole.publicKey=null;
+    state.loginConsole.actionChain=Promise.resolve();
 
     if(overlay){
       overlay.classList.add("open");
@@ -901,13 +911,19 @@ Marketplace multi-broker UI.
     );
 
     try{
-      await bridge(
-        consoleConnectionPath("/open"),
-        {
-          method:"POST",
-          body:"{}"
-        }
-      );
+      const opened=
+        await bridge(
+          consoleConnectionPath("/open"),
+          {
+            method:"POST",
+            body:"{}"
+          }
+        );
+
+      const urlEl=$("loginConsoleUrl");
+      if(urlEl && opened?.portalUrl){
+        urlEl.textContent=opened.portalUrl;
+      }
 
       await pollLoginConsoleFrame();
       startLoginConsolePolling();
@@ -930,9 +946,9 @@ Marketplace multi-broker UI.
       overlay.setAttribute("aria-hidden","true");
     }
 
-    const text=$("loginConsoleText");
-    if(text){
-      text.value="";
+    const sink=$("loginConsoleKeyboardSink");
+    if(sink){
+      sink.value="";
     }
   }
 
@@ -1680,52 +1696,41 @@ Marketplace multi-broker UI.
       }
     );
 
-  $("loginConsoleRefresh")
-    ?.addEventListener(
-      "click",
-      ()=>queueLoginConsoleAction("SCREENSHOT")
-        .catch(err=>setLoginConsoleStatus(err.message))
-    );
+  function focusLoginConsoleKeyboard(){
+    const sink=$("loginConsoleKeyboardSink");
+    if(sink){
+      sink.focus({preventScroll:true});
+    }
+  }
 
-  $("loginConsoleReload")
-    ?.addEventListener(
-      "click",
-      ()=>queueLoginConsoleAction("RELOAD")
-        .catch(err=>setLoginConsoleStatus(err.message))
-    );
+  async function sendDirectConsoleText(value){
+    const text=String(value||"");
+    if(!text){
+      return;
+    }
 
-  $("loginConsoleTab")
-    ?.addEventListener(
-      "click",
-      ()=>queueLoginConsoleAction("KEY",{key:"Tab"})
-        .catch(err=>setLoginConsoleStatus(err.message))
-    );
+    const encryptedText=
+      await encryptConsoleText(
+        text,
+        state.loginConsole.publicKey
+      );
 
-  $("loginConsoleEnter")
-    ?.addEventListener(
-      "click",
-      ()=>queueLoginConsoleAction("KEY",{key:"Enter"})
-        .catch(err=>setLoginConsoleStatus(err.message))
+    return queueLoginConsoleAction(
+      "TEXT",
+      {
+        encryptedText
+      }
     );
-
-  $("loginConsoleBackspace")
-    ?.addEventListener(
-      "click",
-      ()=>queueLoginConsoleAction("KEY",{key:"Backspace"})
-        .catch(err=>setLoginConsoleStatus(err.message))
-    );
+  }
 
   $("loginConsoleImage")
     ?.addEventListener(
       "click",
-      event=>{
+      async event=>{
         const image=event.currentTarget;
         const rect=image.getBoundingClientRect();
 
-        if(
-          !rect.width ||
-          !rect.height
-        ){
+        if(!rect.width || !rect.height){
           return;
         }
 
@@ -1747,11 +1752,116 @@ Marketplace multi-broker UI.
             )
           );
 
+        try{
+          await queueLoginConsoleAction(
+            "CLICK",
+            {
+              xRatio,
+              yRatio
+            }
+          );
+
+          focusLoginConsoleKeyboard();
+
+        }catch(err){
+          setLoginConsoleStatus(
+            err.message ||
+            "Broker page click failed."
+          );
+        }
+      }
+    );
+
+  $("loginConsoleStage")
+    ?.addEventListener(
+      "click",
+      focusLoginConsoleKeyboard
+    );
+
+  const keyboardSink=
+    $("loginConsoleKeyboardSink");
+
+  keyboardSink
+    ?.addEventListener(
+      "beforeinput",
+      event=>{
+        if(!state.loginConsole.open){
+          return;
+        }
+
+        const type=String(event.inputType||"");
+        const data=String(event.data||"");
+
+        if(
+          type==="insertText" ||
+          type==="insertCompositionText" ||
+          type==="insertFromPaste"
+        ){
+          if(data){
+            event.preventDefault();
+
+            sendDirectConsoleText(data)
+              .catch(
+                err=>
+                  setLoginConsoleStatus(
+                    err.message ||
+                    "Secure typing failed."
+                  )
+              );
+          }
+
+          return;
+        }
+
+        if(type==="deleteContentBackward"){
+          event.preventDefault();
+
+          queueLoginConsoleAction(
+            "KEY",
+            {
+              key:"Backspace"
+            }
+          )
+          .catch(
+            err=>
+              setLoginConsoleStatus(
+                err.message
+              )
+          );
+        }
+      }
+    );
+
+  keyboardSink
+    ?.addEventListener(
+      "keydown",
+      event=>{
+        if(!state.loginConsole.open){
+          return;
+        }
+
+        const specialKeys=
+          new Set([
+            "Enter",
+            "Tab",
+            "Backspace",
+            "Escape",
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight"
+          ]);
+
+        if(!specialKeys.has(event.key)){
+          return;
+        }
+
+        event.preventDefault();
+
         queueLoginConsoleAction(
-          "CLICK",
+          "KEY",
           {
-            xRatio,
-            yRatio
+            key:event.key
           }
         )
         .catch(
@@ -1763,64 +1873,37 @@ Marketplace multi-broker UI.
       }
     );
 
-  async function sendSecureLoginConsoleText(){
-    const input=$("loginConsoleText");
-    const value=String(input?.value||"");
-
-    if(!value){
-      return;
-    }
-
-    try{
-      setLoginConsoleStatus(
-        "Encrypting login text..."
-      );
-
-      const encryptedText=
-        await encryptConsoleText(
-          value,
-          state.loginConsole.publicKey
-        );
-
-      if(input){
-        input.value="";
-      }
-
-      await queueLoginConsoleAction(
-        "TEXT",
-        {
-          encryptedText
-        }
-      );
-
-      setLoginConsoleStatus(
-        "Secure text sent to Oracle browser."
-      );
-
-    }catch(err){
-      setLoginConsoleStatus(
-        err.message ||
-        "Secure text failed."
-      );
-    }
-  }
-
-  $("loginConsoleSendText")
+  keyboardSink
     ?.addEventListener(
-      "click",
-      sendSecureLoginConsoleText
-    );
-
-  $("loginConsoleText")
-    ?.addEventListener(
-      "keydown",
+      "paste",
       event=>{
-        if(event.key==="Enter"){
-          event.preventDefault();
-          sendSecureLoginConsoleText();
+        if(!state.loginConsole.open){
+          return;
         }
+
+        const text=
+          String(
+            event.clipboardData?.getData("text") ||
+            ""
+          );
+
+        if(!text){
+          return;
+        }
+
+        event.preventDefault();
+
+        sendDirectConsoleText(text)
+          .catch(
+            err=>
+              setLoginConsoleStatus(
+                err.message ||
+                "Secure paste failed."
+              )
+          );
       }
     );
+
 
   $("connectBtn")
     ?.addEventListener(

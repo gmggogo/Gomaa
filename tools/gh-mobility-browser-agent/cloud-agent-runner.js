@@ -115,7 +115,8 @@ async function localConsoleAction(command) {
       xRatio: command.xRatio,
       yRatio: command.yRatio,
       encryptedText: command.encryptedText,
-      key: command.key
+      key: command.key,
+      url: command.url
     },
     {},
     15000

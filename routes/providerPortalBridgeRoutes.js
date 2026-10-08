@@ -2358,11 +2358,24 @@ router.post(
           connectionId
         );
 
+      const portalUrl=
+        clean(
+          connection.portalUrl
+        );
+
+      if(!portalUrl){
+        return res.status(409).json({
+          success:false,
+          message:"Provider Portal URL is missing in Platform Admin."
+        });
+      }
+
       const command=
         enqueueConsoleCommand(
           connectionId,
           {
-            action:"SCREENSHOT"
+            action:"NAVIGATE",
+            url:portalUrl
           }
         );
 
@@ -2371,8 +2384,9 @@ router.post(
         connectionId,
         brokerName:clean(connection.brokerName),
         accountLabel:clean(connection.accountLabel)||"Primary Account",
+        portalUrl,
         commandId:command?.commandId||"",
-        message:"Secure broker login console is opening."
+        message:"Opening the Provider Portal URL configured in Platform Admin."
       });
 
     }catch(e){
@@ -2447,10 +2461,11 @@ router.post(
           req.params.connectionId
         );
 
-      await authorizedMarketplaceConnection(
-        req,
-        connectionId
-      );
+      const {connection}=
+        await authorizedMarketplaceConnection(
+          req,
+          connectionId
+        );
 
       const action=
         clean(
@@ -2461,6 +2476,7 @@ router.post(
       if(
         ![
           "SCREENSHOT",
+          "NAVIGATE",
           "CLICK",
           "TEXT",
           "KEY",
@@ -2476,6 +2492,31 @@ router.post(
       const payload={
         action
       };
+
+      if(action==="NAVIGATE"){
+        const configuredPortalUrl=
+          clean(
+            connection.portalUrl
+          );
+
+        const requestedUrl=
+          clean(
+            req.body?.url
+          );
+
+        if(
+          !configuredPortalUrl ||
+          requestedUrl!==configuredPortalUrl
+        ){
+          return res.status(400).json({
+            success:false,
+            message:"Login console may only open the Provider Portal URL configured in Platform Admin."
+          });
+        }
+
+        payload.url=
+          configuredPortalUrl;
+      }
 
       if(action==="CLICK"){
         payload.xRatio=

@@ -576,7 +576,20 @@
       flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;
       padding:12px;background:#101820;
     }
-    #loginConsoleImage{max-width:100%;height:auto;display:block;cursor:crosshair;user-select:none}
+    #loginConsoleImage{max-width:100%;height:auto;display:block;cursor:pointer;user-select:none}
+    .login-console-keyboard-sink{
+      position:fixed;
+      left:-10000px;
+      top:-10000px;
+      width:1px;
+      height:1px;
+      opacity:0;
+      pointer-events:none;
+    }
+    #loginConsoleStage:focus{
+      outline:2px solid rgba(59,130,246,.45);
+      outline-offset:-2px;
+    }
     .login-console-foot{
       display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;
       border-top:1px solid #dbe3eb;background:#f7fafc;font-size:11px;color:#536779;
@@ -749,23 +762,22 @@
         <button id="loginConsoleClose" type="button" class="login-console-close">✕</button>
       </div>
 
-      <div class="login-console-toolbar">
-        <button id="loginConsoleRefresh" type="button" class="light">Refresh Screen</button>
-        <button id="loginConsoleTab" type="button" class="light">Tab</button>
-        <button id="loginConsoleEnter" type="button" class="light">Enter</button>
-        <button id="loginConsoleBackspace" type="button" class="light">Backspace</button>
-        <button id="loginConsoleReload" type="button" class="light">Reload</button>
-        <input id="loginConsoleText" type="password" autocomplete="off" placeholder="Type username / password / MFA here, then Send Secure Text">
-        <button id="loginConsoleSendText" type="button" class="gold">Send Secure Text</button>
-      </div>
+      <textarea
+        id="loginConsoleKeyboardSink"
+        class="login-console-keyboard-sink"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="Broker login keyboard input"
+      ></textarea>
 
-      <div class="login-console-stage">
+      <div id="loginConsoleStage" class="login-console-stage" tabindex="0">
         <img id="loginConsoleImage" alt="Broker browser screen">
       </div>
 
       <div class="login-console-foot">
         <span id="loginConsoleStatus">Waiting for Oracle browser...</span>
-        <span class="console-secure-note">Secure login session for the selected broker account.</span>
+        <span class="console-secure-note">Click the broker page, then type normally. Login/MFA stays inside the Oracle browser session.</span>
         <span id="loginConsoleUrl"></span>
       </div>
     </section>

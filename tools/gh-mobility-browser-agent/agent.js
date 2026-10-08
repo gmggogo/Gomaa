@@ -2649,6 +2649,41 @@ class PortalSession{
       return this.captureConsoleFrame();
     }
 
+    if(action==="NAVIGATE"){
+      const requestedUrl=
+        clean(
+          body.url
+        );
+
+      const configuredUrl=
+        clean(
+          this.portalUrl
+        );
+
+      if(
+        !requestedUrl ||
+        !configuredUrl ||
+        requestedUrl!==configuredUrl
+      ){
+        throw new Error(
+          "Navigation is restricted to the Provider Portal URL configured for this broker."
+        );
+      }
+
+      await this.send(
+        "Page.navigate",
+        {
+          url:configuredUrl
+        }
+      );
+
+      await new Promise(
+        resolve=>setTimeout(resolve,700)
+      );
+
+      return this.captureConsoleFrame();
+    }
+
     if(action==="CLICK"){
       const viewport=
         await this.consoleViewport();
