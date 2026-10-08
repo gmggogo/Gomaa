@@ -948,7 +948,21 @@ class PortalSession{
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-background-networking",
+
+      /*
+        Oracle runs Chrome inside Xvfb.
+        Force a stable software-rendered viewport so broker pages paint
+        correctly even when no physical GPU/display is attached.
+      */
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-renderer-backgrounding",
+      "--force-device-scale-factor=1",
+      "--window-position=0,0",
       "--window-size=1440,900",
+
       "--new-window",
       this.portalUrl
     ];
@@ -1245,6 +1259,32 @@ class PortalSession{
       "Runtime.enable"
     );
 
+    /*
+      Give the Oracle/Xvfb page a real browser viewport before screenshots
+      or DOM inspection begin. This prevents the tiny/blank paint surface
+      seen in the login console.
+    */
+    await this.send(
+      "Emulation.setDeviceMetricsOverride",
+      {
+        width:1440,
+        height:900,
+        deviceScaleFactor:1,
+        mobile:false
+      }
+    ).catch(()=>{});
+
+    await this.send(
+      "Page.bringToFront"
+    ).catch(()=>{});
+
+    await this.send(
+      "Emulation.setFocusEmulationEnabled",
+      {
+        enabled:true
+      }
+    ).catch(()=>{});
+
     this.debugAttached=true;
 
     /*
@@ -1280,6 +1320,15 @@ class PortalSession{
           }
         );
       }
+
+      await new Promise(
+        resolve=>setTimeout(resolve,1200)
+      );
+
+      await this.send(
+        "Page.bringToFront"
+      ).catch(()=>{});
+
     }catch(_){}
   }
 
