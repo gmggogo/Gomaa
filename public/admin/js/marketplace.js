@@ -980,66 +980,52 @@ Marketplace multi-broker UI.
 
   async function openLoginConsole(){
     const item=selectedConnection();
-    if(!item) return;
-
-    const overlay=$("loginConsoleOverlay");
-    const broker=$("loginConsoleBroker");
-
-    /*
-      Open the window immediately on every click.
-      Network / Oracle errors are displayed INSIDE the window instead of
-      preventing the window from appearing.
-    */
-    state.loginConsole.open=true;
-
-    if(overlay){
-      overlay.classList.add("open");
-      overlay.setAttribute("aria-hidden","false");
-    }
-
-    if(!hasPaidMarketplaceAccess(item)){
-      setLoginConsoleStatus(
-        "Marketplace access is disabled by Platform Admin or billing is inactive."
-      );
+    if(!item){
       return;
     }
 
-    if(broker){
-      broker.textContent=
-        `${item.brokerName || item.brokerCode || "Broker"} · ${item.accountLabel || "Primary Account"}`;
+    if(!hasPaidMarketplaceAccess(item)){
+      const statusEl=$("connectionStatus");
+      if(statusEl){
+        statusEl.textContent=
+          "Marketplace access is disabled by Platform Admin or billing is inactive.";
+      }
+      return;
     }
 
-    state.loginConsole.frame=null;
-    state.loginConsole.publicKey=null;
-    state.loginConsole.actionChain=Promise.resolve();
+    /*
+      Real Oracle browser console.
+      127.0.0.1:6080 is reached through the user's secure SSH tunnel.
+      The broker portal URL itself is NOT changed here; Chrome on Oracle
+      continues to use the Provider Portal URL stored in Platform Admin.
+    */
+    const consoleUrl=
+      "http://127.0.0.1:6080/vnc.html?autoconnect=1&resize=scale&view_only=0";
 
-    setLoginConsoleStatus(
-      "Opening Oracle broker browser..."
-    );
+    const win=
+      window.open(
+        consoleUrl,
+        "GH_ORACLE_BROWSER_CONSOLE",
+        "popup=yes,width=1500,height=950,resizable=yes,scrollbars=yes"
+      );
+
+    if(!win){
+      const statusEl=$("connectionStatus");
+      if(statusEl){
+        statusEl.textContent=
+          "Browser blocked the Oracle console popup. Allow popups for GH Mobility and try again.";
+      }
+      return;
+    }
 
     try{
-      const opened=
-        await bridge(
-          consoleConnectionPath("/open"),
-          {
-            method:"POST",
-            body:"{}"
-          }
-        );
+      win.focus();
+    }catch(_){}
 
-      const urlEl=$("loginConsoleUrl");
-      if(urlEl && opened?.portalUrl){
-        urlEl.textContent=opened.portalUrl;
-      }
-
-      await pollLoginConsoleFrame();
-      startLoginConsolePolling();
-
-    }catch(err){
-      setLoginConsoleStatus(
-        err.message ||
-        "Failed to open login console."
-      );
+    const statusEl=$("connectionStatus");
+    if(statusEl){
+      statusEl.textContent=
+        "Oracle browser console opened. Sign in to the broker portal there.";
     }
   }
 

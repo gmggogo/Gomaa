@@ -1,0 +1,1 @@
+ssh -i "D:\Sunbeamllc\server\oracle\ssh-key-2026-10-07.key" opc@161.153.23.109 "/home/opc/gh-mobility-browser-agent/start-oracle-browser-stack.sh"
