@@ -9,7 +9,8 @@
   - Not tied to MTM or CareCar.
   - Receives structured JSON discovered by the local browser agent.
   - Never accepts username/password/cookies/auth headers.
-  - READ ONLY: no Claim/Accept endpoint exists here.
+  - Discovery remains read only. Matched live trips can be sent to the
+    connection-scoped Oracle browser through a separately authorized queue.
 */
 
 const express = require("express");
@@ -17,6 +18,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const ProviderPortalMappingProfile = require("../models/ProviderPortalMappingProfile");
 const BrokerIntegration = require("../models/BrokerIntegration");
+const MarketplaceSettings = require("../models/MarketplaceSettings");
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
@@ -27,6 +29,76 @@ const CLOUD_AGENT_KEY=clean(process.env.GH_BROWSER_AGENT_KEY);
 const cloudAgentHeartbeats=new Map();
 const cloudConsoleQueues=new Map();
 const cloudConsoleFrames=new Map();
+const claimQueues=new Map();
+const claimTickets=new Map();
+const claimResultListeners=new Set();
+const CLAIM_TTL_MS=20000;
+
+function enqueueClaimCommand(input={}){
+  const tenantId=clean(input.tenantId),connectionId=clean(input.connectionId);
+  const externalTripId=clean(input.externalTripId);
+  const selector=clean(input.selector);
+  const sourceUrl=clean(input.sourceUrl);
+  if(!tenantId || !connectionId || !externalTripId || !selector || !sourceUrl ||
+     !["LONG","SHORT"].includes(clean(input.engine))) return null;
+  for(const [id,ticket] of claimTickets){
+    if(Date.now()-Date.parse(ticket.command.createdAt)>60000) claimTickets.delete(id);
+  }
+  const command={commandId:crypto.randomBytes(16).toString("hex"),tenantId,
+    connectionId,externalTripId,selector,sourceUrl,engine:clean(input.engine),
+    createdAt:new Date().toISOString()};
+  const queue=claimQueues.get(connectionId)||[];
+  queue.push(command);
+  claimQueues.set(connectionId,queue);
+  claimTickets.set(command.commandId,{command,state:"PREPARING"});
+  return command;
+}
+
+function activateClaimCommand(commandId){
+  const ticket=claimTickets.get(clean(commandId));
+  if(!ticket || ticket.state!=="PREPARING") return false;
+  ticket.state="QUEUED";
+  return true;
+}
+
+function cancelClaimCommand(commandId){
+  const ticket=claimTickets.get(clean(commandId));
+  if(!ticket || !["PREPARING","QUEUED"].includes(ticket.state)) return;
+  claimTickets.delete(ticket.command.commandId);
+  const queue=claimQueues.get(ticket.command.connectionId)||[];
+  claimQueues.set(ticket.command.connectionId,
+    queue.filter(command=>command.commandId!==ticket.command.commandId));
+}
+
+function takeClaimCommands(connectionIds=[]){
+  const out=[];
+  for(const id of connectionIds.map(clean).filter(Boolean)){
+    const queue=claimQueues.get(id)||[];
+    while(queue.length && out.length<50){
+      const command=queue.shift();
+      const ticket=claimTickets.get(command.commandId);
+      if(!ticket) continue;
+      if(ticket.state==="PREPARING"){
+        queue.unshift(command);
+        break;
+      }
+      if(Date.now()-Date.parse(command.createdAt)>CLAIM_TTL_MS){
+        claimTickets.delete(command.commandId);
+        continue;
+      }
+      ticket.state="DISPATCHED";
+      out.push(command);
+    }
+    if(out.length>=50) break;
+  }
+  return out;
+}
+
+function registerClaimResultListener(listener){
+  if(typeof listener!=="function") return ()=>{};
+  claimResultListeners.add(listener);
+  return ()=>claimResultListeners.delete(listener);
+}
 
 function consoleQueue(connectionId){
   const id=clean(connectionId);
@@ -698,7 +770,8 @@ function ingestNormalizedTrips(store,payload,meta){
     if(index>=0){
       // Preserve complete details when an in-progress portal refresh omits cells.
       const previous=store.normalizedTrips[index];
-      for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip",
+      for(const field of ["memberName","memberPhone","appointmentTime","tripDate","tripNumber",
+        "pickupAddress","dropoffAddress","pickupZip","dropoffZip",
         "pickupLat","pickupLng","dropoffLat","dropoffLng","tripMiles",
         "pickupTime","dropoffTime","mode"]){
         if((trip[field]===undefined || trip[field]===null || trip[field]==="" ||
@@ -1860,7 +1933,9 @@ function tripEventFingerprint(trip={}){
     pickupAddress:clean(trip.pickupAddress),
     dropoffAddress:clean(trip.dropoffAddress),
     mode:clean(trip.mode),
-    tripMiles:Number(trip.tripMiles ?? 0)
+    tripMiles:Number(trip.tripMiles ?? 0),
+    availableForAccept:trip.availableForAccept===true,
+    acceptActionSelector:clean(trip.acceptActionSelector)
   });
 
   let hash=0;
@@ -2212,11 +2287,56 @@ router.get("/agent/control",verifyCloudAgent,async(req,res)=>{
       consoleCommands:
         takeConsoleCommands(
           connections.map(row=>row.connectionId)
-        )
+        ),
+      claimCommands:
+        takeClaimCommands(connections.map(row=>row.connectionId))
     });
   }catch(e){
     return res.status(500).json({success:false,message:e.message});
   }
+});
+
+// Recheck the persisted toggle just before any browser click. A setting
+// change made after discovery therefore cancels a still-pending command.
+router.post("/agent/claim-authorization",verifyCloudAgent,express.json({limit:"16kb"}),async(req,res)=>{
+  try{
+    const ticket=claimTickets.get(clean(req.body?.commandId));
+    const command=ticket?.command;
+    if(!command || ticket.state!=="DISPATCHED" ||
+       command.connectionId!==clean(req.body?.connectionId) ||
+       Date.now()-Date.parse(command.createdAt)>CLAIM_TTL_MS){
+      return res.status(409).json({success:false,message:"Claim command expired or unavailable"});
+    }
+    const [settings,connection]=await Promise.all([
+      MarketplaceSettings.findOne({tenantId:command.tenantId}).lean(),
+      BrokerIntegration.findOne({_id:command.connectionId,tenantId:command.tenantId,
+        connectionMode:"MARKETPLACE_PORTAL",enabled:true,featureVisible:true,billingEnabled:true}).lean()
+    ]);
+    const engine=command.engine==="LONG"?settings?.longEngine:settings?.shortEngine;
+    if(!connection || settings?.enabled!==true || engine?.enabled!==true || engine?.autoAccept!==true){
+      return res.status(409).json({success:false,message:"Auto Accept is disabled for this connection/engine"});
+    }
+    ticket.state="AUTHORIZED";
+    return res.json({success:true,commandId:command.commandId});
+  }catch(err){return res.status(500).json({success:false,message:err.message});}
+});
+
+router.post("/agent/claim-result",verifyCloudAgent,express.json({limit:"16kb"}),async(req,res)=>{
+  try{
+    const ticket=claimTickets.get(clean(req.body?.commandId));
+    if(!ticket || ticket.command.connectionId!==clean(req.body?.connectionId) ||
+       !["DISPATCHED","AUTHORIZED"].includes(ticket.state)){
+      return res.status(409).json({success:false,message:"Unknown claim command"});
+    }
+    claimTickets.delete(ticket.command.commandId);
+    const result={command:ticket.command,clicked:req.body?.clicked===true,
+      confirmed:req.body?.confirmed===true && req.body?.clicked===true,
+      message:clean(req.body?.message).slice(0,500)};
+    for(const listener of claimResultListeners){
+      try{await listener(result);}catch(err){console.error("[claim-result]",err);}
+    }
+    return res.json({success:true});
+  }catch(err){return res.status(500).json({success:false,message:err.message});}
 });
 
 
@@ -3246,5 +3366,10 @@ router.getNormalizedTripsForConnection=function(id,connectionId){
   const store=tenantStore(String(id),clean(connectionId));
   return Array.isArray(store.normalizedTrips)?store.normalizedTrips.map(t=>({...t})):[];
 };
+
+router.enqueueClaimCommand=enqueueClaimCommand;
+router.activateClaimCommand=activateClaimCommand;
+router.cancelClaimCommand=cancelClaimCommand;
+router.registerClaimResultListener=registerClaimResultListener;
 
 module.exports=router;

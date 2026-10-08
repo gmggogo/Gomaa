@@ -11,8 +11,8 @@ IMPORTANT:
 - Uses BrokerIntegration connectionId, NOT brokerCode=MT.
 - Reads normalized trips from providerPortalBridgeRoutes per connectionId.
 - Uses the existing Long / Short engine settings.
-- Marketplace Portal scan remains READ ONLY for Claim/Accept until a
-  broker-specific claim adapter is implemented and authorized.
+- The portal claim is sent only for a fresh discovery with Auto Accept on.
+- A confirmed portal claim is imported through the External Trip service.
 - Activity is stored in the existing Marketplace Activity collection for
   compatibility, but every new row is scoped by connectionId.
 */
@@ -32,6 +32,9 @@ const Activity =
 const BrokerIntegration =
   require("../models/BrokerIntegration");
 
+const Tenant =
+  require("../models/Tenant");
+
 const longEngine =
   require("../services/mtm/mtmLongTripEngine");
 
@@ -40,6 +43,9 @@ const shortEngine =
 
 const providerPortalBridgeRoutes =
   require("./providerPortalBridgeRoutes");
+
+const {createExternalTrip} =
+  require("../services/externalTripService");
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -260,12 +266,12 @@ function normalizeEngine(value={}){
       tripMilesMax,
 
     dailyTripLimit:
-      Math.max(
+      Math.trunc(Math.max(
         0,
         Number(
           value.dailyTripLimit
         ) || 0
-      ),
+      )),
 
     pickupTimeFrom:
       clean(
@@ -671,12 +677,41 @@ async function selectedByEngine(
   settings
 ){
 
+  // Match only dated rides through the configured number of calendar days
+  // ahead. A missing or ambiguous date must never be auto claimed.
+  let timeZone="UTC";
+  if(settings?.tenantId){
+    const tenant=await Tenant.findById(settings.tenantId).select("timezone").lean();
+    timeZone=clean(tenant?.timezone)||"UTC";
+  }
+  let today;
+  try{today=new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
+  catch(_){today=new Date().toISOString().slice(0,10);}
+  const end=new Date(`${today}T00:00:00.000Z`);
+  end.setUTCDate(end.getUTCDate()+Math.min(31,Math.max(1,
+    Math.trunc(Number(settings?.dateWindowDays)||7))));
+  const last=end.toISOString().slice(0,10);
+  const inWindow=trips.filter(trip=>{
+    const value=clean(trip.tripDate || trip.appointmentDate || trip.date);
+    let date=value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+    if(date) date=`${date[1]}-${date[2]}-${date[3]}`;
+    else{
+      const us=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      date=us?`${us[3]}-${us[1].padStart(2,"0")}-${us[2].padStart(2,"0")}`:"";
+    }
+    if(!date) return false;
+    const parsed=new Date(`${date}T00:00:00.000Z`);
+    if(!Number.isFinite(parsed.getTime()) ||
+       parsed.toISOString().slice(0,10)!==date) return false;
+    return date>=today && date<=last;
+  });
+
   const [longTrips,shortTrips]=await Promise.all([
     settings?.longEngine?.enabled
-      ? enrichZoneDistances(trips,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
+      ? enrichZoneDistances(inWindow,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
       : [],
     settings?.shortEngine?.enabled
-      ? enrichZoneDistances(trips,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
+      ? enrichZoneDistances(inWindow,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
       : []
   ]);
 
@@ -691,7 +726,8 @@ async function logEngineMatches(
   connection,
   engineName,
   trips,
-  engineSettings
+  engineSettings,
+  options={}
 ){
 
   const results = [];
@@ -710,20 +746,15 @@ async function logEngineMatches(
       }
     );
 
-    /*
-      Generic portal scan is still discovery/evaluation only.
-      A broker-specific authorized Claim/Accept adapter will replace
-      this SKIPPED phase later.
-    */
-    const reason =
-      engineSettings?.autoAccept === true
-        ? "PORTAL_CLAIM_ADAPTER_NOT_ACTIVE"
-        : "AUTO_ACCEPT_OFF";
+    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
+    if(claim.queued){
+      results.push({engine:engineName,externalTripId:clean(trip.externalTripId || trip.portalTripId),
+        matched:true,claimed:false,reason:"CLAIM_QUEUED"});
+      continue;
+    }
 
-    const message =
-      engineSettings?.autoAccept === true
-        ? `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Claim/Accept is blocked until this broker's authorized claim adapter is active`
-        : `${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; Auto Accept is OFF`;
+    const reason=claim.reason;
+    const message=`${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; ${reason}`;
 
     await logActivity(
       id,
@@ -753,6 +784,136 @@ async function logEngineMatches(
   return results;
 }
 
+const claimLocks=new Map();
+const tenantClaimGates=new Map();
+async function maybeQueueClaim(...args){
+  const id=args[0];
+  const previous=tenantClaimGates.get(id)||Promise.resolve();
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  tenantClaimGates.set(id,gate);
+  await previous;
+  try{return await queueClaimWithinTenant(...args);}
+  finally{
+    release();
+    if(tenantClaimGates.get(id)===gate) tenantClaimGates.delete(id);
+  }
+}
+async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
+  if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
+  if(options.source!=="DISCOVERY") return {reason:"LIVE_DISCOVERY_ONLY"};
+  const discoveredAt=Date.parse(options.receivedAt);
+  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
+    return {reason:"DISCOVERY_TOO_OLD"};
+  const externalTripId=clean(trip.externalTripId || trip.portalTripId);
+  const selector=clean(trip.acceptActionSelector);
+  if(!externalTripId || !clean(trip.tripDate) || !clean(trip.pickupTime) ||
+     !clean(trip.memberName) || !clean(trip.pickupAddress) ||
+     !clean(trip.dropoffAddress) || !clean(trip.mode))
+    return {reason:"MISSING_EXTERNAL_HUB_FIELDS"};
+  if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
+     !/\b(claim|accept)\b/i.test(clean(trip.acceptActionText)))
+    return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
+  const key=`${id}:${connection._id}:${externalTripId}`;
+  if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
+  claimLocks.set(key,Date.now());
+  let command=null;
+  try{
+    const already=await Activity.findOne({tenantId:id,externalTripId,
+      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
+    if(already) return {reason:"ALREADY_ATTEMPTED"};
+    const since=new Date(Date.now()-86400000);
+    const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
+    const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
+    if(totalLimit>0){
+      const count=await Activity.countDocuments({tenantId:id,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
+      if(count>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
+    }
+    if(engineLimit>0){
+      const count=await Activity.countDocuments({tenantId:id,engine:engineName,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
+      if(count>=engineLimit) return {reason:"ENGINE_DAILY_LIMIT"};
+    }
+    command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
+      connectionId:String(connection._id),engine:engineName,externalTripId,
+      selector,sourceUrl:trip.sourceUrl});
+    if(!command) return {reason:"CLAIM_QUEUE_UNAVAILABLE"};
+    await logActivity(id,connection,"CLAIM_ATTEMPT",{engine:engineName,trip,
+      message:`${engineName} claim queued for live trip ${externalTripId}`,
+      meta:{claimCommandId:command.commandId,tripSnapshot:{
+        portalTripId:externalTripId,tripDate:clean(trip.tripDate),
+        pickupTime:clean(trip.pickupTime),appointmentTime:clean(trip.appointmentTime),
+        memberName:clean(trip.memberName),memberPhone:clean(trip.memberPhone),
+        pickupAddress:clean(trip.pickupAddress),dropoffAddress:clean(trip.dropoffAddress),
+        mode:clean(trip.mode)
+      }}});
+    if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
+      throw new Error("Claim command could not be activated");
+    return {queued:true};
+  }catch(err){
+    if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
+    claimLocks.delete(key);
+    return {reason:`CLAIM_QUEUE_ERROR: ${clean(err.message).slice(0,120)}`};
+  }
+}
+
+function serviceKeyForClaim(mode){
+  if(/wheelchair/i.test(clean(mode))) return "WH";
+  if(/ambulatory/i.test(clean(mode))) return "ST";
+  return clean(mode);
+}
+
+async function handleClaimResult(result){
+  const command=result.command;
+  const connection=await BrokerIntegration.findOne({
+    _id:command.connectionId,tenantId:command.tenantId
+  }).lean();
+  if(!connection) throw new Error("Claimed broker connection was not found");
+  const meta={claimCommandId:command.commandId,connectionId:command.connectionId};
+  await logActivity(command.tenantId,connection,
+    result.confirmed?"CLAIMED":result.clicked?"CLAIM_ATTEMPT":"CLAIM_FAILED",
+    {engine:command.engine,externalTripId:command.externalTripId,
+      message:result.confirmed?"Portal confirmed the claim":
+        result.clicked?"Claim button clicked; portal confirmation was not observed":
+        `Claim was not clicked: ${result.message}`,
+      reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
+      meta});
+  if(!result.confirmed) return;
+
+  try{
+    const attempt=await Activity.findOne({tenantId:command.tenantId,
+      "meta.claimCommandId":command.commandId,action:"CLAIM_ATTEMPT",
+      "meta.tripSnapshot":{$exists:true}}).lean();
+    const trip=attempt?.meta?.tripSnapshot;
+    if(!trip || !trip.tripDate || !trip.pickupTime || !trip.memberName ||
+       !trip.pickupAddress || !trip.dropoffAddress)
+      throw new Error("Confirmed claim lacks the trip details required by External Hub");
+    const imported=await createExternalTrip({
+      tenantId:command.tenantId,tenantSlug:connection.tenantSlug||"",
+      integrationId:connection._id,brokerCode:connection.brokerCode,
+      brokerName:connection.brokerName,connectionType:"PORTAL",source:"BROKER",
+      payload:{externalTripId:command.externalTripId,tripDate:trip.tripDate,
+        tripTime:trip.pickupTime,appointmentTime:trip.appointmentTime,
+        clientName:trip.memberName,clientPhone:trip.memberPhone,
+        pickup:trip.pickupAddress,dropoff:trip.dropoffAddress,
+        serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
+        brokerStatus:"ACCEPTED"}
+    });
+    await logActivity(command.tenantId,connection,"IMPORTED",{
+      engine:command.engine,externalTripId:command.externalTripId,
+      message:imported.duplicate?"Claimed trip already exists in External Hub":
+        "Confirmed portal claim imported to External Hub",meta});
+  }catch(err){
+    await logActivity(command.tenantId,connection,"ERROR",{
+      engine:command.engine,externalTripId:command.externalTripId,
+      reason:"EXTERNAL_HUB_IMPORT_FAILED",
+      message:`Portal claim confirmed; External Hub import failed: ${clean(err.message).slice(0,300)}`,
+      meta});
+  }
+}
+
+if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
+  providerPortalBridgeRoutes.registerClaimResultListener(handleClaimResult);
+
 
 
 /* =========================
@@ -766,7 +927,8 @@ async function evaluateConnectionTrips({
   connection,
   settings,
   rawTrips,
-  source="AUTO"
+  source="AUTO",
+  receivedAt=""
 }){
   const trips =
     (Array.isArray(rawTrips) ? rawTrips : [])
@@ -806,14 +968,16 @@ async function evaluateConnectionTrips({
         connection,
         "LONG",
         longTrips,
-        settings.longEngine || {}
+        settings.longEngine || {},
+        {source,receivedAt,settings}
       ),
       logEngineMatches(
         id,
         connection,
         "SHORT",
         shortTrips,
-        settings.shortEngine || {}
+        settings.shortEngine || {},
+        {source,receivedAt,settings}
       )
     ]);
 
@@ -894,7 +1058,8 @@ if(
         connection,
         settings,
         rawTrips:Array.isArray(event?.trips) ? event.trips : [],
-        source:"DISCOVERY"
+        source:"DISCOVERY",
+        receivedAt:event?.receivedAt
       });
     }
   );
@@ -971,7 +1136,7 @@ router.put(
           "MTM_PORTAL",
 
         dateWindowDays:
-          Math.min(
+          Math.trunc(Math.min(
             31,
             Math.max(
               1,
@@ -979,15 +1144,15 @@ router.put(
                 body.dateWindowDays
               ) || 7
             )
-          ),
+          )),
 
         totalDailyTripLimit:
-          Math.max(
+          Math.trunc(Math.max(
             0,
             Number(
               body.totalDailyTripLimit
             ) || 0
-          ),
+          )),
 
         longEngine:
           normalizeEngine(

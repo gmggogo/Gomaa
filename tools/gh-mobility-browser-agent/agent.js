@@ -14,7 +14,8 @@ WHAT IT DOES
 - The account owner enters username/password/MFA directly on the broker portal.
 - Observes structured JSON network responses and sends them to:
     /api/provider-portal-bridge/discovery
-- Discovery is READ ONLY. No Claim/Accept is performed here.
+- Discovery remains read only. The separate /claim path executes a scoped,
+  one-time authorized action on a verified trip row.
 
 SECURITY
 - Portal login text entered through the GH Login Console is encrypted in the admin browser with the Oracle agent public key and decrypted only inside this local controller.
@@ -808,6 +809,7 @@ class PortalSession{
     this.pageProbeBusy=false;
     this.lastDomFingerprint="";
     this.lastDomSentAt=0;
+    this.claimAttempted=new Set();
 
     // Generic SaaS auto-monitoring state. These are isolated per connectionId.
     this.lastAutoNavigateAt=0;
@@ -2725,6 +2727,84 @@ class PortalSession{
     return evaluated?.result?.value || {blocked:false,text:""};
   }
 
+  async claimTrip(body={}){
+    if(!clean(body.agentToken) || clean(body.agentToken)!==this.agentToken){
+      return {clicked:false,confirmed:false,message:"Claim authorization is missing"};
+    }
+    if(!this.ws || this.ws.readyState!==WebSocket.OPEN){
+      return {clicked:false,confirmed:false,message:"Broker browser is not connected"};
+    }
+    const id=clean(body.externalTripId),selector=clean(body.selector);
+    const sourceUrl=clean(body.sourceUrl),discoveredAt=Date.parse(body.createdAt);
+    if(!id || id.length>80 || !selector || selector.length>1000 || !sourceUrl ||
+       !Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>20000){
+      return {clicked:false,confirmed:false,message:"Claim data missing or discovery expired"};
+    }
+    const attemptedKey=`${this.connectionId}:${id}`;
+    if(this.claimAttempted.has(attemptedKey)){
+      return {clicked:false,confirmed:false,message:"Claim already attempted in this browser session"};
+    }
+    let expected;
+    try{expected=new URL(sourceUrl);}catch(_){
+      return {clicked:false,confirmed:false,message:"Invalid listing URL"};
+    }
+    if(!["https:","http:"].includes(expected.protocol) ||
+       expected.origin!==new URL(this.portalUrl).origin){
+      return {clicked:false,confirmed:false,message:"Claim page is outside this broker portal"};
+    }
+    const expression=`(()=>{
+      const p=${JSON.stringify({id,selector,origin:expected.origin,path:expected.pathname})};
+      if(location.origin!==p.origin || location.pathname!==p.path)
+        return {ready:false,message:"Broker listing page changed"};
+      let elements;
+      try{elements=[...document.querySelectorAll(p.selector)];}
+      catch(_){return {ready:false,message:"Invalid claim selector"};}
+      if(elements.length!==1) return {ready:false,message:"Claim selector is no longer unique"};
+      const button=elements[0];
+      const row=button.closest('tr,[role="row"],article,[class*="card" i]');
+      if(!row) return {ready:false,message:"Claim button is not inside a trip row"};
+      const escaped=p.id.replace(/[.*+?^\${}()|[\]\\]/g,'\\$&');
+      const idPattern=new RegExp('(^|[^A-Za-z0-9])'+escaped+'($|[^A-Za-z0-9])');
+      if(!idPattern.test(row.innerText||row.textContent||''))
+        return {ready:false,message:"Trip ID does not match claim row"};
+      const label=String(button.innerText||button.textContent||button.value||
+        button.getAttribute('aria-label')||'').trim();
+      if(!/\\b(claim|accept)\\b/i.test(label) || button.disabled ||
+         button.getAttribute('aria-disabled')==='true')
+        return {ready:false,message:"Claim action is unavailable"};
+      const rect=button.getBoundingClientRect();
+      if(rect.width<=0 || rect.height<=0 || getComputedStyle(button).visibility==='hidden')
+        return {ready:false,message:"Claim button is hidden"};
+      button.click();
+      return {ready:true};
+    })()`;
+    let result;
+    try{
+      const evaluated=await this.send("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true});
+      result=evaluated?.result?.value;
+      if(evaluated?.exceptionDetails) throw new Error("Portal click script failed");
+    }catch(err){return {clicked:false,confirmed:false,message:err.message};}
+    if(result?.ready!==true) return {clicked:false,confirmed:false,message:result?.message||"Claim row not verified"};
+    this.claimAttempted.add(attemptedKey);
+    for(let attempt=0;attempt<4;attempt++){
+      await new Promise(resolve=>setTimeout(resolve,400));
+      const check=`(()=>{
+        const id=${JSON.stringify(id)};
+        const nodes=[...document.querySelectorAll('tr,[role="row"],article,[class*="card" i]')];
+        const row=nodes.find(el=>String(el.innerText||'').includes(id));
+        const text=String(row?.innerText||'');
+        return /\\b(claimed|accepted|assigned)\\b/i.test(text) &&
+          !/\\b(unclaimed|not accepted)\\b/i.test(text);
+      })()`;
+      try{
+        const state=await this.send("Runtime.evaluate",{expression:check,returnByValue:true});
+        if(state?.result?.value===true)
+          return {clicked:true,confirmed:true,message:"Portal row shows claimed/accepted status"};
+      }catch(_){break;}
+    }
+    return {clicked:true,confirmed:false,message:"Claim clicked; confirmation not observed"};
+  }
+
   async consoleAction(body={}){
     if(
       !this.ws ||
@@ -3433,6 +3513,22 @@ const controller=
             },
             origin
           );
+        }
+      }
+
+      if(
+        req.method==="POST" &&
+        requestUrl.pathname==="/claim"
+      ){
+        try{
+          const body=await readRequestBody(req);
+          const session=sessions.get(clean(body.connectionId));
+          if(!session) return json(res,404,{clicked:false,confirmed:false,
+            message:"Broker browser session was not found"},origin);
+          const result=await session.claimTrip(body);
+          return json(res,200,result,origin);
+        }catch(err){
+          return json(res,400,{clicked:false,confirmed:false,message:err.message},origin);
         }
       }
 

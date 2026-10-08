@@ -311,6 +311,8 @@
 
     $("totalDailyTripLimit").value=
       Number(settings.totalDailyTripLimit)||0;
+    $("dateWindowDays").value=
+      Number(settings.dateWindowDays)||7;
 
     fillEngine("long",settings.longEngine||{});
     fillEngine("short",settings.shortEngine||{});
@@ -355,6 +357,7 @@
       const payload={
         enabled:$("enabled").value==="true",
         totalDailyTripLimit:Number($("totalDailyTripLimit").value)||0,
+        dateWindowDays:Number($("dateWindowDays").value)||7,
         longEngine:readEngine("long"),
         shortEngine:readEngine("short")
       };
