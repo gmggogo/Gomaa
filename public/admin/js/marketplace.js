@@ -982,6 +982,21 @@ Marketplace multi-broker UI.
     const item=selectedConnection();
     if(!item) return;
 
+    const overlay=$("loginConsoleOverlay");
+    const broker=$("loginConsoleBroker");
+
+    /*
+      Open the window immediately on every click.
+      Network / Oracle errors are displayed INSIDE the window instead of
+      preventing the window from appearing.
+    */
+    state.loginConsole.open=true;
+
+    if(overlay){
+      overlay.classList.add("open");
+      overlay.setAttribute("aria-hidden","false");
+    }
+
     if(!hasPaidMarketplaceAccess(item)){
       setLoginConsoleStatus(
         "Marketplace access is disabled by Platform Admin or billing is inactive."
@@ -989,23 +1004,14 @@ Marketplace multi-broker UI.
       return;
     }
 
-    const overlay=$("loginConsoleOverlay");
-    const broker=$("loginConsoleBroker");
-
     if(broker){
       broker.textContent=
         `${item.brokerName || item.brokerCode || "Broker"} · ${item.accountLabel || "Primary Account"}`;
     }
 
-    state.loginConsole.open=true;
     state.loginConsole.frame=null;
     state.loginConsole.publicKey=null;
     state.loginConsole.actionChain=Promise.resolve();
-
-    if(overlay){
-      overlay.classList.add("open");
-      overlay.setAttribute("aria-hidden","false");
-    }
 
     setLoginConsoleStatus(
       "Opening Oracle broker browser..."
@@ -1411,198 +1417,27 @@ Marketplace multi-broker UI.
       return;
     }
 
+    /*
+      The Oracle cloud runner owns the browser session automatically.
+      This button must NEVER wait for cloud-status/local-agent checks before
+      showing the portal. Every click opens/reopens the same portal window.
+    */
     try{
       $("connectBtn").disabled=true;
 
-      /*
-        Oracle Cloud Agent is the primary always-on agent. When it is online,
-        never fall back to 127.0.0.1 on the admin's laptop and never show the
-        old "agent is not running on this computer" message.
-      */
-      const cloudResult=
-        await bridge(
-          "/agent-cloud-status"
-        )
-        .catch(
-          ()=>({
-            success:false,
-            nodes:[]
-          })
-        );
+      await openLoginConsole();
 
-      const cloudSelected=
-        selectedCloudAgentState(
-          cloudResult,
-          item
-        );
-
-      if(cloudSelected?.agentOnline===true){
-        state.cloudAgentStatus=
-          cloudResult;
-        state.localStatus=
-          cloudSelected;
-
-        const session=
-          cloudSelected?.session ||
-          null;
-
-        const authenticated=
-          session?.running===true &&
-          session?.debugAttached===true &&
-          session?.loginDetected===true;
-
-        if(authenticated){
-          $("connectionStatus").textContent=
-            "Oracle Cloud Agent is connected and authenticated for this broker. Opening portal...";
-          renderReadiness();
-          renderConnectLoginVisibility();
-
-          await openLoginConsole();
-          return;
-        }
-
-        $("connectionStatus").textContent=
-          "Broker login is required. Opening secure Oracle login...";
-
-        renderReadiness();
-        renderConnectLoginVisibility();
-
-        await openLoginConsole();
-        return;
-      }
-
-      $("connectionStatus").textContent=
-        "Running preflight checks...";
-
-      const serverCheck=
-        await bridge(
-          `/preflight?connectionId=${encodeURIComponent(item.connectionId)}`
-        );
-
-      if(serverCheck.ready!==true){
-        throw new Error(
-          serverCheck.message ||
-          "Server-side Marketplace preflight did not pass."
-        );
-      }
-
-      const localCheck=
-        await localAgent(
-          "/preflight",
-          {
-            method:"POST",
-            body:
-              JSON.stringify({
-                connectionId:
-                  item.connectionId,
-
-                portalUrl:
-                  item.portalUrl ||
-                  serverCheck.portalUrl ||
-                  "",
-
-                ghBaseUrl:
-                  window.location.origin
-              })
-          }
-        );
-
-      if(localCheck.ready!==true){
-        throw new Error(
-          localCheck.message ||
-          "Local Browser Agent preflight did not pass."
-        );
-      }
-
-      $("connectionStatus").textContent=
-        "Preflight passed. Starting secure browser connection...";
-
-      /*
-        GH creates a short-lived connection-scoped discovery token.
-        It is handed directly to the local GH Browser Agent and is never
-        displayed to the Super Admin.
-      */
-      const prepared=
-        await bridge(
-          "/pair",
-          {
-            method:"POST",
-            body:JSON.stringify({
-              connectionId:item.connectionId
-            })
-          }
-        );
-
-      const portalUrl=
-        prepared.portalUrl ||
-        item.portalUrl ||
-        "";
-
-      if(!portalUrl){
-        throw new Error(
-          "Provider Portal URL is missing for this broker connection."
-        );
-      }
-
-      const result=
-        await localAgent(
-          "/connect",
-          {
-            method:"POST",
-            body:JSON.stringify({
-              ghBaseUrl:
-                window.location.origin,
-              agentToken:
-                prepared.agentToken,
-              connectionId:
-                prepared.connectionId ||
-                item.connectionId,
-              portalUrl,
-              brokerName:
-                prepared.brokerName ||
-                item.brokerName ||
-                "",
-              brokerCode:
-                prepared.brokerCode ||
-                item.brokerCode ||
-                "",
-              accountLabel:
-                prepared.accountLabel ||
-                item.accountLabel ||
-                "Primary Account"
-            })
-          }
-        );
-
-      $("connectionStatus").textContent=
-        result.alreadyRunning
-          ? "Broker browser is already open. Continue in that window."
-          : "Broker browser opened. Sign in directly on the broker website.";
-
-      await load();
-      await refreshPreflight();
+      await refreshPreflight()
+        .catch(()=>{});
 
     }catch(err){
-      const message=
-        String(
-          err?.message ||
-          err ||
-          ""
-        );
-
-      if(
-        err?.name==="AbortError" ||
-        /failed to fetch|networkerror|load failed/i.test(message)
-      ){
-        $("connectionStatus").textContent=
-          "Oracle Cloud Agent is not available right now, and no local fallback agent was found on this computer.";
-      }else{
-        $("connectionStatus").textContent=
-          message ||
-          "Failed to start broker connection.";
-      }
+      setLoginConsoleStatus(
+        err?.message ||
+        "Could not open the broker portal."
+      );
     }finally{
       $("connectBtn").disabled=false;
+      renderConnectLoginVisibility();
     }
   }
 
