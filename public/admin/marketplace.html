@@ -533,6 +533,11 @@
     .activity-body{
       padding:14px 16px 16px;
     }
+    .scan-counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px auto;max-width:800px}
+    .scan-count{background:#fff;border:1px solid #b9cfdf;border-radius:10px;padding:10px;text-align:center}
+    .scan-count strong{display:block;font-size:26px;color:#17446b}
+    .scan-count span{font-size:13px;color:#3c586c;font-weight:700}
+    @media(max-width:600px){.scan-counts{grid-template-columns:1fr}}
 
 
     /* Activity row status colors */
@@ -706,8 +711,8 @@
 
             <div id="connectionStatus" class="muted" style="margin-top:10px"></div>
 
-            <div id="agentDiagnostics" class="agent-diagnostics" hidden>
-              <div class="agent-diagnostics-title">Oracle Session Diagnostics</div>
+            <details id="agentDiagnostics" class="agent-diagnostics" hidden>
+              <summary class="agent-diagnostics-title">Technical diagnostics</summary>
               <div class="agent-diagnostics-grid">
                 <div class="agent-diag-cell"><span class="agent-diag-label">Current URL</span><span id="diagCurrentUrl" class="agent-diag-value">—</span></div>
                 <div class="agent-diag-cell"><span class="agent-diag-label">Page Title</span><span id="diagCurrentTitle" class="agent-diag-value">—</span></div>
@@ -721,7 +726,7 @@
                 <div class="agent-diag-cell"><span class="agent-diag-label">Mapper</span><span id="diagMapper" class="agent-diag-value">—</span></div>
                 <div class="agent-diag-cell agent-diag-error"><span class="agent-diag-label">Last Error</span><span id="diagLastError" class="agent-diag-value">—</span></div>
               </div>
-            </div>
+            </details>
           </div>
         </section>
 
@@ -737,15 +742,15 @@
 
         <section class="card activity-card">
           <div class="activity-head">
-            <h2>Marketplace Activity</h2>
+            <h2>Matched Trips</h2>
             <div class="muted">
-              Only activity for the selected broker/account appears here.
+              Current scan counts for the selected broker. Only matching trips appear below.
             </div>
-            <div class="activity-actions">
-              <button id="clearActivityViewBtn" type="button">Clear Activity View</button>
-              <button id="showActivityHistoryBtn" type="button" hidden>Show Previous Activity</button>
+            <div class="scan-counts" aria-live="polite">
+              <div class="scan-count"><strong id="availableCount">—</strong><span>Available in latest scan</span></div>
+              <div class="scan-count"><strong id="matchedCount">—</strong><span>Matched</span></div>
+              <div class="scan-count"><strong id="importedCount">—</strong><span>Sent to External Hub</span></div>
             </div>
-            <div id="activityViewStatus" class="muted" role="status" aria-live="polite"></div>
           </div>
 
           <div class="activity-body">
@@ -753,24 +758,17 @@
             <table>
               <thead>
                 <tr>
-                  <th>Activity Time</th>
-                  <th>Engine</th>
-                  <th>Action</th>
-                  <th>Broker / Account</th>
                   <th>Trip #</th>
-                  <th>Trip Date</th>
-                  <th>Pickup Time</th>
+                  <th>Date / Time</th>
                   <th>Pickup Address</th>
                   <th>Dropoff Address</th>
                   <th>Service</th>
                   <th>Miles</th>
-                  <th>Filter Result</th>
-                  <th>Zone Distance</th>
-                  <th>Message</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody id="activityRows">
-                <tr><td colspan="14">No activity yet.</td></tr>
+                <tr><td colspan="7">No matched trips yet.</td></tr>
               </tbody>
             </table>
             </div>

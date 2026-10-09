@@ -789,6 +789,7 @@ async function logEngineMatches(
 
 const claimLocks=new Map();
 const tenantClaimGates=new Map();
+const latestScanSummaries=new Map();
 async function maybeQueueClaim(...args){
   const id=args[0];
   const previous=tenantClaimGates.get(id)||Promise.resolve();
@@ -939,6 +940,11 @@ async function handleClaimResult(result){
     }).select("_id ghExternalTripNumber").lean();
     if(!hubTrip)
       throw new Error("Accepted trip was not found in External Hub after import");
+    const summary=latestScanSummaries.get(`${command.tenantId}:${command.connectionId}`);
+    if(summary?.matchedIds.has(String(command.externalTripId))){
+      summary.importedIds.add(String(command.externalTripId));
+      summary.imported=summary.importedIds.size;
+    }
     await logActivity(command.tenantId,connection,"IMPORTED",{
       engine:command.engine,externalTripId:command.externalTripId,
       message:imported.duplicate?"Claimed trip already exists in External Hub":
@@ -964,11 +970,21 @@ if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
    - Saving settings re-evaluates the current normalized trip buffer.
 ========================= */
 
+function buildScanSummary(trips,longTrips,shortTrips,importedIds=[]){
+  const matchedIds=new Set([...longTrips,...shortTrips]
+    .map(trip=>String(trip.externalTripId||trip.portalTripId||"").trim())
+    .filter(Boolean));
+  const importedSet=new Set(importedIds.map(String).filter(id=>matchedIds.has(id)));
+  return {available:trips.length,matched:matchedIds.size,
+    imported:importedSet.size,matchedIds,importedIds:importedSet};
+}
+
 async function evaluateConnectionTrips({
   id,
   connection,
   settings,
   rawTrips,
+  summaryTrips,
   source="AUTO",
   receivedAt=""
 }){
@@ -978,6 +994,10 @@ async function evaluateConnectionTrips({
       .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
 
   if(!trips.length){
+    const inventory=Array.isArray(summaryTrips)?summaryTrips:rawTrips;
+    latestScanSummaries.set(`${id}:${connection._id}`,
+      {...buildScanSummary(Array.isArray(inventory)?inventory:[],[],[]),
+        observedAt:new Date().toISOString()});
     return {
       scanned:0,
       longMatched:0,
@@ -1009,6 +1029,24 @@ async function evaluateConnectionTrips({
         {source,receivedAt,settings}
       )
     ]);
+
+  {
+    const inventory=Array.isArray(summaryTrips)?summaryTrips:rawTrips;
+    const inventoryTrips=(Array.isArray(inventory)?inventory:[])
+      .map(tripForEngine).filter(trip=>Boolean(trip.externalTripId||trip.tripNumber));
+    const inventoryMatches=await selectedByEngine(inventoryTrips,settings);
+    const matchedIds=[...new Set([...inventoryMatches.longTrips,...inventoryMatches.shortTrips]
+      .map(trip=>String(trip.externalTripId||trip.portalTripId||"").trim())
+      .filter(Boolean))];
+    // Claims have already been queued; this display query cannot delay Accept.
+    const imported=matchedIds.length
+      ? await ExternalTrip.find({tenantId:id,brokerCode:connection.brokerCode,
+          externalTripId:{$in:matchedIds}}).select("externalTripId").lean()
+      : [];
+    latestScanSummaries.set(`${id}:${connection._id}`,
+      {...buildScanSummary(inventoryTrips,inventoryMatches.longTrips,inventoryMatches.shortTrips,
+        imported.map(trip=>trip.externalTripId)),observedAt:new Date().toISOString()});
+  }
 
   await Settings.updateOne(
     {tenantId:id},
@@ -1087,6 +1125,7 @@ if(
         connection,
         settings,
         rawTrips:Array.isArray(event?.trips) ? event.trips : [],
+        summaryTrips:providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId),
         source:event?.discoveryType==="DOM" ? "DISCOVERY" : "NETWORK_DISCOVERY",
         receivedAt:event?.receivedAt
       });
@@ -1098,6 +1137,19 @@ if(
    ENGINE SETTINGS
    Generic endpoint; retains the existing stored settings through the MarketplaceSettings compatibility model.
 ========================= */
+
+router.get("/scan-summary",(req,res)=>{
+  const id=tenantId(req);
+  const connectionId=clean(req.query.connectionId);
+  if(!id || !connectionId)
+    return res.status(400).json({success:false,message:"Broker connection is required"});
+  const summary=latestScanSummaries.get(`${id}:${connectionId}`);
+  return res.json({success:true,summary:summary
+    ? {available:summary.available,matched:summary.matched,
+       imported:summary.imported,observedAt:summary.observedAt,
+       matchedTripIds:[...summary.matchedIds]}
+    : null});
+});
 
 router.get(
   "/settings",
@@ -1296,13 +1348,25 @@ router.get(
       const rank={IMPORTED:7,ERROR:6,CLAIMED:5,CLAIM_FAILED:4,
         CLAIM_ATTEMPT:3,SKIPPED:2,MATCHED:1};
       const chosen=new Map();
+      const details=new Map();
       for(const row of events){
         const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
+        if(!details.has(key) && (row?.meta?.pickupAddress || row?.meta?.dropoffAddress))
+          details.set(key,row);
         const previous=chosen.get(key);
         if(!previous || (rank[row.action]||0)>(rank[previous.action]||0))
           chosen.set(key,row);
       }
-      const rows=[...chosen.values()]
+      const rows=[...chosen.entries()].map(([key,row])=>{
+        const trip=details.get(key);
+        if(!trip) return row;
+        return {...trip,...row,
+          tripDate:row.tripDate||trip.tripDate,
+          pickupTime:row.pickupTime||trip.pickupTime,
+          mode:row.mode||trip.mode,
+          miles:row.miles??trip.miles,
+          meta:{...trip.meta,...row.meta}};
+      })
         .sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
         .slice(0,limit);
 

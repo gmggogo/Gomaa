@@ -192,6 +192,7 @@ Marketplace multi-broker UI.
   const state={
     connections:[],
     activity:[],
+    scanSummary:null,
     selectedConnectionId:"",
     localStatus:null,
     cloudAgentStatus:null,
@@ -1196,8 +1197,15 @@ Marketplace multi-broker UI.
       state.activity.filter(row=>{
         const id=rowConnectionId(row);
         const rowId=String(row?._id || "").toLowerCase();
-        return Boolean(id) && id===selected && (!cutoff || rowId>cutoff);
+        return Boolean(id) && id===selected && (!cutoff || rowId>cutoff) &&
+          Array.isArray(state.scanSummary?.matchedTripIds) &&
+          state.scanSummary.matchedTripIds.includes(String(row.externalTripId||"")) &&
+          ["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED","ERROR"]
+            .includes(String(row.action||"").toUpperCase());
       });
+
+    for(const [id,key] of [["availableCount","available"],["matchedCount","matched"],["importedCount","imported"]])
+      if($(id)) $(id).textContent=state.scanSummary ? String(state.scanSummary[key] ?? 0) : "—";
 
     if($("showActivityHistoryBtn"))
       $("showActivityHistoryBtn").hidden=!cutoff;
@@ -1225,39 +1233,20 @@ Marketplace multi-broker UI.
 
             return `
             <tr class="${rowClass}">
-              <td>
-                ${r.occurredAt
-                  ? esc(new Date(r.occurredAt).toLocaleString())
-                  : "—"}
-              </td>
-              <td>${esc(r.engine || "—")}</td>
-              <td>${esc(r.action || "—")}</td>
-              <td>
-                ${esc(
-                  [
-                    r.meta?.brokerName,
-                    r.meta?.accountLabel
-                  ]
-                  .filter(Boolean)
-                  .join(" / ") ||
-                  selectedConnection()?.brokerName ||
-                  "—"
-                )}
-              </td>
-              <td>${esc(friendlyTripNumber(r))}</td>
-              <td>${esc(displayTripDate(r))}</td>
-              <td>${esc(displayPickupTime(r))}</td>
+              <td>${esc(r.meta?.hubTripNumber || r.externalTripId || friendlyTripNumber(r))}</td>
+              <td>${esc(displayTripDate(r))}<br>${esc(displayPickupTime(r))}</td>
               <td>${esc(r.meta?.pickupAddress || "—")}</td>
               <td>${esc(r.meta?.dropoffAddress || "—")}</td>
               <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
-              <td>${esc(r.reason || (r.action==="MATCHED" ? "MATCHED" : "—"))}</td>
-              <td>${esc(zoneDistance(r))}</td>
-              <td>${esc(r.message || "")}</td>
+              <td>${esc(r.action === "IMPORTED" ? "In External Hub" :
+                r.action === "CLAIMED" ? "Accepted, importing" :
+                r.action === "MATCHED" ? "Matched, awaiting Accept" :
+                `${r.action || "—"}${r.reason ? `: ${r.reason}` : ""}`)}</td>
             </tr>
           `;
           }).join("")
-        : '<tr><td colspan="14">No activity for this broker/account yet.</td></tr>';
+        : '<tr><td colspan="7">No matched trips for this broker/account yet.</td></tr>';
   }
 
   function renderAll(){
@@ -1554,6 +1543,13 @@ Marketplace multi-broker UI.
               `/activity?connectionId=${encodeURIComponent(connectionId)}&limit=200`
             )
           : {activity:[]};
+
+      const summaryData=connectionId
+        ? await market(`/scan-summary?connectionId=${encodeURIComponent(connectionId)}`)
+            .catch(()=>({summary:null}))
+        : {summary:null};
+
+      state.scanSummary=summaryData.summary || null;
 
       state.activity=
         Array.isArray(activityData.activity)
