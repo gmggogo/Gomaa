@@ -18,6 +18,7 @@ IMPORTANT:
 */
 
 const express = require("express");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const https = require("https");
 
@@ -1235,7 +1236,8 @@ router.get(
         );
 
       const filter = {
-        tenantId:id,
+        // Aggregation does not cast ObjectId fields like Mongoose find() does.
+        tenantId:new mongoose.Types.ObjectId(id),
         // Activity is the result of the configured engines, not an inventory
         // of every trip the broker portal exposed.
         action:{$in:["MATCHED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
