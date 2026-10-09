@@ -184,7 +184,8 @@ async function processClaimCommands(commands=[],connections=new Map()) {
         {connectionId,commandId:command.commandId},authHeaders(),5000);
       result=await requestJson("POST",`${LOCAL_BASE}/claim`,{
         connectionId,commandId:command.commandId,externalTripId:command.externalTripId,
-        selector:command.selector,sourceUrl:command.sourceUrl,createdAt:command.createdAt,
+        selector:command.selector,actionText:command.actionText,
+        sourceUrl:command.sourceUrl,createdAt:command.createdAt,
         agentToken:connections.get(connectionId)?.agentToken||""
       },{},10000);
     }catch(err){

@@ -2735,8 +2735,10 @@ class PortalSession{
       return {clicked:false,confirmed:false,message:"Broker browser is not connected"};
     }
     const id=clean(body.externalTripId),selector=clean(body.selector);
+    const actionText=clean(body.actionText);
     const sourceUrl=clean(body.sourceUrl),discoveredAt=Date.parse(body.createdAt);
-    if(!id || id.length>80 || !selector || selector.length>1000 || !sourceUrl ||
+    if(!id || id.length>80 || !selector || selector.length>1000 ||
+       !actionText || actionText.length>120 || !sourceUrl ||
        !Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>20000){
       return {clicked:false,confirmed:false,message:"Claim data missing or discovery expired"};
     }
@@ -2753,7 +2755,7 @@ class PortalSession{
       return {clicked:false,confirmed:false,message:"Claim page is outside this broker portal"};
     }
     const expression=`(()=>{
-      const p=${JSON.stringify({id,selector,origin:expected.origin,path:expected.pathname})};
+      const p=${JSON.stringify({id,selector,actionText,origin:expected.origin,path:expected.pathname})};
       if(location.origin!==p.origin || location.pathname!==p.path)
         return {ready:false,message:"Broker listing page changed"};
       let elements;
@@ -2769,7 +2771,11 @@ class PortalSession{
         return {ready:false,message:"Trip ID does not match claim row"};
       const label=String(button.innerText||button.textContent||button.value||
         button.getAttribute('aria-label')||'').trim();
-      if(!/\\b(claim|accept)\\b/i.test(label) || button.disabled ||
+      const normalized=s=>String(s||'').trim().replace(/\\s+/g,' ').toLowerCase();
+      if(normalized(label)!==normalized(p.actionText) ||
+         !/\\b(accept|claim|take|book|reserve|assign|select\\s+trip|add\\s+trip|choose\\s+trip)\\b/i.test(label) ||
+         /\\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\\b/i.test(label) ||
+         button.disabled ||
          button.getAttribute('aria-disabled')==='true')
         return {ready:false,message:"Claim action is unavailable"};
       const rect=button.getBoundingClientRect();
@@ -2793,8 +2799,8 @@ class PortalSession{
         const nodes=[...document.querySelectorAll('tr,[role="row"],article,[class*="card" i]')];
         const row=nodes.find(el=>String(el.innerText||'').includes(id));
         const text=String(row?.innerText||'');
-        return /\\b(claimed|accepted|assigned)\\b/i.test(text) &&
-          !/\\b(unclaimed|not accepted)\\b/i.test(text);
+        return /\\b(claimed|accepted|assigned|booked|reserved|taken)\\b/i.test(text) &&
+          !/\\b(unclaimed|not accepted|not booked|not reserved)\\b/i.test(text);
       })()`;
       try{
         const state=await this.send("Runtime.evaluate",{expression:check,returnByValue:true});

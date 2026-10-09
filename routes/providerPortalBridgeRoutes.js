@@ -39,13 +39,15 @@ function enqueueClaimCommand(input={}){
   const externalTripId=clean(input.externalTripId);
   const selector=clean(input.selector);
   const sourceUrl=clean(input.sourceUrl);
+  const actionText=clean(input.actionText).slice(0,120);
   if(!tenantId || !connectionId || !externalTripId || !selector || !sourceUrl ||
+     !actionText ||
      !["LONG","SHORT"].includes(clean(input.engine))) return null;
   for(const [id,ticket] of claimTickets){
     if(Date.now()-Date.parse(ticket.command.createdAt)>60000) claimTickets.delete(id);
   }
   const command={commandId:crypto.randomBytes(16).toString("hex"),tenantId,
-    connectionId,externalTripId,selector,sourceUrl,engine:clean(input.engine),
+    connectionId,externalTripId,selector,sourceUrl,actionText,engine:clean(input.engine),
     createdAt:new Date().toISOString()};
   const queue=claimQueues.get(connectionId)||[];
   queue.push(command);
@@ -120,6 +122,12 @@ function enqueueConsoleCommand(connectionId,command={}){
   };
 
   const queue=consoleQueue(id);
+  // The UI polls faster than a remote screenshot round trip. Keep navigation
+  // and input actions in order, but collapse redundant pending screenshots.
+  if(clean(command.action).toUpperCase()==="SCREENSHOT"){
+    const pending=queue.find(item=>item.action==="SCREENSHOT");
+    if(pending) return pending;
+  }
   queue.push(item);
   if(queue.length>50){
     queue.splice(0,queue.length-50);

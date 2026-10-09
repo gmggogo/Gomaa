@@ -734,6 +734,8 @@ async function logEngineMatches(
 
   for(const trip of trips){
 
+    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
+
     await logActivity(
       id,
       connection,
@@ -746,7 +748,6 @@ async function logEngineMatches(
       }
     );
 
-    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
     if(claim.queued){
       results.push({engine:engineName,externalTripId:clean(trip.externalTripId || trip.portalTripId),
         matched:true,claimed:false,reason:"CLAIM_QUEUED"});
@@ -807,12 +808,14 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {reason:"DISCOVERY_TOO_OLD"};
   const externalTripId=clean(trip.externalTripId || trip.portalTripId);
   const selector=clean(trip.acceptActionSelector);
+  const actionText=clean(trip.acceptActionText);
   if(!externalTripId || !clean(trip.tripDate) || !clean(trip.pickupTime) ||
      !clean(trip.memberName) || !clean(trip.pickupAddress) ||
      !clean(trip.dropoffAddress) || !clean(trip.mode))
     return {reason:"MISSING_EXTERNAL_HUB_FIELDS"};
   if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
-     !/\b(claim|accept)\b/i.test(clean(trip.acceptActionText)))
+     !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
+     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
@@ -835,7 +838,7 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     }
     command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
       connectionId:String(connection._id),engine:engineName,externalTripId,
-      selector,sourceUrl:trip.sourceUrl});
+      selector,actionText,sourceUrl:trip.sourceUrl});
     if(!command) return {reason:"CLAIM_QUEUE_UNAVAILABLE"};
     await logActivity(id,connection,"CLAIM_ATTEMPT",{engine:engineName,trip,
       message:`${engineName} claim queued for live trip ${externalTripId}`,
@@ -945,19 +948,6 @@ async function evaluateConnectionTrips({
     };
   }
 
-  for(const trip of trips){
-    await logActivity(
-      id,
-      connection,
-      "SEEN",
-      {
-        engine:"SYSTEM",
-        trip,
-        message:`Marketplace trip seen (${source}): ${clean(trip.externalTripId || trip.tripNumber)}`
-      }
-    );
-  }
-
   const {longTrips,shortTrips}=
     await selectedByEngine(trips,settings);
 
@@ -980,6 +970,19 @@ async function evaluateConnectionTrips({
         {source,receivedAt,settings}
       )
     ]);
+
+  for(const trip of trips){
+    await logActivity(
+      id,
+      connection,
+      "SEEN",
+      {
+        engine:"SYSTEM",
+        trip,
+        message:`Marketplace trip seen (${source}): ${clean(trip.externalTripId || trip.tripNumber)}`
+      }
+    );
+  }
 
   await Settings.updateOne(
     {tenantId:id},
