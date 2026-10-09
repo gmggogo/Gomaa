@@ -2,1577 +2,1860 @@
 
 /*
 DESTINATION PATH:
-server/routes/marketplaceRoutes.js
+server/public/admin/js/marketplace.js
 
-PURPOSE:
-Generic Marketplace backend for any Marketplace Portal broker connection.
-
-IMPORTANT:
-- Uses BrokerIntegration connectionId, NOT brokerCode=MT.
-- Reads normalized trips from providerPortalBridgeRoutes per connectionId.
-- Uses the existing Long / Short engine settings.
-- The portal claim is sent only for a fresh discovery with Auto Accept on.
-- A confirmed portal claim is imported through the External Trip service.
-- Activity is stored in the existing Marketplace Activity collection for
-  compatibility, but every new row is scoped by connectionId.
+Marketplace multi-broker UI.
+- Left broker/account navigation.
+- One selected broker at a time.
+- Connection-specific activity only.
+- Legacy/unscoped activity is intentionally hidden.
+- Manual Pair Token UI is removed from the Super Admin page.
 */
 
-const express = require("express");
-const jwt = require("jsonwebtoken");
-const https = require("https");
+(()=>{
+  const $=id=>document.getElementById(id);
 
-const router = express.Router();
+  const token=()=>String(
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token") ||
+    ""
+  ).trim();
 
-const Settings =
-  require("../models/MarketplaceSettings");
+  const headers=()=>({
+    "Content-Type":"application/json",
+    Authorization:`Bearer ${token()}`
+  });
 
-const Activity =
-  require("../models/MarketplaceActivity");
+  const esc=v=>String(v??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 
-const BrokerIntegration =
-  require("../models/BrokerIntegration");
 
-const Tenant =
-  require("../models/Tenant");
+  function friendlyTripNumber(row={}){
+    const value=String(
+      row.meta?.tripNumber ||
+      row.tripNumber ||
+      ""
+    ).trim();
 
-const longEngine =
-  require("../services/mtm/mtmLongTripEngine");
+    const internal=String(
+      row.externalTripId ||
+      row.meta?.portalTripId ||
+      ""
+    ).trim();
 
-const shortEngine =
-  require("../services/mtm/mtmShortTripEngine");
-
-const providerPortalBridgeRoutes =
-  require("./providerPortalBridgeRoutes");
-
-const {createExternalTrip} =
-  require("../services/externalTripService");
-
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  "dev_secret";
-
-const clean =
-  value =>
-    String(value ?? "").trim();
-
-function bearerToken(req){
-
-  const raw =
-    clean(
-      req.headers.authorization
-    );
-
-  if(
-    !raw
-      .toLowerCase()
-      .startsWith("bearer ")
-  ){
-    return "";
-  }
-
-  return raw
-    .slice(7)
-    .trim();
-}
-
-function auth(req,res,next){
-
-  const raw =
-    bearerToken(req);
-
-  if(!raw){
-    return res.status(401).json({
-      success:false,
-      message:"Access Denied"
-    });
-  }
-
-  try{
-
-    const user =
-      jwt.verify(
-        raw,
-        JWT_SECRET
-      );
-
-    const role =
-      clean(
-        user.role
-      ).toUpperCase();
+    if(!value){
+      return "—";
+    }
 
     if(
-      ![
-        "PLATFORM_ADMIN",
-        "SUPER_ADMIN",
-        "ADMIN"
-      ].includes(role)
+      internal &&
+      value===internal
     ){
-      return res.status(403).json({
-        success:false,
-        message:"Access Denied"
-      });
+      return "—";
     }
 
-    req.authUser =
-      user;
+    if(
+      value.length>=16 &&
+      /^[A-Za-z0-9+/_=-]+$/.test(value) &&
+      !/^\d+$/.test(value)
+    ){
+      return "—";
+    }
 
-    next();
-
-  }catch(_err){
-
-    return res.status(401).json({
-      success:false,
-      message:"Invalid Token"
-    });
+    return value;
   }
-}
 
-router.use(
-  auth
-);
-
-function tenantId(req){
-
-  const role =
-    clean(
-      req.authUser?.role
-    ).toUpperCase();
-
-  if(
-    role === "PLATFORM_ADMIN" &&
-    clean(
-      req.query?.tenantId ||
-      req.body?.tenantId
-    )
-  ){
-    return clean(
-      req.query?.tenantId ||
-      req.body?.tenantId
+  function displayTripDate(row={}){
+    const raw=String(
+      row.tripDate ||
+      row.meta?.tripDate ||
+      row.pickupTime ||
+      row.meta?.tripTime ||
+      ""
     );
+
+    const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[2]}/${m[3]}/${m[1]}` : (raw || "—");
   }
 
-  return clean(
-    req.authUser?.tenantId ||
-    req.authUser?.companyId ||
-    req.authUser?.organizationId
-  );
-}
+  function displayPickupTime(row={}){
+    const raw=String(
+      row.pickupTime ||
+      row.meta?.tripTime ||
+      row.meta?.appointmentTime ||
+      ""
+    );
 
-function zipList(value){
+    const m=raw.match(/T?(\d{1,2}):(\d{2})/);
+    if(!m) return raw || "—";
 
-  return (
-    Array.isArray(value)
-      ? value
-      : String(value || "")
-          .split(/[\s,]+/)
-  )
-  .map(clean)
-  .filter(Boolean);
-}
+    let hour=Number(m[1]);
+    const minute=m[2];
+    const ap=hour>=12 ? "PM" : "AM";
+    hour=hour%12 || 12;
 
-function normalizeEngine(value={}){
+    return `${hour}:${minute} ${ap}`;
+  }
+
+  function zoneDistance(row={}){
+    const zone=row.meta?.zone || {};
+    const parts=[];
+
+    if(Number.isFinite(Number(zone.pickupDistanceMiles))){
+      parts.push(`PU ${Number(zone.pickupDistanceMiles).toFixed(1)} mi`);
+    }
+
+    if(Number.isFinite(Number(zone.dropoffDistanceMiles))){
+      parts.push(`DO ${Number(zone.dropoffDistanceMiles).toFixed(1)} mi`);
+    }
+
+    return parts.join(" / ") || "—";
+  }
+
+
+  async function api(base,path,opt={}){
+    const res=await fetch(
+      base+path,
+      {
+        ...opt,
+        headers:{
+          ...headers(),
+          ...(opt.headers||{})
+        },
+        cache:"no-store"
+      }
+    );
+
+    const data=await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        `HTTP ${res.status}`
+      );
+    }
+
+    return data;
+  }
+
+  const bridge=(p,o)=>
+    api("/api/provider-portal-bridge",p,o);
+
+  const market=(p,o)=>
+    api("/api/marketplace",p,o);
 
   /*
-    Marketplace Settings UI now sends tripMilesMin / tripMilesMax and
-    the full zone-center fields. Keep milesMin / milesMax mirrored for
-    the existing Long/Short matching engines, which still read those
-    legacy names.
+    Local Browser Agent controller.
+    The agent is installed once on the office computer and starts with Windows.
+    Super Admin never sees/copies pairing tokens.
   */
-  const tripMilesMin =
-    Math.max(
-      0,
-      Number(
-        value.tripMilesMin ??
-        value.milesMin
-      ) || 0
-    );
-
-  const tripMilesMax =
-    Math.max(
-      0,
-      Number(
-        value.tripMilesMax ??
-        value.milesMax
-      ) || 0
-    );
-
-  const zoneRadiusMiles =
-    Math.max(
-      0,
-      Number(
-        value.zoneRadiusMiles ??
-        200
-      ) || 0
-    );
-
-  const pickupZoneZip =
-    clean(
-      value.pickupZoneZip
-    );
-
-  const dropoffZoneZip =
-    clean(
-      value.dropoffZoneZip
-    );
-
-  const pickupZipCodes =
-    zipList(
-      value.pickupZipCodes
-    );
-
-  const dropoffZipCodes =
-    zipList(
-      value.dropoffZipCodes
-    );
-
-  if(
-    pickupZoneZip &&
-    !pickupZipCodes.includes(pickupZoneZip)
-  ){
-    pickupZipCodes.unshift(
-      pickupZoneZip
-    );
-  }
-
-  if(
-    dropoffZoneZip &&
-    !dropoffZipCodes.includes(dropoffZoneZip)
-  ){
-    dropoffZipCodes.unshift(
-      dropoffZoneZip
-    );
-  }
-
-  return {
-    enabled:
-      value.enabled === true,
-
-    autoAccept:
-      value.autoAccept === true,
-
-    zoneRadiusMiles,
-
-    tripMilesMin,
-    tripMilesMax,
-
-    /*
-      Backward compatibility for mtmLongTripEngine / mtmShortTripEngine.
-      These engines currently evaluate settings.milesMin / milesMax.
-    */
-    milesMin:
-      tripMilesMin,
-
-    milesMax:
-      tripMilesMax,
-
-    dailyTripLimit:
-      Math.trunc(Math.max(
-        0,
-        Number(
-          value.dailyTripLimit
-        ) || 0
-      )),
-
-    pickupTimeFrom:
-      clean(
-        value.pickupTimeFrom
-      ) || "00:00",
-
-    pickupTimeTo:
-      clean(
-        value.pickupTimeTo
-      ) || "23:59",
-
-    dropoffTimeFrom:
-      clean(
-        value.dropoffTimeFrom
-      ) || "00:00",
-
-    dropoffTimeTo:
-      clean(
-        value.dropoffTimeTo
-      ) || "23:59",
-
-    pickupZipCodes,
-    dropoffZipCodes,
-
-    pickupZoneCity:
-      clean(
-        value.pickupZoneCity
-      ),
-
-    pickupZoneState:
-      clean(
-        value.pickupZoneState
-      ).toUpperCase(),
-
-    pickupZoneZip,
-
-    pickupZoneAddress:
-      clean(
-        value.pickupZoneAddress
-      ),
-
-    dropoffZoneCity:
-      clean(
-        value.dropoffZoneCity
-      ),
-
-    dropoffZoneState:
-      clean(
-        value.dropoffZoneState
-      ).toUpperCase(),
-
-    dropoffZoneZip,
-
-    dropoffZoneAddress:
-      clean(
-        value.dropoffZoneAddress
-      ),
-
-    zoneMatch:
-      [
-        "ANY",
-        "PICKUP",
-        "DROPOFF",
-        "EITHER",
-        "BOTH"
-      ].includes(
-        clean(
-          value.zoneMatch
-        ).toUpperCase()
-      )
-        ? clean(
-            value.zoneMatch
-          ).toUpperCase()
-        : "ANY",
-
-    modes:
-      zipList(
-        value.modes
-      )
-  };
-}
-
-async function getSettings(id){
-
-  let doc =
-    await Settings.findOne({
-      tenantId:id
-    });
-
-  if(!doc){
-
-    doc =
-      await Settings.create({
-        tenantId:id,
-        enabled:true,
-        connectionMethod:"MTM_PORTAL",
-        dateWindowDays:7,
-        totalDailyTripLimit:0
-      });
-  }
-
-  return doc;
-}
-
-function tripForEngine(trip={}){
-
-  const miles =
-    Number(
-      trip.tripMiles ??
-      trip.miles ??
-      0
-    );
-
-  return {
-    ...trip,
-
-    externalTripId:
-      clean(
-        trip.externalTripId ||
-        trip.portalTripId
-      ),
-
-    tripNumber:
-      clean(
-        trip.tripNumber ||
-        trip.portalTripId
-      ),
-
-    miles:
-      Number.isFinite(miles)
-        ? miles
-        : 0,
-
-    tripMiles:
-      Number.isFinite(miles)
-        ? miles
-        : 0,
-
-    pickup:
-      trip.pickup ||
-      trip.pickupAddress ||
-      "",
-
-    dropoff:
-      trip.dropoff ||
-      trip.dropoffAddress ||
-      "",
-
-    mode:
-      clean(
-        trip.mode ||
-        trip.serviceType ||
-        trip.levelOfService
-      )
-  };
-}
-
-// A zone is a circle around its configured center, measured in straight-line
-// miles. Cache geocoding results so a recurring discovery does not re-query
-// the same addresses every scan.
-const geoCache=new Map();
-function googleKey(){
-  return process.env.GOOGLE_SERVER_KEY || process.env.GOOGLE_SERVER_API_KEY ||
-    process.env.GOOGLE_MAPS_SERVER_KEY || process.env.SERVER_GOOGLE_MAPS_KEY ||
-    process.env.GOOGLE_MAPS_API_KEY || "";
-}
-function geocode(address){
-  const key=googleKey();
-  if(!key || !clean(address)) return Promise.resolve(null);
-  const cacheKey=clean(address).toLowerCase();
-  const previous=geoCache.get(cacheKey);
-  if(previous && previous.until>Date.now()) return previous.promise;
-  const url=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${encodeURIComponent(key)}`;
-  const promise=new Promise(resolve=>{
-    const request=https.get(url,response=>{
-      let body="";
-      response.on("data",part=>{ if(body.length<100000) body+=part; });
-      response.on("end",()=>{
-        try{
-          const result=JSON.parse(body);
-          const point=result.status==="OK" ? result.results?.[0]?.geometry?.location : null;
-          resolve(validPoint(point?.lat,point?.lng) ? point : null);
-        }catch(_err){ resolve(null); }
-      });
-    });
-    request.setTimeout(5000,()=>request.destroy());
-    request.on("error",()=>resolve(null));
-  });
-  geoCache.set(cacheKey,{promise,until:Date.now()+60000});
-  promise.then(point=>geoCache.set(cacheKey,{
-    promise:Promise.resolve(point),until:Date.now()+(point?86400000:60000)
-  }));
-  return promise;
-}
-function validPoint(lat,lng){
-  return lat!==null && lat!==undefined && lat!=="" &&
-    lng!==null && lng!==undefined && lng!=="" &&
-    Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
-    Math.abs(Number(lat))<=90 && Math.abs(Number(lng))<=180;
-}
-function milesBetween(a,b){
-  const rad=n=>Number(n)*Math.PI/180;
-  const dLat=rad(b.lat)-rad(a.lat),dLng=rad(b.lng)-rad(a.lng);
-  const v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
-  return 3958.7613*2*Math.asin(Math.min(1,Math.sqrt(v)));
-}
-function centerText(settings,side){
-  const prefix=side==="pickup"?"pickup":"dropoff";
-  return clean(settings[`${prefix}ZoneAddress`]) ||
-    [settings[`${prefix}ZoneCity`],settings[`${prefix}ZoneState`],settings[`${prefix}ZoneZip`]]
-      .map(clean).filter(Boolean).join(", ");
-}
-async function enrichZoneDistances(trips,settings){
-  const zone=clean(settings?.zoneMatch).toUpperCase();
-  if(!["PICKUP","DROPOFF","EITHER","BOTH"].includes(zone)) return trips;
-  const sides=zone==="PICKUP"?["pickup"]:zone==="DROPOFF"?["dropoff"]:["pickup","dropoff"];
-  const centers={};
-  await Promise.all(sides.map(async side=>{centers[side]=await geocode(centerText(settings,side));}));
-  return Promise.all(trips.map(async trip=>{
-    const zoneDistances={};
-    await Promise.all(sides.map(async side=>{
-      const center=centers[side];
-      if(!center) return;
-      const lat=trip[`${side}Lat`],lng=trip[`${side}Lng`];
-      const point=validPoint(lat,lng)?{lat:Number(lat),lng:Number(lng)}:
-        await geocode(trip[side] || trip[`${side}Address`]);
-      if(point) zoneDistances[`${side}DistanceMiles`]=milesBetween(center,point);
-    }));
-    return {...trip,zoneDistances};
-  }));
-}
-
-function activityMeta(
-  connection,
-  trip={}
-){
-
-  return {
-    connectionId:
-      String(
-        connection._id
-      ),
-
-    marketplaceConnectionId:
-      String(
-        connection._id
-      ),
-
-    brokerIntegrationId:
-      String(
-        connection._id
-      ),
-
-    brokerCode:
-      clean(
-        connection.brokerCode
-      ),
-
-    brokerName:
-      clean(
-        connection.brokerName
-      ),
-
-    accountLabel:
-      clean(
-        connection.accountLabel ||
-        "Primary Account"
-      ),
-
-    sourceHost:
-      clean(
-        trip.sourceHost ||
-        connection.sourceHost
-      )
-  };
-}
-
-async function logActivity(
-  id,
-  connection,
-  action,
-  data={}
-){
-
-  const trip =
-    data.trip ||
-    {};
-
-  return Activity.create({
-
-    tenantId:id,
-
-    integrationId:
-      connection._id,
-
-    engine:
-      clean(
-        data.engine ||
-        "SYSTEM"
-      ),
-
-    action:
-      clean(
-        action
-      ),
-
-    externalTripId:
-      clean(
-        trip.externalTripId ||
-        trip.portalTripId ||
-        trip.tripNumber ||
-        data.externalTripId
-      ),
-
-    message:
-      clean(
-        data.message
-      ),
-
-    reason:
-      clean(
-        data.reason
-      ),
-
-    miles:
-      Number.isFinite(
-        Number(
-          trip.tripMiles ??
-          trip.miles
-        )
-      )
-        ? Number(
-            trip.tripMiles ??
-            trip.miles
-          )
-        : null,
-
-    tripDate:
-      clean(
-        trip.tripDate ||
-        trip.appointmentDate ||
-        trip.date
-      ),
-
-    pickupTime:
-      clean(
-        trip.pickupTime
-      ),
-
-    mode:
-      clean(
-        trip.mode
-      ),
-
-    meta:{
-      ...activityMeta(
-        connection,
-        trip
-      ),
-      pickupAddress:clean(trip.pickupAddress || trip.pickup),
-      dropoffAddress:clean(trip.dropoffAddress || trip.dropoff),
-      pickupZip:clean(trip.pickupZip),
-      dropoffZip:clean(trip.dropoffZip),
-      zone:{...(trip.zoneDistances || {})},
-      ...(data.meta || {})
-    }
-  });
-}
-
-async function marketplaceConnection(
-  id,
-  connectionId
-){
-
-  const connection =
-    await BrokerIntegration.findOne({
-      _id:connectionId,
-      tenantId:id,
-      connectionMode:"MARKETPLACE_PORTAL",
-      enabled:true,
-      featureVisible:true,
-      billingEnabled:true
-    });
-
-  if(!connection){
-
-    const err =
-      new Error(
-        "Marketplace broker connection was not found or is disabled"
+  const LOCAL_AGENT_ORIGIN="http://127.0.0.1:18733";
+
+  async function localAgent(path,opt={}){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),5000);
+
+    try{
+      const response=await fetch(
+        `${LOCAL_AGENT_ORIGIN}${path}`,
+        {
+          ...opt,
+          mode:"cors",
+          cache:"no-store",
+          signal:controller.signal,
+          headers:{
+            "Content-Type":"application/json",
+            ...(opt.headers||{})
+          }
+        }
       );
 
-    err.statusCode =
-      404;
+      const data=await response.json().catch(()=>({}));
 
-    throw err;
-  }
+      if(!response.ok){
+        throw new Error(
+          data.message ||
+          `Local Agent HTTP ${response.status}`
+        );
+      }
 
-  return connection;
-}
-
-async function selectedByEngine(
-  trips,
-  settings
-){
-
-  // Match only dated rides through the configured number of calendar days
-  // ahead. A missing or ambiguous date must never be auto claimed.
-  let timeZone="UTC";
-  if(settings?.tenantId){
-    const tenant=await Tenant.findById(settings.tenantId).select("timezone").lean();
-    timeZone=clean(tenant?.timezone)||"UTC";
-  }
-  let today;
-  try{today=new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
-  catch(_){today=new Date().toISOString().slice(0,10);}
-  const end=new Date(`${today}T00:00:00.000Z`);
-  end.setUTCDate(end.getUTCDate()+Math.min(31,Math.max(1,
-    Math.trunc(Number(settings?.dateWindowDays)||7))));
-  const last=end.toISOString().slice(0,10);
-  const inWindow=trips.filter(trip=>{
-    const value=clean(trip.tripDate || trip.appointmentDate || trip.date);
-    let date=value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-    if(date) date=`${date[1]}-${date[2]}-${date[3]}`;
-    else{
-      const us=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      date=us?`${us[3]}-${us[1].padStart(2,"0")}-${us[2].padStart(2,"0")}`:"";
+      return data;
+    }finally{
+      clearTimeout(timer);
     }
-    if(!date) return false;
-    const parsed=new Date(`${date}T00:00:00.000Z`);
-    if(!Number.isFinite(parsed.getTime()) ||
-       parsed.toISOString().slice(0,10)!==date) return false;
-    return date>=today && date<=last;
-  });
+  }
 
-  const [longTrips,shortTrips]=await Promise.all([
-    settings?.longEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
-      : [],
-    settings?.shortEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
-      : []
-  ]);
-
-  return {
-    longTrips,
-    shortTrips
+  const state={
+    connections:[],
+    activity:[],
+    selectedConnectionId:"",
+    localStatus:null,
+    cloudAgentStatus:null,
+    serverPreflight:null,
+    loginConsole:{
+      open:false,
+      connectionId:"",
+      polling:false,
+      timer:null,
+      frame:null,
+      publicKey:null,
+      busy:false,
+      actionChain:Promise.resolve()
+    }
   };
-}
 
-async function logEngineMatches(
-  id,
-  connection,
-  engineName,
-  trips,
-  engineSettings,
-  options={}
-){
+  const palette=[
+    "#d79a00",
+    "#2867b2",
+    "#198754",
+    "#7b4db3",
+    "#c74f50",
+    "#0d7c86",
+    "#aa6b22",
+    "#475569"
+  ];
 
-  const results = [];
-
-  for(const trip of trips){
-
-    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
-
-    await logActivity(
-      id,
-      connection,
-      "MATCHED",
-      {
-        engine:engineName,
-        trip,
-        message:
-          `${engineName} engine matched trip ${clean(trip.externalTripId || trip.portalTripId)}`
-      }
-    );
-
-    if(claim.queued){
-      results.push({engine:engineName,externalTripId:clean(trip.externalTripId || trip.portalTripId),
-        matched:true,claimed:false,reason:"CLAIM_QUEUED"});
-      continue;
+  function hashText(value){
+    let h=0;
+    const s=String(value||"");
+    for(let i=0;i<s.length;i++){
+      h=((h<<5)-h)+s.charCodeAt(i);
+      h|=0;
     }
-
-    const reason=claim.reason;
-    const message=`${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; ${reason}`;
-
-    await logActivity(
-      id,
-      connection,
-      "SKIPPED",
-      {
-        engine:engineName,
-        trip,
-        reason,
-        message
-      }
-    );
-
-    results.push({
-      engine:engineName,
-      externalTripId:
-        clean(
-          trip.externalTripId ||
-          trip.portalTripId
-        ),
-      matched:true,
-      claimed:false,
-      reason
-    });
+    return Math.abs(h);
   }
 
-  return results;
-}
-
-const claimLocks=new Map();
-const tenantClaimGates=new Map();
-async function maybeQueueClaim(...args){
-  const id=args[0];
-  const previous=tenantClaimGates.get(id)||Promise.resolve();
-  let release;
-  const gate=new Promise(resolve=>{release=resolve;});
-  tenantClaimGates.set(id,gate);
-  await previous;
-  try{return await queueClaimWithinTenant(...args);}
-  finally{
-    release();
-    if(tenantClaimGates.get(id)===gate) tenantClaimGates.delete(id);
-  }
-}
-async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
-  if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
-  if(options.source!=="DISCOVERY") return {reason:"LIVE_DISCOVERY_ONLY"};
-  const discoveredAt=Date.parse(options.receivedAt);
-  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
-    return {reason:"DISCOVERY_TOO_OLD"};
-  const externalTripId=clean(trip.externalTripId || trip.portalTripId);
-  const selector=clean(trip.acceptActionSelector);
-  const actionText=clean(trip.acceptActionText);
-  if(!externalTripId || !clean(trip.tripDate) || !clean(trip.pickupTime) ||
-     !clean(trip.memberName) || !clean(trip.pickupAddress) ||
-     !clean(trip.dropoffAddress) || !clean(trip.mode))
-    return {reason:"MISSING_EXTERNAL_HUB_FIELDS"};
-  if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
-     !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
-     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
-    return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
-  const key=`${id}:${connection._id}:${externalTripId}`;
-  if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
-  claimLocks.set(key,Date.now());
-  let command=null;
-  try{
-    const already=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
-    if(already) return {reason:"ALREADY_ATTEMPTED"};
-    const since=new Date(Date.now()-86400000);
-    const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
-    const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
-    if(totalLimit>0){
-      const count=await Activity.countDocuments({tenantId:id,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
-      if(count>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
-    }
-    if(engineLimit>0){
-      const count=await Activity.countDocuments({tenantId:id,engine:engineName,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
-      if(count>=engineLimit) return {reason:"ENGINE_DAILY_LIMIT"};
-    }
-    command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
-      connectionId:String(connection._id),engine:engineName,externalTripId,
-      selector,actionText,sourceUrl:trip.sourceUrl});
-    if(!command) return {reason:"CLAIM_QUEUE_UNAVAILABLE"};
-    await logActivity(id,connection,"CLAIM_ATTEMPT",{engine:engineName,trip,
-      message:`${engineName} claim queued for live trip ${externalTripId}`,
-      meta:{claimCommandId:command.commandId,tripSnapshot:{
-        portalTripId:externalTripId,tripDate:clean(trip.tripDate),
-        pickupTime:clean(trip.pickupTime),appointmentTime:clean(trip.appointmentTime),
-        memberName:clean(trip.memberName),memberPhone:clean(trip.memberPhone),
-        pickupAddress:clean(trip.pickupAddress),dropoffAddress:clean(trip.dropoffAddress),
-        mode:clean(trip.mode)
-      }}});
-    if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
-      throw new Error("Claim command could not be activated");
-    return {queued:true};
-  }catch(err){
-    if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
-    claimLocks.delete(key);
-    return {reason:`CLAIM_QUEUE_ERROR: ${clean(err.message).slice(0,120)}`};
-  }
-}
-
-function serviceKeyForClaim(mode){
-  if(/wheelchair/i.test(clean(mode))) return "WH";
-  if(/ambulatory/i.test(clean(mode))) return "ST";
-  return clean(mode);
-}
-
-async function handleClaimResult(result){
-  const command=result.command;
-  const connection=await BrokerIntegration.findOne({
-    _id:command.connectionId,tenantId:command.tenantId
-  }).lean();
-  if(!connection) throw new Error("Claimed broker connection was not found");
-  const meta={claimCommandId:command.commandId,connectionId:command.connectionId};
-  await logActivity(command.tenantId,connection,
-    result.confirmed?"CLAIMED":result.clicked?"CLAIM_ATTEMPT":"CLAIM_FAILED",
-    {engine:command.engine,externalTripId:command.externalTripId,
-      message:result.confirmed?"Portal confirmed the claim":
-        result.clicked?"Claim button clicked; portal confirmation was not observed":
-        `Claim was not clicked: ${result.message}`,
-      reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
-      meta});
-  if(!result.confirmed) return;
-
-  try{
-    const attempt=await Activity.findOne({tenantId:command.tenantId,
-      "meta.claimCommandId":command.commandId,action:"CLAIM_ATTEMPT",
-      "meta.tripSnapshot":{$exists:true}}).lean();
-    const trip=attempt?.meta?.tripSnapshot;
-    if(!trip || !trip.tripDate || !trip.pickupTime || !trip.memberName ||
-       !trip.pickupAddress || !trip.dropoffAddress)
-      throw new Error("Confirmed claim lacks the trip details required by External Hub");
-    const imported=await createExternalTrip({
-      tenantId:command.tenantId,tenantSlug:connection.tenantSlug||"",
-      integrationId:connection._id,brokerCode:connection.brokerCode,
-      brokerName:connection.brokerName,connectionType:"PORTAL",source:"BROKER",
-      payload:{externalTripId:command.externalTripId,tripDate:trip.tripDate,
-        tripTime:trip.pickupTime,appointmentTime:trip.appointmentTime,
-        clientName:trip.memberName,clientPhone:trip.memberPhone,
-        pickup:trip.pickupAddress,dropoff:trip.dropoffAddress,
-        serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
-        brokerStatus:"ACCEPTED"}
-    });
-    await logActivity(command.tenantId,connection,"IMPORTED",{
-      engine:command.engine,externalTripId:command.externalTripId,
-      message:imported.duplicate?"Claimed trip already exists in External Hub":
-        "Confirmed portal claim imported to External Hub",meta});
-  }catch(err){
-    await logActivity(command.tenantId,connection,"ERROR",{
-      engine:command.engine,externalTripId:command.externalTripId,
-      reason:"EXTERNAL_HUB_IMPORT_FAILED",
-      message:`Portal claim confirmed; External Hub import failed: ${clean(err.message).slice(0,300)}`,
-      meta});
-  }
-}
-
-if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
-  providerPortalBridgeRoutes.registerClaimResultListener(handleClaimResult);
-
-
-
-/* =========================
-   AUTOMATIC MARKETPLACE EVALUATION
-   - New/changed discoveries are evaluated immediately.
-   - Saving settings re-evaluates the current normalized trip buffer.
-========================= */
-
-async function evaluateConnectionTrips({
-  id,
-  connection,
-  settings,
-  rawTrips,
-  source="AUTO",
-  receivedAt=""
-}){
-  const trips =
-    (Array.isArray(rawTrips) ? rawTrips : [])
-      .map(tripForEngine)
-      .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
-
-  if(!trips.length){
-    return {
-      scanned:0,
-      longMatched:0,
-      shortMatched:0,
-      longResults:[],
-      shortResults:[]
-    };
+  function brokerColor(item){
+    const key=
+      item?.brokerCode ||
+      item?.brokerName ||
+      item?.connectionId ||
+      "";
+    return palette[
+      hashText(key)%palette.length
+    ];
   }
 
-  const {longTrips,shortTrips}=
-    await selectedByEngine(trips,settings);
-
-  const [longResults,shortResults]=
-    await Promise.all([
-      logEngineMatches(
-        id,
-        connection,
-        "LONG",
-        longTrips,
-        settings.longEngine || {},
-        {source,receivedAt,settings}
-      ),
-      logEngineMatches(
-        id,
-        connection,
-        "SHORT",
-        shortTrips,
-        settings.shortEngine || {},
-        {source,receivedAt,settings}
-      )
-    ]);
-
-  for(const trip of trips){
-    await logActivity(
-      id,
-      connection,
-      "SEEN",
-      {
-        engine:"SYSTEM",
-        trip,
-        message:`Marketplace trip seen (${source}): ${clean(trip.externalTripId || trip.tripNumber)}`
-      }
-    );
-  }
-
-  await Settings.updateOne(
-    {tenantId:id},
-    {$set:{
-      lastScanAt:new Date(),
-      lastSuccessfulScanAt:new Date(),
-      lastError:""
-    }}
-  ).catch(()=>{});
-
-  return {
-    scanned:trips.length,
-    longMatched:longTrips.length,
-    shortMatched:shortTrips.length,
-    longResults,
-    shortResults
-  };
-}
-
-async function reEvaluateCurrentTrips(id,settings){
-  const getTrips=
-    providerPortalBridgeRoutes.getNormalizedTripsForConnection;
-
-  if(typeof getTrips!=="function"){
-    return {connections:0,scanned:0};
-  }
-
-  const connections=
-    await BrokerIntegration.find({
-      tenantId:id,
-      connectionMode:"MARKETPLACE_PORTAL",
-      enabled:true,
-      featureVisible:true,
-      billingEnabled:true
-    });
-
-  let scanned=0;
-
-  for(const connection of connections){
-    const rawTrips=getTrips(id,String(connection._id));
-    const result=await evaluateConnectionTrips({
-      id,
-      connection,
-      settings,
-      rawTrips,
-      source:"SETTINGS_SAVE"
-    });
-    scanned+=Number(result.scanned||0);
-  }
-
-  return {connections:connections.length,scanned};
-}
-
-if(
-  typeof providerPortalBridgeRoutes.registerDiscoveryListener==="function"
-){
-  providerPortalBridgeRoutes.registerDiscoveryListener(
-    async event=>{
-      const id=clean(event?.tenantId);
-      const connectionId=clean(event?.connectionId);
-
-      if(!id || !connectionId){
-        return;
-      }
-
-      const settings=await getSettings(id);
-      if(settings.enabled===false){
-        return;
-      }
-
-      const connection=
-        await marketplaceConnection(id,connectionId);
-
-      await evaluateConnectionTrips({
-        id,
-        connection,
-        settings,
-        rawTrips:Array.isArray(event?.trips) ? event.trips : [],
-        source:"DISCOVERY",
-        receivedAt:event?.receivedAt
-      });
-    }
-  );
-}
-
-/* =========================
-   ENGINE SETTINGS
-   Generic endpoint; retains the existing stored settings through the MarketplaceSettings compatibility model.
-========================= */
-
-router.get(
-  "/settings",
-  async (req,res) => {
-
-    try{
-
-      const id =
-        tenantId(req);
-
-      if(!id){
-
-        return res.status(400).json({
-          success:false,
-          message:"Tenant is required"
-        });
-      }
-
-      const settings =
-        await getSettings(id);
-
-      return res.json({
-        success:true,
-        settings
-      });
-
-    }catch(err){
-
-      return res.status(500).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to load Marketplace settings"
-      });
-    }
-  }
-);
-
-router.put(
-  "/settings",
-  async (req,res) => {
-
-    try{
-
-      const id =
-        tenantId(req);
-
-      if(!id){
-
-        return res.status(400).json({
-          success:false,
-          message:"Tenant is required"
-        });
-      }
-
-      const body =
-        req.body ||
-        {};
-
-      const update = {
-        enabled:
-          body.enabled !== false,
-
-        connectionMethod:
-          "MTM_PORTAL",
-
-        dateWindowDays:
-          Math.trunc(Math.min(
-            31,
-            Math.max(
-              1,
-              Number(
-                body.dateWindowDays
-              ) || 7
-            )
-          )),
-
-        totalDailyTripLimit:
-          Math.trunc(Math.max(
-            0,
-            Number(
-              body.totalDailyTripLimit
-            ) || 0
-          )),
-
-        longEngine:
-          normalizeEngine(
-            body.longEngine
-          ),
-
-        shortEngine:
-          normalizeEngine(
-            body.shortEngine
-          )
-      };
-
-      const settings =
-        await Settings.findOneAndUpdate(
-          {
-            tenantId:id
-          },
-          {
-            $set:update
-          },
-          {
-            new:true,
-            upsert:true,
-            setDefaultsOnInsert:true,
-            runValidators:true
-          }
-        );
-
-      const reEvaluation =
-        settings.enabled === false
-          ? {connections:0,scanned:0}
-          : await reEvaluateCurrentTrips(
-              id,
-              settings
-            );
-
-      return res.json({
-        success:true,
-        settings,
-        reEvaluation
-      });
-
-    }catch(err){
-
-      return res.status(400).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to save Marketplace settings"
-      });
-    }
-  }
-);
-
-/* =========================
-   CONNECTION-SCOPED ACTIVITY
-========================= */
-
-router.get(
-  "/activity",
-  async (req,res) => {
-
-    try{
-
-      const id =
-        tenantId(req);
-
-      if(!id){
-
-        return res.status(400).json({
-          success:false,
-          message:"Tenant is required"
-        });
-      }
-
-      const connectionId =
-        clean(
-          req.query.connectionId
-        );
-
-      const limit =
-        Math.min(
-          300,
-          Math.max(
-            1,
-            Number(
-              req.query.limit
-            ) || 100
-          )
-        );
-
-      const filter = {
-        tenantId:id
-      };
-
-      if(connectionId){
-
-        filter["meta.connectionId"] =
-          connectionId;
-      }
-
-      const rows =
-        await Activity.find(
-          filter
-        )
-        .sort({
-          occurredAt:-1
-        })
-        .limit(limit)
-        .lean();
-
-      return res.json({
-        success:true,
-        activity:rows
-      });
-
-    }catch(err){
-
-      return res.status(500).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to load Marketplace activity"
-      });
-    }
-  }
-);
-
-/*
-  Remove only old unscoped Marketplace test/activity rows that pre-date
-  connectionId isolation. Scoped/new rows are preserved.
-*/
-router.post(
-  "/activity/cleanup-legacy",
-  async (req,res) => {
-
-    try{
-
-      const id =
-        tenantId(req);
-
-      if(!id){
-
-        return res.status(400).json({
-          success:false,
-          message:"Tenant is required"
-        });
-      }
-
-      const result =
-        await Activity.deleteMany({
-          tenantId:id,
-          $or:[
-            {
-              "meta.connectionId":{
-                $exists:false
-              }
-            },
-            {
-              "meta.connectionId":""
-            },
-            {
-              meta:{
-                $exists:false
-              }
-            }
-          ]
-        });
-
-      return res.json({
-        success:true,
-        deleted:
-          Number(
-            result?.deletedCount ||
-            0
-          ),
-        message:"Legacy unscoped Marketplace activity cleared."
-      });
-
-    }catch(err){
-
-      return res.status(500).json({
-        success:false,
-        message:
-          err.message ||
-          "Failed to clear legacy Marketplace activity"
-      });
-    }
-  }
-);
-
-/* =========================
-   GENERIC MARKETPLACE SCAN
-========================= */
-
-router.post(
-  "/scan",
-  async (req,res) => {
-
-    try{
-
-      const id =
-        tenantId(req);
-
-      if(!id){
-
-        return res.status(400).json({
-          success:false,
-          message:"Tenant is required"
-        });
-      }
-
-      const connectionId =
-        clean(
-          req.body?.connectionId ||
-          req.query?.connectionId
-        );
-
-      if(!connectionId){
-
-        return res.status(400).json({
-          success:false,
-          message:"connectionId is required"
-        });
-      }
-
-      const [
-        connection,
-        settings
-      ] =
-        await Promise.all([
-          marketplaceConnection(
-            id,
-            connectionId
-          ),
-          getSettings(id)
-        ]);
-
-      if(
-        settings.enabled === false
-      ){
-
-        return res.status(409).json({
-          success:false,
-          message:"Marketplace is disabled in Settings"
-        });
-      }
-
-      const getTrips =
-        providerPortalBridgeRoutes
-          .getNormalizedTripsForConnection;
-
-      if(
-        typeof getTrips !==
-        "function"
-      ){
-
-        return res.status(500).json({
-          success:false,
-          message:"Provider Portal Bridge connection accessor is unavailable"
-        });
-      }
-
-      const rawTrips =
-        getTrips(
-          id,
-          connectionId
-        );
-
-      if(
-        !Array.isArray(rawTrips) ||
-        rawTrips.length === 0
-      ){
-
-        return res.status(409).json({
-          success:false,
-          message:
-            `No normalized trips are available for ${connection.brokerName || connection.brokerCode || "this broker"} yet`
-        });
-      }
-
-      const trips =
-        rawTrips
-          .map(
-            tripForEngine
-          )
-          .filter(
-            trip =>
-              Boolean(
-                trip.externalTripId ||
-                trip.tripNumber
-              )
+  function badge(status){
+    const s=String(
+      status || "CONFIGURED"
+    ).toUpperCase();
+
+    const c=
+      s==="CONNECTED"
+        ? "ok"
+        : (
+            ["PAIRING","WAITING_LOGIN","TESTING","CONFIGURED"]
+              .includes(s)
+              ? "warn"
+              : "bad"
           );
 
-      await logActivity(
-        id,
-        connection,
-        "SCAN",
-        {
-          engine:"SYSTEM",
-          message:
-            `Marketplace scan started for ${connection.brokerName || connection.brokerCode || "broker"} / ${connection.accountLabel || "Primary Account"}`,
-          meta:{
-            scannedCount:
-              trips.length
-          }
-        }
-      );
+    return `<span class="badge ${c}">${esc(s.replaceAll("_"," "))}</span>`;
+  }
 
-      for(
-        const trip
-        of trips
-      ){
+  function selectedConnection(){
+    return state.connections.find(
+      x=>String(x.connectionId)===
+         String(state.selectedConnectionId)
+    ) || null;
+  }
 
-        await logActivity(
-          id,
-          connection,
-          "SEEN",
-          {
-            engine:"SYSTEM",
-            trip,
-            message:
-              `Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`
+  function ensureSelection(){
+    if(
+      state.selectedConnectionId &&
+      state.connections.some(
+        x=>String(x.connectionId)===
+           String(state.selectedConnectionId)
+      )
+    ){
+      return;
+    }
+
+    state.selectedConnectionId=
+      state.connections[0]?.connectionId || "";
+  }
+
+  function renderBrokerNav(){
+    const host=$("brokerNav");
+
+    if(!state.connections.length){
+      host.innerHTML=
+        '<div class="empty">No Marketplace broker connections are enabled.</div>';
+      return;
+    }
+
+    host.innerHTML=
+      state.connections.map(item=>{
+        const active=
+          String(item.connectionId)===
+          String(state.selectedConnectionId);
+
+        const accent=brokerColor(item);
+
+        return `
+          <button
+            type="button"
+            class="broker-tab ${active?"active":""}"
+            data-broker-id="${esc(item.connectionId)}"
+            style="--accent:${accent}"
+          >
+            <div class="broker-tab-name">
+              ${esc(item.brokerName || item.brokerCode || "Broker")}
+            </div>
+            <div class="broker-tab-account">
+              ${esc(item.accountLabel || "Primary Account")}
+              ${item.brokerCode ? ` · ${esc(item.brokerCode)}` : ""}
+            </div>
+          </button>
+        `;
+      }).join("");
+
+    host
+      .querySelectorAll("[data-broker-id]")
+      .forEach(btn=>{
+        btn.addEventListener(
+          "click",
+          ()=>{
+            closeLoginConsole();
+            state.selectedConnectionId=
+              btn.dataset.brokerId || "";
+
+            load();
           }
         );
-      }
-
-      const {
-        longTrips,
-        shortTrips
-      } =
-        await selectedByEngine(
-          trips,
-          settings
-        );
-
-      const [
-        longResults,
-        shortResults
-      ] =
-        await Promise.all([
-          logEngineMatches(
-            id,
-            connection,
-            "LONG",
-            longTrips,
-            settings.longEngine || {}
-          ),
-
-          logEngineMatches(
-            id,
-            connection,
-            "SHORT",
-            shortTrips,
-            settings.shortEngine || {}
-          )
-        ]);
-
-      await Settings.updateOne(
-        {
-          tenantId:id
-        },
-        {
-          $set:{
-            lastScanAt:
-              new Date(),
-
-            lastSuccessfulScanAt:
-              new Date(),
-
-            lastError:
-              ""
-          }
-        }
-      );
-
-      return res.json({
-        success:true,
-        readOnlyEvaluation:true,
-        connectionId,
-        brokerName:
-          connection.brokerName,
-        accountLabel:
-          connection.accountLabel ||
-          "Primary Account",
-        result:{
-          scanned:
-            trips.length,
-          longMatched:
-            longTrips.length,
-          shortMatched:
-            shortTrips.length,
-          longResults,
-          shortResults
-        },
-        message:
-          `${connection.brokerName || "Broker"} scan complete. Long/Short engines were evaluated for this connection only.`
       });
+  }
 
-    }catch(err){
+  function portalHost(item){
+    if(item?.sourceHost){
+      return item.sourceHost;
+    }
 
-      const status =
-        Number(
-          err?.statusCode
-        ) || 500;
-
-      return res
-        .status(status)
-        .json({
-          success:false,
-          message:
-            err.message ||
-            "Marketplace scan failed"
-        });
+    try{
+      return new URL(item?.portalUrl || "").host;
+    }catch(_){
+      return item?.portalUrl || "";
     }
   }
-);
 
-module.exports =
-  router;
+  function setStage(
+    id,
+    text,
+    stateName="warn"
+  ){
+    const el=$(id);
+
+    if(!el){
+      return;
+    }
+
+    el.textContent=
+      text;
+
+    el.classList.remove(
+      "ready-yes",
+      "ready-warn",
+      "ready-no"
+    );
+
+    el.classList.add(
+      stateName==="yes"
+        ? "ready-yes"
+        : (
+            stateName==="no"
+              ? "ready-no"
+              : "ready-warn"
+          )
+    );
+  }
+
+  function renderAgentDiagnostics(){
+    const host=$("agentDiagnostics");
+    if(!host){
+      return;
+    }
+
+    const session=
+      state.localStatus?.session ||
+      null;
+
+    const cloud=
+      state.localStatus?.cloud===true;
+
+    if(!cloud || !session){
+      host.hidden=true;
+      return;
+    }
+
+    host.hidden=false;
+
+    const set=(id,value)=>{
+      const el=$(id);
+      if(!el){
+        return;
+      }
+
+      el.textContent=
+        value===undefined ||
+        value===null ||
+        value===""
+          ? "—"
+          : String(value);
+    };
+
+    set("diagCurrentUrl",session.currentUrl);
+    set("diagCurrentTitle",session.currentTitle);
+    set("diagLogin",session.loginDetected===true ? "YES" : "NO");
+    set("diagTripsPage",session.tripsPageDetected===true ? "YES" : "NO");
+    set("diagDiscovered",Number(session.discovered || 0));
+    set("diagPosted",Number(session.discoveriesPosted || 0));
+    set("diagNetwork",Number(session.networkCandidates || 0));
+    set("diagDom",Number(session.domCandidates || 0));
+
+    set(
+      "diagDiscoveryType",
+      [
+        session.lastDiscoveryType || "",
+        session.lastDiscoveryAt || ""
+      ].filter(Boolean).join(" · ") || "—"
+    );
+
+    set(
+      "diagMapper",
+      [
+        session.mapperReady===true ? "READY" : "WAITING",
+        session.mapperMethod || ""
+      ].filter(Boolean).join(" · ")
+    );
+
+    set("diagLastError",session.lastError || "—");
+  }
+
+  function renderReadiness(){
+    const item=
+      selectedConnection();
+
+    const local=
+      state.localStatus?.session ||
+      null;
+
+    const preflight=
+      state.serverPreflight ||
+      null;
+
+    renderAgentDiagnostics();
+
+    if(!item){
+      setStage(
+        "stageAgent",
+        "No Connection",
+        "no"
+      );
+
+      setStage(
+        "stageBrowser",
+        "Not Started",
+        "warn"
+      );
+
+      setStage(
+        "stageLogin",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageDiscovery",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageMapping",
+        "Waiting",
+        "warn"
+      );
+
+      setStage(
+        "stageAction",
+        "Not Validated",
+        "warn"
+      );
+
+      return;
+    }
+
+    if(
+      state.localStatus?.agentOnline===true
+    ){
+      setStage(
+        "stageAgent",
+        "READY",
+        "yes"
+      );
+    }else{
+      setStage(
+        "stageAgent",
+        "OFFLINE",
+        "no"
+      );
+    }
+
+    if(
+      local?.running &&
+      local?.debugAttached
+    ){
+      setStage(
+        "stageBrowser",
+        "CONNECTED",
+        "yes"
+      );
+
+    }else if(local?.running){
+      setStage(
+        "stageBrowser",
+        "STARTING",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageBrowser",
+        "Not Started",
+        "warn"
+      );
+    }
+
+    if(local?.loginDetected){
+      setStage(
+        "stageLogin",
+        "DETECTED",
+        "yes"
+      );
+
+    }else if(local?.running){
+      setStage(
+        "stageLogin",
+        "Waiting Login",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageLogin",
+        "Waiting",
+        "warn"
+      );
+    }
+
+    const discoveries=
+      Number(
+        item.discoveriesReceived ||
+        0
+      );
+
+    const posted=
+      Number(
+        local?.discoveriesPosted ||
+        0
+      );
+
+    if(
+      discoveries>0 ||
+      posted>0
+    ){
+      const method=
+        local?.lastDiscoveryType ||
+        item?.mapper?.lastDiscoveryType ||
+        "DISCOVERY";
+
+      setStage(
+        "stageDiscovery",
+        `${method} · ${Math.max(discoveries,posted)}`,
+        "yes"
+      );
+
+    }else if(
+      local?.tripsPageDetected
+    ){
+      setStage(
+        "stageDiscovery",
+        "Trips Page Seen",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageDiscovery",
+        "Waiting",
+        "warn"
+      );
+    }
+
+    if(item?.mapper?.ready){
+      setStage(
+        "stageMapping",
+        item.mapper.method ||
+        "READY",
+        "yes"
+      );
+
+    }else if(
+      preflight?.mapping?.method
+    ){
+      setStage(
+        "stageMapping",
+        `${preflight.mapping.method} · WAITING`,
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageMapping",
+        "WAITING",
+        "warn"
+      );
+    }
+
+    const actionReady=
+      item?.mapper?.actionReady===true ||
+      preflight?.action?.ready===true;
+
+    const actionDetected=
+      item?.mapper?.actionDetected===true ||
+      preflight?.action?.detected===true ||
+      local?.actionDetected===true;
+
+    if(actionReady){
+      setStage(
+        "stageAction",
+        "VERIFIED",
+        "yes"
+      );
+
+    }else if(actionDetected){
+      setStage(
+        "stageAction",
+        "Detected · Needs Validation",
+        "warn"
+      );
+
+    }else{
+      setStage(
+        "stageAction",
+        "Not Detected",
+        "warn"
+      );
+    }
+  }
+
+
+  function hasPaidMarketplaceAccess(item){
+    return Boolean(
+      item &&
+      item.enabled !== false &&
+      item.featureVisible !== false &&
+      item.billingEnabled === true &&
+      item.paidMarketplaceAccess !== false
+    );
+  }
+
+  function consoleConnectionPath(suffix="",connectionId=state.loginConsole.connectionId){
+    const item=selectedConnection();
+    const id=connectionId || item?.connectionId;
+    if(!id) throw new Error("No broker account selected");
+    return `/connections/${encodeURIComponent(id)}/login-console${suffix}`;
+  }
+
+  function pemToArrayBuffer(pem){
+    const body=String(pem||"")
+      .replace(/-----BEGIN PUBLIC KEY-----/g,"")
+      .replace(/-----END PUBLIC KEY-----/g,"")
+      .replace(/\s+/g,"");
+
+    const binary=atob(body);
+    const bytes=new Uint8Array(binary.length);
+
+    for(let i=0;i<binary.length;i++){
+      bytes[i]=binary.charCodeAt(i);
+    }
+
+    return bytes.buffer;
+  }
+
+  async function encryptConsoleText(plainText,pem){
+    if(!window.crypto?.subtle){
+      throw new Error("Secure browser encryption is not available.");
+    }
+
+    if(!pem){
+      throw new Error("Oracle login console encryption key is not ready yet.");
+    }
+
+    const publicKey=
+      await crypto.subtle.importKey(
+        "spki",
+        pemToArrayBuffer(pem),
+        {
+          name:"RSA-OAEP",
+          hash:"SHA-256"
+        },
+        false,
+        ["encrypt"]
+      );
+
+    const bytes=
+      new TextEncoder()
+        .encode(
+          String(plainText||"")
+        );
+
+    if(bytes.length>180){
+      throw new Error("Send login text in shorter parts (maximum about 180 characters at a time).");
+    }
+
+    const encrypted=
+      await crypto.subtle.encrypt(
+        {
+          name:"RSA-OAEP"
+        },
+        publicKey,
+        bytes
+      );
+
+    const data=
+      new Uint8Array(
+        encrypted
+      );
+
+    let binary="";
+    for(const value of data){
+      binary+=String.fromCharCode(value);
+    }
+
+    return btoa(binary);
+  }
+
+  function setLoginConsoleStatus(text){
+    const el=$("loginConsoleStatus");
+    if(el) el.textContent=String(text||"");
+  }
+
+  async function drawLoginConsoleFrame(canvas,frame){
+    const raw=
+      String(
+        frame?.imageData ||
+        ""
+      ).trim();
+
+    if(!raw){
+      throw new Error(
+        frame?.message ||
+        "Oracle returned an empty browser frame."
+      );
+    }
+
+    let binary;
+
+    try{
+      binary=atob(raw);
+    }catch(_){
+      throw new Error(
+        "Oracle browser frame was not valid base64."
+      );
+    }
+
+    const bytes=
+      new Uint8Array(
+        binary.length
+      );
+
+    for(let i=0;i<binary.length;i++){
+      bytes[i]=
+        binary.charCodeAt(i);
+    }
+
+    const blob=
+      new Blob(
+        [bytes],
+        {
+          type:"image/png"
+        }
+      );
+
+    const bitmap=
+      await createImageBitmap(
+        blob
+      );
+
+    canvas.width=
+      bitmap.width ||
+      Number(frame?.width) ||
+      1440;
+
+    canvas.height=
+      bitmap.height ||
+      Number(frame?.height) ||
+      900;
+
+    const ctx=
+      canvas.getContext(
+        "2d",
+        {
+          alpha:false
+        }
+      );
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    ctx.drawImage(
+      bitmap,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    bitmap.close?.();
+  }
+
+  function renderLoginConsoleFrame(frame){
+    if(!frame) return;
+
+    state.loginConsole.frame=frame;
+
+    if(frame.consolePublicKey){
+      state.loginConsole.publicKey=
+        frame.consolePublicKey;
+    }
+
+    const canvas=$("loginConsoleCanvas");
+
+    if(
+      canvas &&
+      frame.imageData
+    ){
+      drawLoginConsoleFrame(
+        canvas,
+        frame
+      ).catch(
+        err=>
+          setLoginConsoleStatus(
+            err.message ||
+            "Broker screen could not be rendered."
+          )
+      );
+    }
+
+    const urlEl=$("loginConsoleUrl");
+    if(urlEl){
+      urlEl.textContent=
+        frame.currentUrl ||
+        "";
+    }
+
+    if(frame.loginDetected){
+      setLoginConsoleStatus(
+        frame.tripsPageDetected
+          ? "Connected. Trips page detected."
+          : "Connected to broker portal."
+      );
+    }else{
+      setLoginConsoleStatus(
+        "Click the broker page and sign in. Type normally after clicking an input."
+      );
+    }
+  }
+
+  async function pollLoginConsoleFrame(){
+    if(!state.loginConsole.open || state.loginConsole.polling) return;
+    const connectionId=state.loginConsole.connectionId;
+    state.loginConsole.polling=true;
+    try{
+      const data=await bridge(consoleConnectionPath("/frame",connectionId));
+      if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+      const frame=data.frame;
+      if(frame?.success===false){
+        setLoginConsoleStatus(frame.message || "Oracle could not capture the broker page.");
+      }else if(frame?.imageData && Date.now()-new Date(frame.updatedAt).getTime()<20000){
+        renderLoginConsoleFrame(frame);
+      }else{
+        const cloud=await bridge("/agent-cloud-status");
+        if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+        const online=(cloud.nodes || []).some(node=>node.online===true);
+        setLoginConsoleStatus(online
+          ? "Oracle is online. Waiting for this broker browser screen..."
+          : "Oracle browser service is offline. Start the Oracle Agent and Cloud Runner, then retry.");
+      }
+    }catch(err){
+      if(state.loginConsole.connectionId===connectionId) setLoginConsoleStatus(err.message || "Login console frame failed.");
+    }finally{
+      state.loginConsole.polling=false;
+    }
+  }
+
+  function startLoginConsolePolling(){
+    if(state.loginConsole.timer){
+      clearInterval(
+        state.loginConsole.timer
+      );
+    }
+
+    state.loginConsole.timer=
+      setInterval(
+        pollLoginConsoleFrame,
+        1200
+      );
+  }
+
+  function stopLoginConsolePolling(){
+    if(state.loginConsole.timer){
+      clearInterval(
+        state.loginConsole.timer
+      );
+      state.loginConsole.timer=null;
+    }
+  }
+
+  function queueLoginConsoleAction(action,payload={}){
+    const connectionId=state.loginConsole.connectionId;
+    const actionPath=consoleConnectionPath("/action",connectionId);
+    const run=
+      async()=>{
+        if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+        state.loginConsole.busy=true;
+
+        try{
+          const result=
+            await bridge(
+              actionPath,
+              {
+                method:"POST",
+                body:
+                  JSON.stringify({
+                    action,
+                    ...payload
+                  })
+              }
+            );
+
+          setTimeout(
+            ()=>pollLoginConsoleFrame(),
+            120
+          );
+
+          return result;
+        }finally{
+          state.loginConsole.busy=false;
+        }
+      };
+
+    state.loginConsole.actionChain=
+      (
+        state.loginConsole.actionChain ||
+        Promise.resolve()
+      )
+      .catch(()=>{})
+      .then(run);
+
+    return state.loginConsole.actionChain;
+  }
+
+  async function openLoginConsole(){
+    const item=selectedConnection();
+    if(!item) return;
+    if(!hasPaidMarketplaceAccess(item)){
+      $("connectionStatus").textContent="Marketplace access is disabled or billing is inactive.";
+      return;
+    }
+
+    stopLoginConsolePolling();
+    const connectionId=String(item.connectionId);
+    state.loginConsole.connectionId=connectionId;
+    state.loginConsole.open=true;
+    state.loginConsole.frame=null;
+    state.loginConsole.publicKey=null;
+    const overlay=$("loginConsoleOverlay");
+    overlay.classList.add("open");
+    overlay.setAttribute("aria-hidden","false");
+    $("loginConsoleBroker").textContent=
+      `${item.brokerName || item.brokerCode || "Broker"} · ${item.accountLabel || "Primary Account"}`;
+    $("loginConsoleUrl").textContent="";
+    $("loginConsoleKeyboardSink").value="";
+    const canvas=$("loginConsoleCanvas");
+    canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+    setLoginConsoleStatus("Connecting to the broker browser on Oracle...");
+    $("connectionStatus").textContent="Connecting to Oracle...";
+
+    try{
+      await bridge(consoleConnectionPath("/open",connectionId),{method:"POST",body:"{}"});
+      if(!state.loginConsole.open || state.loginConsole.connectionId!==connectionId) return;
+      setLoginConsoleStatus("Waiting for the Oracle browser screen...");
+      startLoginConsolePolling();
+      await pollLoginConsoleFrame();
+    }catch(err){
+      if(state.loginConsole.connectionId!==connectionId) return;
+      const message=err.message || "Could not reach the Oracle browser.";
+      setLoginConsoleStatus(message);
+      $("connectionStatus").textContent=message;
+    }
+  }
+
+  function closeLoginConsole(){
+    state.loginConsole.open=false;
+    state.loginConsole.connectionId="";
+    state.loginConsole.publicKey=null;
+    stopLoginConsolePolling();
+
+    const overlay=$("loginConsoleOverlay");
+    if(overlay){
+      overlay.classList.remove("open");
+      overlay.setAttribute("aria-hidden","true");
+    }
+
+    const sink=$("loginConsoleKeyboardSink");
+    if(sink){
+      sink.value="";
+    }
+  }
+
+  function renderConnectLoginVisibility(){
+    const btn=$("connectBtn");
+    const item=selectedConnection();
+
+    if(!btn){
+      return;
+    }
+
+    if(!item){
+      btn.hidden=true;
+      return;
+    }
+
+    const session=
+      state.localStatus?.session ||
+      null;
+
+    const oracleOnline=
+      state.localStatus?.cloud===true &&
+      state.localStatus?.agentOnline===true;
+
+    const authenticated=
+      oracleOnline &&
+      session?.running===true &&
+      session?.debugAttached===true &&
+      session?.loginDetected===true;
+
+    /*
+      Portal window must be reopenable at any time.
+      Authentication changes the label only; it never removes the button.
+      The saved Provider Portal URL remains the Platform Admin portalUrl.
+    */
+    btn.hidden=false;
+    btn.disabled=false;
+
+    btn.textContent=
+      authenticated
+        ? "Open Portal"
+        : (
+            oracleOnline && session?.running
+              ? "Login / Reconnect"
+              : "Connect / Login"
+          );
+  }
+
+  function renderSelectedConnection(){
+    const item=selectedConnection();
+    const hero=$("brokerHero");
+
+    if(!item){
+      $("selectedBrokerName").textContent="Marketplace";
+      $("selectedBrokerSub").textContent="No broker account selected.";
+      $("selectedBrokerBadge").innerHTML="";
+      $("selectedBrokerDetails").innerHTML=
+        '<div class="empty">No active Marketplace connection.</div>';
+      $("connectBtn").hidden=true;
+      $("connectBtn").disabled=true;
+      $("loginConsoleBtn").disabled=true;
+      $("disconnectBtn").disabled=true;
+      $("scanBtn").disabled=true;
+      renderReadiness();
+      return;
+    }
+
+    const accent=brokerColor(item);
+    hero.style.setProperty("--accent",accent);
+
+    $("selectedBrokerName").textContent=
+      item.brokerName ||
+      item.brokerCode ||
+      "Broker";
+
+    $("selectedBrokerSub").textContent=
+      `${item.accountLabel || "Primary Account"}${item.brokerCode ? ` · ${item.brokerCode}` : ""}`;
+
+    $("selectedBrokerBadge").innerHTML=
+      badge(item.connectionStatus);
+
+    $("selectedBrokerDetails").innerHTML=`
+      <div class="detail-cell">
+        <span class="detail-label">Portal</span>
+        <span class="detail-value">${esc(portalHost(item) || "—")}</span>
+      </div>
+
+      <div class="detail-cell">
+        <span class="detail-label">Mapping</span>
+        <span class="detail-inline">
+          <span class="detail-value ${item.mapper?.ready ? "ready" : ""}">
+            ${esc(item.mapper?.ready ? "READY" : "WAITING")}
+          </span>
+          <span class="detail-sub">Discoveries: ${Number(item.discoveriesReceived || 0)}</span>
+        </span>
+      </div>
+
+      <div class="detail-cell">
+        <span class="detail-label">Connection ID</span>
+        <span class="detail-value">${esc(item.connectionId || "—")}</span>
+      </div>
+    `;
+
+    $("loginConsoleBtn").disabled=false;
+    $("disconnectBtn").disabled=false;
+
+    $("scanBtn").disabled=
+      item?.mapper?.ready!==true;
+
+    renderReadiness();
+    renderConnectLoginVisibility();
+  }
+
+  function rowConnectionId(row){
+    return String(
+      row?.connectionId ||
+      row?.marketplaceConnectionId ||
+      row?.brokerIntegrationId ||
+      row?.meta?.connectionId ||
+      row?.meta?.marketplaceConnectionId ||
+      row?.meta?.brokerIntegrationId ||
+      ""
+    ).trim();
+  }
+
+  function activityViewKey(connectionId){
+    return `ghMarketplaceActivityView:${connectionId}`;
+  }
+
+  function activityViewCutoff(connectionId){
+    if(!connectionId) return "";
+    try{
+      const value=localStorage.getItem(activityViewKey(connectionId)) || "";
+      return /^[a-f0-9]{24}$/i.test(value) ? value.toLowerCase() : "";
+    }catch(_){return "";}
+  }
+
+  function clearActivityView(){
+    const connectionId=String(state.selectedConnectionId || "");
+    if(!connectionId) return;
+    const newest=state.activity.find(row=>rowConnectionId(row)===connectionId);
+    const marker=String(newest?._id || "").toLowerCase();
+    if(!/^[a-f0-9]{24}$/.test(marker)) return;
+    try{localStorage.setItem(activityViewKey(connectionId),marker);}
+    catch(_){return;}
+    renderActivity();
+  }
+
+  function showActivityHistory(){
+    const connectionId=String(state.selectedConnectionId || "");
+    if(!connectionId) return;
+    try{localStorage.removeItem(activityViewKey(connectionId));}
+    catch(_){return;}
+    renderActivity();
+  }
+
+  function renderActivity(){
+    const selected=String(
+      state.selectedConnectionId || ""
+    );
+    const cutoff=activityViewCutoff(selected);
+
+    /*
+      Hide old legacy rows that do not identify a broker connection.
+      They are the pre-multi-broker test rows seen on the old page.
+    */
+    const rows=
+      state.activity.filter(row=>{
+        const id=rowConnectionId(row);
+        const rowId=String(row?._id || "").toLowerCase();
+        return Boolean(id) && id===selected && (!cutoff || rowId>cutoff);
+      });
+
+    if($("showActivityHistoryBtn"))
+      $("showActivityHistoryBtn").hidden=!cutoff;
+    if($("clearActivityViewBtn"))
+      $("clearActivityViewBtn").disabled=!selected || !state.activity.some(row=>
+        rowConnectionId(row)===selected && /^[a-f0-9]{24}$/i.test(String(row?._id || ""))
+      );
+    if($("activityViewStatus"))
+      $("activityViewStatus").textContent=cutoff
+        ? "Earlier activity is hidden for this broker/account. New events appear automatically."
+        : "";
+
+    $("activityRows").innerHTML=
+      rows.length
+        ? rows.map(r=>{
+            const action=String(r.action || "").toUpperCase();
+            const rowClass=
+              action==="MATCHED"
+                ? "activity-matched"
+                : (
+                    action==="SEEN"
+                      ? "activity-seen"
+                      : ""
+                  );
+
+            return `
+            <tr class="${rowClass}">
+              <td>
+                ${r.occurredAt
+                  ? esc(new Date(r.occurredAt).toLocaleString())
+                  : "—"}
+              </td>
+              <td>${esc(r.engine || "—")}</td>
+              <td>${esc(r.action || "—")}</td>
+              <td>
+                ${esc(
+                  [
+                    r.meta?.brokerName,
+                    r.meta?.accountLabel
+                  ]
+                  .filter(Boolean)
+                  .join(" / ") ||
+                  selectedConnection()?.brokerName ||
+                  "—"
+                )}
+              </td>
+              <td>${esc(friendlyTripNumber(r))}</td>
+              <td>${esc(displayTripDate(r))}</td>
+              <td>${esc(displayPickupTime(r))}</td>
+              <td>${esc(r.meta?.pickupAddress || "—")}</td>
+              <td>${esc(r.meta?.dropoffAddress || "—")}</td>
+              <td>${esc(r.mode || r.meta?.mode || "—")}</td>
+              <td>${r.miles ?? "—"}</td>
+              <td>${esc(r.reason || (r.action==="MATCHED" ? "MATCHED" : "—"))}</td>
+              <td>${esc(zoneDistance(r))}</td>
+              <td>${esc(r.message || "")}</td>
+            </tr>
+          `;
+          }).join("")
+        : '<tr><td colspan="14">No activity for this broker/account yet.</td></tr>';
+  }
+
+  function renderAll(){
+    ensureSelection();
+    renderBrokerNav();
+    renderSelectedConnection();
+    renderActivity();
+  }
+
+  function selectedCloudAgentState(cloudStatus,item){
+    const connectionId=String(item?.connectionId || "");
+    const nodes=Array.isArray(cloudStatus?.nodes)
+      ? cloudStatus.nodes
+      : [];
+
+    const onlineNodes=nodes.filter(node=>node?.online===true);
+
+    for(const node of onlineNodes){
+      const sessions=Array.isArray(node?.sessions)
+        ? node.sessions
+        : [];
+
+      const session=sessions.find(
+        row=>String(row?.connectionId || "")===connectionId
+      );
+
+      if(session){
+        return {
+          agentOnline:true,
+          cloud:true,
+          nodeId:node?.nodeId || "",
+          session
+        };
+      }
+    }
+
+    if(onlineNodes.length){
+      return {
+        agentOnline:true,
+        cloud:true,
+        nodeId:onlineNodes[0]?.nodeId || "",
+        session:null
+      };
+    }
+
+    return null;
+  }
+
+  async function refreshPreflight(){
+    const item=
+      selectedConnection();
+
+    if(!item){
+      state.localStatus=null;
+      state.cloudAgentStatus=null;
+      state.serverPreflight=null;
+      renderReadiness();
+      return;
+    }
+
+    const connectionId=
+      encodeURIComponent(
+        item.connectionId
+      );
+
+    const [
+      cloudResult,
+      serverResult
+    ]=
+      await Promise.all([
+        bridge(
+          "/agent-cloud-status"
+        )
+        .catch(
+          ()=>({
+            success:false,
+            configured:false,
+            nodes:[]
+          })
+        ),
+
+        bridge(
+          `/preflight?connectionId=${connectionId}`
+        )
+        .catch(
+          err=>({
+            success:false,
+            ready:false,
+            message:
+              err.message ||
+              "Server preflight failed"
+          })
+        )
+      ]);
+
+    state.cloudAgentStatus=
+      cloudResult;
+
+    const cloudSelected=
+      selectedCloudAgentState(
+        cloudResult,
+        item
+      );
+
+    state.localStatus=
+      cloudSelected ||
+      {agentOnline:false,cloud:true,session:null};
+
+    state.serverPreflight=
+      serverResult;
+
+    renderReadiness();
+
+    const statusEl=
+      $("connectionStatus");
+
+    if(statusEl && cloudSelected?.agentOnline===true){
+      const session=
+        cloudSelected?.session ||
+        null;
+
+      const authenticated=
+        session?.running===true &&
+        session?.debugAttached===true &&
+        session?.loginDetected===true;
+
+      if(authenticated){
+        statusEl.textContent=
+          "Oracle Cloud Agent is connected and authenticated for this broker.";
+      }else if(
+        session?.running ||
+        session?.debugAttached
+      ){
+        statusEl.textContent=
+          "Oracle Cloud Agent is connected. Broker login is required.";
+      }else{
+        statusEl.textContent=
+          "Oracle Cloud Agent is online. Waiting for this broker session.";
+      }
+
+      renderConnectLoginVisibility();
+    }
+  }
+
+  async function connectSelected(){
+    const item=selectedConnection();
+
+    if(!item){
+      return;
+    }
+
+    /*
+      The Oracle cloud runner owns the browser session automatically.
+      The admin controls the connection-scoped browser through the authenticated
+      GH console. No localhost popup or SSH tunnel is required.
+    */
+    try{
+      $("connectBtn").disabled=true;
+
+      await openLoginConsole();
+
+      await refreshPreflight()
+        .catch(()=>{});
+
+    }catch(err){
+      setLoginConsoleStatus(
+        err?.message ||
+        "Could not open the broker portal."
+      );
+    }finally{
+      $("connectBtn").disabled=false;
+      renderConnectLoginVisibility();
+    }
+  }
+
+  async function disconnectSelected(){
+    const item=selectedConnection();
+
+    if(!item){
+      return;
+    }
+
+    try{
+      /*
+        Stop only this connection's local browser/profile.
+        If the local agent is offline, still clear the server-side state.
+      */
+      await localAgent(
+        "/disconnect",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            connectionId:item.connectionId
+          })
+        }
+      ).catch(()=>{});
+
+      await bridge(
+        `/connections/${encodeURIComponent(item.connectionId)}/disconnect`,
+        {
+          method:"POST",
+          body:"{}"
+        }
+      );
+
+      $("connectionStatus").textContent=
+        "Disconnected.";
+
+      state.localStatus=null;
+      state.serverPreflight=null;
+
+      await load();
+      await refreshPreflight();
+
+    }catch(err){
+      $("connectionStatus").textContent=
+        err.message ||
+        "Disconnect failed.";
+    }
+  }
+
+  async function scanSelected(){
+    const item=selectedConnection();
+
+    if(!item){
+      return;
+    }
+
+    try{
+      $("scanBtn").disabled=true;
+      $("scanStatus").textContent=
+        `Scanning ${item.brokerName || "selected broker"}...`;
+
+      const data=
+        await market(
+          "/scan",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              connectionId:item.connectionId
+            })
+          }
+        );
+
+      $("scanStatus").textContent=
+        data.message ||
+        "Scan complete.";
+
+      await load();
+
+    }catch(err){
+      $("scanStatus").textContent=
+        err.message ||
+        "Scan failed.";
+    }finally{
+      $("scanBtn").disabled=false;
+    }
+  }
+
+  let legacyCleanupDone=false;
+
+  async function load(){
+    try{
+      const connectionsData=
+        await bridge("/connections");
+
+      state.connections=
+        Array.isArray(connectionsData.connections)
+          ? connectionsData.connections
+          : [];
+
+      ensureSelection();
+
+      if(!legacyCleanupDone){
+        legacyCleanupDone=true;
+        await market(
+          "/activity/cleanup-legacy",
+          {
+            method:"POST",
+            body:"{}"
+          }
+        ).catch(()=>{});
+      }
+
+      const connectionId=
+        String(
+          state.selectedConnectionId ||
+          ""
+        );
+
+      const activityData=
+        connectionId
+          ? await market(
+              `/activity?connectionId=${encodeURIComponent(connectionId)}&limit=200`
+            )
+          : {activity:[]};
+
+      state.activity=
+        Array.isArray(activityData.activity)
+          ? activityData.activity
+          : [];
+
+      renderAll();
+    renderConnectLoginVisibility();
+
+      await refreshPreflight();
+
+    }catch(err){
+      $("scanStatus").textContent=
+        err.message ||
+        "Failed to load Marketplace.";
+    }
+  }
+
+  $("refreshBtn")
+    ?.addEventListener(
+      "click",
+      async()=>{
+        const btn=$("refreshBtn");
+
+        try{
+          if(btn){
+            btn.disabled=true;
+            btn.classList.add("refreshing");
+            btn.textContent="Refreshing...";
+          }
+
+          await load();
+        }finally{
+          if(btn){
+            btn.disabled=false;
+            btn.classList.remove("refreshing");
+            btn.textContent="Refresh";
+          }
+        }
+      }
+    );
+
+
+  $("loginConsoleBtn")
+    ?.addEventListener(
+      "click",
+      openLoginConsole
+    );
+
+  $("loginConsoleClose")
+    ?.addEventListener(
+      "click",
+      closeLoginConsole
+    );
+
+  $("loginConsoleOverlay")
+    ?.addEventListener(
+      "click",
+      event=>{
+        if(event.target===$("loginConsoleOverlay")){
+          closeLoginConsole();
+        }
+      }
+    );
+
+  function focusLoginConsoleKeyboard(){
+    const sink=$("loginConsoleKeyboardSink");
+    if(sink){
+      sink.focus({preventScroll:true});
+    }
+  }
+
+  async function sendDirectConsoleText(value){
+    const text=String(value||"");
+    if(!text){
+      return;
+    }
+
+    const encryptedText=
+      await encryptConsoleText(
+        text,
+        state.loginConsole.publicKey
+      );
+
+    return queueLoginConsoleAction(
+      "TEXT",
+      {
+        encryptedText
+      }
+    );
+  }
+
+  $("loginConsoleCanvas")
+    ?.addEventListener(
+      "click",
+      async event=>{
+        const canvas=event.currentTarget;
+        const rect=canvas.getBoundingClientRect();
+
+        if(!rect.width || !rect.height){
+          return;
+        }
+
+        const xRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              (event.clientX-rect.left)/rect.width
+            )
+          );
+
+        const yRatio=
+          Math.max(
+            0,
+            Math.min(
+              1,
+              (event.clientY-rect.top)/rect.height
+            )
+          );
+
+        try{
+          await queueLoginConsoleAction(
+            "CLICK",
+            {
+              xRatio,
+              yRatio
+            }
+          );
+
+          focusLoginConsoleKeyboard();
+
+        }catch(err){
+          setLoginConsoleStatus(
+            err.message ||
+            "Broker page click failed."
+          );
+        }
+      }
+    );
+
+  $("loginConsoleStage")
+    ?.addEventListener(
+      "click",
+      focusLoginConsoleKeyboard
+    );
+
+  const keyboardSink=
+    $("loginConsoleKeyboardSink");
+
+  keyboardSink
+    ?.addEventListener(
+      "beforeinput",
+      event=>{
+        if(!state.loginConsole.open){
+          return;
+        }
+
+        const type=String(event.inputType||"");
+        const data=String(event.data||"");
+
+        if(
+          type==="insertText" ||
+          type==="insertCompositionText" ||
+          type==="insertFromPaste"
+        ){
+          if(data){
+            event.preventDefault();
+
+            sendDirectConsoleText(data)
+              .catch(
+                err=>
+                  setLoginConsoleStatus(
+                    err.message ||
+                    "Secure typing failed."
+                  )
+              );
+          }
+
+          return;
+        }
+
+        if(type==="deleteContentBackward"){
+          event.preventDefault();
+
+          queueLoginConsoleAction(
+            "KEY",
+            {
+              key:"Backspace"
+            }
+          )
+          .catch(
+            err=>
+              setLoginConsoleStatus(
+                err.message
+              )
+          );
+        }
+      }
+    );
+
+  keyboardSink
+    ?.addEventListener(
+      "keydown",
+      event=>{
+        if(!state.loginConsole.open){
+          return;
+        }
+
+        const specialKeys=
+          new Set([
+            "Enter",
+            "Tab",
+            "Backspace",
+            "Escape",
+            "ArrowUp",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight"
+          ]);
+
+        if(!specialKeys.has(event.key)){
+          return;
+        }
+
+        event.preventDefault();
+
+        queueLoginConsoleAction(
+          "KEY",
+          {
+            key:event.key
+          }
+        )
+        .catch(
+          err=>
+            setLoginConsoleStatus(
+              err.message
+            )
+        );
+      }
+    );
+
+  keyboardSink
+    ?.addEventListener(
+      "paste",
+      event=>{
+        if(!state.loginConsole.open){
+          return;
+        }
+
+        const text=
+          String(
+            event.clipboardData?.getData("text") ||
+            ""
+          );
+
+        if(!text){
+          return;
+        }
+
+        event.preventDefault();
+
+        sendDirectConsoleText(text)
+          .catch(
+            err=>
+              setLoginConsoleStatus(
+                err.message ||
+                "Secure paste failed."
+              )
+          );
+      }
+    );
+
+
+  $("connectBtn")
+    ?.addEventListener(
+      "click",
+      connectSelected
+    );
+
+  $("disconnectBtn")
+    ?.addEventListener(
+      "click",
+      disconnectSelected
+    );
+
+  $("scanBtn")
+    ?.addEventListener(
+      "click",
+      scanSelected
+    );
+
+  $("clearActivityViewBtn")
+    ?.addEventListener("click",clearActivityView);
+
+  $("showActivityHistoryBtn")
+    ?.addEventListener("click",showActivityHistory);
+
+  load();
+
+  setInterval(
+    load,
+    15000
+  );
+})();
