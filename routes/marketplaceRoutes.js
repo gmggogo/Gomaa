@@ -1240,7 +1240,7 @@ router.get(
         tenantId:new mongoose.Types.ObjectId(id),
         // Activity is the result of the configured engines, not an inventory
         // of every trip the broker portal exposed.
-        action:{$in:["MATCHED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
+        action:{$in:["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
         externalTripId:{$nin:["",null]}
       };
 
