@@ -1623,7 +1623,7 @@ async function updateOnboardingProfile({
       .slice(0,2000)
   };
 
-  if(actionResult?.detected){
+  if(actionResult?.profile?.accept?.verified===true){
     set.actionProfile=
       actionResult.profile ||
       {};
@@ -1639,13 +1639,10 @@ async function updateOnboardingProfile({
         actionResult.method
       );
 
-    set.actionReady=
-      Boolean(
-        actionResult.profile?.accept?.verified===true
-      );
-  }else if(clean(discoveryType)==="DOM"){
-    // A newer DOM snapshot without a row action invalidates old evidence.
-    set.actionReady=false;
+    // A snapshot without a claimable row does not invalidate an action
+    // verified earlier for this connection. Claim execution still checks
+    // the current trip row and button before clicking.
+    set.actionReady=true;
   }
 
   const update={
