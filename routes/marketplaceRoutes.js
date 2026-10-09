@@ -333,7 +333,14 @@ function normalizeEngine(value={}){
       ),
 
     zoneMatch:
-      [
+      clean(value.zoneMatch).toUpperCase()==="ANY" &&
+      (pickupZoneZip || clean(value.pickupZoneCity) || clean(value.pickupZoneAddress) ||
+       dropoffZoneZip || clean(value.dropoffZoneCity) || clean(value.dropoffZoneAddress))
+        ? ((pickupZoneZip || clean(value.pickupZoneCity) || clean(value.pickupZoneAddress))
+            ? ((dropoffZoneZip || clean(value.dropoffZoneCity) || clean(value.dropoffZoneAddress))
+                ? "BOTH" : "PICKUP")
+            : "DROPOFF")
+        : [
         "ANY",
         "PICKUP",
         "DROPOFF",
@@ -679,6 +686,10 @@ async function selectedByEngine(
   settings
 ){
 
+  // Apply the same normalization to older saved profiles as to newly saved ones.
+  const longSettings=normalizeEngine(settings?.longEngine || {});
+  const shortSettings=normalizeEngine(settings?.shortEngine || {});
+
   // Match only dated rides through the configured number of calendar days
   // ahead. A missing or ambiguous date must never be auto claimed.
   let timeZone="UTC";
@@ -709,11 +720,11 @@ async function selectedByEngine(
   });
 
   const [longTrips,shortTrips]=await Promise.all([
-    settings?.longEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
+    longSettings.enabled
+      ? enrichZoneDistances(inWindow,longSettings).then(rows=>longEngine.select(rows,longSettings))
       : [],
-    settings?.shortEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
+    shortSettings.enabled
+      ? enrichZoneDistances(inWindow,shortSettings).then(rows=>shortEngine.select(rows,shortSettings))
       : []
   ]);
 
