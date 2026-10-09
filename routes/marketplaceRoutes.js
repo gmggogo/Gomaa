@@ -1061,7 +1061,7 @@ if(
         connection,
         settings,
         rawTrips:Array.isArray(event?.trips) ? event.trips : [],
-        source:"DISCOVERY",
+        source:event?.discoveryType==="DOM" ? "DISCOVERY" : "NETWORK_DISCOVERY",
         receivedAt:event?.receivedAt
       });
     }

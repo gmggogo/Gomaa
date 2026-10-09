@@ -1551,13 +1551,14 @@ async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
   }
 }
 
-function verifiedRowActionProfile({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates}){
+function currentDomActionTrips({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates}){
   if(clean(discoveryType)!=="DOM" || payload?.__ghOnboarding!==true ||
      !Array.isArray(payload.rows) || !Array.isArray(trips) ||
      !/^https?:\/\//i.test(clean(sourceUrl)) ||
-     !portalHost || safeHost(sourceUrl)!==clean(portalHost).toLowerCase()) return null;
+     !portalHost || safeHost(sourceUrl)!==clean(portalHost).toLowerCase()) return [];
 
   const candidates=normalizeActionCandidates(actionCandidates);
+  const found=[];
   for(const row of payload.rows){
     const selector=clean(row?.__ghAcceptSelector);
     const label=clean(row?.__ghAcceptActionText);
@@ -1580,12 +1581,24 @@ function verifiedRowActionProfile({payload,discoveryType,sourceUrl,portalHost,tr
       clean(item.text).toLowerCase()===label.toLowerCase()
     );
     if(matches.length!==1) continue;
-    const match=matches[0];
-    return {detected:true,confidence:0.95,method:"DOM_ROW_VERIFIED",
-      profile:{accept:{text:match.text,selector:match.selector,
-        tag:match.tag,role:match.role,verified:true}}};
+    found.push({trip,match:matches[0]});
   }
-  return null;
+  return found;
+}
+
+function verifiedRowActionProfile(input){
+  const first=currentDomActionTrips(input)[0];
+  if(!first) return null;
+  const {match}=first;
+  return {detected:true,confidence:0.95,method:"DOM_ROW_VERIFIED",
+    profile:{accept:{text:match.text,selector:match.selector,
+      tag:match.tag,role:match.role,verified:true}}};
+}
+
+function discoveryEventTrips(changedTrips,currentActions,discoveryType){
+  if(discoveryType!=="DOM") return changedTrips;
+  const liveTrips=currentActions.map(item=>item.trip);
+  return [...new Map([...changedTrips,...liveTrips].map(trip=>[tripEventKey(trip),trip])).values()];
 }
 
 async function updateOnboardingProfile({
@@ -2163,6 +2176,10 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
         }
       );
 
+    const currentActions=currentDomActionTrips({
+      payload:body.payload,discoveryType,sourceUrl,portalHost:host,
+      trips:store.normalizedTrips,actionCandidates:body.actionCandidates
+    });
     const verifiedAction=verifiedRowActionProfile({
       payload:body.payload,discoveryType,sourceUrl,portalHost:host,
       trips:store.normalizedTrips,actionCandidates:body.actionCandidates
@@ -2217,7 +2234,10 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
         }
       );
 
-    if(changedTrips.length){
+    // Recheck claimable rows from each fresh DOM scan, including unchanged
+    // rows. A settings evaluation and network JSON have no live row button.
+    const eventTrips=discoveryEventTrips(changedTrips,currentActions,discoveryType);
+    if(eventTrips.length){
       notifyDiscoveryListeners({
         tenantId:String(id),
         connectionId,
@@ -2227,7 +2247,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
         sourceHost:host,
         discoveryType,
         receivedAt:item.receivedAt,
-        trips:changedTrips.map(trip=>({...trip}))
+        trips:eventTrips.map(trip=>({...trip}))
       });
     }
 
