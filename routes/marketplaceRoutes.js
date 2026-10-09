@@ -834,12 +834,21 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
-  claimLocks.set(key,Date.now());
   let command=null;
   try{
-    const already=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
-    if(already) return {reason:"ALREADY_ATTEMPTED"};
+    // Retry only when the portal button was never clicked. A click without
+    // confirmation remains blocked, since retrying may accept twice.
+    const latest=await Activity.findOne({tenantId:id,externalTripId,
+      "meta.connectionId":String(connection._id),
+      action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}})
+      .sort({_id:-1}).lean();
+    if(latest){
+      if(latest.action!=="CLAIM_FAILED" || latest.reason!=="CLAIM_NOT_CLICKED")
+        return {reason:"ALREADY_ATTEMPTED"};
+      const failedAt=Date.parse(latest.occurredAt);
+      if(!Number.isFinite(failedAt) || Date.now()-failedAt<30000)
+        return {reason:"CLAIM_RETRY_COOLDOWN"};
+    }
     const since=new Date(Date.now()-86400000);
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
@@ -866,6 +875,7 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       }}});
     if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
       throw new Error("Claim command could not be activated");
+    claimLocks.set(key,Date.now());
     return {queued:true};
   }catch(err){
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
@@ -895,6 +905,10 @@ async function handleClaimResult(result){
         `Claim was not clicked: ${result.message}`,
       reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
       meta});
+  if(!result.clicked){
+    claimLocks.delete(`${command.tenantId}:${command.connectionId}:${command.externalTripId}`);
+    return;
+  }
   if(!result.confirmed) return;
 
   try{
