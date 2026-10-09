@@ -1551,6 +1551,43 @@ async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
   }
 }
 
+function verifiedRowActionProfile({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates}){
+  if(clean(discoveryType)!=="DOM" || payload?.__ghOnboarding!==true ||
+     !Array.isArray(payload.rows) || !Array.isArray(trips) ||
+     !/^https?:\/\//i.test(clean(sourceUrl)) ||
+     !portalHost || safeHost(sourceUrl)!==clean(portalHost).toLowerCase()) return null;
+
+  const candidates=normalizeActionCandidates(actionCandidates);
+  for(const row of payload.rows){
+    const selector=clean(row?.__ghAcceptSelector);
+    const label=clean(row?.__ghAcceptActionText);
+    if(row?.__ghAcceptAvailable!==true || !selector || !label ||
+       !/\b(accept|claim|take|book|reserve|assign|select\s+trip|add\s+trip|choose\s+trip)\b/i.test(label) ||
+       /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(label)) continue;
+
+    const trip=trips.find(item=>
+      item.raw===row && clean(item.portalTripId) &&
+      clean(item.sourceUrl)===clean(sourceUrl) &&
+      item.availableForAccept===true &&
+      clean(item.availabilityEvidence)==="DOM_ACCEPT_ACTION" &&
+      clean(item.acceptActionSelector)===selector &&
+      clean(item.acceptActionText).toLowerCase()===label.toLowerCase()
+    );
+    if(!trip) continue;
+
+    const matches=candidates.filter(item=>
+      clean(item.selector)===selector &&
+      clean(item.text).toLowerCase()===label.toLowerCase()
+    );
+    if(matches.length!==1) continue;
+    const match=matches[0];
+    return {detected:true,confidence:0.95,method:"DOM_ROW_VERIFIED",
+      profile:{accept:{text:match.text,selector:match.selector,
+        tag:match.tag,role:match.role,verified:true}}};
+  }
+  return null;
+}
+
 async function updateOnboardingProfile({
   tenant,
   connectionId,
@@ -1606,6 +1643,9 @@ async function updateOnboardingProfile({
       Boolean(
         actionResult.profile?.accept?.verified===true
       );
+  }else if(clean(discoveryType)==="DOM"){
+    // A newer DOM snapshot without a row action invalidates old evidence.
+    set.actionReady=false;
   }
 
   const update={
@@ -2094,7 +2134,7 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
         )
       );
 
-    const actionResult=
+    let actionResult=
       await chooseActionProfile(
         body.actionCandidates
       );
@@ -2125,6 +2165,12 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
           discoveryType
         }
       );
+
+    const verifiedAction=verifiedRowActionProfile({
+      payload:body.payload,discoveryType,sourceUrl,portalHost:host,
+      trips:store.normalizedTrips,actionCandidates:body.actionCandidates
+    });
+    if(verifiedAction) actionResult=verifiedAction;
 
     const onboardingProfile=
       await updateOnboardingProfile({
