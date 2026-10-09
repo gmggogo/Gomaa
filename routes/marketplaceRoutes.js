@@ -971,19 +971,6 @@ async function evaluateConnectionTrips({
       )
     ]);
 
-  for(const trip of trips){
-    await logActivity(
-      id,
-      connection,
-      "SEEN",
-      {
-        engine:"SYSTEM",
-        trip,
-        message:`Marketplace trip seen (${source}): ${clean(trip.externalTripId || trip.tripNumber)}`
-      }
-    );
-  }
-
   await Settings.updateOne(
     {tenantId:id},
     {$set:{
@@ -1248,7 +1235,11 @@ router.get(
         );
 
       const filter = {
-        tenantId:id
+        tenantId:id,
+        // Activity is the result of the configured engines, not an inventory
+        // of every trip the broker portal exposed.
+        action:{$in:["MATCHED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
+        externalTripId:{$nin:["",null]}
       };
 
       if(connectionId){
@@ -1257,15 +1248,23 @@ router.get(
           connectionId;
       }
 
-      const rows =
-        await Activity.find(
-          filter
-        )
-        .sort({
-          occurredAt:-1
-        })
-        .limit(limit)
-        .lean();
+      // Each external trip gets one visible row, even when recurring scans
+      // produced many MATCHED events. Preserve the most advanced claim state.
+      const rows=await Activity.aggregate([
+        {$match:filter},
+        {$addFields:{activityRank:{$switch:{branches:[
+          {case:{$eq:["$action","IMPORTED"]},then:5},
+          {case:{$eq:["$action","CLAIMED"]},then:4},
+          {case:{$eq:["$action","CLAIM_FAILED"]},then:3},
+          {case:{$eq:["$action","CLAIM_ATTEMPT"]},then:2}
+        ],default:1}}}},
+        {$sort:{activityRank:-1,occurredAt:-1,_id:-1}},
+        {$group:{_id:{connectionId:"$meta.connectionId",tripId:"$externalTripId"},row:{$first:"$$ROOT"}}},
+        {$replaceRoot:{newRoot:"$row"}},
+        {$project:{activityRank:0}},
+        {$sort:{occurredAt:-1,_id:-1}},
+        {$limit:limit}
+      ]);
 
       return res.json({
         success:true,
@@ -1464,24 +1463,6 @@ router.post(
           }
         }
       );
-
-      for(
-        const trip
-        of trips
-      ){
-
-        await logActivity(
-          id,
-          connection,
-          "SEEN",
-          {
-            engine:"SYSTEM",
-            trip,
-            message:
-              `Marketplace trip seen: ${clean(trip.externalTripId || trip.tripNumber)}`
-          }
-        );
-      }
 
       const {
         longTrips,
