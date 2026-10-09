@@ -18,7 +18,6 @@ IMPORTANT:
 */
 
 const express = require("express");
-const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const https = require("https");
 
@@ -1250,37 +1249,30 @@ router.get(
         );
 
       const filter = {
-        // Aggregation does not cast ObjectId fields like Mongoose find() does.
-        tenantId:new mongoose.Types.ObjectId(id),
-        // Activity is the result of the configured engines, not an inventory
-        // of every trip the broker portal exposed.
+        tenantId:id,
         action:{$in:["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
         externalTripId:{$nin:["",null]}
       };
 
-      if(connectionId){
+      if(connectionId) filter["meta.connectionId"]=connectionId;
 
-        filter["meta.connectionId"] =
-          connectionId;
+      // _id always has a MongoDB index. Read a bounded recent window so
+      // growing discovery history cannot exhaust an aggregation sort's memory.
+      const events=await Activity.find(filter)
+        .sort({_id:-1})
+        .limit(Math.min(3000,Math.max(500,limit*20)))
+        .lean();
+      const rank={IMPORTED:5,CLAIMED:4,CLAIM_FAILED:3,CLAIM_ATTEMPT:2};
+      const chosen=new Map();
+      for(const row of events){
+        const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
+        const previous=chosen.get(key);
+        if(!previous || (rank[row.action]||1)>(rank[previous.action]||1))
+          chosen.set(key,row);
       }
-
-      // Each external trip gets one visible row, even when recurring scans
-      // produced many MATCHED events. Preserve the most advanced claim state.
-      const rows=await Activity.aggregate([
-        {$match:filter},
-        {$addFields:{activityRank:{$switch:{branches:[
-          {case:{$eq:["$action","IMPORTED"]},then:5},
-          {case:{$eq:["$action","CLAIMED"]},then:4},
-          {case:{$eq:["$action","CLAIM_FAILED"]},then:3},
-          {case:{$eq:["$action","CLAIM_ATTEMPT"]},then:2}
-        ],default:1}}}},
-        {$sort:{activityRank:-1,occurredAt:-1,_id:-1}},
-        {$group:{_id:{connectionId:"$meta.connectionId",tripId:"$externalTripId"},row:{$first:"$$ROOT"}}},
-        {$replaceRoot:{newRoot:"$row"}},
-        {$project:{activityRank:0}},
-        {$sort:{occurredAt:-1,_id:-1}},
-        {$limit:limit}
-      ]);
+      const rows=[...chosen.values()]
+        .sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
+        .slice(0,limit);
 
       return res.json({
         success:true,
