@@ -834,9 +834,19 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
   let command=null;
   try{
-    const already=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
-    if(already) return {reason:"ALREADY_ATTEMPTED"};
+    // A command that never clicked the portal may retry after a short cooldown.
+    // Confirmed and uncertain clicks stay blocked to avoid double accepting.
+    const latest=await Activity.findOne({tenantId:id,externalTripId,
+      "meta.connectionId":String(connection._id),
+      action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}})
+      .sort({_id:-1}).lean();
+    if(latest){
+      if(latest.action!=="CLAIM_FAILED" || latest.reason!=="CLAIM_NOT_CLICKED")
+        return {reason:"ALREADY_ATTEMPTED"};
+      const failedAt=Date.parse(latest.occurredAt);
+      if(!Number.isFinite(failedAt) || Date.now()-failedAt<30000)
+        return {reason:"CLAIM_RETRY_COOLDOWN"};
+    }
     const since=new Date(Date.now()-86400000);
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
@@ -894,6 +904,10 @@ async function handleClaimResult(result){
         `Claim was not clicked: ${result.message}`,
       reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
       meta});
+  if(!result.clicked){
+    claimLocks.delete(`${command.tenantId}:${command.connectionId}:${command.externalTripId}`);
+    return;
+  }
   if(!result.confirmed) return;
 
   try{
