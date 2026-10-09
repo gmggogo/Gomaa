@@ -820,7 +820,6 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
-  claimLocks.set(key,Date.now());
   let command=null;
   try{
     const already=await Activity.findOne({tenantId:id,externalTripId,
@@ -852,6 +851,8 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       }}});
     if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
       throw new Error("Claim command could not be activated");
+    // A failed preflight or unavailable queue must remain eligible for the next scan.
+    claimLocks.set(key,Date.now());
     return {queued:true};
   }catch(err){
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
