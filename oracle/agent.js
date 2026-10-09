@@ -1354,10 +1354,19 @@ class PortalSession{
       fingerprint
     );
 
-    this.bridgeQueue.push({
+    const item={
       payload,
       meta
-    });
+    };
+
+    // The DOM snapshot contains the live row button required for a claim.
+    // Network responses may arrive continuously, so process the snapshot
+    // immediately after the request already in flight.
+    if(meta.discoveryType==="DOM"){
+      this.bridgeQueue.splice(this.bridgeBusy ? 1 : 0,0,item);
+    }else{
+      this.bridgeQueue.push(item);
+    }
 
     this.flushBridgeQueue()
       .catch(()=>{});

@@ -47,6 +47,8 @@ const providerPortalBridgeRoutes =
 const {createExternalTrip} =
   require("../services/externalTripService");
 
+const ExternalTrip = require("../models/ExternalTrip");
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -803,8 +805,8 @@ async function maybeQueueClaim(...args){
 async function claimedOrPendingCount(id,engineName,since){
   const scope={tenantId:id};
   if(engineName) scope.engine=engineName;
-  // A failed or expired attempt must not consume the daily accepted-trip quota.
-  // Reserve one place briefly while a live claim command is being processed.
+  // A failed attempt cannot use up a day's accepted-trip allowance.
+  // Reserve capacity briefly while a portal command is still in flight.
   const pendingSince=new Date(Math.max(since.getTime(),Date.now()-30000));
   const [claimed,pending]=await Promise.all([
     Activity.distinct("externalTripId",{...scope,action:"CLAIMED",occurredAt:{$gte:since}}),
@@ -832,21 +834,12 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
+  claimLocks.set(key,Date.now());
   let command=null;
   try{
-    // A command that never clicked the portal may retry after a short cooldown.
-    // Confirmed and uncertain clicks stay blocked to avoid double accepting.
-    const latest=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),
-      action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}})
-      .sort({_id:-1}).lean();
-    if(latest){
-      if(latest.action!=="CLAIM_FAILED" || latest.reason!=="CLAIM_NOT_CLICKED")
-        return {reason:"ALREADY_ATTEMPTED"};
-      const failedAt=Date.parse(latest.occurredAt);
-      if(!Number.isFinite(failedAt) || Date.now()-failedAt<30000)
-        return {reason:"CLAIM_RETRY_COOLDOWN"};
-    }
+    const already=await Activity.findOne({tenantId:id,externalTripId,
+      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
+    if(already) return {reason:"ALREADY_ATTEMPTED"};
     const since=new Date(Date.now()-86400000);
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
@@ -873,8 +866,6 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       }}});
     if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
       throw new Error("Claim command could not be activated");
-    // A failed preflight or unavailable queue must remain eligible for the next scan.
-    claimLocks.set(key,Date.now());
     return {queued:true};
   }catch(err){
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
@@ -904,10 +895,6 @@ async function handleClaimResult(result){
         `Claim was not clicked: ${result.message}`,
       reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
       meta});
-  if(!result.clicked){
-    claimLocks.delete(`${command.tenantId}:${command.connectionId}:${command.externalTripId}`);
-    return;
-  }
   if(!result.confirmed) return;
 
   try{
@@ -929,10 +916,20 @@ async function handleClaimResult(result){
         serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
         brokerStatus:"ACCEPTED"}
     });
+    if(!imported?.trip?._id)
+      throw new Error("External Hub did not return a saved trip ID");
+    const hubTrip=await ExternalTrip.findOne({
+      _id:imported.trip._id,
+      tenantId:command.tenantId,
+      externalTripId:command.externalTripId
+    }).select("_id ghExternalTripNumber").lean();
+    if(!hubTrip)
+      throw new Error("Accepted trip was not found in External Hub after import");
     await logActivity(command.tenantId,connection,"IMPORTED",{
       engine:command.engine,externalTripId:command.externalTripId,
       message:imported.duplicate?"Claimed trip already exists in External Hub":
-        "Confirmed portal claim imported to External Hub",meta});
+        "Confirmed portal claim imported to External Hub",
+      meta:{...meta,hubTripId:String(hubTrip._id),hubTripNumber:hubTrip.ghExternalTripNumber}});
   }catch(err){
     await logActivity(command.tenantId,connection,"ERROR",{
       engine:command.engine,externalTripId:command.externalTripId,
@@ -1264,24 +1261,31 @@ router.get(
 
       const filter = {
         tenantId:id,
-        action:{$in:["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
+        // Activity is the result of the configured engines, not an inventory
+        // of every trip the broker portal exposed.
+        action:{$in:["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED","ERROR"]},
         externalTripId:{$nin:["",null]}
       };
 
-      if(connectionId) filter["meta.connectionId"]=connectionId;
+      if(connectionId){
 
-      // _id always has a MongoDB index. Read a bounded recent window so
-      // growing discovery history cannot exhaust an aggregation sort's memory.
+        filter["meta.connectionId"] =
+          connectionId;
+      }
+
+      // Use the _id index and a bounded window. Sorting the full discovery
+      // history in an aggregation previously exhausted MongoDB memory.
       const events=await Activity.find(filter)
         .sort({_id:-1})
         .limit(Math.min(3000,Math.max(500,limit*20)))
         .lean();
-      const rank={IMPORTED:5,CLAIMED:4,CLAIM_FAILED:3,CLAIM_ATTEMPT:2};
+      const rank={IMPORTED:7,ERROR:6,CLAIMED:5,CLAIM_FAILED:4,
+        CLAIM_ATTEMPT:3,SKIPPED:2,MATCHED:1};
       const chosen=new Map();
       for(const row of events){
         const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
         const previous=chosen.get(key);
-        if(!previous || (rank[row.action]||1)>(rank[previous.action]||1))
+        if(!previous || (rank[row.action]||0)>(rank[previous.action]||0))
           chosen.set(key,row);
       }
       const rows=[...chosen.values()]
