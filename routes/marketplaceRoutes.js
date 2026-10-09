@@ -801,6 +801,19 @@ async function maybeQueueClaim(...args){
     if(tenantClaimGates.get(id)===gate) tenantClaimGates.delete(id);
   }
 }
+async function claimedOrPendingCount(id,engineName,since){
+  const scope={tenantId:id};
+  if(engineName) scope.engine=engineName;
+  // A failed or expired attempt must not consume the daily accepted-trip quota.
+  // Reserve one place briefly while a live claim command is being processed.
+  const pendingSince=new Date(Math.max(since.getTime(),Date.now()-30000));
+  const [claimed,pending]=await Promise.all([
+    Activity.distinct("externalTripId",{...scope,action:"CLAIMED",occurredAt:{$gte:since}}),
+    Activity.distinct("externalTripId",{...scope,action:"CLAIM_ATTEMPT",occurredAt:{$gte:pendingSince}})
+  ]);
+  return new Set([...claimed,...pending].map(clean).filter(Boolean)).size;
+}
+
 async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
   if(options.source!=="DISCOVERY") return {reason:"LIVE_DISCOVERY_ONLY"};
@@ -829,11 +842,11 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
     if(totalLimit>0){
-      const count=await Activity.countDocuments({tenantId:id,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
+      const count=await claimedOrPendingCount(id,"",since);
       if(count>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
     }
     if(engineLimit>0){
-      const count=await Activity.countDocuments({tenantId:id,engine:engineName,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
+      const count=await claimedOrPendingCount(id,engineName,since);
       if(count>=engineLimit) return {reason:"ENGINE_DAILY_LIMIT"};
     }
     command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
