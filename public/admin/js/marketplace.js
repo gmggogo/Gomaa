@@ -1183,6 +1183,12 @@ Marketplace multi-broker UI.
     renderActivity();
   }
 
+  function stableMatchedRows(rows){
+    return [...rows].sort((a,b)=>
+      String(a.externalTripId||"").localeCompare(String(b.externalTripId||""),undefined,{numeric:true})
+    );
+  }
+
   function renderActivity(){
     const selected=String(
       state.selectedConnectionId || ""
@@ -1193,7 +1199,7 @@ Marketplace multi-broker UI.
       Hide old legacy rows that do not identify a broker connection.
       They are the pre-multi-broker test rows seen on the old page.
     */
-    const rows=
+    const rows=stableMatchedRows(
       state.activity.filter(row=>{
         const id=rowConnectionId(row);
         const rowId=String(row?._id || "").toLowerCase();
@@ -1202,7 +1208,8 @@ Marketplace multi-broker UI.
           state.scanSummary.matchedTripIds.includes(String(row.externalTripId||"")) &&
           ["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED","ERROR"]
             .includes(String(row.action||"").toUpperCase());
-      });
+      })
+    );
 
     for(const [id,key] of [["availableCount","available"],["matchedCount","matched"],["importedCount","imported"]])
       if($(id)) $(id).textContent=state.scanSummary ? String(state.scanSummary[key] ?? 0) : "—";
@@ -1222,14 +1229,13 @@ Marketplace multi-broker UI.
       rows.length
         ? rows.map(r=>{
             const action=String(r.action || "").toUpperCase();
-            const rowClass=
-              action==="MATCHED"
-                ? "activity-matched"
-                : (
-                    action==="SEEN"
-                      ? "activity-seen"
-                      : ""
-                  );
+            const rowClass="activity-matched";
+            const detail=action==="IMPORTED" ? "Verified in External Hub" :
+              action==="CLAIMED" ? "Accepted; importing to Hub" :
+              action==="CLAIM_FAILED" ? `Accept failed: ${r.message||r.reason||"unknown reason"}` :
+              action==="SKIPPED" ? `Accept blocked: ${r.reason||"unknown reason"}` :
+              action==="ERROR" ? `Hub error: ${r.message||r.reason||"unknown reason"}` :
+              action==="CLAIM_ATTEMPT" ? "Accept pending" : "Awaiting Accept";
 
             return `
             <tr class="${rowClass}">
@@ -1239,10 +1245,7 @@ Marketplace multi-broker UI.
               <td>${esc(r.meta?.dropoffAddress || "—")}</td>
               <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
-              <td>${esc(r.action === "IMPORTED" ? "In External Hub" :
-                r.action === "CLAIMED" ? "Accepted, importing" :
-                r.action === "MATCHED" ? "Matched, awaiting Accept" :
-                `${r.action || "—"}${r.reason ? `: ${r.reason}` : ""}`)}</td>
+              <td><strong>Matched</strong><br><small>${esc(detail)}</small></td>
             </tr>
           `;
           }).join("")
