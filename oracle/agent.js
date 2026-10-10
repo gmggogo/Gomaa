@@ -1759,7 +1759,7 @@ class PortalSession{
                   .map(x=>clean(x.innerText||x.textContent));
             }
 
-            for(const row of tr.slice(headers.length?1:0,31)){
+            for(const row of tr.slice(headers.length?1:0,51)){
               const cells=
                 [...row.querySelectorAll(":scope > th,:scope > td")];
 
@@ -1948,7 +1948,7 @@ class PortalSession{
                 actionWords.test(item.text) &&
                 !item.disabled
             )
-            .slice(0,30);
+            .slice(0,100);
 
           const bodyText=
             clean(document.body?.innerText||"")
@@ -2270,7 +2270,8 @@ class PortalSession{
       if(
         this.loginDetected===true &&
         this.tripsPageDetected===true &&
-        (now-this.lastAutoRefreshAt)>=8000
+        (now-this.lastAutoRefreshAt)>=8000 &&
+        !rows.some(row=>row.__ghAcceptAvailable===true)
       ){
         this.lastAutoRefreshAt=now;
 
@@ -2329,7 +2330,7 @@ class PortalSession{
       */
       if(
         unchanged &&
-        (now-this.lastDomSentAt)<30000
+        (now-this.lastDomSentAt)<(rows.some(row=>row.__ghAcceptAvailable===true)?2000:30000)
       ){
         return;
       }
@@ -2362,7 +2363,7 @@ class PortalSession{
           status:200,
           mimeType:"text/html",
           requestId:
-            `DOM:${fingerprint}:${Math.floor(now/30000)}`,
+            `DOM:${fingerprint}:${Math.floor(now/(rows.some(row=>row.__ghAcceptAvailable===true)?2000:30000))}`,
           discoveryType:"DOM",
           actionCandidates
         }
@@ -2746,11 +2747,17 @@ class PortalSession{
     const id=clean(body.externalTripId),selector=clean(body.selector);
     const actionText=clean(body.actionText);
     const sourceUrl=clean(body.sourceUrl),discoveredAt=Date.parse(body.createdAt);
-    if(!id || id.length>80 || !selector || selector.length>1000 ||
-       !actionText || actionText.length>120 || !sourceUrl ||
-       !Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>20000){
-      return {clicked:false,confirmed:false,message:"Claim data missing or discovery expired"};
-    }
+    const missing=[!id&&"trip ID",!selector&&"row selector",
+      !actionText&&"button label",!sourceUrl&&"listing URL"].filter(Boolean);
+    if(missing.length || id.length>80 || selector.length>1000 || actionText.length>120)
+      return {clicked:false,confirmed:false,
+        message:`Claim data missing or invalid: ${missing.join(", ")||"field length"}`};
+    if(!Number.isFinite(discoveredAt))
+      return {clicked:false,confirmed:false,message:"Claim command timestamp missing"};
+    const ageMs=Date.now()-discoveredAt;
+    if(Math.abs(ageMs)>60000)
+      return {clicked:false,confirmed:false,
+        message:`Claim command expired or clock differs (${Math.round(ageMs/1000)}s)`};
     const attemptedKey=`${this.connectionId}:${id}`;
     if(this.claimAttempted.has(attemptedKey)){
       return {clicked:false,confirmed:false,message:"Claim already attempted in this browser session"};
@@ -2790,7 +2797,23 @@ class PortalSession{
       const rect=button.getBoundingClientRect();
       if(rect.width<=0 || rect.height<=0 || getComputedStyle(button).visibility==='hidden')
         return {ready:false,message:"Claim button is hidden"};
-      button.click();
+      // Some portals require selecting the trip row before its Claim button.
+      // Only touch the checkbox inside the independently verified trip row.
+      const selectors=[...row.querySelectorAll('input[type="checkbox"],[role="checkbox"]')];
+      if(selectors.length>1) return {ready:false,message:"Trip row selection is ambiguous"};
+      if(selectors.length===1){
+        const checkbox=selectors[0];
+        if(checkbox.disabled || checkbox.getAttribute('aria-disabled')==='true')
+          return {ready:false,message:"Trip row select is disabled"};
+        const selected=()=>checkbox.checked===true || checkbox.getAttribute('aria-checked')==='true';
+        if(!selected()) checkbox.click();
+        if(!selected()) return {ready:false,message:"Trip row select did not complete"};
+      }
+      const current=[...document.querySelectorAll(p.selector)];
+      if(current.length!==1 || current[0].closest('tr,[role="row"],article,[class*="card" i]')!==row ||
+         !idPattern.test(row.innerText||row.textContent||'') || current[0].disabled)
+        return {ready:false,message:"Claim button changed after row selection"};
+      current[0].click();
       return {ready:true};
     })()`;
     let result;

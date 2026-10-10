@@ -418,7 +418,7 @@ function normalizeActionCandidates(value){
         item.selector &&
         !item.disabled
     )
-    .slice(0,50);
+    .slice(0,100);
 }
 
 function scoreAcceptAction(candidate){
@@ -1915,7 +1915,8 @@ async function ingestSmartNormalizedTrips(store,payload,meta){
     if(index>=0){
       // A partial refresh must not erase the last complete fields for this ID.
       const previous=store.normalizedTrips[index];
-      for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip",
+      for(const field of ["tripDate","memberName","memberPhone","appointmentTime",
+        "pickupAddress","dropoffAddress","pickupZip","dropoffZip",
         "pickupLat","pickupLng","dropoffLat","dropoffLng","tripMiles",
         "pickupTime","dropoffTime","mode"]){
         if((trip[field]===undefined || trip[field]===null || trip[field]==="" ||
