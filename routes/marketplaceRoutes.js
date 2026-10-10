@@ -831,15 +831,20 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
   if(options.source!=="DISCOVERY") return {reason:"LIVE_DISCOVERY_ONLY"};
   const discoveredAt=Date.parse(options.receivedAt);
-  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
+  // Geocoding and daily-limit checks can take several seconds for a full page.
+  // The Oracle agent still verifies the exact live trip row before clicking.
+  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>45000)
     return {reason:"DISCOVERY_TOO_OLD"};
   const externalTripId=clean(trip.externalTripId || trip.portalTripId);
   const selector=clean(trip.acceptActionSelector);
   const actionText=clean(trip.acceptActionText);
-  if(!externalTripId || !clean(trip.tripDate) || !clean(trip.pickupTime) ||
-     !clean(trip.memberName) || !clean(trip.pickupAddress) ||
-     !clean(trip.dropoffAddress) || !clean(trip.mode))
-    return {reason:"MISSING_EXTERNAL_HUB_FIELDS"};
+  const required={externalTripId,tripDate:trip.tripDate,pickupTime:trip.pickupTime,
+    memberName:trip.memberName,pickupAddress:trip.pickupAddress,
+    dropoffAddress:trip.dropoffAddress,mode:trip.mode};
+  const missing=Object.entries(required).filter(([,value])=>!clean(value))
+    .map(([field])=>field);
+  if(missing.length)
+    return {reason:`MISSING_EXTERNAL_HUB_FIELDS: ${missing.join(", ")}`};
   if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
      !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
      /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
@@ -1303,6 +1308,34 @@ router.put(
    CONNECTION-SCOPED ACTIVITY
 ========================= */
 
+// Keep the best-known details for each trip independently of the latest event.
+// A claim outcome does not include the trip addresses, and a partial portal
+// refresh may carry just one address. Neither may erase a known good value.
+function latestMatchedActivityRows(events,limit){
+  const chosen=new Map(),details=new Map();
+  for(const row of events){
+    const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
+    if(!details.has(key)) details.set(key,{});
+    const saved=details.get(key);
+    for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip"]){
+      const value=clean(row?.meta?.[field]);
+      if(value && !/^(--?|n\/a|null)$/i.test(value) && !saved[field]) saved[field]=value;
+    }
+    const previous=chosen.get(key);
+    // Events arrive newest first. Preserve a real outcome over a subsequent
+    // MATCHED bookkeeping event; let a new attempt replace an old failure.
+    if(!previous || (previous.action==="MATCHED" && row.action!=="MATCHED") ||
+       (row.action==="IMPORTED" && previous.action!=="IMPORTED"))
+      chosen.set(key,row);
+  }
+  return [...chosen.entries()].map(([key,row])=>({
+    ...row,meta:{...row.meta,...details.get(key),
+      pickupAddress:clean(row.meta?.pickupAddress)||details.get(key).pickupAddress||"",
+      dropoffAddress:clean(row.meta?.dropoffAddress)||details.get(key).dropoffAddress||""}
+  })).sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
+    .slice(0,limit);
+}
+
 router.get(
   "/activity",
   async (req,res) => {
@@ -1356,30 +1389,7 @@ router.get(
         .sort({_id:-1})
         .limit(Math.min(3000,Math.max(500,limit*20)))
         .lean();
-      const rank={IMPORTED:7,ERROR:6,CLAIMED:5,CLAIM_FAILED:4,
-        CLAIM_ATTEMPT:3,SKIPPED:2,MATCHED:1};
-      const chosen=new Map();
-      const details=new Map();
-      for(const row of events){
-        const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
-        if(!details.has(key) && (row?.meta?.pickupAddress || row?.meta?.dropoffAddress))
-          details.set(key,row);
-        const previous=chosen.get(key);
-        if(!previous || (rank[row.action]||0)>(rank[previous.action]||0))
-          chosen.set(key,row);
-      }
-      const rows=[...chosen.entries()].map(([key,row])=>{
-        const trip=details.get(key);
-        if(!trip) return row;
-        return {...trip,...row,
-          tripDate:row.tripDate||trip.tripDate,
-          pickupTime:row.pickupTime||trip.pickupTime,
-          mode:row.mode||trip.mode,
-          miles:row.miles??trip.miles,
-          meta:{...trip.meta,...row.meta}};
-      })
-        .sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
-        .slice(0,limit);
+      const rows=latestMatchedActivityRows(events,limit);
 
       return res.json({
         success:true,

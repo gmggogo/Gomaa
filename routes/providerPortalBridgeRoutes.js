@@ -32,7 +32,7 @@ const cloudConsoleFrames=new Map();
 const claimQueues=new Map();
 const claimTickets=new Map();
 const claimResultListeners=new Set();
-const CLAIM_TTL_MS=20000;
+const CLAIM_TTL_MS=60000;
 
 function enqueueClaimCommand(input={}){
   const tenantId=clean(input.tenantId),connectionId=clean(input.connectionId);
@@ -86,6 +86,11 @@ function takeClaimCommands(connectionIds=[]){
       }
       if(Date.now()-Date.parse(command.createdAt)>CLAIM_TTL_MS){
         claimTickets.delete(command.commandId);
+        for(const listener of claimResultListeners){
+          Promise.resolve().then(()=>listener({command,clicked:false,
+            confirmed:false,message:"Claim expired before dispatch"}))
+            .catch(err=>console.error("[claim-expired]",err));
+        }
         continue;
       }
       ticket.state="DISPATCHED";
