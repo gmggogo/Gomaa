@@ -1689,7 +1689,8 @@ class PortalSession{
               return {
                 available:false,
                 text:"",
-                selector:""
+                selector:"",
+                candidates:[]
               };
             }
 
@@ -1700,6 +1701,13 @@ class PortalSession{
                 )
               ]
               .filter(visible);
+
+            const candidates=controls.map(el=>({
+              text:clean(el.innerText||el.textContent||el.value||
+                el.getAttribute("aria-label")||el.getAttribute("title")).slice(0,100),
+              selector:selectorFor(el),
+              disabled:Boolean(el.disabled||el.getAttribute("aria-disabled")==="true")
+            })).filter(item=>item.text && item.selector && !item.disabled);
 
             for(const el of controls){
               const text=
@@ -1725,7 +1733,8 @@ class PortalSession{
                 return {
                   available:true,
                   text,
-                  selector:selectorFor(el)
+                  selector:selectorFor(el),
+                  candidates
                 };
               }
             }
@@ -1733,7 +1742,8 @@ class PortalSession{
             return {
               available:false,
               text:"",
-              selector:""
+              selector:"",
+              candidates
             };
           };
 
@@ -1795,6 +1805,8 @@ class PortalSession{
 
                 obj.__ghAcceptSelector=
                   accept.selector;
+
+                obj.__ghActionCandidates=accept.candidates;
 
                 rows.push(obj);
               }
@@ -1904,6 +1916,8 @@ class PortalSession{
                 obj.__ghAcceptSelector=
                   accept.selector;
 
+                obj.__ghActionCandidates=accept.candidates;
+
                 rows.push(obj);
 
                 if(rows.length>=50){
@@ -1945,7 +1959,6 @@ class PortalSession{
             .filter(
               item=>
                 item.text &&
-                actionWords.test(item.text) &&
                 !item.disabled
             )
             .slice(0,100);
@@ -2789,8 +2802,7 @@ class PortalSession{
         button.getAttribute('aria-label')||'').trim();
       const normalized=s=>String(s||'').trim().replace(/\\s+/g,' ').toLowerCase();
       if(normalized(label)!==normalized(p.actionText) ||
-         !/\\b(accept|claim|take|book|reserve|assign|select\\s+trip|add\\s+trip|choose\\s+trip)\\b/i.test(label) ||
-         /\\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\\b/i.test(label) ||
+         /\\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout|details?|edit)\\b/i.test(label) ||
          button.disabled ||
          button.getAttribute('aria-disabled')==='true')
         return {ready:false,message:"Claim action is unavailable"};
@@ -2807,12 +2819,18 @@ class PortalSession{
           return {ready:false,message:"Trip row select is disabled"};
         const selected=()=>checkbox.checked===true || checkbox.getAttribute('aria-checked')==='true';
         if(!selected()) checkbox.click();
-        if(!selected()) return {ready:false,message:"Trip row select did not complete"};
       }
       const current=[...document.querySelectorAll(p.selector)];
-      if(current.length!==1 || current[0].closest('tr,[role="row"],article,[class*="card" i]')!==row ||
-         !idPattern.test(row.innerText||row.textContent||'') || current[0].disabled)
+      const freshRow=current[0]?.closest('tr,[role="row"],article,[class*="card" i]');
+      if(current.length!==1 || !freshRow ||
+         !idPattern.test(freshRow.innerText||freshRow.textContent||'') || current[0].disabled ||
+         normalized(String(current[0].innerText||current[0].textContent||current[0].value||
+           current[0].getAttribute('aria-label')||''))!==normalized(p.actionText))
         return {ready:false,message:"Claim button changed after row selection"};
+      const freshChecks=[...freshRow.querySelectorAll('input[type="checkbox"],[role="checkbox"]')];
+      if(freshChecks.length>1 || (freshChecks.length===1 &&
+         freshChecks[0].checked!==true && freshChecks[0].getAttribute('aria-checked')!=='true'))
+        return {ready:false,message:"Trip row select did not complete"};
       current[0].click();
       return {ready:true};
     })()`;

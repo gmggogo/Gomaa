@@ -461,8 +461,11 @@ async function chooseActionProfile(actionCandidates){
     };
   }
 
+  // Repeated row buttons must not crowd a differently named action out of
+  // the classifier's short candidate list.
+  const unique=[...new Map(candidates.map(item=>[item.text.toLowerCase(),item])).values()];
   const ranked=
-    candidates
+    unique
       .map(
         item=>({
           ...item,
@@ -1556,28 +1559,34 @@ async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
   }
 }
 
-function currentDomActionTrips({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates}){
+function currentDomActionTrips({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates,actionResult}){
   if(clean(discoveryType)!=="DOM" || payload?.__ghOnboarding!==true ||
      !Array.isArray(payload.rows) || !Array.isArray(trips) ||
      !/^https?:\/\//i.test(clean(sourceUrl)) ||
      !portalHost || safeHost(sourceUrl)!==clean(portalHost).toLowerCase()) return [];
 
   const candidates=normalizeActionCandidates(actionCandidates);
+  const selected=actionResult?.profile?.accept;
+  const classified=Boolean(selected && candidates.some(item=>
+    item.selector===selected.selector && item.text.toLowerCase()===clean(selected.text).toLowerCase()) &&
+    (actionResult.method==="AUTO_RULES" && Number(actionResult.confidence)>=0.80 ||
+     actionResult.method==="AI_ASSISTED" && Number(actionResult.confidence)>=0.85));
   const found=[];
   for(const row of payload.rows){
-    const selector=clean(row?.__ghAcceptSelector);
-    const label=clean(row?.__ghAcceptActionText);
-    if(row?.__ghAcceptAvailable!==true || !selector || !label ||
-       !/\b(accept|claim|take|book|reserve|assign|select\s+trip|add\s+trip|choose\s+trip)\b/i.test(label) ||
-       /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(label)) continue;
+    const rowCandidates=Array.isArray(row?.__ghActionCandidates)?row.__ghActionCandidates:[];
+    const choices=classified?rowCandidates.filter(item=>
+      clean(item.text).toLowerCase()===clean(selected.text).toLowerCase() &&
+      item.disabled!==true):[];
+    const chosen=choices.length===1?choices[0]:null;
+    const selector=clean(chosen?.selector||row?.__ghAcceptSelector);
+    const label=clean(chosen?.text||row?.__ghAcceptActionText);
+    if((!chosen && row?.__ghAcceptAvailable!==true) || !selector || !label ||
+       /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout|details?|edit)\b/i.test(label)) continue;
 
     const trip=trips.find(item=>
       item.raw===row && clean(item.portalTripId) &&
       clean(item.sourceUrl)===clean(sourceUrl) &&
-      item.availableForAccept===true &&
-      clean(item.availabilityEvidence)==="DOM_ACCEPT_ACTION" &&
-      clean(item.acceptActionSelector)===selector &&
-      clean(item.acceptActionText).toLowerCase()===label.toLowerCase()
+      clean(item.availabilityEvidence)!=="NEGATIVE_STATUS"
     );
     if(!trip) continue;
 
@@ -1586,6 +1595,10 @@ function currentDomActionTrips({payload,discoveryType,sourceUrl,portalHost,trips
       clean(item.text).toLowerCase()===label.toLowerCase()
     );
     if(matches.length!==1) continue;
+    trip.availableForAccept=true;
+    trip.availabilityEvidence="DOM_ACCEPT_ACTION";
+    trip.acceptActionSelector=selector;
+    trip.acceptActionText=label;
     found.push({trip,match:matches[0]});
   }
   return found;
@@ -2184,11 +2197,11 @@ router.post("/discovery",verifyAgentToken,express.json({limit:"10mb"}),async(req
 
     const currentActions=currentDomActionTrips({
       payload:body.payload,discoveryType,sourceUrl,portalHost:host,
-      trips:store.normalizedTrips,actionCandidates:body.actionCandidates
+      trips:store.normalizedTrips,actionCandidates:body.actionCandidates,actionResult
     });
     const verifiedAction=verifiedRowActionProfile({
       payload:body.payload,discoveryType,sourceUrl,portalHost:host,
-      trips:store.normalizedTrips,actionCandidates:body.actionCandidates
+      trips:store.normalizedTrips,actionCandidates:body.actionCandidates,actionResult
     });
     if(verifiedAction) actionResult=verifiedAction;
 

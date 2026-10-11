@@ -820,10 +820,21 @@ async function claimedOrPendingCount(id,engineName,since){
   // A failed attempt cannot use up a day's accepted-trip allowance.
   // Reserve capacity briefly while a portal command is still in flight.
   const pendingSince=new Date(Math.max(since.getTime(),Date.now()-30000));
-  const [claimed,pending]=await Promise.all([
+  const [claimed,recent]=await Promise.all([
     Activity.distinct("externalTripId",{...scope,action:"CLAIMED",occurredAt:{$gte:since}}),
-    Activity.distinct("externalTripId",{...scope,action:"CLAIM_ATTEMPT",occurredAt:{$gte:pendingSince}})
+    Activity.find({...scope,action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]},
+      occurredAt:{$gte:pendingSince}}).sort({_id:-1}).lean()
   ]);
+  const resolved=new Set(),pending=new Set();
+  for(const event of recent){
+    const tripId=clean(event.externalTripId);
+    const key=clean(event.meta?.claimCommandId)||tripId;
+    if(!key) continue;
+    if(event.action==="CLAIM_FAILED" || event.action==="CLAIMED" || event.action==="IMPORTED")
+      resolved.add(key);
+    else if(event.action==="CLAIM_ATTEMPT" && !resolved.has(key) && tripId)
+      pending.add(tripId);
+  }
   return new Set([...claimed,...pending].map(clean).filter(Boolean)).size;
 }
 
@@ -846,8 +857,9 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   if(missing.length)
     return {reason:`MISSING_EXTERNAL_HUB_FIELDS: ${missing.join(", ")}`};
   if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
-     !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
-     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
+     clean(trip.availabilityEvidence)!=="DOM_ACCEPT_ACTION" ||
+     !actionText ||
+     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout|details?|edit)\b/i.test(actionText))
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
