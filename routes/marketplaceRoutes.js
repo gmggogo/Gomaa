@@ -47,8 +47,6 @@ const providerPortalBridgeRoutes =
 const {createExternalTrip} =
   require("../services/externalTripService");
 
-const ExternalTrip = require("../models/ExternalTrip");
-
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   "dev_secret";
@@ -333,14 +331,7 @@ function normalizeEngine(value={}){
       ),
 
     zoneMatch:
-      clean(value.zoneMatch).toUpperCase()==="ANY" &&
-      (pickupZoneZip || clean(value.pickupZoneCity) || clean(value.pickupZoneAddress) ||
-       dropoffZoneZip || clean(value.dropoffZoneCity) || clean(value.dropoffZoneAddress))
-        ? ((pickupZoneZip || clean(value.pickupZoneCity) || clean(value.pickupZoneAddress))
-            ? ((dropoffZoneZip || clean(value.dropoffZoneCity) || clean(value.dropoffZoneAddress))
-                ? "BOTH" : "PICKUP")
-            : "DROPOFF")
-        : [
+      [
         "ANY",
         "PICKUP",
         "DROPOFF",
@@ -569,7 +560,7 @@ async function logActivity(
     data.trip ||
     {};
 
-  return Activity.create({
+  const document = {
 
     tenantId:id,
 
@@ -647,7 +638,25 @@ async function logActivity(
       zone:{...(trip.zoneDistances || {})},
       ...(data.meta || {})
     }
-  });
+  };
+
+  // A discovery loop can see the same matched trip many times.  Keep one
+  // current MATCHED row per tenant/connection/trip instead of appending a
+  // history row on every evaluation.
+  if(data.dedupe === true){
+    return Activity.findOneAndUpdate(
+      {
+        tenantId:id,
+        integrationId:connection._id,
+        externalTripId:document.externalTripId,
+        action
+      },
+      {$set:document},
+      {new:true,upsert:true,setDefaultsOnInsert:true}
+    );
+  }
+
+  return Activity.create(document);
 }
 
 async function marketplaceConnection(
@@ -686,10 +695,6 @@ async function selectedByEngine(
   settings
 ){
 
-  // Apply the same normalization to older saved profiles as to newly saved ones.
-  const longSettings=normalizeEngine(settings?.longEngine || {});
-  const shortSettings=normalizeEngine(settings?.shortEngine || {});
-
   // Match only dated rides through the configured number of calendar days
   // ahead. A missing or ambiguous date must never be auto claimed.
   let timeZone="UTC";
@@ -720,11 +725,11 @@ async function selectedByEngine(
   });
 
   const [longTrips,shortTrips]=await Promise.all([
-    longSettings.enabled
-      ? enrichZoneDistances(inWindow,longSettings).then(rows=>longEngine.select(rows,longSettings))
+    settings?.longEngine?.enabled
+      ? enrichZoneDistances(inWindow,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
       : [],
-    shortSettings.enabled
-      ? enrichZoneDistances(inWindow,shortSettings).then(rows=>shortEngine.select(rows,shortSettings))
+    settings?.shortEngine?.enabled
+      ? enrichZoneDistances(inWindow,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
       : []
   ]);
 
@@ -747,8 +752,9 @@ async function logEngineMatches(
 
   for(const trip of trips){
 
-    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
-
+    // Persist the single temporary matched row before activating a claim.
+    // This ordering prevents a very fast successful claim from deleting the
+    // row and then having this evaluation recreate it afterward.
     await logActivity(
       id,
       connection,
@@ -756,10 +762,13 @@ async function logEngineMatches(
       {
         engine:engineName,
         trip,
+        dedupe:true,
         message:
           `${engineName} engine matched trip ${clean(trip.externalTripId || trip.portalTripId)}`
       }
     );
+
+    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
 
     if(claim.queued){
       results.push({engine:engineName,externalTripId:clean(trip.externalTripId || trip.portalTripId),
@@ -768,19 +777,6 @@ async function logEngineMatches(
     }
 
     const reason=claim.reason;
-    const message=`${engineName} matched trip ${clean(trip.externalTripId || trip.portalTripId)}; ${reason}`;
-
-    await logActivity(
-      id,
-      connection,
-      "SKIPPED",
-      {
-        engine:engineName,
-        trip,
-        reason,
-        message
-      }
-    );
 
     results.push({
       engine:engineName,
@@ -800,7 +796,6 @@ async function logEngineMatches(
 
 const claimLocks=new Map();
 const tenantClaimGates=new Map();
-const latestScanSummaries=new Map();
 async function maybeQueueClaim(...args){
   const id=args[0];
   const previous=tenantClaimGates.get(id)||Promise.resolve();
@@ -814,25 +809,10 @@ async function maybeQueueClaim(...args){
     if(tenantClaimGates.get(id)===gate) tenantClaimGates.delete(id);
   }
 }
-async function claimedOrPendingCount(id,engineName,since){
-  const scope={tenantId:id};
-  if(engineName) scope.engine=engineName;
-  // A failed attempt cannot use up a day's accepted-trip allowance.
-  // Reserve capacity briefly while a portal command is still in flight.
-  const pendingSince=new Date(Math.max(since.getTime(),Date.now()-30000));
-  const [claimed,pending]=await Promise.all([
-    Activity.distinct("externalTripId",{...scope,action:"CLAIMED",occurredAt:{$gte:since}}),
-    Activity.distinct("externalTripId",{...scope,action:"CLAIM_ATTEMPT",occurredAt:{$gte:pendingSince}})
-  ]);
-  return new Set([...claimed,...pending].map(clean).filter(Boolean)).size;
-}
-
 async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
   const discoveredAt=Date.parse(options.receivedAt);
-  // Geocoding and daily-limit checks can take several seconds for a full page.
-  // The Oracle agent still verifies the exact live trip row before clicking.
-  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>45000)
+  if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
     return {reason:"DISCOVERY_TOO_OLD"};
   const externalTripId=clean(trip.externalTripId || trip.portalTripId);
   const selector=clean(trip.acceptActionSelector);
@@ -844,49 +824,31 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     !/\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText);
   if(options.source!=="DISCOVERY" && !(options.source==="NETWORK_DISCOVERY" && domVerified))
     return {reason:"LIVE_DISCOVERY_ONLY"};
-  const required={externalTripId,tripDate:trip.tripDate,pickupTime:trip.pickupTime,
-    memberName:trip.memberName,pickupAddress:trip.pickupAddress,
-    dropoffAddress:trip.dropoffAddress,mode:trip.mode};
-  const missing=Object.entries(required).filter(([,value])=>!clean(value))
-    .map(([field])=>field);
-  if(missing.length)
-    return {reason:`MISSING_EXTERNAL_HUB_FIELDS: ${missing.join(", ")}`};
+  if(!externalTripId || !clean(trip.tripDate) || !clean(trip.pickupTime) ||
+     !clean(trip.memberName) || !clean(trip.pickupAddress) ||
+     !clean(trip.dropoffAddress) || !clean(trip.mode))
+    return {reason:"MISSING_EXTERNAL_HUB_FIELDS"};
   if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
      !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
      /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
+  claimLocks.set(key,Date.now());
   let command=null;
   try{
-    // Retry only when the portal button was never clicked. A click without
-    // confirmation remains blocked, since retrying may accept twice.
-    const latest=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),
-      action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}})
-      .sort({_id:-1}).lean();
-    if(latest){
-      // Surface the real portal failure instead of hiding it behind the
-      // generic retry cooldown. A missing driver/vehicle assignment cannot
-      // be fixed by retrying the same claim command.
-      if(/driver\s+assignment/i.test(clean(latest.message)) ||
-         /vehicle\s+assignment/i.test(clean(latest.message)))
-        return {reason:"DRIVER_ASSIGNMENT_REQUIRED"};
-      if(latest.action!=="CLAIM_FAILED" || latest.reason!=="CLAIM_NOT_CLICKED")
-        return {reason:"ALREADY_ATTEMPTED"};
-      const failedAt=Date.parse(latest.occurredAt);
-      if(!Number.isFinite(failedAt) || Date.now()-failedAt<30000)
-        return {reason:"CLAIM_RETRY_COOLDOWN"};
-    }
+    const already=await Activity.findOne({tenantId:id,externalTripId,
+      "meta.connectionId":String(connection._id),action:"CLAIM_ATTEMPT"}).lean();
+    if(already) return {reason:"ALREADY_ATTEMPTED"};
     const since=new Date(Date.now()-86400000);
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
     if(totalLimit>0){
-      const count=await claimedOrPendingCount(id,"",since);
+      const count=await Activity.countDocuments({tenantId:id,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
       if(count>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
     }
     if(engineLimit>0){
-      const count=await claimedOrPendingCount(id,engineName,since);
+      const count=await Activity.countDocuments({tenantId:id,engine:engineName,action:"CLAIM_ATTEMPT",occurredAt:{$gte:since}});
       if(count>=engineLimit) return {reason:"ENGINE_DAILY_LIMIT"};
     }
     command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
@@ -904,7 +866,6 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       }}});
     if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
       throw new Error("Claim command could not be activated");
-    claimLocks.set(key,Date.now());
     return {queued:true};
   }catch(err){
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
@@ -934,10 +895,6 @@ async function handleClaimResult(result){
         `Claim was not clicked: ${result.message}`,
       reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
       meta});
-  if(!result.clicked){
-    claimLocks.delete(`${command.tenantId}:${command.connectionId}:${command.externalTripId}`);
-    return;
-  }
   if(!result.confirmed) return;
 
   try{
@@ -959,25 +916,14 @@ async function handleClaimResult(result){
         serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
         brokerStatus:"ACCEPTED"}
     });
-    if(!imported?.trip?._id)
-      throw new Error("External Hub did not return a saved trip ID");
-    const hubTrip=await ExternalTrip.findOne({
-      _id:imported.trip._id,
+    // Marketplace is only a temporary holding area.  Once the portal claim
+    // is confirmed and the trip exists in External Hub, remove every
+    // temporary activity row for this trip (MATCHED/CLAIM_ATTEMPT/CLAIMED).
+    await Activity.deleteMany({
       tenantId:command.tenantId,
-      externalTripId:command.externalTripId
-    }).select("_id ghExternalTripNumber").lean();
-    if(!hubTrip)
-      throw new Error("Accepted trip was not found in External Hub after import");
-    const summary=latestScanSummaries.get(`${command.tenantId}:${command.connectionId}`);
-    if(summary?.matchedIds.has(String(command.externalTripId))){
-      summary.importedIds.add(String(command.externalTripId));
-      summary.imported=summary.importedIds.size;
-    }
-    await logActivity(command.tenantId,connection,"IMPORTED",{
-      engine:command.engine,externalTripId:command.externalTripId,
-      message:imported.duplicate?"Claimed trip already exists in External Hub":
-        "Confirmed portal claim imported to External Hub",
-      meta:{...meta,hubTripId:String(hubTrip._id),hubTripNumber:hubTrip.ghExternalTripNumber}});
+      externalTripId:command.externalTripId,
+      "meta.connectionId":String(command.connectionId)
+    });
   }catch(err){
     await logActivity(command.tenantId,connection,"ERROR",{
       engine:command.engine,externalTripId:command.externalTripId,
@@ -998,21 +944,11 @@ if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
    - Saving settings re-evaluates the current normalized trip buffer.
 ========================= */
 
-function buildScanSummary(trips,longTrips,shortTrips,importedIds=[]){
-  const matchedIds=new Set([...longTrips,...shortTrips]
-    .map(trip=>String(trip.externalTripId||trip.portalTripId||"").trim())
-    .filter(Boolean));
-  const importedSet=new Set(importedIds.map(String).filter(id=>matchedIds.has(id)));
-  return {available:trips.length,matched:matchedIds.size,
-    imported:importedSet.size,matchedIds,importedIds:importedSet};
-}
-
 async function evaluateConnectionTrips({
   id,
   connection,
   settings,
   rawTrips,
-  summaryTrips,
   source="AUTO",
   receivedAt=""
 }){
@@ -1022,10 +958,6 @@ async function evaluateConnectionTrips({
       .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
 
   if(!trips.length){
-    const inventory=Array.isArray(summaryTrips)?summaryTrips:rawTrips;
-    latestScanSummaries.set(`${id}:${connection._id}`,
-      {...buildScanSummary(Array.isArray(inventory)?inventory:[],[],[]),
-        observedAt:new Date().toISOString()});
     return {
       scanned:0,
       longMatched:0,
@@ -1057,24 +989,6 @@ async function evaluateConnectionTrips({
         {source,receivedAt,settings}
       )
     ]);
-
-  {
-    const inventory=Array.isArray(summaryTrips)?summaryTrips:rawTrips;
-    const inventoryTrips=(Array.isArray(inventory)?inventory:[])
-      .map(tripForEngine).filter(trip=>Boolean(trip.externalTripId||trip.tripNumber));
-    const inventoryMatches=await selectedByEngine(inventoryTrips,settings);
-    const matchedIds=[...new Set([...inventoryMatches.longTrips,...inventoryMatches.shortTrips]
-      .map(trip=>String(trip.externalTripId||trip.portalTripId||"").trim())
-      .filter(Boolean))];
-    // Claims have already been queued; this display query cannot delay Accept.
-    const imported=matchedIds.length
-      ? await ExternalTrip.find({tenantId:id,brokerCode:connection.brokerCode,
-          externalTripId:{$in:matchedIds}}).select("externalTripId").lean()
-      : [];
-    latestScanSummaries.set(`${id}:${connection._id}`,
-      {...buildScanSummary(inventoryTrips,inventoryMatches.longTrips,inventoryMatches.shortTrips,
-        imported.map(trip=>trip.externalTripId)),observedAt:new Date().toISOString()});
-  }
 
   await Settings.updateOne(
     {tenantId:id},
@@ -1153,7 +1067,6 @@ if(
         connection,
         settings,
         rawTrips:Array.isArray(event?.trips) ? event.trips : [],
-        summaryTrips:providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId),
         source:event?.discoveryType==="DOM" ? "DISCOVERY" : "NETWORK_DISCOVERY",
         receivedAt:event?.receivedAt
       });
@@ -1165,19 +1078,6 @@ if(
    ENGINE SETTINGS
    Generic endpoint; retains the existing stored settings through the MarketplaceSettings compatibility model.
 ========================= */
-
-router.get("/scan-summary",(req,res)=>{
-  const id=tenantId(req);
-  const connectionId=clean(req.query.connectionId);
-  if(!id || !connectionId)
-    return res.status(400).json({success:false,message:"Broker connection is required"});
-  const summary=latestScanSummaries.get(`${id}:${connectionId}`);
-  return res.json({success:true,summary:summary
-    ? {available:summary.available,matched:summary.matched,
-       imported:summary.imported,observedAt:summary.observedAt,
-       matchedTripIds:[...summary.matchedIds]}
-    : null});
-});
 
 router.get(
   "/settings",
@@ -1320,34 +1220,6 @@ router.put(
    CONNECTION-SCOPED ACTIVITY
 ========================= */
 
-// Keep the best-known details for each trip independently of the latest event.
-// A claim outcome does not include the trip addresses, and a partial portal
-// refresh may carry just one address. Neither may erase a known good value.
-function latestMatchedActivityRows(events,limit){
-  const chosen=new Map(),details=new Map();
-  for(const row of events){
-    const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
-    if(!details.has(key)) details.set(key,{});
-    const saved=details.get(key);
-    for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip"]){
-      const value=clean(row?.meta?.[field]);
-      if(value && !/^(--?|n\/a|null)$/i.test(value) && !saved[field]) saved[field]=value;
-    }
-    const previous=chosen.get(key);
-    // Events arrive newest first. Preserve a real outcome over a subsequent
-    // MATCHED bookkeeping event; let a new attempt replace an old failure.
-    if(!previous || (previous.action==="MATCHED" && row.action!=="MATCHED") ||
-       (row.action==="IMPORTED" && previous.action!=="IMPORTED"))
-      chosen.set(key,row);
-  }
-  return [...chosen.entries()].map(([key,row])=>({
-    ...row,meta:{...row.meta,...details.get(key),
-      pickupAddress:clean(row.meta?.pickupAddress)||details.get(key).pickupAddress||"",
-      dropoffAddress:clean(row.meta?.dropoffAddress)||details.get(key).dropoffAddress||""}
-  })).sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
-    .slice(0,limit);
-}
-
 router.get(
   "/activity",
   async (req,res) => {
@@ -1385,7 +1257,7 @@ router.get(
         tenantId:id,
         // Activity is the result of the configured engines, not an inventory
         // of every trip the broker portal exposed.
-        action:{$in:["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED","ERROR"]},
+        action:{$in:["MATCHED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED"]},
         externalTripId:{$nin:["",null]}
       };
 
@@ -1395,13 +1267,23 @@ router.get(
           connectionId;
       }
 
-      // Use the _id index and a bounded window. Sorting the full discovery
-      // history in an aggregation previously exhausted MongoDB memory.
-      const events=await Activity.find(filter)
-        .sort({_id:-1})
-        .limit(Math.min(3000,Math.max(500,limit*20)))
-        .lean();
-      const rows=latestMatchedActivityRows(events,limit);
+      // Each external trip gets one visible row, even when recurring scans
+      // produced many MATCHED events. Preserve the most advanced claim state.
+      const rows=await Activity.aggregate([
+        {$match:filter},
+        {$addFields:{activityRank:{$switch:{branches:[
+          {case:{$eq:["$action","IMPORTED"]},then:5},
+          {case:{$eq:["$action","CLAIMED"]},then:4},
+          {case:{$eq:["$action","CLAIM_FAILED"]},then:3},
+          {case:{$eq:["$action","CLAIM_ATTEMPT"]},then:2}
+        ],default:1}}}},
+        {$sort:{activityRank:-1,occurredAt:-1,_id:-1}},
+        {$group:{_id:{connectionId:"$meta.connectionId",tripId:"$externalTripId"},row:{$first:"$$ROOT"}}},
+        {$replaceRoot:{newRoot:"$row"}},
+        {$project:{activityRank:0}},
+        {$sort:{occurredAt:-1,_id:-1}},
+        {$limit:limit}
+      ]);
 
       return res.json({
         success:true,
@@ -1585,21 +1467,6 @@ router.post(
                 trip.tripNumber
               )
           );
-
-      await logActivity(
-        id,
-        connection,
-        "SCAN",
-        {
-          engine:"SYSTEM",
-          message:
-            `Marketplace scan started for ${connection.brokerName || connection.brokerCode || "broker"} / ${connection.accountLabel || "Primary Account"}`,
-          meta:{
-            scannedCount:
-              trips.length
-          }
-        }
-      );
 
       const {
         longTrips,
