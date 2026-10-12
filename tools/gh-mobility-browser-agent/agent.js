@@ -2877,12 +2877,35 @@ class PortalSession{
             return true;
           }
           field.click?.();
-          const roots=[...modal.querySelectorAll('[role="listbox"],[role="option"],option,[class*="option" i]')]
-            .filter(visible);
-          const candidate=roots.find(el=>{
+          // CareCar renders the selected suggestion as plain text directly
+          // below the combobox (not as an <option> or role=option). Search
+          // both semantic options and visible, compact elements positioned
+          // under the active field so the agent actually commits the value.
+          const roots=[...modal.querySelectorAll(
+            '[role="listbox"],[role="option"],option,li,button,'+
+            '[data-value],[data-option],[class*="option" i]'
+          )].filter(visible);
+          const fieldRect=field.getBoundingClientRect();
+          const compact=[...modal.querySelectorAll('div,span,p')]
+            .filter(visible)
+            .filter(el=>el!==field && !field.contains(el))
+            .filter(el=>{
+              const r=el.getBoundingClientRect();
+              const text=String(el.innerText||el.textContent||'').trim();
+              return text && text.length<=120 && r.top>=fieldRect.bottom-2 &&
+                r.top<=fieldRect.bottom+140 && r.left>=fieldRect.left-20 &&
+                r.left<=fieldRect.right+20 && r.width<=Math.max(fieldRect.width+40,420);
+            });
+          const candidates=[...roots,...compact].sort((a,b)=>{
+            const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();
+            return (ar.width*ar.height)-(br.width*br.height);
+          });
+          const candidate=candidates.find(el=>{
             const text=norm(el.innerText||el.textContent||'');
             return text && !/^(select|choose|pick|none|--)/i.test(text) &&
-              (kind==='driver' ? !/vehicle|car|van|sienna|sedan/i.test(text) : /vehicle|car|van|sienna|sedan|[a-z0-9-]{3,}/i.test(text));
+              (kind==='driver'
+                ? !/vehicle|car|van|sienna|sedan|\b201[0-9]\b/i.test(text)
+                : /vehicle|car|van|sienna|sedan|\b20[0-9]{2}\b|[a-z0-9-]{3,}/i.test(text));
           });
           if(candidate){candidate.click?.(); return true;}
           return false;
