@@ -2863,8 +2863,30 @@ class PortalSession{
         const modal=candidates.find(el=>/\\b(claim(?:ing)?|accept|book|reserve)\\b/i.test(el.innerText||''));
         if(!modal) return {found:false};
         const inputs=[...modal.querySelectorAll('input[type="radio"]')];
-        const fields=[...modal.querySelectorAll('select,[role="combobox"]')]
+        const fields=[...modal.querySelectorAll('select,[role="combobox"],input:not([type="radio"]):not([type="hidden"])')]
           .filter(visible);
+        const chooseField=(field,kind)=>{
+          if(!field) return false;
+          const options=[...(field.options||field.querySelectorAll?.('option')||[])];
+          const usable=options.find(opt=>String(opt.value||'').trim() &&
+            !/^(select|choose|pick|none|--)/i.test(String(opt.textContent||opt.label||'').trim()));
+          if(usable){
+            field.value=usable.value;
+            field.dispatchEvent?.(new Event('input',{bubbles:true}));
+            field.dispatchEvent?.(new Event('change',{bubbles:true}));
+            return true;
+          }
+          field.click?.();
+          const roots=[...modal.querySelectorAll('[role="listbox"],[role="option"],option,[class*="option" i]')]
+            .filter(visible);
+          const candidate=roots.find(el=>{
+            const text=norm(el.innerText||el.textContent||'');
+            return text && !/^(select|choose|pick|none|--)/i.test(text) &&
+              (kind==='driver' ? !/vehicle|car|van|sienna|sedan/i.test(text) : /vehicle|car|van|sienna|sedan|[a-z0-9-]{3,}/i.test(text));
+          });
+          if(candidate){candidate.click?.(); return true;}
+          return false;
+        };
         for(const [kind,index] of [['driver',0],['vehicle',1]]){
           const labels=[...modal.querySelectorAll('label')]
             .filter(el=>visible(el) && norm(el.innerText||'').includes(kind));
@@ -2885,13 +2907,7 @@ class PortalSession{
             return !String(el.value||'').trim() && context.includes(kind);
           }) || fields.filter(el=>!String(el.value||'').trim())[index];
           if(field){
-            const option=[...(field.options||field.querySelectorAll?.('option')||[])]
-              .find(opt=>String(opt.value||'').trim() &&
-                !/^(select|choose|pick|none|--)/i.test(String(opt.textContent||opt.label||'' ).trim()));
-            if(!option) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
-            field.value=option.value;
-            field.dispatchEvent?.(new Event('input',{bubbles:true}));
-            field.dispatchEvent?.(new Event('change',{bubbles:true}));
+            if(!chooseField(field,kind)) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
             return {found:true,progress:true};
           }
         }

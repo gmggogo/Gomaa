@@ -820,27 +820,15 @@ async function claimedOrPendingCount(id,engineName,since){
   // A failed attempt cannot use up a day's accepted-trip allowance.
   // Reserve capacity briefly while a portal command is still in flight.
   const pendingSince=new Date(Math.max(since.getTime(),Date.now()-30000));
-  const [claimed,recent]=await Promise.all([
+  const [claimed,pending]=await Promise.all([
     Activity.distinct("externalTripId",{...scope,action:"CLAIMED",occurredAt:{$gte:since}}),
-    Activity.find({...scope,action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]},
-      occurredAt:{$gte:pendingSince}}).sort({_id:-1}).lean()
+    Activity.distinct("externalTripId",{...scope,action:"CLAIM_ATTEMPT",occurredAt:{$gte:pendingSince}})
   ]);
-  const resolved=new Set(),pending=new Set();
-  for(const event of recent){
-    const tripId=clean(event.externalTripId);
-    const key=clean(event.meta?.claimCommandId)||tripId;
-    if(!key) continue;
-    if(event.action==="CLAIM_FAILED" || event.action==="CLAIMED" || event.action==="IMPORTED")
-      resolved.add(key);
-    else if(event.action==="CLAIM_ATTEMPT" && !resolved.has(key) && tripId)
-      pending.add(tripId);
-  }
   return new Set([...claimed,...pending].map(clean).filter(Boolean)).size;
 }
 
 async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
-  if(options.source!=="DISCOVERY") return {reason:"LIVE_DISCOVERY_ONLY"};
   const discoveredAt=Date.parse(options.receivedAt);
   // Geocoding and daily-limit checks can take several seconds for a full page.
   // The Oracle agent still verifies the exact live trip row before clicking.
@@ -849,6 +837,13 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   const externalTripId=clean(trip.externalTripId || trip.portalTripId);
   const selector=clean(trip.acceptActionSelector);
   const actionText=clean(trip.acceptActionText);
+  const domVerified=trip.availableForAccept===true &&
+    clean(trip.availabilityEvidence)==="DOM_ACCEPT_ACTION" &&
+    Boolean(selector) && Boolean(clean(trip.sourceUrl)) &&
+    /\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) &&
+    !/\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText);
+  if(options.source!=="DISCOVERY" && !(options.source==="NETWORK_DISCOVERY" && domVerified))
+    return {reason:"LIVE_DISCOVERY_ONLY"};
   const required={externalTripId,tripDate:trip.tripDate,pickupTime:trip.pickupTime,
     memberName:trip.memberName,pickupAddress:trip.pickupAddress,
     dropoffAddress:trip.dropoffAddress,mode:trip.mode};
@@ -857,9 +852,8 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   if(missing.length)
     return {reason:`MISSING_EXTERNAL_HUB_FIELDS: ${missing.join(", ")}`};
   if(trip.availableForAccept!==true || !selector || !clean(trip.sourceUrl) ||
-     clean(trip.availabilityEvidence)!=="DOM_ACCEPT_ACTION" ||
-     !actionText ||
-     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout|details?|edit)\b/i.test(actionText))
+     !/\b(accept|claim|take|book|reserve|assign|select trip|add trip|choose trip)\b/i.test(actionText) ||
+     /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
@@ -1324,11 +1318,9 @@ router.put(
 // A claim outcome does not include the trip addresses, and a partial portal
 // refresh may carry just one address. Neither may erase a known good value.
 function latestMatchedActivityRows(events,limit){
-  const chosen=new Map(),details=new Map(),failures=new Map();
+  const chosen=new Map(),details=new Map();
   for(const row of events){
     const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
-    if(row.action==="CLAIM_FAILED" && !failures.has(key))
-      failures.set(key,clean(row.message||row.reason));
     if(!details.has(key)) details.set(key,{});
     const saved=details.get(key);
     for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip"]){
@@ -1344,7 +1336,6 @@ function latestMatchedActivityRows(events,limit){
   }
   return [...chosen.entries()].map(([key,row])=>({
     ...row,meta:{...row.meta,...details.get(key),
-      lastClaimFailure:failures.get(key)||"",
       pickupAddress:clean(row.meta?.pickupAddress)||details.get(key).pickupAddress||"",
       dropoffAddress:clean(row.meta?.dropoffAddress)||details.get(key).dropoffAddress||""}
   })).sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))
