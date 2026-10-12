@@ -2890,11 +2890,22 @@ class PortalSession{
         for(const [kind,index] of [['driver',0],['vehicle',1]]){
           const labels=[...modal.querySelectorAll('label')]
             .filter(el=>visible(el) && norm(el.innerText||'').includes(kind));
+          // Some broker forms render the radio text in a div instead of a
+          // <label>. Find the saved/custom radio from its nearest text
+          // container as a fallback, so the agent can complete the form
+          // without manual intervention.
+          const radioWithText=inputs.find(input=>{
+            const text=norm(input.closest('label')?.innerText ||
+              input.parentElement?.innerText || input.parentElement?.parentElement?.innerText || '');
+            return text.includes(kind) && /\b(saved|custom)\s+(driver|vehicle)\b/i.test(text);
+          });
           const label=labels.find(el=>/\b(saved|custom)\s+(driver|vehicle)\b/i.test(el.innerText||'')) ||
-            labels.find(el=>norm(el.innerText||'').includes('no '+kind+' assignment'));
-          if(!label) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
-          const input=label.control || (label.htmlFor && document.getElementById(label.htmlFor)) ||
-            label.querySelector('input[type="radio"]');
+            labels.find(el=>norm(el.innerText||'').includes('no '+kind+' assignment')) ||
+            radioWithText?.closest('label');
+          if(!label && !radioWithText)
+            return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+          const input=label?.control || (label?.htmlFor && document.getElementById(label.htmlFor)) ||
+            label?.querySelector('input[type="radio"]') || radioWithText;
           if(!input || input.type!=='radio' || !inputs.includes(input) || input.disabled)
             return {found:true,ready:false,message:'No '+kind+' assignment choice is unavailable'};
           if(!input.checked){
