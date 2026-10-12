@@ -866,6 +866,12 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}})
       .sort({_id:-1}).lean();
     if(latest){
+      // Surface the real portal failure instead of hiding it behind the
+      // generic retry cooldown. A missing driver/vehicle assignment cannot
+      // be fixed by retrying the same claim command.
+      if(/driver\s+assignment/i.test(clean(latest.message)) ||
+         /vehicle\s+assignment/i.test(clean(latest.message)))
+        return {reason:"DRIVER_ASSIGNMENT_REQUIRED"};
       if(latest.action!=="CLAIM_FAILED" || latest.reason!=="CLAIM_NOT_CLICKED")
         return {reason:"ALREADY_ATTEMPTED"};
       const failedAt=Date.parse(latest.occurredAt);
