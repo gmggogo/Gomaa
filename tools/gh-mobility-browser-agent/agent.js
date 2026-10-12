@@ -2761,7 +2761,7 @@ class PortalSession{
     const actionText=clean(body.actionText);
     const sourceUrl=clean(body.sourceUrl),discoveredAt=Date.parse(body.createdAt);
     const missing=[!id&&"trip ID",!selector&&"row selector",
-      !actionText&&"button label",!sourceUrl&&"listing URL"].filter(Boolean);
+      !sourceUrl&&"listing URL"].filter(Boolean);
     if(missing.length || id.length>80 || selector.length>1000 || actionText.length>120)
       return {clicked:false,confirmed:false,
         message:`Claim data missing or invalid: ${missing.join(", ")||"field length"}`};
@@ -2801,7 +2801,10 @@ class PortalSession{
       const label=String(button.innerText||button.textContent||button.value||
         button.getAttribute('aria-label')||'').trim();
       const normalized=s=>String(s||'').trim().replace(/\\s+/g,' ').toLowerCase();
-      if(normalized(label)!==normalized(p.actionText) ||
+      // Older queued commands may omit the discovered label. In that case,
+      // authorize only an unambiguous Claim/Accept action in this exact row.
+      if(!label || (p.actionText && normalized(label)!==normalized(p.actionText)) ||
+         (!p.actionText && !/\\b(claim|accept|book|reserve)\\b/i.test(label)) ||
          /\\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout|details?|edit)\\b/i.test(label) ||
          button.disabled ||
          button.getAttribute('aria-disabled')==='true')
@@ -2824,8 +2827,9 @@ class PortalSession{
       const freshRow=current[0]?.closest('tr,[role="row"],article,[class*="card" i]');
       if(current.length!==1 || !freshRow ||
          !idPattern.test(freshRow.innerText||freshRow.textContent||'') || current[0].disabled ||
+         current[0].getAttribute('aria-disabled')==='true' ||
          normalized(String(current[0].innerText||current[0].textContent||current[0].value||
-           current[0].getAttribute('aria-label')||''))!==normalized(p.actionText))
+           current[0].getAttribute('aria-label')||''))!==normalized(label))
         return {ready:false,message:"Claim button changed after row selection"};
       const freshChecks=[...freshRow.querySelectorAll('input[type="checkbox"],[role="checkbox"]')];
       if(freshChecks.length>1 || (freshChecks.length===1 &&
