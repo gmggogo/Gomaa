@@ -2863,17 +2863,35 @@ class PortalSession{
         const modal=candidates.find(el=>/\\b(claim(?:ing)?|accept|book|reserve)\\b/i.test(el.innerText||''));
         if(!modal) return {found:false};
         const inputs=[...modal.querySelectorAll('input[type="radio"]')];
-        for(const kind of ['driver','vehicle']){
+        const fields=[...modal.querySelectorAll('select,[role="combobox"]')]
+          .filter(visible);
+        for(const [kind,index] of [['driver',0],['vehicle',1]]){
           const labels=[...modal.querySelectorAll('label')]
-            .filter(el=>visible(el) && norm(el.innerText||'').includes('no '+kind+' assignment'));
-          if(labels.length!==1) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
-          const label=labels[0];
+            .filter(el=>visible(el) && norm(el.innerText||'').includes(kind));
+          const label=labels.find(el=>/\b(saved|custom)\s+(driver|vehicle)\b/i.test(el.innerText||'')) ||
+            labels.find(el=>norm(el.innerText||'').includes('no '+kind+' assignment'));
+          if(!label) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
           const input=label.control || (label.htmlFor && document.getElementById(label.htmlFor)) ||
             label.querySelector('input[type="radio"]');
           if(!input || input.type!=='radio' || !inputs.includes(input) || input.disabled)
             return {found:true,ready:false,message:'No '+kind+' assignment choice is unavailable'};
           if(!input.checked){
             label.click();
+            return {found:true,progress:true};
+          }
+          const field=fields.find(el=>{
+            const context=norm(el.getAttribute('aria-label')||el.name||el.id||
+              el.closest('label')?.innerText||el.parentElement?.innerText||'');
+            return !String(el.value||'').trim() && context.includes(kind);
+          }) || fields.filter(el=>!String(el.value||'').trim())[index];
+          if(field){
+            const option=[...(field.options||field.querySelectorAll?.('option')||[])]
+              .find(opt=>String(opt.value||'').trim() &&
+                !/^(select|choose|pick|none|--)/i.test(String(opt.textContent||opt.label||'' ).trim()));
+            if(!option) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+            field.value=option.value;
+            field.dispatchEvent?.(new Event('input',{bubbles:true}));
+            field.dispatchEvent?.(new Event('change',{bubbles:true}));
             return {found:true,progress:true};
           }
         }
