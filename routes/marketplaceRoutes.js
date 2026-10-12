@@ -1324,9 +1324,11 @@ router.put(
 // A claim outcome does not include the trip addresses, and a partial portal
 // refresh may carry just one address. Neither may erase a known good value.
 function latestMatchedActivityRows(events,limit){
-  const chosen=new Map(),details=new Map();
+  const chosen=new Map(),details=new Map(),failures=new Map();
   for(const row of events){
     const key=`${clean(row?.meta?.connectionId)}:${clean(row.externalTripId)}`;
+    if(row.action==="CLAIM_FAILED" && !failures.has(key))
+      failures.set(key,clean(row.message||row.reason));
     if(!details.has(key)) details.set(key,{});
     const saved=details.get(key);
     for(const field of ["pickupAddress","dropoffAddress","pickupZip","dropoffZip"]){
@@ -1342,6 +1344,7 @@ function latestMatchedActivityRows(events,limit){
   }
   return [...chosen.entries()].map(([key,row])=>({
     ...row,meta:{...row.meta,...details.get(key),
+      lastClaimFailure:failures.get(key)||"",
       pickupAddress:clean(row.meta?.pickupAddress)||details.get(key).pickupAddress||"",
       dropoffAddress:clean(row.meta?.dropoffAddress)||details.get(key).dropoffAddress||""}
   })).sort((a,b)=>Date.parse(b.occurredAt||0)-Date.parse(a.occurredAt||0))

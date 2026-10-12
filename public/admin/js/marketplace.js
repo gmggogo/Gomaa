@@ -1233,7 +1233,7 @@ Marketplace multi-broker UI.
             const detail=action==="IMPORTED" ? "Verified in External Hub" :
               action==="CLAIMED" ? "Accepted; importing to Hub" :
               action==="CLAIM_FAILED" ? `Accept failed: ${r.message||r.reason||"unknown reason"}` :
-              action==="SKIPPED" ? `Accept blocked: ${r.reason||"unknown reason"}` :
+              action==="SKIPPED" ? `Accept blocked: ${r.reason||"unknown reason"}${r.meta?.lastClaimFailure ? `. Last attempt: ${r.meta.lastClaimFailure}` : ""}` :
               action==="ERROR" ? `Hub error: ${r.message||r.reason||"unknown reason"}` :
               action==="CLAIM_ATTEMPT" ? "Accept pending" : "Awaiting Accept";
 

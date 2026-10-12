@@ -2842,6 +2842,69 @@ class PortalSession{
     }catch(err){return {clicked:false,confirmed:false,message:err.message};}
     if(result?.ready!==true) return {clicked:false,confirmed:false,message:result?.message||"Claim row not verified"};
     this.claimAttempted.add(attemptedKey);
+    // A row action may open a second confirmation form. Never treat opening
+    // that form as an accepted trip. Scope every action to a visible dialog
+    // carrying this exact trip ID; do not guess a driver or vehicle.
+    let modalSeen=false,modalSubmitted=false;
+    for(let stage=0;stage<8;stage++){
+      await new Promise(resolve=>setTimeout(resolve,250));
+      const modalExpression=`(()=>{
+        const id=${JSON.stringify(id)};
+        const visible=el=>{const r=el.getBoundingClientRect();
+          return r.width>0 && r.height>0 && getComputedStyle(el).visibility!=='hidden'};
+        const norm=s=>String(s||'').replace(/\\s+/g,' ').trim().toLowerCase();
+        const candidates=[...document.querySelectorAll('[role="dialog"],[aria-modal="true"],.modal,[class*="modal" i]')]
+          .filter(el=>visible(el) && String(el.innerText||'').includes(id))
+          .sort((a,b)=>(a.innerText||'').length-(b.innerText||'').length);
+        const modal=candidates.find(el=>/\\b(claim(?:ing)?|accept|book|reserve)\\b/i.test(el.innerText||''));
+        if(!modal) return {found:false};
+        const inputs=[...modal.querySelectorAll('input[type="radio"]')];
+        for(const kind of ['driver','vehicle']){
+          const labels=[...modal.querySelectorAll('label')]
+            .filter(el=>visible(el) && norm(el.innerText||'').includes('no '+kind+' assignment'));
+          if(labels.length!==1) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+          const label=labels[0];
+          const input=label.control || (label.htmlFor && document.getElementById(label.htmlFor)) ||
+            label.querySelector('input[type="radio"]');
+          if(!input || input.type!=='radio' || !inputs.includes(input) || input.disabled)
+            return {found:true,ready:false,message:'No '+kind+' assignment choice is unavailable'};
+          if(!input.checked){
+            label.click();
+            return {found:true,progress:true};
+          }
+        }
+        const buttons=[...modal.querySelectorAll('button,[role="button"],input[type="submit"]')]
+          .filter(visible).filter(el=>{
+            const label=norm(el.innerText||el.textContent||el.value||el.getAttribute('aria-label'));
+            return /\\b(claim|accept|book|reserve)\\b/i.test(label) &&
+              label.includes(id) && !/\\b(cancel|back|close)\\b/i.test(label) &&
+              !el.disabled && el.getAttribute('aria-disabled')!=='true';
+          });
+        if(buttons.length!==1) return {found:true,ready:false,message:'Claim confirmation button is ambiguous or unavailable'};
+        buttons[0].click();
+        return {found:true,ready:true};
+      })()`;
+      let modal;
+      try{
+        const evaluated=await this.send("Runtime.evaluate",{expression:modalExpression,returnByValue:true,awaitPromise:true});
+        if(evaluated?.exceptionDetails) throw new Error("Claim confirmation form failed");
+        modal=evaluated?.result?.value;
+      }catch(err){return {clicked:true,confirmed:false,message:err.message};}
+      if(modal?.found){
+        modalSeen=true;
+        if(modal.progress===true) continue;
+        if(modal.ready!==true){
+          this.claimAttempted.delete(attemptedKey);
+          return {clicked:false,confirmed:false,message:modal.message};
+        }
+        modalSubmitted=true;
+        break;
+      }
+    }
+    if(modalSeen && !modalSubmitted){
+      this.claimAttempted.delete(attemptedKey);
+      return {clicked:false,confirmed:false,message:"Claim form did not finish selecting assignments"};
+    }
     for(let attempt=0;attempt<4;attempt++){
       await new Promise(resolve=>setTimeout(resolve,400));
       const check=`(()=>{
