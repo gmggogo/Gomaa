@@ -29,6 +29,50 @@ const { buildSmartFormTripPayload, cleanSmartFormNote, cleanStopAddresses, smart
 const router = express.Router();
 const SMART_FORMS_AI_FIX_VERSION = "dynamic-gemini-model-list-and-import-save-fix-2026-10-02-2227";
 
+// Keep completed Smart Form records for audit/review, but prevent old completed
+// submissions (and their optional PDF payloads) from growing without limit.
+const SMART_FORM_RETENTION_DAYS = Math.max(
+  7,
+  Number(process.env.SMART_FORM_RETENTION_DAYS) || 30
+);
+
+async function pruneCompletedSmartFormSubmissions(tenantId){
+  const cutoff = new Date(
+    Date.now() - SMART_FORM_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  // Archived rows are safe to remove after the retention window.
+  await SmartFormSubmission.deleteMany({
+    tenantId,
+    workflowStage:"ARCHIVED",
+    updatedAt:{$lt:cutoff}
+  });
+
+  // Dispatched rows are removable only when the linked normal trip is already
+  // completed or cancelled. Draft/Review/active trips are never touched.
+  const oldRows = await SmartFormSubmission.find({
+    tenantId,
+    workflowStage:"DISPATCHED",
+    tripId:{$ne:null},
+    updatedAt:{$lt:cutoff}
+  }).select("_id tripId").limit(500).lean();
+
+  if(!oldRows.length) return;
+
+  const doneTrips = await Trip.find({
+    tenantId,
+    _id:{$in:oldRows.map(row=>row.tripId)},
+    status:{$in:["COMPLETED","CANCELLED"]}
+  }).select("_id").lean();
+
+  if(doneTrips.length){
+    await SmartFormSubmission.deleteMany({
+      tenantId,
+      _id:{$in:doneTrips.map(trip=>oldRows.find(row=>String(row.tripId)===String(trip._id))?._id).filter(Boolean)}
+    });
+  }
+}
+
 /* =====================================================
    SMART FORM COORDINATE ENRICHMENT
    - Does NOT change the existing Review -> Confirm -> Dispatch flow.
@@ -1102,6 +1146,8 @@ router.post("/submissions", async (req,res)=>{
 router.get("/submissions", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
+
+    await pruneCompletedSmartFormSubmissions(g.tenantId);
 
     const query={tenantId:g.tenantId};
     const requestedStatus=clean(req.query.status).toUpperCase();

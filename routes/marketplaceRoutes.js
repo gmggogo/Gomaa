@@ -55,6 +55,23 @@ const clean =
   value =>
     String(value ?? "").trim();
 
+// Marketplace activity is operational telemetry, not permanent trip history.
+// Keep a short window so repeated portal scans cannot fill MongoDB again.
+const MARKETPLACE_ACTIVITY_RETENTION_DAYS = Math.max(
+  1,
+  Number(process.env.MARKETPLACE_ACTIVITY_RETENTION_DAYS) || 7
+);
+
+async function pruneMarketplaceActivity(tenantId){
+  const cutoff = new Date(
+    Date.now() - MARKETPLACE_ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  );
+  return Activity.deleteMany({
+    tenantId,
+    occurredAt: {$lt:cutoff}
+  });
+}
+
 function bearerToken(req){
 
   const raw =
@@ -1237,6 +1254,10 @@ router.get(
         });
       }
 
+      // Run retention opportunistically during normal scans; no separate worker
+      // is required, and active trip data is never touched here.
+      await pruneMarketplaceActivity(id);
+
       const connectionId =
         clean(
           req.query.connectionId
@@ -1385,6 +1406,8 @@ router.post(
           message:"Tenant is required"
         });
       }
+
+      await pruneMarketplaceActivity(id);
 
       const connectionId =
         clean(
