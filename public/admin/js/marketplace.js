@@ -1307,12 +1307,14 @@ Marketplace multi-broker UI.
             const rowClass="activity-matched";
             const claimFailure=String(r.meta?.lastClaimFailure||r.lastClaimFailure||"");
             const reasonLabels={
-              AUTO_ACCEPT_OFF:"Automatic Accept is off; use the manual Accept button.",
+              AUTO_ACCEPT_OFF:"Automatic Accept is off in Settings.",
               DISCOVERY_TOO_OLD:"Trip data expired. Refresh the portal and try again.",
               LIVE_DISCOVERY_ONLY:"The trip must be rediscovered from the live portal.",
               MISSING_EXTERNAL_HUB_FIELDS:"Required trip details are missing.",
               NO_VERIFIED_ROW_ACCEPT_ACTION:"No verified Accept button was found for this trip in the broker portal.",
               ALREADY_ATTEMPTED:"An Accept attempt was already made for this trip.",
+              CLAIM_IN_PROGRESS:"Automatic Accept is already processing this trip.",
+              CLAIM_RETRY_COOLDOWN:"Automatic Accept will retry shortly after the last validation failure.",
               TOTAL_DAILY_LIMIT:"The total daily Accept limit was reached.",
               ENGINE_DAILY_LIMIT:"The engine daily Accept limit was reached.",
               CLAIM_QUEUE_UNAVAILABLE:"The broker browser is not ready to receive the Accept request.",
@@ -1325,9 +1327,8 @@ Marketplace multi-broker UI.
               action==="ERROR" ? `Hub error: ${r.message||r.reason||"unknown reason"}` :
               action==="CLAIM_ATTEMPT" ? "Accept pending" :
               claimFailure ? `Accept blocked: ${reasonLabels[claimFailure]||claimFailure}` : "Awaiting Accept";
-            const tripId=String(r.externalTripId||r.portalTripId||r.tripNumber||"");
             const actionCell=action==="MATCHED"
-              ? `<button type="button" class="accept-trip-btn" data-accept-trip="${esc(tripId)}">Accept</button>`
+              ? `<span class="auto-accept-label">Automatic</span>`
               : "—";
 
             return `
@@ -1944,27 +1945,6 @@ Marketplace multi-broker UI.
 
   $("showActivityHistoryBtn")
     ?.addEventListener("click",showActivityHistory);
-
-  $("activityRows")?.addEventListener("click",async event=>{
-    const button=event.target?.closest?.("[data-accept-trip]");
-    if(!button || button.disabled) return;
-    const item=selectedConnection();
-    const externalTripId=String(button.dataset?.acceptTrip||"").trim();
-    if(!item || !externalTripId) return;
-    button.disabled=true;
-    button.textContent="Sending…";
-    try{
-      const result=await market("/accept",{
-        method:"POST",
-        body:JSON.stringify({connectionId:item.connectionId,externalTripId})
-      });
-      $("scanStatus").textContent=result.message||"Accept request sent.";
-      await load();
-    }catch(err){
-      $("scanStatus").textContent=err.message||"Accept request failed.";
-      await load();
-    }
-  });
 
   load();
 
