@@ -966,15 +966,34 @@ if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
 ========================= */
 
 function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported=0){
-  const matchedIds=new Set([...longTrips,...shortTrips]
-    .map(trip=>String(trip.externalTripId||trip.portalTripId||trip.tripNumber||"").trim())
-    .filter(Boolean));
+  const matchedById=new Map();
+  for(const trip of [...longTrips,...shortTrips]){
+    const tripId=String(trip.externalTripId||trip.portalTripId||trip.tripNumber||"").trim();
+    if(!tripId) continue;
+    // Keep only fields needed by the Marketplace table. Do not retain member
+    // names, phone numbers, or other portal payload data in this short-lived
+    // dashboard cache.
+    matchedById.set(tripId,{
+      externalTripId:tripId,
+      tripNumber:clean(trip.tripNumber||trip.portalTripId||tripId),
+      tripDate:clean(trip.tripDate||trip.appointmentDate||trip.date),
+      pickupTime:clean(trip.pickupTime||trip.appointmentTime),
+      pickupAddress:clean(trip.pickupAddress||trip.pickup),
+      dropoffAddress:clean(trip.dropoffAddress||trip.dropoff),
+      mode:clean(trip.mode||trip.serviceType||trip.levelOfService),
+      miles:Number.isFinite(Number(trip.tripMiles??trip.miles))
+        ? Number(trip.tripMiles??trip.miles) : null
+    });
+  }
+  const matchedTrips=[...matchedById.values()];
+  const matchedIds=new Set(matchedById.keys());
   latestScanSummaries.set(`${id}:${connection._id}`,{
     available:Array.isArray(trips)?trips.length:0,
     matched:matchedIds.size,
     imported:Number(imported)||0,
     observedAt:new Date().toISOString(),
-    matchedIds
+    matchedIds,
+    matchedTrips
   });
 }
 
@@ -1142,7 +1161,8 @@ router.get("/scan-summary",(req,res)=>{
           matched:summary.matched,
           imported:summary.imported,
           observedAt:summary.observedAt,
-          matchedTripIds:[...summary.matchedIds]
+          matchedTripIds:[...summary.matchedIds],
+          matchedTrips:Array.isArray(summary.matchedTrips)?summary.matchedTrips:[]
         }
       : null
   });

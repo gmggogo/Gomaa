@@ -1240,10 +1240,49 @@ Marketplace multi-broker UI.
           return ids.some(value=>summaryIds.has(value));
         })
       : [];
+    const summaryRows=Array.isArray(state.scanSummary?.matchedTrips)
+      ? state.scanSummary.matchedTrips.map(trip=>({
+          action:"MATCHED",
+          externalTripId:String(trip?.externalTripId||trip?.portalTripId||trip?.tripNumber||"").trim(),
+          tripNumber:trip?.tripNumber,
+          tripDate:trip?.tripDate,
+          pickupTime:trip?.pickupTime,
+          mode:trip?.mode,
+          miles:trip?.miles,
+          meta:{
+            pickupAddress:trip?.pickupAddress,
+            dropoffAddress:trip?.dropoffAddress
+          }
+        })).filter(trip=>trip.externalTripId)
+      : [];
+
+    // The live scan summary and Mongo activity log are separate read paths.
+    // Render the exact matched trip snapshot from the summary, then overlay any
+    // persisted claim/import state for the same trip. This keeps matched trips
+    // visible even if the activity query is briefly empty or delayed.
+    const rowTripIds=row=>[
+      row?.externalTripId,
+      row?.portalTripId,
+      row?.tripNumber,
+      row?.meta?.externalTripId,
+      row?.meta?.portalTripId,
+      row?.meta?.tripNumber
+    ].map(value=>String(value||"").trim()).filter(Boolean);
+    const summaryMatchedRows=summaryRows.map(base=>{
+      const ids=new Set(rowTripIds(base));
+      const activity=displayRows.find(row=>rowTripIds(row).some(id=>ids.has(id)));
+      return activity
+        ? {...base,...activity,meta:{...base.meta,...activity.meta,
+            pickupAddress:activity.meta?.pickupAddress||base.meta.pickupAddress,
+            dropoffAddress:activity.meta?.dropoffAddress||base.meta.dropoffAddress}}
+        : base;
+    });
     const rows=stableMatchedRows(
-      exactRows.length || Number(state.scanSummary?.matched||0)===0
-        ? exactRows
-        : displayRows
+      summaryMatchedRows.length
+        ? summaryMatchedRows
+        : exactRows.length || Number(state.scanSummary?.matched||0)===0
+          ? exactRows
+          : displayRows
     );
 
     for(const [id,key] of [["availableCount","available"],["matchedCount","matched"],["importedCount","imported"]])
