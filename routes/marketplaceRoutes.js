@@ -813,6 +813,9 @@ async function logEngineMatches(
 
 const claimLocks=new Map();
 const tenantClaimGates=new Map();
+// Short-lived display summary for the Marketplace dashboard. This is process
+// memory only; it is not persisted to Mongo and therefore cannot consume space.
+const latestScanSummaries=new Map();
 async function maybeQueueClaim(...args){
   const id=args[0];
   const previous=tenantClaimGates.get(id)||Promise.resolve();
@@ -961,11 +964,25 @@ if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
    - Saving settings re-evaluates the current normalized trip buffer.
 ========================= */
 
+function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported=0){
+  const matchedIds=new Set([...longTrips,...shortTrips]
+    .map(trip=>String(trip.externalTripId||trip.portalTripId||trip.tripNumber||"").trim())
+    .filter(Boolean));
+  latestScanSummaries.set(`${id}:${connection._id}`,{
+    available:Array.isArray(trips)?trips.length:0,
+    matched:matchedIds.size,
+    imported:Number(imported)||0,
+    observedAt:new Date().toISOString(),
+    matchedIds
+  });
+}
+
 async function evaluateConnectionTrips({
   id,
   connection,
   settings,
   rawTrips,
+  summaryTrips,
   source="AUTO",
   receivedAt=""
 }){
@@ -975,6 +992,7 @@ async function evaluateConnectionTrips({
       .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
 
   if(!trips.length){
+    saveScanSummary(id,connection,Array.isArray(summaryTrips)?summaryTrips:[],[],[]);
     return {
       scanned:0,
       longMatched:0,
@@ -1006,6 +1024,14 @@ async function evaluateConnectionTrips({
         {source,receivedAt,settings}
       )
     ]);
+
+  // Restore the dashboard counters without writing one row per scan to Mongo.
+  const inventory=Array.isArray(summaryTrips)?summaryTrips:trips;
+  const inventoryTrips=inventory.map(tripForEngine)
+    .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
+  const inventoryMatches=await selectedByEngine(inventoryTrips,settings);
+  saveScanSummary(id,connection,inventoryTrips,
+    inventoryMatches.longTrips,inventoryMatches.shortTrips);
 
   await Settings.updateOne(
     {tenantId:id},
@@ -1084,6 +1110,7 @@ if(
         connection,
         settings,
         rawTrips:Array.isArray(event?.trips) ? event.trips : [],
+        summaryTrips:providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId),
         source:event?.discoveryType==="DOM" ? "DISCOVERY" : "NETWORK_DISCOVERY",
         receivedAt:event?.receivedAt
       });
@@ -1095,6 +1122,27 @@ if(
    ENGINE SETTINGS
    Generic endpoint; retains the existing stored settings through the MarketplaceSettings compatibility model.
 ========================= */
+
+router.get("/scan-summary",(req,res)=>{
+  const id=tenantId(req);
+  const connectionId=clean(req.query.connectionId);
+  if(!id || !connectionId){
+    return res.status(400).json({success:false,message:"Broker connection is required"});
+  }
+  const summary=latestScanSummaries.get(`${id}:${connectionId}`);
+  return res.json({
+    success:true,
+    summary:summary
+      ? {
+          available:summary.available,
+          matched:summary.matched,
+          imported:summary.imported,
+          observedAt:summary.observedAt,
+          matchedTripIds:[...summary.matchedIds]
+        }
+      : null
+  });
+});
 
 router.get(
   "/settings",
@@ -1521,6 +1569,8 @@ router.post(
             settings.shortEngine || {}
           )
         ]);
+
+      saveScanSummary(id,connection,trips,longTrips,shortTrips);
 
       await Settings.updateOne(
         {
