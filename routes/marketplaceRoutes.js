@@ -986,10 +986,17 @@ async function evaluateConnectionTrips({
   source="AUTO",
   receivedAt=""
 }){
-  const trips =
-    (Array.isArray(rawTrips) ? rawTrips : [])
-      .map(tripForEngine)
-      .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
+  // Use one canonical trip buffer for matching, activity rows, and the
+  // dashboard summary. Previously raw discovery data was used for activity
+  // while summaryTrips was used for counters, so the UI could show Matched > 0
+  // with no rows in the table.
+  const rawNormalized=(Array.isArray(rawTrips) ? rawTrips : [])
+    .map(tripForEngine)
+    .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
+  const summaryNormalized=(Array.isArray(summaryTrips) ? summaryTrips : [])
+    .map(tripForEngine)
+    .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
+  const trips=summaryNormalized.length ? summaryNormalized : rawNormalized;
 
   if(!trips.length){
     saveScanSummary(id,connection,Array.isArray(summaryTrips)?summaryTrips:[],[],[]);
@@ -1025,13 +1032,9 @@ async function evaluateConnectionTrips({
       )
     ]);
 
-  // Restore the dashboard counters without writing one row per scan to Mongo.
-  const inventory=Array.isArray(summaryTrips)?summaryTrips:trips;
-  const inventoryTrips=inventory.map(tripForEngine)
-    .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
-  const inventoryMatches=await selectedByEngine(inventoryTrips,settings);
-  saveScanSummary(id,connection,inventoryTrips,
-    inventoryMatches.longTrips,inventoryMatches.shortTrips);
+  // The same canonical trips produced the activity rows above, so the
+  // dashboard counters and table cannot diverge.
+  saveScanSummary(id,connection,trips,longTrips,shortTrips);
 
   await Settings.updateOne(
     {tenantId:id},
