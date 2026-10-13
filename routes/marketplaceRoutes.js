@@ -766,8 +766,12 @@ async function handleClaimResult(result){
   const pending=pendingClaimTrips.get(command.commandId);
   pendingClaimTrips.delete(command.commandId);
   if(!result.confirmed){
+    // A failure to click is safe to retry on the next live discovery. If the
+    // browser did click but could not confirm, retain the lock to avoid a duplicate claim.
+    releaseUnclickedClaimAttempt(command,result.clicked);
     setMatchedTripFailure(command.tenantId,String(command.connectionId),
-      command.externalTripId,result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED");
+      command.externalTripId,
+      clean(result.message) || (result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED"));
     return;
   }
 
@@ -844,6 +848,13 @@ function setMatchedTripFailure(id,connectionId,externalTripId,reason){
   if(row) row.lastClaimFailure=String(reason||"");
 }
 
+function releaseUnclickedClaimAttempt(command,clicked){
+  if(clicked===true || !command) return;
+  const key=`${clean(command.tenantId)}:${clean(command.connectionId)}:${clean(command.externalTripId)}`;
+  claimLocks.delete(key);
+  recentClaimAttempts.delete(clean(command.commandId));
+}
+
 async function evaluateConnectionTrips({
   id,
   connection,
@@ -877,6 +888,10 @@ async function evaluateConnectionTrips({
   const {longTrips,shortTrips}=
     await selectedByEngine(trips,settings);
 
+  // Create current summary rows before queueing so claim block reasons are
+  // retained in memory instead of being erased immediately afterward.
+  saveScanSummary(id,connection,trips,longTrips,shortTrips);
+
   const [longResults,shortResults]=
     await Promise.all([
       logEngineMatches(
@@ -897,9 +912,8 @@ async function evaluateConnectionTrips({
       )
     ]);
 
-  // Keep only the current scan summary in process memory so the counters and
-  // matched-trip table stay aligned without storing every portal scan in Mongo.
-  saveScanSummary(id,connection,trips,longTrips,shortTrips);
+  // Do not recreate this summary after queueing; that would erase claim
+  // failure reasons captured by logEngineMatches.
 
   await Settings.updateOne(
     {tenantId:id},
@@ -1231,8 +1245,8 @@ router.get(
         });
       }
 
-      // Opportunistically clean legacy MarketplaceActivity telemetry at most
-      // once per tenant per day. Accepted External Hub trips are not touched.
+      // Clean legacy MarketplaceActivity telemetry at most once per tenant/day.
+      // Accepted External Hub trip records are never touched here.
       await pruneMarketplaceActivity(id);
 
       const connectionId =
@@ -1495,6 +1509,10 @@ router.post(
           settings
         );
 
+      // Initialize the display rows before claim evaluation so the reason for
+      // an Auto Accept block can be attached to the row and returned to UI.
+      saveScanSummary(id,connection,trips,longTrips,shortTrips);
+
       const [
         longResults,
         shortResults
@@ -1526,8 +1544,6 @@ router.post(
             }
           )
         ]);
-
-      saveScanSummary(id,connection,trips,longTrips,shortTrips);
 
       await Settings.updateOne(
         {
