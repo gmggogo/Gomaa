@@ -2848,7 +2848,8 @@ class PortalSession{
     this.claimAttempted.add(attemptedKey);
     // A row action may open a second confirmation form. Never treat opening
     // that form as an accepted trip. Scope every action to a visible dialog
-    // carrying this exact trip ID; do not guess a driver or vehicle.
+    // carrying this exact trip ID, and complete any required driver/vehicle
+    // assignments before submitting it.
     let modalSeen=false,modalSubmitted=false;
     for(let stage=0;stage<8;stage++){
       await new Promise(resolve=>setTimeout(resolve,250));
@@ -2908,7 +2909,11 @@ class PortalSession{
                 : /vehicle|car|van|sienna|sedan|\b20[0-9]{2}\b|[a-z0-9-]{3,}/i.test(text));
           });
           if(candidate){candidate.click?.(); return true;}
-          return false;
+          // Some portal suggestions render on the next event-loop turn after
+          // opening the saved Driver/Vehicle dropdown. Retry the same field on
+          // the next modal pass instead of failing before the suggestion can
+          // appear.
+          return true;
         };
         for(const [kind,index] of [['driver',0],['vehicle',1]]){
           const labels=[...modal.querySelectorAll('label')]
@@ -2923,33 +2928,39 @@ class PortalSession{
             return text.includes(kind) && /\b(saved|custom)\s+(driver|vehicle)\b/i.test(text);
           });
           const label=labels.find(el=>/\b(saved|custom)\s+(driver|vehicle)\b/i.test(el.innerText||'')) ||
-            labels.find(el=>norm(el.innerText||'').includes('no '+kind+' assignment')) ||
             radioWithText?.closest('label');
-          if(!label && !radioWithText)
-            return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
-          const input=label?.control || (label?.htmlFor && document.getElementById(label.htmlFor)) ||
+          const radio=label?.control || (label?.htmlFor && document.getElementById(label.htmlFor)) ||
             label?.querySelector('input[type="radio"]') || radioWithText;
-          if(!input || input.type!=='radio' || !inputs.includes(input) || input.disabled)
-            return {found:true,ready:false,message:'No '+kind+' assignment choice is unavailable'};
-          if(!input.checked){
-            label.click();
-            return {found:true,progress:true};
-          }
           const field=fields.find(el=>{
-            const context=norm(el.getAttribute('aria-label')||el.name||el.id||
-              el.closest('label')?.innerText||el.parentElement?.innerText||'');
-            return !String(el.value||'').trim() && context.includes(kind);
-          }) || fields.filter(el=>!String(el.value||'').trim())[index];
+            const context=norm([
+              el.getAttribute('aria-label'),el.name,el.id,el.getAttribute('placeholder'),
+              el.closest('label')?.innerText,el.parentElement?.innerText,
+              el.parentElement?.previousElementSibling?.innerText
+            ].filter(Boolean).join(' '));
+            return context.includes(kind);
+          }) || fields[index];
+          if(radio){
+            if(radio.type!=='radio' || !inputs.includes(radio) || radio.disabled)
+              return {found:true,ready:false,message:'No '+kind+' assignment choice is available'};
+            if(!radio.checked){label?.click?.(); return {found:true,progress:true};}
+          }
           if(field){
-            if(!chooseField(field,kind)) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
-            return {found:true,progress:true};
+            const selectedText=norm(field.options?.[field.selectedIndex]?.textContent||
+              field.getAttribute('aria-valuetext')||field.value||field.innerText||field.textContent||'');
+            const needsSelection=!selectedText || /^(select|choose|pick|none|--)/i.test(selectedText);
+            if(needsSelection){
+              if(!chooseField(field,kind)) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+              return {found:true,progress:true};
+            }
+          }else if(!radio){
+            return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
           }
         }
         const buttons=[...modal.querySelectorAll('button,[role="button"],input[type="submit"]')]
           .filter(visible).filter(el=>{
             const label=norm(el.innerText||el.textContent||el.value||el.getAttribute('aria-label'));
             return /\\b(claim|accept|book|reserve)\\b/i.test(label) &&
-              label.includes(id) && !/\\b(cancel|back|close)\\b/i.test(label) &&
+              !/\\b(cancel|back|close)\\b/i.test(label) &&
               !el.disabled && el.getAttribute('aria-disabled')!=='true';
           });
         if(buttons.length!==1) return {found:true,ready:false,message:'Claim confirmation button is ambiguous or unavailable'};
