@@ -2848,8 +2848,7 @@ class PortalSession{
     this.claimAttempted.add(attemptedKey);
     // A row action may open a second confirmation form. Never treat opening
     // that form as an accepted trip. Scope every action to a visible dialog
-    // carrying this exact trip ID, and complete any required driver/vehicle
-    // assignments before submitting it.
+    // carrying this exact trip ID; do not guess a driver or vehicle.
     let modalSeen=false,modalSubmitted=false;
     for(let stage=0;stage<8;stage++){
       await new Promise(resolve=>setTimeout(resolve,250));
@@ -2872,93 +2871,93 @@ class PortalSession{
           const usable=options.find(opt=>String(opt.value||'').trim() &&
             !/^(select|choose|pick|none|--)/i.test(String(opt.textContent||opt.label||'').trim()));
           if(usable){
-            field.value=usable.value;
+            // Use the native setter so React/Vue controlled selects receive
+            // the change instead of only changing the DOM property.
+            const setter=Object.getOwnPropertyDescriptor(
+              HTMLSelectElement.prototype,'value')?.set;
+            if(setter) setter.call(field,usable.value);
+            else field.value=usable.value;
             field.dispatchEvent?.(new Event('input',{bubbles:true}));
             field.dispatchEvent?.(new Event('change',{bubbles:true}));
             return true;
           }
           field.click?.();
-          // CareCar renders the selected suggestion as plain text directly
-          // below the combobox (not as an <option> or role=option). Search
-          // both semantic options and visible, compact elements positioned
-          // under the active field so the agent actually commits the value.
-          const roots=[...modal.querySelectorAll(
-            '[role="listbox"],[role="option"],option,li,button,'+
-            '[data-value],[data-option],[class*="option" i]'
-          )].filter(visible);
-          const fieldRect=field.getBoundingClientRect();
-          const compact=[...modal.querySelectorAll('div,span,p')]
-            .filter(visible)
-            .filter(el=>el!==field && !field.contains(el))
-            .filter(el=>{
-              const r=el.getBoundingClientRect();
-              const text=String(el.innerText||el.textContent||'').trim();
-              return text && text.length<=120 && r.top>=fieldRect.bottom-2 &&
-                r.top<=fieldRect.bottom+140 && r.left>=fieldRect.left-20 &&
-                r.left<=fieldRect.right+20 && r.width<=Math.max(fieldRect.width+40,420);
-            });
-          const candidates=[...roots,...compact].sort((a,b)=>{
-            const ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();
-            return (ar.width*ar.height)-(br.width*br.height);
-          });
-          const candidate=candidates.find(el=>{
+          // CareCar renders its opened menu at document.body level, outside
+          // the dialog. Search the whole document after opening the field.
+          const roots=[...document.querySelectorAll('[role="listbox"],[role="option"],option,[class*="option" i],[data-value]')]
+            .filter(visible);
+          const candidate=roots.find(el=>{
             const text=norm(el.innerText||el.textContent||'');
             return text && !/^(select|choose|pick|none|--)/i.test(text) &&
-              (kind==='driver'
-                ? !/vehicle|car|van|sienna|sedan|\b201[0-9]\b/i.test(text)
-                : /vehicle|car|van|sienna|sedan|\b20[0-9]{2}\b|[a-z0-9-]{3,}/i.test(text));
+              (kind==='driver' ? !/vehicle|car|van|sienna|sedan/i.test(text) : /vehicle|car|van|sienna|sedan|[a-z0-9-]{3,}/i.test(text));
           });
           if(candidate){candidate.click?.(); return true;}
-          // Some portal suggestions render on the next event-loop turn after
-          // opening the saved Driver/Vehicle dropdown. Retry the same field on
-          // the next modal pass instead of failing before the suggestion can
-          // appear.
-          return true;
+          return false;
         };
         for(const [kind,index] of [['driver',0],['vehicle',1]]){
           const labels=[...modal.querySelectorAll('label')]
             .filter(el=>visible(el) && norm(el.innerText||'').includes(kind));
-          // Some broker forms render the radio text in a div instead of a
-          // <label>. Find the saved/custom radio from its nearest text
-          // container as a fallback, so the agent can complete the form
-          // without manual intervention.
-          const radioWithText=inputs.find(input=>{
-            const text=norm(input.closest('label')?.innerText ||
-              input.parentElement?.innerText || input.parentElement?.parentElement?.innerText || '');
-            return text.includes(kind) && /\b(saved|custom)\s+(driver|vehicle)\b/i.test(text);
-          });
           const label=labels.find(el=>/\b(saved|custom)\s+(driver|vehicle)\b/i.test(el.innerText||'')) ||
-            radioWithText?.closest('label');
-          const radio=label?.control || (label?.htmlFor && document.getElementById(label.htmlFor)) ||
-            label?.querySelector('input[type="radio"]') || radioWithText;
-          const field=fields.find(el=>{
-            const context=norm([
-              el.getAttribute('aria-label'),el.name,el.id,el.getAttribute('placeholder'),
-              el.closest('label')?.innerText,el.parentElement?.innerText,
-              el.parentElement?.previousElementSibling?.innerText
-            ].filter(Boolean).join(' '));
-            return context.includes(kind);
-          }) || fields[index];
-          if(radio){
-            if(radio.type!=='radio' || !inputs.includes(radio) || radio.disabled)
-              return {found:true,ready:false,message:'No '+kind+' assignment choice is available'};
-            if(!radio.checked){label?.click?.(); return {found:true,progress:true};}
+            labels.find(el=>norm(el.innerText||'').includes('no '+kind+' assignment'));
+          // Some CareCar tasks do not expose assignment controls at all. In
+          // that case the task may be claimed directly.
+          if(!label){
+            const hasKindControl=fields.some(el=>{
+              const context=norm(el.getAttribute('aria-label')||el.name||el.id||
+                el.closest('label')?.innerText||el.parentElement?.innerText||'');
+              return context.includes(kind);
+            });
+            if(!hasKindControl) continue;
+            return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
           }
+          const input=label.control || (label.htmlFor && document.getElementById(label.htmlFor)) ||
+            label.querySelector('input[type="radio"]');
+          if(!input || input.type!=='radio' || !inputs.includes(input) || input.disabled)
+            return {found:true,ready:false,message:'No '+kind+' assignment choice is unavailable'};
+          if(!input.checked){
+            label.click();
+            return {found:true,progress:true};
+          }
+          const field=fields.find(el=>{
+            const context=norm(el.getAttribute('aria-label')||el.name||el.id||
+              el.closest('label')?.innerText||el.parentElement?.innerText||'');
+            return !String(el.value||'').trim() && context.includes(kind);
+          }) || fields.filter(el=>!String(el.value||'').trim())[index];
           if(field){
-            const selectedText=norm(field.options?.[field.selectedIndex]?.textContent||
-              field.getAttribute('aria-valuetext')||field.value||field.innerText||field.textContent||'');
-            const needsSelection=!selectedText || /^(select|choose|pick|none|--)/i.test(selectedText);
-            if(needsSelection){
-              if(!chooseField(field,kind)) return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+            if(!chooseField(field,kind)){
+              // If Saved Driver/Vehicle has no available value, use the
+              // explicit no-assignment option when CareCar provides it.
+              const noAssignment=labels.find(el=>
+                norm(el.innerText||'').includes('no '+kind+' assignment'));
+              if(noAssignment){
+                noAssignment.click();
+                return {found:true,progress:true};
+              }
+              return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
+            }
+            return {found:true,progress:true};
+          }
+          // The broker may render a blank Saved Driver/Vehicle control without
+          // exposing a usable select element. In that case explicitly choose
+          // the no-assignment radio instead of leaving the modal blocked.
+          const noAssignment=labels.find(el=>
+            norm(el.innerText||'').includes('no '+kind+' assignment'));
+          if(noAssignment){
+            const noInput=noAssignment.control ||
+              (noAssignment.htmlFor && document.getElementById(noAssignment.htmlFor)) ||
+              noAssignment.querySelector('input[type="radio"]');
+            if(noInput && !noInput.disabled){
+              noAssignment.click();
               return {found:true,progress:true};
             }
-          }else if(!radio){
-            return {found:true,ready:false,message:'Claim form needs '+kind+' assignment'};
           }
         }
         const buttons=[...modal.querySelectorAll('button,[role="button"],input[type="submit"]')]
           .filter(visible).filter(el=>{
             const label=norm(el.innerText||el.textContent||el.value||el.getAttribute('aria-label'));
+            // The dialog was already scoped to one visible modal containing
+            // this exact trip ID. CareCar's final button is usually just
+            // "Accept" or "Claim" and does not repeat the trip ID.
             return /\\b(claim|accept|book|reserve)\\b/i.test(label) &&
               !/\\b(cancel|back|close)\\b/i.test(label) &&
               !el.disabled && el.getAttribute('aria-disabled')!=='true';

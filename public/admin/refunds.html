@@ -190,6 +190,12 @@ const token =
   localStorage.getItem("token") ||
   "";
 
+// Format payment values to exactly two decimal places.
+function formatMoney(value){
+  const amount = Number(value);
+  return (Number.isFinite(amount) ? amount : 0).toFixed(2);
+}
+
 // =======================
 // LOAD DATA
 // =======================
@@ -250,9 +256,9 @@ async function loadRefunds(){
           <td>${t.clientEmail || "-"}</td>
           <td>${tripTime}</td>
           <td>${cancelTime}</td>
-          <td>$${t.priceAmount || 0}</td>
-          <td>$${t.refundAmount || 0}</td>
-          <td>$${t.cancelFee || 0}</td>
+          <td>$${formatMoney(t.priceAmount)}</td>
+          <td>$${formatMoney(t.refundAmount)}</td>
+          <td>$${formatMoney(t.cancelFee)}</td>
           <td class="${statusClass}">${statusText}</td>
         </tr>
       `;

@@ -522,161 +522,6 @@ async function enrichZoneDistances(trips,settings){
   }));
 }
 
-function activityMeta(
-  connection,
-  trip={}
-){
-
-  return {
-    connectionId:
-      String(
-        connection._id
-      ),
-
-    marketplaceConnectionId:
-      String(
-        connection._id
-      ),
-
-    brokerIntegrationId:
-      String(
-        connection._id
-      ),
-
-    brokerCode:
-      clean(
-        connection.brokerCode
-      ),
-
-    brokerName:
-      clean(
-        connection.brokerName
-      ),
-
-    accountLabel:
-      clean(
-        connection.accountLabel ||
-        "Primary Account"
-      ),
-
-    sourceHost:
-      clean(
-        trip.sourceHost ||
-        connection.sourceHost
-      )
-  };
-}
-
-async function logActivity(
-  id,
-  connection,
-  action,
-  data={}
-){
-
-  const trip =
-    data.trip ||
-    {};
-
-  const document = {
-
-    tenantId:id,
-
-    integrationId:
-      connection._id,
-
-    engine:
-      clean(
-        data.engine ||
-        "SYSTEM"
-      ),
-
-    action:
-      clean(
-        action
-      ),
-
-    externalTripId:
-      clean(
-        trip.externalTripId ||
-        trip.portalTripId ||
-        trip.tripNumber ||
-        data.externalTripId
-      ),
-
-    message:
-      clean(
-        data.message
-      ),
-
-    reason:
-      clean(
-        data.reason
-      ),
-
-    miles:
-      Number.isFinite(
-        Number(
-          trip.tripMiles ??
-          trip.miles
-        )
-      )
-        ? Number(
-            trip.tripMiles ??
-            trip.miles
-          )
-        : null,
-
-    tripDate:
-      clean(
-        trip.tripDate ||
-        trip.appointmentDate ||
-        trip.date
-      ),
-
-    pickupTime:
-      clean(
-        trip.pickupTime
-      ),
-
-    mode:
-      clean(
-        trip.mode
-      ),
-
-    meta:{
-      ...activityMeta(
-        connection,
-        trip
-      ),
-      pickupAddress:clean(trip.pickupAddress || trip.pickup),
-      dropoffAddress:clean(trip.dropoffAddress || trip.dropoff),
-      pickupZip:clean(trip.pickupZip),
-      dropoffZip:clean(trip.dropoffZip),
-      zone:{...(trip.zoneDistances || {})},
-      ...(data.meta || {})
-    }
-  };
-
-  // A discovery loop can see the same matched trip many times.  Keep one
-  // current MATCHED row per tenant/connection/trip instead of appending a
-  // history row on every evaluation.
-  if(data.dedupe === true){
-    return Activity.findOneAndUpdate(
-      {
-        tenantId:id,
-        integrationId:connection._id,
-        externalTripId:document.externalTripId,
-        action
-      },
-      {$set:document},
-      {new:true,upsert:true,setDefaultsOnInsert:true}
-    );
-  }
-
-  return Activity.create(document);
-}
-
 async function marketplaceConnection(
   id,
   connectionId
@@ -769,23 +614,6 @@ async function logEngineMatches(
   const results = [];
 
   for(const trip of trips){
-
-    // Persist the single temporary matched row before activating a claim.
-    // This ordering prevents a very fast successful claim from deleting the
-    // row and then having this evaluation recreate it afterward.
-    await logActivity(
-      id,
-      connection,
-      "MATCHED",
-      {
-        engine:engineName,
-        trip,
-        dedupe:true,
-        message:
-          `${engineName} engine matched trip ${clean(trip.externalTripId || trip.portalTripId)}`
-      }
-    );
-
     const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
 
     if(claim.queued){
@@ -796,10 +624,6 @@ async function logEngineMatches(
 
     const reason=claim.reason;
     const externalTripId=clean(trip.externalTripId||trip.portalTripId||trip.tripNumber);
-    await Activity.updateOne(
-      {tenantId:id,integrationId:connection._id,externalTripId,action:"MATCHED"},
-      {$set:{"meta.lastClaimFailure":reason,"meta.lastClaimFailureAt":new Date()}}
-    ).catch(()=>{});
     setMatchedTripFailure(id,String(connection._id),externalTripId,reason);
 
     results.push({
@@ -820,6 +644,11 @@ async function logEngineMatches(
 
 const claimLocks=new Map();
 const tenantClaimGates=new Map();
+// Claim state and trip snapshots stay in process memory while a portal claim
+// is pending. Discovery results and failed attempts must never be written to
+// MarketplaceActivity; only a confirmed trip is persisted by createExternalTrip.
+const pendingClaimTrips=new Map();
+const recentClaimAttempts=new Map();
 // Short-lived display summary for the Marketplace dashboard. This is process
 // memory only; it is not persisted to Mongo and therefore cannot consume space.
 const latestScanSummaries=new Map();
@@ -837,7 +666,8 @@ async function maybeQueueClaim(...args){
   }
 }
 async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
-  // Settings is the only control for accepting. There is no manual bypass.
+  // Auto Accept is a hard requirement. A UI/manual endpoint must never bypass
+  // the saved engine toggle; only an enabled engine with Auto Accept on may queue.
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
   const discoveredAt=Date.parse(options.receivedAt);
   if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
@@ -861,73 +691,50 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
      /\b(cancel|decline|reject|delete|remove|pay|purchase|checkout|logout)\b/i.test(actionText))
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
-  if((claimLocks.get(key)||0)>Date.now()-60000) return {reason:"CLAIM_IN_PROGRESS"};
+  if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
   let command=null;
   try{
-    const latest=await Activity.findOne({tenantId:id,externalTripId,
-      "meta.connectionId":String(connection._id),
-      action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]}}
-    ).sort({_id:-1}).lean();
-    if(latest){
-      // A failed pre-click validation (for example missing driver/vehicle)
-      // is safe to retry. A click or confirmed claim remains protected from
-      // duplicate acceptance.
-      if(latest.action!=="CLAIM_FAILED") return {reason:"ALREADY_ATTEMPTED"};
-      const failedAt=Date.parse(latest.occurredAt||latest.createdAt||"") ||
-        (latest._id?.getTimestamp?.()?.getTime?.()||NaN);
-      if(!Number.isFinite(failedAt) || Date.now()-failedAt<5000)
-        return {reason:"CLAIM_RETRY_COOLDOWN"};
+    const cutoff=Date.now()-86400000;
+    for(const [attemptId,attempt] of recentClaimAttempts){
+      if(attempt.at<cutoff) recentClaimAttempts.delete(attemptId);
     }
-    const since=new Date(Date.now()-86400000);
     const totalLimit=Math.max(0,Math.trunc(Number(options.settings?.totalDailyTripLimit)||0));
     const engineLimit=Math.max(0,Math.trunc(Number(engineSettings?.dailyTripLimit)||0));
+    const tenantAttempts=[...recentClaimAttempts.values()].filter(attempt=>attempt.tenantId===id);
     if(totalLimit>0){
-      const count=await claimedOrPendingCount(id,"",since);
-      if(count>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
+      if(tenantAttempts.length>=totalLimit) return {reason:"TOTAL_DAILY_LIMIT"};
     }
     if(engineLimit>0){
-      const count=await claimedOrPendingCount(id,engineName,since);
+      const count=tenantAttempts.filter(attempt=>attempt.engine===engineName).length;
       if(count>=engineLimit) return {reason:"ENGINE_DAILY_LIMIT"};
     }
     command=providerPortalBridgeRoutes.enqueueClaimCommand?.({tenantId:id,
       connectionId:String(connection._id),engine:engineName,externalTripId,
       selector,actionText,sourceUrl:trip.sourceUrl});
     if(!command) return {reason:"CLAIM_QUEUE_UNAVAILABLE"};
-    await logActivity(id,connection,"CLAIM_ATTEMPT",{engine:engineName,trip,
-      message:`${engineName} claim queued for live trip ${externalTripId}`,
-      meta:{claimCommandId:command.commandId,tripSnapshot:{
+    pendingClaimTrips.set(command.commandId,{
+      tenantId:id,
+      connectionId:String(connection._id),
+      externalTripId,
+      trip:{
         portalTripId:externalTripId,tripDate:clean(trip.tripDate),
         pickupTime:clean(trip.pickupTime),appointmentTime:clean(trip.appointmentTime),
         memberName:clean(trip.memberName),memberPhone:clean(trip.memberPhone),
         pickupAddress:clean(trip.pickupAddress),dropoffAddress:clean(trip.dropoffAddress),
         mode:clean(trip.mode)
-      }}});
+      }
+    });
     if(providerPortalBridgeRoutes.activateClaimCommand?.(command.commandId)!==true)
       throw new Error("Claim command could not be activated");
-    claimLocks.set(key,Date.now());
+    const attemptedAt=Date.now();
+    claimLocks.set(key,attemptedAt);
+    recentClaimAttempts.set(command.commandId,{tenantId:id,engine:engineName,at:attemptedAt});
     return {queued:true};
   }catch(err){
+    if(command) pendingClaimTrips.delete(command.commandId);
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
-    claimLocks.delete(key);
     return {reason:`CLAIM_QUEUE_ERROR: ${clean(err.message).slice(0,120)}`};
   }
-}
-
-async function claimedOrPendingCount(id,engineName,since){
-  const match={
-    tenantId:id,
-    action:{$in:["CLAIM_ATTEMPT","CLAIM_FAILED","CLAIMED","IMPORTED"]},
-    occurredAt:{$gte:since}
-  };
-  if(engineName) match.engine=engineName;
-  const rows=await Activity.aggregate([
-    {$match:match},
-    {$sort:{_id:1}},
-    {$group:{_id:{integrationId:"$integrationId",externalTripId:"$externalTripId"},latestAction:{$last:"$action"}}},
-    {$match:{latestAction:{$in:["CLAIM_ATTEMPT","CLAIMED","IMPORTED"]}}},
-    {$count:"total"}
-  ]);
-  return Number(rows?.[0]?.total||0);
 }
 
 function serviceKeyForClaim(mode){
@@ -942,26 +749,16 @@ async function handleClaimResult(result){
     _id:command.connectionId,tenantId:command.tenantId
   }).lean();
   if(!connection) throw new Error("Claimed broker connection was not found");
-  const meta={claimCommandId:command.commandId,connectionId:command.connectionId};
-  await logActivity(command.tenantId,connection,
-    result.confirmed?"CLAIMED":result.clicked?"CLAIM_ATTEMPT":"CLAIM_FAILED",
-    {engine:command.engine,externalTripId:command.externalTripId,
-      message:result.confirmed?"Portal confirmed the claim":
-        result.clicked?"Claim button clicked; portal confirmation was not observed":
-        `Claim was not clicked: ${result.message}`,
-      reason:result.confirmed?"":result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED",
-      meta});
-  if(!result.clicked){
-    claimLocks.delete(`${command.tenantId}:${command.connectionId}:${command.externalTripId}`);
+  const pending=pendingClaimTrips.get(command.commandId);
+  pendingClaimTrips.delete(command.commandId);
+  if(!result.confirmed){
+    setMatchedTripFailure(command.tenantId,String(command.connectionId),
+      command.externalTripId,result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED");
     return;
   }
-  if(!result.confirmed) return;
 
   try{
-    const attempt=await Activity.findOne({tenantId:command.tenantId,
-      "meta.claimCommandId":command.commandId,action:"CLAIM_ATTEMPT",
-      "meta.tripSnapshot":{$exists:true}}).lean();
-    const trip=attempt?.meta?.tripSnapshot;
+    const trip=pending?.trip;
     if(!trip || !trip.tripDate || !trip.pickupTime || !trip.memberName ||
        !trip.pickupAddress || !trip.dropoffAddress)
       throw new Error("Confirmed claim lacks the trip details required by External Hub");
@@ -976,20 +773,10 @@ async function handleClaimResult(result){
         serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
         brokerStatus:"ACCEPTED"}
     });
-    // Marketplace is only a temporary holding area.  Once the portal claim
-    // is confirmed and the trip exists in External Hub, remove every
-    // temporary activity row for this trip (MATCHED/CLAIM_ATTEMPT/CLAIMED).
-    await Activity.deleteMany({
-      tenantId:command.tenantId,
-      externalTripId:command.externalTripId,
-      "meta.connectionId":String(command.connectionId)
-    });
+    const summary=latestScanSummaries.get(`${command.tenantId}:${command.connectionId}`);
+    if(summary) summary.imported=(Number(summary.imported)||0)+1;
   }catch(err){
-    await logActivity(command.tenantId,connection,"ERROR",{
-      engine:command.engine,externalTripId:command.externalTripId,
-      reason:"EXTERNAL_HUB_IMPORT_FAILED",
-      message:`Portal claim confirmed; External Hub import failed: ${clean(err.message).slice(0,300)}`,
-      meta});
+    console.error("Marketplace confirmed claim could not be imported to External Hub:",clean(err.message).slice(0,300));
   }
 }
 
@@ -1214,8 +1001,65 @@ router.get("/scan-summary",(req,res)=>{
   });
 });
 
-// Broker claims are queued only by automatic evaluation when Auto Accept is
-// enabled in the Long / Short Marketplace Settings. There is no manual route.
+router.post("/accept",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    const connectionId=clean(req.body?.connectionId);
+    const externalTripId=clean(req.body?.externalTripId);
+    if(!id || !connectionId || !externalTripId){
+      return res.status(400).json({success:false,message:"Broker connection and trip are required",reason:"MISSING_ACCEPT_INPUT"});
+    }
+    const [connection,settings]=await Promise.all([
+      marketplaceConnection(id,connectionId),
+      getSettings(id)
+    ]);
+    if(settings.enabled===false){
+      return res.status(409).json({success:false,message:"Marketplace is disabled in Settings",reason:"MARKETPLACE_DISABLED"});
+    }
+    const summary=latestScanSummaries.get(`${id}:${connectionId}`);
+    if(!summary || !summary.matchedIds.has(externalTripId)){
+      return res.status(409).json({success:false,message:"This trip is no longer in the latest matched scan. Refresh the broker portal and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    const receivedAt=summary.observedAt;
+    const normalized=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId) || [];
+    const trip=normalized.map(tripForEngine).find(row=>
+      [row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId)
+    );
+    if(!trip){
+      setMatchedTripFailure(id,connectionId,externalTripId,"TRIP_NOT_CURRENTLY_MATCHED");
+      return res.status(409).json({success:false,message:"The trip is no longer available in the live broker data. Refresh and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    trip.externalTripId=externalTripId;
+    const {longTrips,shortTrips}=await selectedByEngine(normalized.map(tripForEngine),settings);
+    let engineName="";
+    let engineSettings=null;
+    if(longTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+      engineName="LONG";
+      engineSettings=settings.longEngine||{};
+    }else if(shortTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+      engineName="SHORT";
+      engineSettings=settings.shortEngine||{};
+    }
+    if(!engineName){
+      setMatchedTripFailure(id,connectionId,externalTripId,"TRIP_NOT_CURRENTLY_MATCHED");
+      return res.status(409).json({success:false,message:"The trip no longer matches the current engine filters.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    const result=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,{
+      source:"DISCOVERY",
+      receivedAt,
+      settings
+    });
+    if(!result.queued){
+      const reason=String(result.reason||"CLAIM_QUEUE_UNAVAILABLE");
+      setMatchedTripFailure(id,connectionId,externalTripId,reason);
+      return res.status(409).json({success:false,reason,message:`Accept is blocked: ${reason.replaceAll("_"," ").toLowerCase()}`});
+    }
+    setMatchedTripFailure(id,connectionId,externalTripId,"");
+    return res.json({success:true,queued:true,message:"Accept request sent to the broker browser. Waiting for portal confirmation."});
+  }catch(err){
+    return res.status(Number(err?.statusCode)||500).json({success:false,message:err.message||"Could not queue Accept request",reason:"ACCEPT_REQUEST_FAILED"});
+  }
+});
 
 router.get(
   "/settings",
