@@ -36,6 +36,111 @@ const SMART_FORM_RETENTION_DAYS = Math.max(
   Number(process.env.SMART_FORM_RETENTION_DAYS) || 30
 );
 
+// Smart Form Summary keeps a compact daily snapshot of completed trips. The
+// original submissions can then follow the normal retention window without
+// forcing every Summary page load to scan the full submission history.
+const SmartFormSummaryArchive = mongoose.models.SmartFormSummaryArchive ||
+  mongoose.model("SmartFormSummaryArchive",new mongoose.Schema({
+    tenantKey:{type:String,required:true,index:true},
+    sourceSubmissionId:{type:String,required:true},
+    tripDate:{type:String,default:"",index:true},
+    payload:{type:mongoose.Schema.Types.Mixed,required:true},
+    archivedAt:{type:Date,default:Date.now}
+  },{timestamps:true,collection:"smart_form_summary_archive"})
+    .index({tenantKey:1,sourceSubmissionId:1},{unique:true}));
+
+const SmartFormSummaryArchiveState = mongoose.models.SmartFormSummaryArchiveState ||
+  mongoose.model("SmartFormSummaryArchiveState",new mongoose.Schema({
+    tenantKey:{type:String,required:true,index:true},
+    cutoffDate:{type:String,default:""},
+    updatedAt:{type:Date,default:Date.now}
+  },{timestamps:true,collection:"smart_form_summary_archive_state"})
+    .index({tenantKey:1},{unique:true}));
+
+const smartFormSummaryHistoryMemory=new Map();
+const smartFormSummaryResponseCache=new Map();
+const smartFormSummaryLastPrune=new Map();
+const SMART_FORM_SUMMARY_CACHE_TTL_MS=10*1000;
+
+function smartFormSummaryDateKey(date=new Date(),timezone="America/Phoenix"){
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const map={};
+  for(const part of parts)if(part.type!=="literal")map[part.type]=part.value;
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+async function buildSmartFormSummaryRows(rows,tenantId){
+  const tripIds=rows.map(row=>row.tripId).filter(Boolean);
+  const trips=tripIds.length?await Trip.find({
+    _id:{$in:tripIds},tenantId,status:{$regex:"^complete",$options:"i"}
+  }).select("_id status passengerStatus stops miles distanceMiles durationMinutes priceAmount finalPrice totalPassengers isShared groupId tripType").lean():[];
+  const tripMap=new Map(trips.map(trip=>[String(trip._id),trip]));
+  return rows.flatMap(row=>{
+    const trip=row.tripId?tripMap.get(String(row.tripId)):null;
+    if(!trip)return [];
+    const out=sanitizeSubmission(row);
+    out.tripStatus=clean(trip.status);
+    out.passengerStatus=clean(trip.passengerStatus)||"Completed";
+    if(Array.isArray(trip.stops))out.stops=trip.stops;
+    const finalMiles=Number(trip.distanceMiles??trip.miles);
+    if(Number.isFinite(finalMiles))out.distanceMiles=finalMiles;
+    const finalMinutes=Number(trip.durationMinutes);
+    if(Number.isFinite(finalMinutes))out.durationMinutes=finalMinutes;
+    const prices=[trip.finalPrice,trip.priceAmount,out.finalPrice,out.priceAmount,out.pricing?.amount]
+      .filter(value=>value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value))).map(Number);
+    const finalPrice=prices.find(value=>value>0)??prices[0]??0;
+    out.pricing={...(out.pricing||{}),calculated:true,amount:finalPrice,currency:"USD"};
+    out.priceAmount=finalPrice;out.finalPrice=finalPrice;
+    out.totalPassengers=Number(trip.totalPassengers||out.totalPassengers||1)||1;
+    out.isShared=trip.isShared===true;out.groupId=clean(trip.groupId);out.tripType=clean(trip.tripType);
+    return [out];
+  });
+}
+
+async function upsertSmartFormSummaryRows(tenantKey,rows){
+  const ops=rows.map(row=>{
+    const sourceSubmissionId=String(row?._id||"").trim();
+    if(!sourceSubmissionId)return null;
+    return {updateOne:{filter:{tenantKey,sourceSubmissionId},update:{$set:{tripDate:String(row.tripDate||""),payload:row,archivedAt:new Date()},$setOnInsert:{tenantKey,sourceSubmissionId}},upsert:true}};
+  }).filter(Boolean);
+  if(ops.length)await SmartFormSummaryArchive.bulkWrite(ops,{ordered:false});
+}
+
+async function syncSmartFormSummaryHistory(tenantId,todayKey){
+  const memory=smartFormSummaryHistoryMemory.get(tenantId);
+  if(memory?.day===todayKey&&Array.isArray(memory.rows))return memory.rows;
+  let state=await SmartFormSummaryArchiveState.findOne({tenantKey:tenantId}).lean();
+  let cutoff=clean(state?.cutoffDate);
+  if(!state||!cutoff||cutoff>todayKey){
+    const submissions=await SmartFormSubmission.find({tenantId,status:"CONFIRMED",tripId:{$ne:null},tripDate:{$lt:todayKey}})
+      .select("-generatedPdf.data").sort({tripDate:1,createdAt:1}).lean();
+    const rows=await buildSmartFormSummaryRows(submissions,tenantId);
+    await SmartFormSummaryArchive.deleteMany({tenantKey:tenantId});
+    await upsertSmartFormSummaryRows(tenantId,rows);
+    await SmartFormSummaryArchiveState.findOneAndUpdate({tenantKey:tenantId},{$set:{cutoffDate:todayKey,updatedAt:new Date()}},{upsert:true,new:true,setDefaultsOnInsert:true});
+    smartFormSummaryHistoryMemory.set(tenantId,{day:todayKey,rows});
+    return rows;
+  }
+  if(cutoff<todayKey){
+    const submissions=await SmartFormSubmission.find({tenantId,status:"CONFIRMED",tripId:{$ne:null},tripDate:{$gte:cutoff,$lt:todayKey}})
+      .select("-generatedPdf.data").sort({tripDate:1,createdAt:1}).lean();
+    const rows=await buildSmartFormSummaryRows(submissions,tenantId);
+    await upsertSmartFormSummaryRows(tenantId,rows);
+    await SmartFormSummaryArchiveState.updateOne({tenantKey:tenantId},{$set:{cutoffDate:todayKey,updatedAt:new Date()}});
+  }
+  const archived=await SmartFormSummaryArchive.find({tenantKey:tenantId}).select({_id:0,payload:1}).lean();
+  const rows=archived.map(row=>row?.payload).filter(Boolean);
+  smartFormSummaryHistoryMemory.set(tenantId,{day:todayKey,rows});
+  return rows;
+}
+
+async function pruneSmartFormSubmissionsAtMostDaily(tenantId){
+  const last=smartFormSummaryLastPrune.get(tenantId)||0;
+  if(Date.now()-last<24*60*60*1000)return;
+  await pruneCompletedSmartFormSubmissions(tenantId);
+  smartFormSummaryLastPrune.set(tenantId,Date.now());
+}
+
 async function pruneCompletedSmartFormSubmissions(tenantId){
   const cutoff = new Date(
     Date.now() - SMART_FORM_RETENTION_DAYS * 24 * 60 * 60 * 1000
@@ -1146,14 +1251,39 @@ router.post("/submissions", async (req,res)=>{
 router.get("/submissions", async (req,res)=>{
   try{
     const g=await gate(req,res); if(!g) return;
-
-    await pruneCompletedSmartFormSubmissions(g.tenantId);
-
     const query={tenantId:g.tenantId};
     const requestedStatus=clean(req.query.status).toUpperCase();
     if(["DRAFT","REVIEW","CONFIRMED","ARCHIVED"].includes(requestedStatus)){
       query.status=requestedStatus;
     }
+
+    if(requestedStatus==="CONFIRMED"){
+      const todayKey=smartFormSummaryDateKey(new Date(),g.timezone);
+      const cacheKey=`${g.tenantId}::${todayKey}`;
+      const cached=smartFormSummaryResponseCache.get(cacheKey);
+      if(cached&&Date.now()-cached.at<SMART_FORM_SUMMARY_CACHE_TTL_MS){
+        return res.json({success:true,submissions:cached.submissions,summaryStats:{archive:true,liveWindow:"TODAY",historyWindow:"BEFORE_TODAY",fullHistoryScan:false}});
+      }
+
+      const [historicalRows,todaySubmissions]=await Promise.all([
+        syncSmartFormSummaryHistory(g.tenantId,todayKey),
+        SmartFormSubmission.find({...query,tripId:{$ne:null},tripDate:todayKey})
+          .select("-generatedPdf.data").sort({createdAt:-1}).lean()
+      ]);
+      const todayRows=await buildSmartFormSummaryRows(todaySubmissions,g.tenantId);
+      const seen=new Set();
+      const submissions=[...todayRows,...historicalRows].filter(row=>{
+        const id=String(row?._id||"");
+        if(!id)return true;
+        if(seen.has(id))return false;
+        seen.add(id);return true;
+      });
+      await pruneSmartFormSubmissionsAtMostDaily(g.tenantId);
+      smartFormSummaryResponseCache.set(cacheKey,{at:Date.now(),submissions});
+      return res.json({success:true,submissions,summaryStats:{archive:true,liveWindow:"TODAY",historyWindow:"BEFORE_TODAY",fullHistoryScan:false}});
+    }
+
+    await pruneSmartFormSubmissionsAtMostDaily(g.tenantId);
 
     const rows=await SmartFormSubmission.find(query).sort({createdAt:-1}).limit(500).lean();
 
