@@ -1,6 +1,7 @@
 "use strict";
 
 /*
+// Marketplace accept fix: preserve discovery metadata through manual scans.
 DESTINATION PATH:
 server/routes/marketplaceRoutes.js
 
@@ -1314,6 +1315,17 @@ router.get(
           req.query.connectionId
         );
 
+      // integrationId is stored as a Mongo ObjectId on new activity rows,
+      // while the browser sends connectionId as text.
+      let connectionObjectId = null;
+      if(connectionId){
+        const connectionDoc = await BrokerIntegration.findOne({
+          tenantId:id,
+          _id:connectionId
+        }).select({_id:1}).lean().catch(()=>null);
+        connectionObjectId = connectionDoc?._id || null;
+      }
+
       const limit =
         Math.min(
           300,
@@ -1334,9 +1346,13 @@ router.get(
       };
 
       if(connectionId){
-
-        filter["meta.connectionId"] =
-          connectionId;
+        filter.$or=[
+          {"meta.connectionId":connectionId},
+          {"meta.marketplaceConnectionId":connectionId},
+          {"meta.brokerIntegrationId":connectionId},
+          ...(connectionObjectId ? [{integrationId:connectionObjectId}] : []),
+          {integrationId:connectionId}
+        ];
       }
 
       // Each external trip gets one visible row, even when recurring scans
@@ -1350,7 +1366,10 @@ router.get(
           {case:{$eq:["$action","CLAIM_ATTEMPT"]},then:2}
         ],default:1}}}},
         {$sort:{activityRank:-1,occurredAt:-1,_id:-1}},
-        {$group:{_id:{connectionId:"$meta.connectionId",tripId:"$externalTripId"},row:{$first:"$$ROOT"}}},
+        {$group:{_id:{connectionId:{$ifNull:[
+          "$meta.connectionId",
+          {$toString:"$integrationId"}
+        ]},tripId:"$externalTripId"},row:{$first:"$$ROOT"}}},
         {$replaceRoot:{newRoot:"$row"}},
         {$project:{activityRank:0}},
         {$sort:{occurredAt:-1,_id:-1}},
@@ -1561,7 +1580,12 @@ router.post(
             connection,
             "LONG",
             longTrips,
-            settings.longEngine || {}
+            settings.longEngine || {},
+            {
+              source:"DISCOVERY",
+              receivedAt:new Date().toISOString(),
+              settings
+            }
           ),
 
           logEngineMatches(
@@ -1569,7 +1593,12 @@ router.post(
             connection,
             "SHORT",
             shortTrips,
-            settings.shortEngine || {}
+            settings.shortEngine || {},
+            {
+              source:"DISCOVERY",
+              receivedAt:new Date().toISOString(),
+              settings
+            }
           )
         ]);
 
