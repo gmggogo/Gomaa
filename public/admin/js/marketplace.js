@@ -1249,6 +1249,7 @@ Marketplace multi-broker UI.
           pickupTime:trip?.pickupTime,
           mode:trip?.mode,
           miles:trip?.miles,
+          lastClaimFailure:trip?.lastClaimFailure,
           meta:{
             pickupAddress:trip?.pickupAddress,
             dropoffAddress:trip?.dropoffAddress
@@ -1304,12 +1305,30 @@ Marketplace multi-broker UI.
         ? rows.map(r=>{
             const action=String(r.action || "").toUpperCase();
             const rowClass="activity-matched";
+            const claimFailure=String(r.meta?.lastClaimFailure||r.lastClaimFailure||"");
+            const reasonLabels={
+              AUTO_ACCEPT_OFF:"Automatic Accept is off; use the manual Accept button.",
+              DISCOVERY_TOO_OLD:"Trip data expired. Refresh the portal and try again.",
+              LIVE_DISCOVERY_ONLY:"The trip must be rediscovered from the live portal.",
+              MISSING_EXTERNAL_HUB_FIELDS:"Required trip details are missing.",
+              NO_VERIFIED_ROW_ACCEPT_ACTION:"No verified Accept button was found for this trip in the broker portal.",
+              ALREADY_ATTEMPTED:"An Accept attempt was already made for this trip.",
+              TOTAL_DAILY_LIMIT:"The total daily Accept limit was reached.",
+              ENGINE_DAILY_LIMIT:"The engine daily Accept limit was reached.",
+              CLAIM_QUEUE_UNAVAILABLE:"The broker browser is not ready to receive the Accept request.",
+              TRIP_NOT_CURRENTLY_MATCHED:"This trip is no longer in the latest matched scan."
+            };
             const detail=action==="IMPORTED" ? "Verified in External Hub" :
               action==="CLAIMED" ? "Accepted; importing to Hub" :
               action==="CLAIM_FAILED" ? `Accept failed: ${r.message||r.reason||"unknown reason"}` :
               action==="SKIPPED" ? `Accept blocked: ${r.reason||"unknown reason"}${r.meta?.lastClaimFailure ? `. Last attempt: ${r.meta.lastClaimFailure}` : ""}` :
               action==="ERROR" ? `Hub error: ${r.message||r.reason||"unknown reason"}` :
-              action==="CLAIM_ATTEMPT" ? "Accept pending" : "Awaiting Accept";
+              action==="CLAIM_ATTEMPT" ? "Accept pending" :
+              claimFailure ? `Accept blocked: ${reasonLabels[claimFailure]||claimFailure}` : "Awaiting Accept";
+            const tripId=String(r.externalTripId||r.portalTripId||r.tripNumber||"");
+            const actionCell=action==="MATCHED"
+              ? `<button type="button" class="accept-trip-btn" data-accept-trip="${esc(tripId)}">Accept</button>`
+              : "—";
 
             return `
             <tr class="${rowClass}">
@@ -1320,10 +1339,11 @@ Marketplace multi-broker UI.
               <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
               <td><strong>Matched</strong><br><small>${esc(detail)}</small></td>
+              <td>${actionCell}</td>
             </tr>
           `;
           }).join("")
-        : '<tr><td colspan="7">No matched trips for this broker/account yet.</td></tr>';
+        : '<tr><td colspan="8">No matched trips for this broker/account yet.</td></tr>';
   }
 
   function renderAll(){
@@ -1924,6 +1944,27 @@ Marketplace multi-broker UI.
 
   $("showActivityHistoryBtn")
     ?.addEventListener("click",showActivityHistory);
+
+  $("activityRows")?.addEventListener("click",async event=>{
+    const button=event.target?.closest?.("[data-accept-trip]");
+    if(!button || button.disabled) return;
+    const item=selectedConnection();
+    const externalTripId=String(button.dataset?.acceptTrip||"").trim();
+    if(!item || !externalTripId) return;
+    button.disabled=true;
+    button.textContent="Sending…";
+    try{
+      const result=await market("/accept",{
+        method:"POST",
+        body:JSON.stringify({connectionId:item.connectionId,externalTripId})
+      });
+      $("scanStatus").textContent=result.message||"Accept request sent.";
+      await load();
+    }catch(err){
+      $("scanStatus").textContent=err.message||"Accept request failed.";
+      await load();
+    }
+  });
 
   load();
 

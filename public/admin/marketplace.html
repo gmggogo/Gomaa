@@ -550,6 +550,18 @@
       background:#dcf2e2 !important;
     }
 
+    .accept-trip-btn{
+      background:#12834d;
+      color:#fff;
+      border:0;
+      border-radius:7px;
+      padding:7px 13px;
+      font-weight:800;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .accept-trip-btn:hover:not(:disabled){background:#0d693d}
+
     tbody tr.activity-seen td{
       background:#fff7d8 !important;
       color:#5e4a00;
@@ -765,10 +777,11 @@
                   <th>Service</th>
                   <th>Miles</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="activityRows">
-                <tr><td colspan="7">No matched trips yet.</td></tr>
+                <tr><td colspan="8">No matched trips yet.</td></tr>
               </tbody>
             </table>
             </div>

@@ -795,6 +795,12 @@ async function logEngineMatches(
     }
 
     const reason=claim.reason;
+    const externalTripId=clean(trip.externalTripId||trip.portalTripId||trip.tripNumber);
+    await Activity.updateOne(
+      {tenantId:id,integrationId:connection._id,externalTripId,action:"MATCHED"},
+      {$set:{"meta.lastClaimFailure":reason,"meta.lastClaimFailureAt":new Date()}}
+    ).catch(()=>{});
+    setMatchedTripFailure(id,String(connection._id),externalTripId,reason);
 
     results.push({
       engine:engineName,
@@ -831,7 +837,7 @@ async function maybeQueueClaim(...args){
   }
 }
 async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettings,options){
-  if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
+  if(!options.manualAccept && engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
   const discoveredAt=Date.parse(options.receivedAt);
   if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
     return {reason:"DISCOVERY_TOO_OLD"};
@@ -995,6 +1001,13 @@ function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported
     matchedIds,
     matchedTrips
   });
+}
+
+function setMatchedTripFailure(id,connectionId,externalTripId,reason){
+  const summary=latestScanSummaries.get(`${id}:${connectionId}`);
+  const target=String(externalTripId||"").trim();
+  const row=summary?.matchedTrips?.find(trip=>trip.externalTripId===target);
+  if(row) row.lastClaimFailure=String(reason||"");
 }
 
 async function evaluateConnectionTrips({
@@ -1166,6 +1179,71 @@ router.get("/scan-summary",(req,res)=>{
         }
       : null
   });
+});
+
+router.post("/accept",async(req,res)=>{
+  try{
+    const id=tenantId(req);
+    const connectionId=clean(req.body?.connectionId);
+    const externalTripId=clean(req.body?.externalTripId);
+    if(!id || !connectionId || !externalTripId){
+      return res.status(400).json({success:false,message:"Broker connection and trip are required",reason:"MISSING_ACCEPT_INPUT"});
+    }
+    const [connection,settings]=await Promise.all([
+      marketplaceConnection(id,connectionId),
+      getSettings(id)
+    ]);
+    if(settings.enabled===false){
+      return res.status(409).json({success:false,message:"Marketplace is disabled in Settings",reason:"MARKETPLACE_DISABLED"});
+    }
+    const summary=latestScanSummaries.get(`${id}:${connectionId}`);
+    if(!summary || !summary.matchedIds.has(externalTripId)){
+      return res.status(409).json({success:false,message:"This trip is no longer in the latest matched scan. Refresh the broker portal and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    const receivedAt=summary.observedAt;
+    const normalized=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId) || [];
+    const trip=normalized.map(tripForEngine).find(row=>
+      [row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId)
+    );
+    if(!trip){
+      setMatchedTripFailure(id,connectionId,externalTripId,"TRIP_NOT_CURRENTLY_MATCHED");
+      return res.status(409).json({success:false,message:"The trip is no longer available in the live broker data. Refresh and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    trip.externalTripId=externalTripId;
+    const {longTrips,shortTrips}=await selectedByEngine(normalized.map(tripForEngine),settings);
+    let engineName="";
+    let engineSettings=null;
+    if(longTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+      engineName="LONG";
+      engineSettings=settings.longEngine||{};
+    }else if(shortTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+      engineName="SHORT";
+      engineSettings=settings.shortEngine||{};
+    }
+    if(!engineName){
+      setMatchedTripFailure(id,connectionId,externalTripId,"TRIP_NOT_CURRENTLY_MATCHED");
+      return res.status(409).json({success:false,message:"The trip no longer matches the current engine filters.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
+    }
+    const result=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,{
+      manualAccept:true,
+      source:"DISCOVERY",
+      receivedAt,
+      settings
+    });
+    if(!result.queued){
+      const reason=String(result.reason||"CLAIM_QUEUE_UNAVAILABLE");
+      setMatchedTripFailure(id,connectionId,externalTripId,reason);
+      await Activity.updateOne(
+        {tenantId:id,integrationId:connection._id,externalTripId,action:"MATCHED"},
+        {$set:{"meta.lastClaimFailure":reason,"meta.lastClaimFailureAt":new Date()}}
+      ).catch(()=>{});
+      return res.status(409).json({success:false,reason,message:`Accept is blocked: ${reason.replaceAll("_"," ").toLowerCase()}`});
+    }
+    setMatchedTripFailure(id,connectionId,externalTripId,"");
+    return res.json({success:true,queued:true,message:"Accept request sent to the broker browser. Waiting for portal confirmation."});
+  }catch(err){
+    return res.status(Number(err?.statusCode)||500).json({success:false,message:err.message||"Could not queue Accept request",reason:"ACCEPT_REQUEST_FAILED"});
+  }
 });
 
 router.get(
