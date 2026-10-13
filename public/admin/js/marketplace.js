@@ -1199,16 +1199,51 @@ Marketplace multi-broker UI.
       Hide old legacy rows that do not identify a broker connection.
       They are the pre-multi-broker test rows seen on the old page.
     */
+    const visibleActions=new Set([
+      "MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED",
+      "CLAIM_FAILED","IMPORTED","ERROR"
+    ]);
+    const scopedRows=state.activity.filter(row=>{
+      const id=rowConnectionId(row);
+      return Boolean(id) && id===selected &&
+        visibleActions.has(String(row.action||"").toUpperCase());
+    });
+    const candidateRows=scopedRows.filter(row=>{
+      const rowId=String(row?._id || "").toLowerCase();
+      return !cutoff || rowId>cutoff;
+    });
+    // If the local "clear view" marker predates the latest summary, do not
+    // leave a confirmed non-zero match count with an empty table.
+    const displayRows=candidateRows.length || Number(state.scanSummary?.matched||0)===0
+      ? candidateRows
+      : scopedRows;
+
+    // The summary and activity records can use different portal-id aliases
+    // (externalTripId vs portalTripId). Prefer the exact summary intersection,
+    // but do not hide valid connection-scoped matched rows when the aliases
+    // differ. The backend activity endpoint is already connection-scoped.
+    const summaryIds=new Set(
+      Array.isArray(state.scanSummary?.matchedTripIds)
+        ? state.scanSummary.matchedTripIds.map(value=>String(value||"").trim()).filter(Boolean)
+        : []
+    );
+    const exactRows=summaryIds.size
+      ? displayRows.filter(row=>{
+          const ids=[
+            row?.externalTripId,
+            row?.portalTripId,
+            row?.tripNumber,
+            row?.meta?.externalTripId,
+            row?.meta?.portalTripId,
+            row?.meta?.tripNumber
+          ].map(value=>String(value||"").trim()).filter(Boolean);
+          return ids.some(value=>summaryIds.has(value));
+        })
+      : [];
     const rows=stableMatchedRows(
-      state.activity.filter(row=>{
-        const id=rowConnectionId(row);
-        const rowId=String(row?._id || "").toLowerCase();
-        return Boolean(id) && id===selected && (!cutoff || rowId>cutoff) &&
-          Array.isArray(state.scanSummary?.matchedTripIds) &&
-          state.scanSummary.matchedTripIds.includes(String(row.externalTripId||"")) &&
-          ["MATCHED","SKIPPED","CLAIM_ATTEMPT","CLAIMED","CLAIM_FAILED","IMPORTED","ERROR"]
-            .includes(String(row.action||"").toUpperCase());
-      })
+      exactRows.length || Number(state.scanSummary?.matched||0)===0
+        ? exactRows
+        : displayRows
     );
 
     for(const [id,key] of [["availableCount","available"],["matchedCount","matched"],["importedCount","imported"]])
