@@ -14,8 +14,8 @@ IMPORTANT:
 - Uses the existing Long / Short engine settings.
 - The portal claim is sent only for a fresh discovery with Auto Accept on.
 - A confirmed portal claim is imported through the External Trip service.
-- Activity is stored in the existing Marketplace Activity collection for
-  compatibility, but every new row is scoped by connectionId.
+- Discovery and match summaries stay in process memory and are not written
+  to MarketplaceActivity. Only confirmed claims are imported into External Hub.
 */
 
 const express = require("express");
@@ -56,21 +56,35 @@ const clean =
   value =>
     String(value ?? "").trim();
 
-// Marketplace activity is operational telemetry, not permanent trip history.
-// Keep a short window so repeated portal scans cannot fill MongoDB again.
+// Marketplace scan results are not written to MarketplaceActivity. This
+// retention sweep only cleans up legacy telemetry left by older builds. Run it
+// at most once per tenant per 24 hours so frequent scans do not issue repeated
+// delete queries. Accepted trips are persisted separately in External Hub.
 const MARKETPLACE_ACTIVITY_RETENTION_DAYS = Math.max(
   1,
   Number(process.env.MARKETPLACE_ACTIVITY_RETENTION_DAYS) || 7
 );
+const marketplaceActivityPrunedAt = new Map();
 
 async function pruneMarketplaceActivity(tenantId){
+  const tenantKey = String(tenantId || '');
+  const now = Date.now();
+  const lastPrunedAt = marketplaceActivityPrunedAt.get(tenantKey) || 0;
+  if(now - lastPrunedAt < 24 * 60 * 60 * 1000){
+    return {acknowledged:true, deletedCount:0, skipped:true};
+  }
+
+  // Mark before awaiting to collapse concurrent scans into one cleanup query.
+  marketplaceActivityPrunedAt.set(tenantKey, now);
   const cutoff = new Date(
-    Date.now() - MARKETPLACE_ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000
+    now - MARKETPLACE_ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000
   );
-  return Activity.deleteMany({
-    tenantId,
-    occurredAt: {$lt:cutoff}
-  });
+  try{
+    return await Activity.deleteMany({tenantId, occurredAt:{$lt:cutoff}});
+  }catch(err){
+    marketplaceActivityPrunedAt.delete(tenantKey);
+    throw err;
+  }
 }
 
 function bearerToken(req){
@@ -839,10 +853,8 @@ async function evaluateConnectionTrips({
   source="AUTO",
   receivedAt=""
 }){
-  // Use one canonical trip buffer for matching, activity rows, and the
-  // dashboard summary. Previously raw discovery data was used for activity
-  // while summaryTrips was used for counters, so the UI could show Matched > 0
-  // with no rows in the table.
+  // Use one canonical trip buffer for matching and the temporary dashboard
+  // summary. Discovery results are not persisted as MarketplaceActivity rows.
   const rawNormalized=(Array.isArray(rawTrips) ? rawTrips : [])
     .map(tripForEngine)
     .filter(trip=>Boolean(trip.externalTripId || trip.tripNumber));
@@ -885,8 +897,8 @@ async function evaluateConnectionTrips({
       )
     ]);
 
-  // The same canonical trips produced the activity rows above, so the
-  // dashboard counters and table cannot diverge.
+  // Keep only the current scan summary in process memory so the counters and
+  // matched-trip table stay aligned without storing every portal scan in Mongo.
   saveScanSummary(id,connection,trips,longTrips,shortTrips);
 
   await Settings.updateOne(
@@ -1219,8 +1231,8 @@ router.get(
         });
       }
 
-      // Run retention opportunistically during normal scans; no separate worker
-      // is required, and active trip data is never touched here.
+      // Opportunistically clean legacy MarketplaceActivity telemetry at most
+      // once per tenant per day. Accepted External Hub trips are not touched.
       await pruneMarketplaceActivity(id);
 
       const connectionId =
