@@ -1560,7 +1560,7 @@ async function saveMappingProfile({tenant,connectionId,host,result,aiResult}){
 }
 
 function currentDomActionTrips({payload,discoveryType,sourceUrl,portalHost,trips,actionCandidates,actionResult}){
-  if(clean(discoveryType)!=="DOM" || payload?.__ghOnboarding!==true ||
+  if(clean(discoveryType)!=="DOM" ||
      !Array.isArray(payload.rows) || !Array.isArray(trips) ||
      !/^https?:\/\//i.test(clean(sourceUrl)) ||
      !portalHost || safeHost(sourceUrl)!==clean(portalHost).toLowerCase()) return [];
