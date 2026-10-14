@@ -7,6 +7,9 @@ const Stripe = require("stripe");
 const TenantPaymentAccount =
   require("../models/TenantPaymentAccount");
 
+const Tenant =
+  require("../models/Tenant");
+
 const router = express.Router();
 
 const stripe =
@@ -289,6 +292,27 @@ router.get(
   }
 );
 
+
+async function getTenantBusinessName(
+  tenantId,
+  fallback = ""
+){
+
+  const tenant =
+    await Tenant
+      .findById(tenantId)
+      .select("name slug branding.companyName")
+      .lean();
+
+  return clean(
+    fallback ||
+    tenant?.branding?.companyName ||
+    tenant?.name ||
+    tenant?.slug ||
+    ""
+  );
+}
+
 /* =========================
    CONNECT STRIPE
    EXISTING ACCOUNT OR CREATE NEW
@@ -332,6 +356,19 @@ router.post(
           req.authUser?.tenantSlug
         )
         .toLowerCase();
+
+      const businessName =
+        await getTenantBusinessName(
+          tenantId,
+          req.body?.businessName
+        );
+
+      const businessEmail =
+        clean(
+          req.body?.email ||
+          req.authUser?.email ||
+          req.authUser?.username
+        );
 
       /*
         Signed state prevents another tenant
@@ -383,20 +420,20 @@ router.post(
         user signs in to an existing account.
       */
 
-      if(req.body?.email){
+      if(businessEmail){
 
         params.set(
           "stripe_user[email]",
-          clean(req.body.email)
+          businessEmail
         );
 
       }
 
-      if(req.body?.businessName){
+      if(businessName){
 
         params.set(
           "stripe_user[business_name]",
-          clean(req.body.businessName)
+          businessName
         );
 
       }
@@ -405,6 +442,11 @@ router.post(
         "stripe_user[country]",
         clean(req.body?.country) ||
         "US"
+      );
+
+      params.set(
+        "always_prompt",
+        "true"
       );
 
       const url =
@@ -698,6 +740,55 @@ router.get(
       return res.redirect(
         pageUrl
       );
+
+    }
+
+  }
+);
+
+
+/* =========================
+   LOCAL STRIPE UNLINK
+
+   This does not delete anything in Stripe.
+   It only clears the tenant's saved acct_ id
+   so the tenant can connect the correct account.
+========================= */
+
+router.post(
+  "/reset",
+  requireTenantStripeAdmin,
+  async (req,res)=>{
+
+    try{
+
+      const tenantId =
+        clean(
+          req.authUser.tenantId
+        );
+
+      await TenantPaymentAccount
+        .deleteOne({
+          tenantId
+        });
+
+      return res.json({
+        success:true
+      });
+
+    }catch(err){
+
+      console.log(
+        "TENANT STRIPE RESET ERROR:",
+        err
+      );
+
+      return res.status(500).json({
+        success:false,
+        message:
+          err.message ||
+          "Unable to reset Stripe connection"
+      });
 
     }
 

@@ -387,7 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         connectStripeBtn.innerText =
-          "Manage Stripe";
+          "Reconnect Stripe";
 
         if(stripeDashboardBtn){
           stripeDashboardBtn.style.display =
@@ -403,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         connectStripeBtn.innerText =
-          "Complete Stripe Setup";
+          "Reconnect / Complete Stripe";
 
         if(stripeDashboardBtn){
           stripeDashboardBtn.style.display =
@@ -473,10 +473,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if(stripeAccountLinked){
-        await openStripeDashboard();
-        return;
-      }
+      /*
+        Always start Stripe OAuth from this button.
+        If a wrong/incomplete acct_ was saved, the callback
+        replaces it with the Stripe account the tenant selects now.
+        The separate dashboard button opens Stripe Dashboard.
+      */
 
       connectStripeBtn.disabled =
         true;
@@ -500,7 +502,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
             body:JSON.stringify({
               tenantSlug:
-                getTenantSlug()
+                getTenantSlug(),
+
+              businessName:
+                String(
+                  localStorage.getItem("tenantName") ||
+                  localStorage.getItem("companyName") ||
+                  sessionStorage.getItem("tenantName") ||
+                  ""
+                ).trim(),
+
+              email:
+                String(
+                  localStorage.getItem("email") ||
+                  sessionStorage.getItem("email") ||
+                  ""
+                ).trim()
             })
           },
           20000
