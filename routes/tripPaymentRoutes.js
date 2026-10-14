@@ -229,10 +229,13 @@ router.post(
           trip
         );
 
+      /*
+        Always resolve the current tenant account for a new Checkout
+        session. Older trips may still contain stripeConnectedAccountId
+        from the previous Stripe connection and must not override the
+        current TenantPaymentAccount record.
+      */
       const stripeAccountId =
-        clean(
-          trip.stripeConnectedAccountId
-        ) ||
         await getTenantStripeAccountId(
           trip
         );
@@ -387,10 +390,12 @@ router.post(
         });
       }
 
+      /*
+        The Checkout session for the current payment setup is created on
+        the current tenant account. Do not reuse an old account ID stored
+        on the trip document.
+      */
       const stripeAccountId =
-        clean(
-          trip.stripeConnectedAccountId
-        ) ||
         await getTenantStripeAccountId(
           trip
         );

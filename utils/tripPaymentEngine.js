@@ -123,10 +123,40 @@ function directChargeAccountId(
   trip,
   tenantStripeAccountId
 ){
+  const storedTripAccountId =
+    String(
+      trip?.stripeConnectedAccountId ||
+      ""
+    ).trim();
+
+  const paymentStatus =
+    String(
+      trip?.paymentStatus ||
+      ""
+    ).trim().toUpperCase();
+
+  /*
+    A trip that has already been authorized or paid must continue using
+    the account that owns its existing PaymentIntent. Every trip that is
+    still in setup/pre-payment must use the current tenant account. This
+    prevents an old stripeConnectedAccountId from sending new payments to
+    a disconnected Stripe account.
+  */
+  const preserveStoredAccount =
+    storedTripAccountId &&
+    [
+      "AUTHORIZED",
+      "PAID",
+      "CAPTURE_FAILED",
+      "VOIDED"
+    ].includes(paymentStatus);
+
   return String(
-    trip?.stripeConnectedAccountId ||
-    tenantStripeAccountId ||
-    ""
+    preserveStoredAccount
+      ? storedTripAccountId
+      : tenantStripeAccountId ||
+        storedTripAccountId ||
+        ""
   ).trim();
 }
 
