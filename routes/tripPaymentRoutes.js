@@ -6,6 +6,7 @@ const crypto = require("crypto");
 
 const {
   stripe,
+  getTenantStripeAccountId,
   ensureStripeCustomer,
   confirmSavedPaymentMethod,
   authorizeTripAmount
@@ -228,6 +229,14 @@ router.post(
           trip
         );
 
+      const stripeAccountId =
+        clean(
+          trip.stripeConnectedAccountId
+        ) ||
+        await getTenantStripeAccountId(
+          trip
+        );
+
       const successUrl =
         `${PUBLIC_BASE_URL}/booking/payment.html` +
         `?tripId=${encodeURIComponent(trip._id)}` +
@@ -308,6 +317,9 @@ router.post(
 
           cancel_url:
             cancelUrl
+        }, {
+          stripeAccount:
+            stripeAccountId
         });
 
       trip.paymentStatus =
@@ -362,9 +374,34 @@ router.post(
         });
       }
 
+      const trip =
+        await Trip().findById(
+          req.params.tripId
+        );
+
+      if(!trip){
+
+        return res.status(404).json({
+          success:false,
+          message:"Trip not found"
+        });
+      }
+
+      const stripeAccountId =
+        clean(
+          trip.stripeConnectedAccountId
+        ) ||
+        await getTenantStripeAccountId(
+          trip
+        );
+
       const session =
         await stripe.checkout.sessions.retrieve(
-          sessionId
+          sessionId,
+          {
+            stripeAccount:
+              stripeAccountId
+          }
         );
 
       const tenantId =
@@ -381,20 +418,13 @@ router.post(
         });
       }
 
-      const trip =
-        await Trip().findOne({
-
-          _id:
-            req.params.tripId,
-
-          tenantId
-        });
-
-      if(!trip){
-
-        return res.status(404).json({
+      if(
+        String(trip.tenantId || "") !==
+        String(tenantId)
+      ){
+        return res.status(403).json({
           success:false,
-          message:"Trip not found"
+          message:"Stripe tenant mismatch"
         });
       }
 

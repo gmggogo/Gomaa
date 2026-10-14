@@ -606,6 +606,14 @@ passengerDurationSeconds: {
   stripePaymentMethodId: { type: String, default: "" },
   setupIntentId: { type: String, default: "" },
   authorizationPaymentIntentId: { type: String, default: "" },
+  // New trip charges are created directly on the tenant's connected account.
+  // Existing records keep the legacy DESTINATION mode for safe transition.
+  stripeChargeType: {
+    type: String,
+    enum: ["DESTINATION", "DIRECT"],
+    default: "DESTINATION"
+  },
+  stripeConnectedAccountId: { type: String, default: "" },
   paymentStatus: {
     type: String,
     enum: [

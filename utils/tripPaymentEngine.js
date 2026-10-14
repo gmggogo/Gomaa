@@ -56,7 +56,7 @@ function paymentError(err){
 }
 
 /* =========================
-   TENANT STRIPE DESTINATION
+   TENANT STRIPE ACCOUNT
 ========================= */
 
 async function getTenantStripeAccountId(
@@ -104,27 +104,83 @@ async function getTenantStripeAccountId(
   );
 }
 
-function tenantTransferData(
+function isDirectCharge(trip){
+  return String(
+    trip?.stripeChargeType || ""
+  ).toUpperCase() === "DIRECT";
+}
+
+function stripeRequestOptions(
+  trip,
   stripeAccountId
 ){
+  return isDirectCharge(trip) && stripeAccountId
+    ? { stripeAccount: String(stripeAccountId) }
+    : {};
+}
 
-  return {
-    destination:
-      String(stripeAccountId)
-  };
+function directChargeAccountId(
+  trip,
+  tenantStripeAccountId
+){
+  return String(
+    trip?.stripeConnectedAccountId ||
+    tenantStripeAccountId ||
+    ""
+  ).trim();
 }
 
 /* =========================
    CUSTOMER
-   Customer/card stays on the SaaS platform.
-   Actual trip charges transfer to tenant Stripe.
+   New trip customers/cards are created on the
+   connected tenant account. Legacy destination
+   trips remain readable during the transition.
 ========================= */
 
 async function ensureStripeCustomer(trip){
 
-  if(trip.stripeCustomerId){
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const accountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
+  const alreadyDirect =
+    isDirectCharge(trip) &&
+    String(
+      trip.stripeConnectedAccountId || ""
+    ) === accountId;
+
+  if(
+    trip.stripeCustomerId &&
+    alreadyDirect
+  ){
     return trip.stripeCustomerId;
   }
+
+  /*
+    A customer/payment method created on the platform cannot be reused by
+    a direct charge on a connected account. Only replace the old IDs while
+    the trip is still in the pre-payment setup phase; never disturb an old
+    authorized/paid trip.
+  */
+  if(
+    trip.stripeCustomerId &&
+    !alreadyDirect &&
+    ["AUTHORIZED", "PAID"].includes(
+      String(trip.paymentStatus || "").toUpperCase()
+    )
+  ){
+    return trip.stripeCustomerId;
+  }
+
+  trip.stripeChargeType = "DIRECT";
+  trip.stripeConnectedAccountId = accountId;
 
   const customer =
     await stripe.customers.create({
@@ -162,7 +218,7 @@ async function ensureStripeCustomer(trip){
             trip.tripNumber || ""
           )
       }
-    });
+    }, stripeRequestOptions(trip, accountId));
 
   trip.stripeCustomerId =
     customer.id;
@@ -179,13 +235,20 @@ async function createTripSetupIntent(trip){
       trip
     );
 
-  /*
-    Validate that tenant has finished Stripe onboarding
-    before accepting a card for a new Get Quote booking.
-  */
-  await getTenantStripeAccountId(
-    trip
-  );
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
+  trip.stripeChargeType = "DIRECT";
+  trip.stripeConnectedAccountId =
+    stripeAccountId;
 
   const setupIntent =
     await stripe.setupIntents.create({
@@ -218,7 +281,7 @@ async function createTripSetupIntent(trip){
             trip.tripNumber || ""
           )
       }
-    });
+    }, stripeRequestOptions(trip, stripeAccountId));
 
   trip.setupIntentId =
     setupIntent.id;
@@ -236,9 +299,24 @@ async function confirmSavedPaymentMethod(
   setupIntentId
 ){
 
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
   const setupIntent =
     await stripe.setupIntents.retrieve(
-      setupIntentId
+      setupIntentId,
+      stripeRequestOptions(
+        trip,
+        stripeAccountId
+      )
     );
 
   if(
@@ -333,9 +411,15 @@ async function authorizeTripAmount(
     );
   }
 
-  const stripeAccountId =
+  const tenantStripeAccountId =
     await getTenantStripeAccountId(
       trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
     );
 
   try{
@@ -368,10 +452,14 @@ async function authorizeTripAmount(
             "card"
           ],
 
-          transfer_data:
-            tenantTransferData(
-              stripeAccountId
-            ),
+          ...(isDirectCharge(trip)
+            ? {}
+            : {
+                transfer_data:{
+                  destination:
+                    String(stripeAccountId)
+                }
+              }),
 
           metadata:{
             tenantId:
@@ -400,7 +488,11 @@ async function authorizeTripAmount(
         },
         {
           idempotencyKey:
-            `trip-auth-${trip._id}-${amountCents}-${reason}`
+            `trip-auth-${trip._id}-${amountCents}-${reason}`,
+          ...stripeRequestOptions(
+            trip,
+            stripeAccountId
+          )
         }
       );
 
@@ -491,9 +583,24 @@ async function changeAuthorizedAmount(
     );
   }
 
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
   const current =
     await stripe.paymentIntents.retrieve(
-      intentId
+      intentId,
+      stripeRequestOptions(
+        trip,
+        stripeAccountId
+      )
     );
 
   if(
@@ -520,11 +627,6 @@ async function changeAuthorizedAmount(
 
     if(newCents > oldCents){
 
-      const stripeAccountId =
-        await getTenantStripeAccountId(
-          trip
-        );
-
       updated =
         await stripe.paymentIntents.create(
           {
@@ -545,10 +647,14 @@ async function changeAuthorizedAmount(
               "card"
             ],
 
-            transfer_data:
-              tenantTransferData(
-                stripeAccountId
-              ),
+            ...(isDirectCharge(trip)
+              ? {}
+              : {
+                  transfer_data:{
+                    destination:
+                      String(stripeAccountId)
+                  }
+                }),
 
             metadata:{
               tenantId:
@@ -577,7 +683,11 @@ async function changeAuthorizedAmount(
           },
           {
             idempotencyKey:
-              `trip-replacement-auth-${trip._id}-${newCents}`
+              `trip-replacement-auth-${trip._id}-${newCents}`,
+            ...stripeRequestOptions(
+              trip,
+              stripeAccountId
+            )
           }
         );
 
@@ -591,7 +701,12 @@ async function changeAuthorizedAmount(
       }
 
       await stripe.paymentIntents.cancel(
-        intentId
+        intentId,
+        {},
+        stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
       );
 
       trip.authorizationPaymentIntentId =
@@ -702,9 +817,15 @@ async function recoverCanceledAuthorizationForFinalCapture(
     throw err;
   }
 
-  const stripeAccountId =
+  const tenantStripeAccountId =
     await getTenantStripeAccountId(
       trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
     );
 
   const replacement =
@@ -735,10 +856,14 @@ async function recoverCanceledAuthorizationForFinalCapture(
           "card"
         ],
 
-        transfer_data:
-          tenantTransferData(
-            stripeAccountId
-          ),
+        ...(isDirectCharge(trip)
+          ? {}
+          : {
+              transfer_data:{
+                destination:
+                  String(stripeAccountId)
+              }
+            }),
 
         metadata:{
           tenantId:
@@ -783,7 +908,11 @@ async function recoverCanceledAuthorizationForFinalCapture(
           of this exact recovery safe while allowing a genuinely new hold.
         */
         idempotencyKey:
-          `trip-final-recovery-${trip._id}-${canceledIntentId}-${amountCents}`
+          `trip-final-recovery-${trip._id}-${canceledIntentId}-${amountCents}`,
+        ...stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
       }
     );
 
@@ -855,6 +984,17 @@ async function captureAuthorizedTrip(
   finalAmount
 ){
 
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
   let intentId =
     trip.authorizationPaymentIntentId ||
     trip.paymentIntentId;
@@ -881,7 +1021,11 @@ async function captureAuthorizedTrip(
     */
     let current =
       await stripe.paymentIntents.retrieve(
-        intentId
+        intentId,
+        stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
       );
 
     /*
@@ -1027,7 +1171,11 @@ async function captureAuthorizedTrip(
             replacement authorization always receives a different key.
           */
           idempotencyKey:
-            `trip-capture-v2-${trip._id}-${intentId}-${amountCents}`
+            `trip-capture-v2-${trip._id}-${intentId}-${amountCents}`,
+          ...stripeRequestOptions(
+            trip,
+            stripeAccountId
+          )
         }
       );
 
@@ -1081,6 +1229,17 @@ async function captureFeeAndReleaseRest(
   reason
 ){
 
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
   const amountCents =
     cents(fee);
 
@@ -1117,7 +1276,11 @@ async function captureFeeAndReleaseRest(
 
     const current =
       await stripe.paymentIntents.retrieve(
-        intentId
+        intentId,
+        stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
       );
 
     const cancellableStatuses =
@@ -1202,7 +1365,11 @@ async function captureFeeAndReleaseRest(
         {},
         {
           idempotencyKey:
-            `trip-void-${trip._id}-${intentId}`
+            `trip-void-${trip._id}-${intentId}`,
+        ...stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
         }
       );
 
@@ -1227,6 +1394,17 @@ async function cancelAuthorization(
   trip
 ){
 
+  const tenantStripeAccountId =
+    await getTenantStripeAccountId(
+      trip
+    );
+
+  const stripeAccountId =
+    directChargeAccountId(
+      trip,
+      tenantStripeAccountId
+    );
+
   const intentId =
     trip.authorizationPaymentIntentId ||
     trip.paymentIntentId;
@@ -1237,7 +1415,11 @@ async function cancelAuthorization(
 
   const intent =
     await stripe.paymentIntents.retrieve(
-      intentId
+      intentId,
+      stripeRequestOptions(
+        trip,
+        stripeAccountId
+      )
     );
 
   const cancellableStatuses =
@@ -1259,7 +1441,11 @@ async function cancelAuthorization(
         {},
         {
           idempotencyKey:
-            `trip-cancel-auth-${trip._id}-${intentId}`
+            `trip-cancel-auth-${trip._id}-${intentId}`,
+        ...stripeRequestOptions(
+          trip,
+          stripeAccountId
+        )
         }
       );
 
