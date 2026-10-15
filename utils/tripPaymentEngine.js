@@ -343,6 +343,7 @@ async function confirmSavedPaymentMethod(
   const setupIntent =
     await stripe.setupIntents.retrieve(
       setupIntentId,
+      {},
       stripeRequestOptions(
         trip,
         stripeAccountId
@@ -627,6 +628,7 @@ async function changeAuthorizedAmount(
   const current =
     await stripe.paymentIntents.retrieve(
       intentId,
+      {},
       stripeRequestOptions(
         trip,
         stripeAccountId
@@ -1052,6 +1054,7 @@ async function captureAuthorizedTrip(
     let current =
       await stripe.paymentIntents.retrieve(
         intentId,
+        {},
         stripeRequestOptions(
           trip,
           stripeAccountId
@@ -1307,6 +1310,7 @@ async function captureFeeAndReleaseRest(
     const current =
       await stripe.paymentIntents.retrieve(
         intentId,
+        {},
         stripeRequestOptions(
           trip,
           stripeAccountId
@@ -1446,6 +1450,7 @@ async function cancelAuthorization(
   const intent =
     await stripe.paymentIntents.retrieve(
       intentId,
+      {},
       stripeRequestOptions(
         trip,
         stripeAccountId
