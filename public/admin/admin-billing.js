@@ -67,6 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const stripeDashboardBtn =
     document.getElementById("stripeDashboardBtn");
 
+  const stripeAccountIdInput =
+    document.getElementById("stripeAccountIdInput");
+
+  const attachStripeAccountBtn =
+    document.getElementById("attachStripeAccountBtn");
+
   /* =========================
      DATA
   ========================= */
@@ -371,11 +377,40 @@ document.addEventListener("DOMContentLoaded", () => {
         data.connected === true &&
         !!data.stripeAccountId;
 
+      if(
+        stripeAccountIdInput &&
+        data.stripeAccountId
+      ){
+        stripeAccountIdInput.value =
+          data.stripeAccountId;
+      }
+
       stripePaymentReady =
         data.chargesEnabled === true &&
         data.detailsSubmitted === true;
 
-      if(
+      if(data.connectionError){
+
+        setStripeUi(
+          "error",
+          "ACCOUNT MISMATCH",
+          data.stripeAccountId || ""
+        );
+
+        if(stripeAccountText){
+          stripeAccountText.innerText =
+            "Saved account cannot be accessed by the current GH Stripe key. Paste the new Sunbeam acct_ ID below, or correct STRIPE_SECRET_KEY on Render.";
+        }
+
+        connectStripeBtn.innerText =
+          "Reconnect Stripe";
+
+        if(stripeDashboardBtn){
+          stripeDashboardBtn.style.display =
+            "none";
+        }
+
+      }else if(
         stripeAccountLinked &&
         stripePaymentReady
       ){
@@ -641,6 +676,86 @@ document.addEventListener("DOMContentLoaded", () => {
 
   }
 
+  async function attachStripeAccount(){
+
+    if(
+      !stripeAccountIdInput ||
+      !attachStripeAccountBtn
+    ){
+      return;
+    }
+
+    const stripeAccountId =
+      String(
+        stripeAccountIdInput.value || ""
+      ).trim();
+
+    if(!/^acct_[A-Za-z0-9]{8,}$/.test(stripeAccountId)){
+      alert(
+        "Paste the Sunbeam connected account ID. It must begin with acct_."
+      );
+      stripeAccountIdInput.focus();
+      return;
+    }
+
+    try{
+
+      attachStripeAccountBtn.disabled = true;
+      attachStripeAccountBtn.innerText =
+        "Checking Account...";
+
+      const res = await fetchWithTimeout(
+        "/api/tenant-stripe/attach-account",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer " + token
+          },
+          body:JSON.stringify({
+            stripeAccountId
+          })
+        },
+        20000
+      );
+
+      const data = await safeJson(res);
+
+      if(!res.ok){
+        throw new Error(
+          data.message ||
+          "Unable to attach Stripe account"
+        );
+      }
+
+      await loadStripeStatus();
+
+      alert(
+        "Sunbeam Stripe account is now linked to GH Mobility."
+      );
+
+    }catch(err){
+
+      console.log(
+        "STRIPE ACCOUNT ATTACH ERROR:",
+        err
+      );
+
+      alert(
+        err.message ||
+        "Unable to attach Stripe account"
+      );
+
+    }finally{
+
+      attachStripeAccountBtn.disabled = false;
+      attachStripeAccountBtn.innerText =
+        "Use This Account";
+
+    }
+
+  }
+
   if(connectStripeBtn){
 
     connectStripeBtn.addEventListener(
@@ -655,6 +770,15 @@ document.addEventListener("DOMContentLoaded", () => {
     stripeDashboardBtn.addEventListener(
       "click",
       openStripeDashboard
+    );
+
+  }
+
+  if(attachStripeAccountBtn){
+
+    attachStripeAccountBtn.addEventListener(
+      "click",
+      attachStripeAccount
     );
 
   }

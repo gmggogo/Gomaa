@@ -10,6 +10,11 @@ const TenantPaymentAccount =
 const Tenant =
   require("../models/Tenant");
 
+const {
+  stripeAccountPatch,
+  attachStripeAccount
+} = require("../utils/stripeAccountLinking");
+
 const router = express.Router();
 
 const stripe =
@@ -156,43 +161,10 @@ async function syncStripeAccount(
       paymentAccount.stripeAccountId
     );
 
-  paymentAccount.chargesEnabled =
-    account.charges_enabled === true;
-
-  paymentAccount.payoutsEnabled =
-    account.payouts_enabled === true;
-
-  paymentAccount.detailsSubmitted =
-    account.details_submitted === true;
-
-  /*
-    Standard Stripe accounts connected by OAuth
-    are considered connected once Stripe confirms
-    the account exists and has completed details.
-
-    Payment readiness still depends on chargesEnabled.
-  */
-
-  paymentAccount.onboardingComplete =
-    (
-      account.details_submitted === true &&
-      account.charges_enabled === true
-    );
-
-  paymentAccount.connected = true;
-
-  paymentAccount.country =
-    account.country ||
-    paymentAccount.country ||
-    "US";
-
-  paymentAccount.defaultCurrency =
-    account.default_currency ||
-    paymentAccount.defaultCurrency ||
-    "usd";
-
-  paymentAccount.lastStripeSyncAt =
-    new Date();
+  Object.assign(
+    paymentAccount,
+    stripeAccountPatch(account)
+  );
 
   await paymentAccount.save();
 
@@ -221,6 +193,8 @@ router.get(
             tenantId
           });
 
+      let connectionError = "";
+
       if(
         paymentAccount?.stripeAccountId
       ){
@@ -234,9 +208,16 @@ router.get(
 
         }catch(err){
 
+          connectionError =
+            clean(
+              err?.raw?.message ||
+              err?.message
+            ) ||
+            "The current GH Stripe key cannot access this connected account";
+
           console.log(
             "STRIPE ACCOUNT SYNC ERROR:",
-            err.message
+            connectionError
           );
 
         }
@@ -248,29 +229,37 @@ router.get(
         success:true,
 
         connected:
+          !connectionError &&
           paymentAccount?.connected === true,
 
         onboardingComplete:
+          !connectionError &&
           paymentAccount?.onboardingComplete === true,
 
         chargesEnabled:
+          !connectionError &&
           paymentAccount?.chargesEnabled === true,
 
         paymentReady:
+          !connectionError &&
           paymentAccount?.chargesEnabled === true &&
           paymentAccount?.detailsSubmitted === true,
 
         payoutsEnabled:
+          !connectionError &&
           paymentAccount?.payoutsEnabled === true,
 
         detailsSubmitted:
+          !connectionError &&
           paymentAccount?.detailsSubmitted === true,
 
         stripeAccountId:
           paymentAccount?.stripeAccountId || "",
 
         stripeAccountType:
-          paymentAccount?.stripeAccountType || ""
+          paymentAccount?.stripeAccountType || "",
+
+        connectionError
 
       });
 
@@ -286,6 +275,75 @@ router.get(
         message:
           "Unable to load Stripe status"
       });
+
+    }
+
+  }
+);
+
+/* =========================
+   ATTACH AN EXISTING CONNECTED ACCOUNT
+
+   Used when the account was created from the
+   Stripe platform Dashboard instead of OAuth.
+   Retrieval with the current platform key proves
+   that GH is allowed to operate on this account.
+========================= */
+
+router.post(
+  "/attach-account",
+  requireTenantStripeAdmin,
+  async (req,res)=>{
+
+    try{
+
+      const paymentAccount =
+        await attachStripeAccount({
+          stripe,
+          TenantPaymentAccount,
+          tenantId:clean(req.authUser.tenantId),
+          stripeAccountId:clean(req.body?.stripeAccountId)
+        });
+
+      return res.json({
+        success:true,
+        connected:paymentAccount.connected === true,
+        onboardingComplete:
+          paymentAccount.onboardingComplete === true,
+        chargesEnabled:
+          paymentAccount.chargesEnabled === true,
+        payoutsEnabled:
+          paymentAccount.payoutsEnabled === true,
+        detailsSubmitted:
+          paymentAccount.detailsSubmitted === true,
+        stripeAccountId:
+          paymentAccount.stripeAccountId,
+        stripeAccountType:
+          paymentAccount.stripeAccountType
+      });
+
+    }catch(err){
+
+      const stripeMessage = clean(
+        err?.raw?.message ||
+        err?.message
+      );
+
+      console.log(
+        "STRIPE ACCOUNT ATTACH ERROR:",
+        stripeMessage
+      );
+
+      return res
+        .status(
+          Number(err?.statusCode) || 400
+        )
+        .json({
+          success:false,
+          message:
+            stripeMessage ||
+            "Unable to attach Stripe account"
+        });
 
     }
 

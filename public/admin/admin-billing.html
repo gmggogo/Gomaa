@@ -233,6 +233,23 @@ body{
   cursor:not-allowed;
 }
 
+.stripe-account-input{
+  width:255px;
+  height:44px;
+  padding:0 13px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff;
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+}
+
+.stripe-account-input:focus{
+  outline:3px solid rgba(99,91,255,.16);
+  border-color:#635bff;
+}
+
 /* =========================
    FILTERS
 ========================= */
@@ -1607,6 +1624,25 @@ body{
         Open Stripe Dashboard
       </button>
 
+      <input
+        id="stripeAccountIdInput"
+        class="stripe-account-input"
+        type="text"
+        inputmode="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Connected account ID: acct_..."
+        aria-label="Stripe connected account ID"
+      >
+
+      <button
+        id="attachStripeAccountBtn"
+        class="stripe-btn dark"
+        type="button"
+      >
+        Use This Account
+      </button>
+
     </div>
 
   </div>
@@ -1662,7 +1698,7 @@ body{
 </div>
 
 <script src="/admin/header.js"></script>
-<script src="/admin/admin-billing.js?v=SIDEBAR-STATUS-FIX-20260917"></script>
+<script src="/admin/admin-billing.js?v=STRIPE-ACCOUNT-RELINK-20261015"></script>
 
 </body>
 </html>
