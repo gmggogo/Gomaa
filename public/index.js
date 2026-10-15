@@ -7446,7 +7446,7 @@ app.post(
           }
         },
 
-        line_items:[{
+       line_items:[{
           price_data:{
             currency:"usd",
             product_data:{
@@ -7461,6 +7461,8 @@ app.post(
         success_url:successUrl,
         cancel_url:cancelUrl
 
+      }, {
+        stripeAccount: stripeAccountId
       });
 
     return res.json({
