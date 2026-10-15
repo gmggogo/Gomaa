@@ -403,6 +403,7 @@ router.post(
       const session =
         await stripe.checkout.sessions.retrieve(
           sessionId,
+          {},
           {
             stripeAccount:
               stripeAccountId

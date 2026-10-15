@@ -169,6 +169,12 @@
   }
 
   retryBtn.onclick=()=>{
+
+    if(sessionId){
+      location.reload();
+      return;
+    }
+
     openStripe().catch(err=>error(err.message));
   };
 
