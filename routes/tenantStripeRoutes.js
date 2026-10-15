@@ -10,11 +10,6 @@ const TenantPaymentAccount =
 const Tenant =
   require("../models/Tenant");
 
-const {
-  stripeAccountPatch,
-  attachStripeAccount
-} = require("../utils/stripeAccountLinking");
-
 const router = express.Router();
 
 const stripe =
@@ -161,10 +156,35 @@ async function syncStripeAccount(
       paymentAccount.stripeAccountId
     );
 
-  Object.assign(
-    paymentAccount,
-    stripeAccountPatch(account)
-  );
+  paymentAccount.chargesEnabled =
+    account.charges_enabled === true;
+
+  paymentAccount.payoutsEnabled =
+    account.payouts_enabled === true;
+
+  paymentAccount.detailsSubmitted =
+    account.details_submitted === true;
+
+  paymentAccount.onboardingComplete =
+    (
+      account.details_submitted === true &&
+      account.charges_enabled === true
+    );
+
+  paymentAccount.connected = true;
+
+  paymentAccount.country =
+    account.country ||
+    paymentAccount.country ||
+    "US";
+
+  paymentAccount.defaultCurrency =
+    account.default_currency ||
+    paymentAccount.defaultCurrency ||
+    "usd";
+
+  paymentAccount.lastStripeSyncAt =
+    new Date();
 
   await paymentAccount.save();
 
@@ -280,76 +300,6 @@ router.get(
 
   }
 );
-
-/* =========================
-   ATTACH AN EXISTING CONNECTED ACCOUNT
-
-   Used when the account was created from the
-   Stripe platform Dashboard instead of OAuth.
-   Retrieval with the current platform key proves
-   that GH is allowed to operate on this account.
-========================= */
-
-router.post(
-  "/attach-account",
-  requireTenantStripeAdmin,
-  async (req,res)=>{
-
-    try{
-
-      const paymentAccount =
-        await attachStripeAccount({
-          stripe,
-          TenantPaymentAccount,
-          tenantId:clean(req.authUser.tenantId),
-          stripeAccountId:clean(req.body?.stripeAccountId)
-        });
-
-      return res.json({
-        success:true,
-        connected:paymentAccount.connected === true,
-        onboardingComplete:
-          paymentAccount.onboardingComplete === true,
-        chargesEnabled:
-          paymentAccount.chargesEnabled === true,
-        payoutsEnabled:
-          paymentAccount.payoutsEnabled === true,
-        detailsSubmitted:
-          paymentAccount.detailsSubmitted === true,
-        stripeAccountId:
-          paymentAccount.stripeAccountId,
-        stripeAccountType:
-          paymentAccount.stripeAccountType
-      });
-
-    }catch(err){
-
-      const stripeMessage = clean(
-        err?.raw?.message ||
-        err?.message
-      );
-
-      console.log(
-        "STRIPE ACCOUNT ATTACH ERROR:",
-        stripeMessage
-      );
-
-      return res
-        .status(
-          Number(err?.statusCode) || 400
-        )
-        .json({
-          success:false,
-          message:
-            stripeMessage ||
-            "Unable to attach Stripe account"
-        });
-
-    }
-
-  }
-);
-
 
 async function getTenantBusinessName(
   tenantId,
