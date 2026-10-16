@@ -22,6 +22,10 @@ const LiveDriver =
 const routeMapEngine =
   require("../utils/routeMapEngine");
 
+const {
+  validateRouteChangeZone
+} = require("../utils/serviceZoneEngine");
+
 const router = express.Router();
 
 const JWT_SECRET =
@@ -1297,6 +1301,24 @@ router.post("/add-stop/:id/confirm", requireTenantApi, async (req,res)=>{
         finalStops,
         dropoffAfter
       );
+
+    const zoneResult = await validateRouteChangeZone({
+      tenantId:trip.tenantId || req.authUser?.tenantId,
+      trip,
+      pickup,
+      stops:finalStops,
+      dropoff:dropoffAfter,
+      googleRoute:serverRoute.newRouteData?.googleRoute
+    });
+    if(zoneResult.allowed !== true){
+      return res.status(zoneResult.statusCode || 422).json({
+        success:false,
+        code:zoneResult.code,
+        message:zoneResult.message,
+        radiusMiles:zoneResult.radiusMiles,
+        distanceMiles:zoneResult.distanceMiles
+      });
+    }
 
     trip.addStopRequest = {
       active:true,

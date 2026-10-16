@@ -49,6 +49,10 @@ const {
   hasActiveAuthorization
 } = require("../utils/tripPaymentEngine");
 
+const {
+  validateRouteChangeZone
+} = require("../utils/serviceZoneEngine");
+
 const router =
   express.Router();
 
@@ -2701,6 +2705,25 @@ router.post(
         await calculateGoogleRoute(
           routePoints
         );
+
+      const zoneResult = await validateRouteChangeZone({
+        tenantId:resolvedTenantId,
+        trip,
+        pickup:validated.pickup,
+        stops:validated.finalStops,
+        dropoff:validated.dropoffAfter,
+        googleRoute:routeData.googleRoute,
+        zoneType:"quote"
+      });
+      if(zoneResult.allowed !== true){
+        return res.status(zoneResult.statusCode || 422).json({
+          success:false,
+          code:zoneResult.code,
+          message:zoneResult.message,
+          radiusMiles:zoneResult.radiusMiles,
+          distanceMiles:zoneResult.distanceMiles
+        });
+      }
 
       const pricing =
         calculateGetQuotePrice({

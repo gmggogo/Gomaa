@@ -77,6 +77,9 @@ function normalizeZone(zone = {}){
     city:clean(zone?.city),
     postalCode:clean(zone?.postalCode),
     radiusMiles:radiusValue(zone?.radiusMiles),
+    pickupRadiusMiles:radiusValue(
+      zone?.pickupRadiusMiles ?? zone?.radiusMiles
+    ),
     centerLat:numberOrNull(zone?.centerLat),
     centerLng:numberOrNull(zone?.centerLng),
     centerAddress:clean(zone?.centerAddress)
@@ -177,6 +180,31 @@ async function prepareServiceZone(
       ...oldZone,
       ...(incoming || {})
     });
+
+  // Older settings have one radius. Keep that behavior until a Pickup
+  // radius is explicitly configured; each booking source remains independent.
+  if(
+    incoming?.pickupRadiusMiles == null &&
+    existing?.pickupRadiusMiles == null
+  ){
+    next.pickupRadiusMiles = next.radiusMiles;
+  }
+
+  const suppliedPickup = incoming?.pickupRadiusMiles;
+  if(
+    suppliedPickup !== null && suppliedPickup !== undefined &&
+    (numberOrNull(suppliedPickup) === null || Number(suppliedPickup) < 1)
+  ){
+    const err = new Error("Pickup Zone radius must be at least 1 mile.");
+    err.code = "INVALID_PICKUP_ZONE_RADIUS";
+    throw err;
+  }
+
+  if(next.pickupRadiusMiles > next.radiusMiles){
+    const err = new Error("Pickup Zone radius cannot exceed Work Zone radius.");
+    err.code = "PICKUP_ZONE_EXCEEDS_WORK_ZONE";
+    throw err;
+  }
 
   const nextAddress = buildZoneAddress(next);
   const oldAddress = buildZoneAddress(oldZone);
@@ -586,6 +614,7 @@ function routeZonePoints(
 
         const pickup = {
           label:`Passenger ${index + 1} Pickup`,
+          pickupPoint:true,
           address:clean(passenger?.pickup),
           lat:numberOrNull(passenger?.pickupLat),
           lng:numberOrNull(passenger?.pickupLng)
@@ -628,6 +657,7 @@ function routeZonePoints(
 
   const pickup = {
     label:"Pickup",
+    pickupPoint:true,
     address:clean(merged?.pickup),
     lat:numberOrNull(merged?.pickupLat),
     lng:numberOrNull(merged?.pickupLng)
@@ -898,6 +928,23 @@ async function validateTripZone({
       };
     }
 
+    // Stops and route samples are only subject to the Work Zone.
+    // Only original pickup points use the smaller Pickup Zone radius.
+    if(point.pickupPoint === true && miles > Number(zone.pickupRadiusMiles)){
+      return {
+        allowed:false,
+        statusCode:422,
+        code:"OUTSIDE_PICKUP_ZONE",
+        zoneKey:key,
+        zone:zoneLabel(key),
+        radiusMiles:Number(zone.pickupRadiusMiles),
+        pickupRadiusMiles:Number(zone.pickupRadiusMiles),
+        workRadiusMiles:Number(zone.radiusMiles),
+        distanceMiles:Number(miles.toFixed(2)),
+        message:`${point.label} is outside the Pickup Zone. Maximum pickup radius: ${Number(zone.pickupRadiusMiles)} miles.`
+      };
+    }
+
     if(
       miles >
       Number(zone.radiusMiles)
@@ -913,8 +960,8 @@ async function validateTripZone({
         distanceMiles:Number(miles.toFixed(2)),
         message:
           point?.routePathPoint === true
-            ? `The trip route leaves the ${zoneLabel(key)}. Maximum service radius: ${Number(zone.radiusMiles)} miles.`
-            : `${point.label} is outside the ${zoneLabel(key)}. Maximum service radius: ${Number(zone.radiusMiles)} miles.`
+            ? `The trip route leaves the ${zoneLabel(key)}. Maximum work radius: ${Number(zone.radiusMiles)} miles.`
+            : `${point.label} is outside the ${zoneLabel(key)}. Maximum work radius: ${Number(zone.radiusMiles)} miles.`
       };
     }
   }
@@ -923,8 +970,36 @@ async function validateTripZone({
     allowed:true,
     zoneKey:key,
     zone:zoneLabel(key),
-    radiusMiles:Number(zone.radiusMiles)
+    radiusMiles:Number(zone.radiusMiles),
+    pickupRadiusMiles:Number(zone.pickupRadiusMiles)
   };
+}
+
+// Validate the proposed complete route, keeping the original pickup.
+// Clear old stop arrays / destination coordinates before checking an edit.
+async function validateRouteChangeZone({
+  tenantId,trip,pickup,stops = [],dropoff,googleRoute = {},zoneType
+} = {}){
+  const payload = {
+    pickup,
+    pickupLat:trip?.pickupLat ?? null,
+    pickupLng:trip?.pickupLng ?? null,
+    dropoff,
+    dropoffLat:null,
+    dropoffLng:null,
+    stops,
+    routeStops:stops,
+    stopsData:stops,
+    googleRoute,
+    routePath:Array.isArray(googleRoute?.routePath) ? googleRoute.routePath : []
+  };
+  if(zoneType){
+    payload.type = zoneType;
+    payload.source = zoneType;
+    payload.bookingSource = zoneType;
+    payload.company = "";
+  }
+  return await validateTripZone({tenantId,payload,existingTrip:trip});
 }
 
 module.exports = {
@@ -936,5 +1011,6 @@ module.exports = {
   zoneKeyForTrip,
   routePathZonePoints,
   routeZonePoints,
-  validateTripZone
+  validateTripZone,
+  validateRouteChangeZone
 };

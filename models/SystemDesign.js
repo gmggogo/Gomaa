@@ -87,6 +87,13 @@ new mongoose.Schema({
     min:1
   },
 
+  // Null preserves the legacy one-radius policy until explicitly configured.
+  pickupRadiusMiles:{
+    type:Number,
+    default:null,
+    min:1
+  },
+
   centerLat:{
     type:Number,
     default:null

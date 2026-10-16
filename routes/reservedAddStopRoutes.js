@@ -14,6 +14,10 @@ const Service = require("../models/Service");
 const LiveDriver = require("../models/LiveDriver");
 const routeMapEngine = require("../utils/routeMapEngine");
 
+const {
+  validateRouteChangeZone
+} = require("../utils/serviceZoneEngine");
+
 const router = express.Router();
 const MAX_STOPS = 5;
 const LIVE_LOCATION_MAX_AGE_MS = 5 * 60 * 1000;
@@ -494,6 +498,25 @@ router.post("/add-stop/:id/confirm",requireTenantApi,async (req,res)=>{
     }
 
     const serverRoute = await buildServerRouteChange(trip,finalStops,dropoffAfter);
+
+    const zoneResult = await validateRouteChangeZone({
+      tenantId:trip.tenantId || req.authUser?.tenantId,
+      trip,
+      pickup,
+      stops:finalStops,
+      dropoff:dropoffAfter,
+      googleRoute:serverRoute.newRouteData?.googleRoute,
+      zoneType:"reserved"
+    });
+    if(zoneResult.allowed !== true){
+      return res.status(zoneResult.statusCode || 422).json({
+        success:false,
+        code:zoneResult.code,
+        message:zoneResult.message,
+        radiusMiles:zoneResult.radiusMiles,
+        distanceMiles:zoneResult.distanceMiles
+      });
+    }
 
     trip.addStopRequest = {
       active:true,

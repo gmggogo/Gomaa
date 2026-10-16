@@ -632,8 +632,8 @@ MOBILE
     font-weight:700;
     line-height:1.6;
   ">
-    Each booking source has its own independent Zone.
-    Radius is measured in every direction from the saved ZIP / Postal Code area.
+    Each booking source has its own independent Pickup Zone and Work Zone.
+    Both radii are measured in every direction from the saved ZIP / Postal Code area. Pickup Zone applies to the original pickup only. Stops and Dropoff use the Work Zone.
     Default radius is 50 miles.
   </div>
 
@@ -642,7 +642,7 @@ MOBILE
     <div class="service-zone-card">
       <div class="service-zone-head">
         <div>
-          <div class="service-zone-title">Get Quote Zone</div>
+          <div class="service-zone-title">Get Quote Zones</div>
           <div class="service-zone-sub">Public Get Quote bookings</div>
         </div>
         <label class="service-zone-toggle">
@@ -655,14 +655,15 @@ MOBILE
         <div class="input-group"><label>State / Province</label><input type="text" id="getQuoteZoneStateProvince" placeholder="Arizona"></div>
         <div class="input-group"><label>City</label><input type="text" id="getQuoteZoneCity" placeholder="Chandler"></div>
         <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="getQuoteZonePostalCode" placeholder="85225"></div>
-        <div class="input-group"><label>Radius Miles</label><input type="number" id="getQuoteZoneRadiusMiles" min="1" step="1" value="50"></div>
+        <div class="input-group"><label>Pickup Zone (Miles)</label><input type="number" id="getQuoteZonePickupRadiusMiles" min="1" step="0.01" value="50"></div>
+        <div class="input-group"><label>Work Zone (Miles)</label><input type="number" id="getQuoteZoneRadiusMiles" min="1" step="0.01" value="50"></div>
       </div>
     </div>
 
     <div class="service-zone-card">
       <div class="service-zone-head">
         <div>
-          <div class="service-zone-title">Companies Zone</div>
+          <div class="service-zone-title">Facility Zones</div>
           <div class="service-zone-sub">Company / facility bookings</div>
         </div>
         <label class="service-zone-toggle">
@@ -675,14 +676,15 @@ MOBILE
         <div class="input-group"><label>State / Province</label><input type="text" id="companiesZoneStateProvince" placeholder="Arizona"></div>
         <div class="input-group"><label>City</label><input type="text" id="companiesZoneCity" placeholder="Chandler"></div>
         <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="companiesZonePostalCode" placeholder="85225"></div>
-        <div class="input-group"><label>Radius Miles</label><input type="number" id="companiesZoneRadiusMiles" min="1" step="1" value="50"></div>
+        <div class="input-group"><label>Pickup Zone (Miles)</label><input type="number" id="companiesZonePickupRadiusMiles" min="1" step="0.01" value="50"></div>
+        <div class="input-group"><label>Work Zone (Miles)</label><input type="number" id="companiesZoneRadiusMiles" min="1" step="0.01" value="50"></div>
       </div>
     </div>
 
     <div class="service-zone-card">
       <div class="service-zone-head">
         <div>
-          <div class="service-zone-title">Reserved Zone</div>
+          <div class="service-zone-title">Reserved Zones</div>
           <div class="service-zone-sub">Reserved / dispatch-added bookings</div>
         </div>
         <label class="service-zone-toggle">
@@ -695,7 +697,8 @@ MOBILE
         <div class="input-group"><label>State / Province</label><input type="text" id="reservedZoneStateProvince" placeholder="Arizona"></div>
         <div class="input-group"><label>City</label><input type="text" id="reservedZoneCity" placeholder="Chandler"></div>
         <div class="input-group"><label>ZIP / Postal Code</label><input type="text" id="reservedZonePostalCode" placeholder="85225"></div>
-        <div class="input-group"><label>Radius Miles</label><input type="number" id="reservedZoneRadiusMiles" min="1" step="1" value="50"></div>
+        <div class="input-group"><label>Pickup Zone (Miles)</label><input type="number" id="reservedZonePickupRadiusMiles" min="1" step="0.01" value="50"></div>
+        <div class="input-group"><label>Work Zone (Miles)</label><input type="number" id="reservedZoneRadiusMiles" min="1" step="0.01" value="50"></div>
       </div>
     </div>
 
@@ -1814,7 +1817,7 @@ if(typeof loadHeader === "function"){
 
 <script src="/core/branding.js"></script>
 
-<script src="system-design.js?v=mobile-design-final-20260903"></script>
+<script src="system-design.js?v=pickup-work-zones-20261015"></script>
 
 </body>
 </html>

@@ -2184,6 +2184,51 @@ function normalizeNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Build the same effective route used by the trip edit flow before any
+// payment/finalizer side effects. Changed addresses must not use old coords.
+function buildTripZoneUpdatePayload(body = {},existing = {}){
+  const payload = {
+    ...body,
+    type:normalizeTripType(body.type || existing.type)
+  };
+  const addressKey = value => normalizeText(value).toLowerCase().replace(/\s+/g," ");
+  const changed = key => body[key] !== undefined &&
+    addressKey(body[key]) !== addressKey(existing[key]);
+  const pickupChanged = changed("pickup");
+  const dropoffChanged = changed("dropoff");
+  const newStops = Array.isArray(body.stops) ? parseStops(body.stops) : null;
+  const stopsChanged = newStops !== null &&
+    JSON.stringify(newStops.map(addressKey)) !==
+    JSON.stringify((Array.isArray(existing.stops) ? existing.stops : []).map(addressKey));
+  const routeChanged = pickupChanged || dropoffChanged || stopsChanged;
+
+  const effectiveStops = newStops !== null
+    ? newStops
+    : (Array.isArray(existing.stops) ? existing.stops : []);
+  payload.stops = effectiveStops;
+  payload.routeStops = effectiveStops;
+  payload.stopsData = effectiveStops;
+  if(routeChanged){
+    // The stored path/Google route belongs to the previous addresses.
+    payload.routePath = Array.isArray(body.routePath) ? body.routePath : [];
+    payload.googleRoute = body.googleRoute !== undefined ? body.googleRoute : {};
+  }else{
+    const route = body.googleRoute !== undefined ? body.googleRoute : existing.googleRoute;
+    if(Array.isArray(route?.legs) && route.legs.length){
+      // Match the existing ROUTE FIX behavior below.
+      payload.pickup = route.legs[0].startAddress || body.pickup || existing.pickup;
+      payload.dropoff = route.legs[route.legs.length - 1].endAddress || body.dropoff || existing.dropoff;
+    }
+  }
+  for(const key of ["pickup","dropoff"]){
+    if(payload[key] !== undefined && addressKey(payload[key]) !== addressKey(existing[key])){
+      if(body[`${key}Lat`] === undefined) payload[`${key}Lat`] = null;
+      if(body[`${key}Lng`] === undefined) payload[`${key}Lng`] = null;
+    }
+  }
+  return payload;
+}
+
 /* =========================
    TENANT AUTH - STAGE 1
    Used by secure tenant-only APIs.
@@ -8755,7 +8800,7 @@ if(zoneCheck.allowed !== true){
         "SERVICE_ZONE_BLOCKED",
       message:
         zoneCheck.message ||
-        "Pickup is outside the configured Service Zone.",
+        "The trip is outside the configured Pickup Zone or Work Zone.",
       zone:
         zoneCheck.zone || "",
       radiusMiles:
@@ -12748,8 +12793,9 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
     }   
 
     /*
-      Re-check the Zone only when an edit can change the pickup source,
-      pickup coordinates, company/source identity, or shared passengers.
+      Re-check Pickup Zone / Work Zone for address, stops, route geometry,
+      source identity, or shared passenger edits. Original pickup uses
+      Pickup Zone; stops and dropoff use Work Zone.
       Non-route edits on existing trips remain unchanged.
     */
     const zoneRelevantUpdate =
@@ -12757,6 +12803,16 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
         "pickup",
         "pickupLat",
         "pickupLng",
+        "dropoff",
+        "dropoffLat",
+        "dropoffLng",
+        "stops",
+        "routeStops",
+        "stopsData",
+        "routePath",
+        "googleRoute",
+        "isShared",
+        "tripType",
         "passengers",
         "type",
         "company",
@@ -12777,7 +12833,7 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
           tenantId:
             existing.tenantId,
           payload:
-            req.body || {},
+            buildTripZoneUpdatePayload(req.body || {},existing),
           existingTrip:
             existing
         });
@@ -12797,7 +12853,7 @@ app.put("/api/trips/:id", requireTenantApi, async (req, res) => {
               "SERVICE_ZONE_BLOCKED",
             message:
               updateZoneCheck.message ||
-              "Pickup is outside the configured Service Zone.",
+              "The trip is outside the configured Pickup Zone or Work Zone.",
             zone:
               updateZoneCheck.zone || "",
             radiusMiles:

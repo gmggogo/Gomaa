@@ -127,6 +127,7 @@ getQuoteZone:{
   city:"",
   postalCode:"",
   radiusMiles:50,
+  pickupRadiusMiles:null,
   centerLat:null,
   centerLng:null,
   centerAddress:""
@@ -139,6 +140,7 @@ companiesZone:{
   city:"",
   postalCode:"",
   radiusMiles:50,
+  pickupRadiusMiles:null,
   centerLat:null,
   centerLng:null,
   centerAddress:""
@@ -151,6 +153,7 @@ reservedZone:{
   city:"",
   postalCode:"",
   radiusMiles:50,
+  pickupRadiusMiles:null,
   centerLat:null,
   centerLng:null,
   centerAddress:""
@@ -808,6 +811,11 @@ function loadZoneForm(
   );
 
   setValue(
+    `${prefix}PickupRadiusMiles`,
+    zoneRadiusValue(z.pickupRadiusMiles ?? z.radiusMiles)
+  );
+
+  setValue(
     `${prefix}RadiusMiles`,
     zoneRadiusValue(
       z.radiusMiles
@@ -850,6 +858,13 @@ function readZoneForm(
       zoneRadiusValue(
         document.getElementById(
           `${prefix}RadiusMiles`
+        )?.value
+      ),
+
+    pickupRadiusMiles:
+      zoneRadiusValue(
+        document.getElementById(
+          `${prefix}PickupRadiusMiles`
         )?.value
       ),
 
@@ -1747,6 +1762,19 @@ async function(){
   document.getElementById(
     "countryInput"
   )?.value || "";
+
+  for(const prefix of ["getQuoteZone","companiesZone","reservedZone"]){
+    const pickupInput = document.getElementById(`${prefix}PickupRadiusMiles`);
+    const workInput = document.getElementById(`${prefix}RadiusMiles`);
+    const pickupMiles = Number(pickupInput?.value);
+    const workMiles = Number(workInput?.value);
+    if(!Number.isFinite(pickupMiles) || pickupMiles < 1 ||
+       !Number.isFinite(workMiles) || workMiles < 1 || pickupMiles > workMiles){
+      alert("Pickup Zone and Work Zone radii must be at least 1 mile. Pickup Zone cannot exceed Work Zone.");
+      pickupInput?.focus();
+      return;
+    }
+  }
 
   systemDesign.getQuoteZone =
     readZoneForm(
