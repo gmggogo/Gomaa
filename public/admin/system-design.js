@@ -19,6 +19,25 @@ if(!token || !["SUPER_ADMIN","admin"].includes(role)){
 
 let systemDesign = {};
 
+/* ================= GLOBAL EDIT LOCK ================= */
+let systemDesignEditing = false;
+
+function setSystemDesignEditing(editing){
+  systemDesignEditing = editing === true;
+  const editor = document.getElementById("systemDesignEditor");
+  const button = document.getElementById("systemDesignEditButton");
+  const status = document.getElementById("systemDesignEditStatus");
+  if(editor) editor.disabled = !systemDesignEditing;
+  if(button) button.disabled = systemDesignEditing;
+  if(status) status.textContent = systemDesignEditing
+    ? "Editing enabled — Save All Settings when finished"
+    : "Settings locked — click Edit to make changes";
+}
+
+window.enableSystemDesignEdit = function(){
+  setSystemDesignEditing(true);
+};
+
 
 let allowedServices = [];
 
@@ -594,6 +613,10 @@ SAVE
 ========================= */
 
 async function saveSystemDesign(){
+
+  if(!systemDesignEditing){
+    throw new Error("Click Edit before changing settings.");
+  }
 
   try{
 
@@ -1739,6 +1762,11 @@ SAVE ALL
 window.saveAllSystemDesign =
 async function(){
 
+  if(!systemDesignEditing){
+    alert("Click Edit before changing settings.");
+    return;
+  }
+
   /* =========================
      BASIC
   ========================= */
@@ -2292,6 +2320,8 @@ async function(){
 
     await saveSystemDesign();
 
+    setSystemDesignEditing(false);
+
     alert("Saved");
 
   }catch(err){
@@ -2418,6 +2448,8 @@ INIT
 window.addEventListener(
   "DOMContentLoaded",
   async ()=>{
+
+    setSystemDesignEditing(false);
 
     await loadSystemDesign();
 
