@@ -321,6 +321,15 @@ function numberValue(value,fallback=0){
     : fallback;
 }
 
+// Keep public timer values consistent with the Driver Timer Config endpoint.
+function publicWaitMinutes(value,fallback){
+  const minutes = Number(value);
+  if(!Number.isFinite(minutes)){
+    return fallback;
+  }
+  return Math.max(0,Math.min(1440,Math.round(minutes)));
+}
+
 function getServiceCode(service){
   return getServiceOperationalCode(service);
 }
@@ -362,6 +371,18 @@ function publicService(service){
 
     showPricingCard:
       service.showPricingCard !== false,
+
+    driverPickupWaitEnabled:
+      service.driverPickupWaitEnabled !== false,
+
+    driverPickupWaitMinutes:
+      publicWaitMinutes(service.driverPickupWaitMinutes,10),
+
+    driverStopWaitEnabled:
+      service.driverStopWaitEnabled !== false,
+
+    driverStopWaitMinutes:
+      publicWaitMinutes(service.driverStopWaitMinutes,5),
 
     pricingMode:
       service.pricingMode || "MILE",
