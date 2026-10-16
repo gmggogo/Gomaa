@@ -486,6 +486,10 @@ function publicIdForUpload(
     return `${folder}/driver-logo`;
   }
 
+  if(/^homeImage[1-8]$/.test(key)){
+    return `${folder}/homepage-image-${key.slice(9)}`;
+  }
+
   if(key === "heroImage"){
     return `${folder}/hero-image`;
   }
@@ -914,6 +918,7 @@ router.post(
           "driverLogo",
           "heroImage"
         ].includes(key) &&
+        !/^homeImage[1-8]$/.test(key) &&
         !key.startsWith("services.")
       ){
 

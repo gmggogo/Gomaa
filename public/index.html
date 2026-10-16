@@ -752,6 +752,27 @@ body{
   }
 
 }
+
+/* Optional homepage media and wider information boxes. */
+.hero{position:relative;flex-wrap:wrap;gap:14px}
+.hero-inner{flex:1 1 600px;min-width:0;order:2}
+.powered-box{position:static;order:1;flex:0 0 auto;align-self:flex-end;white-space:nowrap}
+.about,.quote-header{width:calc(100% - 48px);max-width:none}
+.extra-sections{max-width:none;width:100%;padding-left:24px;padding-right:24px}
+.homepage-image-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;width:100%;gap:var(--home-image-gap,24px)}
+.homepage-image-row[hidden],.extra-box[hidden]{display:none!important}
+.homepage-image{display:block;min-width:0;max-width:100%;border-radius:18px;flex-grow:0;flex-shrink:0;object-fit:contain}
+.extra-box{min-width:0;overflow-wrap:anywhere}
+@media(max-width:768px){
+ .hero-inner{flex-basis:100%;order:1}
+ .powered-box{order:2;align-self:auto;margin:0 auto 10px 12px}
+ .extra-sections{padding-left:6px!important;padding-right:6px!important;gap:12px!important}
+ .extra-sections .extra-box{width:100%!important;max-width:none!important;margin:0!important}
+ #aboutText,#quoteText,#extra1TextView,#extra2TextView,#extra3TextView{overflow-wrap:anywhere!important;min-width:0}
+ #extra3TitleView{line-height:1.15!important}
+ #extra3TextView{line-height:1.36!important;white-space:pre-line}
+}
+
 </style>
 </head>
 
@@ -808,11 +829,9 @@ class="google-translate-holder"></div>
     src=""
     alt="Hero">
 
-    <div class="powered-box">
-      Powered by GH Mobility
-    </div>
-
   </div>
+
+  <div class="powered-box">Powered by GH Mobility</div>
 
 </section>
 
@@ -857,6 +876,8 @@ id="servicesContainer">
 class="extra-sections"
 id="extraSections">
 
+  <div class="homepage-image-row" id="homeImageRow1" hidden></div>
+
   <div
   class="extra-box"
   id="extraBox1">
@@ -874,6 +895,8 @@ id="extraSections">
     </div>
 
   </div>
+
+  <div class="homepage-image-row" id="homeImageRow2" hidden></div>
 
   <div
   class="extra-box"
@@ -893,6 +916,12 @@ id="extraSections">
 
   </div>
 
+  <div class="homepage-image-row" id="homeImageRow3" hidden></div>
+  <div class="extra-box" id="extraBox3" hidden>
+    <h3 id="extra3TitleView" class="gh-word-text gh-align-center"></h3>
+    <div id="extra3TextView" class="gh-word-text gh-align-justify-center"></div>
+  </div>
+  <div class="homepage-image-row" id="homeImageRow4" hidden></div>
 </section>
 
 <div class="contact-section">
@@ -1824,6 +1853,85 @@ function applyPageTheme(data){
    RENDER PAGE
 ========================= */
 
+// Apply saved responsive settings after the existing theme engine.
+function homeNumber(value,fallback,min,max){
+  const n = value === "" || value == null ? fallback : Number(value);
+  return Number.isFinite(n) ? Math.min(max,Math.max(min,n)) : fallback;
+}
+
+function applyHomeTextStyle(id,align,size){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const normalized = normalizeWordAlign(align);
+  applyWordText(id,el.innerText,normalized);
+  el.style.setProperty("text-align",normalized.startsWith("justify") ? "justify" : normalized,"important");
+  el.style.setProperty("text-align-last",normalized.startsWith("justify") ? (normalized.split("-")[1] || "left") : normalized,"important");
+  el.style.setProperty("font-size",`${homeNumber(size,14,10,160)}px`,"important");
+  el.style.setProperty("overflow-wrap","anywhere","important");
+}
+
+function applyHomepageResponsiveContent(data){
+  const mobile = window.innerWidth <= 768;
+  for(const name of ["about","quote"]){
+    const box = document.querySelector(name === "about" ? ".about" : ".quote-header");
+    if(box){
+      box.style.setProperty("display",data[name+"Active"] === false ? "none" : "block","important");
+      box.style.setProperty("padding",`${homeNumber(data[name+(mobile ? "MobilePadding" : "Padding")],mobile ? 18 : 70,0,200)}px`,"important");
+    }
+    for(const part of ["Title","Text"]){
+      const fallbackSize = mobile ? (part === "Title" ? 20 : 14) : (part === "Title" ? (name === "about" ? 60 : 70) : 25);
+      const alignKey = name+part+(mobile ? "MobileAlign" : "Align");
+      applyHomeTextStyle(name+part,data[alignKey] || (part === "Title" ? "center" : (mobile ? "left" : "justify-center")),data[name+part+(mobile ? "MobileSize" : "Size")] || fallbackSize);
+    }
+  }
+  for(let i=1;i<=3;i++){
+    const box = document.getElementById(`extraBox${i}`);
+    if(!box) continue;
+    // Clear desktop-only box styles when resizing into the mobile layout.
+    if(mobile){
+      for(const property of ["background","border","border-radius","box-shadow"]){
+        box.style.removeProperty(property);
+      }
+    }
+    const active = i === 3 ? data.extra3Active === true : data[`extra${i}Active`] !== false;
+    box.hidden = !active;
+    box.style.setProperty("display",active ? "block" : "none","important");
+    box.style.setProperty("padding",`${homeNumber(data[mobile ? "extraBoxMobilePadding" : "extraBoxPadding"],mobile ? 18 : 70,0,200)}px`,"important");
+    if(i === 3){
+      applyWordText("extra3TitleView",data.extra3Title || "","center");
+      applyWordText("extra3TextView",data.extra3Text || "","left");
+    }
+    for(const part of ["Title","Text"]){
+      const align = data[mobile ? `extraBox${part}MobileAlign` : "extraBoxAlign"] || (part === "Title" ? "center" : (mobile ? "left" : "justify-center"));
+      const size = data[`extraBox${part}${mobile ? "MobileSize" : "Size"}`] || (mobile ? (part === "Title" ? 20 : 14) : (part === "Title" ? 42 : 22));
+      applyHomeTextStyle(`extra${i}${part}View`,align,size);
+    }
+  }
+  const gap = homeNumber(data[mobile ? "homeImagesMobileGap" : "homeImagesGap"],mobile ? 12 : 24,0,200);
+  for(let rowIndex=1;rowIndex<=4;rowIndex++){
+    const row = document.getElementById(`homeImageRow${rowIndex}`);
+    if(!row) continue;
+    row.replaceChildren();
+    row.style.setProperty("--home-image-gap",`${gap}px`);
+    const slots = [rowIndex*2-1,rowIndex*2].filter(i=>data[`homeImage${i}Active`] === true && /^(https?:\/\/|\/(?!\/))/.test(String(data[`homeImage${i}`] || "").trim()));
+    row.hidden = slots.length === 0;
+    for(const i of slots){
+      const key = `homeImage${i}`;
+      const image = document.createElement("img");
+      image.className = "homepage-image";
+      image.src = String(data[key]).trim();
+      image.alt = data[key+"Alt"] || `Transportation image ${i}`;
+      image.loading = "lazy";
+      const width = homeNumber(data[key+(mobile ? "MobileWidth" : "Width")],mobile ? 100 : 50,1,100);
+      const height = homeNumber(data[key+(mobile ? "MobileHeight" : "Height")],0,0,2000);
+      image.style.width = `calc(${width}% - ${slots.length === 2 && width < 100 ? gap*width/100 : 0}px)`;
+      image.style.height = height ? `${height}px` : "auto";
+      image.style.objectFit = data[key+"Fit"] === "cover" ? "cover" : "contain";
+      row.appendChild(image);
+    }
+  }
+}
+
 function renderPage(){
 
   const data =
@@ -1969,6 +2077,8 @@ function renderPage(){
   applyPageTheme(data);
 
   applyExtraBoxesTheme(data);
+
+  applyHomepageResponsiveContent(data);
 
 updateServicesLayout();
 

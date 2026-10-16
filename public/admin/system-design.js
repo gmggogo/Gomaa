@@ -131,6 +131,78 @@ DEFAULT DATA
 ========================= */
 
 const defaultSystemDesign = {
+  aboutActive:true,
+  quoteActive:true,
+  extra3Active:false,
+  extra3Title:"More Information",
+  extra3Text:"",
+  homeImagesGap:"24",
+  homeImagesMobileGap:"12",
+  homeImage1:"",
+  homeImage1Active:false,
+  homeImage1Alt:"",
+  homeImage1Width:"50",
+  homeImage1Height:"0",
+  homeImage1Fit:"contain",
+  homeImage1MobileWidth:"100",
+  homeImage1MobileHeight:"0",
+  homeImage2:"",
+  homeImage2Active:false,
+  homeImage2Alt:"",
+  homeImage2Width:"50",
+  homeImage2Height:"0",
+  homeImage2Fit:"contain",
+  homeImage2MobileWidth:"100",
+  homeImage2MobileHeight:"0",
+  homeImage3:"",
+  homeImage3Active:false,
+  homeImage3Alt:"",
+  homeImage3Width:"50",
+  homeImage3Height:"0",
+  homeImage3Fit:"contain",
+  homeImage3MobileWidth:"100",
+  homeImage3MobileHeight:"0",
+  homeImage4:"",
+  homeImage4Active:false,
+  homeImage4Alt:"",
+  homeImage4Width:"50",
+  homeImage4Height:"0",
+  homeImage4Fit:"contain",
+  homeImage4MobileWidth:"100",
+  homeImage4MobileHeight:"0",
+  homeImage5:"",
+  homeImage5Active:false,
+  homeImage5Alt:"",
+  homeImage5Width:"50",
+  homeImage5Height:"0",
+  homeImage5Fit:"contain",
+  homeImage5MobileWidth:"100",
+  homeImage5MobileHeight:"0",
+  homeImage6:"",
+  homeImage6Active:false,
+  homeImage6Alt:"",
+  homeImage6Width:"50",
+  homeImage6Height:"0",
+  homeImage6Fit:"contain",
+  homeImage6MobileWidth:"100",
+  homeImage6MobileHeight:"0",
+  homeImage7:"",
+  homeImage7Active:false,
+  homeImage7Alt:"",
+  homeImage7Width:"50",
+  homeImage7Height:"0",
+  homeImage7Fit:"contain",
+  homeImage7MobileWidth:"100",
+  homeImage7MobileHeight:"0",
+  homeImage8:"",
+  homeImage8Active:false,
+  homeImage8Alt:"",
+  homeImage8Width:"50",
+  homeImage8Height:"0",
+  homeImage8Fit:"contain",
+  homeImage8MobileWidth:"100",
+  homeImage8MobileHeight:"0",
+
 
   companyName:"",
 
@@ -906,7 +978,65 @@ function readZoneForm(
 LOAD VALUES
 ========================= */
 
+// Homepage image slots use the existing authenticated upload and save flow.
+function loadHomepageImagesEditor(){
+  const host = document.getElementById("homepageImagesEditor");
+  if(!host) return;
+  host.innerHTML = `<div class="form-grid">
+    <div class="input-group"><label>Desktop image gap (px)</label><input id="homeImagesGap" type="number" min="0" max="200"></div>
+    <div class="input-group"><label>Mobile image gap (px)</label><input id="homeImagesMobileGap" type="number" min="0" max="100"></div>
+  </div>`;
+  const positions = ["Below service cards / above Extra Box 1", "Above Extra Box 2", "Above Extra Box 3", "Before Customer Support"];
+  for(let i=1;i<=8;i++){
+    const key = `homeImage${i}`;
+    const panel = document.createElement("div");
+    panel.className = "section-box";
+    panel.innerHTML = `<h3>Image ${i} — ${positions[Math.floor((i-1)/2)]}</h3>
+      <div class="toggle-row"><input id="${key}Active" type="checkbox"><label for="${key}Active">Enable image ${i}</label></div>
+      <img id="${key}Preview" alt="Image ${i} preview" style="max-width:100%;max-height:180px;object-fit:contain">
+      <div class="input-group"><label>Upload / replace image</label><input type="file" accept="image/*" onchange="uploadHomepageImage(this,${i})"></div>
+      <div class="form-grid">
+        <div class="input-group"><label>Image URL</label><input id="${key}" type="url"></div>
+        <div class="input-group"><label>Image description (alt text)</label><input id="${key}Alt" type="text"></div>
+        <div class="input-group"><label>Desktop width (%)</label><input id="${key}Width" type="number" min="1" max="100"></div>
+        <div class="input-group"><label>Desktop height (px, 0 = auto)</label><input id="${key}Height" type="number" min="0" max="2000"></div>
+        <div class="input-group"><label>Mobile width (%)</label><input id="${key}MobileWidth" type="number" min="1" max="100"></div>
+        <div class="input-group"><label>Mobile height (px, 0 = auto)</label><input id="${key}MobileHeight" type="number" min="0" max="2000"></div>
+        <div class="input-group"><label>Image fit</label><select id="${key}Fit"><option value="contain">Contain (show full image)</option><option value="cover">Cover (crop to fill)</option></select></div>
+      </div>`;
+    host.appendChild(panel);
+    for(const suffix of ["","Alt","Width","Height","MobileWidth","MobileHeight","Fit"]){
+      setValue(key+suffix, systemDesign[key+suffix]);
+    }
+    setChecked(key+"Active", systemDesign[key+"Active"]);
+    setImage(key+"Preview", systemDesign[key]);
+  }
+  for(const key of ["homeImagesGap","homeImagesMobileGap","extra3Title","extra3Text"]) setValue(key,systemDesign[key]);
+  for(const key of ["aboutActive","quoteActive","extra3Active"]) setChecked(key,systemDesign[key]);
+}
+
+function readHomepageImagesEditor(){
+  for(const key of ["aboutActive","quoteActive","extra3Active"]) systemDesign[key] = document.getElementById(key)?.checked === true;
+  for(const key of ["extra3Title","extra3Text","homeImagesGap","homeImagesMobileGap"]) systemDesign[key] = document.getElementById(key)?.value ?? defaultSystemDesign[key];
+  for(let i=1;i<=8;i++){
+    const key = `homeImage${i}`;
+    systemDesign[key+"Active"] = document.getElementById(key+"Active")?.checked === true;
+    for(const suffix of ["","Alt","Width","Height","MobileWidth","MobileHeight","Fit"]){
+      systemDesign[key+suffix] = document.getElementById(key+suffix)?.value ?? defaultSystemDesign[key+suffix];
+    }
+  }
+}
+
+window.uploadHomepageImage = async function(input,index){
+  if(!Number.isInteger(index) || index<1 || index>8) return;
+  const key = `homeImage${index}`;
+  await uploadMainImage(input,key,key+"Preview");
+  setValue(key,systemDesign[key]);
+};
+
 function loadFormValues(){
+
+  loadHomepageImagesEditor();
 
   /* =========================
      BASIC
@@ -2317,6 +2447,8 @@ async function(){
   );
 
   try{
+
+    readHomepageImagesEditor();
 
     await saveSystemDesign();
 

@@ -1389,6 +1389,8 @@ MOBILE
 
 </div>
 
+  <div class="section-box"><div class="section-title">Homepage Images</div><p>Each image is independent of the information boxes. Disable a box without hiding its images. Width is a percentage; height 0 keeps the original aspect ratio. Mobile settings apply at 768px and below.</p><div id="homepageImagesEditor"></div></div>
+
   <!-- =========================
        EXTRA BOXES
   ========================== -->
@@ -1397,6 +1399,13 @@ MOBILE
 
     <div class="section-title">
       Extra Boxes
+    </div>
+    <div class="toggle-row"><input type="checkbox" id="aboutActive"><label for="aboutActive">Show About Box</label></div>
+    <div class="toggle-row"><input type="checkbox" id="quoteActive"><label for="quoteActive">Show Quote Box</label></div>
+    <div class="toggle-row"><input type="checkbox" id="extra3Active"><label for="extra3Active">Show Extra Box 3</label></div>
+    <div class="form-grid">
+      <div class="input-group"><label for="extra3Title">Extra Box 3 Title</label><input type="text" id="extra3Title"></div>
+      <div class="input-group"><label for="extra3Text">Extra Box 3 Text</label><textarea id="extra3Text"></textarea></div>
     </div>
 
     <div class="form-grid">
@@ -1855,7 +1864,7 @@ if(typeof loadHeader === "function"){
 
 <script src="/core/branding.js"></script>
 
-<script src="system-design.js?v=pickup-work-zones-edit-lock-20261015"></script>
+<script src="system-design.js?v=homepage-images-mobile-20261016"></script>
 
 </body>
 </html>
