@@ -645,6 +645,7 @@ const words = {
 
   en:{
     base:"Base",
+    includes:"Includes",
     mile:"Mile",
     hourly:"Hourly",
     noShow:"NoShow",
@@ -658,6 +659,7 @@ const words = {
 
   es:{
     base:"Base",
+    includes:"Incluye",
     mile:"Milla",
     hourly:"Hora",
     noShow:"NoShow",
@@ -855,6 +857,7 @@ lang === "es"
 
 let headers = "";
 let values = "";
+const includedMiles = pricingPolicyNumber(service.includedMiles);
 
 if(mode === "HOURLY"){
 
@@ -886,7 +889,7 @@ if(mode === "HOURLY"){
   `;
 
   values = `
-  <td>$${Number(service.baseFare || 0)}</td>
+  <td>$${Number(service.baseFare || 0)}${includedMiles > 0 ? `<small class="pricing-policy-note">${words[lang].includes} ${includedMiles} mi</small>` : ""}</td>
   <td>$${Number(service.perMile || 0)}/mi</td>
   <td>$${Number(service.noShowFee || 0)}</td>
   <td>${pricingCancelValue(service)}</td>
