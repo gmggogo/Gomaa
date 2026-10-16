@@ -20,6 +20,39 @@ body{
   padding:15px;
 }
 
+.pricing-policy-note{
+  display:block;
+  max-width:140px;
+  margin:4px auto 0;
+  font-size:10px;
+  font-weight:500;
+  color:#dbeafe;
+  line-height:1.4;
+}
+
+.pricing-wait-policy{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  border-top:1px solid rgba(255,255,255,.20);
+  margin-top:12px;
+  padding-top:10px;
+  text-align:center;
+}
+
+.pricing-wait-policy span{
+  display:block;
+  font-size:11px;
+  color:#dbeafe;
+}
+
+.pricing-wait-policy strong{
+  display:block;
+  margin-top:4px;
+  font-size:13px;
+  color:#fff;
+}
+
 @media(max-width:600px){
 
   .page{
@@ -637,8 +670,12 @@ const words = {
     mile:"Mile",
     hourly:"Hourly",
     noShow:"NoShow",
-    cancel:"Cancel",
-    wait:"Wait"
+    cancel:"Late cancellation",
+    pickupWait:"Pickup wait",
+    stopWait:"Stop wait",
+    disabled:"Disabled",
+    within:"Within",
+    beforePickup:"min before pickup"
   },
 
   es:{
@@ -646,8 +683,12 @@ const words = {
     mile:"Milla",
     hourly:"Hora",
     noShow:"NoShow",
-    cancel:"Cancelar",
-    wait:"Espera"
+    cancel:"Cancelación tardía",
+    pickupWait:"Espera en recogida",
+    stopWait:"Espera en parada",
+    disabled:"Desactivado",
+    within:"Dentro de",
+    beforePickup:"min antes de la recogida"
   }
 
 };
@@ -678,6 +719,37 @@ function getServiceImage(serviceKey){
 
   return "";
 
+}
+
+/* ================= PRICING POLICY DISPLAY ================= */
+
+// Only display values supplied for this tenant's service; missing is not zero.
+function pricingPolicyNumber(value){
+  if(value === null || value === undefined || String(value).trim() === ""){
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function pricingWaitValue(enabled,minutes){
+  if(enabled === false){
+    return words[lang].disabled;
+  }
+  const value = pricingPolicyNumber(minutes);
+  return value === null ? "—" : `${value}m`;
+}
+
+function pricingCancelValue(service){
+  if(service.disableCancel === true){
+    return words[lang].disabled;
+  }
+  const fee = pricingPolicyNumber(service.cancelFee);
+  const minutes = pricingPolicyNumber(service.warningMinutes);
+  const amount = fee === null ? "—" : `$${fee}`;
+  const timing = minutes === null ? "—"
+    : `${words[lang].within} ${minutes} ${words[lang].beforePickup}`;
+  return `${amount}<small class="pricing-policy-note">${timing}</small>`;
 }
 
 /* ================= LOAD SERVICES ================= */
@@ -812,14 +884,12 @@ if(mode === "HOURLY"){
   <th>${words[lang].hourly}</th>
   <th>${words[lang].noShow}</th>
   <th>${words[lang].cancel}</th>
-  <th>${words[lang].wait}</th>
   `;
 
   values = `
   <td>$${Number(service.hourlyRate || 0)}/hr</td>
   <td>$${Number(service.noShowFee || 0)}</td>
-  <td>$15</td>
-  <td>15m</td>
+  <td>${pricingCancelValue(service)}</td>
   `;
 
 }else{
@@ -829,15 +899,13 @@ if(mode === "HOURLY"){
   <th>${words[lang].mile}</th>
   <th>${words[lang].noShow}</th>
   <th>${words[lang].cancel}</th>
-  <th>${words[lang].wait}</th>
   `;
 
   values = `
   <td>$${Number(service.baseFare || 0)}</td>
   <td>$${Number(service.perMile || 0)}/mi</td>
   <td>$${Number(service.noShowFee || 0)}</td>
-  <td>$15</td>
-  <td>15m</td>
+  <td>${pricingCancelValue(service)}</td>
   `;
 
 }
@@ -872,6 +940,17 @@ ${values}
 </tr>
 
 </table>
+
+<div class="pricing-wait-policy">
+  <div>
+    <span>${words[lang].pickupWait}</span>
+    <strong>${pricingWaitValue(service.driverPickupWaitEnabled,service.driverPickupWaitMinutes)}</strong>
+  </div>
+  <div>
+    <span>${words[lang].stopWait}</span>
+    <strong>${pricingWaitValue(service.driverStopWaitEnabled,service.driverStopWaitMinutes)}</strong>
+  </div>
+</div>
 
 </div>
 
