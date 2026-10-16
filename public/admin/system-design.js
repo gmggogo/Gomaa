@@ -275,6 +275,15 @@ mainLogo:"",
   driverLogo:"",
 
   heroImage:"",
+  heroImageActive:true,
+  heroImageAlt:"",
+  heroImageWidth:"100",
+  heroImageHeight:"0",
+  heroImageFit:"contain",
+  heroImageMobileWidth:"100",
+  heroImageMobileHeight:"0",
+  heroImageMobileFit:"cover",
+
 
   /* =========================
   BODY
@@ -986,7 +995,7 @@ function loadHomepageImagesEditor(){
     <div class="input-group"><label>Desktop image gap (px)</label><input id="homeImagesGap" type="number" min="0" max="200"></div>
     <div class="input-group"><label>Mobile image gap (px)</label><input id="homeImagesMobileGap" type="number" min="0" max="100"></div>
   </div>`;
-  const positions = ["Below service cards / above Extra Box 1", "Above Extra Box 2", "Above Extra Box 3", "Before Customer Support"];
+  const positions = ["Below service cards / above Box 3", "Above Box 4", "Above Box 5", "Before Customer Support"];
   for(let i=1;i<=8;i++){
     const key = `homeImage${i}`;
     const panel = document.createElement("div");
@@ -1013,9 +1022,13 @@ function loadHomepageImagesEditor(){
   }
   for(const key of ["homeImagesGap","homeImagesMobileGap","extra3Title","extra3Text"]) setValue(key,systemDesign[key]);
   for(const key of ["aboutActive","quoteActive","extra3Active"]) setChecked(key,systemDesign[key]);
+  setChecked("heroImageActive",systemDesign.heroImageActive);
+  for(const key of ["heroImageAlt", "heroImageWidth", "heroImageHeight", "heroImageFit", "heroImageMobileWidth", "heroImageMobileHeight", "heroImageMobileFit"]) setValue(key,systemDesign[key]);
 }
 
 function readHomepageImagesEditor(){
+  systemDesign.heroImageActive = document.getElementById("heroImageActive")?.checked === true;
+  for(const key of ["heroImageAlt", "heroImageWidth", "heroImageHeight", "heroImageFit", "heroImageMobileWidth", "heroImageMobileHeight", "heroImageMobileFit"]) systemDesign[key] = document.getElementById(key)?.value ?? defaultSystemDesign[key];
   for(const key of ["aboutActive","quoteActive","extra3Active"]) systemDesign[key] = document.getElementById(key)?.checked === true;
   for(const key of ["extra3Title","extra3Text","homeImagesGap","homeImagesMobileGap"]) systemDesign[key] = document.getElementById(key)?.value ?? defaultSystemDesign[key];
   for(let i=1;i<=8;i++){

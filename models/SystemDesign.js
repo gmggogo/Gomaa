@@ -1,771 +1,2608 @@
-const mongoose = require("mongoose");
+// =========================================
+// FILE: public/admin/system-design.js
+// COMPLETE SYSTEM DESIGN ENGINE
+// TENANT CLEAN DEFAULTS - NO LEGACY SUNBEAM BRANDING
+// =========================================
+
+console.log("SYSTEM DESIGN LOADED");
 
 /* =========================
-SERVICES
+SECURITY
 ========================= */
 
-const ServiceSchema =
-new mongoose.Schema({
+const token = localStorage.getItem("token") || "";
+const role  = localStorage.getItem("role") || "";
 
-  id:{
-    type:String,
-    default:""
-  },
+if(!token || !["SUPER_ADMIN","admin"].includes(role)){
+  window.location.href = "/login.html";
+}
+
+let systemDesign = {};
+
+/* ================= GLOBAL EDIT LOCK ================= */
+let systemDesignEditing = false;
+
+function setSystemDesignEditing(editing){
+  systemDesignEditing = editing === true;
+  const editor = document.getElementById("systemDesignEditor");
+  const button = document.getElementById("systemDesignEditButton");
+  const status = document.getElementById("systemDesignEditStatus");
+  if(editor) editor.disabled = !systemDesignEditing;
+  if(button) button.disabled = systemDesignEditing;
+  if(status) status.textContent = systemDesignEditing
+    ? "Editing enabled — Save All Settings when finished"
+    : "Settings locked — click Edit to make changes";
+}
+
+window.enableSystemDesignEdit = function(){
+  setSystemDesignEditing(true);
+};
 
 
-  serviceKey:{
-    type:String,
-    default:"",
-    trim:true,
-    uppercase:true
-  },
+let allowedServices = [];
 
-  active:{
-    type:Boolean,
-    default:false
-  },
+function normalizeServiceKey(value){
 
-  title:{
-    type:String,
-    default:""
-  },
+  const raw =
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[_-]+/g," ")
+      .replace(/\s+/g," ")
+      .trim();
 
-  description:{
-    type:String,
-    default:""
-  },
+  if(!raw) return "";
 
-  image:{
-    type:String,
-    default:""
-  },
+  if(raw === "ST" || raw === "STANDARD" || raw.includes("STANDARD")) return "ST";
 
-  link:{
-    type:String,
-    default:"getquote/index.html"
+  if(
+    raw === "WH" ||
+    raw === "WC" ||
+    raw === "WHEELCHAIR" ||
+    raw === "WHEEL CHAIR" ||
+    raw.includes("WHEELCHAIR") ||
+    raw.includes("WHEEL CHAIR")
+  ){
+    return "WH";
   }
 
-});
+  if(raw === "SH" || raw === "SHARED" || raw.includes("SHARED")) return "SH";
 
-
-/* =========================
-SERVICE ZONE
-Each booking source has its own independent operating radius.
-========================= */
-
-const ServiceZoneSchema =
-new mongoose.Schema({
-
-  enabled:{
-    type:Boolean,
-    default:false
-  },
-
-  country:{
-    type:String,
-    default:""
-  },
-
-  stateProvince:{
-    type:String,
-    default:""
-  },
-
-  city:{
-    type:String,
-    default:""
-  },
-
-  postalCode:{
-    type:String,
-    default:""
-  },
-
-  radiusMiles:{
-    type:Number,
-    default:50,
-    min:1
-  },
-
-  // Null preserves the legacy one-radius policy until explicitly configured.
-  pickupRadiusMiles:{
-    type:Number,
-    default:null,
-    min:1
-  },
-
-  centerLat:{
-    type:Number,
-    default:null
-  },
-
-  centerLng:{
-    type:Number,
-    default:null
-  },
-
-  centerAddress:{
-    type:String,
-    default:""
+  if(
+    raw === "LM" ||
+    raw === "LIMO" ||
+    raw === "LIMOUSINE" ||
+    raw.includes("LIMOUSINE") ||
+    raw.startsWith("LIMO ")
+  ){
+    return "LM";
   }
 
-},{
-  _id:false
-});
+  if(raw === "TX" || raw === "TAXI" || raw.includes("TAXI")) return "TX";
+  if(raw === "XL" || raw === "XL SERVICE" || raw.startsWith("XL ")) return "XL";
+
+  return raw.replace(/\s+/g,"");
+}
+
+function serviceCardKey(service){
+
+  const candidates = [
+    service?.serviceKey,
+    service?.serviceCode,
+    service?.serviceType,
+    service?.id,
+    service?.key,
+    service?.code,
+    service?.suffix,
+    service?.title,
+    service?.name
+  ];
+
+  for(const value of candidates){
+
+    const key =
+      normalizeServiceKey(value);
+
+    if(
+      ["ST","WH","SH","LM","TX","XL"]
+        .includes(key) ||
+      /^CUSTOM[1-4]$/.test(key)
+    ){
+      return key;
+    }
+  }
+
+  return "";
+}
+
+function isServiceAllowed(service){
+
+  const key =
+    serviceCardKey(service);
+
+  return (
+    !!key &&
+    allowedServices.includes(key)
+  );
+}
 
 /* =========================
-SYSTEM DESIGN
+DEFAULT DATA
 ========================= */
 
-const SystemDesignSchema =
-new mongoose.Schema({
+const defaultSystemDesign = {
+  aboutActive:true,
+  quoteActive:true,
+  extra3Active:false,
+  extra3Title:"More Information",
+  extra3Text:"",
+  homeImagesGap:"24",
+  homeImagesMobileGap:"12",
+  homeImage1:"",
+  homeImage1Active:false,
+  homeImage1Alt:"",
+  homeImage1Width:"50",
+  homeImage1Height:"0",
+  homeImage1Fit:"contain",
+  homeImage1MobileWidth:"100",
+  homeImage1MobileHeight:"0",
+  homeImage2:"",
+  homeImage2Active:false,
+  homeImage2Alt:"",
+  homeImage2Width:"50",
+  homeImage2Height:"0",
+  homeImage2Fit:"contain",
+  homeImage2MobileWidth:"100",
+  homeImage2MobileHeight:"0",
+  homeImage3:"",
+  homeImage3Active:false,
+  homeImage3Alt:"",
+  homeImage3Width:"50",
+  homeImage3Height:"0",
+  homeImage3Fit:"contain",
+  homeImage3MobileWidth:"100",
+  homeImage3MobileHeight:"0",
+  homeImage4:"",
+  homeImage4Active:false,
+  homeImage4Alt:"",
+  homeImage4Width:"50",
+  homeImage4Height:"0",
+  homeImage4Fit:"contain",
+  homeImage4MobileWidth:"100",
+  homeImage4MobileHeight:"0",
+  homeImage5:"",
+  homeImage5Active:false,
+  homeImage5Alt:"",
+  homeImage5Width:"50",
+  homeImage5Height:"0",
+  homeImage5Fit:"contain",
+  homeImage5MobileWidth:"100",
+  homeImage5MobileHeight:"0",
+  homeImage6:"",
+  homeImage6Active:false,
+  homeImage6Alt:"",
+  homeImage6Width:"50",
+  homeImage6Height:"0",
+  homeImage6Fit:"contain",
+  homeImage6MobileWidth:"100",
+  homeImage6MobileHeight:"0",
+  homeImage7:"",
+  homeImage7Active:false,
+  homeImage7Alt:"",
+  homeImage7Width:"50",
+  homeImage7Height:"0",
+  homeImage7Fit:"contain",
+  homeImage7MobileWidth:"100",
+  homeImage7MobileHeight:"0",
+  homeImage8:"",
+  homeImage8Active:false,
+  homeImage8Alt:"",
+  homeImage8Width:"50",
+  homeImage8Height:"0",
+  homeImage8Fit:"contain",
+  homeImage8MobileWidth:"100",
+  homeImage8MobileHeight:"0",
 
-  // Optional homepage content; existing tenants retain their current layout.
-  aboutActive:{type:Boolean,default:true},
-  quoteActive:{type:Boolean,default:true},
-  extra3Active:{type:Boolean,default:false},
-  extra3Title:{type:String,default:"More Information"},
-  extra3Text:{type:String,default:""},
-  homeImagesGap:{type:String,default:"24"},
-  homeImagesMobileGap:{type:String,default:"12"},
-  homeImage1:{type:String,default:""},
-  homeImage1Active:{type:Boolean,default:false},
-  homeImage1Alt:{type:String,default:""},
-  homeImage1Width:{type:String,default:"50"},
-  homeImage1Height:{type:String,default:"0"},
-  homeImage1Fit:{type:String,default:"contain"},
-  homeImage1MobileWidth:{type:String,default:"100"},
-  homeImage1MobileHeight:{type:String,default:"0"},
-  homeImage2:{type:String,default:""},
-  homeImage2Active:{type:Boolean,default:false},
-  homeImage2Alt:{type:String,default:""},
-  homeImage2Width:{type:String,default:"50"},
-  homeImage2Height:{type:String,default:"0"},
-  homeImage2Fit:{type:String,default:"contain"},
-  homeImage2MobileWidth:{type:String,default:"100"},
-  homeImage2MobileHeight:{type:String,default:"0"},
-  homeImage3:{type:String,default:""},
-  homeImage3Active:{type:Boolean,default:false},
-  homeImage3Alt:{type:String,default:""},
-  homeImage3Width:{type:String,default:"50"},
-  homeImage3Height:{type:String,default:"0"},
-  homeImage3Fit:{type:String,default:"contain"},
-  homeImage3MobileWidth:{type:String,default:"100"},
-  homeImage3MobileHeight:{type:String,default:"0"},
-  homeImage4:{type:String,default:""},
-  homeImage4Active:{type:Boolean,default:false},
-  homeImage4Alt:{type:String,default:""},
-  homeImage4Width:{type:String,default:"50"},
-  homeImage4Height:{type:String,default:"0"},
-  homeImage4Fit:{type:String,default:"contain"},
-  homeImage4MobileWidth:{type:String,default:"100"},
-  homeImage4MobileHeight:{type:String,default:"0"},
-  homeImage5:{type:String,default:""},
-  homeImage5Active:{type:Boolean,default:false},
-  homeImage5Alt:{type:String,default:""},
-  homeImage5Width:{type:String,default:"50"},
-  homeImage5Height:{type:String,default:"0"},
-  homeImage5Fit:{type:String,default:"contain"},
-  homeImage5MobileWidth:{type:String,default:"100"},
-  homeImage5MobileHeight:{type:String,default:"0"},
-  homeImage6:{type:String,default:""},
-  homeImage6Active:{type:Boolean,default:false},
-  homeImage6Alt:{type:String,default:""},
-  homeImage6Width:{type:String,default:"50"},
-  homeImage6Height:{type:String,default:"0"},
-  homeImage6Fit:{type:String,default:"contain"},
-  homeImage6MobileWidth:{type:String,default:"100"},
-  homeImage6MobileHeight:{type:String,default:"0"},
-  homeImage7:{type:String,default:""},
-  homeImage7Active:{type:Boolean,default:false},
-  homeImage7Alt:{type:String,default:""},
-  homeImage7Width:{type:String,default:"50"},
-  homeImage7Height:{type:String,default:"0"},
-  homeImage7Fit:{type:String,default:"contain"},
-  homeImage7MobileWidth:{type:String,default:"100"},
-  homeImage7MobileHeight:{type:String,default:"0"},
-  homeImage8:{type:String,default:""},
-  homeImage8Active:{type:Boolean,default:false},
-  homeImage8Alt:{type:String,default:""},
-  homeImage8Width:{type:String,default:"50"},
-  homeImage8Height:{type:String,default:"0"},
-  homeImage8Fit:{type:String,default:"contain"},
-  homeImage8MobileWidth:{type:String,default:"100"},
-  homeImage8MobileHeight:{type:String,default:"0"},
 
-  /* =========================
-  MULTI TENANT
-  One System Design per company
-  ========================= */
+  companyName:"",
 
-  tenantId:{
-    type:mongoose.Schema.Types.ObjectId,
-    ref:"Tenant",
-    default:null
-  },
+timezone:"America/Phoenix",
+region:"",
 
-  /* =========================
-  COMPANY
-  ========================= */
+country:"",
 
-  companyName:{
-    type:String,
-    default:"Sunbeam Transportation"
-  },
-
-  timezone:{
-    type:String,
-    default:"America/Phoenix"
-  },
-region:{
-  type:String,
-  default:"Arizona"
+getQuoteZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  pickupRadiusMiles:null,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
 },
 
-country:{
-  type:String,
-  default:"USA"
+companiesZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  pickupRadiusMiles:null,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
 },
 
-  /* =========================
-  SERVICE ZONES
-  Independent limits for Get Quote, Companies and Reserved.
-  ========================= */
+reservedZone:{
+  enabled:false,
+  country:"",
+  stateProvince:"",
+  city:"",
+  postalCode:"",
+  radiusMiles:50,
+  pickupRadiusMiles:null,
+  centerLat:null,
+  centerLng:null,
+  centerAddress:""
+},
 
-  getQuoteZone:{
-    type:ServiceZoneSchema,
-    default:()=>({
-      enabled:false,
-      radiusMiles:50
-    })
-  },
+invoiceEmail:"",
 
-  companiesZone:{
-    type:ServiceZoneSchema,
-    default:()=>({
-      enabled:false,
-      radiusMiles:50
-    })
-  },
+smtpHost:"",
 
-  reservedZone:{
-    type:ServiceZoneSchema,
-    default:()=>({
-      enabled:false,
-      radiusMiles:50
-    })
-  },
+smtpPort:"465",
 
-  /* =========================
-  LOGOS
-  ========================= */
+smtpSecure:true,
 
-  mainLogo:{
-    type:String,
-    default:"/assets/logo.png"
-  },
+smtpUser:"",
 
-  driverLogo:{
-    type:String,
-    default:"/assets/logo.png"
-  },
+smtpPass:"",
 
-  heroImage:{
-    type:String,
-    default:"/assets/hero.jpeg"
-  },
+bookingEmailSubject:
+"Booking Confirmation",
+
+bookingEmailMessage:
+"Your trip is confirmed.",
+
+cancelPolicyText:
+"Free cancellation up to 2 hours before trip time.",
+
+mainLogo:"",
+  driverLogo:"",
+
+  heroImage:"",
+  heroImageActive:true,
+  heroImageAlt:"",
+  heroImageWidth:"100",
+  heroImageHeight:"0",
+  heroImageFit:"contain",
+  heroImageMobileWidth:"100",
+  heroImageMobileHeight:"0",
+  heroImageMobileFit:"cover",
+
 
   /* =========================
   BODY
   ========================= */
 
-  bodyBg:{
-    type:String,
-    default:"#f1f5f9"
-  },
+  bodyBg:"#f1f5f9",
 
-  bodyTextColor:{
-    type:String,
-    default:"#0f172a"
-  },
+  bodyTextColor:"#0f172a",
 
   /* =========================
   ABOUT
   ========================= */
 
-  aboutBg:{
-    type:String,
-    default:"#ffffff"
-  },
+  aboutBg:"#ffffff",
 
-  aboutBorder:{
-    type:String,
-    default:"#dbeafe"
-  },
+  aboutBorder:"#dbeafe",
 
-  aboutRadius:{
-    type:String,
-    default:"28"
-  },
+  aboutRadius:"28",
 
-  aboutPadding:{
-    type:String,
-    default:"40"
-  },
+  aboutPadding:"40",
 
-  aboutTitle:{
-    type:String,
-    default:"About Us"
-  },
+  aboutTitle:"About Us",
 
-  aboutTitleColor:{
-    type:String,
-    default:"#145cff"
-  },
+  aboutTitleColor:"#145cff",
 
-  aboutTitleSize:{
-    type:String,
-    default:"34"
-  },
+  aboutTitleSize:"34",
 
-  aboutTitleAlign:{
-    type:String,
-    default:"center"
-  },
+  aboutTitleAlign:"center",
 
-  aboutText:{
-    type:String,
-    default:"Professional transportation services."
-  },
+  aboutText:
+  "Professional transportation services.",
 
-  aboutTextColor:{
-    type:String,
-    default:"#334155"
-  },
+  aboutTextColor:"#334155",
 
-  aboutTextSize:{
-    type:String,
-    default:"18"
-  },
+  aboutTextSize:"18",
 
-  aboutTextAlign:{
-    type:String,
-    default:"center"
-  },
+  aboutTextAlign:"justify-center",
 
   /* =========================
   ABOUT - MOBILE
+  Independent mobile controls
   ========================= */
 
-  aboutMobilePadding:{
-    type:String,
-    default:"18"
-  },
+  aboutMobilePadding:"18",
 
-  aboutTitleMobileSize:{
-    type:String,
-    default:"20"
-  },
+  aboutTitleMobileSize:"20",
 
-  aboutTitleMobileAlign:{
-    type:String,
-    default:"center"
-  },
+  aboutTitleMobileAlign:"center",
 
-  aboutTextMobileSize:{
-    type:String,
-    default:"14"
-  },
+  aboutTextMobileSize:"14",
 
-  aboutTextMobileAlign:{
-    type:String,
-    default:"left"
-  },
+  aboutTextMobileAlign:"left",
+
 
   /* =========================
   QUOTE
   ========================= */
 
-  quoteBg:{
-    type:String,
-    default:"#ffffff"
-  },
+  quoteBg:"#ffffff",
 
-  quoteBorder:{
-    type:String,
-    default:"#dbeafe"
-  },
+  quoteBorder:"#dbeafe",
 
-  quoteRadius:{
-    type:String,
-    default:"28"
-  },
+  quoteRadius:"28",
 
-  quotePadding:{
-    type:String,
-    default:"40"
-  },
+  quotePadding:"40",
 
-  quoteTitle:{
-    type:String,
-    default:"Get Quote & Book Your Ride"
-  },
+  quoteTitle:
+  "Get Quote & Book Your Ride",
 
-  quoteTitleColor:{
-    type:String,
-    default:"#145cff"
-  },
+  quoteTitleColor:"#145cff",
 
-  quoteTitleSize:{
-    type:String,
-    default:"34"
-  },
+  quoteTitleSize:"34",
 
-  quoteTitleAlign:{
-    type:String,
-    default:"center"
-  },
+  quoteTitleAlign:"center",
 
-  quoteText:{
-    type:String,
-    default:"Select your service below"
-  },
+  quoteText:
+  "Select your service below",
 
-  quoteTextColor:{
-    type:String,
-    default:"#334155"
-  },
+  quoteTextColor:"#334155",
 
-  quoteTextSize:{
-    type:String,
-    default:"18"
-  },
+  quoteTextSize:"18",
 
-  quoteTextAlign:{
-    type:String,
-    default:"center"
-  },
+  quoteTextAlign:"justify-center",
 
   /* =========================
   QUOTE - MOBILE
+  Independent mobile controls
   ========================= */
 
-  quoteMobilePadding:{
-    type:String,
-    default:"18"
-  },
+  quoteMobilePadding:"18",
 
-  quoteTitleMobileSize:{
-    type:String,
-    default:"20"
-  },
+  quoteTitleMobileSize:"20",
 
-  quoteTitleMobileAlign:{
-    type:String,
-    default:"center"
-  },
+  quoteTitleMobileAlign:"center",
 
-  quoteTextMobileSize:{
-    type:String,
-    default:"14"
-  },
+  quoteTextMobileSize:"14",
 
-  quoteTextMobileAlign:{
-    type:String,
-    default:"left"
-  },
+  quoteTextMobileAlign:"left",
+
 
   /* =========================
   EXTRA BOXES
   ========================= */
 
-  extra1Active:{
-    type:Boolean,
-    default:true
-  },
+  extra1Active:true,
 
-  extra1Title:{
-    type:String,
-    default:"Extra Information"
-  },
+  extra1Title:"Extra Information",
 
-  extra1Text:{
-    type:String,
-    default:"You can add pricing, announcements, promotions, or company information here."
-  },
+  extra1Text:
+  "You can add pricing, announcements, promotions, or company information here.",
 
-  extra2Active:{
-    type:Boolean,
-    default:true
-  },
+  extra2Active:true,
 
-  extra2Title:{
-    type:String,
-    default:"Additional Services"
-  },
+  extra2Title:"Additional Services",
 
-  extra2Text:{
-    type:String,
-    default:"This section can later be managed from the admin panel."
-  },
+  extra2Text:
+  "This section can later be managed from the admin panel.",
 
   /* =========================
   EXTRA BOX DESIGN
   ========================= */
 
-  extraBoxBg:{
-    type:String,
-    default:"#ffffff"
-  },
+  extraBoxBg:"#ffffff",
 
-  extraBoxBorder:{
-    type:String,
-    default:"#dbeafe"
-  },
+  extraBoxBorder:"#dbeafe",
 
-  extraBoxTitleColor:{
-    type:String,
-    default:"#145cff"
-  },
+  extraBoxTitleColor:"#145cff",
 
-  extraBoxTextColor:{
-    type:String,
-    default:"#334155"
-  },
+  extraBoxTextColor:"#334155",
 
-  extraBoxRadius:{
-    type:String,
-    default:"28"
-  },
+  extraBoxRadius:"28",
 
-  extraBoxPadding:{
-    type:String,
-    default:"40"
-  },
+  extraBoxPadding:"40",
 
-  extraBoxAlign:{
-    type:String,
-    default:"center"
-  },
+  extraBoxAlign:"justify-center",
 
-  extraBoxTitleSize:{
-    type:String,
-    default:"32"
-  },
+  extraBoxTitleSize:"32",
 
-  extraBoxTextSize:{
-    type:String,
-    default:"18"
-  },
+  extraBoxTextSize:"18",
 
   /* =========================
   EXTRA BOX DESIGN - MOBILE
+  Independent mobile controls
   ========================= */
 
-  extraBoxMobilePadding:{
-    type:String,
-    default:"18"
-  },
+  extraBoxMobilePadding:"18",
 
-  extraBoxTitleMobileSize:{
-    type:String,
-    default:"20"
-  },
+  extraBoxTitleMobileSize:"20",
 
-  extraBoxTitleMobileAlign:{
-    type:String,
-    default:"center"
-  },
+  extraBoxTitleMobileAlign:"center",
 
-  extraBoxTextMobileSize:{
-    type:String,
-    default:"14"
-  },
+  extraBoxTextMobileSize:"14",
 
-  extraBoxTextMobileAlign:{
-    type:String,
-    default:"left"
-  },
+  extraBoxTextMobileAlign:"left",
 
-  extraBoxBorderSize:{
-    type:String,
-    default:"2"
-  },
+  extraBoxBorderSize:"2",
 
-  extraBoxShadow:{
-    type:Boolean,
-    default:true
-  },
-
-  /* =========================
-  CONTACT
-  ========================= */
-
-  contactTitle:{
-    type:String,
-    default:"Customer Support"
-  },
-
-  contactPhone:{
-    type:String,
-    default:"619-509-7197"
-  },
-
-  contactEmail:{
-    type:String,
-    default:"admin@sunbeamtransportationllc.com"
-  },
-
-  footerText:{
-    type:String,
-    default:"©️ Sunbeam Transportation"
-  },
-
-  /* =========================
-  CONTACT DESIGN
-  ========================= */
-
-  contactTitleColor:{
-    type:String,
-    default:"#145cff"
-  },
-
-  contactTitleSize:{
-    type:String,
-    default:"30"
-  },
-
-  contactBg:{
-    type:String,
-    default:"#ffffff"
-  },
-
-  contactBorder:{
-    type:String,
-    default:"#dbeafe"
-  },
-
-  contactRadius:{
-    type:String,
-    default:"28"
-  },
-
-  contactPadding:{
-    type:String,
-    default:"40"
-  },
-
-  contactBorderSize:{
-    type:String,
-    default:"2"
-  },
-
-  contactTextColor:{
-    type:String,
-    default:"#334155"
-  },
-
-  contactAlign:{
-    type:String,
-    default:"center"
-  },
-
-  contactJustify:{
-    type:String,
-    default:"space-between"
-  },
-/* =========================
-EMAIL SETTINGS
-========================= */
-
-invoiceEmail:{
-  type:String,
-  default:"billing@sunbeamtransportation.com"
-},
-
-smtpHost:{
-  type:String,
-  default:"smtp.zoho.com"
-},
-
-smtpPort:{
-  type:String,
-  default:"465"
-},
-
-smtpSecure:{
-  type:Boolean,
-  default:true
-},
-
-smtpUser:{
-  type:String,
-  default:""
-},
-
-smtpPass:{
-  type:String,
-  default:""
-},
-
-bookingEmailSubject:{
-  type:String,
-  default:"Booking Confirmation"
-},
-
-bookingEmailMessage:{
-  type:String,
-  default:"Your trip is confirmed."
-},
-
-cancelPolicyText:{
-  type:String,
-  default:"Free cancellation up to 2 hours before trip time."
-},
-
-  /* =========================
-  SERVICES
-  ========================= */
-
-  services:{
-    type:[ServiceSchema],
-    default:[]
-  }
-
-},
-{
-  timestamps:true
-});
+  extraBoxShadow:true,
 
 /* =========================
-MULTI TENANT INDEX
-Only one SystemDesign document per tenant.
-
-Legacy documents that were saved before tenantId
-was added are ignored by this partial index.
+CONTACT
 ========================= */
 
-SystemDesignSchema.index(
-  {
-    tenantId:1
-  },
-  {
-    unique:true,
-    name:"system_design_tenant_unique",
-    partialFilterExpression:{
-      tenantId:{
-        $type:"objectId"
-      }
+contactTitle:"Customer Support",
+
+contactPhone:"",
+
+contactEmail:"",
+
+footerText:"",
+
+contactTitleColor:"#145cff",
+
+contactTitleSize:"34",
+
+contactBg:"#ffffff",
+
+contactBorder:"#dbeafe",
+
+contactRadius:"28",
+contactAlign:"center",
+
+contactJustify:"justify-center",
+
+cardTextAlign:"center",
+
+cardTextJustify:"justify-center",
+/* =========================
+SERVICES
+========================= */
+
+  services:[
+
+    {
+      id:"standard",
+      serviceKey:"ST",
+      active:false,
+      title:"Standard",
+      description:"Standard transportation service",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"xl",
+      serviceKey:"XL",
+      active:false,
+      title:"XL",
+      description:"Large vehicle transportation",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"taxi",
+      serviceKey:"TX",
+      active:false,
+      title:"Taxi",
+      description:"Daily city transportation",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"limo",
+      serviceKey:"LM",
+      active:false,
+      title:"Limo",
+      description:"Luxury transportation service",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"wheelchair",
+      serviceKey:"WH",
+      active:false,
+      title:"Wheelchair",
+      description:"Wheelchair accessible rides",
+      image:"",
+      link:"getquote/index.html"
+    },
+
+    {
+      id:"shared",
+      serviceKey:"SH",
+      active:false,
+      title:"Shared Ride",
+      description:"Affordable shared rides",
+      image:"",
+      link:"getquote/index.html"
     }
-  }
-);
 
-const SystemDesign =
-  mongoose.models.SystemDesign ||
-  mongoose.model(
-    "SystemDesign",
-    SystemDesignSchema
+  ]
+
+};
+
+/* =========================
+LOAD
+========================= */
+
+async function loadSystemDesign(){
+
+  try{
+
+    const [res,serviceRes] =
+    await Promise.all([
+      fetch("/api/system-design",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      }),
+      fetch("/api/services/admin",{
+        headers:{
+          Authorization:"Bearer " + token
+        }
+      })
+    ]);
+
+    const data =
+    await res.json();
+
+    const serviceRows =
+      await serviceRes.json()
+        .catch(()=>[]);
+
+    allowedServices =
+      Array.isArray(data.allowedServices)
+        ? [
+            ...new Set(
+              data.allowedServices
+                .map(normalizeServiceKey)
+                .filter(Boolean)
+            )
+          ]
+        : [];
+
+    const savedServices =
+      Array.isArray(data.services)
+        ? data.services
+        : [];
+
+    /*
+      Keep the six default card definitions available locally.
+      Saved tenant card values override matching defaults.
+      This means a service enabled later by Platform Admin
+      immediately has a card editor instead of disappearing.
+    */
+    const customServiceDefaults =
+      (Array.isArray(serviceRows) ? serviceRows : [])
+        .filter(service =>
+          Number(service?.customSlot || 0) >= 1 &&
+          service?.customConfigured === true
+        )
+        .map(service=>({
+          id:`custom${Number(service.customSlot)}`,
+          serviceKey:
+            `CUSTOM${Number(service.customSlot)}`,
+          active:false,
+          title:
+            service.title ||
+            `Custom Service ${Number(service.customSlot)}`,
+          description:"",
+          image:"",
+          link:"getquote/index.html"
+        }));
+
+    const mergedServices =
+      [
+        ...defaultSystemDesign.services,
+        ...customServiceDefaults
+      ]
+        .map(defaultService=>{
+
+          const key =
+            serviceCardKey(
+              defaultService
+            );
+
+          const saved =
+            savedServices.find(item => {
+              const savedKey =
+                serviceCardKey(item);
+
+              if(savedKey === key){
+                return true;
+              }
+
+              return (
+                String(item?.id || "")
+                  .trim()
+                  .toLowerCase() ===
+                String(defaultService?.id || "")
+                  .trim()
+                  .toLowerCase()
+              );
+            });
+
+          return {
+            ...defaultService,
+            ...(saved || {}),
+            id:defaultService.id,
+            serviceKey:key
+          };
+        });
+
+    savedServices.forEach(saved=>{
+
+      const key =
+        serviceCardKey(saved);
+
+      const exists =
+        mergedServices.some(item =>
+          serviceCardKey(item) === key
+        );
+
+      if(!exists){
+        mergedServices.push(saved);
+      }
+    });
+
+    systemDesign = {
+
+      ...defaultSystemDesign,
+
+      ...data,
+
+      allowedServices,
+
+      services:
+        mergedServices
+
+    };
+
+  }catch(err){
+
+    console.log(err);
+
+    systemDesign =
+    defaultSystemDesign;
+
+  }
+
+}
+
+/* =========================
+SAVE
+========================= */
+
+async function saveSystemDesign(){
+
+  if(!systemDesignEditing){
+    throw new Error("Click Edit before changing settings.");
+  }
+
+  try{
+
+    const res =
+    await fetch(
+      "/api/system-design",
+      {
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+          "application/json",
+          Authorization:"Bearer " + token
+        },
+
+        body:
+        JSON.stringify(systemDesign)
+
+      }
+    );
+
+    const data =
+    await res.json().catch(()=>({}));
+
+    if(!res.ok){
+      throw new Error(
+        data.message ||
+        "Save Failed"
+      );
+    }
+
+  }catch(err){
+
+    console.log(err);
+
+    throw err;
+
+  }
+
+}
+
+/* =========================
+HELPERS
+========================= */
+
+function setValue(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.value = value || "";
+
+  }
+
+}
+
+function setChecked(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(el){
+
+    el.checked = !!value;
+
+  }
+
+}
+
+function setImage(id,value){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const src =
+    String(value || "").trim();
+
+  if(src){
+    el.src = src;
+    el.style.display = "block";
+  }else{
+    el.removeAttribute("src");
+    el.style.display = "none";
+  }
+
+}
+
+/* =========================
+WORD ALIGN HELPERS
+========================= */
+
+const WORD_ALIGN_OPTIONS = [
+  { value:"left", label:"Left" },
+  { value:"center", label:"Center" },
+  { value:"right", label:"Right" },
+  { value:"justify", label:"Justify" },
+  { value:"justify-left", label:"Justify Left" },
+  { value:"justify-center", label:"Justify Center" },
+  { value:"justify-right", label:"Justify Right" }
+];
+
+function normalizeWordAlign(value, fallback = "center"){
+
+  const clean =
+  String(value || "")
+  .toLowerCase()
+  .trim();
+
+  const allowed =
+  WORD_ALIGN_OPTIONS.map(item=>item.value);
+
+  return allowed.includes(clean)
+  ? clean
+  : fallback;
+
+}
+
+function setupAlignSelect(id, value, fallback = "center"){
+
+  const el =
+  document.getElementById(id);
+
+  if(!el) return;
+
+  const finalValue =
+  normalizeWordAlign(value, fallback);
+
+  el.innerHTML = "";
+
+  WORD_ALIGN_OPTIONS.forEach(item=>{
+
+    const option =
+    document.createElement("option");
+
+    option.value =
+    item.value;
+
+    option.innerText =
+    item.label;
+
+    if(item.value === finalValue){
+      option.selected = true;
+    }
+
+    el.appendChild(option);
+
+  });
+
+}
+
+function getAlignValue(id, fallback = "center"){
+
+  return normalizeWordAlign(
+    document.getElementById(id)?.value,
+    fallback
   );
 
-module.exports =
-  SystemDesign;
+}
+
+/* =========================
+SERVICE ZONE HELPERS
+========================= */
+
+function zoneRadiusValue(value){
+
+  const n = Number(value);
+
+  return (
+    Number.isFinite(n) &&
+    n > 0
+  )
+    ? n
+    : 50;
+}
+
+function loadZoneForm(
+  prefix,
+  zone
+){
+
+  const z =
+    zone &&
+    typeof zone === "object"
+      ? zone
+      : {};
+
+  setChecked(
+    `${prefix}Enabled`,
+    z.enabled === true
+  );
+
+  setValue(
+    `${prefix}Country`,
+    z.country || ""
+  );
+
+  setValue(
+    `${prefix}StateProvince`,
+    z.stateProvince || ""
+  );
+
+  setValue(
+    `${prefix}City`,
+    z.city || ""
+  );
+
+  setValue(
+    `${prefix}PostalCode`,
+    z.postalCode || ""
+  );
+
+  setValue(
+    `${prefix}PickupRadiusMiles`,
+    zoneRadiusValue(z.pickupRadiusMiles ?? z.radiusMiles)
+  );
+
+  setValue(
+    `${prefix}RadiusMiles`,
+    zoneRadiusValue(
+      z.radiusMiles
+    )
+  );
+}
+
+function readZoneForm(
+  prefix,
+  currentZone = {}
+){
+
+  return {
+    enabled:
+      document.getElementById(
+        `${prefix}Enabled`
+      )?.checked === true,
+
+    country:
+      document.getElementById(
+        `${prefix}Country`
+      )?.value || "",
+
+    stateProvince:
+      document.getElementById(
+        `${prefix}StateProvince`
+      )?.value || "",
+
+    city:
+      document.getElementById(
+        `${prefix}City`
+      )?.value || "",
+
+    postalCode:
+      document.getElementById(
+        `${prefix}PostalCode`
+      )?.value || "",
+
+    radiusMiles:
+      zoneRadiusValue(
+        document.getElementById(
+          `${prefix}RadiusMiles`
+        )?.value
+      ),
+
+    pickupRadiusMiles:
+      zoneRadiusValue(
+        document.getElementById(
+          `${prefix}PickupRadiusMiles`
+        )?.value
+      ),
+
+    centerLat:
+      currentZone?.centerLat ?? null,
+
+    centerLng:
+      currentZone?.centerLng ?? null,
+
+    centerAddress:
+      currentZone?.centerAddress || ""
+  };
+}
+
+/* =========================
+LOAD VALUES
+========================= */
+
+// Homepage image slots use the existing authenticated upload and save flow.
+function loadHomepageImagesEditor(){
+  const host = document.getElementById("homepageImagesEditor");
+  if(!host) return;
+  host.innerHTML = `<div class="form-grid">
+    <div class="input-group"><label>Desktop image gap (px)</label><input id="homeImagesGap" type="number" min="0" max="200"></div>
+    <div class="input-group"><label>Mobile image gap (px)</label><input id="homeImagesMobileGap" type="number" min="0" max="100"></div>
+  </div>`;
+  const positions = ["Below service cards / above Box 3", "Above Box 4", "Above Box 5", "Before Customer Support"];
+  for(let i=1;i<=8;i++){
+    const key = `homeImage${i}`;
+    const panel = document.createElement("div");
+    panel.className = "section-box";
+    panel.innerHTML = `<h3>Image ${i} — ${positions[Math.floor((i-1)/2)]}</h3>
+      <div class="toggle-row"><input id="${key}Active" type="checkbox"><label for="${key}Active">Enable image ${i}</label></div>
+      <img id="${key}Preview" alt="Image ${i} preview" style="max-width:100%;max-height:180px;object-fit:contain">
+      <div class="input-group"><label>Upload / replace image</label><input type="file" accept="image/*" onchange="uploadHomepageImage(this,${i})"></div>
+      <div class="form-grid">
+        <div class="input-group"><label>Image URL</label><input id="${key}" type="url"></div>
+        <div class="input-group"><label>Image description (alt text)</label><input id="${key}Alt" type="text"></div>
+        <div class="input-group"><label>Desktop width (%)</label><input id="${key}Width" type="number" min="1" max="100"></div>
+        <div class="input-group"><label>Desktop height (px, 0 = auto)</label><input id="${key}Height" type="number" min="0" max="2000"></div>
+        <div class="input-group"><label>Mobile width (%)</label><input id="${key}MobileWidth" type="number" min="1" max="100"></div>
+        <div class="input-group"><label>Mobile height (px, 0 = auto)</label><input id="${key}MobileHeight" type="number" min="0" max="2000"></div>
+        <div class="input-group"><label>Image fit</label><select id="${key}Fit"><option value="contain">Contain (show full image)</option><option value="cover">Cover (crop to fill)</option></select></div>
+      </div>`;
+    host.appendChild(panel);
+    for(const suffix of ["","Alt","Width","Height","MobileWidth","MobileHeight","Fit"]){
+      setValue(key+suffix, systemDesign[key+suffix]);
+    }
+    setChecked(key+"Active", systemDesign[key+"Active"]);
+    setImage(key+"Preview", systemDesign[key]);
+  }
+  for(const key of ["homeImagesGap","homeImagesMobileGap","extra3Title","extra3Text"]) setValue(key,systemDesign[key]);
+  for(const key of ["aboutActive","quoteActive","extra3Active"]) setChecked(key,systemDesign[key]);
+  setChecked("heroImageActive",systemDesign.heroImageActive);
+  for(const key of ["heroImageAlt", "heroImageWidth", "heroImageHeight", "heroImageFit", "heroImageMobileWidth", "heroImageMobileHeight", "heroImageMobileFit"]) setValue(key,systemDesign[key]);
+}
+
+function readHomepageImagesEditor(){
+  systemDesign.heroImageActive = document.getElementById("heroImageActive")?.checked === true;
+  for(const key of ["heroImageAlt", "heroImageWidth", "heroImageHeight", "heroImageFit", "heroImageMobileWidth", "heroImageMobileHeight", "heroImageMobileFit"]) systemDesign[key] = document.getElementById(key)?.value ?? defaultSystemDesign[key];
+  for(const key of ["aboutActive","quoteActive","extra3Active"]) systemDesign[key] = document.getElementById(key)?.checked === true;
+  for(const key of ["extra3Title","extra3Text","homeImagesGap","homeImagesMobileGap"]) systemDesign[key] = document.getElementById(key)?.value ?? defaultSystemDesign[key];
+  for(let i=1;i<=8;i++){
+    const key = `homeImage${i}`;
+    systemDesign[key+"Active"] = document.getElementById(key+"Active")?.checked === true;
+    for(const suffix of ["","Alt","Width","Height","MobileWidth","MobileHeight","Fit"]){
+      systemDesign[key+suffix] = document.getElementById(key+suffix)?.value ?? defaultSystemDesign[key+suffix];
+    }
+  }
+}
+
+window.uploadHomepageImage = async function(input,index){
+  if(!Number.isInteger(index) || index<1 || index>8) return;
+  const key = `homeImage${index}`;
+  await uploadMainImage(input,key,key+"Preview");
+  setValue(key,systemDesign[key]);
+};
+
+function loadFormValues(){
+
+  loadHomepageImagesEditor();
+
+  /* =========================
+     BASIC
+  ========================= */
+
+  setValue(
+    "companyNameInput",
+    systemDesign.companyName
+  );
+
+  setValue(
+    "timezoneInput",
+    systemDesign.timezone
+  );
+
+  setValue(
+    "regionInput",
+    systemDesign.region
+  );
+
+  setValue(
+    "countryInput",
+    systemDesign.country
+  );
+
+  loadZoneForm(
+    "getQuoteZone",
+    systemDesign.getQuoteZone
+  );
+
+  loadZoneForm(
+    "companiesZone",
+    systemDesign.companiesZone
+  );
+
+  loadZoneForm(
+    "reservedZone",
+    systemDesign.reservedZone
+  );
+
+  setValue(
+    "invoiceEmailInput",
+    systemDesign.invoiceEmail
+  );
+
+  setValue(
+    "smtpHostInput",
+    systemDesign.smtpHost
+  );
+
+  setValue(
+    "smtpPortInput",
+    systemDesign.smtpPort
+  );
+
+  setValue(
+    "smtpUserInput",
+    systemDesign.smtpUser
+  );
+
+  setValue(
+    "smtpPassInput",
+    systemDesign.smtpPass
+  );
+
+  setValue(
+    "bookingEmailSubjectInput",
+    systemDesign.bookingEmailSubject
+  );
+
+  setValue(
+    "bookingEmailMessageInput",
+    systemDesign.bookingEmailMessage
+  );
+
+  setValue(
+    "cancelPolicyTextInput",
+    systemDesign.cancelPolicyText
+  );
+
+  /* =========================
+     IMAGES
+  ========================= */
+
+  setImage(
+    "mainLogoPreview",
+    systemDesign.mainLogo
+  );
+
+  setImage(
+    "driverLogoPreview",
+    systemDesign.driverLogo
+  );
+
+  setImage(
+    "heroImagePreview",
+    systemDesign.heroImage
+  );
+
+  /* =========================
+     BODY
+  ========================= */
+
+  setValue(
+    "bodyBgInput",
+    systemDesign.bodyBg
+  );
+
+  setValue(
+    "bodyTextColorInput",
+    systemDesign.bodyTextColor
+  );
+
+  /* =========================
+     ABOUT
+  ========================= */
+
+  setValue(
+    "aboutBgInput",
+    systemDesign.aboutBg
+  );
+
+  setValue(
+    "aboutBorderInput",
+    systemDesign.aboutBorder
+  );
+
+  setValue(
+    "aboutRadiusInput",
+    systemDesign.aboutRadius
+  );
+
+  setValue(
+    "aboutPaddingInput",
+    systemDesign.aboutPadding
+  );
+
+  setValue(
+    "aboutTitleInput",
+    systemDesign.aboutTitle
+  );
+
+  setValue(
+    "aboutTitleColorInput",
+    systemDesign.aboutTitleColor
+  );
+
+  setValue(
+    "aboutTitleSizeInput",
+    systemDesign.aboutTitleSize
+  );
+
+  setupAlignSelect(
+    "aboutTitleAlignInput",
+    systemDesign.aboutTitleAlign,
+    "center"
+  );
+
+  setValue(
+    "aboutTextInput",
+    systemDesign.aboutText
+  );
+
+  setValue(
+    "aboutTextColorInput",
+    systemDesign.aboutTextColor
+  );
+
+  setValue(
+    "aboutTextSizeInput",
+    systemDesign.aboutTextSize
+  );
+
+  setupAlignSelect(
+    "aboutTextAlignInput",
+    systemDesign.aboutTextAlign,
+    "justify-center"
+  );
+
+  /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  setValue(
+    "aboutMobilePaddingInput",
+    systemDesign.aboutMobilePadding
+  );
+
+  setValue(
+    "aboutTitleMobileSizeInput",
+    systemDesign.aboutTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTitleMobileAlignInput",
+    systemDesign.aboutTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "aboutTextMobileSizeInput",
+    systemDesign.aboutTextMobileSize
+  );
+
+  setupAlignSelect(
+    "aboutTextMobileAlignInput",
+    systemDesign.aboutTextMobileAlign,
+    "left"
+  );
+
+  /* =========================
+     QUOTE
+  ========================= */
+
+  setValue(
+    "quoteBgInput",
+    systemDesign.quoteBg
+  );
+
+  setValue(
+    "quoteBorderInput",
+    systemDesign.quoteBorder
+  );
+
+  setValue(
+    "quoteRadiusInput",
+    systemDesign.quoteRadius
+  );
+
+  setValue(
+    "quotePaddingInput",
+    systemDesign.quotePadding
+  );
+
+  setValue(
+    "quoteTitleInput",
+    systemDesign.quoteTitle
+  );
+
+  setValue(
+    "quoteTitleColorInput",
+    systemDesign.quoteTitleColor
+  );
+
+  setValue(
+    "quoteTitleSizeInput",
+    systemDesign.quoteTitleSize
+  );
+
+  setupAlignSelect(
+    "quoteTitleAlignInput",
+    systemDesign.quoteTitleAlign,
+    "center"
+  );
+
+  setValue(
+    "quoteTextInput",
+    systemDesign.quoteText
+  );
+
+  setValue(
+    "quoteTextColorInput",
+    systemDesign.quoteTextColor
+  );
+
+  setValue(
+    "quoteTextSizeInput",
+    systemDesign.quoteTextSize
+  );
+
+  setupAlignSelect(
+    "quoteTextAlignInput",
+    systemDesign.quoteTextAlign,
+    "justify-center"
+  );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  setValue(
+    "quoteMobilePaddingInput",
+    systemDesign.quoteMobilePadding
+  );
+
+  setValue(
+    "quoteTitleMobileSizeInput",
+    systemDesign.quoteTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTitleMobileAlignInput",
+    systemDesign.quoteTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "quoteTextMobileSizeInput",
+    systemDesign.quoteTextMobileSize
+  );
+
+  setupAlignSelect(
+    "quoteTextMobileAlignInput",
+    systemDesign.quoteTextMobileAlign,
+    "left"
+  );
+
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
+
+  setValue(
+    "extra1Title",
+    systemDesign.extra1Title
+  );
+
+  setValue(
+    "extra1Text",
+    systemDesign.extra1Text
+  );
+
+  setChecked(
+    "extra1Active",
+    systemDesign.extra1Active
+  );
+
+  setValue(
+    "extra2Title",
+    systemDesign.extra2Title
+  );
+
+  setValue(
+    "extra2Text",
+    systemDesign.extra2Text
+  );
+
+  setChecked(
+    "extra2Active",
+    systemDesign.extra2Active
+  );
+
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
+
+  setValue(
+    "extraBoxBgInput",
+    systemDesign.extraBoxBg
+  );
+
+  setValue(
+    "extraBoxBorderInput",
+    systemDesign.extraBoxBorder
+  );
+
+  setValue(
+    "extraBoxTitleColorInput",
+    systemDesign.extraBoxTitleColor
+  );
+
+  setValue(
+    "extraBoxTextColorInput",
+    systemDesign.extraBoxTextColor
+  );
+
+  setValue(
+    "extraBoxRadiusInput",
+    systemDesign.extraBoxRadius
+  );
+
+  setValue(
+    "extraBoxPaddingInput",
+    systemDesign.extraBoxPadding
+  );
+
+  setupAlignSelect(
+    "extraBoxAlignInput",
+    systemDesign.extraBoxAlign,
+    "justify-center"
+  );
+
+  setValue(
+    "extraBoxTitleSizeInput",
+    systemDesign.extraBoxTitleSize
+  );
+
+  setValue(
+    "extraBoxTextSizeInput",
+    systemDesign.extraBoxTextSize
+  );
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  setValue(
+    "extraBoxMobilePaddingInput",
+    systemDesign.extraBoxMobilePadding
+  );
+
+  setValue(
+    "extraBoxTitleMobileSizeInput",
+    systemDesign.extraBoxTitleMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTitleMobileAlignInput",
+    systemDesign.extraBoxTitleMobileAlign,
+    "center"
+  );
+
+  setValue(
+    "extraBoxTextMobileSizeInput",
+    systemDesign.extraBoxTextMobileSize
+  );
+
+  setupAlignSelect(
+    "extraBoxTextMobileAlignInput",
+    systemDesign.extraBoxTextMobileAlign,
+    "left"
+  );
+
+  setValue(
+    "extraBoxBorderSizeInput",
+    systemDesign.extraBoxBorderSize
+  );
+
+  setChecked(
+    "extraBoxShadowInput",
+    systemDesign.extraBoxShadow
+  );
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  setValue(
+    "contactTitleInput",
+    systemDesign.contactTitle
+  );
+
+  setValue(
+    "contactPhoneInput",
+    systemDesign.contactPhone
+  );
+
+  setValue(
+    "contactEmailInput",
+    systemDesign.contactEmail
+  );
+
+  setValue(
+    "footerTextInput",
+    systemDesign.footerText
+  );
+
+  setValue(
+    "contactTitleColorInput",
+    systemDesign.contactTitleColor
+  );
+
+  setValue(
+    "contactTitleSizeInput",
+    systemDesign.contactTitleSize
+  );
+
+  setValue(
+    "contactBgInput",
+    systemDesign.contactBg
+  );
+
+  setValue(
+    "contactBorderInput",
+    systemDesign.contactBorder
+  );
+
+  setValue(
+    "contactRadiusInput",
+    systemDesign.contactRadius
+  );
+
+  setupAlignSelect(
+    "contactAlignInput",
+    systemDesign.contactAlign,
+    "center"
+  );
+
+  setupAlignSelect(
+    "contactJustifyInput",
+    systemDesign.contactJustify,
+    "justify-center"
+  );
+
+}
+
+/* =========================
+UPLOADS
+========================= */
+async function uploadMainImage(
+  input,
+  key,
+  previewId
+){
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  key
+);
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign[key] =
+    data.image;
+
+    setImage(
+      previewId,
+      data.image
+    );
+
+    await saveSystemDesign();
+
+    alert("Uploaded");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+}
+
+window.uploadMainLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "mainLogo",
+    "mainLogoPreview"
+  );
+
+};
+
+window.uploadDriverLogo =
+function(input){
+
+  uploadMainImage(
+    input,
+    "driverLogo",
+    "driverLogoPreview"
+  );
+
+};
+
+window.uploadHeroImage =
+function(input){
+
+  uploadMainImage(
+    input,
+    "heroImage",
+    "heroImagePreview"
+  );
+
+};
+
+/* =========================
+LIVE PREVIEW
+========================= */
+
+function previewLive(){
+
+  document.body.style.background =
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "#f1f5f9";
+
+  document.body.style.color =
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "#0f172a";
+
+}
+
+/* =========================
+RENDER SERVICE CARDS
+========================= */
+
+function renderCardsEditor(){
+
+  const container =
+  document.getElementById(
+    "cardsEditor"
+  );
+
+  if(!container) return;
+
+  container.innerHTML = "";
+
+  const services =
+  systemDesign.services || [];
+
+  services.forEach((service,index)=>{
+
+    if(!isServiceAllowed(service)){
+      return;
+    }
+
+    container.innerHTML += `
+
+    <div class="service-card">
+
+      <div class="service-top">
+
+        <div class="service-title">
+          ${service.title || ""}
+        </div>
+
+        <button
+          class="${
+            service.active
+            ? "save-btn"
+            : "disable-btn"
+          }"
+          onclick="toggleCard(${index})"
+        >
+
+          ${
+            service.active
+            ? "ACTIVE"
+            : "DISABLED"
+          }
+
+        </button>
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Service Name
+        </label>
+
+        <input
+          type="text"
+          id="title-${index}"
+          value="${service.title || ""}"
+        >
+
+      </div>
+
+      <div class="input-group">
+
+        <label>
+          Description
+        </label>
+
+        <textarea
+          id="desc-${index}"
+        >${service.description || ""}</textarea>
+
+      </div>
+
+    <div class="input-group">
+
+  <label>
+    Card Image
+  </label>
+
+  <img
+    ${service.image ? `src="${service.image}"` : ""}
+    class="preview-image"
+    ${service.image ? "" : 'style="display:none;"'}
+    style="
+      width:100%;
+      height:180px;
+      object-fit:cover;
+      border-radius:14px;
+      margin-top:10px;
+    "
+  >
+
+  <input
+    type="file"
+    hidden
+    accept="image/*"
+    id="cardUpload-${index}"
+    onchange="uploadCardImage(this,${index})"
+  >
+
+  <button
+    class="upload-btn"
+    type="button"
+    onclick="
+    document.getElementById(
+      'cardUpload-${index}'
+    ).click()
+    "
+  >
+    Upload Card Image
+  </button>
+
+</div>
+
+<button
+  class="save-btn card-save"
+  onclick="saveCard(${index})"
+>
+
+  Save Card
+
+</button>
+
+</div>
+
+`;
+
+  });
+
+  const visibleCount =
+    services.filter(
+      isServiceAllowed
+    ).length;
+
+  if(!visibleCount){
+
+    container.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        padding:28px;
+        border:1px dashed #cbd5e1;
+        border-radius:18px;
+        background:#f8fafc;
+        color:#64748b;
+        font-weight:800;
+        text-align:center;
+      ">
+        No homepage services have been assigned to this company by Platform Admin.
+      </div>
+    `;
+  }
+
+}
+
+/* =========================
+CARD ACTIONS
+========================= */
+
+window.toggleCard =
+function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  systemDesign.services[index].active =
+  !systemDesign.services[index].active;
+
+  saveSystemDesign();
+
+  renderCardsEditor();
+
+};
+
+window.saveCard =
+async function(index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  const service =
+    systemDesign.services[index];
+
+  const permanentKey =
+    serviceCardKey(service);
+
+  if(permanentKey){
+    service.serviceKey =
+      permanentKey;
+  }
+
+  service.title =
+  document.getElementById(
+    `title-${index}`
+  ).value;
+
+  service.description =
+  document.getElementById(
+    `desc-${index}`
+  ).value;
+
+  await saveSystemDesign();
+
+  alert("Card Saved");
+
+};
+
+/* =========================
+SAVE ALL
+========================= */
+
+window.saveAllSystemDesign =
+async function(){
+
+  if(!systemDesignEditing){
+    alert("Click Edit before changing settings.");
+    return;
+  }
+
+  /* =========================
+     BASIC
+  ========================= */
+
+  systemDesign.companyName =
+  document.getElementById(
+    "companyNameInput"
+  )?.value || "";
+
+  systemDesign.timezone =
+  document.getElementById(
+    "timezoneInput"
+  )?.value || "";
+
+  systemDesign.region =
+  document.getElementById(
+    "regionInput"
+  )?.value || "";
+
+  systemDesign.country =
+  document.getElementById(
+    "countryInput"
+  )?.value || "";
+
+  for(const prefix of ["getQuoteZone","companiesZone","reservedZone"]){
+    const pickupInput = document.getElementById(`${prefix}PickupRadiusMiles`);
+    const workInput = document.getElementById(`${prefix}RadiusMiles`);
+    const pickupMiles = Number(pickupInput?.value);
+    const workMiles = Number(workInput?.value);
+    if(!Number.isFinite(pickupMiles) || pickupMiles < 1 ||
+       !Number.isFinite(workMiles) || workMiles < 1 || pickupMiles > workMiles){
+      alert("Pickup Zone and Work Zone radii must be at least 1 mile. Pickup Zone cannot exceed Work Zone.");
+      pickupInput?.focus();
+      return;
+    }
+  }
+
+  systemDesign.getQuoteZone =
+    readZoneForm(
+      "getQuoteZone",
+      systemDesign.getQuoteZone
+    );
+
+  systemDesign.companiesZone =
+    readZoneForm(
+      "companiesZone",
+      systemDesign.companiesZone
+    );
+
+  systemDesign.reservedZone =
+    readZoneForm(
+      "reservedZone",
+      systemDesign.reservedZone
+    );
+
+  systemDesign.invoiceEmail =
+  document.getElementById(
+    "invoiceEmailInput"
+  )?.value || "";
+
+  systemDesign.smtpHost =
+  document.getElementById(
+    "smtpHostInput"
+  )?.value || "";
+
+  systemDesign.smtpPort =
+  document.getElementById(
+    "smtpPortInput"
+  )?.value || "";
+
+  systemDesign.smtpUser =
+  document.getElementById(
+    "smtpUserInput"
+  )?.value || "";
+
+  systemDesign.smtpPass =
+  document.getElementById(
+    "smtpPassInput"
+  )?.value || "";
+
+  systemDesign.bookingEmailSubject =
+  document.getElementById(
+    "bookingEmailSubjectInput"
+  )?.value || "";
+
+  systemDesign.bookingEmailMessage =
+  document.getElementById(
+    "bookingEmailMessageInput"
+  )?.value || "";
+
+  systemDesign.cancelPolicyText =
+  document.getElementById(
+    "cancelPolicyTextInput"
+  )?.value || "";
+
+  /* =========================
+     BODY
+  ========================= */
+
+  systemDesign.bodyBg =
+  document.getElementById(
+    "bodyBgInput"
+  )?.value || "";
+
+  systemDesign.bodyTextColor =
+  document.getElementById(
+    "bodyTextColorInput"
+  )?.value || "";
+
+  /* =========================
+     ABOUT
+  ========================= */
+
+  systemDesign.aboutBg =
+  document.getElementById(
+    "aboutBgInput"
+  )?.value || "";
+
+  systemDesign.aboutBorder =
+  document.getElementById(
+    "aboutBorderInput"
+  )?.value || "";
+
+  systemDesign.aboutRadius =
+  document.getElementById(
+    "aboutRadiusInput"
+  )?.value || "";
+
+  systemDesign.aboutPadding =
+  document.getElementById(
+    "aboutPaddingInput"
+  )?.value || "";
+
+  systemDesign.aboutTitle =
+  document.getElementById(
+    "aboutTitleInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleColor =
+  document.getElementById(
+    "aboutTitleColorInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleSize =
+  document.getElementById(
+    "aboutTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.aboutTitleAlign =
+  getAlignValue(
+    "aboutTitleAlignInput",
+    "center"
+  );
+
+  systemDesign.aboutText =
+  document.getElementById(
+    "aboutTextInput"
+  )?.value || "";
+
+  systemDesign.aboutTextColor =
+  document.getElementById(
+    "aboutTextColorInput"
+  )?.value || "";
+
+  systemDesign.aboutTextSize =
+  document.getElementById(
+    "aboutTextSizeInput"
+  )?.value || "";
+
+  systemDesign.aboutTextAlign =
+  getAlignValue(
+    "aboutTextAlignInput",
+    "justify-center"
+  );
+
+  /* =========================
+     ABOUT - MOBILE
+  ========================= */
+
+  systemDesign.aboutMobilePadding =
+  document.getElementById(
+    "aboutMobilePaddingInput"
+  )?.value ||
+  systemDesign.aboutMobilePadding ||
+  "18";
+
+  systemDesign.aboutTitleMobileSize =
+  document.getElementById(
+    "aboutTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTitleMobileSize ||
+  "20";
+
+  systemDesign.aboutTitleMobileAlign =
+  document.getElementById(
+    "aboutTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.aboutTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.aboutTextMobileSize =
+  document.getElementById(
+    "aboutTextMobileSizeInput"
+  )?.value ||
+  systemDesign.aboutTextMobileSize ||
+  "14";
+
+  systemDesign.aboutTextMobileAlign =
+  document.getElementById(
+    "aboutTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "aboutTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.aboutTextMobileAlign ||
+        "left"
+      );
+
+  /* =========================
+     QUOTE
+  ========================= */
+
+  systemDesign.quoteBg =
+  document.getElementById(
+    "quoteBgInput"
+  )?.value || "";
+
+  systemDesign.quoteBorder =
+  document.getElementById(
+    "quoteBorderInput"
+  )?.value || "";
+
+  systemDesign.quoteRadius =
+  document.getElementById(
+    "quoteRadiusInput"
+  )?.value || "";
+
+  systemDesign.quotePadding =
+  document.getElementById(
+    "quotePaddingInput"
+  )?.value || "";
+
+  systemDesign.quoteTitle =
+  document.getElementById(
+    "quoteTitleInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleColor =
+  document.getElementById(
+    "quoteTitleColorInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleSize =
+  document.getElementById(
+    "quoteTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.quoteTitleAlign =
+  getAlignValue(
+    "quoteTitleAlignInput",
+    "center"
+  );
+
+  systemDesign.quoteText =
+  document.getElementById(
+    "quoteTextInput"
+  )?.value || "";
+
+  systemDesign.quoteTextColor =
+  document.getElementById(
+    "quoteTextColorInput"
+  )?.value || "";
+
+  systemDesign.quoteTextSize =
+  document.getElementById(
+    "quoteTextSizeInput"
+  )?.value || "";
+
+  systemDesign.quoteTextAlign =
+  getAlignValue(
+    "quoteTextAlignInput",
+    "justify-center"
+  );
+
+  /* =========================
+     QUOTE - MOBILE
+  ========================= */
+
+  systemDesign.quoteMobilePadding =
+  document.getElementById(
+    "quoteMobilePaddingInput"
+  )?.value ||
+  systemDesign.quoteMobilePadding ||
+  "18";
+
+  systemDesign.quoteTitleMobileSize =
+  document.getElementById(
+    "quoteTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTitleMobileSize ||
+  "20";
+
+  systemDesign.quoteTitleMobileAlign =
+  document.getElementById(
+    "quoteTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.quoteTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.quoteTextMobileSize =
+  document.getElementById(
+    "quoteTextMobileSizeInput"
+  )?.value ||
+  systemDesign.quoteTextMobileSize ||
+  "14";
+
+  systemDesign.quoteTextMobileAlign =
+  document.getElementById(
+    "quoteTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "quoteTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.quoteTextMobileAlign ||
+        "left"
+      );
+
+  /* =========================
+     EXTRA BOXES CONTENT
+  ========================= */
+
+  systemDesign.extra1Title =
+  document.getElementById(
+    "extra1Title"
+  )?.value || "";
+
+  systemDesign.extra1Text =
+  document.getElementById(
+    "extra1Text"
+  )?.value || "";
+
+  systemDesign.extra1Active =
+  document.getElementById(
+    "extra1Active"
+  )?.checked || false;
+
+  systemDesign.extra2Title =
+  document.getElementById(
+    "extra2Title"
+  )?.value || "";
+
+  systemDesign.extra2Text =
+  document.getElementById(
+    "extra2Text"
+  )?.value || "";
+
+  systemDesign.extra2Active =
+  document.getElementById(
+    "extra2Active"
+  )?.checked || false;
+
+  /* =========================
+     EXTRA BOX DESIGN
+  ========================= */
+
+  systemDesign.extraBoxBg =
+  document.getElementById(
+    "extraBoxBgInput"
+  )?.value || "";
+
+  systemDesign.extraBoxBorder =
+  document.getElementById(
+    "extraBoxBorderInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTitleColor =
+  document.getElementById(
+    "extraBoxTitleColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextColor =
+  document.getElementById(
+    "extraBoxTextColorInput"
+  )?.value || "";
+
+  systemDesign.extraBoxRadius =
+  document.getElementById(
+    "extraBoxRadiusInput"
+  )?.value || "";
+
+  systemDesign.extraBoxPadding =
+  document.getElementById(
+    "extraBoxPaddingInput"
+  )?.value || "";
+
+  systemDesign.extraBoxAlign =
+  getAlignValue(
+    "extraBoxAlignInput",
+    "justify-center"
+  );
+
+  systemDesign.extraBoxTitleSize =
+  document.getElementById(
+    "extraBoxTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxTextSize =
+  document.getElementById(
+    "extraBoxTextSizeInput"
+  )?.value || "";
+
+  /* =========================
+     EXTRA BOX DESIGN - MOBILE
+  ========================= */
+
+  systemDesign.extraBoxMobilePadding =
+  document.getElementById(
+    "extraBoxMobilePaddingInput"
+  )?.value ||
+  systemDesign.extraBoxMobilePadding ||
+  "18";
+
+  systemDesign.extraBoxTitleMobileSize =
+  document.getElementById(
+    "extraBoxTitleMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTitleMobileSize ||
+  "20";
+
+  systemDesign.extraBoxTitleMobileAlign =
+  document.getElementById(
+    "extraBoxTitleMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTitleMobileAlignInput",
+        "center"
+      )
+    : (
+        systemDesign.extraBoxTitleMobileAlign ||
+        "center"
+      );
+
+  systemDesign.extraBoxTextMobileSize =
+  document.getElementById(
+    "extraBoxTextMobileSizeInput"
+  )?.value ||
+  systemDesign.extraBoxTextMobileSize ||
+  "14";
+
+  systemDesign.extraBoxTextMobileAlign =
+  document.getElementById(
+    "extraBoxTextMobileAlignInput"
+  )
+    ? getAlignValue(
+        "extraBoxTextMobileAlignInput",
+        "left"
+      )
+    : (
+        systemDesign.extraBoxTextMobileAlign ||
+        "left"
+      );
+
+  systemDesign.extraBoxBorderSize =
+  document.getElementById(
+    "extraBoxBorderSizeInput"
+  )?.value || "";
+
+  systemDesign.extraBoxShadow =
+  document.getElementById(
+    "extraBoxShadowInput"
+  )?.checked || false;
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  systemDesign.contactTitle =
+  document.getElementById(
+    "contactTitleInput"
+  )?.value || "";
+
+  systemDesign.contactPhone =
+  document.getElementById(
+    "contactPhoneInput"
+  )?.value || "";
+
+  systemDesign.contactEmail =
+  document.getElementById(
+    "contactEmailInput"
+  )?.value || "";
+
+  systemDesign.footerText =
+  document.getElementById(
+    "footerTextInput"
+  )?.value || "";
+
+  systemDesign.contactTitleColor =
+  document.getElementById(
+    "contactTitleColorInput"
+  )?.value || "";
+
+  systemDesign.contactTitleSize =
+  document.getElementById(
+    "contactTitleSizeInput"
+  )?.value || "";
+
+  systemDesign.contactBg =
+  document.getElementById(
+    "contactBgInput"
+  )?.value || "";
+
+  systemDesign.contactBorder =
+  document.getElementById(
+    "contactBorderInput"
+  )?.value || "";
+
+  systemDesign.contactRadius =
+  document.getElementById(
+    "contactRadiusInput"
+  )?.value || "";
+
+  systemDesign.contactAlign =
+  getAlignValue(
+    "contactAlignInput",
+    "center"
+  );
+
+  systemDesign.contactJustify =
+  getAlignValue(
+    "contactJustifyInput",
+    "justify-center"
+  );
+
+  try{
+
+    readHomepageImagesEditor();
+
+    await saveSystemDesign();
+
+    setSystemDesignEditing(false);
+
+    alert("Saved");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert(
+      err?.message ||
+      "Save Failed"
+    );
+  }
+
+};
+
+/* =========================
+UPLOAD CARD IMAGE
+========================= */
+
+window.uploadCardImage =
+async function(input,index){
+
+  if(
+    !isServiceAllowed(
+      systemDesign.services[index]
+    )
+  ){
+    alert(
+      "This service is not enabled for this company"
+    );
+    return;
+  }
+
+  const file =
+  input.files[0];
+
+  if(!file) return;
+
+  try{
+
+    const formData =
+    new FormData();
+
+formData.append(
+  "image",
+  file
+);
+
+formData.append(
+  "key",
+  `services.${index}.image`
+);
+
+formData.append(
+  "serviceKey",
+  serviceCardKey(
+    systemDesign.services[index]
+  )
+);
+
+    const res =
+    await fetch(
+      "/api/system-design/upload",
+      {
+        method:"POST",
+        headers:{
+          Authorization:"Bearer " + token
+        },
+        body:formData
+      }
+    );
+
+    const data =
+    await res.json();
+
+    if(!data.success){
+
+      alert("Upload Failed");
+
+      return;
+
+    }
+
+    systemDesign.services[index].image =
+    data.image;
+
+    await saveSystemDesign();
+
+    renderCardsEditor();
+
+    alert("Card Image Updated");
+
+  }catch(err){
+
+    console.log(err);
+
+    alert("Upload Error");
+
+  }
+
+};
+
+/* =========================
+RESET
+========================= */
+
+window.resetSystemDesign =
+function(){
+
+  const ok =
+  confirm(
+    "Reset System Design?"
+  );
+
+  if(!ok) return;
+
+  location.reload();
+
+};
+
+/* =========================
+INIT
+========================= */
+
+window.addEventListener(
+  "DOMContentLoaded",
+  async ()=>{
+
+    setSystemDesignEditing(false);
+
+    await loadSystemDesign();
+
+    loadFormValues();
+
+    renderCardsEditor();
+
+    previewLive();
+
+  }
+);

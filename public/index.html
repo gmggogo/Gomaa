@@ -754,9 +754,8 @@ body{
 }
 
 /* Optional homepage media and wider information boxes. */
-.hero{position:relative;flex-wrap:wrap;gap:14px}
-.hero-inner{flex:1 1 600px;min-width:0;order:2}
-.powered-box{position:static;order:1;flex:0 0 auto;align-self:flex-end;white-space:nowrap}
+.powered-header{width:100%;display:flex;justify-content:flex-start;align-items:center;background:#111827;padding:5px 20px;min-height:30px}
+.powered-header .powered-box{position:static;margin:0;padding:0;background:transparent;border-radius:0;font-size:12px;line-height:20px;white-space:nowrap}
 .about,.quote-header{width:calc(100% - 48px);max-width:none}
 .extra-sections{max-width:none;width:100%;padding-left:24px;padding-right:24px}
 .homepage-image-row{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;width:100%;gap:var(--home-image-gap,24px)}
@@ -764,8 +763,8 @@ body{
 .homepage-image{display:block;min-width:0;max-width:100%;border-radius:18px;flex-grow:0;flex-shrink:0;object-fit:contain}
 .extra-box{min-width:0;overflow-wrap:anywhere}
 @media(max-width:768px){
- .hero-inner{flex-basis:100%;order:1}
- .powered-box{order:2;align-self:auto;margin:0 auto 10px 12px}
+ .powered-header{padding:4px 12px;min-height:28px}
+ .powered-header .powered-box{font-size:11px;line-height:20px}
  .extra-sections{padding-left:6px!important;padding-right:6px!important;gap:12px!important}
  .extra-sections .extra-box{width:100%!important;max-width:none!important;margin:0!important}
  #aboutText,#quoteText,#extra1TextView,#extra2TextView,#extra3TextView{overflow-wrap:anywhere!important;min-width:0}
@@ -820,6 +819,8 @@ class="google-translate-holder"></div>
 
 </div>
 
+<div class="powered-header"><div class="powered-box">Powered by GH Mobility</div></div>
+
 <section class="hero">
 
   <div class="hero-inner">
@@ -831,7 +832,6 @@ class="google-translate-holder"></div>
 
   </div>
 
-  <div class="powered-box">Powered by GH Mobility</div>
 
 </section>
 
@@ -1872,6 +1872,21 @@ function applyHomeTextStyle(id,align,size){
 
 function applyHomepageResponsiveContent(data){
   const mobile = window.innerWidth <= 768;
+  const hero = document.querySelector(".hero");
+  const heroInner = document.querySelector(".hero-inner");
+  const heroImage = document.querySelector(".hero-image");
+  if(hero) hero.style.setProperty("display",data.heroImageActive === false ? "none" : "flex","important");
+  if(heroInner){
+    const width = homeNumber(data[mobile ? "heroImageMobileWidth" : "heroImageWidth"],100,1,100);
+    heroInner.style.setProperty("width",`${width}%`,"important");
+  }
+  if(heroImage){
+    const height = homeNumber(data[mobile ? "heroImageMobileHeight" : "heroImageHeight"],0,0,2000);
+    heroImage.style.setProperty("height",height ? `${height}px` : "auto","important");
+    const fit = data[mobile ? "heroImageMobileFit" : "heroImageFit"] || (mobile ? "cover" : "contain");
+    heroImage.style.setProperty("object-fit",fit === "cover" ? "cover" : "contain","important");
+    heroImage.alt = data.heroImageAlt || "Hero";
+  }
   for(const name of ["about","quote"]){
     const box = document.querySelector(name === "about" ? ".about" : ".quote-header");
     if(box){
