@@ -1,4 +1,3 @@
-TARGET PATH: server/models/BrokerIntegration.js
 
 "use strict";
 
