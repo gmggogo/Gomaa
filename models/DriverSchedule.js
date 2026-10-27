@@ -1,3 +1,5 @@
+TARGET PATH: src/models/DriverSchedule.js
+
 const mongoose = require("mongoose");
 
 const driverScheduleSchema = new mongoose.Schema({
