@@ -1,3 +1,5 @@
+TARGET PATH: server/models/MarketplaceActivity.js
+
 "use strict";
 
 /*
@@ -35,6 +37,7 @@ const MarketplaceActivitySchema =
         type:String,
         enum:[
           "LONG",
+          "MEDIUM",
           "SHORT",
           "SYSTEM"
         ],

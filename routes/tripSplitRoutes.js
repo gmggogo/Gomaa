@@ -1,3 +1,5 @@
+TARGET PATH: server/routes/tripSplitRoutes.js
+
 "use strict";
 
 /* GH BROKER REVIEW STAGE BUILD: 2026-09-07-R1 */
@@ -962,6 +964,15 @@ function originalTripPayload(externalTrip){
     brokerName:externalTrip.brokerName,
     brokerCode:externalTrip.brokerCode,
     brokerTripId:externalTrip.externalTripId,
+    marketplaceEngineAssigned:externalTrip.marketplaceEngineAssigned===true,
+    assignmentSource:externalTrip.assignmentSource||"",
+    marketplaceDriverId:externalTrip.marketplaceDriverId||"",
+    marketplaceDriverName:externalTrip.marketplaceDriverName||"",
+    marketplaceVehicleNumber:externalTrip.marketplaceVehicleNumber||"",
+    driverId:externalTrip.marketplaceDriverId||"",
+    driverName:externalTrip.marketplaceDriverName||"",
+    vehicle:externalTrip.marketplaceVehicleNumber||"",
+    vehicleNumber:externalTrip.marketplaceVehicleNumber||"",
 
     serviceKey:
       externalTrip.serviceKey ||

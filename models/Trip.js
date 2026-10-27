@@ -1,3 +1,5 @@
+TARGET PATH: server/models/Trip.js
+
 // SMART FORM LINKED MULTI-TRIP — 2026-10-04 — SMART_FORM_HUB_MULTI_TRIP_LINKED_ROWS_2026_10_04
 // GH Mobility - Trip model
 // Extracted from the legacy server index without changing schema or indexes.
@@ -697,6 +699,12 @@ passengerDurationSeconds: {
   driverId: { type: String, default: "" },
   driverName: { type: String, default: "" },
   vehicle: { type: String, default: "" },
+  vehicleNumber: { type: String, default: "" },
+  marketplaceEngineAssigned: { type: Boolean, default: false, index: true },
+  assignmentSource: { type: String, default: "" },
+  marketplaceDriverId: { type: String, default: "", index: true },
+  marketplaceDriverName: { type: String, default: "" },
+  marketplaceVehicleNumber: { type: String, default: "", index: true },
   driverAddress: { type: String, default: "" },
   dispatchNote: { type: String, default: "" },
 

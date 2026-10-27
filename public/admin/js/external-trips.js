@@ -1,3 +1,5 @@
+TARGET PATH: server/admin/js/external-trips.js
+
 "use strict";
 
 /*

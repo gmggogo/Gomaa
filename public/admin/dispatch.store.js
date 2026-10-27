@@ -1,3 +1,5 @@
+TARGET PATH: server/admin/dispatch.store.js
+
 /* =========================================
    DISPATCH STORE V4
 ========================================= */

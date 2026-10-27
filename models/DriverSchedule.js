@@ -1,4 +1,5 @@
-// Deploy refresh: valid JavaScript source for DriverSchedule model.
+TARGET PATH: server/models/DriverSchedule.js
+
 const mongoose = require("mongoose");
 
 const driverScheduleSchema = new mongoose.Schema({

@@ -1,3 +1,5 @@
+TARGET PATH: server/models/ExternalTrip.js
+
 "use strict";
 
 /*
@@ -336,6 +338,12 @@ const ExternalTripSchema = new mongoose.Schema(
       type:String,
       default:""
     },
+
+    marketplaceEngineAssigned:{type:Boolean,default:false,index:true},
+    assignmentSource:{type:String,default:""},
+    marketplaceDriverId:{type:String,default:"",index:true},
+    marketplaceDriverName:{type:String,default:""},
+    marketplaceVehicleNumber:{type:String,default:"",index:true},
 
     transferEligible:{
       type:Boolean,

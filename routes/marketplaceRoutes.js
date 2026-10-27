@@ -1,3 +1,5 @@
+TARGET PATH: server/routes/marketplaceRoutes.js
+
 "use strict";
 
 /*
@@ -29,6 +31,24 @@ const Settings =
 
 const Activity =
   require("../models/MarketplaceActivity");
+
+const MarketplaceClaimRecord =
+  require("../models/MarketplaceClaimRecord");
+
+const ExternalTrip =
+  require("../models/ExternalTrip");
+
+const DriverSchedule =
+  require("../models/DriverSchedule");
+
+const Trip =
+  require("../models/Trip");
+
+const googleRoutes =
+  require("../services/sharedEngineGoogleRoutes");
+
+const tripPlanner =
+  require("../services/mtm/marketplaceTripPlanner");
 
 const BrokerIntegration =
   require("../models/BrokerIntegration");
@@ -601,17 +621,27 @@ async function selectedByEngine(
     return date>=today && date<=last;
   });
 
-  const [longTrips,shortTrips]=await Promise.all([
+  const longMinMiles=Math.max(0,Number(settings?.longMinMiles)||100);
+  const mediumMinMiles=Math.max(0,Number(settings?.mediumMinMiles)||50);
+  const longCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="LONG");
+  const mediumCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="MEDIUM");
+  const shortCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="SHORT");
+
+  const [longTrips,mediumTrips,shortTrips]=await Promise.all([
     settings?.longEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
+      ? enrichZoneDistances(longCandidates,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
+      : [],
+    settings?.mediumEngine?.enabled
+      ? enrichZoneDistances(mediumCandidates,settings.mediumEngine).then(rows=>shortEngine.select(rows,settings.mediumEngine))
       : [],
     settings?.shortEngine?.enabled
-      ? enrichZoneDistances(inWindow,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
+      ? enrichZoneDistances(shortCandidates,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
       : []
   ]);
 
   return {
     longTrips,
+    mediumTrips,
     shortTrips
   };
 }
@@ -683,6 +713,7 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
   // Auto Accept is a hard requirement. A UI/manual endpoint must never bypass
   // the saved engine toggle; only an enabled engine with Auto Accept on may queue.
   if(engineSettings?.autoAccept!==true) return {reason:"AUTO_ACCEPT_OFF"};
+  if(options.settings?.acceptEnabled===false) return {reason:"ACCEPT_DISABLED"};
   const discoveredAt=Date.parse(options.receivedAt);
   if(!Number.isFinite(discoveredAt) || Math.abs(Date.now()-discoveredAt)>15000)
     return {reason:"DISCOVERY_TOO_OLD"};
@@ -706,6 +737,14 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {reason:"NO_VERIFIED_ROW_ACCEPT_ACTION"};
   const key=`${id}:${connection._id}:${externalTripId}`;
   if((claimLocks.get(key)||0)>Date.now()-86400000) return {reason:"ALREADY_ATTEMPTED"};
+  const persistentKey={tenantId:id,integrationId:connection._id,externalTripId};
+  const [claimRecord,legacyAccepted]=await Promise.all([
+    MarketplaceClaimRecord.findOne(persistentKey).lean(),
+    ExternalTrip.findOne({tenantId:id,externalTripId,
+      brokerCode:clean(connection.brokerCode).toUpperCase()}).select("_id").lean()
+  ]);
+  if(tripPlanner.shouldBlockClaimRecord(claimRecord) || legacyAccepted)
+    return {reason:"ALREADY_ACCEPTED_OR_PENDING"};
   let command=null;
   try{
     const cutoff=Date.now()-86400000;
@@ -726,10 +765,24 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
       connectionId:String(connection._id),engine:engineName,externalTripId,
       selector,actionText,sourceUrl:trip.sourceUrl});
     if(!command) return {reason:"CLAIM_QUEUE_UNAVAILABLE"};
+    const snapshot={
+      portalTripId:externalTripId,tripDate:clean(trip.tripDate),
+      pickupTime:clean(trip.pickupTime),appointmentTime:clean(trip.appointmentTime),
+      memberName:clean(trip.memberName),memberPhone:clean(trip.memberPhone),
+      pickupAddress:clean(trip.pickupAddress),dropoffAddress:clean(trip.dropoffAddress),
+      mode:clean(trip.mode)
+    };
+    await MarketplaceClaimRecord.findOneAndUpdate(persistentKey,{$set:{
+      brokerCode:clean(connection.brokerCode).toUpperCase(),
+      tripFingerprint:tripPlanner.tripFingerprint(snapshot),
+      status:"CLAIM_PENDING",claimCommandId:command.commandId,
+      claimEngine:engineName,tripSnapshot:snapshot,lastError:""
+    }},{$setOnInsert:{acceptedAt:null}},{upsert:true,new:true});
     pendingClaimTrips.set(command.commandId,{
       tenantId:id,
       connectionId:String(connection._id),
       externalTripId,
+      assignment:options.assignment||null,
       trip:{
         portalTripId:externalTripId,tripDate:clean(trip.tripDate),
         pickupTime:clean(trip.pickupTime),appointmentTime:clean(trip.appointmentTime),
@@ -746,6 +799,9 @@ async function queueClaimWithinTenant(id,connection,engineName,trip,engineSettin
     return {queued:true};
   }catch(err){
     if(command) pendingClaimTrips.delete(command.commandId);
+    if(command) await MarketplaceClaimRecord.updateOne({tenantId:id,
+      integrationId:connection._id,externalTripId,claimCommandId:command.commandId},
+      {$set:{status:"FAILED_NOT_CLICKED",lastError:clean(err.message).slice(0,300)}}).catch(()=>{});
     if(command) providerPortalBridgeRoutes.cancelClaimCommand?.(command.commandId);
     return {reason:`CLAIM_QUEUE_ERROR: ${clean(err.message).slice(0,120)}`};
   }
@@ -769,11 +825,23 @@ async function handleClaimResult(result){
     // A failure to click is safe to retry on the next live discovery. If the
     // browser did click but could not confirm, retain the lock to avoid a duplicate claim.
     releaseUnclickedClaimAttempt(command,result.clicked);
+    await MarketplaceClaimRecord.updateOne({tenantId:command.tenantId,
+      integrationId:command.connectionId,externalTripId:command.externalTripId,
+      claimCommandId:command.commandId},{$set:{
+        status:result.clicked===true?"CLAIM_UNKNOWN":"FAILED_NOT_CLICKED",
+        lastError:clean(result.message).slice(0,300)
+      }}).catch(()=>{});
     setMatchedTripFailure(command.tenantId,String(command.connectionId),
       command.externalTripId,
       clean(result.message) || (result.clicked?"UNCONFIRMED_AFTER_CLICK":"CLAIM_NOT_CLICKED"));
     return;
   }
+
+  // Persist the successful portal claim before importing it. If import fails,
+  // rediscovery still cannot claim the same trip a second time.
+  await MarketplaceClaimRecord.updateOne({tenantId:command.tenantId,
+    integrationId:command.connectionId,externalTripId:command.externalTripId,
+    claimCommandId:command.commandId},{$set:{status:"CLAIMED",acceptedAt:new Date(),lastError:""}});
 
   try{
     const trip=pending?.trip;
@@ -789,6 +857,13 @@ async function handleClaimResult(result){
         clientName:trip.memberName,clientPhone:trip.memberPhone,
         pickup:trip.pickupAddress,dropoff:trip.dropoffAddress,
         serviceKey:serviceKeyForClaim(trip.mode),serviceName:trip.mode,
+        ...(pending.assignment?{
+          marketplaceEngineAssigned:true,
+          assignmentSource:"MARKETPLACE_ENGINE",
+          marketplaceDriverId:pending.assignment.driverId,
+          marketplaceDriverName:pending.assignment.driverName,
+          marketplaceVehicleNumber:pending.assignment.vehicleNumber
+        }:{}),
         brokerStatus:"ACCEPTED"}
     });
     const summary=latestScanSummaries.get(`${command.tenantId}:${command.connectionId}`);
@@ -797,6 +872,110 @@ async function handleClaimResult(result){
     console.error("Marketplace confirmed claim could not be imported to External Hub:",clean(err.message).slice(0,300));
   }
 }
+
+function tripDateTimeMinutes(valueDate,valueTime){
+  const time=tripPlanner.timeMinutes(valueTime);
+  if(time===null) return null;
+  const date=clean(valueDate).slice(0,10);
+  const match=date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return null;
+  return Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),0,time);
+}
+
+async function triggerFinalConfirmationReplacement(trip,status){
+  const normalizedStatus=String(status||trip?.status||"").toLowerCase();
+  const isNoShow=normalizedStatus.includes("no show")||normalizedStatus.includes("noshow");
+  const isCancelled=normalizedStatus.includes("cancel");
+  if(!isNoShow&&!isCancelled) return {triggered:false,reason:"STATUS_NOT_ELIGIBLE"};
+
+  const tenantId=trip?.tenantId;
+  if(!tenantId) return {triggered:false,reason:"TENANT_MISSING"};
+  const settings=await getSettings(tenantId);
+  const enabled=isNoShow?settings.noShowReplacementEnabled===true:settings.cancelReplacementEnabled===true;
+  if(!enabled) return {triggered:false,reason:"REPLACEMENT_DISABLED"};
+  if(settings.enabled===false||settings.acceptEnabled===false) return {triggered:false,reason:"MARKETPLACE_OR_ACCEPT_DISABLED"};
+
+  const driverId=clean(trip.driverId);
+  const vehicleNumber=clean(trip.vehicleNumber||trip.vehicle);
+  if(!driverId||!vehicleNumber) return {triggered:true,claimed:false,reason:"TRIP_HAS_NO_ASSIGNED_VEHICLE"};
+  const vehicle=(settings.vehicleConfigs||[]).find(row=>clean(row.driverId)===driverId&&clean(row.vehicleNumber)===vehicleNumber);
+  if(!vehicle||vehicle.enabled!==true) return {triggered:true,claimed:false,reason:"ASSIGNED_VEHICLE_DISABLED_OR_NOT_CONFIGURED"};
+
+  const schedule=await DriverSchedule.findOne({tenantId,driverId}).lean();
+  const service=serviceKeyForClaim(trip.serviceKey||trip.serviceType||trip.serviceCode);
+  const sameDay=await Trip.find({tenantId,driverId,tripDate:trip.tripDate,_id:{$ne:trip._id},status:{$nin:["Cancelled","Canceled","No Show","Completed"]}})
+    .select("tripDate tripTime appointmentTime pickup dropoff tripMiles miles status").lean();
+  const failedAt=tripDateTimeMinutes(trip.tripDate,trip.tripTime||trip.pickupTime);
+  const later=sameDay.map(row=>({row,at:tripDateTimeMinutes(row.tripDate,row.tripTime||row.appointmentTime)}))
+    .filter(item=>item.at!==null&&failedAt!==null&&item.at>failedAt).sort((a,b)=>a.at-b.at)[0];
+  const earlier=sameDay.map(row=>({row,at:tripDateTimeMinutes(row.tripDate,row.tripTime||row.appointmentTime)}))
+    .filter(item=>item.at!==null&&failedAt!==null&&item.at<failedAt).sort((a,b)=>b.at-a.at)[0];
+  const origin=clean(earlier?.row?.dropoff||schedule?.address);
+  if(!origin) return {triggered:true,claimed:false,reason:"VEHICLE_ORIGIN_UNAVAILABLE"};
+
+  const connections=await BrokerIntegration.find({tenantId}).lean();
+  const candidates=[];
+  for(const connection of connections){
+    const summary=latestScanSummaries.get(`${tenantId}:${connection._id}`);
+    const observedAt=Date.parse(summary?.observedAt||"");
+    if(!summary||!Number.isFinite(observedAt)||Date.now()-observedAt>15000) continue;
+    const rows=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(tenantId,String(connection._id))||[];
+    const selected=await selectedByEngine(rows.map(tripForEngine),settings);
+    for(const [engineName,engineTrips] of [["LONG",selected.longTrips],["MEDIUM",selected.mediumTrips],["SHORT",selected.shortTrips]]){
+      if(!settings[`${engineName.toLowerCase()}Engine`]?.enabled||settings[`${engineName.toLowerCase()}Engine`]?.autoAccept!==true) continue;
+      for(const candidate of engineTrips){
+        const candidateId=clean(candidate.externalTripId||candidate.portalTripId||candidate.tripNumber);
+        if(!candidateId||candidateId===clean(trip.brokerTripId)) continue;
+        if(!tripPlanner.vehicleSupportsTrip(vehicle,engineName,candidate.mode||candidate.serviceType)) continue;
+        const candidateDate=clean(candidate.tripDate||candidate.appointmentDate||candidate.date).slice(0,10);
+        if(candidateDate!==clean(trip.tripDate).slice(0,10)) continue;
+        const pickupAt=tripDateTimeMinutes(candidateDate,candidate.pickupTime||candidate.tripTime||candidate.appointmentTime);
+        let originAt=tripDateTimeMinutes(candidateDate,vehicle.shiftStart);
+        if(earlier){
+          const previousRoute=await googleRoutes.calculateDirect(earlier.row.pickup,earlier.row.dropoff,{useCache:true}).catch(()=>null);
+          if(!previousRoute?.minutes) continue;
+          originAt=earlier.at+previousRoute.minutes*60000;
+        }
+        if(pickupAt===null||originAt===null) continue;
+        const pickupRoute=await googleRoutes.calculateDirect(origin,candidate.pickupAddress||candidate.pickup,{useCache:true}).catch(()=>null);
+        const tripRoute=await googleRoutes.calculateDirect(candidate.pickupAddress||candidate.pickup,candidate.dropoffAddress||candidate.dropoff,{useCache:true}).catch(()=>null);
+        if(!pickupRoute?.minutes||!tripRoute?.minutes) continue;
+        const pickupLate=Math.max(0,Number(settings.pickupLateToleranceMinutes)||0);
+        const arrivalAt=originAt+pickupRoute.minutes*60000;
+        if(arrivalAt>pickupAt+pickupLate*60000||pickupAt<originAt) continue;
+        const deadhead=Number(pickupRoute.miles)||0;
+        const passengerMiles=Number(candidate.tripMiles||candidate.miles||0)||Number(tripRoute.miles)||0;
+        const totalMiles=sameDay.reduce((sum,row)=>sum+(Number(row.tripMiles||row.miles)||0),0)+passengerMiles;
+        if(vehicle.maxDailyMiles>0&&totalMiles>vehicle.maxDailyMiles) continue;
+        if(vehicle.maxDeadheadMiles>0&&deadhead>vehicle.maxDeadheadMiles) continue;
+        let nextDeadhead=0;
+        if(later){
+          const nextRoute=await googleRoutes.calculateDirect(candidate.dropoffAddress||candidate.dropoff,later.row.pickup,{useCache:true}).catch(()=>null);
+          if(!nextRoute?.minutes) continue;
+          nextDeadhead=Number(nextRoute.miles)||0;
+          const candidateDropAt=pickupAt+tripRoute.minutes*60000;
+          if(candidateDropAt+nextRoute.minutes*60000>later.at+Math.max(0,Number(settings.dropoffLateToleranceMinutes)||0)*60000) continue;
+        }
+        if(vehicle.maxDeadheadMiles>0&&deadhead+nextDeadhead>vehicle.maxDeadheadMiles) continue;
+        candidates.push({connection,summary,engineName,engineSettings:settings[`${engineName.toLowerCase()}Engine`],candidate,passengerMiles});
+      }
+    }
+  }
+  candidates.sort((a,b)=>["LONG","MEDIUM","SHORT"].indexOf(a.engineName)-["LONG","MEDIUM","SHORT"].indexOf(b.engineName)||b.passengerMiles-a.passengerMiles);
+  for(const item of candidates){
+    const id=String(tenantId), connectionId=String(item.connection._id);
+    const row=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId)?.map(tripForEngine).find(candidate=>clean(candidate.externalTripId||candidate.portalTripId||candidate.tripNumber)===clean(item.candidate.externalTripId||item.candidate.portalTripId||item.candidate.tripNumber));
+    if(!row) continue;
+    const claim=await maybeQueueClaim(id,item.connection,item.engineName,row,item.engineSettings,{
+      source:"DISCOVERY",receivedAt:item.summary.observedAt,settings,
+      assignment:{driverId,driverName:clean(trip.driverName)||clean(schedule?.name),vehicleNumber}
+    });
+    if(claim.queued) return {triggered:true,claimed:true,engine:item.engineName,externalTripId:clean(row.externalTripId||row.portalTripId),driverId,driverName:clean(trip.driverName)||clean(schedule?.name),vehicleNumber};
+  }
+  return {triggered:true,claimed:false,reason:"NO_FEASIBLE_REPLACEMENT"};
+}
+
+router.triggerFinalConfirmationReplacement=triggerFinalConfirmationReplacement;
 
 if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
   providerPortalBridgeRoutes.registerClaimResultListener(handleClaimResult);
@@ -809,9 +988,9 @@ if(typeof providerPortalBridgeRoutes.registerClaimResultListener==="function")
    - Saving settings re-evaluates the current normalized trip buffer.
 ========================= */
 
-function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported=0){
+function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported=0,mediumTrips=[]){
   const matchedById=new Map();
-  for(const trip of [...longTrips,...shortTrips]){
+  for(const trip of [...longTrips,...mediumTrips,...shortTrips]){
     const tripId=String(trip.externalTripId||trip.portalTripId||trip.tripNumber||"").trim();
     if(!tripId) continue;
     // Keep only fields needed by the Marketplace table. Do not retain member
@@ -879,20 +1058,22 @@ async function evaluateConnectionTrips({
     return {
       scanned:0,
       longMatched:0,
+      mediumMatched:0,
       shortMatched:0,
       longResults:[],
+      mediumResults:[],
       shortResults:[]
     };
   }
 
-  const {longTrips,shortTrips}=
+  const {longTrips,mediumTrips,shortTrips}=
     await selectedByEngine(trips,settings);
 
   // Create current summary rows before queueing so claim block reasons are
   // retained in memory instead of being erased immediately afterward.
-  saveScanSummary(id,connection,trips,longTrips,shortTrips);
+  saveScanSummary(id,connection,trips,longTrips,shortTrips,0,mediumTrips);
 
-  const [longResults,shortResults]=
+  const [longResults,mediumResults,shortResults]=
     await Promise.all([
       logEngineMatches(
         id,
@@ -900,6 +1081,14 @@ async function evaluateConnectionTrips({
         "LONG",
         longTrips,
         settings.longEngine || {},
+        {source,receivedAt,settings}
+      ),
+      logEngineMatches(
+        id,
+        connection,
+        "MEDIUM",
+        mediumTrips,
+        settings.mediumEngine || {},
         {source,receivedAt,settings}
       ),
       logEngineMatches(
@@ -927,8 +1116,10 @@ async function evaluateConnectionTrips({
   return {
     scanned:trips.length,
     longMatched:longTrips.length,
+    mediumMatched:mediumTrips.length,
     shortMatched:shortTrips.length,
     longResults,
+    mediumResults,
     shortResults
   };
 }
@@ -1056,12 +1247,15 @@ router.post("/accept",async(req,res)=>{
       return res.status(409).json({success:false,message:"The trip is no longer available in the live broker data. Refresh and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
     }
     trip.externalTripId=externalTripId;
-    const {longTrips,shortTrips}=await selectedByEngine(normalized.map(tripForEngine),settings);
+    const {longTrips,mediumTrips,shortTrips}=await selectedByEngine(normalized.map(tripForEngine),settings);
     let engineName="";
     let engineSettings=null;
     if(longTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
       engineName="LONG";
       engineSettings=settings.longEngine||{};
+    }else if(mediumTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+      engineName="MEDIUM";
+      engineSettings=settings.mediumEngine||{};
     }else if(shortTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
       engineName="SHORT";
       engineSettings=settings.shortEngine||{};
@@ -1171,10 +1365,40 @@ router.put(
             ) || 0
           )),
 
+        acceptEnabled:body.acceptEnabled!==false,
+        longMinMiles:Math.max(0,Number(body.longMinMiles)||100),
+        mediumMinMiles:Math.max(0,Number(body.mediumMinMiles)||50),
+        targetDailyMilesMin:Math.max(0,Number(body.targetDailyMilesMin)||0),
+        targetDailyMilesMax:Math.max(0,Number(body.targetDailyMilesMax)||0),
+        pickupLateToleranceMinutes:Math.max(0,Math.trunc(Number(body.pickupLateToleranceMinutes)||0)),
+        dropoffLateToleranceMinutes:Math.max(0,Math.trunc(Number(body.dropoffLateToleranceMinutes)||0)),
+        noShowReplacementEnabled:body.noShowReplacementEnabled===true,
+        cancelReplacementEnabled:body.cancelReplacementEnabled===true,
+        vehicleConfigs:Array.isArray(body.vehicleConfigs)?body.vehicleConfigs.map(vehicle=>({
+          driverId:clean(vehicle.driverId),driverName:clean(vehicle.driverName),
+          vehicleNumber:clean(vehicle.vehicleNumber),
+          services:Array.isArray(vehicle.services)?vehicle.services.map(clean).filter(Boolean):["ALL"],
+          enabled:vehicle.enabled!==false,
+          tripCategories:{long:vehicle.tripCategories?.long!==false,
+            medium:vehicle.tripCategories?.medium!==false,
+            short:vehicle.tripCategories?.short!==false},
+          shiftStart:clean(vehicle.shiftStart)||"08:00",shiftEnd:clean(vehicle.shiftEnd)||"18:00",
+          minDailyMiles:Math.max(0,Number(vehicle.minDailyMiles)||0),
+          maxDailyMiles:Math.max(0,Number(vehicle.maxDailyMiles)||0),
+          maxDeadheadMiles:Math.max(0,Number(vehicle.maxDeadheadMiles)||0),
+          breakEnabled:vehicle.breakEnabled===true,
+          breakDurationMinutes:Math.max(0,Math.trunc(Number(vehicle.breakDurationMinutes)||0)),
+          breakWindowFrom:clean(vehicle.breakWindowFrom)||"12:00",
+          breakWindowTo:clean(vehicle.breakWindowTo)||"15:00"
+        })):[],
+
         longEngine:
           normalizeEngine(
             body.longEngine
           ),
+
+        mediumEngine:
+          normalizeEngine(body.mediumEngine),
 
         shortEngine:
           normalizeEngine(
@@ -1502,6 +1726,7 @@ router.post(
 
       const {
         longTrips,
+        mediumTrips,
         shortTrips
       } =
         await selectedByEngine(
@@ -1511,10 +1736,11 @@ router.post(
 
       // Initialize the display rows before claim evaluation so the reason for
       // an Auto Accept block can be attached to the row and returned to UI.
-      saveScanSummary(id,connection,trips,longTrips,shortTrips);
+      saveScanSummary(id,connection,trips,longTrips,shortTrips,0,mediumTrips);
 
       const [
         longResults,
+        mediumResults,
         shortResults
       ] =
         await Promise.all([
@@ -1529,6 +1755,15 @@ router.post(
               receivedAt:new Date().toISOString(),
               settings
             }
+          ),
+
+          logEngineMatches(
+            id,
+            connection,
+            "MEDIUM",
+            mediumTrips,
+            settings.mediumEngine || {},
+            {source:"DISCOVERY",receivedAt:new Date().toISOString(),settings}
           ),
 
           logEngineMatches(
@@ -1577,13 +1812,16 @@ router.post(
             trips.length,
           longMatched:
             longTrips.length,
+          mediumMatched:
+            mediumTrips.length,
           shortMatched:
             shortTrips.length,
           longResults,
+          mediumResults,
           shortResults
         },
         message:
-          `${connection.brokerName || "Broker"} scan complete. Long/Short engines were evaluated for this connection only.`
+          `${connection.brokerName || "Broker"} scan complete. Long, medium, and short engines were evaluated for this connection only.`
       });
 
     }catch(err){

@@ -1,3 +1,5 @@
+TARGET PATH: server/services/externalTripService.js
+
 "use strict";
 
 /*
@@ -923,6 +925,12 @@ function normalizeExternalPayload({
       p.brokerStatus ||
       p.status
     ),
+
+    marketplaceEngineAssigned:p.marketplaceEngineAssigned===true,
+    assignmentSource:clean(p.assignmentSource),
+    marketplaceDriverId:clean(p.marketplaceDriverId),
+    marketplaceDriverName:clean(p.marketplaceDriverName),
+    marketplaceVehicleNumber:clean(p.marketplaceVehicleNumber),
 
     lastBrokerUpdateAt:
       new Date(),
