@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/marketplaceTripPlanner.js
-
 "use strict";
 
 const crypto = require("node:crypto");

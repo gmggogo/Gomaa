@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmConnector.js
-
 "use strict";
 
 class MtmConnector {

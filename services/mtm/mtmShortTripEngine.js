@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmShortTripEngine.js
-
 "use strict";
 
 /*

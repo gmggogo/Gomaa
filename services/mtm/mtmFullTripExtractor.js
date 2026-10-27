@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmFullTripExtractor.js
-
 "use strict";
 
 async function extract({ connector, externalTripId, claimResult }) {

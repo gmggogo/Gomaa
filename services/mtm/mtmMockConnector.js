@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmMockConnector.js
-
 "use strict";
 const MtmConnector = require("./mtmConnector");
 

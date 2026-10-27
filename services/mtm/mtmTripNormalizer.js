@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmTripNormalizer.js
-
 "use strict";
 
 const first = (...values) => {

@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmTripLockService.js
-
 "use strict";
 
 class MtmTripLockService {

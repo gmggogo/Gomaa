@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmMarketplaceWorker.js
-
 "use strict";
 
 const longEngine = require("./mtmLongTripEngine");

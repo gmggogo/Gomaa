@@ -1,5 +1,3 @@
-TARGET PATH: server/services/mtm/mtmPortalConnector.js
-
 "use strict";
 
 /* DESTINATION PATH: server/services/mtm/mtmPortalConnector.js
