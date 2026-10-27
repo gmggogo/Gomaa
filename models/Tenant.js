@@ -1,4 +1,3 @@
-TARGET PATH: server/models/Tenant.js
 
 const mongoose = require("mongoose");
 
