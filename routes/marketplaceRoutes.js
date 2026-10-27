@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/marketplaceRoutes.js
 
 "use strict";
 

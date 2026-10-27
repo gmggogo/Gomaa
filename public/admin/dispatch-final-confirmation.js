@@ -1,4 +1,3 @@
-TARGET PATH: server/admin/dispatch-final-confirmation.js
 
 /* ==========================================================================
    DISPATCH FINAL CONFIRMATION

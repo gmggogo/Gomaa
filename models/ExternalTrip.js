@@ -1,4 +1,3 @@
-TARGET PATH: server/models/ExternalTrip.js
 
 "use strict";
 

@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/brokerReviewRoutes.js
 
 "use strict";
 

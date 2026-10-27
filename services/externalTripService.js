@@ -1,4 +1,3 @@
-TARGET PATH: server/services/externalTripService.js
 
 "use strict";
 

@@ -1,4 +1,3 @@
-TARGET PATH: server/models/ProviderPortalMappingProfile.js
 
 "use strict";
 

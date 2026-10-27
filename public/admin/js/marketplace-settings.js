@@ -1,4 +1,3 @@
-TARGET PATH: server/admin/js/marketplace-settings.js
 
 "use strict";
 

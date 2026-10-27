@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/providerPortalBridgeRoutes.js
 
 "use strict";
 

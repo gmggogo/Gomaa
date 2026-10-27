@@ -1,4 +1,3 @@
-TARGET PATH: server/models/MarketplaceClaimRecord.js
 
 "use strict";
 

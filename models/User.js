@@ -1,4 +1,3 @@
-TARGET PATH: server/models/User.js
 
 const mongoose = require("mongoose");
 

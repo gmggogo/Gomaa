@@ -1,4 +1,3 @@
-TARGET PATH: server/models/MarketplaceActivity.js
 
 "use strict";
 

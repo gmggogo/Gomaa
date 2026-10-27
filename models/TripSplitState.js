@@ -1,4 +1,3 @@
-TARGET PATH: server/models/TripSplitState.js
 
 "use strict";
 

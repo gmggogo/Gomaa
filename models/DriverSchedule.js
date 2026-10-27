@@ -1,4 +1,3 @@
-TARGET PATH: server/models/DriverSchedule.js
 
 const mongoose = require("mongoose");
 

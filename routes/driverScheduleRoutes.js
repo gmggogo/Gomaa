@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/driverScheduleRoutes.js
 
 const express = require("express");
 const router = express.Router();

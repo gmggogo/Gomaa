@@ -1,4 +1,3 @@
-TARGET PATH: server/admin/js/tripSplit.js
 
 "use strict";
 

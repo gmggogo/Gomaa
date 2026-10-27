@@ -1,4 +1,3 @@
-TARGET PATH: server/admin/js/broker-review.js
 
 "use strict";
 

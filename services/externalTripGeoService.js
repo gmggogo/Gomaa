@@ -1,4 +1,3 @@
-TARGET PATH: server/services/externalTripGeoService.js
 
 "use strict";
 

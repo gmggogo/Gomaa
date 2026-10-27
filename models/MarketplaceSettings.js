@@ -1,4 +1,3 @@
-TARGET PATH: server/models/MarketplaceSettings.js
 
 "use strict";
 

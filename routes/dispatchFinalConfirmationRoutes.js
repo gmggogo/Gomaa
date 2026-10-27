@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/dispatchFinalConfirmationRoutes.js
 
     const express = require("express");
     const router = express.Router();

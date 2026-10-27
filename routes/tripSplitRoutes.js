@@ -1,4 +1,3 @@
-TARGET PATH: server/routes/tripSplitRoutes.js
 
 "use strict";
 

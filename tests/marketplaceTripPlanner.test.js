@@ -1,4 +1,3 @@
-TARGET PATH: test/marketplaceTripPlanner.test.js
 
 "use strict";
 
