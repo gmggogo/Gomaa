@@ -1,3 +1,5 @@
+TARGET PATH: server/admin/marketplace-settings.html
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -56,6 +58,7 @@
     }
     .engine-head.long{background:linear-gradient(135deg,#7f570d,#d5a11f)}
     .engine-head.short{background:linear-gradient(135deg,#124b68,#2a86a6)}
+    .engine-head.medium{background:linear-gradient(135deg,#4b3478,#8b63bd)}
     .engine-title{font-size:22px;font-weight:900;margin:0}
 
     .engine-flags{
@@ -69,6 +72,18 @@
     .flag input{width:auto;margin:0;accent-color:#18a34a}
 
     .engine-body{padding:16px}
+    .vehicle-section{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:16px;box-shadow:0 3px 10px rgba(0,0,0,.05)}
+    .vehicle-section h2{margin:0 0 6px;font-size:20px}
+    .vehicle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:14px}
+    .vehicle-card{border:1px solid #d5dce5;border-radius:12px;overflow:hidden;background:#fff}
+    .vehicle-card-head{padding:12px;background:#eaf1f8;display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .vehicle-card-body{padding:12px}
+    .checks{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 13px}
+    .checks label{display:flex;align-items:center;gap:5px;margin:0}
+    .checks input{width:auto}
+    .vehicle-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .global-settings{display:none;background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:14px 16px;margin:0 0 14px}
+    .global-settings .row{margin-bottom:0}
 
     /* Global-style colored section headers */
     .filter-head{
@@ -123,6 +138,7 @@
 
     @media(max-width:980px){
       .grid2,.row,.row3{grid-template-columns:1fr}
+      .vehicle-fields{grid-template-columns:1fr}
       .page{width:calc(100% - 14px)}
     }
   </style>
@@ -178,6 +194,22 @@
       </div>
     </section>
 
+    <section class="global-settings" id="globalSettings">
+      <div class="filter-head service">Company Rules & Replacement</div>
+      <div class="row">
+        <div><label>Accept Matching Trips</label><select id="acceptEnabled"><option value="true">Enabled</option><option value="false">Disabled — match only</option></select></div>
+        <div><label>Long Trip Starts At (miles)</label><input id="longMinMiles" type="number" min="0" step="1"></div>
+        <div><label>Medium Trip Starts At (miles)</label><input id="mediumMinMiles" type="number" min="0" step="1"></div>
+        <div><label>Daily Target Minimum Miles</label><input id="targetDailyMilesMin" type="number" min="0" step="1"></div>
+        <div><label>Daily Target Maximum Miles</label><input id="targetDailyMilesMax" type="number" min="0" step="1"></div>
+        <div><label>Pickup Late Tolerance (minutes)</label><input id="pickupLateToleranceMinutes" type="number" min="0" step="1"></div>
+        <div><label>Drop-off Late Tolerance (minutes)</label><input id="dropoffLateToleranceMinutes" type="number" min="0" step="1"></div>
+        <div><label>Replace No-show from Final Confirmation</label><select id="noShowReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+        <div><label>Replace Cancelled trip from Final Confirmation</label><select id="cancelReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+      </div>
+      <div class="note">Early arrival is allowed. Late arrival limits are configurable for all enabled vehicles.</div>
+    </section>
+
     <section class="grid2">
       <article class="engine-card" id="longEngine">
         <div class="engine-head long">
@@ -190,6 +222,17 @@
         <div class="engine-body" id="longBody"></div>
       </article>
 
+      <article class="engine-card" id="mediumEngine">
+        <div class="engine-head medium">
+          <h2 class="engine-title">Medium Trips Engine</h2>
+          <div class="engine-flags">
+            <label class="flag"><input id="mediumEnabled" type="checkbox"> Engine Enabled</label>
+            <label class="flag"><input id="mediumAuto" type="checkbox"> Auto Accept</label>
+          </div>
+        </div>
+        <div class="engine-body" id="mediumBody"></div>
+      </article>
+
       <article class="engine-card" id="shortEngine">
         <div class="engine-head short">
           <h2 class="engine-title">Short Trips Engine</h2>
@@ -200,6 +243,13 @@
         </div>
         <div class="engine-body" id="shortBody"></div>
       </article>
+    </section>
+
+    <section class="vehicle-section">
+      <h2>Vehicles & Driver Schedule</h2>
+      <div class="note">Vehicle number, driver, and services are loaded from Driver Schedule. Enable each vehicle and choose its trip lengths, work hours, mileage limits, and optional break.</div>
+      <div class="status-strip" style="margin-top:10px"><span class="status-pill">Scheduled vehicles: <strong id="vehicleCount">0</strong></span></div>
+      <div class="vehicle-grid" id="vehicleConfigs"></div>
     </section>
   </main>
 

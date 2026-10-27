@@ -1,3 +1,5 @@
+TARGET PATH: server/admin/js/marketplace-settings.js
+
 "use strict";
 
 (()=>{
@@ -162,15 +164,17 @@
   }
 
   $("longBody").innerHTML=engineBody("long");
+  $("mediumBody").innerHTML=engineBody("medium");
   $("shortBody").innerHTML=engineBody("short");
 
   let editing=false;
   let lastLoaded=null;
+  let scheduleVehicles=[];
 
   function editableControls(){
     return [
       ...document.querySelectorAll(
-        "#longEngine input,#longEngine select,#shortEngine input,#shortEngine select,#generalEditRow input,#generalEditRow select"
+        "#longEngine input,#longEngine select,#mediumEngine input,#mediumEngine select,#shortEngine input,#shortEngine select,#generalEditRow input,#generalEditRow select,#globalSettings input,#globalSettings select,#vehicleConfigs input,#vehicleConfigs select"
       )
     ];
   }
@@ -186,6 +190,7 @@
     $("editBtn").style.display=editing ? "none" : "inline-block";
     $("cancelBtn").style.display=editing ? "inline-block" : "none";
     $("generalEditRow").style.display=editing ? "block" : "none";
+    $("globalSettings").style.display=editing ? "block" : "none";
 
     $("lockNote").textContent=
       editing
@@ -314,16 +319,107 @@
     $("dateWindowDays").value=
       Number(settings.dateWindowDays)||7;
 
+    $("acceptEnabled").value=settings.acceptEnabled===false ? "false" : "true";
+    $("longMinMiles").value=Number(settings.longMinMiles ?? 100);
+    $("mediumMinMiles").value=Number(settings.mediumMinMiles ?? 50);
+    $("targetDailyMilesMin").value=Number(settings.targetDailyMilesMin ?? 150);
+    $("targetDailyMilesMax").value=Number(settings.targetDailyMilesMax ?? 500);
+    $("pickupLateToleranceMinutes").value=Number(settings.pickupLateToleranceMinutes)||0;
+    $("dropoffLateToleranceMinutes").value=Number(settings.dropoffLateToleranceMinutes)||0;
+    $("noShowReplacementEnabled").value=settings.noShowReplacementEnabled===true ? "true" : "false";
+    $("cancelReplacementEnabled").value=settings.cancelReplacementEnabled===true ? "true" : "false";
+
     fillEngine("long",settings.longEngine||{});
+    fillEngine("medium",settings.mediumEngine||{});
     fillEngine("short",settings.shortEngine||{});
+    renderVehicleConfigs(settings.vehicleConfigs||[]);
 
     updateHeaderStatus();
     setEditing(false);
   }
 
+  function renderVehicleConfigs(savedConfigs=[]){
+    const saved=new Map((Array.isArray(savedConfigs)?savedConfigs:[]).map(row=>[
+      `${String(row.driverId||"")}:${String(row.vehicleNumber||"")}`,row
+    ]));
+    const host=$("vehicleConfigs");
+    if(!scheduleVehicles.length){
+      host.innerHTML='<div class="note">No scheduled vehicles were found. Add a vehicle number and services in Driver Schedule first.</div>';
+      $("vehicleCount").textContent="0";
+      return;
+    }
+    $("vehicleCount").textContent=String(scheduleVehicles.length);
+    host.innerHTML=scheduleVehicles.map(vehicle=>{
+      const key=`${vehicle.driverId}:${vehicle.vehicleNumber}`;
+      const cfg=saved.get(key)||{};
+      const categories=cfg.tripCategories||{};
+      const services=(vehicle.services||[]).join(", ")||"ALL";
+      const check=(name,label,checked)=>`<label><input data-field="${name}" type="checkbox" ${checked?"checked":""}> ${label}</label>`;
+      const number=(name,label,value,min=0)=>`<div><label>${label}</label><input data-field="${name}" type="number" min="${min}" step="1" value="${Number(value)||0}"></div>`;
+      const time=(name,label,value)=>`<div><label>${label}</label><input data-field="${name}" type="time" value="${value||"08:00"}"></div>`;
+      return `<article class="vehicle-card" data-driver-id="${escapeHtml(vehicle.driverId)}" data-vehicle-number="${escapeHtml(vehicle.vehicleNumber)}" data-services="${escapeHtml(JSON.stringify(vehicle.services||["ALL"]))}">
+        <div class="vehicle-card-head"><strong>Vehicle ${escapeHtml(vehicle.vehicleNumber)} — ${escapeHtml(vehicle.driverName||"Driver")}</strong>${check("enabled","Enabled",cfg.enabled!==false)}</div>
+        <div class="vehicle-card-body"><div class="note">Services from Driver Schedule: ${escapeHtml(services)}</div>
+          <div class="checks">${check("catLong","Long",categories.long!==false)}${check("catMedium","Medium",categories.medium!==false)}${check("catShort","Short",categories.short!==false)}</div>
+          <div class="filter-head time">Work Hours & Mileage</div><div class="vehicle-fields">
+            ${time("shiftStart","Work Starts",cfg.shiftStart||"08:00")}${time("shiftEnd","Work Ends",cfg.shiftEnd||"18:00")}
+            ${number("minDailyMiles","Minimum Daily Miles",cfg.minDailyMiles??150)}${number("maxDailyMiles","Maximum Daily Miles",cfg.maxDailyMiles??500)}
+            ${number("maxDeadheadMiles","Maximum Empty Miles",cfg.maxDeadheadMiles??150)}
+          </div>
+          <div class="filter-head trip" style="margin-top:12px">Optional Break</div><div class="checks">${check("breakEnabled","Schedule a break",cfg.breakEnabled===true)}</div>
+          <div class="vehicle-fields">${number("breakDurationMinutes","Duration (minutes)",cfg.breakDurationMinutes??30)}${time("breakWindowFrom","Available From",cfg.breakWindowFrom||"12:00")}${time("breakWindowTo","Available Until",cfg.breakWindowTo||"15:00")}</div>
+        </div>
+      </article>`;
+    }).join("");
+    editableControls().forEach(control=>control.disabled=!editing);
+  }
+
+  function escapeHtml(value){
+    return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  }
+
+  function readVehicleConfigs(){
+    return [...document.querySelectorAll(".vehicle-card")].map(card=>{
+      const value=name=>card.querySelector(`[data-field="${name}"]`);
+      let services=[];try{services=JSON.parse(card.dataset.services||"[]");}catch(_){services=[];}
+      return {
+        driverId:card.dataset.driverId,
+        driverName:card.querySelector(".vehicle-card-head strong")?.textContent.split(" — ").slice(1).join(" — ")||"",
+        vehicleNumber:card.dataset.vehicleNumber,
+        services,
+        enabled:value("enabled").checked,
+        tripCategories:{long:value("catLong").checked,medium:value("catMedium").checked,short:value("catShort").checked},
+        shiftStart:value("shiftStart").value,shiftEnd:value("shiftEnd").value,
+        minDailyMiles:Number(value("minDailyMiles").value)||0,
+        maxDailyMiles:Number(value("maxDailyMiles").value)||0,
+        maxDeadheadMiles:Number(value("maxDeadheadMiles").value)||0,
+        breakEnabled:value("breakEnabled").checked,
+        breakDurationMinutes:Number(value("breakDurationMinutes").value)||0,
+        breakWindowFrom:value("breakWindowFrom").value,breakWindowTo:value("breakWindowTo").value
+      };
+    });
+  }
+
+  async function loadScheduleVehicles(){
+    const [scheduleResponse,dispatchResponse]=await Promise.all([
+      fetch("/api/driver-schedule",{headers:headers(),cache:"no-store"}),
+      fetch("/api/dispatch",{headers:headers(),cache:"no-store"})
+    ]);
+    if(!scheduleResponse.ok||!dispatchResponse.ok) throw new Error("Could not load Driver Schedule vehicles");
+    const [schedule,dispatch]=await Promise.all([scheduleResponse.json(),dispatchResponse.json()]);
+    const drivers=Array.isArray(dispatch.drivers)?dispatch.drivers:[];
+    scheduleVehicles=Object.entries(schedule||{}).map(([driverId,row])=>{
+      const driver=drivers.find(item=>String(item._id||item.id)===String(driverId))||{};
+      return {driverId,driverName:driver.name||driver.fullName||driver.username||"",vehicleNumber:String(row.vehicleNumber||"").trim(),services:Array.isArray(row.services)?row.services:["ALL"],enabled:row.enabled!==false};
+    }).filter(row=>row.enabled&&row.vehicleNumber);
+  }
+
   async function load(){
     try{
-      const data=await api("/settings");
+      const [data]=await Promise.all([api("/settings"),loadScheduleVehicles().catch(err=>{
+        scheduleVehicles=[];
+        $("vehicleConfigs").innerHTML=`<div class="note">${escapeHtml(err.message)}. Vehicle settings are temporarily unavailable.</div>`;
+      })]);
       fill(data.settings||{});
       $("message").textContent="";
       $("message").className="";
@@ -358,7 +454,18 @@
         enabled:$("enabled").value==="true",
         totalDailyTripLimit:Number($("totalDailyTripLimit").value)||0,
         dateWindowDays:Number($("dateWindowDays").value)||7,
+        acceptEnabled:$("acceptEnabled").value==="true",
+        longMinMiles:Number($("longMinMiles").value)||0,
+        mediumMinMiles:Number($("mediumMinMiles").value)||0,
+        targetDailyMilesMin:Number($("targetDailyMilesMin").value)||0,
+        targetDailyMilesMax:Number($("targetDailyMilesMax").value)||0,
+        pickupLateToleranceMinutes:Number($("pickupLateToleranceMinutes").value)||0,
+        dropoffLateToleranceMinutes:Number($("dropoffLateToleranceMinutes").value)||0,
+        noShowReplacementEnabled:$("noShowReplacementEnabled").value==="true",
+        cancelReplacementEnabled:$("cancelReplacementEnabled").value==="true",
+        vehicleConfigs:readVehicleConfigs(),
         longEngine:readEngine("long"),
+        mediumEngine:readEngine("medium"),
         shortEngine:readEngine("short")
       };
 

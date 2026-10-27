@@ -41,49 +41,6 @@ function companyStorageKey(baseKey){
   return `${baseKey}:${scope}`;
 }
 
-function companyAutomaticSharedStorageKey(){
-  const token = getCompanyToken();
-  let payload = {};
-
-  try{
-    const encoded = String(token.split(".")[1] || "")
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
-    if(encoded){
-      const padded = encoded.padEnd(
-        Math.ceil(encoded.length / 4) * 4,
-        "="
-      );
-      payload = JSON.parse(atob(padded));
-    }
-  }catch(err){
-    // Use the account values from the company login as a fallback.
-  }
-
-  const tenantScope = String(
-    payload.tenantId ||
-    localStorage.getItem("companyTenantId") ||
-    getCompanyTenantSlug() ||
-    "tenant"
-  ).trim().toLowerCase();
-
-  const accountScope = String(
-    payload.id ||
-    payload.userId ||
-    payload.companyId ||
-    payload.facilityId ||
-    payload.username ||
-    localStorage.getItem("companyFacilityId") ||
-    localStorage.getItem("companyUserId") ||
-    localStorage.getItem("companyUsername") ||
-    // JWT signature differs per signed-in account if older login tokens omit an id.
-    token.split(".").pop() ||
-    "unknown-account"
-  ).trim().toLowerCase();
-
-  return `companyAutomaticSharedDraft:${encodeURIComponent(tenantScope)}:${encodeURIComponent(accountScope)}`;
-}
-
 /* =====================================================
 FILE: add-trip.js
 FINAL COMPLETE VERSION
@@ -3215,7 +3172,7 @@ if(saveSharedDraftBtn) saveSharedDraftBtn.onclick = saveSharedDraft;
 /* ================= AUTOMATIC SHARED ================= */
 
 const AUTO_SHARED_DRAFT_KEY =
-  companyAutomaticSharedStorageKey();
+  companyStorageKey("companyAutomaticSharedDraft");
 
 function setSharedEntryMode(mode){
 
@@ -3356,12 +3313,18 @@ async function loadAutomaticSharedDraft(){
   let localState = {};
 
   try{
-    localState = JSON.parse(
-      localStorage.getItem(AUTO_SHARED_DRAFT_KEY) || "{}"
+    localState =
+      JSON.parse(
+        localStorage.getItem(
+          AUTO_SHARED_DRAFT_KEY
+        ) || "{}"
+      );
+
+    applyAutomaticSharedState(
+      localState
     );
-    applyAutomaticSharedState(localState);
+
   }catch(err){
-    localState = {};
     automaticSharedCandidates = [];
     automaticSharedPlan = null;
     renderAutomaticSharedList();
@@ -3373,34 +3336,66 @@ async function loadAutomaticSharedDraft(){
   }
 
   try{
-    const res = await fetch(
-      "/api/company-shared/automatic-state",
-      {
-        headers:{
-          Authorization:"Bearer " + token
+    const res =
+      await fetch(
+        "/api/company-shared/automatic-state",
+        {
+          headers:{
+            Authorization:
+              "Bearer " + token
+          }
         }
-      }
-    );
+      );
 
-    const data = await res.json().catch(()=>({}));
+    const data =
+      await res
+        .json()
+        .catch(()=>({}));
 
     if(
       res.ok &&
       data?.success === true &&
-      data?.state &&
-      typeof data.state === "object"
+      data?.state
     ){
-      // The signed-in company's server state wins, even when it is empty.
-      // Never copy an old tenant-wide browser draft into another company.
-      applyAutomaticSharedState(data.state);
+      const serverState =
+        data.state;
 
-      try{
-        localStorage.setItem(
-          AUTO_SHARED_DRAFT_KEY,
-          JSON.stringify(automaticSharedStatePayload())
+      const serverHasState =
+        (
+          Array.isArray(
+            serverState.candidates
+          ) &&
+          serverState.candidates.length
+        ) ||
+        (
+          serverState.plan &&
+          typeof serverState.plan ===
+            "object"
         );
-      }catch(err){}
+
+      if(serverHasState){
+        applyAutomaticSharedState(
+          serverState
+        );
+
+        try{
+          localStorage.setItem(
+            AUTO_SHARED_DRAFT_KEY,
+            JSON.stringify(
+              automaticSharedStatePayload()
+            )
+          );
+        }catch(err){}
+      }else if(
+        Array.isArray(
+          localState?.candidates
+        ) &&
+        localState.candidates.length
+      ){
+        saveAutomaticSharedStateToServer();
+      }
     }
+
   }catch(err){
     console.log(
       "AUTO SHARED SERVER STATE LOAD ERROR:",

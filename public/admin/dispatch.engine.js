@@ -1,10 +1,12 @@
+TARGET PATH: server/admin/dispatch.engine.js
+
 /* =====================================================
    DISPATCH ENGINE V5 - LIVE SCHEDULE RECALCULATION BUILD 4
    Dispatch = تشغيل الانجن + إرسال الرحلات
    Smart Dispatch Page = إعدادات فقط
 ===================================================== */
 
-const DISPATCH_BUILD_ID = "20260903-delete-trip-1";
+const DISPATCH_BUILD_ID = "20261027-marketplace-driver-groups-1";
 
 /* ================= STATE ================= */
 
@@ -568,6 +570,19 @@ function getSchedule(id){
   return schedule[String(id)] || {};
 }
 
+function isMarketplaceEngineTrip(trip={}){
+  return trip.marketplaceEngineAssigned===true ||
+    String(trip.assignmentSource||trip.marketplaceSource||"").toUpperCase()==="MARKETPLACE_ENGINE";
+}
+
+function marketplaceAssignmentBadge(trip={}){
+  if(!isMarketplaceEngineTrip(trip)) return "";
+  const driverId=String(trip.marketplaceDriverId||trip.marketplaceAssignment?.driverId||trip.driverId||"");
+  const driverName=trip.marketplaceDriverName||trip.marketplaceAssignment?.driverName||trip.driverName||getDriverName(driverId);
+  const vehicle=trip.marketplaceVehicleNumber||trip.marketplaceAssignment?.vehicleNumber||trip.vehicleNumber||trip.vehicle||getDriverVehicle(driverId);
+  return `<span class="marketplace-assignment-badge" title="Assigned by Marketplace engine">Marketplace → ${safe(driverName||"Assigned driver")} · ${safe(vehicle||"No vehicle")}</span>`;
+}
+
 function getDriverName(id){
   const d = allDrivers.find(x=>String(x._id) === String(id));
   return d?.name || d?.fullName || "";
@@ -684,6 +699,11 @@ function getEligibleDrivers(trip){
     .filter(d=>{
       const id = String(d._id || "");
       if(!id) return false;
+
+      if(isMarketplaceEngineTrip(trip)){
+        const assigned=String(trip.marketplaceDriverId||trip.marketplaceAssignment?.driverId||trip.driverId||"");
+        if(assigned && id!==assigned) return false;
+      }
 
       if(isSharedTrip(trip) && SMART.autoAssignSharedTrips === false){
         return false;
@@ -1514,6 +1534,9 @@ function driverOptions(t){
     fallback tiers belong only to Auto Assign.
   */
   const options = [];
+  const marketplaceDriverId=isMarketplaceEngineTrip(t)
+    ? String(t.marketplaceDriverId||t.marketplaceAssignment?.driverId||t.driverId||"")
+    : "";
 
   if(currentId){
     const savedDriver = manualById.get(currentId);
@@ -1529,6 +1552,7 @@ function driverOptions(t){
   }
 
   manualDrivers.forEach(item=>{
+    if(marketplaceDriverId && String(item.driverId)!==marketplaceDriverId) return;
     if(String(item.driverId) !== currentId) options.push(item);
   });
 
@@ -1539,7 +1563,7 @@ function driverOptions(t){
 
   return `
     <select class="driver-select" data-trip-id="${safe(t._id)}"
-      ${canEdit ? "" : "disabled"}
+      ${canEdit && !marketplaceDriverId ? "" : "disabled"}
       onchange="assignDriver('${safe(t._id)}',this.value)">
       <option value="">--</option>
       ${options.map(x=>{
@@ -1551,7 +1575,7 @@ function driverOptions(t){
         `;
       }).join("")}
     </select>
-  `;
+  `+marketplaceAssignmentBadge(t);
 }
 
 function cellBox(value){
@@ -1870,7 +1894,7 @@ function renderTripRow(t,index){
           aria-label="Select trip ${safe(getTripNumber(t))}">
       </td>
 
-      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
+      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>${marketplaceAssignmentBadge(t)}`)}</td>
 
       <td>${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
 
@@ -2007,7 +2031,7 @@ function renderSharedTripRows(t,index){
         aria-label="Select trip ${safe(getTripNumber(t))}">
       </td>
 
-      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>`)}</td>
+      <td>${cellBox(`<span class="trip-number-badge">${safe(getTripNumber(t))}</span>${marketplaceAssignmentBadge(t)}`)}</td>
       <td>${cellBox(`<span class="service-pill">${safe(getServiceTitle(getTripServiceCode(t)))}</span>`)}</td>
       <td>${cellBox("Shared")}</td>
       <td>${cellBox(safe(t.company || t.companyName || t.facilityName || "--"))}</td>

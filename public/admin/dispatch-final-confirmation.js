@@ -1,3 +1,5 @@
+TARGET PATH: server/admin/dispatch-final-confirmation.js
+
 /* ==========================================================================
    DISPATCH FINAL CONFIRMATION
    Admin / SuperAdmin / Dispatcher
@@ -3052,6 +3054,13 @@ async function confirmSingleTrip(key){
     delete t.__draftStatus;
 
     applyFilters();
+
+    if(res?.marketplaceReplacement?.triggered){
+      const replacement=res.marketplaceReplacement;
+      alert(replacement.claimed
+        ? `Marketplace replacement accepted for ${replacement.driverName||"the assigned driver"} / vehicle ${replacement.vehicleNumber||""}.`
+        : "No suitable Marketplace replacement was found. The vehicle schedule remains open.");
+    }
 
   }catch(err){
 

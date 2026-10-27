@@ -1,3 +1,5 @@
+TARGET PATH: server/routes/dispatchFinalConfirmationRoutes.js
+
     const express = require("express");
     const router = express.Router();
     const mongoose = require("mongoose");
@@ -1654,6 +1656,17 @@
 
         await trip.save();
 
+        let marketplaceReplacement={triggered:false,reason:"NOT_A_MARKETPLACE_ENGINE_TRIP"};
+        if(trip.marketplaceEngineAssigned===true && ["No Show","Cancelled"].includes(trip.status)){
+          try{
+            const marketplaceRoutes=require("./marketplaceRoutes");
+            marketplaceReplacement=await marketplaceRoutes.triggerFinalConfirmationReplacement(trip,trip.status);
+          }catch(replacementError){
+            marketplaceReplacement={triggered:true,claimed:false,reason:"REPLACEMENT_ENGINE_ERROR"};
+            console.error("Marketplace replacement trigger failed:",String(replacementError?.message||replacementError).slice(0,200));
+          }
+        }
+
         /*
           GET QUOTE ONLY:
           send final customer email after payment/settlement and final confirmation.
@@ -1690,6 +1703,7 @@
         return res.json({
           success:true,
           message:"Trip confirmed and payment finalized",
+          marketplaceReplacement,
           finalChargeAmount:
             Number(trip.finalChargeAmount || 0),
           finalPricingSource:

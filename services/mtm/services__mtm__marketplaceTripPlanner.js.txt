@@ -1,0 +1,135 @@
+TARGET PATH: server/services/mtm/marketplaceTripPlanner.js
+
+"use strict";
+
+const crypto = require("node:crypto");
+
+const text = value => String(value ?? "").trim();
+const finite = value => Number.isFinite(Number(value));
+const num = value => finite(value) ? Number(value) : 0;
+
+function tripId(trip = {}) {
+  return text(trip.externalTripId || trip.portalTripId || trip.tripNumber);
+}
+
+function tripMiles(trip = {}) {
+  return num(trip.tripMiles ?? trip.miles ?? trip.distance);
+}
+
+function classifyTrip(trip, bands = {}) {
+  const miles = tripMiles(trip);
+  const longMin = Math.max(0, num(bands.longMinMiles ?? bands.long?.minMiles ?? 100));
+  const mediumMin = Math.max(0, num(bands.mediumMinMiles ?? bands.medium?.minMiles ?? 50));
+  if (miles >= longMin) return "LONG";
+  if (miles >= mediumMin) return "MEDIUM";
+  return "SHORT";
+}
+
+function buildCandidateTiers(trips = [], bands = {}) {
+  const tiers = { long: [], medium: [], short: [] };
+  for (const trip of Array.isArray(trips) ? trips : []) {
+    if (!tripId(trip) || tripMiles(trip) <= 0) continue;
+    const tier = classifyTrip(trip, bands).toLowerCase();
+    tiers[tier].push(trip);
+  }
+  for (const tier of Object.values(tiers)) {
+    tier.sort((a, b) => tripMiles(b) - tripMiles(a));
+  }
+  return tiers;
+}
+
+function claimOrder(tiers = {}) {
+  return [
+    ...(Array.isArray(tiers.long) ? tiers.long : []),
+    ...(Array.isArray(tiers.medium) ? tiers.medium : []),
+    ...(Array.isArray(tiers.short) ? tiers.short : [])
+  ];
+}
+
+function removePreviouslyAccepted(trips = [], acceptedIds = new Set()) {
+  const accepted = acceptedIds instanceof Set ? acceptedIds : new Set(acceptedIds || []);
+  return (Array.isArray(trips) ? trips : []).filter(trip => {
+    const id = tripId(trip);
+    return id && !accepted.has(id);
+  });
+}
+
+function shouldBlockClaimRecord(record = {}) {
+  return ["CLAIM_PENDING", "CLAIMED", "CLAIM_UNKNOWN", "RETURNED"]
+    .includes(text(record.status).toUpperCase());
+}
+
+function tripFingerprint(trip = {}) {
+  const normalize = value => text(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const stable = [
+    trip.tripDate || trip.appointmentDate || trip.date,
+    trip.pickupTime || trip.tripTime,
+    trip.appointmentTime || trip.dropoffTime,
+    trip.memberId || trip.memberName || trip.clientName,
+    trip.pickupAddress || trip.pickup,
+    trip.dropoffAddress || trip.dropoff,
+    trip.mode || trip.serviceType
+  ].map(normalize).join("|");
+  if (!stable.replace(/[|\s]/g, "")) return "";
+  return crypto.createHash("sha256").update(stable).digest("hex");
+}
+
+function timeMinutes(value) {
+  const raw = text(value).toLowerCase();
+  if (!raw) return null;
+  const match = raw.match(/(?:^|t|\s)(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?\b/i);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (minute > 59 || hour > 23) return null;
+  if (match[3]) {
+    if (hour < 1 || hour > 12) return null;
+    if (match[3] === "pm" && hour !== 12) hour += 12;
+    if (match[3] === "am" && hour === 12) hour = 0;
+  }
+  return hour * 60 + minute;
+}
+
+function withinArrivalWindow(scheduledTime, arrivalTime, graceMinutes = 0) {
+  const scheduled = timeMinutes(scheduledTime);
+  const arrival = timeMinutes(arrivalTime);
+  if (scheduled === null || arrival === null) return false;
+  const grace = Math.max(0, num(graceMinutes));
+  return arrival <= scheduled + grace;
+}
+
+function normalizeService(value) {
+  const service = text(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (["WH", "WHEELCHAIR", "PARALIFT", "WHEELCHAIRVAN"].includes(service)) return "WH";
+  if (["ST", "AMBULATORY", "AMBULATORYCURB", "AMBULATORYDOORTODOOR"].includes(service)) return "ST";
+  if (service === "ALL" || !service) return service;
+  return service;
+}
+
+function vehicleSupportsTrip(vehicle = {}, category, service) {
+  if (vehicle.enabled !== true) return false;
+  const categoryKey = text(category).toLowerCase();
+  const categories = vehicle.tripCategories || vehicle.categories || {};
+  if (categories[categoryKey] !== true) return false;
+
+  const wanted = normalizeService(service);
+  const available = (Array.isArray(vehicle.services) ? vehicle.services : [])
+    .map(normalizeService)
+    .filter(Boolean);
+  return available.includes("ALL") || (wanted && available.includes(wanted));
+}
+
+module.exports = {
+  tripId,
+  tripMiles,
+  classifyTrip,
+  buildCandidateTiers,
+  claimOrder,
+  removePreviouslyAccepted,
+  shouldBlockClaimRecord,
+  tripFingerprint,
+  timeMinutes,
+  withinArrivalWindow,
+  normalizeService,
+  vehicleSupportsTrip
+};
