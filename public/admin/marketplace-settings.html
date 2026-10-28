@@ -1,257 +1,62 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Marketplace Settings | GH Mobility</title>
+  <title>Marketplace Vehicle Settings | GH Mobility</title>
   <link rel="stylesheet" href="/admin/header.css">
   <link rel="stylesheet" href="/admin/style.css">
-
   <style>
     *{box-sizing:border-box}
-    body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#151515}
-    #adminHeader{width:100%;z-index:1000}
-    .page{width:calc(100% - 26px);max-width:1500px;margin:18px auto 34px;padding:0}
-
-    .page-title{
-      background:linear-gradient(135deg,#f5d77a,#e7b940);
-      border:1px solid #d9ad2b;border-radius:12px;padding:14px 18px;text-align:center;
-      margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,.05)
-    }
-    .page-title h1{margin:0;font-size:24px}
-    .page-title p{margin:5px 0 0;color:#55451a;font-size:13px}
-
-    .topbar{
-      background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:14px 16px;
-      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
-      margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)
-    }
-
-    .status-strip{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .status-pill{
-      display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;
-      font-size:12px;font-weight:900;border:1px solid #cfd7df;background:#eef2f6
-    }
-    .status-pill.on{background:#dff5e5;color:#126b2e;border-color:#a9d9b7}
-    .status-pill.off{background:#fde1e1;color:#8a1616;border-color:#efb6b6}
-
-    .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    button{border:0;border-radius:9px;padding:11px 18px;font-weight:900;cursor:pointer}
-    .edit-btn{background:#171717;color:#fff}
-    .cancel-btn{background:#e7ebf0;color:#24384b;display:none}
-    .save-btn{background:linear-gradient(180deg,#f6c85f,#d79a00);color:#241900}
-    .save-btn.saved{background:#22a447;color:#fff}
-    .save-btn:disabled{opacity:.45;cursor:not-allowed}
-
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-
-    .engine-card{
-      background:#fff;border:1px solid #dfe4ea;border-radius:14px;overflow:hidden;
-      box-shadow:0 3px 10px rgba(0,0,0,.05)
-    }
-
-    .engine-head{
-      color:#fff;padding:16px;text-align:center;
-      box-shadow:inset 0 -1px rgba(255,255,255,.18)
-    }
-    .engine-head.long{background:linear-gradient(135deg,#7f570d,#d5a11f)}
-    .engine-head.short{background:linear-gradient(135deg,#124b68,#2a86a6)}
-    .engine-head.medium{background:linear-gradient(135deg,#4b3478,#8b63bd)}
-    .engine-title{font-size:22px;font-weight:900;margin:0}
-
-    .engine-flags{
-      display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:11px
-    }
-    .flag{
-      display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.18);
-      border:1px solid rgba(255,255,255,.34);padding:8px 11px;border-radius:999px;
-      font-size:12px;font-weight:900;color:#fff
-    }
-    .flag input{width:auto;margin:0;accent-color:#18a34a}
-
-    .engine-body{padding:16px}
-    .vehicle-section{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-top:16px;box-shadow:0 3px 10px rgba(0,0,0,.05)}
-    .vehicle-section h2{margin:0 0 6px;font-size:20px}
-    .vehicle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:14px}
-    .vehicle-card{border:1px solid #d5dce5;border-radius:12px;overflow:hidden;background:#fff}
-    .vehicle-card-head{padding:12px;background:#eaf1f8;display:flex;justify-content:space-between;gap:10px;align-items:center}
-    .vehicle-card-body{padding:12px}
-    .checks{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 13px}
-    .checks label{display:flex;align-items:center;gap:5px;margin:0}
-    .checks input{width:auto}
-    .vehicle-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-    .global-settings{display:none;background:#fff;border:1px solid #e1e5eb;border-radius:12px;padding:14px 16px;margin:0 0 14px}
-    .global-settings .row{margin-bottom:0}
-
-    /* Global-style colored section headers */
-    .filter-head{
-      margin:5px 0 12px;
-      border-radius:9px;
-      padding:10px 12px;
-      font-weight:900;
-      font-size:14px;
-      letter-spacing:.2px;
-      text-align:center;
-      border:1px solid transparent;
-      box-shadow:0 1px 3px rgba(0,0,0,.04)
-    }
-    .filter-head.zone{
-      background:linear-gradient(135deg,#e8f1fb,#cfe3f7);
-      color:#174a72;
-      border-color:#b8d4ed
-    }
-    .filter-head.trip{
-      background:linear-gradient(135deg,#fff4cd,#f7dea0);
-      color:#6d4b00;
-      border-color:#e8ca75
-    }
-    .filter-head.time{
-      background:linear-gradient(135deg,#e9f7ef,#cfead9);
-      color:#17683a;
-      border-color:#b8dcc7
-    }
-    .filter-head.service{
-      background:linear-gradient(135deg,#f2eafc,#dfcff5);
-      color:#5d347f;
-      border-color:#cfb7ec
-    }
-
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-    .row3{display:grid;grid-template-columns:1fr 100px 130px;gap:10px;margin-bottom:12px}
-
-    label{display:block;font-size:12px;font-weight:900;margin-bottom:5px;color:#25313d}
-    input,select{
-      width:100%;padding:10px 11px;border:1px solid #cfd6de;border-radius:8px;
-      background:#fff;font-size:14px
-    }
-    input:disabled,select:disabled{
-      background:#eef1f4;color:#6b7280;border-color:#d8dde3;cursor:not-allowed
-    }
-
-    .note{font-size:11px;color:#6b7280;margin-top:5px;line-height:1.4}
-    .lock-note{font-size:12px;color:#6b7280;font-weight:700}
-    #message{font-size:13px;font-weight:800}
-    #message.ok{color:#15803d}
-    #message.bad{color:#b42318}
-
-    @media(max-width:980px){
-      .grid2,.row,.row3{grid-template-columns:1fr}
-      .vehicle-fields{grid-template-columns:1fr}
-      .page{width:calc(100% - 14px)}
-    }
+    body{margin:0;font-family:Arial,sans-serif;background:#f4f6f9;color:#18212b}
+    .page{width:calc(100% - 26px);max-width:1500px;margin:18px auto 36px}
+    .title,.panel{background:#fff;border:1px solid #dfe5eb;border-radius:14px;box-shadow:0 3px 12px #172b3b0b;margin-bottom:14px}
+    .title{padding:16px 20px;text-align:center;background:linear-gradient(135deg,#f7dc8c,#e8bc50)}
+    .title h1{margin:0;font-size:24px}.title p{margin:6px 0 0;font-size:13px;color:#624d1a}
+    .panel{padding:16px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .status{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pill{border-radius:99px;padding:7px 11px;background:#eef2f6;border:1px solid #d6dde5;font-size:12px;font-weight:800}.pill.on{background:#e0f5e7;color:#176b34;border-color:#aad9b8}.pill.off{background:#fde8e8;color:#991b1b;border-color:#efb8b8}
+    .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}button{border:0;border-radius:8px;padding:10px 15px;font-weight:800;cursor:pointer}.edit{background:#17212b;color:#fff}.cancel{background:#e8edf2;color:#24384b}.save{background:#e2aa23;color:#211700}.save:disabled{opacity:.5;cursor:not-allowed}
+    .settings-grid{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr));gap:12px;margin-top:12px}.field label{display:block;font-size:12px;font-weight:800;margin-bottom:5px;color:#2d3b49}.field input,.field select{width:100%;padding:10px;border:1px solid #cbd4de;border-radius:8px;background:white;font-size:14px}.field input:disabled,.field select:disabled{background:#eef1f4;color:#66717e}
+    .section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}.section-heading h2{margin:0;font-size:20px}.help{font-size:12px;color:#687582;margin-top:5px;line-height:1.45}
+    .vehicle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:14px}.vehicle-card{background:#fff;border:1px solid #d6dee7;border-radius:14px;overflow:hidden;box-shadow:0 3px 10px #172b3b0a}.vehicle-card.inactive{opacity:.72}.vehicle-head{background:linear-gradient(135deg,#204e69,#317f9e);color:#fff;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:10px}.vehicle-title{font-size:16px;font-weight:900}.vehicle-subtitle{font-size:12px;opacity:.88;margin-top:4px}.vehicle-toggle{white-space:nowrap;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px}.vehicle-body{padding:14px}.card-section{border-radius:9px;padding:8px 10px;margin:12px 0 9px;font-size:13px;font-weight:900;text-align:center;border:1px solid transparent}.card-section:first-child{margin-top:0}.zone{background:#e9f2fc;color:#1d527c;border-color:#c7def2}.categories{background:#fff3ce;color:#705000;border-color:#f0d680}.hours{background:#e8f6ed;color:#17633a;border-color:#c7e5d2}.miles{background:#f0e9fb;color:#5c347e;border-color:#d9c6ef}.break{background:#ffebdf;color:#8d4319;border-color:#f4c9ad}
+    .fields{display:grid;grid-template-columns:1fr 1fr;gap:9px}.fields .full{grid-column:1/-1}.check-row{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 10px}.check-row label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}.check-row input,.vehicle-toggle input{width:auto;accent-color:#1c8b4b}.service-note{background:#f5f7f9;border-radius:7px;padding:8px 9px;color:#4f5f6d;font-size:12px}.message{font-size:13px;font-weight:800}.message.ok{color:#16803c}.message.bad{color:#b42318}.notice{padding:11px 12px;border-radius:9px;background:#fff7dd;color:#684c00;border:1px solid #efd88b;font-size:13px}.empty{padding:18px;border:1px dashed #b7c3cf;border-radius:10px;color:#586879;background:#f9fbfc}.hidden{display:none!important}
+    @media(max-width:900px){.settings-grid{grid-template-columns:repeat(2,minmax(160px,1fr))}}
+    @media(max-width:560px){.page{width:calc(100% - 14px)}.settings-grid,.vehicle-grid,.fields{grid-template-columns:1fr}.fields .full{grid-column:auto}}
   </style>
 </head>
-
 <body>
   <div id="adminHeader"></div>
-
   <main class="page">
-    <section class="page-title">
-      <h1>Marketplace Settings</h1>
-      <p>Automatic marketplace trips must pass these filters before they can match.</p>
-    </section>
+    <section class="title"><h1>Marketplace Vehicle Settings</h1><p>Configure the marketplace search rules and schedule separately for each vehicle.</p></section>
 
-    <section class="topbar">
-      <div>
-        <div class="status-strip">
-          <span id="marketStatus" class="status-pill">Marketplace</span>
-          <span class="status-pill">Total Daily Limit: <strong id="totalLimitView">0</strong></span>
-        </div>
-        <div class="lock-note" id="lockNote" style="margin-top:9px">
-          Settings are locked. Click Edit to make changes.
-        </div>
+    <section class="panel">
+      <div class="toolbar">
+        <div><div class="status"><span id="marketStatus" class="pill">Marketplace</span><span class="pill">Vehicles found: <strong id="vehicleCount">0</strong></span><span class="pill">Daily claim limit: <strong id="totalLimitView">0</strong></span></div><div class="help" id="lockNote">Settings are locked. Select Edit to make changes.</div></div>
+        <div class="actions"><button id="editBtn" class="edit" type="button">Edit</button><button id="cancelBtn" class="cancel hidden" type="button">Cancel</button><button id="saveBtn" class="save" type="button" disabled>Save Settings</button><span id="message" class="message"></span></div>
       </div>
-
-      <div class="actions">
-        <button id="editBtn" class="edit-btn" type="button">Edit</button>
-        <button id="cancelBtn" class="cancel-btn" type="button">Cancel</button>
-        <button id="saveBtn" class="save-btn" type="button" disabled>Save Marketplace Settings</button>
-        <span id="message"></span>
-      </div>
-
-      <div style="width:100%;display:none" id="generalEditRow">
-        <div class="row" style="margin:8px 0 0">
-          <div>
-            <label>Marketplace Enabled</label>
-            <select id="enabled">
-              <option value="true">Enabled</option>
-              <option value="false">Disabled</option>
-            </select>
-          </div>
-          <div>
-            <label>Total Daily Limit</label>
-            <input id="totalDailyTripLimit" type="number" min="0" value="0">
-            <div class="note">0 = unlimited.</div>
-          </div>
-          <div>
-            <label>Search Ahead (Days)</label>
-            <input id="dateWindowDays" type="number" min="1" max="31" step="1" value="7">
-            <div class="note">Trips from today through the next chosen number of days (1–31).</div>
-          </div>
+      <div id="generalEditRow" class="hidden">
+        <div class="card-section categories">Company-wide Engine Controls</div>
+        <div class="settings-grid">
+          <div class="field"><label for="enabled">Marketplace Engine</label><select id="enabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+          <div class="field"><label for="acceptEnabled">Accept Matching Trips</label><select id="acceptEnabled"><option value="true">Enabled</option><option value="false">Disabled — monitor only</option></select></div>
+          <div class="field"><label for="totalDailyTripLimit">Maximum Accepted Trips / Day</label><input id="totalDailyTripLimit" type="number" min="0" step="1"><div class="help">0 = unlimited. This is a safety cap, not a daily trip target.</div></div>
+          <div class="field"><label for="dateWindowDays">Search Window (Days)</label><input id="dateWindowDays" type="number" min="1" max="31" step="1"></div>
+          <div class="field"><label for="longMinMiles">Long Trip Starts At (miles)</label><input id="longMinMiles" type="number" min="0" step="1"></div>
+          <div class="field"><label for="mediumMinMiles">Medium Trip Starts At (miles)</label><input id="mediumMinMiles" type="number" min="0" step="1"><div class="help">Trips below this threshold are short.</div></div>
+          <div class="field"><label for="pickupLateToleranceMinutes">Pickup Late Tolerance (minutes)</label><input id="pickupLateToleranceMinutes" type="number" min="0" step="1"><div class="help">Early arrival is allowed.</div></div>
+          <div class="field"><label for="dropoffLateToleranceMinutes">Drop-off Late Tolerance (minutes)</label><input id="dropoffLateToleranceMinutes" type="number" min="0" step="1"></div>
+          <div class="field"><label for="noShowReplacementEnabled">Replace No-show Trips</label><select id="noShowReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+          <div class="field"><label for="cancelReplacementEnabled">Replace Cancelled Trips</label><select id="cancelReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
         </div>
       </div>
     </section>
 
-    <section class="global-settings" id="globalSettings">
-      <div class="filter-head service">Company Rules & Replacement</div>
-      <div class="row">
-        <div><label>Accept Matching Trips</label><select id="acceptEnabled"><option value="true">Enabled</option><option value="false">Disabled — match only</option></select></div>
-        <div><label>Long Trip Starts At (miles)</label><input id="longMinMiles" type="number" min="0" step="1"></div>
-        <div><label>Medium Trip Starts At (miles)</label><input id="mediumMinMiles" type="number" min="0" step="1"></div>
-        <div><label>Daily Target Minimum Miles</label><input id="targetDailyMilesMin" type="number" min="0" step="1"></div>
-        <div><label>Daily Target Maximum Miles</label><input id="targetDailyMilesMax" type="number" min="0" step="1"></div>
-        <div><label>Pickup Late Tolerance (minutes)</label><input id="pickupLateToleranceMinutes" type="number" min="0" step="1"></div>
-        <div><label>Drop-off Late Tolerance (minutes)</label><input id="dropoffLateToleranceMinutes" type="number" min="0" step="1"></div>
-        <div><label>Replace No-show from Final Confirmation</label><select id="noShowReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
-        <div><label>Replace Cancelled trip from Final Confirmation</label><select id="cancelReplacementEnabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
-      </div>
-      <div class="note">Early arrival is allowed. Late arrival limits are configurable for all enabled vehicles.</div>
-    </section>
-
-    <section class="grid2">
-      <article class="engine-card" id="longEngine">
-        <div class="engine-head long">
-          <h2 class="engine-title">Long Trips Engine</h2>
-          <div class="engine-flags">
-            <label class="flag"><input id="longEnabled" type="checkbox"> Engine Enabled</label>
-            <label class="flag"><input id="longAuto" type="checkbox"> Auto Accept</label>
-          </div>
-        </div>
-        <div class="engine-body" id="longBody"></div>
-      </article>
-
-      <article class="engine-card" id="mediumEngine">
-        <div class="engine-head medium">
-          <h2 class="engine-title">Medium Trips Engine</h2>
-          <div class="engine-flags">
-            <label class="flag"><input id="mediumEnabled" type="checkbox"> Engine Enabled</label>
-            <label class="flag"><input id="mediumAuto" type="checkbox"> Auto Accept</label>
-          </div>
-        </div>
-        <div class="engine-body" id="mediumBody"></div>
-      </article>
-
-      <article class="engine-card" id="shortEngine">
-        <div class="engine-head short">
-          <h2 class="engine-title">Short Trips Engine</h2>
-          <div class="engine-flags">
-            <label class="flag"><input id="shortEnabled" type="checkbox"> Engine Enabled</label>
-            <label class="flag"><input id="shortAuto" type="checkbox"> Auto Accept</label>
-          </div>
-        </div>
-        <div class="engine-body" id="shortBody"></div>
-      </article>
-    </section>
-
-    <section class="vehicle-section">
-      <h2>Vehicles & Driver Schedule</h2>
-      <div class="note">Vehicle number, driver, and services are loaded from Driver Schedule. Enable each vehicle and choose its trip lengths, work hours, mileage limits, and optional break.</div>
-      <div class="status-strip" style="margin-top:10px"><span class="status-pill">Scheduled vehicles: <strong id="vehicleCount">0</strong></span></div>
-      <div class="vehicle-grid" id="vehicleConfigs"></div>
+    <section class="panel">
+      <div class="section-heading"><div><h2>Vehicles & Driver Schedule</h2><div class="help">Vehicle number and services come from Driver Schedule. Driver names are matched to the driver roster by ID.</div></div><div class="status"><span class="pill">Per-vehicle schedules and mileage targets</span></div></div>
+      <div id="loadNotice" class="notice hidden" style="margin-top:12px"></div>
+      <div id="vehicleConfigs" class="vehicle-grid"><div class="empty">Loading vehicles and drivers…</div></div>
     </section>
   </main>
-
   <script src="/admin/header.js"></script>
   <script src="/admin/js/marketplace-settings.js"></script>
 </body>

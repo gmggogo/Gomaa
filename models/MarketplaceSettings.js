@@ -1,4 +1,3 @@
-
 "use strict";
 
 /*
@@ -144,6 +143,7 @@ const VehicleConfigSchema = new mongoose.Schema(
     driverName:{type:String,default:"",trim:true},
     vehicleNumber:{type:String,default:"",trim:true},
     services:{type:[String],default:["ALL"]},
+    vehicleCategory:{type:String,default:"GENERIC",trim:true,uppercase:true},
     enabled:{type:Boolean,default:true},
     tripCategories:{
       long:{type:Boolean,default:true},
@@ -152,8 +152,9 @@ const VehicleConfigSchema = new mongoose.Schema(
     },
     shiftStart:{type:String,default:"08:00"},
     shiftEnd:{type:String,default:"18:00"},
+    maxWorkHours:{type:Number,default:10,min:0},
     minDailyMiles:{type:Number,default:150,min:0},
-    maxDailyMiles:{type:Number,default:500,min:0},
+    maxDailyMiles:{type:Number,default:400,min:0},
     maxDeadheadMiles:{type:Number,default:150,min:0},
     breakEnabled:{type:Boolean,default:false},
     breakDurationMinutes:{type:Number,default:30,min:0},

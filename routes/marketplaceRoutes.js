@@ -1,4 +1,3 @@
-
 "use strict";
 
 /*
@@ -1377,18 +1376,32 @@ router.put(
           driverId:clean(vehicle.driverId),driverName:clean(vehicle.driverName),
           vehicleNumber:clean(vehicle.vehicleNumber),
           services:Array.isArray(vehicle.services)?vehicle.services.map(clean).filter(Boolean):["ALL"],
+          vehicleCategory:clean(vehicle.vehicleCategory||"GENERIC").toUpperCase(),
           enabled:vehicle.enabled!==false,
           tripCategories:{long:vehicle.tripCategories?.long!==false,
             medium:vehicle.tripCategories?.medium!==false,
             short:vehicle.tripCategories?.short!==false},
           shiftStart:clean(vehicle.shiftStart)||"08:00",shiftEnd:clean(vehicle.shiftEnd)||"18:00",
+          maxWorkHours:Math.max(0,Number.isFinite(Number(vehicle.maxWorkHours))?Number(vehicle.maxWorkHours):10),
           minDailyMiles:Math.max(0,Number(vehicle.minDailyMiles)||0),
           maxDailyMiles:Math.max(0,Number(vehicle.maxDailyMiles)||0),
           maxDeadheadMiles:Math.max(0,Number(vehicle.maxDeadheadMiles)||0),
           breakEnabled:vehicle.breakEnabled===true,
           breakDurationMinutes:Math.max(0,Math.trunc(Number(vehicle.breakDurationMinutes)||0)),
           breakWindowFrom:clean(vehicle.breakWindowFrom)||"12:00",
-          breakWindowTo:clean(vehicle.breakWindowTo)||"15:00"
+          breakWindowTo:clean(vehicle.breakWindowTo)||"15:00",
+          pickupZoneCity:clean(vehicle.pickupZoneCity),
+          pickupZoneState:clean(vehicle.pickupZoneState).toUpperCase(),
+          pickupZoneZip:clean(vehicle.pickupZoneZip),
+          pickupZoneAddress:clean(vehicle.pickupZoneAddress),
+          dropoffZoneCity:clean(vehicle.dropoffZoneCity),
+          dropoffZoneState:clean(vehicle.dropoffZoneState).toUpperCase(),
+          dropoffZoneZip:clean(vehicle.dropoffZoneZip),
+          dropoffZoneAddress:clean(vehicle.dropoffZoneAddress),
+          zoneRadiusMiles:Math.max(0,Number(vehicle.zoneRadiusMiles)||0),
+          zoneMatch:["ANY","PICKUP","DROPOFF","EITHER","BOTH"].includes(clean(vehicle.zoneMatch).toUpperCase())
+            ? clean(vehicle.zoneMatch).toUpperCase()
+            : "PICKUP"
         })):[],
 
         longEngine:
