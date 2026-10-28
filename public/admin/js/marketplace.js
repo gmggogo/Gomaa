@@ -1,4 +1,3 @@
-
 "use strict";
 
 /*
@@ -1253,7 +1252,8 @@ Marketplace multi-broker UI.
           lastClaimFailure:trip?.lastClaimFailure,
           meta:{
             pickupAddress:trip?.pickupAddress,
-            dropoffAddress:trip?.dropoffAddress
+            dropoffAddress:trip?.dropoffAddress,
+            eligibleVehicles:Array.isArray(trip?.eligibleVehicles)?trip.eligibleVehicles:[]
           }
         })).filter(trip=>trip.externalTripId)
       : [];
@@ -1309,6 +1309,7 @@ Marketplace multi-broker UI.
             const claimFailure=String(r.meta?.lastClaimFailure||r.lastClaimFailure||"");
             const reasonLabels={
               AUTO_ACCEPT_OFF:"Automatic Accept is off in Settings.",
+              NO_ELIGIBLE_VEHICLE:"No enabled vehicle matches this trip's zone, service, category, and shift.",
               DISCOVERY_TOO_OLD:"Trip data expired. Refresh the portal and try again.",
               LIVE_DISCOVERY_ONLY:"The trip must be rediscovered from the live portal.",
               MISSING_EXTERNAL_HUB_FIELDS:"Required trip details are missing.",
@@ -1331,6 +1332,10 @@ Marketplace multi-broker UI.
             const actionCell=action==="MATCHED"
               ? `<span class="auto-accept-label">Automatic</span>`
               : "—";
+            const eligibleVehicles=Array.isArray(r.meta?.eligibleVehicles)?r.meta.eligibleVehicles:[];
+            const vehicleCell=eligibleVehicles.length
+              ? eligibleVehicles.map(vehicle=>esc(`${vehicle.vehicleNumber||"Vehicle"} — ${vehicle.driverName||vehicle.driverId||"Driver"}`)).join("<br>")
+              : "—";
 
             return `
             <tr class="${rowClass}">
@@ -1340,12 +1345,13 @@ Marketplace multi-broker UI.
               <td>${esc(r.meta?.dropoffAddress || "—")}</td>
               <td>${esc(r.mode || r.meta?.mode || "—")}</td>
               <td>${r.miles ?? "—"}</td>
+              <td>${vehicleCell}</td>
               <td><strong>Matched</strong><br><small>${esc(detail)}</small></td>
               <td>${actionCell}</td>
             </tr>
           `;
           }).join("")
-        : '<tr><td colspan="8">No matched trips for this broker/account yet.</td></tr>';
+        : '<tr><td colspan="9">No matched trips for this broker/account yet.</td></tr>';
   }
 
   function renderAll(){
@@ -1941,6 +1947,7 @@ Marketplace multi-broker UI.
       scanSelected
     );
 
+  // These controls are optional on some Marketplace page revisions.
   $("clearActivityViewBtn")
     ?.addEventListener("click",clearActivityView);
 
