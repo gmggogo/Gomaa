@@ -1,7 +1,7 @@
 "use strict";
 
 /*
-// Marketplace accept fix: preserve discovery metadata through manual scans.
+// Marketplace vehicle matching: require at least one configured, eligible car.
 DESTINATION PATH:
 server/routes/marketplaceRoutes.js
 
@@ -11,7 +11,7 @@ Generic Marketplace backend for any Marketplace Portal broker connection.
 IMPORTANT:
 - Uses BrokerIntegration connectionId, NOT brokerCode=MT.
 - Reads normalized trips from providerPortalBridgeRoutes per connectionId.
-- Uses the existing Long / Short engine settings.
+- Applies each enabled vehicle's own zone, service, trip category, and work hours.
 - The portal claim is sent only for a fresh discovery with Auto Accept on.
 - A confirmed portal claim is imported through the External Trip service.
 - Discovery and match summaries stay in process memory and are not written
@@ -465,6 +465,20 @@ function tripForEngine(trip={}){
       trip.pickupAddress ||
       "",
 
+    pickupTime:
+      clean(
+        trip.pickupTime ||
+        trip.tripTime ||
+        trip.appointmentTime
+      ),
+
+    dropoffTime:
+      clean(
+        trip.dropoffTime ||
+        trip.dropOffTime ||
+        ""
+      ),
+
     dropoff:
       trip.dropoff ||
       trip.dropoffAddress ||
@@ -621,26 +635,147 @@ async function selectedByEngine(
 
   const longMinMiles=Math.max(0,Number(settings?.longMinMiles)||100);
   const mediumMinMiles=Math.max(0,Number(settings?.mediumMinMiles)||50);
-  const longCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="LONG");
-  const mediumCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="MEDIUM");
-  const shortCandidates=inWindow.filter(trip=>tripPlanner.classifyTrip(trip,{longMinMiles,mediumMinMiles})==="SHORT");
+  const thresholds={longMinMiles,mediumMinMiles};
+  const scheduleRows=settings?.tenantId
+    ? await DriverSchedule.find({tenantId:settings.tenantId,enabled:{$ne:false}})
+        .select("driverId vehicleNumber services vehicleCategory")
+        .lean()
+    : [];
+  const scheduleByVehicle=new Map(scheduleRows.map(row=>[
+    `${clean(row.driverId).toLowerCase()}:${clean(row.vehicleNumber)}`,
+    row
+  ]));
 
-  const [longTrips,mediumTrips,shortTrips]=await Promise.all([
-    settings?.longEngine?.enabled
-      ? enrichZoneDistances(longCandidates,settings.longEngine).then(rows=>longEngine.select(rows,settings.longEngine))
-      : [],
-    settings?.mediumEngine?.enabled
-      ? enrichZoneDistances(mediumCandidates,settings.mediumEngine).then(rows=>shortEngine.select(rows,settings.mediumEngine))
-      : [],
-    settings?.shortEngine?.enabled
-      ? enrichZoneDistances(shortCandidates,settings.shortEngine).then(rows=>shortEngine.select(rows,settings.shortEngine))
-      : []
-  ]);
+  // Fail closed when there is no enabled vehicle configuration. The old
+  // global engine zones are intentionally not used as a substitute: doing so
+  // was the reason a trip could match even when no car's zone matched it.
+  const enabledVehicles=(Array.isArray(settings?.vehicleConfigs)?settings.vehicleConfigs:[])
+    .map(vehicle=>typeof vehicle?.toObject==="function"?vehicle.toObject():vehicle)
+    .filter(vehicle=>vehicle?.enabled===true&&clean(vehicle.driverId)&&clean(vehicle.vehicleNumber))
+    .map(vehicle=>{
+      const key=`${clean(vehicle.driverId).toLowerCase()}:${clean(vehicle.vehicleNumber)}`;
+      const schedule=scheduleByVehicle.get(key);
+      if(!schedule) return null;
+      return {
+        ...vehicle,
+        services:Array.isArray(schedule.services)?schedule.services:[],
+        vehicleCategory:clean(schedule.vehicleCategory||vehicle.vehicleCategory||"GENERIC")
+      };
+    })
+    .filter(Boolean);
+
+  const matchesByTrip=new Map();
+  const tripById=new Map();
+  for(const trip of inWindow){
+    const tripId=clean(trip.externalTripId||trip.portalTripId||trip.tripNumber);
+    const miles=Number(trip.tripMiles??trip.miles??trip.distance);
+    if(!tripId||!Number.isFinite(miles)||miles<=0) continue;
+    tripById.set(tripId,trip);
+    matchesByTrip.set(tripId,[]);
+  }
+
+  const timeMinutes=tripPlanner.timeMinutes;
+  const inWorkWindow=(value,startValue,endValue)=>{
+    const at=timeMinutes(value),start=timeMinutes(startValue),endTime=timeMinutes(endValue);
+    if(at===null||start===null||endTime===null) return false;
+    return start<=endTime ? at>=start&&at<=endTime : at>=start||at<=endTime;
+  };
+  const tripDuration=trip=>{
+    const explicit=Number(trip.durationMinutes??trip.estimatedDurationMinutes??trip.travelTimeMinutes);
+    if(Number.isFinite(explicit)&&explicit>0) return explicit;
+    const pickup=timeMinutes(trip.pickupTime||trip.tripTime||trip.appointmentTime);
+    const dropoff=timeMinutes(trip.dropoffTime||trip.dropOffTime);
+    if(pickup===null||dropoff===null) return null;
+    return dropoff>=pickup?dropoff-pickup:dropoff+1440-pickup;
+  };
+  const zoneSettingsFor=vehicle=>{
+    const pickupZoneZip=clean(vehicle.pickupZoneZip);
+    const dropoffZoneZip=clean(vehicle.dropoffZoneZip);
+    return {
+      enabled:true,
+      zoneRadiusMiles:Math.max(0,Number(vehicle.zoneRadiusMiles)||0),
+      pickupZoneCity:clean(vehicle.pickupZoneCity),
+      pickupZoneState:clean(vehicle.pickupZoneState).toUpperCase(),
+      pickupZoneZip,
+      pickupZoneAddress:clean(vehicle.pickupZoneAddress),
+      dropoffZoneCity:clean(vehicle.dropoffZoneCity),
+      dropoffZoneState:clean(vehicle.dropoffZoneState).toUpperCase(),
+      dropoffZoneZip,
+      dropoffZoneAddress:clean(vehicle.dropoffZoneAddress),
+      pickupZipCodes:pickupZoneZip?[pickupZoneZip]:[],
+      dropoffZipCodes:dropoffZoneZip?[dropoffZoneZip]:[],
+      zoneMatch:["ANY","PICKUP","DROPOFF","EITHER","BOTH"].includes(clean(vehicle.zoneMatch).toUpperCase())
+        ? clean(vehicle.zoneMatch).toUpperCase()
+        : "PICKUP",
+      pickupTimeFrom:clean(vehicle.shiftStart)||"00:00",
+      pickupTimeTo:clean(vehicle.shiftEnd)||"23:59",
+      dropoffTimeFrom:clean(vehicle.shiftStart)||"00:00",
+      dropoffTimeTo:clean(vehicle.shiftEnd)||"23:59",
+      modes:(Array.isArray(vehicle.services)?vehicle.services:[]).map(service=>{
+        const value=clean(service).toUpperCase();
+        if(["ST","AMBULATORY"].includes(value)) return "Ambulatory";
+        if(["WH","WHEELCHAIR","PARALIFT"].includes(value)) return "Wheelchair";
+        return clean(service);
+      })
+    };
+  };
+
+  // Evaluate each car independently. A trip appears only when at least one
+  // enabled Driver Schedule vehicle passes its own service, zone, category,
+  // working-time, and trip-mile checks.
+  await Promise.all(enabledVehicles.map(async vehicle=>{
+    const perVehicle=zoneSettingsFor(vehicle);
+    const measuredTrips=await enrichZoneDistances(inWindow,perVehicle);
+    for(const trip of measuredTrips){
+      const tripId=clean(trip.externalTripId||trip.portalTripId||trip.tripNumber);
+      const miles=Number(trip.tripMiles??trip.miles??trip.distance);
+      const category=tripPlanner.classifyTrip(trip,thresholds);
+      const categories=vehicle.tripCategories||{};
+      if(!matchesByTrip.has(tripId)) continue;
+      if(categories[category.toLowerCase()]!==true) continue;
+      if(!tripPlanner.vehicleSupportsTrip(vehicle,category,trip.mode||trip.serviceType||trip.levelOfService)) continue;
+      if(Number(vehicle.maxDailyMiles)>0&&miles>Number(vehicle.maxDailyMiles)) continue;
+      if(!longEngine.matches(trip,perVehicle)) continue;
+
+      const pickupTime=clean(trip.pickupTime||trip.tripTime||trip.appointmentTime);
+      const dropoffTime=clean(trip.dropoffTime||trip.dropOffTime);
+      const shiftStart=clean(vehicle.shiftStart)||"00:00";
+      const shiftEnd=clean(vehicle.shiftEnd)||"23:59";
+      if(!inWorkWindow(pickupTime,shiftStart,shiftEnd)) continue;
+      const duration=tripDuration(trip);
+      if(Number(vehicle.maxWorkHours)>0&&duration!==null&&duration>Number(vehicle.maxWorkHours)*60) continue;
+      if(dropoffTime&&!inWorkWindow(dropoffTime,shiftStart,shiftEnd)){
+        const lateTolerance=Math.max(0,Number(settings?.dropoffLateToleranceMinutes)||0);
+        const dropoff=timeMinutes(dropoffTime),endTime=timeMinutes(shiftEnd);
+        if(dropoff===null||endTime===null||dropoff>endTime+lateTolerance) continue;
+      }
+
+      matchesByTrip.get(tripId).push({
+        driverId:clean(vehicle.driverId),
+        driverName:clean(vehicle.driverName),
+        vehicleNumber:clean(vehicle.vehicleNumber),
+        vehicleCategory:clean(vehicle.vehicleCategory||"GENERIC"),
+        services:Array.isArray(vehicle.services)?vehicle.services:[],
+        category
+      });
+    }
+  }));
+
+  const grouped={LONG:[],MEDIUM:[],SHORT:[]};
+  for(const [tripId,eligibleVehicles] of matchesByTrip){
+    if(!eligibleVehicles.length) continue;
+    const trip=tripById.get(tripId);
+    const category=tripPlanner.classifyTrip(trip,thresholds);
+    grouped[category].push({...trip,_matchedVehicles:eligibleVehicles});
+  }
+  for(const category of Object.keys(grouped)){
+    grouped[category].sort((a,b)=>Number(b.tripMiles??b.miles??0)-Number(a.tripMiles??a.miles??0));
+  }
 
   return {
-    longTrips,
-    mediumTrips,
-    shortTrips
+    longTrips:grouped.LONG,
+    mediumTrips:grouped.MEDIUM,
+    shortTrips:grouped.SHORT
   };
 }
 
@@ -656,7 +791,11 @@ async function logEngineMatches(
   const results = [];
 
   for(const trip of trips){
-    const claim=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,options);
+    const assignment=Array.isArray(trip._matchedVehicles)?trip._matchedVehicles[0]:null;
+    const claimSettings={...engineSettings,enabled:true,autoAccept:options.settings?.acceptEnabled!==false};
+    const claim=assignment
+      ? await maybeQueueClaim(id,connection,engineName,trip,claimSettings,{...options,assignment})
+      : {reason:"NO_ELIGIBLE_VEHICLE"};
 
     if(claim.queued){
       results.push({engine:engineName,externalTripId:clean(trip.externalTripId || trip.portalTripId),
@@ -920,11 +1059,14 @@ async function triggerFinalConfirmationReplacement(trip,status){
     const rows=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(tenantId,String(connection._id))||[];
     const selected=await selectedByEngine(rows.map(tripForEngine),settings);
     for(const [engineName,engineTrips] of [["LONG",selected.longTrips],["MEDIUM",selected.mediumTrips],["SHORT",selected.shortTrips]]){
-      if(!settings[`${engineName.toLowerCase()}Engine`]?.enabled||settings[`${engineName.toLowerCase()}Engine`]?.autoAccept!==true) continue;
       for(const candidate of engineTrips){
         const candidateId=clean(candidate.externalTripId||candidate.portalTripId||candidate.tripNumber);
         if(!candidateId||candidateId===clean(trip.brokerTripId)) continue;
-        if(!tripPlanner.vehicleSupportsTrip(vehicle,engineName,candidate.mode||candidate.serviceType)) continue;
+        const vehicleMatch=Array.isArray(candidate._matchedVehicles)
+          ? candidate._matchedVehicles.some(row=>
+              clean(row.driverId)===driverId&&clean(row.vehicleNumber)===vehicleNumber)
+          : false;
+        if(!vehicleMatch||!tripPlanner.vehicleSupportsTrip(vehicle,engineName,candidate.mode||candidate.serviceType)) continue;
         const candidateDate=clean(candidate.tripDate||candidate.appointmentDate||candidate.date).slice(0,10);
         if(candidateDate!==clean(trip.tripDate).slice(0,10)) continue;
         const pickupAt=tripDateTimeMinutes(candidateDate,candidate.pickupTime||candidate.tripTime||candidate.appointmentTime);
@@ -964,7 +1106,8 @@ async function triggerFinalConfirmationReplacement(trip,status){
     const id=String(tenantId), connectionId=String(item.connection._id);
     const row=providerPortalBridgeRoutes.getNormalizedTripsForConnection?.(id,connectionId)?.map(tripForEngine).find(candidate=>clean(candidate.externalTripId||candidate.portalTripId||candidate.tripNumber)===clean(item.candidate.externalTripId||item.candidate.portalTripId||item.candidate.tripNumber));
     if(!row) continue;
-    const claim=await maybeQueueClaim(id,item.connection,item.engineName,row,item.engineSettings,{
+    const claim=await maybeQueueClaim(id,item.connection,item.engineName,row,
+      {...item.engineSettings,enabled:true,autoAccept:settings.acceptEnabled!==false},{
       source:"DISCOVERY",receivedAt:item.summary.observedAt,settings,
       assignment:{driverId,driverName:clean(trip.driverName)||clean(schedule?.name),vehicleNumber}
     });
@@ -1003,7 +1146,14 @@ function saveScanSummary(id,connection,trips,longTrips=[],shortTrips=[],imported
       dropoffAddress:clean(trip.dropoffAddress||trip.dropoff),
       mode:clean(trip.mode||trip.serviceType||trip.levelOfService),
       miles:Number.isFinite(Number(trip.tripMiles??trip.miles))
-        ? Number(trip.tripMiles??trip.miles) : null
+        ? Number(trip.tripMiles??trip.miles) : null,
+      eligibleVehicles:(Array.isArray(trip._matchedVehicles)?trip._matchedVehicles:[]).map(vehicle=>({
+        driverId:clean(vehicle.driverId),
+        driverName:clean(vehicle.driverName),
+        vehicleNumber:clean(vehicle.vehicleNumber),
+        vehicleCategory:clean(vehicle.vehicleCategory),
+        category:clean(vehicle.category)
+      }))
     });
   }
   const matchedTrips=[...matchedById.values()];
@@ -1231,6 +1381,9 @@ router.post("/accept",async(req,res)=>{
     if(settings.enabled===false){
       return res.status(409).json({success:false,message:"Marketplace is disabled in Settings",reason:"MARKETPLACE_DISABLED"});
     }
+    if(settings.acceptEnabled===false){
+      return res.status(409).json({success:false,message:"Accept is disabled in Marketplace Settings",reason:"ACCEPT_DISABLED"});
+    }
     const summary=latestScanSummaries.get(`${id}:${connectionId}`);
     if(!summary || !summary.matchedIds.has(externalTripId)){
       return res.status(409).json({success:false,message:"This trip is no longer in the latest matched scan. Refresh the broker portal and try again.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
@@ -1248,13 +1401,14 @@ router.post("/accept",async(req,res)=>{
     const {longTrips,mediumTrips,shortTrips}=await selectedByEngine(normalized.map(tripForEngine),settings);
     let engineName="";
     let engineSettings=null;
-    if(longTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+    let matchedCandidate=null;
+    if((matchedCandidate=longTrips.find(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId)))){
       engineName="LONG";
       engineSettings=settings.longEngine||{};
-    }else if(mediumTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+    }else if((matchedCandidate=mediumTrips.find(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId)))){
       engineName="MEDIUM";
       engineSettings=settings.mediumEngine||{};
-    }else if(shortTrips.some(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId))){
+    }else if((matchedCandidate=shortTrips.find(row=>[row.externalTripId,row.portalTripId,row.tripNumber].some(value=>clean(value)===externalTripId)))){
       engineName="SHORT";
       engineSettings=settings.shortEngine||{};
     }
@@ -1262,10 +1416,17 @@ router.post("/accept",async(req,res)=>{
       setMatchedTripFailure(id,connectionId,externalTripId,"TRIP_NOT_CURRENTLY_MATCHED");
       return res.status(409).json({success:false,message:"The trip no longer matches the current engine filters.",reason:"TRIP_NOT_CURRENTLY_MATCHED"});
     }
-    const result=await maybeQueueClaim(id,connection,engineName,trip,engineSettings,{
+    const assignment=Array.isArray(matchedCandidate?._matchedVehicles)?matchedCandidate._matchedVehicles[0]:null;
+    if(!assignment){
+      setMatchedTripFailure(id,connectionId,externalTripId,"NO_ELIGIBLE_VEHICLE");
+      return res.status(409).json({success:false,message:"No enabled vehicle currently matches this trip.",reason:"NO_ELIGIBLE_VEHICLE"});
+    }
+    const result=await maybeQueueClaim(id,connection,engineName,trip,
+      {...engineSettings,enabled:true,autoAccept:settings.acceptEnabled!==false},{
       source:"DISCOVERY",
       receivedAt,
-      settings
+      settings,
+      assignment
     });
     if(!result.queued){
       const reason=String(result.reason||"CLAIM_QUEUE_UNAVAILABLE");
